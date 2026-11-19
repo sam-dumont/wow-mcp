@@ -55,7 +55,8 @@ class ArmedStore(LookStore):
 # (wowstats.model3d.RELAY is the server's copy of the list).
 PATHS = ["viewer/viewer.min.js", "meta/character/13.json", "meta/armor/3/9.json", "meta/item/7.json",
          "textures/5.webp", "m2/1.m2", "skin/1-2.skin", "anim/1-0-0.anim", "m2/1.skin", "viewer/x.js",
-         "../api/me", "meta/character/../../x.json", "textures/1.js"]
+         "../api/me", "meta/character/../../x.json", "textures/1.js",
+         "sd/meta/character/13.json", "sd/meta/charactercustomization/13.json", "sd/m2/1.m2", "sd/meta/item/7.json"]
 
 
 @pytest.fixture(scope="module")

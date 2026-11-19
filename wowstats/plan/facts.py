@@ -22,7 +22,8 @@ import statistics
 import time
 from datetime import UTC, datetime
 
-from wowstats import quests
+from wowstats import quests, trainers
+from wowstats.stores import parse_t
 
 LEVELING = re.compile(r"^forever/(alliance|horde)/")
 TRAVEL = re.compile(r"^(fly|boat|tram|zeppelin|portal|to|back to|hearth|take the|ride)\b", re.I)
@@ -130,6 +131,12 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
                   state=analysis.load_state(env, char), now=now, loot=loot, bags=gear.newest_bags(rows),
                   done=quests.completed(rows))
     inp["who"]["char"] = inp["who"].get("char") or char
+    # Polestar's own record of the last class trainer visit (classTrainVisit,
+    # the level it was at), from the shipper's sheet: exact where the
+    # Recorder's trainer windows can't tell a class trainer from a weapon master.
+    visit = class_train_level(rows)
+    if visit is not None:
+        inp["trainer"] = {**inp["trainer"], "last_level": visit, "from": "Polestar's classTrainVisit"}
     inp["calibration"] = plan_store.calibration(env, char, inp["progress"])
     inp["plan_reviews"] = plan_store.reviews(env, char, inp["progress"])[-3:]
     return inp
@@ -730,7 +737,12 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     for o in oq:
         o.update({k: v for k, v in quest_facts(knowledge, o["quest_id"]).items() if k != "xp"},
                  xp_full=quest_facts(knowledge, o["quest_id"])["xp"])
-    trainer = db.execute("SELECT t, level FROM records WHERE kind='trainer' ORDER BY t DESC LIMIT 1").fetchone()
+    # The last class trainer: the Recorder logs every trainer window, so the
+    # profession and riding trainers the data knows are left out (weapon
+    # masters it can't tell); Polestar's own classTrainVisit wins (gather).
+    others = trainers.not_class_trainers()
+    trainer = next((r[:2] for r in db.execute("SELECT t, level, npc_id FROM records WHERE kind='trainer' "
+                                              "ORDER BY t DESC") if r[2] not in others), None)
     ding_even = one(db, "SELECT MAX(t) FROM records WHERE kind='level' AND level % 2 = 0")
     profs = [dict(zip(("name", "rank", "max_rank"), r, strict=True))
              for r in q(db, "SELECT name, rank, max_rank FROM professions")]
@@ -794,7 +806,8 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         "trips": tr, "dungeons": sorted(dungeons, key=lambda d: (d["min"], d["name"])), "dungeon_runs_kb": runs,
         "upgrades": [{k: u.get(k) for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_share_pct",
                                             "level", "now", "fills_empty", "sources", "ah_copper")} | (
-            {"with_item_id": (u.get("with") or {}).get("item_id")} if u.get("with") else {}) for u in ups],
+            {"with_item_id": (u.get("with") or {}).get("item_id"), "with": _partner(u["with"])} if u.get("with")
+            else {}) for u in ups],
         "gear_spec": ((advice or {}).get("spec") or {}).get("label"),
         "worn_ids": worn_ids,
         # The dungeon panel's (wowstats.plan.dungeonview): every item each
@@ -818,6 +831,19 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         "progress": progress(db),
         "instance_limit": instance_limit(),
     }
+
+
+def class_train_level(rows: list[dict]) -> int | None:
+    """The level of the last class trainer visit Polestar saw, from the newest
+    wow-gear event that carries it."""
+    g = [r for r in rows if r.get("feed") == "wow-gear" and _i(r.get("class_train_level"), None)]
+    return _i(max(g, key=lambda r: parse_t(r.get("_time"))).get("class_train_level"), None) if g else None
+
+
+def _partner(w: dict) -> dict:
+    """The other hand of a weapon setup (wowstats.gear WeaponSetups): what
+    it is and where it comes from, so a plan never says "equip" one half."""
+    return {k: w.get(k) for k in ("kind", "item_id", "name", "slot_name", "level", "sources") if w.get(k) is not None}
 
 
 def instance_limit() -> dict | None:

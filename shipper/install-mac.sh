@@ -111,6 +111,13 @@ else
   launchctl kickstart "$domain/$LABEL"
   say "agent: loaded and started; log in ~/Library/Logs/wow-stats.log"
 fi
+# The agent's own files, next to the script once it is set up: the
+# shipper's auto-update compares them with its server's and runs this
+# installer again when they changed.
+if [ "$HERE" != "$DEST_DIR" ]; then
+  install -m 644 "$HERE/install-mac.sh" "$DEST_DIR/install-mac.sh"
+  install -m 644 "$HERE/wow-stats.plist" "$DEST_DIR/wow-stats.plist"
+fi
 
 # The checklist: exits non-zero only when the install can't work as it is.
 say ""

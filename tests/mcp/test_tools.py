@@ -191,6 +191,10 @@ class GearToolTest(unittest.TestCase):
         self.assertEqual([(u["item"], u["where"]) for u in ups[:2]],
                          [("Adept's Gloves", ["in your bags: equip it"]),
                           ("Seer's Cuffs", ["in your bank: take it out at a banker and equip it"])])
+        # Each weapon setup's best on its own, and where the weights come from.
+        self.assertTrue(out["weapon_setups"])
+        self.assertTrue({x["setup"] for x in out["weapon_setups"]} <= {"two-hander", "main hand + off hand"})
+        self.assertTrue(out["weights_from"]["label"])
         holy = tools.call(self.ctx, "gear", {"char": fakes.CHAR, "spec": "holy", "limit": 3})
         self.assertEqual(holy["spec"], "Holy (healer)")
         self.assertIn("you picked it on this page", holy["spec_from"])

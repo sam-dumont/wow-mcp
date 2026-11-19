@@ -238,20 +238,41 @@ def test_a_listed_friend_gets_in_without_any_org(server, vl):
     assert code == 200 and b"Testfriend" in body and not leaks(body)
 
 
-def test_a_friend_named_like_the_owner_is_a_friend(server):
+def test_a_friend_named_like_the_owner_is_a_friend(server, capsys, monkeypatch):
     # Same display name, listed with the owner's slug: still another person
-    # (identity is the sub), in without a slug, and both of his names refused.
+    # (identity is the sub), in without a slug. Friends never pick a name
+    # (the owner sets it in the list, 2026-11-19): no route to choose one,
+    # the start page says whose fix it is, and the clash is logged once.
     Path(server.t.friends_file).write_text(json.dumps({FRIEND: "mira", "Sam": "sam"}))
     h = as_user("Sam")
-    code, _, body = server.get("/api/me", headers=h)
-    me = json.loads(body)
-    assert code == 200 and me["owner"] is False and me["slug"] == ""
-    for slug in ("sam", "wow"):
-        code, _, body = server.get("/api/me/slug", headers={**h, "Content-Type": "application/json"},
-                                   method="POST", data=json.dumps({"slug": slug}).encode())
-        assert code == 400 and b"taken" in body, body
+    for _ in range(3):
+        code, _, body = server.get("/api/me", headers=h)
+        me = json.loads(body)
+        assert code == 200 and me["owner"] is False and me["slug"] == ""
+    tenancy.reconcile(server.t)
+    clashes = [json.loads(x) for x in capsys.readouterr().out.splitlines() if '"name_conflict"' in x]
+    assert len(clashes) == 1 and clashes[0]["slug"] == "sam" and "taken" in clashes[0]["why"], clashes
+    for slug in ("sam", "wow", "pip"):
+        code, _, _ = server.get("/api/me/slug", headers={**h, "Content-Type": "application/json"},
+                                method="POST", data=json.dumps({"slug": slug}).encode())
+        assert code == 404
+    assert server.t.registry.get("Sam").slug == ""
+    code, _, body = server.get("/api/me/install-code", headers={**h, "Content-Type": "application/json"},
+                               method="POST", data=b"{}")
+    assert code == 400 and b"needs a fix from the person who runs this site" in body, body
     code, _, body = server.get("/api/chars", headers=h)
     assert not leaks(body)
+    # `wow-stats users list` shows the owner which name to fix.
+    for k, v in server.t.env.items():
+        monkeypatch.setenv(k, v)
+    assert tenancy.cli(["list"]) == 0
+    rows = [json.loads(x) for x in capsys.readouterr().out.splitlines() if x.startswith("{")]
+    assert [r["name_conflict"] for r in rows if r["slug"] is None] == ["sam"]
+    # The owner fixes the list: the next pass gives the name, nothing logged twice.
+    Path(server.t.friends_file).write_text(json.dumps({FRIEND: "mira", "Sam": "samfriend"}))
+    assert tenancy.reconcile(server.t)["provisioned"] == ["samfriend"]
+    assert json.loads(server.get("/api/me", headers=h)[2])["slug"] == "samfriend"
+    assert '"name_conflict"' not in capsys.readouterr().out
 
 
 def test_unlisted_or_no_login_is_refused(server):
@@ -263,7 +284,7 @@ def test_unlisted_or_no_login_is_refused(server):
     # /privacy/ assets, the only ones they can load), what to do, a way out.
     code, headers, body = server.get("/", headers=as_user("someone"))
     assert code == 403 and headers["Content-Type"].startswith("text/html")
-    assert b"This account doesn&#x27;t have access yet. Ask Sam to add you." in body
+    assert b"This account doesn&#x27;t have access yet. Ask the person who runs this site to add you." in body
     assert b'href="/oauth2/logout"' in body and b'href="/privacy/account.css"' in body
     assert b"organisation" not in body and b"<script" not in body and not leaks(body)
     assert server.get("/privacy/account.css", headers=as_user("someone"))[0] == 200
@@ -548,7 +569,9 @@ def test_account_pages_render():
         assert b'class="hero" data-in="' + state + b'"' in live
     assert b"/install/update | bash" in live and b'href="/start/print"' in live
     p = account.start_page(printable=True)
-    assert b"data-widget" not in p and b"Polestar Recorder" in p and b"Pick your name" in p
+    assert b"data-widget" not in p and b"Polestar Recorder" in p
+    # The owner sets each friend's name in the friends list: no step asks for one.
+    assert b"Pick your name" not in p and b"address is already set" in p
 
 
 def test_resolve_tenant_for_the_mcp_port(env):
@@ -570,7 +593,7 @@ def test_install_steps_are_complete_and_actionable():
     """docs/videos/steps.json feeds /start and /help/: stable ids, and every
     step says how to check it and what to do when it didn't work."""
     s = account.steps()
-    assert [st["id"] for st in s["steps"]] == ["login", "name", "addons", "install", "play", "see", "ai"]
+    assert [st["id"] for st in s["steps"]] == ["login", "addons", "install", "play", "see", "ai"]
     for st in s["steps"]:
         assert st["check"] and st["if_not"] and st["audience"] in ("start", "both"), st["id"]
     assert {t["id"] for t in s["troubleshooting"]} >= {"no-data", "no-folder", "antivirus", "client-not-registered"}
@@ -582,7 +605,10 @@ def test_install_steps_are_complete_and_actionable():
         assert set(k["addons"]) <= ids and k["signals"] and k["what"] and k["fix"] and k["sections"], k
     for a in s["addons"]:
         assert a["url"] is None or a["url"].startswith("https://"), a
-    assert "{code}" in s["steps"][3]["os"]["mac"]["command"] and "{code}" in s["steps"][3]["os"]["windows"]["command"]
+    inst = next(st for st in s["steps"] if st["id"] == "install")
+    assert "{code}" in inst["os"]["mac"]["command"] and "{code}" in inst["os"]["windows"]["command"]
+    # Friends don't choose their page's name: the owner's friends list gives it.
+    assert not re.search(r"(?i)\bpick (your|a) (name|handle)", json.dumps(s)), "a step asks the friend for a name"
 
 
 def test_update_keeps_the_password_and_reset_revokes_it(server):
@@ -775,6 +801,55 @@ def test_the_owner_is_never_in_play(listed, vl):
     assert ("0", "filter=%2A") not in vl.deleted
 
 
+def test_a_changed_list_applies_without_a_restart(listed, vl, capsys):
+    """The watch reconciles as soon as the content changes, not at the next
+    full pass, and the prebuilt answers list the new friend at once: no
+    restart of the full view (2026-11-19: the host rolled the pod for a new
+    friend, and the site was down for a minute)."""
+    t, woken = listed.t, []
+    watch = tenancy.FriendsWatch(t, every=120, on_change=lambda: woken.append(1))
+    assert sorted(watch.step(now=0)["provisioned"]) == ["mira", "pip"] and woken == [1]
+    assert watch.step(now=5) is None  # same content, inside the full pass: nothing read twice
+    listed.file.write_text(json.dumps({FRIEND: "mira", "friend-3": "pip", "friend-4": "nox"}))
+    out = watch.step(now=6)
+    assert out["provisioned"] == ["nox"] and woken == [1, 1]
+    nox = t.registry.get("friend-4")
+    assert nox.slug == "nox" and nox.active
+    assert listed.get("/api/me", headers=as_user("friend-4"))[0] == 200
+    assert t.app_for(nox) in ui.prebuilt_apps(listed.app, t)
+    assert '"action": "list_changed"' in capsys.readouterr().out
+    # Someone leaves: offboarded at the next look, and gone from the builder.
+    listed.file.write_text(json.dumps({FRIEND: "mira", "friend-3": "pip"}))
+    assert watch.step(now=7)["removed"] == ["nox"] and woken == [1, 1, 1]
+    assert t.registry.get("friend-4") is None
+    assert len(ui.prebuilt_apps(listed.app, t)) == 3  # the owner, mira, pip
+    # A full pass comes anyway (a failed offboard's retry), changing nothing.
+    assert watch.step(now=200) == {"skipped": False, "provisioned": [], "removed": [], "errors": []}
+    assert woken == [1, 1, 1]
+
+
+@pytest.mark.parametrize("content", [None, "", "{not json", '{"x": "Bad Slug"}'])
+def test_a_broken_list_keeps_the_last_good_one(listed, vl, capsys, content):
+    """A render that fails mid-way must never read as "everyone left": the
+    friends stay, one log line says why, and the next good list applies."""
+    t = listed.t
+    watch = tenancy.FriendsWatch(t, every=120)
+    watch.step(now=0)
+    before = sorted(u.sub for u in t.registry.users())
+    capsys.readouterr()
+    if content is None:
+        listed.file.unlink()
+    else:
+        listed.file.write_text(content)
+    assert watch.step(now=1) == {"skipped": True}
+    assert watch.step(now=2) is None and watch.step(now=300) == {"skipped": True}
+    assert capsys.readouterr().out.count('"action": "list_unusable"') == 1
+    assert sorted(u.sub for u in t.registry.users()) == before and vl.deleted == []
+    assert listed.get("/api/me", headers=as_user(FRIEND))[0] == 200
+    listed.file.write_text(json.dumps({FRIEND: "mira"}))
+    assert watch.step(now=301)["removed"] == ["pip"]
+
+
 def test_the_publisher_clears_every_static_pod(tmp_path):
     from wowstats import static
 
@@ -944,10 +1019,49 @@ def test_the_privacy_page_says_what_this_install_does():
     bare = account.privacy_page(False, {}).decode()
     assert "Plausible" not in bare and "30\ndays later" not in bare and "expire 30" not in bare
     assert "ask the owner" in bare.lower()
-    lab = account.privacy_page(False, {"PLAUSIBLE_DOMAIN": "wow.m.example", "PRIVACY_BACKUP_DAYS": "30"}).decode()
+    lab = account.privacy_page(False, {"PLAUSIBLE_DOMAIN": "wow.m.example", "PRIVACY_BACKUP_DAYS": "30",
+                                       "PRIVACY_LOG_DAYS": "30"}).decode()
     assert "The owner sees visit counts per site (Plausible, no cookies)." in lab
     assert "Backups of your events expire 30 days later." in lab
     assert "ask the owner how long" not in lab.lower()
+
+
+def test_the_privacy_page_says_how_long_logs_keep_a_request():
+    """Audit 2026-11-19: the page said the logs kept only the time, the page
+    and the login id, and the offboarding promise left the logs out. The
+    page now lists the access log's fields and how long they stay, from
+    PRIVACY_LOG_DAYS; unset, it says to ask the owner."""
+    from wowstats import account
+
+    bare = account.privacy_page(False, {}).decode()
+    assert "Ask the owner how long they keep these lines." in bare
+    assert "Log lines about you stay until the logs expire: ask the owner how long." in bare
+    assert "days after each visit" not in bare
+    kept = account.privacy_page(False, {"PRIVACY_LOG_DAYS": "14", "PRIVACY_BACKUP_DAYS": "30"}).decode()
+    assert "These lines are kept 14 days." in kept
+    assert "Log lines about you expire 14 days after each visit." in kept
+    assert "Backups of your events expire 30 days later." in kept
+    assert "ask the owner how long" not in kept.lower()
+    assert "@LOGS" not in kept and "@BACKUPS@" not in kept and "@VISITS@" not in kept
+    junk = account.privacy_page(False, {"PRIVACY_LOG_DAYS": "a month"}).decode()
+    assert "Ask the owner how long they keep these lines." in junk
+
+
+def test_the_privacy_page_lists_what_the_owner_can_see():
+    """The audit's list: game data with other players' names, the free text
+    people and their AI store, the web server's log fields, the login
+    service, and what the MCP server receives (never the conversation)."""
+    from wowstats import account
+
+    page = account.privacy_page(False, {}).decode()
+    for section in ("What is stored", "What the owner can see", "Your AI assistant", "How long"):
+        assert f"<h2>{section}</h2>" in page
+    assert "combat logs" in page
+    assert "goals you gave the play analysis" in page and "findings" in page and "300 characters" in page
+    assert "your IP address, your browser" in page and "without the part after <code>?</code>" in page
+    assert "login service" in page and "your email address" in page.lower()
+    assert "never gets your" in page and "conversation" in page
+    assert "Nobody deletes backups or logs by hand" in page
 
 
 def test_the_owners_first_key_is_checked_like_the_publishers(tmp_path):

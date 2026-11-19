@@ -246,3 +246,21 @@ def share_open(url: str, env: dict | None = None, timeout: float = 15):
             raise OSError(f"{urllib.parse.urlsplit(url).netloc} refused the request (401): set "
                           "ANALYSIS_SHARE_TOKEN_FILE to the full view's share token file") from None
         raise
+
+
+def share_post(url: str, body: bytes, env: dict | None = None, timeout: float = 15) -> None:
+    """POST JSON to a share-port URL with the token (share_open's twin)."""
+    env = os.environ if env is None else env
+    headers = {"Content-Type": "application/json"}
+    p = (env.get("ANALYSIS_SHARE_TOKEN_FILE") or "").strip()
+    if p:
+        try:
+            headers["Authorization"] = "Bearer " + _read_secret(p, "ANALYSIS_SHARE_TOKEN_FILE")
+        except GuardError as e:
+            raise OSError(str(e.code)) from None
+    req = urllib.request.Request(url, data=body, method="POST", headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 - an address from our own env
+            r.read(1024)
+    except urllib.error.HTTPError as e:
+        raise OSError(f"{urllib.parse.urlsplit(url).netloc} answered {e.code}") from None

@@ -22,7 +22,7 @@ The live full view, and the old live public view.
 | `BASIC_AUTH_PASSWORD_FILE` | ui | path | empty | `/run/secrets/basic_password` | A file holding the `AUTH=basic` password. Wins over `BASIC_AUTH_PASSWORD`. |
 | `BASIC_AUTH_USER` | ui | text | empty | `me` | The user name for `AUTH=basic`. |
 | `BIND` | ui, static, render | address | `0.0.0.0` in the image, `127.0.0.1` outside it | `127.0.0.1` | The address the server listens on. |
-| `CACHE_TTL` | ui, publish | seconds | `45` | `45` | How long an answer stays in memory. |
+| `CACHE_TTL` | ui, publish | seconds | `45` | `45` | How long an answer worked out when asked stays in memory. A plain open of the page gets the answers built in the background once per new data instead. |
 | `DEFAULT_CHAR` | ui, publish | `Name-Surname` | empty: the character seen last | `Testchar-Demo` | The character the page and the MCP tools open on. |
 | `FULL_DOOR_PATH` | ui | path | `/full/` | empty | The login door of the full view on a shared host: it answers with a redirect to `/`. Empty turns it off, for a full view on its own host. |
 | `PORT` | ui, static, render | port | `8080` (`8083` for `render`) | `8080` | The port the server listens on. |
@@ -72,6 +72,7 @@ What the servers download, and the bundled reference data.
 | `MODEL3D` | ui, publish, compose | `on` or `off` | `on` | `off` | The "View in 3D" toggle and its downloads from Wowhead's model host. `off` removes it. |
 | `MODEL3D_CACHE_DIR` | ui, publish | path | a folder under the temp dir | `/data/model3d-cache` | Where downloaded game tables, icons and model files are kept. Put it on a volume so a restart doesn't download them again. |
 | `MODEL3D_CACHE_MB` | ui, publish | MiB | `512` | `256` | The most disk the model files may take. |
+| `MODEL3D_MODELS` | ui, publish | `hd` or `sd` | `hd` | `sd` | The models the 3D view opens on: `hd` the updated ones, `sd` the original (Classic) ones. A visitor's own pick in the view wins. With several people, each one's Settings choice replaces it. |
 | `MODEL3D_VIEWER_SHA256` | ui, publish, render | sha256 (hex) | the build reviewed on 2026-11-19 | `ce4ceffb…cdd241` | The only build of Wowhead's 3D viewer script the server passes on. When Wowhead ships another, the log says "Wowhead's viewer changed", the last good copy keeps working, and a fresh cache shows no 3D until someone reads the new script and sets its hash here. |
 | `ROUTE_REFERENCE_FILE` | ui, publish | path or `off` | the bundled Polestar route times | `off` | Another route times file, or `off` to compare levels with your own past levels only. |
 | `WOW_ITEMS` | ui, publish, compose | `on` or `off` | `on` | `off` | Item names, icons and tooltip cards from Forever's tables on wago.tools. `off` with `MODEL3D=off` is the small preset: no downloads at all. |
@@ -157,17 +158,19 @@ Off until `WOW_STATE_DIR` is set. [Add friends](../self-host/friends.md).
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
 | `DOH_URL` | ui | URL | empty | `https://cloudflare-dns.com/dns-query` | A DNS-over-HTTPS resolver, to tell whether a friend's host resolves yet. |
-| `FRIENDS_RECONCILE_S` | ui | seconds | `120` | `120` | How often the friends list is read again. |
+| `FRIENDS_RECONCILE_S` | ui | seconds | `120` | `120` | How often the friends list gets a full pass anyway (a change to the file applies sooner, within about 10 seconds); it retries what failed. |
 | `FRIENDS_VL_DELETE_KEY_FILE` | ui, users | path | empty | `/run/secrets/vl_delete_key` | That VictoriaLogs' `-deleteAuthKey`, so a friend's events can be deleted. |
 | `FRIENDS_VL_URL` | ui, publish, users | URL | empty: no friends | `http://vl-friends:9428` | The friends' VictoriaLogs, one tenant each. |
 | `PRIVACY_BACKUP_DAYS` | ui | days | empty: the privacy page says to ask the owner | `30` | How long your backups keep events, as the privacy page tells your friends. |
+| `PRIVACY_LOG_DAYS` | ui | days | empty: the privacy page says to ask the owner | `30` | How long the server's logs keep a request (the web server's access log and the app's own log), as the privacy page tells your friends. |
 | `PROFILE_CHARACTERS_URL` | exporter | URL | empty | `http://ui:8091/profile-characters` | Adds every person's characters to `PROFILE_CHARACTERS`. |
 | `PROXY_USER_HEADER` | ui | header name | `X-Forwarded-User` | `X-Forwarded-User` | The header your login proxy puts the account id in. The proxy must strip any copy the client sent. |
 | `PUBLIC_URL` | ui | URL | empty | `https://wow-full.example.org` | The full view's address, for install commands and the MCP. |
+| `PUBLISH_REPORT_URL` | publish | URL | `USERS_URL`'s folder, `/publisher.json` | `http://ui:8091/publisher.json` | Where the publisher reports each pass, for the owner's overview (`/admin`). |
 | `SITE_ALIASES` | static | comma list of `host=slug` | empty | `wow.example.org=alex` | Extra hosts and whose site each one serves. |
 | `SITE_DOMAIN` | ui, static | domain | empty | `example.org` | Friends' sites live at `<slug>-wow.<domain>`. |
 | `USERS_URL` | publish | URL | empty: one site | `http://ui:8091/users.json` | The full view's share port: build one site per person. |
-| `WOW_FRIENDS_FILE` | ui, users | path to JSON `{"<sub>": "<slug>"}` | empty: the owner only | `/run/wow/friends.json` | Who gets in besides the owner. A person who leaves the list is offboarded at the next pass. |
+| `WOW_FRIENDS_FILE` | ui, users | path to JSON `{"<sub>": "<slug>"}` | empty: the owner only | `/run/wow/friends.json` | Who gets in besides the owner. Watched while the server runs: a change applies within about 10 seconds, without a restart (mount its folder, not the file alone). A person who leaves the list is offboarded at once. |
 | `WOW_OWNER_ALIASES` | ui, users | comma list of hosts | empty | `wow.example.org` | Hosts that belong to the owner too. |
 | `WOW_OWNER_SLUG` | ui, users | 2 to 20 of a-z, 0-9 | `sam`: set your own | `alex` | The owner's site name. Refusal pages name the owner by it. |
 | `WOW_OWNER_SUB` | ui, users | text | empty | `3f2c9a10-...` | The owner's account id at the identity provider. |
@@ -247,6 +250,7 @@ Point an upstream at a local server. Leave them alone in production.
 | `BNET_OAUTH_URL` | exporter | URL | `https://oauth.battle.net/token` | `http://127.0.0.1:9002/token` | Blizzard's token endpoint. Tests point it at a local server. |
 | `ICON_URL` | ui, publish | URL | `https://wow.zamimg.com/images/wow/icons/` | `http://127.0.0.1:9000/icons/` | Where item icons are fetched. Tests point it at a local server. |
 | `MODEL3D_PRODUCT` | ui, publish | text | `wowf` | `wowf` | The game build family read on wago.tools. |
+| `MODEL3D_REFERENCE` | ui, publish | path | the bundled `model3d-reference.json.gz` | `./tests/armor.json` | Another armor reference ([Model reference](../model3d-reference.md)). Tests point it at a made-up one. |
 | `MODEL3D_WAGO_URL` | ui, publish | URL | `https://wago.tools` | `http://127.0.0.1:9001` | Forever's game tables. Tests point it at a local server. |
 | `MODEL3D_ZAM_URL` | ui, publish, render | URL | `https://wow.zamimg.com/modelviewer/` | `http://127.0.0.1:9000/` | Wowhead's model host. Tests point it at a local server. |
 | `STATIC_DIR` | ui | path | the packaged `web/` | `./web` | Serve the page's files from another folder. For working on the page. |

@@ -1,6 +1,6 @@
 [project]
 name = "wow-stats"
-version = "0.5.0"
+version = "0.6.0"
 description = "A WoW Forever leveling log: the shipper's events in a web page, with a public view for friends"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]
@@ -79,6 +79,9 @@ packages = ["wowstats"]
 # The class trainers, what they teach per level and Forever's talent names (Polestar GPL-3.0, client tables:
 # tools/class_reference/export.py), read by wowstats/classguide.py.
 "data/class-reference.json" = "wowstats/data/class-reference.json"
+# How Forever dresses each armor display, for the 3D view's armor Wowhead lacks (client tables as facts, via
+# wago.tools: docs/model3d-reference.md), read by wowstats/model3d.py.
+"data/model3d-reference.json.gz" = "wowstats/data/model3d-reference.json.gz"
 # Several people (wowstats.account): the welcome manual (also the videos' captions) and the shipper the
 # one-line installer carries.
 "docs/videos/steps.json" = "wowstats/data/start-steps.json"

@@ -34,9 +34,11 @@ from wowstats import account, tenancy, ui  # noqa: E402
 
 WORDS = 150
 FRIENDS = {"friend-sub-2": "mira", "friend-3": "pip", "friend-4": "kit", "friend-5": "lou", "friend-6": "zed",
-           "friend-7": "ivy", "friend-8": "ada", "friend-9": "bo"}
-# Not in STATES (the word counts): ada's data starts arriving mid-test, bo hides the tab.
-MOVING, HIDING = "friend-8", "friend-9"
+           "friend-7": "ivy", "friend-8": "ada", "friend-9": "bo", "friend-10": "eve", "friend-11": "sam"}
+# Not in STATES (the word counts): ada's data starts arriving mid-test, bo hides the tab,
+# eve has a main with everything and a fresh alt.
+# clash is listed with the owner's own name: no address, the owner's fix.
+MOVING, HIDING, ALTS, CLASH = "friend-8", "friend-9", "friend-10", "friend-11"
 CTX: dict = {}
 STATES = {"new": "friend-3", "ok": "friend-sub-2", "none": "friend-4", "wait": "friend-5", "quiet": "friend-6",
           "partial": "friend-7"}
@@ -77,7 +79,23 @@ def preflight_rules(char: str, recorder_on: bool = True) -> list:
                 {"char": char, "feed": "wow-character", "kind": "played", "n": "4"}]
     return [("stats by (char, feed, source, kind)", arrived),
             ("fields _time, addons, recorder_on", [{"_time": iso(timedelta(hours=1)), "addons": json.dumps(SETUP),
-                                                    "recorder_on": json.dumps(recorder_on), "saved_chars": "1"}])]
+                                                    "recorder_on": json.dumps(recorder_on), "saved_chars": "1",
+                                                    "shipper": "0.5.1"}])]
+
+
+MAIN, ALT = "Testfriend-Otherhall", "Freshalt-Otherhall"
+
+
+def alt_rules() -> list:
+    """The owner's case (2026-11-19): a main with every feed, and a level 1
+    alt played a minute (the Recorder's data, bags, no level split, no quest).
+    Questie is installed but unticked on both; Syndicator unticked on the alt."""
+    main = [{"char": MAIN, "feed": f, "n": "5"} for f in ("wow-level", "wow-dungeon", "wow-recorder", "wow-bags")]
+    main += [{"char": MAIN, "feed": "wow-quests", "source": "altoholic", "n": "120"}, {"feed": "wow-prices", "n": "9"}]
+    alt = [{"char": ALT, "feed": f, "n": "2"} for f in ("wow-recorder", "wow-gear", "wow-character")]
+    rep = {"addons": json.dumps({**SETUP, "auctionator": "349"}), "recorder_on": "true", "saved_chars": "2",
+           "off": json.dumps({MAIN: ["questie"], ALT: ["questie", "syndicator"]}), "_time": iso(timedelta(hours=1))}
+    return [("stats by (char, feed, source, kind)", main + alt), ("fields _time, addons, recorder_on", [rep])]
 
 
 @pytest.fixture(scope="module")
@@ -102,7 +120,8 @@ def site():
     vl.rules[str(ids[STATES["quiet"]])] = status_rules(timedelta(days=5))
     vl.rules[str(ids[STATES["partial"]])] = (preflight_rules("Testfriend-Otherhall", recorder_on=False)
                                              + status_rules(timedelta(minutes=20), recorder=False))
-    for sub, ago in ((STATES["ok"], timedelta(days=9)), (STATES["none"], timedelta(days=1)),
+    vl.rules[str(ids[ALTS])] = alt_rules() + status_rules(timedelta(hours=1))
+    for sub, ago in ((STATES["ok"], timedelta(days=9)), (STATES["none"], timedelta(days=1)), (ALTS, timedelta(days=9)),
                      (STATES["wait"], timedelta(minutes=2)), (STATES["quiet"], timedelta(days=9)),
                      (STATES["partial"], timedelta(days=9)), (MOVING, timedelta(days=1))):
         t.registry.update(sub, ingest_sha256="x" * 64,
@@ -220,6 +239,36 @@ def test_new_friend_gets_the_command_first(site, pw, engine):
 
 
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_a_name_clash_is_the_owners_fix_not_the_friends(site, pw, engine):
+    # Friends never pick their page name (the owner sets it, 2026-11-19): a
+    # listed name that is taken leaves nothing to type, only whose fix it is.
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"no {engine}: {e}")
+    c = b.new_context(viewport={"width": 390, "height": 844}, extra_http_headers={"X-Forwarded-User": CLASH})
+    pg = c.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(f"{site}/start")
+    pg.wait_for_selector("body[data-state=name]")
+    hero = pg.locator(".hero[data-in=name]")
+    # Whose fix, without a name: the owner's slug ("sam") is no display name.
+    assert hero.locator("h1").inner_text() == "Your page needs a fix"
+    assert "the person who runs this site has to change it" in " ".join(hero.inner_text().split())
+    assert "Nothing to do on your side" in hero.inner_text() and "Sam" not in hero.inner_text()
+    assert pg.locator("input:visible, .hero-cmd:visible").count() == 0
+    assert pg.evaluate(SEEN_WORDS) <= WORDS and pg.evaluate(OVER) <= 0
+    shoot(pg, f"name-clash-{engine}")
+    pg.goto(f"{site}/settings")
+    pg.wait_for_selector(".widget[data-widget=settings] p:has-text('needs a fix from the person who runs this site')")
+    assert pg.locator("input:visible").count() == 0
+    c.close()
+    assert not errors, errors
+    b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
 def test_working_and_broken_say_so_in_one_line(site, pw, engine):
     try:
         b = getattr(pw, engine).launch()
@@ -231,6 +280,7 @@ def test_working_and_broken_say_so_in_one_line(site, pw, engine):
     assert re.search(r"Last data 2 hours ago, for Testfriend", hero.inner_text())
     assert hero.locator("a.btn[href='/']").is_visible()
     assert not hero.locator(".warn").is_visible()
+    assert not hero.locator(".once").is_visible()  # its shipper updates itself
     assert re.search(r"Your addons: \d+ sending", pg.locator("#f-addons summary").inner_text())
     open_folds(pg)
     # Every older function, one fold away.
@@ -292,6 +342,11 @@ def test_working_and_broken_say_so_in_one_line(site, pw, engine):
     c, pg, errors4 = open_start(b, site, "quiet", 390)
     h1 = pg.locator(".hero[data-in=ok] h1")
     assert h1.inner_text().strip().lower() == "last data 5 days ago" and "quiet" in h1.get_attribute("class")
+    # No setup report with a version: a shipper from before the auto-update.
+    once = pg.locator(".hero[data-in=ok] .once")
+    assert once.is_visible() and "update command once" in once.inner_text()
+    once.locator("[data-open=f-update]").click()
+    assert pg.locator("#f-update").evaluate("(d) => d.open") and "install/update" in pg.locator("#f-update").inner_text()
     c.close()
 
     c, pg, errors5 = open_start(b, site, "partial", 390)
@@ -356,4 +411,33 @@ def test_a_hidden_tab_asks_nothing(site, pw, engine):
     assert any("/api/me/status" in u for u in asked), asked
     c.close()
     assert not errors, errors
+    b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_the_addon_gaps_name_the_character_and_never_blame_an_installed_addon(site, pw, engine):
+    """The owner saw "Missing: level times ... Tick Polestar" and "Add
+    Questie or Altoholic" with both installed and his main complete: the
+    lines were his level 1 alt's, unnamed, and guessed from the gap alone."""
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"no {engine}: {e}")
+    for width, scheme in ((390, "dark"), (1280, "dark"), (390, "light")):
+        c, pg, errors = open_start(b, site, "ok", width, scheme, sub=ALTS)
+        open_folds(pg)
+        gaps = pg.locator("#f-addons ul.gaps li")
+        assert sorted(gaps.all_inner_texts()) == [
+            f"Missing for {ALT}: level times, dungeon runs and gear advice. Play to your next level, then log out.",
+            f"Missing for {ALT}: quests you did before installing. Finish a quest with this character, "
+            "then log out or type /reload once.",
+            f"Missing for {ALT}: your gear and bags. Syndicator is installed but not ticked for this character: "
+            "tick it in AddOns at character select, then log in.",
+        ]
+        assert MAIN not in pg.locator("#f-addons ul.gaps").inner_text()
+        assert pg.evaluate(OVER) <= 0
+        if engine == "chromium":
+            shoot(pg.locator("#f-addons"), f"missing-addons-{width}-{scheme}")
+        c.close()
+        assert not errors, errors
     b.close()

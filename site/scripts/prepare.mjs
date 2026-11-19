@@ -29,63 +29,96 @@ const REPO = path.resolve(SITE, "..");
 const OUT = path.join(SITE, "src/content/docs");
 const PUB = path.join(SITE, "public");
 
-// The site map, in reading order: each page's address and sidebar place.
-// `slug` defaults to the file's name; `label` to the page's H1.
+// The site map, by reader and in reading order: each section opens with its
+// tutorial, then the how-tos, then what to look up. `slug` defaults to the
+// file's name, `label` to the page's H1; `group` nests a sub-list in the
+// sidebar; `hidden` keeps a page off it (the home page, the 404); `meta`
+// adds Starlight frontmatter (the home page's hero).
 const SECTIONS = [
   { dir: "", label: "Start here", pages: [
-    { src: "README.md", route: "index", label: "What it is" },
-    { src: "docs/README.md", slug: "manual", label: "The manual" },
-    // /demo/ itself is the demo (scripts/build-demo.sh): its page sits beside it.
-    { src: "site/pages/demo.md", slug: "try", label: "Try the demo" },
-    { src: "docs/self-host/demo.md", slug: "demo-at-home", label: "The demo on your computer" },
-    { src: "docs/install.md", slug: "install", label: "Install" },
+    { src: "site/pages/index.md", route: "index", label: "Home", hidden: true, meta: {
+      template: "splash",
+      description: "wow-stats turns the files WoW Forever and your addons already write into a levelling log: your pace, your next upgrade and where it drops, the dungeon worth running, and an AI assistant that reads it all.",
+      hero: {
+        tagline: "A levelling log for WoW Forever: your pace against the route, your next upgrade and where it drops, the dungeon worth running. Made from the files your game and addons already write.",
+        actions: [
+          { text: "How it works", link: "@BASE@how-it-works/", variant: "primary", icon: "right-arrow" },
+          { text: "See a live demo", link: "@BASE@demo/", variant: "minimal", icon: "external" },
+        ],
+      },
+    } },
+    { src: "docs/explanation/how-it-works.md", slug: "how-it-works", label: "How it works" },
+    { src: "docs/faq.md", slug: "faq", label: "Questions and answers" },
+    { src: "site/pages/demo.md", slug: "try", label: "The live demo" },
+    { src: "docs/README.md", slug: "manual", label: "Every page" },
+    { src: "site/pages/404.md", route: "404", label: "Not found", hidden: true, meta: { template: "splash", pagefind: false } },
   ] },
   { dir: "play", label: "Play", pages: [
     { src: "docs/players/getting-started.md", label: "Join a friend's server" },
-    { src: "docs/players/your-page.md", label: "Your page, tab by tab" },
+    { src: "docs/players/your-page.md", label: "Your page at a glance" },
+    { src: "docs/players/overview.md", label: "Overview and next moves" },
+    { src: "docs/players/gear.md", label: "Gear and upgrades" },
+    { src: "docs/players/dungeons.md", label: "Dungeons" },
+    { src: "docs/players/plan.md", label: "Plan your next hours" },
+    { src: "docs/players/history.md", label: "Climb, timeline, journal" },
     { src: "docs/players/troubleshooting.md", label: "Something's wrong" },
     { src: "docs/players/privacy.md", slug: "privacy", label: "What's shared" },
   ] },
-  { dir: "use", label: "Use it", pages: [
+  { dir: "ai", label: "Connect your AI", pages: [
     { src: "docs/ai/connect.md", label: "Connect your AI" },
     { src: "docs/ai/asking.md", label: "Ask about your character" },
-    { src: "site/pages/mcp-session.md", slug: "mcp-session", label: "An MCP session, recorded" },
-    { src: "docs/mcp.md", label: "MCP and the play analysis" },
-    { src: "docs/shipper.md", label: "The shipper" },
+    { src: "site/pages/mcp-session.md", slug: "session", label: "A session, recorded" },
+    { src: "docs/reference/mcp-tools.md", slug: "tools", label: "Tools and prompts" },
   ] },
-  { dir: "run", label: "Run it", pages: [
-    { src: "docs/self-host/production.md", label: "Run it on a server" },
-    { src: "docs/self-host/reverse-proxy.md", label: "Reverse proxy" },
-    { src: "docs/self-host/oidc.md", label: "The login for your AI" },
-    { src: "docs/self-host/sharing.md", label: "Share your page" },
-    { src: "docs/self-host/friends.md", label: "Add friends" },
-    { src: "docs/self-host/battlenet.md", label: "Battle.net data" },
-    { src: "docs/self-host/backup.md", label: "Back up and restore" },
-    { src: "docs/self-host/upgrade.md", label: "Upgrade" },
-    { src: "docs/self-host/sizing.md", label: "Sizing" },
-    { src: "docs/self-host/monitoring.md", label: "Monitor it" },
-    { src: "docs/self-host/hardening.md", label: "Harden it" },
-    { src: "docs/security.md", label: "Security notes" },
-    { src: "docs/self-host/uninstall.md", label: "Uninstall" },
-    { src: "docs/deploy.md", label: "Deploying without compose" },
+  { dir: "self-host", label: "Self-host", pages: [
+    { src: "docs/self-host/demo.md", slug: "try-at-home", label: "Try it at home" },
+    { src: "docs/install.md", slug: "install", label: "Install it for real" },
+    { group: "Set it up", pages: [
+      { src: "docs/self-host/production.md", label: "Run it on a server" },
+      { src: "docs/self-host/reverse-proxy.md", label: "Reverse proxy and HTTPS" },
+      { src: "docs/self-host/oidc.md", label: "The login for your AI" },
+      { src: "docs/self-host/sharing.md", label: "Share your page" },
+      { src: "docs/self-host/friends.md", label: "Add friends" },
+      { src: "docs/self-host/admin.md", label: "Admin overview" },
+      { src: "docs/self-host/battlenet.md", label: "Battle.net data" },
+      { src: "docs/deploy.md", label: "Without Docker Compose" },
+    ] },
+    { group: "Keep it running", pages: [
+      { src: "docs/self-host/backup.md", label: "Back up and restore" },
+      { src: "docs/self-host/upgrade.md", label: "Upgrade" },
+      { src: "docs/self-host/monitoring.md", label: "Monitor it" },
+      { src: "docs/self-host/hardening.md", label: "Harden it" },
+      { src: "docs/self-host/uninstall.md", label: "Uninstall" },
+    ] },
+    { group: "Reference", pages: [
+      { src: "docs/reference/environment.md", label: "Environment variables" },
+      { src: "docs/reference/http-endpoints.md", label: "HTTP endpoints" },
+      { src: "docs/self-host/sizing.md", label: "Sizing" },
+      { src: "docs/shipper.md", label: "The shipper" },
+      { src: "docs/contract.md", label: "The shipper's events" },
+    ] },
   ] },
-  { dir: "reference", label: "Reference", pages: [
-    { src: "docs/reference/environment.md", label: "Environment variables" },
-    { src: "docs/reference/mcp-tools.md", label: "MCP tools and prompts" },
-    { src: "docs/reference/addons.md", label: "Addons" },
-    { src: "docs/reference/http-endpoints.md", label: "HTTP endpoints" },
-    { src: "docs/contract.md", label: "The shipper's events" },
+  { dir: "game-data", label: "Game data", pages: [
+    { src: "docs/reference/addons.md", label: "Addons it reads" },
     { src: "docs/gear-reference.md", label: "Gear upgrades" },
     { src: "docs/route-reference.md", label: "Route times" },
     { src: "docs/forever-reference.md", label: "Forever reference" },
-  ] },
-  { dir: "explain", label: "How it works", pages: [
-    { src: "docs/architecture.md", label: "Architecture" },
-    { src: "docs/explanation/privacy.md", slug: "privacy-tiers", label: "Privacy tiers" },
+    { src: "docs/model3d-reference.md", label: "Model reference" },
     { src: "docs/kb.md", label: "The knowledge base" },
   ] },
-  { dir: "contribute", label: "Contribute", pages: [
-    { src: "docs/development.md", label: "Development" },
+  { dir: "explain", label: "Under the hood", pages: [
+    { src: "docs/architecture.md", label: "Architecture" },
+    { src: "docs/mcp.md", label: "MCP and the play analysis" },
+    { src: "docs/explanation/privacy.md", slug: "privacy-tiers", label: "Privacy tiers" },
+    { src: "docs/security.md", label: "Security notes" },
+  ] },
+  { dir: "project", label: "Project", pages: [
+    { src: "CHANGELOG.md", slug: "changelog", label: "Changelog", meta: { description: "What changed in each version of wow-stats, and what to do when you upgrade." } },
+    { src: "SECURITY.md", slug: "security", label: "Security policy", meta: { description: "How to report a security problem in wow-stats privately, which versions get fixes, and how to check what you run." } },
+  ] },
+  { dir: "contribute", label: "Contributing", pages: [
+    { src: "CONTRIBUTING.md", slug: "contributing", label: "How to contribute", meta: { description: "How to propose a change to wow-stats: issues, pull requests, and the checks a change has to pass." } },
+    { src: "docs/development.md", label: "Development and releases" },
   ] },
 ];
 
@@ -153,13 +186,32 @@ function anchors(md) {
   return out;
 }
 
+function lastCommit(src) {
+  return execFileSync("git", ["log", "-1", "--format=%cs", "--", src], { cwd: REPO }).toString().trim();
+}
+
+// "For: players with a page. At the end: you know X." becomes "For players
+// with a page: you know X.", the page's description for search and previews.
+function describe(body) {
+  const paras = mapOutsideFences(body, (t) => t).replace(/<!--[\s\S]*?-->/g, "").split(/\n\s*\n/);
+  const pick = paras.find((p) => /\*\*For:\*\*/.test(p)) ?? paras.find((p) => /^[A-Za-z]/.test(p.trim()));
+  if (!pick) return undefined;
+  const plain = pick.replace(/\.?\s*\*\*At the\s+end:\*\*\s*/, ": ").replace(/\*\*For:\*\*\s*/, "For ")
+    .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[*`_<>]/g, "").replace(/\s+/g, " ").trim();
+  return plain.length > 220 ? `${plain.slice(0, 217).replace(/\s+\S*$/, "")}...` : plain;
+}
+
 function main() {
   const repo = tracked();
   const placed = new Map(); // src -> { route, label }
   const sidebar = [];
-  for (const s of SECTIONS) {
+  const place = (s, list) => {
     const items = [];
-    for (const p of s.pages) {
+    for (const p of list) {
+      if (p.group) {
+        items.push({ label: p.group, items: place(s, p.pages) });
+        continue;
+      }
       if (!fs.existsSync(path.join(REPO, p.src))) {
         fail(`SECTIONS names ${p.src}, which doesn't exist`);
         continue;
@@ -167,11 +219,12 @@ function main() {
       const slug = p.slug ?? path.basename(p.src, ".md").toLowerCase();
       const route = p.route ?? (s.dir ? `${s.dir}/${slug}` : slug);
       if ([...placed.values()].some((x) => x.route === route)) fail(`two pages at /${route}/`);
-      placed.set(p.src, { route, label: p.label });
-      items.push({ label: p.label, link: route === "index" ? "/" : `/${route}/` });
+      placed.set(p.src, { route, label: p.label, meta: p.meta, section: s });
+      if (!p.hidden) items.push({ label: p.label, link: route === "index" ? "/" : `/${route}/` });
     }
-    sidebar.push({ label: s.label, items });
-  }
+    return items;
+  };
+  for (const s of SECTIONS) sidebar.push({ label: s.label, items: place(s, s.pages) });
   for (const f of repo.files) {
     if (MUST_PLACE.some((r) => r.test(f)) && !NEVER.some((r) => r.test(f)) && !placed.has(f)) {
       fail(`${f} isn't on the site: add it to SECTIONS in site/scripts/prepare.mjs`);
@@ -217,41 +270,59 @@ function main() {
     return target;
   };
 
-  const rewrite = (md, resolve) =>
+  // An image of the repository (docs/images/) is served by the site itself,
+  // at /images/<name>: a GitHub blob page is no image.
+  const image = (src, resolve) => (target) => {
+    const dir = path.posix.dirname(src);
+    const rel = path.posix.normalize(path.posix.join(dir === "." ? "" : dir, decodeURI(target)));
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(target) && rel.startsWith("docs/images/") && repo.files.has(rel)) {
+      const name = rel.slice("docs/images/".length);
+      fs.mkdirSync(path.join(PUB, "images"), { recursive: true });
+      fs.copyFileSync(path.join(REPO, rel), path.join(PUB, "images", name));
+      return `${BASE}images/${name}`;
+    }
+    return resolve(target);
+  };
+  const rewrite = (md, src, resolve) =>
     mapOutsideFences(md, (t) => {
+      const img = image(src, resolve);
       const links = replaceOutsideCode(t, /(!?)\[((?:[^[\]]|\[[^\]]*\])*)\]\(<?([^)\s>]+)>?(\s+"[^"]*")?\)/g,
-        (_, img, label, to, title) => `${img}[${label}](${resolve(to)}${title ?? ""})`);
-      return replaceOutsideCode(links, /\b(href|src)="([^"]+)"/g, (_, a, to) => `${a}="${resolve(to)}"`);
+        (_, bang, label, to, title) => `${bang}[${label}](${(bang ? img : resolve)(to)}${title ?? ""})`);
+      return replaceOutsideCode(links, /\b(href|src|srcset)="([^"]+)"/g, (_, a, to) => `${a}="${(a === "href" ? resolve : img)(to)}"`);
     });
 
   fs.rmSync(OUT, { recursive: true, force: true });
+  fs.rmSync(path.join(PUB, "images"), { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
   const llms = [];
-  for (const [src, { route, label }] of placed) {
+  for (const [src, { route, label, meta: extra }] of placed) {
     const { title, body } = splitTitle(text.get(src), label);
-    const md = rewrite(body, resolver(src)).replaceAll("@BASE@", BASE);
+    const md = rewrite(body, src, resolver(src)).replaceAll("@BASE@", BASE);
     const meta = {
       title: route === "index" ? "wow-stats" : title,
       editUrl: src.startsWith("site/") ? false : `${REPO_URL}/edit/main/${src}`,
-      head: [{ tag: "link", attrs: { rel: "alternate", type: "text/markdown", href: `${BASE}${route}.md` } }],
+      head: route === "404" ? [] : [{ tag: "link", attrs: { rel: "alternate", type: "text/markdown", href: `${BASE}${route}.md` } }],
+      ...JSON.parse(JSON.stringify(extra ?? {}).replaceAll("@BASE@", BASE)),
     };
-    if (route === "index") {
-      meta.description = "A levelling log for World of Warcraft: Forever.";
-      meta.hero = {
-        tagline: "Your WoW Forever climb, level by level, from the files your game and addons already write.",
-        actions: [
-          { text: "See a demo character", link: `${BASE}try/`, variant: "primary" },
-          { text: "Install", link: `${BASE}install/`, variant: "minimal" },
-        ],
-      };
-    }
+    // A description per page (search results, link previews): the page's
+    // first paragraph after its "For:" line, as plain text.
+    meta.description ??= describe(body);
     // JSON is YAML: one key per line, no quoting rules to get wrong.
-    const fm = `---\n${Object.entries(meta).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join("\n")}\n---\n\n`;
+    // lastUpdated: the source's last commit (a YAML date, unquoted, so
+    // Starlight reads a date); a file not committed yet has none.
+    const updated = src.startsWith("site/") ? "" : lastCommit(src);
+    const fm = `---\n${Object.entries(meta).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join("\n")}${updated ? `\nlastUpdated: ${updated}` : ""}\n---\n\n`;
     const file = path.join(OUT, `${route}.md`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, fm + md.trimStart());
-    llms.push({ route, title: route === "index" ? "wow-stats" : title, label, md });
+    if (route !== "404") llms.push({ route, title: route === "index" ? "wow-stats" : title, label, md });
   }
+  // The link preview every page names (astro.config.mjs): no page shows it.
+  const social = path.join(REPO, "docs/images/social.png");
+  if (fs.existsSync(social)) {
+    fs.mkdirSync(path.join(PUB, "images"), { recursive: true });
+    fs.copyFileSync(social, path.join(PUB, "images/social.png"));
+  } else fail("docs/images/social.png is missing: the link preview (site/scripts/screenshots.py)");
   fs.writeFileSync(path.join(SITE, "sidebar.json"), JSON.stringify(sidebar, null, 1));
   writeLlms(llms);
 

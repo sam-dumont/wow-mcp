@@ -18,9 +18,11 @@ VictoriaLogs v1.54.0 binary (`victoria-logs-prod` from the release tarball). Run
 machine: VHS drops frames when the CPU is busy, and a render takes all of it.
 
 Nothing leaves the machine but the item tables (wago.tools, for names and icons). The lab binds
-127.0.0.1, its keys are made for the run and deleted with it. launchd is left alone: the installers
-get `WOW_STATS_NO_LOAD=1` and `launchctl` is a no-op on the takes' PATH (the uninstall line would
-otherwise stop this Mac's own shipper). The shipper only ever reads the fake WoW folder: record.sh
+127.0.0.1, its keys are made for the run and deleted with it. launchd is left alone: `launchctl` is a
+no-op shim first on the takes' PATH, and the takes' shell exits if it resolves to anything else
+(the uninstall line would otherwise stop this Mac's own shipper). The installers run as they do for
+a friend, so their checklist shows the background program as a friend sees it. `demo/lab friend`
+installs with `WOW_STATS_NO_LOAD=1` instead. The shipper only ever reads the fake WoW folder: record.sh
 stops if the take's config names any other (without a config it reads the real game folder).
 
 | Video | What it shows | Where |
@@ -29,7 +31,7 @@ stops if the take's config names any other (without a config it reads the real g
 | `tour` | Overview, Character, upgrades, dungeons, a plan, Timeline, Journal | help "Overview" |
 | `private` | the zogzog link, opened as a friend would | help "Your zogzog link" |
 | `settings` | hide a character, public page on, reset the upload password | help "Settings" |
-| `install-mac` | the one line, in Terminal | `/start` step 4, help "Install" |
+| `install-mac` | the one line, in Terminal | `/start` step 3, help "Install" |
 | `status-mac` | the end of the shipper's log | help "Is the shipper running?" |
 | `update-mac` | the update line | help "Updating" |
 | `uninstall-mac` | the uninstall line; the archive stays | help "Uninstalling" |
@@ -42,9 +44,9 @@ The help page shows the Windows commands as text next to the Mac clip.
 | `lab` | the lab by hand: `up`, `friend dark\|light`, `publish`, `down` |
 | `record.sh` | the takes, in a friend's order: wizard + install, the shipper, tour, zogzog, update, settings, uninstall |
 | `stack/up.sh`, `env.sh` | the lab (ports, keys, the app, VictoriaLogs, the login stand-in, the static sites) |
-| `stack/friend.sh` | a friend picks a name and installs in a throwaway HOME |
+| `stack/friend.sh` | a friend installs in a throwaway HOME (their name comes from the friends list, as the owner sets it) |
 | `stack/fake_wow.py` | a WoW Forever folder with a few minutes of play, for the shipper |
-| `stack/seed_friend.py` | six evenings of play (`dev/seed.py`), renamed to invented characters, sent to `/ingest` |
+| `stack/seed_friend.py` | the decoy character's evenings (`tools/fixtures/generate.py --demo`, Nibbet-Gearholt), sent to `/ingest` |
 | `stack/idproxy.py` | the login proxy's stand-in: one port per identity, sets `X-Forwarded-User`/`-Org` |
 | `browser/*.py` | the browser takes (Chromium, 1280x720), each with its marks (the second each beat starts) |
 | `tapes/*.tape` | the terminal takes; `settings.tape.in` is filled per theme |

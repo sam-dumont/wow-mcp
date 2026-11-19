@@ -15,8 +15,11 @@ publish_sites() {
     uv run --frozen --extra publish --extra mcp wow-stats publish --force) >>"$state/publish.log" 2>&1
 }
 
-# The proxy port that logs in as this mode's friend, the friend's name and main.
+# The proxy port that logs in as this mode's friend, the name the friends
+# list gives them (stack/up.sh) and their main: the docs site's decoy
+# character in both themes (tools/fixtures/generate.py --demo).
 friend_of() {
-  if [[ $1 == dark ]]; then port=$PROXY_DARK name=frostbolt char=Brannoc-Emberfall
-  else port=$PROXY_LIGHT name=moonfire char=Ysolde-Emberfall; fi
+  if [[ $1 == dark ]]; then port=$PROXY_DARK name=frostbolt
+  else port=$PROXY_LIGHT name=moonfire; fi
+  char=Nibbet-Gearholt
 }

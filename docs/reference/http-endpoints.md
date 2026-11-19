@@ -25,9 +25,19 @@ Only on a shared install. Same port.
 
 | Path | Route | What |
 |---|---|---|
-| `/start`, `/start/print`, `/start/media/*`, `/settings`, `/account.js`, `/account.css`, `/api/me`, `/api/me/status`, `/api/me/slug`, `/api/me/install-code`, `/api/me/settings`, `/api/me/*`, `/api/admin/hosts` | through your login | the start page, settings, and each person's own answers |
+| `/start`, `/start/print`, `/start/media/*`, `/settings`, `/account.js`, `/account.css`, `/api/me`, `/api/me/status`, `/api/me/install-code`, `/api/me/settings`, `/api/me/*`, `/api/admin/hosts` | through your login | the start page, settings, and each person's own answers |
+| `/admin`, `/admin.css`, `/api/admin/overview` | through your login | the owner's overview ([Admin overview](../self-host/admin.md)); 404 for anyone else |
 | `/help`, `/help/`, `/help/help.js`, `/help/help.css` | through your login | the manual for friends: install steps, the page tour, connecting their AI |
 | `/install/<code>`, `/privacy`, `/privacy/*` | no login | the install command (the single-use code is the credential) and the privacy page: no login |
+
+## The shipper's auto-update: inside `wow-stats ui`, same port
+
+With one person or several. Route it like `/ingest`, **without** your page login: the shipper sends its upload password.
+
+| Path | Route | What |
+|---|---|---|
+| `/install/update/shipper` | no login | `GET`, upload password: the shipper's version and each file's sha256, as JSON |
+| `/install/update/shipper/<name>` | no login | `GET`, upload password: one of the shipper's files (`wow_stats.py`, the installers) |
 
 ## The MCP endpoint: inside `wow-stats ui`, port 8090 (`MCP_PORT`)
 
@@ -57,7 +67,7 @@ Internal listeners. Keep them on a private network.
 | Path | Route | What |
 |---|---|---|
 | `/bundle`, `/bundles` | never | the static server's upload port (`UPLOAD_PORT`) |
-| `/analysis.json`, `/users.json`, `/hosts.json`, `/profile-characters` | never | the full view's share port (`ANALYSIS_SHARE_PORT`) |
+| `/analysis.json`, `/users.json`, `/hosts.json`, `/profile-characters`, `/publisher.json` | never | the full view's share port (`ANALYSIS_SHARE_PORT`); the publisher POSTs its pass to `/publisher.json` |
 | `/render`, `/model3d/view`, `/healthz` | never | the renderer, port 8083 |
 | `/metrics`, `/healthz` | never | the exporter, port 9464 (`LISTEN_PORT`): its own health only, never Blizzard's data |
 | `/select/*`, `/insert/*` | never | VictoriaLogs, port 9428: your events, readable without a login |

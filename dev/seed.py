@@ -19,8 +19,9 @@ alt with almost nothing, to see the empty states. Invented numbers.
 Three more for the 3D view, dressed in real Classic items: Testhunt-Demo (a
 female Night Elf hunter only Syndicator knows, a bow and a staff, one item
 the tables don't have), Testgun-Demo (a male Dwarf hunter whose gun and
-sword want the same hand) and Testsky-Demo (a Skyborne priest whose sex
-was never saved).
+sword want the same hand, and gloves Forever added that Wowhead's model data
+lacks, drawn from Forever's own tables) and Testsky-Demo (a Skyborne priest
+whose sex was never saved).
 """
 
 import json
@@ -285,7 +286,7 @@ ev(g_t, "wow-character", "Testgun-Demo", "Testgun 24", "character:Testgun-Demo:1
    **{"class": "HUNTER"}, faction="Alliance", zone="Wetlands")
 gear(g_t, "Testgun-Demo", [
     (5, "Chest", 1273, "Forest Chain"), (7, "Legs", 1943, "Goblin Mail Leggings"),
-    (16, "Main hand", 935, "Night Watch Shortsword"), (18, "Ranged", 4369, "Deadly Blunderbuss")],
+    (10, "Hands", 273034, "Ephemeral Grips"), (16, "Main hand", 935, "Night Watch Shortsword"), (18, "Ranged", 4369, "Deadly Blunderbuss")],
     race="Dwarf", sex="male", **{"class": "HUNTER"}, faction="Alliance")
 ev(g_t, "wow-character", "Testsky-Demo", "Testsky: Syndicator only", "character:Testsky-Demo:1",
    race="Skyborne", **{"class": "PRIEST"}, faction="Alliance", source="syndicator")

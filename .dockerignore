@@ -11,6 +11,7 @@
 !data/forever-reference.json
 !data/trainers-reference.json
 !data/class-reference.json
+!data/model3d-reference.json.gz
 !THIRD_PARTY.md
 # The one-line installers carry the shipper; /start reads the install steps (wowstats.account).
 !shipper/

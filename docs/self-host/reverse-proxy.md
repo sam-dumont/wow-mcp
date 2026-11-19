@@ -128,9 +128,10 @@ most:
   proxy lets in see everything. The kit's proxy files force `AUTH=basic`; do the same.
 - **Pass the `Host` header through**, and add your full view's name to `ALLOWED_HOSTS`. A
   proxy that rewrites `Host` to `ui:8080` gets a 421.
-- **`/ingest`, `/healthz` and the MCP paths skip your page login.** They have their own. A
-  login in front of `/ingest` blocks the shipper; one in front of the MCP paths blocks every
-  AI client.
+- **`/ingest`, `/install/update/shipper*`, `/healthz` and the MCP paths skip your page
+  login.** They have their own. A login in front of `/ingest` blocks the shipper; one in
+  front of `/install/update/shipper` stops its auto-update; one in front of the MCP paths
+  blocks every AI client.
 - **Let cookies through on `/authorize`, `/consent` and `/oauth/callback`.** The AI login ties
   itself to your browser with a cookie; a proxy that drops it stops every login at the Approve
   button with "Authorization session mismatch".

@@ -23,6 +23,7 @@ import math
 import re
 
 from wowstats import forever
+from wowstats import gear as gearmod
 from wowstats.rates import per_hour
 
 from .facts import CITIES
@@ -469,7 +470,11 @@ def mounts(inp: dict, p: dict) -> dict:
         left = max(0, need - savings) if not bought else 0
         eta_s = left / rate_c * 3600 if rate_c and rate_c > 0 and left else (0 if not left else None)
         tiers.append({"name": t["name"], "level": t["level"], "need_copper": need,
-                      "training_copper": t["training_copper"], "mount_copper": t.get("vendor_mount_copper"),
+                      # Forever's training comes with a mount: the vendor's
+                      # price is then a second, optional mount, not part of need.
+                      "training_copper": t["training_copper"],
+                      "mount_copper": None if t.get("comes_with_mount") else t.get("vendor_mount_copper"),
+                      "extra_mount_copper": t.get("vendor_mount_copper") if t.get("comes_with_mount") else None,
                       "comes_with_mount": bool(t.get("comes_with_mount")), "bought": bought, "source": t.get("source"),
                       "left_copper": left, "eta_played_s": round(eta_s) if eta_s is not None else None,
                       "eta_level": level_at(inp, route, lf, eta_s) if eta_s is not None else None,
@@ -538,9 +543,13 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict) -> list[dic
             row = {"item": u.get("name"), "item_id": u.get("item_id"), "gain": round(u.get("gain") or 0, 1),
                    "req_level": u.get("level"), "now": bool(u.get("now")),
                    "available": "now" if u.get("now") else f"at {u.get('level')}"}
-            if s["kind"] in ("bags", "bank"):
+            if with_text(u):
+                row["worn_with"] = with_text(u)
+            if s["kind"] in ("bags", "bank") and not partner_to_get(u):
                 row.update(kind=s["kind"], source=f"in your {s['kind']}",
                            cost="equip it" if s["kind"] == "bags" else "take it out at a banker and equip it")
+            elif s["kind"] in ("bags", "bank"):  # half a weapon setup: the other half is the errand
+                row.update(kind="setup", source=f"in your {s['kind']}", cost=f"first get {with_text(u)}")
             elif s["kind"] == "quest":
                 on = any(x and x in ahead for x in (s.get("name"),))
                 row.update(kind="quest", source=s.get("name"), zone=s.get("zone"), cost="on your route" if on else
@@ -563,9 +572,10 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict) -> list[dic
                     row["ah_copper"] = u["ah_copper"]
                     row["ah_note"] = ("buying it delays the mount" if left and u["ah_copper"] > 0 else "")
             elif s["kind"] == "craft":
+                # "now" is the level to wear it; making it also needs the
+                # skill and the recipe (wowstats.gear.craft_status).
                 row.update(kind="craft", source=f"{s.get('profession')} {s.get('skill')}", can_make=s.get("can_make"),
-                           cost="you can make it now" if s.get("can_make") else
-                           f"{s.get('profession')} {s.get('skill')} (you have {s.get('your_rank')})")
+                           cost=gearmod.craft_status(s))
             else:  # an open-ended kind (reputation, PvP rank, vendor...): shown as the data names it
                 row.update(kind=s["kind"], source=s.get("name") or s.get("zone") or s["kind"],
                            cost=s.get("cost") or "see the source")
@@ -803,7 +813,8 @@ def town_stop(inp: dict, p: dict, blocks: list[dict], mount: dict, cons: dict | 
         u for u in inp.get("upgrades") or [] if u.get("now") and any(
             s["kind"] == "craft" and s.get("can_make") for s in u.get("sources") or [])]
     for u in crafts[:2]:
-        errands.append({"what": f"craft {u['name']}", "why": f"+{u['gain']:.1f} points, you can make it now"})
+        s = next(s for s in u.get("sources") or [] if s["kind"] == "craft" and s.get("can_make"))
+        errands.append({"what": f"craft {u['name']}", "why": f"+{u['gain']:.1f} points; {gearmod.craft_status(s)}"})
     if mount.get("behind") and (inp.get("loot_value") or {}).get("ah_per_hour"):
         errands.append({"what": "auction house", "why": "sell the cloth and trade goods you loot (mount savings)"})
     if not errands:
@@ -892,14 +903,37 @@ def gold_options(inp: dict, mount: dict, dl: list[dict]) -> list[dict]:
     return out[:3]
 
 
+ROUTE_NEAR = 15  # steps past the plan's end that count as "on the route" for the hearth
+
+
 def logout(inp: dict, blocks: list[dict]) -> dict:
+    """Where to log out for rested XP: in town when the plan ends there;
+    else at the hearthstone's inn when that place is on the route the plan
+    walks or the next steps after it; else an inn on the route, never a
+    hearth to a place off it (a Theramore bind on a Hillsbrad route makes
+    the next session start with the trip back)."""
     bind = inp.get("bind")
     last = blocks[-1] if blocks else None
     lvl_xp = xp_need(inp, inp["level"])[0]
     acc = (inp.get("rules") or {}).get("rested_accrual")
     town_last = last and last.get("kind") == "town"
-    return {"where": (last["title"] if town_last else f"the inn at {bind}" if bind else "an inn"),
-            "how": "you end in town" if town_last else "hearth there (your hearthstone's bind)",
+    ahead = inp.get("route_ahead") or []
+    end = next((i for i, s in enumerate(ahead) if last and s["guide"] == last.get("guide")
+                and s["step"] == last.get("step_to")), None)
+    near = ahead[:end + 1 + ROUTE_NEAR] if end is not None else ahead[:ROUTE_NEAR]
+    on_route = bool(bind) and any(bind.lower() in (s.get("title") or "").lower() for s in near)
+    town = next((s for s in ahead[end + 1:end + 1 + ROUTE_NEAR] if s.get("kind") == "town"), None) \
+        if end is not None else None
+    if town_last:
+        where, how = last["title"], "you end in town"
+    elif not bind or on_route or not ahead:
+        where, how = (f"the inn at {bind}" if bind else "an inn"), "hearth there (your hearthstone's bind)"
+    else:
+        where = (f"the next town on your route: step {town['step']} ({town['title']})" if town
+                 else "an inn or a city on your route")
+        how = (f"your hearthstone is set to {bind}, off the route ahead: hearthing there means travelling back "
+               f"next session; log out in a rest area on the route, or set your hearth there")
+    return {"where": where, "how": how, "bind": bind, "bind_on_route": on_route,
             "rested_per_8h": round(lvl_xp * acc["value"]["per_8h_rested_area"]) if acc else None,
             "rested_source": {k: acc.get(k) for k in ("name", "source_url", "confidence", "scope")} if acc else None}
 
@@ -911,9 +945,30 @@ def gear_now(inp: dict) -> list[dict]:
             continue
         srcs = u.get("sources") or []
         rows.append({"item": u.get("name"), "slot": u.get("slot_name"), "gain": round(u.get("gain") or 0, 1),
-                     "where": src_text(srcs[0]) if srcs else None})
+                     "where": src_text(srcs[0]) if srcs else None, "worn_with": with_text(u)})
     rows.sort(key=lambda r: -r["gain"])
     return rows[:5]
+
+
+def partner_to_get(u: dict) -> bool:
+    """A weapon setup whose other hand the character doesn't have yet."""
+    w = u.get("with") or {}
+    return w.get("kind") == "get" and any(s.get("kind") not in ("bags", "bank") for s in w.get("sources") or [])
+
+
+def with_text(u: dict) -> str | None:
+    """The other hand of a weapon setup in words: 'Ponderous Orb (off hand,
+    in your bags)'; None for an item worn alone."""
+    w = u.get("with") or {}
+    if w.get("kind") == "worn":
+        return "what you wear in the other hand"
+    if w.get("kind") == "empty":
+        return "nothing in the other hand"
+    if w.get("kind") != "get":
+        return None
+    srcs = w.get("sources") or []
+    return (f"{w.get('name') or 'item ' + str(w.get('item_id'))} ({(w.get('slot_name') or '').lower()}, "
+            f"{src_text(srcs[0]) if srcs else 'source unknown'})")
 
 
 def src_text(s: dict) -> str:
@@ -922,7 +977,11 @@ def src_text(s: dict) -> str:
     if s["kind"] == "drop":
         ch = f", {s['chance_pct']:.0f}%" if s.get("chance_pct") else ""
         return f"{s.get('boss') or 'trash'} in {s.get('zone')}{ch}"
-    return f"craft: {s.get('profession')} {s.get('skill')}"
+    if s["kind"] in ("bags", "bank"):
+        return f"in your {s['kind']}"
+    if s["kind"] == "craft":
+        return f"craft: {s.get('profession')} {s.get('skill')}; {gearmod.craft_status(s)}"
+    return s.get("name") or s["kind"]
 
 
 # ---------------------------------------------------------------- facts
@@ -1064,10 +1123,12 @@ def facts(e: dict) -> dict[str, str]:
                                else "") + f" ({g['from']})")
     lo = e["logout"]
     f["logout.where"] = lo["where"]
+    f["logout.how"] = lo["how"]
     if lo.get("rested_per_8h"):
         f["logout.rested"] = f"about {fint(lo['rested_per_8h'])} rested XP per 8 hours offline"
     for j, g in enumerate(e["gear_now"], 1):
-        f[f"gear{j}"] = f"{g['item']} ({g['slot']}, +{g['gain']}): {g['where']}"
+        f[f"gear{j}"] = (f"{g['item']} ({g['slot']}, +{g['gain']}): {g['where']}"
+                         + (f"; worn with {g['worn_with']}" if g.get("worn_with") else ""))
     for j, fd in enumerate(e["findings"][:6], 1):
         f[f"finding{j}"] = fd["text"] or fd["title"] or ""
     for j, n in enumerate(e["nudges"][:4], 1):

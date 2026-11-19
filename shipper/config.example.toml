@@ -22,6 +22,12 @@
 # still read, sent, and kept in <archive_dir>/sent (gzipped).
 # wtf_archive = false
 
+# Auto-update: every 6 hours at most, the shipper asks the server in [ship]
+# for its version and replaces itself with a newer one (same server, same
+# password, https or this computer only, sha256 checked, never older).
+# false: keep this version until you install another one yourself.
+# auto_update = false
+
 # Default: ~/Library/Logs/wow-stats.log (macOS),
 # %LOCALAPPDATA%\wow-stats\wow-stats.log (Windows).
 # log_file = "~/wow-stats.log"

@@ -4,49 +4,70 @@
 # namespace). The command inside stays `wow-stats`. No model runs in them
 # (docs/mcp.md).
 # linux/amd64 and linux/arm64 (a Raspberry Pi, an ARM VM): one multi-arch
-# manifest per image; the summary prints each tag@digest to pin. Package
+# index per image; the summary prints each tag@digest to pin. Package
 # visibility is set by hand in the package's settings, never here: a new
 # package from a private repository is private, and pulling it needs a
 # token with read:packages (docs/development.md, "Releasing").
 #
+# Each platform builds on a runner of its own architecture, arm64 on
+# GitHub's native arm64 runner: under QEMU on one amd64 runner the two
+# builds took 6.5 of the v0.5.0 release's 11 minutes. Each leg pushes its
+# image by digest, untagged; the merge job joins the legs into one index per
+# image and tags that.
+#
 # Supply chain (docs/development.md, "Verifying an image"): each image
 # carries BuildKit's SLSA provenance and an SPDX SBOM per platform in its
-# index, whatever the repository's visibility. The SBOMs are also kept as
-# the run's artifact. In a public repository the run adds GitHub artifact
-# attestations (build provenance and the SBOMs, `gh attestation verify`) and
-# a keyless cosign signature, both through Sigstore's public log. A private
+# index, whatever the repository's visibility; the merge job checks both on
+# the merged index. The SBOMs are also kept as the run's artifact. In a
+# public repository the run adds GitHub artifact attestations (build
+# provenance and the SBOMs, `gh attestation verify`) and a keyless cosign
+# signature of each index, both through Sigstore's public log. A private
 # repository on a personal plan can't attest (that needs Enterprise Cloud)
 # and must not write its name to a public log, so those steps skip there;
 # the visibility test fails closed.
+#
+# A pull request that touches the build runs the same jobs as a dry run: the
+# legs push to a registry on their own runner, the merge job joins them in a
+# registry of its own and runs the same checks. Nothing is pushed, attested
+# or signed, and the tests are ci.yml's own run on that pull request.
 name: release-image
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - .github/workflows/release.yml
 
 env:
   IMAGE_NAME: wow-mcp
   RENDER_IMAGE_NAME: wow-mcp-render
-  PLATFORMS: linux/amd64,linux/arm64
+  PUBLIC: ${{ github.event.repository.visibility == 'public' }}
+  PUSH: ${{ github.event_name != 'pull_request' }}
+  # The dry run's local registry (distribution 3), pinned by digest.
+  LOCAL_REGISTRY_IMAGE: docker.io/library/registry:3@sha256:82f6ff4a7f982960c8aa51617fea3aabc485df6e55cce80d22deb1de36f1bc3c
 
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test:
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/ci.yml
 
-  image:
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      # Sigstore's signing certificate (attestations, cosign), from the run's OIDC token.
-      id-token: write
-      attestations: write
-    env:
-      PUBLIC: ${{ github.event.repository.visibility == 'public' }}
+  meta:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      image: ${{ steps.names.outputs.image }}
+      render-image: ${{ steps.names.outputs.render-image }}
     steps:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
         with:
@@ -65,160 +86,312 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Image names
+        id: names
         env:
           OWNER: ${{ github.repository_owner }}
         run: |
           # Registry names are lowercase; an owner name may not be.
           owner=$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE=ghcr.io/$owner/$IMAGE_NAME" >> "$GITHUB_ENV"
+          registry=ghcr.io
+          [ "$PUSH" = true ] || registry=localhost:5000
+          echo "image=$registry/$owner/$IMAGE_NAME" >> "$GITHUB_OUTPUT"
           # The renderer (Dockerfile target renderer): past levels' pictures,
           # in a container of its own with Chromium (docs/architecture.md).
-          echo "RENDER_IMAGE=ghcr.io/$owner/$RENDER_IMAGE_NAME" >> "$GITHUB_ENV"
-      # arm64 under emulation: the build compiles nothing (pure-Python wheels,
-      # Debian packages for the renderer), so QEMU is slow but enough.
-      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+          echo "render-image=$registry/$owner/$RENDER_IMAGE_NAME" >> "$GITHUB_OUTPUT"
+
+  # One leg per image and platform, each on a runner of that architecture.
+  build:
+    needs: [test, meta]
+    # The tests skip on a pull request (ci.yml runs there on its own).
+    if: ${{ !cancelled() && needs.meta.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
+    name: build (${{ matrix.target }}, ${{ matrix.arch }})
+    strategy:
+      fail-fast: true
+      matrix:
+        target: [runtime, renderer]
+        platform: [linux/amd64, linux/arm64]
+        include:
+          - platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ${{ matrix.target == 'runtime' && needs.meta.outputs.image || needs.meta.outputs.render-image }}
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Local registry (dry run)
+        if: env.PUSH != 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/registry"
+          docker run -d --name registry --user "$(id -u):$(id -g)" -p 127.0.0.1:5000:5000 \
+            -v "$RUNNER_TEMP/registry:/var/lib/registry" "$LOCAL_REGISTRY_IMAGE"
+          for _ in $(seq 30); do curl -fs http://localhost:5000/v2/ >/dev/null && exit 0; sleep 1; done
+          docker logs registry; exit 1
+      # network=host: BuildKit's container reaches the dry run's registry on
+      # localhost. Nothing else changes for a push to GHCR.
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: network=host
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: env.PUSH == 'true'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push
+      # The leg's index holds its image and the attestation manifest
+      # (provenance, SBOM); imagetools create keeps both in the merged index.
+      # The index annotations GHCR shows are set there, not here.
+      - name: Build and push by digest
         id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
-          target: runtime
-          push: true
+          target: ${{ matrix.target }}
+          platforms: ${{ matrix.platform }}
           build-args: |
             SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
-            VERSION=${{ steps.v.outputs.version }}
+            VERSION=${{ needs.meta.outputs.version }}
             REVISION=${{ github.sha }}
-          # The index's own annotations: GHCR shows a multi-arch package's
-          # description and repository link from these, not from the labels.
-          annotations: |
-            index:org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            index:org.opencontainers.image.licenses=GPL-3.0-only
-            index:org.opencontainers.image.version=${{ steps.v.outputs.version }}
-            index:org.opencontainers.image.revision=${{ github.sha }}
-            index:org.opencontainers.image.description=wow-stats: a WoW Forever leveling log, its web page and its MCP server
           provenance: mode=max
           sbom: true
-          platforms: ${{ env.PLATFORMS }}
-          tags: ${{ env.IMAGE }}:${{ steps.v.outputs.version }}
-      - name: Build and push the renderer
-        id: render
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
-        with:
-          context: .
-          target: renderer
-          push: true
-          build-args: |
-            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
-            VERSION=${{ steps.v.outputs.version }}
-            REVISION=${{ github.sha }}
-          annotations: |
-            index:org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
-            index:org.opencontainers.image.licenses=GPL-3.0-only
-            index:org.opencontainers.image.version=${{ steps.v.outputs.version }}
-            index:org.opencontainers.image.revision=${{ github.sha }}
-            index:org.opencontainers.image.description=wow-stats renderer: past levels' pictures in a headless Chromium
-          provenance: mode=max
-          sbom: true
-          platforms: ${{ env.PLATFORMS }}
-          tags: ${{ env.RENDER_IMAGE }}:${{ steps.v.outputs.version }}
-      # The SPDX SBOMs BuildKit attached, one file per image and platform.
-      - name: SBOMs
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+      - name: Digest
         env:
-          MAIN: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
-          RENDER: ${{ env.RENDER_IMAGE }}@${{ steps.render.outputs.digest }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          LEG: ${{ matrix.target }}-${{ matrix.arch }}
         run: |
-          set -eu
+          mkdir -p "$RUNNER_TEMP/digests"
+          printf '%s\n' "$DIGEST" > "$RUNNER_TEMP/digests/$LEG"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digest-${{ matrix.target }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/
+          retention-days: 1
+      # The dry run hands its registry to the merge job without the image
+      # layers (hundreds of MB for the renderer): the index, manifests,
+      # configs and attestations are all the merge and its checks read.
+      - name: Registry without the layers (dry run)
+        if: env.PUSH != 'true'
+        env:
+          REF: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          blobs="$RUNNER_TEMP/registry/docker/registry/v2/blobs/sha256"
+          docker buildx imagetools inspect --raw "$REF" \
+            | jq -r '.manifests[] | select(.platform.os != "unknown") | .digest' \
+            | while read -r m; do docker buildx imagetools inspect --raw "${REF%@*}@$m" | jq -r '.layers[].digest'; done \
+            | while read -r d; do h=${d#sha256:}; rm -rf "${blobs:?}/${h:0:2}/$h"; done
+          du -sh "$RUNNER_TEMP/registry"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.PUSH != 'true'
+        with:
+          name: registry-${{ matrix.target }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/registry/
+          retention-days: 1
+
+  merge:
+    needs: [meta, build]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      # Sigstore's signing certificate (attestations, cosign), from the run's OIDC token.
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.meta.outputs.version }}
+      IMAGE: ${{ needs.meta.outputs.image }}
+      RENDER_IMAGE: ${{ needs.meta.outputs.render-image }}
+      SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: digest-*
+          path: ${{ runner.temp }}/digests
+          merge-multiple: true
+      # The legs' registries, merged: blobs and links are content-addressed,
+      # so the same path from two legs holds the same bytes.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: env.PUSH != 'true'
+        with:
+          pattern: registry-*
+          path: ${{ runner.temp }}/registry
+          merge-multiple: true
+      - name: Local registry (dry run)
+        if: env.PUSH != 'true'
+        run: |
+          docker run -d --name registry --user "$(id -u):$(id -g)" -p 127.0.0.1:5000:5000 \
+            -v "$RUNNER_TEMP/registry:/var/lib/registry" "$LOCAL_REGISTRY_IMAGE"
+          for _ in $(seq 30); do curl -fs http://localhost:5000/v2/ >/dev/null && exit 0; sleep 1; done
+          docker logs registry; exit 1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: env.PUSH == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Merge the legs into one tagged index per image
+        id: index
+        run: |
+          set -euo pipefail
+          merge() {
+            local key=$1 image=$2 target=$3 description=$4 f body
+            local refs=()
+            for f in "$RUNNER_TEMP/digests/$target"-*; do refs+=("$image@$(cat "$f")"); done
+            # The index's own annotations: GHCR shows a multi-arch package's
+            # description and repository link from these, not from the labels.
+            local args=(
+              --annotation "index:org.opencontainers.image.source=$SOURCE_URL"
+              --annotation "index:org.opencontainers.image.licenses=GPL-3.0-only"
+              --annotation "index:org.opencontainers.image.version=$VERSION"
+              --annotation "index:org.opencontainers.image.revision=$GITHUB_SHA"
+              --annotation "index:org.opencontainers.image.description=$description"
+              --tag "$image:$VERSION"
+            )
+            if [ "$PUSH" = true ]; then
+              docker buildx imagetools create "${args[@]}" "${refs[@]}"
+            else
+              # imagetools create would copy every layer, and the dry run's
+              # legs dropped them: push the index it would have pushed.
+              body=$(docker buildx imagetools create --dry-run "${args[@]}" "${refs[@]}")
+              printf '%s' "$body" > "$RUNNER_TEMP/index.json"
+              curl -fsS -X PUT -H "Content-Type: $(jq -r .mediaType "$RUNNER_TEMP/index.json")" \
+                --data-binary "@$RUNNER_TEMP/index.json" \
+                "http://localhost:5000/v2/${image#localhost:5000/}/manifests/$VERSION"
+            fi
+            echo "$key=$(docker buildx imagetools inspect "$image:$VERSION" --format '{{ json .Manifest }}' | jq -r .digest)" >> "$GITHUB_OUTPUT"
+          }
+          merge main "$IMAGE" runtime "wow-stats: a WoW Forever leveling log, its web page and its MCP server"
+          merge render "$RENDER_IMAGE" renderer "wow-stats renderer: past levels' pictures in a headless Chromium"
+      # On the merged index: every leg's platform, its provenance and its
+      # SPDX SBOM (one file per image and platform), and the annotations.
+      - name: Check the indexes, keep the SBOMs
+        env:
+          MAIN: ${{ env.IMAGE }}@${{ steps.index.outputs.main }}
+          RENDER: ${{ env.RENDER_IMAGE }}@${{ steps.index.outputs.render }}
+        run: |
+          set -euo pipefail
           mkdir -p sbom
-          for p in ${PLATFORMS//,/ }; do
-            arch=${p#linux/}
-            docker buildx imagetools inspect "$MAIN" --format "{{ json (index .SBOM \"$p\").SPDX }}" > "sbom/$IMAGE_NAME-$arch.spdx.json"
-            docker buildx imagetools inspect "$RENDER" --format "{{ json (index .SBOM \"$p\").SPDX }}" > "sbom/$RENDER_IMAGE_NAME-$arch.spdx.json"
-          done
-          for f in sbom/*.json; do
-            jq -e '.spdxVersion and (.packages | length > 0)' "$f" >/dev/null || { echo "::error::$f is not an SPDX document"; exit 1; }
-          done
+          check() {
+            local ref=$1 name=$2 target=$3 want got p arch
+            want=$(cd "$RUNNER_TEMP/digests" && for f in "$target"-*; do echo "linux/${f#"$target"-}"; done | sort | paste -sd' ')
+            got=$(docker buildx imagetools inspect "$ref" --format '{{ json .Manifest }}' \
+              | jq -r '[.manifests[].platform | select(.os != "unknown") | "\(.os)/\(.architecture)"] | sort | join(" ")')
+            [ "$got" = "$want" ] || { echo "::error::$ref has platforms '$got', the legs built '$want'"; exit 1; }
+            docker buildx imagetools inspect "$ref" --format '{{ json .Manifest }}' \
+              | jq -e --arg s "$SOURCE_URL" '.annotations["org.opencontainers.image.source"] == $s' >/dev/null \
+              || { echo "::error::$ref lacks its index annotations"; exit 1; }
+            for p in $want; do
+              arch=${p#linux/}
+              docker buildx imagetools inspect "$ref" --format "{{ json (index .Provenance \"$p\").SLSA }}" \
+                | jq -e 'type == "object" and length > 0' >/dev/null \
+                || { echo "::error::$ref has no provenance for $p"; exit 1; }
+              docker buildx imagetools inspect "$ref" --format "{{ json (index .SBOM \"$p\").SPDX }}" > "sbom/$name-$arch.spdx.json"
+              jq -e '.spdxVersion and (.packages | length > 0)' "sbom/$name-$arch.spdx.json" >/dev/null \
+                || { echo "::error::sbom/$name-$arch.spdx.json is not an SPDX document"; exit 1; }
+            done
+            echo "$ref: $got, each with provenance and an SBOM"
+          }
+          check "$MAIN" "$IMAGE_NAME" runtime
+          check "$RENDER" "$RENDER_IMAGE_NAME" renderer
           ls -l sbom
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: sbom-${{ steps.v.outputs.version }}
+          name: sbom-${{ env.VERSION }}
           path: sbom/
           retention-days: 90
 
-      # Public repository only (see the header).
+      # Public repository only (see the header), and never from a dry run.
       - name: Attest the image's build provenance
-        if: env.PUBLIC == 'true'
+        if: env.PUBLIC == 'true' && env.PUSH == 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.IMAGE }}
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-digest: ${{ steps.index.outputs.main }}
           push-to-registry: true
           # Storage records are for organization-owned repositories only.
           create-storage-record: false
       - name: Attest the renderer's build provenance
-        if: env.PUBLIC == 'true'
+        if: env.PUBLIC == 'true' && env.PUSH == 'true'
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ${{ env.RENDER_IMAGE }}
-          subject-digest: ${{ steps.render.outputs.digest }}
+          subject-digest: ${{ steps.index.outputs.render }}
           push-to-registry: true
           create-storage-record: false
       - name: Attest the image's SBOM (amd64)
-        if: env.PUBLIC == 'true'
+        if: env.PUBLIC == 'true' && env.PUSH == 'true'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ${{ env.IMAGE }}
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-digest: ${{ steps.index.outputs.main }}
           sbom-path: sbom/${{ env.IMAGE_NAME }}-amd64.spdx.json
           push-to-registry: true
           create-storage-record: false
       - name: Attest the image's SBOM (arm64)
-        if: env.PUBLIC == 'true'
+        if: env.PUBLIC == 'true' && env.PUSH == 'true'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ${{ env.IMAGE }}
-          subject-digest: ${{ steps.build.outputs.digest }}
+          subject-digest: ${{ steps.index.outputs.main }}
           sbom-path: sbom/${{ env.IMAGE_NAME }}-arm64.spdx.json
           push-to-registry: true
           create-storage-record: false
       - name: Attest the renderer's SBOM (amd64)
-        if: env.PUBLIC == 'true'
+        if: env.PUBLIC == 'true' && env.PUSH == 'true'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ${{ env.RENDER_IMAGE }}
-          subject-digest: ${{ steps.render.outputs.digest }}
+          subject-digest: ${{ steps.index.outputs.render }}
           sbom-path: sbom/${{ env.RENDER_IMAGE_NAME }}-amd64.spdx.json
           push-to-registry: true
           create-storage-record: false
       - name: Attest the renderer's SBOM (arm64)
-        if: env.PUBLIC == 'true'
+        if: env.PUBLIC == 'true' && env.PUSH == 'true'
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ${{ env.RENDER_IMAGE }}
-          subject-digest: ${{ steps.render.outputs.digest }}
+          subject-digest: ${{ steps.index.outputs.render }}
           sbom-path: sbom/${{ env.RENDER_IMAGE_NAME }}-arm64.spdx.json
           push-to-registry: true
           create-storage-record: false
       - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
-        if: env.PUBLIC == 'true'
-      - name: Sign both images (keyless, Sigstore)
-        if: env.PUBLIC == 'true'
+        if: env.PUBLIC == 'true' && env.PUSH == 'true'
+      - name: Sign both indexes (keyless, Sigstore)
+        if: env.PUBLIC == 'true' && env.PUSH == 'true'
         env:
-          MAIN: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
-          RENDER: ${{ env.RENDER_IMAGE }}@${{ steps.render.outputs.digest }}
+          MAIN: ${{ env.IMAGE }}@${{ steps.index.outputs.main }}
+          RENDER: ${{ env.RENDER_IMAGE }}@${{ steps.index.outputs.render }}
         run: cosign sign --yes "$MAIN" "$RENDER"
 
       - name: Summary
+        env:
+          MAIN: ${{ env.IMAGE }}:${{ env.VERSION }}@${{ steps.index.outputs.main }}
+          RENDER: ${{ env.RENDER_IMAGE }}:${{ env.VERSION }}@${{ steps.index.outputs.render }}
         run: |
+          if [ "$PUSH" = true ]; then title="Pushed"; else title="Dry run, nothing pushed"; fi
           {
-            echo "### Pushed ($PLATFORMS)"
-            echo "\`$IMAGE:${{ steps.v.outputs.version }}@${{ steps.build.outputs.digest }}\`"
-            echo "\`$RENDER_IMAGE:${{ steps.v.outputs.version }}@${{ steps.render.outputs.digest }}\`"
+            echo "### $title"
+            echo "\`$MAIN\`"
+            echo "\`$RENDER\`"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "$IMAGE:${{ steps.v.outputs.version }}@${{ steps.build.outputs.digest }}"
-          echo "$RENDER_IMAGE:${{ steps.v.outputs.version }}@${{ steps.render.outputs.digest }}"
+          echo "$MAIN"
+          echo "$RENDER"

@@ -61,9 +61,9 @@ def test_request_is_cut_from_the_3d_answer():
 
 
 def test_a_weapon_wowhead_lacks_travels_with_its_meta():
-    """A held item's meta Wowhead doesn't have (a weapon Forever added) goes
-    with the request: the renderer can't reach Forever's tables to make it.
-    Only for a held item the drawing has; armour or a stranger is refused."""
+    """A meta Wowhead doesn't have (a weapon or armor Forever added) goes
+    with the request: the renderer doesn't read Forever's tables to make it.
+    Only for an item the drawing has; a stranger is refused."""
     ans = {"model": GOOD["model"], "items": [{"slot": 16, "inventory_type": 17, "display_id": 752138},
                                              {"slot": 5, "inventory_type": 20, "display_id": 12647}]}
     meta = {"Textures": {"2": 147522}, "ModelFiles": {"16577": [{"FileDataId": 147517, "Gender": 2}]}}
@@ -73,7 +73,9 @@ def test_a_weapon_wowhead_lacks_travels_with_its_meta():
     assert pictures.request(ans, {}) == pictures.request(ans), "no stand-in: the same key as before"
     got = renderer.parse(json.dumps(req).encode())
     assert json.loads(got["metas"]["752138"]) == meta
-    for bad in ({"12647": meta}, {"1": meta}, {"752138": [1]}, ["752138"]):
+    # Armor Forever added travels the same way (model3d.armor_meta).
+    assert set(renderer.parse(json.dumps({**req, "metas": {"12647": meta}}).encode())["metas"]) == {"12647"}
+    for bad in ({"1": meta}, {"752138": [1]}, ["752138"]):
         with pytest.raises(renderer.BadRequest):
             renderer.parse(json.dumps({**req, "metas": bad}).encode())
     # Same look and gear, same key; a different item, another picture.

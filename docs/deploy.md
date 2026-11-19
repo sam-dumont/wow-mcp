@@ -64,7 +64,7 @@ needed, so a long history comes back whole rather than cut.
 | `DEFAULT_CHAR` | empty (latest seen) | `Name-Surname` |
 | `WEIGHTS` | empty | the spec each character's gear is scored for, over what its add-ons say: `Testchar-Demo:shadow,Name-Surname:holy` (a spec key or name of the class). The page's own selector still wins. The card shows it next to the talents, which stay as the game has them |
 | `PRICE_DAYS` | `90` | days of Auctionator scans in the prices panel |
-| `CACHE_TTL` | `45` | seconds an answer is kept in memory |
+| `CACHE_TTL` | `45` | seconds an answer worked out when asked is kept in memory. The answers a plain open asks for are built in the background once per new data instead (docs/architecture.md, "Caching") |
 | `VL_CONCURRENCY` | `2` | VictoriaLogs requests this process runs at once, all callers together (docs/architecture.md, "Caching") |
 | `BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD` or `BASIC_AUTH_PASSWORD_FILE` | | for `AUTH=basic`, 12+ characters |
 | `INGEST_PASSWORD` or `INGEST_PASSWORD_FILE`, `INGEST_USER` (`wow`) | off | turns on `POST /ingest` with its own basic auth, 12+ characters |
@@ -516,16 +516,26 @@ owner stays tenant 0 on the original store.
 **The friends list.** With `WOW_FRIENDS_FILE` (`{"<sub>": "<slug>"}`, rendered by
 whatever manages your accounts, from a group in your identity provider for
 instance), the list alone decides who is
-a friend. The full view reads it at start and every `FRIENDS_RECONCILE_S`
-(120): a listed person gets a tenant with that slug before their first
+a friend. The full view reads it at start and watches it while it runs
+(its content every 10 seconds, plus a full pass every `FRIENDS_RECONCILE_S`,
+120, that retries what failed), so a change applies without a restart: a
+listed person gets a tenant with that slug before their first
 login (or at it, if they're quicker than the pass); a person who left the list is switched off and offboarded on the
 spot (`wow-stats users delete`'s steps: their tenant's events, state,
 registry entry, ingest token; the publisher drops their site from every
 static pod at its next pass). A login that isn't listed gets no tenant. A
 valid `{}` means nobody: every friend listed before is offboarded. A
 missing, unreadable or unparseable file (or one with a bad entry) changes
-nothing, and the owner is never in play. Each step is one JSON log line (`"event": "friends"`). Without the
-file, only the owner gets in. Needs `VIEW=full`, `AUTH=proxy` and
+nothing, and the owner is never in play. The slug comes from the list
+only: friends don't pick it, and once set it never changes (a new value in
+the list logs `slug_kept`). Where to set it per identity provider:
+[Add friends](self-host/friends.md#you-pick-each-friends-name). Each step is one JSON log line (`"event": "friends"`). Without the
+file, only the owner gets in. Mount the file's folder, never the file
+alone: a Kubernetes ConfigMap mounted with `subPath` (or a one-file
+Docker bind mount an editor replaces) never shows the server a new
+version. A ConfigMap mounted as a directory is updated in place within
+about a minute; don't put a checksum of it on the pod, or every new friend
+restarts the full view. Needs `VIEW=full`, `AUTH=proxy` and
 `MCP_AUTH=oauth` (the full view refuses to start otherwise).
 
 **Who is who.** The login proxy sets `X-Forwarded-User` (the provider's
@@ -545,13 +555,14 @@ owner, and a log-out link (`/oauth2/logout`) to switch accounts.
 | `WOW_STATE_DIR` | the registry (`users.json`, 0600) and each person's state, on a volume |
 | `WOW_OWNER_SUB` | the owner's login id |
 | `WOW_OWNER_SLUG` (empty by default: set your own), `WOW_OWNER_ALIASES` | the owner's site name, and hosts that are theirs too (`wow.example.org`): all reserved for them. Refusal pages name the owner by it, capitalised ("Ask Alex to add you" for `alex`) |
-| `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}`; how often it is read. Unset: the owner only |
+| `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}`, watched for changes (mount its folder, not the file); how often a full pass runs anyway. Unset: the owner only |
 | `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends |
 | `FRIENDS_VL_DELETE_KEY_FILE` | its `-deleteAuthKey`, for `wow-stats users delete` |
 | `ZOGZOG_MASTER_KEY_FILE` | 32+ random bytes, base64url: each person's zogzog key is derived from it. The owner's `ZOGZOG_KEY_FILE` only seeds his first link: after "Make a new link" his key is derived too, so the full view and the publisher agree without sharing a file |
 | `PUBLIC_URL`, `SITE_DOMAIN` | the full view's address (install commands, MCP), and the domain friends' sites live under (`<slug>-wow.<domain>`). `PUBLIC_URL` must be https (plain http only on 127.0.0.1 or localhost): every install and update runs what that address sends |
 | `INGEST_DAILY_MB` (512) | what `/ingest` accepts from one person a day; past it a 429, and the shipper keeps its spool for the next day. `0`: no limit |
 | `PRIVACY_BACKUP_DAYS` (empty) | how long your backups keep a person's events, for the privacy page ("Backups of your events expire N days later"). Empty: the page tells friends to ask you |
+| `PRIVACY_LOG_DAYS` (empty) | how long your logs keep a request: the web server's access log in front of the app and the app's own log, whichever keeps longer. For the privacy page ("These lines are kept N days"). Empty: the page tells friends to ask you |
 | `PLAUSIBLE_DOMAIN` (on the full view too) | set it here as on the publisher, and the privacy page says you see visit counts |
 | `PROXY_USER_HEADER` | default `X-Forwarded-User`; believed only from the proxy (`PROXY_TRUSTED_CIDRS`, `PROXY_SECRET_FILE`: "Behind a reverse proxy") |
 | `DOH_URL` | a DNS-over-HTTPS resolver to tell whether a friend's host resolves yet (egress to it) |

@@ -30,6 +30,7 @@ venv with the `wowstats` package and those two extras.
 | `shipper/wow_stats.py` | The player's script (a uv inline script, stdlib only): archive, extract, ship. Its own installers for macOS (launchd) and Windows (Task Scheduler). `docs/contract.md` lists what it sends, `docs/shipper.md` how it runs. |
 | `wowstats/cli.py` | `wow-stats ui` and `wow-stats exporter`. |
 | `wowstats/ui.py` | The HTTP server: config checks, logins, routing, the in-memory cache, `/ingest`. |
+| `wowstats/prebuilt.py` | The page's answers, built in the background once per new data and served as they are ("Caching" below). |
 | `wowstats/stores.py` | Reads from VictoriaLogs (LogsQL) and VictoriaMetrics (PromQL), plus the helpers that merge and dedupe rows (newest `_time` per `source_id`, then highest `rev`). Every VictoriaLogs request goes through one gate (`VL_GATE`). |
 | `wowstats/eventcache.py`, `wowstats/logsql.py` | One character's events kept in the process and refreshed by the hour that changed; the views' LogsQL answered over them ("Caching" below). |
 | `wowstats/views.py` | Builds each JSON answer from the stores: characters, header, climb, levels, zones, guide steps, dungeons, deaths, players, flights, prices, market. Treats `Name Surname` and `Name-Surname` as one character. |
@@ -46,6 +47,7 @@ venv with the `wowstats` package and those two extras.
 | `data/route-reference.json` | Polestar's route clock (GPL-3.0), packaged as `wowstats/data/`. `docs/route-reference.md`; remade by `tools/route_reference/`. |
 | `data/gear-reference.json` | Polestar's gear data: items, sources, quests, stat weights (GPL-3.0 with MIT parts, `THIRD_PARTY.md`), packaged as `wowstats/data/`. `docs/gear-reference.md`; remade by `tools/gear_reference/`, which also holds `parity.lua`, Polestar's own scoring run under Lua for the tests. |
 | `data/forever-reference.json` | Forever's quest and item names, quest levels and zones, and which zones are dungeons with their level range (forever-db, GPL-3.0; Forever's client tables), packaged as `wowstats/data/`. `docs/forever-reference.md`; remade by `tools/forever_reference/`. |
+| `data/model3d-reference.json.gz` | How Forever dresses each armor display (Forever's client tables via wago.tools), for the 3D view's armor Wowhead lacks, packaged as `wowstats/data/`. `docs/model3d-reference.md`; remade by `tools/model3d_reference/`. |
 | `data/trainers-reference.json` | Who trains each profession rank and riding on Forever, where (zone and map coordinates), the level a rank needs and the price the guides give, with whose price it is (Polestar's shipped profession guides and riding reminder, GPL-3.0), packaged as `wowstats/data/`. Read by `wowstats/trainers.py` for the Overview's profession and riding moves; remade by `tools/trainers/export.py`. A rank with no trainer in it (Artisan Enchanting, the secondary skills past Journeyman) shows "trainer location not in our data". |
 | `data/class-reference.json`, `wowstats/classguide.py` | The class guide: per class the class trainers (capitals and starting towns, with side and map coordinates), what they teach at each level (rank, cost, the races a spell is for) and Forever's talent names and arrows (Polestar's `ClassTrainers.lua` and `ClassSpells.lua`, GPL-3.0, and Forever's client tables), remade by `tools/class_reference/export.py`; with the KB's `classes` lane (`data/kb/research/classes.json`: sourced statements per class and topic, one talent path per class), the character page's "your class at level N" block and the MCP's `class_guide`. |
 | `wowstats/gear.py` | Gear advice: Polestar's scoring (`Gear.lua`, `Weights.lua`, `Adjust.lua`) ported, per character, spec and level; behind `/api/gear` (both views) and the MCP `gear` tool. |
@@ -117,8 +119,19 @@ Then:
   ItemModifiedAppearance, ItemAppearance), so any item works. Neck, rings,
   trinkets, ammo, quivers, relics and wands aren't drawn, like in game. When
   a ranged weapon and a melee one want the same hand, a hunter holds the
-  ranged one. Items the tables or Wowhead don't have are listed under the
-  model with the reason.
+  ranged one. Armor Forever added, which Wowhead's data lacks, is dressed
+  from Forever's own tables, shipped in `data/model3d-reference.json.gz`
+  ([Model reference](model3d-reference.md)); a weapon it added borrows the
+  meta of another display of its model. Items still left out are listed
+  under the model with the reason, each as its icon.
+- **Updated or Classic.** A switch under the model draws the original
+  models (Wowhead's classic data, `sd/meta/character/*` through the relay)
+  or the updated ones, like the game's Character Models option. The look is
+  matched option by option (`model3d.classic_look`), so the face and hair
+  are approximate there. The visitor's pick is kept in the browser; without
+  one the page opens on the person's Settings choice (`models`, or
+  `MODEL3D_MODELS` with one person), else Updated. The past levels'
+  pictures are drawn Updated.
 - `wow.zamimg.com` answers 403 to any page that isn't Wowhead's, so the
   server fetches the viewer and the model files (`/model3d/zam/*`, an allow
   list of paths) and keeps them on disk.
@@ -224,7 +237,26 @@ fallback and do go through VictoriaLogs.
 
 ## Caching
 
-Two layers, both in the UI process:
+Three layers, all in the UI process:
+
+- **The page's answers** (`wowstats/prebuilt.py`): everything a plain open
+  of the page asks for (the character, gear for each spec, overview,
+  dungeons, loot, people, plan, journal, the timeline and each level's
+  snapshot, the market and prices) is built by one background thread, with
+  the routes' own code, and served as it is. Opening the page reads no
+  store. The thread checks each minute, and 3 seconds after an upload to
+  `/ingest` ends, whether anything moved: one stats
+  query (the newest event's time and the number of events, so a session
+  sent late counts too) and vm-wow's Battle.net fingerprint. Only then does
+  it build the set again, and the routes answer the old set until the new
+  one is complete. The market comes from VictoriaMetrics on its own clock,
+  so its answer alone is rebuilt every 5 minutes. Everything is rebuilt at
+  least daily. A store that is down keeps the last set, marked stale. With
+  several people each person has their own set, from their own stores,
+  behind the same login checks. Sets live only in memory, never on disk or
+  on the share port, and the owner's comes first. After a restart, the
+  first build takes a few seconds per character; until then the answers
+  are worked out when asked, as below.
 
 - **Events** (`wowstats/eventcache.py`): every query scoped to one character
   is answered in Python (`wowstats/logsql.py`, the part of LogsQL the views
@@ -237,10 +269,14 @@ Two layers, both in the UI process:
   Parallel requests for one character share one read. The auction scans and
   raw combat log lines stay out; queries that reach them, or no single
   character (the character list, the roster, prices), go to VictoriaLogs.
-- **Answers**: each one kept for `CACHE_TTL` (45 s). New events reach the
-  answer within a minute. An open page asks every 3 minutes, only while its
-  tab is in view, whether its character's answer changed, and then shows a
-  "New data · Show" pill: nothing on the page moves until the reader clicks it.
+- **Answers worked out when asked** (before the first build, a spec or
+  faction a plain open doesn't ask for, the publisher, the MCP): each one
+  kept for `CACHE_TTL` (45 s).
+
+New events reach the page within about a minute. An open page asks every 3
+minutes, only while its tab is in view, whether its character's answer
+changed, and then shows a "New data · Show" pill: nothing on the page moves
+until the reader clicks it.
 
 Every request to VictoriaLogs from the process, whoever makes it (the page,
 the planner, the MCP, the publisher), goes through one gate of

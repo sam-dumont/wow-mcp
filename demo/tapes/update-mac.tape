@@ -5,5 +5,6 @@ Sleep 700ms
 Type@35ms "curl -fsSL @UPDATE_URL@ | bash"
 Sleep 600ms
 Enter
-Wait+Screen@180s /is updated/
+# The checklist is taller than the terminal: wait for the prompt, not a line of it.
+Wait@180s /❯\s*$/
 Sleep 4s

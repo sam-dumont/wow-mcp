@@ -16,9 +16,10 @@ image:
                    503 busy (one render at a time), 504 the model didn't finish
   GET /healthz  -> 200 once Chromium runs
 
-`metas` are the held items' metas Wowhead lacks (a weapon Forever added:
-wowstats.model3d.Model3D.item_meta needs Forever's tables, which this side
-can't reach), served in place of Wowhead's for that one drawing.
+`metas` are the metas Wowhead lacks for the items drawn (a weapon or armor
+Forever added: wowstats.model3d.Model3D.stand_in_meta needs Forever's
+tables, which this side doesn't read), served in place of Wowhead's for that
+one drawing.
 
 The model id, the look and the display ids are the publisher's work
 (wowstats.model3d, wowstats.pictures): the request names no item, no level
@@ -119,9 +120,9 @@ def parse(body: bytes) -> dict:
            "items": items}
     metas = d.get("metas")
     if metas is not None:
-        held = {str(disp) for inv, disp in items if inv in m3d.HELD}
-        if not isinstance(metas, dict) or not set(metas) <= held:
-            raise BadRequest("metas: {display_id: meta} for the held items drawn")
+        drawn = {str(disp) for inv, disp in items}
+        if not isinstance(metas, dict) or not set(metas) <= drawn:
+            raise BadRequest("metas: {display_id: meta} for the items drawn")
         if any(not isinstance(v, dict) for v in metas.values()):
             raise BadRequest("metas: each one a JSON object")
         out["metas"] = {k: json.dumps(v, separators=(",", ":")).encode() for k, v in metas.items()}
@@ -179,9 +180,9 @@ class Pages:
             with self.lock:
                 self.inflight += 1
                 self.models += rel.startswith("m2/")
-            own = m3d.ITEM_META.match(rel)
+            own = m3d.ITEM_META.match(rel) or m3d.ARMOR_META.match(rel)
             try:
-                body = self.metas.get(own.group(1)) if own else None
+                body = self.metas.get(own.groups()[-1]) if own else None
                 if body is None:
                     body = self.relay.get(rel)
             except m3d.Upstream as e:

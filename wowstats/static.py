@@ -14,7 +14,9 @@ ZOGZOG_PATH (/zogzog/, empty: off), BIND (0.0.0.0), PORT (8080).
 Several people (wowstats.tenancy): SITE_DOMAIN set, each person's site is
 <SITE_DIR>/<slug>/current, served for the host <slug>-wow.<SITE_DOMAIN> and
 for SITE_ALIASES (host=slug, comma separated: wow.example.org=alex). Any
-other host, or a site whose public page is off, answers 404. Pushes carry
+other host, or a site whose public page is off, answers 404 (wowstats.notice:
+a short page, the same for all). A person with no character yet has the
+publisher's empty page at / instead. Pushes carry
 ?slug=; DELETE /bundle?slug= drops a site; GET /bundles lists them.
 
 Where the publisher can't share a volume with it (Kubernetes: two pods, and
@@ -41,7 +43,7 @@ import urllib.parse
 from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
-from wowstats import httpserve, ui
+from wowstats import httpserve, notice, ui
 from wowstats import model3d as m3d
 
 
@@ -55,7 +57,7 @@ TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=u
          ".css": "text/css; charset=utf-8", ".json": "application/json", ".woff2": "font/woff2",
          ".webp": "image/webp", ".png": "image/png", ".txt": "text/plain; charset=utf-8",
          ".enc": "application/octet-stream"}
-NOT_FOUND = b"Not found\n"
+NOT_FOUND = notice.not_found_page()
 BUILD = re.compile(r"^b\d{1,12}$")
 SLUG = re.compile(r"^[a-z0-9]{2,20}$")
 MAX_UPLOAD = 512 * 1024 * 1024
@@ -202,9 +204,17 @@ def make_handler(site: Site):
         def do_GET(self):
             if self.path == "/healthz":
                 return self._send(200, b"ok\n", "text/plain", ui.CSP, "", "no-store")
+            path = urllib.parse.urlsplit(self.path).path
+            if path.startswith(notice.ASSETS):
+                # The 404's stylesheet and fonts, for any host: an unknown one
+                # has no bundle to take them from.
+                body = notice.asset(path[len(notice.ASSETS):])
+                if body is not None:
+                    return self._send(200, body, TYPES[posixpath.splitext(path)[1]], ui.CSP, "",
+                                      "public, max-age=86400")
             hit = site.resolve(self.path, self.headers.get("Host", ""))
             if hit is None:
-                return self._send(404, NOT_FOUND, "text/plain; charset=utf-8", ui.CSP, "", "no-store")
+                return self._send(404, NOT_FOUND, "text/html; charset=utf-8", ui.CSP, "", "no-store")
             f, bundle = hit
             body = f.read_bytes()
             # The 3D frame: its own sandboxed policy, read from the page.

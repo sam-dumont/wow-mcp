@@ -42,7 +42,7 @@ checks each attack is refused. Setup recipes: [deploy.md](deploy.md),
 | L9 the 100-client registration cap could be filled by anyone | a full list drops the oldest registration that never logged in. Clients that did log in are kept on disk, so a restart doesn't make them look unused |
 | L10 kb-refresh resolved anthropic at run time next to a write token | `anthropic` is in the locked `kb` group (hashes in `uv.lock`); `GH_TOKEN` is only in the steps that call GitHub, never the model passes; the checkout keeps no credentials; `inputs.mode` reaches shell through `env` |
 | L11 Renovate automerged patches with no soak time | Renovate is gone (#64): Dependabot, 7-day cooldown, nothing automerged |
-| L12 the privacy page stated one install's operations | the visit-count line needs `PLAUSIBLE_DOMAIN` on the full view, the backup line `PRIVACY_BACKUP_DAYS`; without the latter the page tells friends to ask the owner |
+| L12 the privacy page stated one install's operations | the visit-count line needs `PLAUSIBLE_DOMAIN` on the full view, the backup line `PRIVACY_BACKUP_DAYS`, the log line `PRIVACY_LOG_DAYS`; without those two the page tells friends to ask the owner |
 | Info 1 the renderer had no login | `POST /render` needs a bearer token (`RENDER_TOKEN_FILE`, or one made on first start in the cache folder); the publisher sends it from its own `RENDER_TOKEN_FILE` |
 | Info 4 activity times on the public page | the Settings toggle says the page shows when you cleared each dungeon and your time per level |
 | Info 6 "scoped" LogsQL | the docstring now says what it is: a filter, not a boundary. The tenant header is the boundary |
@@ -102,6 +102,16 @@ Playwright's Chromium from Playwright's CDN. Both move with their projects'
 releases; pinning them by hash would break every install on their next
 release. The Polestar Recorder download is pinned.
 
+**The owner's overview.** `/admin` answers the owner only (`WOW_OWNER_SUB`); a
+friend gets the same 404 as any unknown address, and a request without a login
+never reaches it. It shows activity times, counts and versions per person, never
+game content, keys, hashes or install codes, and its answers are not logged.
+The last full-view visit and MCP use are one timestamp each per person
+(`users/<account>/activity.json`, written at most every 5 minutes), deleted
+with the person. The publisher reports its pass over the share port
+(`POST /publisher.json`, same token); the full view keeps only the known
+fields, capped.
+
 ## Operator checklist
 
 - `PUBLIC_URL` is https.
@@ -115,6 +125,9 @@ release. The Polestar Recorder download is pinned.
 - The renderer and the publisher share one `RENDER_TOKEN_FILE` (32+
   characters: `head -c 32 /dev/urandom | base64`).
 - On the full view: `PRIVACY_BACKUP_DAYS` set to what your backups really
-  keep, and `PLAUSIBLE_DOMAIN` when the static sites count visits.
+  keep, `PRIVACY_LOG_DAYS` to what your log store really keeps, and
+  `PLAUSIBLE_DOMAIN` when the static sites count visits.
+- The reverse proxy's access log leaves out query strings: the page's API
+  calls carry character names there (`/api/loot?name=...`).
 - A reverse proxy with timeouts sits in front of anything reachable from the
   internet.

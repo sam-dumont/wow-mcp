@@ -205,8 +205,10 @@ def t_mount_goal(ctx: T.Ctx, args: dict) -> dict:
                       for t in m["tiers"]],
             "current": (m.get("current") or {}).get("name"), "behind": m["behind"], "discount": m.get("discount"),
             "unknown": m.get("unknown"), "gold_options": E.gold_options(inp, m, dl),
-            "note": "Net gold per online hour between logout snapshots (n given). The savings roll over to the next "
-                    "tier once one is bought. Gold options are priced, never required. " + CITE}
+            "note": "need is a tier's whole cost. When comes_with_mount is true the training includes the mount; "
+                    "extra_mount_copper is a second vendor mount, optional and not in need: never quote it as the "
+                    "price of riding. Net gold per online hour between logout snapshots (n given). The savings roll "
+                    "over to the next tier once one is bought. Gold options are priced, never required. " + CITE}
 
 
 def t_whats_new(ctx: T.Ctx, args: dict) -> dict:

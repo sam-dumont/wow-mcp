@@ -46,6 +46,34 @@ A pull request is ready when ruff and the tests that cover the change pass,
 plus both image builds when it touches `data/`, `pyproject.toml` or the
 Dockerfile. The whole list above runs once before a release.
 
+## The docs site and its demo
+
+The site (`site/`, Starlight) is built from this repository's Markdown: `README.md` stays
+GitHub's front page, the site's home page is `site/pages/index.md`, and every page's address
+and sidebar place come from `SECTIONS` in `site/scripts/prepare.mjs`. A Markdown file under
+`docs/` that isn't placed there, or a broken link, fails the build. Images go in
+`docs/images/`: the site serves them itself.
+
+```bash
+site/scripts/build-demo.sh        # the demo character's pages; needs uv and Docker (or VL_BIN)
+npm --prefix site ci && npm --prefix site run build
+npm --prefix site run preview     # http://localhost:4321/wow-mcp/
+```
+
+`build-demo.sh` plays Nibbet, a made-up priest (`tools/fixtures/generate.py --demo`, seeded,
+so every build plays the same evenings, shifted so his last one is yesterday), then runs the
+product's own publisher to build his public and friends' pages under `/demo/`. Astro's preview
+server doesn't map `model3d/view` to `model3d/view.html` the way GitHub Pages does, so View in
+3D stays blank there.
+
+The manual's screenshots come from that demo, never from a real player:
+`uv run --extra render python site/scripts/screenshots.py <address of the built site>` writes
+`docs/images/*.webp` and the link preview `docs/images/social.png`; commit them.
+
+`.github/workflows/pages.yml` builds the site on every push to `main` and deploys it to GitHub
+Pages once the repository is public; before that, and on pull requests, the build is a
+`site-preview` artifact.
+
 ## Made-up data only
 
 No test, fixture, doc or screenshot holds a real account, character, guild,
@@ -126,7 +154,9 @@ it by hand, and its model pass skips with a notice.
 
 ## Releasing
 
-1. Bump `version` in `pyproject.toml`, write the CHANGELOG entry (what
+1. Bump `version` in `pyproject.toml`, `__version__` in `wowstats/__init__.py` and
+   `VERSION` in `shipper/wow_stats.py` (a test keeps the three equal: every install's
+   shipper updates itself to a higher `VERSION`), write the CHANGELOG entry (what
    changed for a player, then "Upgrading" with every changed variable, port,
    volume or route), merge.
 2. Run the full checks above on that commit, browsers included.
@@ -134,7 +164,14 @@ it by hand, and its model pass skips with a notice.
    both images for linux/amd64 and linux/arm64, pushes
    `ghcr.io/<owner>/wow-mcp:X.Y.Z` and `ghcr.io/<owner>/wow-mcp-render:X.Y.Z`
    and prints each `tag@digest` in the run summary. The tag must match
-   `pyproject.toml` or the run stops.
+   `pyproject.toml` or the run stops. Each platform builds on a runner of
+   its own architecture (GitHub's `ubuntu-24.04-arm` for arm64, no
+   emulation), and a merge job joins them into one index per image.
+
+A pull request that changes the `Dockerfile`, `.dockerignore` or
+`release.yml` runs the same workflow as a dry run: both platforms build,
+merge in a registry on the runner and pass the same checks. Nothing is
+pushed.
 
 Each image carries BuildKit's SLSA provenance and an SPDX SBOM per
 platform, and the run keeps the SBOMs as an artifact. From a public

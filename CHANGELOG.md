@@ -1,5 +1,110 @@
 # Changelog
 
+## 0.6.0 (2026-11-19)
+
+Everything since 0.5.0 in one release. The full view opens on answers it
+already built, the shipper updates itself, a new friend no longer restarts
+anything, and the owner gets `/admin`. Run the shipper's update line once
+on each computer (below); after that it keeps itself current.
+
+**The privacy page says what the owner can see.** It used to say the
+server's logs kept the time, the page and the login id. They keep more: the
+web server's access log has the IP address, the browser and the page, and
+the app's own log has login ids and account numbers. The page now lists
+those, the login service, the goals, plan constraints and findings people
+or their AI store, and what the MCP server receives (tools and their
+arguments, never the conversation). The offboarding promise now covers
+logs and backups: both expire on their own. Upgrading: set
+`PRIVACY_LOG_DAYS` to what your log store keeps (unset, the page tells
+friends to ask you), and keep query strings out of your access log.
+
+**An overview for the owner, at `/admin`.** On a shared install, one page
+with a row per person: on the friends list or not, the last visit, the last
+AI use, the last upload (events, shipper version, Mac or Windows), how many
+characters, the public page, the last site build and its error, and the
+addons as one badge, with a red flag for no upload in 3 days or an old
+shipper. Above it, the server's version, the publisher's last pass, the
+Battle.net exporter's last read, the state folder's size, and green/red
+checks of the stores and services it's set up with. Times, counts and
+versions only: no character name, zone or gold. Friends get a 404 there, and
+their privacy page says what the owner sees. Upgrading: the publisher now
+POSTs its pass to the share port (`/publisher.json`, next to `USERS_URL`;
+`PUBLISH_REPORT_URL` to point it elsewhere): a full view older than the
+publisher refuses it, and the pass goes on.
+
+**A new friend no longer needs a restart.** The full view watches the
+friends list (`WOW_FRIENDS_FILE`) and applies a change within about 10
+seconds: the new friend is provisioned and their answers are built at
+once, a removed one is offboarded. A broken file still changes nothing.
+Upgrading: mount the file's folder, not the file alone (a Kubernetes
+`subPath` mount never sees a new version), and drop any pod checksum of
+the list, so adding a friend stops restarting the server.
+
+**The shipper updates itself.** Every 6 hours at most it asks the server
+it ships to for its version and, when it's newer, replaces itself with the
+server's copy: same server, same upload password, https only (or this
+computer), the sha256 checked, a file that doesn't compile refused, never
+a downgrade. The old copy stays as `wow_stats.py.prev`; a changed launchd
+agent or scheduled task is set up again by the new installer. A shipper
+from before this version can't do it yet: `/start` asks for the update line
+once, from the version in the setup report. `auto_update = false` pins it
+(docs/shipper.md, "Auto-update").
+
+**Auction prices are no longer sent twice.** Auctionator keys a realm's
+prices "Realm Faction" or "Realm" and moved one account's from one key to
+the other with the same numbers: the shipper sent all 1,347 again. A price
+already sent under the realm's other key now counts as sent.
+
+**Upgrading:** route `/install/update/shipper*` like `/ingest`, without
+your page login (docs/self-host/reverse-proxy.md). Run the shipper's update
+line (or its installer) once on each computer.
+
+**Forever's own armor in 3D, and Classic models.** Armor Forever added
+(Violet Sash, Graveweave Bindings, Ephemeral Grips...) has no model data on
+Wowhead, so the 3D view drew the character without it. It is now dressed
+from Forever's own client tables, shipped with the image
+(`data/model3d-reference.json.gz`, docs/model3d-reference.md); anything
+still missing is listed under the model as its icon. A switch under the
+model picks Updated or Classic models, like the game's option, remembered
+in the browser; Settings sets the default for everyone who opens your
+page. Classic face and hair are approximate. With one person,
+`MODEL3D_MODELS=sd` sets that default.
+
+**The full view opens without waiting on the logs.** One background thread
+builds every answer a plain open of the page asks for, once per new data
+(checked every 60 seconds, market prices every 5 minutes), and the page
+serves that set. "Reading the logs" on every open is gone.
+
+**Advice that matches the character.** A profession cap read while the
+window was open no longer says "Train Expert" after you trained it: the
+newer of the window's cap and the Recorder's wins, and an old reading says
+to open the window and `/reload`. A weapon pair leads with the half you
+still need, and "craft it now" needs the recipe known, read from
+Altoholic's `DataStore_Crafts`, as well as the skill. The missing-data
+lines name the character they're about and use the shipper's setup report
+(which addons each character loads) instead of guessing "add X".
+
+**Friends get their page name from the friends list.** The owner sets it
+there (`{sub: slug}`); the name form and `POST /api/me/slug` are gone. A
+name that's taken or reserved shows "Your page's address needs a fix from
+the person who runs this site" on `/start`, one log line, and a "name
+conflict" row in `/admin`. No owner name is written into the product
+anymore.
+
+**A new account gets a page, not a 404.** With no character yet, the
+publisher writes a short "No character yet" page with the `/reload` line.
+Unknown addresses get a 404 in the site's own look.
+
+**Docs and the help video.** The docs site is now a manual by reader
+(player, AI user, self-hoster), with screenshots from the demo. The `/help`
+clips are re-recorded on the decoy character from today's `/start`, and
+the page catches up by itself after the first upload.
+
+**Releases build arm64 natively.** Each image and platform builds on a
+runner of its own architecture, no QEMU, and the legs merge into one index
+with its provenance and SBOM checked. The compose kit's Caddy, nginx and
+Traefik images are bumped (2.11.8, 1.31.0, 3.7.18).
+
 ## 0.5.0 (2026-11-19)
 
 The first public edition. The start page asks one question at a time, the
@@ -28,7 +133,12 @@ background program: a tick, or a cross with one fix. Only a missing WoW
 folder, a refused password or an unregistered background program fail it.
 The shipper sends a small setup report, and the full view, `/start` and
 the MCP show one "Missing: ... <fix>" line per kind of data you don't send
-yet. `docs/videos/steps.json` is the one addon list.
+yet. `docs/videos/steps.json` is the one addon list. The report also lists,
+per character, the addons it doesn't load (unticked at character select),
+so a line says "installed but not ticked for this character", "play to your
+next level" or "Add Questie" as the case is, and never guesses from the gap
+alone. On `/start` each line names the character it is about: a fresh level
+1 alt's gaps no longer read as your main's.
 
 **Dungeon advice follows Polestar, and says why when it doesn't.** At level
 32 it said Scarlet Monastery: Library while Polestar said Razorfen Kraul.

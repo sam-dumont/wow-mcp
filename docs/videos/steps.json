@@ -2,7 +2,7 @@
   "version": 2,
   "about": "The install steps: one source for /start (wizard and manual, personal: the command carries your code) and /help/ (generic: points to /start for the command). Ids are stable: the video slots and both pages key on them. Placeholders in text: {base} is the full view's address, {code} the single-use install code (on /help/, render the command as a pointer to /start). audience: start = /start only (needs a login), both = /start and /help/. Every step has check (how to know it worked) and if_not (what to do when it didn't); every troubleshooting entry ends in fix. addons: links verified in a browser on 2026-11-18 (source: curseforge or github); note is shown under the addon when set. steps.install.update: the code-free update commands (same placeholders). media: a clip's file name in docs/videos/media; name.mp4 stands for name-dark.mp4 and name-light.mp4 when those exist (the page picks the one for its theme). update_media and uninstall.media: the clips of those two sections. guide: /help/ only, the manual around the steps: what (its first line and the onboarding clip), quick (the 3 steps on its first screen, one action each), tabs (one line per tab of your page), status (checking the program sends, folded under Everything else) and page (each tab in detail, folded); a page section has id, title, body, and may have caption, points ([label, text]), os (like a step's) and media.",
   "title": "Getting started with wow-stats",
-  "intro": "Seven steps, about 15 minutes. After that you just play: your page updates within 5 minutes of a /reload or logout.",
+  "intro": "Six steps, about 15 minutes. After that you just play: your page updates within 5 minutes of a /reload or logout.",
   "steps": [
     {
       "id": "login",
@@ -11,44 +11,30 @@
       "title": "Log in",
       "caption": "Log in with the account you were sent.",
       "body": [
-        "Open the link you were sent and log in with the username and password from the invite."
+        "Open the link you were sent and log in with the username and password from the invite. Your page's address is already set: the person who runs wow-stats chose it when they made your account."
       ],
-      "check": "You land on this page and step 2 asks for a name.",
+      "check": "You land on this page, with your install command ready.",
       "if_not": "\"Access denied\" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with.",
       "media": null,
       "clip": "browser#welcome",
       "generic": {
         "body": [
-          "Your start page, {base}/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent, then pick your name."
+          "Your start page, {base}/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent. Your page's address is already set: the person who runs wow-stats chose it when they made your account."
         ],
-        "check": "The start page shows your name with a tick.",
+        "check": "Your start page opens with your install command ready.",
         "if_not": "\"Access denied\" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with."
       }
-    },
-    {
-      "id": "name",
-      "audience": "start",
-      "icon": "tag",
-      "title": "Pick your name",
-      "caption": "A short name: it becomes your page's address.",
-      "body": [
-        "2 to 20 characters, a-z and 0-9. It becomes your page's address, so pick a handle, not your real name. It can't change later: links would break."
-      ],
-      "check": "Your name shows in green with a tick.",
-      "if_not": "\"taken\" or \"reserved\": pick another. Any other error: reload the page and try again.",
-      "media": null,
-      "clip": "browser#name"
     },
     {
       "id": "addons",
       "audience": "both",
       "icon": "puzzle",
       "title": "Install the addons",
-      "caption": "Polestar is required. The install command (step 4) adds Polestar Recorder.",
+      "caption": "Polestar is required. The install command (step 3) adds Polestar Recorder.",
       "body": [
         "Easiest: the CurseForge app (https://www.curseforge.com/download/app) lists WoW Forever as its own WoW install; restart the app if Forever doesn't show up."
       ],
-      "check": "Character select, AddOns: Polestar and Polestar Recorder are ticked. In game, /psrec on was typed once (not needed with the Polestar Client). Once data arrives (step 5), each addon turns green in the list on this page.",
+      "check": "Character select, AddOns: Polestar and Polestar Recorder are ticked. In game, /psrec on was typed once (not needed with the Polestar Client). Once data arrives (step 4), each addon turns green in the list on this page.",
       "if_not": "Missing from the AddOns list: the folder is one level too deep (Interface/AddOns/Polestar/Polestar/...). Move it up so Interface/AddOns/Polestar/Polestar.toc exists, then restart WoW.",
       "media": null,
       "clip": "browser#addons",
@@ -119,7 +105,7 @@
         "Settings decides what's public. The public page is off until you switch it on; then the owner adds its address (usually within a day)."
       ],
       "check": "Your character is in the list at the top of My page.",
-      "if_not": "Step 5 ticked but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, /reload, wait 5 minutes.",
+      "if_not": "Step 4 ticked but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, /reload, wait 5 minutes.",
       "media": null,
       "clip": "browser#character",
       "generic": {
@@ -272,7 +258,7 @@
       "name": "Altoholic",
       "required": false,
       "url": "https://www.curseforge.com/wow/addons/altoholic",
-      "what": "your full /played from level 1, and the quests you finished before Polestar",
+      "what": "your full /played from level 1, the quests you finished before Polestar, and the recipes you know",
       "source": "curseforge",
       "note": null,
       "dir": "Altoholic",
@@ -324,11 +310,11 @@
     }
   ],
   "data": [
-    {"id": "levels", "addons": ["polestar"], "signals": ["wow-level", "wow-dungeon"], "what": "level times, dungeon runs and gear advice", "sections": ["levels", "dungeons", "advice"], "fix": "Tick Polestar in AddOns at character select, play to your next level, then log out."},
-    {"id": "play", "addons": ["recorder"], "signals": ["wow-recorder"], "what": "play sessions, zones, deaths and loot", "sections": ["zones", "guide", "deaths", "loot", "people", "flights", "journal"], "fix": "Type /psrec on once in game, then /reload."},
-    {"id": "bags", "addons": ["syndicator"], "signals": ["wow-bags"], "what": "your gear and bags", "sections": ["gear"], "fix": "Tick Syndicator in AddOns at character select, log in with this character, then log out."},
-    {"id": "quests", "addons": ["questie", "altoholic"], "signals": ["quests:questie", "quests:altoholic"], "what": "quests you did before installing", "sections": ["dungeons", "moves"], "partial": true, "fix": "Log in once with it ticked in AddOns, then log out."},
-    {"id": "prices", "addons": ["auctionator"], "signals": ["wow-prices"], "scope": "account", "what": "auction prices", "sections": ["prices"], "fix": "Scan the auction house with Auctionator, then log out."}
+    {"id": "levels", "addons": ["polestar"], "signals": ["wow-level", "wow-dungeon"], "what": "level times, dungeon runs and gear advice", "sections": ["levels", "dungeons", "advice"], "fix": "Tick Polestar in AddOns at character select, play to your next level, then log out.", "wait": "Play to your next level, then log out."},
+    {"id": "play", "addons": ["recorder"], "signals": ["wow-recorder"], "what": "play sessions, zones, deaths and loot", "sections": ["zones", "guide", "deaths", "loot", "people", "flights", "journal"], "fix": "Type /psrec on once in game, then /reload.", "wait": "Log in with this character, then log out or type /reload once."},
+    {"id": "bags", "addons": ["syndicator"], "signals": ["wow-bags"], "what": "your gear and bags", "sections": ["gear"], "fix": "Tick Syndicator in AddOns at character select, log in with this character, then log out.", "wait": "Log in with this character, then log out or type /reload once."},
+    {"id": "quests", "addons": ["questie", "altoholic"], "signals": ["quests:questie", "quests:altoholic"], "what": "quests you did before installing", "sections": ["dungeons", "moves"], "partial": true, "fix": "Log in once with it ticked in AddOns, then log out.", "wait": "Finish a quest with this character, then log out or type /reload once."},
+    {"id": "prices", "addons": ["auctionator"], "signals": ["wow-prices"], "scope": "account", "what": "auction prices", "sections": ["prices"], "fix": "Scan the auction house with Auctionator, then log out.", "wait": "Scan the auction house with Auctionator, then log out."}
   ],
   "needs": [
     "WoW Forever on Windows 10 or 11, or macOS, logged in once (so its WTF folder exists).",
@@ -375,7 +361,7 @@
   },
   "update": [
     "Addons: the CurseForge app's Update all; by hand, delete the old folders, then unzip the new ones.",
-    "The shipper: run the update line for your OS. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.",
+    "The shipper updates itself, within a few hours of a new version on the server. Installed before version 0.5.1? Run the update line for your OS once (your start page says so when it's needed); from then on it updates by itself. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.",
     "Moving to another computer, or the password leaked: Reset my upload password on your start page. The old password stops at once; run the new install command it gives you."
   ],
   "uninstall": {
@@ -557,7 +543,7 @@
         "id": "characters",
         "title": "Your other characters",
         "body": [
-          "The picker at the top left switches character. Every character you played with the addons on is in it, alts included. One is missing: its addons are off (step 3, once per character)."
+          "The picker at the top left switches character. Every character you played with the addons on is in it, alts included. One is missing: its addons are off (step 2, once per character)."
         ]
       },
       {

@@ -20,6 +20,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 
 from . import forever, trainers
+from . import gear as gearmod
 from .analysis import kb
 from .links import dungeon_url, wowhead_url
 from .stores import iso, lq, num, opt_num, parse_t
@@ -87,8 +88,22 @@ def zone_ref(name: str | None, levels=None) -> dict | None:
 
 def item_ref(u: dict) -> dict:
     """An upgrade as the Overview shows it: the item, its slot, its gain."""
+    w = u.get("with") or {}
     return {**{k: u.get(k) for k in ("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct")},
-            "url": wowhead_url("item", u["item_id"]) if u.get("item_id") else None}
+            "url": wowhead_url("item", u["item_id"]) if u.get("item_id") else None,
+            # A weapon setup's gain is both hands': the other one goes with it
+            # (an off hand alone against a two-hander is no upgrade).
+            **({"with": {"item_id": w["item_id"], "name": w.get("name"), "slot_name": w.get("slot_name"),
+                         "kind": _partner_have(w), "url": wowhead_url("item", w["item_id"])}}
+               if w.get("item_id") else {})}
+
+
+def _partner_have(w: dict) -> str | None:
+    """worn, bags, bank, or get: where the other hand of a setup is."""
+    kinds = {x.get("kind") for x in w.get("sources") or []}
+    if w.get("kind") == "get" and kinds and kinds <= set(gearmod.HELD):
+        return "bags" if "bags" in kinds else "bank"
+    return w.get("kind")
 
 
 def source_ref(s: dict, level: int | None = None) -> dict:
@@ -142,6 +157,10 @@ def in_reach(advice: dict | None, level: int | None) -> list[tuple[dict, dict]]:
         if not u.get("now") or u.get("vs_unknown"):
             continue
         s = next((s for s in u.get("sources") or [] if reachable(s, level)), None)
+        # A weapon setup is in reach when its other hand is too.
+        w = u.get("with") or {}
+        if w.get("kind") == "get" and not any(reachable(x, level) for x in w.get("sources") or []):
+            continue
         if s is not None:
             out.append((u, s))
     return out
@@ -528,6 +547,10 @@ HELD_WHERE = {"bags": "in your bags: equip it", "bank": "in your bank: take it o
 
 def _pick_text(u: dict, s: dict) -> str:
     gain = f"+{u['gain']:.1f} points, {u.get('gain_share_pct') or 0:.0f}% of your gear"
+    w = u.get("with") or {}
+    if w.get("kind") == "get":  # a weapon setup: both hands, the gain is the pair's
+        other = next(iter(w.get("sources") or []), {})
+        gain += f", worn with {w.get('name')} ({(w.get('slot_name') or '').lower()}: {_where(other)})"
     if s.get("kind") == "bags":
         return f"Equip {u['name']} from your bags ({gain})."
     if s.get("kind") == "bank":
@@ -543,7 +566,7 @@ def _where(s: dict) -> str:
     if s.get("kind") == "drop":
         return f"drops from {s.get('boss') or s.get('name')}" + (f" in {s['zone']}" if s.get("zone") else "")
     if s.get("kind") == "craft":
-        return f"crafted ({s.get('profession') or 'a profession'})"
+        return f"crafted ({s.get('profession') or 'a profession'}; {gearmod.craft_status(s)})"
     return s.get("kind") or "source unknown"
 
 
@@ -644,17 +667,43 @@ def training_price(ref: dict | None, rank_no: int) -> tuple[int | None, str | No
     return None, None
 
 
+# How long the character may play after its cap was read before a trainer
+# visit could have raised it unseen (a save a few seconds later is the same
+# reading).
+CAP_FRESH_S = 60
+
+
+def profession_cap(p: dict, rec: dict | None, sheet_at: str | None) -> tuple[int, int, bool]:
+    """(rank, cap, may be stale) of one profession. The sheet's cap comes
+    from the profession window (CharacterExport-Forever reads it on
+    TRADE_SKILL_* only, at max_rank_at); the Recorder's skill record is the
+    game's skill list at a change. The newer reading wins. The reading may
+    be stale when the character played after it (the sheet is a later save)
+    or its time is unknown: a rank trained since stays unseen until the
+    window is opened again. The Recorder can't close that gap: it diffs
+    against a baseline it takes silently at login."""
+    rank, cap = int(p.get("rank") or 0), int(p.get("max_rank") or 0)
+    at = parse_t(p.get("max_rank_at")) if p.get("max_rank_at") else None
+    rt = parse_t(rec.get("t")) if rec and rec.get("t") else None
+    if rec and rec.get("max_rank") and rt and (at is None or rt > at):
+        rank, cap, at = max(rank, int(rec.get("rank") or 0)), int(rec["max_rank"]), rt
+    sheet = parse_t(sheet_at) if sheet_at else None
+    stale = at is None or (sheet is not None and (sheet - at).total_seconds() > CAP_FRESH_S)
+    return rank, cap, stale
+
+
 def profession_claims(level: int | None, gear_profs: list[dict], skills: dict[int, dict],
-                      header: dict | None = None) -> list[dict]:
+                      header: dict | None = None, sheet_at: str | None = None) -> list[dict]:
     """A profession at its cap: the next rank, who trains it for the
     character's side and where, what it needs (each requirement met or not)
-    and what it costs, with whose price it is."""
+    and what it costs, with whose price it is. A cap read before the
+    character last played says so and how to refresh it (profession_cap)."""
     out = []
     faction = (header or {}).get("faction")
     profs = {int(p["skill_id"]): p for p in gear_profs or [] if p.get("skill_id")}
     tiers = next_tiers()
     for sid, p in profs.items():
-        rank, cap = int(p.get("rank") or 0), int(p.get("max_rank") or 0)
+        rank, cap, stale = profession_cap(p, (skills or {}).get(sid), sheet_at)
         tier = tiers.get(cap)
         if not tier or level is None or rank < cap - 5:
             continue
@@ -669,16 +718,22 @@ def profession_claims(level: int | None, gear_profs: list[dict], skills: dict[in
         needs = (f"needs level {need_level} ({'met' if level_ok else f'you are {level}'})" if need_level
                  else "needs no character level")
         where = _trainer_text(ts) if ts else "trainer location not in our data"
-        text = (f"Capped at {cap}: skill-ups are wasted until you train {name} {prof}. {where}; {needs}"
+        text = (f"Capped at {cap}{f' when your {prof} window was last open' if stale else ''}: skill-ups are "
+                f"wasted until you train {name} {prof}. {where}; {needs}"
                 + (f"; {_coins(cost)} ({scope})" if cost else "; price not in our data") + ".")
-        out.append(claim(text, "#gear", "professions in wow-gear (Syndicator / the game); ranks, gates and price: the "
-                                        "knowledge base's profession.tiers and profession.training_cost; trainers: "
-                                        "Polestar's profession guides (data/trainers-reference.json)",
+        refresh = (f"Trained {name} already? Open your {prof} window, then type /reload: the cap is read from "
+                   f"that window.") if stale else None
+        out.append(claim(text + (f" {refresh}" if refresh else ""), "#gear",
+                         "professions in wow-gear (CharacterExport-Forever's profession window, Polestar) and the "
+                         "Recorder's skill records, the newer cap; ranks, gates and price: the "
+                         "knowledge base's profession.tiers and profession.training_cost; trainers: "
+                         "Polestar's profession guides (data/trainers-reference.json)",
                          kind="profession", title=f"Train {name} {prof}", weight=3 if level_ok else 1.5,
-                         skill_id=sid,
+                         skill_id=sid, action=refresh,
                          skill={"skill_id": sid, "name": prof, "rank": rank, "max_rank": cap, "next": name,
                                 "need_level": need_level, "level_ok": level_ok, "need_skill": need_rank,
                                 "skill_ok": skill_ok, "cost_copper": cost, "cost_scope": scope, "trainers": ts,
+                                "may_be_stale": stale,
                                 "search_url": None if ts else trainers.search_url(f"{name} {prof} trainer")}))
     return out
 
@@ -834,7 +889,7 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]]) -> list[di
 
 
 def next_moves(level: int | None, advice: dict | None, header: dict, track: dict, follow: dict,
-               gear_profs: list[dict], skills: dict[int, dict]) -> dict:
+               gear_profs: list[dict], skills: dict[int, dict], sheet_at: str | None = None) -> dict:
     """Besides following Polestar: what pays now."""
     reach = in_reach(advice, level)
     # The best for each slot: two pairs of trousers for the same legs are one
@@ -846,7 +901,7 @@ def next_moves(level: int | None, advice: dict | None, header: dict, track: dict
     moves = [_upgrade_claim(u, s, _pick_text(u, s), "gear advice (Polestar's scoring)", level)
              for u, s in list(best.values())[:3]]
     moves += dungeon_claims(level, reach)
-    moves += profession_claims(level, gear_profs, skills, header)
+    moves += profession_claims(level, gear_profs, skills, header, sheet_at)
     moves += riding_claims(level, header, skills)
     rested = opt_num(header.get("rested_xp"))
     if rested:
@@ -903,7 +958,8 @@ def deaths_zone_claim(zone: str, ds: list[dict], level: int | None) -> dict | No
 
 def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, advice: dict | None,
                  gear_profs: list[dict], skills: dict[int, dict], talents: list[dict] | None,
-                 gear_items: list[dict] | None = None, header: dict | None = None) -> dict:
+                 gear_items: list[dict] | None = None, header: dict | None = None,
+                 sheet_at: str | None = None) -> dict:
     """What looks like a mistake in the recorded play, worst first."""
     found = []
     for c in death_clusters(ds):
@@ -941,7 +997,7 @@ def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, a
         found.append(_upgrade_claim(u, s, f"You could wear {u['name']} now: +{u['gain']:.1f} points, "
                                           f"{u.get('gain_share_pct'):.0f}% of your gear ({_where(s)}).",
                                     "gear advice", level))
-    found += profession_claims(level, gear_profs, skills, header)
+    found += profession_claims(level, gear_profs, skills, header, sheet_at)
     if talents and level and level >= 10:
         spent = sum(int(t.get("points") or 0) for t in talents)
         if spent < level - 9:

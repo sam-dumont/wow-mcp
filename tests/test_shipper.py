@@ -125,6 +125,58 @@ def test_auctionator_prices(shipper, wow, tmp_path):
     json.dumps(got)  # every value is JSON
 
 
+def write_auctionator_realms(acct, realms: dict[str, bytes]):
+    sv = acct / "SavedVariables"
+    sv.mkdir(parents=True, exist_ok=True)
+    body = b"".join(b'["' + r.encode() + b'"] = ' + lua_bytes(blob) + b",\n" for r, blob in realms.items())
+    (sv / "Auctionator.lua").write_bytes(b'AUCTIONATOR_PRICE_DATABASE = {\n["__dbversion"] = 8,\n' + body + b"}\n")
+
+
+def test_auctionator_moving_its_realm_key_sends_nothing_again(shipper, wow, tmp_path):
+    """Auctionator keys a realm "PvE Alliance" on a faction auction house and
+    "PvE" on a shared one, and moved an account's prices from one key to the
+    other with the same numbers: the 0.4.3 shipper sent them all again
+    (2026-11-18/19, 1,347 prices). A state written by 0.4.3 (prices under the
+    old key) now sends nothing for the same days, in either direction."""
+    acct = tmp_path / "acct"
+    db = {"2592": {"h": {"2508": 40}, "l": {"2508": 35}, "a": {"2508": 120}},
+          "4306": {"h": {"2512": 99}, "a": {"2512": 7}}}
+    out = shipper.Out(dry=True)
+    got = []
+    out.emit = got.append
+    # The state as 0.4.3 left it: the prices it sent under "PvE Alliance".
+    state = {"prices": {"price:PvE Alliance:2592:2508": [35, 40, 120, 1],
+                        "price:PvE Alliance:4306:2512": [99, 99, 7, 1]}}
+    write_auctionator_realms(acct, {"PvE": cbor(db)})
+    shipper.extract_auctionator(acct, "Hero-Test", state, out)
+    assert got == []
+    assert state["prices"]["price:PvE:2592:2508"] == [35, 40, 120, 1]
+    # Both keys in one file on a fresh state: one copy goes.
+    state = {}
+    write_auctionator_realms(acct, {"PvE Alliance": cbor(db), "PvE": cbor(db)})
+    shipper.extract_auctionator(acct, "Hero-Test", state, out)
+    assert sorted(e["source_id"] for e in got) == ["price:PvE Alliance:2592:2508", "price:PvE Alliance:4306:2512"]
+    # The other way round (a shared key first, a faction key later): the same.
+    got.clear()
+    state = {"prices": {"price:PvE:2592:2508": [35, 40, 120, 1]}}
+    write_auctionator_realms(acct, {"PvE Horde": cbor({"2592": db["2592"]})})
+    shipper.extract_auctionator(acct, "Hero-Test", state, out)
+    assert got == []
+    # A day that moved since (a cheaper listing) is news: sent, under the key it's under now.
+    db["2592"]["l"]["2508"] = 30
+    write_auctionator_realms(acct, {"PvE": cbor(db)})
+    state = {"prices": {"price:PvE Alliance:2592:2508": [35, 40, 120, 1],
+                        "price:PvE Alliance:4306:2512": [99, 99, 7, 1]}}
+    shipper.extract_auctionator(acct, "Hero-Test", state, out)
+    assert [(e["source_id"], e["price_copper"]) for e in got] == [("price:PvE:2592:2508", 30)]
+    # Two factions' own houses are two houses: never twins of each other.
+    got.clear()
+    state = {"prices": {"price:PvE Alliance:2592:2508": [30, 40, 120, 1]}}
+    write_auctionator_realms(acct, {"PvE Horde": cbor({"2592": db["2592"]})})
+    shipper.extract_auctionator(acct, "Hero-Test", state, out)
+    assert [e["source_id"] for e in got] == ["price:PvE Horde:2592:2508"]
+
+
 def recorder_chunk(seq: int, epoch: int, lines: list[str]) -> str:
     return "\n".join([f"chunk\t2\t{seq}\t{epoch}\tCID"] + lines)
 
@@ -197,7 +249,8 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
         '["spellHit"] = {\n["v"] = 2,\n},\n},\n},\n["MAGE"] = {\n["fire"] = {\n["int"] = {\n["x"] = 2,\n},\n},\n},\n},\n}\n')
     (cdir / "CharacterExport-Forever.lua").write_text(
         'CharacterExportForeverDBChar = {\n["professionCache"] = {\n["PvE"] = {\n["Hero"] = {\n'
-        '["id:185"] = {\n["professionID"] = 185,\n["name"] = "Cooking",\n["rank"] = 120,\n["maxRank"] = 225,\n},\n'
+        '["id:185"] = {\n["professionID"] = 185,\n["name"] = "Cooking",\n["rank"] = 120,\n["maxRank"] = 225,\n'
+        '["lastUpdated"] = 1794858386,\n},\n'
         '},\n},\n},\n}\n')
     (cdir / "GearQuestForever.lua").write_text(
         'GearQuestForeverCharDB = {\n["hunts"] = {\n'
@@ -227,7 +280,8 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     assert [i["enchant_id"] for i in g["items"]] == [66, 0, None]
     assert g["item_level"] == 29.5  # the shirt doesn't count
     assert g["professions"] == [
-        {"skill_id": 185, "name": "Cooking", "rank": 130, "max_rank": 225},
+        {"skill_id": 185, "name": "Cooking", "rank": 130, "max_rank": 225,
+         "max_rank_at": shipper.iso(1794858386)},  # when the profession window last showed the cap
         {"skill_id": 197, "name": "Tailoring", "rank": 119, "max_rank": None}]
     assert g["wanted"] == [{"item_id": 12998, "name": "Magician's Mantle", "item_level": None, "req_level": None,
                             "slot_name": "Shoulder", "level": 25}]

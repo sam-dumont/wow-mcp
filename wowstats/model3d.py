@@ -33,6 +33,22 @@ browser, so this module does them:
   Wowhead knows, with a texture (TextureFileData) Wowhead serves: the relay
   answers such a display's meta/item/ with the meta of another display of
   the same model, its texture swapped for Forever's (Model3D.item_meta).
+- **Forever's own armor.** The same for armor (Violet Sash, Graveweave
+  Bindings, Ephemeral Grips: Wowhead answers 404, the model was drawn
+  without them). An armor meta is only Forever's own tables put together
+  (sections, materials, texture and model files, geosets), so it is written
+  here from data/model3d-reference.json (tools/model3d_reference, made once
+  from wago.tools, nothing fetched at runtime) whenever Wowhead has none
+  (armor_meta). Its textures and models are older files Wowhead serves; when
+  one isn't, the item is listed under the model and the page shows its icon.
+- **Updated or Classic models.** Forever lets a player draw the characters
+  with the original models ("Standard Definition", account-wide, kept on
+  Blizzard's side: no file on the PC says which). Wowhead's classic data has
+  those models: `sd/meta/character/<id>.json` and its customization are read
+  from there (Relay), and the answer carries the look in their ids as
+  `model_sd`, matched option by option (approximate: Forever only saves the
+  updated look). The page picks Updated by default, the person's setting
+  (`app.models_default`, MODEL3D_MODELS), or the visitor's own toggle.
 
 Nothing is fetched until someone opens the 3D view: the module only answers
 `/model3d/*` and `/api/model3d`, behind the page login.
@@ -42,7 +58,10 @@ Environment:
   MODEL3D_CACHE_DIR  where the display-id table and Wowhead's files are kept
                      (default <tmp>/wow-stats-model3d; any writable folder)
   MODEL3D_CACHE_MB   disk budget for Wowhead's files (512); oldest go first
+  MODEL3D_MODELS     hd (default) | sd: the models the 3D view opens on
+                     (Updated or Classic); a visitor's own pick wins
   MODEL3D_ZAM_URL, MODEL3D_WAGO_URL, MODEL3D_PRODUCT: the upstreams (tests)
+  MODEL3D_REFERENCE  another model3d-reference.json(.gz) (tests)
 """
 
 from __future__ import annotations
@@ -51,6 +70,7 @@ import base64
 import concurrent.futures
 import contextlib
 import csv
+import gzip
 import hashlib
 import hmac
 import io
@@ -129,9 +149,17 @@ OWN = {"model3d.js": "text/javascript; charset=utf-8", "model3d.css": "text/css;
 # The only Wowhead paths the relay fetches: the viewer and what it loads.
 RELAY = re.compile(r"^(viewer/viewer\.min\.js"
                    r"|meta/(character|charactercustomization|item|itemvisual|armor/\d{1,2})/\d{1,10}\.json"
+                   r"|sd/meta/(character|charactercustomization)/\d{1,10}\.json"
                    r"|textures/\d{1,10}\.(webp|png)"
                    r"|(?P<k>m2|skin|anim|skel|phys|bone)/\d{1,10}(?:-\d{1,6}){0,2}\.(?P=k))$")
 ITEM_META = re.compile(r"^meta/item/(\d{1,10})\.json$")
+ARMOR_META = re.compile(r"^meta/armor/(\d{1,2})/(\d{1,10})\.json$")
+# The Classic (Standard Definition) character: its meta and customization
+# from Wowhead's classic data only, under their own name (the updated ones
+# are LIVE_FIRST under the plain one). Everything else the viewer loads is
+# the same in both.
+SD = "sd/"
+MODELS = ("hd", "sd")
 TYPES = {".js": "text/javascript; charset=utf-8", ".json": "application/json", ".webp": "image/webp",
          ".png": "image/png"}
 # Where the browser reads the relay's files: /model3d/zam/<ZAM_REV>/<path>
@@ -425,6 +453,91 @@ def choice_geosets(elements: list[dict], geosets: list[dict]) -> dict[int, list[
     return out
 
 
+# --- Forever's own armor -------------------------------------------------------
+
+_HERE = Path(__file__).resolve().parent
+REFERENCE = (_HERE / "data" / "model3d-reference.json.gz", _HERE.parent / "data" / "model3d-reference.json.gz")
+
+
+class ArmorReference:
+    """data/model3d-reference.json.gz (tools/model3d_reference): every armor
+    display Forever's items wear, in its client tables' terms. Read once."""
+
+    def __init__(self, path: str = ""):
+        self.paths = (Path(path),) if path else REFERENCE
+        self._data: dict | None = None
+        self._lock = threading.Lock()
+
+    def data(self) -> dict:
+        with self._lock:
+            if self._data is None:
+                self._data = {}
+                for p in self.paths:
+                    try:
+                        raw = p.read_bytes()
+                        d = json.loads(gzip.decompress(raw) if raw[:2] == b"\x1f\x8b" else raw)
+                    except (OSError, ValueError):
+                        continue
+                    if isinstance(d, dict) and d.get("schema") == 1:
+                        self._data = d
+                        break
+            return self._data
+
+    def meta(self, inv_type: int, display: int) -> dict | None:
+        return armor_meta(self.data(), inv_type, display)
+
+
+def armor_meta(ref: dict, inv_type: int, display: int) -> dict | None:
+    """The meta Wowhead's viewer reads for an armor display
+    (meta/armor/<inventory type>/<display>.json), written from Forever's
+    tables the way Wowhead writes its own: each body section's material
+    (ComponentTextures) and its texture files (TextureFiles), the models of a
+    helmet or shoulders (ComponentModels, ModelFiles, their material's texture
+    as Textures), what a helmet hides per race, the geoset groups. A cloak's
+    material is the cape's, section 12. None for a display the reference
+    doesn't have."""
+    d = (ref.get("displays") or {}).get(str(display))
+    if not isinstance(d, dict):
+        return None
+    tex, mods, helm = ref.get("textures") or {}, ref.get("models") or {}, ref.get("helmet") or {}
+
+    def files(rows, extra=None) -> list[dict]:
+        return [{"FileDataId": r[0], "Gender": r[1], "Class": r[2], "Race": r[3],
+                 "ExtraData": r[4] if extra else 0} for r in rows]
+
+    sections = {str(k): int(v) for k, v in (d.get("sections") or {}).items() if v}
+    m0, m1 = (list(d.get("models") or []) + [0, 0])[:2]
+    mm0, mm1 = (list(d.get("model_materials") or []) + [0, 0])[:2]
+    if not m0 and not m1 and mm0:
+        sections["12"] = mm0  # a cloak
+    texture_files = {str(m): files(tex[str(m)]) for m in sections.values() if tex.get(str(m))}
+    component_models = {str(k): r for k, r in enumerate((m0, m1)) if r}
+    model_files = {str(r): files(mods[str(r)], extra=True) for r in dict.fromkeys(component_models.values())
+                   if mods.get(str(r))}
+
+    def first(mat: int) -> dict | None:
+        rows = tex.get(str(mat)) if mat else None
+        return {"2": rows[0][0]} if rows and component_models else None
+
+    def hide(vis: int) -> list[dict] | None:
+        rows = helm.get(str(vis)) if vis else None
+        return [{"RaceId": r, "GeosetGroup": g, "RaceBitSelection": b}
+                for r, g, b in sorted(rows, key=lambda x: (x[1], x[0]))] if rows else None
+
+    hv0, hv1 = (list(d.get("helmet_vis") or []) + [0, 0])[:2]
+    cls, sub = (list(d.get("class") or []) + [4, 0])[:2]
+    return {"Model": 0, "Textures": first(mm0), "Textures2": first(mm1), "TextureFiles": texture_files or None,
+            "ModelFiles": model_files or None,
+            "Item": {"Flags": 0, "InventoryType": int(inv_type), "ItemClass": cls, "ItemSubClass": sub,
+                     "HideGeosetMale": hide(hv0), "HideGeosetFemale": hide(hv1),
+                     "GeosetGroup": list(d.get("geosets") or [0] * 6),
+                     "AttachGeosetGroup": list(d.get("attach") or [0] * 6),
+                     "GeosetGroupOverride": int(d.get("override") or 0), "ItemVisual": 0, "ParticleColor": None},
+            "Creature": None, "Character": None, "ItemEffects": None, "Equipment": None,
+            "ComponentTextures": dict(sorted(sections.items(), key=lambda kv: int(kv[0]))) or None,
+            "ComponentModels": component_models or None, "StateKits": None, "Decor": None, "Scale": 1}
+
+
 class Relay:
     """Wowhead's viewer files, fetched on demand from a fixed list of paths
     and kept on disk (a missing file is remembered for an hour)."""
@@ -443,12 +556,14 @@ class Relay:
         self.locks = [threading.Lock() for _ in range(self.LOCKS)]
         self.guard = threading.Lock()
         self.used: int | None = None
-        # What answers a meta/item/ Wowhead lacks (Model3D.item_meta).
+        # What answers a meta/item/ or meta/armor/ Wowhead lacks
+        # (Model3D.stand_in_meta).
         self.stand_in = None
 
     def get(self, path: str, stand_in: bool = True) -> bytes | None:
         body = self._get(path)
-        if body is None and stand_in and self.stand_in is not None and ITEM_META.match(path):
+        if body is None and stand_in and self.stand_in is not None and (ITEM_META.match(path)
+                                                                        or ARMOR_META.match(path)):
             body = self.stand_in(path)
         return body
 
@@ -482,6 +597,10 @@ class Relay:
                         if local and local.is_file() and self._pinned(local.read_bytes()):
                             return local.read_bytes()  # the last good copy, kept as it is
                         raise Upstream("Wowhead's 3D viewer changed and is waiting for a review")
+                elif path.startswith(SD):
+                    # The original models are in the classic data only: the
+                    # live data's file of the same name is the updated one.
+                    body = fetch(self.zam + DATA + path[len(SD):])
                 else:
                     first, then = (FALLBACK, DATA) if live_first else (DATA, FALLBACK)
                     body = fetch(self.zam + first + path)
@@ -586,7 +705,10 @@ class Model3D:
         self.ids = DisplayIds(env.get("MODEL3D_WAGO_URL", WAGO_URL), env.get("MODEL3D_PRODUCT", PRODUCT), self.cache)
         self.relay = Relay(env.get("MODEL3D_ZAM_URL", ZAM_URL), self.cache, int(env.get("MODEL3D_CACHE_MB", "512")),
                            env.get("MODEL3D_VIEWER_SHA256", ""))
-        self.relay.stand_in = self.item_meta
+        self.armor = ArmorReference(env.get("MODEL3D_REFERENCE", ""))
+        self.relay.stand_in = self.stand_in_meta
+        models = (env.get("MODEL3D_MODELS") or "hd").strip().lower()
+        self.models = models if models in MODELS else "hd"
         self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=8, thread_name_prefix="model3d")
 
     # How many displays of the same model are asked of Wowhead before giving
@@ -631,17 +753,38 @@ class Model3D:
             return json.dumps(meta, separators=(",", ":")).encode()
         return None
 
+    def stand_in_meta(self, path: str) -> bytes | None:
+        """A meta Wowhead lacks: a held item's from another display of its
+        model (item_meta), an armor display's from Forever's tables
+        (armor_meta)."""
+        m = ARMOR_META.match(path)
+        if not m:
+            return self.item_meta(path)
+        meta = self.armor.meta(int(m.group(1)), int(m.group(2)))
+        return json.dumps(meta, separators=(",", ":")).encode() if meta else None
+
+    def missing_texture(self, inv: int, display: int, gender: int) -> bool:
+        """Whether an armor meta written here names a texture Wowhead
+        doesn't serve (then the page shows the item's icon instead). The
+        viewer asks for the same files right after, from the same cache."""
+        meta = self.armor.meta(inv, display)
+        if not meta:
+            return False
+        ids = _file_ids(meta, "TextureFiles", gender)
+        ids.update(int(v) for k in ("Textures", "Textures2") for v in (meta.get(k) or {}).values() if v)
+        return any(self.relay.get(f"textures/{t}.webp") is None for t in sorted(ids))
+
     def stand_ins(self, answer: dict | None) -> dict[int, dict]:
-        """The metas item_meta made for an answer's held items (display ->
+        """The metas made here for an answer's items Wowhead lacks (display ->
         meta), for a renderer that can't make them (wowstats.pictures)."""
         out = {}
         for it in (answer or {}).get("items") or []:
             inv, display = it.get("inventory_type"), it.get("display_id")
-            if inv in ARMOR or not display:
+            if not display:
                 continue
             path = meta_path(inv, display)
             if self.relay.get(path, stand_in=False) is None:
-                body = self.item_meta(path)
+                body = self.stand_in_meta(path)
                 if body:
                     out[int(display)] = json.loads(body)
         return out
@@ -662,8 +805,11 @@ class Model3D:
             if level and not (level.isdigit() and 1 <= int(level) <= 60):
                 return handler.json(400, {"error": "level is 1 to 60"})
             try:
-                return handler.json(200, self.for_char(app, name, int(level) if level else None,
-                                                       qs.get("sex", [""])[0]))
+                # Through the App: a plain open's answer is prebuilt (wowstats.prebuilt).
+                ans = app.model3d_answer(name, int(level) if level else None, qs.get("sex", [""])[0])
+                # The default models at the time of asking, not of the
+                # prebuilt answer: a change in Settings shows at once.
+                return handler.json(200, {**ans, "models": self.default_models(app)})
             except Upstream as e:
                 return handler.json(502, {"error": str(e)})
         rest = path[len("/model3d/"):]
@@ -698,7 +844,33 @@ class Model3D:
             # A reconstructed level (wowstats.history) dresses the model in
             # its likely items only; the slots it doesn't know stay empty.
             gear = {**gear, **snap["gear"]}
-        return {**self.character(gear, d.get("header"), sex, find_look(app, name)), "level": level}
+        return {**self.character(gear, d.get("header"), sex, find_look(app, name)), "level": level,
+                "models": self.default_models(app)}
+
+    def default_models(self, app) -> str:
+        """The models the page opens on (the visitor's own pick wins there):
+        the person's setting when the app has one (wowstats.tenancy), else
+        MODEL3D_MODELS, else Updated."""
+        pref = getattr(app, "models_default", None)
+        with contextlib.suppress(Exception):
+            got = pref() if callable(pref) else None
+            if got in MODELS:
+                return got
+        return self.models
+
+    def sd_model(self, chr_model: int, gender: int, options: list, chosen: list) -> dict | None:
+        """The same character on its original model (Wowhead's classic
+        data), its look matched from the updated one (classic_look). None
+        when the classic data has no such model (Forever's Skyborne, on its
+        Blood Elf stand-in) or didn't come."""
+        try:
+            custom = self.relay.get(f"{SD}meta/charactercustomization/{chr_model}.json")
+            if not custom or not self.relay.get(f"{SD}meta/character/{chr_model}.json"):
+                return None
+            sd_options = json.loads(custom).get("Options") or []
+        except (Upstream, ValueError, AttributeError):
+            return None
+        return {"chr_model": chr_model, "gender": gender, "options": classic_look(options, chosen, sd_options)}
 
     def character(self, gear: dict, header: dict | None = None, sex_override: str = "",
                   look: dict | None = None) -> dict:
@@ -717,7 +889,7 @@ class Model3D:
         if not sex_known and sex_override in GENDERS:
             sex = sex_override
         out: dict = {"race": race, "sex": sex, "sex_known": sex_known, "class": cls or None, "model": None,
-                     "stand_in": None, "items": [], "missing": [], "appearance": None, "source": None}
+                     "model_sd": None, "stand_in": None, "items": [], "missing": [], "appearance": None, "source": None}
         model = chr_model(race, sex)
         if model is None:
             out["why"] = (f"no model for the race {race}" if race else
@@ -736,6 +908,7 @@ class Model3D:
         out["model"] = {"chr_model": model, "gender": GENDERS.get(sex, 0),
                         "options": apply_look(options, translate_look(options, (look or {}).get("options"),
                                                                       self.ids.choice_geosets))}
+        out["model_sd"] = self.sd_model(model, GENDERS.get(sex, 0), options, out["model"]["options"])
         model_ids = {o.get("Id") for o in options if isinstance(o, dict)}
         if look and any(o.get("optionId") in model_ids for o in look.get("options") or [] if isinstance(o, dict)):
             out["appearance"] = {"source": look.get("source"), "refreshed": look.get("refreshed")}
@@ -757,8 +930,12 @@ class Model3D:
             if it.get("slot") == RANGED_SLOT and item_class == 2 and sub == WAND:
                 return {**row, "unseen": True}
             row["ranged"] = it.get("slot") == RANGED_SLOT
-            if self.relay.get(meta_path(inv, display)) is None:
+            path = meta_path(inv, display)
+            if self.relay.get(path) is None:
                 return {**row, "why": "Wowhead's viewer has no model for it"}
+            if (inv in ARMOR and self.relay.get(path, stand_in=False) is None
+                    and self.missing_texture(inv, display, GENDERS.get(sex, 0))):
+                return {**row, "why": "Wowhead has no texture for it"}
             return row
 
         rows = [r for r in self.pool.map(one, [i for i in gear.get("items") or [] if isinstance(i, dict)])
@@ -836,6 +1013,34 @@ def apply_look(options: list, saved: list | None) -> list[dict]:
         ids = [c.get("Id") for c in o["Choices"]]
         pick = chosen.get(o.get("Id"))
         out.append({"optionId": o["Id"], "choiceId": pick if pick in ids else ids[0]})
+    return out
+
+
+def classic_look(options: list, chosen: list, sd_options: list) -> list[dict]:
+    """The updated look (`chosen`, in the ids of `options`) on the original
+    model's options (`sd_options`, Wowhead's classic customization): option
+    by option, by id (Skin Color, Face, Hair Style, Hair Color and Facial
+    Hair keep theirs) or else by name, the choice at the same place in the
+    list, the last one when the original has fewer. Approximate: the
+    updated models added faces and hair styles the original never had, and
+    Forever saves only the updated look; the page says so."""
+    pick = {}
+    for o in chosen or []:
+        with contextlib.suppress(KeyError, TypeError, ValueError):
+            pick[int(o["optionId"])] = int(o["choiceId"])
+    hd = {o.get("Id"): [c.get("Id") for c in o.get("Choices") or []] for o in options or [] if isinstance(o, dict)}
+    by_name = {str(o.get("Name") or "").lower(): o.get("Id") for o in options or [] if isinstance(o, dict)}
+    out = []
+    for o in sd_options or []:
+        if not isinstance(o, dict):
+            continue
+        ids = [c.get("Id") for c in o.get("Choices") or [] if isinstance(c, dict)]
+        if not ids:
+            continue
+        src = o.get("Id") if o.get("Id") in hd else by_name.get(str(o.get("Name") or "").lower())
+        at = hd.get(src) or []
+        idx = at.index(pick[src]) if src in pick and pick[src] in at else 0
+        out.append({"optionId": o.get("Id"), "choiceId": ids[min(idx, len(ids) - 1)]})
     return out
 
 
@@ -929,25 +1134,30 @@ def viewer_files(relay: Relay, answer: dict) -> set[str]:
         except ValueError:
             return {}
 
-    ch = meta(f"meta/character/{model['chr_model']}.json")
-    if ch.get("Model"):
-        models.add(int(ch["Model"]))
-    custom = meta(f"meta/charactercustomization/{model['chr_model']}.json")
-    chosen = {(o["optionId"], o["choiceId"]) for o in model.get("options") or []}
-    mats = set()
-    for opt in custom.get("Options") or []:
-        for choice in opt.get("Choices") or []:
-            if (opt.get("Id"), choice.get("Id")) not in chosen:
-                continue
-            for el in choice.get("Elements") or []:
-                m = (el.get("Material") or {}).get("MaterialResourcesID")
-                if m:
-                    mats.add(str(m))
-                if el.get("CondModelFileDataId"):
-                    models.add(int(el["CondModelFileDataId"]))
-    for m, entries in (custom.get("TextureFiles") or {}).items():
-        if m in mats:
-            textures.update(int(e["FileDataId"]) for e in entries or [] if e.get("Gender") in (gender, 2, 3))
+    # The updated model, and the original one when the answer has it (the
+    # page's Classic toggle): its two metas under sd/, its files as any other.
+    for body, prefix in ((model, ""), (answer.get("model_sd"), SD)):
+        if not body or not body.get("chr_model"):
+            continue
+        ch = meta(f"{prefix}meta/character/{body['chr_model']}.json")
+        if ch.get("Model"):
+            models.add(int(ch["Model"]))
+        custom = meta(f"{prefix}meta/charactercustomization/{body['chr_model']}.json")
+        chosen = {(o["optionId"], o["choiceId"]) for o in body.get("options") or []}
+        mats = set()
+        for opt in custom.get("Options") or []:
+            for choice in opt.get("Choices") or []:
+                if (opt.get("Id"), choice.get("Id")) not in chosen:
+                    continue
+                for el in choice.get("Elements") or []:
+                    m = (el.get("Material") or {}).get("MaterialResourcesID")
+                    if m:
+                        mats.add(str(m))
+                    if el.get("CondModelFileDataId"):
+                        models.add(int(el["CondModelFileDataId"]))
+        for m, entries in (custom.get("TextureFiles") or {}).items():
+            if m in mats:
+                textures.update(int(e["FileDataId"]) for e in entries or [] if e.get("Gender") in (gender, 2, 3))
     for it in answer.get("items") or []:
         if not it.get("display_id"):
             continue

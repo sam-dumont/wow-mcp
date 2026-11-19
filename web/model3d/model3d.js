@@ -36,7 +36,18 @@
     const p = new URLSearchParams({ name });
     if (level) p.set('level', level);
     if (!STATIC && sexPick(name)) p.set('sex', sexPick(name));
+    if (modelsPick()) p.set('models', modelsPick());  // view.js reads it: Updated or Classic
     return '?' + p.toString();
+  }
+
+  // Updated or Classic models: this browser's pick, for every character and
+  // site; without one the answer's default (the person's setting) applies.
+  const MODELS_KEY = 'wow-model3d-models';
+  function modelsPick() {
+    try { const v = localStorage.getItem(MODELS_KEY); return v === 'sd' || v === 'hd' ? v : ''; } catch (e) { return ''; }
+  }
+  function setModelsPick(v) {
+    try { localStorage.setItem(MODELS_KEY, v); } catch (e) { /* private mode: this page only */ }
   }
   function frameEl(title, name, level) {
     return h('iframe', { class: 'm3dframe', title, src: 'model3d/view' + frameQuery(name, level),
@@ -50,6 +61,7 @@
   // frame, whatever it asks. Change both lists together.
   const RELAY = new RegExp('^(?:jquery-3\\.7\\.1\\.min\\.js|zam/r2/(?:viewer/viewer\\.min\\.js'
     + '|meta/(?:character|charactercustomization|item|itemvisual|armor/\\d{1,2})/\\d{1,10}\\.json'
+    + '|sd/meta/(?:character|charactercustomization)/\\d{1,10}\\.json'
     + '|textures/\\d{1,10}\\.(?:webp|png)'
     + '|(?<k>m2|skin|anim|skel|phys|bone)/\\d{1,10}(?:-\\d{1,6}){0,2}\\.\\k<k>))$');
   window.wowRelayPath = (p) => typeof p === 'string' && RELAY.test(p);
@@ -271,14 +283,46 @@
           pick, '.'));
       }
       if (d.missing.length) {
-        lines.push(h('p', { text: `Not shown (${d.missing.length}):` }),
-          h('ul', {}, d.missing.map((m) => h('li', {}, h('b', { text: m.name || `item ${m.item_id}` }),
-            ` (${m.slot_name}): ${m.why}`))));
+        // No model to draw: the item's icon instead, with why.
+        const chip = (m) => (window.wowItem && m.item_id
+          ? window.wowItem({ item_id: m.item_id, name: m.name }, { size: 'medium', cls: 'm3dicon' })
+          : h('b', { text: m.name || `item ${m.item_id}` }));
+        lines.push(h('p', { text: `Not in 3D, shown as icons (${d.missing.length}):` }),
+          h('ul', { class: 'm3dmissing' }, d.missing.map((m) => h('li', {}, chip(m),
+            h('span', { class: 'sub', text: ` ${m.slot_name}: ${m.why}` })))));
       }
-      notes.replaceChildren(...lines);
+      notes.replaceChildren(modelsSwitch(d), ...lines);
     } catch (e) {
       if (run === st.run) status.textContent = '';  // the frame says what went wrong
     }
+  }
+
+  // Updated or Classic models, as the game's Character Models option. The
+  // pick is this browser's (modelsPick); each open frame reloads on its new
+  // address, which names it (view.js reads it there).
+  function modelsSwitch(d) {
+    const cur = (modelsPick() || d.models || 'hd') === 'sd' && d.model_sd ? 'sd' : 'hd';
+    const tips = {
+      hd: 'The updated character models.',
+      sd: d.model_sd ? 'The original models, like the game’s Standard Definition option. The face and hair are '
+        + 'approximate: the game only saves the updated look.'
+        : `Wowhead has no original model for ${d.race || 'this race'}.`,
+    };
+    const btns = [['hd', 'Updated'], ['sd', 'Classic']].map(([v, label]) => {
+      const b = h('button', { type: 'button', class: 'm3dmodel', 'aria-pressed': String(v === cur), title: tips[v],
+        disabled: v === 'sd' && !d.model_sd, text: label });
+      b.addEventListener('click', () => {
+        if (b.getAttribute('aria-pressed') === 'true') return;
+        setModelsPick(v);
+        btns.forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+        document.querySelectorAll('iframe.m3dframe').forEach((f) => {
+          f.src = 'model3d/view' + frameQuery(f.dataset.name, f.dataset.level || null);
+        });
+      });
+      return b;
+    });
+    return h('div', { class: 'm3dmodels', role: 'group', 'aria-label': 'Character models' },
+      h('span', { class: 'sub', text: 'Models: ' }), ...btns);
   }
 
   // The frame reports a failure here too, under the panel (its text is set

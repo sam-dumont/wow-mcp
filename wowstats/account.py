@@ -21,6 +21,8 @@ login cookie alone can't change anyone's settings.
 from __future__ import annotations
 
 import base64
+import functools
+import hashlib
 import json
 import re
 import threading
@@ -82,6 +84,38 @@ def shipper_file(name: str) -> bytes:
         if p.is_file():
             return p.read_bytes()
     raise FileNotFoundError(name)
+
+
+# What the shipper's auto-update may fetch (GET /install/update/shipper/<name>):
+# the program, the platforms' installers and agent template, and what the
+# installers copy next to them.
+SHIPPER_FILES = ("wow_stats.py", "install-mac.sh", "wow-stats.plist", "install-windows.ps1",
+                 "config.example.toml", "LICENSE")
+_SHIPPER_VERSION = re.compile(rb'(?m)^VERSION = "(\d+\.\d+\.\d+)"$')
+
+
+@functools.cache
+def shipper_manifest() -> bytes:
+    """GET /install/update/shipper: the version of the shipper this server
+    carries (the VERSION line of its wow_stats.py) and each file's sha256,
+    which the shipper checks before it replaces itself. The files don't
+    change while the server runs: built once."""
+    files = {n: shipper_file(n) for n in SHIPPER_FILES}
+    m = _SHIPPER_VERSION.search(files["wow_stats.py"])
+    return json.dumps({"version": m.group(1).decode() if m else None,
+                       "files": {n: {"sha256": hashlib.sha256(b).hexdigest(), "size": len(b)}
+                                 for n, b in files.items()}}, separators=(",", ":")).encode()
+
+
+def handle_shipper(h, rest: str) -> None:
+    """/install/update/shipper[/<name>], for a caller the router already
+    authenticated with an upload password: the manifest, or one file."""
+    if rest == "":
+        return h.send(200, shipper_manifest(), "application/json")
+    name = rest[1:] if rest.startswith("/") else ""
+    if name not in SHIPPER_FILES:
+        return h.not_found()
+    return h.send(200, shipper_file(name), "application/octet-stream")
 
 
 def license_note(comment: str = "#") -> str:
@@ -316,6 +350,7 @@ def _ai(ai: dict, base: str) -> str:
 def live_start_page(base: str = "") -> bytes:
     """/start: one hero per state (account.js shows one), the rest folded.
 
+    name    no address yet (the listed name clashed): whose fix it is.
     new     not installed: the install command is the hero, then the
             addon and the first play, one line each.
     wait    installed in the last 15 minutes, nothing yet: play.
@@ -346,6 +381,15 @@ def live_start_page(base: str = "") -> bytes:
 <li><h2>Play</h2><p>Type <kbd>/psrec on</kbd> once, then <kbd>/reload</kbd>. This page turns green by itself.</p></li>
 </ol>
 </section>"""
+    # No address: the friends list gave this person a name that is taken or
+    # reserved. Friends never pick one (the owner sets it, 2026-11-19), so
+    # the page says whose fix it is and waits (the owner's own page: account.js).
+    name = """<section class="hero" data-in="name" hidden>
+<h1 class="lamp wait" data-fill="name-head">Your page needs a fix</h1>
+<p class="lead" data-fill="name-lead">The name chosen for your page's address is already in use, and the person
+who runs this site has to change it. Nothing to do on your side: this page carries on by itself once it's
+fixed.</p>
+</section>"""
     wait = """<section class="hero" data-in="wait" hidden>
 <h1 class="lamp wait">Installed. Now play</h1>
 <p class="lead">In WoW, type <kbd>/psrec on</kbd> once, then <kbd>/reload</kbd>. This turns green within 5 minutes.</p>
@@ -359,12 +403,15 @@ def live_start_page(base: str = "") -> bytes:
 <h1 class="lamp good" data-fill="headline">It works</h1>
 <p class="lead" data-fill="last"></p>
 <p class="warn" data-fill="warn" hidden></p>
+<p class="once" data-fill="update-once" hidden>The program on your computer can't update itself yet.
+<a href="#f-update" data-open="f-update">Run the update command once</a>: after that it updates by itself.</p>
 <p><a class="btn" href="/">Open my page</a></p>
 </section>"""
     labels = {k: v for k, v in os_.items()}
     upd = inst.get("update") or {}
-    update = (OS_SWITCH + "<p>Run this to update the program that sends your data. It keeps your settings and "
-              "updates Polestar Recorder too.</p>"
+    update = (OS_SWITCH + "<p>The program that sends your data updates itself, within a few hours of a new "
+              "version. Installed it before it could? Run this once. It keeps your settings and updates "
+              "Polestar Recorder too.</p>"
               + _cmds({k: fill(v, base) for k, v in upd.items()}, labels)
               + '<div class="widget" data-widget="reset"></div>')
     ai_body = _ai(ai, base)
@@ -393,7 +440,7 @@ def live_start_page(base: str = "") -> bytes:
         _fold("f-videos", "Watch the setup", clips, "new wait none ok") if clips else "",
         _fold("f-leave", "Uninstall, or delete my data", leave, "wait none ok"),
     ])
-    body = (f'<p class="checking" data-in="loading">Checking your setup</p>{new}{wait}{none}{ok}'
+    body = (f'<p class="checking" data-in="loading">Checking your setup</p>{name}{new}{wait}{none}{ok}'
             f'<div class="folds">{folds}</div>'
             '<p class="foot"><a href="/start/print">The whole guide, to print</a></p>')
     return page("Start", body, "start", current="/start")
@@ -408,13 +455,18 @@ def settings_page() -> bytes:
 
 PRIVACY = """<h1>Privacy</h1>
 <p class="lead">What wow-stats keeps about you, for how long, and who can see it. Short version: your game
-data, for as long as you have an account, visible to you and to nobody else in the app.</p>
+data, for as long as you have an account. You see it on your page. The owner, who runs this server, can
+see it too, plus a few logs listed below.</p>
 <h2>What is stored</h2>
 <ul>
 <li>What your addons save in your WoW folder (Polestar, Polestar Recorder and the optional ones you
 installed): your characters, their levels, quests, zones, deaths, dungeons, gear, gold, and the auction
-prices you scanned. Also the names of other players your game showed you (in groups, nearby).</li>
-<li>Your login's id (a number from the login service) and the name you picked. No email address, no
+prices you scanned. Also the names of other players your game showed you: in groups, nearby, and in your
+combat logs if you turned combat logging on.</li>
+<li>What you or your AI write down: the goals you gave the play analysis (up to 600 characters), what you
+asked a plan to work around (up to 300 characters), and the findings the analysis kept about your play.</li>
+<li>Your login's id (a number from the login service) and your page's name, set by the person who runs
+wow-stats. No email address, no
 password: the login service keeps those.</li>
 <li>Battle.net data about your characters (their look, item level, talents), fetched once a day from
 Blizzard's public API. It is deleted after 30 days at most, as Blizzard's API terms require.</li>
@@ -425,25 +477,51 @@ Blizzard's public API. It is deleted after 30 days at most, as Blizzard's API te
 not for the owner.</li>
 <li>Your public page and your /zogzog/ link, only if you turn them on (Settings), and only what they
 show: never other players' names, never where your character is now.</li>
-<li>Your AI assistant, when you connect it: it reads your data with your login, the names of other players
-your game showed you included, so those names reach your AI provider too. Battle.net data goes to it only if
-"Battle.net data to my AI" is on in Settings.</li>
-<li>The owner runs the server. As its administrator, the owner can technically read any stored data,
-doesn't, and nothing in the app shows it. Server logs keep the time, the page or tool asked for and
-your login id, never game content.@VISITS@</li>
+<li>The owner, and your AI assistant when you connect it: both below.</li>
 <li>Installing and updating wow-stats runs what this server sends on your computer: you trust the owner
 the way you trust anyone whose program you install.</li>
 </ul>
+<h2>What the owner can see</h2>
+<ul>
+<li>Everything stored above. The owner runs the server and its database, so they can read any of it.
+Nothing in the app shows it to them.</li>
+<li>The web server's log. Each time your browser, your AI or the little program that sends your data
+asks this server for something, the web server writes a line: the time, your IP address, your browser,
+the page asked for (without the part after <code>?</code>) and who you are logged in as. @LOGS@</li>
+<li>The app's own log: the page asked for, when your AI logs in (with your login id), the name of an AI
+tool that failed, and when you install or update the program, reset your upload password, or get added
+or removed (with your account number and page name). No game content.</li>
+<li>The login service. You log in through a service the owner runs or manages. It has your email address,
+your name and when you logged in.</li>
+<li>The owner's overview page shows, for each person: your page's name, when you last opened your page, used your AI
+assistant and sent data (with how many events, the version of the little program that sends it, and
+Mac or Windows), how many characters you have (a number, no names), whether your public page is on and
+when it was last built, and whether the addons are all there. Never a character's name, a zone, your gold
+or anything you played.@VISITS@</li>
+</ul>
+<h2>Your AI assistant</h2>
+<p>Your AI reads your data with your login. This server gets the tool your AI picked (like "show my gear")
+and what your AI filled in for it: a character's name, a number of hours, your goals. It never gets your
+conversation with your AI. What the tools answer goes back to your AI provider, the names of other players
+your game showed you included. Battle.net data goes to it only if "Battle.net data to my AI" is on in
+Settings.</p>
 <h2>How long</h2>
-<p>As long as you're on the owner's friends list. When the owner removes you, everything goes within
-minutes: your events, your settings, your upload password, your pages. @BACKUPS@
-Battle.net data about your characters stops updating that day and is gone within 30 days.</p>
+<p>As long as you're on the owner's friends list. When the owner removes you, everything stored goes within
+minutes: your events, your settings, your goals, plans and findings, your upload password, your pages.
+@BACKUPS@ @LOGS_GONE@ Nobody deletes backups or logs by hand: they expire on their own.
+Battle.net data about your characters stops updating that day and is gone within 30 days.
+Your login account is separate: ask the owner to delete it too.</p>
 <p>Your own computer keeps its copy (the WoWArchive folder): uninstalling wow-stats doesn't delete it.</p>
 <h2>Blizzard</h2>
 <p>Battle.net data comes from Blizzard's API under its Developer API Terms: kept 30 days at most, shown
 only to you (and on your public page if you turn it on), never sold or shared. wow-stats is not made by
 or affiliated with Blizzard Entertainment.</p>
 """
+
+
+def _days(v: str | None) -> int | None:
+    v = (v or "").strip()
+    return int(v) if v.isdigit() else None
 
 
 def privacy_page(logged_in: bool, env: dict) -> bytes:
@@ -453,14 +531,21 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
 
     What only the operator knows comes from the install's settings, never
     as a fact for every install (security review L12): visit counts only
-    with PLAUSIBLE_DOMAIN set, how long backups keep events only with
-    PRIVACY_BACKUP_DAYS; without it the page says to ask the owner."""
+    with PLAUSIBLE_DOMAIN set, how long backups keep events with
+    PRIVACY_BACKUP_DAYS, how long the logs keep a request with
+    PRIVACY_LOG_DAYS; without those the page says to ask the owner."""
     visits = " The owner sees visit counts per site (Plausible, no cookies)." if (
         env.get("PLAUSIBLE_DOMAIN") or "").strip() else ""
-    days = (env.get("PRIVACY_BACKUP_DAYS") or "").strip()
-    backups = (f"Backups of your events expire {int(days)} days later." if days.isdigit() else
+    days = _days(env.get("PRIVACY_BACKUP_DAYS"))
+    backups = (f"Backups of your events expire {days} days later." if days is not None else
                "If the owner keeps backups, your events stay in them until those expire: ask the owner how long.")
-    body = PRIVACY.replace("@VISITS@", visits).replace("@BACKUPS@", backups)
+    log_days = _days(env.get("PRIVACY_LOG_DAYS"))
+    logs = (f"These lines are kept {log_days} days." if log_days is not None else
+            "Ask the owner how long they keep these lines.")
+    logs_gone = (f"Log lines about you expire {log_days} days after each visit." if log_days is not None else
+                 "Log lines about you stay until the logs expire: ask the owner how long.")
+    body = (PRIVACY.replace("@VISITS@", visits).replace("@BACKUPS@", backups)
+            .replace("@LOGS_GONE@", logs_gone).replace("@LOGS@", logs))
     return page("Privacy", body, "privacy", script=False, nav=logged_in, css="/privacy/account.css",
                 current="/privacy")
 
@@ -538,6 +623,9 @@ class Status:
                # Recorder's switch) and what each character still lacks, with
                # the fix (wowstats.missing): the start page's checklist.
                **missing.for_account(missing.snapshot(lambda q: app.views.vl(f"{st} {q}")))}
+        # Data arrives from a shipper whose setup report names no version: one
+        # from before the auto-update, which needs the update command once.
+        out["update_once"] = bool(out["events"]) and not (out.get("setup") or {}).get("shipper")
         with self._lock:
             self._c[sub] = (time.time(), out)
         return out
@@ -576,8 +664,7 @@ def host_live(host: str, doh_url: str) -> bool | None:
 
 def me(t: T.Tenancy, u: T.User, app) -> dict:
     """The wizard's and the settings' own data. The store down: no
-    characters, the rest still answers (a new person can still pick a name
-    and install)."""
+    characters, the rest still answers (a new person can still install)."""
     try:
         chars = [c["char"] for c in app.views.chars() if not c.get("demo")]
     except Exception as e:  # noqa: BLE001 - the store unreachable, or answering badly
@@ -586,13 +673,13 @@ def me(t: T.Tenancy, u: T.User, app) -> dict:
     host = t.canonical_host(u) if u.slug else ""
     live = host_live(host, t.env.get("DOH_URL", "")) if u.public_on and host else None
     return {"slug": u.slug, "owner": u.owner, "public_on": u.public_on, "bnet_to_model": u.bnet_to_model,
-            "hidden_public": u.hidden_public, "hidden_zogzog": u.hidden_zogzog, "chars": chars,
+            "models": u.models, "hidden_public": u.hidden_public, "hidden_zogzog": u.hidden_zogzog, "chars": chars,
             "site": f"https://{host}/" if host else None, "site_live": live,
             "zogzog": t.zogzog_link(u) if u.slug else None,
             "mcp_url": f"{t.public_url}/mcp" if t.public_url else None,
             "shipper_set_at": u.ingest_set_at or None, "addons": addons(),
             "update": update_commands(t) if t.public_url else None,
-            "reserved": sorted(T.RESERVED), "domain": t.domain}
+            "domain": t.domain}
 
 
 def set_settings(t: T.Tenancy, u: T.User, body: dict, chars: list[str]) -> T.User:
@@ -602,6 +689,10 @@ def set_settings(t: T.Tenancy, u: T.User, body: dict, chars: list[str]) -> T.Use
             if not isinstance(body[k], bool):
                 raise T.TenancyError(f"{k}: true or false")
             upd[k] = body[k]
+    if "models" in body:
+        if body["models"] not in ("hd", "sd"):
+            raise T.TenancyError("models: hd or sd")
+        upd["models"] = body["models"]
     for k in ("hidden_public", "hidden_zogzog"):
         if k in body:
             v = body[k]
@@ -944,6 +1035,7 @@ def handle_update(h, t: T.Tenancy, payload: bool) -> None:
     if u is None:
         return h.send(401, b"unknown install\n", "text/plain; charset=utf-8")
     sys_log(f"update fetched by account {u.account_id}")
+    t.activity.installed(u, "Windows" if ps else "macOS", __version__)
     return h.send(200, windows_installer(t, u, None) if ps else mac_installer(t, u, None), "text/plain; charset=utf-8")
 
 
@@ -974,6 +1066,7 @@ def handle_install(h, t: T.Tenancy, code: str) -> None:
         return h.send(404, (msg + "\n").encode(), "text/plain; charset=utf-8")
     u, token = hit
     sys_log(f"install code used by account {u.account_id}")
+    t.activity.installed(u, "Windows" if wants_powershell(h.headers.get("User-Agent", "")) else "macOS", __version__)
     if wants_powershell(h.headers.get("User-Agent", "")):
         return h.send(200, windows_installer(t, u, token), "text/plain; charset=utf-8")
     return h.send(200, mac_installer(t, u, token), "text/plain; charset=utf-8")
@@ -1053,6 +1146,11 @@ def route(h, t: T.Tenancy, u: T.User, app, path: str) -> bool:
     if path == "/api/me/status" and get:
         h.json(200, STATUS.of(app, u.sub))
         return True
+    if path in ("/admin", "/admin/", "/admin.css", "/api/admin/overview") and get:
+        from wowstats import admin  # the owner's overview: 404 for anyone else
+
+        admin.route(h, t, u, app, path)
+        return True
     if path == "/api/admin/hosts" and get:
         if not u.owner:
             h.not_found()
@@ -1065,12 +1163,9 @@ def route(h, t: T.Tenancy, u: T.User, app, path: str) -> bool:
             h.json(415, {"error": "send JSON (Content-Type: application/json)"})
             return True
         try:
-            if path == "/api/me/slug":
-                nu = t.registry.set_slug(u.sub, str(body.get("slug") or ""))
-                h.json(200, {"slug": nu.slug})
-            elif path == "/api/me/install-code":
-                if not u.slug:
-                    raise T.TenancyError("pick your name first")
+            if path == "/api/me/install-code":
+                if not u.slug:  # the friends list gave a taken or reserved name
+                    raise T.TenancyError(f"your page's address needs a fix from {T.RUNS_IT} first")
                 if not t.public_url:
                     raise T.TenancyError("this install has no PUBLIC_URL: ask the owner")
                 if u.ingest_sha256 and body.get("reset") is not True:
@@ -1084,6 +1179,7 @@ def route(h, t: T.Tenancy, u: T.User, app, path: str) -> bool:
                 chars = [c["char"] for c in app.views.chars()]
                 nu = set_settings(t, u, body, chars)
                 h.json(200, {"ok": True, "public_on": nu.public_on, "bnet_to_model": nu.bnet_to_model,
+                             "models": nu.models,
                              "hidden_public": nu.hidden_public, "hidden_zogzog": nu.hidden_zogzog,
                              "zogzog": t.zogzog_link(nu)})
             else:

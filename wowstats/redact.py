@@ -113,8 +113,10 @@ PUBLIC: dict[str, dict] = {
     # Battle.net, Narcissus or the race's default) and the gear it wears.
     "model3d": {
         "race": None, "sex": None, "sex_known": None, "class": None, "stand_in": None, "level": None,
-        "why": None, "source": None,
+        "why": None, "source": None, "models": None,
         "model": {"chr_model": None, "gender": None, "options": [{"optionId": None, "choiceId": None}]},
+        # The same character on its original model (Classic, the page's toggle).
+        "model_sd": {"chr_model": None, "gender": None, "options": [{"optionId": None, "choiceId": None}]},
         "appearance": {"source": None, "refreshed": None},
         "items": [M3D_ITEM], "missing": [M3D_ITEM],
     },
@@ -154,7 +156,8 @@ CHECKS = {"checks": [None], "not_possible_yet": [None]}
 ZOGZOG_MOVE_KINDS = frozenset({"upgrade", "dungeon", "profession", "riding", "deaths_zone", "slow_steps", "talents",
                                "enchant"})
 PLACE = {**_keys("name", "id", "url"), "levels": [None]}
-MOVE_ITEM = _keys("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct", "url")
+MOVE_ITEM = {**_keys("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct", "url"),
+             "with": _keys("item_id", "name", "slot_name", "kind", "url")}
 TRAINER = {**_keys("npc", "name", "url", "x", "y"), "zone": PLACE}
 # One more run of a dungeon (wowstats.plan.dungeongain): time, XP, pace
 # against the character's own questing, the quests to pick up and who gives
@@ -194,8 +197,9 @@ HEADER_Z = _keys("char", "name", "full_name", "race", "class", "faction", "guild
 # yesterday, and what it costs against his gold.
 SOURCE = _keys("kind", "quest_id", "name", "zone", "level", "req_level", "dungeon", "choices", "boss", "npc_id",
                "chance_pct", "instance", "profession", "skill", "spell_id", "your_rank",
-               "can_make", "floor", "price_copper", "seen_day", "seen_days_ago", "listed", "gain_per_gold",
-               "gold_share_pct", "affordable", "mount_share_pct", "cheap") | {"levels": [None], "part": [None]}
+               "can_make", "skill_ok", "known", "pattern_item_id", "floor", "price_copper", "seen_day",
+               "seen_days_ago", "listed", "gain_per_gold", "gold_share_pct", "affordable", "mount_share_pct",
+               "cheap") | {"levels": [None], "part": [None]}
 AH = {**_keys("available", "scan_day", "scan_days_ago", "on_sale", "upgrades_on_sale", "money_copper",
               "cheap_under_copper", "notice"), "mount": _keys("name", "level", "need_copper", "left_copper")}
 # `stats`: the item's stats as the scoring reads them (game data), for the

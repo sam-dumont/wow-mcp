@@ -63,7 +63,7 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
-from wowstats import __version__, armory, forever, itemcard, names, pictures, redact, talents, ui
+from wowstats import __version__, armory, forever, itemcard, names, notice, pictures, redact, talents, ui
 from wowstats import model3d as m3d
 
 MAX_AGE_S = 86400
@@ -629,7 +629,7 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
     # The page itself changes with a new version or analytics setting: rebuild
     # then too, not only on new data.
     page_id = hashlib.sha256(json.dumps([__version__, stats, zz_path, public, sorted(hide_public),
-                                         sorted(hide_zogzog), canonical, pics.on],
+                                         sorted(hide_zogzog), canonical, pics.on, env.get("MODEL3D_MODELS", "")],
                                         sort_keys=True).encode()).hexdigest()[:12]
 
     state_f = out / "state.json"
@@ -665,7 +665,8 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
            and time.time() >= float(state.get("pictures_retry_at") or 0) else None)
     if why is None:
         push(env, (out / "current").resolve(), slug)
-        return {"built": False, "why": "no new events, no Battle.net change", "newest": newest}
+        return {"built": False, "why": "no new events, no Battle.net change", "newest": newest,
+                "built_at": state.get("built_at")}
 
     t0 = time.time()
     # Builds are named by the second; two in the same second (a forced one
@@ -680,8 +681,15 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
         files: set[str] = set()
         # The public page off: no public/ in the build (the static server answers
         # 404 there), the 3D files gathered in a scratch folder for zogzog.
-        pub = Bundle(build / ("public" if public else ".scratch"))
-        if public:
+        # No character at all yet (a new account): the short empty page, public
+        # page on or off, so the person's own address says what comes next
+        # instead of "Not found". It names nobody; the build that brings the
+        # first character (new events) replaces it.
+        empty = not chars
+        pub = Bundle(build / ("public" if public or empty else ".scratch"))
+        if empty:
+            notice.write_empty(pub)
+        elif public:
             build_view(pub_app, full_app, pub, [c for c in chars if c["char"] not in hide_public], files, stats, "/",
                        canonical=canonical, pics=pics)
         if help_key is not None and public:
@@ -723,8 +731,9 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
              "build": final.name, "analysis_id": shared_id, **pics.state()}
     state_f.write_text(json.dumps(state))
     push(env, final, slug)
-    res = {"built": True, "why": why, "build": final.name, "chars": len(chars), "public_files": pub.files,
-           "zogzog_files": zz.files if zz else 0, "files_3d": n3d, "seconds": round(time.time() - t0, 1)}
+    res = {"built": True, "why": why, "build": final.name, "built_at": t0, "chars": len(chars),
+           "public_files": pub.files, "zogzog_files": zz.files if zz else 0, "files_3d": n3d,
+           "seconds": round(time.time() - t0, 1)}
     if pics.on:
         res["pictures"] = {"drawn": pics.drawn, "pending": len(pics.pending), "render_s": round(pics.spent, 1)}
     log(json.dumps(res))
@@ -826,6 +835,8 @@ def user_env(env: dict, u: dict) -> dict:
         raise PublishError(f"bad slug {slug!r}")
     out = Path(env.get("PUBLISH_DIR", "/data/site"))
     e = {**env, "PUBLISH_DIR": str(out / slug), "VL_ACCOUNT_ID": str(int(u["account_id"]))}
+    if u.get("models") in ("hd", "sd"):  # the 3D view's default models, their setting
+        e["MODEL3D_MODELS"] = u["models"]
     share = (env.get("ANALYSIS_SHARE_URL") or "").strip()
     if share:
         e["ANALYSIS_SHARE_URL"] = share + ("&" if "?" in share else "?") + urllib.parse.urlencode({"slug": slug})
@@ -860,6 +871,7 @@ def publish_all(env: dict | None = None, force: bool = False) -> list[dict]:
     out = Path(env.get("PUBLISH_DIR", "/data/site"))
     out.mkdir(parents=True, exist_ok=True)
     res, keep = [], set()
+    started = time.time()
     for u in fetch_users(env):
         if u.get("status") != "active":
             continue
@@ -878,13 +890,86 @@ def publish_all(env: dict | None = None, force: bool = False) -> list[dict]:
         except Exception as e:  # noqa: BLE001 - one person's store down doesn't stop the others
             log(f"{slug}: {e!r}")
             keep.add(slug)  # never drop a site on an error
-            res.append({"slug": slug, "built": False, "why": f"failed: {e!r}"})
+            res.append({"slug": slug, "built": False, "why": f"failed: {e!r}", "error": error_line(e),
+                        "built_at": last_built(out / slug)})
     for d in out.iterdir():
         if d.is_dir() and tenancy.SLUG_RE.match(d.name) and d.name not in keep:
             shutil.rmtree(d, ignore_errors=True)
             log(f"{d.name}: no longer in the list, site removed")
     unpush_others(env, keep)
+    send_report(env, res, started)
     return res
+
+
+# ------------------------------------------------------------------ the pass, for the owner's overview
+
+
+def error_line(e: BaseException) -> str:
+    """One line for the overview: the error's kind and its first line, short."""
+    first = (str(e).strip().splitlines() or [""])[0]
+    return f"{type(e).__name__}: {first}"[:200]
+
+
+def last_built(folder: Path) -> float | None:
+    try:
+        return float(json.loads((folder / "state.json").read_text()).get("built_at") or 0) or None
+    except (OSError, ValueError, AttributeError):
+        return None
+
+
+def ping(url: str, headers: dict | None = None, timeout: float = 5) -> dict:
+    """{ok, ms} for one GET, or {ok: False, error} when it fails."""
+    t0 = time.monotonic()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=headers or {}), timeout=timeout) as r:
+            r.read(4096)
+        return {"ok": True, "ms": round((time.monotonic() - t0) * 1000)}
+    except Exception as e:  # noqa: BLE001 - any failure is the answer
+        return {"ok": False, "ms": round((time.monotonic() - t0) * 1000), "error": error_line(e)}
+
+
+def report_url(env: dict) -> str:
+    """Where the pass is reported: PUBLISH_REPORT_URL, else next to USERS_URL
+    on the full view's share port (/publisher.json)."""
+    url = (env.get("PUBLISH_REPORT_URL") or "").strip()
+    if url:
+        return url
+    users = (env.get("USERS_URL") or "").strip()
+    if not users:
+        return ""
+    p = urllib.parse.urlsplit(users)
+    return urllib.parse.urlunsplit((p.scheme, p.netloc, p.path.rsplit("/", 1)[0] + "/publisher.json", "", ""))
+
+
+def send_report(env: dict, res: list[dict], started: float) -> None:
+    """The pass for the owner's overview (wowstats.admin): per site whether
+    it built and when it last did, the error line if any; whether the
+    renderer and the static sites' upload port answer. No content, no
+    character, no key. A refused or unreachable report is logged and the
+    pass goes on."""
+    url = report_url(env)
+    if not url:
+        return
+    from wowstats import guard
+
+    render = (env.get("RENDER_URL") or "").strip().rstrip("/")
+    push_url = (env.get("PUBLISH_PUSH_URL") or "").strip().rstrip("/")
+    upload = None
+    if push_url:
+        try:
+            token = Path(env["PUBLISH_PUSH_TOKEN_FILE"]).read_text().strip()
+            upload = ping(push_targets(push_url)[0] + "/bundles", {"Authorization": f"Bearer {token}"})
+        except (OSError, KeyError, IndexError) as e:
+            upload = {"ok": False, "error": error_line(e)}
+    body = {"at": datetime.now(UTC).isoformat(timespec="seconds"), "seconds": round(time.time() - started, 1),
+            "version": __version__,
+            "renderer": ping(render + "/healthz") if render else None, "upload": upload,
+            "sites": [{"slug": r.get("slug"), "built": bool(r.get("built")), "built_at": r.get("built_at"),
+                       "error": r.get("error") or ""} for r in res]}
+    try:
+        guard.share_post(url, json.dumps(body).encode(), env)
+    except OSError as e:
+        log(f"report to the full view: {e}")
 
 
 def unpush_others(env: dict, keep: set[str]) -> None:

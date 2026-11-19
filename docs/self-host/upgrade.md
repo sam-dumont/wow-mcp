@@ -46,11 +46,16 @@ docker compose up -d
 
 ## The shipper
 
-On the computer you play on, your own install: take the new version of the repository there
-too, then run the installer again (`shipper/install-mac.sh`, or
-`powershell -ExecutionPolicy Bypass -File .\shipper\install-windows.ps1`). It keeps your
-config and archive. Players on a friend's server run the update line from their start page
-([Update](../players/getting-started.md#update)).
+It follows the server: at most every 6 hours it asks the server it ships to for its version,
+and takes the new one when it's newer ([Auto-update](../shipper.md#auto-update)). A shipper
+from before 0.5.1 can't do that yet: run the installer again once
+(`shipper/install-mac.sh`, or
+`powershell -ExecutionPolicy Bypass -File .\shipper\install-windows.ps1` from the new
+copy; players on a friend's server run the update line from their start page,
+[Update](../players/getting-started.md#update)). It keeps your config and archive.
+
+To pin the shipper to the version it has, put `auto_update = false` at the top of its
+config.
 
 ## Going back
 

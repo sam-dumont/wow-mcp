@@ -1,8 +1,10 @@
 """`wow-stats ui`: the web UI, its JSON API, and the optional ingest endpoint.
 
 Stdlib only. It reads the stores (GETs), answers GETs, and when INGEST is
-set up, forwards the shipper's NDJSON to VictoriaLogs. Answers are kept in
-memory for CACHE_TTL seconds.
+set up, forwards the shipper's NDJSON to VictoriaLogs. The answers a plain
+open asks for are built once per new data in the background and served as
+they are (wowstats.prebuilt); the rest, and all of them before the first
+build, are worked out when asked and kept in memory for CACHE_TTL seconds.
 
 Environment (defaults suit deploy/compose):
   VIEW                   full | public. Unset: full on a loopback BIND, else
@@ -52,7 +54,7 @@ from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from wowstats import guard, httpserve, insights, model3d, redact
+from wowstats import guard, httpserve, insights, model3d, prebuilt, redact
 from wowstats.stores import SourceError, Store, env_account, iso, parse_t, tenant_headers
 from wowstats.views import Settings, Views
 
@@ -243,6 +245,10 @@ class App:
         self._cache: dict[str, tuple[float, dict]] = {}
         self._locks: dict[str, threading.Lock] = {}
         self._guard = threading.Lock()
+        # The answers built once per new data (wowstats.prebuilt); the thread
+        # building them records into its own dict (page_answers).
+        self.prebuilt = prebuilt.Prebuilt(self)
+        self._building = threading.local()
 
     def _mcp(self, env: dict):
         """The MCP endpoint's settings, checked now so a bad one stops the
@@ -262,8 +268,17 @@ class App:
     # ------------------------------------------------------------ cache
 
     def cached(self, key: str, fn):
-        """Fresh for cache_ttl seconds; one refresh at a time per key; a failed
+        """The prebuilt answer when there is one (wowstats.prebuilt). Else
+        fresh for cache_ttl seconds; one refresh at a time per key; a failed
         refresh serves the last good answer, marked stale."""
+        building = getattr(self._building, "answers", None)
+        if building is not None:  # the builder's own thread: worked out now, once per build
+            if key not in building:
+                building[key] = {**fn(), "generated_at": iso(datetime.now(UTC))}
+            return building[key]
+        hit = self.prebuilt.get(key)
+        if hit is not None:
+            return hit
         with self._guard:
             lock = self._locks.setdefault(key, threading.Lock())
         hit = self._cache.get(key)
@@ -399,6 +414,125 @@ class App:
         self._full_only()
         return self.cached(f"gear:{name}:{spec or ''}", lambda: self.views.gear(name, spec))
 
+    def api_chars(self) -> dict:
+        """/api/chars as the route sends it."""
+        if self.view != "full":
+            return self.chars()
+        return self.cached("api:chars", lambda: {**self.chars(), "sources": self.store.sources()})
+
+    def api_char(self, name: str) -> dict:
+        """/api/char as the route sends it: the full view adds the sources and
+        what the character's pages can't show yet."""
+        if self.view != "full":
+            return self.char(name)
+        return self.cached(f"api:char:{name}", lambda: {**self.char(name), "sources": self.store.sources(),
+                                                        "missing": self.missing(name)})
+
+    def api_journal(self, name: str) -> dict:
+        self._full_only()
+        return self.cached(f"api:journal:{name}", lambda: {**self.journal(name), "sources": self.store.sources()})
+
+    def people(self, name: str) -> dict:
+        self._full_only()
+        return self.cached(f"people:{name}", lambda: self.views.people(name))
+
+    def plan(self, name: str) -> dict:
+        """The mount goal and the last plan against what happened."""
+        self._full_only()
+
+        def build() -> dict:
+            try:
+                return plan_status(name, self.store, self.env)
+            except LookupError as e:
+                return {"available": False, "why": str(e)}
+
+        return self.cached(f"plan:{name}", build)
+
+    def market(self, faction: str) -> dict:
+        self._full_only()
+        return self.cached(f"market:{faction}", lambda: self.views.market(faction))
+
+    def prices(self) -> dict:
+        self._full_only()
+        return self.cached("prices", self.views.prices)
+
+    def model3d_answer(self, name: str, level: int | None = None, sex: str = "") -> dict:
+        """/api/model3d: the 3D viewer's answer (wowstats.model3d)."""
+        return self.cached(f"model3d:{name}:{level or ''}:{sex}",
+                           lambda: self.model3d.for_char(self, name, level, sex))
+
+    # ------------------------------------------------------------ prebuilt
+
+    def data_mark(self, before: tuple | None = None) -> tuple:
+        """What says the answers may have changed (wowstats.prebuilt): the
+        newest event and the number of events (an old session sent late
+        moves only the count), and vm-wow's Battle.net fingerprint; when
+        vm-wow doesn't answer, the last one seen, as the publisher does."""
+        rows = self.views.vl(f"{self.views.stream} | stats max(_time) as t, count() as n", (),
+                             {"t": "maxtime", "n": "sum"})
+        r = rows[0] if rows else {}
+        try:
+            fp = self.store.profile_fingerprint()
+        except Exception:  # noqa: BLE001 - vm-wow down: judge on the events alone
+            fp = before[2] if before else ""
+        return str(r.get("t") or ""), str(r.get("n") or "0"), fp
+
+    def page_answers(self, only: str = "", keep: dict | None = None) -> dict:
+        """Every answer a plain open of the page asks for (web/app.js loadChar
+        and start), and the Timeline's, worked out now through the routes'
+        own methods. `only`: rebuild those keys alone, over `keep`.
+        A store down raises SourceError (the last set stays); any other
+        failure leaves that answer out, worked out when asked."""
+        out = {k: v for k, v in (keep or {}).items() if not (only and k.startswith(only))}
+        self._building.answers = out
+
+        def ask(what, *a):
+            try:
+                return what(*a)
+            except (FullOnly, LookupError):
+                return None
+            except SourceError:
+                if what in (self.market, self.prices):  # vm-wow down: that section only, as the publisher
+                    return None
+                raise
+            except Exception as e:  # noqa: BLE001 - one answer's bug: that route works it out when asked
+                prebuilt.log(f"{getattr(what, '__name__', what)}{a}: {e!r}")
+                return None
+
+        try:
+            full = self.view == "full"
+            if full:
+                ask(self.market, self.settings.ah_faction)
+            if only:
+                return out
+            self.views.expire()  # nothing read before this build is reused in it
+            ask(self.api_chars)
+            if full:
+                ask(self.prices)
+            for c in self.cached("chars", lambda: {"chars": self.views.chars()})["chars"]:
+                name = c.get("char")
+                if not isinstance(name, str) or not self.valid_char(name):
+                    continue
+                ask(self.api_char, name)
+                tl = ask(self.timeline, name) or {}
+                if full:
+                    for fn in (self.api_journal, self.overview, self.dungeons, self.loot, self.people, self.plan):
+                        ask(fn, name)
+                    g = ask(self.gear, name, None) or {}
+                    for spec in ((g.get("spec") or {}).get("choices") or []):
+                        if isinstance(spec, dict) and SPEC_RE.match(str(spec.get("key") or "")):
+                            ask(self.gear, name, spec["key"])
+                    if self.model3d is not None:
+                        ask(self.model3d_answer, name)
+                for lv in tl.get("levels") or []:
+                    if isinstance(lv, int) and 1 <= lv <= 60:
+                        ask(self.snapshot, name, lv)
+                        if full and self.model3d is not None:
+                            ask(self.model3d_answer, name, lv)
+            return out
+        finally:
+            self._building.answers = None
+
     def _full_only(self) -> None:
         if self.view != "full":
             raise FullOnly
@@ -443,6 +577,8 @@ def og_tags(html: str, header: dict | None) -> str:
 
 
 INSTALL_CODE_PATH = re.compile(r"/install/(?!update\b)[^/]+")
+# The shipper's auto-update: its version and files (wowstats.account.handle_shipper).
+SHIPPER_UPDATE = "/install/update/shipper"
 
 
 def og_generic(html: str) -> str:
@@ -543,9 +679,11 @@ def make_handler(root: App, tenancy=None):
             try:
                 if path == "/healthz" and self.command in ("GET", "HEAD"):
                     return self.send(200, b"ok\n", "text/plain")
-                # /ingest carries its own credentials, which a rebinding page
-                # doesn't have; the shipper may know the server by any name.
-                if path != "/ingest" and not root.hosts.ok(self.headers.get("Host")):
+                # /ingest and the shipper's update carry their own credentials,
+                # which a rebinding page doesn't have; the shipper may know the
+                # server by any name.
+                shipper = path == SHIPPER_UPDATE or path.startswith(SHIPPER_UPDATE + "/")
+                if path != "/ingest" and not shipper and not root.hosts.ok(self.headers.get("Host")):
                     return self.send(421, root.hosts.refusal(self.headers.get("Host")), "text/plain; charset=utf-8")
                 if path == "/ingest":
                     if self.command != "POST":
@@ -557,6 +695,19 @@ def make_handler(root: App, tenancy=None):
                     if not self._authorized(app.ingest_expected):
                         return None
                     return self._ingest(app.store.vl_url, app.store.account_id)
+                if shipper:  # the upload password, like /ingest: the same installs, no page login
+                    if self.command not in ("GET", "HEAD"):
+                        return self.not_found()
+                    if tenancy is not None:
+                        if self._ingest_user() is None:
+                            return None
+                    elif app.ingest_expected is None:
+                        return self.not_found()
+                    elif not self._authorized(app.ingest_expected):
+                        return None
+                    from wowstats import account
+
+                    return account.handle_shipper(self, path[len(SHIPPER_UPDATE):])
                 if tenancy is not None and path.startswith("/install/") and self.command in ("GET", "HEAD"):
                     from wowstats import account
 
@@ -584,6 +735,7 @@ def make_handler(root: App, tenancy=None):
                     if who.user is None:
                         return self._refused(who.status, who.why, path)
                     me, app = who.user, tenancy.app_for(who.user)
+                    tenancy.activity.seen(me, "full")
                     from wowstats import account
 
                     if account.route(self, tenancy, me, app, path):
@@ -593,7 +745,9 @@ def make_handler(root: App, tenancy=None):
                 if full and path == "/api/plan" and self.command == "POST":
                     from wowstats.plan import http as plan_http
 
-                    return plan_http.handle(self, app.store, app.env)
+                    plan_http.handle(self, app.store, app.env)
+                    # A new plan changes the plan panel's review: built again now.
+                    return app.prebuilt.changed("plan:")
                 if app.model3d is not None and app.model3d.owns(path):
                     return app.model3d.handle(self, app, path, qs)
                 if self.command not in ("GET", "HEAD"):
@@ -642,7 +796,7 @@ def make_handler(root: App, tenancy=None):
                     return self.send(200, body, f"image/{'png' if m.group(2) == 'png' else 'jpeg'}",
                                      "private, max-age=3600")
                 if path == "/api/chars":
-                    return self.json(200, {**app.chars(), "sources": app.store.sources()} if full else app.chars())
+                    return self.json(200, app.api_chars())
                 if path == "/api/gear" and full:
                     name = qs.get("name", [""])[0]
                     spec = qs.get("spec", [""])[0].strip().lower() or None
@@ -671,7 +825,7 @@ def make_handler(root: App, tenancy=None):
                     if path == "/api/dungeons":
                         return self.json(200, app.dungeons(name))
                     if path == "/api/people":
-                        return self.json(200, app.cached(f"people:{name}", lambda: app.views.people(name)))
+                        return self.json(200, app.people(name))
                     lv = qs.get("level", [""])[0]
                     if not lv.isdigit() or not 1 <= int(lv) <= 60:
                         return self.json(400, {"error": "level is 1 to 60"})
@@ -683,11 +837,8 @@ def make_handler(root: App, tenancy=None):
                     if not app.known(name):
                         return self.json(404, {"error": f"no events for {name}"})
                     if path == "/api/journal":
-                        return self.json(200, {**app.journal(name), "sources": app.store.sources()})
-                    if not full:
-                        return self.json(200, app.char(name))
-                    return self.json(200, {**app.char(name), "sources": app.store.sources(),
-                                           "missing": app.missing(name)})
+                        return self.json(200, app.api_journal(name))
+                    return self.json(200, app.api_char(name))
                 if not full:
                     return self.not_found()
                 if path == "/api/analysis":
@@ -699,18 +850,14 @@ def make_handler(root: App, tenancy=None):
                     return self.json(200, analysis.answer(app.analysis_env, name, "full"))
                 if path == "/api/plan":  # the mount goal and the last plan against what happened
                     name = (qs.get("char", [""])[0] or app.settings.default_char or "").replace(" ", "-")[:64]
-                    try:
-                        return self.json(200, app.cached(f"plan:{name}",
-                                                         lambda: plan_status(name, app.store, app.env)))
-                    except LookupError as e:
-                        return self.json(200, {"available": False, "why": str(e)})
+                    return self.json(200, app.plan(name))
                 if path == "/api/market":
                     faction = qs.get("faction", [app.settings.ah_faction])[0]
                     if faction not in ("Alliance", "Horde"):
                         return self.json(400, {"error": "faction is Alliance or Horde"})
-                    return self.json(200, app.cached(f"market:{faction}", lambda: app.views.market(faction)))
+                    return self.json(200, app.market(faction))
                 if path == "/api/prices":
-                    return self.json(200, app.cached("prices", app.views.prices))
+                    return self.json(200, app.prices())
                 if path == "/api/logsql":
                     try:
                         rows = app.views.logsql(qs.get("q", [""])[0])
@@ -738,10 +885,9 @@ def make_handler(root: App, tenancy=None):
 
             return self.send(status, account.refused_page(why), "text/html; charset=utf-8", "no-store")
 
-        def _ingest_tenant(self):
-            """POST /ingest with several people: basic auth is the person's
-            slug and their ingest token (wowstats.tenancy), and their events
-            go to their own tenant."""
+        def _ingest_user(self):
+            """The person whose upload password (basic auth: slug and ingest
+            token, wowstats.tenancy) the request carries; None after a 401."""
             raw = (self.headers.get("Authorization") or "")
             user = pw = ""
             if raw.lower().startswith("basic "):
@@ -756,6 +902,14 @@ def make_handler(root: App, tenancy=None):
                 self.send_header("Content-Length", "0")
                 self.end_headers()
                 return None
+            return u
+
+        def _ingest_tenant(self):
+            """POST /ingest with several people: the person's events go to
+            their own tenant."""
+            u = self._ingest_user()
+            if u is None:
+                return None
             from wowstats import ingest
 
             n = ingest.length(self.headers)
@@ -765,6 +919,7 @@ def make_handler(root: App, tenancy=None):
             res = self._ingest(app.store.vl_url, app.store.account_id)
             if self._last_accepted:
                 tenancy.ingest_budget.spend(u.slug, n)
+                tenancy.activity.uploaded(u, self._last_accepted)
             if not u.first_event and self._last_accepted:
                 tenancy.registry.update(u.sub, first_event=datetime.now(UTC).isoformat(timespec="seconds"))
             return res
@@ -798,6 +953,7 @@ def make_handler(root: App, tenancy=None):
                     return self.json(502, {"error": f"VictoriaLogs answered {e.code}"})
                 except (urllib.error.URLError, OSError) as e:
                     return self.json(502, {"error": f"VictoriaLogs unreachable: {e}"})
+                prebuilt.soon()  # the page catches up with the start page's "It works"
             return self.json(200, {"accepted": len(lines)})
 
     return Handler
@@ -839,6 +995,15 @@ def tenancy_of(env: dict, app: App):
     return t
 
 
+def prebuilt_apps(app: App, tenancy=None) -> list[App]:
+    """Whose answers the builder keeps (wowstats.prebuilt): this process'
+    App, or with several people every active person's, the owner first."""
+    if tenancy is None:
+        return [app]
+    users = sorted((u for u in tenancy.registry.users() if u.active), key=lambda u: not u.owner)
+    return [tenancy.app_for(u) for u in users]
+
+
 def main() -> int:
     env = dict(os.environ)
     try:
@@ -851,9 +1016,12 @@ def main() -> int:
     if tenancy is not None:
         from wowstats import tenancy as T
 
-        if T.start_reconcile(tenancy) is not None:
-            print(f"friends: the list in {tenancy.friends_file}, checked every "
-                  f"{env.get('FRIENDS_RECONCILE_S') or '120'} s", flush=True)
+        if T.start_reconcile(tenancy, on_change=prebuilt.WAKE.set) is not None:
+            print(f"friends: the list in {tenancy.friends_file}, watched every {T.WATCH_S} s (a full pass every "
+                  f"{env.get('FRIENDS_RECONCILE_S') or '120'} s)", flush=True)
+    # The answers a plain open asks for, built in the background once per new
+    # data (wowstats.prebuilt): each person's, the owner first.
+    prebuilt.start(lambda: prebuilt_apps(app, tenancy))
     if app.mcp is not None:
         # FastMCP on its own port (wowstats.mcp): a bad OIDC issuer stops the
         # start here, like a bad setting.

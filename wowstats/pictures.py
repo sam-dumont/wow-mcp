@@ -41,7 +41,7 @@ EXT = "webp"
 def request(answer: dict | None, metas: dict | None = None) -> dict | None:
     """The renderer's request for a 3D answer, or None when there is nothing
     to draw (no model: an unknown race, the viewer's files missing). `metas`:
-    the held items' metas Wowhead lacks (Model3D.stand_ins), sent along
+    the items' metas Wowhead lacks (Model3D.stand_ins), sent along
     only when there are some, so every other picture keeps its key."""
     model = (answer or {}).get("model")
     if not isinstance(model, dict) or not model.get("chr_model"):

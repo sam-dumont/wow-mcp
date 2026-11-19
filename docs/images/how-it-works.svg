@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 610" width="440" height="610" role="img" aria-labelledby="t d" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="t">How wow-stats works</title>
+  <desc id="d">The game and your addons write SavedVariables files on /reload or logout. The shipper, a small program on the computer you play on, reads them every 5 minutes and sends new events over HTTPS to the wow-stats server. The server turns them into your pages and answers your AI assistant over MCP.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 10 5 0 10z" fill="#8a6420"/>
+    </marker>
+    <style>
+      .box { fill: #fffdf6; stroke: #8a6420; stroke-width: 1.5; }
+      .srv { fill: #3a2a12; stroke: #3a2a12; }
+      .h { font-size: 16px; font-weight: 600; fill: #2b2110; }
+      .s { font-size: 12.5px; fill: #5c4a2a; }
+      .hs { font-size: 16px; font-weight: 600; fill: #f6e7bf; }
+      .ss { font-size: 12.5px; fill: #e5d3a6; }
+      .zone { font-size: 11px; letter-spacing: 1.2px; font-weight: 700; fill: #8a6420; }
+      .lab { font-size: 12.5px; fill: #5c4a2a; font-style: italic; }
+      .line { stroke: #8a6420; stroke-width: 1.6; fill: none; }
+    </style>
+  </defs>
+  <rect x="1" y="1" width="438" height="608" rx="14" fill="#f8f0dc" stroke="#e2d3ae"/>
+
+  <text class="zone" x="24" y="32">ON THE COMPUTER YOU PLAY ON</text>
+  <rect class="box" x="24" y="44" width="392" height="58" rx="8"/>
+  <text class="h" x="40" y="68">WoW Forever and your addons</text>
+  <text class="s" x="40" y="88">Polestar, its Recorder, Syndicator, Auctionator…</text>
+
+  <path class="line" d="M220 102v38" marker-end="url(#a)"/>
+  <text class="lab" x="232" y="126">saved on /reload or logout</text>
+
+  <rect class="box" x="24" y="144" width="392" height="58" rx="8"/>
+  <text class="h" x="40" y="168">SavedVariables</text>
+  <text class="s" x="40" y="188">plain files in the game's WTF folder</text>
+
+  <path class="line" d="M220 202v38" marker-end="url(#a)"/>
+  <text class="lab" x="232" y="226">read every 5 minutes</text>
+
+  <rect class="box" x="24" y="244" width="392" height="58" rx="8"/>
+  <text class="h" x="40" y="268">The shipper</text>
+  <text class="s" x="40" y="288">a small program; it never touches the game</text>
+
+  <path d="M12 352h416" stroke="#c9b27a" stroke-dasharray="5 5"/>
+  <path class="line" d="M220 302v74" marker-end="url(#a)"/>
+  <text class="lab" x="232" y="336">new events, over HTTPS</text>
+
+  <text class="zone" x="24" y="372">ON YOUR SERVER (OR A FRIEND'S)</text>
+  <rect class="box srv" x="24" y="380" width="392" height="66" rx="8"/>
+  <text class="hs" x="40" y="406">The wow-stats server</text>
+  <text class="ss" x="40" y="428">keeps your events, works out pace, upgrades, plans</text>
+
+  <path class="line" d="M120 446v66" marker-end="url(#a)"/>
+  <path class="line" d="M320 446v66" marker-end="url(#a)"/>
+  <text class="lab" x="130" y="484">web</text>
+  <text class="lab" x="330" y="484">MCP</text>
+
+  <rect class="box" x="24" y="516" width="190" height="72" rx="8"/>
+  <text class="h" x="38" y="542">Your pages</text>
+  <text class="s" x="38" y="562">yours, a sealed link for</text>
+  <text class="s" x="38" y="578">friends, a public one</text>
+
+  <rect class="box" x="226" y="516" width="190" height="72" rx="8"/>
+  <text class="h" x="240" y="542">Your AI</text>
+  <text class="s" x="240" y="562">Claude, ChatGPT and</text>
+  <text class="s" x="240" y="578">other MCP clients</text>
+</svg>

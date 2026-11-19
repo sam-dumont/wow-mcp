@@ -82,3 +82,13 @@ def riding(race: str | None, faction: str | None) -> dict | None:
     if not t:
         return None
     return {"trainer": place(t), "tiers": r.get("tiers") or {}, "price_scope": r.get("price_scope")}
+
+
+def not_class_trainers() -> frozenset[int]:
+    """The NPC IDs the data knows as profession or riding trainers: a
+    trainer window from one of them is no class training."""
+    d = data()
+    ids = {t["npc"] for p in (d.get("professions") or {}).values() for r in (p.get("ranks") or {}).values()
+           for t in r.get("trainers") or [] if isinstance(t.get("npc"), int)}
+    ids |= {t["npc"] for t in ((d.get("riding") or {}).get("trainers") or {}).values() if isinstance(t.get("npc"), int)}
+    return frozenset(ids)

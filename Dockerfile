@@ -36,6 +36,7 @@ COPY data/kb ./data/kb
 COPY data/forever-reference.json ./data/forever-reference.json
 COPY data/trainers-reference.json ./data/trainers-reference.json
 COPY data/class-reference.json ./data/class-reference.json
+COPY data/model3d-reference.json.gz ./data/model3d-reference.json.gz
 COPY THIRD_PARTY.md ./THIRD_PARTY.md
 COPY shipper ./shipper
 COPY docs/videos/steps.json ./docs/videos/steps.json
@@ -71,6 +72,7 @@ COPY data/kb ./data/kb
 COPY data/forever-reference.json ./data/forever-reference.json
 COPY data/trainers-reference.json ./data/trainers-reference.json
 COPY data/class-reference.json ./data/class-reference.json
+COPY data/model3d-reference.json.gz ./data/model3d-reference.json.gz
 COPY THIRD_PARTY.md ./THIRD_PARTY.md
 COPY shipper ./shipper
 COPY docs/videos/steps.json ./docs/videos/steps.json

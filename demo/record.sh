@@ -12,12 +12,14 @@
 # idle machine: VHS drops frames when the CPU is busy.
 #
 # Each theme is one friend's first days: the wizard and the install, a run
-# of the shipper by hand, six evenings of play, the tour, the zogzog link,
+# of the shipper by hand, the decoy character's evenings, the tour, the zogzog link,
 # the update, Settings (which resets the upload password), the uninstall.
 # The terminal runs in a throwaway HOME with a fake WoW folder. launchd is
-# never touched: the installers get WOW_STATS_NO_LOAD=1, and `launchctl` is
-# a no-op shim on the takes' PATH (the real one is per macOS user: the
-# uninstall line would stop this Mac's own shipper).
+# never touched: `launchctl` is a no-op shim first on the takes' PATH (the
+# real one is per macOS user: the uninstall line would stop this Mac's own
+# shipper), and the takes' shell exits before any command if `launchctl`
+# resolves to anything else. The installers run as for a friend (no
+# WOW_STATS_NO_LOAD), so their checklist shows the background program.
 set -euo pipefail
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -88,27 +90,30 @@ for mode in ${MODES:-dark light}; do
   mkdir -p "$home"
   uv run --frozen python demo/stack/fake_wow.py "$wow" "$char" "Pellwick-${char#*-}"
   cat > "$state/shell.sh" <<SH
-export HOME='$home' WOW_STATS_WOW_DIR='$wow' WOW_STATS_NO_LOAD=1 PATH='$state/bin':"\$PATH"
+export HOME='$home' WOW_STATS_WOW_DIR='$wow' PATH='$state/bin':"\$PATH"
 export UV_CACHE_DIR='$(uv cache dir)' UV_PYTHON_INSTALL_DIR='$(uv python dir)'
+[ "\$(command -v launchctl)" = '$state/bin/launchctl' ] || exit 1  # never the real launchd
 cd "\$HOME"
 SH
+  [[ $(bash -c "source '$state/shell.sh' >/dev/null && command -v launchctl") == "$state/bin/launchctl" ]] \
+    || { echo "the takes' launchctl isn't the shim: stopping before any take" >&2; exit 1; }
   sed -e "s|@THEME@|$(theme "$mode")|" -e "s|@STATE@|$state|" -e "s|@MODE@|$mode|" \
     "$here/tapes/settings.tape.in" > "$here/tapes/.settings.tape"
 
   # The start page and the install, side by side; the first evening arrives
   # once the installer wrote the config.
   rm -f "$state/install-url"
-  browser wizard "$mode" DEMO_URL="http://localhost:$port" DEMO_NAME="$name" & wiz=$!
+  browser wizard "$mode" DEMO_URL="http://localhost:$port" & wiz=$!
   for _ in $(seq 1 120); do [[ -s "$state/install-url" ]] && break; kill -0 "$wiz" 2>/dev/null || break; sleep 0.5; done
   [[ -s "$state/install-url" ]] || { echo "the wizard gave no install command (see above)" >&2; exit 1; }
   tape install-mac "$mode" "@INSTALL_URL@=$(cat "$state/install-url")"
   guard "$conf"
-  uv run --no-project python "$here/stack/seed_friend.py" "$conf" "$char" first
+  uv run --no-project python "$here/stack/seed_friend.py" "$conf" first
   wait "$wiz"
 
   tape status-mac "$mode"
-  uv run --no-project python "$here/stack/seed_friend.py" "$conf" "$char" all
-  sleep 11  # the app's per-person status and caches
+  uv run --no-project python "$here/stack/seed_friend.py" "$conf" all
+  sleep 90  # the page's answers are rebuilt once new data is seen (wowstats.prebuilt, every 60 s)
   browser tour "$mode" DEMO_URL="http://localhost:$port"
   publish_sites
   browser private "$mode" DEMO_URL="http://localhost:$port" DEMO_SITE_PORT="$SITE"

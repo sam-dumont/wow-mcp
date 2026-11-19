@@ -568,7 +568,8 @@ def share_server(env: dict, tenancy=None):
     /analysis.json?slug=<slug> (that person's lines), /users.json (who has a
     site and what is on: no hashes, no keys) for the publisher,
     /profile-characters (every person's characters, one per line) for the
-    exporter, and /hosts.json (each site's host) for the host's DNS automation."""
+    exporter, and /hosts.json (each site's host) for the host's DNS automation;
+    the publisher POSTs its pass to /publisher.json (the owner's overview)."""
     port = (env.get("ANALYSIS_SHARE_PORT") or "").strip()
     if not port or (state_dir(env) is None and tenancy is None):
         return None
@@ -616,6 +617,28 @@ def share_server(env: dict, tenancy=None):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(body)
+
+        def do_POST(self):  # noqa: N802
+            """POST /publisher.json: the publisher's report of its last pass
+            (wowstats.admin.take_report), for the owner's overview."""
+            if not guard.bearer_ok(self.headers, token):
+                self.send_response(401)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            if tenancy is None or urlsplit(self.path).path != "/publisher.json":
+                self.send_error(404)
+                return
+            from wowstats import admin
+
+            try:
+                n = int(self.headers.get("Content-Length") or "-1")
+            except ValueError:
+                n = -1
+            ok = 0 <= n <= admin.REPORT_MAX_BYTES and admin.take_report(tenancy, self.rfile.read(n))
+            self.send_response(204 if ok else 400)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
 
         def log_message(self, *a):
             pass

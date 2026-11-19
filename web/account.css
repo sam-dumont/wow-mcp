@@ -144,6 +144,8 @@ body[data-state="ok"] .hero[data-in="ok"]:has(.lamp.quiet), .lamp.quiet { --lamp
 @keyframes lamp { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .lamp.wait::before { animation: none; } }
 .warn { border-left: 3px solid var(--bad); padding: 2px 0 2px 12px; }
+/* An install from before the auto-update: the update command, once. */
+.once { border-left: 3px solid var(--gold); padding: 2px 0 2px 12px; }
 
 /* Setting up: three steps, the first one carries the command. */
 ol.setup { list-style: none; counter-reset: s; padding: 0; margin: 0; }

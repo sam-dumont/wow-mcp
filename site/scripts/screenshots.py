@@ -1,0 +1,132 @@
+"""The manual's screenshots, taken from the demo character (Nibbet, made up
+by tools/fixtures/generate.py --demo), never from a real player's data.
+
+    site/scripts/build-demo.sh && npm --prefix site run build
+    uv run --extra render python site/scripts/screenshots.py http://127.0.0.1:4399/wow-mcp/
+
+The address is the built site (site/dist) served the way GitHub Pages does
+(`model3d/view` answers `model3d/view.html`): `astro preview` doesn't, and
+View in 3D stays blank there. Writes docs/images/*.webp (small, light theme;
+the Overview also dark) and docs/images/social.png (the link preview).
+Commit the images; the dates on them are the demo's and age, which is fine.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
+from playwright.sync_api import sync_playwright
+
+ROOT = Path(__file__).resolve().parents[2]
+OUT = ROOT / "docs" / "images"
+WIDTH = 1280
+
+
+def settle(page) -> None:
+    """Every icon on screen loaded: a half-loaded page shows "?" tiles."""
+    with contextlib.suppress(PlaywrightTimeout):  # the 3D viewer keeps fetching: idle is a hint
+        page.wait_for_load_state("networkidle", timeout=5000)
+    page.evaluate("""async () => {
+      for (const img of document.images) img.loading = "eager";
+      const loaded = (i) => new Promise((r) => { i.onload = i.onerror = r; });
+      await Promise.all([...document.images].map((i) => (i.complete ? 0 : loaded(i))));
+    }""")
+    page.wait_for_timeout(400)
+
+
+def section(page, where, path: Path, height: int | None = None) -> None:
+    el = (page.locator(where) if isinstance(where, str) else where).first
+    el.scroll_into_view_if_needed()
+    settle(page)
+    box = el.bounding_box()
+    y = box["y"] + page.evaluate("scrollY")  # the clip is in page coordinates with full_page
+    clip = {"x": box["x"], "y": y, "width": box["width"], "height": min(box["height"], height or box["height"])}
+    page.screenshot(path=path, clip=clip, full_page=True)
+
+
+def tab(page, name: str) -> None:
+    page.get_by_role("tab", name=name).click()
+    page.wait_for_timeout(600)
+    settle(page)
+
+
+def main(base: str) -> None:
+    base = base.rstrip("/") + "/"
+    tmp = Path(tempfile.mkdtemp())
+    shots: dict[str, Path] = {}
+
+    def shot(name: str) -> Path:
+        shots[name] = tmp / f"{name}.png"
+        return shots[name]
+
+    with sync_playwright() as p:
+        # PW_CHROMIUM: a Chromium already on disk, when Playwright wants another build.
+        browser = p.chromium.launch(executable_path=os.environ.get("PW_CHROMIUM") or None)
+        for scheme in ("light", "dark"):
+            page = browser.new_page(viewport={"width": WIDTH, "height": 820}, color_scheme=scheme)
+            page.goto(base + "demo/friends/")
+            page.wait_for_url("**/zogzog/**")
+            settle(page)
+            page.screenshot(path=shot(f"overview-{scheme}"))
+            if scheme == "dark":
+                page.close()
+                continue
+            # The link preview: 1200x630, the Overview's top.
+            page.set_viewport_size({"width": 1200, "height": 630})
+            settle(page)
+            page.screenshot(path=tmp / "social.png")
+            page.set_viewport_size({"width": WIDTH, "height": 820})
+            section(page, page.get_by_role("region", name="Next moves"), shot("next-moves"), 760)
+            tab(page, "Character")
+            section(page, "#gear", shot("gear"), 900)
+            page.locator(".adv-h", has_text="Upgrades").first.scroll_into_view_if_needed()
+            settle(page)
+            top = page.locator(".adv-h", has_text="Upgrades").first.bounding_box()
+            gear = page.locator("#gear").first.bounding_box()
+            y = top["y"] - 16 + page.evaluate("scrollY")
+            clip = {"x": gear["x"], "y": y, "width": gear["width"], "height": 900}
+            page.screenshot(path=shot("upgrades"), clip=clip, full_page=True)
+            section(page, "#dungeons", shot("dungeons"), 1150)
+            section(page, "#levels", shot("climb"), 760)
+            page.locator("#gear").get_by_role("button", name="View in 3D").first.click()
+            page.wait_for_timeout(5000)
+            page.screenshot(path=shot("model3d"))
+            page.keyboard.press("Escape")
+            tab(page, "Timeline")
+            page.set_viewport_size({"width": WIDTH, "height": 1040})  # the model under the gear list
+            page.wait_for_timeout(4000)
+            page.screenshot(path=shot("timeline"))
+            page.set_viewport_size({"width": WIDTH, "height": 820})
+            tab(page, "Journal")
+            page.screenshot(path=shot("journal"))
+            page.close()
+        browser.close()
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    # sharp is already the site's dependency (Astro's image service).
+    script = """
+      import sharp from "sharp";
+      const [src, dst] = process.argv.slice(1);
+      await sharp(src).resize({ width: 1100, withoutEnlargement: true }).webp({ quality: 78 }).toFile(dst);
+    """
+    social = """
+      import sharp from "sharp";
+      const [src, dst] = process.argv.slice(1);
+      await sharp(src).png({ palette: true, quality: 85, compressionLevel: 9 }).toFile(dst);
+    """
+    subprocess.run(["node", "--input-type=module", "-e", social, str(tmp / "social.png"), str(OUT / "social.png")],
+                   cwd=ROOT / "site", check=True)
+    for name, png in shots.items():
+        dst = OUT / f"{name}.webp"
+        subprocess.run(["node", "--input-type=module", "-e", script, str(png), str(dst)], cwd=ROOT / "site", check=True)
+        print(f"{dst.relative_to(ROOT)}  {dst.stat().st_size // 1024} KiB")
+
+
+if __name__ == "__main__":
+    main(sys.argv[1] if len(sys.argv) > 1 else "http://127.0.0.1:4399/wow-mcp/")

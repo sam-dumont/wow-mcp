@@ -245,6 +245,9 @@ ALLOWED = {
     "model3d": {"race", "sex", "sex_known", "class", "stand_in", "level", "why", "source", "model", "appearance",
                 "items", "missing", "model.chr_model", "model.gender", "model.options", "model.options[].optionId",
                 "model.options[].choiceId", "appearance.source", "appearance.refreshed",
+                # The same look on the original model (the Classic switch), and the default models.
+                "model_sd", "model_sd.chr_model", "model_sd.gender", "model_sd.options",
+                "model_sd.options[].optionId", "model_sd.options[].choiceId", "models",
                 *keys("items[].", M3D_ITEM), *keys("missing[].", M3D_ITEM)},
 }
 # Besides data/: the page itself, its script, style, fonts and the 3D viewer.
@@ -1159,3 +1162,92 @@ def test_a_stored_crafted_name_is_skipped_never_written(tmp_path, monkeypatch, c
     written = [p for p in tmp_path.rglob("*") if p.is_file()]
     assert written and all(site_dir in p.parents or p.name == "zogzog.key" for p in written)
     assert not any("victim" in p.as_posix().lower() for p in written)
+
+
+class EmptyStore(PoisonStore):
+    """A new account: the store answers, with nothing in it yet."""
+
+    def vl(self, query, keys=(), ops=None, limit=0):
+        return []
+
+    def vl_raw(self, base, query, start, end, limit=0):
+        return []
+
+    def vm_query(self, q):
+        return []
+
+    def vm_range(self, q, start, end, step):
+        return []
+
+
+def multi_get(site_dir: Path):
+    """A several-people static server on site_dir; get(path, host)."""
+    s = static.Site({"SITE_DIR": str(site_dir), "ZOGZOG_PATH": "/zogzog/", "SITE_DOMAIN": "m.example"})
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), static.make_handler(s))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    base = f"http://127.0.0.1:{httpd.server_address[1]}"
+
+    def get(path, host):
+        req = urllib.request.Request(base + path, headers={"Host": host})
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status, dict(r.headers), r.read()
+        except urllib.error.HTTPError as e:
+            return e.code, dict(e.headers), e.read()
+
+    return httpd, get
+
+
+@pytest.mark.parametrize("public_on", [False, True])
+def test_a_person_without_characters_gets_the_empty_page(tmp_path, monkeypatch, public_on):
+    """A new account had a bare "Not found" at its own address until its
+    first character arrived (samwow, 2026-11-19). Now the empty page, public
+    page on or off, naming nobody; an unknown slug still gets a 404; the
+    build that brings the first character replaces it with the real page."""
+    from wowstats.plan import facts
+
+    store = {"cls": EmptyStore}
+    monkeypatch.setattr(ui, "Store", lambda *a, **k: store["cls"]())
+    monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
+    site_dir = tmp_path / "site"
+    env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "off",
+           "PUBLISH_DIR": str(site_dir / "newbie"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
+    with redirect_stdout(io.StringIO()):
+        res = publish.publish(env, public=public_on, slug="newbie")
+    assert res["built"] and res["chars"] == 0 and res["public_files"] == 4
+    httpd, get = multi_get(site_dir)
+    try:
+        code, headers, body = get("/", "newbie-wow.m.example")
+        page = body.decode()
+        assert code == 200 and headers["Content-Type"].startswith("text/html")
+        assert "No character yet" in page and "/reload" in page and "<script" not in page
+        assert "newbie" not in page.lower()
+        for rel in ("notice.css", "fonts/cinzel.woff2", "fonts/alegreya-sans-400.woff2"):
+            assert get("/" + rel, "newbie-wow.m.example")[0] == 200, rel
+        # Nothing else of the page's: no data, no app.
+        for path in ("/data/config.json", "/app.js", "/data/chars.json"):
+            assert get(path, "newbie-wow.m.example")[0] == 404, path
+        # An unknown slug, another host: the styled 404, its assets served for any host.
+        for host in ("nobody-wow.m.example", "evil.example"):
+            code, headers, body = get("/", host)
+            assert code == 404 and b"Nothing here" in body and headers["Content-Type"].startswith("text/html")
+            assert b"No character yet" not in body
+            assert get("/_notice/notice.css", host)[0] == 200
+        for path in ("/_notice/../state.json", "/_notice/app.js", "/_notice/fonts/alegreya.woff2"):
+            assert get(path, "nobody-wow.m.example")[0] == 404, path
+
+        # The first character arrives: the next build is the normal one.
+        store["cls"] = PoisonStore
+        with redirect_stdout(io.StringIO()):
+            res = publish.publish(env, public=public_on, slug="newbie")
+        assert res["built"] and res["chars"] == 1
+        code, _, body = get("/", "newbie-wow.m.example")
+        if public_on:
+            assert code == 200 and b'data-static="1"' in body and b"No character yet" not in body
+            assert get("/data/config.json", "newbie-wow.m.example")[0] == 200
+        else:  # the page stays off: the 404, as for anyone
+            assert code == 404 and b"Nothing here" in body
+        assert get("/zogzog/", "newbie-wow.m.example")[0] == 200
+    finally:
+        httpd.shutdown()
+        httpd.server_close()

@@ -11,7 +11,8 @@ install command exist for. Set it up once you have [HTTPS](reverse-proxy.md) and
 
 ## What each friend gets
 
-- An account at your identity provider (you make it there).
+- An account at your identity provider (you make it there), and a name for their page's address
+  (you pick it, in the friends list).
 - Their own start page with a personal install command, their own upload password, page,
   sealed `/zogzog/` link, public page (off until they switch it on) and AI connection.
 - Their own data, in their own tenant (a separate partition) of a VictoriaLogs for friends.
@@ -45,14 +46,17 @@ The extra paths to route: [HTTP endpoints](../reference/http-endpoints.md#extra-
 
 ## The friends list
 
-A JSON file mapping each friend's `sub` at your identity provider to their site name (2 to 20
-of a-z and 0-9, which becomes their page's address):
+A JSON file mapping each friend's `sub` at your identity provider to the name you give them (2
+to 20 of a-z and 0-9), which becomes their page's address:
 
 ```json
 {"3f2c9a10-5b7e-4c1d-9a8f-2e6b4d0c7a11": "frostbolt", "8d1e4f27-0c3a-4b9e-b5d2-7f6a1c9e3b40": "moonfire"}
 ```
 
-The full view reads it at start and every 2 minutes (`FRIENDS_RECONCILE_S`):
+The full view reads it at start and watches it while it runs: a change applies within about
+10 seconds of the file changing, **without a restart**. Don't restart the server for a new
+friend; nobody gets logged out. The same pass runs every 2 minutes anyway
+(`FRIENDS_RECONCILE_S`), to retry anything that failed.
 
 - **A new entry** gets a tenant with that name before their first login.
 - **A removed entry** is switched off and offboarded on the spot: their events, settings,
@@ -70,6 +74,36 @@ docker compose logs ui | grep '"event": "friends"'
 Keep the file wherever your accounts live: render it from a group at your identity provider,
 or edit it by hand.
 
+**Mount the folder, not the file.** Some ways of mounting a single file never show the server a
+new version: a Kubernetes ConfigMap mounted with `subPath`, or a Docker bind mount of one file
+that your editor replaces instead of rewriting in place. Mount the directory that holds it
+(`/run/wow/` with `WOW_FRIENDS_FILE=/run/wow/friends.json`). Kubernetes then updates a
+ConfigMap's file in place, about a minute after the ConfigMap changes, so a change to the list
+reaches the server within ~1 minute. Don't roll the pod on a list change either (a `checksum/`
+annotation of the ConfigMap): the full view runs one copy, so a roll is a minute of downtime for
+everyone.
+
+### You pick each friend's name
+
+The name in the list is where a friend's page address comes from. Friends don't choose it, and
+the app reads no username, email or claim from the login to make one. Pick a handle
+(`frostbolt`, not a real name) and tell them what it is when you send the invite. It can't
+change once it's set: their links would break. Changing it in the list later only logs
+`slug_kept`.
+
+| Your accounts live in | The `sub` (the key) | The name (the value) |
+|---|---|---|
+| ZITADEL | the user's ID, on the user's page in the console | their ZITADEL username: render the list from the users holding your project's role, with the username as the value. Make each friend's username 2 to 20 of a-z and 0-9 |
+| Keycloak | the user's ID (`kcadm.sh get users -r <realm> -q username=<name> --fields id`) | whatever you write, or the username if a script renders the list from the admin API |
+| authentik, Authelia or another OIDC provider | what the provider sends as `sub` for that user: it depends on the provider's subject setting, so read it off one login's ID token | whatever you write, or copied by a script from the provider's API |
+
+Two friends can't share a name, and the app keeps a few for itself: `full`, your own
+(`WOW_OWNER_SLUG` and your aliases), and words like `www`, `api`, `admin`, `start` or `help`.
+A clash is your mistake to fix, not theirs: the app logs one `name_conflict` line with the
+name and the reason, `/admin` and `wow-stats users list` show it as a name conflict, and that friend's
+start page says their address needs a fix from you, with nothing for them to do. Change the
+name in the list and the next pass gives it to them; their page carries on by itself.
+
 ## Manage people
 
 Run these where the full view runs, with its settings (in the compose kit,
@@ -78,7 +112,7 @@ Run these where the full view runs, with its settings (in the compose kit,
 | Command | Does |
 |---|---|
 | `wow-stats users list` | Everyone, with their status, tenant and when their data started |
-| `wow-stats users reconcile` | Applies the friends list now, instead of within 2 minutes |
+| `wow-stats users reconcile` | Applies the friends list now (the server also picks up a change within ~10 seconds) |
 | `wow-stats users disable <name>` | Refuses their page and their AI at the next request; their site goes at the next publish. Their data stays |
 | `wow-stats users enable <name>` | Undoes `disable` |
 | `wow-stats users delete <name>` | Says what would be deleted. Add `--yes` to delete their events, state and registry entry |
@@ -88,3 +122,6 @@ Removing someone from the friends list does what `delete --yes` does. An open br
 lasts until your login proxy's session ends: `disable` too when it must stop now.
 
 Tenant numbers are never reused, so a deleted friend's data can't show up under someone new.
+
+Who uses the install, when they last did and whether their sites build:
+[Admin overview](admin.md).

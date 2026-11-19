@@ -171,6 +171,16 @@ the newer time.
   Syndicator, without the realm), `class`, `race`, `faction`, `sex`
   (`male`/`female` from Syndicator's `details.sex`, for the 3D view; the full
   view only).
+- `recipes`: the recipes the character knows, per profession, from
+  Altoholic's `DataStore_Crafts.lua` (account SavedVariables), as a list of
+  `{profession, known: [recipe spell IDs], seen}` (`seen`: how many recipes
+  that profession's window listed). Only professions whose window the
+  character opened with Altoholic installed; missing otherwise. Gear advice
+  says "learn the pattern first" or "find the recipe" from it, and never
+  "make it now" without it.
+- `class_train_level`: the level of the last class trainer visit, from
+  Polestar's `PolestarCharDB.classTrainVisit` (the character's
+  SavedVariables), for the planner's class trainer errand.
 
 Never sent in `wow-gear`: the money Syndicator keeps next to the gear (it
 goes in `wow-character`, for characters Polestar doesn't track), bag and
@@ -267,7 +277,9 @@ own timestamp (the PC's local time, converted to UTC).
 addons of `docs/videos/steps.json` found in `Interface/AddOns`, id to its
 .toc version), `recorder_on` (Polestar Recorder's switch,
 `PolestarRecorderDB.enabled`; missing when no account saved it yet),
-`saved_chars` (how many characters have Polestar's saved data). Sent with
+`saved_chars` (how many characters have Polestar's saved data), `shipper`
+(the shipper's own version; missing from one older than its auto-update,
+which `/start` then asks to update once by hand). Sent with
 each send, when it changes, and once a day; no folder, name or character.
 The start page (`/api/me/status` `setup`) and the "Missing:" lines
 (`wowstats/missing.py`) read the newest one; it is not game data, so it

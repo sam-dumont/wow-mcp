@@ -101,6 +101,19 @@ class Views:
         self._prices: tuple[float, list] | None = None
         self._prices_lock = threading.Lock()
 
+    def expire(self) -> None:
+        """Forget what the views kept a minute (the replay, the snapshots'
+        inputs, the roster, the prices) and make the event cache ask again:
+        the next answers are worked out from the stores as they are now."""
+        self._recon.clear()
+        self._snap_in.clear()
+        with self._roster_lock:
+            self._roster = None
+        with self._prices_lock:
+            self._prices = None
+        if getattr(self.store, "use_cache", False):
+            self.store.cache.expire()
+
     @property
     def stream(self) -> str:
         return self.store.stream
@@ -421,8 +434,8 @@ class Views:
         ds = insights.deaths(self.q, cf, data.get("levels") or [])
         steps_rows = sorted(dedupe(res["steps"]), key=lambda r: parse_t(r.get("_time")))
         skills = {int(opt_num(r["skill_id"])): {"rank": int(num(r.get("rank"))), "max_rank": int(num(r.get(
-            "max_rank")))} for r in sorted(dedupe(res["skills"]), key=lambda r: parse_t(r.get("_time")))
-            if opt_num(r.get("skill_id")) is not None}
+            "max_rank"))), "t": r.get("_time")} for r in sorted(dedupe(res["skills"]), key=lambda r: parse_t(
+                r.get("_time"))) if opt_num(r.get("skill_id")) is not None}
         return {"data": data, "advice": advice if (advice or {}).get("available") else None, "deaths": ds,
                 "runs": res["runs"], "sessions": res["sessions"], "steps_rows": steps_rows, "skills": skills,
                 "skill_rows": sorted(dedupe(res["skills"]), key=lambda r: parse_t(r.get("_time")))}
@@ -441,9 +454,10 @@ class Views:
         profs = gear.get("professions") or []
         talents = (advice or {}).get("talents") if advice else None
         ov["next_moves"] = insights.next_moves(hd.get("level"), advice, hd, ov["on_track"], ov["guide"], profs,
-                                               x["skills"])
+                                               x["skills"], sheet_at=gear.get("at"))
         ov["sanity_check"] = insights.sanity_check(hd.get("level"), x["deaths"], ov["guide"], ov["on_track"],
-                                                   advice, profs, x["skills"], talents, gear.get("items"), hd)
+                                                   advice, profs, x["skills"], talents, gear.get("items"), hd,
+                                                   sheet_at=gear.get("at"))
         ov["moves"] = insights.overview_moves(ov["next_moves"], ov["sanity_check"])
         ov["deaths_detail"] = x["deaths"][::-1][:15]
         ov["clusters"] = insights.death_clusters(x["deaths"])
@@ -961,7 +975,9 @@ def build_gear(row: dict) -> dict | None:
 
     for i in items:
         i["enchant"] = itemcard.shared().enchant(i["enchant_id"]) if i.get("enchant_id") else None
-    profs = [clean(p, ("skill_id", "rank", "max_rank"), ("name",))
+    # max_rank_at: when the cap was read (shippers after 0.5.0); the game shows
+    # it only in the profession window, so it can lag a trainer visit.
+    profs = [clean(p, ("skill_id", "rank", "max_rank"), ("name", "max_rank_at"))
              for p in jlist(row.get("professions")) if isinstance(p, dict)]
     wanted = [clean(w, ("item_id", "item_level", "req_level", "level"), ("slot_name", "name"))
               for w in jlist(row.get("wanted")) if isinstance(w, dict)]

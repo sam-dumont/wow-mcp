@@ -2,7 +2,7 @@
 # The demo lab by hand: the same stack record.sh records on.
 #
 #   VL_BIN=... demo/lab up       # start it (stays in the foreground; Ctrl+C stops it)
-#   demo/lab friend dark|light   # a friend picks a name, installs in a throwaway HOME, plays six evenings
+#   demo/lab friend dark|light   # a friend (named by the friends list) installs in a throwaway HOME, sends the decoy evenings
 #   demo/lab publish             # build the sites: http://<name>-wow.localhost:19477/, and the help page
 #                                # at http://help.localhost:19477/help/#<key in $LAB_STATE/help.key>
 #   demo/lab down                # stop a lab left running

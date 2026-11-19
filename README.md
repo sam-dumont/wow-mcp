@@ -13,7 +13,7 @@ wants to keep.
 It runs on your computer or a small box at home. Nothing goes anywhere else unless you set it
 up that way.
 
-![The Overview of the demo character Testchar, level 32: on track at 1.5 times Polestar's route time, the next level in 1h 11m of play, 90% of guide steps in order, the next move, and time per level against the route](docs/images/overview-light.png)
+![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's route time, the next level in 2h 27m of play, 90% of guide steps in order, his next moves, and time per level against the route](docs/images/overview-light.webp)
 
 **[Live demo](https://sam-dumont.github.io/wow-mcp/demo/)**: Nibbet-Gearholt, an invented Gnome
 priest, no install (online once the repository is public).
@@ -28,7 +28,7 @@ priest, no install (online once the repository is public).
    sent you a link. Nothing from this repository needed.
 
 Then, for your AI: **[Connect your AI](docs/ai/connect.md)**. Everything else is in
-**[the manual](docs/README.md)**.
+**[the manual](docs/README.md)**, also on the [docs site](https://sam-dumont.github.io/wow-mcp/).
 
 ## The demo in two commands
 

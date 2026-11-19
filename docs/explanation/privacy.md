@@ -70,6 +70,29 @@ the full view.
 - A public server runs against a store where every row carries other players' names, gold,
   positions and prices; a single byte of them in any public answer fails the test.
 
+## What the owner sees
+
+On a shared install the owner has an overview page, `/admin`
+([Admin overview](../self-host/admin.md)). Per person it shows times, counts and versions: the
+last visit to the full view, the last AI use, the last upload (how many events, the shipper's
+version, macOS or Windows), how many characters (a number), the public page on or off and its
+last build, and whether the required addons are installed. Never a character's name, a zone,
+gold or anything else from the game. Friends read the same on their privacy page.
+
+The privacy page in the app (`/privacy`) also tells your friends what you can see beyond their
+game data: the free text they or their AI store (analysis goals up to 600 characters, plan
+constraints up to 300, findings), your reverse proxy's access log (time, IP, user agent, path,
+login), the app's own log (MCP logins with the login id, failed tool names, installs, updates
+and offboarding with the account number), your login provider, and what the MCP server
+receives (tool names and arguments, never the conversation). It can't know how long you keep
+things, so you tell it:
+
+- `PRIVACY_LOG_DAYS`: what your log store really keeps, for the access log and the app's log
+  alike. Unset, the page tells friends to ask you.
+- `PRIVACY_BACKUP_DAYS`: what your backups really keep.
+- Keep query strings out of your access log: the page's API calls carry character names there
+  (`/api/loot?name=...`). The app's own log already drops them.
+
 ## Your AI
 
 Your AI assistant reads what the MCP tools return: your own game data, the players your game

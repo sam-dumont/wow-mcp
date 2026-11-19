@@ -634,8 +634,7 @@ def _src_text(s: dict) -> str:
         share = f", {s['gold_share_pct']:g}% of your gold" if s.get("gold_share_pct") is not None else ""
         return (f"auction house: {ahsource.price_text(s['price_copper'])}{share}, "
                 f"{ahsource.seen_text(s.get('seen_days_ago'))}{' (cheap)' if s.get('cheap') else ''}")
-    rank = f", you have {s['your_rank']}" if s.get("your_rank") is not None else ""
-    return f"craft: {s.get('profession')} {s.get('skill')}{rank}"
+    return f"craft: {s.get('profession')} {s.get('skill')}; {gearmod.craft_status(s)}"
 
 
 def _src_link(s: dict) -> str | None:
@@ -728,6 +727,12 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                    "best_now": _gear_item(x["best"]), "next_within_3_levels": _gear_item(x["next"])}
                   for x in a["slots"]],
         "next_upgrades": [_gear_item(u) for u in ups],
+        "weapon_setups": [{"setup": x["setup"], "score": x["score"], "worn_now": x["worn"],
+                           "parts": [{"item": p.get("name"), "item_id": p.get("item_id"), "score": p.get("score"),
+                                      "have": p["have"], "level": p.get("level"),
+                                      "where": [_src_text(s) for s in p.get("sources") or []] or None}
+                                     for p in x["parts"]]} for x in a.get("weapon_setups") or []],
+        "weights_from": {k: a["band"].get(k) for k in ("label", "note", "source")} if a.get("band") else None,
         # On the auction house now: the most gain for the gold first.
         "buy_now": [_gear_item(u) for u in sorted(
             (u for u in a["upgrades"] if gearmod.on_sale(u) and u.get("now")),
@@ -736,7 +741,15 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         "how": "Polestar's own scoring and weights (its addon's Gear.lua, ported). gain_points is the score gain, "
                "gain_share_of_gear_pct its share of everything worn (lead with these); gain_pct_over_replaced "
                "misleads against a weak item. Weapons are whole setups: a one-hander always comes with the off "
-               "hand it is worn with (together_with). Quests the Recorder saw handed in are left out. An item "
+               "hand it is worn with (together_with), and the item to go and get leads the row (the other "
+               "hand, e.g. an off hand already in the bags, is in together_with). weapon_setups: the best "
+               "two-hander and the best main hand + off hand pair wearable now, each on its own, as levelling BiS "
+               "lists rank them apart; say which setup is worn and that switching is the gain. weights_from: "
+               "where the stat weights come from; a band 'authored ... no sim' weighs Spirit, Intellect and "
+               "Stamina by formula, and another list (ForeverLevelingBiS, its own weights) can rank a "
+               "spirit-heavy piece lower: say so when an upgrade's gain is mostly those stats. Crafts say what "
+               "making one takes (skill, then the recipe; materials are never checked). Quests the Recorder "
+               "saw handed in are left out. An item "
                "already in the bags or the bank has that as its only `where` (equip it; the bank: take it out "
                "first), as of the shipper's last wow-bags. A random-suffix item is scored on its likely suffix "
                "(the median of fixed items of its slot and level), a worn one on Battle.net's stats when known. "

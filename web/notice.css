@@ -1,0 +1,35 @@
+/* The static site's two short pages (wowstats.notice): a person's page
+   before their first character arrives, and the 404. No script, so the
+   theme follows the system. Same fonts and colours as the page. */
+
+@font-face { font-family: "Cinzel"; src: url("fonts/cinzel.woff2") format("woff2"); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: "Alegreya Sans"; src: url("fonts/alegreya-sans-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+
+:root {
+  --display: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+  --sans: "Alegreya Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
+  --page: #16110C; --panel: #251B13; --rule: #4A3826; --frame: #6B5032;
+  --gold: #C99A3B; --gold-hi: #F0CF7A; --ink: #EFE4CA; --muted: #B09C7A;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root { --page: #EFE3C6; --panel: #F7EEDA; --rule: #C9B285; --frame: #A8895A;
+          --gold: #8A5A00; --gold-hi: #6B4400; --ink: #2E2012; --muted: #6A5233;
+          color-scheme: light; }
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; display: grid; place-items: center; padding: 24px 16px;
+       background: var(--page); color: var(--ink); font: 18px/1.55 var(--sans); }
+.notice { max-width: 30rem; width: 100%; text-align: center; background: var(--panel);
+          border: 1px solid var(--rule); outline: 1px solid var(--frame); outline-offset: 4px;
+          border-radius: 4px; padding: 32px 28px; }
+.notice svg { width: 44px; height: 44px; display: block; margin: 0 auto 14px; }
+h1 { font: 700 26px/1.2 var(--display); color: var(--gold-hi); letter-spacing: .02em; margin: 0 0 12px; }
+p { margin: 0 0 10px; }
+p:last-child { margin-bottom: 0; }
+.muted { color: var(--muted); font-size: 16px; }
+code { font: inherit; color: var(--gold-hi); }
+.crest .shield { fill: var(--page); stroke: var(--gold); stroke-width: 2; }
+.crest .mark { fill: none; stroke: var(--gold-hi); stroke-width: 2.5; }

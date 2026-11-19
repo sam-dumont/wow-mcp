@@ -31,13 +31,13 @@ const onboarding = (mode: Mode): Scene[] => {
 	return [
 		{frames: TITLE, el: <Title mode={mode} title="Your WoW page in 15 minutes" subtitle="The addons, one command, a few minutes of play. Then your page tells you what to do next." frames={TITLE} />},
 		cut(mode, 'wizard', Math.max(0, m.welcome - 0.3), m.install + 2.2, [
-			{at: 0, text: 'Log in, then pick a name: it becomes your page\'s address'},
-			{at: m.addons, text: 'Install Polestar and Polestar Recorder (the CurseForge app is easiest)'},
-			{at: m.install - 1.2, text: 'Get your install command: it works once, for 15 minutes'},
+			{at: 0, text: 'Log in with the account you were sent. Your page\'s address comes with it'},
+			{at: m.addons, text: 'Install Polestar from the CurseForge app. The command adds Polestar Recorder'},
+			{at: m.install - 1.2, text: 'Copy your install command: it works once, for 15 minutes'},
 		]),
 		{frames: s(tape), el: <Footage mode={mode} terminal src={`install-mac-${mode}.mp4`} cues={[
 			{at: 0, text: 'Paste it in Terminal (Mac) or PowerShell (Windows). No admin rights'},
-			{at: Math.max(1, tape - 6), text: 'It found WoW and runs every 5 minutes from now on'},
+			{at: Math.max(1, tape - 6), text: 'It checks your setup, then sends your data every 5 minutes'},
 		]} frames={s(tape)} />},
 		cut(mode, 'wizard', m.data - 1.2, m.end, [
 			{at: 0, text: 'Play a few minutes, then /reload: the data arrives by itself'},

@@ -1,4 +1,4 @@
-# Try the demo
+# The live demo
 
 Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays him from level 22 to 34 over nineteen evenings: Polestar's guides through Darkshore, the Wetlands, Hillsbrad and Arathi, four dungeons (Blackfathom Deeps, the Stockade, City of Dalaran, Razorfen Kraul), Tailoring, Enchanting and Cooking, a few deaths and some auction house scans. The product's own publisher then builds his pages, the same way it builds yours.
 
@@ -27,12 +27,4 @@ The dates move: every build shifts his play so his last evening is the day befor
 
 ## Build it yourself
 
-```bash
-site/scripts/build-demo.sh        # needs uv and Docker (or VL_BIN, a victoria-logs-prod binary)
-npm --prefix site ci && npm --prefix site run build
-npm --prefix site run preview     # http://localhost:4321/wow-mcp/
-```
-
-Astro's preview server doesn't map `model3d/view` to `model3d/view.html` the way GitHub Pages (and the product's own server) does, so View in 3D stays blank there; everything else works.
-
-The character comes from `tools/fixtures/generate.py --demo`, the same seeded script that makes the test fixtures, so every build plays exactly the same evenings.
+The demo is rebuilt from a seeded script on every change: [Development](../../docs/development.md#the-docs-site-and-its-demo).

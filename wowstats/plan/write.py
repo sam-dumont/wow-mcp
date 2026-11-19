@@ -153,5 +153,6 @@ def fallback(est: dict) -> str:
         out.append(line)
         out += [f"- {f[k]}" for k in sorted(f) if k.startswith("goldopt")]
     out.append("\n### Log out")
-    out.append(f"- {f['logout.where']}" + (f": {f['logout.rested']}" if "logout.rested" in f else ""))
+    out.append(f"- {f['logout.where']}" + (f" ({f['logout.how']})" if "logout.how" in f else "")
+               + (f": {f['logout.rested']}" if "logout.rested" in f else ""))
     return "\n".join(out)

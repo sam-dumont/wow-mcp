@@ -30,7 +30,8 @@ def store(feeds: dict[str, list[str]], quests: dict[str, list[str]] | None = Non
                     + ([{"feed": missing.SETUP_FEED, "n": "1"}] if setup else []))
         if query == missing.SETUP_Q:
             return [{"_time": "2026-11-19T10:00:00Z", "addons": json.dumps(setup["addons"]),
-                     "recorder_on": json.dumps(setup.get("recorder_on")), "saved_chars": "1"}] if setup else []
+                     "recorder_on": json.dumps(setup.get("recorder_on")), "saved_chars": "1",
+                     **({"off": json.dumps(setup["off"])} if "off" in setup else {})}] if setup else []
         raise AssertionError(query)
     return q
 
@@ -66,11 +67,56 @@ def test_no_polestar_no_level_times_or_gear_advice():
     assert lines(q) == {"levels": "Missing: level times, dungeon runs and gear advice. Add Polestar."}
 
 
-def test_installed_but_nothing_from_it_gets_the_kinds_own_fix():
-    rep = {"addons": {**ALL_ADDONS}, "recorder_on": True}
+def test_installed_and_ticked_but_nothing_yet_says_what_brings_it():
+    rep = {"addons": {**ALL_ADDONS}, "recorder_on": True, "off": {}}
     q = store({HERO: ["wow-level", "wow-recorder", "wow-bags"]}, {}, rep, account=["wow-prices"])
-    assert lines(q) == {"quests": "Missing: quests you did before installing. Log in once with it ticked in AddOns, "
-                                  "then log out."}
+    assert lines(q) == {"quests": "Missing: quests you did before installing. Finish a quest with this character, "
+                                  "then log out or type /reload once."}
+
+
+def test_a_fresh_alt_with_polestar_ticked_plays_to_its_next_level():
+    """The owner's case (2026-11-19): his main has everything; a level 1 alt
+    played 28 seconds has no level split and no quest yet. Questie is
+    installed but unticked on both, Altoholic ticked."""
+    rep = {"addons": {**ALL_ADDONS}, "recorder_on": True, "off": {HERO: ["questie"], ALT: ["questie"]}}
+    q = store({HERO: EVERYTHING, ALT: ["wow-recorder", "wow-bags", "wow-gear", "wow-character"]},
+              {HERO: ["altoholic"]}, rep)
+    assert lines(q, HERO) == {}
+    assert lines(q, ALT) == {
+        "levels": "Missing: level times, dungeon runs and gear advice. Play to your next level, then log out.",
+        "quests": "Missing: quests you did before installing. Finish a quest with this character, "
+                  "then log out or type /reload once.",
+    }
+    # Never "add" or "tick" an addon the report shows installed and loaded.
+    assert not any("Add " in v or "Tick" in v for v in lines(q, ALT).values())
+
+
+def test_installed_but_not_ticked_for_this_character_says_so():
+    rep = {"addons": {**ALL_ADDONS}, "recorder_on": True,
+           "off": {ALT: ["polestar", "questie", "altoholic", "syndicator"]}}
+    q = store({HERO: EVERYTHING, ALT: ["wow-recorder", "wow-gear"]}, {HERO: ["questie"]}, rep)
+    assert lines(q, HERO) == {}
+    assert lines(q, ALT) == {
+        "levels": "Missing: level times, dungeon runs and gear advice. Polestar is installed but not ticked for "
+                  "this character: tick it in AddOns at character select, then log in.",
+        "bags": "Missing: your gear and bags. Syndicator is installed but not ticked for this character: "
+                "tick it in AddOns at character select, then log in.",
+        "quests": "Missing: quests you did before installing. Questie and Altoholic are installed but not ticked "
+                  "for this character: tick one in AddOns at character select, then log in.",
+    }
+    # One of the two ticked is enough: then it's the wait, not the tick.
+    rep["off"][ALT] = ["questie"]
+    assert lines(store({ALT: ["wow-level", "wow-recorder", "wow-bags"]}, {}, rep, account=["wow-prices"]), ALT) == {
+        "quests": "Missing: quests you did before installing. Finish a quest with this character, "
+                  "then log out or type /reload once."}
+
+
+def test_not_installed_keeps_the_install_advice():
+    rep = {"addons": {"polestar": "1", "recorder": "1"}, "recorder_on": True, "off": {}}
+    q = store({HERO: ["wow-level", "wow-recorder"]}, {}, rep)
+    got = lines(q)
+    assert got["bags"] == "Missing: your gear and bags. Add Syndicator."
+    assert got["quests"] == "Missing: quests you did before installing. Add Questie or Altoholic."
 
 
 def test_prices_are_the_accounts_not_each_characters():
@@ -81,18 +127,26 @@ def test_prices_are_the_accounts_not_each_characters():
 
 
 def test_an_older_shipper_without_a_setup_report():
-    """No report: the required addons' fix, "Add" for the optional ones."""
+    """No report: a gap alone can't tell "not installed" from "not yet", so
+    the wait first, then what to check; never a bare "Add X"."""
     q = store({HERO: ["wow-level", "wow-dungeon"]})
     got = lines(q)
-    assert got["play"].endswith("Type /psrec on once in game, then /reload.")
-    assert got["bags"].endswith("Add Syndicator.") and got["prices"].endswith("Add Auctionator.")
+    assert got["quests"] == ("Missing: quests you did before installing. Finish a quest with this character, then "
+                             "log out or type /reload once. Still nothing after that? Check that Questie or Altoholic "
+                             "is installed and ticked in AddOns at character select.")
+    assert got["play"].endswith("Check that Polestar Recorder is installed and ticked in AddOns at character select.")
+    assert not any(" Add " in v for v in got.values())
 
 
 def test_nothing_yet():
     q = store({ALT: EVERYTHING})
     assert lines(q, HERO) == {"nothing": "Nothing arrived yet. Play a bit, then log out."}
-    assert missing.for_account(missing.snapshot(store({})))["missing"][0]["line"] == (
-        "Nothing arrived yet. Play a bit, then log out.")
+    # An account without a character (a test account, a friend before the
+    # first log out): one line, no addon named, whatever the report says.
+    rep = {"addons": {}, "recorder_on": None, "off": {}}
+    for q in (store({}), store({}, setup=rep)):
+        assert [m["line"] for m in missing.for_account(missing.snapshot(q))["missing"]] == [
+            "Nothing arrived yet. Play a bit, then log out."]
 
 
 def test_spellings_are_one_character():
@@ -114,10 +168,25 @@ def test_the_start_page_gets_the_setup_and_each_gap_once():
     q = store({HERO: ["wow-level", "wow-recorder"], ALT: ["wow-level", "wow-recorder", "wow-bags"]}, setup=rep)
     out = missing.for_account(missing.snapshot(q))
     assert out["setup"] == {"at": "2026-11-19T10:00:00Z", "addons": rep["addons"], "recorder_on": True,
-                            "saved_chars": 1}
+                            "saved_chars": 1, "off": None, "shipper": None}
     by = {m["id"]: m for m in out["missing"]}
     assert by["bags"]["chars"] == [HERO] and by["quests"]["chars"] == [ALT, HERO]
-    assert by["prices"]["line"] == "Missing: auction prices. Add Auctionator."
+    # The account page names whose gap it is, except the account's own.
+    assert by["bags"]["line"] == f"Missing for {HERO}: your gear and bags. Add Syndicator."
+    assert by["quests"]["who"] == f"{ALT} and {HERO}"
+    assert by["prices"]["line"] == "Missing: auction prices. Add Auctionator." and by["prices"]["who"] == ""
+
+
+def test_the_start_page_splits_a_kind_by_fix():
+    rep = {"addons": {**ALL_ADDONS}, "recorder_on": True, "off": {ALT: ["syndicator"]}}
+    q = store({HERO: ["wow-level", "wow-recorder"], ALT: ["wow-level", "wow-recorder"]},
+              {HERO: ["questie"], ALT: ["questie"]}, rep, account=["wow-prices"])
+    got = sorted(m["line"] for m in missing.for_account(missing.snapshot(q))["missing"])
+    assert got == [
+        f"Missing for {ALT}: your gear and bags. Syndicator is installed but not ticked for this character: "
+        "tick it in AddOns at character select, then log in.",
+        f"Missing for {HERO}: your gear and bags. Log in with this character, then log out or type /reload once.",
+    ]
 
 
 # ---------------------------------------------------------------- the MCP's `missing`

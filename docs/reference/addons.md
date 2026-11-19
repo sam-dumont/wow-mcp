@@ -12,7 +12,7 @@ wow-stats never ships an addon of its own. It reads the files well-known addons 
 | [Polestar Recorder](https://github.com/fitzforge/polestar/releases/latest) | required | your play sessions, zone by zone | `Polestar_Recorder` | play sessions, zones, deaths and loot |
 | [Syndicator](https://www.curseforge.com/wow/addons/syndicator) | optional | gear and gold on every character | `Syndicator` | your gear and bags |
 | [Auctionator](https://www.curseforge.com/wow/addons/auctionator) | optional | prices from your own auction house scans | `Auctionator` | auction prices |
-| [Altoholic](https://www.curseforge.com/wow/addons/altoholic) | optional | your full /played from level 1, and the quests you finished before Polestar | `Altoholic` | quests you did before installing |
+| [Altoholic](https://www.curseforge.com/wow/addons/altoholic) | optional | your full /played from level 1, the quests you finished before Polestar, and the recipes you know | `Altoholic` | quests you did before installing |
 | [Questie](https://www.curseforge.com/wow/addons/questie) | optional | the quests you finished before Polestar (Altoholic does it too: one of the two is enough) | `Questie` | quests you did before installing |
 | [CharacterExport-Forever](https://www.curseforge.com/wow/addons/characterexport) | optional | profession caps | `CharacterExport-Forever` | no section of its own |
 | [Narcissus](https://www.curseforge.com/wow/addons/narcissus) | optional | your character's look in 3D before Battle.net knows it | `Narcissus` | no section of its own |

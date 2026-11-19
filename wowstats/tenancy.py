@@ -19,11 +19,13 @@ a sub on WOW_FRIENDS_FILE ({"<sub>": "<slug>"}, rendered by the host from
 its identity provider's friends group). Nothing else: no org, role or name claim is
 read here, so a proxy that drops a header can't lock anyone out or let
 anyone in (2026-11-19: the org header arrived empty and refused everyone).
-Without the file, only the owner. reconcile() reads it every
-FRIENDS_RECONCILE_S: a listed person gets a tenant with that slug before
-their first login (or at it, if they're quicker); a person who left the list
-is offboarded at once (delete_tenant), and a valid {} offboards everyone; a
-missing or broken file changes nothing. Each person: an AccountID, a state
+Without the file, only the owner. The file is watched while the server
+runs (FriendsWatch: its content checked every WATCH_S, a full pass every
+FRIENDS_RECONCILE_S anyway), so a changed list applies without a restart:
+a listed person gets a tenant with that slug before their first login (or
+at it, if they're quicker); a person who left the list is offboarded at
+once (delete_tenant), and a valid {} offboards everyone; a missing or
+broken file changes nothing. Each person: an AccountID, a state
 folder, a slug, an ingest token, a zogzog key, all in
 WOW_STATE_DIR/users.json (0600). Tokens and install codes are
 kept as SHA-256 hashes only; zogzog keys are never stored: each is derived
@@ -33,8 +35,8 @@ Environment (docs/deploy.md, "Friends"):
   WOW_STATE_DIR        the registry and each person's state (users/<account>/)
   WOW_OWNER_SUB        the owner's `sub`: tenant 0 on VL_URL
   WOW_OWNER_SLUG       the owner's slug (its site name); WOW_OWNER_ALIASES: more hosts for it
-  WOW_FRIENDS_FILE     who may use it besides the owner, {"<sub>": "<slug>"};
-                       FRIENDS_RECONCILE_S (120)
+  WOW_FRIENDS_FILE     who may use it besides the owner, {"<sub>": "<slug>"},
+                       watched for changes; FRIENDS_RECONCILE_S (120) a full pass
   FRIENDS_VL_URL       the friends' VictoriaLogs; FRIENDS_VL_DELETE_KEY_FILE its
                        -deleteAuthKey
   ZOGZOG_MASTER_KEY_FILE  32 random bytes, base64url: friends' zogzog keys
@@ -76,6 +78,12 @@ CODE_RE = re.compile(rf"^[{CODE_ALPHABET}]{{{CODE_LEN}}}$")
 TOKEN_MIN = 32
 
 
+# How the app names whoever runs it, to a friend. Not the owner's slug
+# capitalised: that printed "Sam" (or "Wow42") on every self-hosted install
+# (owner, 2026-11-19), and the app has no display-name setting.
+RUNS_IT = "the person who runs this site"
+
+
 class TenancyError(Exception):
     """A request the person can fix (a taken slug); the message is for them."""
 
@@ -109,6 +117,9 @@ class User:
     hidden_public: list = field(default_factory=list)
     hidden_zogzog: list = field(default_factory=list)
     bnet_to_model: bool = True
+    # The 3D view's models: "hd" (Updated) or "sd" (Classic), the page's
+    # default for everyone who opens it; a visitor's own toggle wins there.
+    models: str = "hd"
     ingest_sha256: str = ""
     ingest_set_at: str = ""
     zogzog_gen: int = 0
@@ -122,7 +133,7 @@ class User:
         """What the publisher and the host list may know: no hashes."""
         return {"slug": self.slug, "account_id": self.account_id, "owner": self.owner, "status": self.status,
                 "public_on": self.public_on, "hidden_public": list(self.hidden_public),
-                "hidden_zogzog": list(self.hidden_zogzog), "zogzog_gen": self.zogzog_gen}
+                "hidden_zogzog": list(self.hidden_zogzog), "zogzog_gen": self.zogzog_gen, "models": self.models}
 
 
 def _lock_fd(fd: int, on: bool) -> None:
@@ -258,9 +269,9 @@ class Registry:
         if not SLUG_RE.match(slug):
             raise TenancyError("2 to 20 characters, lowercase letters and digits only")
         if slug in self.reserved:  # the owner's own names: someone has it
-            raise TenancyError(f"'{slug}' is taken, pick another")
+            raise TenancyError(f"'{slug}' is taken")
         if slug in RESERVED:
-            raise TenancyError(f"'{slug}' is reserved, pick another")
+            raise TenancyError(f"'{slug}' is reserved")
         with self.writing():
             u = self.get(sub)
             if u is None:
@@ -271,7 +282,7 @@ class Registry:
                 raise TenancyError("your name is already set; it can't change (it is your site's address)")
             other = self.by_slug(slug)
             if other is not None or slug in self.reserved:
-                raise TenancyError(f"'{slug}' is taken, pick another")
+                raise TenancyError(f"'{slug}' is taken")
             return self.update(sub, slug=slug)
 
     def remove(self, sub: str) -> None:
@@ -419,6 +430,9 @@ class Tenancy:
         self.friends_vl = env.get("FRIENDS_VL_URL", "").strip().rstrip("/")
         self.friends_file = env.get("WOW_FRIENDS_FILE", "").strip()
         self.list_unusable = False
+        # sub -> the listed name that clashed, so a clash is logged once, not
+        # at every login and every pass (it's the owner's list to fix).
+        self.name_conflicts: dict[str, str] = {}
         self.public_url = env.get("PUBLIC_URL", "").strip().rstrip("/")
         check_public_url(self.public_url)
         self.domain = env.get("SITE_DOMAIN", "").strip().lower().strip(".")
@@ -429,6 +443,10 @@ class Tenancy:
         self._apps: dict[str, object] = {}
         self._ctx: dict[str, object] = {}
         self._lock = threading.Lock()
+        from wowstats.activity import Activity
+
+        # When each person last came by (the owner's overview, wowstats.admin).
+        self.activity = Activity(self.user_dir)
         self.registry.ensure(self.owner_sub, owner=True, slug=self.owner_slug, public_on=True)
         # The owner's slug and his aliases' first labels (wow.m -> wow) are
         # never anyone else's, even before his record has a slug.
@@ -450,23 +468,15 @@ class Tenancy:
         # A broken list changes nothing (reconcile): the registry, which
         # mirrors the last good one, answers until it's fixed.
         if (sub not in listed) if listed is not None else (u is None):
-            return Who(None, 403, f"This account doesn't have access yet. Ask {self.owner_name} to add you.")
+            return Who(None, 403, f"This account doesn't have access yet. Ask {RUNS_IT} to add you.")
         if not self.friends_vl:
-            return Who(None, 403, f"This install doesn't take friends yet. Ask {self.owner_name}.")
+            return Who(None, 403, f"This install doesn't take friends yet. Ask {RUNS_IT}.")
         if u is None:
-            try:
-                u = provision(self, sub, listed[sub])
-            except TenancyError as e:  # as in reconcile: in, without a slug
-                log_event("provision_failed", slug=listed[sub], why=str(e))
-                u = self.registry.get(sub)
+            u = provision_or_flag(self, sub, listed[sub]) or self.registry.get(sub)
         if not u.active:
-            return Who(None, 403, f"This account is switched off. Ask {self.owner_name} to turn it back on.")
+            return Who(None, 403, f"This account is switched off. Ask {RUNS_IT} to turn it back on.")
         return Who(u)
 
-    @property
-    def owner_name(self) -> str:
-        """How refusals name the owner: his slug, capitalised (sam: Sam)."""
-        return self.owner_slug.capitalize() if self.owner_slug else "the owner"
 
     def resolve_tenant(self, sub: str) -> User | None:
         """The MCP's one entry point (its auth middleware calls this with the
@@ -487,7 +497,10 @@ class Tenancy:
     def mcp_user(self, sub: str) -> User | None:
         """Every /mcp call and refresh: the person still exists and is on."""
         u = self.registry.get(sub)
-        return u if u is not None and u.active else None
+        if u is None or not u.active:
+            return None
+        self.activity.seen(u, "mcp")
+        return u
 
     # ------------------------------------------------------------ their settings
 
@@ -523,6 +536,8 @@ class Tenancy:
                 Path(env["ANALYSIS_STATE_DIR"]).mkdir(parents=True, exist_ok=True)
                 app = self._apps[u.sub] = ui.App(env)
                 app.render_site = lambda sub=u.sub: self.render_site(sub)
+                # Read live: a change in Settings needs no restart.
+                app.models_default = lambda sub=u.sub: getattr(self.registry.get(sub), "models", None)
             return app
 
     def render_site(self, sub: str) -> tuple[str, bytes | None]:
@@ -553,6 +568,9 @@ class Tenancy:
         with self._lock:
             self._apps.pop(sub, None)
             self._ctx.pop(sub, None)
+        u = self.registry.get(sub)
+        if u is not None:
+            self.activity.forget(u)
 
     # ------------------------------------------------------------ hosts and keys
 
@@ -686,6 +704,38 @@ def provision(t: Tenancy, sub: str, slug: str) -> User:
     return u
 
 
+def name_conflict(t: Tenancy, u: User, listed: dict[str, str] | None) -> dict | None:
+    """Why a listed person has no address: their listed name is "taken"
+    (someone has it, the owner's own names included) or "reserved" (the
+    app's words). None when they have one, or the name is free and the next
+    pass gives it to them."""
+    if u.slug or u.owner or not listed or u.sub not in listed:
+        return None
+    slug = listed[u.sub]
+    if slug in t.registry.reserved or t.registry.by_slug(slug) is not None:
+        return {"slug": slug, "why": "taken"}
+    if slug in RESERVED:
+        return {"slug": slug, "why": "reserved"}
+    return None
+
+
+def provision_or_flag(t: Tenancy, sub: str, slug: str) -> User | None:
+    """provision(), or None when the listed name is taken or reserved. The
+    person is in without an address, and /start tells them the owner has a
+    name to fix: friends never pick their own (the owner's rule, 2026-11-19),
+    so a clash is a mistake in his list, logged once per name."""
+    try:
+        u = provision(t, sub, slug)
+    except TenancyError as e:
+        if t.name_conflicts.get(sub) != slug:
+            t.name_conflicts[sub] = slug
+            log_event("name_conflict", slug=slug, why=str(e),
+                      fix="give this person another name in the friends list")
+        return None
+    t.name_conflicts.pop(sub, None)
+    return u
+
+
 def reconcile(t: Tenancy) -> dict:
     """Make the registry match the friends list: provision who is listed
     (with their slug), offboard who left it. The owner is never in play."""
@@ -705,12 +755,10 @@ def reconcile(t: Tenancy) -> dict:
             if u.slug != slug:
                 log_event("slug_kept", slug=u.slug, listed_slug=slug, account_id=u.account_id)
             continue
-        try:
-            provision(t, sub, slug)
-            out["provisioned"].append(slug)
-        except TenancyError as e:
-            log_event("provision_failed", slug=slug, why=str(e))
+        if provision_or_flag(t, sub, slug) is None:
             out["errors"].append(slug)
+        else:
+            out["provisioned"].append(slug)
     for u in t.registry.users():
         if u.owner or u.account_id == 0 or u.sub == t.owner_sub or u.sub in listed:
             continue
@@ -726,19 +774,64 @@ def reconcile(t: Tenancy) -> dict:
     return out
 
 
-def start_reconcile(t: Tenancy) -> threading.Thread | None:
-    """The full view's background pass over the friends list."""
+# How often the watch looks at the list's content. A friend added in the
+# identity provider used to wait for a restart of the full view (the host
+# rolled the pod on a changed list, 2026-11-19: a minute of "no available
+# server" for everyone); a read of a small file every few seconds costs
+# nothing next to that.
+WATCH_S = 10
+
+
+def _digest(path: str) -> str | None:
+    """The list's content hash, None when it can't be read."""
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+class FriendsWatch:
+    """The full view's eye on the friends list: reconcile() as soon as the
+    content changes, and every `every` seconds whatever happens (a failed
+    offboard gets its retry there). A broken file is reconciled once
+    (skipped, one log line) and then left alone until it changes: the
+    registry keeps the last good list. `on_change` runs after a pass that
+    provisioned or offboarded someone (the full view wakes its prebuilt
+    answers, so a new friend's are built now, not at the next check)."""
+
+    def __init__(self, t: Tenancy, every: float = 120, on_change=None):
+        self.t, self.every, self.on_change = t, every, on_change
+        self.digest: str | None = None
+        self.done_at: float | None = None
+
+    def step(self, now: float | None = None) -> dict | None:
+        """One look; the pass's result when it ran one, else None."""
+        now = time.monotonic() if now is None else now
+        digest = _digest(self.t.friends_file)
+        if self.done_at is not None and digest == self.digest and now - self.done_at < self.every:
+            return None
+        if self.done_at is not None and digest != self.digest:
+            log_event("list_changed", path=self.t.friends_file)
+        out = reconcile(self.t)
+        self.digest, self.done_at = digest, now
+        if (out.get("provisioned") or out.get("removed")) and self.on_change is not None:
+            self.on_change()
+        return out
+
+
+def start_reconcile(t: Tenancy, on_change=None) -> threading.Thread | None:
+    """The full view's background watch over the friends list."""
     if not t.friends_file:
         return None
-    every = int(t.env.get("FRIENDS_RECONCILE_S") or "120")
+    watch = FriendsWatch(t, int(t.env.get("FRIENDS_RECONCILE_S") or "120"), on_change)
 
     def loop():
         while True:
             try:
-                reconcile(t)
+                watch.step()
             except Exception as e:  # noqa: BLE001 - one bad pass waits for the next
                 log_event("reconcile_failed", why=f"{type(e).__name__}: {e}")
-            time.sleep(every)
+            time.sleep(WATCH_S)
 
     th = threading.Thread(target=loop, name="friends", daemon=True)
     th.start()
@@ -762,8 +855,11 @@ def cli(argv: list[str]) -> int:
     a = ap.parse_args(argv)
     t = Tenancy(dict(os.environ))
     if a.action == "list":
+        listed = read_friends(t.friends_file) if t.friends_file else None
         for u in t.registry.users():
-            print(json.dumps({"slug": u.slug or None, "account_id": u.account_id, "owner": u.owner, "org": u.org,
+            clash = (name_conflict(t, u, listed) or {}).get("slug")
+            print(json.dumps({"slug": u.slug or None, "name_conflict": clash, "account_id": u.account_id,
+                              "owner": u.owner, "org": u.org,
                               "status": u.status, "public_on": u.public_on, "created": u.created,
                               "shipper_set_at": u.ingest_set_at or None, "first_event": u.first_event or None}))
         return 0

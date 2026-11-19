@@ -1,7 +1,10 @@
 """A WoW Forever folder with a few minutes of play in it, for the terminal
 takes: the account's Polestar_Recorder.lua with the shipper tests' chunks
-(tests/test_shipper_client.py), Polestar.lua, and one folder per invented
-character. The shipper's first run then has something to send.
+(tests/test_shipper_client.py) and the Recorder switched on (/psrec on),
+Polestar.lua, one folder per invented character, and the addons a friend who
+followed the steps has (Polestar from CurseForge, plus the optional ones the
+decoy's setup report lists), so the installer's checklist reads like theirs.
+The shipper's first run then has something to send.
 
     uv run --frozen python demo/stack/fake_wow.py <_forever_ folder> <Main-Realm> <Alt-Realm>
 """
@@ -21,7 +24,8 @@ keys = [k for k in CHUNKS if k[0] in chars]
 body = ",\n".join(f"[{i}] = {lua_str(CHUNKS[k])}" for i, k in enumerate(keys, 1))
 maps = ",\n".join(f"[{k}] = {lua_str(v)}" for k, v in MAPS.items())
 (acct / "SavedVariables" / "Polestar_Recorder.lua").write_text(
-    f'PolestarRecorderDB = {{\n["chunks"] = {{\n{body}\n}},\n["maps"] = {{\n{maps}\n}},\n}}\n', encoding="utf-8")
+    f'PolestarRecorderDB = {{\n["enabled"] = true,\n["chunks"] = {{\n{body}\n}},\n'
+    f'["maps"] = {{\n{maps}\n}},\n}}\n', encoding="utf-8")
 alts = "".join(f'["{n}"] = {{\n["name"] = "{n.replace("-", " ")}",\n["seen"] = 1794928683,\n'
                f'["level"] = 12,\n}},\n' for n in chars.values())
 (acct / "SavedVariables" / "Polestar.lua").write_text(
@@ -30,3 +34,10 @@ for cid, name in chars.items():
     d = acct / name.split("-", 1)[1] / name / "SavedVariables"  # the shipper names it after this folder
     d.mkdir(parents=True, exist_ok=True)
     (d / "Polestar_Recorder.lua").write_text(f'PolestarRecorderCharDB = {{\n["id"] = "{cid}",\n}}\n', encoding="utf-8")
+# Each addon is its folder and its .toc; the installer adds Polestar Recorder.
+for folder, version in {"Polestar": "0.4.1", "Questie": "11.18.0", "Altoholic": "11.1.0",
+                        "Auctionator": "11.0.5"}.items():
+    d = wow / "Interface" / "AddOns" / folder
+    d.mkdir(parents=True, exist_ok=True)
+    (d / f"{folder}.toc").write_text(f"## Interface: 11508\n## Title: {folder}\n## Version: {version}\n",
+                                     encoding="utf-8")

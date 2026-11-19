@@ -651,9 +651,14 @@ class Who:
     professions: dict  # name (lower) -> rank
     done: set  # quest IDs handed in
     zone: str | None
+    # Recipe spell IDs known per profession (lower-case name), from
+    # DataStore_Crafts through the shipper's `recipes`; a profession missing
+    # here is unknown, never "not learned".
+    recipes: dict = field(default_factory=dict)
+    bags: set = field(default_factory=set)  # item IDs in the bags (wow-bags)
 
 
-def _source(ref: Reference, s: dict, who: Who, info: dict) -> dict | None:
+def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None = None) -> dict | None:
     """One source of an item in the answer's shape, or None when this
     character can't take it (the other side's quest, another race's or
     class's, a quest already handed in). A craft counts when the character
@@ -696,11 +701,64 @@ def _source(ref: Reference, s: dict, who: Who, info: dict) -> dict | None:
     if s["kind"] == "craft":
         prof = s.get("profession")
         rank = who.professions.get(str(prof).lower()) if prof else None
-        can_make = rank is not None and rank >= (s.get("skill") or 0)
-        if not can_make and not info.get("req"):
+        skill_ok = rank is not None and rank >= (s.get("skill") or 0)
+        if not skill_ok and not info.get("req"):
             return None
+        known = recipe_known(who, prof, s.get("spell"))
+        name = (ref.data.get("names") or {}).get(str(item_id)) or forever.item_name(item_id) if item_id else None
+        pattern = pattern_in_bags(who, name) if known is not True else None
+        # "Make it now" needs the recipe as well as the skill: a pattern in
+        # the bags is learnt first, an unknown one is a find, and with no
+        # recipe list (no DataStore_Crafts) it is never claimed.
         return {"kind": "craft", "profession": prof, "skill": s.get("skill"), "spell_id": s.get("spell"),
-                "your_rank": rank, "can_make": can_make}
+                "your_rank": rank, "skill_ok": skill_ok, "known": known, "pattern_item_id": pattern,
+                "can_make": bool(skill_ok and known is True)}
+    return None
+
+
+def craft_status(s: dict) -> str:
+    """What stands between the character and making a craft source, in
+    words, for every reader (MCP, planner, coach): the skill, then the recipe.
+    The reagents aren't in the data, so "make it" always says to check them."""
+    prof, need, rank = s.get("profession") or "the profession", s.get("skill"), s.get("your_rank")
+    if rank is None:
+        return f"a {prof} crafter makes it ({prof} {need}): buy it or ask one"
+    steps = []
+    if not s.get("skill_ok", rank >= (need or 0)):
+        steps.append(f"reach {prof} {need} (you have {rank})")
+    pattern = s.get("pattern_item_id")
+    if s.get("known") is False:
+        steps.append(f"learn {forever.item_name(pattern) or 'the pattern'}, in your bags" if pattern
+                     else "find and learn its recipe (you don't know it)")
+    elif s.get("known") is None:
+        steps.append(f"learn {forever.item_name(pattern) or 'the pattern'} in your bags if you haven't" if pattern
+                     else "check you know the recipe (no recipe list: Altoholic saves it)")
+    if steps:
+        return "first " + ", then ".join(steps)
+    return f"you know the recipe and have {prof} {rank}: make it once you have the materials (not checked)"
+
+
+# Recipe items are named after what they teach: "Pattern: Shadow Circlet".
+RECIPE_PREFIX = re.compile(r"^(Pattern|Formula|Plans|Recipe|Schematic|Manual|Design|Technique|Tome): ")
+
+
+def recipe_known(who: Who, profession, spell) -> bool | None:
+    """Whether the character knows the recipe: True or False from its
+    profession's recipe list, None when there is no list for it."""
+    got = who.recipes.get(str(profession or "").lower())
+    if got is None or not spell:
+        return None
+    return int(spell) in got
+
+
+def pattern_in_bags(who: Who, item_name: str | None) -> int | None:
+    """The ID of a recipe item in the bags that teaches `item_name`."""
+    if not item_name:
+        return None
+    for i in sorted(who.bags):
+        n = forever.item_name(i) or ""
+        if RECIPE_PREFIX.match(n) and RECIPE_PREFIX.sub("", n) == item_name:
+            return i
     return None
 
 
@@ -765,11 +823,17 @@ def gates(at: int, level: int, sources: list[dict]) -> list[dict]:
     crafts = [s for s in sources if s["kind"] == "craft"]
     if crafts and len(crafts) == len(sources) and not any(s.get("can_make") for s in crafts):
         s = min(crafts, key=lambda s: (s.get("skill") or 0) - (s.get("your_rank") or 0))
-        if s.get("your_rank") is not None:
+        if s.get("your_rank") is None:
+            out.append({"kind": "buy", "profession": s.get("profession"), "need": s.get("skill"), "have": None})
+            return out
+        if not s.get("skill_ok", s["your_rank"] >= (s.get("skill") or 0)):
             out.append({"kind": "skill", "profession": s.get("profession"), "need": s.get("skill"),
                         "have": s["your_rank"]})
-        else:
-            out.append({"kind": "buy", "profession": s.get("profession"), "need": s.get("skill"), "have": None})
+        # The recipe: learnt from the pattern in the bags, or still to find.
+        # Unknown (no recipe list) is no gate, but no "make it now" either.
+        if s.get("known") is False:
+            out.append({"kind": "learn" if s.get("pattern_item_id") else "recipe",
+                        "profession": s.get("profession"), "need": s.get("pattern_item_id"), "have": None})
     return out
 
 
@@ -826,6 +890,7 @@ def sheet(row: dict, fallback: dict | None = None) -> dict:
         "polestar_spec": row.get("polestar_spec") or None,
         "gear_adjust": adjust_map(_jlist(row.get("gear_adjust"))),
         "talents": [t for t in _jlist(row.get("talents")) if isinstance(t, dict)] or None,
+        "recipes": [r for r in _jlist(row.get("recipes")) if isinstance(r, dict)],
         "min_upgrade": _num(row.get("min_upgrade")),
         "class": row.get("class") or fb.get("class"), "race": row.get("race") or fb.get("race"),
         "faction": row.get("faction") or fb.get("faction"),
@@ -833,7 +898,8 @@ def sheet(row: dict, fallback: dict | None = None) -> dict:
 
 
 # The stored events the advice needs, as LogsQL pipes after a character filter.
-Q_SHEET = ("fields _time, items, professions, spec, spec_from, polestar_spec, gear_adjust, talents, min_upgrade, "
+Q_SHEET = ("fields _time, items, professions, recipes, spec, spec_from, polestar_spec, gear_adjust, talents, "
+           "min_upgrade, "
            "class, race, faction | sort by (_time desc) | limit 1")
 # The newest bags and bank (wow-bags), for advise(held=...) through
 # wowstats.plan.facts.newest_bags.
@@ -904,12 +970,23 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
     who = Who(cls=cls, level=level, side=SIDES.get(str(sheet.get("faction") or "").lower()), race_id=race_id,
               professions={str(p.get("name") or "").lower(): p.get("rank") for p in sheet.get("professions") or []
                            if p.get("name") and isinstance(p.get("rank"), (int, float))},
-              done=set(done or ()), zone=zone)
+              done=set(done or ()), zone=zone, recipes=recipe_lists(sheet.get("recipes")))
 
     items = [i for i in sheet.get("items") or [] if isinstance(i, dict)]
     worn = worn_from(ref, items, w, racial, sheet.get("worn_stats"))
     worn_names = {i.get("slot"): i.get("name") for i in items}
     return _Ctx(cls, level, key, how, w, band, adjusted, racial, dual, min_upgrade, who, worn, worn_names)
+
+
+def recipe_lists(rows) -> dict[str, set]:
+    """The shipper's `recipes` ([{profession, known: [spell IDs]}], from
+    DataStore_Crafts) -> {profession (lower case): known spell IDs}. Only a
+    profession whose recipe window was scanned is listed."""
+    out: dict[str, set] = {}
+    for r in rows or []:
+        if isinstance(r, dict) and r.get("profession") and isinstance(r.get("known"), list):
+            out[str(r["profession"]).lower()] = {int(n) for x in r["known"] if isinstance(n := _num(x), int)}
+    return out
 
 
 def newest_bags(rows: list[dict]) -> dict | None:
@@ -933,8 +1010,11 @@ def newest_bags(rows: list[dict]) -> dict | None:
 
 
 def is_held(u: dict) -> bool:
-    """An upgrade the character already has in its bags or bank."""
-    return bool(u.get("sources")) and u["sources"][0].get("kind") in HELD
+    """An upgrade the character already has in its bags or bank, with the
+    other hand's part too when it is a weapon setup."""
+    w = u.get("with") or {}
+    partner = w.get("kind") != "get" or all(s.get("kind") in HELD for s in w.get("sources") or [{}])
+    return bool(u.get("sources")) and u["sources"][0].get("kind") in HELD and partner
 
 
 def on_sale(u: dict) -> bool:
@@ -977,6 +1057,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     # its options per slot.
     cands = []
     holding = held_where(held)
+    who.bags = {i for i, where in holding.items() if where == "bags"}
     sale = (market or {}).get("items") or {}
     for item_id, where in holding.items():
         info = item_for(ref, item_id, w)
@@ -995,7 +1076,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         usable, _, min_level = usability(ref, info, cls, level)
         if not usable:
             continue
-        here_srcs = _dedupe([x for x in (_source(ref, s, who, info) for s in srcs) if x])
+        here_srcs = _dedupe([x for x in (_source(ref, s, who, info, item_id) for s in srcs) if x])
         if item_id in sale and buyable(base, level):
             here_srcs.append({"kind": "ah", **sale[item_id]})
         if not here_srcs:
@@ -1072,6 +1153,27 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             pw = picks[(weak, bucket)] = pick(weak, bucket)
             picks[(strong, bucket)] = pick(strong, bucket, pw[2]["id"] if pw else None)
     weapon_rows = {"now": setups.row("now", out), "soon": setups.row("soon", out)}
+
+    def part_out(p: dict | None) -> dict | None:
+        if p is None:
+            return None
+        if p["c"] is None:
+            return {"item_id": p["id"], "name": worn_names.get(MAIN if p["role"] != "off" else OFF)
+                    or forever.item_name(p["id"]), "score": _r(p["score"], 2), "have": "worn"}
+        srcs = p["c"]["sources"]
+        held_in = srcs[0]["kind"] if srcs and all(x["kind"] in HELD for x in srcs) else None
+        return {**_item_out(ref, p["c"]["id"], p["c"]["info"]), "score": _r(p["score"], 2),
+                "have": held_in or "get", "level": p["c"]["at"], "sources": [] if held_in else srcs[:2]}
+
+    kinds = setups.by_kind(level)
+    weapon_setups = []
+    if "two" in kinds:
+        weapon_setups.append({"setup": "two-hander", "score": _r(kinds["two"][0], 2), "worn": setups.worn_two,
+                              "parts": [part_out(kinds["two"][1])]})
+    if "pair" in kinds:
+        weapon_setups.append({"setup": "main hand + off hand", "score": _r(kinds["pair"][0], 2),
+                              "worn": not setups.worn_two and bool(worn.ids.get(MAIN)),
+                              "parts": [x for x in (part_out(kinds["pair"][1]), part_out(kinds["pair"][2])) if x]})
     slots_out = []
     for slot in EQUIPPED_SLOTS:
         cur_id = worn.ids.get(slot)
@@ -1121,11 +1223,15 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     upgrades = []
     shown_setups: set = set()
     for c, r in ups:
+        lead = r.get("lead") or c
+        at = max(c["at"], lead["at"])
+        c = lead
         srcs = [s for s in c["sources"]
-                if not (s["kind"] == "quest" and s["choices"] > 1 and best_of_quest[s["quest_id"]][1] != c["id"])]
+                if not (s["kind"] == "quest" and s["choices"] > 1 and best_of_quest.get(s["quest_id"], (0, c["id"]))[1]
+                        != c["id"])]
         if not srcs:
             continue
-        u = {**out({**c, "sources": srcs}, r), "now": c["at"] <= level}
+        u = {**out({**c, "at": at, "sources": srcs}, r), "now": at <= level}
         if "with_part" in r:
             u["with"] = setups.partner(r, out)
             # A main hand and its off hand are one setup: listed once.
@@ -1166,6 +1272,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                  "why": spec_why(ref, cls, key, label, how, sheet, adjusted)},
         "weights": {k: _r(v, 4) for k, v in sorted(w.items()) if v},
         "band": band, "min_upgrade_pct": min_upgrade, "soon_levels": SOON_LEVELS,
+        # Each setup's best on its own, wearable now: what a BiS list per
+        # setup shows next to the one best setup the upgrades rank.
+        "weapon_setups": weapon_setups,
         "gear_score": _r(gear_score, 2),
         "slots": slots_out,
         # The top `limit`, plus whatever is in the current zone, already in
@@ -1184,6 +1293,21 @@ MAIN_INV = {13, 21}
 
 def _pid(part: dict) -> int | None:
     return part["c"]["id"] if part.get("c") else part.get("id")
+
+
+def _held_part(part: dict | None) -> bool:
+    """A part the character already has: worn, or in its bags or bank."""
+    return part is None or part["c"] is None or all(x["kind"] in HELD for x in part["c"]["sources"])
+
+
+def _lead(part: dict, partner: dict | None) -> tuple[dict, dict | None]:
+    """Which of a setup's two parts the row is about: the one to go and get.
+    An off hand in the bags beside a one-hander that drops in a dungeon is
+    the dungeon's upgrade, worn with what the bags hold, never "equip it
+    now" (a two-hander leaves the off hand nothing to hold it)."""
+    if partner is not None and _held_part(part) and not _held_part(partner):
+        return partner, part
+    return part, partner
 
 
 class WeaponSetups:
@@ -1238,6 +1362,22 @@ class WeaponSetups:
                 best = {"total": total, "main": m, "off": o}
         return best
 
+    def by_kind(self, max_at: int) -> dict:
+        """The best two-hander and the best main hand + off hand pair, each
+        on its own (a levelling BiS list ranks each setup apart): {"two":
+        (score, part), "pair": (score, main, off)}, a kind with no part left
+        out."""
+        out: dict = {}
+        two = self._best("two", max_at)
+        if two:
+            out["two"] = (two["score"], two)
+        for m in self._pool("main", max_at):
+            o = self._best("off", max_at, exclude=_pid(m))
+            total = m["score"] + (o["score"] if o else 0)
+            if "pair" not in out or total > out["pair"][0]:
+                out["pair"] = (total, m, o)
+        return out
+
     def _with(self, part: dict | None, out) -> dict | None:
         """The partner in a setup, in the answer's shape."""
         if part is None:
@@ -1264,7 +1404,11 @@ class WeaponSetups:
         # "Next" only names a setup that needs something not yet in reach.
         if bucket == "soon" and not any(p and p["c"] is not None and p["c"]["at"] > self.level for p in (m, o)):
             return None
-        if m["c"] is not None:
+        if m["c"] is not None and o is not None and _lead(m, o)[0] is o:
+            r = self._r(OFF, o, best["total"])
+            row = out(o["c"], r)
+            row["with"] = self._with(m, out)
+        elif m["c"] is not None:
             r = self._r(MAIN, m, best["total"])
             row = out(m["c"], r)
             if m["role"] == "main":
@@ -1299,9 +1443,11 @@ class WeaponSetups:
         if best is None:
             return None
         total, p, partner = best
-        r = self._r(OFF if p["role"] == "off" else MAIN, p, total)
-        if p["role"] != "two":
-            r["with_part"] = partner
+        lead, other = _lead(p, partner)
+        r = self._r(OFF if lead["role"] == "off" else MAIN, lead, total)
+        r["lead"] = lead["c"]
+        if lead["role"] != "two":
+            r["with_part"] = other
         return r
 
     def partner(self, r: dict, out) -> dict | None:
@@ -1450,7 +1596,7 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
                     zone = q["zone"]
                 if zone is None:
                     continue
-                src = _source(ref, s, cx.who, info)  # who.done is empty: handed-in quests stay
+                src = _source(ref, s, cx.who, info, item_id)  # who.done is empty: handed-in quests stay
                 if src:
                     d = by_area.setdefault(str(zone), {"drops": [], "quests": []})
                     if all(x["quest_id"] != src["quest_id"] for x in d["quests"]):

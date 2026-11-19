@@ -62,9 +62,13 @@ def test_profession_capped_at_its_tier():
     """Where to train, for the character's side, what it needs and costs,
     from Polestar's guides: never invented."""
     hd = {"faction": "Alliance", "race": "Gnome"}
-    c = insights.profession_claims(32, [{"skill_id": 333, "name": "Enchanting", "rank": 150, "max_rank": 150},
-                                        {"skill_id": 197, "name": "Tailoring", "rank": 119, "max_rank": 150}], {}, hd)
+    at = "2026-01-02T10:00:00.000Z"
+    c = insights.profession_claims(32, [{"skill_id": 333, "name": "Enchanting", "rank": 150, "max_rank": 150,
+                                         "max_rank_at": at},
+                                        {"skill_id": 197, "name": "Tailoring", "rank": 119, "max_rank": 150}], {}, hd,
+                                   sheet_at=at)
     assert len(c) == 1 and c[0]["link"] == "#gear" and c[0]["title"] == "Train Expert Enchanting"
+    assert c[0]["action"] is None and not c[0]["skill"]["may_be_stale"]
     assert c[0]["text"] == ("Capped at 150: skill-ups are wasted until you train Expert Enchanting. Kitta Firewind, "
                             "Elwynn Forest (64.8, 70.6); needs level 20 (met); 50 silver (before a reputation discount).")
     sk = c[0]["skill"]
@@ -75,6 +79,42 @@ def test_profession_capped_at_its_tier():
     assert sk["trainers"][0]["zone"]["url"] == "https://www.wowhead.com/forever/zone=12"
     horde = insights.profession_claims(32, [{"skill_id": 333, "rank": 150, "max_rank": 150}], {}, {"faction": "Horde"})
     assert [t["name"] for t in horde[0]["skill"]["trainers"]] == ["Hgarth"]
+
+
+def test_profession_cap_read_before_the_character_last_played_says_how_to_refresh():
+    """The cap comes from the profession window, read only while it's open:
+    a rank trained after that (or in a session the game never saved) stays
+    unseen. The move still says where to train, and how to refresh it."""
+    p = {"skill_id": 164, "name": "Blacksmithing", "rank": 150, "max_rank": 150,
+         "max_rank_at": "2026-01-02T10:00:00.000Z"}
+    c = insights.profession_claims(30, [p], {}, {"faction": "Horde"}, sheet_at="2026-01-02T14:00:00.000Z")
+    assert c[0]["title"] == "Train Expert Blacksmithing" and c[0]["skill"]["may_be_stale"]
+    assert c[0]["text"].startswith("Capped at 150 when your Blacksmithing window was last open: ")
+    assert c[0]["action"] == ("Trained Expert already? Open your Blacksmithing window, then type /reload: the cap is "
+                              "read from that window.")
+    assert c[0]["text"].endswith(c[0]["action"])
+    # An older shipper sends no read time: unknown age is not a fresh reading.
+    old = insights.profession_claims(30, [{**p, "max_rank_at": None}], {}, {"faction": "Horde"})
+    assert old[0]["skill"]["may_be_stale"]
+    # Saved within a minute of the reading: the same reading, no hedge.
+    fresh = insights.profession_claims(30, [p], {}, {"faction": "Horde"}, sheet_at="2026-01-02T10:00:30.000Z")
+    assert fresh[0]["action"] is None
+
+
+def test_profession_newer_recorder_cap_wins_over_the_window_cache():
+    """The Recorder's skill record is the game's skill list when it changed:
+    newer than the window's reading, its cap wins (trained: no move); older,
+    the window's stands."""
+    p = {"skill_id": 197, "name": "Tailoring", "rank": 150, "max_rank": 150, "max_rank_at": "2026-01-02T10:00:00.000Z"}
+    newer = {197: {"rank": 151, "max_rank": 225, "t": "2026-01-02T11:00:00.000Z"}}
+    assert insights.profession_claims(30, [p], newer, {"faction": "Alliance"}) == []
+    older = {197: {"rank": 140, "max_rank": 225, "t": "2026-01-01T09:00:00.000Z"}}
+    c = insights.profession_claims(30, [p], older, {"faction": "Alliance"}, sheet_at="2026-01-02T10:00:00.000Z")
+    assert c[0]["title"] == "Train Expert Tailoring" and c[0]["skill"]["rank"] == 150
+    # The Recorder's later record of the same cap moves the reading's time.
+    same = {197: {"rank": 150, "max_rank": 150, "t": "2026-01-02T13:59:40.000Z"}}
+    c = insights.profession_claims(30, [p], same, {"faction": "Alliance"}, sheet_at="2026-01-02T14:00:00.000Z")
+    assert not c[0]["skill"]["may_be_stale"]
 
 
 def test_profession_without_a_trainer_in_the_data_says_so():

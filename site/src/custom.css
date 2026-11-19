@@ -11,3 +11,51 @@
   --sl-color-accent-high: #4a3410;
 }
 .demo-links { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
+/* Screenshots: one per theme where both exist (the home page). Starlight's
+   theme lives in data-theme; "auto" sets it from the system too. */
+:root[data-theme="light"] .dark-only,
+:root:not([data-theme="light"]) .light-only { display: none; }
+.sl-markdown-content img { border-radius: 0.5rem; height: auto; }
+.sl-markdown-content p > img,
+.sl-markdown-content figure.shot img {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18), 0 6px 20px rgb(0 0 0 / 0.12);
+}
+figure.shot { margin: 0 0 2rem; }
+figure.shot figcaption { font-size: var(--sl-text-sm); color: var(--sl-color-gray-3); margin-top: 0.6rem; text-align: center; }
+
+/* The three paths, one card each. */
+.paths {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+  margin: 1rem 0 2rem;
+}
+.sl-markdown-content a.path {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.75rem;
+  background: var(--sl-color-gray-7, var(--sl-color-black));
+  color: var(--sl-color-gray-2);
+  text-decoration: none;
+  margin: 0;
+}
+.sl-markdown-content a.path:hover { border-color: var(--sl-color-accent); }
+.sl-markdown-content a.path > * { margin: 0; }
+.path strong { color: var(--sl-color-white); font-size: var(--sl-text-lg); }
+.path-kicker { font-size: var(--sl-text-xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--sl-color-accent-high); font-weight: 600; }
+.path-go { margin-top: auto !important; padding-top: 0.4rem; color: var(--sl-color-accent-high); font-weight: 600; }
+.path-go::after { content: " \2192"; }
+.fineprint { font-size: var(--sl-text-sm); color: var(--sl-color-gray-3); margin-top: 2.5rem; }
+/* The diagram is drawn on its own background: no shadow, never wider than drawn. */
+.sl-markdown-content img[src$=".svg"] { box-shadow: none; max-width: 440px; width: 100%; display: block; margin-inline: auto; }
+.demo-links a {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--sl-color-accent);
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 600;
+}

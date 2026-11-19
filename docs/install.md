@@ -8,10 +8,9 @@ From zero to your climb in a web page, on Windows or a Mac. Count an hour the fi
 most of it waiting for downloads. Tried [the demo](self-host/demo.md) already? Same server,
 without the made-up characters.
 
-> Tested on macOS (Apple silicon) from a clean home folder, every step below, against a copy
-> of a real `_forever_` folder. On Windows the shipper's install runs on every CI build
-> (Windows Server, a fake `_forever_` folder, no game); the Docker steps on Windows follow
-> Docker's and Microsoft's docs but weren't run on a fresh machine.
+> Every step below was run on a Mac (Apple silicon) from a clean home folder. On Windows the
+> shipper's install is tested on every change; the Docker steps follow Docker's and
+> Microsoft's own instructions but weren't run on a fresh Windows machine.
 
 Three parts, in this order:
 

@@ -57,7 +57,7 @@ DEMO DATA banner:
 - **Testalt-Demo**: a level 11 alt with almost nothing, to see the empty states.
 - **Testhunt-Demo**, **Testgun-Demo**, **Testsky-Demo**: three characters dressed for the 3D view.
 
-![The Overview of the demo character Testchar, level 32: on track at 1.5 times Polestar's route time, the next level in 1h 11m of play, 90% of guide steps in order, the next move, and time per level against the route](../images/overview-light.png)
+![The Overview of the demo character Testchar, level 32: on track at 1.5 times Polestar's route time, the next level in 1h 11m of play, 90% of guide steps in order, the next move, and time per level against the route](../images/local-demo.webp)
 
 [Your page, tab by tab](../players/your-page.md) explains each tab.
 

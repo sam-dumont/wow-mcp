@@ -281,9 +281,10 @@ def test_the_setup_report_goes_with_a_send_and_holds_nothing_personal(shipper, t
     ev = json.loads(lines[0])
     assert ev["feed"] == "wow-setup" and "char" not in ev
     assert ev["addons"] == {"polestar": "1.0.8", "recorder": "1.0.17", "syndicator": "1.0.10"}
-    assert ev["recorder_on"] is False and ev["saved_chars"] == 1
-    assert set(ev) == {"_time", "feed", "_msg", "source_id", "addons", "recorder_on", "saved_chars"}
-    assert str(tmp_path) not in lines[0] and "Hero" not in lines[0]
+    assert ev["recorder_on"] is False and ev["saved_chars"] == 1 and ev["off"] == {}
+    assert set(ev) == {"_time", "feed", "_msg", "source_id", "addons", "recorder_on", "saved_chars", "off", "shipper"}
+    assert ev["shipper"] == shipper.VERSION  # /start asks a shipper without it to update once
+    assert str(tmp_path) not in lines[0] and "Living Flame" not in lines[0]
     # Unchanged and nothing else to send: not again. Something to send, or a change: again.
     shipper.setup_event(state, out, force=False)
     assert len(lines) == 1
@@ -295,15 +296,32 @@ def test_the_setup_report_goes_with_a_send_and_holds_nothing_personal(shipper, t
     assert len(lines) == 3 and json.loads(lines[2])["addons"]["questie"] == "9"
 
 
+def test_the_setup_report_says_which_addons_each_character_skips(shipper, tmp_path):
+    """AddOns.txt per character (the AddOns list at character select): an
+    addon it marks disabled is off for it; one it doesn't list follows the
+    .toc's DefaultState; addons that aren't installed are never named."""
+    wow = make_wow(tmp_path, addons=("Polestar", "Polestar_Recorder", "Questie", "Altoholic", "Syndicator"))
+    (wow / "Interface" / "AddOns" / "Syndicator" / "Syndicator.toc").write_text("## Version: 2\n## DefaultState: disabled\n")
+    acct = wow / "WTF" / "Account" / "123456789#1"
+    (acct / "Living Flame" / "Hero" / "AddOns.txt").write_text(
+        "Questie: disabled\nAltoholic: enabled\nDetails: disabled\nAuctionator: disabled\n")
+    (acct / "Living Flame" / "Fresh Alt").mkdir()
+    (acct / "Living Flame" / "Fresh Alt" / "AddOns.txt").write_text("Polestar: disabled\nSyndicator: enabled\n")
+    rep = shipper.setup_report(wow)
+    assert rep["off"] == {"Fresh-Alt": ["polestar"], "Hero": ["questie", "syndicator"]}
+    assert shipper.addons_off(make_wow(tmp_path / "plain")) == {}
+
+
 def test_the_receiver_takes_the_setup_report():
     from wowstats import ingest
 
     stored, bad = ingest.parse(json.dumps({"_time": "2026-11-19T10:00:00.000Z", "feed": "wow-setup", "_msg": "setup",
                                            "addons": {"polestar": "0.4.1.1"}, "recorder_on": True,
-                                           "saved_chars": 2}).encode())
+                                           "saved_chars": 2, "off": {"Hero": ["questie"]}}).encode())
     assert bad == 0
     ev = json.loads(stored[0])
     assert ev["addons"] == '{"polestar":"0.4.1.1"}' and ev["recorder_on"] is True
+    assert json.loads(ev["off"]) == {"Hero": ["questie"]}
 
 
 # ---------------------------------------------------------------- the stock installer, end to end (macOS)

@@ -885,12 +885,16 @@ function feasible(u, level) {
   const lv = gates.find((g) => g.kind === 'level');
   const sk = gates.find((g) => g.kind === 'skill');
   const buy = gates.find((g) => g.kind === 'buy');
-  if (!lv && !sk) {
+  // The recipe: a pattern in the bags to learn, or one still to find.
+  const rc = gates.find((g) => g.kind === 'learn' || g.kind === 'recipe');
+  if (!lv && !sk && !rc) {
     return { now: true, text: 'Now', title: buy ? `Made by ${buy.profession} ${buy.need}: buy it from a crafter or the auction house.` : 'You can get and wear it now.' };
   }
-  const text = [lv ? `Level ${lv.need}` : null, sk ? `${sk.profession} ${sk.need}` : null].filter(Boolean).join(' + ');
+  const text = [lv ? `Level ${lv.need}` : null, sk ? `${sk.profession} ${sk.need}` : null,
+    rc ? (rc.kind === 'learn' ? 'Learn pattern' : 'Recipe needed') : null].filter(Boolean).join(' + ');
   const when = [lv ? `at level ${lv.need}` : null,
-    sk ? `once ${sk.profession} reaches ${sk.need} (you have ${sk.have}, ${sk.need - sk.have} to go)` : null].filter(Boolean);
+    sk ? `once ${sk.profession} reaches ${sk.need} (you have ${sk.have}, ${sk.need - sk.have} to go)` : null,
+    rc ? (rc.kind === 'learn' ? 'once you learn the pattern in your bags' : `once you find and learn its ${rc.profession} recipe`) : null].filter(Boolean);
   return { now: false, text, title: `Opens ${when.join(', ')}.`, level: lv && lv.need, skill: sk };
 }
 function feasEl(u, level) {
@@ -940,6 +944,18 @@ function ahEl(sr) {
     sr.affordable === false ? h('span', { class: 'sub', text: ' (more than you have)' }) : null);
 }
 
+// What making a craft takes, as wowstats/gear.py craft_status says it: the
+// skill, then the recipe (known, a pattern in the bags, or not learnt).
+function craftStatus(sr) {
+  if (sr.your_rank === null || sr.your_rank === undefined) return 'a crafter makes it';
+  if (sr.can_make) return 'you know it: check the materials';
+  const steps = [];
+  if (sr.skill_ok === false || (sr.skill_ok === undefined && sr.your_rank < sr.skill)) steps.push(`you have ${sr.your_rank}`);
+  if (sr.known === false) steps.push(sr.pattern_item_id ? 'learn the pattern in your bags' : 'recipe not learnt');
+  else if (sr.known === null || sr.known === undefined) steps.push(sr.pattern_item_id ? 'a pattern for it is in your bags' : 'if you know the recipe');
+  return steps.join(', ');
+}
+
 // One source in words, with its link and the numbers that decide a trip.
 // ah: the item's auction house listing, for "or buy it" after another source.
 function sourceEl(sr, level, ah) {
@@ -963,8 +979,7 @@ function sourceEl(sr, level, ah) {
       sr.chance_pct ? `, ${sr.chance_pct}%` : '', runs ? ` (about ${runs} run${runs > 1 ? 's' : ''})` : '', buy);
   }
   if (sr.kind === 'craft') {
-    const own = sr.can_make ? 'you can make it now' : sr.your_rank !== null && sr.your_rank !== undefined
-      ? `you have ${sr.your_rank}` : 'a crafter makes it';
+    const own = craftStatus(sr);
     return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), ` (${own})`,
       ah ? h('span', {}, ', or ', h('b', { class: 'ahprice', text: priceText(ah.price_copper) }), ' on the Auction House') : '');
   }
@@ -2598,6 +2613,14 @@ function trainersEl(ts, nowZone) {
   return capped(sorted.map((t) => trainerLine(t, here(t))), 3, (n) => `${n} more trainer${n === 1 ? '' : 's'}`, 'trainers');
 }
 function met(ok) { return ok ? 'met' : 'not yet'; }
+// A weapon setup's points are both hands': name the other one, and say
+// where it is when it isn't still to get.
+function withText(it) {
+  const w = it.with;
+  if (!w || !w.name) return '';
+  const where = { worn: ', which you wear', bags: ', in your bags', bank: ', in your bank' }[w.kind] || '';
+  return `, with ${w.name} (${(w.slot_name || '').toLowerCase()}${where})`;
+}
 function moveEl(mv, nowZone) {
   const [label, go] = MOVE_KIND[mv.kind] || ['Note', 'See it'];
   let what;
@@ -2605,7 +2628,7 @@ function moveEl(mv, nowZone) {
   if (mv.kind === 'upgrade' && mv.item) {
     const it = mv.item;
     what = itemWithLink(it);
-    why = [h('span', { text: `${it.slot_name || 'Gear'}, +${(it.gain || 0).toFixed(1)} points (${Math.round(it.gain_share_pct || 0)}% of your gear)` }),
+    why = [h('span', { text: `${it.slot_name || 'Gear'}, +${(it.gain || 0).toFixed(1)} points (${Math.round(it.gain_share_pct || 0)}% of your gear)` + withText(it) }),
       sourceLine(mv.source)];
   } else if (mv.kind === 'dungeon' && mv.zone) {
     const its = mv.items || [];
@@ -2613,7 +2636,7 @@ function moveEl(mv, nowZone) {
     why = [vsGuide(mv.vs_guide, true), gainLine(mv.gain), gainQuests(mv.gain), moveRewards(mv.quest_rewards),
       h('span', { text: `Drops ${its.length} upgrade${its.length === 1 ? '' : 's'} you could wear now` + (mv.blocker ? ` (${mv.blocker}):` : ':') }),
       h('ul', { class: 'ditems' }, its.slice(0, 3).map((it) => h('li', {}, itemWithLink(it),
-        h('span', { class: 'sub', text: `${it.slot_name || 'Gear'}, +${(it.gain || 0).toFixed(1)} points (${Math.round(it.gain_share_pct || 0)}% of your gear)` })))),
+        h('span', { class: 'sub', text: `${it.slot_name || 'Gear'}, +${(it.gain || 0).toFixed(1)} points (${Math.round(it.gain_share_pct || 0)}% of your gear)` + withText(it) })))),
       its.length > 3 ? h('span', { class: 'sub', text: `and ${its.length - 3} more in the gear advice` }) : null,
       ];
   } else if ((mv.kind === 'profession' || mv.kind === 'riding') && mv.skill) {
@@ -2633,7 +2656,9 @@ function moveEl(mv, nowZone) {
       // Where a price comes from stays in the data; a caveat that changes
       // what to bring stays, in a few words.
       sk.cost_copper ? h('span', { text: `Costs ${coinText(sk.cost_copper)}${/reputation/i.test(sk.cost_scope || '') ? ' (less with reputation)' : ''}.` }) : null,
-      have];
+      have,
+      // A cap read before you last played: how to refresh it.
+      mv.action ? h('span', { class: 'mact', text: mv.action }) : null];
   } else if (mv.kind === 'deaths_zone' && mv.zone) {
     what = h('span', { class: 'mtitle' }, mv.title.replace(mv.zone.name, '').trim() + ' ', whRef(mv.zone));
     why = [mv.detail ? h('span', { text: mv.detail }) : null, mv.action ? h('span', { class: 'mact', text: mv.action }) : null];
@@ -3249,12 +3274,13 @@ async function renderNoChars() {
   if (STATIC || PUBLIC) {
     next = [h('p', { text: 'Nothing here yet. The page fills in after the first session played with the addons on.' })];
   } else if (me && !me.slug) {
-    next = [h('p', { text: 'Pick your name, then install the shipper.' }), step('name', 2, 'pick your name')];
+    next = [h('p', { text: me.owner ? 'Your page has no address: set WOW_OWNER_SLUG and restart wow-stats.'
+      : "Your page's address needs a fix from the person who runs this site. Nothing to do on your side: this page carries on once it's fixed." })];
   } else if (me && !me.shipper_set_at) {
-    next = [h('p', { text: 'Next: install the shipper on the computer you play on.' }), step('install', 4, 'run the install command')];
+    next = [h('p', { text: 'Next: install the shipper on the computer you play on.' }), step('install', 3, 'run the install command')];
   } else if (me) {
     next = [h('p', { text: 'The shipper is installed. Play a few minutes with Polestar and Polestar Recorder on, then /reload: your character shows up here within 5 minutes.' }),
-      step('play', 5, 'play 5 minutes')];
+      step('play', 4, 'play 5 minutes')];
   } else {
     next = [h('p', { text: 'Install the shipper on the computer you play on and point it at this server (README, “Install in 3 steps”). Then play a few minutes with Polestar and Polestar Recorder on and /reload.' })];
   }

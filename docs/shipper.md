@@ -29,6 +29,57 @@ run), then:
    then moves it to `~/WoWArchive/sent/` gzipped. Server down or no network:
    it logs that and the spool waits for the next run. The spool file shrinks
    after each post, so a run cut short resends nothing.
+4. **update**: at most every 6 hours, asks the same server for a newer
+   shipper and takes it ([Auto-update](#auto-update)).
+
+## Auto-update
+
+The shipper updates itself. After a run's own work, at most once every 6
+hours, it asks the server it ships to for the current version:
+`GET <server>/install/update/shipper`, with the same upload password as
+`/ingest`. The answer is the version of the `wow_stats.py` that server
+carries (its `VERSION` line) and the sha256 of each file:
+
+```json
+{"version": "0.5.1",
+ "files": {"wow_stats.py": {"sha256": "9f2c...", "size": 121344},
+           "install-mac.sh": {"sha256": "51ab...", "size": 4310}}}
+```
+
+When that version is higher than its own, it downloads
+`/install/update/shipper/wow_stats.py` from the same server, checks the
+sha256 and that the file compiles and names the version announced, writes
+it next to itself and renames it into place in one step. The old copy
+stays as `wow_stats.py.prev`. The new version runs from the next run on.
+When the server's installer for your system (`install-mac.sh` and
+`wow-stats.plist`, or `install-windows.ps1`) differs from the copy the
+installer left next to the script, the shipper also runs the new installer
+once, in the background, to rewrite the launchd agent or the scheduled task.
+
+What it never does:
+
+- **Downgrade.** An equal or lower version is left alone.
+- **Talk to anyone else.** Only the server in `[ship] url`, over https (plain
+  http only to this computer, `127.0.0.1` or `localhost`), and no redirect.
+- **Break the shipping.** No endpoint (a server older than 0.5.1), no network,
+  a wrong hash, a file that doesn't compile: it keeps the running version and
+  logs one line (`auto-update: ...; keeping 0.5.0`).
+- **Touch your config or `state.json`.** They stay where they are; a version
+  that changes their format reads the old one.
+- **Rewrite a copy you run by hand.** Only the installed script
+  (`~/.local/share/wow-stats/wow_stats.py`, `%LOCALAPPDATA%\wow-stats\wow_stats.py`)
+  updates itself, not a git checkout.
+
+To pin the version you have, put this at the top of the config, next to
+`wow_dir`:
+
+```toml
+auto_update = false
+```
+
+A shipper from before 0.5.1 can't update itself: run the update line once
+(below). `/start` says so while the server still sees one: its setup report
+carries the shipper's version from 0.5.1 on.
 
 ## Stats only (no WTF archive)
 
@@ -121,7 +172,7 @@ Lines that aren't valid events never leave the PC: they go to
 `WOW_STATS_CONFIG` points it at another config file. `config.example.toml`
 lists every setting: `wow_dir` (the `_forever_` folder, found by itself in the
 usual install places), `archive_dir`, `wtf_archive` (default `true`),
-`log_file`, `polestar_client_dir`, and
+`log_file`, `polestar_client_dir`, `auto_update` (default `true`), and
 `[ship]` with `url`, `user`, `password` or `password_file`, and
 `retention_days`.
 
@@ -174,7 +225,9 @@ Missing addons just mean fewer events.
 
 ## Update and uninstall
 
-Update: `git pull` and rerun the installer. Config, state and archive stay.
+Update: it updates itself (above). By hand, or once for a shipper from
+before 0.5.1: `git pull` and rerun the installer, or the update line from
+your start page. Config, state and archive stay.
 
 Backup, uninstall and deleting your data are three separate steps:
 [Back up and restore](self-host/backup.md) and [Uninstall](self-host/uninstall.md). In

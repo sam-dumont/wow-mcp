@@ -9,7 +9,7 @@
 
 Runs every few minutes (launchd on macOS, Task Scheduler on Windows; the
 installers next to this file), and on macOS also each time the client saves
-its SavedVariables (logout, /reload). Three steps, each safe to rerun:
+its SavedVariables (logout, /reload). Four steps, each safe to rerun:
 
 1. archive: mirror `_forever_/WTF/` into a git repo (<archive_dir>/wtf) and
    commit. Polestar Recorder deletes the chunks its uploader acked at the next
@@ -26,6 +26,8 @@ its SavedVariables (logout, /reload). Three steps, each safe to rerun:
    wow-stats ingest endpoint of the compose kit, or any receiver that takes
    the same NDJSON. Sent files go to sent/ gzipped. No [ship] url or no
    network: log it and stop, the spool waits.
+4. update: at most every 6 hours, ask the same server for a newer version
+   of this file and replace it (check_update; `auto_update = false` pins it).
 
 Python standard library only (3.11+). Settings: config.toml, see
 config.example.toml (~/.config/wow-stats/ on macOS and Linux,
@@ -65,6 +67,12 @@ import zipfile
 import zlib
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
+
+# The release this file belongs to: pyproject's version, moved with it at each
+# release (tests/test_shipper_update.py keeps them equal). The server reads
+# it from the file it serves, auto_update compares it, and the setup report
+# carries it (/start asks an install without it to update once by hand).
+VERSION = "0.6.0"
 
 WINDOWS = os.name == "nt"
 HOME = Path.home()
@@ -1193,6 +1201,12 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
                     cur["rank"] = max(cur["rank"] or 0, p["rank"])
                 if isinstance(p.get("maxRank"), int):
                     cur["max_rank"] = p["maxRank"]
+                    # The export reads the cap only while the profession
+                    # window is open (TRADE_SKILL_*): a rank trained since
+                    # shows up only after the window is opened again. The
+                    # server hedges a "train the next rank" move on this.
+                    if isinstance(p.get("lastUpdated"), (int, float)) and p["lastUpdated"] > 0:
+                        cur["max_rank_at"] = iso(p["lastUpdated"])
     professions = sorted((p for p in profs.values() if p["name"]), key=lambda p: (-(p["rank"] or 0), p["name"]))
 
     cls = det.get("className")
@@ -1239,6 +1253,11 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
 
     if not items and not professions:
         return None
+    recipes = recipes_of(acct, char)
+    # Polestar's last class trainer visit: the level it was at (Engine.lua
+    # classTrainVisit, set when a class trainer's window opens).
+    pcdb = next(iter(read_sv_versions(cdir / "Polestar.lua")), None) or {}
+    visit = (pcdb.get("PolestarCharDB") or {}).get("classTrainVisit")
     guild = det.get("guild")
     rated = [i["item_level"] for i in items if i["slot"] not in NO_ITEM_LEVEL and i["item_level"]]
     return {"items": items, "professions": professions, "wanted": wanted,
@@ -1253,7 +1272,40 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
             "talents_level": ranks.get("level"), "talents_date": ranks.get("date"),
             "min_upgrade": min_upgrade,
             "class": cls, "race": det.get("race"), "faction": det.get("faction"),
-            "sex": SEXES.get(det.get("sex"))}
+            "sex": SEXES.get(det.get("sex")),
+            **({"recipes": recipes} if recipes else {}),
+            **({"class_train_level": int(visit)} if isinstance(visit, (int, float)) and visit > 0 else {})}
+
+
+def recipes_of(acct: Path, char: str) -> list[dict]:
+    """The recipes the character knows, per profession, from DataStore_Crafts
+    (Altoholic's data store): [{profession, known: [spell IDs], seen}].
+    DataStore saves every recipe of a profession window the character opened,
+    each as one number: bit 2 learned, bits 7 and up the recipe's spell ID
+    (DataStore_Crafts_Retail.lua _GetRecipeInfo). A profession whose window
+    was never opened lists none and is left out: unknown, not "unlearned".
+    Its characters are keyed "Default.<realm>.<Name>" (DataStore.lua)."""
+    sv = acct / "SavedVariables"
+    ids = next(iter(read_sv_versions(sv / "DataStore.lua")), None) or {}
+    crafts = next(iter(read_sv_versions(sv / "DataStore_Crafts.lua")), None) or {}
+    keys = ((ids.get("DataStore_CharacterIDs") or {}).get("Set")) or {}
+    cid = next((v for k, v in keys.items() if isinstance(k, str) and char_of(k.rsplit(".", 1)[-1]) == char), None)
+    c = (crafts.get("DataStore_Crafts_Characters") or {}).get(cid) if cid is not None else None
+    profs = (c or {}).get("Professions") or {}
+    out = []
+    for p in (profs.values() if isinstance(profs, dict) else profs):
+        if not isinstance(p, dict) or not isinstance(p.get("Name"), str):
+            continue
+        known, seen = set(), 0
+        for cat in (p.get("Crafts") or {}).values():
+            for v in (cat.values() if isinstance(cat, dict) else cat if isinstance(cat, list) else []):
+                if isinstance(v, int) and v > 0:
+                    seen += 1
+                    if v >> 2 & 1:
+                        known.add(v >> 7)
+        if seen:
+            out.append({"profession": p["Name"], "known": sorted(known), "seen": seen})
+    return sorted(out, key=lambda r: r["profession"])
 
 
 # ---------------------------------------------------------------------------
@@ -1812,6 +1864,24 @@ def _max(a, b):
     return b if a is None else a if b is None else max(a, b)
 
 
+def _price_twin(seen: dict, realm: str, realm_name: str, faction: str | None, rest: str, lo, hi, av) -> bool:
+    """True when the same item and day was already sent under the realm's
+    other Auctionator key (and the numbers are no wider): Auctionator keys
+    a realm "Realm Faction" on a faction auction house and "Realm" on a
+    shared one, and moves an account's prices from one key to the other
+    with the same numbers. On 2026-11-18/19 that sent one account's 1,347
+    prices twice, once per key. The twin's record is copied under this key,
+    so a later change of the day still counts from it."""
+    twins = ([f"price:{realm_name}:{rest}"] if faction else
+             [f"price:{realm} {f}:{rest}" for f in FACTIONS])
+    for t in twins:
+        prev = seen.get(t)
+        if prev and [min(lo, prev[0]), _max(hi, prev[1]), _max(av, prev[2])] == prev[:3]:
+            seen[f"price:{realm}:{rest}"] = list(prev)
+            return True
+    return False
+
+
 def extract_auctionator(acct: Path, char: str | None, state: dict, out: Out) -> None:
     """One wow-prices event per item and scan day. A day's numbers can still
     move while it lasts (Auctionator keeps the day's lowest and highest
@@ -1840,6 +1910,8 @@ def extract_auctionator(acct: Path, char: str | None, state: dict, out: Out) -> 
                     continue
                 sid = f"price:{realm}:{key}:{day}"
                 prev = seen.get(sid)
+                if prev is None and _price_twin(seen, realm, realm_name, faction, f"{key}:{day}", lo, hi, av):
+                    continue
                 if prev:  # within a day the numbers only widen: merge, never go back
                     lo, hi, av = min(lo, prev[0]), _max(hi, prev[1]), _max(av, prev[2])
                     if [lo, hi, av] == prev[:3]:
@@ -2115,7 +2187,7 @@ def backfill(state: dict, out: Out) -> None:
         log("backfill: no archive yet" if archive_on() else "backfill: no archive (wtf_archive = false)")
         return
     keep = re.compile(r"^Account/[^/]+/(SavedVariables/(Polestar|Polestar_Recorder|Auctionator|Syndicator"
-                      r"|ForeverLevelingBiS|Narcissus_Barbershop|DataStore|DataStore_Characters|DataStore_Quests|Questie)\.lua(\.bak)?"
+                      r"|ForeverLevelingBiS|Narcissus_Barbershop|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests|Questie)\.lua(\.bak)?"
                       r"|[^/]+/[^/]+/SavedVariables/(Polestar|Polestar_Recorder|CharacterExport-Forever"
                       r"|GearQuestForever|VulcanSimBench)\.lua(\.bak)?)$")
     commits = git("rev-list", "--reverse", "HEAD").stdout.split()
@@ -2480,7 +2552,7 @@ ADDONS = [
      "url": "https://www.curseforge.com/wow/addons/auctionator", "what": "prices from your own auction house scans"},
     {"id": "altoholic", "name": "Altoholic", "dir": "Altoholic", "required": False,
      "url": "https://www.curseforge.com/wow/addons/altoholic",
-     "what": "your full /played from level 1, and the quests you finished before Polestar"},
+     "what": "your full /played from level 1, the quests you finished before Polestar, and the recipes you know"},
     {"id": "questie", "name": "Questie", "dir": "Questie", "required": False,
      "url": "https://www.curseforge.com/wow/addons/questie",
      "what": "the quests you finished before Polestar (Altoholic does it too: one of the two is enough)"},
@@ -2530,11 +2602,42 @@ def saved_chars(wow: Path) -> int:
                if (d / "Polestar.lua").is_file() or (d / "Polestar_Recorder.lua").is_file())
 
 
+def addons_off(wow: Path, installed: dict[str, str] | None = None) -> dict[str, list[str]]:
+    """Per character, the installed ADDONS ids it doesn't load: unticked in
+    AddOns at character select (its AddOns.txt says "disabled"), or not
+    listed there and off by default (the .toc's DefaultState). Characters
+    with everything ticked are left out. The pages need it to tell "add
+    Questie" from "Questie is there, tick it for this character"."""
+    installed = installed_addons(wow) if installed is None else installed
+    base = wow / "Interface" / "AddOns"
+    dirs = {a["dir"]: a["id"] for a in ADDONS if a["id"] in installed}
+    default_off = {i for d, i in dirs.items()
+                   if str((addon_meta(base / d) or {}).get("DefaultState", "")).strip().lower() == "disabled"}
+    out: dict[str, set[str]] = {}
+    for acct in accounts(wow / "WTF"):
+        for d in sorted(acct.glob("*/*")):
+            if not d.is_dir() or d.parent.name == "SavedVariables":
+                continue
+            state: dict[str, bool] = {}
+            f = d / "AddOns.txt"
+            for line in (f.read_text(encoding="utf-8-sig", errors="replace").splitlines() if f.is_file() else ()):
+                name, _, val = line.partition(":")
+                if name.strip() in dirs and val.strip().lower() in ("enabled", "disabled"):
+                    state[dirs[name.strip()]] = val.strip().lower() == "enabled"
+            off = {i for i in dirs.values() if not state.get(i, i not in default_off)}
+            if off:
+                out.setdefault(char_of(d.name), set()).update(off)
+    return {c: sorted(ids) for c, ids in sorted(out.items())}
+
+
 def setup_report(wow: Path) -> dict:
     """What the preflight saw, as the server gets it (feed wow-setup): the
     addons and their versions, the Recorder's switch, how many characters
-    saved data. No folder, name or character: nothing personal."""
-    return {"addons": installed_addons(wow), "recorder_on": recorder_on(wow), "saved_chars": saved_chars(wow)}
+    saved data, and per character the installed addons it doesn't load. No
+    folder or path; the character names are the ones every event carries."""
+    have = installed_addons(wow)
+    return {"addons": have, "recorder_on": recorder_on(wow), "saved_chars": saved_chars(wow),
+            "off": addons_off(wow, have), "shipper": VERSION}
 
 
 def setup_event(state: dict, out: Out, force: bool) -> None:
@@ -2664,6 +2767,215 @@ def preflight() -> int:
     return HARD if hard else 0
 
 
+# ---------------------------------------------------------------- auto-update
+
+# Once every 6 hours at most, after the run's own work: the shipper asks the
+# server it ships to for the current version (GET <base>/install/update/shipper,
+# with the upload password) and, when it is newer, takes the file from the same
+# server, checks its sha256 and that it compiles, then replaces itself (the old
+# copy stays as wow_stats.py.prev). The new version runs from the next run on.
+# Same trust as the update command, no wider: the same server, the same
+# password, HTTPS (or this computer). Never a downgrade; any failure keeps the
+# running version and logs one line. `auto_update = false` in the config pins it.
+UPDATE_EVERY_S = 6 * 3600
+UPDATE_PATH = "/install/update/shipper"
+UPDATE_MAX_BYTES = 8 * 1024 * 1024
+# The files that define the background program, per platform: when the
+# server's differ from the copies the installer left next to the script, the
+# installer runs again (detached) to rewrite the agent or the task.
+AGENT_FILES = {"darwin": ("install-mac.sh", "wow-stats.plist"), "win32": ("install-windows.ps1",)}
+SELF = Path(__file__).resolve()
+
+
+class UpdateError(Exception):
+    pass
+
+
+def version_tuple(v) -> tuple[int, ...] | None:
+    m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", str(v or "").strip())
+    return tuple(int(x) for x in m.groups()) if m else None
+
+
+def auto_update_on() -> bool:
+    """On unless the config says `auto_update = false`."""
+    v = CONFIG.get("auto_update", True)
+    if isinstance(v, str):
+        return v.strip().lower() not in ("false", "off", "no", "0")
+    return bool(v)
+
+
+def install_dir() -> Path:
+    """Where the installers put the script: only that copy updates itself
+    (a git checkout run by hand is never rewritten)."""
+    if WINDOWS:
+        return Path(os.environ.get("LOCALAPPDATA", HOME / "AppData" / "Local")) / "wow-stats"
+    return HOME / ".local" / "share" / "wow-stats"
+
+
+def update_source() -> tuple[str, dict] | None:
+    """(the server's base URL, the Authorization header) from [ship], None
+    when the receiver isn't a wow-stats /ingest. Raises UpdateError for a
+    plain-HTTP server other than this computer."""
+    settings = ship_settings()
+    if settings is None:
+        return None
+    url, headers = settings
+    u = urllib.parse.urlsplit(url)
+    path = u.path.rstrip("/")
+    if not path.endswith("/ingest") or u.scheme not in ("https", "http"):
+        return None
+    if u.scheme == "http" and u.hostname not in ("127.0.0.1", "localhost", "::1"):
+        raise UpdateError("only over https (or from this computer)")
+    base = urllib.parse.urlunsplit((u.scheme, u.netloc, path[: -len("/ingest")], "", ""))
+    return base, {k: v for k, v in headers.items() if k == "Authorization"}
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A redirect would carry the upload password elsewhere: refused."""
+
+    def redirect_request(self, *a, **k):
+        return None
+
+
+def _fetch(url: str, headers: dict, limit: int) -> bytes:
+    req = urllib.request.Request(url, headers={**headers, "User-Agent": f"wow-stats-shipper/{VERSION}"})
+    try:
+        with urllib.request.build_opener(_NoRedirect).open(req, timeout=60) as r:
+            data = r.read(limit + 1)
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            raise UpdateError("the server has no update endpoint") from None
+        raise UpdateError(f"the server answered HTTP {e.code}") from None
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise UpdateError(f"server unreachable ({getattr(e, 'reason', e)})") from None
+    if len(data) > limit:
+        raise UpdateError(f"{url.rsplit('/', 1)[-1]} is over {limit} bytes")
+    return data
+
+
+def _verified(base: str, headers: dict, files: dict, name: str) -> bytes:
+    spec = files.get(name) if isinstance(files, dict) else None
+    want = spec.get("sha256") if isinstance(spec, dict) else None
+    if not isinstance(want, str) or not re.fullmatch(r"[0-9a-f]{64}", want):
+        raise UpdateError(f"no sha256 for {name}")
+    data = _fetch(f"{base}{UPDATE_PATH}/{name}", headers, UPDATE_MAX_BYTES)
+    if hashlib.sha256(data).hexdigest() != want:
+        raise UpdateError(f"{name}: sha256 mismatch")
+    return data
+
+
+def _file_sha(p: Path) -> str | None:
+    try:
+        return hashlib.sha256(p.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def agent_changed(files: dict) -> tuple[str, ...]:
+    """The platform's agent files when the server's differ from the copies
+    next to the script; () when they match, or when there are no copies to
+    compare (an install made before they were kept: left alone)."""
+    names = AGENT_FILES.get("win32" if WINDOWS else sys.platform, ())
+    here = [(n, _file_sha(SELF.parent / n)) for n in names]
+    if not names or any(h is None for _, h in here):
+        return ()
+    want = {n: (files.get(n) or {}).get("sha256") if isinstance(files, dict) else None for n in names}
+    return names if any(h != want[n] for n, h in here) else ()
+
+
+def rerun_installer(stage: Path) -> None:
+    """The platform's installer from `stage`, detached, after this run ends:
+    it rewrites the agent (launchd) or the task, and reloads it. Its own
+    session, so launchd's end-of-job cleanup doesn't take it along."""
+    logf = open(LOG, "ab") if LOG.parent.is_dir() else subprocess.DEVNULL
+    env = {**os.environ, "WOW_STATS_QUIET": "1", "WOW_STATS_CONFIG": str(config_path())}
+    if WINDOWS:
+        # Re-registering a running task is fine (-Force); MultipleInstances
+        # IgnoreNew skips its start while this run is still on.
+        ps = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden",
+              "-File", str(stage / "install-windows.ps1")]
+        flags = 0x08000000 | 0x00000200  # CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP
+        try:  # out of the task's job, when Task Scheduler allows it
+            subprocess.Popen(ps, env=env, stdin=subprocess.DEVNULL, stdout=logf, stderr=subprocess.STDOUT,
+                             creationflags=flags | 0x01000000)
+        except OSError:
+            subprocess.Popen(ps, env=env, stdin=subprocess.DEVNULL, stdout=logf, stderr=subprocess.STDOUT,
+                             creationflags=flags)
+    else:
+        subprocess.Popen(["/bin/sh", "-c", 'sleep 5; exec /bin/bash "$1"', "sh", str(stage / "install-mac.sh")],
+                         env=env, stdin=subprocess.DEVNULL, stdout=logf, stderr=subprocess.STDOUT,
+                         start_new_session=True)
+
+
+def apply_update(new: bytes) -> None:
+    """Writes the new script next to this one, keeps this one as .prev, and
+    swaps them in one rename."""
+    tmp = SELF.with_name(".wow_stats.py.new")
+    tmp.write_bytes(new)
+    if not WINDOWS:
+        tmp.chmod(0o755)
+    shutil.copy2(SELF, SELF.with_name(SELF.name + ".prev"))
+    os.replace(tmp, SELF)
+
+
+def check_update(state: dict, now: float | None = None) -> str | None:
+    """The update check (see UPDATE_EVERY_S): None when skipped, else
+    "current", "updated" or "kept" (a failure, logged)."""
+    if not auto_update_on() or SELF.parent != install_dir().resolve():
+        return None
+    up = state.setdefault("update", {})
+    now = time.time() if now is None else now
+    try:
+        last = float(up["checked"]) if "checked" in up else None
+    except (TypeError, ValueError):
+        last = None
+    if last is not None and 0 <= now - last < UPDATE_EVERY_S:
+        return None
+    up["checked"] = now
+    try:
+        src = update_source()
+        if src is None:
+            return None
+        base, headers = src
+        try:
+            man = json.loads(_fetch(base + UPDATE_PATH, headers, 64 * 1024))
+        except ValueError:
+            raise UpdateError("the server's answer isn't JSON") from None
+        if not isinstance(man, dict):
+            raise UpdateError("the server's answer isn't a manifest")
+        new_v, cur_v = version_tuple(man.get("version")), version_tuple(VERSION)
+        if new_v is None:
+            raise UpdateError("the server names no version")
+        if cur_v is not None and new_v <= cur_v:  # never a downgrade
+            return "current"
+        files = man.get("files")
+        new = _verified(base, headers, files, "wow_stats.py")
+        try:
+            compile(new, str(SELF), "exec")
+        except (SyntaxError, ValueError) as e:
+            raise UpdateError(f"the new version doesn't compile ({e})") from None
+        m = re.search(rb'(?m)^VERSION = "([^"]+)"$', new)
+        if not m or version_tuple(m.group(1).decode()) != new_v:
+            raise UpdateError("the new file's version isn't the one announced")
+        agent = agent_changed(files)
+        stage = SELF.parent / ".update"
+        if agent:
+            shutil.rmtree(stage, ignore_errors=True)
+            stage.mkdir()
+            for n in agent:
+                (stage / n).write_bytes(_verified(base, headers, files, n))
+            (stage / "wow_stats.py").write_bytes(new)
+        apply_update(new)
+    except (UpdateError, OSError) as e:
+        log(f"auto-update: {e}; keeping {VERSION}")
+        return "kept"
+    log(f"auto-update: {VERSION} -> {man['version']}, from the next run on"
+        + ("; the background program is set up again" if agent else ""))
+    if agent:
+        rerun_installer(stage)
+    return "updated"
+
+
 def main() -> int:
     global DRY
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -2751,6 +3063,11 @@ def main() -> int:
         log(f"extract: {spooled.name}:", out.summary())
     if not a.no_ship:
         ship()
+        try:
+            check_update(state)
+        except Exception as e:  # noqa: BLE001 - an update bug never stops the shipping
+            log(f"auto-update: {type(e).__name__}: {e}; keeping {VERSION}")
+        save_state(state)
     return 0
 
 

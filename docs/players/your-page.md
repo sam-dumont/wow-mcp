@@ -3,6 +3,8 @@
 **For:** players with data on a wow-stats page (their own server or a friend's). **At the
 end:** you know what each tab shows and what to do with it.
 
+![The Overview tab of the demo character Nibbet: the pace line, four numbers, the next moves and time per level](../images/overview-light.webp)
+
 <!-- generated:player-page -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
@@ -74,7 +76,7 @@ Journal: one entry per play session, where you went and what you did.
 
 ## Your other characters
 
-The picker at the top left switches character. Every character you played with the addons on is in it, alts included. One is missing: its addons are off (step 3, once per character).
+The picker at the top left switches character. Every character you played with the addons on is in it, alts included. One is missing: its addons are off (step 2, once per character).
 
 ## Your zogzog link
 
@@ -104,6 +106,14 @@ Settings is in the menu at the top right of your page. Your own page always show
 - **Delete your data**: ask the owner to take you off the friends list. Within minutes your events, settings, upload password and pages are gone; backups keep the events 30 more days. Then uninstall below.
 
 <!-- /generated:player-page -->
+
+## Each part in detail
+
+- [Overview and next moves](overview.md): the four numbers and what to do first.
+- [Gear and upgrades](gear.md): points, the upgrades list, the auction house.
+- [Dungeons](dungeons.md): reading a dungeon card, and which one to run.
+- [Plan your next hours](plan.md): the session planner.
+- [Climb, timeline, journal](history.md): your history, and your look at every level.
 
 Something missing from a tab? [Something's wrong](troubleshooting.md#a-part-of-my-page-is-empty)
 says which addon fills it.

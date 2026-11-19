@@ -52,8 +52,15 @@
     }
   });
 
+  // The Classic (original) models: the character's two metas come from
+  // their own names under sd/ (wowstats/model3d.py SD); every other file is
+  // the same for both. Set per drawing (show).
+  const CHARACTER = new RegExp('^' + ZAM + '(meta/(?:character|charactercustomization)/)');
+  let classic = false;
+
   // One file under model3d/: {status, body (ArrayBuffer), type}.
   function get(path) {
+    if (classic) path = path.replace(CHARACTER, ZAM + 'sd/$1');
     if (RENDER) {
       return realFetch(path).then(async (r) => (
         { status: r.status, body: await r.arrayBuffer(), type: r.headers.get('Content-Type') || '' }));
@@ -225,11 +232,20 @@
     set();
   }
 
+  // Updated or Classic: the visitor's pick (the frame's address, set by the
+  // page's toggle), else the default the answer carries, else Updated. The
+  // renderer draws Updated.
+  function models(d) {
+    const want = qs.get('models') || d.models || 'hd';
+    return !RENDER && want === 'sd' && d.model_sd ? 'sd' : 'hd';
+  }
+
   async function show(d) {
     if (!d || !d.model) return fail(`No model: ${(d && d.why) || 'nothing to draw'}.`);
     await libs();
     status.hidden = true;
-    draw(d);
+    classic = models(d) === 'sd';
+    draw(classic ? { ...d, model: d.model_sd } : d);
     frame();
     tell({ ok: true });
   }

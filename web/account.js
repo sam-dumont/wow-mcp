@@ -93,7 +93,8 @@
   // ---------------------------------------------------------------- start
 
   // The page has one state at a time (wowstats.account.live_start_page):
-  // new (not installed), wait (installed in the last 15 minutes, nothing
+  // name (no address: the owner has a name to fix), new (not installed),
+  // wait (installed in the last 15 minutes, nothing
   // yet), none (installed, nothing ever arrived), ok (data arrives).
   var WAIT_MS = 15 * 60 * 1000, QUIET_MS = 3 * 86400 * 1000;
   var STATE = null, STATUS = null;
@@ -101,6 +102,7 @@
   function fill(name) { return document.querySelector('[data-fill="' + name + '"]'); }
 
   function stateOf(st) {
+    if (!ME.slug) return "name";
     if (st && st.events > 0) return "ok";
     if (!ME.shipper_set_at) return "new";
     return Date.now() - Date.parse(ME.shipper_set_at) < WAIT_MS ? "wait" : "none";
@@ -167,23 +169,17 @@
     warn.textContent = "";
     (fix || []).forEach(function (x) { warn.appendChild(typeof x === "string" ? document.createTextNode(x) : x); });
     warn.hidden = !fix;
+    // A shipper from before the auto-update: the update command, once.
+    fill("update-once").hidden = !st.update_once;
   }
 
-  function nameForm(box) {
-    var input = el("input", { type: "text", maxlength: "20", autocomplete: "off", spellcheck: "false",
-                              "aria-label": "Your name", placeholder: "e.g. frostbolt" });
-    var btn = el("button", { type: "button", text: "Save" });
-    btn.addEventListener("click", function () {
-      var v = input.value.trim().toLowerCase();
-      if (!/^[a-z0-9]{2,20}$/.test(v)) return msg(box, "2 to 20 lowercase letters or digits, no spaces.", false);
-      btn.disabled = true;
-      post("/api/me/slug", { slug: v }).then(function () { return load(); }, function (e) {
-        btn.disabled = false; msg(box, e.message, false);
-      });
-    });
-    input.addEventListener("keydown", function (e) { if (e.key === "Enter") btn.click(); });
-    box.appendChild(el("p", { text: "First, a name for your page's address. Pick a handle, not your real name: it can't change later." }));
-    box.appendChild(el("div", { cls: "row" }, [input, btn]));
+  // No address: the friends list gave this person a name that is taken or
+  // reserved. Friends never pick one (the owner sets it), so there is
+  // nothing for them to do but wait; the page picks the fix up by itself.
+  function nameMissing() {
+    if (ME.owner) return "Your page has no address: set WOW_OWNER_SLUG and restart wow-stats.";
+    return "Your page's address needs a fix from the person who runs this site. " +
+      "Nothing to do on your side: this page carries on once it's fixed.";
   }
 
   // The install command: asked for as the page opens (one code, 15
@@ -227,7 +223,6 @@
   function installBox() {
     var box = widget("install");
     if (!box) return;
-    if (!ME.slug) { box.textContent = ""; nameForm(box); return; }
     if (lastCmd && Date.now() < lastCmd.until) { if (!box.querySelector(".cmd")) heroCommand(box); return; }
     if (!asked) askCode(box);
   }
@@ -301,7 +296,9 @@
     var miss = ((st && st.missing) || []).filter(function (m) { return m.id !== "nothing"; });
     gaps.textContent = "";
     miss.forEach(function (m) {
-      gaps.appendChild(el("li", { "data-kind": m.id }, [el("strong", { text: "Missing: " + m.what + "." })]
+      // Whose gap it is: on the account page a line without a name reads
+      // as the main character's (a fresh alt's empty level times did).
+      gaps.appendChild(el("li", { "data-kind": m.id }, [el("strong", { text: "Missing" + (m.who ? " for " + m.who : "") + ": " + m.what + "." })]
         .concat([" "], fixParts(m))));
     });
     gaps.hidden = !miss.length;
@@ -341,6 +338,10 @@
     document.querySelectorAll("[data-in]").forEach(function (n) {
       n.hidden = n.getAttribute("data-in").split(" ").indexOf(state) < 0;
     });
+    if (state === "name" && ME.owner) {
+      fill("name-head").textContent = "Your page has no address";
+      fill("name-lead").textContent = "Set WOW_OWNER_SLUG and restart wow-stats.";
+    }
     if (state === "new") installBox();
     resetBox();
   }
@@ -435,7 +436,7 @@
       return el("label", { cls: "toggle" }, [cb, el("span", {}, [label, el("small", { text: help })])]);
     }
     if (!ME.slug) {
-      box.appendChild(el("p", {}, ["Pick your name first: ", el("a", { href: "/start", text: "Start" })]));
+      box.appendChild(el("p", { text: nameMissing() }));
       return;
     }
     var live = ME.site_live === true ? "live" : ME.site_live === false ?
@@ -446,6 +447,10 @@
     box.appendChild(toggle("Battle.net data to my AI", "Your characters' Battle.net data (look, item level, talents) " +
       "and the auction house data reach the AI assistant you connect.", ME.bnet_to_model,
       function (v) { save({ bnet_to_model: v }); }));
+    box.appendChild(toggle("Classic character models", "The 3D view opens on the original models, like the game's " +
+      "Standard Definition option, instead of the updated ones. Anyone can still switch in the view. The face and " +
+      "hair are approximate: the game only saves the updated look.", ME.models === "sd",
+      function (v) { save({ models: v ? "sd" : "hd" }); }));
     if (ME.chars.length) {
       var t = el("table", { cls: "chars" }, [el("tr", {}, [el("th", { text: "Character" }),
         el("th", { text: "Hide from public page" }), el("th", { text: "Hide from zogzog link" })])]);

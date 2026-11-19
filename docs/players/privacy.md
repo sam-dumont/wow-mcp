@@ -21,7 +21,7 @@ folder, and sends them to the server you were invited to, with your own upload p
 | Who | What they see |
 |---|---|
 | You, logged in | Everything: your page, every tab, every character. Other players appear in it (the People tab, groups) because the game showed them to you. |
-| The person who runs the server | Everything you send. They run the database it lives in, so trust them like you'd trust anyone holding your files. |
+| The person who runs the server | Everything you send, and the logs below. They run the database it lives in, so trust them like you'd trust anyone holding your files. |
 | Friends you send your zogzog link to | Your page minus the private parts: the journal, gear advice, prices, deaths per zone and level, dungeons. Never other players, what killed you, or where your character is right now. |
 | Anyone, once you switch your public page on | Your characters' card, level climb and dungeons cleared. No gold, no zones, no journal, no other players. Off until you turn it on in Settings. |
 | Your AI assistant, once you connect it | What its questions read from your own data, the players your game showed you included. Nobody else's page. Battle.net data (look, item level, auction prices) only if you turn on "Battle.net data to my AI" in Settings. |
@@ -32,11 +32,35 @@ working at the next update.
 
 Hide a character from either page: Settings, Characters, untick it.
 
+## What the person who runs the server can see
+
+- **Your game data**, including the names of other players your game showed you: in groups,
+  nearby, and in your combat logs.
+- **What you or your AI write down**: the goals you gave the play analysis, what you asked a
+  plan to work around, and the findings the analysis kept.
+- **The web server's log**: one line each time your browser, your AI or the program on your
+  computer asks the server for something. The time, your IP address, your browser, the page
+  asked for (without the part after `?`) and who you are logged in as.
+- **The app's own log**: when your AI logs in, the name of an AI tool that failed, when you
+  install or update the program, and when you get added or removed. No game content.
+- **The login service**, which they run or manage: your email address, your name, when you
+  logged in.
+- **Their overview page**: when you last opened your page, used your AI and sent data, the
+  version of the program on your computer, how many characters you have, and whether the
+  addons are all there. No character names, zones or gold.
+- **What your AI asks for**: the tool it picked (like "show my gear") and what it filled in
+  (a character's name, your goals). Never your conversation with your AI. The answers go to
+  your AI provider.
+
+How long the logs and backups last is up to the person who runs the server. The Privacy page
+in the app shows their numbers.
+
 ## Delete your data
 
 1. Ask the person who runs the server to take you off their friends list. Within minutes your
-   events, settings, upload password and pages are gone. Their backups may keep your events
-   30 more days.
+   events, settings, goals, plans, upload password and pages are gone. Backups and logs
+   expire on their own, after the number of days the Privacy page in the app shows. Nobody
+   deletes them by hand. Your login account is separate: ask them to delete it too.
 2. Uninstall the program: [the uninstall line](getting-started.md#uninstall) for your
    computer.
 3. Delete `WoWArchive` in your home folder, if you don't want the local copy either.

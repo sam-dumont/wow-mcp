@@ -19,15 +19,25 @@ export default defineConfig({
     starlight({
       title: "wow-stats",
       description: "A levelling log for World of Warcraft: Forever, from the files your game and addons already write.",
+      favicon: "/favicon.svg",
       social: [{ icon: "github", label: "GitHub", href: REPO_URL }],
       editLink: { baseUrl: `${REPO_URL}/edit/main/` },
+      // The dates come from prepare.mjs (each page's source file in git):
+      // Starlight's own would read the generated copies, which git ignores.
       lastUpdated: false,
-      pagination: false,
+      // Previous / next follow the sidebar: each section reads as a path.
+      pagination: true,
       tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 3 },
       customCss: ["./src/custom.css"],
       head: [
         // The pages as Markdown, for an assistant (scripts/prepare.mjs).
         { tag: "link", attrs: { rel: "alternate", type: "text/plain", href: `${BASE}llms.txt`, title: "For AI assistants" } },
+        // The link preview: the demo character's Overview (site/scripts/screenshots.py).
+        { tag: "meta", attrs: { property: "og:image", content: `${ORIGIN}${BASE}images/social.png` } },
+        { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
+        { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
+        { tag: "meta", attrs: { property: "og:image:alt", content: "The Overview of a made-up level 34 priest: pace against the route, hours to the next level, next moves" } },
+        { tag: "meta", attrs: { name: "twitter:card", content: "summary_large_image" } },
       ],
       sidebar,
     }),

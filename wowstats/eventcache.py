@@ -178,6 +178,14 @@ class EventCache:
     def _snapshot(e: _Entry) -> None:
         e.rows = tuple(r for h in sorted(e.hours) for r in e.hours[h])
 
+    def expire(self) -> None:
+        """The next read of each character asks VictoriaLogs what changed,
+        however recent the last one (wowstats.prebuilt: a build after new
+        data must not reuse rows read just before they arrived)."""
+        with self._guard:
+            for e in self._entries.values():
+                e.at = 0.0
+
     def stats(self) -> dict:
         with self._guard:
             return {c: len(e.rows) for c, e in self._entries.items()}

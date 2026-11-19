@@ -91,6 +91,12 @@ Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger @($atLogon, 
     -Description 'wow-stats: archives WoW Forever SavedVariables and ships the stats' | Out-Null
 Start-ScheduledTask -TaskName $TaskName
 Say "task: '$TaskName' registered and started; log in $(Join-Path $env:LOCALAPPDATA 'wow-stats\wow-stats.log')"
+# The task's own definition, next to the script once it is registered: the
+# shipper's auto-update compares it with its server's and runs this installer
+# again when it changed.
+if ((Resolve-Path $Here).Path -ne (Resolve-Path $Dest).Path) {
+    Copy-Item (Join-Path $Here 'install-windows.ps1') (Join-Path $Dest 'install-windows.ps1') -Force
+}
 
 # The checklist: exits non-zero only when the install can't work as it is.
 Say ''

@@ -34,25 +34,15 @@ sent you.
 
 *Log in with the account you were sent.*
 
-Your start page, https://wow.example.org/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent, then pick your name.
+Your start page, https://wow.example.org/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent. Your page's address is already set: the person who runs wow-stats chose it when they made your account.
 
-**It worked when:** The start page shows your name with a tick.
+**It worked when:** Your start page opens with your install command ready.
 
 **If not:** "Access denied" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with.
 
-### 2. Pick your name
+### 2. Install the addons
 
-*A short name: it becomes your page's address.*
-
-2 to 20 characters, a-z and 0-9. It becomes your page's address, so pick a handle, not your real name. It can't change later: links would break.
-
-**It worked when:** Your name shows in green with a tick.
-
-**If not:** "taken" or "reserved": pick another. Any other error: reload the page and try again.
-
-### 3. Install the addons
-
-*Polestar is required. The install command (step 4) adds Polestar Recorder.*
+*Polestar is required. The install command (step 3) adds Polestar Recorder.*
 
 Easiest: the CurseForge app (https://www.curseforge.com/download/app) lists WoW Forever as its own WoW install; restart the app if Forever doesn't show up.
 
@@ -60,7 +50,7 @@ Easiest: the CurseForge app (https://www.curseforge.com/download/app) lists WoW 
 
 **If not:** Missing from the AddOns list: the folder is one level too deep (`Interface/AddOns/Polestar/Polestar/...`). Move it up so `Interface/AddOns/Polestar/Polestar.toc` exists, then restart WoW.
 
-### 4. Run the install command
+### 3. Run the install command
 
 *One line in a terminal. No admin rights.*
 
@@ -92,7 +82,7 @@ The command works once, for 15 minutes, and is only for the first install. Used 
 
 **If not:** "WoW folder not found" or the wrong folder: see that troubleshooting entry. "This install code expired or was used already": get a new command and run it.
 
-### 5. Play 5 minutes
+### 4. Play 5 minutes
 
 *Play, then `/reload` or log out.*
 
@@ -106,7 +96,7 @@ A game or computer crash, or Alt+F4, loses what every addon gathered since the l
 
 **If not:** Nothing after 10 minutes: first type `/psrec on` in WoW (the Recorder starts off without the Polestar Client), then `/reload`. Still nothing: see "My page is still empty after 10 minutes".
 
-### 6. See your character
+### 5. See your character
 
 *Your character, your climb and your gear.*
 
@@ -116,7 +106,7 @@ Open https://wow.example.org: each character you played with the addons on is in
 
 **If not:** Data arrived but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, `/reload`, wait 5 minutes.
 
-### 7. Connect your AI
+### 6. Connect your AI
 
 *Add wow-stats as a connector once.*
 
@@ -159,7 +149,7 @@ What your friend's server shows to whom: [What's shared, and with whom](privacy.
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
 - Addons: the CurseForge app's Update all; by hand, delete the old folders, then unzip the new ones.
-- The shipper: run the update line for your OS. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.
+- The shipper updates itself, within a few hours of a new version on the server. Installed before version 0.5.1? Run the update line for your OS once (your start page says so when it's needed); from then on it updates by itself. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.
 - Moving to another computer, or the password leaked: Reset my upload password on your start page. The old password stops at once; run the new install command it gives you.
 
 The update lines, no code needed:
