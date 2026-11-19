@@ -9,7 +9,7 @@
 # templates can't read the environment).
 services:
   traefik:
-    image: docker.io/library/traefik:v3.6.2@sha256:aaf0f6185419a50c74651448c1a5bf4606bd2d2ddb7b8749eed505d55bf8b8ea
+    image: docker.io/library/traefik:v3.7.18@sha256:9c437ac4f09ce6f4980a8544902d3475fdf70a1a7c578729581d2535dfa7d635
     restart: unless-stopped
     depends_on: [ui, site]
     command:
