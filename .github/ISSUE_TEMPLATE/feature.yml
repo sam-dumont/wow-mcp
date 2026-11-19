@@ -1,0 +1,20 @@
+name: Feature idea
+description: Something the pages, the MCP or the shipper could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you want to do
+      description: The question you want answered, or the thing you do by hand today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How it could work
+  - type: textarea
+    id: data
+    attributes:
+      label: Where the data would come from
+      description: Which addon, log or game table has it. The project only reads what the player's own machine already records.

@@ -1,0 +1,32 @@
+# nginx in front of the kit: HTTPS with your own certificate, two names.
+# docs/self-host/reverse-proxy.md walks through it. Put a certificate valid
+# for both names in nginx/certs/ (fullchain.pem, privkey.pem: certbot's
+# names), then:
+#   docker compose -f compose.yaml -f compose.nginx.yaml up -d --build
+# .env names the two hosts (WOW_SITE_HOST, WOW_FULL_HOST) and the page's
+# login (BASIC_AUTH_USER, BASIC_AUTH_PASSWORD): nothing starts without them.
+services:
+  nginx:
+    image: docker.io/library/nginx:1.29.3-alpine@sha256:b3c656d55d7ad751196f21b7fd2e8d4da9cb430e32f646adcf92441b72f82b14
+    restart: unless-stopped
+    depends_on: [ui, site]
+    environment:
+      # The image fills these into nginx/templates/wow.conf.template at start.
+      WOW_SITE_HOST: ${WOW_SITE_HOST:?set WOW_SITE_HOST in .env}
+      WOW_FULL_HOST: ${WOW_FULL_HOST:?set WOW_FULL_HOST in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+
+  # The proxy reaches ui over Docker's network, so 127.0.0.1 on the host no
+  # longer keeps strangers out: the page gets its own login, whatever UI_AUTH
+  # says, and answers for the full view's name.
+  ui:
+    environment:
+      AUTH: basic
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:?set BASIC_AUTH_USER in .env}
+      BASIC_AUTH_PASSWORD: ${BASIC_AUTH_PASSWORD:?set BASIC_AUTH_PASSWORD in .env (12+ characters)}
+      ALLOWED_HOSTS: ${WOW_FULL_HOST:?set WOW_FULL_HOST in .env}

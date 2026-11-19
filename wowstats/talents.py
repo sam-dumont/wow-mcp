@@ -1,0 +1,738 @@
+"""Talents and Legacy points, laid out like the game's frames.
+
+Forever 1.60.1 has no classic talent API: a class's talents are one trait
+tree (C_Traits) that holds the three classic trees side by side, and an
+export lists what is learned as talent spell IDs and ranks (VulcanSimBench's
+/simx `ts` field, its Collect.lua "Forever's talents"). This module turns
+those ranks into the frame the game draws, from Forever's own tables on
+wago.tools (product wowf), as wowstats.items and wowstats.model3d read theirs:
+
+  TraitTree, TraitNode (PosX, PosY: the frame's grid), TraitNodeXTraitNodeEntry,
+  TraitNodeEntry (MaxRanks), TraitDefinition (the talent's SpellID),
+  TraitTreeXTraitCurrency (3820: class talent points, 4225: Legacy points),
+  TraitCurrencySource (what earns each Legacy point), Talent and TalentTab
+  (the classic trees' names and class, matched by rank spell), SpellName,
+  Spell (descriptions), SpellEffect (the numbers in them), SpellMisc
+  (SpellIconFileDataID) and ManifestInterfaceData (the icon's file name, as
+  wow.zamimg.com names its renders).
+
+Legacy points (Forever's "Legacy" system) are an account-wide currency
+(TraitCurrency 4225) earned by Legacy Challenges, each an achievement listed
+in TraitCurrencySource (a class reaching 25, 45 and 60, a crafting profession
+at 150, 225 and 300, PvP ranks and reputations, exploring, dungeons and
+raids), and spent in three account-wide Legacy talent trees (TraitTree 1187,
+1188, 1189: Well Rested, Thrill of Adventure, Talented...). No add-on the
+shipper reads saves them; what the log knows (each character's class, level
+and profession skill) proves some challenges done, so the count shown is a
+floor, marked as derived.
+
+The catalog is built once per wago.tools build and kept on disk next to the
+item tables. Environment: WOW_TALENTS (on | off; WOW_ITEMS=off turns it off
+too), MODEL3D_CACHE_DIR, MODEL3D_WAGO_URL and MODEL3D_PRODUCT.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import csv
+import io
+import json
+import os
+import re
+import tempfile
+import threading
+import time
+import urllib.parse
+from pathlib import Path
+
+DAY = 86400
+CLASS_CURRENCY = "3820"
+LEGACY_CURRENCY = "4225"
+# TalentTab.ClassMask -> the class token the shipper and gear.py use.
+CLASS_BITS = {1: "WARRIOR", 2: "PALADIN", 4: "HUNTER", 8: "ROGUE", 16: "PRIEST", 64: "SHAMAN", 128: "MAGE",
+              256: "WARLOCK", 1024: "DRUID"}
+ICON = re.compile(r"^[a-z0-9_\-]{1,80}$")
+TABLES = ("TraitTree", "TraitNode", "TraitNodeXTraitNodeEntry", "TraitNodeEntry", "TraitDefinition",
+          "TraitTreeXTraitCurrency", "TraitCurrencySource", "Talent", "TalentTab", "TraitEdge")
+# The cached catalog's shape: a catalog written by an older build of this
+# module is rebuilt, not reused (2: the grid from the commonest step, off-grid
+# nodes dropped, the prerequisite edges).
+FORMAT = 2
+# Read in a second pass, only the rows the trees need (they're large).
+SPELL_TABLES = ("SpellName", "Spell", "SpellEffect", "SpellMisc", "ManifestInterfaceData")
+
+
+def _i(v) -> int:
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return 0
+
+
+def class_token(c) -> str | None:
+    t = re.sub(r"[^A-Z]", "", str(c or "").upper())
+    return t if t in CLASS_BITS.values() else None
+
+
+# ------------------------------------------------------------------ descriptions
+
+# $s1 / $m1 / $o1 (this spell's effect), $/1000;S1 (scaled), $lone:many;
+# (a plural), and anything else: another spell's value ($12536s1), a
+# duration ($d), a formula (${...}).
+_TOKEN = re.compile(r"\$(?:/(\d+);)?([sSmMoO])([1-3])|\$[lL]([^:;]*):([^;]*);|\$(?:/\d+;)?\d*[a-zA-Z]\d*|\$\{[^}]*\}")
+
+
+def describe(text: str, values: list[float], times: int = 1) -> str:
+    """A tooltip line from Spell.Description_lang: $s1..$s3 (and $/1000;S1)
+    become the effect's numbers (EffectBasePointsF, times the rank for a
+    trait talent whose rank spell is the same at every rank); a number the
+    client works out at run time from another spell or a formula shows as
+    "?", never guessed."""
+
+    def sub(m: re.Match) -> str:
+        if m.group(2):
+            idx = int(m.group(3)) - 1
+            if idx >= len(values):
+                return "?"
+            v = abs(values[idx]) * times
+            if m.group(1):
+                v = v / int(m.group(1))
+            return f"{v:g}"
+        if m.group(5) is not None:
+            return m.group(5)
+        return "?"
+
+    out = _TOKEN.sub(sub, text or "")
+    return re.sub(r"\s{2,}", " ", out).strip()
+
+
+# ------------------------------------------------------------------ the catalog
+
+
+def _commonest(gaps: list[int], default: int) -> int:
+    if not gaps:
+        return default
+    counts: dict[int, int] = {}
+    for g in gaps:
+        counts[g] = counts.get(g, 0) + 1
+    return max(sorted(counts), key=lambda g: counts[g])
+
+
+def _on_grid(offset: int, step: int) -> bool:
+    """A node's offset from its tree's first column lands on a column (a
+    tenth of a step of slack)."""
+    return abs(offset / step - round(offset / step)) <= 0.1
+
+
+def build_catalog(t: dict[str, list[dict]]) -> dict:
+    """The frames from the tables (each a list of CSV rows). Pure: the tests
+    feed it small tables."""
+    tabs = {r["ID"]: r for r in t["TalentTab"]}
+    by_spell: dict[str, tuple[dict, int]] = {}
+    for r in t["Talent"]:
+        for k in range(9):
+            s = r.get(f"SpellRank_{k}") or "0"
+            if s != "0":
+                by_spell[s] = (r, k + 1)
+    entries = {r["ID"]: r for r in t["TraitNodeEntry"]}
+    defs = {r["ID"]: r for r in t["TraitDefinition"]}
+    node_entries: dict[str, list[str]] = {}
+    for r in sorted(t["TraitNodeXTraitNodeEntry"], key=lambda r: _i(r.get("_Index"))):
+        node_entries.setdefault(r["TraitNodeID"], []).append(r["TraitNodeEntryID"])
+    currency = {r["TraitTreeID"]: r["TraitCurrencyID"] for r in t["TraitTreeXTraitCurrency"]}
+
+    trees: dict[str, dict] = {}
+    for n in t["TraitNode"]:
+        tree = n["TraitTreeID"]
+        kind = {CLASS_CURRENCY: "class", LEGACY_CURRENCY: "legacy"}.get(currency.get(tree, ""))
+        if not kind:
+            continue
+        spells = []
+        maxr = 0
+        for e in node_entries.get(n["ID"], []):
+            en = entries.get(e)
+            d = defs.get(en["TraitDefinitionID"]) if en else None
+            if d and _i(d.get("SpellID")) > 0:
+                spells.append(str(_i(d["SpellID"])))
+                maxr = max(maxr, _i(en.get("MaxRanks")))
+        if not spells:
+            continue
+        cls_tal = by_spell.get(spells[0])
+        trees.setdefault(tree, {"kind": kind, "nodes": []})["nodes"].append({
+            "id": _i(n["ID"]), "x": _i(n["PosX"]), "y": _i(n["PosY"]), "spells": list(dict.fromkeys(spells)),
+            "max": maxr or 1,
+            "tab": cls_tal[0]["TabID"] if cls_tal else None,
+            # The classic talent's own spell per rank, when it has one.
+            "ranks": [str(_i(cls_tal[0].get(f"SpellRank_{k}"))) for k in range(9)
+                      if _i(cls_tal[0].get(f"SpellRank_{k}"))] if cls_tal else [],
+        })
+
+    edge_pairs = sorted({(_i(r.get("LeftTraitNodeID")), _i(r.get("RightTraitNodeID")))
+                         for r in t.get("TraitEdge") or []})
+    out_trees = []
+    best: dict[str, tuple[int, str]] = {}  # class -> (node count, tree): its biggest tree is the frame
+    for tid, tr in trees.items():
+        nodes = tr["nodes"]
+        if tr["kind"] == "class":
+            masks = [_i(tabs[nd["tab"]]["ClassMask"]) for nd in nodes if nd["tab"] in tabs]
+            cls = CLASS_BITS.get(max(set(masks), key=masks.count)) if masks else None
+            if not cls:
+                continue
+            tr["class"] = cls
+            if len(nodes) > best.get(cls, (0, ""))[0]:
+                best[cls] = (len(nodes), tid)
+    for tid, tr in trees.items():
+        nodes = tr["nodes"]
+        if tr["kind"] == "class" and best.get(tr.get("class"), (0, ""))[1] != tid:
+            continue  # a class's starter or test tree (a handful of nodes), not the frame
+        cls = tr.get("class")
+        # The frame's grid: nodes sit on PosX/PosY steps, a class's three
+        # spec columns side by side with a wide gap between them. Forever
+        # moved talents between the classic trees, so a column's name isn't
+        # its talents' TalentTab: the columns are the class's tabs in their
+        # OrderIndex order, left to right, as Polestar's generated
+        # Talents/Builds.lua numbers them ("spec column" 1-3, specs listed
+        # in that order). A node far off the grid (one Hunter node sits at X
+        # 102800, a duplicate the game never ranks) is left out.
+        # The step is the commonest gap between neighbouring columns (rows),
+        # never the smallest: Priest's tree 1114 holds a stray duplicate of
+        # Holy Specialization at X 9280, Y 21300, 200 off its neighbour, and
+        # the smallest gap made the step 400 instead of 600, which put every
+        # talent in the wrong column (live on 0.2.2).
+        xs = sorted({nd["x"] for nd in nodes})
+        ys = sorted({nd["y"] for nd in nodes})
+        step = _commonest([b - a for a, b in zip(xs, xs[1:], strict=False) if 300 <= b - a <= 1200], 600)
+        ystep = _commonest([b - a for a, b in zip(ys, ys[1:], strict=False) if 300 <= b - a <= 1200], step)
+        spans: list[list[int]] = []
+        for x in xs:
+            if spans and x - spans[-1][-1] <= step * 1.5:
+                spans[-1].append(x)
+            else:
+                spans.append([x])
+        want = 3 if tr["kind"] == "class" else 1
+        keep = sorted(sorted(spans, key=lambda sp: -sum(1 for nd in nodes if sp[0] <= nd["x"] <= sp[-1]))[:want])
+        names = sorted((r for r in tabs.values() if CLASS_BITS.get(_i(r["ClassMask"])) == cls),
+                       key=lambda r: _i(r["OrderIndex"])) if cls else []
+        # A row far below the rest (Hunter's Improved Serpent Sting sits 56
+        # steps down, Priest's Holy Specialization 25) is drawn one row
+        # under the last: the frame keeps its height.
+        rows = sorted({round((nd["y"] - ys[0]) / ystep) for nd in nodes})
+        row_at: dict[int, int] = {}
+        last_raw, last_out = None, -1
+        for r in rows:
+            last_out = r if last_raw is None else last_out + (r - last_raw if r - last_raw <= 2 else 1)
+            row_at[r], last_raw = last_out, r
+        sections = []
+        for i, sp in enumerate(keep):
+            placed = []
+            for nd in sorted((nd for nd in nodes if sp[0] <= nd["x"] <= sp[-1]), key=lambda nd: (nd["y"], nd["x"])):
+                if not _on_grid(nd["x"] - sp[0], step):
+                    continue  # off the grid: a duplicate the game never draws (the stray above)
+                placed.append({"id": nd["id"], "col": round((nd["x"] - sp[0]) / step),
+                               "row": row_at[round((nd["y"] - ys[0]) / ystep)], "spells": nd["spells"],
+                               "max": nd["max"],
+                               "ranks": nd["ranks"]})
+            # The game's prerequisite arrows (TraitEdge: left node -> right
+            # node), between two talents of this tree.
+            at = {nd["id"]: (nd["col"], nd["row"]) for nd in placed}
+            edges = [{"fc": at[a][0], "fr": at[a][1], "tc": at[b][0], "tr": at[b][1]}
+                     for a, b in edge_pairs if a in at and b in at]
+            sections.append({"name": names[i]["Name_lang"] if i < len(names) else None, "order": i,
+                             "nodes": placed, "edges": edges})
+        out_trees.append({"id": _i(tid), "kind": tr["kind"], "class": cls, "sections": sections})
+
+    legacy = []
+    seen = set()
+    for r in t["TraitCurrencySource"]:
+        if r.get("TraitCurrencyID") != LEGACY_CURRENCY or _i(r.get("Amount")) <= 0:
+            continue
+        req = (r.get("Requirement_lang") or "").strip()
+        if not req or req in seen:  # each challenge is listed twice (two versions in the client)
+            continue
+        seen.add(req)
+        legacy.append({"requirement": req, "amount": _i(r["Amount"]), "achievement": _i(r.get("AchievementID"))})
+    return {"trees": out_trees, "legacy_sources": legacy}
+
+
+def needed_spells(cat: dict) -> set[str]:
+    s: set[str] = set()
+    for tr in cat["trees"]:
+        for sec in tr["sections"]:
+            for nd in sec["nodes"]:
+                s.update(nd["spells"])
+                s.update(nd["ranks"])
+    return s
+
+
+def add_spell_text(cat: dict, names: dict, descs: dict, effects: dict, icons: dict) -> None:
+    """Names, descriptions, effect values and icon names onto the catalog."""
+    cat["spells"] = {s: {"name": names.get(s), "desc": descs.get(s) or "", "values": effects.get(s) or [],
+                         "icon": icons.get(s)} for s in sorted(needed_spells(cat), key=int)}
+
+
+def read_rows(body: bytes, keep=None):
+    for r in csv.DictReader(io.StringIO(body.decode("utf-8-sig"))):
+        if keep is None or keep(r):
+            yield r
+
+
+class Catalog:
+    def __init__(self, wago_url: str, product: str, cache: Path | None, on: bool = True):
+        self.wago = wago_url.rstrip("/")
+        self.product = product
+        self.file = cache / "talent-catalog.json" if cache else None
+        self.on = on
+        self.data: dict | None = None
+        self.build = ""
+        self.checked = 0.0
+        self.lock = threading.Lock()
+
+    def get(self) -> dict | None:
+        self._load()
+        return self.data
+
+    def _load(self) -> None:
+        if not self.on or (self.data and time.time() - self.checked < DAY):
+            return
+        with self.lock:
+            if self.data and time.time() - self.checked < DAY:
+                return
+            if not self.data and self.file and self.file.is_file():
+                with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
+                    d = json.loads(self.file.read_text(encoding="utf-8"))
+                    if d.get("format") == FORMAT:
+                        self.data, self.build, self.checked = d["catalog"], d["build"], float(d["checked"])
+                if self.data and time.time() - self.checked < DAY:
+                    return
+            from wowstats.model3d import Upstream, _write, fetch
+
+            try:
+                latest = json.loads(fetch(f"{self.wago}/api/builds/{urllib.parse.quote(self.product)}/latest")
+                                    or b"{}")
+                build = str(latest["version"])
+                if build != self.build or not self.data:
+                    self.data = self._fetch(build, fetch, Upstream)
+                    self.build = build
+            except (Upstream, ValueError, KeyError, TypeError):
+                pass  # keep what we have; try again tomorrow
+            self.checked = time.time()
+            if self.file and self.data:
+                with contextlib.suppress(OSError):
+                    _write(self.file, json.dumps({"format": FORMAT, "build": self.build, "checked": self.checked,
+                                                  "catalog": self.data}, separators=(",", ":")).encode())
+
+    def _fetch(self, build: str, fetch, Upstream) -> dict:  # noqa: N803 - the exception class
+        def table(name: str) -> bytes:
+            body = fetch(f"{self.wago}/db2/{name}/csv?build={urllib.parse.quote(build)}", timeout=120)
+            if not body:
+                raise Upstream(f"wago.tools has no {name} table for {build}")
+            return body
+
+        return catalog_from(lambda name: read_rows(table(name)))
+
+
+def catalog_from(rows) -> dict:
+    """The catalog from rows(table name) -> that table's CSV rows (dicts):
+    wago.tools in production, a saved slice of the same tables in the tests."""
+    cat = build_catalog({n: list(rows(n)) for n in TABLES})
+    want = needed_spells(cat)
+    names = {r["ID"]: r["Name_lang"] for r in rows("SpellName") if r["ID"] in want}
+    descs = {r["ID"]: r["Description_lang"] for r in rows("Spell") if r["ID"] in want}
+    effects: dict[str, list[float]] = {}
+    for r in rows("SpellEffect"):
+        if r["SpellID"] not in want or r.get("DifficultyID") != "0":
+            continue
+        vals = effects.setdefault(r["SpellID"], [0.0, 0.0, 0.0])
+        k = _i(r["EffectIndex"])
+        if 0 <= k < 3:
+            with contextlib.suppress(ValueError):
+                vals[k] = float(r["EffectBasePointsF"])
+    # SpellMisc is keyed by its own ID; SpellID names the spell.
+    fdids = {r["SpellID"]: r["SpellIconFileDataID"] for r in rows("SpellMisc")
+             if r.get("SpellID") in want and r.get("DifficultyID") in ("0", "")}
+    files = set(fdids.values())
+    # rstrip("."): the game has a few doubled dots ("Spell_Shadow_DevouringPlague..blp",
+    # Devouring Contagion's), which left a trailing dot the icon check refused.
+    icon_names = {r["ID"]: r["FileName"].rsplit(".", 1)[0].rstrip(".").lower() for r in rows("ManifestInterfaceData")
+                  if r["ID"] in files}
+    icons = {s: icon_names.get(f) for s, f in fdids.items() if ICON.match(icon_names.get(f) or "")}
+    add_spell_text(cat, names, descs, effects, icons)
+    return cat
+
+
+_shared: Catalog | None = None
+_guard = threading.Lock()
+
+
+def shared() -> Catalog:
+    global _shared
+    with _guard:
+        if _shared is None:
+            env = os.environ
+            cache = Path(env.get("MODEL3D_CACHE_DIR") or Path(tempfile.gettempdir()) / "wow-stats-model3d")
+            try:
+                cache.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                cache = None
+            from wowstats.model3d import PRODUCT, WAGO_URL
+
+            off = ("off", "0", "false", "no")
+            on = (env.get("WOW_TALENTS", "on").strip().lower() not in off
+                  and env.get("WOW_ITEMS", "on").strip().lower() not in off)
+            _shared = Catalog(env.get("MODEL3D_WAGO_URL", WAGO_URL), env.get("MODEL3D_PRODUCT", PRODUCT), cache, on)
+        return _shared
+
+
+# ------------------------------------------------------------------ answers
+
+
+def parse_ranks(v) -> dict[str, int]:
+    """[{"spell": id, "rank": n}, ...] (the shipper's talent_ranks, or the
+    exporter's readings) -> {spell id: rank}."""
+    out: dict[str, int] = {}
+    for x in v if isinstance(v, list) else []:
+        if isinstance(x, dict) and _i(x.get("spell")) > 0 and _i(x.get("rank")) > 0:
+            out[str(_i(x["spell"]))] = _i(x["rank"])
+    return out
+
+
+def frame(cat: dict | None, cls, ranks: dict[str, int], kind: str = "class") -> dict | None:
+    """The talent frame of `cls` (or the Legacy trees) with `ranks` filled
+    in: three sections (the classic trees) of nodes on a grid, each with its
+    name, icon, rank of max and tooltip text. None when the catalog has no
+    such tree."""
+    if not cat:
+        return None
+    token = class_token(cls)
+    trees = [tr for tr in cat["trees"] if tr["kind"] == kind and (kind != "class" or tr["class"] == token)]
+    if not trees:
+        return None
+    spells = cat.get("spells") or {}
+    used: set[str] = set()
+    sections = []
+    for tr in trees:
+        for sec in sorted(tr["sections"], key=lambda s: s["order"]):
+            pts = 0
+            nodes = []
+            for nd in sec["nodes"]:
+                rank = max((ranks.get(s, 0) for s in nd["spells"]), default=0)
+                used.update(s for s in nd["spells"] if s in ranks)
+                pts += rank
+                # The tooltip: the classic talent's spell for this rank when
+                # it has one (its own numbers), else the trait's spell times
+                # the rank.
+                rs = nd["ranks"][min(max(rank, 1), len(nd["ranks"])) - 1] if nd["ranks"] else None
+                own = rs is not None and bool((spells.get(rs) or {}).get("desc"))
+                sp = spells[rs] if own else spells.get(nd["spells"][0]) or {}
+                times = 1 if own else max(rank, 1)
+                base = spells.get(nd["spells"][0]) or {}
+                nodes.append({"col": nd["col"], "row": nd["row"], "name": base.get("name") or sp.get("name"),
+                              "icon": base.get("icon") or sp.get("icon"), "rank": rank, "max": nd["max"],
+                              "desc": describe(sp.get("desc") or "", sp.get("values") or [], times)})
+            sections.append({"name": sec["name"], "points": pts, "nodes": nodes, "edges": sec.get("edges") or []})
+    return {"sections": sections, "unmatched": len(set(ranks) - used)}
+
+
+def answer(cat: dict | None, cls, ranks: dict[str, int], source: str | None, at: str | None,
+           level: int | None = None) -> dict:
+    """The character card's talents: spec (the tree with the most points, as
+    Polestar's Gear.lua DetectSpec picks it), points per tree and the frame.
+    available False with a why when nothing saved them."""
+    if not ranks:
+        return {"available": False, "source": None, "at": None, "level": None, "spec": None, "points": [],
+                "sections": [],
+                "why": NO_TALENTS}
+    f = frame(cat, cls, ranks)
+    if not f:
+        return {"available": False, "source": source, "at": at, "level": level, "spec": None, "points": [],
+                "sections": [], "why": "The talent tables for this class aren't loaded."}
+    pts = [{"tree": s["name"], "points": s["points"]} for s in f["sections"]]
+    top = max(pts, key=lambda p: p["points"]) if pts else None
+    return {"available": True, "source": source, "at": at, "level": level,
+            "spec": top["tree"] if top and top["points"] else None, "points": pts, "sections": f["sections"],
+            "unmatched": f["unmatched"], "why": None}
+
+
+_LEVEL = re.compile(r"^Reach Level (\d+) for the first time on an? ([A-Za-z ]+)$")
+_SKILL = re.compile(r"^Reach (\d+) skill in ([A-Za-z ]+)$")
+
+
+def legacy(cat: dict | None, roster: list[dict]) -> dict:
+    """Legacy points the log proves earned: a class level or profession skill
+    reached by any character on the account. roster: [{"class", "level",
+    "professions": [{"name", "rank"}]}]. The game's own count also has PvP,
+    exploring, dungeons, raids and quests, and the points spent, which no
+    add-on here saves: this is a floor."""
+    sources = (cat or {}).get("legacy_sources") or []
+    earned = []
+    for s in sources:
+        req = s["requirement"]
+        m = _LEVEL.match(req)
+        if m:
+            lv, cls = int(m.group(1)), class_token(m.group(2))
+            if any(class_token(c.get("class")) == cls and _i(c.get("level")) >= lv for c in roster):
+                earned.append(req)
+            continue
+        m = _SKILL.match(req)
+        if m:
+            skill, prof = int(m.group(1)), m.group(2).strip().lower()
+            if any(str(p.get("name") or "").strip().lower() == prof and _i(p.get("rank")) >= skill
+                   for c in roster for p in c.get("professions") or []):
+                earned.append(req)
+    return {"available": bool(sources), "derived_min": sum(1 for _ in earned) if sources else None,
+            "earned": earned, "total": sum(s["amount"] for s in sources) if sources else None,
+            "spent": None,
+            "why": "Derived from each character's level and profession skills. The game's own count also has PvP, "
+                   "exploring, dungeons, raids and quests, and what was spent in the Legacy trees, which no add-on "
+                   "here saves (Altoholic's DataStore_Achievements would: Legacy Challenges are achievements)."}
+
+
+def icon_names(*answers) -> set[str]:
+    """Every talent icon an answer draws (the publisher copies them in)."""
+    out: set[str] = set()
+
+    def walk(v):
+        if isinstance(v, dict):
+            if isinstance(v.get("icon"), str) and ICON.match(v["icon"]) and "col" in v and "row" in v:
+                out.add(v["icon"])
+            for x in v.values():
+                walk(x)
+        elif isinstance(v, list):
+            for x in v:
+                walk(x)
+
+    for a in answers:
+        walk(a)
+    return out
+
+
+NO_TALENTS = ("No talents known yet. Battle.net's daily profile refresh fills them once it knows the character "
+              "(no add-on on Forever saves them by itself); Vulcan SimBench's /simx saves them on the spot, and "
+              "keeps them.")
+HISTORY_WHY = ("One stop per /simx export the shipper saw (SimBench keeps only the last one). Battle.net's daily "
+               "readings aren't kept (its terms allow 30 days), and the game writes no event when a point is "
+               "spent, so when each point went in between two exports isn't known.")
+
+
+def match_ranks(cat: dict | None, cls, readings) -> dict[str, int]:
+    """Battle.net's [{spell, rank, name}] -> {node spell id: rank} in the
+    catalog's ids: by the trait's spell, a classic rank spell, then the
+    talent's name (Battle.net's ids are the game's, which may be either).
+    What matches nothing keeps its own id (the frame counts it unmatched)."""
+    by_id: dict[str, str] = {}
+    by_name: dict[str, str] = {}
+    spells = (cat or {}).get("spells") or {}
+    token = class_token(cls)
+    for tr in (cat or {}).get("trees") or []:
+        if tr.get("kind") != "class" or tr.get("class") != token:
+            continue
+        for sec in tr["sections"]:
+            for nd in sec["nodes"]:
+                if not nd["spells"]:
+                    continue
+                first = nd["spells"][0]
+                for sp in [*nd["spells"], *nd["ranks"]]:
+                    by_id.setdefault(str(sp), first)
+                name = (spells.get(first) or {}).get("name")
+                if name:
+                    by_name.setdefault(name.lower(), first)
+    out: dict[str, int] = {}
+    for x in readings if isinstance(readings, list) else []:
+        if not isinstance(x, dict) or _i(x.get("rank")) <= 0:
+            continue
+        key = by_id.get(str(_i(x.get("spell")))) or by_name.get(str(x.get("name") or "").lower()) or str(
+            _i(x.get("spell")))
+        out[key] = max(out.get(key, 0), _i(x["rank"]))
+    return out
+
+
+def top_tree(points: list[dict]) -> str | None:
+    """The tree with the most points, the first one on a tie (Gear.lua
+    mostPoints); None before the first point."""
+    best, top = None, 0
+    for t in points:
+        if _i(t.get("points")) > top:
+            best, top = t.get("tree"), _i(t["points"])
+    return best
+
+
+def capstone(cat: dict | None, cls) -> dict[str, str]:
+    """Each class tree's last talent (tree name -> talent name): the one-rank
+    node of the deepest row that has one (Shadowform for Shadow)."""
+    out: dict[str, str] = {}
+    spells = (cat or {}).get("spells") or {}
+    token = class_token(cls)
+    for tr in (cat or {}).get("trees") or []:
+        if tr.get("kind") != "class" or tr.get("class") != token:
+            continue
+        for sec in tr["sections"]:
+            ones = [nd for nd in sec["nodes"] if nd["max"] == 1 and nd["spells"]]
+            if ones and sec["name"]:
+                nd = max(ones, key=lambda n: (n["row"], -n["col"]))
+                name = (spells.get(nd["spells"][0]) or {}).get("name")
+                if name:
+                    out[sec["name"]] = name
+    return out
+
+
+def _letters(v) -> str:
+    return "".join(c for c in str(v or "").lower() if c.isalpha())
+
+
+def in_tab_order(trees: list[dict], tabs: list[str]) -> list[dict]:
+    """Battle.net's trees in the frame's tab order, one entry per tab (a tab
+    it didn't list: 0 points). A tree matches a tab by name, Battle.net's
+    longer name included ("Shadow Magic" is Shadow). Without the frame's
+    tabs, Battle.net's own order."""
+    if not trees or not tabs:
+        return trees
+    out, left = [], list(trees)
+    for tab in tabs:
+        k = _letters(tab)
+        hit = next((t for t in left if _letters(t["tree"]) == k), None) or next(
+            (t for t in left if k and (_letters(t["tree"]).startswith(k) or k.startswith(_letters(t["tree"])))), None)
+        if hit:
+            left.remove(hit)
+            out.append(hit)
+        else:
+            out.append({"tree": tab, "points": 0})
+    return out + left
+
+
+def from_rows(cat: dict | None, rows: list[dict], cls, bnet: dict | None = None) -> tuple[dict, dict]:
+    """The card's talents and its spec line, from Battle.net's readings
+    (stores.character_talents: trees, ranks, refreshed) and the character's
+    wow-gear events that carry a /simx export (talent_ranks, talent_nodes,
+    talents_level, talents_date; one history stop per distinct export).
+
+    Talents are shown as the game has them (owner, 2026-11-18): Battle.net
+    first (automatic, daily), else the last /simx. The spec line is the tree
+    with the most points and the split, "Discipline 16/0/7", never relabelled
+    by a gear setting: what the gear is scored for is its own line
+    (gear.scored_for)."""
+    import json as _json
+
+    def ranks_of(r):
+        v = r.get("talent_ranks")
+        if isinstance(v, str):
+            try:
+                v = _json.loads(v or "[]")
+            except ValueError:
+                v = []
+        return parse_ranks(v)
+
+    exports = []
+    seen = set()
+    for r in sorted(rows, key=lambda r: str(r.get("_time") or "")):
+        if r.get("talent_ranks") in (None, "") and r.get("talent_nodes") in (None, ""):
+            continue
+        rk = ranks_of(r)
+        key = (_json.dumps(rk, sort_keys=True), str(r.get("talents_level")), str(r.get("talents_date")))
+        if key in seen:
+            continue
+        seen.add(key)
+        exports.append((r, rk, _i(r.get("talents_level")) or None))
+    simx = exports[-1] if exports else None
+    simx_at = (simx[0].get("talents_date") or simx[0].get("_time")) if simx else None
+    b_ranks = match_ranks(cat, cls, (bnet or {}).get("ranks"))
+    b_trees = [t for t in (bnet or {}).get("trees") or [] if isinstance(t, dict) and t.get("tree")]
+    if b_ranks or b_trees:
+        ans = answer(cat, cls, b_ranks, "Battle.net", (bnet or {}).get("refreshed"), None)
+        if b_ranks and simx:
+            diff = sum(1 for k in set(b_ranks) | set(simx[1]) if b_ranks.get(k) != simx[1].get(k))
+            ans["cross_check"] = (f"The last /simx ({simx_at}) agrees" if not diff else
+                                  f"The last /simx ({simx_at}) differs on {diff} talent{'s' if diff != 1 else ''}")
+        else:
+            ans["cross_check"] = None
+    elif simx:
+        ans = answer(cat, cls, simx[1], "VulcanSimBench /simx", simx_at, simx[2])
+        ans["cross_check"] = None
+    else:
+        ans = answer(cat, cls, {}, None, None)
+        ans["cross_check"] = None
+    hist = []
+    for r, rk, lvl in exports:
+        f = frame(cat, cls, rk) if rk else None
+        pts = [{"tree": s["name"], "points": s["points"]} for s in (f or {}).get("sections") or []]
+        hist.append({"level": lvl, "date": r.get("talents_date"), "at": r.get("_time"), "points": pts,
+                     "spec": top_tree(pts)})
+    ans["history"] = sorted(hist, key=lambda h: (h["level"] or 0, str(h["at"] or "")))
+    ans["history_why"] = HISTORY_WHY
+    # The split in the game's tab order (Discipline / Holy / Shadow for a
+    # priest: the frame's sections, TalentTab.OrderIndex), every tree shown,
+    # 0 too; Battle.net's own tree names and points when it gave them (it
+    # lists them in another order, Discipline / Shadow Magic / Holy).
+    split = in_tab_order([{"tree": t["tree"], "points": _i(t.get("points"))} for t in b_trees],
+                         [s["name"] for s in (frame(cat, cls, {}) or {}).get("sections") or []]) \
+        or ans.get("points") or []
+    name = top_tree(split)
+    spec = {"name": name, "source": ans.get("source") if name else None,
+            "split": "/".join(str(t["points"]) for t in split) if name else None,
+            "points": split if name else []}
+    return ans, spec
+
+
+def roster_rows(chars: list[dict], gears: list[dict]) -> list[dict]:
+    """The legacy() roster from wow-character stats rows (char, class,
+    level) and wow-gear rows (char, professions, _time): one entry per
+    character, its newest professions."""
+    import json as _json
+
+    out: dict[str, dict] = {}
+    for c in chars:
+        name = c.get("char")
+        if not name:
+            continue
+        cur = out.setdefault(name, {"class": None, "level": 0, "professions": []})
+        cur["class"] = cur["class"] or c.get("class")
+        cur["level"] = max(cur["level"], _i(c.get("level")))
+    newest: dict[str, str] = {}
+    for g in gears:
+        name = g.get("char")
+        if not name or str(g.get("_time") or "") < newest.get(name, ""):
+            continue
+        newest[name] = str(g.get("_time") or "")
+        p = g.get("professions")
+        if isinstance(p, str):
+            try:
+                p = _json.loads(p or "[]")
+            except ValueError:
+                p = []
+        out.setdefault(name, {"class": None, "level": 0, "professions": []})["professions"] = [
+            x for x in p if isinstance(x, dict)] if isinstance(p, list) else []
+    return list(out.values())
+
+
+ICON_URL = "https://wow.zamimg.com/images/wow/icons/{size}/{name}.jpg"
+ICON_SIZES = ("small", "medium", "large")
+_icons: dict[tuple[str, str], bytes | None] = {}
+
+
+def icon_path(name: str, size: str = "medium") -> str:
+    """Where a bundle keeps an icon (the page's window.wowIcon reads it)."""
+    return f"data/icon/{size}/{name}.jpg"
+
+
+def icon_bytes(name: str, size: str = "medium") -> bytes | None:
+    """A talent icon from wow.zamimg.com (the renders Wowhead serves, named
+    as Forever's ManifestInterfaceData names the file), kept on disk next to
+    the catalog. None for a bad name or a 404; Upstream when it's down."""
+    if not ICON.match(name or "") or size not in ICON_SIZES:
+        return None
+    if (size, name) in _icons:
+        return _icons[(size, name)]
+    from wowstats.model3d import _write, fetch
+
+    cat = shared()
+    f = cat.file.parent / "icons" / size / f"{name}.jpg" if cat.file else None
+    body = None
+    if f and f.is_file():
+        with contextlib.suppress(OSError):
+            body = f.read_bytes()
+    if body is None:
+        body = fetch(ICON_URL.format(size=size, name=name))
+        if body is not None and f:
+            with contextlib.suppress(OSError):
+                _write(f, body)
+    _icons[(size, name)] = body
+    return body

@@ -1,0 +1,118 @@
+# Dependency updates: at most two PRs per ecosystem a week, one for the
+# minor and patch bumps and one for the majors (2026-11-19: five PRs at once,
+# each running ci with its Windows job, billed twice on a private repo).
+# No automatic rebase: Dependabot rebased every open PR on every push to
+# main, and every rebase was a full CI run. A PR that conflicts gets a
+# `@dependabot rebase` comment when someone is ready to merge it.
+#
+# A release has to be a week old before it's proposed (cooldown), so a
+# hijacked package that gets yanked within days never reaches a PR. Security
+# updates (Dependabot alerts) skip the cooldown and the schedule.
+#
+# Actions stay pinned by commit SHA with the tag in a comment; Dependabot
+# moves both. Base images stay pinned by tag and digest on literal FROM lines
+# (Dockerfile).
+#
+# Not covered: POLESTAR_TAG in route-reference.yml (kb-refresh's watcher
+# opens an issue when Polestar tags a release, docs/kb.md), the snapshot date
+# of the renderer's Debian packages, and the Polestar Recorder version and
+# checksum in the shipper.
+# Those move by hand.
+version: 2
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Brussels
+    cooldown:
+      default-days: 7
+    rebase-strategy: disabled
+    open-pull-requests-limit: 2
+    labels: [dependencies, python]
+    groups:
+      python:
+        update-types: [minor, patch]
+      python-major:
+        update-types: [major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Brussels
+    cooldown:
+      default-days: 7
+    rebase-strategy: disabled
+    open-pull-requests-limit: 2
+    labels: [dependencies, github-actions]
+    groups:
+      actions:
+        update-types: [minor, patch]
+      actions-major:
+        update-types: [major]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Brussels
+    cooldown:
+      default-days: 7
+    rebase-strategy: disabled
+    open-pull-requests-limit: 2
+    labels: [dependencies, docker]
+    groups:
+      docker:
+        update-types: [minor, patch]
+      docker-major:
+        update-types: [major]
+    ignore:
+      # 3.15 -> 3.16 is a decision (wheels, the test suite), not a weekly bump.
+      # The digest of 3.15-alpine and 3.15-slim-trixie still moves.
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: library/python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+
+  - package-ecosystem: docker-compose
+    directory: /deploy/compose
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Brussels
+    cooldown:
+      default-days: 7
+    rebase-strategy: disabled
+    open-pull-requests-limit: 2
+    labels: [dependencies, docker]
+    groups:
+      compose:
+        update-types: [minor, patch]
+      compose-major:
+        update-types: [major]
+
+  # The manual's videos (demo/video, Remotion) and the docs site (site/,
+  # Starlight, built by pages.yml): neither ships in an image or the wheel.
+  # One ecosystem, so one group across both folders.
+  - package-ecosystem: npm
+    directories:
+      - /demo/video
+      - /site
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Europe/Brussels
+    cooldown:
+      default-days: 7
+    rebase-strategy: disabled
+    open-pull-requests-limit: 2
+    labels: [dependencies, javascript]
+    groups:
+      npm:
+        update-types: [minor, patch]
+      npm-major:
+        update-types: [major]

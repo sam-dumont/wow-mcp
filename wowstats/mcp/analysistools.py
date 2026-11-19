@@ -1,0 +1,220 @@
+"""The play analysis over MCP, for any client: the user's own model does the
+reasoning, the server holds the run and judges (wowstats.analysis.drive).
+No model runs on the server.
+
+  analyse            the `analyse` prompt as a tool, for clients without
+                     prompt support (ChatGPT): the procedure and the next step
+  analysis_brief     the instructions, the schema, the profile and the KB's
+                     contents, in sections and pages for small contexts
+  play_sql           read-only SQL on the character's prep database, paged
+  propose_finding    the judge: re-runs the SQL, stores or refuses with why
+  analysis_submit    a pass's answer; the server answers with the next step
+  analysis_progress  where the run stands, to go on in a new chat
+  kb_get, kb_lookup  knowledge base documents and names by id
+"""
+
+from __future__ import annotations
+
+import json
+
+from . import tools as T
+
+CHAR = T.CHAR
+
+
+def _env(ctx: T.Ctx) -> dict:
+    return ctx.environ()
+
+
+def _char(ctx: T.Ctx, args: dict) -> str:
+    return T.resolve_char(ctx, args).replace(" ", "-")
+
+
+def _run_char(ctx: T.Ctx, args: dict) -> str:
+    """The tools that read or change a run name its character every time:
+    falling back to the default one sent a run about one character's
+    questions to another's database (first Sonnet run, 2026-11-18)."""
+    if not str(args.get("char") or "").strip():
+        raise T.ToolError("char is required: the character this run is about, as analysis_brief and "
+                          "analysis_progress name it")
+    return _char(ctx, args)
+
+
+def t_analyse(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import drive
+
+    from . import prompts
+
+    char = _char(ctx, args)
+    return {"char": char, "instructions": prompts.analyse_text(char, str(args.get("goals") or "")),
+            "progress": drive.progress(_env(ctx), char, ctx.store)}
+
+
+def t_analysis_brief(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import drive
+
+    try:
+        return drive.brief(_env(ctx), _char(ctx, args), str(args.get("section") or "start"), int(args.get("page") or 1),
+                           str(args.get("goals") or "") or None, bool(args.get("restart")), ctx.store)
+    except ValueError as e:
+        raise T.ToolError(str(e)) from None
+
+
+def t_play_sql(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import drive
+
+    q = str(args.get("query") or "")
+    if not q.strip():
+        raise T.ToolError("query is required")
+    return drive.sql(_env(ctx), _run_char(ctx, args), q, int(args.get("page") or 1), int(args.get("page_size") or 40),
+                     ctx.store)
+
+
+def _obj(v):
+    """Some clients send nested objects as JSON text."""
+    if isinstance(v, str):
+        try:
+            return json.loads(v)
+        except ValueError:
+            return None
+    return v
+
+
+def t_propose_finding(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import drive
+
+    f = _obj(args.get("finding"))
+    if not isinstance(f, dict):
+        raise T.ToolError("finding must be an object (analysis_brief section `lane` has its shape)")
+    if args.get("sql"):
+        f = {**f, "sql": args["sql"]}
+    return drive.propose(_env(ctx), _run_char(ctx, args), f, ctx.store)
+
+
+def t_analysis_submit(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import drive
+
+    return drive.submit(_env(ctx), _run_char(ctx, args), str(args.get("pass") or ""), _obj(args.get("answer")),
+                        ctx.store)
+
+
+def t_analysis_progress(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import drive
+
+    return drive.progress(_env(ctx), _char(ctx, args), ctx.store)
+
+
+def _ids(args: dict, cap: int) -> list[str]:
+    ids = args.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise T.ToolError("ids is a list of kind:id strings, e.g. [\"npc:1234\", \"quest:56\"]")
+    return [str(i) for i in ids][:cap]
+
+
+def _note_kb(ctx: T.Ctx, args: dict) -> None:
+    from wowstats.analysis import drive
+
+    if str(args.get("char") or "").strip():
+        drive.note_kb(_env(ctx), _char(ctx, args))
+
+
+def t_kb_get(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import kb
+
+    ids = _ids(args, 10)
+    _note_kb(ctx, args)
+    return {"documents": kb.shared(_env(ctx)).get(ids)}
+
+
+def t_kb_lookup(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import kb
+
+    ids = _ids(args, 100)
+    _note_kb(ctx, args)
+    k = kb.shared(_env(ctx))
+    out = {}
+    for i in range(0, len(ids), 10):
+        for d in k.get(ids[i:i + 10], cap=0):
+            out[d["id"]] = None if d.get("missing") else d.get("title")
+    return {"names": out, "note": "null: the knowledge base doesn't have it"}
+
+
+def _guard(fn):
+    def wrapped(ctx, args):
+        try:
+            return fn(ctx, args)
+        except LookupError as e:
+            return {"answer": None, "why": str(e)}
+    wrapped.__name__ = fn.__name__
+    return wrapped
+
+
+S = T.schema
+GOALS = {"type": "string", "maxLength": 600,
+         "description": "The player's own words for what they want from the game; kept for the next runs."}
+ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
+    T.Tool("analyse", "Analyse my play",
+           "Start or continue the play analysis of a character: you (the model) run it pass by pass with the tools "
+           "below, the server judges every finding. Returns the procedure and where the run stands. The same as "
+           "the `analyse` prompt, for clients without prompts.",
+           S({"char": CHAR, "goals": GOALS}), _guard(t_analyse)),
+    T.Tool("analysis_brief", "Analysis brief",
+           "The play analysis' brief, in sections sized for small contexts: start (procedure, goals, finding rules, "
+           "where the run stands), schema, profile and kb (paged), survey, lane, followups, coverage, synthesis. "
+           "The first call opens a run; `restart` starts a new one.",
+           S({"char": CHAR, "section": {"type": "string", "enum": ["start", "schema", "profile", "kb", "survey",
+                                                                    "lane", "followups", "coverage", "synthesis"],
+                                    "description": "Which part of the brief: start, then the schema, profile and "
+                                                   "kb pages, then the instructions for the pass the run is on."},
+              "page": {"type": "integer", "minimum": 1, "maximum": 50,
+                       "description": "Which page of that section (12,000 characters a page)."}, "goals": GOALS,
+              "restart": {"type": "boolean", "description": "Drop the open run and start a new one."}}),
+           _guard(t_analysis_brief), writes="replaces"),
+    T.Tool("play_sql", "Query the play database",
+           "One read-only SQLite SELECT (WITH allowed) on the character's analysis database (analysis_brief "
+           "section schema describes it). Paged: page_size rows (default 40, at most 60) as tab-separated text, "
+           "`more` when there are further pages; long cells and pages are cut.",
+           S({"char": CHAR, "query": {"type": "string", "maxLength": 8000,
+                                 "description": "One read-only SQLite SELECT (WITH allowed); analysis_brief "
+                                                "describes the tables."},
+              "page": {"type": "integer", "minimum": 1, "maximum": 25,
+                       "description": "Which page of the result."},
+              "page_size": {"type": "integer", "minimum": 1, "maximum": 60,
+                            "description": "Rows per page (default 40)."}}, ("char", "query")),
+           _guard(t_play_sql), writes="adds"),
+    T.Tool("propose_finding", "Propose a finding",
+           "Hand one finding to the judge: it re-runs the SQL, checks every number (placeholders, expect, holds), "
+           "the action and the knowledge base ids, then stores it in the character's analysis or says why not. "
+           "A finding with `action: null` is kept as an observation, shown apart.",
+           S({"char": CHAR, "finding": {"type": "object", "description": "key, title, claim, sql, expect, "
+                                        "relevance, action ({do, where, blocked_by, next_step} or null), and "
+                                        "optionally holds, effect, sample, kb"},
+              "sql": {"type": "string", "maxLength": 8000,
+                      "description": "The SQL behind the finding, re-run by the judge."}}, ("char", "finding")),
+           _guard(t_propose_finding), writes="replaces"),
+    T.Tool("analysis_submit", "Hand in a pass",
+           "Hand in what a pass produced: pass survey ({questions}), lane ({lane, answers, ask_next}), pick "
+           "({picks}) or synthesis ({keep, findings, nudges, patterns, clashes, driver}; add early: true to "
+           "finish before the lanes are done). The server checks it and answers with the next step.",
+           S({"char": CHAR, "pass": {"type": "string", "enum": ["survey", "lane", "pick", "synthesis"],
+                                "description": "The pass this answer is for (analysis_progress says which is next)."},
+              "answer": {"type": "object", "description": "The pass's answer, in the shape analysis_brief gives."}},
+             ("char", "pass", "answer")), _guard(t_analysis_submit), writes="replaces"),
+    T.Tool("analysis_progress", "Analysis progress",
+           "Where the character's analysis run stands (pass, lanes open and done, queries, tables touched and "
+           "untouched, findings proposed, verified, refused with why), the next step, the last finished run and "
+           "the last nightly recheck. Call it first to continue in a new chat.",
+           S({"char": CHAR}), _guard(t_analysis_progress)),
+    T.Tool("kb_get", "Knowledge base documents",
+           "Full knowledge base documents by id (kind:id, e.g. npc:1234, quest:56, note:xp-sources), up to 10, each "
+           "with its source.",
+           S({"char": CHAR, "ids": {"type": "array", "items": {"type": "string"}, "maxItems": 10,
+                               "description": "Up to 10 kind:id strings, e.g. npc:1234, quest:56."}}, ("ids",)),
+           _guard(t_kb_get), writes="adds"),
+    T.Tool("kb_lookup", "Names for ids",
+           "Names for up to 100 ids at once (kind:id: spell, item, quest, npc, zone...); null when the knowledge "
+           "base doesn't have it.",
+           S({"char": CHAR, "ids": {"type": "array", "items": {"type": "string"}, "maxItems": 100,
+                               "description": "Up to 100 kind:id strings, e.g. npc:1234, quest:56."}}, ("ids",)),
+           _guard(t_kb_lookup), writes="adds"),
+)

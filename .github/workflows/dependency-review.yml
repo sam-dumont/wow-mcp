@@ -1,0 +1,34 @@
+# On each pull request: the dependencies it adds or bumps, against GitHub's
+# advisory database. Fails on a known vulnerability of moderate severity or
+# worse, and on a license that can't ship in a GPL-3.0-only program.
+#
+# Dependency review needs the dependency graph, which a private repository
+# only has with GitHub Advanced Security: while the repository is private
+# the job is skipped (skipped counts as passed for a required check), and
+# CI's audit job still checks every locked package. The visibility test
+# fails closed: an event without a repository skips too.
+name: dependency-review
+on:
+  pull_request:
+permissions:
+  contents: read
+
+jobs:
+  review:
+    if: github.event.repository.visibility == 'public'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: moderate
+          # Licenses that can't be combined with GPL-3.0-only.
+          deny-licenses: GPL-2.0-only, AGPL-1.0-only, SSPL-1.0, BUSL-1.1, CC-BY-NC-4.0, CC-BY-NC-SA-4.0
+          # The verdict goes to the run's summary; no write token, so fork PRs work too.
+          comment-summary-in-pr: never

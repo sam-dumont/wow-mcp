@@ -1,0 +1,382 @@
+"""The public view: what anonymous visitors may see, by allow-list.
+
+Four things, for every character (owner, 2026-11-18, after v0.2.0 showed
+"way too much data"):
+
+1. the character card: the 3D model in its gear, name, level, race and
+   class, item level, equipment, professions; its spec, talents (the frame,
+   points per tree, one stop per /simx export) and Legacy points; and its
+   class at that level (owner, 2026-11-19: the trainer spells to buy and
+   the class trainers of its side, the next talent points, habits: built
+   from the card's own class, race, side, level and talents);
+2. the climb: played time per level against Polestar's route, totals per
+   level only;
+3. the dungeons: which one, when, at what level;
+4. the level snapshots: the gear (and the 3D look) at each past level.
+
+Everything else stays in the full content (/zogzog/, /full/): the Overview's
+advice, the current zone and guide step, deaths and killers, the journal,
+guide steps, flights, zones, the timeline's events, tracked and next
+upgrades, gear advice, prices, gold, market data and other players.
+
+PUBLIC holds one shape per answer. A shape names every key that may leave
+the server: {key: None} is a plain value (a string, a number, a bool),
+{key: {...}} an object with its own shape, {key: [shape]} a list of those.
+public() builds a NEW object from a shape, so a field added to a full answer,
+or a whole new answer, stays private until someone lists it here.
+tests/test_publish.py walks the built public bundle against its own copy of
+this list.
+"""
+
+from __future__ import annotations
+
+SCALAR = (str, int, float, bool, type(None))
+
+ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "quality", "item_level", "req_level", "enchant_id",
+                          "enchant")}
+# An item's tooltip (wowstats.itemcard): game data only, the same for every
+# player. A bundle holds the cards of the items its own answers name.
+CARD = {**{k: None for k in ("id", "n", "q", "i", "b", "u", "s", "t", "ar", "sp", "dps", "rl", "il", "set", "de")},
+        "w": [None], "g": [None]}
+PROFESSION = {k: None for k in ("skill_id", "name", "rank", "max_rank")}
+# A past level's item: from a sheet ("exact") or the gear replay ("likely",
+# wowstats.history). Public: how it was got, not where or from whom.
+SNAP_ITEM = {**ITEM, "certainty": None, "source": {"kind": None}}
+M3D_ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "inventory_type", "display_id", "why")}
+# The card's talents (wowstats.talents): the frame the game draws, filled in
+# with the last /simx export, and one stop per export.
+TREE_POINTS = {"tree": None, "points": None}
+TALENTS = {
+    **{k: None for k in ("available", "source", "at", "level", "spec", "why", "unmatched", "history_why",
+                                 "cross_check")},
+    "points": [TREE_POINTS],
+    "sections": [{"name": None, "points": None,
+                  "nodes": [{k: None for k in ("col", "row", "name", "icon", "rank", "max", "desc")}],
+                  # The prerequisite arrows, cell to cell (talents.py, TraitEdge).
+                  "edges": [{k: None for k in ("fc", "fr", "tc", "tr")}]}],
+    "history": [{"level": None, "date": None, "spec": None, "points": [TREE_POINTS]}],
+}
+# What the gear is scored for, without its sanity_check (the full view's
+# planning note).
+SPEC_CARD = {"name": None, "source": None, "split": None, "points": [TREE_POINTS],
+             "scored_for": {"key": None, "label": None, "source": None}}
+LEGACY = {**{k: None for k in ("available", "derived_min", "total", "spent", "why")}, "earned": [None]}
+# "Your class at level N" (wowstats.classguide): what to train now and next,
+# the class trainers in the capitals of the character's side (race capital
+# first, never by distance), the next talent points, a habit or two. Built
+# from the class, race, side, level and talents only: public.
+CG_SPELL = {k: None for k in ("id", "name", "rank", "level", "cost_copper", "url", "needs_talent")}
+CG_TRAIN = {"level": None, "spells": [CG_SPELL]}
+CLASS_GUIDE = {
+    **{k: None for k in ("class", "level", "spec")},
+    "train": {"now": CG_TRAIN, "next": CG_TRAIN},
+    "trainers": [{**{k: None for k in ("npc", "name", "url", "x", "y")},
+                  "zone": {k: None for k in ("name", "id", "url")}}],
+    "talents": [{k: None for k in ("level", "talent", "tree", "rank", "max", "url", "now")}],
+    "habits": [None],
+    "respec": {k: None for k in ("level", "action")},
+}
+
+PUBLIC: dict[str, dict] = {
+    # What the page may turn on: nothing beyond the four parts above.
+    "config": {"view": None, "static": None},
+    # The character switcher.
+    "chars": {"chars": [{"char": None, "level": None, "demo": None}]},
+    # The card, the climb and the dungeons. No zone, no "last seen", no
+    # guild, no gold, no kills or quests, no pace or ETA: only what the card
+    # and the climb draw.
+    "char": {
+        "char": None, "generated_at": None, "stale": None, "route_source": None,
+        "header": {k: None for k in (
+            "char", "name", "race", "class", "faction", "level", "xp", "xp_max", "polestar", "title",
+            # The climb: played time (Polestar's splits, Altoholic's /played)
+            # and how far into the level in play.
+            "played_s", "played_total_s", "first_level", "first_partial", "time_in_level_s")},
+        "levels": [{"level": None, "seconds": None, "partial": None, "route_s": None}],
+        # Cleared, when, at what level: no group, no bosses, no time or XP.
+        "dungeons": [{"name": None, "level": None, "t": None}],
+        "gear": {"item_level": None, "armory_item_level": None, "armory_item_level_source": None,
+                 "render": {"asset": None, "refreshed": None, "ext": None}, "items": [ITEM],
+                 "professions": [PROFESSION]},
+        "spec": SPEC_CARD, "talents": TALENTS, "legacy": LEGACY, "class_guide": CLASS_GUIDE,
+    },
+    # The level slider's stops: no events.
+    "timeline": {"char": None, "generated_at": None, "levels": [None]},
+    # The gear at a past level: no time, zones, quests, deaths or upgrades.
+    # Its picture (wowstats.pictures): drawn (the file's extension) or pending.
+    "snapshot": {"char": None, "level": None, "available": None, "why": None, "generated_at": None,
+                 "gear_reconstructed": None, "gear": {"item_level": None, "items": [SNAP_ITEM]},
+                 "picture": {"ext": None, "pending": None}},
+    # The cards of the items the answers above name (their tooltips).
+    "items": {"items": [CARD]},
+    # The 3D viewer's answer (wowstats.model3d): the model, its look (from
+    # Battle.net, Narcissus or the race's default) and the gear it wears.
+    "model3d": {
+        "race": None, "sex": None, "sex_known": None, "class": None, "stand_in": None, "level": None,
+        "why": None, "source": None,
+        "model": {"chr_model": None, "gender": None, "options": [{"optionId": None, "choiceId": None}]},
+        "appearance": {"source": None, "refreshed": None},
+        "items": [M3D_ITEM], "missing": [M3D_ITEM],
+    },
+}
+
+
+# ------------------------------------------------------------ /zogzog/
+
+# The full content friends open with the link (owner, 2026-11-18): the public
+# view, plus the loot history and the Overview's moves (owner, 2026-11-18:
+# they name the item, the dungeon, the profession, the zone), plus the rest
+# of the full view, minus
+# - other players: the People view, group members, the players around a
+#   session, a run's party size (those stay in /full/ only);
+# - where the character is now: its zone, when it was last seen, the guide
+#   step it's on, the "Right now" lines;
+# - the deaths' killers: deaths are counts per level and zone at most;
+# - the advice's lines about creatures (the Overview's moves keep items,
+#   dungeons, professions, zones, guide steps: ZOGZOG_MOVE_KINDS).
+# Same shapes as PUBLIC: a key not listed here never reaches the bundle.
+
+
+def _keys(*names: str) -> dict:
+    return {k: None for k in names}
+
+
+CLAIM = _keys("text", "link", "cite", "kind", "item_id", "skill_id")
+# What the two questions looked at; their lines are the Overview's moves.
+CHECKS = {"checks": [None], "not_possible_yet": [None]}
+# The Overview's moves (wowstats.insights.overview_moves), named: the item
+# and its slot, the dungeon, the profession's next rank, its trainers and
+# price, riding, the zone where deaths pile up with what they had in common
+# (counts: levels, how many above, how many against several). Only these
+# kinds: a death to a creature, or to one well above the character's level,
+# names or comes from a killer. Trainers come in the data's order, by zone,
+# never by distance from the character.
+ZOGZOG_MOVE_KINDS = frozenset({"upgrade", "dungeon", "profession", "riding", "deaths_zone", "slow_steps", "talents",
+                               "enchant"})
+PLACE = {**_keys("name", "id", "url"), "levels": [None]}
+MOVE_ITEM = _keys("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct", "url")
+TRAINER = {**_keys("npc", "name", "url", "x", "y"), "zone": PLACE}
+# One more run of a dungeon (wowstats.plan.dungeongain): time, XP, pace
+# against the character's own questing, the quests to pick up and who gives
+# them (game data: the NPC's spawn, never the character's place).
+WHO = _keys("kind", "id", "name", "url", "zone", "x", "y", "spawns", "inside")
+GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "xp", "level_pct", "xp_per_hour",
+                "kills_unknown", "questing_xp_per_hour", "vs_questing", "questing_s", "quests_shown", "summary",
+                "lead"),
+        "quests": [{**_keys("quest_id", "name", "url", "xp_now", "state", "level"), "starts": [WHO]}]}
+# A dungeon's quest rewards he could use (wowstats.plan.dungeonview
+# quest_rewards): the item, its gain, the quest and who gives it.
+QUEST_REWARD = {**_keys("item_id", "name", "quality", "slot_name", "gain", "gain_pct", "fills_empty", "level", "now",
+                        "url", "of"),
+                "quest": {**_keys("quest_id", "name", "url", "state", "complete"), "starts": [WHO]}}
+# Our dungeon against Polestar's dungeons for the level (wowstats.plan.vsguide):
+# dungeon names, levels and the character's own counts and paces.
+VS_GUIDE = {**_keys("agrees", "we_say", "reason", "under_floor", "text"), "guide_says": [None],
+            "numbers": _keys("level", "floor", "from_level", "max", "quests_ready", "quests_in_log",
+                             "quest_xp_in_log", "own_runs", "run_xp_per_hour", "questing_xp_per_hour",
+                             "vs_questing")}
+MOVE = {**_keys("text", "link", "cite", "kind", "title", "detail", "action", "blocker", "item_id", "skill_id",
+                "weight"),
+        "item": MOVE_ITEM, "items": [MOVE_ITEM], "zone": PLACE, "quest_rewards": [QUEST_REWARD],
+        "source": {**_keys("kind", "boss", "profession", "blocker"), "quest": _keys("id", "name", "url"),
+                   "zone": PLACE},
+        "skill": {**_keys("skill_id", "name", "rank", "max_rank", "next", "need_level", "level_ok", "need_skill",
+                          "skill_ok", "cost_copper", "cost_scope", "money_copper", "search_url"),
+                  "trainers": [TRAINER]},
+        "deaths": {**_keys("n", "above", "crowd", "come_back_at"), "levels": [None]}, "gain": GAIN,
+        "vs_guide": VS_GUIDE}
+HEADER_Z = _keys("char", "name", "full_name", "race", "class", "faction", "guild", "spec", "title", "sex", "level",
+                 "xp",
+                 "xp_max", "rested_xp", "time_in_level_s", "played_s", "played_total_s", "played_total_from",
+                 "played_total_at", "first_partial", "first_level", "avg_level_s", "avg_levels", "xp_per_hour",
+                 "eta_s", "kills", "quests", "polestar", "sources", "money_copper", "money_at")
+# An "ah" source (wowstats.ahsource): the price his own scan saw today or
+# yesterday, and what it costs against his gold.
+SOURCE = _keys("kind", "quest_id", "name", "zone", "level", "req_level", "dungeon", "choices", "boss", "npc_id",
+               "chance_pct", "instance", "profession", "skill", "spell_id", "your_rank",
+               "can_make", "floor", "price_copper", "seen_day", "seen_days_ago", "listed", "gain_per_gold",
+               "gold_share_pct", "affordable", "mount_share_pct", "cheap") | {"levels": [None], "part": [None]}
+AH = {**_keys("available", "scan_day", "scan_days_ago", "on_sale", "upgrades_on_sale", "money_copper",
+              "cheap_under_copper", "notice"), "mount": _keys("name", "level", "need_copper", "left_copper")}
+# `stats`: the item's stats as the scoring reads them (game data), for the
+# side-by-side comparison.
+ADVICE_ITEM = {**_keys("item_id", "name", "quality", "item_level", "req_level", "score", "known", "random_suffix"),
+               "stats": {}}
+# No "here" (in the zone the character is in now).
+UPGRADE = {**ADVICE_ITEM, **_keys("level", "slot", "slot_name", "gain", "gain_pct", "gain_share_pct",
+                                  "fills_empty", "now", "vs_unknown", "setup_score"), "sources": [SOURCE],
+           "gates": [_keys("kind", "profession", "need", "have")]}
+UPGRADE_PAIR = {**UPGRADE, "with": {**UPGRADE, "kind": None}}
+SPEC = {**_keys("key", "label", "source", "adjusted", "why"), "choices": [_keys("key", "label")]}
+GEAR_SHEET = {**_keys("at", "item_level", "guild", "spec", "class", "race", "faction", "sex", "armory_item_level",
+                      "armory_item_level_source"),
+              "render": _keys("asset", "refreshed", "ext"),
+              "items": [ITEM], "professions": [PROFESSION],
+              "wanted": [_keys("item_id", "name", "item_level", "req_level", "slot_name", "level")]}
+DEATH_COUNTS = {"total": None, "by_zone": [_keys("zone", "n")], "by_level": {}}
+LOOT_ITEM = _keys("item_id", "name", "quality", "count", "t", "zone")
+
+# The Dungeons panel (wowstats.plan.dungeonview): game data, his own runs
+# (no party), what he has of each dungeon's items, the gold its loot made.
+QREF = {**_keys("quest_id", "name", "state", "url", "any"), "starts": [WHO], "drops": [WHO]}
+DUNGEON = {
+    **_keys("area_id", "name", "min", "max", "state", "opens_at", "url", "zone_url", "value", "verdict", "why",
+            "drops_shown", "missing_now", "obtained", "expected_gain_per_clear", "expected_gain_share_pct",
+            "chance_one_per_clear_pct"),
+    "drops": [{**_keys("item_id", "name", "quality", "item_level", "slot_name", "score", "gain", "gain_pct",
+                       "fills_empty", "level", "now", "state", "where", "url"),
+               "drops": [_keys("boss", "npc_id", "chance_pct", "wing", "url")], "quests": [None]}],
+    "quests": [{**_keys("quest_id", "name", "level", "min_level", "xp", "money_copper", "route", "state", "complete",
+                        "xp_now", "url", "reward_choices"),
+                "starts": [WHO], "ends": [WHO], "needs": [QREF], "blocked": None,
+                "rewards": [_keys("item_id", "name", "quality", "gain", "state", "where", "url")]}],
+    "quest_rewards": [QUEST_REWARD],
+    "trip": {**_keys("measured", "n", "inside_s", "travel_s", "quests_s", "total_s", "xp_kills", "xp_quests",
+                     "xp_per_run", "xp_per_hour", "again_s", "again_xp", "again_xp_per_hour", "vendor_copper",
+                     "ah_copper", "quest_money_copper", "quest_xp_left"),
+             "boe": [_keys("item_id", "name", "quality", "ah_copper")]},
+    "gain": GAIN,
+    "history": [_keys("t", "level", "inside_s", "total_s", "xp_kills", "xp_quests", "quests_handed_in",
+                      "vendor_copper", "items")],
+    "entrance": {**_keys("zone", "x", "y", "source", "prep"), "flight": _keys("name", "x", "y")},
+    "guides": [_keys("name", "url")],
+    "keys": [{**_keys("name", "kind", "need", "note", "item_id", "url", "have"), "quests": [QREF]}],
+    "next": _keys("do", "quest_id", "name", "level", "to_go", "meanwhile", "where"),
+    "vs_guide": VS_GUIDE,
+}
+
+ZOGZOG: dict[str, dict] = {
+    "config": _keys("view", "static", "players", "gold", "market", "prices", "debug", "mcp", "journal",
+                    "people", "loot"),
+    "chars": {"chars": [_keys("char", "events", "level", "demo")]},
+    "char": {
+        **_keys("char", "generated_at", "stale"),
+        "header": HEADER_Z,
+        "levels": [_keys("level", "seconds", "xp", "quests", "kills", "partial", "at", "xp_per_hour")],
+        "climb": [_keys("level", "t")],
+        "zones": [_keys("zone", "secs", "visits")],
+        "steps": {**_keys("skipped_total", "total", "median_s", "picks_total"), "guides": [None],
+                  "slowest": [_keys("guide", "step", "secs", "n", "zone", "title", "guide_title")],
+                  "skipped": [{**_keys("guide", "t", "zone", "how", "guide_title"), "steps": [None]}],
+                  "picks": [_keys("guide", "title", "step", "t")]},
+        "dungeons": [_keys("name", "level", "seconds", "xp", "t", "xp_per_hour")],
+        "deaths": DEATH_COUNTS,
+        "flights": {**_keys("count", "total_s"),
+                    "longest": _keys("from_zone", "to_zone", "secs", "t"),
+                    "recent": [_keys("from_zone", "to_zone", "secs", "t")]},
+        "gear": GEAR_SHEET,
+        "spec": SPEC_CARD, "talents": TALENTS, "legacy": LEGACY, "class_guide": CLASS_GUIDE,
+    },
+    "journal": {**_keys("char", "gap_s", "generated_at"), "sessions": [{
+        **_keys("start", "end", "played_s", "level_start", "level_end", "levels_gained", "xp", "gold_delta_copper"),
+        "dings": [_keys("level", "t")], "zones": [_keys("zone", "secs")],
+        "quests": [_keys("quest_id", "name", "level", "zone", "t") | {"part": [None]}],
+        "deaths": {"total": None, "by_zone": [_keys("zone", "n")]},
+        "dungeons": [_keys("name", "level", "seconds", "xp", "t")]}]},
+    "gear": {
+        **_keys("char", "name", "polestar", "available", "why", "at", "class", "level", "band", "min_upgrade_pct",
+                "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score"),
+        "band": _keys("label", "note", "source", "upTo"),
+        "spec": SPEC, "weights": {}, "talents": [{}],
+        "slots": [{**_keys("slot", "slot_name"), "current": ADVICE_ITEM, "best": UPGRADE_PAIR,
+                   "next": UPGRADE_PAIR}],
+        "upgrades": [UPGRADE_PAIR],
+        "ah": AH,
+    },
+    "overview": {
+        **_keys("char", "generated_at", "route_source", "levels_seen"),
+        "header": HEADER_Z,
+        "on_track": {**_keys("route_ratio", "played_s", "route_s", "last_level", "last_s", "own_median_s",
+                             "own_ratio", "eta_s", "verdict", "level_played_s"),
+                     "route_levels": [None], "claims": [CLAIM],
+                     "per_level": [_keys("level", "seconds", "route_s")]},
+        # No "current": the step the character is on now.
+        "guide": {**_keys("total", "skipped", "jumped", "in_order", "over_plan_s"), "claims": [CLAIM],
+                  "over_plan": [_keys("guide", "step", "secs", "route_s", "title", "guide_title", "zone")]},
+        "moves": [MOVE],
+        "next_moves": CHECKS,
+        "sanity_check": CHECKS,
+    },
+    "timeline": {**_keys("char", "generated_at", "gear_history_since"), "kinds": [None], "levels": [None],
+                 "events": [_keys("t", "type", "text", "link", "seconds")]},
+    "snapshot": {
+        **_keys("char", "level", "available", "why", "generated_at", "from", "to", "seconds", "so_far",
+                "partial_time", "gear_partial", "gear_at", "route_s", "deaths", "gear_reconstructed",
+                "gear_records_from"),
+        "counts": {}, "levels": [None], "zones": [_keys("zone", "secs")],
+        # The quest and the zone, never the creature (as the loot list).
+        "gear": {"item_level": None, "professions": [PROFESSION],
+                 "items": [{**ITEM, "certainty": None, "source": _keys("kind", "quest", "zone", "t")}]},
+        "looted_gear": [_keys("item_id", "name", "inv", "item_level")],
+        "bis": {"gear_score": None, "spec": _keys("key", "label", "source", "adjusted", "why"),
+                "upgrades": [UPGRADE_PAIR]},
+        "picture": PUBLIC["snapshot"]["picture"],
+    },
+    "dungeons": {**_keys("char", "level", "class", "faction", "spec", "questing_xp_per_hour", "inventory_known",
+                         "available", "why", "generated_at", "stale"),
+                 "dungeons": [DUNGEON]},
+    "loot": {**_keys("char", "generated_at", "total", "notable", "quality_known"),
+             "groups": [{**_keys("kind", "name", "level", "t", "notable"), "items": [LOOT_ITEM]}]},
+    "model3d": PUBLIC["model3d"],
+    "items": PUBLIC["items"],
+    # The play analysis: the nudges the pipeline screened (wowstats.analysis
+    # .verify.shareable_action: actions with where, what blocks them and the
+    # next step; no player, creature, time, date or where the character is
+    # now) and the time per level. Pattern lines describe: never here.
+    "analysis": {**_keys("available", "char"),
+                 "nudges": [_keys("text", "where", "blocked_by", "next_step", "verdict", "at_level")],
+                 "time_budget": [_keys("level", "online_s", "instance_s", "taxi_s", "dead_s", "afk_s", "planned_s")]},
+    "market": {**_keys("faction", "configured", "reason", "generated_at"), "factions": [None],
+               "token": {**_keys("label", "gold", "change_7d", "at"), "series": [[None]]},
+               "realms": [_keys("name", "up", "dipped_24h")],
+               "auctions": [_keys("item", "item_id", "copper", "quantity", "change_1d")]},
+    "prices": {**_keys("generated_at", "last_scan", "scan_days", "total"),
+               "items": [{**_keys("available", "change", "day", "item_id", "item_key", "max", "min", "name", "price",
+                                  "realm", "scans"),
+                          "series": [_keys("available", "day", "hi", "lo")]}]},
+}
+
+
+def shape(value, spec):
+    """value cut down to spec (see the module's docstring)."""
+    if spec is None:
+        return value if isinstance(value, SCALAR) else None
+    if isinstance(spec, list):
+        return [shape(v, spec[0]) for v in value] if isinstance(value, list) else []
+    if not isinstance(value, dict):
+        return None
+    if not spec:  # {}: a map of plain values (counts by kind, weights by stat)
+        return {str(k): v for k, v in value.items() if isinstance(v, (int, float, str, bool))}
+    return {k: shape(value.get(k), sub) for k, sub in spec.items()}
+
+
+def public(what: str, value: dict) -> dict:
+    """The public answer `what`; KeyError for an answer that has none."""
+    return shape(value, PUBLIC[what])
+
+
+def zogzog(what: str, value: dict) -> dict:
+    """The /zogzog/ answer `what`; KeyError for an answer it doesn't have
+    (people). Deaths lose their killer here, before the shape: a timeline
+    event's text and a snapshot's death list name it, and the Overview
+    keeps only the moves of ZOGZOG_MOVE_KINDS."""
+    if what == "timeline":
+        value = {**value, "events": [{**e, "text": "Died"} if e.get("type") == "death" else e
+                                     for e in value.get("events") or [] if isinstance(e, dict)]}
+    elif what == "snapshot" and isinstance(value.get("deaths"), list):
+        value = {**value, "deaths": len(value["deaths"])}
+    elif what == "overview":
+        value = {**value, "moves": [m for m in value.get("moves") or []
+                                    if isinstance(m, dict) and m.get("kind") in ZOGZOG_MOVE_KINDS]}
+    return shape(value, ZOGZOG[what])
+
+
+TIERS = {"public": public, "zogzog": zogzog}
+
+
+def char(d: dict, route: dict[int, int] | None = None, route_source: str | None = None) -> dict:
+    """The character page's answer, with the route's time for each level
+    (Polestar's route clock, wowstats.mcp.route) next to the played one."""
+    route = route or {}
+    levels = [{**lv, "route_s": route.get(lv.get("level"))} for lv in d.get("levels") or [] if isinstance(lv, dict)]
+    return public("char", {**d, "levels": levels, "route_source": route_source})

@@ -1,0 +1,128 @@
+# The docs site (site/): the manual and the README as Starlight pages, plus
+# the demo (site/pages/demo.md): an invented character's pages built by the
+# product's own publisher, served under /demo/. Actions are pinned by commit
+# SHA (the comment is the tag it was taken from).
+#
+# GitHub Pages on a private repository needs a paid plan, and a Pages site is
+# public even when its repository is private: the deploy job runs only once
+# the repository is public. Until then (and on pull requests) the built site
+# is a workflow artifact, `site-preview`, to download and open locally.
+# One-time setting before the first deploy: Settings > Pages > Source:
+# GitHub Actions.
+name: pages
+on:
+  # Every push to main: the demo is the product's own publisher and pages, so
+  # any change to them can change it.
+  push:
+    branches: [main]
+  # A pull request builds the site only when the site's own sources change
+  # (2026-11-19: every Dependabot and app PR built it, about 5 minutes each).
+  pull_request:
+    paths:
+      - README.md
+      - docs/**
+      - site/**
+      - tools/fixtures/generate.py
+      - .github/workflows/pages.yml
+  # The demo's play is shifted so its last evening is yesterday: its auction
+  # house only lists what a scan saw today or yesterday, so it is rebuilt
+  # daily (once public; see the visibility job).
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Whether the repository is public. A scheduled run's event carries no
+  # repository, so github.event.repository.private can't answer there.
+  visibility:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      public: ${{ steps.v.outputs.public }}
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          private=$(gh api "repos/$GITHUB_REPOSITORY" --jq .private)
+          echo "public=$([[ $private == false ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: visibility
+    # A private repository builds on pushes and pull requests (the preview),
+    # not every day.
+    if: github.event_name != 'schedule' || needs.visibility.outputs.public == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: uv sync --frozen --extra publish --extra mcp
+      # The project site's address: https://<owner>.github.io/<repo>/.
+      - name: Site address
+        run: |
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          {
+            echo "SITE_REPO=$GITHUB_REPOSITORY"
+            echo "SITE_ORIGIN=https://$owner.github.io"
+            echo "SITE_BASE=/${GITHUB_REPOSITORY#*/}"
+          } >> "$GITHUB_ENV"
+      # VictoriaLogs in Docker, the item tables from wago.tools, the 3D
+      # viewer and models from Wowhead's CDN: all copied into the bundle.
+      - run: site/scripts/build-demo.sh
+      - run: npm ci --prefix site
+      - run: npm run build --prefix site
+      - if: needs.visibility.outputs.public == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/dist
+      - if: needs.visibility.outputs.public != 'true' || github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: site-preview
+          path: site/dist
+          retention-days: 7
+
+  deploy:
+    needs: [visibility, build]
+    # Public repositories only (see the top). Pushes and manual runs read the
+    # event's own flag; a scheduled run, which has none, the visibility job's.
+    if: >-
+      github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
+      (github.event.repository.private == false ||
+       (github.event_name == 'schedule' && needs.visibility.outputs.public == 'true'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

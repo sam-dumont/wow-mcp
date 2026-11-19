@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-view="@VIEW@">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#16110C" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#E6D5AE" media="(prefers-color-scheme: light)">
+<title>Leveling log</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 3h24v12c0 8-6 13-12 15C10 28 4 23 4 15z' fill='%232B2017' stroke='%23C99A3B' stroke-width='2'/%3E%3Cpath d='M9 18l7-7 7 7' fill='none' stroke='%23F0CF7A' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preload" href="fonts/cinzel.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/alegreya-sans-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="app.css">
+<script src="items.js" defer></script>
+<script src="app.js" defer></script>
+<!--model3d-->
+<link rel="stylesheet" href="model3d/model3d.css">
+<script src="model3d/model3d.js" defer></script>
+<!--/model3d-->
+</head>
+<body>
+<p id="demo" class="demo" hidden><strong>Demo data.</strong> Made-up events from dev/seed.py, not a real character.</p>
+<header class="topbar">
+  <label class="switcher">
+    <span class="sr">Character</span>
+    <select id="char" aria-label="Character"></select>
+  </label>
+  <div class="tabs" role="tablist" aria-label="Pages">
+<!--full-->
+    <button type="button" role="tab" id="tab-home" aria-controls="home" aria-selected="true">Overview</button>
+<!--/full-->
+    <button type="button" role="tab" id="tab-overview" aria-controls="main" aria-selected="false">Character</button>
+    <button type="button" role="tab" id="tab-timeline" aria-controls="timeline" aria-selected="false">Timeline</button>
+<!--full-->
+    <button type="button" role="tab" id="tab-journal" aria-controls="journal" aria-selected="false">Journal</button>
+<!--/full-->
+  </div>
+  <button id="theme" class="theme" type="button" aria-label="Switch colour theme">Auto</button>
+</header>
+
+<!--full-->
+<section id="home" class="home" aria-label="Overview" aria-live="polite"><p class="loading">Reading the logs</p></section>
+<!--/full-->
+
+<main id="main" hidden>
+  <section id="hero" class="plate banner" aria-live="polite">
+    <p class="loading">Reading the logs</p>
+  </section>
+  <section id="gear" class="plate gear" aria-label="Equipment and professions" hidden></section>
+<!--full-->
+  <section id="market" class="market" aria-label="Realm, token and auction house"></section>
+  <section id="prices" class="prices" aria-label="Your Auctionator scans" hidden></section>
+  <section id="askbox" class="coach askbox" aria-label="Ask your assistant" hidden>
+    <p class="asklinks"><a id="askclaude" class="coachbtn" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Ask Claude</a>
+      <a id="askchatgpt" class="coachbtn" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Ask ChatGPT</a></p>
+    <p class="sub">Opens a new chat that runs the play analysis with your own assistant, through the wow connector (add it once). You read the message and send it.</p>
+  </section>
+  <section id="planbox" class="coach planbox" aria-label="Plan the next hours" hidden>
+    <div id="planstatus" class="planstatus"></div>
+    <form id="planform" class="planform">
+      <label for="planhours">Next</label>
+      <select id="planhours"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option><option>6</option></select>
+      <span>hours</span>
+      <input id="planwhat" type="text" maxlength="300" placeholder="no dungeons, level tailoring…" aria-label="Constraints">
+      <button id="planbtn" type="submit" class="coachbtn">Plan it</button>
+    </form>
+    <div id="planout" class="coachout" aria-live="polite"></div>
+  </section>
+<!--/full-->
+
+  <nav class="sections" aria-label="Sections">
+    <a href="#levels">Levels</a>
+<!--full-->
+    <a href="#zones">Zones</a>
+    <a href="#guide">Guide</a>
+<!--/full-->
+    <a href="#dungeons">Dungeons</a>
+<!--full-->
+    <a href="#analysis" hidden>Analysis</a>
+    <a href="#loot">Loot</a>
+    <a href="#deaths">Deaths</a>
+    <a href="#people">People</a>
+    <a href="#flights">Flights</a>
+<!--/full-->
+  </nav>
+
+  <div class="grid">
+    <section id="levels" class="block wide"><h2>The climb</h2><div class="body"></div></section>
+<!--full-->
+    <section id="analysis" class="block wide" hidden><h2>How you play</h2><div class="body"></div></section>
+    <section id="zones" class="block"><h2>Where the time went</h2><div class="body"></div></section>
+    <section id="guide" class="block"><h2>Guide steps</h2><div class="body"></div></section>
+<!--/full-->
+    <section id="dungeons" class="block"><h2>Dungeons</h2><div class="body"></div></section>
+<!--full-->
+    <section id="loot" class="block wide" hidden><h2>Loot</h2><div class="body"></div></section>
+    <section id="deaths" class="block"><h2>Deaths</h2><div class="body"></div></section>
+    <section id="people" class="block wide"><h2>People you keep running into</h2><div class="body"></div><div id="people-runs" class="body"></div></section>
+    <section id="flights" class="block"><h2>Flights</h2><div class="body"></div></section>
+<!--/full-->
+  </div>
+<!--full-->
+  <details id="debug" class="debug">
+    <summary>Query the events (LogsQL)</summary>
+    <form id="debugform" class="debugform">
+      <input id="debugq" type="text" spellcheck="false" autocomplete="off" aria-label="LogsQL query" placeholder='feed:="wow-level" | sort by (_time desc)'>
+      <button type="submit">Run</button>
+    </form>
+    <pre id="debugout" class="debugout"></pre>
+  </details>
+<!--/full-->
+</main>
+
+<section id="timeline" class="journal timeline" hidden aria-label="Timeline"></section>
+
+<!--full-->
+<section id="journal" class="journal" hidden aria-label="Journal">
+  <div class="jhead"><h2>Journal</h2><p id="journal-lede" class="lede"></p></div>
+  <ol id="journal-list" class="jlist"></ol>
+</section>
+<!--/full-->
+
+<footer id="foot" class="foot"></footer>
+</body>
+</html>

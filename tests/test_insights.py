@@ -1,0 +1,323 @@
+"""wowstats.insights: the rules behind the Overview, next_moves and
+sanity_check, on rows shaped like the real Polestar_Recorder records."""
+
+from wowstats import insights
+from wowstats.views import Views
+
+
+def row(t, kind, **kw):
+    return {"_time": t, "kind": kind, "source_id": f"rec:x:{t}:{kind}", **kw}
+
+
+DEATH = row("2026-11-16T19:20:22.3Z", "death", zone="Wetlands", npc_id="271351", npc_level="30",
+            npc_name="Dragonmaw Reclaimer")
+FIGHT = [
+    row("2026-11-16T19:17:24.2Z", "combat", on="false"),
+    row("2026-11-16T19:18:49.7Z", "combat", on="true"),
+    row("2026-11-16T19:20:05Z", "unit", npc_id="271351", level="30", reaction="h"),
+    row("2026-11-16T19:20:12Z", "unit", npc_id="1051", level="28", reaction="h"),
+    row("2026-11-16T19:20:15Z", "kill", npc_id="1051"),
+]
+
+
+def test_likely_killer_from_the_recorder_alone():
+    d = insights.fight_before(DEATH, FIGHT + [DEATH], 30)
+    assert d["killer"] == {"npc_id": 271351, "name": "Dragonmaw Reclaimer", "named": True, "level": 30, "likely": True,
+                           "how": "the recorder's own pick: the last hostile creature that targeted you within 10 s"}
+    assert d["fight_s"] == 92 and d["attackers"] == 2 and d["killed_in_fight"] == 1 and d["level_gap"] == 0
+
+
+def test_killer_falls_back_to_the_last_hostile_unit():
+    d = insights.fight_before({**DEATH, "npc_id": "", "npc_level": "", "npc_name": None}, FIGHT, 25)
+    assert d["killer"]["npc_id"] == 1051 and d["killer"]["likely"] and d["level_gap"] == 3
+    assert "last hostile creature seen" in d["killer"]["how"]
+
+
+def test_a_killer_is_named_from_game_data_never_by_its_id():
+    """The recorder logged no name for the creature: forever-db's name (the
+    knowledge base's game data); with none there either, what the recorder
+    saw of it (its classification), never "creature 1871"."""
+    nameless = {**DEATH, "npc_id": "1871", "npc_level": "30", "npc_name": None}
+    d = insights.fight_before(nameless, FIGHT, 30)
+    assert d["killer"]["name"] == "Eliza's Guard" and d["killer"]["named"]
+    unknown = {**DEATH, "npc_id": "999999", "npc_level": "34", "npc_name": None}
+    fight = FIGHT + [row("2026-11-16T19:20:18Z", "unit", npc_id="999999", level="34", reaction="h",
+                         classification="elite")]
+    d = insights.fight_before(unknown, fight, 30)
+    assert d["killer"] == {**d["killer"], "npc_id": 999999, "name": "an elite creature", "named": False}
+    assert insights.fight_before(unknown, FIGHT, 30)["killer"]["name"] == "an unnamed creature"
+    for k in (d["killer"], insights.fight_before(unknown, FIGHT, 30)["killer"]):
+        assert "999999" not in k["name"] and "creature 9" not in k["name"]
+
+
+def test_death_clusters():
+    k = {"npc_id": 271351, "name": "Dragonmaw Reclaimer", "level": 30}
+    ds = [{"zone": "Wetlands", "killer": k, "level_gap": 0}] * 2 + [
+        {"zone": "Wetlands", "killer": {**k, "npc_id": 1, "name": "Ogre"}, "level_gap": 4}]
+    by = {c["by"]: c for c in insights.death_clusters(ds)}
+    assert by["zone"]["n"] == 3 and by["creature"]["n"] == 2 and by["level gap"]["gap"] == 4
+
+
+def test_profession_capped_at_its_tier():
+    """Where to train, for the character's side, what it needs and costs,
+    from Polestar's guides: never invented."""
+    hd = {"faction": "Alliance", "race": "Gnome"}
+    c = insights.profession_claims(32, [{"skill_id": 333, "name": "Enchanting", "rank": 150, "max_rank": 150},
+                                        {"skill_id": 197, "name": "Tailoring", "rank": 119, "max_rank": 150}], {}, hd)
+    assert len(c) == 1 and c[0]["link"] == "#gear" and c[0]["title"] == "Train Expert Enchanting"
+    assert c[0]["text"] == ("Capped at 150: skill-ups are wasted until you train Expert Enchanting. Kitta Firewind, "
+                            "Elwynn Forest (64.8, 70.6); needs level 20 (met); 50 silver (before a reputation discount).")
+    sk = c[0]["skill"]
+    assert (sk["need_level"], sk["level_ok"], sk["need_skill"], sk["skill_ok"], sk["cost_copper"]) == (20, True, 125,
+                                                                                                       True, 5000)
+    assert [t["name"] for t in sk["trainers"]] == ["Kitta Firewind"]  # Hgarth is the Horde's
+    assert sk["trainers"][0]["url"] == "https://www.wowhead.com/forever/npc=11072"
+    assert sk["trainers"][0]["zone"]["url"] == "https://www.wowhead.com/forever/zone=12"
+    horde = insights.profession_claims(32, [{"skill_id": 333, "rank": 150, "max_rank": 150}], {}, {"faction": "Horde"})
+    assert [t["name"] for t in horde[0]["skill"]["trainers"]] == ["Hgarth"]
+
+
+def test_profession_without_a_trainer_in_the_data_says_so():
+    """Artisan Enchanting's trainer stands inside Uldaman with no spawn in
+    the data: no location is made up, Wowhead's search stands in."""
+    c = insights.profession_claims(40, [{"skill_id": 333, "rank": 225, "max_rank": 225}], {}, {"faction": "Alliance"})
+    assert "trainer location not in our data" in c[0]["text"]
+    # The guide has no price for it: the KB's profession.training_cost gives one.
+    assert "5 gold (before a reputation discount)" in c[0]["text"] and c[0]["skill"]["cost_copper"] == 50000
+    assert c[0]["skill"]["trainers"] == []
+    assert c[0]["skill"]["search_url"].startswith("https://www.wowhead.com/forever/search?q=Artisan%20Enchanting")
+
+
+def test_profession_level_not_met_is_said_and_weighs_less():
+    c = insights.profession_claims(15, [{"skill_id": 164, "rank": 150, "max_rank": 150}], {}, {"faction": "Horde"})
+    assert "needs level 20 (you are 15)" in c[0]["text"] and not c[0]["skill"]["level_ok"]
+    assert c[0]["weight"] < 3
+
+
+def test_riding_names_the_race_trainer_and_the_gold_to_go():
+    hd = {"faction": "Alliance", "race": "Gnome", "money_copper": 123456}
+    r = insights.riding_claims(32, hd, {})
+    # The bag counted to the silver; what's left is the price less that: the two add up.
+    assert r[0]["text"] == ("Riding at level 40 (you are 32): Binjy Featherwhistle, Dun Morogh (49.2, 48.1); 100 gold "
+                            "(before a reputation discount); you have 12 gold 34 silver; 87 gold 66 silver to go.")
+    assert r[0]["skill"]["money_copper"] == 123400
+    assert insights.riding_claims(31, hd, {}) == []  # more than RIDING_AHEAD levels off
+    assert insights.riding_claims(40, hd, {762: {"rank": 75}}) == []  # already rides
+    assert insights.riding_claims(40, {"race": "Night Elf"}, {})[0]["skill"]["trainers"][0]["name"] == "Jartsam"
+
+
+def _rules(monkeypatch, **over):
+    """kb.static_rule with some rules replaced (None: the KB doesn't know it)."""
+    from wowstats.analysis import kb
+
+    real = kb.static_rule
+    monkeypatch.setattr(kb, "static_rule", lambda n: over[n.replace(".", "_")] if n.replace(".", "_") in over
+                        else real(n))
+
+
+def test_profession_ranks_gates_and_price_come_from_the_kb(monkeypatch):
+    """profession.tiers and profession.training_cost drive the move: a
+    changed rule changes the gate and the price, no rule means no move."""
+    tiers = [{"rank": 1, "name": "Apprentice", "cap": 75, "need_level": None, "need_skill": 0},
+             {"rank": 2, "name": "Journeyman", "cap": 150, "need_level": 12, "need_skill": 60}]
+    _rules(monkeypatch, profession_tiers={"value": tiers}, profession_training_cost={"value": {"2": 777}})
+    c = insights.profession_claims(11, [{"skill_id": 202, "rank": 75, "max_rank": 75}], {}, {"faction": "Horde"})
+    sk = c[0]["skill"]
+    assert c[0]["title"] == "Train Journeyman Engineering"
+    # The guide's Journeyman Engineering price is Classic Era's: the KB's wins; its level gate (10) stays the guide's.
+    assert (sk["need_level"], sk["need_skill"], sk["cost_copper"]) == (10, 60, 777)
+    assert "needs level 10 (met)" in c[0]["text"] and "7 silver 77 copper" in c[0]["text"]
+    assert insights.profession_claims(40, [{"skill_id": 202, "rank": 150, "max_rank": 150}], {}, {}) == []
+    _rules(monkeypatch, profession_tiers=None)
+    assert insights.profession_claims(11, [{"skill_id": 202, "rank": 75, "max_rank": 75}], {}, {}) == []
+
+
+def test_riding_level_and_price_come_from_the_kb(monkeypatch):
+    hd = {"faction": "Alliance", "race": "Gnome", "money_copper": 0}
+    _rules(monkeypatch, riding_apprentice={"value": {"level": 30, "training_copper": 420000},
+                                           "source_url": "https://example.invalid", "last_verified": "2026-11-18"})
+    r = insights.riding_claims(25, hd, {})
+    assert r[0]["skill"]["need_level"] == 30 and r[0]["skill"]["cost_copper"] == 420000
+    assert r[0]["text"].startswith("Riding at level 30 (you are 25)") and "42 gold" in r[0]["text"]
+    _rules(monkeypatch, riding_apprentice=None)
+    assert insights.riding_claims(40, hd, {}) == []  # unknown: no move, never a guess
+
+
+def test_deaths_in_a_zone_say_what_to_change_or_stay_out():
+    """Counts only (no creature named): the level gap and the fights against
+    several give the next step; a zone outgrown, fought one at a time, has
+    none and isn't a move."""
+    ds = [{"zone": "Wetlands", "level": 24, "level_gap": 4, "attackers": 1},
+          {"zone": "Wetlands", "level": 25, "level_gap": 5, "attackers": 2},
+          {"zone": "Wetlands", "level": 25, "level_gap": 0, "attackers": 2}]
+    c = insights.deaths_zone_claim("Wetlands", ds, 26)
+    assert c["text"] == ("3 deaths in Wetlands at level 24-25: 2 to creatures 3+ levels above you (up to 5 above); "
+                         "2 with more than one attacker. Next time: come back at level 30 (you are 26) and pull one "
+                         "at a time.")
+    assert c["deaths"] == {"n": 3, "levels": [24, 25], "above": 2, "crowd": 2, "come_back_at": 30}
+    alone = [{**d, "attackers": 1} for d in ds]
+    assert insights.deaths_zone_claim("Wetlands", alone, 32) is None
+
+
+def test_every_claim_cites_its_data():
+    levels = [{"level": lv, "seconds": s, "xp": 1, "partial": False, "at": f"2026-11-1{lv - 20}T10:00:00Z"}
+              for lv, s in ((23, 8056), (24, 8542), (25, 7030), (26, 5978), (27, 10030))]
+    tr = insights.on_track(levels, {"level": 28, "eta_s": 3600, "xp_per_hour": 1}, None, {})
+    assert tr["verdict"] is None and tr["claims"]
+    sc = insights.sanity_check(28, [], {"claims": []}, tr, None, [], {}, [{"points": 10}])
+    assert sc["findings"][0]["text"] == "9 talent points unspent: spend them in the talent pane (N), anywhere."
+    assert sc["not_possible_yet"]
+    for c in tr["claims"] + sc["findings"]:
+        assert c["link"].startswith("#") and c["cite"]
+
+
+def test_an_empty_character_has_no_claims():
+    ov = insights.overview({"header": {}, "levels": [], "steps": {}}, None, [], None, {}, [], [])
+    assert ov["now"] == [] and ov["guide"]["claims"] == [] and ov["deaths"] == [] and ov["upgrades"] == []
+
+
+def test_recorder_played_counts_logged_in_time_only():
+    from wowstats.views import recorder_played
+
+    # Chunks roll every 300 s while the game runs; a longer silence is offline.
+    t = ["2026-11-17T12:00:00Z", "2026-11-17T12:05:00Z", "2026-11-17T12:10:02Z",  # 602 s on
+         "2026-11-17T18:00:00Z", "2026-11-17T18:04:00Z"]  # logged out for hours, then 240 s
+    assert recorder_played(t) == 842
+    assert recorder_played([]) is None
+
+
+def test_guide_picks_are_not_steps():
+    from wowstats.views import build_steps
+
+    g = "forever/alliance/03-darkshore-return"
+    rows = [
+        {"_time": "2026-11-17T12:00:00Z", "kind": "step", "guide": g, "step": "", "reason": "pick", "duration_s": "900"},
+        {"_time": "2026-11-17T12:01:00Z", "kind": "step", "guide": g, "step": "1", "reason": "auto", "duration_s": "60"},
+        {"_time": "2026-11-17T12:03:00Z", "kind": "step", "guide": g, "step": "2", "reason": "next", "duration_s": "120"},
+        {"_time": "2026-11-17T12:04:00Z", "kind": "step", "guide": "forever/lookup/pickup/stormwind-stockade",
+         "step": "4", "reason": "pick", "duration_s": "60"},
+    ]
+    st = build_steps(rows, Views.route_ref())
+    assert st["total"] == 2 and st["picks_total"] == 2
+    assert all(isinstance(a["step"], int) for a in st["slowest"])
+    assert st["median_s"] == 120, "the 900 s before the pick isn't a step"
+    assert st["picks"][1]["title"] == "Darkshore"
+    assert st["picks"][0]["title"] == "Pickup: Stormwind Stockade"
+    assert st["slowest"][0]["title"], "a numbered step carries the guide's own text"
+
+
+# Upgrades as the gear advice answers them (wowstats.gear): wearable now,
+# best first, each with its sources.
+def up(item_id, slot, gain, *sources, share=12.0):
+    return {"item_id": item_id, "name": f"Item {item_id}", "quality": 3, "slot": slot, "slot_name": f"Slot {slot}",
+            "gain": gain, "gain_share_pct": share, "now": True, "vs_unknown": False, "sources": list(sources)}
+
+
+RFK = {"kind": "drop", "boss": "Agathelos the Raging", "zone": "Razorfen Kraul", "dungeon": True,
+       "instance": "dungeon", "levels": [29, 38]}
+STRAT = {"kind": "drop", "boss": "Baron Rivendare", "zone": "Stratholme", "dungeon": True, "instance": "dungeon",
+         "levels": [58, 60]}
+RED_QUEST = {"kind": "quest", "quest_id": 1380, "name": "Khan Hratha", "zone": "Desolace", "level": 42}
+QUEST = {"kind": "quest", "quest_id": 98297, "name": "Stopping the Cycle", "zone": "Wetlands", "level": 34}
+ADVICE = {"upgrades": [up(1, 16, 35, RFK), up(2, 17, 33, RED_QUEST), up(3, 16, 30, QUEST), up(4, 5, 20, STRAT),
+                       up(5, 7, 10, QUEST, share=4)]}
+
+
+def test_moves_only_name_what_the_level_can_reach():
+    """A level-42 quest or a level-58 dungeon is no move at 32, however good
+    the item; the best upgrade per slot only."""
+    nm = insights.next_moves(32, ADVICE, {}, {}, {}, [], {})
+    ups = [m for m in nm["moves"] if m["kind"] == "upgrade"]
+    assert [m["item_id"] for m in ups] == [1, 5]  # 2: red quest, 3: same slot as 1, 4: Stratholme
+    rfk = ups[0]
+    assert rfk["link"] == "#up-16" and rfk["item"]["url"] == "https://www.wowhead.com/forever/item=1"
+    assert rfk["source"]["zone"] == {"name": "Razorfen Kraul", "id": 491, "levels": [29, 38],
+                                     "url": "https://www.wowhead.com/forever/guide/"
+                                            "razerfen-kraul-dungeon-overview-location-rewards"}
+    assert ups[1]["source"]["quest"]["url"] == "https://www.wowhead.com/forever/quest=98297"
+    dungeons = [m for m in nm["moves"] if m["kind"] == "dungeon"]
+    assert [m["title"] for m in dungeons] == ["Razorfen Kraul"] and "(levels 29-38)" in dungeons[0]["text"]
+    # Stratholme's drop is a move once the character is at its level.
+    assert any(m["title"] == "Stratholme" for m in insights.next_moves(58, ADVICE, {}, {}, {}, [], {})["moves"])
+
+
+def test_numbers_are_written_one_way():
+    levels = [{"level": lv, "seconds": 7200, "partial": False} for lv in range(20, 26)]
+    tr = insights.on_track(levels, {"level": 26, "eta_s": 3600, "xp_per_hour": 17398}, None, {})
+    assert any("17,398 XP an hour" in c["text"] for c in tr["claims"])
+    nm = insights.next_moves(26, None, {"rested_xp": 8554, "xp_max": 54500}, tr, {}, [], {})
+    assert nm["moves"][0]["text"].startswith("8,554 rested XP banked (0.16 of level 26)")
+    assert insights.ratio_text(2.03) == "2.0×" and insights.dur(11240) == "3h 07m"
+
+
+def test_overview_moves_differ_and_leave_the_tiles_alone():
+    nm = insights.next_moves(32, ADVICE, {"rested_xp": 10, "xp_max": 100}, {"eta_s": 60}, {}, [
+        {"skill_id": 333, "name": "Enchanting", "rank": 150, "max_rank": 150}], {})
+    ds = [{"zone": "Wetlands", "killer": {"npc_id": 9, "name": "Raptor"}, "level": 30, "attackers": 2}] * 3
+    sc = insights.sanity_check(32, ds, {}, {}, ADVICE, [], {}, None)
+    mv = insights.overview_moves(nm, sc)
+    kinds = [m["kind"] for m in mv]
+    assert "rested" not in kinds and "eta" not in kinds
+    assert len(set(kinds[:3])) == 3, kinds  # the three on show are three kinds of move
+    # Item 1 drops in a listed dungeon: named once, in that dungeon's move.
+    assert sum(1 for m in mv for i in [m.get("item") or {}, *(m.get("items") or [])] if i.get("item_id") == 1) == 1
+    dz = next(m for m in mv if m["kind"] == "deaths_zone")
+    assert dz["zone"]["url"] == "https://www.wowhead.com/forever/zone=11" and dz["title"] == "3 deaths in Wetlands"
+    assert dz["action"] == "Pull one at a time."
+
+
+def test_zogzog_overview_has_no_moves_about_creatures():
+    from wowstats import redact
+
+    ds = [{"zone": "Wetlands", "killer": {"npc_id": 9, "name": "Raptor"}, "level_gap": 4, "level": 28}] * 3
+    sc = insights.sanity_check(30, ds, {}, {}, ADVICE, [], {}, None)
+    mv = insights.overview_moves(insights.next_moves(30, ADVICE, {}, {}, {}, [], {}), sc)
+    assert {"deaths_creature", "deaths_level_gap"} <= {m["kind"] for m in mv}
+    assert next(m for m in mv if m["kind"] == "deaths_creature")["action"] == "Come back at level 32 (you are 30)."
+    # Outgrown at 32: still in the sanity check, no longer a move.
+    sc32 = insights.sanity_check(32, ds, {}, {}, ADVICE, [], {}, None)
+    assert {"deaths_creature", "deaths_level_gap"} <= {c["kind"] for c in sc32["findings"]}
+    assert not {"deaths_creature", "deaths_level_gap"} & {m["kind"] for m in insights.overview_moves({}, sc32)}
+    z = redact.zogzog("overview", {"moves": mv})
+    assert z["moves"] and {m["kind"] for m in z["moves"]} <= redact.ZOGZOG_MOVE_KINDS
+    assert "Raptor" not in str(z)
+
+
+def test_zone_links_find_dungeons_and_their_wings():
+    from wowstats import forever
+
+    assert forever.area_id("Razorfen Kraul") == 491  # the instance, not its entrance
+    assert forever.area_id("Scarlet Monastery: Library") == 796
+    assert forever.area_id("Nowhere") is None and insights.zone_ref(None) is None
+
+
+def test_zogzog_moves_keep_the_trainers_and_the_death_counts():
+    """/zogzog/ shows where to train and what the deaths had in common, in
+    the data's order, with no creature in it."""
+    from wowstats import redact
+
+    hd = {"faction": "Alliance", "race": "Gnome", "money_copper": 10000}
+    ds = [{"zone": "Wetlands", "level": 25, "level_gap": 4, "attackers": 2,
+           "killer": {"npc_id": 9, "name": "Raptor", "level": 29}}] * 3
+    sc = insights.sanity_check(32, ds, {}, {}, None, [{"skill_id": 186, "rank": 75, "max_rank": 75}], {}, None,
+                               None, hd)
+    nm = insights.next_moves(32, None, hd, {}, {}, [], {})
+    z = redact.zogzog("overview", {"moves": insights.overview_moves(nm, sc)})
+    by = {m["kind"]: m for m in z["moves"]}
+    assert set(by) == {"profession", "riding", "deaths_zone"}
+    assert len(by["profession"]["skill"]["trainers"]) > 1 and "side" not in by["profession"]["skill"]["trainers"][0]
+    zones = [t["zone"]["name"] for t in by["profession"]["skill"]["trainers"]]
+    assert zones == sorted(zones)  # by zone, never by distance from the character
+    assert by["deaths_zone"]["deaths"]["come_back_at"] == 29 and "Raptor" not in str(z)
+
+
+def test_one_item_one_move():
+    """An upgrade that a listed dungeon's move names goes into that move,
+    which ranks where the upgrade would have."""
+    nm = insights.next_moves(32, ADVICE, {}, {}, {}, [], {})
+    assert any(m["kind"] == "upgrade" and m["item_id"] == 1 for m in nm["moves"])  # the MCP's list keeps it
+    mv = insights.overview_moves(nm, insights.sanity_check(32, [], {}, {}, ADVICE, [], {}, None))
+    rfk = next(m for m in mv if m["kind"] == "dungeon")
+    assert [i["item_id"] for i in rfk["items"]] == [1] and rfk["weight"] == 3
+    assert not any(m["kind"] == "upgrade" and m["item_id"] == 1 for m in mv)
+    assert any(m["kind"] == "upgrade" and m["item_id"] == 5 for m in mv)  # a quest item: no dungeon names it

@@ -1,0 +1,839 @@
+"""The planner's inputs: one character's state and history as plain JSON,
+read from the stores the analysis reads, never from vm-wow.
+
+`gather(env)` builds the analysis' prep database (wowstats.analysis.prep)
+from the player's own game events, the knowledge base, the gear advice and
+the player's own Auctionator scans, then `extract()` reads what the
+estimator needs out of them. Both are deterministic: the same events give
+the same inputs, which is what the tests replay (tests/plan/).
+
+Nothing here comes from Battle.net: the Store is built without vm-wow, the
+prices are the player's own scans (feed wow-prices). So a stored plan holds
+no Battle.net data and needs no 30-day expiry.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import json
+import math
+import re
+import statistics
+import time
+from datetime import UTC, datetime
+
+from wowstats import quests
+
+LEVELING = re.compile(r"^forever/(alliance|horde)/")
+TRAVEL = re.compile(r"^(fly|boat|tram|zeppelin|portal|to|back to|hearth|take the|ride)\b", re.I)
+TRAVEL_DEST = re.compile(r"^(?:fly|boat|tram|zeppelin|portal) to (.+)$", re.I)
+CITIES = ("Stormwind", "Ironforge", "Darnassus", "Orgrimmar", "Thunder Bluff", "Undercity")
+CITY_STEP_MAX_S = 180
+# A step for one class only: "Druid training", "Warlock: Summon Felsteed".
+CLASS_STEP = re.compile(r"^(Warrior|Paladin|Hunter|Rogue|Priest|Shaman|Mage|Warlock|Druid)"
+                        r"(?: (?:training|trainer)\b|:)")
+
+
+def other_class(title: str, cls: str | None) -> bool:
+    m = CLASS_STEP.match(title or "")
+    return bool(m and cls and m.group(1).upper() != cls.upper())
+TRAINING = re.compile(r"(trainer|training)\b", re.I)
+# Recent history the pace and the rates read: enough levels to be stable,
+# recent enough to be the player as he plays now.
+PACE_LEVELS = 5
+RECENT_SESSIONS = 12
+
+
+def _f(v, d=None):
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return d
+    return x if math.isfinite(x) else d
+
+
+def _i(v, d=None):
+    x = _f(v)
+    return int(x) if x is not None else d
+
+
+# ---------------------------------------------------------------- gather
+
+
+def store_for(env: dict, like=None):
+    """The stores, with vm-wow left out on purpose (no Battle.net data):
+    from the settings, or the logs of an existing Store (`like`)."""
+    from wowstats.stores import Store, env_account
+
+    if like is not None:  # wowstats.stores.Store or the MCP's wowstats.mcp.store.Store
+        return Store(like.vl_url, like.vl_archive_url, "", getattr(like, "stream", None) or like.logs_filter,
+                     like.hot_days, profile_vm_url="", account_id=getattr(like, "account_id", 0))
+    return Store(env.get("VL_URL", "http://victorialogs:9428"), env.get("VL_ARCHIVE_URL", ""), "",
+                 env.get("LOGS_FILTER", "feed:wow-*"), int(env.get("VL_ARCHIVE_AFTER_DAYS", "89")), profile_vm_url="",
+                 account_id=env_account(env))
+
+
+def last_seen(store) -> str:
+    rows = store.vl(f"{store.stream} char:* | stats by (char) max(_time) as last_seen")
+    rows = [r for r in rows if r.get("char")]
+    if not rows:
+        raise LookupError("no character has any events yet")
+    return max(rows, key=lambda r: r.get("last_seen") or "")["char"].replace(" ", "-")
+
+
+def prices(store, days: int = 30) -> dict[int, dict]:
+    """The player's own Auctionator scans: per item, the newest day's lowest
+    buyout (copper), and the day."""
+    from wowstats.stores import dedupe, parse_t
+
+    rows = store.vl(f'{store.stream} feed:="wow-prices" _time:{days}d | fields _time, item_id, item_name, '
+                    f"price_copper, rev, source_id")
+    best: dict[int, dict] = {}
+    for r in dedupe(rows):
+        iid, p = _i(r.get("item_id")), _i(r.get("price_copper"))
+        if iid is None or p is None:
+            continue
+        t = parse_t(r.get("_time")).timestamp()
+        if iid not in best or t >= best[iid]["t"]:
+            best[iid] = {"t": t, "copper": p, "name": r.get("item_name")}
+    return best
+
+
+def gather(env: dict, char: str | None = None, now: float | None = None, store=None) -> dict:
+    """Read the stores and the KB; return extract()'s inputs."""
+    from wowstats import analysis
+    from wowstats.analysis import kb, prep
+    from wowstats.mcp import route
+
+    from . import store as plan_store
+
+    store = store_for(env, store)
+    char = prep.norm(char or env.get("DEFAULT_CHAR", "") or last_seen(store))
+    rows = prep.query(store, store.stream, char)
+    if not rows:
+        raise LookupError(f"no events for {char}")
+    knowledge = kb.shared(env)
+    advice = None
+    from wowstats import gear
+
+    loot: dict = {}
+    with contextlib.suppress(gear.GearError):
+        advice = gear.advise_rows(rows, analysis.weights_for(env, char))
+        loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char))
+    db = prep.build(rows, char, route.reference(), map_sizes=knowledge.meta.get("ui_map"),
+                    upgrades=(advice or {}).get("upgrades_all") or [])
+    try:
+        scans = prices(store)
+    except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail
+        scans = {}
+    inp = extract(db, knowledge, route.reference(), advice=advice, scans=scans,
+                  state=analysis.load_state(env, char), now=now, loot=loot, bags=gear.newest_bags(rows),
+                  done=quests.completed(rows))
+    inp["who"]["char"] = inp["who"].get("char") or char
+    inp["calibration"] = plan_store.calibration(env, char, inp["progress"])
+    inp["plan_reviews"] = plan_store.reviews(env, char, inp["progress"])[-3:]
+    return inp
+
+
+# ---------------------------------------------------------------- extract
+
+
+def q(db, sql: str, *a) -> list[tuple]:
+    return db.execute(sql, a).fetchall()
+
+
+def one(db, sql: str, *a):
+    r = db.execute(sql, a).fetchone()
+    return r[0] if r else None
+
+
+def step_kind(guide: str, title: str | None, prev_dest: str | None, planned_s: float | None) -> str:
+    """questing, travel, town or dungeon, from the step's place in the guide
+    and its title (the route has no other label): the lookup guides are
+    dungeon trips, a 'Fly to'/'Boat to' title is travel, a title that names
+    a hub some guide travels to (or a trainer) is town, and so are the short
+    steps after arriving in a capital city."""
+    title = title or ""
+    if guide.startswith("lookup/"):
+        return "dungeon"
+    if TRAVEL.match(title):
+        return "travel"
+    if TRAINING.search(title) or title in hubs():
+        return "town"
+    if prev_dest and any(c in prev_dest for c in CITIES) and (planned_s or 0) <= CITY_STEP_MAX_S:
+        return "town"
+    return "questing"
+
+
+_HUBS: set[str] | None = None
+
+
+def hubs() -> set[str]:
+    """Every place some guide's 'Fly to X', 'Boat to X' step goes to, plus the
+    capitals: the towns, from the route's own titles."""
+    global _HUBS
+    if _HUBS is None:
+        from wowstats.mcp import route
+
+        ref = route.reference()
+        out = set(CITIES)
+        for g in (ref.guides or {}).values():
+            for st in g.get("steps") or []:
+                m = TRAVEL_DEST.match(str(st[2] if len(st) > 2 else ""))
+                if m:
+                    out.add(m.group(1).strip())
+        _HUBS = out
+    return _HUBS
+
+
+def guide_steps(ref, guide: str) -> list[tuple[int, float, str]]:
+    g = (ref.guides or {}).get(guide) or {}
+    return [(int(s[0]), float(s[1] or 0), str(s[2] if len(s) > 2 else "")) for s in g.get("steps") or []]
+
+
+def kinds_for(guide: str, steps: list[tuple[int, float, str]]) -> dict[int, str]:
+    out, dest = {}, None
+    for n, planned, title in steps:
+        k = step_kind(guide, title, dest, planned)
+        out[n] = k
+        m = TRAVEL_DEST.match(title)
+        if m:
+            dest = m.group(1)
+        elif k == "travel" or k == "questing" and planned > CITY_STEP_MAX_S:
+            dest = None
+    return out
+
+
+def guide_sequence(ref, side: str, level: int) -> list[str]:
+    """The side's levelling guides from the one the route is in at `level`,
+    in the route's order (the guide each level ends in, then any guide of
+    the same bracket the level map skips, by its start level)."""
+    levels = (ref.levels or {}).get(side) or {}
+    seq: list[str] = []
+    for lv in sorted(int(k) for k in levels):
+        g = (levels.get(str(lv)) or {}).get("guide")
+        if g and g not in seq:
+            seq.append(g)
+    return [g for g in seq if (_i(((ref.guides or {}).get(g) or {}).get("level_end"), 0) or 0) >= level - 1]
+
+
+def position(db, ref) -> dict:
+    """Where the player is in Polestar's route: the guide and step Polestar
+    shows, the furthest step its pointer reached in that guide (the step he
+    was on, not yet done), and the step to plan from. Polestar falls back to
+    the first unfinished step at login (an open quest from earlier): when it
+    shows a step before the furthest one, the plan starts from the furthest
+    instead, or from the first step after it named after where he stands
+    (past it when that step is the trip there)."""
+    last = db.execute("SELECT guide, step, reason, t FROM records WHERE kind='step' AND guide LIKE 'forever/%' "
+                      "AND guide NOT LIKE 'forever/professions/%' ORDER BY t DESC LIMIT 1").fetchone()
+    if not last:
+        return {}
+    guide, step, reason, _ = last
+    furthest = one(db, "SELECT MAX(step) FROM records WHERE kind='step' AND guide=? AND reason IN "
+                       "('next','done','skip','auto')", guide) or step or 1
+    step = step or furthest
+    sub = db.execute("SELECT subzone, zone FROM records WHERE subzone IS NOT NULL OR zone IS NOT NULL ORDER BY t "
+                     "DESC LIMIT 1").fetchone() or (None, None)
+    bind = one(db, "SELECT bind FROM snapshots ORDER BY t DESC LIMIT 1")
+    steps = guide_steps(ref, guide)
+    titles = {n: t for n, _, t in steps}
+    anchor, why = furthest, "the step Polestar's pointer reached last"
+    names = list(dict.fromkeys(x for x in (sub[0], bind) if x))
+    if step < furthest:
+        for n in range(furthest, furthest + 11):
+            t = titles.get(n, "")
+            if any(x.lower() in t.lower() or t.lower() in x.lower() for x in names if t):
+                there = TRAVEL.match(t) and any(x.lower() in t.lower() for x in names) and n + 1 in titles
+                anchor = n + 1 if there else n
+                why = (f"Polestar fell back to step {step}; you are at {', '.join(names)}, so the plan starts "
+                       f"{'after' if there else 'at'} step {n} ({t})")
+                break
+    return {"guide": guide, "guide_title": ((ref.guides or {}).get(guide) or {}).get("title"), "shown_step": step,
+            "shown_title": titles.get(step), "reason": reason, "furthest_step": furthest, "anchor_step": anchor,
+            "anchor_title": titles.get(anchor), "anchor_why": why, "subzone": sub[0], "zone": sub[1]}
+
+
+def step_history(db, ref) -> list[dict]:
+    """Every levelling-guide step he spent time on: online time without AFK
+    (timeline) against the route's planned seconds, with the step's kind."""
+    rows = q(db, "SELECT guide, step, SUM(CASE WHEN afk=0 THEN dur_s ELSE 0 END), MIN(t0) FROM timeline "
+                 "WHERE guide IS NOT NULL AND step IS NOT NULL GROUP BY guide, step ORDER BY MIN(t0)")
+    kinds: dict[str, dict[int, str]] = {}
+    planned: dict[str, dict[int, tuple]] = {}
+    out = []
+    for g, st, act, t0 in rows:
+        if not (LEVELING.match(g) or g.startswith("lookup/")):
+            continue
+        if g not in kinds:
+            steps = guide_steps(ref, g)
+            kinds[g] = kinds_for(g, steps)
+            planned[g] = {n: (p, t) for n, p, t in steps}
+        p, title = planned[g].get(int(st), (None, None))
+        xp = one(db, "SELECT COALESCE(SUM(x.xp_gained),0) FROM xp x JOIN timeline t ON x.t > t.t0 AND x.t <= t.t1 "
+                     "WHERE t.guide=? AND t.step=?", g, st)
+        out.append({"guide": g, "step": int(st), "title": title, "kind": kinds[g].get(int(st), "dungeon" if
+                    g.startswith("lookup/") else "questing"), "planned_s": p, "actual_s": round(act or 0, 1),
+                    "xp": int(xp or 0), "t": t0})
+    return out
+
+
+def open_quests(db, level: int) -> list[dict]:
+    from wowstats import forever
+
+    rows = q(db, """WITH ev AS (SELECT quest_id, kind, t, zone, level, ROW_NUMBER() OVER (PARTITION BY quest_id
+                 ORDER BY t DESC) rn FROM records WHERE kind IN ('accept','turnin','abandon','complete','fail')
+                 AND quest_id IS NOT NULL) SELECT quest_id, kind, t FROM ev WHERE rn=1 AND kind IN
+                 ('accept','complete') ORDER BY t""")
+    out = []
+    for qid, kind, t in rows:
+        acc = db.execute("SELECT zone, level, t FROM records WHERE kind='accept' AND quest_id=? ORDER BY t DESC "
+                         "LIMIT 1", (qid,)).fetchone() or (None, None, t)
+        fq = forever.quest(qid) or {}
+        out.append({"quest_id": int(qid), "name": fq.get("name") or one(
+            db, "SELECT quest_name FROM records WHERE quest_id=? AND quest_name IS NOT NULL LIMIT 1", qid),
+            "level": fq.get("level"), "min_level": fq.get("min_level"), "zone": fq.get("zone") or acc[0],
+            "accepted_zone": acc[0], "accepted_level": acc[1], "accepted_t": acc[2], "complete": kind == "complete",
+            "last_in_zone_t": one(db, "SELECT MAX(t) FROM records WHERE zone=?", fq.get("zone") or acc[0])})
+    return out
+
+
+def quest_facts(knowledge, qid: int) -> dict:
+    """XP and the 'group' hints of a quest from the KB's forever-db document."""
+    d = (knowledge.get([f"quest:{qid}"]) or [{}])[0] if knowledge is not None else {}
+    body = d.get("body") or ""
+    xp = re.search(r"XP (\d+)", body)
+    return {"xp": int(xp.group(1)) if xp else None,
+            "elite": bool(re.search(r"\belite\b|a group is needed|group quest", body, re.I)),
+            "dungeon": bool(re.search(r"dungeon quest|in a dungeon", body, re.I)),
+            "starts": (re.search(r"Starts: NPC \d+ ([^.;]+)", body) or [None, None])[1],
+            "ends": (re.search(r"Ends: (?:NPC|object) \d+ ([^.;]+)", body) or [None, None])[1]}
+
+
+def xp_share(level: int, quest_level: int | None, rule: dict | None) -> float | None:
+    """The share of a quest's XP a hand-in pays at this level, by the KB's
+    rule quest_xp.share_by_levels_over; None when the KB has no such rule."""
+    if rule is None:
+        return None
+    if quest_level is None:
+        return 1.0
+    v = rule["value"]
+    over = level - quest_level
+    if over <= v["full_up_to"]:
+        return 1.0
+    return float(v.get(str(over), v["8_and_over"]))
+
+
+def mount_facts(knowledge) -> dict:
+    """The riding tiers from the KB's static rules (riding.apprentice,
+    riding.journeyman, riding.vendor_mounts, riding.city_discount), each
+    with its source. A tier without a rule is unknown: left out."""
+    rule = knowledge.rule if knowledge is not None else (lambda _n: None)
+    tiers = []
+    for name in ("riding.apprentice", "riding.journeyman"):
+        r = rule(name)
+        if not r:
+            continue
+        v = r["value"]
+        vendor = (rule("riding.vendor_mounts") or {}).get("value") or {}
+        tiers.append({"name": name, "level": v["level"], "skill": v.get("skill"),
+                      "training_copper": v["training_copper"], "comes_with_mount": bool(v.get("comes_with_mount")),
+                      "vendor_mount_copper": vendor.get(str(v["level"])), "source": cite(r)})
+    disc = rule("riding.city_discount")
+    return {"tiers": tiers, "discount": {"pct": disc["value"]["pct"], "reputation": disc["value"].get("reputation"),
+                                         "source": cite(disc)} if disc else None,
+            "unknown": [] if len(tiers) == 2 else ["a riding tier: the KB has no sourced rule for it"]}
+
+
+def cite(r: dict) -> dict:
+    return {k: r.get(k) for k in ("name", "source_url", "source_type", "date", "confidence", "scope")}
+
+
+def riding_known(db) -> int:
+    """The riding skill the records saw (0: none): the client's Riding skill
+    line (kb.RIDING), as the shipper reports skill ranks."""
+    from wowstats.analysis.kb import RIDING
+
+    return _i(one(db, "SELECT MAX(CAST(json_extract(extra, '$.rank') AS INTEGER)) FROM records WHERE kind='skill' "
+                      "AND CAST(json_extract(extra, '$.skill_id') AS TEXT) = ?", RIDING), 0) or 0
+
+
+def rested_burn(db) -> dict:
+    """How much rested XP his kills use, measured: over the 5-minute XP
+    records where the rested pool went down, rested XP used against the kill
+    XP recorded in the same intervals (outside dungeons). No rule assumed."""
+    r = db.execute("""WITH x AS (SELECT t, rested_xp r, LAG(t) OVER (ORDER BY t) pt, LAG(rested_xp) OVER (ORDER BY t)
+                   pr FROM xp) SELECT COUNT(*), COALESCE(SUM(pr - r), 0), (SELECT COALESCE(SUM(k.xp_reward), 0)
+                   FROM records k WHERE k.kind='kill' AND k.dungeon_trip_id IS NULL AND EXISTS (SELECT 1 FROM x x2
+                   WHERE k.t > x2.pt AND k.t <= x2.t AND x2.pr > x2.r)) FROM x WHERE pr > r""").fetchone()
+    n, used, kill = r
+    return {"intervals": n, "rested_used": used, "kill_xp": kill,
+            "per_kill_xp": round(used / kill, 2) if kill and n >= 3 else None}
+
+
+def route_levels(ref, meta: dict, level: int) -> dict:
+    """The route's seconds per level for this side and class, from here to
+    the route's last level."""
+    side = meta.get("faction")
+    cls = str(meta.get("class") or "").upper()
+    out = {}
+    if not side:
+        return out
+    levels = (ref.levels or {}).get(side) or {}
+    for lv in sorted(int(k) for k in levels if int(k) >= max(1, level)):
+        row = levels.get(str(lv)) or {}
+        s = (row.get("by_class") or {}).get(cls) or row.get("seconds")
+        if s:
+            out[str(lv)] = s
+    return out
+
+
+def progress(db) -> list[dict]:
+    """Every XP record as (t, level with the fraction, online seconds since
+    the first record): what a plan is compared with."""
+    segs = q(db, "SELECT t0, t1, dur_s FROM timeline ORDER BY t0")
+    out, on, i = [], 0.0, 0
+    for t, level, xp, xp_max in q(db, "SELECT t, level, xp, xp_max FROM xp WHERE level IS NOT NULL ORDER BY t"):
+        while i < len(segs) and segs[i][1] <= t:
+            on += segs[i][2] or 0
+            i += 1
+        out.append({"t": t, "level": round(level + (xp or 0) / xp_max, 3) if xp_max else float(level),
+                    "online_s": round(on)})
+    return out
+
+
+def gold_rate(db, days: float = 14, now: float | None = None) -> dict:
+    """Net gold per online hour between logout snapshots: the money on the
+    newest one minus the oldest one in the window, over the online time
+    between (everything earned less everything spent)."""
+    now = now or time.time()
+    rows = q(db, "SELECT t, money_copper, online_s_since_prev FROM snapshots WHERE t >= ? ORDER BY t",
+             now - days * 86400)
+    if len(rows) < 2:
+        return {"n": len(rows), "copper_per_hour": None}
+    online = sum(r[2] or 0 for r in rows[1:])
+    net = rows[-1][1] - rows[0][1]
+    changes = sum(1 for a, b in zip(rows, rows[1:], strict=False) if a[1] != b[1])
+    return {"n": len(rows), "changes": changes, "net_copper": net, "online_s": round(online),
+            "copper_per_hour": round(net / online * 3600) if online > 0 else None,
+            "from_t": rows[0][0], "to_t": rows[-1][0]}
+
+
+def trips(db) -> list[dict]:
+    cols = [c[1] for c in db.execute("PRAGMA table_info(dungeon_trips)")]
+    out = []
+    for r in q(db, "SELECT * FROM dungeon_trips ORDER BY start_t"):
+        d = dict(zip(cols, r, strict=True))
+        for k in ("quest_ids", "loot_inside", "rewards", "still_worn", "steps"):
+            with contextlib.suppress(TypeError, ValueError):
+                d[k] = json.loads(d[k] or "[]")
+        run = db.execute("SELECT start_t, left_t FROM dungeon_runs WHERE name=? AND start_t BETWEEN ? AND ? "
+                         "ORDER BY start_t LIMIT 1", (d["dungeon"], d["start_t"], d["end_t"])).fetchone()
+        if run:
+            d["kills_inside"] = one(db, "SELECT COUNT(*) FROM records WHERE kind='kill' AND t BETWEEN ? AND ?",
+                                    run[0], run[1])
+            # Each kill's creature level, elites flagged (classification e,
+            # R or b): what carries the run's kill XP to another character
+            # level (wowstats.plan.dungeongain).
+            d["kill_levels"] = [[lv, 1 if cl in ("e", "R", "b") else 0] for lv, cl in q(
+                db, "SELECT npc_level, json_extract(extra, '$.classification') FROM records WHERE kind='kill' AND "
+                    "t BETWEEN ? AND ? AND npc_level IS NOT NULL", run[0], run[1])]
+        out.append({k: (round(v, 1) if isinstance(v, float) else v) for k, v in d.items()})
+    return out
+
+
+def loot_value(db, cards, scans: dict, days: float = 14, now: float | None = None) -> dict:
+    """What the questing loot was worth per online hour over the last days,
+    outside dungeons: at a vendor (the client's sell price) and, for what he
+    scanned, at his own Auctionator prices."""
+    now = now or time.time()
+    t0 = now - days * 86400
+    online = one(db, "SELECT COALESCE(SUM(dur_s),0) FROM timeline WHERE t0 >= ? AND instance IS NULL", t0) or 0
+    rows = q(db, "SELECT li.item_id, SUM(li.count) FROM loot_items li JOIN records r ON r.rec_id = li.rec_id "
+                 "WHERE li.t >= ? AND r.dungeon_trip_id IS NULL GROUP BY li.item_id", t0)
+    vendor = ah = 0
+    items = []
+    for iid, n in rows:
+        c = (cards(iid) or {}) if cards else {}
+        sell = c.get("sell") or 0
+        price = (scans.get(iid) or {}).get("copper")
+        vendor += sell * n
+        if price and c.get("b") != "Binds when picked up":
+            ah += max(price, sell) * n
+            items.append({"item_id": iid, "name": c.get("n") or (scans.get(iid) or {}).get("name"), "count": n,
+                          "ah_copper": price, "vendor_copper": sell})
+    items.sort(key=lambda x: -(x["ah_copper"] or 0) * x["count"])
+    hours = online / 3600
+    return {"online_s": round(online), "vendor_per_hour": round(vendor / hours) if hours else None,
+            "ah_items": items[:8], "ah_per_hour": round(ah / hours) if hours and ah else None}
+
+
+def run_loot(trip: dict, cards, scans: dict) -> dict:
+    """One dungeon run's loot inside, valued: vendor price of everything,
+    and the binds-on-equip greens and blues and the tradeables at his own
+    scan prices where he has them."""
+    vendor = ah = 0
+    boe = []
+    n = 0
+    for iid, cnt in trip.get("loot_inside") or []:
+        c = (cards(iid) or {}) if cards else {}
+        n += cnt
+        vendor += (c.get("sell") or 0) * cnt
+        price = (scans.get(iid) or {}).get("copper")
+        if c.get("q", 0) >= 2 and c.get("b") == "Binds when equipped":
+            boe.append({"item_id": iid, "name": c.get("n"), "quality": c.get("q"), "ah_copper": price,
+                        "vendor_copper": c.get("sell")})
+        if price and c.get("b") != "Binds when picked up":
+            ah += price * cnt
+    return {"items": n, "vendor_copper": vendor, "boe": boe, "ah_copper": ah or None}
+
+
+def card_lookup():
+    """The item cards (Forever's client tables), when they can be had."""
+    try:
+        from wowstats import itemcard
+
+        cat = itemcard.shared()
+        return cat.card
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def owned(db, worn_ids: list[int], bags: dict | None) -> dict:
+    """What the character has, by item ID: worn (the newest sheet), in the
+    bags or the bank (the newest wow-bags), looted or got as a quest reward
+    (the Recorder's records, with the first time). `inventory_known` says
+    whether bags and bank were reported at all: without them, a looted item
+    may be worn, held or long sold."""
+    where: dict[int, dict] = {}
+    for iid, t in q(db, "SELECT item_id, MIN(t) FROM loot_items WHERE item_id IS NOT NULL GROUP BY item_id"):
+        where[int(iid)] = {"where": "looted", "t": t}
+    for iid, t in q(db, "SELECT item_id, MIN(t) FROM records WHERE kind='turnin' AND item_id IS NOT NULL "
+                        "GROUP BY item_id"):
+        where.setdefault(int(iid), {"where": "reward", "t": t})
+    for k in ("bank", "bags"):
+        for iid in (bags or {}).get(k) or []:
+            where[int(iid)] = {"where": k, "t": (where.get(int(iid)) or {}).get("t")}
+    for iid in worn_ids:
+        where[int(iid)] = {"where": "worn", "t": (where.get(int(iid)) or {}).get("t")}
+    return {"items": {str(k): v for k, v in where.items()}, "inventory_known": bags is not None,
+            "inventory_t": (bags or {}).get("t")}
+
+
+QUEST_SIDE = re.compile(r"\bside (alliance|horde|both)\b", re.I)
+QUEST_WHO = re.compile(r"(NPC|object|item) (\d+) ([^;.]+)")
+
+
+def _quest_who(body: str, label: str) -> list[dict]:
+    """"Starts: NPC 234 Gryan Stoutmantle; item 2874 An Unsent Letter." ->
+    [{kind, id, name}], as tools/kb/export.py writes forever-db's quests."""
+    m = re.search(label + r": (.*?)\.(?: [A-Z][a-z]+:|$)", body)
+    return [{"kind": k.lower(), "id": int(i), "name": n.strip()} for k, i, n in QUEST_WHO.findall(m.group(1))] \
+        if m else []
+
+
+def dungeon_quests(knowledge, side: str | None, runs: dict) -> dict[str, dict]:
+    """Per dungeon (its area ID), the quests that belong to it: the ones whose
+    zone is the dungeon in forever-db, and the ones Polestar's run of it
+    picks up, works on or hands in (an item that starts a quest inside, a
+    hand-in in a city). The other side's are left out. Each with its level,
+    XP (forever-db, Forever's own numbers), who gives it and who takes it
+    back, and Polestar's note on it: picked up on the route, or left out
+    and why. {area ID: {quests, other_side}}: `other_side` counts the other
+    side's quests, so a dungeon with only those (Ragefire Chasm for the
+    Alliance) reads as the other side's."""
+    from wowstats import forever
+
+    from .estimate import dkey
+
+    areas = {aid: a for aid, a in ((forever.data() or {}).get("areas") or {}).items()
+             if a.get("instance") == "dungeon"}
+    by_key = {dkey(a["name"]): aid for aid, a in areas.items()}
+    want: dict[str, dict[int, str | None]] = {aid: {} for aid in areas}
+    for qid, row in ((forever.data() or {}).get("quests") or {}).items():
+        aid = forever.dungeon_area(row[3])
+        if aid in want:
+            want[aid][int(qid)] = None
+    for name, r in runs.items():
+        aid = by_key.get(dkey(name))
+        if aid is None:
+            continue
+        for kind in ("pickups", "objectives", "item_starts", "handins"):
+            for qid in r.get(kind) or []:
+                if isinstance(qid, int):
+                    want[aid][qid] = "route"
+        for qid, why in (r.get("left_out") or {}).items():
+            if str(qid).isdigit() and int(qid) in want[aid]:
+                want[aid][int(qid)] = f"left out of Polestar's route: {why}"
+    pre = (forever.data() or {}).get("pre") or {}
+
+    def prereqs(qid: int) -> list[int]:
+        return sorted({p for part in pre.get(str(qid)) or [[], []] for p in part})
+
+    ids = sorted({q for qs in want.values() for q in qs} | {p for qs in want.values() for q in qs
+                                                             for p in prereqs(q)})
+    docs: dict[int, str] = {}
+    item_docs: dict[int, str] = {}
+
+    def fetch(prefix: str, wanted: list[int], into: dict[int, str]) -> None:
+        for k in range(0, len(wanted), 500):
+            part = [f"{prefix}:{q}" for q in wanted[k:k + 500]]
+            for did, body in knowledge.db.execute(
+                    "SELECT id, body FROM docs WHERE id IN (" + ",".join("?" * len(part)) + ")", part):
+                into[int(did.split(":")[1])] = body or ""
+
+    if knowledge is not None and ids:
+        lock = getattr(knowledge, "lock", None) or contextlib.nullcontext()
+        with lock:
+            fetch("quest", ids, docs)
+            starters = sorted({w["id"] for b in docs.values() for w in _quest_who(b, "Starts") if w["kind"] == "item"})
+            fetch("item", starters, item_docs)
+
+    def how(qid: int) -> dict:
+        """Where a prerequisite quest starts: its NPC or object, or the item
+        that starts it and the creatures that drop that item."""
+        starts = _quest_who(docs.get(qid, ""), "Starts")
+        drops = []
+        for w in starts:
+            if w["kind"] == "item":
+                m = re.search(r"Sources: (.*?)(?:\. [A-Z][a-z]+:|$)", item_docs.get(w["id"], ""))
+                found = re.findall(r"(NPC|object) (\d+) ([^;]+?) \d+(?:\.\d+)?%", m.group(1)) if m else []
+                drops += [{"kind": k.lower(), "id": int(i), "name": n.strip()} for k, i, n in found]
+        return {"starts": starts, "drops": drops}
+    out: dict[str, dict] = {}
+    for aid, qs in want.items():
+        rows, other = [], 0
+        for qid, note in sorted(qs.items()):
+            body = docs.get(qid, "")
+            sd = QUEST_SIDE.search(body)
+            sd = sd.group(1).title() if sd else None
+            if side and sd and sd not in (side, "Both"):
+                other += 1
+                continue
+            fq = forever.quest(qid) or {}
+            xp = re.search(r"XP (\d+)", body)
+            mn = re.search(r"Money (\d+) copper", body)
+            rows.append({"quest_id": qid, "name": fq.get("name"), "level": fq.get("level"),
+                         "min_level": fq.get("min_level"), "zone": fq.get("zone"),
+                         "side": sd, "xp": int(xp.group(1)) if xp else None,
+                         "money_copper": int(mn.group(1)) if mn else None,
+                         "starts": _quest_who(body, "Starts"), "ends": _quest_who(body, "Ends"),
+                         "route": note, "pre": {str(p): how(p) for p in prereqs(qid)}})
+        if rows or other:
+            out[aid] = {"quests": _one_per_title(rows), "other_side": other}
+    return out
+
+
+def _one_per_title(rows: list[dict]) -> list[dict]:
+    """One row per quest title and side: forever-db has a quest per item a
+    repeatable hand-in takes (Gnomeregan's "The Sparklematic 5200!" six
+    times), which would count as six quests and six times the XP. Chains
+    that share a title (forever.data()["parts"]) stay apart. The row kept
+    is the first with XP; `variants` lists every ID, so any of them done or
+    in the log counts."""
+    from wowstats import forever
+
+    parts = (forever.data() or {}).get("parts") or {}
+    out: list[dict] = []
+    by: dict[tuple, dict] = {}
+    for r in rows:
+        k = (r["name"], r["side"]) if r["name"] and str(r["quest_id"]) not in parts else ("#", r["quest_id"])
+        kept = by.get(k)
+        if kept is None:
+            by[k] = r
+            out.append(r)
+        else:
+            kept.setdefault("variants", [kept["quest_id"]]).append(r["quest_id"])
+            if kept["xp"] is None and r["xp"] is not None:
+                ids = kept["variants"]
+                out[out.index(kept)] = by[k] = {**r, "variants": ids}
+    return out
+
+
+def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | None = None, state: dict | None = None,
+            reviews: dict | None = None, now: float | None = None, cards=None, loot: dict | None = None,
+            bags: dict | None = None, done: dict[int, str] | None = None) -> dict:
+    """The estimator's inputs, JSON only. `done`: wowstats.quests.completed
+    of the character's events; without it, the Recorder's hand-ins in `db`."""
+    from wowstats import forever
+
+    now = now or time.time()
+    scans = scans or {}
+    cards = cards if cards is not None else card_lookup()
+    quests_done = done
+    if quests_done is None:
+        turnins = q(db, "SELECT DISTINCT quest_id FROM records WHERE kind='turnin'")
+        quests_done = quests.completed({"kind": "turnin", "quest_id": r[0]} for r in turnins)
+    meta = dict(q(db, "SELECT key, value FROM meta"))
+    x = db.execute("SELECT t, level, xp, xp_max, rested_xp, zone FROM xp ORDER BY t DESC LIMIT 1").fetchone()
+    snap = db.execute("SELECT t, level, xp, xp_max, money_copper, zone, bind, resting FROM snapshots ORDER BY t DESC "
+                      "LIMIT 1").fetchone()
+    level = max(_i(x[1], 0) if x else 0, _i(snap[1], 0) if snap else 0,
+                one(db, "SELECT MAX(level) FROM records") or 0)
+    xp_now = x[2] if x and x[1] == level else (snap[2] if snap and snap[1] == level else 0)
+    xp_max = x[3] if x and x[1] == level else (snap[3] if snap and snap[1] == level else None)
+    last_t = one(db, "SELECT MAX(t) FROM records") or now
+    # Rested XP left at the last record, plus what logging out added since
+    # (the KB's Classic rates, labelled as such).
+    rested_then = (x[4] if x else 0) or 0
+    resting = bool(snap[7]) if snap and snap[7] is not None else None
+    away = max(0.0, now - last_t)
+    acc = knowledge.rule("rested.accrual") if knowledge is not None else None
+    if acc:
+        v = acc["value"]
+        gain = (xp_max or 0) * v["per_8h_rested_area"] * (away / 28800) * (1 if resting else v["away_factor"])
+        rested_now = min(rested_then + gain, (xp_max or 0) * v["cap_levels"])
+    else:
+        rested_now = rested_then  # no sourced accrual rule: only what the game last said
+    levels = [dict(zip(("level", "played_s", "xp", "planned_s", "partial"), r, strict=True)) for r in
+              q(db, "SELECT level, played_s, xp, planned_s, partial FROM levels ORDER BY level")]
+    xp_table = {lv["level"]: lv["xp"] for lv in levels if lv["xp"]}
+    if xp_max:
+        xp_table[level] = xp_max
+    hist = step_history(db, ref)
+    pos = position(db, ref)
+    side = meta.get("faction")
+    seq = guide_sequence(ref, side, level) if side else []
+    ahead: list[dict] = []
+    if pos:
+        guides = [pos["guide"]] + [g for g in seq if g != pos["guide"]][:3] if pos["guide"] in seq or not seq else \
+            [pos["guide"]] + seq[:3]
+        if pos["guide"] in seq:
+            guides = [pos["guide"]] + seq[seq.index(pos["guide"]) + 1:][:3]
+        for g in guides:
+            steps = guide_steps(ref, g)
+            kinds = kinds_for(g, steps)
+            start = pos["anchor_step"] if g == pos["guide"] else 1
+            ahead += [{"guide": g, "guide_title": ((ref.guides or {}).get(g) or {}).get("title"), "step": n,
+                       "planned_s": p, "title": t, "kind": kinds[n]} for n, p, t in steps
+                      if n >= start and not other_class(t, meta.get("class"))]
+        steps = guide_steps(ref, pos["guide"])
+        kinds = kinds_for(pos["guide"], steps)
+        pos["passed_over"] = [{"step": n, "planned_s": p, "title": t, "kind": kinds[n]} for n, p, t in steps
+                              if pos["furthest_step"] <= n < pos["anchor_step"]]
+        pos["shown_behind"] = [{"step": n, "planned_s": p, "title": t, "kind": kinds[n]} for n, p, t in steps
+                               if pos["shown_step"] <= n <= pos["shown_step"] + 1 and pos["shown_step"] <
+                               pos["furthest_step"]]
+    sessions = [dict(zip(("session_id", "start_t", "online_s", "afk_s", "xp_gained", "level_start", "level_end"), r,
+                         strict=True)) for r in q(db, "SELECT s.session_id, s.start_t, a.online_s, a.afk_s, "
+                                                      "s.xp_gained, s.level_start, s.level_end FROM sessions s JOIN "
+                                                      "agg_session a ON a.session_id = s.session_id ORDER BY s.start_t "
+                                                      "DESC LIMIT ?", RECENT_SESSIONS)]
+    done = [lv for lv in levels if lv["played_s"] and not lv["partial"] and lv["level"] < level][-PACE_LEVELS:]
+    lo = done[0]["level"] if done else level
+    ding_lo = one(db, "SELECT MIN(t) FROM records WHERE level >= ?", lo) or 0
+    kill_xp = one(db, "SELECT COALESCE(SUM(xp_reward),0) FROM records WHERE kind='kill' AND t >= ? AND "
+                      "dungeon_trip_id IS NULL", ding_lo) or 0
+    all_xp = one(db, "SELECT COALESCE(SUM(xp_gained),0) FROM xp WHERE t >= ?", ding_lo) or 0
+    share_rule = knowledge.rule("quest_xp.share_by_levels_over") if knowledge is not None else None
+    oq = open_quests(db, level)
+    for o in oq:
+        o.update({k: v for k, v in quest_facts(knowledge, o["quest_id"]).items() if k != "xp"},
+                 xp_full=quest_facts(knowledge, o["quest_id"])["xp"])
+    trainer = db.execute("SELECT t, level FROM records WHERE kind='trainer' ORDER BY t DESC LIMIT 1").fetchone()
+    ding_even = one(db, "SELECT MAX(t) FROM records WHERE kind='level' AND level % 2 = 0")
+    profs = [dict(zip(("name", "rank", "max_rank"), r, strict=True))
+             for r in q(db, "SELECT name, rank, max_rank FROM professions")]
+    prof_rate = {}
+    for p in profs:
+        sl = f"forever/professions/{(p['name'] or '').lower()}"
+        secs = one(db, "SELECT COALESCE(SUM(dur_s),0) FROM timeline WHERE guide=? AND afk=0", sl) or 0
+        ups = one(db, "SELECT COUNT(*) FROM records r JOIN timeline t ON r.t > t.t0 AND r.t <= t.t1 WHERE "
+                      "r.kind='skill' AND t.guide=?", sl) or 0
+        prof_rate[p["name"]] = {"seconds": round(secs), "skill_ups": ups}
+    tr = trips(db)
+    for t in tr:
+        t["loot"] = run_loot(t, cards, scans)
+    ups = (advice or {}).get("upgrades_all") or []
+    for u in ups:
+        u["ah_copper"] = (scans.get(u.get("item_id")) or {}).get("copper")
+    st = state or {}
+    findings = sorted((st.get("findings") or {}).values(), key=lambda f: -float(f.get("score") or 0))
+    dungeons = []
+    for aid, a in ((forever.data() or {}).get("areas") or {}).items():
+        lv = a.get("levels") or []
+        if a.get("instance") == "dungeon" and len(lv) == 2 and lv[1] >= level - 2 and lv[0] <= level + 5:
+            dungeons.append({"area_id": int(aid), "name": a["name"], "min": lv[0], "max": lv[1]})
+    from .dungeonview import kb_areas
+
+    for a in kb_areas().values():  # Forever's new dungeons the client's tables don't list (the KB's)
+        lv = a["levels"]
+        if lv[1] >= level - 2 and lv[0] <= level + 5:
+            dungeons.append({"area_id": None, "name": a["name"], "min": lv[0], "max": lv[1], "rule": a["rule"]})
+    runs = {}
+    if knowledge is not None:
+        for d in knowledge.db.execute("SELECT id, body FROM docs WHERE kind='polestar-dungeon'").fetchall():
+            with contextlib.suppress(ValueError):
+                j = json.loads(d[1])
+                if isinstance(j, dict) and j.get("faction") in (side, "Both") and side:
+                    runs[j["dungeon"]] = {"objectives": (j.get("run") or {}).get("objectives") or [],
+                                          "pickups": [p.get("quest") for p in j.get("pickups") or []],
+                                          "guide": (j.get("run") or {}).get("guide"),
+                                          "handins": [h.get("quest") for h in j.get("handins") or []],
+                                          "item_starts": [x.get("quest") for x in
+                                                          (j.get("run") or {}).get("itemStarts") or []],
+                                          "notes": {str(p.get("quest")): p.get("note") for p in j.get("pickups") or []
+                                                    if p.get("note")},
+                                          "left_out": {str(k): v for k, v in (j.get("leftOut") or {}).items()}}
+    worn_ids = sorted({_i(i.get("item_id")) for i in ((advice or {}).get("slots") or [])
+                       for i in [i.get("current") or {}] if i.get("item_id")})
+    return {
+        "schema": 1, "now_t": now, "data_until_t": last_t,
+        "who": {k: meta.get(k) for k in ("char", "class", "race", "faction")},
+        "level": level, "xp": xp_now or 0, "xp_max": xp_max, "rested_xp_then": rested_then,
+        "rested_xp": round(rested_now), "resting": resting, "offline_s": round(away),
+        "zone": (pos or {}).get("zone") or (snap[5] if snap else None), "subzone": (pos or {}).get("subzone"),
+        "bind": snap[6] if snap else None, "gold_copper": snap[4] if snap else None,
+        "professions": profs, "profession_rate": prof_rate,
+        "open_quests": oq, "position": pos, "route_ahead": ahead, "step_history": hist,
+        "levels": levels, "xp_table": {str(k): v for k, v in xp_table.items()},
+        "sessions": sessions, "kill_xp_share": round(kill_xp / all_xp, 3) if all_xp else None,
+        "kill_xp_levels": [lo, level],
+        "trainer": {"last_t": trainer[0] if trainer else None, "last_level": trainer[1] if trainer else None,
+                    "even_ding_t": ding_even},
+        "trips": tr, "dungeons": sorted(dungeons, key=lambda d: (d["min"], d["name"])), "dungeon_runs_kb": runs,
+        "upgrades": [{k: u.get(k) for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_share_pct",
+                                            "level", "now", "fills_empty", "sources", "ah_copper")} | (
+            {"with_item_id": (u.get("with") or {}).get("item_id")} if u.get("with") else {}) for u in ups],
+        "gear_spec": ((advice or {}).get("spec") or {}).get("label"),
+        "worn_ids": worn_ids,
+        # The dungeon panel's (wowstats.plan.dungeonview): every item each
+        # dungeon gives him, what he has, the quests he handed in.
+        "dungeon_loot": loot or {}, "owned": owned(db, worn_ids, bags),
+        "dungeon_quests": dungeon_quests(knowledge, side, runs),
+        "gear_score": (advice or {}).get("gear_score"),
+        "quests_done": sorted(quests_done), "quests_done_from": quests.counts(quests_done),
+        "mount": {**mount_facts(knowledge), "riding_skill": riding_known(db)},
+        "rules": {"quest_xp_share": cite(share_rule) | {"value": share_rule["value"]} if share_rule else None,
+                  "rested_accrual": cite(acc) | {"value": acc["value"]} if acc else None},
+        "rested_burn": rested_burn(db),
+        "route_levels": route_levels(ref, meta, level),
+        "gold_rate": gold_rate(db, now=now), "loot_value": loot_value(db, cards, scans, now=now),
+        "findings": [{"key": f.get("key"), "title": f.get("title"), "text": f.get("text")} for f in findings[:10]
+                     if not f.get("doubtful")],
+        "nudges": [{"text": n.get("text"), "verdict": n.get("verdict"), "at_level": n.get("at_level")}
+                   for n in st.get("nudges") or []],
+        "analysis_updated": st.get("updated"),
+        "calibration": reviews or {"factor": 1.0, "n": 0},
+        "progress": progress(db),
+        "instance_limit": instance_limit(),
+    }
+
+
+def instance_limit() -> dict | None:
+    """The instances a character may enter per hour, from the KB's
+    instance.entries_per_hour, with its source; None: unknown, never assumed."""
+    from wowstats.analysis.kb import static_rule
+
+    r = static_rule("instance.entries_per_hour")
+    n = ((r or {}).get("value") or {}).get("per_hour")
+    return {"per_hour": int(n), "source": cite(r)} if n else None
+
+
+def median(xs):
+    xs = [x for x in xs if x is not None]
+    return statistics.median(xs) if xs else None
+
+
+def now_utc() -> datetime:
+    return datetime.now(UTC)

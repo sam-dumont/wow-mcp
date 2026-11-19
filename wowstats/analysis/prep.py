@@ -1,0 +1,1035 @@
+"""Prep: one character's play history as SQLite tables, facts only.
+
+The model driving the analysis (wowstats.analysis.drive) asks its own questions of these
+tables. So they hold what the records say and neutral sums of it: when,
+where, what kind of record, with which ids, and how long between records.
+No record is grouped into a category that would answer a question before
+it is asked (owner, 2026-11-18: "raw and aggregate data", the conclusions
+are the model's). Every table and column is described in `dictionary`.
+
+The database lives in memory and is rebuilt on every run from the stores:
+nothing here is ever written to disk. Battle.net data (vm-wow, 30 days at
+most by Blizzard's terms) stays out of it entirely: talents come from the
+shipper's own sheet when it has them.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import os
+import re
+import sqlite3
+import sys
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from wowstats.stores import VL_PAGE, dedupe, parse_t
+
+
+def _zone() -> tuple[str, ZoneInfo]:
+    """The player's local time for hours, weekdays and the nightly recheck:
+    WOW_TIMEZONE (an IANA name), Europe/Brussels when unset. A name the
+    system doesn't know falls back to UTC, said once on stderr."""
+    name = (os.environ.get("WOW_TIMEZONE") or "Europe/Brussels").strip()
+    try:
+        return name, ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        print(f"WOW_TIMEZONE={name!r} is not a known timezone: using UTC", file=sys.stderr, flush=True)
+        return "UTC", ZoneInfo("UTC")
+
+
+TZ_NAME, TZ = _zone()
+# The Recorder opens a chunk with a `session` record every 300 s while the
+# game runs (Polestar_Recorder CHUNK_SECONDS): a silence longer than this is
+# time logged out.
+OFFLINE_S = 330
+# A dungeon trip's guide steps chain while each comes within this of the next
+# (or of the instance): an older pickup step belongs to an earlier attempt.
+TRIP_GAP_S = 7200
+# Fields every row has, or that only the transport adds: not part of `extra`.
+COMMON = {"_msg", "_time", "_stream", "_stream_id", "component", "layer", "site", "feed", "kind", "char",
+          "source_id", "migrated_from", "rev", "demo"}
+# Never in the database: other players' names (the records' `player`).
+DROP = {"player", "seen_by_player"}
+
+# What each Recorder record kind is, from Polestar's docs/RECORDING.md
+# (schema 2), shortened. The analysis reads it from the `record_kinds` table.
+KINDS = {
+    "session": "the Recorder's chunk header: at login, /reload and every new 5-minute chunk while the game runs",
+    "map": "a map's frame (top/left/bottom/right in world yards), once per map seen",
+    "level": "a level up (ding)",
+    "xp": "the XP bar: every 5 minutes and at a level up; xp_gained is the change since the previous xp record",
+    "group": "group size changed (0 solo, 1-4 party members, raid size); never who",
+    "pos": "a position: after 25 yd and 2 s since the last, or 4 yd and 20 s (in the positions table)",
+    "zone": "the zone or subzone text changed",
+    "ride": "moved while the player's own speed is 0 (boat, zeppelin, lift, tram) on=1, and when that stops on=0",
+    "taxi": "a flight took off (from_node, to_node)",
+    "land": "a flight landed (seconds in the air)",
+    "death": "the player died; npc_id/npc_level: the last hostile creature that targeted or hit the player within "
+             "10 s, when readable",
+    "revive": "alive again (how: s spirit healer, c corpse, r resurrected)",
+    "combat": "entering (on=1) and leaving (on=0) combat",
+    "afk": "the game's AFK flag turned on (on=1) or off (on=0)",
+    "rest": "an eat or drink aura ended (rest_kind f food, d drink, b both; seconds it lasted)",
+    "offer": "a gossip, quest greeting or quest detail window opened",
+    "detail": "a quest's detail shown",
+    "text": "the first time this character saw a quest's text",
+    "accept": "a quest accepted",
+    "objectives": "a quest's objectives, at accept",
+    "progress": "a quest objective's count changed (have/need)",
+    "complete": "all objectives of a quest done",
+    "turnin": "a quest handed in (xp_reward and money paid; item_id the chosen reward)",
+    "abandon": "a quest abandoned",
+    "fail": "a quest in the log failed",
+    "gossip": "a gossip option chosen",
+    "refuse": "the game refused something for a requirement (error is the game's constant name)",
+    "cast": "the player used a quest or usable item, or cast a spell that is not a class spell on the action bars; "
+            "never combat rotation spells (spell_id, item_id)",
+    "escort": "an escort or event quest started (on=1) or ended (on=0)",
+    "kill": "a creature the player or pet killed (level, classification n/e/r/R/b, xp_reward, tapped: another player "
+            "had the tag, quests: objective ticked within 3 s)",
+    "spawn": "right after a kill: the creature's spawn id",
+    "loot": "a loot window, one per source (items in loot_items; gather h herb, m mine, s skin, f fish)",
+    "gather": "a world object gathered with a skill",
+    "unit": "a creature seen on a nameplate, target or mouseover (once per id and level per session)",
+    "unitx": "a creature seen, with its spawn id",
+    "rare": "a rare or rare elite sighted",
+    "enter": "entering an instance (the position is the last one outside)",
+    "encounter": "a boss encounter ended (success 1/0)",
+    "trainer": "a trainer window opened",
+    "vendor": "a merchant window opened",
+    "flightmaster": "the flight map opened",
+    "bind": "the hearthstone was bound",
+    "rep": "reputation changed (faction_id, rep_gained)",
+    "skill": "a skill's rank changed (skill_id, rank, max_rank)",
+    "explore": "a new area discovered (xp_reward)",
+    "learn": "a spell learned",
+    "craft": "an item made from the trade skill window (spell_id, item_id, count)",
+    "achieve": "an achievement",
+    "step": "the guide's step or guide changed (reason next, skip, back, auto (also at login and reload), pick, "
+            "done)",
+    "where": "the subzone text and indoors flag at a quest NPC, once per NPC per session",
+    "poi": "the quest log's own map point for a quest (not the player's position)",
+    "mark": "a note the player typed with /psrec mark",
+    "dropped": "the Recorder dropped chunks for size",
+    "open": "the player opened a world object",
+    "treasure": "a treasure vignette",
+}
+
+DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
+    "meta": ("Facts about this database: the character and the data's range.", {
+        "key": "name", "value": "value (text)"}),
+    "record_kinds": ("What each Recorder record kind means (from Polestar's recording contract).", {
+        "kind": "the record kind", "meaning": "when the Recorder writes it", "n": "rows of this kind in records"}),
+    "records": ("Every Recorder record of the character except positions, in time order. One row per record, as "
+                "the game addon wrote it; the ids are the game's (look them up with the kb tools).", {
+        "rec_id": "row number in time order (also the order of positions)",
+        "t": "unix seconds (UTC)", "time_utc": "ISO time, UTC", "time_local": "ISO time, local (meta.timezone)",
+        "hour_local": "hour of day 0-23, local", "weekday_local": "Mon..Sun, local",
+        "session_id": "the login span it belongs to (sessions)",
+        "level": "the character's level at that moment",
+        "kind": "record kind (record_kinds)",
+        "zone": "zone name where the record says or the last zone record said",
+        "subzone": "subzone text of the last zone record", "map_id": "the game's uiMapID, when the record has one",
+        "x": "map x in percent", "y": "map y in percent",
+        "quest_id": "quest id", "quest_name": "quest title, when the record names it",
+        "npc_id": "creature or object id (npc_kind c creature, o object)", "npc_kind": "c creature, o object",
+        "npc_level": "level of the creature (kill: its level, death: the killer's)",
+        "item_id": "item id (turnin: the chosen reward; craft: the item made; cast: the item used)",
+        "spell_id": "spell id (cast, craft, learn)",
+        "xp_reward": "XP the record says was gained (kill, turnin, explore)",
+        "money_copper": "money paid (turnin) or offered (accept), copper",
+        "on_flag": "1 on / 0 off for combat, afk, ride, escort",
+        "guide": "Polestar guide id (step records)", "step": "guide step number (step records)",
+        "reason": "why the step changed (step records)",
+        "seconds": "a duration the record carries: rest (aura length), land (flight), step and zone "
+                   "(seconds since the previous one of that kind)",
+        "count": "craft: items made", "extra": "the record's other fields, JSON (use json_extract)",
+        "dungeon_trip_id": "dungeon_trips.trip_id when the record falls inside a trip, else NULL"}),
+    "positions": ("Position records: the Recorder writes one after the player moves 25 yd (2 s apart at most "
+                  "often) or 4 yd after 20 s. Without movement no record is written.", {
+        "rec_id": "row number in time order, shared with records", "t": "unix seconds",
+        "time_local": "ISO time, local (meta.timezone)", "session_id": "login span", "level": "level then",
+        "map_id": "uiMapID", "zone": "zone name", "x": "map x %", "y": "map y %",
+        "speed": "the player's own speed, yards/s (0 on a boat or flight)",
+        "flags": "bits: 1 mounted, 2 swimming, 4 indoors, 8 flying, 16 falling, 32 dead or ghost, 64 trail sample",
+        "dt_s": "seconds since the previous position in the same session",
+        "dist_yd": "straight-line yards from the previous position on the same map and session (NULL across maps "
+                   "or when the map's size is unknown)"}),
+    "loot_items": ("One row per item in a loot window.", {
+        "rec_id": "the loot record", "t": "unix seconds", "item_id": "item id", "count": "how many"}),
+    "sessions": ("Login spans: a silence of more than 330 s between Recorder records ends one (the Recorder "
+                 "writes a record at least every 300 s while the game runs).", {
+        "session_id": "number, in time order", "start_t": "unix seconds", "end_t": "unix seconds (last record)",
+        "start_local": "ISO time, local (meta.timezone)", "end_local": "ISO time, local (meta.timezone)",
+        "weekday_local": "Mon..Sun of the start", "start_hour_local": "hour of the start",
+        "duration_s": "end_t - start_t", "records": "Recorder records in it, positions included",
+        "level_start": "level at start", "level_end": "level at end",
+        "xp_gained": "sum of xp_gained of its xp records", "kills": "kill records", "deaths": "death records",
+        "turnins": "turnin records", "distance_yd": "sum of positions.dist_yd",
+        "first_zone": "zone at start", "last_zone": "zone at end", "last_subzone": "subzone at end",
+        "last_kind": "kind of the last record that is not session/xp/pos/unit/unitx/spawn",
+        "gap_before_s": "seconds offline before it (NULL for the first)"}),
+    "timeline": ("The online time cut at every record (positions included): each row is the interval from one "
+                 "record to the next inside a session, with the state the records had set at its start. Sum "
+                 "dur_s over rows to get time.", {
+        "seg_id": "row number", "session_id": "login span", "t0": "start, unix seconds", "t1": "end, unix seconds",
+        "dur_s": "t1 - t0", "time_local": "start, ISO local time", "hour_local": "hour of t0",
+        "level": "level", "zone": "zone", "subzone": "subzone", "map_id": "uiMapID of the last record with one",
+        "guide": "the active Polestar guide (last step record)", "step": "its step",
+        "instance": "dungeon name while inside a dungeon run (dungeon_runs), else NULL",
+        "dungeon_trip_id": "dungeon_trips.trip_id when the segment starts inside a trip, else NULL",
+        "afk": "1 while the AFK flag is on", "combat": "1 while in combat", "dead": "1 from death to revive",
+        "taxi": "1 from taxi to land", "ride": "1 while the ride flag is on",
+        "mounted": "flags bit 1 of the last position", "speed": "speed of the last position, yards/s",
+        "since_pos_s": "seconds from the last position record to t0 (NULL before the first)",
+        "opened_by": "kind of the record that starts the interval"}),
+    "spans": ("Things the records give a start and an end for (on/off pairs and durations), as observed.", {
+        "kind": "afk, combat, ride, escort, dead (death to revive), taxi (taxi to land), rest (eat/drink aura), "
+                "instance (a dungeon run), zone (a zone record and its duration_s)",
+        "t0": "start, unix seconds", "t1": "end, unix seconds", "dur_s": "t1 - t0",
+        "session_id": "login span of t0", "detail": "what (instance name, rest kind, zone|subzone, quest id)"}),
+    "xp": ("The xp records: the XP bar every 5 minutes and at each ding.", {
+        "t": "unix seconds", "session_id": "login span", "level": "level then", "zone": "zone then",
+        "hour_local": "hour of day, local", "xp": "XP into the level",
+        "xp_max": "XP the level needs", "xp_gained": "change since the previous xp record",
+        "rested_xp": "rested XP left"}),
+    "levels": ("Per level: Polestar's own split when the level is done (played seconds), the ding time, and the "
+               "route planner's time for the level (route_plan).", {
+        "level": "level", "ding_t": "unix seconds the level ended (NULL while in play)",
+        "played_s": "played seconds in the level (Polestar split)", "xp": "XP of the level",
+        "quests": "quests handed in (split)", "kills": "kills (split)",
+        "partial": "1 when tracking started partway through the level",
+        "planned_s": "the route planner's seconds for this level, this class",
+        "planned_median_s": "the planner's median over classes", "planned_guide": "the guide the level ends in"}),
+    "route_steps": ("Polestar's route planner: planned seconds per guide step (a model of a quick player who "
+                    "knows the route, uncalibrated).", {
+        "guide": "guide id", "guide_title": "guide title", "step": "step number from 1", "planned_s": "seconds",
+        "title": "the step's title"}),
+    "dungeon_runs": ("Polestar's instance runs.", {
+        "name": "dungeon", "dungeon_id": "instance id", "level": "level at entry", "start_t": "entered, unix s",
+        "left_t": "left, unix s", "seconds": "time inside", "xp": "XP gained inside"}),
+    "dungeon_trips": ("A dungeon trip as the Polestar lookup guides bracket it: from the first step of "
+                      "lookup/pickup/<dungeon> to the last step of lookup/handin/<dungeon> around one run "
+                      "(dungeon_runs), steps chained while each comes within 2 hours of the next; the instance's "
+                      "enter and leave when no guide step is there. Times are online time (timeline). records and "
+                      "timeline carry dungeon_trip_id for rows inside a trip.", {
+        "trip_id": "trip number (records.dungeon_trip_id, timeline.dungeon_trip_id)", "dungeon": "dungeon name",
+        "dungeon_id": "instance id", "level_start": "level at the trip's start", "start_t": "start, unix s",
+        "end_t": "end, unix s", "start_local": "start, local time", "end_local": "end, local time",
+        "bracket": "guides (lookup guide steps) or instance (enter and leave only)",
+        "pickup_s": "online time from the start to the last accept of one of the trip's quests",
+        "travel_to_s": "from there to entering the instance", "inside_s": "online time inside the instance",
+        "travel_back_s": "from leaving to the first hand-in of one of the trip's quests",
+        "handin_s": "from there to the end", "online_s": "online time start to end",
+        "afk_s": "timeline time with afk=1 inside the trip",
+        "xp_kills_inside": "sum of kill records' xp_reward inside the instance",
+        "xp_inside": "XP gained inside (dungeon_runs.xp)",
+        "xp_quests": "sum of xp_reward over the trip's quests handed in during the trip",
+        "quest_ids": "JSON list: quests with objective progress, completion or a hand-in inside the instance, "
+                     "or accepted as a pickup guide step advanced",
+        "quests_handed_in": "how many of them were handed in during the trip",
+        "loot_inside": "JSON list of [item_id, count] looted inside", "loot_inside_n": "items looted inside",
+        "rewards": "JSON list of reward item ids picked at the trip's hand-ins (records.item_id on turnin)",
+        "still_worn": "JSON list of the loot and reward item ids on the newest gear sheet (gear)",
+        "quest_money_copper": "money paid by the trip's hand-ins",
+        "gold_before_copper": "money on the last logout snapshot before the start, if any",
+        "gold_after_copper": "money on the first snapshot after the end, if any",
+        "steps": "JSON list of the guide steps used, as guide#step"}),
+    "gear": ("The equipped items on the newest character sheet, with the records that name the same item.", {
+        "slot": "inventory slot 1-19", "slot_name": "slot", "item_id": "item id", "name": "item name",
+        "quality": "0 poor .. 5 legendary", "item_level": "item level", "req_level": "required level",
+        "sheet_t": "time of the sheet, unix seconds",
+        "turnin_quest_id": "a turnin record whose chosen reward is this item (quest id)",
+        "turnin_t": "its time", "loot_t": "first loot record holding this item", "craft_t": (
+            "first craft record naming this item id (an enchanting craft names the item it enchanted)"),
+        "vendor_seen": "1 when a vendor window listed it",
+        "first_t": "earliest of turnin_t, loot_t and craft_t (null when no record names the item)",
+        "first_level": "the character's level at first_t"}),
+    "gear_sheets": ("Every character sheet the shipper sent: the equipped items at that time, one row per slot.", {
+        "sheet_t": "time of the sheet, unix s", "time_local": "ISO time, local (meta.timezone)",
+        "level": "the character's level then (newest record at or before the sheet)", "slot": "inventory slot 1-19",
+        "slot_name": "slot", "item_id": "item id", "name": "item name", "quality": "0 poor .. 5 legendary",
+        "item_level": "item level", "req_level": "required level"}),
+    "professions": ("Professions on the newest sheet.", {
+        "skill_id": "skill line id", "name": "name", "rank": "rank", "max_rank": "cap"}),
+    "talents": ("Talent points per tree from the shipper's sheet (SimBench export), when present.", {
+        "tree": "tree name", "points": "points"}),
+    "snapshots": ("The character snapshots the shipper sends at logout and /reload (from the game's saved "
+                  "variables): money, XP and where the hearthstone is bound.", {
+        "t": "unix seconds", "time_local": "ISO time, local (meta.timezone)", "level": "level",
+        "xp": "XP into the level", "xp_max": "XP the level needs", "money_copper": "money carried, copper",
+        "zone": "zone", "bind": "the inn or place the hearthstone is bound to",
+        "resting": "1 when the character was in a rested area (inn or city), 0 when not, NULL when unknown",
+        "online_s_since_prev": "online time (timeline) between the previous snapshot and this one"}),
+    "upgrade_candidates": ("Every gear upgrade the player's own gear advice finds (Polestar's scoring with the "
+                           "weights the player chose, items within 3 levels), one row per item and source. Facts "
+                           "of the advice, no ranking: join on instance or zone to compare places.", {
+        "item_id": "item id", "name": "item name", "quality": "0 poor .. 5 legendary",
+        "slot_name": "the slot it would go in", "gain": "score gain over what is worn (Polestar's points)",
+        "gain_share_pct": "the gain as a share of the whole worn gear's score, percent",
+        "req_level": "level the item (or its source) needs", "now": "1 when wearable at the current level",
+        "fills_empty": "1 when the slot is empty now", "with_item_id": "for a weapon: the item it is paired with",
+        "source_kind": "where the item comes from, as the gear data names it (today quest, drop or craft; "
+                       "open-ended: a reputation, PvP rank or vendor source keeps its own kind); bags or bank "
+                       "when the character already holds it there (the shipper's last wow-bags), its only row",
+        "instance": "dungeon or raid for an instance drop or quest",
+        "instance_min_level": "the instance's lowest level (Group Finder)",
+        "instance_max_level": "the instance's highest suggested level",
+        "zone": "zone of the drop or the quest", "boss": "the creature that drops it (NULL: trash)",
+        "npc_id": "that creature's id", "drop_chance_pct": "drop chance in percent, when known",
+        "quest_id": "the quest that rewards it", "quest_name": "its title", "quest_choices": "rewards to choose from",
+        "profession": "the profession that makes it", "skill": "the skill it needs",
+        "can_make": "1 when the character's rank is enough"}),
+    "agg_session": ("Neutral sums per login span, from timeline, records and positions.", {}),
+    "agg_level": ("Neutral sums per level, from timeline, records and positions.", {}),
+    "agg_zone": ("Neutral sums per zone, from timeline, records and positions.", {}),
+    "agg_hour": ("Neutral sums per local hour of day, from timeline, records and positions.", {}),
+}
+AGG_COLS = {
+    "online_s": "sum of timeline.dur_s", "afk_s": "timeline time with afk=1", "combat_s": "with combat=1",
+    "dead_s": "with dead=1", "taxi_s": "with taxi=1", "ride_s": "with ride=1", "instance_s": "inside a dungeon run",
+    "mounted_s": "with mounted=1", "distance_yd": "sum of positions.dist_yd", "positions": "position records",
+    "xp_gained": "sum of xp.xp_gained", "kills": "kill records", "deaths": "death records",
+    "turnins": "turnin records", "accepts": "accept records", "loots": "loot records", "casts": "cast records",
+    "crafts": "craft records", "records": "records (positions excluded)"}
+for _t in ("agg_session", "agg_level", "agg_zone", "agg_hour"):
+    key = {"agg_session": "session_id", "agg_level": "level", "agg_zone": "zone", "agg_hour": "hour_local"}[_t]
+    DICTIONARY[_t][1].update({key: "group key", **AGG_COLS})
+
+PASSIVE_LAST = {"session", "xp", "pos", "unit", "unitx", "spawn"}
+# Fields copied into a column of `records`; the rest goes into `extra`.
+COLUMN_OF = {"quest_id": "quest_id", "quest_name": "quest_name", "npc_id": "npc_id", "npc_kind": "npc_kind",
+             "npc_level": "npc_level", "item_id": "item_id", "spell_id": "spell_id", "xp_reward": "xp_reward",
+             "money_copper": "money_copper", "guide": "guide", "step": "step", "reason": "reason", "count": "count",
+             "map_id": "map_id", "x": "x", "y": "y", "zone": "zone"}
+INT_COLS = {"quest_id", "npc_id", "npc_level", "item_id", "spell_id", "xp_reward", "money_copper", "step", "count",
+            "map_id"}
+
+
+def _int(v):
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return int(f) if math.isfinite(f) else None
+
+
+def _flt(v):
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    return f if math.isfinite(f) else None
+
+
+def _on(v):
+    s = str(v).lower()
+    return 1 if s in ("true", "1") else 0 if s in ("false", "0") else None
+
+
+def _local(t: float) -> datetime:
+    return datetime.fromtimestamp(t, TZ)
+
+
+def _iso(t: float, tz=UTC) -> str:
+    return datetime.fromtimestamp(t, tz).isoformat(timespec="seconds")
+
+
+def norm(c: str) -> str:
+    return (c or "").strip().replace(" ", "-")
+
+
+# Rows per VictoriaLogs request for the analysis' read of one character's
+# whole history, when the event cache can't answer it (stores.Store.vl
+# answers a one-character query from wowstats.eventcache, read in pages of
+# this size, stores.VL_PAGE): small pages keep each request's memory on the
+# server small (a VictoriaLogs with a 1 GiB limit was OOM-killed, 2026-11-18).
+def query(store, stream: str, char: str) -> list[dict]:
+    """Every event of the character the analysis reads (other players, auction
+    scans and raw combat log lines are left out), one character and one
+    small page at a time."""
+    names = sorted({char, char.replace("-", " ")})
+    cf = "char:in(" + ", ".join(json.dumps(n) for n in names) + ")"
+    return store.vl(f"{stream} {cf} -feed:wow-player -feed:wow-prices -feed:wow-combatlog", limit=VL_PAGE)
+
+
+class _Frames:
+    """Map sizes in yards (map records first, then the KB's ui_map frames)."""
+
+    def __init__(self, extra: dict | None = None):
+        self.size: dict[int, tuple[float, float]] = dict(extra or {})
+
+    def add(self, r: dict) -> None:
+        m = _int(r.get("map_id"))
+        vals = [_flt(r.get(k)) for k in ("left", "right", "top", "bottom")]
+        if m is not None and None not in vals:
+            left, right, top, bottom = vals
+            self.size[m] = (abs(left - right), abs(top - bottom))
+
+    def dist(self, m, a: tuple, b: tuple):
+        s = self.size.get(m)
+        if not s or None in a or None in b:
+            return None
+        return math.hypot((a[0] - b[0]) * s[0] / 100.0, (a[1] - b[1]) * s[1] / 100.0)
+
+
+def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None,
+          now: datetime | None = None, upgrades: list[dict] | None = None) -> sqlite3.Connection:
+    """The database for one character. `route` is wowstats.mcp.route's
+    Reference (or None); `map_sizes` {uiMapID: (width_yd, height_yd)} from
+    the KB when the records lack a map's frame; `upgrades` the gear
+    advice's `upgrades_all` (wowstats.gear.advise_rows), for
+    upgrade_candidates."""
+    char = norm(char)
+    rows = [r for r in dedupe(rows) if norm(r.get("char", "")) == char]
+    for r in rows:
+        r["_t"] = parse_t(r.get("_time")).timestamp()
+    rows.sort(key=lambda r: (r["_t"], r.get("source_id") or ""))
+    rec = [r for r in rows if r.get("feed") == "wow-recorder"]
+    db = sqlite3.connect(":memory:", check_same_thread=False)
+    db.execute("PRAGMA foreign_keys=OFF")
+    _schema(db)
+
+    frames = _Frames(map_sizes)
+    for r in rec:
+        if r.get("kind") == "map":
+            frames.add(r)
+
+    # Levels over time: dings, and the level the session records carry.
+    marks = sorted((r["_t"], lv, r.get("kind")) for r in rec if r.get("kind") in ("level", "session")
+                   and (lv := _int(r.get("level"))))
+    mark_t = [m[0] for m in marks]
+
+    def level_at(t: float):
+        import bisect
+
+        i = bisect.bisect_right(mark_t, t) - 1
+        if i >= 0:
+            return marks[i][1]
+        if not marks:
+            return None
+        # Before the first mark: a ding to N means the character was N - 1
+        # until then (records that start mid-level, with no session record).
+        return marks[0][1] - 1 if marks[0][2] == "level" else marks[0][1]
+
+    # Sessions: split at silences over OFFLINE_S.
+    sess_of: list[int] = []
+    sid, prev = 0, None
+    for r in rec:
+        if prev is not None and r["_t"] - prev > OFFLINE_S:
+            sid += 1
+        sess_of.append(sid)
+        prev = r["_t"]
+
+    # Dungeon runs (Polestar's instanceRuns).
+    runs = []
+    for r in rows:
+        if r.get("feed") == "wow-dungeon":
+            t0 = r["_t"]
+            left = parse_t(r.get("left")).timestamp() if r.get("left") else None
+            secs = _flt(r.get("seconds"))
+            t1 = left if left and left > t0 else (t0 + secs if secs else None)
+            runs.append((t0, t1, r.get("name"), _int(r.get("dungeon_id")), _int(r.get("level")), secs,
+                         _int(r.get("xp"))))
+    runs.sort(key=lambda x: x[0])
+    db.executemany("INSERT INTO dungeon_runs VALUES (?,?,?,?,?,?,?)",
+                   [(n, d, lv, t0, t1, s, xp) for t0, t1, n, d, lv, s, xp in runs])
+
+    def instance_at(t: float):
+        for t0, t1, name, *_ in runs:
+            if t1 and t0 <= t < t1:
+                return name
+        return None
+
+    # Walk the records once: state, tables.
+    st = {"zone": None, "subzone": None, "map_id": None, "guide": None, "step": None, "afk": 0, "combat": 0,
+          "dead": 0, "taxi": 0, "ride": 0, "mounted": 0, "speed": None, "pos_t": None}
+    open_spans: dict[str, tuple[float, str | None]] = {}
+    last_pos: dict | None = None
+    rec_rows, pos_rows, loot_rows, xp_rows, tl_rows, span_rows = [], [], [], [], [], []
+
+    def close(kind: str, t: float, sid_: int):
+        o = open_spans.pop(kind, None)
+        if o:
+            span_rows.append((kind, o[0], t, t - o[0], o[2], o[1]))
+
+    def opn(kind: str, t: float, detail, sid_: int):
+        if kind not in open_spans:
+            open_spans[kind] = (t, detail, sid_)
+
+    for i, r in enumerate(rec):
+        t, k, s_id = r["_t"], r.get("kind") or "", sess_of[i]
+        if i and s_id != sess_of[i - 1]:
+            # Logged out: what doesn't survive a logout ends at the last record.
+            tlast = rec[i - 1]["_t"]
+            for kk in list(open_spans):
+                if kk != "dead":
+                    close(kk, tlast, sess_of[i - 1])
+            for f in ("afk", "combat", "taxi", "ride"):
+                st[f] = 0
+            last_pos = None
+        if r.get("zone") and k != "map":
+            st["zone"] = r.get("zone")
+        if k == "zone":
+            st["subzone"] = r.get("subzone") or None
+            d = _flt(r.get("duration_s"))
+            if d:
+                span_rows.append(("zone", t, t + d, d, s_id, f"{r.get('zone') or ''}|{r.get('subzone') or ''}"))
+        m = _int(r.get("map_id"))
+        if m is not None and k not in ("map", "poi"):
+            st["map_id"] = m
+        lv = level_at(t)
+        if k == "pos":
+            x, y, spd = _flt(r.get("x")), _flt(r.get("y")), _flt(r.get("speed"))
+            flags = _int(r.get("flags")) or 0
+            dt = dist = None
+            if last_pos is not None:
+                dt = t - last_pos["t"]
+                if last_pos["m"] == m and m is not None:
+                    dist = frames.dist(m, (x, y), (last_pos["x"], last_pos["y"]))
+            pos_rows.append((i, t, _iso(t, TZ), s_id, lv, m, r.get("zone"), x, y, spd, flags, dt, dist))
+            last_pos = {"t": t, "m": m, "x": x, "y": y}
+            st["speed"], st["mounted"], st["pos_t"] = spd, flags & 1, t
+        else:
+            cols = {c: None for c in COLUMN_OF.values()}
+            extra = {}
+            for f, v in r.items():
+                if f in COMMON or f in DROP or f.startswith("_"):
+                    continue
+                if f in COLUMN_OF:
+                    cols[COLUMN_OF[f]] = _int(v) if COLUMN_OF[f] in INT_COLS else (
+                        _flt(v) if f in ("x", "y") else v)
+                elif f == "item" and k == "turnin":
+                    cols["item_id"] = _int(v)
+                elif f == "level" and k == "kill":
+                    cols["npc_level"] = _int(v)
+                elif f in ("duration_s", "seconds", "on", "level"):
+                    continue
+                else:
+                    extra[f] = v
+            secs = _flt(r.get("duration_s")) if r.get("duration_s") not in (None, "") else _flt(r.get("seconds"))
+            lt = _local(t)
+            rec_rows.append((i, t, _iso(t), lt.isoformat(timespec="seconds"), lt.hour, lt.strftime("%a"), s_id, lv,
+                             k, cols["zone"] or st["zone"], st["subzone"], cols["map_id"], cols["x"], cols["y"],
+                             cols["quest_id"], cols["quest_name"], cols["npc_id"], cols["npc_kind"],
+                             cols["npc_level"], cols["item_id"], cols["spell_id"], cols["xp_reward"],
+                             cols["money_copper"], _on(r.get("on")), cols["guide"], cols["step"], cols["reason"],
+                             secs, cols["count"], json.dumps(extra, ensure_ascii=False) if extra else None))
+            if k == "loot":
+                for part in str(r.get("items") or "").split(";"):
+                    a, _, b = part.partition(":")
+                    if a.isdigit():
+                        loot_rows.append((i, t, int(a), _int(b) or 1))
+            elif k == "xp":
+                xp_rows.append((t, s_id, lv, st["zone"], lt.hour, _int(r.get("xp")), _int(r.get("xp_max")),
+                                _int(r.get("xp_gained")), _int(r.get("rested_xp"))))
+            elif k == "step":
+                st["guide"], st["step"] = r.get("guide") or None, _int(r.get("step"))
+            on = _on(r.get("on"))
+            if k in ("afk", "combat", "ride", "escort"):
+                if k != "escort":
+                    st[k] = 1 if on else 0
+                if on:
+                    opn(k, t, r.get("quest_id") if k == "escort" else None, s_id)
+                else:
+                    close(k, t, s_id)
+            elif k == "death":
+                st["dead"] = 1
+                opn("dead", t, None, s_id)
+            elif k == "revive":
+                st["dead"] = 0
+                o = open_spans.get("dead")
+                if o:
+                    open_spans["dead"] = (o[0], r.get("how"), o[2])
+                close("dead", t, s_id)
+            elif k == "taxi":
+                st["taxi"] = 1
+                opn("taxi", t, f"{r.get('from_node') or ''}>{r.get('to_node') or ''}", s_id)
+            elif k == "land":
+                st["taxi"] = 0
+                close("taxi", t, s_id)
+            elif k == "rest":
+                d = _flt(r.get("seconds"))
+                if d:
+                    span_rows.append(("rest", t - d, t, d, s_id, r.get("rest_kind")))
+        # The interval from this record to the next, inside the session.
+        if i + 1 < len(rec) and sess_of[i + 1] == s_id:
+            t1 = rec[i + 1]["_t"]
+            if t1 > t:
+                tl_rows.append((s_id, t, t1, t1 - t, _local(t).isoformat(timespec="seconds"), _local(t).hour, lv,
+                                st["zone"], st["subzone"], st["map_id"], st["guide"], st["step"], instance_at(t),
+                                st["afk"], st["combat"], st["dead"], st["taxi"], st["ride"], st["mounted"],
+                                st["speed"], (t - st["pos_t"]) if st["pos_t"] is not None else None, k))
+    if rec:
+        for kk in list(open_spans):
+            close(kk, rec[-1]["_t"], sess_of[-1])
+    for t0, t1, name, *_ in runs:
+        if t1:
+            span_rows.append(("instance", t0, t1, t1 - t0, None, name))
+
+    db.executemany("INSERT INTO records VALUES (" + ",".join("?" * 30) + ",NULL)", rec_rows)
+    db.executemany("INSERT INTO positions VALUES (" + ",".join("?" * 13) + ")", pos_rows)
+    db.executemany("INSERT INTO loot_items VALUES (?,?,?,?)", loot_rows)
+    db.executemany("INSERT INTO xp VALUES (?,?,?,?,?,?,?,?,?)", xp_rows)
+    db.executemany("INSERT INTO timeline (session_id,t0,t1,dur_s,time_local,hour_local,level,zone,subzone,map_id,"
+                   "guide,step,instance,afk,combat,dead,taxi,ride,mounted,speed,since_pos_s,opened_by) VALUES ("
+                   + ",".join("?" * 22) + ")", tl_rows)
+    db.executemany("INSERT INTO spans VALUES (?,?,?,?,?,?)", span_rows)
+    db.execute("UPDATE spans SET session_id = (SELECT r.session_id FROM records r WHERE r.t <= spans.t0 "
+               "ORDER BY r.t DESC LIMIT 1) WHERE session_id IS NULL")
+
+    _sessions(db)
+    _levels(db, rows, rec, route)
+    _route_steps(db, route)
+    _gear(db, rows)
+    _dungeon_trips(db, rows)
+    _snapshots(db, rows)
+    _upgrades(db, upgrades or [])
+    _meta(db, char, rows, rec, now)
+    _aggregates(db)
+    _dictionary(db)
+    db.commit()
+    return db
+
+
+def _schema(db: sqlite3.Connection) -> None:
+    db.executescript("""
+    CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+    CREATE TABLE record_kinds (kind TEXT PRIMARY KEY, meaning TEXT, n INTEGER);
+    CREATE TABLE records (rec_id INTEGER PRIMARY KEY, t REAL, time_utc TEXT, time_local TEXT, hour_local INTEGER,
+        weekday_local TEXT, session_id INTEGER, level INTEGER, kind TEXT, zone TEXT, subzone TEXT, map_id INTEGER,
+        x REAL, y REAL, quest_id INTEGER, quest_name TEXT, npc_id INTEGER, npc_kind TEXT, npc_level INTEGER,
+        item_id INTEGER, spell_id INTEGER, xp_reward INTEGER, money_copper INTEGER, on_flag INTEGER, guide TEXT,
+        step INTEGER, reason TEXT, seconds REAL, count INTEGER, extra TEXT, dungeon_trip_id INTEGER);
+    CREATE INDEX records_kind ON records(kind, t);
+    CREATE INDEX records_t ON records(t);
+    CREATE TABLE positions (rec_id INTEGER PRIMARY KEY, t REAL, time_local TEXT, session_id INTEGER,
+        level INTEGER, map_id INTEGER, zone TEXT, x REAL, y REAL, speed REAL, flags INTEGER, dt_s REAL,
+        dist_yd REAL);
+    CREATE INDEX positions_t ON positions(t);
+    CREATE TABLE loot_items (rec_id INTEGER, t REAL, item_id INTEGER, count INTEGER);
+    CREATE TABLE xp (t REAL, session_id INTEGER, level INTEGER, zone TEXT, hour_local INTEGER, xp INTEGER,
+        xp_max INTEGER, xp_gained INTEGER, rested_xp INTEGER);
+    CREATE TABLE timeline (seg_id INTEGER PRIMARY KEY, session_id INTEGER, t0 REAL, t1 REAL, dur_s REAL,
+        time_local TEXT, hour_local INTEGER, level INTEGER, zone TEXT, subzone TEXT, map_id INTEGER, guide TEXT,
+        step INTEGER, instance TEXT, afk INTEGER, combat INTEGER, dead INTEGER, taxi INTEGER, ride INTEGER,
+        mounted INTEGER, speed REAL, since_pos_s REAL, opened_by TEXT, dungeon_trip_id INTEGER);
+    CREATE INDEX timeline_t ON timeline(t0);
+    CREATE TABLE spans (kind TEXT, t0 REAL, t1 REAL, dur_s REAL, session_id INTEGER, detail TEXT);
+    CREATE TABLE sessions (session_id INTEGER PRIMARY KEY, start_t REAL, end_t REAL, start_local TEXT,
+        end_local TEXT, weekday_local TEXT, start_hour_local INTEGER, duration_s REAL, records INTEGER,
+        level_start INTEGER, level_end INTEGER, xp_gained INTEGER, kills INTEGER, deaths INTEGER, turnins INTEGER,
+        distance_yd REAL, first_zone TEXT, last_zone TEXT, last_subzone TEXT, last_kind TEXT, gap_before_s REAL);
+    CREATE TABLE levels (level INTEGER PRIMARY KEY, ding_t REAL, played_s REAL, xp INTEGER, quests INTEGER,
+        kills INTEGER, partial INTEGER, planned_s REAL, planned_median_s REAL, planned_guide TEXT);
+    CREATE TABLE route_steps (guide TEXT, guide_title TEXT, step INTEGER, planned_s REAL, title TEXT);
+    CREATE TABLE dungeon_runs (name TEXT, dungeon_id INTEGER, level INTEGER, start_t REAL, left_t REAL,
+        seconds REAL, xp INTEGER);
+    CREATE TABLE dungeon_trips (trip_id INTEGER PRIMARY KEY, dungeon TEXT, dungeon_id INTEGER, level_start INTEGER,
+        start_t REAL, end_t REAL, start_local TEXT, end_local TEXT, bracket TEXT, pickup_s REAL, travel_to_s REAL,
+        inside_s REAL, travel_back_s REAL, handin_s REAL, online_s REAL, afk_s REAL, xp_kills_inside INTEGER,
+        xp_inside INTEGER, xp_quests INTEGER, quest_ids TEXT, quests_handed_in INTEGER, loot_inside TEXT,
+        loot_inside_n INTEGER, rewards TEXT, still_worn TEXT, quest_money_copper INTEGER,
+        gold_before_copper INTEGER, gold_after_copper INTEGER, steps TEXT);
+    CREATE TABLE gear (slot INTEGER, slot_name TEXT, item_id INTEGER, name TEXT, quality INTEGER,
+        item_level INTEGER, req_level INTEGER, sheet_t REAL, turnin_quest_id INTEGER, turnin_t REAL, loot_t REAL,
+        craft_t REAL, vendor_seen INTEGER, first_t REAL, first_level INTEGER);
+    CREATE TABLE gear_sheets (sheet_t REAL, time_local TEXT, level INTEGER, slot INTEGER, slot_name TEXT,
+        item_id INTEGER, name TEXT, quality INTEGER, item_level INTEGER, req_level INTEGER);
+    CREATE TABLE professions (skill_id INTEGER, name TEXT, rank INTEGER, max_rank INTEGER);
+    CREATE TABLE talents (tree TEXT, points INTEGER);
+    CREATE TABLE snapshots (t REAL, time_local TEXT, level INTEGER, xp INTEGER, xp_max INTEGER,
+        money_copper INTEGER, zone TEXT, bind TEXT, resting INTEGER, online_s_since_prev REAL);
+    CREATE TABLE upgrade_candidates (item_id INTEGER, name TEXT, quality INTEGER, slot_name TEXT, gain REAL,
+        gain_share_pct REAL, req_level INTEGER, now INTEGER, fills_empty INTEGER, with_item_id INTEGER,
+        source_kind TEXT, instance TEXT, instance_min_level INTEGER, instance_max_level INTEGER, zone TEXT, boss TEXT,
+        npc_id INTEGER, drop_chance_pct REAL, quest_id INTEGER, quest_name TEXT, quest_choices INTEGER,
+        profession TEXT, skill INTEGER, can_make INTEGER);
+    CREATE TABLE dictionary (table_name TEXT, column_name TEXT, description TEXT);
+    """)
+
+
+def _sessions(db: sqlite3.Connection) -> None:
+    rows = db.execute("SELECT session_id, MIN(t), MAX(t), COUNT(*) FROM (SELECT session_id, t FROM records "
+                      "UNION ALL SELECT session_id, t FROM positions) GROUP BY session_id ORDER BY session_id"
+                      ).fetchall()
+    prev_end = None
+    out = []
+    for sid, t0, t1, n in rows:
+        def one(q, *a):
+            r = db.execute(q, a).fetchone()
+            return r[0] if r else None
+        lv0 = one("SELECT level FROM records WHERE session_id=? AND level IS NOT NULL ORDER BY t LIMIT 1", sid)
+        lv1 = one("SELECT level FROM records WHERE session_id=? AND level IS NOT NULL ORDER BY t DESC LIMIT 1", sid)
+        last = db.execute("SELECT kind, zone, subzone FROM records WHERE session_id=? AND kind NOT IN "
+                          f"({','.join('?' * len(PASSIVE_LAST))}) ORDER BY t DESC LIMIT 1",
+                          (sid, *PASSIVE_LAST)).fetchone() or (None, None, None)
+        lz = db.execute("SELECT zone, subzone FROM records WHERE session_id=? AND zone IS NOT NULL ORDER BY t DESC "
+                        "LIMIT 1", (sid,)).fetchone() or (None, None)
+        out.append((sid, t0, t1, _iso(t0, TZ), _iso(t1, TZ), _local(t0).strftime("%a"), _local(t0).hour, t1 - t0, n,
+                    lv0, lv1, one("SELECT COALESCE(SUM(xp_gained),0) FROM xp WHERE session_id=?", sid),
+                    one("SELECT COUNT(*) FROM records WHERE session_id=? AND kind='kill'", sid),
+                    one("SELECT COUNT(*) FROM records WHERE session_id=? AND kind='death'", sid),
+                    one("SELECT COUNT(*) FROM records WHERE session_id=? AND kind='turnin'", sid),
+                    one("SELECT COALESCE(SUM(dist_yd),0) FROM positions WHERE session_id=?", sid),
+                    one("SELECT zone FROM records WHERE session_id=? AND zone IS NOT NULL ORDER BY t LIMIT 1", sid),
+                    lz[0], lz[1], last[0], (t0 - prev_end) if prev_end is not None else None))
+        prev_end = t1
+    db.executemany("INSERT INTO sessions VALUES (" + ",".join("?" * 21) + ")", out)
+
+
+def _levels(db, rows, rec, route) -> None:
+    splits = {}
+    for r in rows:
+        if r.get("feed") == "wow-level" and (lv := _int(r.get("level"))):
+            splits[lv] = r
+    dings = {}
+    for r in rec:
+        if r.get("kind") == "level" and (lv := _int(r.get("level"))):
+            dings.setdefault(lv - 1, r["_t"])
+    who = next((r for r in reversed(rec) if r.get("kind") == "session"), {})
+    side, race, cls = who.get("faction"), who.get("race"), who.get("class")
+    seen = set(splits) | set(dings)
+    cur = db.execute("SELECT MAX(level) FROM records").fetchone()[0]
+    if cur:
+        seen.add(cur)
+    out = []
+    for lv in sorted(seen):
+        s = splits.get(lv) or {}
+        plan = med = guide = None
+        if route is not None and getattr(route, "available", False):
+            row = (route.levels.get(side or "Alliance") or {}).get(str(lv)) or {}
+            plan = (row.get("by_class") or {}).get(str(cls or "").upper())
+            med, guide = row.get("seconds"), row.get("guide")
+        ding = dings.get(lv) or (s.get("_t") if s else None)
+        out.append((lv, ding, _flt(s.get("seconds")), _int(s.get("xp")), _int(s.get("quests")), _int(s.get("kills")),
+                    1 if str(s.get("partial")).lower() == "true" else 0 if s else None, plan, med, guide))
+    db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?)", out)
+    _ = race
+
+
+def _route_steps(db, route) -> None:
+    if route is None or not getattr(route, "available", False):
+        return
+    used = {g for (g,) in db.execute("SELECT DISTINCT guide FROM records WHERE kind='step' AND guide IS NOT NULL")}
+    out = []
+    for g in sorted(used):
+        row = route.guides.get(g)
+        if not row:
+            continue
+        for st in row.get("steps") or []:
+            out.append((g, row.get("title"), st[0], st[1], st[2] if len(st) > 2 else None))
+    db.executemany("INSERT INTO route_steps VALUES (?,?,?,?,?)", out)
+
+
+def _items(g: dict) -> list:
+    items = g.get("items")
+    try:
+        items = json.loads(items) if isinstance(items, str) else (items or [])
+    except ValueError:
+        items = []
+    return [it for it in items if isinstance(it, dict)] if isinstance(items, list) else []
+
+
+def _gear(db, rows) -> None:
+    sheets = sorted((r for r in rows if r.get("feed") == "wow-gear"), key=lambda r: r["_t"])
+    if not sheets:
+        return
+    # The shipper can send the same sheet twice (same time): one each.
+    sheets = [sh for i, sh in enumerate(sheets) if i == 0 or sh["_t"] != sheets[i - 1]["_t"]]
+    hist = []
+    for sh in sheets:
+        lv = db.execute("SELECT level FROM records WHERE t <= ? AND level IS NOT NULL ORDER BY t DESC LIMIT 1",
+                        (sh["_t"],)).fetchone()
+        for it in _items(sh):
+            hist.append((sh["_t"], _local(sh["_t"]).isoformat(timespec="seconds"), lv[0] if lv else None,
+                         _int(it.get("slot")), it.get("slot_name"), _int(it.get("item_id")), it.get("name"),
+                         _int(it.get("quality")), _int(it.get("item_level")), _int(it.get("req_level"))))
+    db.executemany("INSERT INTO gear_sheets VALUES (?,?,?,?,?,?,?,?,?,?)", hist)
+    g = sheets[-1]
+    out = []
+    for it in _items(g):
+        iid = _int(it.get("item_id"))
+        if iid is None:
+            continue
+        ti = db.execute("SELECT quest_id, t FROM records WHERE kind='turnin' AND item_id=? ORDER BY t LIMIT 1",
+                        (iid,)).fetchone() or (None, None)
+        lt = db.execute("SELECT MIN(t) FROM loot_items WHERE item_id=?", (iid,)).fetchone()[0]
+        ct = db.execute("SELECT MIN(t) FROM records WHERE kind='craft' AND item_id=?", (iid,)).fetchone()[0]
+        vs = db.execute("SELECT COUNT(*) FROM records WHERE kind='vendor' AND (extra LIKE ? OR extra LIKE ?)",
+                        (f'%"{iid}:%', f'%;{iid}:%')).fetchone()[0]
+        ft = min((x for x in (ti[1], lt, ct) if x is not None), default=None)
+        fl = None
+        if ft is not None:
+            r = db.execute("SELECT level FROM records WHERE t <= ? AND level IS NOT NULL ORDER BY t DESC LIMIT 1",
+                           (ft,)).fetchone()
+            fl = r[0] if r else None
+        out.append((_int(it.get("slot")), it.get("slot_name"), iid, it.get("name"), _int(it.get("quality")),
+                    _int(it.get("item_level")), _int(it.get("req_level")), g["_t"], ti[0], ti[1], lt, ct,
+                    1 if vs else 0, ft, fl))
+    db.executemany("INSERT INTO gear VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", out)
+    profs = g.get("professions")
+    try:
+        profs = json.loads(profs) if isinstance(profs, str) else (profs or [])
+    except ValueError:
+        profs = []
+    db.executemany("INSERT INTO professions VALUES (?,?,?,?)",
+                   [(_int(p.get("skill_id")), p.get("name"), _int(p.get("rank")), _int(p.get("max_rank")))
+                    for p in profs if isinstance(p, dict)])
+    tal = g.get("talents")
+    try:
+        tal = json.loads(tal) if isinstance(tal, str) else (tal or [])
+    except ValueError:
+        tal = []
+    db.executemany("INSERT INTO talents VALUES (?,?)",
+                   [(p.get("tree"), _int(p.get("points"))) for p in tal if isinstance(p, dict)])
+
+
+def _snapshots(db, rows) -> None:
+    snaps = sorted((r for r in rows if r.get("feed") == "wow-character" and r.get("kind") != "played"
+                    and _int(r.get("money_copper")) is not None), key=lambda r: r["_t"])
+    out, prev = [], None
+    for r in snaps:
+        if prev is not None and r["_t"] == prev:
+            continue
+        rest = _on(r.get("resting"))
+        out.append((r["_t"], _iso(r["_t"], TZ), _int(r.get("level")), _int(r.get("xp")), _int(r.get("xp_max")),
+                    _int(r.get("money_copper")), r.get("zone"), r.get("bind"), rest,
+                    _online(db, prev, r["_t"]) if prev is not None else None))
+        prev = r["_t"]
+    db.executemany("INSERT INTO snapshots VALUES (?,?,?,?,?,?,?,?,?,?)", out)
+
+
+def _upgrades(db, ups: list[dict]) -> None:
+    out = []
+    for u in ups:
+        base = (_int(u.get("item_id")), u.get("name"), _int(u.get("quality")), u.get("slot_name"), _flt(u.get("gain")),
+                _flt(u.get("gain_share_pct")), _int(u.get("level")), 1 if u.get("now") else 0,
+                1 if u.get("fills_empty") else 0, _int((u.get("with") or {}).get("item_id")))
+        for s in u.get("sources") or []:
+            lv = s.get("levels") or [None, None]
+            out.append(base + (s.get("kind"), s.get("zone") if (s.get("instance") or s.get("dungeon")) else None,
+                               _int(lv[0]), _int(lv[1]), s.get("zone"), s.get("boss"), _int(s.get("npc_id")),
+                               _flt(s.get("chance_pct")), _int(s.get("quest_id")), s.get("name"),
+                               _int(s.get("choices")), s.get("profession"), _int(s.get("skill")),
+                               None if s.get("can_make") is None else int(bool(s.get("can_make")))))
+    db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 24) + ")", out)
+
+
+def slug(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", (name or "").lower()).strip("-")
+
+
+def _online(db, t0: float, t1: float) -> float:
+    if t1 <= t0:
+        return 0.0
+    return db.execute("SELECT COALESCE(SUM(MIN(t1, ?) - MAX(t0, ?)), 0) FROM timeline WHERE t1 > ? AND t0 < ?",
+                      (t1, t0, t0, t1)).fetchone()[0]
+
+
+def _dungeon_trips(db, rows) -> None:
+    """dungeon_trips: one row per dungeon run, widened to the Polestar lookup
+    guides' pickup and hand-in steps around it. Observable facts only."""
+    runs = db.execute("SELECT name, dungeon_id, level, start_t, COALESCE(left_t, start_t + COALESCE(seconds, 0)), "
+                      "xp FROM dungeon_runs ORDER BY start_t").fetchall()
+    if not runs:
+        return
+    recs = db.execute("SELECT rec_id, t, kind, guide, step, quest_id, xp_reward, item_id, money_copper, reason "
+                      "FROM records ORDER BY t, rec_id").fetchall()
+    steps = [(r[1], r[3], r[4], r[9]) for r in recs if r[2] == "step" and r[3]]
+    snaps = sorted((r["_t"], _int(r.get("money_copper"))) for r in rows
+                   if r.get("feed") == "wow-character" and _int(r.get("money_copper")) is not None)
+    worn = {r[0] for r in db.execute("SELECT item_id FROM gear WHERE item_id IS NOT NULL")}
+
+    def chain(ts: list[float], anchor: float, backwards: bool) -> list[float]:
+        out, edge = [], anchor
+        for t in sorted(ts, reverse=backwards):
+            if abs(t - edge) > TRIP_GAP_S:
+                break
+            out.append(t)
+            edge = t
+        return sorted(out)
+
+    trips = []
+    for i, (name, did, lv, r0, r1, xp_in) in enumerate(runs):
+        s = slug(name)
+        prev_end = max((x[4] for x in runs[:i] if slug(x[0]) == s), default=float("-inf"))
+        next_start = min((x[3] for x in runs[i + 1:]), default=float("inf"))
+        pick_t = chain([t for t, g, *_ in steps if g == f"lookup/pickup/{s}" and prev_end < t <= r0], r0, True)
+        hand_t = chain([t for t, g, *_ in steps if g == f"lookup/handin/{s}" and r1 <= t < next_start], r1, False)
+        start = pick_t[0] if pick_t else r0
+        end = hand_t[-1] if hand_t else r1
+        used = [f"{g}#{st if st is not None else ''}" for t, g, st, _ in steps
+                if g in (f"lookup/pickup/{s}", f"lookup/handin/{s}") and start <= t <= end]
+        # The trip's quests: worked on inside (objective progress, completion,
+        # a hand-in), or accepted as a pickup guide step advanced (within 3 s).
+        auto_t = [t for t, g, st, why in steps if g == f"lookup/pickup/{s}" and why in ("auto", "done")
+                  and start <= t <= r0]
+        qset = set()
+        for _, t, kind, _, _, qid, *_ in recs:
+            if qid is not None and ((r0 <= t <= r1 and kind in ("progress", "complete", "objectives", "turnin"))
+                                    or (kind == "accept" and start <= t <= r0
+                                        and any(0 <= a - t <= 3 for a in auto_t))):
+                qset.add(qid)
+        rewards, money, xp_q, handed = [], 0, 0, set()
+        acc_last = hand_first = None
+        for _, t, kind, _, _, qid, xpr, iid, cop, _ in recs:
+            if qid not in qset or not start <= t <= end:
+                continue
+            if kind == "accept" and t <= r0:
+                acc_last = t
+            elif kind == "turnin" and qid not in handed:
+                handed.add(qid)
+                xp_q += xpr or 0
+                money += cop or 0
+                if iid:
+                    rewards.append(iid)
+                if t >= r1 and hand_first is None:
+                    hand_first = t
+        pick_end = min(acc_last if acc_last is not None else (pick_t[-1] if pick_t else start), r0)
+        back_end = hand_first if hand_first is not None else (hand_t[0] if hand_t else r1)
+        back_end = max(back_end, r1)
+        loot = db.execute("SELECT item_id, SUM(count) FROM loot_items WHERE t >= ? AND t <= ? GROUP BY item_id "
+                          "ORDER BY item_id", (r0, r1)).fetchall()
+        xk = db.execute("SELECT COALESCE(SUM(xp_reward), 0) FROM records WHERE kind = 'kill' AND t >= ? AND t <= ?",
+                        (r0, r1)).fetchone()[0]
+        afk = db.execute("SELECT COALESCE(SUM(MIN(t1, ?) - MAX(t0, ?)), 0) FROM timeline WHERE afk = 1 AND "
+                         "t1 > ? AND t0 < ?", (end, start, start, end)).fetchone()[0]
+        lvs = db.execute("SELECT level FROM records WHERE t <= ? AND level IS NOT NULL ORDER BY t DESC LIMIT 1",
+                         (start,)).fetchone()
+        before = [m for t, m in snaps if t <= start]
+        after = [m for t, m in snaps if t >= end]
+        items = [x[0] for x in loot] + rewards
+        trips.append((i + 1, name, did, lvs[0] if lvs else lv, start, end,
+                      _local(start).isoformat(timespec="seconds"), _local(end).isoformat(timespec="seconds"),
+                      "guides" if pick_t or hand_t else "instance", _online(db, start, pick_end),
+                      _online(db, pick_end, r0), _online(db, r0, r1), _online(db, r1, back_end),
+                      _online(db, back_end, end), _online(db, start, end), afk, xk, xp_in, xp_q,
+                      json.dumps(sorted(qset)), len(handed), json.dumps([list(x) for x in loot]),
+                      sum(x[1] for x in loot), json.dumps(rewards),
+                      json.dumps(sorted({x for x in items if x in worn})), money,
+                      before[-1] if before else None, after[0] if after else None, json.dumps(used)))
+    db.executemany("INSERT INTO dungeon_trips VALUES (" + ",".join("?" * 29) + ")", trips)
+    for x in trips:
+        db.execute("UPDATE records SET dungeon_trip_id = ? WHERE t >= ? AND t <= ?", (x[0], x[4], x[5]))
+        db.execute("UPDATE timeline SET dungeon_trip_id = ? WHERE t0 >= ? AND t0 < ?", (x[0], x[4], x[5]))
+
+
+def _meta(db, char, rows, rec, now) -> None:
+    who = next((r for r in reversed(rec) if r.get("kind") == "session"), {})
+    # A character the recorder never saw (its folder, Syndicator, Polestar's
+    # alts only) still has a race, class and side in its snapshots and gear
+    # sheet: without them the dungeons list mixed both sides' cities.
+    known = sorted((r for r in rows if r.get("feed") in ("wow-character", "wow-gear") and r.get("kind") != "played"),
+                   key=lambda r: str(r.get("_time") or ""))
+    for k in ("class", "race", "faction"):
+        if not who.get(k):
+            who = {**who, k: next((r[k] for r in reversed(known) if r.get(k)), None)}
+    now = now or datetime.now(UTC)
+    meta = {"char": char, "class": who.get("class"), "race": who.get("race"), "faction": who.get("faction"),
+            "first_record": _iso(rec[0]["_t"]) if rec else None, "last_record": _iso(rec[-1]["_t"]) if rec else None,
+            "built_at": now.isoformat(timespec="seconds"), "timezone": TZ_NAME,
+            "polestar_version": who.get("polestar_version"), "game_build": who.get("build")}
+    db.executemany("INSERT INTO meta VALUES (?,?)", [(k, None if v is None else str(v)) for k, v in meta.items()])
+    counts = dict(db.execute("SELECT kind, COUNT(*) FROM records GROUP BY kind").fetchall())
+    counts["pos"] = db.execute("SELECT COUNT(*) FROM positions").fetchone()[0]
+    db.executemany("INSERT INTO record_kinds VALUES (?,?,?)",
+                   [(k, KINDS.get(k, "(not described in the recording contract)"), n)
+                    for k, n in sorted(counts.items())])
+
+
+def _aggregates(db) -> None:
+    for name, key, tl_key, rec_key in (("agg_session", "session_id", "session_id", "session_id"),
+                                       ("agg_level", "level", "level", "level"),
+                                       ("agg_zone", "zone", "zone", "zone"),
+                                       ("agg_hour", "hour_local", "hour_local", "hour_local")):
+        pos_key = {"hour_local": "CAST(strftime('%H', time_local) AS INTEGER)"}.get(key, key)
+        db.execute(f"""CREATE TABLE {name} AS
+        WITH tl AS (SELECT {tl_key} AS k, SUM(dur_s) online_s, SUM(dur_s*afk) afk_s, SUM(dur_s*combat) combat_s,
+                      SUM(dur_s*dead) dead_s, SUM(dur_s*taxi) taxi_s, SUM(dur_s*ride) ride_s,
+                      SUM(CASE WHEN instance IS NOT NULL THEN dur_s ELSE 0 END) instance_s,
+                      SUM(dur_s*mounted) mounted_s FROM timeline GROUP BY 1),
+             p AS (SELECT {pos_key} AS k, SUM(dist_yd) distance_yd, COUNT(*) positions FROM positions GROUP BY 1),
+             r AS (SELECT {rec_key} AS k, SUM(kind='kill') kills, SUM(kind='death') deaths,
+                      SUM(kind='turnin') turnins, SUM(kind='accept') accepts, SUM(kind='loot') loots,
+                      SUM(kind='cast') casts, SUM(kind='craft') crafts, COUNT(*) records FROM records GROUP BY 1),
+             x AS (SELECT {key} AS k,
+                      SUM(xp_gained) xp_gained FROM xp GROUP BY 1),
+             keys AS (SELECT k FROM tl UNION SELECT k FROM r)
+        SELECT keys.k AS {key}, COALESCE(online_s,0) online_s, COALESCE(afk_s,0) afk_s,
+               COALESCE(combat_s,0) combat_s, COALESCE(dead_s,0) dead_s, COALESCE(taxi_s,0) taxi_s,
+               COALESCE(ride_s,0) ride_s, COALESCE(instance_s,0) instance_s, COALESCE(mounted_s,0) mounted_s,
+               COALESCE(distance_yd,0) distance_yd, COALESCE(positions,0) positions,
+               COALESCE(x.xp_gained,0) xp_gained, COALESCE(kills,0) kills, COALESCE(deaths,0) deaths,
+               COALESCE(turnins,0) turnins, COALESCE(accepts,0) accepts, COALESCE(loots,0) loots,
+               COALESCE(casts,0) casts, COALESCE(crafts,0) crafts, COALESCE(records,0) records
+        FROM keys LEFT JOIN tl ON tl.k IS keys.k LEFT JOIN p ON p.k IS keys.k LEFT JOIN r ON r.k IS keys.k
+        LEFT JOIN x ON x.k IS keys.k ORDER BY 1""")
+
+
+def _dictionary(db) -> None:
+    out = []
+    for table, (desc, cols) in DICTIONARY.items():
+        out.append((table, None, desc))
+        for c, d in cols.items():
+            out.append((table, c, d))
+    db.executemany("INSERT INTO dictionary VALUES (?,?,?)", out)
+
+
+def schema_text(db: sqlite3.Connection) -> str:
+    """Every table with its columns, row count and descriptions: the
+    analysis' view of the database."""
+    desc: dict[tuple, str] = {}
+    for t, c, d in db.execute("SELECT table_name, column_name, description FROM dictionary"):
+        desc[(t, c)] = d
+    lines = []
+    tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY rowid")]
+    for t in tables:
+        if t == "dictionary":
+            continue
+        n = db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
+        lines.append(f"\n## {t} ({n} rows)" + (f": {desc[(t, None)]}" if (t, None) in desc else ""))
+        for _, col, typ, *_ in db.execute(f'PRAGMA table_info("{t}")'):
+            d = desc.get((t, col))
+            lines.append(f"- {col} {typ or ''}" + (f": {d}" if d else ""))
+    return "\n".join(lines).strip()
+
+
+PROFILE_TOP = 5
+PROFILE_CHARS = 60
+
+
+def profile(db: sqlite3.Connection) -> str:
+    """A neutral profile of every table: rows, time span, and per column the
+    number of distinct values, the most frequent ones and min/max. Counts
+    only: what the data holds, not what it means."""
+    out = []
+    tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY rowid")]
+    for t in tables:
+        if t in ("dictionary", "record_kinds", "meta"):
+            continue
+        n = db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
+        cols = [(c, (typ or "").upper()) for _, c, typ, *_ in db.execute(f'PRAGMA table_info("{t}")')]
+        head = f"## {t}: {n} rows"
+        tcol = next((c for c, _ in cols if c in ("t", "t0", "start_t", "sheet_t")), None)
+        if tcol and n:
+            lo, hi = db.execute(f'SELECT MIN("{tcol}"), MAX("{tcol}") FROM "{t}"').fetchone()
+            if lo is not None:
+                head += f", {_local(lo).isoformat(timespec='minutes')} to {_local(hi).isoformat(timespec='minutes')}"
+        out.append(head)
+        if not n:
+            continue
+        for c, typ in cols:
+            nn, nd = db.execute(f'SELECT COUNT("{c}"), COUNT(DISTINCT "{c}") FROM "{t}"').fetchone()
+            line = f"- {c}: {nn} set, {nd} distinct"
+            if nn and typ in ("INTEGER", "REAL") and nd > PROFILE_TOP:
+                lo, hi = db.execute(f'SELECT MIN("{c}"), MAX("{c}") FROM "{t}"').fetchone()
+                line += f", min {lo:.6g}, max {hi:.6g}" if isinstance(lo, (int, float)) else ""
+            if nn and (typ == "TEXT" or nd <= PROFILE_TOP) and c not in ("extra", "time_utc", "time_local"):
+                top = db.execute(f'SELECT "{c}", COUNT(*) n FROM "{t}" WHERE "{c}" IS NOT NULL GROUP BY 1 '
+                                 f"ORDER BY n DESC LIMIT {PROFILE_TOP}").fetchall()
+                line += "; top: " + ", ".join(f"{str(v)[:PROFILE_CHARS]} ({k})" for v, k in top)
+            out.append(line)
+    return "\n".join(out)

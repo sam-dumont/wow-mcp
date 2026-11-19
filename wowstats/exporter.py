@@ -1,0 +1,686 @@
+"""Battle.net API exporter for WoW: Forever (and the Retail WoW Token).
+
+Stdlib only, one process, four polling loops on their own cadence:
+  token     /data/wow/token/index per game namespace, every 20 min
+  realm     /data/wow/ruleset/index and each ruleset, every 5 min (Forever is
+            realmless: a ruleset's status is the closest thing to realm status)
+  auctions  the ruleset's auction-house index, then each house of one faction
+            (commodities only by default), every hour (Blizzard refreshes them
+            hourly)
+  profile   each character in PROFILE_CHARACTERS, once a day: its profile,
+            appearance, equipment and talents (/specializations). Forever has no realms: a character is
+            `{name}-{surname}` lowercased (testpriest-fixture) in the
+            profile-forever-{region} namespace (checked live 2026-11-18). A
+            character the API doesn't know yet (404, too low or never seen)
+            reads wow_character_profile_found 0 and nothing else.
+
+Every request sends If-Modified-Since (the API answers 304, checked live
+2026-11-18) and Accept-Encoding: gzip, so an unchanged snapshot costs a few
+hundred bytes. A 429 pauses every loop (Retry-After, else exponential).
+
+Where the numbers go, and why two places: Blizzard's Developer API Terms cap
+the retention of API data at 30 days, so the game data is never scraped into
+a longer-lived store. It is pushed every VM_PUSH_INTERVAL to a VictoriaMetrics
+of its own with a short retention (/api/v1/import/prometheus), which this
+process also force-merges daily when VM_MERGE_KEY_FILE is set, so expired
+blocks are really deleted. /metrics and /healthz on LISTEN_PORT (9464) only
+serve the exporter's own health (wow_api_up, wow_exporter_*), safe to scrape
+into any store.
+
+Logs carry status codes and counts, never prices: container logs often end
+up in a store kept longer than 30 days.
+
+Environment: BNET_CLIENT_ID_FILE, BNET_CLIENT_SECRET_FILE (required: your own
+client, README), BNET_REGION (eu), BNET_LOCALE (en_GB), BNET_RULESET_ID (2),
+AH_FACTION (Alliance), AH_NONCOMMODITY (false), PROFILE_CHARACTERS (comma
+list of Name-Surname, as the WTF folders name them), BNET_PROFILE_NAMESPACE
+(profile-forever-{region}), PROFILE_INTERVAL (86400), WATCH_ITEMS (JSON object
+{"item id": "name"} or a path to one), VM_PUSH_URL (may carry its own query
+args), VM_PUSH_EXTRA_LABELS (comma list of name=value), VM_PUSH_INTERVAL (60),
+VM_MERGE_KEY_FILE, VM_MERGE_URL (default: VM_PUSH_URL's host,
+/internal/force_merge), LISTEN_PORT (9464).
+"""
+
+import base64
+import gzip
+import json
+import os
+import re
+import sys
+import threading
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+from email.utils import formatdate
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+REGION = LOCALE = API = OAUTH = FOREVER_NS = PROFILE_NS = AH_FACTION = PUSH_URL = MERGE_URL = MERGE_KEY_FILE = ""
+CLIENT_ID_FILE = CLIENT_SECRET_FILE = ""
+TOKEN_NAMESPACES: dict = {}
+RULESET_ID = 2
+AH_NONCOMMODITY = False
+WATCH: dict = {}
+PROFILE_CHARS: list = []
+# Several people (wowstats.tenancy): the full view's list of every person's
+# characters, read at each profile pass and added to PROFILE_CHARACTERS.
+PROFILE_CHARS_URL = ""
+INTERVALS = {"token": 1200, "realm": 300, "auctions": 3600, "profile": 86400}
+# Blizzard's Developer API Terms: API data is kept 30 days at most.
+KEEP_S = 30 * 86400
+PUSH_LABELS: list = []
+PUSH_INTERVAL = 60
+MERGE_INTERVAL = 86400
+LISTEN = 9464
+TIMEOUT = 60
+
+
+def merge_url_for(push_url: str) -> str:
+    """The force-merge endpoint of the VictoriaMetrics that VM_PUSH_URL writes to."""
+    u = urllib.parse.urlsplit(push_url)
+    return urllib.parse.urlunsplit((u.scheme, u.netloc, "/internal/force_merge", "", ""))
+
+
+def push_target(push_url: str, extra_labels: list) -> str:
+    """VM_PUSH_URL may already carry query args (extra_label=...): add ours
+    with '&', never replace them."""
+    if not extra_labels:
+        return push_url
+    q = urllib.parse.urlencode([("extra_label", x) for x in extra_labels])
+    return push_url + ("&" if urllib.parse.urlsplit(push_url).query else "?") + q
+
+
+def watch_items(raw: str) -> dict:
+    """WATCH_ITEMS: a JSON object {"item id": "name"}, inline or in a file."""
+    raw = raw.strip()
+    if raw and not raw.startswith("{"):
+        with open(raw, encoding="utf-8") as f:
+            raw = f.read()
+    return {int(k): v for k, v in json.loads(raw or "{}").items()}
+
+
+def configure(env=None):
+    global REGION, LOCALE, API, OAUTH, FOREVER_NS, PROFILE_NS, PROFILE_CHARS, AH_FACTION, PROFILE_CHARS_URL
+    global PUSH_URL, MERGE_URL, MERGE_KEY_FILE
+    global CLIENT_ID_FILE, CLIENT_SECRET_FILE, TOKEN_NAMESPACES, RULESET_ID, AH_NONCOMMODITY, WATCH
+    global INTERVALS, PUSH_LABELS, PUSH_INTERVAL, MERGE_INTERVAL, LISTEN, TIMEOUT
+    env = os.environ if env is None else env
+    REGION = env.get("BNET_REGION", "eu")
+    LOCALE = env.get("BNET_LOCALE", "en_GB")
+    API = env.get("BNET_API_URL", f"https://{REGION}.api.blizzard.com")
+    OAUTH = env.get("BNET_OAUTH_URL", "https://oauth.battle.net/token")
+    CLIENT_ID_FILE = env.get("BNET_CLIENT_ID_FILE", "")
+    CLIENT_SECRET_FILE = env.get("BNET_CLIENT_SECRET_FILE", "")
+    if not CLIENT_ID_FILE or not CLIENT_SECRET_FILE:
+        sys.exit("set BNET_CLIENT_ID_FILE and BNET_CLIENT_SECRET_FILE: files holding YOUR Battle.net API "
+                 "client's id and secret (README, \"Battle.net client\")")
+    # {"forever": "dynamic-forever-eu", "retail": "dynamic-eu"}
+    TOKEN_NAMESPACES = json.loads(env.get("BNET_TOKEN_NAMESPACES") or json.dumps(
+        {"forever": f"dynamic-forever-{REGION}", "retail": f"dynamic-{REGION}"}))
+    FOREVER_NS = env.get("BNET_FOREVER_NAMESPACE", f"dynamic-forever-{REGION}")
+    PROFILE_NS = env.get("BNET_PROFILE_NAMESPACE", f"profile-forever-{REGION}")
+    PROFILE_CHARS = [c.strip() for c in env.get("PROFILE_CHARACTERS", "").split(",") if c.strip()]
+    PROFILE_CHARS_URL = env.get("PROFILE_CHARACTERS_URL", "").strip()
+    RULESET_ID = int(env.get("BNET_RULESET_ID", "2"))
+    AH_FACTION = env.get("AH_FACTION", "Alliance")
+    AH_NONCOMMODITY = env.get("AH_NONCOMMODITY", "false") == "true"
+    WATCH = watch_items(env.get("WATCH_ITEMS", ""))
+    INTERVALS = {
+        "token": int(env.get("TOKEN_INTERVAL", "1200")),
+        "realm": int(env.get("REALM_INTERVAL", "300")),
+        "auctions": int(env.get("AH_INTERVAL", "3600")),
+        "profile": int(env.get("PROFILE_INTERVAL", "86400")),
+    }
+    PUSH_URL = env.get("VM_PUSH_URL", "")
+    PUSH_LABELS = [x for x in env.get("VM_PUSH_EXTRA_LABELS", "").split(",") if x]
+    PUSH_INTERVAL = int(env.get("VM_PUSH_INTERVAL", "60"))
+    MERGE_KEY_FILE = env.get("VM_MERGE_KEY_FILE", "")
+    MERGE_URL = env.get("VM_MERGE_URL") or (merge_url_for(PUSH_URL) if PUSH_URL and MERGE_KEY_FILE else "")
+    MERGE_INTERVAL = int(env.get("VM_MERGE_INTERVAL", "86400"))
+    LISTEN = int(env.get("LISTEN_PORT", "9464"))
+    TIMEOUT = int(env.get("HTTP_TIMEOUT", "60"))
+
+
+lock = threading.Lock()
+# name -> {labels tuple -> (value, updated_at, task)}; game data, push only
+data = {}
+health = {
+    "api_up": 0.0,
+    "last_success": {},  # task -> unix time
+    "requests": {},  # (endpoint, code) -> count
+    "push_errors": 0,
+    "merge_errors": 0,
+    "last_push": 0.0,
+}
+cache = {}  # url -> (last_modified, parsed body)
+pause_until = 0.0
+backoff = 0
+_token = {"value": "", "exp": 0.0}
+
+
+def log(msg):
+    print(time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), msg, flush=True)
+
+
+class ApiError(Exception):
+    def __init__(self, code, endpoint):
+        super().__init__(f"{endpoint}: HTTP {code}")
+        self.code = code
+
+
+def read_file(path):
+    with open(path) as f:
+        return f.read().strip()
+
+
+def oauth_token(force=False):
+    """Client-credentials token, cached until 5 min before it expires (24 h)."""
+    if not force and _token["value"] and time.time() < _token["exp"]:
+        return _token["value"]
+    cid = read_file(CLIENT_ID_FILE)
+    csec = read_file(CLIENT_SECRET_FILE)
+    req = urllib.request.Request(
+        OAUTH,
+        data=b"grant_type=client_credentials",
+        headers={
+            "Authorization": "Basic " + base64.b64encode(f"{cid}:{csec}".encode()).decode(),
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+            body = json.load(r)
+    except urllib.error.HTTPError as e:
+        count("oauth", e.code)
+        raise ApiError(e.code, "oauth") from None
+    count("oauth", 200)
+    _token["value"] = body["access_token"]
+    _token["exp"] = time.time() + int(body.get("expires_in", 3600)) - 300
+    return _token["value"]
+
+
+def count(endpoint, code):
+    with lock:
+        k = (endpoint, str(code))
+        health["requests"][k] = health["requests"].get(k, 0) + 1
+
+
+def api_get(path, namespace, endpoint, reduce=None):
+    """GET with the cached token; returns the parsed body (cached on 304) or
+    None on 404. Raises ApiError for anything else that isn't 2xx. `reduce`
+    trims the body before it is cached: a house's commodities are 80k
+    entries, of which a dozen items matter."""
+    global pause_until, backoff
+    url = f"{API}{path}?{urllib.parse.urlencode({'locale': LOCALE})}"
+    key = f"{namespace} {url}"
+    for attempt in (0, 1):
+        headers = {
+            "Authorization": f"Bearer {oauth_token(force=attempt == 1)}",
+            "Battlenet-Namespace": namespace,
+            "Accept-Encoding": "gzip",
+        }
+        if key in cache:
+            headers["If-Modified-Since"] = cache[key][0]
+        req = urllib.request.Request(url, headers=headers)
+        try:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as r:
+                raw = r.read()
+                if r.headers.get("Content-Encoding") == "gzip":
+                    raw = gzip.decompress(raw)
+                body = json.loads(raw)
+                del raw
+                if reduce:
+                    body = reduce(body)
+                cache[key] = (r.headers.get("Last-Modified") or formatdate(usegmt=True), body)
+                count(endpoint, r.status)
+                backoff = 0
+                return body
+        except urllib.error.HTTPError as e:
+            count(endpoint, e.code)
+            if e.code == 304 and key in cache:
+                backoff = 0
+                return cache[key][1]
+            if e.code == 404:
+                # The API answered: the endpoint just doesn't exist for this
+                # game (Forever has no token or realms, 2026-11-18), or the
+                # character isn't on the profile API yet.
+                cache.pop(key, None)
+                return None
+            if e.code == 401 and attempt == 0:
+                continue  # token revoked or expired early: fetch a new one
+            if e.code == 429:
+                ra = e.headers.get("Retry-After")
+                backoff = min(backoff + 1, 6)
+                wait = int(ra) if ra and ra.isdigit() else 60 * 2 ** (backoff - 1)
+                pause_until = time.time() + min(wait, 3600)
+                log(f"429 on {endpoint}: pausing {min(wait, 3600)}s")
+            raise ApiError(e.code, endpoint) from None
+    raise ApiError(401, endpoint)
+
+
+def put(name, labels, value, task):
+    with lock:
+        data.setdefault(name, {})[tuple(sorted(labels.items()))] = (float(value), time.time(), task)
+
+
+def drop(name, task, keep):
+    """Forget series of `name` written by `task` that the last run didn't see
+    (an item that sold out, a house that disappeared)."""
+    with lock:
+        series = data.get(name, {})
+        for k in [k for k, v in series.items() if v[2] == task and k not in keep]:
+            del series[k]
+
+
+def poll_token():
+    seen = set()
+    for game, ns in TOKEN_NAMESPACES.items():
+        body = api_get("/data/wow/token/index", ns, "token")
+        if body is None or "price" not in body:
+            continue
+        labels = {"region": REGION, "game": game}
+        # price is in copper: 1 gold = 100 silver = 10,000 copper.
+        put("wow_token_price_gold", labels, body["price"] / 10000, "token")
+        put("wow_token_last_updated_timestamp_seconds", labels, body["last_updated_timestamp"] / 1000, "token")
+        seen.add(tuple(sorted(labels.items())))
+    drop("wow_token_price_gold", "token", seen)
+    drop("wow_token_last_updated_timestamp_seconds", "token", seen)
+    return f"{len(seen)} of {len(TOKEN_NAMESPACES)} games"
+
+
+def poll_realm():
+    index = api_get("/data/wow/ruleset/index", FOREVER_NS, "ruleset")
+    if index is None:
+        raise ApiError(404, "ruleset")
+    up, pop = set(), set()
+    for ref in index.get("rulesets", []):
+        rs = api_get(f"/data/wow/ruleset/{ref['id']}", FOREVER_NS, "ruleset")
+        if rs is None:
+            continue
+        name = rs.get("name") or str(ref["id"])
+        labels = {"realm": name, "region": REGION, "ruleset_id": str(rs.get("id", ref["id"]))}
+        put("wow_realm_up", labels, 1 if rs.get("status", {}).get("type") == "UP" else 0, "realm")
+        up.add(tuple(sorted(labels.items())))
+        # Retail connected realms carry population.type (LOW..FULL); Forever's
+        # rulesets have no population field (checked live 2026-11-18). Kept
+        # so the series appears by itself if Blizzard adds it.
+        ptype = (rs.get("population") or {}).get("type")
+        if ptype:
+            pl = {"realm": name, "region": REGION, "population": ptype}
+            put("wow_realm_population", pl, 1, "realm")
+            pop.add(tuple(sorted(pl.items())))
+    drop("wow_realm_up", "realm", up)
+    drop("wow_realm_population", "realm", pop)
+    return f"{len(up)} rulesets"
+
+
+def watched_only(body):
+    return {"auctions": [a for a in body.get("auctions") or [] if a.get("item", {}).get("id") in WATCH]}
+
+
+def poll_auctions():
+    index = api_get(f"/data/wow/ruleset/{RULESET_ID}/auctions/", FOREVER_NS, "auction_index")
+    if index is None:
+        raise ApiError(404, "auction_index")
+    # Every ruleset lists the same houses with the same auctions (checked
+    # live: ruleset 1 and 2, house 110), so one ruleset is enough. The five
+    # Alliance houses hold different auctions (no shared auction id), so each
+    # is its own market: the house label keeps them apart.
+    houses = [h for h in index.get("auctions", []) if h.get("name", "").startswith(AH_FACTION)]
+    keep_price, keep_qty, n = set(), set(), 0
+    for h in houses:
+        best, qty = {}, {}
+        paths = [f"/data/wow/ruleset/{RULESET_ID}/auctions/{h['id']}/commodities"]
+        if AH_NONCOMMODITY:
+            paths.append(f"/data/wow/ruleset/{RULESET_ID}/auctions/{h['id']}")
+        for path in paths:
+            body = api_get(path, FOREVER_NS, "auctions", reduce=watched_only)
+            for a in (body or {}).get("auctions") or []:
+                item = a.get("item", {}).get("id")
+                if item not in WATCH:
+                    continue
+                q = int(a.get("quantity", 1)) or 1
+                # Commodities: unit_price. Other auctions: buyout for the stack
+                # (bid-only auctions have none and only count as quantity).
+                unit = a.get("unit_price")
+                if unit is None and a.get("buyout") is not None:
+                    unit = a["buyout"] / q
+                qty[item] = qty.get(item, 0) + q
+                if unit is not None and (item not in best or unit < best[item]):
+                    best[item] = unit
+        n += 1
+        for item, name in WATCH.items():
+            labels = {"item_id": str(item), "item": name, "house": str(h["id"]), "faction": AH_FACTION.lower()}
+            k = tuple(sorted(labels.items()))
+            put("wow_auction_quantity", labels, qty.get(item, 0), "auctions")
+            keep_qty.add(k)
+            if item in best:
+                put("wow_auction_min_buyout_copper", labels, best[item], "auctions")
+                keep_price.add(k)
+    drop("wow_auction_quantity", "auctions", keep_qty)
+    drop("wow_auction_min_buyout_copper", "auctions", keep_price)
+    return f"{n} houses, {len(WATCH)} items"
+
+
+def char_slug(name: str) -> str:
+    """Forever's profile key: `{name}-{surname}` lowercased, URL-encoded (no
+    realm: Forever has none)."""
+    return urllib.parse.quote(name.lower(), safe="-")
+
+
+PROFILE_SERIES = ("wow_character_profile", "wow_character_customization", "wow_character_equipped",
+                  "wow_character_profile_refreshed_timestamp_seconds", "wow_character_item_level",
+                  "wow_character_render",
+                  # Each worn item's stats, as the armory shows them: a random
+                  # suffix's ("of the Owl") are in no item table (gear advice).
+                  "wow_character_equipped_stat",
+                  # Talents (/specializations): the active group's points per tree and ranks.
+                  "wow_character_talent_points", "wow_character_talent_rank")
+# Where /character-media's renders may come from: the armory's own image
+# host. The publisher downloads the image from there (its only egress for
+# it); any other address is ignored.
+RENDER_HOSTS = ("render.worldofwarcraft.com",)
+# The full-body image, transparent first (the armory's "main-raw").
+RENDER_ASSETS = ("main-raw", "main")
+
+
+def render_url(media: dict | None) -> tuple[str, str] | None:
+    """The full-body render in a /character-media answer: (asset, url), or
+    None. Only https on RENDER_HOSTS."""
+    assets = {a.get("key"): a.get("value") for a in (media or {}).get("assets") or [] if isinstance(a, dict)}
+    for key in RENDER_ASSETS:
+        url = assets.get(key)
+        if isinstance(url, str):
+            u = urllib.parse.urlsplit(url)
+            if u.scheme == "https" and u.hostname in RENDER_HOSTS and not u.username and u.port is None:
+                return key, url
+    return None
+
+
+
+def talent_readings(body) -> tuple[list[dict], dict[int, tuple[int, str]]]:
+    """The active talent group of a /specializations answer: its trees
+    [{tree, points}] in the order given and {spell id: (rank, talent name)}.
+    Forever's shape (read live 2026-11-18, a level 32 priest): no
+    active_specialization; specialization_groups[] {is_active,
+    specializations[] {specialization_name, spent_points, talents[]
+    {talent {name, id}, spell_tooltip {spell {name, id}}, talent_rank}}}."""
+    trees: list[dict] = []
+    ranks: dict[int, tuple[int, str]] = {}
+    groups = body.get("specialization_groups") if isinstance(body, dict) else None
+    group = next((g for g in groups or [] if isinstance(g, dict) and g.get("is_active")), None)
+    for sp in (group or {}).get("specializations") or []:
+        if not isinstance(sp, dict) or not isinstance(sp.get("specialization_name"), str):
+            continue
+        pts = sp.get("spent_points")
+        trees.append({"tree": sp["specialization_name"], "points": pts if isinstance(pts, int) else 0})
+        for t in sp.get("talents") or []:
+            spell = ((t.get("spell_tooltip") or {}).get("spell") or {}) if isinstance(t, dict) else {}
+            rank = t.get("talent_rank") if isinstance(t, dict) else None
+            if isinstance(spell.get("id"), int) and isinstance(rank, int) and rank > 0:
+                name = ((t.get("talent") or {}).get("name") or spell.get("name") or "")
+                ranks[spell["id"]] = (rank, str(name))
+    return trees, ranks
+
+
+def forget_old(now=None):
+    """Drop every profile series not refreshed for 30 days (Blizzard's cap),
+    whatever happened to the character since."""
+    now = now or time.time()
+    with lock:
+        for name in (*PROFILE_SERIES, "wow_character_profile_found"):
+            series = data.get(name, {})
+            for k in [k for k, v in series.items() if now - v[1] > KEEP_S]:
+                del series[k]
+
+
+NAME_RE = re.compile(r"^[^\x00-\x1f\"\\/]{1,64}$")
+
+
+def profile_chars() -> list[str]:
+    """PROFILE_CHARACTERS plus the full view's list (PROFILE_CHARACTERS_URL),
+    one name per line. The list down: the last answer is not kept, the env
+    list alone goes this pass (a character missed today is read tomorrow)."""
+    names = list(PROFILE_CHARS)
+    if PROFILE_CHARS_URL:
+        try:
+            from wowstats import guard
+
+            with guard.share_open(PROFILE_CHARS_URL) as r:
+                for line in r.read(1_000_000).decode("utf-8", "replace").splitlines():
+                    n = line.strip()
+                    if n and NAME_RE.match(n) and n not in names:
+                        names.append(n)
+        except OSError as e:
+            log(f"profile characters from {urllib.parse.urlsplit(PROFILE_CHARS_URL).hostname}: {e}")
+    return names
+
+
+def poll_profile():
+    """Each listed character's profile, appearance and equipment. The look is
+    option/choice ids, the same ids Wowhead's viewer takes."""
+    keep = {n: set() for n in PROFILE_SERIES}
+    found = 0
+    chars = profile_chars()
+    for name in chars:
+        path = f"/profile/wow/character/{char_slug(name)}"
+        prof = api_get(path, PROFILE_NS, "profile")
+        put("wow_character_profile_found", {"character": name}, 1 if prof else 0, "profile")
+        if not prof:
+            continue  # not on Battle.net yet: its other series go below
+        found += 1
+        look = api_get(f"{path}/appearance", PROFILE_NS, "profile_appearance") or {}
+        race = (prof.get("race") or look.get("playable_race") or {}).get("id")
+        gender = ((prof.get("gender") or look.get("gender") or {}).get("type") or "").lower()
+        labels = {"character": name, "race_id": str(race or ""), "gender": gender}
+        put("wow_character_profile", labels, prof.get("level") or 0, "profile")
+        keep["wow_character_profile"].add(tuple(sorted(labels.items())))
+        # When Blizzard's answer was read: the page says how old the look is,
+        # and the series is pushed every minute whatever its age.
+        put("wow_character_profile_refreshed_timestamp_seconds", {"character": name}, time.time(), "profile")
+        keep["wow_character_profile_refreshed_timestamp_seconds"].add((("character", name),))
+        for c in look.get("customizations") or []:
+            opt, choice = (c.get("option") or {}).get("id"), (c.get("choice") or {}).get("id")
+            if opt and choice:
+                labels = {"character": name, "option_id": str(opt)}
+                put("wow_character_customization", labels, choice, "profile")
+                keep["wow_character_customization"].add(tuple(sorted(labels.items())))
+        # The armory's item level: Blizzard's own count (every slot, an
+        # empty one 0), which the page shows next to its own average.
+        for kind in ("equipped", "average"):
+            v = prof.get(f"{kind}_item_level")
+            if isinstance(v, (int, float)):
+                labels = {"character": name, "kind": kind}
+                put("wow_character_item_level", labels, v, "profile")
+                keep["wow_character_item_level"].add(tuple(sorted(labels.items())))
+        # The armory's full-body render: its address, which the publisher
+        # downloads into the static bundles (gone with the series after 30
+        # days, like everything of Battle.net's).
+        got = render_url(api_get(f"{path}/character-media", PROFILE_NS, "profile_media"))
+        if got:
+            labels = {"character": name, "asset": got[0], "url": got[1]}
+            put("wow_character_render", labels, time.time(), "profile")
+            keep["wow_character_render"].add(tuple(sorted(labels.items())))
+        gear = api_get(f"{path}/equipment", PROFILE_NS, "profile_equipment") or {}
+        for it in gear.get("equipped_items") or []:
+            slot, item = (it.get("slot") or {}).get("type"), (it.get("item") or {}).get("id")
+            if slot and item:
+                labels = {"character": name, "slot": slot.lower()}
+                put("wow_character_equipped", labels, item, "profile")
+                keep["wow_character_equipped"].add(tuple(sorted(labels.items())))
+                for st in it.get("stats") or []:
+                    kind, v = ((st or {}).get("type") or {}).get("type"), (st or {}).get("value")
+                    if kind and isinstance(v, (int, float)) and not st.get("is_negated"):
+                        sl = {**labels, "stat": str(kind)}
+                        put("wow_character_equipped_stat", sl, v, "profile")
+                        keep["wow_character_equipped_stat"].add(tuple(sorted(sl.items())))
+        # Talents for the card: no local add-on saves them by itself on
+        # Forever (Altoholic keeps only the class name, /simx is by hand).
+        trees, ranks = talent_readings(api_get(f"{path}/specializations", PROFILE_NS, "profile_specializations"))
+        for i, t in enumerate(trees):
+            labels = {"character": name, "tree": t["tree"], "order": str(i)}
+            put("wow_character_talent_points", labels, t["points"], "profile")
+            keep["wow_character_talent_points"].add(tuple(sorted(labels.items())))
+        for sp, (rk, tname) in ranks.items():
+            labels = {"character": name, "spell_id": str(sp), "talent": tname}
+            put("wow_character_talent_rank", labels, rk, "profile")
+            keep["wow_character_talent_rank"].add(tuple(sorted(labels.items())))
+    for n, k in keep.items():
+        drop(n, "profile", k)
+    drop("wow_character_profile_found", "profile",
+         {(("character", c),) for c in chars})
+    forget_old()
+    return f"{found} of {len(chars)} characters"
+
+
+TASKS = {"token": poll_token, "realm": poll_realm, "auctions": poll_auctions, "profile": poll_profile}
+
+
+def esc(v):
+    return str(v).replace("\\", "\\\\").replace("\n", "\\n").replace('"', '\\"')
+
+
+def fmt(name, labels, value):
+    lbl = ",".join(f'{k}="{esc(v)}"' for k, v in labels)
+    return f"{name}{{{lbl}}} {value!r}\n" if lbl else f"{name} {value!r}\n"
+
+
+def render_health():
+    with lock:
+        out = [fmt("wow_api_up", (), health["api_up"])]
+        for task, ts in sorted(health["last_success"].items()):
+            out.append(fmt("wow_exporter_last_success_timestamp_seconds", (("task", task),), ts))
+        for (ep, code), c in sorted(health["requests"].items()):
+            out.append(fmt("wow_api_requests_total", (("code", code), ("endpoint", ep)), float(c)))
+        out.append(fmt("wow_exporter_push_errors_total", (), float(health["push_errors"])))
+        out.append(fmt("wow_exporter_merge_errors_total", (), float(health["merge_errors"])))
+        out.append(fmt("wow_exporter_last_push_timestamp_seconds", (), health["last_push"]))
+        out.append(fmt("wow_api_paused", (), 1.0 if time.time() < pause_until else 0.0))
+    return "".join(out)
+
+
+def render_data(now=None):
+    """Game data still fresh: a value is pushed for up to 3 polling intervals
+    after its last successful read, then dropped, so a dead API shows as a
+    gap instead of a flat line."""
+    now = now or time.time()
+    out = []
+    with lock:
+        for name in sorted(data):
+            for labels, (value, ts, task) in sorted(data[name].items()):
+                if now - ts <= 3 * INTERVALS[task]:
+                    out.append(fmt(name, labels, value))
+    return "".join(out)
+
+
+def push():
+    body = (render_data() + render_health()).encode()
+    req = urllib.request.Request(push_target(PUSH_URL, PUSH_LABELS), data=body, method="POST",
+                                 headers={"Content-Type": "text/plain"})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            r.read()
+        with lock:
+            health["last_push"] = time.time()
+    except (urllib.error.URLError, OSError) as e:
+        with lock:
+            health["push_errors"] += 1
+        log(f"push failed: {e}")
+
+
+def force_merge():
+    """Rewrite this month's and last month's partitions: a merge drops the
+    blocks that are past the retention (otherwise they stay on disk until
+    their whole part is, which can be weeks)."""
+    key = read_file(MERGE_KEY_FILE)
+    t = time.gmtime()
+    prev = time.gmtime(time.mktime((t.tm_year, t.tm_mon, 1, 0, 0, 0, 0, 0, 0)) - 86400)
+    for y, m in ((prev.tm_year, prev.tm_mon), (t.tm_year, t.tm_mon)):
+        # authKey in the form body, not the URL: URLs end up in logs.
+        form = urllib.parse.urlencode({"authKey": key, "partition_prefix": f"{y:04d}_{m:02d}"}).encode()
+        req = urllib.request.Request(MERGE_URL, data=form, method="POST",
+                                     headers={"Content-Type": "application/x-www-form-urlencoded"})
+        try:
+            with urllib.request.urlopen(req, timeout=300) as r:
+                r.read()
+        except (urllib.error.URLError, OSError) as e:
+            with lock:
+                health["merge_errors"] += 1
+            log(f"force_merge {y:04d}_{m:02d} failed: {e}")
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/metrics":
+            body, ctype = render_health().encode(), "text/plain; version=0.0.4"
+        elif self.path == "/healthz":
+            body, ctype = b"ok\n", "text/plain"
+        else:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args):
+        pass
+
+
+def run_task(name):
+    try:
+        summary = TASKS[name]()
+        with lock:
+            health["last_success"][name] = time.time()
+            health["api_up"] = 1.0
+        log(f"{name}: ok ({summary})")
+        return True
+    except ApiError as e:
+        with lock:
+            health["api_up"] = 0.0
+        log(f"{name}: {e}")
+    except (urllib.error.URLError, OSError, ValueError, KeyError) as e:
+        with lock:
+            health["api_up"] = 0.0
+        log(f"{name}: {type(e).__name__}: {e}")
+    return False
+
+
+def main():
+    configure()
+    if not PUSH_URL:
+        log("VM_PUSH_URL is empty: the game data stays in memory, nothing is stored")
+    if not WATCH:
+        log("WATCH_ITEMS is empty: no auction metrics")
+    if not PROFILE_CHARS and not PROFILE_CHARS_URL:
+        log("PROFILE_CHARACTERS is empty: no appearance from Battle.net")
+    server = ThreadingHTTPServer(("", LISTEN), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    log(f"listening on :{LISTEN}, region {REGION}, ruleset {RULESET_ID}, {len(WATCH)} watched items")
+    due = {name: 0.0 for name in TASKS}
+    fails = {name: 0 for name in TASKS}
+    next_push = time.time() + 10
+    next_merge = time.time() + 600
+    while True:
+        now = time.time()
+        if now >= pause_until:
+            for name in TASKS:
+                if now >= due[name]:
+                    if run_task(name):
+                        fails[name] = 0
+                        due[name] = time.time() + INTERVALS[name]
+                    else:
+                        # Retry sooner than the full interval, but back off:
+                        # 1, 2, 4... min, never more often than the interval.
+                        fails[name] += 1
+                        due[name] = time.time() + min(INTERVALS[name], 60 * 2 ** (fails[name] - 1))
+                    if time.time() < pause_until:
+                        break
+        if PUSH_URL and time.time() >= next_push:
+            push()
+            next_push = time.time() + PUSH_INTERVAL
+        if MERGE_URL and MERGE_KEY_FILE and time.time() >= next_merge:
+            force_merge()
+            next_merge = time.time() + MERGE_INTERVAL
+        time.sleep(1)

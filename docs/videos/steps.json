@@ -1,0 +1,612 @@
+{
+  "version": 2,
+  "about": "The install steps: one source for /start (wizard and manual, personal: the command carries your code) and /help/ (generic: points to /start for the command). Ids are stable: the video slots and both pages key on them. Placeholders in text: {base} is the full view's address, {code} the single-use install code (on /help/, render the command as a pointer to /start). audience: start = /start only (needs a login), both = /start and /help/. Every step has check (how to know it worked) and if_not (what to do when it didn't); every troubleshooting entry ends in fix. addons: links verified in a browser on 2026-11-18 (source: curseforge or github); note is shown under the addon when set. steps.install.update: the code-free update commands (same placeholders). media: a clip's file name in docs/videos/media; name.mp4 stands for name-dark.mp4 and name-light.mp4 when those exist (the page picks the one for its theme). update_media and uninstall.media: the clips of those two sections. guide: /help/ only, the manual around the steps: what (its first line and the onboarding clip), quick (the 3 steps on its first screen, one action each), tabs (one line per tab of your page), status (checking the program sends, folded under Everything else) and page (each tab in detail, folded); a page section has id, title, body, and may have caption, points ([label, text]), os (like a step's) and media.",
+  "title": "Getting started with wow-stats",
+  "intro": "Seven steps, about 15 minutes. After that you just play: your page updates within 5 minutes of a /reload or logout.",
+  "steps": [
+    {
+      "id": "login",
+      "audience": "start",
+      "icon": "key",
+      "title": "Log in",
+      "caption": "Log in with the account you were sent.",
+      "body": [
+        "Open the link you were sent and log in with the username and password from the invite."
+      ],
+      "check": "You land on this page and step 2 asks for a name.",
+      "if_not": "\"Access denied\" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with.",
+      "media": null,
+      "clip": "browser#welcome",
+      "generic": {
+        "body": [
+          "Your start page, {base}/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent, then pick your name."
+        ],
+        "check": "The start page shows your name with a tick.",
+        "if_not": "\"Access denied\" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with."
+      }
+    },
+    {
+      "id": "name",
+      "audience": "start",
+      "icon": "tag",
+      "title": "Pick your name",
+      "caption": "A short name: it becomes your page's address.",
+      "body": [
+        "2 to 20 characters, a-z and 0-9. It becomes your page's address, so pick a handle, not your real name. It can't change later: links would break."
+      ],
+      "check": "Your name shows in green with a tick.",
+      "if_not": "\"taken\" or \"reserved\": pick another. Any other error: reload the page and try again.",
+      "media": null,
+      "clip": "browser#name"
+    },
+    {
+      "id": "addons",
+      "audience": "both",
+      "icon": "puzzle",
+      "title": "Install the addons",
+      "caption": "Polestar is required. The install command (step 4) adds Polestar Recorder.",
+      "body": [
+        "Easiest: the CurseForge app (https://www.curseforge.com/download/app) lists WoW Forever as its own WoW install; restart the app if Forever doesn't show up."
+      ],
+      "check": "Character select, AddOns: Polestar and Polestar Recorder are ticked. In game, /psrec on was typed once (not needed with the Polestar Client). Once data arrives (step 5), each addon turns green in the list on this page.",
+      "if_not": "Missing from the AddOns list: the folder is one level too deep (Interface/AddOns/Polestar/Polestar/...). Move it up so Interface/AddOns/Polestar/Polestar.toc exists, then restart WoW.",
+      "media": null,
+      "clip": "browser#addons",
+      "generic": {
+        "check": "Character select, AddOns: Polestar and Polestar Recorder are ticked. In game, /psrec on was typed once (not needed with the Polestar Client). Once data arrives, each addon turns green on your start page."
+      }
+    },
+    {
+      "id": "install",
+      "audience": "both",
+      "icon": "terminal",
+      "title": "Run the install command",
+      "caption": "One line in a terminal. No admin rights.",
+      "body": [
+        "The command installs the shipper: a small Python script (uv fetches Python if needed) that runs every 5 minutes, reads your WTF/ folder and sends new events to your page. It also puts Polestar Recorder in WoW's AddOns folder (its official release, checked), unless you have a newer one. It finds the WoW folder itself, writes only under your user folder and to that AddOns folder, and never prints your password."
+      ],
+      "os": {
+        "windows": {
+          "label": "Windows (PowerShell)",
+          "how": "Windows key, type PowerShell, Enter. Paste with a right click, press Enter.",
+          "command": "irm {base}/install/{code} | iex",
+          "installs": "%LOCALAPPDATA%\\wow-stats and a scheduled task \"wow-stats\" (every 5 minutes, as you, no admin). Log: %LOCALAPPDATA%\\wow-stats\\wow-stats.log. Polestar Recorder in _forever_\\Interface\\AddOns."
+        },
+        "mac": {
+          "label": "Mac (Terminal)",
+          "how": "Cmd+Space, type Terminal, Enter. Paste with Cmd+V, press Enter.",
+          "command": "curl -fsSL {base}/install/{code} | bash",
+          "installs": "~/.local/share/wow-stats, ~/.config/wow-stats/config.toml and a launchd agent local.wow-stats (every 5 minutes). Log: ~/Library/Logs/wow-stats.log. Polestar Recorder in _forever_/Interface/AddOns."
+        }
+      },
+      "code_note": "The command works once, for 15 minutes, and is only for the first install. Used or expired before you ran it: click \"Get my install command\" again. Updates later need no code: once installed, the update line shows in this step.",
+      "check": "The output says \"wow-stats is installed. WoW folder: ...\" and that folder is your _forever_ folder.",
+      "if_not": "\"WoW folder not found\" or the wrong folder: see that troubleshooting entry. \"This install code expired or was used already\": get a new command and run it.",
+      "media": "install-mac.mp4",
+      "clip": "install-mac",
+      "update": {
+        "windows": "irm {base}/install/update | iex",
+        "mac": "curl -fsSL {base}/install/update | bash"
+      }
+    },
+    {
+      "id": "play",
+      "audience": "both",
+      "icon": "sword",
+      "title": "Play 5 minutes",
+      "caption": "Play, then /reload or log out.",
+      "body": [
+        "Play a few minutes with the addons on. WoW writes the addons' files only on /reload, logout or character switch: do one, then wait up to 5 minutes.",
+        "The first run sends everything your addons saved so far, every character: a few seconds, a minute with a long combat log. After that, only what's new.",
+        "A game or computer crash, or Alt+F4, loses what every addon gathered since the last save. Type /reload after a dungeon, after an Auction House scan and before a break."
+      ],
+      "check": "\"Data arrived\" ticks on this page by itself. No refresh needed.",
+      "if_not": "Nothing after 10 minutes: first type /psrec on in WoW (the Recorder starts off without the Polestar Client), then /reload. Still nothing: see \"My page is still empty after 10 minutes\".",
+      "media": null,
+      "clip": "browser#data",
+      "generic": {
+        "check": "\"Data arrived\" ticks on your start page by itself, and the shipper's log ends in a line like \"ship: ... sent (N events)\"."
+      }
+    },
+    {
+      "id": "see",
+      "audience": "start",
+      "icon": "shield",
+      "title": "See your character",
+      "caption": "Your character, your climb and your gear.",
+      "body": [
+        "Open My page: each character you played with the addons on is in the list at the top, with level, gear and time per level.",
+        "Settings decides what's public. The public page is off until you switch it on; then the owner adds its address (usually within a day)."
+      ],
+      "check": "Your character is in the list at the top of My page.",
+      "if_not": "Step 5 ticked but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, /reload, wait 5 minutes.",
+      "media": null,
+      "clip": "browser#character",
+      "generic": {
+        "body": [
+          "Open {base}: each character you played with the addons on is in the list at the top, with level, gear and time per level. Settings decides what's public; the public page is off until you switch it on."
+        ],
+        "check": "Your character is in the list at the top of your page.",
+        "if_not": "Data arrived but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, /reload, wait 5 minutes."
+      }
+    },
+    {
+      "id": "ai",
+      "audience": "both",
+      "icon": "chat",
+      "title": "Connect your AI",
+      "caption": "Add wow-stats as a connector once.",
+      "body": [
+        "Your assistant reads your stats and plans the next session: what to do in 2 hours, which gear to chase, when a dungeon is worth it. It uses your own AI account; wow-stats never sees the conversation."
+      ],
+      "os": {
+        "claude": {
+          "label": "Claude (web, desktop, phone)",
+          "how": "Settings, Connectors, Add custom connector. Paste the address, save, then Connect and log in with this page's account.",
+          "command": "{base}/mcp"
+        },
+        "claude-code": {
+          "label": "Claude Code",
+          "how": "Run this, then /mcp in Claude Code and log in.",
+          "command": "claude mcp add --transport http wow {base}/mcp"
+        }
+      },
+      "check": "Ask \"With wow-stats, what's my character doing?\": the answer names your character.",
+      "if_not": "\"Client Not Registered\" or a disconnected connector: see that troubleshooting entry.",
+      "media": null,
+      "clip": "browser#ai"
+    }
+  ],
+  "troubleshooting": [
+    {
+      "id": "no-data",
+      "title": "My page is still empty after 10 minutes",
+      "body": "WoW saves the addons' files only on /reload or logout, and the program that sends your data runs every 5 minutes.",
+      "fix": "Type /psrec on in WoW (the Recorder starts off unless the Polestar Client installed it), then /reload and wait 5 minutes. Still nothing: read the last lines of the log (Mac ~/Library/Logs/wow-stats.log, Windows %LOCALAPPDATA%\\wow-stats\\wow-stats.log). \"HTTP 401\": the password is stale, run a new install command from your start page. \"unreachable\": check your connection; nothing is lost, it all goes once you are back online.",
+      "part": "install"
+    },
+    {
+      "id": "lost-session",
+      "title": "My last session is missing",
+      "body": "WoW addons write their files only at logout, /reload or a clean quit. A crash of the game or the computer, or Alt+F4, loses everything since the last save, for every addon (Polestar, Auctionator...), not just this one. An addon can't save on a timer: a reload needs a key press.",
+      "fix": "Type /reload after a dungeon, after an Auction House scan and before a break, or put /reload on a macro key. What the game never wrote can't be recovered.",
+      "part": "install"
+    },
+    {
+      "id": "no-folder",
+      "title": "\"WoW folder not found\" (or the wrong folder)",
+      "body": "The installer looks for a _forever_ folder with WTF/ in it where Battle.net puts WoW: C:\\Program Files (x86)\\World of Warcraft\\_forever_ on Windows (or the World of Warcraft folder Battle.net registered, on any drive), /Applications/World of Warcraft/_forever_ on a Mac. WTF/ only exists after one login.",
+      "fix": "Log in to WoW Forever once, quit, then run a new install command. Not sure where WoW is: in the Battle.net app, pick World of Warcraft, click the cog next to Play, then Show in Explorer (Show in Finder on a Mac); the _forever_ folder is in the World of Warcraft folder. WoW installed somewhere else: on a Mac, set the folder in the command, `curl -fsSL <your command's address> | WOW_STATS_WOW_DIR=\"/path/to/_forever_\" bash`; on Windows, first run `$env:WOW_STATS_WOW_DIR = 'D:\\Games\\World of Warcraft\\_forever_'` in the same PowerShell window, then the command.",
+      "part": "install"
+    },
+    {
+      "id": "antivirus",
+      "title": "An antivirus blocked the installer",
+      "body": "Some antivirus tools block `irm | iex` and unknown scheduled tasks. The installer writes only under your user folder and to WoW's AddOns folder, and adds one task that runs every 5 minutes.",
+      "fix": "Allow the script once from the antivirus's quarantine or history, then run a new install command. Can't allow it: send the owner a screenshot of the warning.",
+      "part": "install"
+    },
+    {
+      "id": "client-not-registered",
+      "title": "\"Client Not Registered\" in Claude",
+      "body": "Claude kept a login from before the server changed.",
+      "fix": "Remove the wow-stats connector in Claude, add it again with the same address, and connect once more.",
+      "part": "mcp"
+    },
+    {
+      "id": "shipper-stopped",
+      "part": "install",
+      "title": "Nothing arrives since a reboot",
+      "body": "On Windows the task starts when you log in to Windows, not at boot. On a Mac the agent loads when you log in to macOS.",
+      "fix": "Log in and wait 5 minutes. Still nothing: Windows, Task Scheduler, task wow-stats shows its last run and result; Mac, `launchctl print gui/$(id -u)/local.wow-stats` says whether it's loaded. Either way, a new install command from your start page replaces the job and keeps your archive."
+    },
+    {
+      "id": "login-loop",
+      "part": "mcp",
+      "title": "The AI login keeps coming back",
+      "body": "A login request is good for a few minutes and once. A login tab left open, or a second login started in another tab, sends you round again. A sign-in page that keeps returning means you're signed in there with an account that has no wow-stats access.",
+      "fix": "Close every login tab, start the connection again from the client and sign in straight away. Sign-in page loop: sign out there (or use a private window) and sign in with the account you were sent."
+    },
+    {
+      "id": "no-tools",
+      "part": "mcp",
+      "title": "My AI doesn't see the tools",
+      "body": "Added is not enabled: most clients connect a server but leave it off for a chat, or wait for you to log in.",
+      "fix": "claude.ai: turn the connector on for the chat (the tools menu under the message box). Claude Code: `/mcp` must show wow as connected, not \"needs authentication\". ChatGPT: developer mode on and the connector picked for the chat. VS Code: start the server from mcp.json and use agent mode. Then name it: \"use wow-stats to plan my next 2 hours\"."
+    },
+    {
+      "id": "relogin-after-update",
+      "part": "mcp",
+      "title": "Logged out after a server update",
+      "body": "An update can change the server's signing key or its tool list, and a login unused for 30 days expires. Calls then fail with 401 or \"invalid token\", and new tools stay hidden: clients keep the tool list for the session.",
+      "fix": "Log in again. claude.ai: Settings, Connectors, wow, Disconnect, then Connect. Claude Code: `/mcp`, wow, Re-authenticate. Then start a new chat to get the new tools."
+    }
+  ],
+  "addons": [
+    {
+      "id": "polestar",
+      "name": "Polestar",
+      "required": true,
+      "url": "https://www.curseforge.com/wow/addons/polestar",
+      "what": "level splits, quests, deaths, dungeons, the gear advice",
+      "source": "curseforge",
+      "note": null,
+      "dir": "Polestar",
+      "feeds": ["wow-level", "wow-dungeon"]
+    },
+    {
+      "id": "recorder",
+      "name": "Polestar Recorder",
+      "required": true,
+      "url": "https://github.com/fitzforge/polestar/releases/latest",
+      "what": "your play sessions, zone by zone",
+      "source": "github",
+      "note": null,
+      "dir": "Polestar_Recorder",
+      "feeds": ["wow-recorder"]
+    },
+    {
+      "id": "syndicator",
+      "name": "Syndicator",
+      "required": false,
+      "url": "https://www.curseforge.com/wow/addons/syndicator",
+      "what": "gear and gold on every character",
+      "source": "curseforge",
+      "note": null,
+      "dir": "Syndicator",
+      "feeds": ["wow-bags"]
+    },
+    {
+      "id": "auctionator",
+      "name": "Auctionator",
+      "required": false,
+      "url": "https://www.curseforge.com/wow/addons/auctionator",
+      "what": "prices from your own auction house scans",
+      "source": "curseforge",
+      "note": null,
+      "dir": "Auctionator",
+      "feeds": ["wow-prices"]
+    },
+    {
+      "id": "altoholic",
+      "name": "Altoholic",
+      "required": false,
+      "url": "https://www.curseforge.com/wow/addons/altoholic",
+      "what": "your full /played from level 1, and the quests you finished before Polestar",
+      "source": "curseforge",
+      "note": null,
+      "dir": "Altoholic",
+      "feeds": ["played", "quests:altoholic"]
+    },
+    {
+      "id": "questie",
+      "name": "Questie",
+      "required": false,
+      "url": "https://www.curseforge.com/wow/addons/questie",
+      "what": "the quests you finished before Polestar (Altoholic does it too: one of the two is enough)",
+      "source": "curseforge",
+      "note": null,
+      "dir": "Questie",
+      "feeds": ["quests:questie"]
+    },
+    {
+      "id": "characterexport",
+      "name": "CharacterExport-Forever",
+      "required": false,
+      "url": "https://www.curseforge.com/wow/addons/characterexport",
+      "what": "profession caps",
+      "source": "curseforge",
+      "note": null,
+      "dir": "CharacterExport-Forever",
+      "feeds": []
+    },
+    {
+      "id": "narcissus",
+      "name": "Narcissus",
+      "required": false,
+      "url": "https://www.curseforge.com/wow/addons/narcissus",
+      "what": "your character's look in 3D before Battle.net knows it",
+      "source": "curseforge",
+      "note": null,
+      "dir": "Narcissus",
+      "feeds": []
+    },
+    {
+      "id": "simbench",
+      "name": "Vulcan SimBench",
+      "required": false,
+      "url": "https://www.curseforge.com/wow/addons/vulcan-simbench",
+      "what": "a history of your talents",
+      "source": "curseforge",
+      "note": null,
+      "dir": "VulcanSimBench",
+      "feeds": []
+    }
+  ],
+  "data": [
+    {"id": "levels", "addons": ["polestar"], "signals": ["wow-level", "wow-dungeon"], "what": "level times, dungeon runs and gear advice", "sections": ["levels", "dungeons", "advice"], "fix": "Tick Polestar in AddOns at character select, play to your next level, then log out."},
+    {"id": "play", "addons": ["recorder"], "signals": ["wow-recorder"], "what": "play sessions, zones, deaths and loot", "sections": ["zones", "guide", "deaths", "loot", "people", "flights", "journal"], "fix": "Type /psrec on once in game, then /reload."},
+    {"id": "bags", "addons": ["syndicator"], "signals": ["wow-bags"], "what": "your gear and bags", "sections": ["gear"], "fix": "Tick Syndicator in AddOns at character select, log in with this character, then log out."},
+    {"id": "quests", "addons": ["questie", "altoholic"], "signals": ["quests:questie", "quests:altoholic"], "what": "quests you did before installing", "sections": ["dungeons", "moves"], "partial": true, "fix": "Log in once with it ticked in AddOns, then log out."},
+    {"id": "prices", "addons": ["auctionator"], "signals": ["wow-prices"], "scope": "account", "what": "auction prices", "sections": ["prices"], "fix": "Scan the auction house with Auctionator, then log out."}
+  ],
+  "needs": [
+    "WoW Forever on Windows 10 or 11, or macOS, logged in once (so its WTF folder exists).",
+    "Your wow-stats account: the owner sends you the link.",
+    "No admin rights: everything installs for your user only."
+  ],
+  "addon_routes": {
+    "app": {
+      "title": "With the CurseForge app (recommended)",
+      "url": "https://www.curseforge.com/download/app",
+      "steps": [
+        "Download the CurseForge app (Windows, macOS, Linux) and install it.",
+        "Pick World of Warcraft, then the Forever instance. Not listed: restart the app so it updates.",
+        "Search each addon by its exact name and click Install.",
+        "Polestar Recorder isn't on CurseForge: the install command adds it. By hand: take the Polestar_Recorder zip from its GitHub release and unzip it like the steps below, or install the Polestar Client from Polestar's site, which installs it and turns it on. Without the Client, type /psrec on in WoW once.",
+        "At character select, click AddOns (bottom left), pick the character in the drop-down at the top, tick the addons, Okay. Once per character.",
+        "Restart WoW completely: /reload doesn't load a new addon."
+      ]
+    },
+    "manual": {
+      "title": "By hand, from the zips",
+      "steps": [
+        "On each addon's page, download its Forever file.",
+        "Unzip into the _forever_ folder's Interface/AddOns/ (Windows: C:\\Program Files (x86)\\World of Warcraft\\_forever_\\Interface\\AddOns, Mac: /Applications/World of Warcraft/_forever_/Interface/AddOns) so the addon's folder sits directly inside it (Interface/AddOns/Polestar/Polestar.toc). Make the folder if it isn't there yet.",
+        "Restart WoW completely."
+      ]
+    }
+  },
+  "shipper": {
+    "title": "What the little program does",
+    "body": [
+      "A small Python program that runs in the background on the computer you play on, every 5 minutes. It never touches the game: it reads the files WoW writes on /reload or logout.",
+      "Each run turns what's new in your WTF folder into events and posts them to your page with your own upload password; a copy of what it sent stays in WoWArchive in your home folder. With Git installed (Macs often have it), it also keeps every version of the WTF folder there. Nothing is sent twice; offline, it waits for the next run.",
+      "The first run sends your whole history: everything your addons saved so far."
+    ],
+    "sends": [
+      "your addons' saved files (SavedVariables), every character",
+      "WoW's combat logs, when there are any"
+    ],
+    "never": [
+      "your WoW or Battle.net password",
+      "anything outside the WoW folder"
+    ]
+  },
+  "update": [
+    "Addons: the CurseForge app's Update all; by hand, delete the old folders, then unzip the new ones.",
+    "The shipper: run the update line for your OS. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.",
+    "Moving to another computer, or the password leaked: Reset my upload password on your start page. The old password stops at once; run the new install command it gives you."
+  ],
+  "uninstall": {
+    "body": [
+      "Run the line for your OS. It stops the job and removes the program and your config. Your addons stay, Polestar Recorder included: remove them in CurseForge, or delete their folders in _forever_/Interface/AddOns.",
+      "Your archive (WoWArchive in your home folder) stays: delete it yourself if you don't want the history. To delete your data on the site, ask the owner to take you off the friends list: it goes within minutes."
+    ],
+    "os": {
+      "windows": {
+        "label": "Windows (PowerShell)",
+        "command": "schtasks /Delete /TN wow-stats /F; Remove-Item -Recurse -Force \"$env:LOCALAPPDATA\\wow-stats\", \"$env:APPDATA\\wow-stats\""
+      },
+      "mac": {
+        "label": "Mac (Terminal)",
+        "command": "launchctl bootout gui/$(id -u)/local.wow-stats; rm -f ~/Library/LaunchAgents/local.wow-stats.plist; rm -rf ~/.local/share/wow-stats ~/.config/wow-stats"
+      }
+    },
+    "media": "uninstall-mac.mp4"
+  },
+  "media": "onboarding.mp4",
+  "guide": {
+    "what": {
+      "id": "what",
+      "title": "Your WoW character, and what to do next",
+      "body": [
+        "Your next upgrade and where it drops, the dungeon worth running, your pace per level. Set it up once, then just play: the page fills in by itself."
+      ],
+      "media": "onboarding.mp4"
+    },
+    "quick": {
+      "title": "Get started in 3 steps",
+      "caption": "On the computer you play on. About 15 minutes.",
+      "steps": [
+        {
+          "id": "addons",
+          "title": "Install the addons",
+          "body": "In the CurseForge app, pick World of Warcraft, then Forever, and install:",
+          "button": "Get the CurseForge app",
+          "optional": "{n} more, optional"
+        },
+        {
+          "id": "command",
+          "title": "Run your install command",
+          "body": "Open your start page on that computer, log in, and copy your command. It also installs Polestar Recorder. Then:",
+          "button": "Open your start page"
+        },
+        {
+          "id": "play",
+          "title": "Play",
+          "body": "Type /psrec on once in game. Your page fills in a few minutes after you log out of a character."
+        }
+      ]
+    },
+    "tabs": [
+      ["Overview", "your pace, hours to the next level, your next 3 moves."],
+      ["Character", "your gear, the best upgrade per slot and where it drops, dungeons worth running, a session plan."],
+      ["Timeline and Journal", "every level, death and session, and how you looked at each level."],
+      ["Settings", "top right: hide a character, share your zogzog link, turn on your public page."]
+    ],
+    "status": {
+      "id": "status",
+      "title": "Check that it sends your data",
+      "body": [
+        "Read the end of its log: each run writes what it did. A good run ends in a line like \"ship: ... sent (120 events)\"; a run with nothing new to send writes almost nothing.",
+        "Don't want to wait 5 minutes? Run it now with the second line: it prints nothing and writes the log."
+      ],
+      "os": {
+        "mac": {
+          "label": "Mac (Terminal)",
+          "how": "The log, then a run by hand. The third line says whether the background job is loaded (\"state = running\" or \"not running\" between runs are both fine).",
+          "command": "tail -n 20 ~/Library/Logs/wow-stats.log\nuv run --script ~/.local/share/wow-stats/wow_stats.py\nlaunchctl print gui/$(id -u)/local.wow-stats | grep -E 'state|last exit'"
+        },
+        "windows": {
+          "label": "Windows (PowerShell)",
+          "how": "The log, then a run by hand. The third line shows the task's last and next run.",
+          "command": "Get-Content \"$env:LOCALAPPDATA\\wow-stats\\wow-stats.log\" -Tail 20\nuv run --script \"$env:LOCALAPPDATA\\wow-stats\\wow_stats.py\"\nGet-ScheduledTask -TaskName wow-stats | Get-ScheduledTaskInfo"
+        }
+      },
+      "media": "status-mac.mp4"
+    },
+    "page": [
+      {
+        "id": "overview",
+        "title": "Overview",
+        "caption": "Open it before you log in.",
+        "body": [
+          "The first tab. The line at the top says where you stand against Polestar's route and how much play the next level needs. Below it, the four numbers and your next moves.",
+          "Do the first next move. When something blocks it (your level, your gold), the move says what, and how far you are."
+        ],
+        "points": [
+          [
+            "Pace",
+            "your time per level against Polestar's route, over the last 5 levels. 1.0x is the route's pace, 2.0x twice as long."
+          ],
+          [
+            "Next level",
+            "hours of play to the next level, at your XP per hour."
+          ],
+          [
+            "Guide",
+            "how many guide steps you did in order, and how many you passed over."
+          ],
+          [
+            "Rested",
+            "the rested XP you have banked. Log out in an inn or a city and it grows."
+          ],
+          [
+            "Next moves",
+            "up to 3 things to do now: an upgrade and where it drops, a dungeon and the drops you'd wear, a profession rank or riding with its trainer and price. \"1 more\" opens the rest."
+          ],
+          [
+            "Time per level",
+            "bars are your played time per level, dashes the route's."
+          ]
+        ],
+        "media": "tour.mp4"
+      },
+      {
+        "id": "character",
+        "title": "Character",
+        "caption": "Your gear, your climb, everything recorded.",
+        "body": [
+          "The second tab. At the top, the character sheet: gear and item level, professions, talents. Hover or tap an item for its card; the Wowhead link opens its page.",
+          "Under the sheet, a bar of sections. Each one jumps to its part of the page."
+        ],
+        "points": [
+          [
+            "Upgrades",
+            "per slot, the best item you can wear now and within 3 levels, the points it adds and where it drops. One you already carry says \"In your bags: equip it\"."
+          ],
+          [
+            "The climb",
+            "time per level, yours against the route."
+          ],
+          [
+            "Where the time went",
+            "hours per zone."
+          ],
+          [
+            "Guide steps",
+            "the steps that took longest against the route."
+          ],
+          [
+            "Loot, Deaths, People, Flights",
+            "what dropped, where you died and at what level, the players you keep running into, where you flew."
+          ]
+        ]
+      },
+      {
+        "id": "dungeons",
+        "title": "Dungeons",
+        "caption": "Which dungeon is worth it, and what it drops for you.",
+        "body": [
+          "In the Character tab. Each dungeon for your level shows its level range, the drops that are upgrades for you (slot and points) and your runs: when, at what level, how long. A drop you already have says so, and whether to equip it.",
+          "Pick the one with the most upgrades you'd wear. The Overview's next moves already do: the dungeon there is that one."
+        ]
+      },
+      {
+        "id": "plan",
+        "title": "Plan your next hours",
+        "caption": "Pick the hours, get the plan.",
+        "body": [
+          "In the Character tab, under the sheet: pick 1 to 6 hours, add what you don't want (\"no dungeons\") and click Plan it. The plan follows your Polestar guide at your own pace: the steps to do, your level at the end, the steps worth skipping, a dungeon if you find a group, where to log out.",
+          "It needs your Polestar guide steps: a character that never followed a guide gets no plan. The same box shows the gold you have toward riding and how many hours of play it takes at your rate.",
+          "Want it explained or changed? Ask your AI (the Your AI part of this page)."
+        ]
+      },
+      {
+        "id": "timeline",
+        "title": "Timeline and Journal",
+        "caption": "Your play, back in time.",
+        "body": [
+          "Timeline: every level, death, dungeon and session, newest first. Pick one to see your character then: the gear you wore, the zones, the best upgrades at the time.",
+          "Level by level: slide through your levels to see what your character looked like at each one, as a picture, or in 3D with View in 3D. A new level's picture takes a few minutes: until then it says \"Picture on its way\".",
+          "Journal: one entry per play session, where you went and what you did."
+        ]
+      },
+      {
+        "id": "characters",
+        "title": "Your other characters",
+        "body": [
+          "The picker at the top left switches character. Every character you played with the addons on is in it, alts included. One is missing: its addons are off (step 3, once per character)."
+        ]
+      },
+      {
+        "id": "private",
+        "title": "Your zogzog link",
+        "caption": "The whole story, for the friends you pick.",
+        "body": [
+          "Settings has your zogzog link: your page for friends, with the journal, the gear advice, prices and deaths per zone. Anyone with the link can open it, so send it only to the people you want there. It never shows other players or where your character is right now.",
+          "It catches up within about 10 minutes of a play session.",
+          "Sent it to the wrong person? Settings, Make a new link: the old one stops working at the next update."
+        ],
+        "media": "private.mp4"
+      },
+      {
+        "id": "public",
+        "title": "Your public page",
+        "body": [
+          "Off until you switch it on (Settings, Public page on). Then anyone with the address sees your characters' card, climb and dungeons. No gold, no other players, no position.",
+          "The owner adds its address once, usually within a day. Settings says \"live\" when it works."
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "Settings",
+        "caption": "What others see, your upload password, and leaving.",
+        "body": [
+          "Settings is in the menu at the top right of your page. Your own page always shows everything: these only change what others see."
+        ],
+        "points": [
+          [
+            "Hide a character",
+            "tick it under Characters: off the public page, off the zogzog link, or both."
+          ],
+          [
+            "Battle.net data to my AI",
+            "on, your AI gets your characters' Battle.net data (look, item level, talents) and auction prices. Off, it doesn't."
+          ],
+          [
+            "Reset your upload password",
+            "new computer, or the password leaked: Reset my upload password. The old one stops at once; run the new install command on the computer you play on."
+          ],
+          [
+            "Delete your data",
+            "ask the owner to take you off the friends list. Within minutes your events, settings, upload password and pages are gone; backups keep the events 30 more days. Then uninstall below."
+          ]
+        ],
+        "media": "settings.mp4"
+      }
+    ]
+  },
+  "update_media": "update-mac.mp4"
+}

@@ -1,0 +1,14 @@
+/* What the 3D model shows (model3d.js), under the paperdoll; the toggle
+   and the frame on the doll's stage are in app.css. */
+
+.m3dstatus { margin: 0; }
+.m3dnotes { color: var(--muted); font-size: 14px; }
+.m3dnotes p { margin: 6px 0 0; }
+.m3dnotes ul { margin: 4px 0 0; padding-left: 1.2em; }
+.m3dnotes b { color: var(--ink); font-weight: 500; }
+.m3dsex select {
+  font: 14px var(--sans); color: var(--ink); background: var(--sunk); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 2px 6px;
+}
+.m3dcredit { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+.m3dcredit a { color: var(--gold-hi); }

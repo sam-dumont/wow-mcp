@@ -1,0 +1,80 @@
+# Traefik in front of the kit: HTTPS with Let's Encrypt, two names.
+# docs/self-host/reverse-proxy.md walks through it. Start everything with:
+#   docker compose -f compose.yaml -f compose.traefik.yaml up -d --build
+# .env names the two hosts (WOW_SITE_HOST, WOW_FULL_HOST), the address Let's
+# Encrypt writes to (ACME_EMAIL) and the page's login (BASIC_AUTH_USER,
+# BASIC_AUTH_PASSWORD): nothing starts without them.
+# The file provider, not Docker labels: Traefik never gets the Docker socket.
+# The routes are written below, so compose fills in the names (Traefik's own
+# templates can't read the environment).
+services:
+  traefik:
+    image: docker.io/library/traefik:v3.6.2@sha256:aaf0f6185419a50c74651448c1a5bf4606bd2d2ddb7b8749eed505d55bf8b8ea
+    restart: unless-stopped
+    depends_on: [ui, site]
+    command:
+      - --entrypoints.web.address=:80
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.websecure.address=:443
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:?set ACME_EMAIL in .env}
+      - --certificatesresolvers.letsencrypt.acme.storage=/acme/acme.json
+      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+    configs:
+      - source: traefik-routes
+        target: /etc/traefik/dynamic.yml
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - traefik-acme:/acme
+
+  # The proxy reaches ui over Docker's network, so 127.0.0.1 on the host no
+  # longer keeps strangers out: the page gets its own login, whatever UI_AUTH
+  # says, and answers for the full view's name.
+  ui:
+    environment:
+      AUTH: basic
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:?set BASIC_AUTH_USER in .env}
+      BASIC_AUTH_PASSWORD: ${BASIC_AUTH_PASSWORD:?set BASIC_AUTH_PASSWORD in .env (12+ characters)}
+      ALLOWED_HOSTS: ${WOW_FULL_HOST:?set WOW_FULL_HOST in .env}
+
+configs:
+  traefik-routes:
+    content: |
+      # WOW_SITE_HOST: the static sites for friends, files only, no login.
+      # WOW_FULL_HOST: your full view (its own login) and the MCP endpoint
+      # (its own OAuth login, no page login in front: cookies must pass).
+      http:
+        routers:
+          site:
+            rule: Host(`${WOW_SITE_HOST:?set WOW_SITE_HOST in .env}`)
+            entryPoints: [websecure]
+            service: site
+            tls: {certResolver: letsencrypt}
+          mcp:
+            rule: >-
+              Host(`${WOW_FULL_HOST:?set WOW_FULL_HOST in .env}`) && (Path(`/mcp`) || PathPrefix(`/mcp/`)
+              || Path(`/authorize`) || Path(`/token`) || Path(`/register`) || Path(`/revoke`)
+              || Path(`/consent`) || Path(`/oauth/callback`)
+              || PathPrefix(`/.well-known/oauth-authorization-server`)
+              || PathPrefix(`/.well-known/oauth-protected-resource`))
+            entryPoints: [websecure]
+            service: mcp
+            priority: 100
+            tls: {certResolver: letsencrypt}
+          # Everything else is the page on 8080, /ingest (the shipper) included.
+          full:
+            rule: Host(`${WOW_FULL_HOST}`)
+            entryPoints: [websecure]
+            service: ui
+            priority: 10
+            tls: {certResolver: letsencrypt}
+        services:
+          site: {loadBalancer: {servers: [{url: "http://site:8080"}]}}
+          ui: {loadBalancer: {servers: [{url: "http://ui:8080"}]}}
+          mcp: {loadBalancer: {servers: [{url: "http://ui:8090"}]}}
+
+volumes:
+  traefik-acme:

@@ -1,0 +1,71 @@
+# Monitor it
+
+**For:** self-hosters who want to know it's working without opening the page. **At the
+end:** you can check each service's health, read its logs and see the disk it uses.
+
+## Is it up?
+
+From `deploy/compose`:
+
+```sh
+docker compose ps
+```
+
+Every service should say `running`. Each server answers `GET /healthz` with `200 ok`, with no
+login, so an uptime checker (Uptime Kuma, Gatus, your router's) can poll it:
+
+| Service | Health check |
+|---|---|
+| The full view (`ui`) | `http://127.0.0.1:8080/healthz`, or `https://wow-full.example.org/healthz` behind the proxy |
+| The static sites (`site`) | `http://127.0.0.1:8081/healthz` |
+| The exporter | `http://127.0.0.1:9464/healthz` inside its container |
+| The renderer | `/healthz` on its port: `200` once Chromium runs |
+
+```sh
+curl -s http://127.0.0.1:8080/healthz
+```
+
+prints `ok`.
+
+## Is data arriving?
+
+The page itself: the newest session in the Journal tab. Or ask VictoriaLogs for the newest
+event, through the `ui` container (VictoriaLogs has no published port):
+
+```sh
+docker compose exec ui python -c "import urllib.request;print(urllib.request.urlopen('http://victorialogs:9428/select/logsql/query?query=*%20%7C%20sort%20by%20(_time)%20desc%20%7C%20limit%201').read().decode())"
+```
+
+It prints the newest event as one line of JSON, with its `_time`.
+
+The shipper logs each run on the player's computer: `~/Library/Logs/wow-stats.log` (Mac),
+`%LOCALAPPDATA%\wow-stats\wow-stats.log` (Windows). A good run ends in
+`ship: ... sent (N events)`.
+
+## Logs
+
+```sh
+docker compose logs --tail 50 ui
+docker compose logs --tail 50 publish
+```
+
+`ui` writes one line per request (method, path, status) and never prices or secrets.
+`publish` writes one line per build with its time and file counts; a failed build says why and
+leaves the previous sites in place. On a shared install, friends list changes are lines with
+`"event": "friends"`.
+
+## Disk and memory
+
+```sh
+docker system df -v
+docker stats --no-stream
+```
+
+The first lists each volume's size (`wow-stats_vl-data` holds the events); the second each
+container's memory against its limit. What's normal: [Sizing](sizing.md).
+
+## The exporter
+
+The exporter's `/metrics` gives its own health: `wow_api_up` (1 when Blizzard's API answers),
+`wow_api_paused` and `wow_exporter_*`. Scrape that for alerts if you like. It never holds
+Blizzard's data, so it's safe to keep.

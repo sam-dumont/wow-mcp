@@ -1,0 +1,468 @@
+{
+  "about": "What the knowledge base was last checked against (tools/kb/watch.py). A value here that no longer matches today's opens one issue per kind (label kb-watch). Update it with `uv run python tools/kb/watch.py --accept <kind>` in the PR that brings the KB up to date.",
+  "checked": "2026-11-19",
+  "client_build": {
+    "url": "https://wago.tools/api/builds/wowf/latest",
+    "page": "https://wago.tools/builds",
+    "known": "1.60.1.70959"
+  },
+  "official": [
+    {
+      "key": "hotfixes",
+      "kind": "page",
+      "url": "https://worldofwarcraft.blizzard.com/en-us/news/24315281",
+      "known": "8e3be8b08364d7c3d5247c06c314c7bcf43e722e8fa4d8afaaf2d1326b8a88bf"
+    },
+    {
+      "key": "hotfixes-forum",
+      "kind": "discourse",
+      "url": "https://us.forums.blizzard.com/en/wow/t/2403040.json",
+      "page": "https://us.forums.blizzard.com/en/wow/t/2403040",
+      "known": "10 posts, last 2026-11-18T03:24:08.117Z"
+    },
+    {
+      "key": "beta-development-notes",
+      "kind": "discourse",
+      "url": "https://us.forums.blizzard.com/en/wow/t/2360696.json",
+      "page": "https://us.forums.blizzard.com/en/wow/t/2360696",
+      "known": "8 posts, last 2026-11-04T19:35:16.582Z"
+    },
+    {
+      "key": "known-issues",
+      "kind": "discourse",
+      "url": "https://us.forums.blizzard.com/en/wow/t/2402363.json",
+      "page": "https://us.forums.blizzard.com/en/wow/t/2402363",
+      "known": "1 posts, last 2026-11-05T15:42:52.385Z"
+    }
+  ],
+  "polestar": {
+    "repo": "fitzforge/polestar",
+    "known": "v0.4.1"
+  },
+  "addons": [
+    {
+      "name": "Questie",
+      "repo": "Questie/Questie",
+      "known": "bundle/v12.11.0+v1.1.3"
+    },
+    {
+      "name": "Narcissus",
+      "repo": "Peterodox/Narcissus",
+      "known": "v1.8.7-c"
+    },
+    {
+      "name": "Syndicator",
+      "repo": null,
+      "why": "CurseForge only: its API needs a key"
+    },
+    {
+      "name": "Auctionator",
+      "repo": null,
+      "why": "CurseForge only: its API needs a key"
+    },
+    {
+      "name": "Vulcan SimBench",
+      "repo": null,
+      "why": "Wago Addons only: its API needs a key"
+    },
+    {
+      "name": "CharacterExport-Forever",
+      "repo": null,
+      "why": "CurseForge only: its API needs a key"
+    },
+    {
+      "name": "Altoholic",
+      "repo": null,
+      "why": "CurseForge only (the Forever file): its API needs a key"
+    },
+    {
+      "name": "DungeonMaster",
+      "repo": null,
+      "why": "CurseForge only: its API needs a key"
+    }
+  ],
+  "meta": {
+    "about": "The weekly meta pass (tools/kb/meta.py, kb-refresh mode meta): what people write about Forever, feeds and APIs only. `known` is the last item read (a news or post id) or a guide's text hash; the pass reads only what is newer, and its PR moves `known` past what it read. A guide with `class` is about that class; a class guide is registered here like the others.",
+    "feeds": [
+      {
+        "key": "wowhead-news",
+        "kind": "rss",
+        "url": "https://www.wowhead.com/news/rss/forever",
+        "category": "Forever",
+        "source_type": "press",
+        "max_confidence": "medium",
+        "known": 383924
+      },
+      {
+        "key": "blizzard-tracker",
+        "kind": "discourse-group",
+        "url": "https://us.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.json",
+        "post": "https://us.forums.blizzard.com/en/wow/posts/{id}.json",
+        "base": "https://us.forums.blizzard.com/en/wow",
+        "categories": [
+          346,
+          347,
+          348,
+          349,
+          352
+        ],
+        "source_type": "official",
+        "max_confidence": "high",
+        "known": 30961910
+      }
+    ],
+    "guides": [
+      {
+        "key": "wt-dungeons",
+        "url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
+        "known": "e9a0051cff17dbfd0359a39bbd7c21f2f4025720f6f18bcc5ec3ffc889004bbe"
+      },
+      {
+        "key": "wt-experience",
+        "url": "https://www.warcrafttavern.com/forever/guides/experience/",
+        "known": "ad542f8c9a5e957bcd868ced052202b42c558bb79c51722879fda3eec354095a"
+      },
+      {
+        "key": "wt-classes",
+        "url": "https://www.warcrafttavern.com/forever/guides/classes/",
+        "known": "df2f5b350f3a4be38abb6995956bb85541a675ba73a2eee91a8d795bbcf1c821"
+      },
+      {
+        "key": "wt-shapers-terrace",
+        "url": "https://www.warcrafttavern.com/forever/guides/shapers-terrace/",
+        "known": "83380143cb23a921656658f5d22332498dd95f457cdd1b5377a79f9f62f93a10"
+      },
+      {
+        "key": "wt-alcaz-island-prison",
+        "url": "https://www.warcrafttavern.com/forever/guides/alcaz-island-prison/",
+        "known": "82afe8c7575e02da4eabf2d78f64bfc58490df034392f67227a25b8604ee590e"
+      },
+      {
+        "key": "wt-blackmaw-hold",
+        "url": "https://www.warcrafttavern.com/forever/guides/blackmaw-hold/",
+        "known": "76efe50bb0bcd1c7e406fa500e37d43c57c267eb702130bbbddc002cd84be8a8"
+      },
+      {
+        "key": "wt-kroldok-stronghold",
+        "url": "https://www.warcrafttavern.com/forever/guides/kroldok-stronghold/",
+        "known": "d0f3db7351647687ba21e2bc73d3a9a1401eed2520930e1c07620f27833259ec"
+      },
+      {
+        "key": "wt-city-of-dalaran-quests",
+        "url": "https://www.warcrafttavern.com/forever/guides/city-of-dalaran-quests/",
+        "known": "5e5af47b403a373b22471826ffbb3edf46b2d34fdc5d092c949f95e6c1c1879f"
+      },
+      {
+        "key": "wt-scarlet-monastery-quests",
+        "url": "https://www.warcrafttavern.com/forever/guides/scarlet-monastery-quests/",
+        "known": "1fed7e2aa5b948d346ccf4d2f1042a36e3f6a036fd2f5c8496ba8784cb51b078"
+      },
+      {
+        "key": "wt-gnomeregan-quests",
+        "url": "https://www.warcrafttavern.com/forever/guides/gnomeregan-quests/",
+        "known": "a7b04307eed9a8c53fb7c7482b71c966e052c3079fc7818d2a7f34f54f5aad09"
+      },
+      {
+        "key": "wt-blackrock-depths",
+        "url": "https://www.warcrafttavern.com/forever/guides/blackrock-depths/",
+        "known": "d149aaa27686b696fe54ec763311ff794eb6788e65c8f742910d1a9d14ad6eb4"
+      },
+      {
+        "key": "wowgg-kroldok-stronghold",
+        "url": "https://wow.gg/guides/kroldok-stronghold",
+        "known": "df959666e656a68a3b8c8fb2c35060a48b62128108dafbfd4b87ee402d7366e7"
+      },
+      {
+        "key": "wowgg-dungeon-xp",
+        "url": "https://wow.gg/guides/wow-forever-dungeon-xp-08-11-26",
+        "known": "6069cef679833772da4b69e76c74b4ff113c280fb128d7a68ce9e06245e2b559"
+      },
+      {
+        "key": "wt-warrior-leveling",
+        "url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+        "class": "Warrior",
+        "known": "dc96be8df102e98ad9f696356e9f794f99b550b4878e8acbd401e17c0ae93e28"
+      },
+      {
+        "key": "wt-paladin-leveling",
+        "url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+        "class": "Paladin",
+        "known": "7066fc24879b0120b6c6c5879c7b9e3bee5120efeb46ceb7638dc590362f550f"
+      },
+      {
+        "key": "wt-hunter-leveling",
+        "url": "https://www.warcrafttavern.com/forever/guides/hunter-leveling/",
+        "class": "Hunter",
+        "known": "906313af41f52be0474525fd656715b4b2fcebf994e07e5d351f078e98342667"
+      },
+      {
+        "key": "wt-rogue-leveling",
+        "url": "https://www.warcrafttavern.com/forever/guides/rogue-leveling/",
+        "class": "Rogue",
+        "known": "fb316f4184d89737e94e6bb2f3e98dbd1a70c325fbaee17b663d55071c4c78d6"
+      },
+      {
+        "key": "wt-priest-leveling",
+        "url": "https://www.warcrafttavern.com/forever/guides/priest-leveling/",
+        "class": "Priest",
+        "known": "a0504eaa77d1f53f2eaa53148782a837c5f83745e60a6ca407be94e92aa0b1c0"
+      },
+      {
+        "key": "wt-shaman-leveling",
+        "url": "https://www.warcrafttavern.com/forever/guides/shaman-leveling/",
+        "class": "Shaman",
+        "known": "620349d8ef2a7387bfcc4f1f8bf2169f874af3eb81559bfaf90e55f816e3a948"
+      },
+      {
+        "key": "wt-mage-leveling",
+        "url": "https://www.warcrafttavern.com/forever/guides/mage-leveling/",
+        "class": "Mage",
+        "known": "5fcc71fbea1656a0d8cc1c4aec99a5c1388186266c1bd715082fa9beac81cfd2"
+      },
+      {
+        "key": "wt-warlock-leveling",
+        "url": "https://www.warcrafttavern.com/forever/guides/warlock-leveling/",
+        "class": "Warlock",
+        "known": "a1eff10efafa70b243f36fef56f5e45a55c24280e9f48b9bd13eee718edafc94"
+      },
+      {
+        "key": "wt-druid-leveling",
+        "url": "https://www.warcrafttavern.com/forever/guides/druid-leveling/",
+        "class": "Druid",
+        "known": "4fb5510a7345aa20b44d6a987afb1014ed10eef48a50b658253ea9fdbed3954e"
+      },
+      {
+        "key": "fdb-druid-talents",
+        "url": "https://foreverdb.net/class/Druid/talents",
+        "class": "Druid"
+      },
+      {
+        "key": "fdb-mage-talents",
+        "url": "https://foreverdb.net/class/Mage/talents",
+        "class": "Mage"
+      },
+      {
+        "key": "fdb-paladin-talents",
+        "url": "https://foreverdb.net/class/Paladin/talents",
+        "class": "Paladin"
+      },
+      {
+        "key": "fdb-priest-talents",
+        "url": "https://foreverdb.net/class/Priest/talents",
+        "class": "Priest"
+      },
+      {
+        "key": "fdb-shaman-talents",
+        "url": "https://foreverdb.net/class/Shaman/talents",
+        "class": "Shaman"
+      },
+      {
+        "key": "fdb-warlock-talents",
+        "url": "https://foreverdb.net/class/Warlock/talents",
+        "class": "Warlock"
+      },
+      {
+        "key": "fdb-guide-leveling-hunter",
+        "url": "https://foreverdb.net/guide/leveling-hunter",
+        "class": "Hunter"
+      },
+      {
+        "key": "fdb-guide-leveling-rogue",
+        "url": "https://foreverdb.net/guide/leveling-rogue",
+        "class": "Rogue"
+      },
+      {
+        "key": "fdb-guide-leveling-warrior",
+        "url": "https://foreverdb.net/guide/leveling-warrior",
+        "class": "Warrior"
+      },
+      {
+        "key": "kami-build-chaman-amelioration-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-chaman-amelioration-leveling-wow-forever/",
+        "class": "Shaman"
+      },
+      {
+        "key": "kami-build-chasseur-maitrise-des-betes-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-chasseur-maitrise-des-betes-leveling-wow-forever/",
+        "class": "Hunter"
+      },
+      {
+        "key": "kami-build-demoniste-affliction-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-demoniste-affliction-leveling-wow-forever/",
+        "class": "Warlock"
+      },
+      {
+        "key": "kami-build-druide-farouche-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-druide-farouche-leveling-wow-forever/",
+        "class": "Druid"
+      },
+      {
+        "key": "kami-build-guerrier-armes-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-guerrier-armes-leveling-wow-forever/",
+        "class": "Warrior"
+      },
+      {
+        "key": "kami-build-guerrier-fureur-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-guerrier-fureur-leveling-wow-forever/",
+        "class": "Warrior"
+      },
+      {
+        "key": "kami-build-mage-givre-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-mage-givre-leveling-wow-forever/",
+        "class": "Mage"
+      },
+      {
+        "key": "kami-build-paladin-vindicte-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-paladin-vindicte-leveling-wow-forever/",
+        "class": "Paladin"
+      },
+      {
+        "key": "kami-build-pretre-discipline-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-pretre-discipline-leveling-wow-forever/",
+        "class": "Priest"
+      },
+      {
+        "key": "kami-build-pretre-ombre-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-pretre-ombre-leveling-wow-forever/",
+        "class": "Priest"
+      },
+      {
+        "key": "kami-build-voleur-combat-leveling",
+        "url": "https://kami-labs.fr/en/wow-forever/build-voleur-combat-leveling-wow-forever/",
+        "class": "Rogue"
+      },
+      {
+        "key": "kami-druide-sorts-et-talents-modifies",
+        "url": "https://kami-labs.fr/en/wow-forever/druide-wow-forever-sorts-et-talents-modifies/",
+        "class": "Druid"
+      },
+      {
+        "key": "kami-pretre-leveling-baguette",
+        "url": "https://kami-labs.fr/en/wow-forever/pretre-wow-forever-leveling-baguette/",
+        "class": "Priest"
+      },
+      {
+        "key": "kami-chaman-quete-arme-niveau-30",
+        "url": "https://kami-labs.fr/en/wow-forever/wow-forever-chaman-quete-arme-niveau-30/",
+        "class": "Shaman"
+      },
+      {
+        "key": "wiki-A_Lesson_in_Divinity",
+        "url": "https://warcraft.wiki.gg/wiki/A_Lesson_in_Divinity",
+        "class": "Paladin"
+      },
+      {
+        "key": "blizzard-news-24301514",
+        "url": "https://worldofwarcraft.blizzard.com/news/24301514"
+      },
+      {
+        "key": "blizzard-news-24301515",
+        "url": "https://worldofwarcraft.blizzard.com/news/24301515",
+        "class": "Hunter"
+      },
+      {
+        "key": "blizzard-news-24302097",
+        "url": "https://worldofwarcraft.blizzard.com/news/24302097",
+        "class": "Mage"
+      },
+      {
+        "key": "blizzard-news-24310968",
+        "url": "https://worldofwarcraft.blizzard.com/news/24310968"
+      },
+      {
+        "key": "wowgg-hunter-beast-mastery-forever-overview",
+        "url": "https://wow.gg/guides/hunter-beast-mastery-forever-overview",
+        "class": "Hunter"
+      },
+      {
+        "key": "wowgg-rogue-combat-forever-overview",
+        "url": "https://wow.gg/guides/rogue-combat-forever-overview",
+        "class": "Rogue"
+      },
+      {
+        "key": "wowgg-warrior-arms-forever-overview",
+        "url": "https://wow.gg/guides/warrior-arms-forever-overview",
+        "class": "Warrior"
+      },
+      {
+        "key": "method-the-best-weapons-from-levels-1-30",
+        "url": "https://www.method.gg/wow-forever/the-best-weapons-in-wow-forever-from-levels-1-30",
+        "class": "Warrior"
+      },
+      {
+        "key": "method-druid-leveling-guide-and-talents",
+        "url": "https://www.method.gg/wow-forever/wow-forever-druid-leveling-guide-and-talents",
+        "class": "Druid"
+      },
+      {
+        "key": "method-hunter-leveling-guide-and-talents",
+        "url": "https://www.method.gg/wow-forever/wow-forever-hunter-leveling-guide-and-talents",
+        "class": "Hunter"
+      },
+      {
+        "key": "method-mage-leveling-guide-and-talents",
+        "url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents",
+        "class": "Mage"
+      },
+      {
+        "key": "method-paladin-leveling-guide-and-talents",
+        "url": "https://www.method.gg/wow-forever/wow-forever-paladin-leveling-guide-and-talents",
+        "class": "Paladin"
+      },
+      {
+        "key": "method-priest-leveling-guide-and-talents",
+        "url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents",
+        "class": "Priest"
+      },
+      {
+        "key": "method-rogue-leveling-guide-and-talents",
+        "url": "https://www.method.gg/wow-forever/wow-forever-rogue-leveling-guide-and-talents",
+        "class": "Rogue"
+      },
+      {
+        "key": "method-shaman-leveling-guide-and-talents",
+        "url": "https://www.method.gg/wow-forever/wow-forever-shaman-leveling-guide-and-talents",
+        "class": "Shaman"
+      },
+      {
+        "key": "method-warlock-leveling-guide-and-talents",
+        "url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents",
+        "class": "Warlock"
+      },
+      {
+        "key": "method-warrior-leveling-guide-and-talents",
+        "url": "https://www.method.gg/wow-forever/wow-forever-warrior-leveling-guide-and-talents",
+        "class": "Warrior"
+      },
+      {
+        "key": "wt-best-hunter-pets",
+        "url": "https://www.warcrafttavern.com/forever/guides/best-hunter-pets/",
+        "class": "Hunter"
+      },
+      {
+        "key": "wt-priest",
+        "url": "https://www.warcrafttavern.com/forever/guides/priest/",
+        "class": "Priest"
+      },
+      {
+        "key": "wt-undead-paladin",
+        "url": "https://www.warcrafttavern.com/forever/guides/undead-paladin/",
+        "class": "Paladin"
+      },
+      {
+        "key": "wt-all-changes-to-paladins",
+        "url": "https://www.warcrafttavern.com/forever/news/all-changes-to-paladins-in-wow-forever/",
+        "class": "Paladin"
+      },
+      {
+        "key": "wt-powershifting-is-back-sort-of-hunter-druid-deep",
+        "url": "https://www.warcrafttavern.com/forever/news/powershifting-is-back-sort-of-hunter-druid-deep-dive-for-wow-forever/",
+        "class": "Druid"
+      },
+      {
+        "key": "wt-pre-launch-class-changes-bug-fixes",
+        "url": "https://www.warcrafttavern.com/forever/news/wow-forever-pre-launch-class-changes-bug-fixes/"
+      }
+    ]
+  }
+}

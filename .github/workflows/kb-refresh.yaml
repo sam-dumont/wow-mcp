@@ -1,0 +1,188 @@
+# The knowledge base's refresh job (docs/kb.md). Three modes, all on demand:
+#
+# - watch (daily): deterministic watchers on the client build, Blizzard's
+#   official hotfix and patch-note pages, the Polestar release and the install
+#   docs' addons. One issue per change kind (label kb-watch): opened, edited,
+#   closed when back to what data/kb/watch.json knows. When an official page
+#   changed, the model pass reads it and opens a PR of proposed statements
+#   (data/kb/research/refresh-<date>.json): never merged on its own.
+# - refresh: the model pass alone, on the pages named in `pages`.
+# - sweep (monthly): every cited URL fetched once (no model); gone and changed
+#   sources and stale statements go to one issue, the new sweep.json to a PR.
+# - meta (weekly): what people write about Forever (Wowhead's Forever news
+#   feed, Blizzard's blue posts from the forums' JSON, the guide pages the KB
+#   cites, class guides included), only what is new since data/kb/watch.json's
+#   `meta`. The model pass proposes statements and contradictions in a PR
+#   (data/kb/research/meta-<date>.json), never merged on its own. Nothing new:
+#   no model call, no PR.
+#
+# Manual only: no `schedule:`, since GitHub's cron runs hours late or not at
+# all. An owner who wants it on time dispatches it from their own scheduler
+# (docs/kb.md, "Running the refresh job in your own repository").
+#
+# The model pass has no API key: GitHub's OIDC token is exchanged for a
+# short-lived Anthropic token (Workload Identity Federation), and the
+# federation rule only accepts workflow_dispatch runs of this repo on main.
+# Without the ANTHROPIC_* repository variables (a fork, say) the model passes
+# skip with a notice and the run stays green; watch and sweep need none of it.
+# It runs here, in GitHub Actions, never on the server or in the image (the
+# server runs no LLM). Pages are untrusted data: their text is hashed or handed to
+# the model as data, and the model's answer only becomes a JSON file that
+# the schema (wowstats/analysis/kbschema.py) checks before a person reviews it.
+name: kb-refresh
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: watch, refresh, sweep or meta
+        type: choice
+        options: [watch, refresh, sweep, meta]
+        default: watch
+      pages:
+        description: "refresh mode: page keys from data/kb/watch.json (space-separated)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: kb-refresh
+  cancel-in-progress: false
+
+jobs:
+  run:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # GH_TOKEN (contents, issues and PR write) is given to the steps that
+    # call GitHub and to no other: never to the model passes, which handle
+    # outside text. The checkout keeps no credentials either; the PR step
+    # signs its push with gh.
+    env:
+      # The model pass's spend cap per run, in USD (tools/kb/refresh.py).
+      KB_REFRESH_MAX_USD: "3"
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      # The kb group: anthropic and its dependencies from uv.lock, by hash.
+      - run: uv sync --frozen --group kb
+      - name: The issue label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh label create kb-watch --color 5319e7 --description "KB refresh job, a source changed" --force
+
+      - name: Watch
+        id: watch
+        if: inputs.mode == 'watch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run --frozen python tools/kb/watch.py --github
+
+      - name: Pages for the model pass
+        id: pages
+        if: inputs.mode == 'watch' || inputs.mode == 'refresh'
+        env:
+          CHANGED: ${{ steps.watch.outputs.changed_official }}
+          ASKED: ${{ inputs.pages }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          set -eu
+          if [ "$MODE" = refresh ]; then keys="$ASKED"; else keys=$(echo "${CHANGED:-[]}" | jq -r '.[]' | xargs); fi
+          echo "keys=$keys" >> "$GITHUB_OUTPUT"
+
+      - name: Meta, what's new (no model)
+        id: collect
+        if: inputs.mode == 'meta'
+        run: uv run --frozen python tools/kb/meta.py collect --items "$RUNNER_TEMP/meta-items.json"
+
+      - name: No model pass here (the ANTHROPIC_* variables aren't set)
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID == '' && (steps.pages.outputs.keys != '' || steps.collect.outputs.new > 0)
+        run: echo '::notice::Model pass skipped, set the ANTHROPIC_* repository variables to run it (docs/kb.md).'
+      - name: GitHub OIDC token for Anthropic
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (steps.pages.outputs.keys != '' || steps.collect.outputs.new > 0)
+        run: |
+          token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.anthropic.com" | jq -r .value)
+          echo "::add-mask::$token"
+          umask 077
+          printf '%s' "$token" > "$RUNNER_TEMP/anthropic-oidc"
+      - name: Model pass (proposals only)
+        id: refresh
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.pages.outputs.keys != ''
+        env:
+          KEYS: ${{ steps.pages.outputs.keys }}
+          ANTHROPIC_IDENTITY_TOKEN_FILE: ${{ runner.temp }}/anthropic-oidc
+          ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+        run: |
+          # shellcheck disable=SC2086 # one word per key
+          uv run --frozen python tools/kb/refresh.py $KEYS
+      - name: Meta model pass (proposals only)
+        id: meta
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.collect.outputs.new > 0
+        env:
+          ANTHROPIC_IDENTITY_TOKEN_FILE: ${{ runner.temp }}/anthropic-oidc
+          ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+        run: >-
+          uv run --frozen python tools/kb/meta.py propose
+          --items "$RUNNER_TEMP/meta-items.json" --summary "$RUNNER_TEMP/meta-summary.md"
+      - name: Remove the token and the collected text
+        if: always()
+        run: rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/meta-items.json"
+
+      - name: Sweep
+        if: inputs.mode == 'sweep'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run --frozen python tools/kb/sweep.py --github
+
+      - name: Schema check of what goes into the PR
+        if: steps.refresh.outputs.statements > 0 || inputs.mode == 'sweep' || steps.meta.outputs.read > 0
+        run: uv run --frozen pytest -q tests/test_kb_schema.py
+
+      - name: Open the PR (never auto-merged)
+        if: steps.refresh.outputs.statements > 0 || inputs.mode == 'sweep' || steps.meta.outputs.read > 0
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODE: ${{ inputs.mode }}
+          SPENT: ${{ steps.refresh.outputs.spent_usd }}
+          META_STATEMENTS: ${{ steps.meta.outputs.statements }}
+        run: |
+          set -eu
+          day=$(date -u +%F)
+          kind=$([ "$MODE" = sweep ] || [ "$MODE" = meta ] && echo "$MODE" || echo refresh)
+          branch="kb-$kind-$day"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add data/kb
+          if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
+          if [ "$kind" = meta ]; then
+            title="KB meta $day: ${META_STATEMENTS:-0} statements proposed from news, blue posts and guides"
+            body=$(cat "$RUNNER_TEMP/meta-summary.md")
+          elif [ "$kind" = sweep ]; then
+            title="KB sweep $day: cited sources"
+            body="The monthly sweep's record of every cited URL (data/kb/sweep.json), so next month compares with this one. What to look at is in the open kb-watch sweep issue."
+          else
+            title="KB refresh $day: statements proposed from the changed official pages"
+            body="Proposed by tools/kb/refresh.py (model pass, \$${SPENT} of a \$${KB_REFRESH_MAX_USD} cap) from the official pages the watcher saw change. Every statement cites its page; check each against it before merging. A statement with \`supersedes\` replaces that one. Refused proposals are listed as open questions in the file. Once merged, record the pages' new state: \`uv run python tools/kb/watch.py --accept official\`."
+          fi
+          git commit -m "$title"
+          gh auth setup-git  # the push's credentials, from this step's GH_TOKEN only
+          git push -f origin "HEAD:refs/heads/$branch"
+          gh pr create --base main --head "$branch" --title "$title" --body "$body" --label kb-watch \
+            || gh pr edit "$branch" --title "$title" --body "$body"

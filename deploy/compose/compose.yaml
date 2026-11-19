@@ -1,0 +1,245 @@
+# wow-stats, standalone: everything on one machine (the one you play on, or a
+# small server at home). docker compose up -d --build, then point the shipper at
+# http://127.0.0.1:8080/ingest. README.md has the three steps.
+#
+# The demo, without a game (five made-up characters), from this folder:
+#   docker compose up -d --build ui
+#   docker compose exec -T ui python - --vl http://victorialogs:9428 < ../../dev/seed.py
+# PowerShell:
+#   Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --vl http://victorialogs:9428
+#
+#   victorialogs     your game events (yours: kept until you delete them)
+#   ui               the web page, full view, on 127.0.0.1:8080; also takes
+#                    the shipper's events on POST /ingest
+#   publish          the static sites for friends, rebuilt after each play
+#                    session: the public view, and the full content sealed
+#                    under a key (/zogzog/#<key>: `wow-stats zogzog-key link`)
+#   site             serves them on 127.0.0.1:8081: files only, no backend
+#   ui-public        optional (profile "public"): the old dynamic public view
+#   victoriametrics  optional (profile "exporter"): Battle.net API data, 23 days
+#   exporter         optional (profile "exporter"): polls the Battle.net API
+#
+# Third-party images are pinned by digest; bump them on purpose.
+name: wow-stats
+
+x-wow-stats: &wow-stats
+  # Built from this tree by default (docker compose up -d --build). A
+  # released image instead: WOW_STATS_IMAGE in .env, then docker compose
+  # pull (docs/development.md, "Using a released image").
+  image: ${WOW_STATS_IMAGE:-wow-stats:local}
+  build:
+    context: ../..
+  user: "10001:10001"
+  read_only: true
+  tmpfs: [/tmp]
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+
+services:
+  victorialogs:
+    image: docker.io/victoriametrics/victoria-logs:v1.54.0@sha256:ee4e820cac3721f5f5d91641b950c22439593adc4224f9655e5333d5a84c1dfe
+    command:
+      - -storageDataPath=/data
+      # Your own game data (SavedVariables, combat logs, Auctionator scans):
+      # no reason to ever drop it. 100y is the longest VictoriaLogs takes.
+      - -retentionPeriod=100y
+      # Optional disk ceiling (VL_MAX_DISK in .env, e.g. 20GiB; 0: none).
+      # Past it VictoriaLogs deletes the OLDEST days of events, for good.
+      - -retention.maxDiskSpaceUsageBytes=${VL_MAX_DISK:-0}
+    volumes: [vl-data:/data]
+    restart: unless-stopped
+    # No published port: only ui talks to it. To look inside, run
+    #   docker compose exec ui wget -qO- 'http://victorialogs:9428/select/logsql/query?query=*&limit=5'
+    # or use the "Query the events" box at the bottom of the full view.
+
+  ui:
+    <<: *wow-stats
+    command: ["ui"]
+    # The analysis holds a character's whole history in memory: 472 MiB peak
+    # on 55 weeks of the demo (100,705 events), so twice that by default.
+    # UI_MEM_LIMIT in .env (docs/install.md, "Memory").
+    mem_limit: ${UI_MEM_LIMIT:-1g}
+    depends_on: [victorialogs]
+    environment:
+      VIEW: full
+      # open: no login, fine while the port is published on 127.0.0.1 only
+      # (the default below). Publishing it on your network? Set UI_AUTH=basic
+      # with BASIC_AUTH_USER and BASIC_AUTH_PASSWORD in .env.
+      AUTH: ${UI_AUTH:-open}
+      # Where the port is published, so the app can tell: with UI_AUTH=open it
+      # refuses to start unless this is a 127.0.0.1 address.
+      PUBLISHED_ON: ${UI_PUBLISH:-127.0.0.1:8080}
+      # Other names you reach the page by (nas.local, wow.example.org), comma
+      # separated. localhost, IP addresses and MCP_PUBLIC_URL's host always
+      # work; any other name is refused (it would let a web page read yours).
+      ALLOWED_HOSTS: ${UI_ALLOWED_HOSTS:-}
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:-}
+      BASIC_AUTH_PASSWORD: ${BASIC_AUTH_PASSWORD:-}
+      VL_URL: http://victorialogs:9428
+      # Set to http://victoriametrics:8428 when you run the exporter profile.
+      VM_URL: ${VM_URL:-}
+      AH_FACTION: ${AH_FACTION:-Alliance}
+      DEFAULT_CHAR: ${DEFAULT_CHAR:-}
+      # The shipper's login for POST /ingest (user "wow").
+      INGEST_PASSWORD: ${INGEST_PASSWORD:?set INGEST_PASSWORD in .env (12+ characters)}
+      # Optional, docs/mcp.md. The MCP endpoint for claude.ai and Claude Code,
+      # on port 8090, stays off while MCP_PUBLIC_URL is empty. The login goes
+      # through your identity provider; its files live in secrets/, mounted below:
+      # secrets/oidc_client_secret and secrets/mcp_signing_key
+      # (head -c 48 /dev/urandom > secrets/mcp_signing_key).
+      MCP_PUBLIC_URL: ${MCP_PUBLIC_URL:-}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET_FILE: ${OIDC_CLIENT_SECRET_FILE:-/run/wow-secrets/oidc_client_secret}
+      OIDC_ALLOWED_SUBS: ${OIDC_ALLOWED_SUBS:-}
+      MCP_SIGNING_KEY_FILE: ${MCP_SIGNING_KEY_FILE:-}
+      # Name-Surname:spec pairs: what each character's gear is scored for (docs/deploy.md).
+      WEIGHTS: ${WEIGHTS:-}
+      # What the page fetches from outside: the 3D character (MODEL3D) and
+      # Wago's game tables: items, talents, the KB's spells (WOW_ITEMS). Both on
+      # by default; the small preset (.env.example) turns both off: no
+      # downloads at all, works offline and with a cold cache.
+      MODEL3D: ${MODEL3D:-on}
+      WOW_ITEMS: ${WOW_ITEMS:-on}
+      # Your timezone (IANA name) for the analysis' hours and weekdays; empty: Europe/Brussels.
+      WOW_TIMEZONE: ${WOW_TIMEZONE:-}
+      # Kept across restarts on the ui-state volume: the play analysis and
+      # the plans the MCP saves (ANALYSIS_STATE_DIR), the MCP's registrations
+      # and logins (MCP_STATE_DIR, encrypted), the downloaded game tables.
+      ANALYSIS_STATE_DIR: /data/analysis
+      MCP_STATE_DIR: /data/mcp
+      MODEL3D_CACHE_DIR: /data/model3d-cache
+      # The analysis' lines for the friends' site, to publish only (never
+      # published on the host). Every request needs the token in this file,
+      # made on the first start; publish reads it from the same volume.
+      ANALYSIS_SHARE_PORT: "8082"
+      ANALYSIS_SHARE_TOKEN_FILE: /data/share-token
+    volumes:
+      # /data: the image's own folder, owned by its user (10001): a fresh
+      # volume takes that ownership, so the ui can write there.
+      - ui-state:/data
+      - ./secrets:/run/wow-secrets:ro
+    ports:
+      - "${UI_PUBLISH:-127.0.0.1:8080}:8080"
+      - "${MCP_PUBLISH:-127.0.0.1:8090}:8090"
+
+  publish:
+    <<: *wow-stats
+    command: ["publish", "--loop"]
+    depends_on: [victorialogs]
+    environment:
+      VL_URL: http://victorialogs:9428
+      VM_URL: ${VM_URL:-}
+      AH_FACTION: ${AH_FACTION:-Alliance}
+      DEFAULT_CHAR: ${DEFAULT_CHAR:-}
+      PUBLISH_DIR: /data/site
+      PUBLISH_INTERVAL: ${PUBLISH_INTERVAL:-600}
+      MODEL3D: ${MODEL3D:-on}
+      WOW_ITEMS: ${WOW_ITEMS:-on}
+      # The full content for friends with the link. ZOGZOG_PATH= (set, empty)
+      # in .env: no such site. Unset: /zogzog/. `-` and not `:-`, so an
+      # empty value stays empty.
+      ZOGZOG_PATH: ${ZOGZOG_PATH-/zogzog/}
+      # Made on the first run. The link, any time:
+      #   docker compose run --rm publish zogzog-key link
+      # A new key (the old links stop working):
+      #   docker compose run --rm publish zogzog-key rotate
+      ZOGZOG_KEY_FILE: /data/zogzog.key
+      ZOGZOG_LINK_BASE: ${SITE_URL:-http://127.0.0.1:8081}
+      MODEL3D_CACHE_DIR: /data/model3d-cache
+      # Optional, docs/deploy.md "Visitor counts": your Plausible site's
+      # domain. The static pages then load /js/script.js and post to
+      # /api/event on their own address: route those two paths to your
+      # Plausible in your reverse proxy. Empty: no analytics at all.
+      PLAUSIBLE_DOMAIN: ${PLAUSIBLE_DOMAIN:-}
+      # The ui's analysis lines for /zogzog/, with the ui's token (below).
+      ANALYSIS_SHARE_URL: http://ui:8082/analysis.json
+      ANALYSIS_SHARE_TOKEN_FILE: /ui-state/share-token
+    volumes:
+      - site-data:/data
+      # Read-only, for the share token alone.
+      - ui-state:/ui-state:ro
+
+  site:
+    <<: *wow-stats
+    command: ["static"]
+    depends_on: [publish]
+    environment:
+      SITE_DIR: /data/site
+      ZOGZOG_PATH: ${ZOGZOG_PATH-/zogzog/}
+    # Read-only: it never writes, and calls nothing (no store, no
+    # upstream). Docker can't publish a port from an internal network, so
+    # here the "no egress" is the code's; on Kubernetes add a network policy (deploy.md).
+    volumes: [site-data:/data:ro]
+    ports:
+      - "${SITE_PUBLISH:-127.0.0.1:8081}:8080"
+
+  ui-public:
+    <<: *wow-stats
+    profiles: [public]
+    command: ["ui"]
+    depends_on: [victorialogs]
+    environment:
+      # The public view: no other players, no positions, no gold, no market
+      # data. This live one has no 3D, so no Battle.net look either.
+      # Put this one behind your reverse proxy if friends should see it.
+      VIEW: public
+      AUTH: open
+      # No login: published on 127.0.0.1 by default. Opening it to everyone
+      # on purpose (PUBLIC_PUBLISH=0.0.0.0:8082)? Also set PUBLIC_ALLOW_OPEN=1.
+      PUBLISHED_ON: ${PUBLIC_PUBLISH:-127.0.0.1:8082}
+      ALLOW_OPEN: ${PUBLIC_ALLOW_OPEN:-}
+      ALLOWED_HOSTS: ${PUBLIC_ALLOWED_HOSTS:-}
+      VL_URL: http://victorialogs:9428
+      DEFAULT_CHAR: ${DEFAULT_CHAR:-}
+    ports:
+      - "${PUBLIC_PUBLISH:-127.0.0.1:8082}:8080"
+
+  victoriametrics:
+    image: docker.io/victoriametrics/victoria-metrics:v1.156.0@sha256:da8a90ac0912f16589be2b96a6441a2fca4bca415c83783d972d92e3b5b66970
+    profiles: [exporter]
+    command:
+      - -storageDataPath=/data
+      # Blizzard's Developer API Terms: data from the API is kept 30 days at
+      # most. VictoriaMetrics only deletes expired data when it merges a
+      # part, which can lag by days: 23 days leaves a week of room, and the
+      # exporter force-merges every day so expired blocks really go.
+      - -retentionPeriod=23d
+      - -forceMergeAuthKey=file:///run/secrets/vm_merge_key
+    secrets: [vm_merge_key]
+    volumes: [vm-data:/data]
+    restart: unless-stopped
+
+  exporter:
+    <<: *wow-stats
+    profiles: [exporter]
+    command: ["exporter"]
+    depends_on: [victoriametrics]
+    secrets: [bnet_client_id, bnet_client_secret, vm_merge_key]
+    environment:
+      # YOUR OWN Battle.net API client (README, "Battle.net client"): never
+      # someone else's.
+      BNET_CLIENT_ID_FILE: /run/secrets/bnet_client_id
+      BNET_CLIENT_SECRET_FILE: /run/secrets/bnet_client_secret
+      BNET_REGION: ${BNET_REGION:-eu}
+      AH_FACTION: ${AH_FACTION:-Alliance}
+      # {"item id": "name", ...}: set it in .env.
+      WATCH_ITEMS: ${WATCH_ITEMS:-}
+      PROFILE_CHARACTERS: ${PROFILE_CHARACTERS:-}
+      VM_PUSH_URL: http://victoriametrics:8428/api/v1/import/prometheus
+      VM_MERGE_KEY_FILE: /run/secrets/vm_merge_key
+
+secrets:
+  bnet_client_id:
+    file: ./secrets/bnet_client_id
+  bnet_client_secret:
+    file: ./secrets/bnet_client_secret
+  vm_merge_key:
+    file: ./secrets/vm_merge_key
+
+volumes:
+  vl-data:
+  vm-data:
+  site-data:
+  ui-state:

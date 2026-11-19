@@ -1,0 +1,21 @@
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!wowstats/
+!web/
+!data/route-reference.json
+!data/gear-reference.json
+!data/kb-reference.json.gz
+!data/kb/
+!data/forever-reference.json
+!data/trainers-reference.json
+!data/class-reference.json
+!THIRD_PARTY.md
+# The one-line installers carry the shipper; /start reads the install steps (wowstats.account).
+!shipper/
+!docs/videos/steps.json
+!docs/videos/media
+!LICENSE
+**/__pycache__
+wowstats/mcp/tests

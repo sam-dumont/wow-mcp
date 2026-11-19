@@ -1,0 +1,500 @@
+import json
+import os
+import struct
+import time
+import zlib
+from pathlib import Path
+
+import pytest
+
+
+def cbor(v) -> bytes:
+    """Just enough of an encoder for the shapes Auctionator writes."""
+
+    def head(mt: int, n: int) -> bytes:
+        if n < 24:
+            return bytes([mt << 5 | n])
+        for ai, size in ((24, 1), (25, 2), (26, 4), (27, 8)):
+            if n < 1 << (8 * size):
+                return bytes([mt << 5 | ai]) + n.to_bytes(size, "big")
+        raise ValueError(n)
+
+    if isinstance(v, bool):
+        return b"\xf5" if v else b"\xf4"
+    if isinstance(v, int):
+        return head(0, v) if v >= 0 else head(1, -1 - v)
+    if isinstance(v, float):
+        return b"\xfb" + struct.pack(">d", v)
+    if isinstance(v, str):
+        b = v.encode()
+        return head(2, len(b)) + b  # WoW writes Lua strings as byte strings
+    if isinstance(v, dict):
+        return head(5, len(v)) + b"".join(cbor(k) + cbor(x) for k, x in v.items())
+    if isinstance(v, list):
+        return head(4, len(v)) + b"".join(cbor(x) for x in v)
+    raise TypeError(v)
+
+
+def lua_bytes(b: bytes) -> bytes:
+    out = bytearray(b'"')
+    for c in b:
+        if c in (34, 92) or c < 32 or c > 126:
+            out += b"\\%d" % c
+        else:
+            out.append(c)
+    return bytes(out + b'"')
+
+
+def test_cbor_roundtrip(shipper):
+    v = {"l": {"2508": 135}, "h": {"2508": 200, "2509": 70000}, "a": {"2508": 3}, "m": 1.5, "x": [1, -2, True]}
+    assert shipper.cbor_decode(cbor(v)) == v
+    # Indefinite-length map, as some encoders write.
+    assert shipper.cbor_decode(b"\xbf" + cbor("a") + cbor(1) + b"\xff") == {"a": 1}
+    with pytest.raises(shipper.CborError):
+        shipper.cbor_decode(b"\xa2" + cbor("a"))
+
+
+def test_lua_reader_raw_keeps_bytes(shipper):
+    blob = bytes(range(256))
+    doc = shipper.LuaReader(b"X = {\n[\"k\"] = " + lua_bytes(blob) + b",\n}\n", raw=True).document()
+    assert doc["X"][b"k"] == blob
+
+
+@pytest.fixture
+def wow(tmp_path, shipper, monkeypatch):
+    """A fake _forever_ folder with the data addons and an Auctionator file."""
+    root = tmp_path / "_forever_"
+    addons = root / "Interface" / "AddOns"
+    (addons / "LibForeverData" / "Data").mkdir(parents=True)
+    (addons / "Polestar_QuestDB").mkdir(parents=True)
+    (addons / "LibForeverData" / "Data" / "Items.lua").write_text(
+        'R("item", 1, 2, [[\n\n2592\tWool Cloth;;\n4306\tSilk%3A Cloth;;\n]])\n')
+    (addons / "LibForeverData" / "Data" / "Quests.lua").write_text("R(\"quest\", 1, 2, [[\n\n7\tKobold Camp Cleanup;2;1\n]])\n")
+    (addons / "Polestar_QuestDB" / "Quests.lua").write_text("R(\"quests\", 1, 2, [[\n\n7\t'Wrong Name;2\n8\t'A Rogue%2Cs Deal;5\n]])\n")
+    monkeypatch.setattr(shipper, "WOW", root)
+    monkeypatch.setattr(shipper, "NAMES", {})
+    return root
+
+
+def test_names_from_data_addons(shipper, wow):
+    assert shipper.names("Items") == {2592: "Wool Cloth", 4306: "Silk: Cloth"}
+    # LibForeverData first; Polestar_QuestDB fills what it lacks.
+    assert shipper.names("Quests") == {7: "Kobold Camp Cleanup", 8: "A Rogue,s Deal"}
+
+
+def write_auctionator(acct, realm_blob: bytes, bak: bytes | None = None):
+    sv = acct / "SavedVariables"
+    sv.mkdir(parents=True, exist_ok=True)
+    head = b'AUCTIONATOR_CONFIG = {\n["debug"] = false,\n}\nAUCTIONATOR_PRICE_DATABASE = {\n["__dbversion"] = 8,\n'
+    (sv / "Auctionator.lua").write_bytes(head + b'["PvE"] = ' + lua_bytes(realm_blob) + b",\n}\n")
+    if bak is not None:
+        (sv / "Auctionator.lua.bak").write_bytes(head + b'["PvE"] = ' + lua_bytes(bak) + b",\n}\n")
+
+
+def test_auctionator_prices(shipper, wow, tmp_path):
+    acct = tmp_path / "acct"
+    db = {"2592": {"h": {"2508": 40}, "l": {"2508": 35}, "a": {"2508": 120}, "m": 35},
+          "g:4306:0": {"h": {"2512": 99}, "a": {"2512": 7}, "m": 99},
+          "version": 2}
+    write_auctionator(acct, cbor(db), bak=cbor({"2592": {"h": {"2508": 38}, "a": {"2508": 200}, "m": 38}}))
+    out = shipper.Out(dry=True)
+    got = []
+    out.emit = got.append
+    state: dict = {}
+    shipper.extract_auctionator(acct, "Hero-Test", state, out)
+    by = {e["source_id"]: e for e in got}
+    wool = by["price:PvE:2592:2508"]
+    # Merged over the file and its .bak: lowest low, highest high, most listed.
+    assert (wool["price_copper"], wool["price_high_copper"], wool["available"]) == (35, 40, 200)
+    assert wool["item_name"] == "Wool Cloth" and wool["item_id"] == 2592 and wool["realm"] == "PvE"
+    assert wool["rev"] == 1 and wool["feed"] == "wow-prices" and wool["char"] == "Hero-Test"
+    day0 = time.mktime((2020, 1, 1, 0, 0, 0, 0, 0, -1))
+    assert wool["_time"] == shipper.iso(day0 + 2508 * 86400)
+    silk = by["price:PvE:g:4306:0:2512"]
+    assert silk["item_id"] == 4306 and silk["price_copper"] == 99 and silk["item_name"] == "Silk: Cloth"
+    assert len(got) == 2
+
+    # Nothing new: nothing sent. A cheaper listing the same day: sent again, rev 2.
+    got.clear()
+    shipper.extract_auctionator(acct, "Hero-Test", state, out)
+    assert got == []
+    db["2592"]["l"]["2508"] = 30
+    write_auctionator(acct, cbor(db))
+    shipper.extract_auctionator(acct, "Hero-Test", state, out)
+    assert [(e["source_id"], e["price_copper"], e["rev"]) for e in got] == [("price:PvE:2592:2508", 30, 2)]
+    json.dumps(got)  # every value is JSON
+
+
+def recorder_chunk(seq: int, epoch: int, lines: list[str]) -> str:
+    return "\n".join([f"chunk\t2\t{seq}\t{epoch}\tCID"] + lines)
+
+
+def test_recorder_quest_names_and_login(shipper, wow):
+    t0 = 1794900000
+    chunks = {
+        ("CID", 1): (t0, recorder_chunk(1, t0, ["session\t0\tCID", "accept\t10\t7", "turnin\t50\t8"]).split("\n")),
+        # 4 minutes later: the next chunk of the same session.
+        ("CID", 2): (t0 + 240, recorder_chunk(2, t0 + 240, ["session\t0\tCID", "text\t5\t9\tSeen Title",
+                                                            "turnin\t10\t9"]).split("\n")),
+        # An hour later: a new login.
+        ("CID", 3): (t0 + 3600, recorder_chunk(3, t0 + 3600, ["session\t0\tCID", "xp\t5\t10\t100"]).split("\n")),
+    }
+    sessions = shipper.sessions_of(chunks)
+    assert len(sessions) == 2
+    got = []
+    out = shipper.Out(dry=True)
+    out.emit = got.append
+    state: dict = {}
+    shipper.extract_recorder(sessions, {}, {"CID": "Hero-Test"}, state, out)
+    names = {e["source_id"]: e.get("quest_name") for e in got if e["kind"] in ("accept", "turnin")}
+    assert names == {"rec:CID:1:2": "Kobold Camp Cleanup", "rec:CID:1:3": "A Rogue,s Deal",
+                     "rec:CID:2:3": "Seen Title"}
+    logins = [e["source_id"] for e in got if e.get("login")]
+    assert logins == ["rec:CID:1:1", "rec:CID:3:1"]
+    # A rerun sends nothing again, and marks no new login.
+    got.clear()
+    shipper.extract_recorder(sessions, {}, {"CID": "Hero-Test"}, state, out)
+    assert got == []
+
+
+def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
+    """wow-gear: equipped items from Syndicator (index = slot + 1), item
+    levels from Polestar_ItemDB, skills from Polestar and CharacterExport,
+    tracked upgrades from GearQuestForever; sent again only when it changes."""
+    monkeypatch.setattr(shipper, "ITEMDB", {})
+    db = wow / "Interface" / "AddOns" / "Polestar_ItemDB"
+    db.mkdir(parents=True)
+    (db / "Forever.lua").write_text(
+        'DB.Register(nil, {\n[5820]="3 32 0 2 4 1 int6",\n})\n'
+        'DB.RegisterLeveling({}, {\n[53]="44 40 1 40 0 0 0||744|A Quest",\n}, {\n[12998]="Magician\'s Mantle",\n'
+        '}, {\n[12998]="q1031",\n})\n')
+    (db / "Items.lua").write_text('DB.Register({}, {\n[1317]="17 27 0 2 2 10 spi9",\n[53]="4 1 1 1 4 0",\n})\n')
+    acct = tmp_path / "acct"
+    sv = acct / "SavedVariables"
+    cdir = acct / "PvE" / "Hero-Test" / "SavedVariables"
+    cdir.mkdir(parents=True)
+    sv.mkdir(parents=True, exist_ok=True)
+
+    def syndicator(staff: int) -> None:
+        (sv / "Syndicator.lua").write_text(
+            'SYNDICATOR_DATA = {\n["Characters"] = {\n["Hero Test-PvE"] = {\n'
+            '["details"] = {\n["character"] = "Hero Test",\n["guild"] = "Moss Order-PvE",\n'
+            '["className"] = "PRIEST",\n["race"] = "Gnome",\n["faction"] = "Alliance",\n},\n'
+            '["money"] = 987654,\n["equipped"] = {\n{\n},\n{\n},\n{\n},\n'
+            '{\n["itemID"] = 5820,\n["quality"] = 2,\n["itemLink"] = "|cnIQ2:|Hitem:5820:66::::::::32:::::::|h[Faerie Mantle]|h|r",\n},\n'
+            '{\n["itemID"] = 53,\n["quality"] = 1,\n["itemLink"] = "|cnIQ1:|Hitem:53::|h[Neophyte\'s Shirt]|h|r",\n},\n'
+            + "{\n},\n" * 11
+            + f'{{\n["itemID"] = {staff},\n["quality"] = 2,\n["itemLink"] = "|h[Some Staff]|h",\n}},\n'
+            + '{\n},\n{\n},\n{\n},\n{\n["itemID"] = 9999,\n["quality"] = 1,\n},\n},\n},\n},\n}\n')
+
+    syndicator(1317)
+    (sv / "Polestar.lua").write_text(
+        'PolestarDB = {\n["alts"] = {\n["chars"] = {\n["Hero Test-PvE"] = {\n["name"] = "Hero Test",\n'
+        '["seen"] = 1794928683,\n["profs"] = {\n[185] = 130,\n[197] = 119,\n},\n},\n},\n},\n'
+        '["settings"] = {\n["gear"] = {\n["minUpgrade"] = 3,\n["spec"] = {\n["PRIEST"] = "holy",\n'
+        '["MAGE"] = "fire",\n},\n},\n},\n'
+        '["gearAdjust"] = {\n["PRIEST"] = {\n["shadow"] = {\n["sta"] = {\n["x"] = 1.5,\n},\n'
+        '["spellHit"] = {\n["v"] = 2,\n},\n},\n},\n["MAGE"] = {\n["fire"] = {\n["int"] = {\n["x"] = 2,\n},\n},\n},\n},\n}\n')
+    (cdir / "CharacterExport-Forever.lua").write_text(
+        'CharacterExportForeverDBChar = {\n["professionCache"] = {\n["PvE"] = {\n["Hero"] = {\n'
+        '["id:185"] = {\n["professionID"] = 185,\n["name"] = "Cooking",\n["rank"] = 120,\n["maxRank"] = 225,\n},\n'
+        '},\n},\n},\n}\n')
+    (cdir / "GearQuestForever.lua").write_text(
+        'GearQuestForeverCharDB = {\n["hunts"] = {\n'
+        '["gen:priest:12998:Shoulder:25:shadow:Alliance"] = {\n["status"] = "tracked",\n},\n'
+        '["gen:priest:1317:MainHand:13:shadow:Alliance"] = {\n["status"] = "completed",\n},\n},\n'
+        '["specPick"] = {\n["PRIEST"] = "shadow",\n},\n}\n')
+    # Vulcan SimBench's last /simx export: the talent points per tree.
+    body = "FSX1:v=1.2.2;cls=PRIEST;lvl=32;tal=5-0-18;tn=Discipline,Holy,Shadow;g=1:2:3"
+    sim = f"{body}#{zlib.adler32(body.encode()):08x}"
+    (cdir / "VulcanSimBench.lua").write_text(f'VulcanSimBenchCharDB = {{\n["last"] = "{sim}",\n}}\n')
+    got = []
+    out = shipper.Out(dry=True)
+    out.emit = got.append
+    state: dict = {}
+    shipper.extract_gear(acct, shipper.roster(acct), state, out)
+    assert len(got) == 1
+    g = got[0]
+    assert g["talents"] == [{"tree": "Discipline", "points": 5}, {"tree": "Holy", "points": 0},
+                            {"tree": "Shadow", "points": 18}]
+    assert "g=1:2:3" not in json.dumps(got)  # nothing else from the export string
+    assert g["feed"] == "wow-gear" and g["char"] == "Hero-Test" and g["_time"] == shipper.iso(1794928683)
+    assert [(i["slot"], i["slot_name"], i["name"], i["item_level"], i["quality"]) for i in g["items"]] == [
+        (3, "Shoulder", "Faerie Mantle", 32, 2), (4, "Shirt", "Neophyte's Shirt", 1, 1),
+        (16, "Main hand", "Some Staff", 27, 2)]
+    # The enchant from the link's second field: 66 on the mantle, an empty
+    # field (the shirt) is none, a link without one (the staff) unknown.
+    assert [i["enchant_id"] for i in g["items"]] == [66, 0, None]
+    assert g["item_level"] == 29.5  # the shirt doesn't count
+    assert g["professions"] == [
+        {"skill_id": 185, "name": "Cooking", "rank": 130, "max_rank": 225},
+        {"skill_id": 197, "name": "Tailoring", "rank": 119, "max_rank": None}]
+    assert g["wanted"] == [{"item_id": 12998, "name": "Magician's Mantle", "item_level": None, "req_level": None,
+                            "slot_name": "Shoulder", "level": 25}]
+    assert (g["guild"], g["spec"], g["class"]) == ("Moss Order", "Shadow", "PRIEST")
+    # Polestar's gear settings for this class only, the edits as a list
+    # (VictoriaLogs would flatten a nested object).
+    assert (g["polestar_spec"], g["min_upgrade"]) == ("holy", 3)
+    assert g["gear_adjust"] == [{"spec": "shadow", "stat": "spellHit", "v": 2},
+                                {"spec": "shadow", "stat": "sta", "x": 1.5}]
+    assert "987654" not in json.dumps(got)  # never the gold
+
+    # A string whose checksum doesn't match (a damaged file) gives no talents.
+    bad = sim[:-1] + ("1" if sim[-1] == "0" else "0")
+    (cdir / "VulcanSimBench.lua").write_text(f'VulcanSimBenchCharDB = {{\n["last"] = "{bad}",\n}}\n')
+    assert shipper.simbench_talents(cdir) is None
+    (cdir / "VulcanSimBench.lua").write_text(f'VulcanSimBenchCharDB = {{\n["last"] = "{sim}",\n}}\n')
+
+    got.clear()
+    shipper.extract_gear(acct, shipper.roster(acct), state, out)
+    assert got == []
+    syndicator(7001)
+    shipper.extract_gear(acct, shipper.roster(acct), state, out)
+    assert len(got) == 1 and got[0]["source_id"] != g["source_id"]
+
+
+
+def test_inventory_ids_on_change(shipper, tmp_path):
+    """wow-bags: the item IDs in Syndicator's bags and bank (arrays of
+    containers of slots, {} for an empty slot), IDs only, sent again only
+    when the set changes; the gear sheet never carries them."""
+    acct = tmp_path / "acct"
+    sv = acct / "SavedVariables"
+    sv.mkdir(parents=True)
+
+    def syndicator(bank_item: int) -> None:
+        (sv / "Syndicator.lua").write_text(
+            'SYNDICATOR_DATA = {\n["Characters"] = {\n["Hero Test-PvE"] = {\n'
+            '["details"] = {\n["character"] = "Hero Test",\n["className"] = "PRIEST",\n},\n'
+            '["bags"] = {\n{\n{\n["itemID"] = 6948,\n["itemCount"] = 1,\n["itemLink"] = "|h[Hearthstone]|h",\n},\n'
+            '{\n},\n{\n["itemID"] = 2589,\n["itemCount"] = 12,\n},\n},\n{\n{\n["itemID"] = 2589,\n'
+            '["itemCount"] = 3,\n},\n},\n},\n'
+            f'["bank"] = {{\n{{\n{{\n["itemID"] = {bank_item},\n["itemCount"] = 1,\n}},\n{{\n}},\n}},\n}},\n'
+            '},\n["Other One-PvE"] = {\n["details"] = {\n["character"] = "Other One",\n},\n},\n'
+            # Scanned, nothing in it (a fresh character: Syndicator writes the
+            # empty containers, and a never-opened bank as an empty table).
+            '["Empty Bags-PvE"] = {\n["details"] = {\n["character"] = "Empty Bags",\n},\n'
+            '["bags"] = {\n{\n},\n{\n},\n},\n["bank"] = {\n},\n},\n},\n}\n')
+
+    syndicator(10413)
+    assert shipper.inventory_of(acct, "Hero-Test") == {"bags": [2589, 6948], "bank": [10413]}
+    got = []
+    out = shipper.Out(dry=True)
+    out.emit = got.append
+    state: dict = {}
+    chars = {"Hero-Test": {}, "Other-One": {}, "Nobody-Here": {}, "Empty-Bags": {}}
+    shipper.extract_inventory(acct, chars, state, out)
+    # Other-One's bags were never scanned and Nobody-Here is unknown: no
+    # event. Empty-Bags was scanned and holds nothing: an empty event, so an
+    # older list doesn't stay the newest.
+    assert [(e["feed"], e["char"], e["bags"], e["bank"]) for e in got] == [
+        ("wow-bags", "Empty-Bags", [], []), ("wow-bags", "Hero-Test", [2589, 6948], [10413])]
+    assert "itemCount" not in json.dumps(got) and "Hearthstone" not in json.dumps(got)
+    got.clear()
+    shipper.extract_inventory(acct, chars, state, out)
+    assert got == []
+    syndicator(1121)
+    shipper.extract_inventory(acct, chars, state, out)
+    assert len(got) == 1 and got[0]["bank"] == [1121]
+
+def test_roster_every_character(shipper, tmp_path):
+    """Characters Polestar doesn't track still get a wow-character snapshot:
+    from Syndicator (race, class, sex, guild, gold) or from their WTF folder
+    alone. Polestar's own characters keep Polestar's snapshots."""
+    acct = tmp_path / "acct"
+    sv = acct / "SavedVariables"
+    sv.mkdir(parents=True)
+    (acct / "93" / "Testhunter-Fixture").mkdir(parents=True)
+    (acct / "93" / "Testhunter-Fixture" / "AddOns.txt").write_text("TomTom: enabled\n")
+    os.utime(acct / "93" / "Testhunter-Fixture" / "AddOns.txt", (1794100000, 1794100000))
+    (sv / "Syndicator.lua").write_text(
+        'SYNDICATOR_DATA = {\n["Characters"] = {\n["Sylwen Moon-PvE"] = {\n'
+        '["details"] = {\n["character"] = "Sylwen Moon",\n["guild"] = "Moss Order-PvE",\n'
+        '["className"] = "HUNTER",\n["race"] = "Night Elf",\n["faction"] = "Alliance",\n["sex"] = 3,\n},\n'
+        '["money"] = 4242,\n["equipped"] = {\n{\n},\n'
+        '{\n["itemID"] = 5820,\n["quality"] = 2,\n["itemLink"] = "|h[Faerie Mantle]|h",\n},\n},\n},\n},\n}\n')
+    (sv / "Polestar.lua").write_text(
+        'PolestarDB = {\n["alts"] = {\n["chars"] = {\n["Hero Test-PvE"] = {\n["name"] = "Hero Test",\n'
+        '["seen"] = 1794928683,\n["level"] = 12,\n},\n},\n},\n}\n')
+    chars = shipper.roster(acct)
+    assert set(chars) == {"Testhunter-Fixture", "Sylwen-Moon", "Hero-Test"}
+    got = []
+    out = shipper.Out(dry=True)
+    out.emit = got.append
+    state: dict = {}
+    shipper.extract_roster(chars, state, out)
+    by = {e["char"]: e for e in got}
+    assert set(by) == {"Testhunter-Fixture", "Sylwen-Moon"}  # Hero-Test: Polestar's snapshots
+    s = by["Sylwen-Moon"]
+    assert (s["feed"], s["race"], s["class"], s["sex"], s["guild"], s["money_copper"], s["source"]) == (
+        "wow-character", "Night Elf", "HUNTER", "female", "Moss Order", 4242, "syndicator")
+    g = by["Testhunter-Fixture"]
+    assert g["source"] == "folder" and g["realm"] == "93" and g["_time"] == shipper.iso(1794100000)
+    assert g.get("race") is None and g.get("level") is None
+    got.clear()
+    shipper.extract_roster(chars, state, out)
+    assert got == []  # sent again only when it changes
+    shipper.extract_gear(acct, chars, state, out)
+    assert [(e["char"], e["sex"], e["items"][0]["item_id"]) for e in got] == [("Sylwen-Moon", "female", 5820)]
+
+
+def test_narcissus_looks(shipper, tmp_path):
+    """The newest look saved in Narcissus's barber shop, found through the
+    character's own GUID (its profession links in CharacterExport-Forever),
+    else through the name Narcissus saved when only one character has it."""
+    acct = tmp_path / "acct"
+    sv = acct / "SavedVariables"
+    sv.mkdir(parents=True)
+    own = acct / "93" / "Testpriest-Fixture" / "SavedVariables"
+    own.mkdir(parents=True)
+    (own / "CharacterExport-Forever.lua").write_text(
+        'CharacterExportForeverDBChar = {\n["tradeSkillLink"] = "|cffffd000|Htrade:Player-5600-0A1B2C3D:3413:185|h[Cooking]|h|r",\n}\n')
+    (acct / "93" / "Testhunter-Fixture").mkdir(parents=True)
+    (acct / "93" / "Testhunter-Fixture" / "AddOns.txt").write_text("x")
+    (sv / "Narcissus_Barbershop.lua").write_text(
+        'NarciBarberShopDB = {\n["PlayerData"] = {\n'
+        '["0A1B2C3D"] = {\n["playerName"] = "Testpriest",\n["SavedLooks"] = {\n[7] = {\n["male"] = {\n'
+        '{\n["name"] = "New Look #2",\n["timeCreated"] = 1795000000,\n["data"] = {\n{\n80,\n1174,\n},\n{\n82,\n1210,\n},\n},\n},\n'
+        '{\n["name"] = "New Look #1",\n["timeCreated"] = 1794000000,\n["data"] = {\n{\n80,\n17734,\n},\n},\n},\n'
+        '},\n},\n["alternateForm"] = {\n["male"] = {\n{\n["timeCreated"] = 1796000000,\n["data"] = {\n{\n1,\n2,\n},\n},\n},\n},\n},\n'
+        '},\n},\n'
+        '["FFFF"] = {\n["playerName"] = "Someone",\n["SavedLooks"] = {\n},\n},\n},\n}\n')
+    chars = shipper.roster(acct)
+    looks = shipper.narcissus_looks(acct, chars)
+    assert looks == {"Testpriest-Fixture": [{"optionId": 80, "choiceId": 1174}, {"optionId": 82, "choiceId": 1210}]}
+    chars["Testpriest-Fixture"]["looks"] = looks["Testpriest-Fixture"]
+    got = []
+    out = shipper.Out(dry=True)
+    out.emit = got.append
+    shipper.extract_roster(chars, {}, out)
+    ev = {e["char"]: e for e in got}
+    assert json.loads(ev["Testpriest-Fixture"]["looks"])[0] == {"optionId": 80, "choiceId": 1174}
+    assert "looks" not in ev["Testhunter-Fixture"]
+    assert shipper.narcissus_looks(tmp_path / "none", chars) == {}
+
+
+# DataStore's two files as the client writes them, in the shape Thaoky's
+# source gives (DataStore/DataStore.lua, API/Utility.lua StoreToSetAndList,
+# DataStore_Characters/DataStore_Characters.lua): no real file exists yet.
+DATASTORE_LUA = """
+DataStore_CharacterIDs = {
+\t["Set"] = {
+\t\t["Default.Forever.Testpriest Fixture"] = 1,
+\t\t["Default.Forever.Testhunter Fixture"] = 2,
+\t},
+\t["List"] = {
+\t\t"Default.Forever.Testhunter Fixture", -- [1] (stale order: List indexes shift, Set is the truth)
+\t\t"Default.Forever.Testpriest Fixture", -- [2]
+\t},
+\t["Count"] = 2,
+}
+"""
+DATASTORE_CHARACTERS_LUA = """
+DataStore_Characters_Info = {
+\t{
+\t\t["name"] = "Testpriest Fixture",
+\t\t["played"] = 412345,
+\t\t["playedThisLevel"] = 5400,
+\t\t["BaseInfo"] = BASEINFO,
+\t\t["lastUpdate"] = 1795400000,
+\t\t["lastLogoutTimestamp"] = 1795400000,
+\t\t["money"] = 1234567,
+\t}, -- [1]
+\t{
+\t\t["BaseInfo"] = 12,
+\t\t["lastUpdate"] = 1795300000,
+\t\t["lastLogoutTimestamp"] = 5000000000,
+\t\t["played"] = 7200,
+\t\t["playedThisLevel"] = 600,
+\t}, -- [2]
+\t{
+\t\t["name"] = "Never Played",
+\t\t["lastUpdate"] = 1795300000,
+\t}, -- [3]
+}
+"""
+
+
+def test_altoholic_played(shipper, tmp_path, capsys):
+    acct = tmp_path / "WTF" / "Account" / "ACCT"
+    sv = acct / "SavedVariables"
+    sv.mkdir(parents=True)
+    assert shipper.altoholic_played(acct) == []  # no Altoholic: nothing, no error
+    (sv / "DataStore.lua").write_text(DATASTORE_LUA)
+    # Level 34 with class/race/sex bits above bit 6, as ScanBaseInfo packs them.
+    (sv / "DataStore_Characters.lua").write_text(
+        DATASTORE_CHARACTERS_LUA.replace("BASEINFO", str(34 + 9 * 128 + 7 * 2048)))
+    got = {p["char"]: p for p in shipper.altoholic_played(acct)}
+    assert set(got) == {"Testpriest-Fixture", "Testhunter-Fixture"}
+    g = got["Testpriest-Fixture"]
+    assert (g["played_total_s"], g["played_level_s"], g["level"], g["logged_out"]) == (412345, 5400, 34, True)
+    # No `name`: the key from DataStore_CharacterIDs.Set (id 2), never the
+    # List's index; still logged in.
+    assert got["Testhunter-Fixture"]["level"] == 12 and got["Testhunter-Fixture"]["logged_out"] is False
+
+    out = shipper.Out(dry=True)
+    state = {}
+    capsys.readouterr()
+    roster = {"Testpriest-Fixture": {}, "Testhunter-Fixture": {}}
+    shipper.extract_played(acct, roster, state, out)
+    shipper.extract_played(acct, roster, state, out)  # nothing new the second time
+    evs = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
+    assert len(evs) == 2
+    e = next(e for e in evs if e["char"] == "Testpriest-Fixture")
+    assert e["feed"] == "wow-character" and e["source"] == "altoholic" and e["played_total_s"] == 412345
+    assert e["source_id"] == "played:Testpriest-Fixture:412345" and e["_time"].startswith("2026-11-23")
+
+
+@pytest.mark.parametrize("link, want", [
+    ("|cff1eff00|Hitem:2041:41:0:0:0:0:0:0:20|h[Tunic of Westfall]|h|r", 41),
+    ("|cnIQ2:|Hitem:5820:66::::::::32:::::::|h[Faerie Mantle]|h|r", 66),
+    ("|cnIQ1:|Hitem:53::|h[Neophyte's Shirt]|h|r", 0),
+    ("|cnIQ1:|Hitem:53:0:0:0|h[Neophyte's Shirt]|h|r", 0),
+    ("item:6070:247", 247),
+    ("|h[Some Staff]|h", None),
+    ("", None),
+    (None, None),
+])
+def test_link_enchant(shipper, link, want):
+    assert shipper.link_enchant(link) == want
+
+# Altoholic 1.60.005 (Altoholic_Forever) as the Forever client saved it on
+# 2026-11-18, cut down to what the shipper reads: tests/data/altoholic-forever.
+# The layout, keys, levels, times and these two characters' /played are the
+# real ones; the guild's name, the GUIDs, money, zones and XP are replaced or
+# gone.
+ALTOHOLIC_FOREVER = Path(__file__).parent / "data" / "altoholic-forever"
+
+
+def test_altoholic_real_forever_saves(shipper, tmp_path, capsys):
+    import shutil
+
+    acct = tmp_path / "WTF" / "Account" / "ACCT"
+    shutil.copytree(ALTOHOLIC_FOREVER, acct / "SavedVariables")
+    got = {p["char"]: p for p in shipper.altoholic_played(acct)}
+    # Keys are "Default.<GetRealmName()>.<First Last>"; the guild key, in its
+    # own table, is never a character.
+    assert set(got) == {"Testpriest-Fixture", "Testhunter-Fixture"}
+    g = got["Testpriest-Fixture"]
+    assert (g["played_total_s"], g["played_level_s"], g["level"], g["logged_out"]) == (168240, 516, 32, True)
+    # Testhunter: level 1, 2 s played, saved 37 s after Testpriest: a character made
+    # that evening, not a broken save (the server still checks it against
+    # what it already knows: views.played_total).
+    assert (got["Testhunter-Fixture"]["played_total_s"], got["Testhunter-Fixture"]["level"]) == (2, 1)
+    # Only the roster's characters are ever sent.
+    assert [p["char"] for p in shipper.altoholic_played(acct, {"Testpriest-Fixture"})] == ["Testpriest-Fixture"]
+    out = shipper.Out(dry=True)
+    capsys.readouterr()
+    shipper.extract_played(acct, {"Testpriest-Fixture": {}}, {}, out)
+    evs = [json.loads(x) for x in capsys.readouterr().out.splitlines()]
+    assert [e["char"] for e in evs] == ["Testpriest-Fixture"]
+    # DataStore_Talents on Forever: no trees or ranks (only empty Glyphs),
+    # and the "spec" it keeps is the class name. The shipper doesn't read it.
+    tal = shipper.read_sv_versions(acct / "SavedVariables" / "DataStore_Talents.lua")[0]
+    chars = shipper._by_id(tal["DataStore_Talents_Characters"])
+    assert len(chars) == 2 and all(set(c) == {"Glyphs"} for c in chars.values())
+    # Specializations[id]: spec index (bits 0-2), role (3-4), name id (5+).
+    names = shipper._by_id(tal["DataStore_Talents_SpecializationInfos"]["Names"]["List"])
+    specs = shipper._by_id(tal["DataStore_Talents_Specializations"])
+    assert [names[v >> 5] for _, v in sorted(specs.items())] == ["Priest", "Hunter"]
+    assert "DataStore_Talents" not in json.dumps(shipper.gear_of(acct, acct / "x", "Testpriest-Fixture") or {})

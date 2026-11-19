@@ -1,0 +1,224 @@
+# A v* tag builds the images and pushes them with the tag without its v, to
+# ghcr.io/<repository owner>/$IMAGE_NAME and $RENDER_IMAGE_NAME (the env
+# block below, the one place the names live; a fork pushes to its own
+# namespace). The command inside stays `wow-stats`. No model runs in them
+# (docs/mcp.md).
+# linux/amd64 and linux/arm64 (a Raspberry Pi, an ARM VM): one multi-arch
+# manifest per image; the summary prints each tag@digest to pin. Package
+# visibility is set by hand in the package's settings, never here: a new
+# package from a private repository is private, and pulling it needs a
+# token with read:packages (docs/development.md, "Releasing").
+#
+# Supply chain (docs/development.md, "Verifying an image"): each image
+# carries BuildKit's SLSA provenance and an SPDX SBOM per platform in its
+# index, whatever the repository's visibility. The SBOMs are also kept as
+# the run's artifact. In a public repository the run adds GitHub artifact
+# attestations (build provenance and the SBOMs, `gh attestation verify`) and
+# a keyless cosign signature, both through Sigstore's public log. A private
+# repository on a personal plan can't attest (that needs Enterprise Cloud)
+# and must not write its name to a public log, so those steps skip there;
+# the visibility test fails closed.
+name: release-image
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: wow-mcp
+  RENDER_IMAGE_NAME: wow-mcp-render
+  PLATFORMS: linux/amd64,linux/arm64
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      # Sigstore's signing certificate (attestations, cosign), from the run's OIDC token.
+      id-token: write
+      attestations: write
+    env:
+      PUBLIC: ${{ github.event.repository.visibility == 'public' }}
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Version
+        id: v
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          [ "$GITHUB_REF_TYPE" = "tag" ] || version="sha-${GITHUB_SHA:0:12}"
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            want=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
+            [ "$want" = "$version" ] || { echo "tag $version but pyproject.toml says $want"; exit 1; }
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Image names
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          # Registry names are lowercase; an owner name may not be.
+          owner=$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE=ghcr.io/$owner/$IMAGE_NAME" >> "$GITHUB_ENV"
+          # The renderer (Dockerfile target renderer): past levels' pictures,
+          # in a container of its own with Chromium (docs/architecture.md).
+          echo "RENDER_IMAGE=ghcr.io/$owner/$RENDER_IMAGE_NAME" >> "$GITHUB_ENV"
+      # arm64 under emulation: the build compiles nothing (pure-Python wheels,
+      # Debian packages for the renderer), so QEMU is slow but enough.
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          target: runtime
+          push: true
+          build-args: |
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+            VERSION=${{ steps.v.outputs.version }}
+            REVISION=${{ github.sha }}
+          # The index's own annotations: GHCR shows a multi-arch package's
+          # description and repository link from these, not from the labels.
+          annotations: |
+            index:org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            index:org.opencontainers.image.licenses=GPL-3.0-only
+            index:org.opencontainers.image.version=${{ steps.v.outputs.version }}
+            index:org.opencontainers.image.revision=${{ github.sha }}
+            index:org.opencontainers.image.description=wow-stats: a WoW Forever leveling log, its web page and its MCP server
+          provenance: mode=max
+          sbom: true
+          platforms: ${{ env.PLATFORMS }}
+          tags: ${{ env.IMAGE }}:${{ steps.v.outputs.version }}
+      - name: Build and push the renderer
+        id: render
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          target: renderer
+          push: true
+          build-args: |
+            SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
+            VERSION=${{ steps.v.outputs.version }}
+            REVISION=${{ github.sha }}
+          annotations: |
+            index:org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            index:org.opencontainers.image.licenses=GPL-3.0-only
+            index:org.opencontainers.image.version=${{ steps.v.outputs.version }}
+            index:org.opencontainers.image.revision=${{ github.sha }}
+            index:org.opencontainers.image.description=wow-stats renderer: past levels' pictures in a headless Chromium
+          provenance: mode=max
+          sbom: true
+          platforms: ${{ env.PLATFORMS }}
+          tags: ${{ env.RENDER_IMAGE }}:${{ steps.v.outputs.version }}
+      # The SPDX SBOMs BuildKit attached, one file per image and platform.
+      - name: SBOMs
+        env:
+          MAIN: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          RENDER: ${{ env.RENDER_IMAGE }}@${{ steps.render.outputs.digest }}
+        run: |
+          set -eu
+          mkdir -p sbom
+          for p in ${PLATFORMS//,/ }; do
+            arch=${p#linux/}
+            docker buildx imagetools inspect "$MAIN" --format "{{ json (index .SBOM \"$p\").SPDX }}" > "sbom/$IMAGE_NAME-$arch.spdx.json"
+            docker buildx imagetools inspect "$RENDER" --format "{{ json (index .SBOM \"$p\").SPDX }}" > "sbom/$RENDER_IMAGE_NAME-$arch.spdx.json"
+          done
+          for f in sbom/*.json; do
+            jq -e '.spdxVersion and (.packages | length > 0)' "$f" >/dev/null || { echo "::error::$f is not an SPDX document"; exit 1; }
+          done
+          ls -l sbom
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: sbom-${{ steps.v.outputs.version }}
+          path: sbom/
+          retention-days: 90
+
+      # Public repository only (see the header).
+      - name: Attest the image's build provenance
+        if: env.PUBLIC == 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+          # Storage records are for organization-owned repositories only.
+          create-storage-record: false
+      - name: Attest the renderer's build provenance
+        if: env.PUBLIC == 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.RENDER_IMAGE }}
+          subject-digest: ${{ steps.render.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+      - name: Attest the image's SBOM (amd64)
+        if: env.PUBLIC == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: sbom/${{ env.IMAGE_NAME }}-amd64.spdx.json
+          push-to-registry: true
+          create-storage-record: false
+      - name: Attest the image's SBOM (arm64)
+        if: env.PUBLIC == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          sbom-path: sbom/${{ env.IMAGE_NAME }}-arm64.spdx.json
+          push-to-registry: true
+          create-storage-record: false
+      - name: Attest the renderer's SBOM (amd64)
+        if: env.PUBLIC == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.RENDER_IMAGE }}
+          subject-digest: ${{ steps.render.outputs.digest }}
+          sbom-path: sbom/${{ env.RENDER_IMAGE_NAME }}-amd64.spdx.json
+          push-to-registry: true
+          create-storage-record: false
+      - name: Attest the renderer's SBOM (arm64)
+        if: env.PUBLIC == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.RENDER_IMAGE }}
+          subject-digest: ${{ steps.render.outputs.digest }}
+          sbom-path: sbom/${{ env.RENDER_IMAGE_NAME }}-arm64.spdx.json
+          push-to-registry: true
+          create-storage-record: false
+      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+        if: env.PUBLIC == 'true'
+      - name: Sign both images (keyless, Sigstore)
+        if: env.PUBLIC == 'true'
+        env:
+          MAIN: ${{ env.IMAGE }}@${{ steps.build.outputs.digest }}
+          RENDER: ${{ env.RENDER_IMAGE }}@${{ steps.render.outputs.digest }}
+        run: cosign sign --yes "$MAIN" "$RENDER"
+
+      - name: Summary
+        run: |
+          {
+            echo "### Pushed ($PLATFORMS)"
+            echo "\`$IMAGE:${{ steps.v.outputs.version }}@${{ steps.build.outputs.digest }}\`"
+            echo "\`$RENDER_IMAGE:${{ steps.v.outputs.version }}@${{ steps.render.outputs.digest }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "$IMAGE:${{ steps.v.outputs.version }}@${{ steps.build.outputs.digest }}"
+          echo "$RENDER_IMAGE:${{ steps.v.outputs.version }}@${{ steps.render.outputs.digest }}"

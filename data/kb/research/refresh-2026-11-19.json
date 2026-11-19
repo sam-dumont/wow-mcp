@@ -1,0 +1,48 @@
+{
+ "schema": 2,
+ "lane": "refresh-2026-11-19",
+ "title": "Official pages changed, 2026-11-19 (model proposals)",
+ "about": "Statements proposed by tools/kb/refresh.py from the official pages tools/kb/watch.py saw change. A statement with `supersedes` replaces that one once merged. Review each against its page.",
+ "last_verified": "2026-11-19",
+ "rules": {},
+ "statements": [
+  {
+   "id": "refresh-2026-11-19:known-issues-1",
+   "topic": "dungeons",
+   "text": "Known issue: in Razorfen Kraul, a cauldron near Roogug can trap players who fall into it, so avoid that spot until it is fixed.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2402363",
+   "source_type": "official",
+   "date": "2026-11-19",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-19",
+   "origin": "model proposal from the official page; review before merging"
+  },
+  {
+   "id": "refresh-2026-11-19:known-issues-2",
+   "topic": "levelling",
+   "text": "Known issue: the Ashenvale quest \"Vorsha the Lasher\" is disabled until a crash bug is fixed, so it cannot be done for now.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2402363",
+   "source_type": "official",
+   "date": "2026-11-19",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-19",
+   "origin": "model proposal from the official page; review before merging"
+  },
+  {
+   "id": "refresh-2026-11-19:known-issues-3",
+   "topic": "game-rules",
+   "text": "Known issue: with a gamepad, deleting more than one rare or epic item at once may cause an error. Delete them one at a time.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2402363",
+   "source_type": "official",
+   "date": "2026-11-19",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-19",
+   "origin": "model proposal from the official page; review before merging"
+  }
+ ],
+ "contradictions": [],
+ "open_questions": []
+}

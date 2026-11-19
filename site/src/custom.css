@@ -1,0 +1,13 @@
+/* The demo's colours: the product's own parchment and gold (web/app.css),
+   so the docs and the demo read as one site. */
+:root {
+  --sl-color-accent-low: #3a2a12;
+  --sl-color-accent: #b8892e;
+  --sl-color-accent-high: #f0cf7a;
+}
+:root[data-theme="light"] {
+  --sl-color-accent-low: #f3e6c4;
+  --sl-color-accent: #8a6420;
+  --sl-color-accent-high: #4a3410;
+}
+.demo-links { display: flex; flex-wrap: wrap; gap: 0.75rem; }

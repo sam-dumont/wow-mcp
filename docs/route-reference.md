@@ -1,0 +1,111 @@
+# Route times (Polestar)
+
+**For:** players asking "was that level slow?", and contributors. **At the end:** you know where the route times come from and how far to trust them.
+
+The `coach` prompt (your assistant, over the MCP) says "level 28 took you 4h10m, the route plans 1h39m". The second
+number comes from `data/route-reference.json`, which ships in the image: how
+long each level, each leveling guide and each guide step takes on Polestar's
+route, for every starting race and class of both sides.
+
+## Credit and licence
+
+The numbers are Polestar's. [Polestar](https://github.com/fitzforge/polestar)
+is the leveling guide addon for WoW Forever, by fitzforge and its
+contributors, licensed GPL-3.0-only. The file is made by Polestar's own route
+planner from Polestar's own guides and its open quest database (forever-db,
+GPL-3.0), so it is GPL-3.0 too, and so is wow-stats (`LICENSE`: the GNU GPL
+version 3, and only that version).
+
+The file records the Polestar release it came from (`polestar.tag`,
+`polestar.commit`) and the forever-db version.
+
+## How the file is made
+
+`tools/route_reference/export.mjs` runs Polestar's planner without building
+anything:
+
+1. A shallow clone of Polestar at a release tag (about 450 MB on disk).
+2. `tools/route_reference/dump.lua` reads the compiled guides the release
+   ships (`addon/Polestar_Guides*/Guides.lua`), the guide pack's map frames
+   and the addon's flights, boats and inns (`Nav/TravelData.lua`). The Lua
+   runs in an empty environment: no `io`, `os` or `load`.
+3. Quests, NPCs, objects, items and spawn points come from `forever-db/data`.
+4. The planner's command registry (`tools/planner/commands.js`) answers
+   `guides_list` and `timeline_get` for each race's first guide and each
+   class: 10 starts (Skyborne on both sides) times 9 classes, 90 runs to 60.
+   The export keeps the medians per side and level, per guide and per step,
+   and each run's ding times.
+
+It takes under 3 seconds and gives the same file byte for byte on every run. To redo it after a Polestar release:
+
+```sh
+git clone --depth 1 --branch v0.4.1 https://github.com/fitzforge/polestar /tmp/polestar
+node tools/route_reference/export.mjs --polestar /tmp/polestar
+```
+
+Node 24 and Lua 5.1 or newer (`--lua lua5.4` to pick one). CI
+(`.github/workflows/route-reference.yml`) reruns it on every change to the
+export or the file, with the tag set in that workflow, and fails when the
+result differs from the committed file. It never commits: bump `POLESTAR_TAG`,
+rerun the export, commit both.
+
+## What the file holds
+
+| Key | What |
+| --- | --- |
+| `levels.<side>.<level>` | Seconds spent in the level (its ding to the next), median over races and classes, with `min_s`, `max_s`, `reached_s`, the guide the level ends in and `by_class` |
+| `guides.<id>` | Seconds for the guide, its levels, and `steps`: `[step, seconds, title]`, steps counted from 1 like the addon's |
+| `routes[]` | One per race and class: total seconds and `dings` as `[level, seconds since level 1]` |
+| `bias` | The walk measurement below |
+| `places` | Where things are, for the Dungeons panel: `npc` and `object` (quest givers and enders) as `[uiMap, x, y]` plus the spawn count when there are several, `zones` (uiMap id to the guides' zone name), `entrances` (per instance Map id) and their `keys`. See below |
+
+Guide ids are Polestar's (`forever/alliance/05-duskwood`), the `guide` the
+recorder writes on each step. `ROUTE_REFERENCE_FILE` points at another file,
+`off` turns the comparison off.
+
+## Places
+
+A quest giver's place is where Polestar's guides send the player to it (an
+accept, turn-in or vendor goal's live-frame map point, the one the guides use
+most). An NPC no guide visits gets its forever-db spawn only when exactly one
+zone map holds every spawn: map rectangles overlap their neighbours (Auberdine,
+in Darkshore, sits inside Felwood's rectangle too), so the smallest rectangle
+is not a zone, and a spot two zones could hold gets no place at all. An NPC
+whose spawns are all in one instance map gets `{"instance": <Map id>}`.
+
+Dungeon entrances, keys and attunements come from Polestar's own curated
+`data/codex/entrances.json` and `attunements.json`, each entrance with its
+source (QuestieDB's Forever table, players' recordings, a guide site); the
+Alliance's own way in sits under `A` where it differs. The flight path next to
+an entrance is TravelData.lua's nearest taxi node of each side on that map, a
+straight line on the map. Meeting stones aren't there: no source we read ties
+a stone to its dungeon.
+
+## How far to trust it
+
+The clock models a quick player who knows the route. Real players are
+slower. One player's levels 23 to 31 (Gnome Priest) took 1.3 to 3.3 times
+the route's time, 1.9 times on the median level. Read it for the shape (which
+levels are slow against your own usual ratio), not as a target.
+
+What the export can't reproduce from Polestar's maintainer setup:
+
+- **Straight-line walks.** No navigation grid (`nav build` is 750 MB), so
+  every walk is distance times a detour factor over run speed. The release's
+  baked walks (`Legs.lua`, 2690 of them) measure the real detour: 1.52 in the
+  Eastern Kingdoms against the model's 1.35, 1.32 in Kalimdor against 1.30
+  (path length over straight line, summed). Eastern Kingdoms walks run about
+  13% short. Travel (walks, flights, boats) is 48% of a run's clock, so the
+  whole clock runs short by 3 to 4% at most: an estimate, not measured end to
+  end.
+- **Uncalibrated.** The simulator's calibration lives in Polestar's
+  `data/sim`, which isn't in the repository: the planner runs on its priors.
+- **forever-db, not a full data build.** Mid route the runs sit 1 to 2
+  levels below Polestar's own calibrated level model (`data/route-levels.json`:
+  Redridge left at 25 here against 27.4 there), and they catch up by 60. A
+  level's time can come from a slightly different guide than in the game.
+- **170 to 230 planner warnings per run**, nearly all delivery quests whose
+  carried item forever-db lists as an objective. They don't change the time.
+
+The full runs take 97 to 119 hours to 60 depending on class: Hunter fastest
+(98 h on average), Paladin and Warrior slowest (116 h).

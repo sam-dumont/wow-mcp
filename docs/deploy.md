@@ -1,0 +1,577 @@
+# Deploying without compose
+
+**For:** self-hosters on Kubernetes or any setup other than the compose kit. **At the end:** you know each command of the image, its port, its health check and its settings.
+
+For Kubernetes or any setup other than `deploy/compose`. One image,
+`ghcr.io/<owner>/wow-mcp:<version>` (the names are set in
+`.github/workflows/release.yml`; or build it: `docker build .`), and these
+commands. While the package is private, the cluster pulls it with a token
+that has `read:packages` (an `imagePullSecrets` entry; docs/development.md,
+"Using a released image").
+
+| Command | Port | Health | Serves |
+|---|---|---|---|
+| `wow-stats ui` (the default `CMD`) | 8080 (`PORT`) | `GET /healthz`: 200 `ok`, no login, both views | the page, `/api/*`, `POST /ingest` when set up |
+| `wow-stats exporter` | 9464 (`LISTEN_PORT`) | `GET /healthz` | `GET /metrics`: `wow_api_up`, `wow_api_paused`, `wow_exporter_*` (its own health, never Blizzard's data) |
+| `wow-stats publish [--loop] [--force]` | none | its log line per build | writes the static sites to `PUBLISH_DIR` (or pushes them, below) |
+| `wow-stats static` | 8080, upload on `UPLOAD_PORT` | `GET /healthz` | the files `publish` wrote, nothing else |
+| `wow-stats zogzog-key rotate` | none | | a new key for the full-content link, and a rebuild |
+| `wow-stats render` (image `wow-mcp-render`, `docker build --target renderer .`) | 8083 (`PORT`) | `GET /healthz`: 200 once Chromium runs | `POST /render`: a past level's picture, for `publish` only (below) |
+| `wow-stats zogzog-key link` | none | | prints the full-content link (never logged) |
+
+## The container
+
+One image for every command, with no third-party binary and no model: the
+play analysis and the plans are written by the user's own assistant over
+the MCP (docs/mcp.md). (The changelog's 0.4.0 entry lists what it removed, the `wow-stats-agent` image among it.)
+
+- Runs as uid/gid 10001, `ENTRYPOINT ["wow-stats"]`.
+- Works with a read-only root filesystem. Only `/tmp` needs to be writable
+  (an `emptyDir`); `HOME=/tmp`. Nothing is written at runtime: bytecode is
+  compiled into the image.
+- Python standard library only, no shell needed at runtime. Drop all
+  capabilities, `allowPrivilegeEscalation: false`.
+- Logs go to stdout: one line per request (method, path, status) for the UI,
+  status codes and counts for the exporter. Never prices or secrets.
+
+## `wow-stats ui`
+
+One process serves one view, so a routing mistake can't hand the full view to
+an outsider. Run two Deployments for two views.
+
+Every view reads the character's whole history: game events are kept for
+good (give VictoriaLogs a retention of years: the compose kit says `100y`).
+There is no time window to set. A query whose answer would pass the row
+limit (20,000) is read again in two halves of its time range, as often as
+needed, so a long history comes back whole rather than cut.
+
+| Variable | Default | |
+|---|---|---|
+| `VIEW` | full on a loopback `BIND`, else required | `full` (you, behind a login) or `public` (anyone) |
+| `AUTH` | `none` on loopback, else required | see "Logins" below |
+| `BIND` | `0.0.0.0` in the image (`127.0.0.1` outside it) | |
+| `PUBLISHED_ON` | empty | with `AUTH=open` off loopback: the address the container port is published on (the compose kit passes `UI_PUBLISH`). Not a 127.0.0.1 address: the server refuses to start |
+| `ALLOW_OPEN` | off | `1`: `AUTH=open` on any bind, on purpose (a public view anyone may read) |
+| `ALLOWED_HOSTS` | empty | host names the page is reached by, comma separated, besides `localhost`, IP addresses and the hosts of `PUBLIC_URL` and `MCP_PUBLIC_URL`. Any other `Host` gets a 421 (below, "Host names") |
+| `PROXY_TRUSTED_CIDRS` | empty | with `AUTH=proxy`: the proxy's addresses as the server sees them (`127.0.0.1/32`, the Docker network's subnet (`docker network inspect <network>`), a pod network). A request from anywhere else gets a 403 |
+| `PROXY_SECRET_FILE`, `PROXY_SECRET_HEADER` | empty, `X-Proxy-Auth` | with `AUTH=proxy`: a secret of 32+ characters the proxy sends in that header on every request. With `PROXY_TRUSTED_CIDRS` too, both must match. `AUTH=proxy` with neither refuses to start |
+| `PORT` | `8080` | |
+| `VL_URL` | `http://victorialogs:9428` | VictoriaLogs holding the events |
+| `VL_ARCHIVE_URL`, `VL_ARCHIVE_AFTER_DAYS` | empty, `89` | optional second VictoriaLogs for days older than that; empty: one store holds everything |
+| `LOGS_FILTER` | `feed:wow-*` | LogsQL filter that selects the events (add your own labels here) |
+| `VM_URL` | empty | VictoriaMetrics the exporter pushes to. With `VIEW=public` only the character profile is read from it (the armory render, Battle.net's item level, the talents: the card shows them); no market or prices, which are never public. The publisher builds the public bundle through that same reader, so the render reaches `data/render/` there |
+| `AH_FACTION` | `Alliance` | the auction house shown (matched in any case) |
+| `DEFAULT_CHAR` | empty (latest seen) | `Name-Surname` |
+| `WEIGHTS` | empty | the spec each character's gear is scored for, over what its add-ons say: `Testchar-Demo:shadow,Name-Surname:holy` (a spec key or name of the class). The page's own selector still wins. The card shows it next to the talents, which stay as the game has them |
+| `PRICE_DAYS` | `90` | days of Auctionator scans in the prices panel |
+| `CACHE_TTL` | `45` | seconds an answer is kept in memory |
+| `VL_CONCURRENCY` | `2` | VictoriaLogs requests this process runs at once, all callers together (docs/architecture.md, "Caching") |
+| `BASIC_AUTH_USER`, `BASIC_AUTH_PASSWORD` or `BASIC_AUTH_PASSWORD_FILE` | | for `AUTH=basic`, 12+ characters |
+| `INGEST_PASSWORD` or `INGEST_PASSWORD_FILE`, `INGEST_USER` (`wow`) | off | turns on `POST /ingest` with its own basic auth, 12+ characters |
+| `ANALYSIS_STATE_DIR` | off | the play analysis' state (full view only): per character, the kept findings and the open run a client drives over the MCP, plus the plans. With `ANALYSIS_HOUR` (`4`, local time: the nightly recheck of kept findings, no model), `WOW_TIMEZONE` (the player's IANA timezone for hours and weekdays, `Europe/Brussels` when unset), `ANALYSIS_SHARE_PORT` (the /zogzog/ lines for the publisher, which reads `ANALYSIS_SHARE_URL`), `KB_GAME_TABLES`. How it works: docs/mcp.md, "The play analysis" |
+| `ANALYSIS_SHARE_TOKEN_FILE` | `<WOW_STATE_DIR or ANALYSIS_STATE_DIR>/share-token` | the share port's bearer token, 32+ characters, asked on every request. Made (0600) on the first start when the file is missing. The publisher and the exporter read the same file (a shared volume, or a secret mounted in all three) through the same variable |
+| `ANALYSIS_SHARE_BIND` | `BIND` | where the share port listens. Never route it from outside |
+| `MCP_PUBLIC_URL` | off | the MCP endpoint (full view only, needs the image's `mcp` extra, which the image has): the https address clients use, ending in `/mcp`. Off until set |
+| `MCP_PORT` | `8090` | the MCP's own port, on `BIND`: FastMCP serves `/mcp` and the OAuth paths there, never on `PORT` ("Routes" below) |
+| `MCP_AUTH` | `oauth` | `none` only on a loopback `BIND` (a laptop) |
+| `MCP_LOGIN` | `oidc` | the only value; `password` refuses to start (the passphrase login is gone since 0.4.0) |
+| `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET_FILE` | required with `MCP_PUBLIC_URL` | the identity provider and its app (code flow, client secret, refresh tokens, callback `https://<host>/oauth/callback`) |
+| `OIDC_ALLOWED_SUBS` | required unless `WOW_STATE_DIR` | account ids allowed in, comma separated |
+| `OIDC_REQUIRED_ROLE`, `OIDC_ALLOWED_ORGS` | empty | one person per install: a project role and the org ids allowed (from the claims below). Ignored with `WOW_STATE_DIR`: the friends list decides |
+| `OIDC_ORG_CLAIM`, `OIDC_ROLES_CLAIM` | ZITADEL's (`urn:zitadel:iam:...`) | the claim names holding the org id and the roles: set your provider's |
+| `OIDC_SCOPES` | `openid offline_access` (+ the org scope with `OIDC_ALLOWED_ORGS`, one person per install) | what the app asks the provider for |
+| `MCP_SIGNING_KEY_FILE` | random per start | 32+ random bytes: signs the tokens and encrypts the stored logins. Without it every restart logs every client out |
+| `MCP_STATE_DIR` | memory only | client registrations and logins, encrypted, in `<dir>/oauth/` |
+| `MCP_REDIRECT_URIS`, `MCP_CIMD_HOSTS` | the built-in client lists (docs/mcp.md) | replace the lists of allowed redirects and of hosts whose client documents (CIMD) are fetched |
+| `MCP_ALLOWED_ORIGINS` | empty | extra browser origins allowed on `/mcp` |
+| `MODEL3D` | `on` | the "View in 3D" toggle on the paperdoll (full view, and the static sites `publish` builds); `off` removes it and its routes, and nothing is fetched from Wowhead's model host |
+| `WOW_ITEMS` | `on` | item names, icons and tooltip cards from Forever's tables on wago.tools (`ui` and `publish`); `off`: none of it is fetched, the pages show what the events carry. `MODEL3D=off` with `WOW_ITEMS=off` is the small preset: no upstream downloads at all, a cold cache and no internet still publish |
+| `RENDER_FROM` | empty | where this pod gets the armory's render of a character (`/render/<char>.<ext>`): empty, from Blizzard (`render.worldofwarcraft.com`); else the static site's address (a pod with no route to Blizzard). With several people the request names the person's own site (their host, as the static server maps it) and reads their public bundle, else their sealed `/zogzog/` copy, opened with their key, so a page that isn't public still shows its picture |
+| `MODEL3D_CACHE_DIR`, `MODEL3D_CACHE_MB` | `<tmp>/wow-stats-model3d`, `512` | where the display-id table and Wowhead's model files are kept, and how much of the latter |
+| `MODEL3D_VIEWER_SHA256` | the build reviewed on 2026-11-19 | the only build of Wowhead's viewer the relay serves (`ui`, `render`). When Wowhead ships another, the log says "Wowhead's viewer changed", the last good copy keeps working, and a fresh cache shows no 3D until someone reads the new script and sets its hash here |
+| `MODEL3D_ZAM_URL`, `MODEL3D_WAGO_URL`, `MODEL3D_PRODUCT` | `https://wow.zamimg.com/modelviewer/`, `https://wago.tools`, `wowf` | the two upstreams (tests point them at a local server) |
+| `ROUTE_REFERENCE_FILE` | the bundled Polestar route | another route times file, or `off` |
+| `STATIC_DIR` | the packaged `web/` | serve the page from another folder (development) |
+
+### Logins
+
+| `AUTH` | Checks | Use when |
+|---|---|---|
+| `none` | nothing | `BIND=127.0.0.1` only; refused on any other bind |
+| `open` | nothing | a port published on 127.0.0.1 only (`PUBLISHED_ON`), or on purpose with `ALLOW_OPEN=1` (a public view). Refused on any other bind |
+| `proxy` | that the request came from the proxy (`PROXY_TRUSTED_CIDRS`, `PROXY_SECRET_FILE`; one of them required) | a reverse proxy in front does the login (OIDC, forward auth): "Behind a reverse proxy" below |
+| `basic` | HTTP basic auth on every route but `/healthz` and `/ingest` (and, with several people, `/install/<code>` and `/privacy`) | no proxy in front |
+
+Every mode checks the `Host` header too (below), and the share port its
+own token. None of it relies on a network policy or on what the proxy
+strips: the server refuses what it can't trust, and refuses to start on a
+setting that would leave it open, with what to set.
+
+### Host names
+
+A web page can make its visitor's browser read a no-login server on their
+own machine (DNS rebinding: `evil.example` first resolves to the attacker,
+then to `127.0.0.1`). The browser still sends `Host: evil.example`, so the
+server answers only for `localhost`, IP addresses (a rebinding page can't
+make the browser send one), the hosts of `PUBLIC_URL` and `MCP_PUBLIC_URL`,
+and `ALLOWED_HOSTS`. Anything else gets a 421 that says what to set.
+`/healthz` and `/ingest` (it has its own login) answer any host.
+
+### Behind a reverse proxy
+
+`AUTH=proxy`: the proxy logs people in and tells the app who they are in
+`PROXY_USER_HEADER` (`X-Forwarded-User`; with several people, the login's
+`sub`). The app believes that header only on a request from the proxy, so
+set `PROXY_TRUSTED_CIDRS` to the proxy's address as the app sees it, or
+give both a secret (`PROXY_SECRET_FILE` on the app, the same value sent in
+`X-Proxy-Auth` by the proxy), or both. Without either the server doesn't
+start. The proxy must **replace** the identity header on every route,
+including the ones without a login (`/ingest`, `/install/*`, `/privacy`):
+a proxy that passes on a header the client sent lets anyone claim to be
+anyone. The app refuses the header when it comes twice or holds a list
+(a proxy that appends), but it can't see a header the proxy left alone.
+
+The examples below use oauth2-proxy for the login (any forward-auth
+service works: Authelia, authentik, Pomerium) with `--set-xauthrequest`
+and `--user-id-claim=sub`, so its `X-Auth-Request-User` carries the
+provider's `sub`: set `PROXY_USER_HEADER=X-Forwarded-User` and map it as
+shown. `/mcp` and the OAuth paths go to port 8090 without the login
+(docs/mcp.md); they're left out here.
+
+The app, on a Docker network shared with the proxy:
+
+```
+VIEW=full AUTH=proxy PUBLIC_URL=https://wow.example.org
+PROXY_TRUSTED_CIDRS=<subnet>          # docker network inspect <network>: its IPAM subnet
+PROXY_SECRET_FILE=/run/secrets/proxy   # optional, with the same value in the proxy
+```
+
+On a flat network where other containers share the proxy's subnet, the
+CIDR alone trusts them too: use the secret, or give the proxy and the app
+a network of their own.
+
+**Caddy**
+
+```
+wow.example.org {
+	# Whatever the client sent goes first, on every route.
+	request_header -X-Forwarded-User
+	request_header -X-Auth-Request-User
+
+	@open path /ingest /install/* /privacy /privacy/* /healthz
+	handle @open {
+		reverse_proxy wow-ui:8080 {
+			header_up X-Proxy-Auth {env.WOW_PROXY_SECRET}
+		}
+	}
+	handle /oauth2/* {
+		reverse_proxy oauth2-proxy:4180
+	}
+	handle {
+		forward_auth oauth2-proxy:4180 {
+			uri /oauth2/auth
+			copy_headers X-Auth-Request-User>X-Forwarded-User
+			@login status 401
+			handle_response @login {
+				redir * /oauth2/sign_in?rd={scheme}://{host}{uri}
+			}
+		}
+		reverse_proxy wow-ui:8080 {
+			header_up X-Proxy-Auth {env.WOW_PROXY_SECRET}
+		}
+	}
+}
+```
+
+**nginx**
+
+```
+server {
+    server_name wow.example.org;
+    # listen 443 ssl; certificates...
+
+    # proxy_set_header replaces the client's header; an empty value drops it.
+    proxy_set_header Host $host;
+    proxy_set_header X-Proxy-Auth "<the secret>";   # or leave out and trust the address
+
+    location /oauth2/ {
+        proxy_pass http://oauth2-proxy:4180;
+    }
+    location = /oauth2/auth {
+        internal;
+        proxy_pass http://oauth2-proxy:4180;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+    }
+    location ~ ^/(ingest|install/|privacy|healthz) {
+        proxy_set_header X-Forwarded-User "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Proxy-Auth "<the secret>";
+        proxy_pass http://wow-ui:8080;
+    }
+    location / {
+        auth_request /oauth2/auth;
+        auth_request_set $wow_user $upstream_http_x_auth_request_user;
+        error_page 401 = /oauth2/sign_in;
+        proxy_set_header X-Forwarded-User $wow_user;
+        proxy_set_header Host $host;
+        proxy_set_header X-Proxy-Auth "<the secret>";
+        proxy_pass http://wow-ui:8080;
+    }
+}
+```
+
+A `proxy_set_header` inside a `location` replaces every one set above it,
+hence the repeats.
+
+**Traefik** (Docker labels on the app's container)
+
+```
+traefik.http.routers.wow.rule=Host(`wow.example.org`)
+traefik.http.routers.wow.middlewares=wow-strip,wow-login
+traefik.http.routers.wow-open.rule=Host(`wow.example.org`) && (Path(`/ingest`) || PathPrefix(`/install/`) || PathPrefix(`/privacy`))
+traefik.http.routers.wow-open.middlewares=wow-strip
+# An empty value removes the header the client sent.
+traefik.http.middlewares.wow-strip.headers.customrequestheaders.X-Forwarded-User=
+traefik.http.middlewares.wow-strip.headers.customrequestheaders.X-Auth-Request-User=
+# The sign-in redirect for a 401 needs one more middleware (oauth2-proxy's
+# Traefik page has it, as does any forward-auth service's).
+traefik.http.middlewares.wow-login.forwardauth.address=http://oauth2-proxy:4180/oauth2/auth
+traefik.http.middlewares.wow-login.forwardauth.authResponseHeaders=X-Auth-Request-User
+traefik.http.services.wow.loadbalancer.server.port=8080
+```
+
+Traefik copies the login's `X-Auth-Request-User` as is: set
+`PROXY_USER_HEADER=X-Auth-Request-User` on the app with this one. A secret
+in Traefik sits in a label or a middleware (`customrequestheaders.X-Proxy-Auth`),
+readable by whoever reads your container config; trusting Traefik's address
+(`PROXY_TRUSTED_CIDRS`) on a network of its own is often the simpler choice.
+
+`/ingest` always has its own login and only exists when `INGEST_PASSWORD` is
+set. `/healthz` never asks for one, so probes need no credentials.
+
+The MCP endpoint is not on this port: FastMCP serves `/mcp` and its OAuth
+paths on `MCP_PORT` (8090) with its own tokens, since claude.ai and Claude
+Code can't carry the page login (docs/mcp.md lists the paths). Route them
+to that port without the proxy's login.
+
+### Routes
+
+| Route | Public | Full |
+|---|---|---|
+| `/`, `/app.js`, `/app.css` | yes (full-only sections stripped server side) | yes |
+| `/api/config`, `/api/chars`, `/api/char`, `/api/journal` | allow-listed fields | everything |
+| `/api/market`, `/api/prices`, `/api/logsql` | 404 | yes |
+| `/mcp`, `/authorize`, `/token`, `/register`, `/revoke`, `/consent`, `/oauth/callback`, `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource` (and `/mcp` under it) | none | on `MCP_PORT` (8090) when `MCP_PUBLIC_URL` is set, never on this port: route them there without the page login |
+| `/api/coach` | 404 | 404 (removed in 0.4.0) |
+| `/model3d/*`, `/api/model3d` | 404 | the 3D view, while `MODEL3D` is on: its page (`/model3d/view`, own CSP), scripts, and the relay to Wowhead's files (`/model3d/zam/*`) |
+| `FULL_DOOR_PATH` (`/full/`, `/full`) | 404 | 302 to `/` (the login door: the proxy in front sends people through its login there; empty turns it off, for a full view on its own host) |
+| `/render/<char>.<ext>` | 200 | the armory's full-body render (Battle.net), when the exporter has one |
+| `/api/items`, `/icons/<size>/<name>.jpg` | items only | the tooltips' item cards; the icons in the full view (fetched from `wow.zamimg.com` once, cached by name) |
+| `POST /ingest` | when `INGEST_PASSWORD` is set | same |
+
+The full view makes outbound requests from the server only:
+`wow.zamimg.com` (Wowhead's viewer script and model files once someone
+toggles 3D, and the item icons, cached on disk), `wago.tools` (Forever's
+item tables: display ids, the tooltips' cards, enchant names; checked once
+a day), and `render.worldofwarcraft.com` for the armory render unless
+`RENDER_FROM` is set. The browser only talks to this server. A public server
+makes none.
+
+A typical pair behind a login proxy:
+
+```
+public pod: VIEW=public AUTH=open  BIND=0.0.0.0 ALLOW_OPEN=1
+full pod:   VIEW=full   AUTH=proxy BIND=0.0.0.0 PUBLIC_URL=https://wow-full.example.org PROXY_TRUSTED_CIDRS=<the proxy's network>
+```
+
+## `wow-stats exporter`
+
+Needs **your own** Battle.net API client (README, "Battle.net client"). Keeps
+Blizzard's data in memory only and pushes it to a VictoriaMetrics with a
+retention under 30 days (§2.18 of the API terms). Never let a long-term
+scraper (Prometheus, vmagent) scrape its `/metrics` for game data: it only
+serves its own health there.
+
+| Variable | Default | |
+|---|---|---|
+| `BNET_CLIENT_ID_FILE`, `BNET_CLIENT_SECRET_FILE` | required | files holding your client's id and secret |
+| `BNET_REGION`, `BNET_LOCALE` | `eu`, `en_GB` | |
+| `BNET_RULESET_ID` | `2` | the Forever ruleset watched for status |
+| `BNET_FOREVER_NAMESPACE`, `BNET_TOKEN_NAMESPACES` | derived from the region | |
+| `BNET_API_URL`, `BNET_OAUTH_URL` | Blizzard's | |
+| `AH_FACTION`, `AH_NONCOMMODITY` | `Alliance`, `false` | |
+| `WATCH_ITEMS` | empty | JSON `{"item id": "name"}`, or a path to a JSON file |
+| `PROFILE_CHARACTERS` | empty | comma list of `Name-Surname` (the WTF folder names): profile, appearance and equipment once a day |
+| `BNET_PROFILE_NAMESPACE` | `profile-forever-<region>` | |
+| `TOKEN_INTERVAL`, `REALM_INTERVAL`, `AH_INTERVAL`, `PROFILE_INTERVAL` | `1200`, `300`, `3600`, `86400` | seconds between API polls |
+| `HTTP_TIMEOUT` | `60` | |
+| `VM_PUSH_URL` | empty (nothing stored) | `.../api/v1/import/prometheus`. It may already carry `extra_label=...` query args: the exporter appends its own with `&`, never replaces them |
+| `VM_PUSH_EXTRA_LABELS` | empty | comma list of `name=value` added as `extra_label` |
+| `VM_PUSH_INTERVAL` | `60` | |
+| `VM_MERGE_KEY_FILE` | empty | the VictoriaMetrics `-forceMergeAuthKey`, as a file. With it the exporter force-merges once a day so expired data is really deleted |
+| `VM_MERGE_URL` | `VM_PUSH_URL`'s host + `/internal/force_merge` | |
+| `VM_MERGE_INTERVAL` | `86400` | |
+| `LISTEN_PORT` | `9464` | |
+
+The VictoriaMetrics behind it: `-retentionPeriod=23d` and
+`-forceMergeAuthKey` (the comment in `deploy/compose/compose.yaml` explains
+the 23 days), no backups, no copies.
+
+### Appearance and the 30-day rule
+
+Forever's profiles are on the Profile API without a realm:
+`/profile/wow/character/testchar-demo` in `profile-forever-eu`, with a
+client-credentials token (checked 2026-11-18; a character the API hasn't
+seen yet answers 404). Everything it returns is Blizzard API data, kept 30
+days at most (§2.18), so the look travels like the market data and never
+through VictoriaLogs:
+
+1. The exporter reads each character of `PROFILE_CHARACTERS` once a day and
+   keeps the answer in memory: `wow_character_customization{character,
+   option_id}` = choice id, `wow_character_profile{character, race_id,
+   gender}` = level, `wow_character_equipped{character, slot}` = item id,
+   `wow_character_equipped_stat{character, slot, stat}` = that item's stat
+   (a random suffix's are in no item table),
+   `wow_character_profile_refreshed_timestamp_seconds`,
+   `wow_character_talent_points{character, tree, order}` = points spent and
+   `wow_character_talent_rank{character, spell_id, talent}` = rank (the
+   active group of `/specializations`), and
+   `wow_character_profile_found` = 0 for a 404 (its other series are
+   dropped). It stops pushing a value 3 days after its last read and forgets
+   anything not refreshed for 30 days.
+2. The exporter's VictoriaMetrics stores them 23 days, force-merged daily.
+3. The full view reads the last value (`last_over_time(...[2d])`) when it
+   draws the 3D model, and every view reads the talents the same way for the
+   character card (never stored anywhere else: the kept talent history is
+   the player's own `/simx` exports); Narcissus's save (from VictoriaLogs, the player's own
+   file) is used only when Battle.net has none.
+4. The public site's static bundle (`wow-stats publish`) gets the look the
+   same way when it is built. The bundle is rebuilt at least once a day and
+   the old one replaced, so no copy outlives the 30 days. The bundle holds the
+   option and choice ids.
+5. The armory's render and item level: the exporter also reads
+   `/character-media` (the full-body `main-raw`, else `main`; only an https
+   address on `render.worldofwarcraft.com` is kept) and the profile's
+   `equipped_item_level`: `wow_character_render{character, asset, url}` =
+   the time it was read, `wow_character_item_level{character, kind}`. The
+   publisher downloads the image into the bundles (`data/render/<char>.<ext>`,
+   sealed in `/zogzog/`), caching it on disk 30 days at most; once the series
+   is gone from VictoriaMetrics the next build has no render and the page shows the
+   silhouette.
+
+### Battle.net data and models
+
+No model runs on the server. The MCP's `market` tool (the auction house,
+token price and ruleset status from Blizzard's API) is neither listed nor
+callable, whatever the env, except for a person who turned on "Battle.net
+data to my AI" in their settings on a multi-user install (their own data to
+their own assistant, owner ruling 2026-11-18;
+`tests/route/test_market_gating.py`). A chat keeps a tool's answer longer
+than Blizzard's 30 days (§2.18), so that switch is the person's call and
+stays off by default. The analysis' tables (`wowstats.analysis.TABLES`) are
+all built from the player's own game files in VictoriaLogs; `gear`,
+`talents`, `gear_sheets` there come from the shipper, not the profile API.
+A test fails when a prep table isn't in that list, so a new source can't
+reach a model without being classified.
+
+## The static sites: `wow-stats publish` and `wow-stats static`
+
+Three ways in:
+
+| Where | What | Served by | Login |
+|---|---|---|---|
+| `/` | the public view, static: the character card, the paperdoll, the climb, dungeons cleared, level by level | `wow-stats static` | none |
+| `ZOGZOG_PATH` (`/zogzog/`) | for friends with the link, static, data sealed: the public view plus loot, the Overview's next moves, the journal, deaths as counts; no other players | `wow-stats static` | none: the key is the link's `#fragment` |
+| the full view's own host, or `FULL_DOOR_PATH` (`/full/`) on the same one | the live full view (MCP, Ask links, LogsQL box) | `wow-stats ui` with `VIEW=full` | your proxy's |
+
+Two hosts is the better split (`wow.example.org` static only,
+`wow-full.example.org` the full view at `/`). The public
+host then serves files and nothing else: no login, no cookie, no session to
+steal, and a link to it can go anywhere. Set `FULL_DOOR_PATH=` (empty) and
+`MCP_PUBLIC_URL=https://<full host>/mcp` on the full view, route its whole
+host through the login, and redirect the old paths (`/full/`, `/sesame/`,
+`/mcp`, `/oauth2/`) on the public host to the new one, permanently. One host
+with `/full/` still works for a standalone install (docs/install.md).
+
+`publish` is the only part that talks to VictoriaLogs, the exporter's VictoriaMetrics, Wowhead's file
+host (`wow.zamimg.com`), wago.tools and Blizzard's render host
+(`render.worldofwarcraft.com`). Every 10 minutes (`PUBLISH_INTERVAL`)
+it rebuilds when the newest event's time moved (after each play session: the
+shipper sends at logout and `/reload`), when the exporter's Battle.net data changed
+(the profile, the look, the equipment: a hash of their last readings), or when
+the build is a day old. Each build holds every answer its page asks for, as
+files under `data/`, each cut down to its tier's allow-list in
+`wowstats/redact.py` (`PUBLIC`, `ZOGZOG`), plus every 3D file those answers
+name, fetched through the 3D relay's allow-list.
+
+`/zogzog/`'s data files are AES-256-GCM, one random 96-bit nonce each, the
+file's path as associated data, under the 256-bit key in `ZOGZOG_KEY_FILE`.
+The page takes the key from `location.hash` and opens them with WebCrypto.
+Browsers never send a fragment, so the key isn't in a request, a log or a
+`Referer`; it stays in the address bar so the link can be bookmarked. No key
+or a wrong one shows an empty "Nothing here." page. The page, scripts, fonts
+and 3D files are in clear (the same for everyone). `zogzog-key rotate` makes
+a new key and rebuilds: every old link stops working. The publisher holds
+the key; the static server never does.
+
+The 30-day rule: both bundles carry Battle.net data (the look from the
+profile API; in `/zogzog/` also the auction house), so a build is never older
+than a day and each build replaces the last; at most two older builds stay
+on disk for requests in flight.
+
+### How the build reaches the static server
+
+- **Compose**: a shared volume, `publish` writes and `site` reads it
+  read-only (`deploy/compose/compose.yaml`). The key is made on the first run
+  in that volume and never logged: print the link with
+  `docker compose run --rm publish zogzog-key link`.
+- **Kubernetes**: two pods, because the static pod must have no route out
+  at all and NetworkPolicies are per pod. The static pod starts empty (its
+  files live in an `emptyDir`) and listens on `UPLOAD_PORT` too; the
+  publisher pushes each build there as a tar.gz with a bearer token
+  (`PUBLISH_PUSH_URL`, `PUBLISH_PUSH_TOKEN_FILE` / `UPLOAD_TOKEN_FILE`, 32
+  characters or more), and on every pass asks which build is live and pushes
+  again when the pod restarted. A shared RWX volume would work as well; a
+  push needs no storage class and no node pinning.
+
+| Variable | Default | |
+|---|---|---|
+| `PUBLISH_DIR` | `/data/site` | where builds go; `current` points at the live one |
+| `PUBLISH_INTERVAL` | `600` | seconds between checks with `--loop` |
+| `ZOGZOG_PATH` | `/zogzog/` | the full-content site's path; empty: not built, not served |
+| `ZOGZOG_KEY_FILE` | `<PUBLISH_DIR>/../zogzog.key` | 43 base64url characters; made (0600) when missing |
+| `HELP_KEY_FILE` | unset: no help page | The MCP help page's own key (`/help/#<key>`, docs/mcp.md), 43 base64url characters; never made: no file, no page |
+| `HELP_MCP_URL` | `MCP_PUBLIC_URL` | The MCP address the help page shows |
+| `ZOGZOG_LINK_BASE` | empty | the site's address, for `zogzog-key link` |
+| `PUBLISH_PUSH_URL`, `PUBLISH_PUSH_TOKEN_FILE` | empty | push builds to a static server instead of sharing a volume |
+| `SITE_DIR` (static) | `/data/site` | the publisher's `PUBLISH_DIR`, or the `emptyDir` it pushes to |
+| `UPLOAD_PORT`, `UPLOAD_TOKEN_FILE` (static) | off | the push listener; never route it from outside |
+| `FULL_DOOR_PATH` (ui) | `/full/` | the login door of the live full view; empty: off |
+| `PLAUSIBLE_DOMAIN` | empty | your Plausible site's domain: pageviews on the static sites (below); empty: no analytics at all |
+| `PLAUSIBLE_SCRIPT`, `PLAUSIBLE_API` | `/js/script.js`, `/api/event` | the script and event paths, on the site's own address |
+| `RENDER_URL` | empty: no pictures | the renderer (`wow-stats render`, below): each past level's picture |
+| `RENDER_TOKEN_FILE` | required with `RENDER_URL` | the renderer's token, the same file the renderer reads (below). Without it the publisher draws no pictures and says why in its log |
+| `RENDER_BUDGET_S`, `RENDER_TIMEOUT_S` | `60`, `120` | seconds a build spends drawing (the rest wait for the next pass), and per picture |
+
+### Past levels' pictures: `wow-stats render`
+
+Its own image, `ghcr.io/<owner>/wow-mcp-render:<version>` (the
+Dockerfile's `renderer` target: Debian, Playwright's headless Chromium, no
+fonts), because it runs Wowhead's viewer in Chromium without a sandbox.
+`POST /render` needs `Authorization: Bearer <token>`: the file in
+`RENDER_TOKEN_FILE` (32+ characters), or, when that's unset, a token the
+renderer makes on its first start in `RENDER_CACHE_DIR/render.token` (0600;
+the log names the path, never the value). Hand the same file to the
+publisher as its `RENDER_TOKEN_FILE`. Anything else that reaches the port
+gets a 401, whatever the network around it allows.
+Give it nothing else: no other Secret, `automountServiceAccountToken: false`, no route
+to the stores or the other pods; in from the publisher only, out to
+`wow.zamimg.com` (443) and DNS only. It runs as uid 10001 with a read-only
+root filesystem and `/tmp` writable (Chromium's profile and Wowhead's files:
+`RENDER_CACHE_DIR`, `RENDER_CACHE_MB` 256). One render at a time, about 4 s at
+one core; measured peak 850 MB with its cache, so a 1.5 GiB limit. The
+publisher sends race and sex (the model id), the look and the items' display
+ids, never a name (docs/architecture.md, "A past level's picture").
+
+### Visitor counts (Plausible)
+
+With `PLAUSIBLE_DOMAIN` set, the public and `/zogzog/` pages (never the
+full view) load `/js/script.js` and send one pageview to `/api/event`, both
+on the site's own address: route those two paths, and nothing else, to your
+Plausible in the reverse proxy (`/js/script.js` to its
+`/js/script.manual.js`, with `Host` set to Plausible's), so the CSP stays
+`'self'` and no visitor's browser talks to a third party. The static pod
+itself still makes no request.
+
+The pageview's address is the bundle's path alone (`/` or `/zogzog/`): the
+page sends it explicitly (`web/stats.js`) instead of `location.href`, and the
+manual script has no hash tracking, so `/zogzog/`'s key (the fragment) and
+the query never reach Plausible; `Referrer-Policy: no-referrer` stays.
+`tests/test_browser.py` runs Plausible's own script in Chromium on a
+`/zogzog/#<key>` address and checks every field of the payload and every
+header.
+
+### Item icons, tooltips and the render
+
+Every item on every page shows the game's icon (Wowhead's renders of the
+game files, 56 px in a slot, 36 px in a list) and the in-game tooltip on
+hover, tap or Enter. The cards come from Forever's tables on wago.tools
+(`Item`, `ItemSparse`, `ManifestInterfaceData`, `ItemSet`, `ItemSubClass`,
+`SpellItemEnchantment`) plus Polestar's item stats; the publisher writes
+the cards and icons of the items each bundle names (`data/items.json`,
+`data/icon/<size>/<name>.jpg`, sealed in `/zogzog/`). The middle of the
+paperdoll is the armory's render (above), or a silhouette; "View in 3D"
+swaps it for the 3D model in place.
+
+`publish` needs the image's `publish` extra (pyca/cryptography, for AES-GCM:
+the standard library has none). Everything else stays standard library.
+
+## Several people on one install
+
+`WOW_STATE_DIR` on `wow-stats ui` turns it on. Each person gets their own
+VictoriaLogs tenant (`AccountID`), state, ingest token and zogzog key. The
+owner stays tenant 0 on the original store.
+
+**The friends list.** With `WOW_FRIENDS_FILE` (`{"<sub>": "<slug>"}`, rendered by
+whatever manages your accounts, from a group in your identity provider for
+instance), the list alone decides who is
+a friend. The full view reads it at start and every `FRIENDS_RECONCILE_S`
+(120): a listed person gets a tenant with that slug before their first
+login (or at it, if they're quicker than the pass); a person who left the list is switched off and offboarded on the
+spot (`wow-stats users delete`'s steps: their tenant's events, state,
+registry entry, ingest token; the publisher drops their site from every
+static pod at its next pass). A login that isn't listed gets no tenant. A
+valid `{}` means nobody: every friend listed before is offboarded. A
+missing, unreadable or unparseable file (or one with a bad entry) changes
+nothing, and the owner is never in play. Each step is one JSON log line (`"event": "friends"`). Without the
+file, only the owner gets in. Needs `VIEW=full`, `AUTH=proxy` and
+`MCP_AUTH=oauth` (the full view refuses to start otherwise).
+
+**Who is who.** The login proxy sets `X-Forwarded-User` (the provider's
+`sub`) and strips any the client sent. The sub is all the app reads: the
+owner is `WOW_OWNER_SUB`, a friend is a sub on the list, and nobody else
+gets in, whatever their name, email, org or roles. The web view and the MCP
+use the same rule (`tenancy.Tenancy.identify`; the MCP's auth calls
+`resolve_tenant(sub)` at each login and refresh). Org and role belong to
+whatever renders the list. Until 0.4.0 the web view also needed the org id in
+`X-Forwarded-Org`; the proxy sent it empty and everyone was refused, so it
+is gone, with `WOW_OWNER_ORG`, `OIDC_ALLOWED_ORGS` and `PROXY_ORG_HEADER`
+in this mode. A refused login gets a short page: no access yet, ask the
+owner, and a log-out link (`/oauth2/logout`) to switch accounts.
+
+| `wow-stats ui` | |
+|---|---|
+| `WOW_STATE_DIR` | the registry (`users.json`, 0600) and each person's state, on a volume |
+| `WOW_OWNER_SUB` | the owner's login id |
+| `WOW_OWNER_SLUG` (empty by default: set your own), `WOW_OWNER_ALIASES` | the owner's site name, and hosts that are theirs too (`wow.example.org`): all reserved for them. Refusal pages name the owner by it, capitalised ("Ask Alex to add you" for `alex`) |
+| `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}`; how often it is read. Unset: the owner only |
+| `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends |
+| `FRIENDS_VL_DELETE_KEY_FILE` | its `-deleteAuthKey`, for `wow-stats users delete` |
+| `ZOGZOG_MASTER_KEY_FILE` | 32+ random bytes, base64url: each person's zogzog key is derived from it. The owner's `ZOGZOG_KEY_FILE` only seeds his first link: after "Make a new link" his key is derived too, so the full view and the publisher agree without sharing a file |
+| `PUBLIC_URL`, `SITE_DOMAIN` | the full view's address (install commands, MCP), and the domain friends' sites live under (`<slug>-wow.<domain>`). `PUBLIC_URL` must be https (plain http only on 127.0.0.1 or localhost): every install and update runs what that address sends |
+| `INGEST_DAILY_MB` (512) | what `/ingest` accepts from one person a day; past it a 429, and the shipper keeps its spool for the next day. `0`: no limit |
+| `PRIVACY_BACKUP_DAYS` (empty) | how long your backups keep a person's events, for the privacy page ("Backups of your events expire N days later"). Empty: the page tells friends to ask you |
+| `PLAUSIBLE_DOMAIN` (on the full view too) | set it here as on the publisher, and the privacy page says you see visit counts |
+| `PROXY_USER_HEADER` | default `X-Forwarded-User`; believed only from the proxy (`PROXY_TRUSTED_CIDRS`, `PROXY_SECRET_FILE`: "Behind a reverse proxy") |
+| `DOH_URL` | a DNS-over-HTTPS resolver to tell whether a friend's host resolves yet (egress to it) |
+
+Routes added to the full view: `/start` (set up, then "is it working?"; the whole manual at `/start/print`),
+`/settings`, `/help/` (the help page, unsealed: docs/mcp.md), `/api/me*`, `/api/admin/hosts` (owner only: the hosts that
+should resolve), `/install/<code>` and `/privacy` without the login (the
+code is the credential: single use, 15 minutes), `/ingest` with basic auth
+`<slug>:<token>`.
+
+| Other commands | |
+|---|---|
+| `wow-stats publish` | `USERS_URL` (the full view's share port, `/users.json`) builds one site per person into `PUBLISH_DIR/<slug>/`, pushes with `?slug=`, and drops sites of people who left from every static pod (`GET /bundles` on the upload port). Needs `ANALYSIS_SHARE_TOKEN_FILE`, the full view's share token |
+| `wow-stats static` | `SITE_DOMAIN` serves `<slug>-wow.<domain>` from `SITE_DIR/<slug>/current`; `SITE_ALIASES=wow.example.org=alex`; any other host, or a site whose public page is off, is a 404 |
+| `wow-stats exporter` | `PROFILE_CHARACTERS_URL` (share port, `/profile-characters`) adds every person's characters to `PROFILE_CHARACTERS`. Needs `ANALYSIS_SHARE_TOKEN_FILE` too |
+| `wow-stats users list\|hosts\|reconcile\|disable\|enable\|delete <slug> [--yes]` | in the full view's pod; `reconcile` applies the friends list now; `delete` runs VictoriaLogs' delete task for the tenant, then removes the state and the registry entry (dry run without `--yes`) |
+
+Revoking access: `wow-stats users disable <slug>` refuses the web view and
+the MCP at the next request. Removing the person from the friends list (or their access in your identity
+provider) refuses their next login, and the MCP at its next upstream check
+(within the hour); an open web session lasts until the proxy's session
+expires, so disable too when it must stop now. AccountIDs are never reused.
+

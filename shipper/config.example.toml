@@ -1,0 +1,52 @@
+# wow-stats settings. Copy to:
+#   macOS, Linux: ~/.config/wow-stats/config.toml
+#   Windows:      %APPDATA%\wow-stats\config.toml
+# (the installers do it when the file isn't there). It holds a password:
+# keep it readable by you only.
+
+# The WoW Forever folder, the one holding WTF/ and Logs/. Leave it out to
+# use the first that exists of:
+#   /Applications/World of Warcraft/_forever_
+#   C:\Program Files (x86)\World of Warcraft\_forever_
+#   C:\Program Files\World of Warcraft\_forever_
+# wow_dir = 'D:\Games\World of Warcraft\_forever_'
+
+# Where the WTF history (a git repo, when git is installed), the spool and
+# the sent files go. Default: WoWArchive in your home folder.
+# archive_dir = "~/WoWArchive"
+
+# The WTF history: with git installed, every run commits a copy of your whole
+# WTF folder (all addons' saves and settings) to <archive_dir>/wtf, so every
+# version is kept and --backfill can re-read them. It grows with whatever
+# your addons save. false: stats only, no copy of the folder; the events are
+# still read, sent, and kept in <archive_dir>/sent (gzipped).
+# wtf_archive = false
+
+# Default: ~/Library/Logs/wow-stats.log (macOS),
+# %LOCALAPPDATA%\wow-stats\wow-stats.log (Windows).
+# log_file = "~/wow-stats.log"
+
+# Polestar Client's data folder, where the shipper reads sent.jsonl (only that
+# file, read only). Default: ~/Library/Application Support/gg.polestar.client
+# (macOS), %APPDATA%\gg.polestar.client (Windows),
+# ~/.local/share/gg.polestar.client (Linux).
+# polestar_client_dir = "~/somewhere/gg.polestar.client"
+
+[ship]
+# Where the events go: NDJSON over HTTP POST, basic auth.
+# With the compose kit (deploy/compose) on this same computer:
+#   url = "http://127.0.0.1:8080/ingest"
+#   user = "wow"
+#   password = the INGEST_PASSWORD you put in deploy/compose/.env
+# With the kit on another machine of your network, use its address instead
+# of 127.0.0.1 (and publish the port there: see the README).
+# Empty: nothing is sent, the spool keeps everything until you set it.
+url = ""
+user = ""
+password = ""
+# Or the password in a file of its own:
+# password_file = "~/.config/wow-stats/password"
+# The receiver's retention in days, when it has one: older events are kept in
+# <archive_dir>/too-old/ instead of being sent to a store that drops them.
+# The compose kit keeps 100 years: leave it out.
+# retention_days = 90

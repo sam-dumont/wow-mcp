@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+.DS_Store
+# real secrets / local config, never committed
+.env
+deploy/compose/.env
+deploy/compose/secrets/*
+!deploy/compose/secrets/README.md
+*.pem

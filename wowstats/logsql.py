@@ -1,0 +1,620 @@
+"""The part of LogsQL the views use, run in Python over rows already read.
+
+One character's events are read once into wowstats.eventcache; every
+endpoint's query is then answered here instead of by VictoriaLogs. Only
+what the code asks is supported: anything else raises Unsupported and the
+caller asks VictoriaLogs (wowstats.stores.Store.vl), so an unusual query is
+slower, never wrong.
+
+Answers are shaped like VictoriaLogs' (checked against v1.54.0 with the
+same rows, tests/test_logsql.py): every value a string, empty fields left
+out, stats numbers as VictoriaLogs prints them, `_time` buckets as
+2026-11-12T10:38:00Z, row_max and uniq_values as JSON strings.
+
+Filters: `field:=v`, `field:in(a, b)`, `field:*`, `field:word`, `field:pre*`,
+`_time:>T`, `_time:>=T`, `_time:<T`, `_time:[T1, T2]`, `_time:30d`, `-x`,
+`!x`, `not x`, `(a or b)`, `a and b`. Pipes: `fields`, `sort by (f [desc])`,
+`limit`/`head`, `uniq by (...)`, `stats [by (f, _time:1m)] count(),
+count_uniq(f), sum(f), min(f), max(f), uniq_values(f) [limit N],
+row_max(f, a, ...)`.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
+
+from .stores import parse_t
+
+
+class Unsupported(ValueError):
+    """Outside the subset: ask VictoriaLogs."""
+
+
+# ------------------------------------------------------------------ lexing
+
+_WORD = re.compile(r"[^\s(),|:]+")
+_TIME = re.compile(r"[^\s(),|\[\]]+")
+
+
+class _Lex:
+    def __init__(self, s: str):
+        self.s, self.i = s, 0
+
+    def ws(self):
+        while self.i < len(self.s) and self.s[self.i].isspace():
+            self.i += 1
+
+    def peek(self, n: int = 1) -> str:
+        self.ws()
+        return self.s[self.i:self.i + n]
+
+    def eat(self, tok: str) -> bool:
+        self.ws()
+        if self.s.startswith(tok, self.i):
+            self.i += len(tok)
+            return True
+        return False
+
+    def need(self, tok: str):
+        if not self.eat(tok):
+            raise Unsupported(f"expected {tok!r} at {self.s[self.i:self.i + 30]!r}")
+
+    def at_keyword(self, kw: str) -> bool:
+        """`kw` next, as a whole word."""
+        self.ws()
+        j = self.i + len(kw)
+        return self.s[self.i:j].lower() == kw and (j >= len(self.s) or not (self.s[j].isalnum() or self.s[j] in "_-:"))
+
+    def keyword(self, kw: str) -> bool:
+        if self.at_keyword(kw):
+            self.i += len(kw)
+            return True
+        return False
+
+    def value(self) -> str:
+        """A quoted string or a bare word."""
+        self.ws()
+        if self.i < len(self.s) and self.s[self.i] == '"':
+            try:
+                v, end = json.JSONDecoder().raw_decode(self.s, self.i)
+            except ValueError as e:
+                raise Unsupported("bad quoted string") from e
+            self.i = end
+            return v
+        m = _WORD.match(self.s, self.i)
+        if not m:
+            raise Unsupported(f"expected a value at {self.s[self.i:self.i + 30]!r}")
+        self.i = m.end()
+        return m.group(0)
+
+    def time_value(self) -> str:
+        """A time (quoted or bare, colons and all) or a duration."""
+        self.ws()
+        if self.s[self.i:self.i + 1] == '"':
+            return self.value()
+        m = _TIME.match(self.s, self.i)
+        if not m:
+            raise Unsupported(f"expected a time at {self.s[self.i:self.i + 30]!r}")
+        self.i = m.end()
+        return m.group(0)
+
+    def done(self) -> bool:
+        self.ws()
+        return self.i >= len(self.s)
+
+
+def split_pipes(q: str) -> list[str]:
+    """`filter | pipe | pipe`, split on the `|` outside quotes."""
+    out, cur, i, inq = [], [], 0, False
+    while i < len(q):
+        c = q[i]
+        if inq:
+            cur.append(c)
+            if c == "\\" and i + 1 < len(q):
+                cur.append(q[i + 1])
+                i += 1
+            elif c == '"':
+                inq = False
+        elif c == '"':
+            inq = True
+            cur.append(c)
+        elif c == "|":
+            out.append("".join(cur).strip())
+            cur = []
+        else:
+            cur.append(c)
+        i += 1
+    out.append("".join(cur).strip())
+    return out
+
+
+# ------------------------------------------------------------------ filters
+
+_DUR = re.compile(r"^(\d+(?:\.\d+)?)(ms|s|m|h|d|w|y)$")
+_DUR_S = {"ms": 0.001, "s": 1, "m": 60, "h": 3600, "d": 86400, "w": 7 * 86400, "y": 365 * 86400}
+
+
+def dur_s(s: str) -> float:
+    m = _DUR.match(s)
+    if not m:
+        raise Unsupported(f"duration {s!r}")
+    return float(m.group(1)) * _DUR_S[m.group(2)]
+
+
+def _ts(s: str) -> datetime:
+    t = parse_t(s)
+    if t == datetime.min.replace(tzinfo=UTC):
+        raise Unsupported(f"time {s!r}")
+    return t if t.tzinfo else t.replace(tzinfo=UTC)
+
+
+def _end_of(s: str) -> datetime:
+    """An inclusive upper bound covers its whole last unit, as in VictoriaLogs:
+    `_time:[a, 2026-11-12T10:13:54Z]` holds 10:13:54.7."""
+    t = _ts(s)
+    m = re.search(r"T\d\d:\d\d(?::\d\d(?:\.(\d+))?)?", s)
+    if not m:
+        raise Unsupported(f"time {s!r}")
+    if ":" not in m.group(0)[4:]:
+        step = timedelta(minutes=1)
+    elif m.group(1) is None:
+        step = timedelta(seconds=1)
+    else:
+        step = timedelta(seconds=10 ** -len(m.group(1)))
+    return t + step - timedelta(microseconds=1)
+
+
+def _boundary(v: str, i: int) -> bool:
+    return i <= 0 or i >= len(v) or not (v[i - 1].isalnum() or v[i - 1] == "_")
+
+
+def _word_at(v: str, w: str, prefix: bool) -> bool:
+    """`w` in `v` starting at a word boundary (and ending at one, unless a prefix)."""
+    if not w:
+        return True
+    i = v.find(w)
+    while i >= 0:
+        end = i + len(w)
+        if _boundary(v, i) and (prefix or end >= len(v) or not (v[end].isalnum() or v[end] == "_")):
+            return True
+        i = v.find(w, i + 1)
+    return False
+
+
+@dataclass
+class Term:
+    field: str
+    op: str  # eq, in, any, word, prefix, time
+    values: tuple = ()
+    lo: datetime | None = None  # time: inclusive bounds (None: open)
+    hi: datetime | None = None
+    lo_open: bool = False
+    hi_open: bool = False
+    rel_s: float | None = None  # time: the last rel_s seconds before now
+
+    def match(self, r: dict, now: datetime) -> bool:
+        if self.op == "time":
+            t = parse_t(r.get("_time"))
+            if self.rel_s is not None:
+                return now - timedelta(seconds=self.rel_s) < t <= now
+            if self.lo is not None and (t <= self.lo if self.lo_open else t < self.lo):
+                return False
+            return not (self.hi is not None and (t >= self.hi if self.hi_open else t > self.hi))
+        v = r.get(self.field)
+        v = "" if v is None else str(v)
+        if self.op == "eq":
+            return v == self.values[0]
+        if self.op == "in":
+            return v in self.values
+        if self.op == "any":
+            return v != ""
+        if self.op == "word":
+            return _word_at(v, self.values[0], False)
+        return _word_at(v, self.values[0], True)
+
+
+@dataclass
+class Not:
+    x: object
+
+    def match(self, r, now):
+        return not self.x.match(r, now)
+
+
+@dataclass
+class And:
+    xs: list = field(default_factory=list)
+
+    def match(self, r, now):
+        return all(x.match(r, now) for x in self.xs)
+
+
+@dataclass
+class Or:
+    xs: list
+
+    def match(self, r, now):
+        return any(x.match(r, now) for x in self.xs)
+
+
+def _parse_or(lx: _Lex):
+    xs = [_parse_and(lx)]
+    while lx.keyword("or"):
+        xs.append(_parse_and(lx))
+    return xs[0] if len(xs) == 1 else Or(xs)
+
+
+def _parse_and(lx: _Lex):
+    xs = []
+    while not lx.done() and lx.peek() != ")" and not lx.at_keyword("or"):
+        if lx.keyword("and"):
+            continue
+        xs.append(_parse_unary(lx))
+    if not xs:
+        raise Unsupported("empty filter")
+    return xs[0] if len(xs) == 1 else And(xs)
+
+
+def _parse_unary(lx: _Lex):
+    if lx.eat("-") or lx.eat("!") or lx.keyword("not"):
+        return Not(_parse_unary(lx))
+    if lx.eat("("):
+        x = _parse_or(lx)
+        lx.need(")")
+        return x
+    if lx.eat("*"):
+        return And([])
+    if lx.peek() == "{":
+        raise Unsupported("stream filter")
+    return _parse_term(lx)
+
+
+def _parse_term(lx: _Lex) -> Term:
+    lx.ws()
+    m = _WORD.match(lx.s, lx.i)
+    if not m or lx.s[m.end():m.end() + 1] != ":":
+        raise Unsupported("a filter without a field")
+    f = m.group(0)
+    lx.i = m.end() + 1
+    if f == "_time":
+        return _parse_time(lx)
+    if lx.s.startswith(("=", "in("), lx.i) or lx.s.startswith("in (", lx.i):
+        if lx.eat("="):
+            if lx.eat("~"):
+                raise Unsupported("regexp")
+            return Term(f, "eq", (lx.value(),))
+        lx.keyword("in")
+        lx.need("(")
+        vals = []
+        while not lx.eat(")"):
+            vals.append(lx.value())
+            lx.eat(",")
+        return Term(f, "in", tuple(vals))
+    if lx.s.startswith(("~", ">", "<", "!", "[", "("), lx.i):
+        raise Unsupported(f"filter {f}:{lx.s[lx.i:lx.i + 10]}")
+    if lx.eat("*"):
+        return Term(f, "any")
+    quoted = lx.s[lx.i:lx.i + 1] == '"'
+    v = lx.value()
+    if not quoted and v.endswith("*"):
+        return Term(f, "prefix", (v[:-1],))
+    if lx.s[lx.i:lx.i + 1] == "*":  # "quoted prefix"*
+        lx.i += 1
+        return Term(f, "prefix", (v,))
+    return Term(f, "word", (v,))
+
+
+def _parse_time(lx: _Lex) -> Term:
+    if lx.peek() in ("[", "("):
+        lo_open = lx.s[lx.i] == "("
+        lx.i += 1
+        a = lx.time_value()
+        lx.need(",")
+        b = lx.time_value()
+        lx.ws()
+        c = lx.s[lx.i:lx.i + 1]
+        if c not in ("]", ")"):
+            raise Unsupported("time range")
+        lx.i += 1
+        hi_open = c == ")"
+        return Term("_time", "time", lo=_ts(a), hi=_ts(b) if hi_open else _end_of(b), lo_open=lo_open,
+                    hi_open=hi_open)
+    for op in (">=", "<=", ">", "<"):
+        if lx.eat(op):
+            v = lx.time_value()
+            if _DUR.match(v):
+                raise Unsupported("relative _time comparison")
+            t = _ts(v)
+            if op[0] == ">":
+                return Term("_time", "time", lo=t, lo_open=op == ">")
+            return Term("_time", "time", hi=t if op == "<" else _end_of(v), hi_open=op == "<")
+    v = lx.time_value()
+    if _DUR.match(v):
+        return Term("_time", "time", rel_s=dur_s(v))
+    raise Unsupported(f"_time:{v}")
+
+
+def parse_filter(s: str):
+    lx = _Lex(s)
+    x = _parse_or(lx)
+    if not lx.done():
+        raise Unsupported(f"trailing {lx.s[lx.i:lx.i + 30]!r}")
+    return x
+
+
+def top_terms(x) -> list:
+    """The filter's top-level AND terms (negations included, as Not)."""
+    return list(x.xs) if isinstance(x, And) else [x]
+
+
+# ------------------------------------------------------------------ pipes
+
+
+def _names(lx: _Lex) -> list[str]:
+    lx.need("(")
+    out = []
+    while not lx.eat(")"):
+        out.append(lx.value())
+        lx.eat(",")
+    return out
+
+
+def _int(lx: _Lex) -> int:
+    v = lx.value()
+    if not v.isdigit():
+        raise Unsupported(f"limit {v!r}")
+    return int(v)
+
+
+@dataclass
+class Fields:
+    names: list
+
+    def run(self, rows, now):
+        return [{k: r[k] for k in self.names if r.get(k) not in (None, "")} for r in rows]
+
+
+@dataclass
+class Sort:
+    keys: list  # [(field, desc)]
+    limit: int | None = None
+
+    def run(self, rows, now):
+        out = list(rows)
+        for f, desc in reversed(self.keys):
+            out.sort(key=lambda r, f=f: _sort_key(r, f), reverse=desc)
+        return out[:self.limit] if self.limit is not None else out
+
+
+def _sort_key(r: dict, f: str):
+    v = r.get(f)
+    if f == "_time":
+        return (0, parse_t(v).timestamp() if v else float("-inf"), "")
+    try:
+        return (0, float(v), "")
+    except (TypeError, ValueError):
+        return (1, 0.0, "" if v is None else str(v))
+
+
+@dataclass
+class Limit:
+    n: int
+
+    def run(self, rows, now):
+        return list(rows)[:self.n]
+
+
+@dataclass
+class Uniq:
+    names: list
+    limit: int | None = None
+
+    def run(self, rows, now):
+        seen, out = set(), []
+        for r in rows:
+            k = tuple("" if r.get(f) is None else str(r.get(f)) for f in self.names)
+            if k not in seen:
+                seen.add(k)
+                out.append({f: v for f, v in zip(self.names, k, strict=True) if v != ""})
+        return out[:self.limit] if self.limit is not None else out
+
+
+def fmt_num(f: float) -> str:
+    if f == int(f) and abs(f) < 1e15:
+        return str(int(f))
+    return repr(f)
+
+
+def fmt_time(t: datetime) -> str:
+    """VictoriaLogs' RFC 3339: the fraction only when there is one, trailing zeros cut."""
+    s = t.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S")
+    if t.microsecond:
+        s += "." + f"{t.microsecond:06d}".rstrip("0")
+    return s + "Z"
+
+
+def _isnum(v) -> bool:
+    try:
+        float(v)
+        return True
+    except (TypeError, ValueError):
+        return False
+
+
+class _Func:
+    def __init__(self, name: str, args: list, limit: int | None):
+        if name not in ("count", "count_uniq", "sum", "min", "max", "uniq_values", "row_max", "row_min"):
+            raise Unsupported(f"stats {name}()")
+        if name not in ("count",) and not args:
+            raise Unsupported(f"{name}() without a field")
+        self.name, self.args, self.limit = name, args, limit
+
+    def value(self, rows: list[dict]) -> str | None:
+        n, a = self.name, self.args
+        if n == "count":
+            if a:
+                return str(sum(1 for r in rows if any(r.get(f) not in (None, "") for f in a)))
+            return str(len(rows))
+        vals = [str(r.get(a[0])) for r in rows if r.get(a[0]) not in (None, "")]
+        if n == "count_uniq":
+            return str(len(set(vals)))
+        if n == "sum":
+            nums = [float(v) for v in vals if _isnum(v)]
+            return fmt_num(sum(nums)) if nums else None
+        if n == "uniq_values":
+            u = sorted(set(vals))
+            return json.dumps(u[:self.limit] if self.limit is not None else u, ensure_ascii=False,
+                              separators=(",", ":"))
+        if n in ("min", "max"):
+            if not vals:
+                return None
+            if a[0] == "_time":
+                pick = max if n == "max" else min
+                return pick(vals, key=lambda v: parse_t(v))
+            if all(_isnum(v) for v in vals):
+                pick = max if n == "max" else min
+                return pick(vals, key=float)
+            return max(vals) if n == "max" else min(vals)
+        # row_max / row_min: the listed fields of the row with the highest (lowest) first field
+        cand = [r for r in rows if r.get(a[0]) not in (None, "")]
+        if not cand:
+            return None
+        key = (lambda r: parse_t(r.get(a[0]))) if a[0] == "_time" else (lambda r: _sort_key(r, a[0]))
+        r = (max if n == "row_max" else min)(cand, key=key)
+        want = a[1:] or list(r)
+        return json.dumps({f: str(r[f]) for f in want if r.get(f) not in (None, "")}, ensure_ascii=False,
+                          separators=(",", ":"))
+
+
+@dataclass
+class Stats:
+    by: list  # [(field, bucket_s or None)]
+    funcs: list  # [(out name, _Func)]
+
+    def run(self, rows, now):
+        groups: dict[tuple, list] = {}
+        for r in rows:
+            k = []
+            for f, step in self.by:
+                if step is not None:
+                    v = r.get(f)
+                    if v in (None, ""):
+                        k.append("")
+                        continue
+                    t = parse_t(v).timestamp()
+                    k.append(fmt_time(datetime.fromtimestamp((t // step) * step, UTC)))
+                else:
+                    v = r.get(f)
+                    k.append("" if v is None else str(v))
+            groups.setdefault(tuple(k), []).append(r)
+        if not self.by and not groups:
+            groups[()] = []
+        out = []
+        for k, rs in groups.items():
+            row = {f: v for (f, _), v in zip(self.by, k, strict=True) if v != ""}
+            for name, fn in self.funcs:
+                v = fn.value(rs)
+                if v not in (None, ""):
+                    row[name] = v
+            out.append(row)
+        return out
+
+
+def _parse_stats(lx: _Lex) -> Stats:
+    by = []
+    if lx.keyword("by"):
+        lx.need("(")
+        while not lx.eat(")"):
+            f = lx.value()
+            step = None
+            if lx.s[lx.i:lx.i + 1] == ":":
+                lx.i += 1
+                step = dur_s(lx.value())
+            by.append((f, step))
+            lx.eat(",")
+    funcs = []
+    while not lx.done():
+        m = re.compile(r"[a-z_]+").match(lx.s, lx.i)
+        if not m:
+            raise Unsupported("stats function")
+        name = m.group(0)
+        lx.i = m.end()
+        args = _names(lx)
+        limit = _int(lx) if lx.keyword("limit") else None
+        fn = _Func(name, args, limit)
+        if lx.keyword("as") or not lx.done() and lx.peek() != ",":
+            out = lx.value()
+        else:
+            out = f"{name}({', '.join(args)})"
+        funcs.append((out, fn))
+        if not lx.eat(","):
+            break
+    if not lx.done() or not funcs:
+        raise Unsupported("stats")
+    return Stats(by, funcs)
+
+
+def parse_pipe(s: str):
+    lx = _Lex(s)
+    if lx.keyword("fields"):
+        names = []
+        while not lx.done():
+            names.append(lx.value())
+            lx.eat(",")
+        return Fields(names)
+    if lx.keyword("sort"):
+        lx.need("by")
+        lx.need("(")
+        keys = []
+        while not lx.eat(")"):
+            f = lx.value()
+            desc = lx.keyword("desc")
+            if not desc:
+                lx.keyword("asc")
+            keys.append((f, desc))
+            lx.eat(",")
+        desc_all = lx.keyword("desc")
+        if desc_all:
+            keys = [(f, not d) for f, d in keys]
+        limit = _int(lx) if lx.keyword("limit") else None
+        if not lx.done():
+            raise Unsupported("sort")
+        return Sort(keys, limit)
+    if lx.keyword("limit") or lx.keyword("head"):
+        n = _int(lx)
+        if not lx.done():
+            raise Unsupported("limit")
+        return Limit(n)
+    if lx.keyword("uniq"):
+        lx.need("by")
+        names = _names(lx)
+        limit = _int(lx) if lx.keyword("limit") else None
+        if not lx.done():
+            raise Unsupported("uniq")
+        return Uniq(names, limit)
+    if lx.keyword("stats"):
+        return _parse_stats(lx)
+    raise Unsupported(f"pipe {s[:20]!r}")
+
+
+@dataclass
+class Query:
+    where: object
+    pipes: list
+
+    def run(self, rows, now: datetime | None = None) -> list[dict]:
+        now = now or datetime.now(UTC)
+        out = [r for r in rows if self.where.match(r, now)]
+        for p in self.pipes:
+            out = p.run(out, now)
+        if not any(isinstance(p, (Fields, Uniq, Stats)) for p in self.pipes):
+            out = [dict(r) for r in out]  # the caller may change its rows: never the cache's
+        return out
+
+
+def parse(q: str) -> Query:
+    parts = split_pipes(q)
+    return Query(parse_filter(parts[0]) if parts[0] else And([]), [parse_pipe(p) for p in parts[1:]])

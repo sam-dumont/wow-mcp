@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# The demo lab by hand: the same stack record.sh records on.
+#
+#   VL_BIN=... demo/lab up       # start it (stays in the foreground; Ctrl+C stops it)
+#   demo/lab friend dark|light   # a friend picks a name, installs in a throwaway HOME, plays six evenings
+#   demo/lab publish             # build the sites: http://<name>-wow.localhost:19477/, and the help page
+#                                # at http://help.localhost:19477/help/#<key in $LAB_STATE/help.key>
+#   demo/lab down                # stop a lab left running
+#
+# The friends' full views: http://localhost:19472 (dark) and :19473 (light).
+# State in $LAB_STATE (default: a folder under $TMPDIR), deleted by `down`.
+set -euo pipefail
+here=$(cd "$(dirname "$0")" && pwd)
+state=${LAB_STATE:-${TMPDIR:-/tmp}/wow-demo-lab}
+cmd=${1:-}
+
+case "$cmd" in
+  up)
+    rm -rf "$state"; mkdir -p "$state"
+    SITES=1 source "$here/stack/up.sh"
+    trap 'kill "${pids[@]}" 2>/dev/null || true' EXIT
+    echo "lab up: http://localhost:$PROXY_DARK (dark friend), http://localhost:$PROXY_LIGHT (light friend); state $state"
+    wait
+    ;;
+  friend)
+    mode=${2:?dark or light}
+    source "$here/stack/friend.sh"
+    friend "$mode" all
+    ;;
+  publish)
+    source "$here/stack/env.sh"
+    publish_sites && tail -5 "$state/publish.log"
+    ;;
+  down)
+    if [[ -f "$state/pids" ]]; then xargs kill <"$state/pids" 2>/dev/null || true; fi
+    rm -rf "$state"
+    ;;
+  *)
+    sed -n '2,10p' "$0"; exit 2 ;;
+esac

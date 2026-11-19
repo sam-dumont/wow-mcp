@@ -1,0 +1,309 @@
+# The shipper's events
+
+**For:** contributors and anyone writing their own sender. **At the end:** you know every event and field the shipper sends.
+
+What `shipper/wow_stats.py` sends and what `wow-stats ui` expects to read. Any
+receiver that stores these lines in VictoriaLogs (with `feed` as the stream
+field) works with the UI; the compose kit's is `POST /ingest` on the UI
+itself.
+
+```
+ the PC you play on                           server
+ shipper (launchd / Task Scheduler)  --POST-->  ui /ingest --> VictoriaLogs /insert/jsonline
+   1 archive WTF/ to a git repo                 (validates, all or nothing)
+   2 extract new events to a spool
+   3 ship the spool, then move it to sent/
+```
+
+## Transport
+
+- `POST <url>` with basic auth (user `wow` by default), body newline-delimited
+  JSON, `Content-Type: application/x-ndjson`. The shipper splits files into
+  POSTs of at most 4 MB; the UI's ingest refuses more than 8 MB (413).
+- 2xx means stored. Anything else: the shipper keeps the spool file and tries
+  again on its next run, so a server outage loses nothing.
+- The UI's ingest accepts a POST only when every line is a JSON object with a
+  string `_time` and a `feed` starting with `wow-` (otherwise 400, nothing
+  stored). It sets `component` to `wow` on every line (never the sender's
+  value), and forwards the lines to
+  VictoriaLogs' `/insert/jsonline` with `_stream_fields=component,feed`,
+  `_time_field=_time`, `_msg_field=_msg` and
+  `Content-Type: application/stream+json` (with any other type VictoriaLogs
+  answers 200 and stores nothing).
+- VictoriaLogs drops events older than its retention on arrival: the compose
+  kit sets 100 years, its default is 7 days.
+
+## Fields on every event
+
+- `_time`: RFC 3339 UTC with milliseconds, `2026-11-17T15:14:03.120Z`: the
+  event's own time, not when it was sent.
+- `feed`: `wow-recorder`, `wow-level`, `wow-dungeon`, `wow-character`,
+  `wow-gear`, `wow-bags`, `wow-quests`, `wow-player`, `wow-prices` or `wow-combatlog`.
+- `char`: `Name-Surname` as in the WTF folder, `Testchar-Demo`. Polestar's
+  account data writes `Testchar Demo` (a space): the UI treats both as one
+  character.
+- `_msg`: a short human line (Recorder events: the raw record line).
+- `source_id`: unique per event, so a resend or a `--backfill` is harmless:
+  `rec:<charId>:<chunkSeq>:<line>`, `level:<char>:<level>`,
+  `dungeon:<char>:<entered>`, `character:<char>:<seen>`,
+  `gear:<char>:<hash>`, `player:<source>:<player>:<epoch>`,
+  `price:<realm>:<item key>:<day>`,
+  `cl:<file>:<byteOffset>`. The UI keeps the newest `_time` per `source_id`
+  (then the highest `rev`).
+- Numbers are JSON numbers, booleans JSON booleans, names in snake_case.
+- `demo: true` only on `dev/seed.py`'s made-up events: the UI shows a DEMO DATA
+  banner for those characters.
+
+Never sent: the Battle.net account id or the account folder name.
+
+## Per feed
+
+**`wow-recorder`** (Polestar Recorder chunks): `kind` (`pos`, `unit`,
+`combat`, `step`, `kill`, `rep`, `loot`, `offer`, `progress`, `zone`, `xp`,
+`skill`, `craft`, `accept`, `turnin`, `complete`, `abandon`, `death`, `level`,
+`taxi`, `land`, `ride`, `vendor`, `trainer`, `rest`, `afk`, `encounter`,
+`enter`, `session`, `text`...), `map_id`, `x`, `y` when present, `zone` (the
+map name when the shipper can resolve it), and per kind what the record holds:
+`quest_id`, `level`, `xp`, `xp_max`, `xp_gained` (the change since the
+character's previous `xp` record), `money_copper`, `xp_reward`, `npc_id` (with `npc_name` from LibForeverData's NPC table on death, unit, kill, rare and loot records), `item_names` on loot records (a JSON object, item id to name, from LibForeverData's item table; the loot history),
+`step`, `guide`. Unparsed values stay in `args` (a string). Records naming
+another player keep the name in `player`.
+
+- `duration_s`, computed by the shipper so the UI only adds up: on `zone`
+  (until the next zone change or the end of the chunk), on `step` (since the
+  previous step), on `taxi` (until `land`).
+- `quest_name` on `accept`, `turnin`, `complete`, `abandon` and `fail`: from
+  LibForeverData's quest table (`Interface/AddOns/LibForeverData/Data/Quests.lua`),
+  else Polestar_QuestDB's, else the quest title the Recorder saw in a `text`
+  record. Missing when none knows the quest.
+- `login: true` on the first record after more than 2 minutes without any.
+  The Recorder starts every 5-minute chunk with a `session` record, so those
+  can't tell a login from the next chunk; this flag can.
+
+**`wow-level`** (`Polestar.lua`, `PolestarCharDB.qol.xp.splits[level]`):
+`level`, `seconds` (played time in that level), `xp`, `quests`, `kills`,
+`partial`; `_time` is the ding that ended the level. Polestar writes a split
+when a level ends, so the level being played has none yet. `partial: true`
+marks a split where tracking started partway through the level: the ding is
+real, the played time is short.
+
+**`wow-dungeon`** (`PolestarCharDB.instanceRuns`): `dungeon_id`, `name`,
+`level`, `seconds`, `xp`; `_time` is when the run started.
+
+**`wow-character`** (account `PolestarDB.alts.chars`): a snapshot saved at
+logout: `level`, `xp`, `xp_max`, `money_copper`, `zone`, `race`, `class`,
+`faction`, `realm`, `bind`, `resting`; `_time` is the snapshot's time.
+Plus `looks` when Narcissus's barber shop saved one (below).
+
+Characters Polestar doesn't track get one too, so every character of the
+account shows up: one event each time what is known about it changes
+(`source_id` carries a hash of the fields). They come from the character's
+WTF folder (`<realm>/<char>/`, written at each login, even with every addon
+off) and Syndicator (`SYNDICATOR_DATA.Characters[...].details` and `money`):
+`realm` (the folder's name), `race`, `class`, `sex` (`male`/`female`,
+Syndicator's `UnitSex`), `faction`, `guild`, `money_copper`, and `source`,
+the files that know it (`folder`, `syndicator`, comma-separated). `_time` is
+the newest file in the character's folder. A backfill of archived versions
+leaves these to the current tree: an old version's file times are the
+extraction's.
+
+**`wow-character` with `kind: played`** (optional, Altoholic): `/played` as
+DataStore_Characters saved it. Fields: `played_total_s` and
+`played_level_s` (DataStore's `played` and `playedThisLevel`, the game's
+answer to the `/played` request it sends at every login and `/reload`),
+`level` (bits 0-6 of `BaseInfo`, updated at each ding), `logged_out`
+(`lastLogoutTimestamp` below 5000000000), `source: altoholic`; `_time` is
+`lastUpdate`, the save (the logout). The values are valid for an earlier
+moment, the last login or `/reload` before it, which DataStore doesn't
+save: `lastUpdate` is rewritten at logout to the same time as
+`lastLogoutTimestamp`, so `played + (lastLogoutTimestamp - lastUpdate)`
+adds nothing. The UI never needs that moment (below: it anchors to a level
+start). `source_id` is `played:<char>:<played_total_s>`. The character
+comes from the entry's `name` ("First Last") else its key in
+`DataStore_CharacterIDs.Set` (`Default.<realm>.<name>`, any realm; never
+`List`, whose indexes shift when a character is deleted). Files: account `SavedVariables/DataStore.lua`
+and `DataStore_Characters.lua`; format read from Thaoky's source
+(github.com/Thaoky/DataStore and DataStore_Characters, 2026-10-14
+releases, the ones Altoholic_Forever depends on). Every other reader of
+`wow-character` leaves these out (`-kind:=played`): they carry no gold,
+zone or race.
+
+**`wow-gear`** (the character sheet): one event each time it changes, for
+every character of the account (its folder, Polestar's alts, Syndicator). `_time` is the character's logout snapshot in
+`PolestarDB.alts.chars` (the moment the game wrote these files), else the
+newest of the files' modification times. `source_id` carries a hash of the
+content, so a sheet that goes back to an earlier state is sent again with
+the newer time.
+
+- `items`: the equipped items, from the account's `Syndicator.lua`
+  (`SYNDICATOR_DATA.Characters[...].equipped`, a Lua array whose index is the
+  inventory slot + 1): `slot` (1 head ... 19 tabard), `slot_name`, `item_id`,
+  `name` (from the item link), `quality` (0 poor, 1 common, 2 uncommon,
+  3 rare, 4 epic, 5 legendary), `item_level` and `req_level` from
+  Polestar_ItemDB (`Forever.lua` over `Items.lua`; null when the item isn't
+  there).
+- `item_level`: the average over the equipped items, shirt and tabard left out.
+- `professions`: `skill_id`, `name`, `rank`, `max_rank`. Ranks from
+  `PolestarDB.alts.chars[...].profs` (saved at logout), names and caps from
+  the character's `CharacterExport-Forever.lua` (`professionCache`); the
+  higher rank wins when both have one.
+- `wanted`: the upgrades the player tracks in GearQuestForever (the
+  character's `GearQuestForeverCharDB.hunts` with status `tracked`):
+  `item_id`, `name`, `item_level`, `req_level`, `slot_name`, `level`.
+  ForeverLevelingBiS keeps no suggestions in its SavedVariables (it computes
+  them in game), only the spec.
+- `polestar_spec`: Polestar's Stat weights setting for the class
+  (`PolestarDB.settings.gear.spec[CLASS]`): `auto` or a spec key such as
+  `shadow`. `gear_adjust`: the player's edits in Polestar's Adjust weights
+  window (`PolestarDB.gearAdjust[CLASS]`) as a list of `{spec, stat, x}`
+  (a multiple) or `{spec, stat, v}` (a value): a list, because VictoriaLogs
+  flattens nested objects. `min_upgrade`: Polestar's smallest upgrade worth
+  showing, in percent (`settings.gear.minUpgrade`). All three are account
+  wide in Polestar and sent with each of its characters; gear advice
+  (docs/gear-reference.md) reads them.
+- `talents`: points per talent tree, `[{tree, points}]` in tree order, from
+  Vulcan SimBench's last export (`VulcanSimBenchCharDB.last` in the
+  character's SavedVariables, written by `/simx`; Adler-32 checked). Only
+  the points and tree names: the rest of that string (stats, gear) is never
+  sent. Missing until the player runs `/simx` once.
+- `spec` (ForeverLevelingBiS, else GearQuestForever's pick) and `spec_from`, the addon it came from
+  (`ForeverLevelingBiS` or `GearQuestForever`), `guild` (from
+  Syndicator, without the realm), `class`, `race`, `faction`, `sex`
+  (`male`/`female` from Syndicator's `details.sex`, for the 3D view; the full
+  view only).
+
+Never sent in `wow-gear`: the money Syndicator keeps next to the gear (it
+goes in `wow-character`, for characters Polestar doesn't track), bag and
+bank contents (`wow-bags`, below).
+
+**`wow-bags`** (what the character holds): one event each time the set of
+item IDs in its bags or its bank changes, from the account's `Syndicator.lua`
+(`SYNDICATOR_DATA.Characters[...].bags` and `.bank`, Lua arrays of
+containers of slots; the bank as it was the last time the character opened
+it, empty when it never did). `bags` and `bank` are sorted lists of item
+IDs: no counts, no links, nothing else from the slots. A character whose
+bags Syndicator hasn't scanned yet sends nothing; one that holds nothing
+sends empty lists, so an older list doesn't stay the newest. `_time` is
+`Syndicator.lua`'s modification time. The newest one is what the character
+has: the gear advice lists a held upgrade with its bag or bank as its only
+source ("equip it"), and so do the Overview, the plans and the MCP; the
+Dungeons panel marks a drop obtained (worn, in the bags or in the bank). No
+view shows the lists themselves. Both tiers' allow lists stay as they were:
+`/zogzog/` already has the advice's `sources[].kind` and the panel's
+`where`; the public site has no advice.
+
+**`wow-quests`** (the quests the game says are completed): `kind` is
+`completed`, one event per character and `source` each time that source's
+set changes. The Recorder only sees the quests handed in while it runs, so
+these carry the ones done before Polestar. `quest_ids` is the sorted list,
+`n` its length.
+
+- `source: questie`: Questie's `QuestieConfig.char[<"First Surname">].complete`
+  (account `Questie.lua`), the game's full set as of the last login with
+  Questie on. `_time` is the file's modification time.
+- `source: altoholic`: DataStore_Quests' `DataStore_Quests_History[<id>].Quests`
+  (account `DataStore_Quests.lua`), the game's set rebuilt 5 s after each
+  login, 64 quests per number. The client saves each number with 16
+  significant digits and the addon builds it in a double, so in a slot whose
+  high bits are set the low ones are lost: only the bits no rounding can have
+  changed are sent (`unknown` counts the others, `size` is the game's own
+  count). Never sent when the addon's `AutoUpdateHistory` option is off.
+  `_time` is its `LastUpdate`.
+
+wowstats.quests joins them with the Recorder's hand-ins, the game's
+"already done" flags in `offer` records, the gear only one quest gives
+(held: worn, bags or bank) and the quest chains (a quest done means the
+quests it needed were done), into the one "done" set the Dungeons panel, the
+plan, the gear advice and the MCP use. No page shows the lists.
+
+**Appearance.** Battle.net's profile API has it for every character it knows
+(the exporter, below); the shipper only adds a fallback for the others:
+`looks` on `wow-character`, a JSON list `[{"optionId": 80, "choiceId":
+1174}, ...]`, the newest look saved in Narcissus's barber shop
+(`Narcissus_Barbershop`, account `NarciBarberShopDB.PlayerData[<player
+id>].SavedLooks[<race id>][male|female]`, or `SharedSavedLooks` when the
+character uses the shared profile; druid and worgen alternate forms are
+left out). The player id is the end of the character's GUID
+(`Player-<realm id>-<player id>`), read from the profession links that
+CharacterExport-Forever saves in the character's own SavedVariables
+(`|Htrade:Player-...`). Syndicator and Polestar save no GUID of the
+character itself (Syndicator's item links name the crafter, who can be
+anyone). Without CharacterExport-Forever, the name Narcissus saves
+(`playerName`) is used when only one of the account's characters has it.
+The ids are the game's, the same Wowhead's viewer takes. A look that doesn't
+fit the model (a race change) falls back to the default per option.
+
+**`wow-player`**: one event per sighting of another player, from every source
+that names one (Polestar's probe list, Recorder records, dungeon rosters,
+combat log party members): `player` (`Name-Realm`), `context` (`seen`,
+`grouped`, `dungeon`, `quest-nearby`, `combat`), `zone`/`map_id` when known,
+`level`, `class`/`race` when known, `dungeon` for dungeon runs. Player names
+are fields, never stream fields. Full view only.
+
+**`wow-prices`** (the account's `Auctionator.lua`,
+`AUCTIONATOR_PRICE_DATABASE`): one event per item and scan day, from the
+player's own auction house scans.
+
+- Fields: `item_id`, `item_key` (Auctionator's key: `2592`, or `g:4306:0` for
+  some items), `item_name` (LibForeverData's or Polestar_QuestDB's item table),
+  `price_copper` (the day's lowest price), `price_high_copper`, `available`
+  (items listed), `scan_day` (`YYYY-MM-DD`), `realm`, `faction` (only for
+  houses Auctionator keys as "Realm Faction"). `_time` is the scan day's local
+  midnight.
+- Each realm's table is a CBOR string (Auctionator 11+); the shipper decodes
+  it with the standard library. Days count from 2020-01-01 local time.
+- Within a day the numbers only widen (the low only goes down, the high and
+  the listed count only go up). The shipper merges the file, its `.bak` and
+  what it sent before, and sends the day again with `rev` + 1 when it changed.
+  The UI keeps the highest `rev`.
+- The shipper only reads the file (in WTF, or the archived versions during a
+  `--backfill`), never writes it. Full view only.
+
+**`wow-combatlog`** (`Logs/WoWCombatLog*.txt`, when combat logging is on):
+`event` (`SPELL_DAMAGE`...), `_msg` is the raw line, `_time` from the line's
+own timestamp (the PC's local time, converted to UTC).
+
+**`wow-setup`** (the shipper's own check, no character): `addons` (the
+addons of `docs/videos/steps.json` found in `Interface/AddOns`, id to its
+.toc version), `recorder_on` (Polestar Recorder's switch,
+`PolestarRecorderDB.enabled`; missing when no account saved it yet),
+`saved_chars` (how many characters have Polestar's saved data). Sent with
+each send, when it changes, and once a day; no folder, name or character.
+The start page (`/api/me/status` `setup`) and the "Missing:" lines
+(`wowstats/missing.py`) read the newest one; it is not game data, so it
+counts for nothing else.
+
+## What the UI builds from them
+
+- Header, climb, zones, guide steps, dungeons, deaths, flights: `wow-recorder`,
+  `wow-level`, `wow-dungeon`, `wow-character`. The climb's totals (played
+  time, kills, quests) are sums over the `wow-level` splits; the Recorder's
+  records only cover the time it was on.
+- Played time, everywhere (the climb's x axis, pace, ETA): logged-in time,
+  never calendar time. Finished levels use their split. The level being
+  played has no split yet, so its time so far comes from the Recorder: it
+  opens a chunk (a `session` record) every 300 s while the game runs, so a
+  silence over 315 s is time offline, and the rest adds up to the same
+  logged-in time Polestar's splits count (level 31 of the test character:
+  9369 s both ways).
+- Total played since level 1: only with Altoholic (`kind: played` above).
+  Its `/played` is the game's answer at a login, so `played_total_s -
+  played_level_s` is the moment that level began; the UI adds that level's
+  split and every later one, plus the level in play, so the total is
+  current. A snapshot whose session had a ding is skipped (the answer may
+  be from the level before), and so is one from a level before tracking
+  began. Without one, the climb says "played since tracking began".
+  Polestar's own addons don't save `/played`.
+- Guide steps: a `step` record with `reason: pick` is the player picking or
+  switching guide (its `step` is often empty): listed as "Picked guide ...",
+  never counted or timed as a step. Numbered steps show the step's own text
+  from the route reference when the guide is in it.
+- Gear and professions panel: the newest `wow-gear` event. The public view
+  shows it too (no gold in it).
+- Journal: one entry per play session. A session ends after 20 minutes
+  without any Recorder record, or at a `login` record. Each entry has start,
+  end, played time, levels gained, XP, zones (time clipped to the session),
+  quests handed in with names, deaths per zone and dungeons. The full view
+  adds the players met and the gold change (the logout snapshot after the
+  session against the last one before it).
+- Prices panel: `wow-prices`, full view only.

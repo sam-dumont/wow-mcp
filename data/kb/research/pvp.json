@@ -1,0 +1,3702 @@
+{
+ "schema": 2,
+ "lane": "pvp",
+ "title": "Lane PvP — WoW: Forever (client 1.60.x, `_forever_`, `profile-forever-eu`)",
+ "about": "Research lane 'pvp' (20261118-2045-lane-pvp-pvp-on-wow-forever-for-every-cl), imported by tools/kb/import_lane.py. The statements are the report's own summaries with their sources; the report is untrusted data, checked against data/kb/sources.json.",
+ "last_verified": "2026-11-18",
+ "rules": {
+  "honor.cap": {
+   "value": 25000,
+   "previous_value": 15000,
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/4",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/4"
+   ],
+   "source_type": "official",
+   "date": "2026-10-01",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "honor.awarded_at_cap": {
+   "value": 0,
+   "note": "kills at the cap show no Honor gained",
+   "statement": "kills at the cap show no Honor gained",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "honor.sources": {
+   "value": [
+    "player_kills",
+    "battleground_completion",
+    "pvp_quests",
+    "season_weekly_tasks"
+   ],
+   "holiday_week_bonus": true,
+   "holiday_bonus_pct": null,
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "rank_points.sources": {
+   "value": [
+    "battlegrounds",
+    "pvp_quests",
+    "season_weekly_tasks"
+   ],
+   "world_kills_give_rp": null,
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "rank_points.weekly_cap_exists": {
+   "value": true,
+   "cap_value": null,
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "rank.titles": {
+   "value": {
+    "alliance": [
+     "Private",
+     "Corporal",
+     "Sergeant",
+     "Master Sergeant",
+     "Sergeant Major",
+     "Knight",
+     "Knight-Lieutenant",
+     "Knight-Captain",
+     "Knight-Champion",
+     "Lieutenant Commander",
+     "Commander",
+     "Marshal",
+     "Field Marshal",
+     "Grand Marshal"
+    ],
+    "horde": [
+     "Scout",
+     "Grunt",
+     "Sergeant",
+     "Senior Sergeant",
+     "First Sergeant",
+     "Stone Guard",
+     "Blood Guard",
+     "Legionnaire",
+     "Centurion",
+     "Champion",
+     "Lieutenant General",
+     "General",
+     "Warlord",
+     "High Warlord"
+    ]
+   },
+   "note": "Forever article confirms the original ranks topping at Grand Marshal / High Warlord; full list from Blizzard Classic page",
+   "statement": "Forever article confirms the original ranks topping at Grand Marshal / High Warlord; full list from Blizzard Classic page",
+   "source_url": "https://news.blizzard.com/en-us/article/23221132/pvp",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/23221132/pvp"
+   ],
+   "source_type": "official",
+   "date": "2019",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "rank.cumulative_rp_thresholds": {
+   "value": {
+    "1": 750,
+    "2": 1650,
+    "3": 2700,
+    "4": 3900,
+    "5": 5250,
+    "6": 6750,
+    "7": 8400,
+    "8": 10200,
+    "9": 12150,
+    "10": 14250,
+    "11": 16600,
+    "12": 19100,
+    "13": 21750,
+    "14": 24750
+   },
+   "contradiction": "ReputationMax 20000 reported by https://wowforevertalents.com/pvp/",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-ranks/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-ranks/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-09",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "rank.earliest_week_capped": {
+   "value": {
+    "3": 1,
+    "5": 2,
+    "6": 3,
+    "7": 4,
+    "8": 5,
+    "9": 6,
+    "11": 7,
+    "12": 8,
+    "13": 9,
+    "14": 10
+   },
+   "source_url": "https://kami-labs.fr/en/wow-forever/wow-forever-datamine-pvp-rang-grand-marechal/",
+   "sources": [
+    "https://kami-labs.fr/en/wow-forever/wow-forever-datamine-pvp-rang-grand-marechal/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-09-24",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "rank.rewards": {
+   "value": {
+    "1": "Tabard",
+    "2": "PvP Trinket",
+    "3": "Cloaks",
+    "4": "Necklace",
+    "5": "Combat Potions",
+    "6": "Tabard",
+    "7": "Battle Standard",
+    "8": "Epic Bracers / Epic Belt upgrade token",
+    "9": "Epic Boots upgrade token",
+    "10": "Epic Gloves upgrade token",
+    "11": "Mounts",
+    "12": "Epic Legs / Epic Shoulders upgrade token",
+    "13": "Epic Chest / Epic Helm upgrade token",
+    "14": "Epic Weapons"
+   },
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "gear.epic_upgrade_rule": {
+   "value": "epic_piece = blue_piece + Emboldened Seal (seal rank-gated per rank.rewards)",
+   "blue_set_rank_gate": null,
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "gear.honor_cost_change_pct": {
+   "value": 50,
+   "note": "most PvP gear/tokens ~+50% vs Sept beta prices",
+   "statement": "most PvP gear/tokens ~+50% vs Sept beta prices",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/4",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/4"
+   ],
+   "source_type": "official",
+   "date": "2026-10-01",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "vendors.pvp_unavailable_known_issue": {
+   "value": true,
+   "locations": [
+    "Orgrimmar",
+    "Stormwind",
+    "Dalaran"
+   ],
+   "resolved": null,
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2402363",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2402363"
+   ],
+   "source_type": "official",
+   "date": "2026-11-05",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "marks.stack_max": {
+   "value": 30,
+   "previous_value": 20,
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/6",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/6"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "marks.award": {
+   "value": {
+    "win": 3,
+    "loss": 1
+   },
+   "source_url": "https://wowforevertierlist.com/pvp/battlegrounds",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/battlegrounds"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-31",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "bg.queue_pool": {
+   "value": "cross-ruleset except Hardcore; same faction team; no cross-ruleset groups",
+   "source_url": "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever"
+   ],
+   "source_type": "official",
+   "date": "2026-10-22",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "ruleset.pvp_one_faction_per_account": {
+   "value": true,
+   "applies_to_rp_pvp": null,
+   "source_url": "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever"
+   ],
+   "source_type": "official",
+   "date": "2026-10-22",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "rulesets": {
+   "value": [
+    "Normal",
+    "PvP",
+    "Roleplay",
+    "Roleplay-PvP",
+    "Hardcore (post-launch)"
+   ],
+   "source_url": "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever"
+   ],
+   "source_type": "official",
+   "date": "2026-10-22",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "world.dalaran_hostile_to_horde": {
+   "value": true,
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/6",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/6"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "class.faction_race_availability": {
+   "value": {
+    "Paladin": [
+     "Human",
+     "Dwarf",
+     "Undead"
+    ],
+    "Shaman": [
+     "Orc",
+     "Tauren",
+     "Troll",
+     "Windshaper Skyborne",
+     "Dwarf"
+    ]
+   },
+   "source_url": "https://news.blizzard.com/en-us/article/24304075",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24304075"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "combat.pvp_crit_reduction": {
+   "value": false,
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/5",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/5"
+   ],
+   "source_type": "official",
+   "date": "2026-10-08",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "combat.proc_roots_have_dr": {
+   "value": [
+    "Frostbite",
+    "Entrapment",
+    "Improved Wing Clip",
+    "Counterattack",
+    "Improved Hamstring"
+   ],
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "combat.combat_potion_shared_cooldown": {
+   "value": true,
+   "unlock_rank": 5,
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/6",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/6"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "legacy.pvp_challenges": {
+   "total_points": 12,
+   "value": [
+    {
+     "challenge": "reach_pvp_rank",
+     "ranks": [
+      3,
+      7,
+      10,
+      13,
+      14
+     ],
+     "points_each": 1
+    },
+    {
+     "challenge": "exalted_bg_reputation",
+     "battlegrounds": [
+      "Warsong Gulch",
+      "Arathi Basin",
+      "Alterac Valley",
+      "Darkspear Islands"
+     ],
+     "points_each": 1
+    },
+    {
+     "challenge": "field_of_honor_journey_quest",
+     "weeks": [
+      4,
+      7,
+      10
+     ],
+     "points_each": 1
+    }
+   ],
+   "hardcore_eligible": false,
+   "account_wide": true,
+   "per_character_spend_cap": 16,
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24307383/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026-09-23",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "legacy.perk_for_great_honor": {
+   "value": "increases Honor gained from PvP",
+   "per_rank_pct": 2,
+   "ranks": 5,
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24307383/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026-09-23",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "classic_fallback.rank_rp_thresholds": {
+   "value": {
+    "1": "15 HK",
+    "2": 2000,
+    "3": 5000,
+    "4": 10000,
+    "5": 15000,
+    "6": 20000,
+    "7": 25000,
+    "8": 30000,
+    "9": 35000,
+    "10": 40000,
+    "11": 45000,
+    "12": 50000,
+    "13": 55000,
+    "14": 60000
+   },
+   "source_url": "https://news.blizzard.com/en-us/article/23221132/pvp",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/23221132/pvp"
+   ],
+   "source_type": "official",
+   "date": "2019",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "classic_fallback.hk_diminishing_returns": {
+   "value": [
+    1.0,
+    0.75,
+    0.5,
+    0.25,
+    0.0
+   ],
+   "source_url": "https://news.blizzard.com/en-us/article/23221132/pvp",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/23221132/pvp"
+   ],
+   "source_type": "official",
+   "date": "2019",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "classic_fallback.weekly_honor_cap_1_14_4": {
+   "value": 500000,
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/wow-classic-era-version-1144-patch-notes/1656146",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/wow-classic-era-version-1144-patch-notes/1656146"
+   ],
+   "source_type": "official",
+   "date": "2023-08-22",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "classic_fallback.honor_decay_disabled_from": {
+   "value": "2023-12-05",
+   "source_url": "https://devtrackers.gg/warcraft/p/d331a9aa-classic-era-pvp-update-december-5",
+   "sources": [
+    "https://devtrackers.gg/warcraft/p/d331a9aa-classic-era-pvp-update-december-5"
+   ],
+   "source_type": "community",
+   "date": "2023-12-05",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  },
+  "classic_fallback.hardcore_pvp": {
+   "value": {
+    "battlegrounds": false,
+    "honor_system": false,
+    "flag_via": "/pvp",
+    "wargames_honor": false
+   },
+   "source_url": "https://worldofwarcraft.blizzard.com/news/23973734/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/23973734/"
+   ],
+   "source_type": "official",
+   "date": "2023-06-28",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18",
+   "lane": "pvp"
+  }
+ },
+ "statements": [
+  {
+   "id": "pvp:KB-PVP-01:1",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "Forever has no realm list. Players pick a ruleset: Normal, PvP, Roleplay or Roleplay-PvP, with Hardcore coming after launch.",
+   "source_url": "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever"
+   ],
+   "source_type": "official",
+   "date": "2026-10-22",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-01:2",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "On Normal, open-world PvP is opt-in. On PvP and RP-PvP you can be attacked by the other faction across most of the world.",
+   "source_url": "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+    "https://news.blizzard.com/en-us/article/24315820/world-of-warcraft-forever-goes-live-globally-november-4"
+   ],
+   "source_type": "official",
+   "date": "2026-10-22 / ~2026-11-04",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-01:3",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "An account can only have one faction on the PvP ruleset. Normal, RP and Hardcore allow both. The text does not say whether RP-PvP is also limited to one faction.",
+   "source_url": "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+    "https://worldofwarcraft.blizzard.com/en-us/news/24315821/wow-forever-whats-new-and-what-feels-familiar"
+   ],
+   "source_type": "official",
+   "date": "2026-10-22 / 2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-01:4",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "Groups cannot span rulesets or factions. Battlegrounds mix players from every ruleset except Hardcore, which queues separately.",
+   "source_url": "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever"
+   ],
+   "source_type": "official",
+   "date": "2026-10-22",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-01:5",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "RP-PvP was added for launch after player feedback, reversing an earlier \"no current plans\".",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2389502/1",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2389502/1",
+    "https://www.wowhead.com/forever/news/blizzard-confirms-no-current-plans-for-rp-pvp-ruleset-in-wow-forever-383431"
+   ],
+   "source_type": "official",
+   "date": "2026-10-22 / Oct 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-01:6",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "Characters are not tied to a realm. Names have two parts and are unique per region.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315820/world-of-warcraft-forever-goes-live-globally-november-4",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315820/world-of-warcraft-forever-goes-live-globally-november-4"
+   ],
+   "source_type": "official",
+   "date": "~2026-11-04",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-01:7",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "Blizzard aims for about 50/50 faction balance on PvP rulesets; the worst region is about 55/45. Character creation is restricted based on long-term balance. As of 2026-11-10, Horde creation is restricted on NA PvP and Alliance creation on EU RP-PvP, and this may flip later.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2408781",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2408781"
+   ],
+   "source_type": "official",
+   "date": "2026-11-10",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-01:8",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "A dead Hardcore character can move to another ruleset, including PvP. Collections and Legacy points are shared across rulesets except Hardcore.",
+   "source_url": "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24302070/updated-10-22-choose-your-ruleset-in-world-of-warcraft-forever",
+    "https://news.blizzard.com/en-us/article/24303313/world-of-warcraft-forever-deep-dive-panel-recap"
+   ],
+   "source_type": "official",
+   "date": "2026-10-22 / ~09-13",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-01:9",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "No official written statement on rated PvP or arenas has been found. A fan recap of the 2026-09-17 Q&A says there is none. The client contains unreleased \"Mak'gora Arena\", \"Battle for Gilneas\" and \"Battle for Blackrock\" rows that cannot be queued.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2350326",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2350326",
+    "https://wowforevertierlist.com/pvp/battlegrounds",
+    "https://metabot.gg/en/wow-forever/battlegrounds"
+   ],
+   "source_type": "official",
+   "date": "2026-09-15 / Oct–Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-01:10",
+   "doc": "KB-PVP-01",
+   "title": "PvP overview, rulesets and faction rules",
+   "text": "\"PvP updates\" are on the roadmap with no details. A community report places them after the 2026-12-09 raid.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303862/world-of-warcraft-forever-whats-next-panel-recap",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303862/world-of-warcraft-forever-whats-next-panel-recap"
+   ],
+   "source_type": "official",
+   "date": "~2026-09-12 / 2026-11-09",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:1",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "Live battlegrounds are Warsong Gulch, Arathi Basin, Alterac Valley and the new Darkspear Islands. WSG, AB and AV are confirmed live by hotfixes that fix bugs on those maps.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07 / 2026-11-09…17",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:2",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "Blizzard has published a level range only for Darkspear Islands (30–60). No official brackets exist for WSG, AB or AV.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24307308"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:3",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "Community model, relayed from Icy Veins and client data: 10-level brackets (x0–x9) with level 60 as its own bracket. WSG starts at 10, AB at 20, DI at 30, and AV has a single bracket.",
+   "source_url": "https://wowforevertierlist.com/pvp/battlegrounds",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/battlegrounds",
+    "https://mmonster.co/wow-forever/guides/pvp/battlegrounds",
+    "https://www.icy-veins.com/wow-forever/pvp-overview"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-31 / 2026-11-18 / ~2026-09-20",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:4",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "Wowhead's Forever database lists WSG 10–60 (10v10), AB 20–60 (15v15), AV 20–60 (40v40) and DI 30–60.",
+   "source_url": "https://www.wowhead.com/forever/zones/battlegrounds",
+   "sources": [
+    "https://www.wowhead.com/forever/zones/battlegrounds"
+   ],
+   "source_type": "datamined",
+   "date": "unknown",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:5",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "Darkspear Islands is queued at a battlemaster in any capital or in the Barrens, or through the faction base: Merchant Coast for Horde, Northwatch for Alliance.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24307308"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:6",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "There are battlemasters in each capital. There is no remote queue, so you must talk to an NPC.",
+   "source_url": "https://wowforevertierlist.com/pvp/battlegrounds",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/battlegrounds"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-07 / 2026-10-31",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:7",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "Maximum premade group size when queueing: WSG 10, AB 15, DI 15, AV 5.",
+   "source_url": "https://kami-labs.fr/en/vallee-d-alterac-wow-forever/",
+   "sources": [
+    "https://kami-labs.fr/en/vallee-d-alterac-wow-forever/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-11-07",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:8",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "The matchmaking intent from the podcast is that premades face premades and solo players face similar opponents. War games, premade versus premade with no honor, may come later.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/635761",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/635761"
+   ],
+   "source_type": "official",
+   "date": "2026-10-15",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:9",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "Blizzard said it will watch long matches and may add timers. No match timer has been announced.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/635761",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/635761"
+   ],
+   "source_type": "official",
+   "date": "2026-10-15",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:10",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "The beta was capped at level 30, so AV and the level-60 brackets were never tested before launch.",
+   "source_url": "https://www.warcrafttavern.com/forever/news/pvp-progression-in-wow-forever-ranks-honor-seasons/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/pvp-progression-in-wow-forever-ranks-honor-seasons/"
+   ],
+   "source_type": "guide",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:11",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "Deserter debuff: no Forever-specific duration is known. A 2026-11-03 note shortens a \"quitter debuff\" to 40 s (was 5 min), but that debuff belongs to the Legacy toy \"Replica Ironforge Air Rifle\", not to battlegrounds.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:13",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "CLASSIC_FALLBACK: Deserter was added in 1.9.0. It blocks battleground queueing after you leave early, and the wiki does not give a duration.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Deserter_(debuff",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Deserter_(debuff"
+   ],
+   "source_type": "community",
+   "date": "unknown",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-02:14",
+   "doc": "KB-PVP-02",
+   "title": "Battlegrounds: roster, queueing, brackets, matchmaking",
+   "text": "CLASSIC_FALLBACK: Classic Era brackets are WSG 10–19…60, AB 20–29…60, and AV a single 51–60 bracket.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/23237900/wow-classic-warsong-gulch-and-alterac-valley-now-live",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/23237900/wow-classic-warsong-gulch-and-alterac-valley-now-live",
+    "https://www.warcrafttavern.com/guides/wow-classic-pvp-overview/"
+   ],
+   "source_type": "official",
+   "date": "2019-12-10",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-03:1",
+   "doc": "KB-PVP-03",
+   "title": "Warsong Gulch",
+   "text": "Live. A hotfix removed an invisible wall on the Alliance base roof.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-11-09",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-03:2",
+   "doc": "KB-PVP-03",
+   "title": "Warsong Gulch",
+   "text": "Players can no longer mount in the starting rooms.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-11-17",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-03:3",
+   "doc": "KB-PVP-03",
+   "title": "Warsong Gulch",
+   "text": "Tauren Plainsrunning can't stack during the preparation phase, its stacks drop when the Tauren carries a flag, and it can't stack while carrying one.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-11-05",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-03:5",
+   "doc": "KB-PVP-03",
+   "title": "Warsong Gulch",
+   "text": "Levels 10–60, with brackets 10–19, 20–29, 30–39, 40–49, 50–59 and 60.",
+   "source_url": "https://wowforevertierlist.com/pvp/battlegrounds",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/battlegrounds"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-31",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-03:6",
+   "doc": "KB-PVP-03",
+   "title": "Warsong Gulch",
+   "text": "Reputations are Silverwing Sentinels (Alliance) and Warsong Outriders (Horde). The level-19 turn-in \"Battle of Warsong Gulch\" takes 3 marks.",
+   "source_url": "https://mmonster.co/wow-forever/guides/pvp/battlegrounds",
+   "sources": [
+    "https://mmonster.co/wow-forever/guides/pvp/battlegrounds"
+   ],
+   "source_type": "guide",
+   "date": "2026-11",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-03:7",
+   "doc": "KB-PVP-03",
+   "title": "Warsong Gulch",
+   "text": "Reputation quartermasters: Illyana Moonblaze (Alliance, Ashenvale 61.6, 83.8) and Kelm Hargunth (Horde, Barrens 46.7, 8.4).",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/pvp-vendors/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/pvp-vendors/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-04:1",
+   "doc": "KB-PVP-04",
+   "title": "Arathi Basin",
+   "text": "Live. Dying in the Gold Mine no longer sends players to a \"Riverglades\" graveyard.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-11-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-04:2",
+   "doc": "KB-PVP-04",
+   "title": "Arathi Basin",
+   "text": "15v15 with 5 resource nodes; the first team to 2,000 resources wins.",
+   "source_url": "https://mmonster.co/wow-forever/guides/pvp/battlegrounds",
+   "sources": [
+    "https://mmonster.co/wow-forever/guides/pvp/battlegrounds"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-07 / 11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-04:3",
+   "doc": "KB-PVP-04",
+   "title": "Arathi Basin",
+   "text": "Levels 20–60, with brackets 20–29 … 60.",
+   "source_url": "https://wowforevertierlist.com/pvp/battlegrounds",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/battlegrounds"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-04:4",
+   "doc": "KB-PVP-04",
+   "title": "Arathi Basin",
+   "text": "Reputations are League of Arathor (Alliance) and The Defilers (Horde). Quartermasters are Samuel Hawke (Alliance, 46.0, 45.6) and Rutherford Twing (Horde, 73.6, 29.8).",
+   "source_url": "https://mmonster.co/wow-forever/guides/pvp/battlegrounds",
+   "sources": [
+    "https://mmonster.co/wow-forever/guides/pvp/battlegrounds",
+    "https://www.warcrafttavern.com/forever/guides/pvp-vendors/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-05:1",
+   "doc": "KB-PVP-05",
+   "title": "Alterac Valley",
+   "text": "Live. The \"Battle for Alterac Valley\" quests now need level 58 to accept, to match high-level quests elsewhere.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-11-17",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-05:2",
+   "doc": "KB-PVP-05",
+   "title": "Alterac Valley",
+   "text": "Blizzard reviewed Honor across battlegrounds so that AV is not the only efficient choice.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-05:3",
+   "doc": "KB-PVP-05",
+   "title": "Alterac Valley",
+   "text": "Podcast: AV Honor goes down and Honor in every other battleground goes up.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/635761",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/635761",
+    "https://www.wowhead.com/forever/news/blizzard-to-lower-alterac-valley-honor-and-increase-all-other-battlegrounds-383433"
+   ],
+   "source_type": "official",
+   "date": "2026-10-15",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-05:4",
+   "doc": "KB-PVP-05",
+   "title": "Alterac Valley",
+   "text": "Creature stuns now have diminishing returns (the hotfix is not specific to AV, but it matters for NPC-heavy AV).",
+   "source_url": "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-11-13",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-05:5",
+   "doc": "KB-PVP-05",
+   "title": "Alterac Valley",
+   "text": "40v40. You win by killing the enemy general (Vanndar Stormpike or Drek'Thar), and burning towers or bunkers removes the officers guarding him.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-alterac-valley",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-alterac-valley",
+    "https://mmonster.co/wow-forever/guides/pvp/battlegrounds"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-05:6",
+   "doc": "KB-PVP-05",
+   "title": "Alterac Valley",
+   "text": "The level range is disputed: one bracket of 51–60 according to Icy Veins (relayed) and client data, or 20–60 in Wowhead's Forever database. See Contradictions C1.",
+   "source_url": "https://wowforevertierlist.com/pvp/battlegrounds/alterac-valley",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/battlegrounds/alterac-valley",
+    "https://kami-labs.fr/en/vallee-d-alterac-wow-forever/",
+    "https://www.wowhead.com/forever/zones/battlegrounds"
+   ],
+   "source_type": "commercial",
+   "date": "Oct–Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-05:7",
+   "doc": "KB-PVP-05",
+   "title": "Alterac Valley",
+   "text": "Reputations are Stormpike Guard (Alliance) and Frostwolf Clan (Horde). Quartermasters are Thanthaldis Snowgleam (Alliance) and Jekyll Flandring (Horde).",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/pvp-vendors/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/pvp-vendors/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-05:8",
+   "doc": "KB-PVP-05",
+   "title": "Alterac Valley",
+   "text": "The Exalted rewards and quest rewards are claimed to match Classic (e.g. Don Julio's Band, Ice Barbed Spear), with no citation.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-alterac-valley",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-alterac-valley"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-18",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:1",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "A new 15v15 battleground off the coast of Dustwallow Marsh, for player levels 30–60.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24307308"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:2",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "Four capture points; holding more of them scores points faster. A central flag carried to any base your team holds gives extra points. The first team to 2,000 points wins.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24307308"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:3",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "The factions are Darkspear Raiders (Horde, base at Merchant Coast) and Theramore Expeditionary Force (Alliance, base at Northwatch), each with its own reputation track.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24307308"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:4",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "Base vendors sell trinkets, rings, cloaks, weapons, armor and consumables, unlocked by reputation level. Marks of Honor are turned in on reputation quests. Exalted unlocks a short questline that rewards a faction tabard.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24307308"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:5",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "Capture-point subzones: Abandoned Tower, Camp, Ruins and Shipwreck Cove.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Darkspear_Islands_(battleground",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Darkspear_Islands_(battleground"
+   ],
+   "source_type": "community",
+   "date": "2026-10-07",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:6",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "Dropping the flag no longer puts the \"Recently Dropped Flag\" debuff on the player who dropped it.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:7",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "Darkspear Islands has its own mark (item 274895). Turning in 3 marks (\"Conflict at Darkspear Islands\" for Horde, \"Darkspear Islands Clash\" for Alliance) gives 150 reputation plus Honor.",
+   "source_url": "https://www.wowhead.com/forever/quest=98889",
+   "sources": [
+    "https://www.wowhead.com/forever/quest=98889",
+    "https://www.wowhead.com/forever/quest=98895"
+   ],
+   "source_type": "datamined",
+   "date": "unknown",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:8",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "The win quest \"The Battle for Darkspear Islands!\" (Horde, handed in to Nizook Boof) gives Honor plus 200 reputation.",
+   "source_url": "https://www.wowhead.com/forever/quest=98906/the-battle-for-darkspear-islands",
+   "sources": [
+    "https://www.wowhead.com/forever/quest=98906/the-battle-for-darkspear-islands"
+   ],
+   "source_type": "datamined",
+   "date": "unknown",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:9",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "Quartermasters: Bryanna Embreeze (Alliance, Barrens 63.5, 58.8) and Creeg Bothunk (Horde, Barrens 65.1, 34.5).",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/pvp-vendors/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/pvp-vendors/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:10",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "The Darkspear signet rings' MP5 was corrected to match the Alliance rings.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/639885",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/639885"
+   ],
+   "source_type": "official",
+   "date": "2026-11-13",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-06:11",
+   "doc": "KB-PVP-06",
+   "title": "Battle for the Darkspear Islands (new)",
+   "text": "Reputation gear comes in bracket versions at item levels 33/43/53/63. Items are gated at Friendly, Honored and Exalted; Exalted includes gloves, shoulders and a battle tabard. Rations and bandages that work only inside Darkspear Islands exist at levels 25/35/45.",
+   "source_url": "https://wowforevertierlist.com/pvp/battlegrounds",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/battlegrounds"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-31 / 11-18",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-07:1",
+   "doc": "KB-PVP-07",
+   "title": "Marks of Honor",
+   "text": "Battleground Marks of Honor now stack to 30 (was 20).",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/6",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/6"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-07:2",
+   "doc": "KB-PVP-07",
+   "title": "Marks of Honor",
+   "text": "Marks are turned in on reputation quests that raise battleground reputation.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24307308"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-07:3",
+   "doc": "KB-PVP-07",
+   "title": "Marks of Honor",
+   "text": "Marks awarded: 3 for a win and 1 for a loss. No Blizzard text says this; it traces back to Icy Veins.",
+   "source_url": "https://wowforevertierlist.com/pvp/battlegrounds",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/battlegrounds"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-31",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-07:4",
+   "doc": "KB-PVP-07",
+   "title": "Marks of Honor",
+   "text": "Marks are also a co-currency for PvP gear, by slot, according to the September beta vendor data:<br>• WSG marks: wrists, hands, legs.<br>• AB marks: shoulders, chest, belt, cloak.<br>• DI marks: feet, necklace, one-handers, ranged, off-hand/shield.<br>• AV marks: head and two-handers.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-gear-costs/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-gear-costs/",
+    "https://wowforevertierlist.com/pvp/battlegrounds/alterac-valley"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-09 / 10-31",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-07:5",
+   "doc": "KB-PVP-07",
+   "title": "Marks of Honor",
+   "text": "A forum player says mark turn-ins give XP; others say they give none (see KB-PVP-13).",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/wow-forever-exp-eliminator/2406791",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/wow-forever-exp-eliminator/2406791"
+   ],
+   "source_type": "official",
+   "date": "2026-11-08",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-07:6",
+   "doc": "KB-PVP-07",
+   "title": "Marks of Honor",
+   "text": "CLASSIC_FALLBACK: vanilla gave 3 marks for a win, 2 for a draw (added later), 1 for a loss, and none for leaving early. Marks were turned in at battleground quests for Honor and reputation.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Mark_of_Honor_(old",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Mark_of_Honor_(old",
+    "https://warcraft.wiki.gg/wiki/PVP_token"
+   ],
+   "source_type": "community",
+   "date": "unknown",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:1",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "PvP progression has two parts, Honor and Rank Points, and is described as a simplified take on the original honor system.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:2",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "Honor comes from killing enemy players, completing battlegrounds and doing relevant PvP quests, and is spent on PvP gear.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:3",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "The battleground on its holiday week gives more Honor (and more Rank Points). Neither the bonus size nor the schedule has been published.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:4",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "Season weekly tasks (the \"journey\") give Honor and Rank Points.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:5",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "The Honor cap was raised from 15,000 to 25,000.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/4",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/4"
+   ],
+   "source_type": "official",
+   "date": "2026-10-01",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:6",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "Killing a player while at the Honor cap no longer shows any Honor gained, which means nothing is awarded at the cap.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:7",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "Community sources say Honor above the cap is lost, there is no weekly limit on earning Honor, Honor and Rank Points never convert into each other, and spending Honor does not lower your rank.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-gear-costs/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-gear-costs/",
+    "https://wowforevertierlist.com/pvp/honor"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:8",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "The Legacy perk \"For Great Honor\" (Resourcefulness tree) increases Honor gained from PvP. Beta data puts it at +2% per rank, 5 ranks, so up to +10%.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24307383/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24307383/",
+    "https://wowforevertierlist.com/pvp/honor"
+   ],
+   "source_type": "official",
+   "date": "2026-09-23 / 2026-10-19",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:9",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "No official Honor values per kill, win or quest. No official diminishing returns for repeat kills and no dishonorable kills (a community audit of the client found none).",
+   "source_url": "https://wowforevertierlist.com/pvp/honor",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/honor"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-19",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-08:10",
+   "doc": "KB-PVP-08",
+   "title": "Honor (currency)",
+   "text": "Datamined IDs: Honor currency 1792, Rank Point currency 3468, hidden faction 2800 \"PvP Rank Points\". The season label in the data is \"Season 36\", probably an internal number.",
+   "source_url": "https://kami-labs.fr/en/wow-forever/wow-forever-datamine-pvp-rang-grand-marechal/",
+   "sources": [
+    "https://kami-labs.fr/en/wow-forever/wow-forever-datamine-pvp-rang-grand-marechal/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-09-24",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:1",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "Rank Points come from battlegrounds, relevant PvP quests and season weekly tasks, with a holiday-week boost. Player kills are not listed as a source.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:2",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "The launch overview also mentions Honor and Rank Points from \"other PvP activities\", without detail.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24315643",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24315643"
+   ],
+   "source_type": "official",
+   "date": "2026-10-29",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:3",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "The 14 original ranks remain, topping out at High Warlord (Horde) and Grand Marshal (Alliance).",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:4",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "Rank progress has a weekly cap, with no value given.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:5",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "Rank, Rank Points and the rewards you can buy appear under the Player vs. Player tab of the character pane.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:6",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "PvP runs in seasons, and each season has a journey of weekly tasks.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:7",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "Rank goes back to the bottom each season or content patch, and players can climb to Rank 14 again. The system combines TBC-style seasons with vanilla ranks (Tim Jones, Kotaku interview).",
+   "source_url": "https://www.method.gg/wow-forever/new-pvp-ranking-system-explained-in-world-of-warcraft-forever",
+   "sources": [
+    "https://www.method.gg/wow-forever/new-pvp-ranking-system-explained-in-world-of-warcraft-forever",
+    "https://kotaku.com/new-things-learned-world-of-warcraft-forever-2000734005"
+   ],
+   "source_type": "guide",
+   "date": "2026-09-17",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:8",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "Rank Points fill one cumulative bar for the season. There is no realm-standing bracket calculation and no decay within a season.",
+   "source_url": "https://wowforevertierlist.com/pvp/honor",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/honor"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:9",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "Datamined rank thresholds: 750, 900, 1,050, 1,200, 1,350, 1,500, 1,650, 1,800, 1,950, 2,100, 2,350, 2,500, 2,650 and 3,000 RP per rank, for a total of 24,750. The full table is below.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-ranks/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-ranks/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-09",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:10",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "The weekly cap limits your total season RP and rises each week. RP earned above the current cap does not count, so Rank 14 is reachable in week 10 at the earliest.",
+   "source_url": "https://kami-labs.fr/en/wow-forever/wow-forever-datamine-pvp-rang-grand-marechal/",
+   "sources": [
+    "https://kami-labs.fr/en/wow-forever/wow-forever-datamine-pvp-rang-grand-marechal/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-09-24",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:11",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "Season length has not been announced; community estimates are 20–25 weeks. Rank and RP reset at season end, while bought items and Legacy points are kept (community).",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-ranks/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-ranks/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-09",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-09:12",
+   "doc": "KB-PVP-09",
+   "title": "Rank Points, ranks, weekly cap, seasons",
+   "text": "Players report ranks stuck after rank 3 and normal-ruleset queues on EU not popping. Blizzard has not acknowledged either.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/battleground-honor-rank-honor-points-broken-major-bug-hundreds-of-players-affected/643840",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/battleground-honor-rank-honor-points-broken-major-bug-hundreds-of-players-affected/643840",
+    "https://us.forums.blizzard.com/en/wow/t/honor-grind-for-pvprank/2413435"
+   ],
+   "source_type": "official",
+   "date": "2026-11-18",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-10:1",
+   "doc": "KB-PVP-10",
+   "title": "Rank rewards, Emboldened Seals, vendors and costs",
+   "text": "Rewards by rank:<br>• R1: tabard<br>• R2: PvP trinket<br>• R3: cloaks<br>• R4: necklace<br>• R5: combat potions<br>• R6: tabard<br>• R7: battle standard<br>• R8: epic bracers and belt upgrade tokens<br>• R9: epic boots token<br>• R10: epic gloves token<br>• R11: mounts<br>• R12: epic legs and shoulders tokens<br>• R13: epic chest and helm tokens<br>• R14: epic weapons",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-10:3",
+   "doc": "KB-PVP-10",
+   "title": "Rank rewards, Emboldened Seals, vendors and costs",
+   "text": "Honor prices for most PvP gear and upgrade tokens went up about 50%.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/4",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/4"
+   ],
+   "source_type": "official",
+   "date": "2026-10-01",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-10:4",
+   "doc": "KB-PVP-10",
+   "title": "Rank rewards, Emboldened Seals, vendors and costs",
+   "text": "PvP vendors were \"temporarily unavailable\" in every location (Orgrimmar, Stormwind, Dalaran). No fix appears in the hotfixes up to 2026-11-17, and a player thread on 2026-11-10 still reports empty halls.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2402363",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2402363",
+    "https://us.forums.blizzard.com/en/wow/t/pvp-vender-in-org-where-are-they-in-wow-forever/2409784"
+   ],
+   "source_type": "official",
+   "date": "2026-11-05 / 11-10",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-10:5",
+   "doc": "KB-PVP-10",
+   "title": "Rank rewards, Emboldened Seals, vendors and costs",
+   "text": "Vendors:<br>• Stormwind Champions' Hall (76.0, 66.2): Captain Dirgehammer (armor), Captain O'Neal (weapons), Master Sergeant Biggins (accessories), Lieutenant Karter (mounts).<br>• Orgrimmar Hall of Legends (40.6, 68.5): Lady Palanseer (armor), Sergeant Thunderhorn (weapons), Brave Stonehide (accessories), Raider Bork (mounts).<br>• Dalaran Underbelly: three vendors, with no mount vendor.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/pvp-vendors/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/pvp-vendors/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-10:6",
+   "doc": "KB-PVP-10",
+   "title": "Rank rewards, Emboldened Seals, vendors and costs",
+   "text": "Item names (datamined):<br>• R5: Combat Healing and Combat Mana Potion.<br>• R6: Knight's Colors / Stone Guard's Herald.<br>• R8–R13 seals: \"Premier Emboldened [slot] Seal\".<br>• R11: Black War mounts.<br>• R7 battle standard: +15% health to nearby allies, 10-minute cooldown.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-ranks/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-ranks/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-10:7",
+   "doc": "KB-PVP-10",
+   "title": "Rank rewards, Emboldened Seals, vendors and costs",
+   "text": "Rare set (\"Premier …\"): item level 60, requires level 55, no rank requirement. Epic (\"Elite\") set: item level 65, requires level 60. R14 weapons: 22 Premier Grand Marshal's / High Warlord's weapons at item level 65, bought with Honor and no gold.",
+   "source_url": "https://kami-labs.fr/en/wow-forever/wow-forever-datamine-pvp-rang-grand-marechal/",
+   "sources": [
+    "https://kami-labs.fr/en/wow-forever/wow-forever-datamine-pvp-rang-grand-marechal/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-09-24",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-10:8",
+   "doc": "KB-PVP-10",
+   "title": "Rank rewards, Emboldened Seals, vendors and costs",
+   "text": "September beta prices, before the +50% change, as Honor plus marks / seal Honor:<br>• Cloak: 3,000 + 10 AB.<br>• Wrist: 3,000 + 10 WSG / 750.<br>• Belt: 4,000 + 10 AB / 1,000.<br>• Boots: 5,000 + 10 DI / 1,000.<br>• Gloves: 5,000 + 10 WSG / 1,500.<br>• Shoulders: 4,250 + 10 AB / 1,500.<br>• Legs: 6,000 + 15 WSG / 2,000.<br>• Helm: 6,000 + 15 AV.<br>• Chest: 6,250 + 15 AB / 1,750.<br>• Two-hander: 15,000 + 20 AV.<br>• One-hander or ranged: 8,000 + 10 DI.<br>• Shield or off-hand: 7,000 + 10 DI.<br>• Trinket: 3,500.<br>• Necklace: 5,000 + 10 DI.<br>**Out of date; use only to compare items against each other.**",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-gear-costs/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-gear-costs/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-09",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-11:1",
+   "doc": "KB-PVP-11",
+   "title": "PvP gear per class and role",
+   "text": "New and reworked PvP items fill gaps for specs that had none; for example, Shaman get healer, melee and caster sets.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-11:4",
+   "doc": "KB-PVP-11",
+   "title": "PvP gear per class and role",
+   "text": "Claims that the rare set has 8 pieces including bracers and belt (Classic had 6), and that Elite epics only change appearance with the same stats, are both unverified.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-pvp-set",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-pvp-set",
+    "https://www.icy-veins.com/wow-forever/news/ranks-honor-rewards-how-revamped-pvp-works-in-wow-forever/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-17 / unknown",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-11:5",
+   "doc": "KB-PVP-11",
+   "title": "PvP gear per class and role",
+   "text": "CLASSIC_FALLBACK, rare sets (Lieutenant Commander's for Alliance, Champion's for Horde):<br>• Druid: Refuge<br>• Hunter: Pursuance<br>• Mage: Arcanum<br>• Paladin: Redoubt (Alliance)<br>• Priest: Investiture<br>• Rogue: Guard<br>• Shaman: Stormcaller (Horde)<br>• Warlock: Dreadgear<br>• Warrior: Battlearmor",
+   "source_url": "https://warcraft.wiki.gg/wiki/PvP-Rare",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/PvP-Rare"
+   ],
+   "source_type": "community",
+   "date": "unknown",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-11:6",
+   "doc": "KB-PVP-11",
+   "title": "PvP gear per class and role",
+   "text": "CLASSIC_FALLBACK, epic sets (Field Marshal's for Alliance, Warlord's for Horde):<br>• Druid: Sanctuary<br>• Hunter: Pursuit<br>• Mage: Regalia<br>• Priest: Raiment<br>• Rogue: Vestments<br>• Warlock: Threads<br>• Warrior: Battlegear<br>• Paladin: Aegis (Alliance)<br>• Shaman: Earthshaker (Horde)<br>Rank gates in Classic 1.12: rare R7 (gloves/boots), R8 (chest/legs), R10 (helm/shoulders); epic R12 (gloves/legs/boots), R13 (helm/chest/shoulders); R14 weapons.",
+   "source_url": "https://warcraft.wiki.gg/wiki/PvP-Epic",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/PvP-Epic",
+    "https://www.icy-veins.com/wow-classic/pvp-honor-warrior-rare-sets-alliance-and-horde"
+   ],
+   "source_type": "community",
+   "date": "2020 / unknown",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-12:1",
+   "doc": "KB-PVP-12",
+   "title": "World PvP",
+   "text": "Blizzard has announced no new world PvP objectives. None of the PvP, ruleset or launch articles mention any.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-12:2",
+   "doc": "KB-PVP-12",
+   "title": "World PvP",
+   "text": "World kills give Honor, but they are not a listed Rank Point source. A community source says they give no RP.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-ranks/"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07 / 2026-10-09",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-12:3",
+   "doc": "KB-PVP-12",
+   "title": "World PvP",
+   "text": "Dalaran: Horde players are attacked on sight and the Horde sewer key no longer gives open-world access to the city. The City of Dalaran dungeon is unaffected.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/6",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/6"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-12:4",
+   "doc": "KB-PVP-12",
+   "title": "World PvP",
+   "text": "Using Sap on a PvP-flagged target now flags the Rogue. The Mulgore \"Sparring Match\" quest no longer flags players.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696",
+    "https://us.forums.blizzard.com/en/wow/t/2360696/6"
+   ],
+   "source_type": "official",
+   "date": "2026-09-24 / 10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-12:5",
+   "doc": "KB-PVP-12",
+   "title": "World PvP",
+   "text": "Zone populations were reduced in crowded areas, with a bigger cut on the PvP ruleset. Changing your party can move you to a different world instance (layer).",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/639885",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/639885",
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-11-09 / 09-24",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-12:6",
+   "doc": "KB-PVP-12",
+   "title": "World PvP",
+   "text": "Players report layer changes interrupting world PvP, for example escaping a fight by crossing a zone border.",
+   "source_url": "https://www.icy-veins.com/wow-forever/news/wow-forever-players-say-layering-is-interrupting-quests-and-pvp/",
+   "sources": [
+    "https://www.icy-veins.com/wow-forever/news/wow-forever-players-say-layering-is-interrupting-quests-and-pvp/"
+   ],
+   "source_type": "guide",
+   "date": "late 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-12:8",
+   "doc": "KB-PVP-12",
+   "title": "World PvP",
+   "text": "A community claim, unverified: the new zones Riverglades and Shen'dralas are contested, and on the PvP ruleset you are flagged automatically in contested and enemy zones.",
+   "source_url": "https://wowforevertierlist.com/pvp/world-pvp",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/world-pvp"
+   ],
+   "source_type": "commercial",
+   "date": "Oct 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-12:9",
+   "doc": "KB-PVP-12",
+   "title": "World PvP",
+   "text": "CLASSIC_FALLBACK, Silithus: carry Silithyst from geysers to your faction's camp. Carrying it flags you and slows you, and mounting drops it. Delivering 200 gives the faction a zone buff.",
+   "source_url": "https://warcraft.wiki.gg/wiki/World_PvP",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/World_PvP",
+    "https://warcraft.wiki.gg/wiki/Silithyst"
+   ],
+   "source_type": "community",
+   "date": "unknown",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-12:10",
+   "doc": "KB-PVP-12",
+   "title": "World PvP",
+   "text": "CLASSIC_FALLBACK, Eastern Plaguelands: holding the four towers (Crown Guard, Eastwall, Northpass, Plaguewood) gives a damage bonus against Undead in the zone and in Stratholme. The tower quests are \"Bolstering Our Defenses\" (Horde) and \"Establishing New Outposts\" (Alliance).",
+   "source_url": "https://warcraft.wiki.gg/wiki/Eastern_Plaguelands_(Classic",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Eastern_Plaguelands_(Classic",
+    "https://warcraft.wiki.gg/wiki/World_PvP"
+   ],
+   "source_type": "community",
+   "date": "unknown",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-13:1",
+   "doc": "KB-PVP-13",
+   "title": "PvP while levelling (battleground XP, brackets, twinks)",
+   "text": "No official source mentions XP from battlegrounds: not the PvP article, the Darkspear Islands article, any dev notes from 09-24 to 11-03, or any hotfix from 11-05 to 11-17.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+    "https://worldofwarcraft.blizzard.com/en-us/news/24307308",
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07 → 11-17",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-13:2",
+   "doc": "KB-PVP-13",
+   "title": "PvP while levelling (battleground XP, brackets, twinks)",
+   "text": "Players disagree. One says the only XP comes from 3-mark turn-in quests; others say there is none at all. Blizzard has not replied. A player thread on 11-18 says marks no longer give XP at level 42.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/wow-forever-exp-eliminator/2406791",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/wow-forever-exp-eliminator/2406791",
+    "https://us.forums.blizzard.com/en/wow/t/do-bgs-in-wow-forever-give-xp/2386147",
+    "https://eu.forums.blizzard.com/en/wow/t/battleground-honor-rank-honor-points-broken-major-bug-hundreds-of-players-affected/643840"
+   ],
+   "source_type": "official",
+   "date": "2026-10-18 → 11-18",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-13:4",
+   "doc": "KB-PVP-13",
+   "title": "PvP while levelling (battleground XP, brackets, twinks)",
+   "text": "The only official levelling boost is dungeon kill XP +50% (11-09). Dungeon kills give no XP if the enemy is trivial for any party member (11-13).",
+   "source_url": "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-11-09 / 11-13",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-13:5",
+   "doc": "KB-PVP-13",
+   "title": "PvP while levelling (battleground XP, brackets, twinks)",
+   "text": "No XP lock or \"Experience Eliminator\" has been announced; players have asked for one. A community inference suggests 30–39 as the likely twink bracket because Darkspear Islands reputation gear starts around required level 28.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/wow-forever-exp-eliminator/2406791",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/wow-forever-exp-eliminator/2406791",
+    "https://wowforevertierlist.com/leveling/battleground-leveling"
+   ],
+   "source_type": "official",
+   "date": "2026-11",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-13:6",
+   "doc": "KB-PVP-13",
+   "title": "PvP while levelling (battleground XP, brackets, twinks)",
+   "text": "CLASSIC_FALLBACK: vanilla battleground matches and honorable kills gave no XP. Objective XP and the XP-off option arrived in 3.2.0. Vanilla mark turn-in quests did give XP, for example about 6,400–6,600 XP around level 40.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Battleground",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Battleground",
+    "https://classicdb.ch/?quest=8438",
+    "https://classicdb.ch/?quest=8430"
+   ],
+   "source_type": "community",
+   "date": "unknown",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-13:7",
+   "doc": "KB-PVP-13",
+   "title": "PvP while levelling (battleground XP, brackets, twinks)",
+   "text": "CLASSIC_FALLBACK (SoD): in 2024 Blizzard purged stockpiled WSG marks because players were saving them to turn in for fast levelling.",
+   "source_url": "https://warcrafttavern.com/wow-classic/news/marks-of-honor-cant-be-restored-and-will-be-purged-for-phase-2",
+   "sources": [
+    "https://warcrafttavern.com/wow-classic/news/marks-of-honor-cant-be-restored-and-will-be-purged-for-phase-2"
+   ],
+   "source_type": "guide",
+   "date": "2024-01-23",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:1",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Critical strikes in PvP no longer have reduced effect; the beta's PvP crit reduction was removed.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/5",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/5"
+   ],
+   "source_type": "official",
+   "date": "2026-10-08",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:2",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Roots from procs now have diminishing returns: Frostbite, Entrapment, Improved Wing Clip, Counterattack, Improved Hamstring.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:3",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Creature stuns now correctly have diminishing returns. The Cooldown Manager shows CC durations correctly, DR included.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-11-13 / 11-06",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:4",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Hit and crit are merged across spell, melee and ranged. Bonus healing also gives bonus damage equal to a third of its value.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303313/world-of-warcraft-forever-deep-dive-panel-recap",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303313/world-of-warcraft-forever-deep-dive-panel-recap"
+   ],
+   "source_type": "official",
+   "date": "~2026-09-13",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:5",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Racial changes:<br>• Will of the Forsaken no longer gives immunity to Charm, Fear and Sleep.<br>• Stoneform reduces physical damage taken instead of adding armor.<br>• Each race has two active and two passive racials.<br>• Gnome Confounding Flash and Dwarf Chastise are racials for Priests.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303313/world-of-warcraft-forever-deep-dive-panel-recap",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303313/world-of-warcraft-forever-deep-dive-panel-recap",
+    "https://worldofwarcraft.blizzard.com/news/24301514"
+   ],
+   "source_type": "official",
+   "date": "~09-13 / 09-30",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:6",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Racial numbers:<br>• Blood Fury cooldown 2 min (was 3).<br>• Berserking 15 s.<br>• Touch of the Grave internal cooldown 15 s (was 25); it no longer breaks CC.<br>• Plainsrunning 2% per stack up to 60%, no mounted speed.<br>• Human Ruthless 1% crit.<br>• New Dwarf Artisan's Precision, +1% hit.<br>• Orc Savage and Dwarf Earth Fury removed.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/7",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/7",
+    "https://us.forums.blizzard.com/en/wow/t/2360696/8",
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-10-26/27, 11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:7",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Undead lose Will of the Forsaken while under Scatter Shot.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/6",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/6"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:8",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "The Might of Stormwind and Warchief's Blessing buffs now end on death and no longer apply to non-players.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "official",
+   "date": "2026-11-17",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:9",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Talents use one-point \"gold medal\" milestones at 11, 16, 21 and 31 points. Dual spec unlocks at level 40.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24301514",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24301514",
+    "https://us.forums.blizzard.com/en/wow/t/2360696/4"
+   ],
+   "source_type": "official",
+   "date": "2026-09-30 / 10-01",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:10",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "All classes got more power before launch, and every class had large talent reworks.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:11",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Paladin and Shaman are available to both factions. Paladin races: Human, Dwarf, Undead. Shaman races: Orc, Tauren, Troll, Windshaper Skyborne, Dwarf.",
+   "source_url": "https://news.blizzard.com/en-us/article/24304075",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24304075"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-14:13",
+   "doc": "KB-PVP-14",
+   "title": "Combat rules, crowd control and diminishing returns, racials (all classes)",
+   "text": "Skill Capped's overall PvP tiers at launch: S Rogue, Warlock; A Druid, Hunter, Mage, Priest; B Paladin, Shaman; C Warrior.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:1",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Spearing Strike (Arms 16-point medal) dismounts the target and does double damage to mounted targets. Bloodthirst no longer heals, and Victory Rush heals 10%. Iron Will shortens stuns.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24301514",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24301514"
+   ],
+   "source_type": "official",
+   "date": "2026-09-30",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:2",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Protection is intended as a PvP utility secondary spec.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/4",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/4"
+   ],
+   "source_type": "official",
+   "date": "2026-10-01",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:3",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Pre-launch changes:<br>• Improved Tactical Mastery is now 3 points.<br>• Bloodthrill is new: chance to enable Overpower.<br>• Slam has a 15 s cooldown.<br>• Flurry no longer requires Death Wish, while Bloodthirst now does.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:5",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended build: Arms 32/19/0 with Mortal Strike, Sweeping Strikes, Weaponmaster (new), Improved Hamstring and Piercing Howl. Plays as a midfield melee that dismounts healers and flag carriers. Weak against kiting. Tier C.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/arms-warrior-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/arms-warrior-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:1.b",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "No interrupt and no slow. Voice of Truth (Holy 11-point) gives 6 s of immunity to silence and interrupts on a 3-min cooldown. Repentance is a 21-point Retribution talent. Templar's Bulwark applies Forbearance.",
+   "source_url": "https://news.blizzard.com/en-us/article/24302099/world-of-warcraft-forever-class-deep-dives-paladin",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24302099/world-of-warcraft-forever-class-deep-dives-paladin"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-15",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:2.b",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Pre-launch changes:<br>• Divine Precision shortens silences by 10/20%.<br>• New Stoicism shortens stuns and charms by 10/20%.<br>• Sacred Duty shortens Forbearance by 5/10 s.<br>• Templar's Bulwark can now be dispelled.<br>• Salvation, Mass Salvation and Blessing of Light are removed.<br>• Unsealed Wrath is the new 31-point Retribution talent.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:4.b",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended build: Retribution 9/11/31 with Templar's Bulwark, Repentance, Seal of Command, Unsealed Wrath and Pursuit of Justice. Plays melee damage and bodyguards healers. Tier B.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/retribution-paladin-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/retribution-paladin-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:5.b",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Holy: a hard-to-kill midfield healer who gives flag carriers Blessing of Freedom and cleanses Polymorph and Fear. No level-60 build has been published yet.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/holy-paladin-pvp-guide/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/holy-paladin-pvp-guide/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:1.c",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "No stun or interrupt. 8-yard dead zone. Traps can be used in combat on a 30 s cooldown. Wyvern Sting is removed.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24301515",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24301515"
+   ],
+   "source_type": "official",
+   "date": "2026-09-30",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:2.c",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "All traps share a 30 s cooldown. Entrapment only triggers when Frost Trap first goes off, and it has DR.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+    "https://us.forums.blizzard.com/en/wow/t/2360696/5"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03 / 10-08",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:4.c",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended build: Survival 5/11/35 with Lacerating Strikes (new capstone), Counterattack, Deterrence and Lightning Reflexes. Defends bases and cuts off flag carriers. Tier A.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/survival-hunter-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/survival-hunter-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:1.d",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Sap no longer breaks Stealth. Distract lowers enemies' stealth detection and warns enemy players that a Rogue is nearby. Dirty Tricks lowers the energy cost of Sap and Blind.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24310968",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24310968"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:2.d",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Pre-launch changes:<br>• New baseline Shank and Poised.<br>• Quick Getaway: +1 Sap target per rank and 15/30% speed after Sap.<br>• New Death Mark.<br>• Camouflage is 3 points.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:4.d",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended build: Subtlety 16/7/28 with Preparation, Hemorrhage, Premeditation, Cold Blood and Elusiveness. A 14/12/25 alternative is suggested for battlegrounds. Hunts objectives and flag carriers. There is no Shadowstep in Forever. Tier S.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/subtlety-rogue-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/subtlety-rogue-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:1.e",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Fear Ward is available to every Priest at level 20. Shadow Word: Death is baseline at 32. Silent Resolve shortens stuns, fears and silences.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24301514",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24301514"
+   ],
+   "source_type": "official",
+   "date": "2026-09-30",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:2.e",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Shadow Word: Death deals 30% of max HP to the Priest if it doesn't kill (it was 10% in the September preview).",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:4.e",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended Discipline build: 31/20/0 with Power Infusion, Penance (new) and Divine Aegis. A midfield healer and a poor flag carrier. Tier A.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/discipline-priest-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/discipline-priest-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:5.c",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended Shadow build: 18/0/33 with Silence, Vampiric Embrace, Improved Psychic Scream and Early Demise (new). The guide still gives the old 20% Vampiric Embrace value.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/shadow-priest-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/shadow-priest-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:1.f",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Elemental Mastery was removed for being too strong in PvP, and Eye of the Storm was redesigned. Earthbound makes Earthbind Totem root for 5 s. Shamans lack effective CC.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24302097",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24302097"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:2.f",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Pre-launch changes: Windfury adds an extra swing, Totemic Call has a 30 s cooldown, and Riptide has a 12 s cooldown with no initial heal.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:3.f",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Hotfixes:<br>• Stormstrike does 100% weapon damage on an 8 s cooldown (was 150% / 6 s). Weapon imbues and totems can now be active together. Maelstrom Weapon reworked and Mental Dexterity reduced (11-10).<br>• Windfury Totem fixes: it no longer ignores armor, now has an internal cooldown and generates rage (11-13/16/17).",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2403040/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2403040/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-10…17",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:4.f",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended build: Enhancement 11/35/5 with Rage of the Farseer (new), Stormstrike and Maelstrom Weapon. Kills casters with Purge, Grounding and shocks. Tier B.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/enhancement-shaman-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/enhancement-shaman-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:1.g",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Cold Snap has a 10-min cooldown. Ice Block is a 16-point talent. Cone of Cold duration and Improved Blizzard's slow (capped at 40%) were reduced.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24302097",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24302097"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:2.g",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Pre-launch changes: Frost Blast removed (it had been added 10-16). Frost Warding no longer reflects but can fully negate a spell. Ice Lance shares an 8 s cooldown with Fire Blast.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:4.g",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended build: Frost 17/0/34 with Improved Counterspell, Shatter, Ice Lance, Frostbite, Ice Block, Cold Snap and Ice Barrier. Tier A.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/frost-mage-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/frost-mage-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:1.h",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Improved Felhunter shortens Spell Lock's cooldown by 2 s. Curse of Exhaustion is a 16-point talent (30% slow). Aftermath makes Conflagrate daze for 50% for 5 s. Dark Sacrifice no longer breaks CC that breaks on damage.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24310968",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24310968",
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07 / 11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:3.h",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended build: Demonology 7/33/11 with Demonic Pact (new), Soul Link and Demonic Sacrifice; a 21/30/0 alternative is also given. Defends bases. Tier S.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/demonology-warlock-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/demonology-warlock-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:1.i",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Druids can't snare, silence or interrupt, and have weaker CC. Feral Charge in Cat Form doesn't interrupt or root.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24301515",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24301515"
+   ],
+   "source_type": "official",
+   "date": "2026-09-30",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:2.i",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Pre-launch changes: Berserk removed, Swiftmend requires the Druid's own HoT, Wild Growth has a 3 s cast. Druids can drink mana potions in Bear and Cat Form (10-08).",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+    "https://us.forums.blizzard.com/en/wow/t/2360696/5"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03 / 10-08",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:4.h",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Recommended build: Feral 7/31/13 with Shifting Power (new), Feral Charge and Rend and Tear. Plays flag carrier and roamer. Tier A.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/feral-druid-pvp-guide/talents/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/feral-druid-pvp-guide/talents/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-15:5.e",
+   "doc": "KB-PVP-15",
+   "title": "… 23 — Class documents",
+   "text": "Restoration plays healer and flag carrier with the best mobility in the game. No level-60 build has been published yet.",
+   "source_url": "https://www.skill-capped.com/wowarticles/forever/guides/restoration-druid-pvp-guide/",
+   "sources": [
+    "https://www.skill-capped.com/wowarticles/forever/guides/restoration-druid-pvp-guide/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-24:1",
+   "doc": "KB-PVP-24",
+   "title": "Consumables and professions for PvP",
+   "text": "Rank 5 unlocks Combat Potions; Classic gave them at R6.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-24:2",
+   "doc": "KB-PVP-24",
+   "title": "Consumables and professions for PvP",
+   "text": "Combat potions share one cooldown; for example, Draught of Predatory Senses is now on the Combat Potion cooldown.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/6",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/6"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-24:3",
+   "doc": "KB-PVP-24",
+   "title": "Consumables and professions for PvP",
+   "text": "The new Discolored Healing Potion's damage no longer breaks CC.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/5",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/5"
+   ],
+   "source_type": "official",
+   "date": "2026-10-08",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-24:4",
+   "doc": "KB-PVP-24",
+   "title": "Consumables and professions for PvP",
+   "text": "Iron Grenade's vendor price was cut to 1s 25c (was 5s). The Violet Tragan no longer breaks CC.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/639885",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/639885"
+   ],
+   "source_type": "official",
+   "date": "2026-11-10 / 11-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-24:5",
+   "doc": "KB-PVP-24",
+   "title": "Consumables and professions for PvP",
+   "text": "Free Action, Limited Invulnerability, Restorative and Swiftness potions, Heavy Runecloth Bandage, and the Classic engineering PvP items (grenades, Goblin Sapper Charge, Net-o-Matic, Rocket Helmet, Mind Control Cap) are all in the Forever database with Classic-like values.",
+   "source_url": "https://wowforevertierlist.com/pvp/consumables",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/consumables"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-31",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-24:7",
+   "doc": "KB-PVP-24",
+   "title": "Consumables and professions for PvP",
+   "text": "Unconfirmed claims: healing potions moved from Alchemy to First Aid; protection potions last 2 min; R5 potion names and values are Combat Healing (level 35) and Combat Mana (level 41).",
+   "source_url": "https://wowforevertierlist.com/pvp/consumables",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/consumables",
+    "https://rankedboost.com/world-of-warcraft/forever/buffs/pvp/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-31",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-24:8",
+   "doc": "KB-PVP-24",
+   "title": "Consumables and professions for PvP",
+   "text": "Profession Camp Feature buffs don't stack with matching class buffs. Their PvP relevance is unclear.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315820/world-of-warcraft-forever-goes-live-globally-november-4",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315820/world-of-warcraft-forever-goes-live-globally-november-4"
+   ],
+   "source_type": "official",
+   "date": "~2026-11-04",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-24:9",
+   "doc": "KB-PVP-24",
+   "title": "Consumables and professions for PvP",
+   "text": "CLASSIC_FALLBACK: Engineering is the main PvP profession (grenades, sappers, nets, rocket helmet). Free Action, Limited Invulnerability, Restorative and Swiftness potions plus bandages are PvP staples.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Honor_system_(pre-2.0",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Honor_system_(pre-2.0"
+   ],
+   "source_type": "community",
+   "date": "unknown",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-25:1",
+   "doc": "KB-PVP-25",
+   "title": "PvP and Legacy points",
+   "text": "PvP Legacy Challenges are worth 12 points in total:<br>• Reaching ranks 3, 7, 10, 13 and 14: 5 points.<br>• Exalted with each battleground reputation: 4 points.<br>• Week 4, 7 and 10 quests of the Field of Honor PvP Season's Journey: 3 points.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24307383/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026-09-23",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-25:2",
+   "doc": "KB-PVP-25",
+   "title": "PvP and Legacy points",
+   "text": "Three season tasks per season give a Legacy point. Because they belong to the Legacy system, they stay available in later seasons.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "~2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-25:3",
+   "doc": "KB-PVP-25",
+   "title": "PvP and Legacy points",
+   "text": "PvP Legacy Challenges can't be completed on Hardcore, which has 12 challenges of its own.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24307383/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026-09-23",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-25:4",
+   "doc": "KB-PVP-25",
+   "title": "PvP and Legacy points",
+   "text": "Legacy points are shared across the Battle.net account for non-Hardcore characters, and each character spends them separately, up to 16 at launch.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24307383/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026-09-23",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-25:5",
+   "doc": "KB-PVP-25",
+   "title": "PvP and Legacy points",
+   "text": "Legacy rewards are cosmetic or prestige and give no competitive advantage.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24315821/wow-forever-whats-new-and-what-feels-familiar",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/24315821/wow-forever-whats-new-and-what-feels-familiar",
+    "https://news.blizzard.com/en-us/article/24303313/world-of-warcraft-forever-deep-dive-panel-recap"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-25:6",
+   "doc": "KB-PVP-25",
+   "title": "PvP and Legacy points",
+   "text": "The four battleground reputation pairs: Frostwolf/Stormpike (AV), Defilers/League of Arathor (AB), Warsong Outriders/Silverwing Sentinels (WSG), Darkspear Raiders/Theramore Expeditionary Force (DI).",
+   "source_url": "https://www.method.gg/wow-forever/the-fastest-way-to-get-legacy-points-in-wow-forever",
+   "sources": [
+    "https://www.method.gg/wow-forever/the-fastest-way-to-get-legacy-points-in-wow-forever"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-14 / 11-18",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-25:7",
+   "doc": "KB-PVP-25",
+   "title": "PvP and Legacy points",
+   "text": "Each challenge counts once per account, and all 12 can be done on one character. Earliest weeks under the datamined cap: R3 in week 1, R7 in week 4, R10 in week 7, R13 in week 9, R14 in week 10.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-legacy-points/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-pvp-legacy-points/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-30",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-25:8",
+   "doc": "KB-PVP-25",
+   "title": "PvP and Legacy points",
+   "text": "PvP-adjacent perks: For Great Honor (more Honor); High Alert (stealth detection outside battlegrounds); Field Medicine (shorter Recently Bandaged, not in battlegrounds).",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24307383/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026-09-23",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-27:1",
+   "doc": "KB-PVP-27",
+   "title": "CLASSIC_FALLBACK: Classic Era honor system",
+   "text": "Honorable kills count only against players within 10 levels; higher-rank victims are worth more.",
+   "source_url": "https://news.blizzard.com/en-us/article/23221132/pvp",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/23221132/pvp"
+   ],
+   "source_type": "official",
+   "date": "undated (2019)",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-27:6",
+   "doc": "KB-PVP-27",
+   "title": "CLASSIC_FALLBACK: Classic Era honor system",
+   "text": "Patch 1.14.4 removed Rank Points and de-ranking: rank progress depends only on your own weekly honor, capped at 500,000 honor a week.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/wow-classic-era-version-1144-patch-notes/1656146",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/wow-classic-era-version-1144-patch-notes/1656146"
+   ],
+   "source_type": "official",
+   "date": "2023-08-22",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-27:7",
+   "doc": "KB-PVP-27",
+   "title": "CLASSIC_FALLBACK: Classic Era honor system",
+   "text": "Honor decay was turned off in Era and SoD from 2023-12-05; dishonorable kills are the only way to lose progress.",
+   "source_url": "https://devtrackers.gg/warcraft/p/d331a9aa-classic-era-pvp-update-december-5",
+   "sources": [
+    "https://devtrackers.gg/warcraft/p/d331a9aa-classic-era-pvp-update-december-5"
+   ],
+   "source_type": "community",
+   "date": "2023-12-05",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-27:8",
+   "doc": "KB-PVP-27",
+   "title": "CLASSIC_FALLBACK: Classic Era honor system",
+   "text": "Before 1.14.4: a weekly standing ladder with 20% weekly RP decay, a 13,000 RP weekly maximum and a 15-HK weekly minimum.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Honor_system_(pre-2.0_formulas",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Honor_system_(pre-2.0_formulas"
+   ],
+   "source_type": "community",
+   "date": "unknown",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-28:1",
+   "doc": "KB-PVP-28",
+   "title": "CLASSIC_FALLBACK: battlegrounds, world PvP, Hardcore, SoD",
+   "text": "WSG: 10v10, first to 3 captures, minimum level 10. AV: 40v40, minimum level 51.",
+   "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/23237900/wow-classic-warsong-gulch-and-alterac-valley-now-live",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/en-us/news/23237900/wow-classic-warsong-gulch-and-alterac-valley-now-live"
+   ],
+   "source_type": "official",
+   "date": "2019-12-10",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-28:2",
+   "doc": "KB-PVP-28",
+   "title": "CLASSIC_FALLBACK: battlegrounds, world PvP, Hardcore, SoD",
+   "text": "AB: 15v15, brackets 20–29 up to 60.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Arathi_Basin",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Arathi_Basin"
+   ],
+   "source_type": "community",
+   "date": "unknown",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-28:3",
+   "doc": "KB-PVP-28",
+   "title": "CLASSIC_FALLBACK: battlegrounds, world PvP, Hardcore, SoD",
+   "text": "Battleground holiday weekends rotate between WSG, AB and AV, and the featured map gives extra honor and reputation (added in 1.13.4).",
+   "source_url": "https://www.wowhead.com/classic/news/wow-classic-battleground-holiday-schedule-311590",
+   "sources": [
+    "https://www.wowhead.com/classic/news/wow-classic-battleground-holiday-schedule-311590"
+   ],
+   "source_type": "datamined",
+   "date": "2020",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-28:4",
+   "doc": "KB-PVP-28",
+   "title": "CLASSIC_FALLBACK: battlegrounds, world PvP, Hardcore, SoD",
+   "text": "Hardcore: battlegrounds and the honor system are off; you flag only with /pvp; wargames give no honor; duels to the death are opt-in.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/23973734/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/23973734/",
+    "https://us.forums.blizzard.com/en/wow/t/wow-classic-era-1144-development-notes/1621723"
+   ],
+   "source_type": "official",
+   "date": "2023-06/08",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-28:5",
+   "doc": "KB-PVP-28",
+   "title": "CLASSIC_FALLBACK: battlegrounds, world PvP, Hardcore, SoD",
+   "text": "SoD: rank was capped per phase (R3 at level 25, rising to R14 with Ahn'Qiraj), and there were world events in Ashenvale and Blood Moon in Stranglethorn.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/1726478/1",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/1726478/1",
+    "https://warcraft.wiki.gg/wiki/Blood_Moon_(Season_of_Discovery",
+    "https://warcrafttavern.com/wow-classic/guides/ashenvale-pvp-event-guide"
+   ],
+   "source_type": "official",
+   "date": "2023-11-30 / 2024",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:KB-PVP-28:6",
+   "doc": "KB-PVP-28",
+   "title": "CLASSIC_FALLBACK: battlegrounds, world PvP, Hardcore, SoD",
+   "text": "SoD changed how many marks losers get several times in 2024: an experiment with 2 marks was reverted to 1, then losers got marks based on their performance.",
+   "source_url": "https://warcrafttavern.com/wow-classic/news/season-of-discovery-hotfixes-for-september-30-warsong-gulch-and-arathi-basin-changes-reverted",
+   "sources": [
+    "https://warcrafttavern.com/wow-classic/news/season-of-discovery-hotfixes-for-september-30-warsong-gulch-and-arathi-basin-changes-reverted"
+   ],
+   "source_type": "guide",
+   "date": "2024-09-30",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  }
+ ],
+ "contradictions": [
+  {
+   "id": "pvp:register:contradiction:2",
+   "doc": "register",
+   "text": "C1 | AV level range | Icy Veins (relayed via [wowforevertierlist](https://wowforevertierlist.com/pvp/battlegrounds/alterac-valley)) and [kami-labs](https://kami-labs.fr/en/vallee-d-alterac-wow-forever/) (client data): one bracket, 51–60 | [Wowhead Forever DB](https://www.wowhead.com/forever/zones/battlegrounds): 20–60 | Unresolved. The official 58 in [Hotfixes](https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026) is a quest gate, not a queue gate.",
+   "source_url": "https://wowforevertierlist.com/pvp/battlegrounds/alterac-valley",
+   "sources": [
+    "https://wowforevertierlist.com/pvp/battlegrounds/alterac-valley",
+    "https://kami-labs.fr/en/vallee-d-alterac-wow-forever/",
+    "https://www.wowhead.com/forever/zones/battlegrounds",
+    "https://news.blizzard.com/en-us/article/24315281/wow-forever-hotfixes-november-17-2026"
+   ],
+   "source_type": "commercial",
+   "date": "compiled 2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:register:contradiction:3",
+   "doc": "register",
+   "text": "C2 | Weekly RP cap | [PvP-Progression](https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works) and the kami-labs/conquestcapped datamine: a weekly cap exists | [wowforevertalents](https://wowforevertalents.com/pvp/): no weekly limit in the client | Use the official statement: there is a cap.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316/how-pvp-progression-in-world-of-warcraft-forever-works"
+   ],
+   "source_type": "official",
+   "date": "compiled 2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:register:contradiction:5",
+   "doc": "register",
+   "text": "C4 | Honor cap | September datamine and Icy Veins: 15,000 | [DevNotes/4](https://us.forums.blizzard.com/en/wow/t/2360696/4): 25,000 | Official 25,000 replaces it.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/4",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/4"
+   ],
+   "source_type": "official",
+   "date": "compiled 2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:register:contradiction:7",
+   "doc": "register",
+   "text": "C6 | Classic system \"remains in Forever\" | [wiki Honor system (Classic)](https://warcraft.wiki.gg/wiki/Honor_system_(Classic)) and the old Mark of Honor page say so | Blizzard's two-track system | Blizzard wins; the wiki is imprecise.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Honor_system_(Classic",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Honor_system_(Classic"
+   ],
+   "source_type": "community",
+   "date": "compiled 2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:register:contradiction:8",
+   "doc": "register",
+   "text": "C7 | Number of battlegrounds | [metabot](https://metabot.gg/en/wow-forever/battlegrounds): 5 (includes Battle for Gilneas) | Blizzard and every other source: 4 live | 4.",
+   "source_url": "https://metabot.gg/en/wow-forever/battlegrounds",
+   "sources": [
+    "https://metabot.gg/en/wow-forever/battlegrounds"
+   ],
+   "source_type": "datamined",
+   "date": "compiled 2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "pvp:register:contradiction:11",
+   "doc": "register",
+   "text": "C10 | Shadow Word: Death self-damage | Sept 30 deep dive: 10% | [DevNotes/9](https://us.forums.blizzard.com/en/wow/t/2360696/9): 30% | 30%, the later value.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696/9",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696/9"
+   ],
+   "source_type": "official",
+   "date": "compiled 2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  }
+ ],
+ "open_questions": [
+  {
+   "id": "pvp:open:1",
+   "text": "**Numbers:** Honor and Rank Points per kill, per battleground win or loss, per quest and per weekly task. The holiday-week bonus percentage and the rotation schedule. The weekly RP cap value (only datamined beta values exist). Official RP thresholds."
+  },
+  {
+   "id": "pvp:open:2",
+   "text": "**Seasons:** season 1 length and end date. Whether unspent Honor and marks reset. Whether gear stays usable across seasons. The Field of Honor weekly reset timing, and whether its \"weeks\" are calendar weeks of the season or counted per character."
+  },
+  {
+   "id": "pvp:open:3",
+   "text": "**Battlegrounds:** official brackets for WSG, AB and DI. AV's queue minimum (51, 20 or 58). Deserter duration, AFK reporting, match timers. Whether random battleground queues are live. Whether the Classic world entrances to battlegrounds exist. Exact reputation per turn-in for WSG, AB and AV. Full reputation reward lists."
+  },
+  {
+   "id": "pvp:open:4",
+   "text": "**Battleground XP:** whether matches or mark turn-ins give XP, and how much per bracket. Whether an XP lock or twink matchmaking is planned."
+  },
+  {
+   "id": "pvp:open:5",
+   "text": "**Honor rules:** whether diminishing returns for repeat kills, dishonorable kills, or a grey-kill honor rule exist. Whether world kills give Rank Points."
+  },
+  {
+   "id": "pvp:open:6",
+   "text": "**Rank perks:** whether officer-area access, the 10% discount or World Defense chat exist in Forever."
+  },
+  {
+   "id": "pvp:open:7",
+   "text": "**Gear:** live Honor and mark prices after the +50% change. Official set names and bonuses per class and spec, including Horde names. Number of pieces per set. Elite versus blue stats. Whether the PvP vendors have been restored since 2026-11-05. Where Horde can buy, given that Dalaran is hostile to them."
+  },
+  {
+   "id": "pvp:open:8",
+   "text": "**World PvP:** whether the Eastern Plaguelands towers and Silithus are live. The official list of contested zones (Riverglades, Shen'dralas?). How auto-flagging works on the PvP ruleset. Whether RP-PvP is also limited to one faction per account."
+  },
+  {
+   "id": "pvp:open:9",
+   "text": "**Classes:** level-60 PvP builds for Holy Paladin and Restoration Druid. Any Restoration Shaman guide from a known author. Whether any PvP-specific damage or healing modifier exists besides the removed crit reduction."
+  },
+  {
+   "id": "pvp:open:10",
+   "text": "**Data access:** wago.tools db2 tables (TraitTree, TraitNode, PvpRank, CurrencyTypes, ItemSet) for the forever branch could not be read; every request returned HTTP 403. Icy Veins also returned 403, and Wowhead's Forever database and article bodies render with JavaScript. Every \"datamined\" fact here is second-hand via third-party sites. Reading those db2 tables directly is the top follow-up."
+  },
+  {
+   "id": "pvp:open:11",
+   "text": "**Rated PvP and arenas:** no written official statement. The unreleased client rows (Mak'gora Arena, Battle for Gilneas, Battle for Blackrock) have no announcement."
+  },
+  {
+   "id": "pvp:open:12",
+   "text": "**Bugs:** Blizzard has not acknowledged player reports that ranks stop progressing after rank 3."
+  },
+  {
+   "id": "pvp:dropped:1",
+   "text": "KB-PVP-02 #12: Addons reportedly can't send addon messages inside battlegrounds. Graveyard resurrection reportedly comes in waves of about 30 s.",
+   "why": "dropped at import (only off-list sources: foreverbattlegrounds.com, www.wowforeveraddon.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:2",
+   "text": "KB-PVP-03 #4: 10v10 capture the flag; the first team to 3 captures wins (same as Classic).",
+   "why": "dropped at import (only off-list sources: wowforeverguides.com, www.wowforeveraddon.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:3",
+   "text": "KB-PVP-03 #8: Player sample from a 20–29 match: the winners got about 270–285 Honor and the losers 3–11. A single report.",
+   "why": "dropped at import (only off-list sources: www.wowforeveraddon.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:4",
+   "text": "KB-PVP-03 #9: WSG was reportedly the holiday battleground until 2026-11-17. Unverified.",
+   "why": "dropped at import (only off-list sources: www.wowforeveraddon.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:5",
+   "text": "KB-PVP-09 #Rank: Alliance",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:6",
+   "text": "KB-PVP-09 #1: Private",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:7",
+   "text": "KB-PVP-09 #2: Corporal",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:8",
+   "text": "KB-PVP-09 #3: Sergeant",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:9",
+   "text": "KB-PVP-09 #4: Master Sergeant",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:10",
+   "text": "KB-PVP-09 #5: Sergeant Major",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:11",
+   "text": "KB-PVP-09 #6: Knight",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:12",
+   "text": "KB-PVP-09 #7: Knight-Lieutenant",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:13",
+   "text": "KB-PVP-09 #8: Knight-Captain",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:14",
+   "text": "KB-PVP-09 #9: Knight-Champion",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:15",
+   "text": "KB-PVP-09 #10: Lieutenant Commander",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:16",
+   "text": "KB-PVP-09 #11: Commander",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:17",
+   "text": "KB-PVP-09 #12: Marshal",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:18",
+   "text": "KB-PVP-09 #13: Field Marshal",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:19",
+   "text": "KB-PVP-09 #14: Grand Marshal",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:20",
+   "text": "KB-PVP-10 #2: Honor buys a blue set and an epic set. Each epic piece needs the blue piece plus an Emboldened Seal, and the seals have rank requirements.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:21",
+   "text": "KB-PVP-10 #9: No Forever source mentions the Classic rank perks: officer-area access, the R3 10% discount, or World Defense chat.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:22",
+   "text": "KB-PVP-11 #2: Alliance set names per spec (build 1.60.1.70959). Most share the \"LtCmdr's / Field Marshal's\" prefix:<br>• Warrior: Battlegear<br>• Hunter: Pursuit<br>• Mage: Regalia<br>• Rogue: Vestments<br>• Priest: Investiture (healer, new) and Raiment (damage)<br>• Warlock: Threads<br>• Paladin: Aegis (healer) and Vindication (damage, new)<br>• Druid: Sanctuary (melee) and Wildhide (caster, new); the druid healer set is labelled \"Aegis\", probably an error<br>• Shaman: Earthshaker (melee), Thunderfist (caster) and Wartide (healer), all new<br>No Horde names are listed.",
+   "why": "dropped at import (only off-list sources: wowforever.wclbox.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:23",
+   "text": "KB-PVP-11 #3: Another datamine lists ItemSet IDs and set bonuses, marked as beta estimates. Examples:<br>• Battlegear (1775): 2 pieces +40 AP; 4 pieces Intercept cooldown −5 s; 6 pieces +20 Stamina.<br>• Wartide (2092): 2 pieces +45 healing / +16 spell damage; 4 pieces +2% shock crit; 6 pieces +20 Stamina.<br>The names differ from WCLBox, e.g. Prowess and Redemption.",
+   "why": "dropped at import (only off-list sources: guildorder.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:24",
+   "text": "KB-PVP-12 #7: The Eastern Plaguelands tower quest \"Bolstering Our Defenses\" (ID 9665) is in the Forever database unchanged from Classic. Nobody has confirmed whether the objective works on live servers, and the same applies to Silithus.",
+   "why": "dropped at import (only off-list sources: wowforever.wclbox.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:25",
+   "text": "KB-PVP-13 #3: A fan site claims 30–50K XP per hour from battlegrounds with no source. It is treated as unreliable.",
+   "why": "dropped at import (only off-list sources: www.wowforever.games); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:26",
+   "text": "KB-PVP-14 #12: Datamined talent counts (client 1.60.1.70938 compared with Classic Era): 468 talents, of which 118 are new and 275 changed, and 81 Classic talents removed.",
+   "why": "dropped at import (only off-list sources: wowforevertalents.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:27",
+   "text": "KB-PVP-15 #4: Hotfixes:<br>• Berserker Rage removes Sap (11-13).<br>• Sweeping Strikes no longer loses charges without a second target (11-10).<br>• Fury proc fixes (11-16).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:28",
+   "text": "KB-PVP-15 #3: Hotfixes:<br>• Judgement is now ranged (11-11).<br>• Judgement of Command counts as melee again and triggers on-hit effects (11-13).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:29",
+   "text": "KB-PVP-15 #3: Hotfixes:<br>• Pet health 115% (was 150%) and Arcane Shot costs 11% base mana (11-10).<br>• Volley no longer triggers procs and stops channeling when the hunter moves (11-11).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:30",
+   "text": "KB-PVP-15 #3: Hotfix: Shank no longer removes combo points from other targets (11-16).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:31",
+   "text": "KB-PVP-15 #3: Hotfixes:<br>• Vampiric Embrace heals for 10% of Shadow damage (was 20%), and the Priest gets twice that healing. Dark Inspiration doesn't stack across Shadow Priests (11-16).<br>• Fear Ward no longer breaks Shadowform. Power Infusion persists on allies (11-09).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:32",
+   "text": "KB-PVP-15 #5: A fan tier list rates Restoration Shaman a top battleground healer, unverified. Skill Capped has no Restoration guide.",
+   "why": "dropped at import (only off-list sources: wowforeverinfo.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:33",
+   "text": "KB-PVP-15 #3: Hotfix: Frost Nova now breaks from proc damage and from Blizzard (11-13).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:34",
+   "text": "KB-PVP-15 #2: Hotfixes:<br>• Demon base health +~15% and Wrack −30% (11-10).<br>• Siphon Life Rank 1 can't be cast while silenced (11-13).<br>• Felsteed grants riding (11-09).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:35",
+   "text": "KB-PVP-15 #3: Hotfixes:<br>• Nature's Swiftness makes Wild Growth instant (11-10).<br>• Rend and Tear works on the Pounce bleed (11-11/17).<br>• Wild Growth can't be cast while moving and its coefficient was doubled (11-13).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:36",
+   "text": "KB-PVP-24 #6: Engineering has new SAF-T and EZ-Thro lines (e.g. a 3 s stun bomb and nitro boosts). Whether these work without the Engineering skill is disputed.",
+   "why": "dropped at import (only off-list sources: wowforeverinfo.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:37",
+   "text": "KB-PVP-27 #2: Diminishing returns on killing the same player in one day: 100%, 75%, 50%, 25%, then 0%.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:38",
+   "text": "KB-PVP-27 #3: Dishonorable kills, from killing civilian NPCs, cost rank progress.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:39",
+   "text": "KB-PVP-27 #4: Rank Point thresholds: R1 needs 15 HKs, R2 2,000, R3 5,000, R4 10,000, then +5,000 per rank up to R14 at 60,000.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:40",
+   "text": "KB-PVP-27 #5: Rewards: R1 tabard; R2 insignia; R3 cloak + 10% discount; R4 neck; R5 bracers; R6 Officer's Barracks + potions; R7 boots/gloves; R8 chest/legs; R9 battle standard; R10 helm/shoulders; R11 epic mount + World Defense; R12 epic boots/gloves/legs; R13 epic helm/chest/shoulders; R14 weapons.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:41",
+   "text": "contradiction in register: C3 | Total RP for R14 | Per-rank sum: 24,750 (conquestcapped, kami-labs, Icy Veins) | Faction 2800 ReputationMax: 20,000 ([wowforevertalents](https://wowforevertalents.com/pvp/)) | Use 24,750 at medium confidence.",
+   "why": "dropped at import (only off-list sources: wowforevertalents.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:42",
+   "text": "contradiction in register: C5 | Date of the honor cap and cost change | Some copies of the thread put it in the Oct 8 post | Direct read of post /4: Oct 1 | Oct 1.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:43",
+   "text": "contradiction in register: C8 | World kills → Rank Points | Official text lists only battlegrounds, PvP quests and tasks | \"Return to Azeroth\" mentions \"other PvP activities\" | Unresolved; the community says no RP.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:44",
+   "text": "contradiction in register: C9 | Battleground XP | A forum player: mark turn-ins give XP | Other players: no XP at all. A fan site: 30–50K XP/h | Unknown.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:45",
+   "text": "contradiction in register: C11 | Vampiric Embrace | Skill Capped (11-12): 20% | Hotfix (11-16): 10% | 10%.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:46",
+   "text": "contradiction in register: C12 | Stormstrike | DevNotes/9: 150%, 6 s | Hotfix (11-10): 100%, 8 s | 100%, 8 s.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:47",
+   "text": "contradiction in register: C13 | Frost Blast | Added Oct 16 | Removed Nov 3 | Removed.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:48",
+   "text": "contradiction in register: C14 | RP-PvP ruleset | Podcast (Oct 15, per players): no plans | Aggrend (Oct 22): coming at launch | Live at launch.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:49",
+   "text": "contradiction in register: C15 | Dalaran PvP vendors | KnownIssues and Warcraft Tavern list Dalaran vendors | Horde are attacked on sight in Dalaran | The vendors are probably Alliance-only. This is my inference and unconfirmed.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:50",
+   "text": "contradiction in register: C16 | Druid healer set name | WCLBox: \"Aegis\", the same name as the Paladin set | Guild Order: different names (Sanctuary, Redemption, Prowess) | Unresolved; low confidence.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:51",
+   "text": "contradiction in register: C17 | Pieces in the rare set | lfcarry: 8 | Guild Order: Classic-style 6 | Unresolved.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:52",
+   "text": "contradiction in register: C18 | Holiday rotation | One fan guide: DI → AB → WSG, excluding AV | Another gives a different order; one says WSG until 11-17 | Unknown.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:53",
+   "text": "contradiction in register: C19 | Orgrimmar queue spot | wowforeveraddon: Warsong Emissary in the Valley of Strength | Icy Veins (relayed): Valley of Honor | Unresolved.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:54",
+   "text": "contradiction in register: C20 | Wording on Darkspear marks | Wowhead mirror: marks are *earned by* reputation quests | Official: marks are turned in *for* reputation quests | Official wording.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:55",
+   "text": "contradiction in register: C21 | Client build | 1.60.1.70888 / 70938 / 70959 across sites | — | Every value comes from the build cited for it.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:56",
+   "text": "contradiction in register: C22 | Best spec | Skill Capped: Rogue and Warlock at S | Fan lists: Demonology, Discipline, or Rogue on top; different top healer | Cite Skill Capped as guide author only.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:57",
+   "text": "contradiction in register: C23 | Classic DR (fallback) | Blizzard: 100/75/50/25/0 | Wiki (vanilla): 10 steps of 10% | Blizzard for Classic Era.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:58",
+   "text": "contradiction in register: C24 | Classic 1.14.4 weekly cap (fallback) | PTR article: 750,000 | Live notes: 500,000 | 500,000. | ---",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:59",
+   "text": "rule bg.list: {\"value\": [{\"name\": \"Warsong Gulch\", \"team_size\": 10, \"min_level\": 10, \"max_level\": 60, \"brackets\": [[10, 19], [20, 29], [30, 39], [40, 49], [50, 59], [60, 60]], \"max_group_queue\": 10, \"factions\": {\"alliance\": \"Silverwing Sentinels\", \"horde\": \"Warsong Outriders\"}, \"source_url\": \"https://wowforevertierlist.com/pvp/battlegrounds\", \"source_type\": \"community\", \"confidence\": \"medium\"}, {\"name\": \"Arathi",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:60",
+   "text": "rule bg.grants_xp: value unknown. no source; do not claim BG XP",
+   "why": "dropped at import (only off-list sources: news.blizzard.com); needs a source on the allow-list"
+  },
+  {
+   "id": "pvp:dropped:61",
+   "text": "rule bg.deserter_duration_seconds: value unknown.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  }
+ ]
+}

@@ -1,0 +1,112 @@
+[project]
+name = "wow-stats"
+version = "0.5.0"
+description = "A WoW Forever leveling log: the shipper's events in a web page, with a public view for friends"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+readme = "README.md"
+requires-python = ">=3.11"
+# Runtime: the standard library only. Keep it that way. Two exceptions, both
+# extras: `wow-stats publish` seals the full-content site with AES-256-GCM,
+# which the standard library doesn't have (pyca/cryptography, well known;
+# no hand-made crypto), and the MCP endpoint runs on FastMCP (`mcp`).
+dependencies = []
+
+[project.urls]
+# wowstats.SOURCE_URL says the same (tests/test_license.py).
+Source = "https://github.com/sam-dumont/wow-mcp"
+
+[project.optional-dependencies]
+publish = ["cryptography>=46"]
+# The MCP endpoint (wowstats.mcp.server): FastMCP's OAuth proxy and its HTTP
+# transport.
+# Without it the full view runs without /mcp. FASTMCP_CHECK_FOR_UPDATES=off is
+# set by the server itself: no call home.
+mcp = ["fastmcp==4.1.8", "cryptography>=46"]
+# `wow-stats render` (wowstats.renderer): a past level's picture, drawn by the
+# 3D view's own viewer in a headless Chromium. Its own image target
+# (Dockerfile `renderer`), never in the main image. Pinned like the browser
+# group: each Playwright release wants its own Chromium build.
+render = ["playwright==1.65.1"]
+
+[project.scripts]
+wow-stats = "wowstats.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "ruff>=0.6",
+]
+# tests/test_browser.py: the static sites in Chromium. Pinned: each
+# Playwright release wants its own browser build.
+browser = [
+    "playwright==1.65.1",
+]
+# tools/audit_deps.py: known vulnerabilities in the locked dependencies (CI's
+# audit job). Its own group, so `uv sync` never installs it.
+audit = [
+    "pip-audit>=2.10.1",
+]
+# tools/kb/refresh.py and meta.py's model pass (.github/workflows/kb-refresh.yaml):
+# locked with hashes like everything else, never resolved at run time.
+kb = [
+    "anthropic==2.8.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["wowstats"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"web" = "wowstats/web"
+# Polestar's route times (GPL-3.0, docs/route-reference.md), read by wowstats/mcp/route.py.
+"data/route-reference.json" = "wowstats/data/route-reference.json"
+# Polestar's gear data (GPL-3.0, with MIT parts: docs/gear-reference.md), read by wowstats/gear.py.
+"data/gear-reference.json" = "wowstats/data/gear-reference.json"
+# The analysis' knowledge base (wowstats/analysis/__init__.py): Polestar's game data and notes (GPL-3.0), and short
+# notes written from open sources, each with its source; read by wowstats/analysis/kb.py.
+"data/kb-reference.json.gz" = "wowstats/data/kb-reference.json.gz"
+"data/kb" = "wowstats/data/kb"
+# Forever's quest names and instances (forever-db GPL-3.0, client tables as facts: docs/forever-reference.md),
+# read by wowstats/forever.py.
+"data/forever-reference.json" = "wowstats/data/forever-reference.json"
+# Who trains each profession rank and riding, where, and the price the guides give (Polestar GPL-3.0:
+# tools/trainers/export.py), read by wowstats/trainers.py.
+"data/trainers-reference.json" = "wowstats/data/trainers-reference.json"
+# The class trainers, what they teach per level and Forever's talent names (Polestar GPL-3.0, client tables:
+# tools/class_reference/export.py), read by wowstats/classguide.py.
+"data/class-reference.json" = "wowstats/data/class-reference.json"
+# Several people (wowstats.account): the welcome manual (also the videos' captions) and the shipper the
+# one-line installer carries.
+"docs/videos/steps.json" = "wowstats/data/start-steps.json"
+"docs/videos/media" = "wowstats/data/start-media"
+"shipper/wow_stats.py" = "wowstats/data/shipper/wow_stats.py"
+"shipper/install-mac.sh" = "wowstats/data/shipper/install-mac.sh"
+"shipper/install-windows.ps1" = "wowstats/data/shipper/install-windows.ps1"
+"shipper/wow-stats.plist" = "wowstats/data/shipper/wow-stats.plist"
+"shipper/config.example.toml" = "wowstats/data/shipper/config.example.toml"
+# The MIT notices that come with the gear data travel with it.
+"THIRD_PARTY.md" = "wowstats/data/THIRD_PARTY.md"
+# The program's own license, which the one-line installers put next to the shipper (wowstats.account).
+"LICENSE" = "wowstats/data/LICENSE"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["."]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = ["SIM108", "B023"]
+
+[tool.ruff.lint.per-file-ignores]
+# The shipper and the seed are scripts with long data lines; tests hold fixtures.
+"shipper/wow_stats.py" = ["E501", "E731", "SIM105", "SIM115"]
+"dev/seed.py" = ["E501"]
+"tests/*" = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

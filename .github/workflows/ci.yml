@@ -1,0 +1,223 @@
+# Lint, tests and an image smoke test on GitHub-hosted runners. Actions are
+# pinned by commit SHA (the comment is the tag it was taken from).
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # release.yml runs this whole workflow before it builds an image.
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    # A hang (2026-11-19: the apt step of the browser install, 30 min) stops
+    # here, not at GitHub's 6-hour default. The job takes about 5 minutes.
+    timeout-minutes: 20
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      # The publish extra: the static bundles' allow-list tests need it. The
+      # mcp extra: FastMCP, which tests/mcp drives in memory and over HTTP. The
+      # browser group: tests/test_browser.py drives the static sites in
+      # Chromium (Plausible's payload, the icons, the tooltip on a phone),
+      # and in WebKit too for the icons and the phone layout: the owner reads
+      # it in Safari on an iPhone.
+      # No browser tests here (owner, 2026-11-19): they are a gate run locally
+      # before pushing (tests/test_*browser*.py skip without Playwright), and
+      # installing Chromium and WebKit with their system packages was most of
+      # this job's minutes, and hung for 30 minutes once.
+      - run: uv sync --frozen --extra publish --extra mcp
+      - run: uv run ruff check .
+      - run: uv run pytest -q -rs
+      # The fixtures are made by tools/fixtures/generate.py: a change to it, or
+      # to the code that derives them, without a rerun fails here.
+      - run: uv run python tools/fixtures/generate.py --check
+      - run: for f in web/*.js web/model3d/model3d.js web/model3d/view.js; do node --check "$f"; done
+
+  # The repository and its dependencies, not the program: the workflows
+  # (actionlint, with shellcheck on their scripts), uv.lock in step with
+  # pyproject.toml, no known vulnerability in any locked package
+  # (tools/audit_deps.py, exceptions in .github/vulnerability-allowlist.toml
+  # with a reason), and no secret in the tree or the history (gitleaks,
+  # .gitleaks.toml). The tools are pinned by version and SHA-256.
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # gitleaks reads every commit.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Tools
+        run: |
+          set -eu
+          mkdir -p "$RUNNER_TEMP/bin"
+          cd "$RUNNER_TEMP"
+          curl -fsSLo actionlint.tgz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "$ACTIONLINT_SHA256  actionlint.tgz" | sha256sum -c -
+          curl -fsSLo gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "$GITLEAKS_SHA256  gitleaks.tgz" | sha256sum -c -
+          tar -xzf actionlint.tgz -C bin actionlint
+          tar -xzf gitleaks.tgz -C bin gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Secrets (tree and history)
+        run: |
+          gitleaks dir --no-banner --redact --config .gitleaks.toml .
+          gitleaks git --no-banner --redact --config .gitleaks.toml .
+      - name: Workflows
+        run: actionlint -color
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: uv.lock matches pyproject.toml
+        run: uv lock --check
+      - name: Known vulnerabilities in the locked dependencies
+        run: uv run --frozen --only-group audit python tools/audit_deps.py
+
+  # A friend's Windows path on a real Windows: the install line the app
+  # hands out, the scheduled task, a ship to /ingest, the update, a reset and
+  # the help's uninstall line, in Windows PowerShell 5.1 and PowerShell 7,
+  # with a fresh Windows's execution policy and an accented profile folder
+  # (tests/test_windows_e2e.py). No harden-runner: it supports Linux only.
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --frozen --extra publish --extra mcp
+      - run: uv run pytest -v -rs tests/test_windows_e2e.py
+        env:
+          WOW_STATS_WINDOWS_E2E: "1"
+      # The README's PowerShell demo line pipes dev/seed.py into Python
+      # (in the ui container there): the same pipe here, in Windows
+      # PowerShell 5.1 and PowerShell 7, with --out instead of a store.
+      - name: The demo seed through PowerShell's pipe
+        shell: pwsh
+        run: |
+          foreach ($ps in 'powershell', 'pwsh') {
+            $out = Join-Path $env:RUNNER_TEMP "seed-$ps.ndjson"
+            & $ps -NoProfile -Command "Get-Content dev\seed.py -Raw | uv run python - --out '$out'"
+            if ($LASTEXITCODE) { throw "${ps}: the piped seed failed ($LASTEXITCODE)" }
+            $n = (Get-Content $out | Measure-Object -Line).Lines
+            if ($n -lt 1000) { throw "${ps}: only $n events" }
+            Write-Host "${ps}: $n events"
+          }
+
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build -t wow-stats:ci .
+      - name: The renderer image starts Chromium (read-only root, uid 10001)
+        run: |
+          set -eu
+          docker build --target renderer -t wow-stats-render:ci .
+          # The main image has no Playwright (`!` alone wouldn't fail the step under set -e).
+          if docker run --rm --entrypoint sh wow-stats:ci -c 'command -v playwright'; then exit 1; fi
+          docker run -d --name render --read-only --tmpfs /tmp -p 127.0.0.1:18083:8083 wow-stats-render:ci
+          for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:18083/healthz >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:18083/healthz || { docker ps -a; docker logs render; exit 1; }
+          test "$(docker exec render id -u)" = 10001
+          # POST /render needs the token the renderer made on first start
+          # (RENDER_TOKEN_FILE unset): 401 without it, 400 for an empty job with it.
+          code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+          test "$(code -X POST -d '{}' http://127.0.0.1:18083/render)" = 401
+          docker exec render cat /tmp/wow-stats-render/render.token | sed 's/^/Authorization: Bearer /' > "$RUNNER_TEMP/render.hdr"
+          test "$(code -X POST -H "@$RUNNER_TEMP/render.hdr" -d '{}' http://127.0.0.1:18083/render)" = 400
+          docker rm -f render
+      - name: No model CLI in the image (the lab runs no LLM)
+        run: "! docker run --rm --entrypoint sh wow-stats:ci -c 'command -v claude'"
+      - name: Smoke test (read-only root, uid 10001, both views)
+        run: |
+          set -eu
+          docker run --rm wow-stats:ci --version
+          # The deployment shapes the app accepts (wowstats/guard.py): the
+          # public view open to all on purpose (ALLOW_OPEN=1), the full view
+          # behind a login proxy it knows by a shared secret (PROXY_SECRET_FILE).
+          s=$(mktemp -d); chmod 755 "$s"
+          head -c 32 /dev/urandom | base64 | tr -d '+/=' > "$s/proxy.secret"
+          chmod 644 "$s/proxy.secret"
+          echo "X-Proxy-Auth: $(cat "$s/proxy.secret")" > "$s/proxy.hdr"
+          docker run -d --name ui-public --read-only --tmpfs /tmp -e VIEW=public -e AUTH=open -e ALLOW_OPEN=1 \
+            -p "127.0.0.1:0:8080" wow-stats:ci ui
+          docker run -d --name ui-full --read-only --tmpfs /tmp -v "$s:/run/s:ro" -e VIEW=full -e AUTH=proxy \
+            -e PROXY_SECRET_FILE=/run/s/proxy.secret -p "127.0.0.1:0:8080" wow-stats:ci ui
+          sleep 2
+          for view in public full; do
+            port=$(docker port "ui-$view" 8080 | head -1 | cut -d: -f2)
+            curl -fsS "http://127.0.0.1:$port/healthz"
+            test "$(docker exec "ui-$view" id -u)" = 10001
+          done
+          pport=$(docker port ui-public 8080 | head -1 | cut -d: -f2)
+          test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$pport/api/prices")" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:$pport/mcp")" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$pport/.well-known/oauth-authorization-server")" = 404
+          fport=$(docker port ui-full 8080 | head -1 | cut -d: -f2)
+          # Through the proxy (its secret) and no login yet: the login door.
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "@$s/proxy.hdr" "http://127.0.0.1:$fport/full/")" = 302
+          # Around the proxy, with or without an identity header: refused.
+          test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$fport/full/")" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "X-Forwarded-User: owner" "http://127.0.0.1:$fport/full/")" = 403
+          docker rm -f ui-public ui-full
+      - name: Smoke test (several people, FastMCP on 8090 behind the tests' OIDC stand-in)
+        run: |
+          set -eu
+          s=$(mktemp -d); chmod 755 "$s"; mkdir -m 777 "$s/state"
+          head -c 32 /dev/urandom | base64 | tr '+/' '-_' | tr -d '=' > "$s/master.key"
+          head -c 48 /dev/urandom > "$s/sign.key"
+          docker run --rm -v "$PWD/tests:/src/tests:ro" -e PYTHONPATH=/src --entrypoint python wow-stats:ci \
+            -c "from tests.mcp import oidc_standin as o; print(o.CLIENT_SECRET, end='')" > "$s/oidc.secret"
+          echo '{"friend-sub": "mira"}' > "$s/friends.json"
+          head -c 32 /dev/urandom | base64 | tr -d '+/=' > "$s/proxy.secret"
+          chmod 644 "$s"/*.key "$s/oidc.secret" "$s/friends.json" "$s/proxy.secret"
+          # The requests below play the login proxy: they carry its secret.
+          echo "X-Proxy-Auth: $(cat "$s/proxy.secret")" > "$s/proxy.hdr"
+          # The stand-in and the UI share one network namespace: the issuer
+          # is loopback inside it, as the MCP's settings require for http.
+          docker run -d --name net -p 127.0.0.1:18080:8080 -p 127.0.0.1:18090:8090 -v "$PWD/tests:/src/tests:ro" \
+            -e PYTHONPATH=/src --read-only --tmpfs /tmp --entrypoint python wow-stats:ci \
+            -c "import time; from tests.mcp.oidc_standin import Standin
+          with Standin(user='friend-sub', org='org-friends', port=9999): time.sleep(600)"
+          sleep 2
+          docker run -d --name ui --network container:net --read-only --tmpfs /tmp -v "$s:/run/s" \
+            -e VIEW=full -e AUTH=proxy -e PROXY_SECRET_FILE=/run/s/proxy.secret -e VL_URL=http://127.0.0.1:9 -e FRIENDS_VL_URL=http://127.0.0.1:9 \
+            -e WOW_STATE_DIR=/run/s/state -e WOW_OWNER_SUB=owner-sub \
+            -e WOW_FRIENDS_FILE=/run/s/friends.json -e PUBLIC_URL=http://127.0.0.1:18080 -e SITE_DOMAIN=m.example \
+            -e ZOGZOG_MASTER_KEY_FILE=/run/s/master.key -e MODEL3D=off -e WOW_ITEMS=off \
+            -e MCP_PUBLIC_URL=http://127.0.0.1:18090/mcp -e OIDC_ISSUER=http://127.0.0.1:9999 -e OIDC_CLIENT_ID=wow-app \
+            -e OIDC_CLIENT_SECRET_FILE=/run/s/oidc.secret -e MCP_SIGNING_KEY_FILE=/run/s/sign.key \
+            -e MCP_STATE_DIR=/run/s/state/mcp wow-stats:ci ui
+          for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:18080/healthz >/dev/null 2>&1 && break; sleep 1; done
+          code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+          friend=(-H "@$s/proxy.hdr" -H "X-Forwarded-User: friend-sub")
+          test "$(code "${friend[@]}" http://127.0.0.1:18080/start)" = 200
+          test "$(code -H "@$s/proxy.hdr" -H "X-Forwarded-User: stranger" http://127.0.0.1:18080/start)" = 403
+          test "$(code -H "X-Forwarded-User: friend-sub" http://127.0.0.1:18080/start)" = 403
+          test "$(code http://127.0.0.1:18080/install/update)" = 200
+          test "$(code http://127.0.0.1:18080/privacy)" = 200
+          test "$(code -H "@$s/proxy.hdr" http://127.0.0.1:18080/api/chars)" = 401
+          test "$(code http://127.0.0.1:18080/api/chars)" = 403
+          test "$(code -X POST "${friend[@]}" http://127.0.0.1:18080/mcp)" = 404
+          test "$(code http://127.0.0.1:18090/.well-known/oauth-protected-resource/mcp)" = 200
+          test "$(code http://127.0.0.1:18090/.well-known/oauth-authorization-server)" = 200
+          test "$(code -X POST http://127.0.0.1:18090/mcp)" = 401
+          docker rm -f ui net

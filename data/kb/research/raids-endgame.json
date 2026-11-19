@@ -1,0 +1,4354 @@
+{
+ "schema": 2,
+ "lane": "raids-endgame",
+ "title": "Lane: Raids and max-level endgame — WoW Forever (knowledge-base catalogue)",
+ "about": "Research lane 'raids-endgame' (20261118-2045-lane-raids-and-endgame-raids-and-max-lev), imported by tools/kb/import_lane.py. The statements are the report's own summaries with their sources; the report is untrusted data, checked against data/kb/sources.json.",
+ "last_verified": "2026-11-18",
+ "rules": {
+  "max_level": {
+   "value": 60,
+   "source_url": "https://news.blizzard.com/en-us/article/24303862",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303862"
+   ],
+   "source_type": "official",
+   "date": "2026-09-12",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "launch_date": {
+   "value": "2026-11-04T23:00:00Z",
+   "source_url": "https://news.blizzard.com/en-us/article/24303862",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303862"
+   ],
+   "source_type": "official",
+   "date": "2026-09-12",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raids_open": {
+   "value": false,
+   "as_of": "2026-11-18",
+   "source_url": "https://www.warcrafttavern.com/forever/news/world-of-warcraft-forever-is-now-live/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/world-of-warcraft-forever-is-now-live/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-04",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.barrow_deeps": {
+   "value": {
+    "name": "The Barrow Deeps",
+    "size": 10,
+    "level": 60,
+    "boss_count": 8,
+    "unlock_date": "2026-12-09",
+    "reset": "weekly",
+    "reset_day": "unknown",
+    "attunement": null,
+    "entrances": [
+     "Mount Hyjal",
+     "Winterspring",
+     "Blackmaw Hold"
+    ],
+    "legacy_challenge": {
+     "name": "Conqueror of the Deeps",
+     "achievement_id": 62035,
+     "points": 1,
+     "requirement": "defeat all 8 bosses"
+    }
+   },
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009 ; https://warcraft.wiki.gg/wiki/Conqueror_of_the_Deeps",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009 ; https://warcraft.wiki.gg/wiki/Conqueror_of_the_Deeps"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.barrow_deeps.bosses": {
+   "order_known": false,
+   "value": [
+    "Deepscar Matriarch",
+    "Khalith the Dreadspinner",
+    "Amethrax",
+    "Ravus and Darlissa",
+    "Elder Tangleclaw",
+    "Well of Sorrow",
+    "Del'lynar Songwood",
+    "Sonya Darkhallow"
+   ],
+   "source_url": "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Deeps",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Deeps"
+   ],
+   "source_type": "community",
+   "date": "2026-11-14",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.hyjal_summit": {
+   "value": {
+    "name": "Hyjal Summit",
+    "size": 20,
+    "level": 60,
+    "boss_count": 13,
+    "unlock_date": "2026-12-09",
+    "reset": "weekly",
+    "reset_day": "unknown",
+    "attunement": null,
+    "location": "Mount Hyjal, near Nordrassil",
+    "legacy_challenge": {
+     "name": "Conqueror of the Wilds",
+     "achievement_id": 62034,
+     "points": 1,
+     "requirement": "defeat all 13 bosses"
+    }
+   },
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009 ; https://warcraft.wiki.gg/wiki/Conqueror_of_the_Wilds",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009 ; https://warcraft.wiki.gg/wiki/Conqueror_of_the_Wilds"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.hyjal_summit.bosses": {
+   "order_known": false,
+   "value": [
+    "Bandalar",
+    "Time-Lost Battalion",
+    "Old Gloomlurker",
+    "Kathris the Haunted",
+    "Elder Minderel",
+    "Council of Thorns",
+    "The Wild King",
+    "Ancient of Decay",
+    "Sylvesteris Dusksong",
+    "Gharalis the Abyssal",
+    "Anara Chillwind",
+    "Tracker Stillwind",
+    "Nythus the Dreambound"
+   ],
+   "source_url": "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Wilds",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Wilds"
+   ],
+   "source_type": "community",
+   "date": "2026-11-14",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.onyxias_lair": {
+   "value": {
+    "name": "Onyxia's Lair",
+    "size": 40,
+    "level": 60,
+    "boss_count": 1,
+    "unlock_date": "2026-12-09",
+    "reset": "weekly",
+    "reset_day": "unknown",
+    "location": "Dustwallow Marsh",
+    "attunement": {
+     "item": "Drakefire Amulet",
+     "must_be_in_bags": true,
+     "must_be_equipped": false,
+     "every_member": true,
+     "account_wide": false
+    },
+    "recommended_resistance": "fire",
+    "legacy_challenge": {
+     "name": "Conqueror of the Lair",
+     "achievement_id": 684,
+     "points": 1,
+     "requirement": "defeat Onyxia"
+    }
+   },
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009 ; https://www.warcrafttavern.com/forever/news/onyxias-lair-raid-will-still-require-attunement-in-wow-forever/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009 ; https://www.warcrafttavern.com/forever/news/onyxias-lair-raid-will-still-require-attunement-in-wow-forever/"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.onyxia.reset.classic": {
+   "value": "5 days",
+   "source_url": "https://warcraft.wiki.gg/wiki/Raid_timer",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Raid_timer"
+   ],
+   "source_type": "community",
+   "date": "n/a",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.difficulty_modes": {
+   "value": {
+    "difficulties": 1,
+    "flex_scaling": false,
+    "raid_finder": false
+   },
+   "source_url": "https://leprestore.com/guides/world-of-warcraft-forever/raiding-in-forever-will-not-be-what-you-expect/",
+   "sources": [
+    "https://leprestore.com/guides/world-of-warcraft-forever/raiding-in-forever-will-not-be-what-you-expect/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-07",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.cross_ruleset_grouping": {
+   "value": false,
+   "source_url": "https://news.blizzard.com/en-us/article/24303313",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303313"
+   ],
+   "source_type": "official",
+   "date": "2026-09",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.not_announced": {
+   "value": [
+    "Molten Core",
+    "Blackwing Lair",
+    "Zul'Gurub",
+    "Ruins of Ahn'Qiraj",
+    "Temple of Ahn'Qiraj",
+    "Naxxramas"
+   ],
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "roadmap.spring_2027": {
+   "value": {
+    "raids": [
+     {
+      "size": 10
+     },
+     {
+      "size": 20
+     }
+    ],
+    "dungeons": 2,
+    "legendary_questline": true,
+    "pvp_season_refresh": true
+   },
+   "source_url": "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/",
+   "sources": [
+    "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/"
+   ],
+   "source_type": "press",
+   "date": "2026-11-08",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "roadmap.summer_2027": {
+   "value": {
+    "raids": [
+     "revamped iconic classic raid (unnamed)",
+     "new raid"
+    ],
+    "dungeons": 2
+   },
+   "source_url": "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/",
+   "sources": [
+    "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/"
+   ],
+   "source_type": "press",
+   "date": "2026-11-08",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "legacy.points_per_challenge": {
+   "value": 1,
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "legacy.total_challenges": {
+   "value": 65,
+   "breakdown": {
+    "classes": 27,
+    "tradeskills": 18,
+    "pvp": 12,
+    "dungeons": 3,
+    "raids": 3,
+    "adventure": 2
+   },
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/ ; https://allthings.how/wow-forever-legacy-points/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/ ; https://allthings.how/wow-forever-legacy-points/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "legacy.max_single_character_earnable": {
+   "value": 29,
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "legacy.account_wide": {
+   "value": true,
+   "exception": "Hardcore characters",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "legacy.adventure_challenges": {
+   "value": [
+    "Explore the whole map",
+    "Lord Valthalak questline (An Earnest Proposition -> Saving the Best for Last)"
+   ],
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "dungeon.new.levels": {
+   "value": {
+    "Hall of Thanes": [
+     13,
+     18
+    ],
+    "Ruins of Lordaeron": [
+     15,
+     20
+    ],
+    "Excavation Site: Wetlands": [
+     24,
+     29
+    ],
+    "City of Dalaran": [
+     28,
+     33
+    ],
+    "The Drowned City": [
+     35,
+     40
+    ],
+    "Krol'dok Stronghold": [
+     40,
+     45
+    ],
+    "Alcaz Prison": [
+     48,
+     53
+    ],
+    "Blackmaw Hold": [
+     55,
+     60
+    ],
+    "Shaper's Terrace": [
+     58,
+     60
+    ]
+   },
+   "note": "Excavation Site disputed (26-31 in 2026-10-01 beta notes)",
+   "statement": "Excavation Site disputed (26-31 in 2026-10-01 beta notes)",
+   "source_url": "https://news.blizzard.com/en-us/article/24301455 ; https://us.forums.blizzard.com/en/wow/t/krol%E2%80%99dok-stronghold/2349672",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24301455 ; https://us.forums.blizzard.com/en/wow/t/krol%E2%80%99dok-stronghold/2349672"
+   ],
+   "source_type": "official",
+   "date": "2026-09/10",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "dungeon.city_of_dalaran.access": {
+   "value": {
+    "attunement": "faction questline",
+    "alliance_start": "An Alarming Request (Emissary Jacques, Southshore)",
+    "horde_start": "Key to the City / Prison Break-In (Magus Wordeen Voidglare, Tarren Mill)",
+    "key": "Dalaran Sewer Key",
+    "key_quest_min_level": 30
+   },
+   "source_url": "https://news.blizzard.com/en-us/article/24301455 ; https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24301455 ; https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "dungeon.shapers_terrace.access": {
+   "value": "bring Un'Goro power crystals to consoles inside",
+   "source_url": "https://news.blizzard.com/en-us/article/24301455",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24301455"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "dungeon.difficulties": {
+   "value": 1,
+   "source_url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/dungeons/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "instance.hourly_cap": {
+   "value": 5,
+   "source_url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/dungeons/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "keys.keyring": {
+   "value": {
+    "bind": "on_pickup",
+    "uses_bag_slot": false
+   },
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "reputation.thresholds": {
+   "value": {
+    "neutral": 3000,
+    "friendly": 6000,
+    "honored": 12000,
+    "revered": 21000,
+    "total_neutral_to_exalted": 42000
+   },
+   "source_url": "https://lfcarry.com/guides/wow-forever-reputation",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-reputation"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "world_buffs.in_raids": {
+   "value": "no_effect",
+   "affected": [
+    "Rallying Cry of the Dragonslayer",
+    "Warchief's Blessing / Might of Stormwind",
+    "Songflower Serenade",
+    "Dire Maul tribute buffs (x3)",
+    "Sayge's Darkmoon fortunes (x8)"
+   ],
+   "unaffected_text": [
+    "Spirit of Zandalar"
+   ],
+   "note": "client tooltip text; no blue post; untested live",
+   "statement": "client tooltip text; no blue post; untested live",
+   "source_url": "https://kami-labs.fr/en/wow-forever/world-buffs-raids-wow-forever/",
+   "sources": [
+    "https://kami-labs.fr/en/wow-forever/world-buffs-raids-wow-forever/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-11-10",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "consumables.scrolls_trigger_gcd": {
+   "value": true,
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/forever-beta-development-notes/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/forever-beta-development-notes/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "consumables.predatory_senses_is_combat_potion": {
+   "value": true,
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/forever-beta-development-notes/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/forever-beta-development-notes/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "consumables.wizard_oil_spellpower": {
+   "value": {
+    "Minor Wizard Oil": 8,
+    "Lesser Wizard Oil": 16,
+    "Wizard Oil": 24,
+    "Brilliant Wizard Oil": "unchanged"
+   },
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/forever-beta-development-notes/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/forever-beta-development-notes/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-09-24",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "consumables.healing_potions_profession": {
+   "value": "First Aid",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/alchemy/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/alchemy/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "consumables.natural_flasks_zone_lock": {
+   "value": [
+    "Mount Hyjal",
+    "Hyjal Summit",
+    "The Barrow Deeps"
+   ],
+   "source_url": "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever",
+   "sources": [
+    "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-02",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "enchants.necklace_exists": {
+   "value": true,
+   "required_rod": "Runed Truesilver Rod",
+   "source_url": "https://blizzardwatch.com/2026/09/21/every-new-enchant-world-warcraft-forever/",
+   "sources": [
+    "https://blizzardwatch.com/2026/09/21/every-new-enchant-world-warcraft-forever/"
+   ],
+   "source_type": "guide",
+   "date": "2026-09-21",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "enchants.ring_exists": {
+   "value": "disputed (likely false)",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-15",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "professions.primary_count": {
+   "value": 2,
+   "source_url": "https://www.warcrafttavern.com/forever/guides/professions/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/professions/"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "professions.skill_cap": {
+   "value": 300,
+   "source_url": "https://www.warcrafttavern.com/forever/guides/professions/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/professions/"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "professions.jewelcrafting_available": {
+   "value": false,
+   "source_url": "https://www.warcrafttavern.com/forever/guides/professions/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/professions/"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "gold.class_training_1_60": {
+   "value_gold": [
+    206,
+    207
+   ],
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/631316",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/631316"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "gold.riding_40": {
+   "value_gold": 100,
+   "includes_first_mount": true,
+   "speed_pct": 60,
+   "extra_mount_gold": 20,
+   "note": "beta data",
+   "statement": "beta data",
+   "source_url": "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+   "sources": [
+    "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options"
+   ],
+   "source_type": "guide",
+   "date": "2026-10-21",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "gold.riding_60": {
+   "training_gold": 1000,
+   "epic_mount_gold": 200,
+   "speed_pct": 100,
+   "discounts": {
+    "honored_home_faction_pct": 10,
+    "legacy_bartering_max_pct_mounts_only": 10
+   },
+   "note": "beta data; no official price",
+   "statement": "beta data; no official price",
+   "source_url": "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+   "sources": [
+    "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options"
+   ],
+   "source_type": "guide",
+   "date": "2026-10-21",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "gold.riding_60.classic": {
+   "total_gold_approx": 1000,
+   "discounted_approx": 800,
+   "source_url": "https://warcrafttavern.com/wow-classic/guides/mounts",
+   "sources": [
+    "https://warcrafttavern.com/wow-classic/guides/mounts"
+   ],
+   "source_type": "guide",
+   "date": "n/a",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "gold.wow_token_available": {
+   "value": false,
+   "source_url": "https://timesaver.gg/blog/wow-forever-raid-stockpile",
+   "sources": [
+    "https://timesaver.gg/blog/wow-forever-raid-stockpile"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-14",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "classes.specs_per_class": {
+   "value": 3,
+   "shaman_tank_spec": false,
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/ ; https://www.warcrafttavern.com/forever/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/ ; https://www.warcrafttavern.com/forever/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "pvp.honor_cap": {
+   "value": 25000,
+   "note": "WT summary says 15000",
+   "statement": "WT summary says 15000",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-10",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "pvp.ranks": {
+   "value": 14,
+   "weekly_rank_cap": true,
+   "source_url": "https://news.blizzard.com/en-us/article/24303316",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303316"
+   ],
+   "source_type": "official",
+   "date": "2026-10-07",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "raid.classic_resets": {
+   "value": {
+    "Molten Core": "7d",
+    "Blackwing Lair": "7d",
+    "Temple of Ahn'Qiraj": "7d",
+    "Naxxramas": "7d",
+    "Onyxia's Lair": "5d",
+    "Zul'Gurub": "3d",
+    "Ruins of Ahn'Qiraj": "3d"
+   },
+   "source_url": "https://warcraft.wiki.gg/wiki/Raid_timer",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Raid_timer"
+   ],
+   "source_type": "community",
+   "date": "n/a",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "legacy.dungeon_challenges@raids-endgame": {
+   "value": [
+    {
+     "name": "Novice Spelunker",
+     "achievement_id": 62031,
+     "points": 1,
+     "band": "15-25",
+     "dungeons": [
+      "Ragefire Chasm OR Hall of Thanes",
+      "Ruins of Lordaeron",
+      "Wailing Caverns",
+      "Deadmines",
+      "Shadowfang Keep",
+      "Excavation Site: Wetlands"
+     ]
+    },
+    {
+     "name": "Experienced Spelunker",
+     "achievement_id": 62032,
+     "points": 1,
+     "band": "26-45",
+     "dungeons": [
+      "City of Dalaran",
+      "Blackfathom Deeps",
+      "Gnomeregan",
+      "The Drowned City",
+      "Scarlet Monastery Graveyard",
+      "Scarlet Monastery Library",
+      "Scarlet Monastery Armory",
+      "Scarlet Monastery Cathedral",
+      "Razorfen Kraul",
+      "Krol'dok Stronghold"
+     ]
+    },
+    {
+     "name": "Master Spelunker",
+     "achievement_id": 62033,
+     "points": 1,
+     "band": "46-60",
+     "dungeons": [
+      "Razorfen Downs",
+      "Uldaman",
+      "Zul'Farrak",
+      "Maraudon",
+      "Alcaz Prison",
+      "Sunken Temple",
+      "Blackrock Depths",
+      "Lower Blackrock Spire",
+      "Upper Blackrock Spire",
+      "Scholomance",
+      "Stratholme Main Gate",
+      "Stratholme Service Gate",
+      "Dire Maul East",
+      "Dire Maul West",
+      "Dire Maul North",
+      "Shaper's Terrace",
+      "Blackmaw Hold"
+     ]
+    }
+   ],
+   "requirement": "kill the final boss of every listed dungeon",
+   "source_url": "https://warcraft.wiki.gg/wiki/Master_Spelunker ; https://allthings.how/wow-forever-legacy-points/ ; https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Master_Spelunker ; https://allthings.how/wow-forever-legacy-points/ ; https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "community",
+   "date": "2026-11-14",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  },
+  "legacy.pvp_challenges@raids-endgame": {
+   "value": {
+    "ranks": [
+     3,
+     7,
+     10,
+     13,
+     14
+    ],
+    "exalted_factions": [
+     "Alterac Valley",
+     "Arathi Basin",
+     "Warsong Gulch",
+     "Darkspear Islands"
+    ],
+    "field_of_honor_weeks": [
+     4,
+     7,
+     10
+    ],
+    "hardcore_eligible": false
+   },
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18",
+   "lane": "raids-endgame"
+  }
+ },
+ "statements": [
+  {
+   "id": "raids-endgame:KB-01:1",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "Forever went live worldwide on 4 Nov 2026 at 15:00 PST, which is 00:00 CET on 5 Nov in Europe.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303862",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303862",
+    "https://www.warcrafttavern.com/forever/news/world-of-warcraft-forever-is-now-live/"
+   ],
+   "source_type": "official",
+   "date": "2026-09-12; 11-04",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-01:2",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "The level cap is 60. The beta stopped at level 30.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303862",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303862",
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-01:3",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "Forever has no level scaling and no flying mounts. It is not a seasonal mode.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303862",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303862"
+   ],
+   "source_type": "official",
+   "date": "2026-09-12",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-01:4",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "Open now: levelling 1–60, the 9 new dungeons plus the Classic dungeons, PvP including the 15v15 Battle for the Darkspear Islands, and Normal, PvP, RP and RP-PvP realms. No raids are open.",
+   "source_url": "https://www.warcrafttavern.com/forever/news/world-of-warcraft-forever-is-now-live/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/world-of-warcraft-forever-is-now-live/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-04",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-01:5",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "Barrow Deeps, Hyjal Summit and Onyxia's Lair all unlock on 9 Dec 2026.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-01:6",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "KR/TW get the raids one day later, on 10 Dec.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-barrow-deeps",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-barrow-deeps"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-17",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-01:7",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "The developers plan no major tuning before raids open, apart from bugs and serious outliers.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/631316",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/631316"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-01:8",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "The Hardcore ruleset is planned for winter, with no date given.",
+   "source_url": "https://www.gfinityesports.com/article/world-of-warcraft-forever-roadmap-guide",
+   "sources": [
+    "https://www.gfinityesports.com/article/world-of-warcraft-forever-roadmap-guide"
+   ],
+   "source_type": "press",
+   "date": "2026-09-24",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-01:9",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "Spring 2027 brings 2 raids (one 10-player, one 20-player), 2 dungeons, a new area, a legendary questline and a PvP season refresh.",
+   "source_url": "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/",
+   "sources": [
+    "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/",
+    "https://www.gfinityesports.com/article/world-of-warcraft-forever-roadmap-guide",
+    "https://warcraft.wiki.gg/wiki/World_of_Warcraft:_Forever"
+   ],
+   "source_type": "press",
+   "date": "Sep–Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-01:10",
+   "doc": "KB-01",
+   "title": "Content phases and what is open (scope: forever)",
+   "text": "Summer 2027 brings a revamped \"iconic\" Classic raid (unnamed), one new raid, 2 dungeons, more world content, and profession and Legacy updates.",
+   "source_url": "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/",
+   "sources": [
+    "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/",
+    "https://www.gfinityesports.com/article/world-of-warcraft-forever-roadmap-guide"
+   ],
+   "source_type": "press",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:1",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "All three launch raids are currently planned to reset **weekly**.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:2",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "No reset weekday or time has been published for any region.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:4",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "Raid sizes are fixed. There is one difficulty, no flex scaling and no Raid Finder.",
+   "source_url": "https://leprestore.com/guides/world-of-warcraft-forever/raiding-in-forever-will-not-be-what-you-expect/",
+   "sources": [
+    "https://leprestore.com/guides/world-of-warcraft-forever/raiding-in-forever-will-not-be-what-you-expect/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-07",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:5",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "Raid groups must be on the same ruleset; there is no cross-ruleset grouping.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303313",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303313"
+   ],
+   "source_type": "official",
+   "date": "Sep 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:6",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "Each boss has a few rare \"chase\" items that are much stronger than its normal drops.",
+   "source_url": "https://www.wowhead.com/forever",
+   "sources": [
+    "https://www.wowhead.com/forever"
+   ],
+   "source_type": "datamined",
+   "date": "2026-09-15",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:8",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "Raids are not tested on a PTR. Item stats stay obfuscated until the item first drops on live servers. There is no dungeon journal.",
+   "source_url": "https://www.method.gg/wow-forever/no-ptrs-and-new-datamining-restrictions-coming-to-world-of-warcraft-forever",
+   "sources": [
+    "https://www.method.gg/wow-forever/no-ptrs-and-new-datamining-restrictions-coming-to-world-of-warcraft-forever"
+   ],
+   "source_type": "guide",
+   "date": "2026-09-17",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:9",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "When an epic raid drop binds, its appearance unlocks only for the owner.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303313",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303313"
+   ],
+   "source_type": "official",
+   "date": "Sep 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:10",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "The two new raids have no attunement. Whether later raids will need one is undecided.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/raids/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/raids/",
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:11",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "Skyborne racial \"Attuned\" and \"Charged\" buffs are removed when you enter a raid.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/631316",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/631316"
+   ],
+   "source_type": "official",
+   "date": "Oct–Nov 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:14",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "The client API adds `C_RaidLocks.IsRaidLockExtendFeatureSupported`, which hints that raid locks can be extended.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes"
+   ],
+   "source_type": "community",
+   "date": "2026-10-02",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:15",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "Beta added raid-wide versions of Trueshot Aura, Battle Shout, Moonkin Aura, Leader of the Pack, and the Grace of Air, Strength of Earth, Windfury and Flametongue totems.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/631316",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/631316",
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "Oct 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-02:16",
+   "doc": "KB-02",
+   "title": "Raid system rules (scope: forever)",
+   "text": "No debuff-slot limit is published. The only debuff fixes found concern stacking of Faerie Fire, Curse of Recklessness and Insect Swarm.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "Oct 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:1",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "New raid: 10 players, level 60, 8 bosses.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:2",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "It lies under Mount Hyjal and was Illidan's former prison.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:3",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "It has three connected entrances: Mount Hyjal, Winterspring and Blackmaw Hold.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009",
+    "https://www.method.gg/wow-forever/wow-forever-raids-a-look-at-barrow-deeps-hyjal-summit-and-onyxias-lair"
+   ],
+   "source_type": "official",
+   "date": "Oct 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:4",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "Reported entrance locations: about 70,62 in the Hyjal zone; an underground passage reached from the Everlook flight path; and inside Blackmaw Hold in Azshara.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-barrow-deeps",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-barrow-deeps"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-17",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:5",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "No attunement is required.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/raids/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/raids/",
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:6",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "Lockout is weekly.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:7",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "Bosses in achievement-criteria order: Deepscar Matriarch, Khalith the Dreadspinner, Amethrax, Ravus and Darlissa, Elder Tangleclaw, Well of Sorrow, Del'lynar Songwood, Sonya Darkhallow.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Deeps",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Deeps",
+    "https://www.warcrafttavern.com/forever/guides/raids/"
+   ],
+   "source_type": "community",
+   "date": "2026-11-14",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:8",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "The kill order is not published, and one guide calls the raid non-linear.",
+   "source_url": "https://mmonster.co/wow-forever/guides/raids/the-barrow-deeps",
+   "sources": [
+    "https://mmonster.co/wow-forever/guides/raids/the-barrow-deeps"
+   ],
+   "source_type": "guide",
+   "date": "2026-09-29",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:9",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "Mechanics (speculative): poison and curse from the spider and treant bosses, shadow damage from the jailers. Bring nature and shadow protection and dispel coverage.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-barrow-deeps",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-barrow-deeps"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-17",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:10",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "Loot: new tier pieces, a share of the tier's Legendary, and chase items. No loot table is published.",
+   "source_url": "https://mmonster.co/wow-forever/guides/raids/the-barrow-deeps",
+   "sources": [
+    "https://mmonster.co/wow-forever/guides/raids/the-barrow-deeps",
+    "https://news.blizzard.com/en-us/article/24303862"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:11",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "A Brooch of the Wardens gives access to Vord'anaar Prison inside the raid.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:12",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "Legacy: clearing all 8 bosses earns \"Conqueror of the Deeps\" (achievement 62035), worth 1 point.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/",
+    "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Deeps"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-03:13",
+   "doc": "KB-03",
+   "title": "The Barrow Deeps (scope: forever)",
+   "text": "One guide says the full clear must happen within a single lockout.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-barrow-deeps",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-barrow-deeps"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-17",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:1",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "New raid: 20 players, level 60, 13 bosses. It is unrelated to the TBC raid of the same name.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:2",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "It is on the summit of Mount Hyjal near Nordrassil. An ancient guardian is fought first, and after that several routes lead through ruins above and below ground.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:3",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "No attunement is required. Client strings mention a \"Hyjal Attunement\", but it is not confirmed as an entry requirement.",
+   "source_url": "https://expcarry.com/wow-forever-hyjal-summit-raid-guide",
+   "sources": [
+    "https://expcarry.com/wow-forever-hyjal-summit-raid-guide",
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-26",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:4",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "Lockout is weekly.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:5",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "Encounters in achievement-criteria order (not kill order): Bandalar, Time-Lost Battalion, Old Gloomlurker, Kathris the Haunted, Elder Minderel, Council of Thorns, The Wild King, Ancient of Decay, Sylvesteris Dusksong, Gharalis the Abyssal, Anara Chillwind, Tracker Stillwind, Nythus the Dreambound.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Wilds",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Wilds",
+    "https://allthings.how/wow-forever-hyjal-summit/"
+   ],
+   "source_type": "community",
+   "date": "2026-11-14",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:6",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "The Wild King is reported as the final boss.",
+   "source_url": "https://www.method.gg/wow-forever/wow-forever-raids-a-look-at-barrow-deeps-hyjal-summit-and-onyxias-lair",
+   "sources": [
+    "https://www.method.gg/wow-forever/wow-forever-raids-a-look-at-barrow-deeps-hyjal-summit-and-onyxias-lair",
+    "https://expcarry.com/wow-forever-hyjal-summit-raid-guide"
+   ],
+   "source_type": "guide",
+   "date": "2026-10",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:7",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "Mechanics come from datamined ability names only and are unverified. Ancient of Decay uses nature breath. Kathris uses soul rip and fear. Anara Chillwind uses lunar and umbral marks plus Starfall. Elder Minderel's Crystallize may make adds weak to fire. Nythus has an Emerald Dream state. The Wild King shapeshifts and uses Convoke.",
+   "source_url": "https://expcarry.com/wow-forever-hyjal-summit-raid-guide",
+   "sources": [
+    "https://expcarry.com/wow-forever-hyjal-summit-raid-guide"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-26",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:8",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "Loot: new tier pieces plus the Legendary tie-in. Datamined item names include Soulrip Staff, Rotcleaver, Fang of the Forlorn and a Wild King crown. A Bough/Branch of Nordrassil legendary chain is linked to Sylvesteris Dusksong.",
+   "source_url": "https://expcarry.com/wow-forever-hyjal-summit-raid-guide",
+   "sources": [
+    "https://expcarry.com/wow-forever-hyjal-summit-raid-guide",
+    "https://news.blizzard.com/en-us/article/24303862"
+   ],
+   "source_type": "commercial",
+   "date": "2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:9",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "The associated reputation is Guardians of Hyjal (see KB-11). It is not confirmed whether the raid itself gives reputation.",
+   "source_url": "https://expcarry.com/wow-forever-hyjal-summit-raid-guide",
+   "sources": [
+    "https://expcarry.com/wow-forever-hyjal-summit-raid-guide"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-26",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:10",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "Natural flasks only work in Mount Hyjal, Hyjal Summit and Barrow Deeps (see KB-14).",
+   "source_url": "https://allthings.how/wow-forever-hyjal-summit/",
+   "sources": [
+    "https://allthings.how/wow-forever-hyjal-summit/",
+    "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-04:11",
+   "doc": "KB-04",
+   "title": "Hyjal Summit (scope: forever)",
+   "text": "Legacy: clearing all 13 bosses earns \"Conqueror of the Wilds\" (achievement 62034), worth 1 point.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/",
+    "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Wilds"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-05:1",
+   "doc": "KB-05",
+   "title": "Onyxia's Lair (scope: forever, with classic_fallback rows marked)",
+   "text": "40 players, level 60, one boss in a three-phase fight, in Dustwallow Marsh. Fire resistance is recommended.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-05:3",
+   "doc": "KB-05",
+   "title": "Onyxia's Lair (scope: forever, with classic_fallback rows marked)",
+   "text": "Every raider must carry the Drakefire Amulet in their bags. It does not need to be equipped.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026-10-20",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-05:4",
+   "doc": "KB-05",
+   "title": "Onyxia's Lair (scope: forever, with classic_fallback rows marked)",
+   "text": "The attunement chain is unchanged from Classic and is per character, not account-wide.",
+   "source_url": "https://www.warcrafttavern.com/forever/news/onyxias-lair-raid-will-still-require-attunement-in-wow-forever/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/onyxias-lair-raid-will-still-require-attunement-in-wow-forever/",
+    "https://www.warcrafttavern.com/forever/news/three-new-raids-coming-to-world-of-warcraft-forever/"
+   ],
+   "source_type": "guide",
+   "date": "2026-10-08",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-05:5",
+   "doc": "KB-05",
+   "title": "Onyxia's Lair (scope: forever, with classic_fallback rows marked)",
+   "text": "The Alliance chain has 16 quests from level 48. It goes Helendis Riverhorn (Burning Steppes) → the Stormwind \"True Masters\" steps → Marshal Windsor in BRD → the Great Masquerade → The Dragon's Eye → General Drakkisath in UBRS.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009",
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-onyxia-attunement/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-05:6",
+   "doc": "KB-05",
+   "title": "Onyxia's Lair (scope: forever, with classic_fallback rows marked)",
+   "text": "The Horde chain has 15 quests from level 55. It goes Warlord Goretooth (Badlands) → LBRS → Thrall → Rexxar (Desolace) → Myranda (Western Plaguelands) → Emberstrife (Dustwallow) and the Test of Skulls → Drakkisath in UBRS → Rexxar.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009",
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-onyxia-attunement/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-05:7",
+   "doc": "KB-05",
+   "title": "Onyxia's Lair (scope: forever, with classic_fallback rows marked)",
+   "text": "The Chipped Drakefire Amulet shortcut is not available.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-onyxia-attunement/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-onyxia-attunement/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-01",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-05:8",
+   "doc": "KB-05",
+   "title": "Onyxia's Lair (scope: forever, with classic_fallback rows marked)",
+   "text": "Lockout is weekly in Forever. Classic used a 5-day timer.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009",
+    "https://warcraft.wiki.gg/wiki/Raid_timer"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-05:12",
+   "doc": "KB-05",
+   "title": "Onyxia's Lair (scope: forever, with classic_fallback rows marked)",
+   "text": "Legacy: killing Onyxia earns \"Conqueror of the Lair\", worth 1 point. It reuses achievement ID 684.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/",
+    "https://warcraft.wiki.gg/wiki/Conqueror_of_the_Lair"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-06:1",
+   "doc": "KB-06",
+   "title": "Tier sets, crafted tier and raid loot structure (scope: forever)",
+   "text": "Hyjal Summit and Barrow Deeps come with new tier sets, and a Legendary will be revealed later.",
+   "source_url": "https://news.blizzard.com/en-us/article/24303862",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24303862"
+   ],
+   "source_type": "official",
+   "date": "2026-09-12",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-06:2",
+   "doc": "KB-06",
+   "title": "Tier sets, crafted tier and raid loot structure (scope: forever)",
+   "text": "The client contains 18 role- or spec-specific sets for the 9 classes. Each set has 6 slots (head, shoulders, chest, hands, legs, feet) with bonuses at 2, 3, 4 and 5 pieces. Examples are Battlegear of Glory (Warrior) and Manaflare Regalia (Mage).",
+   "source_url": "https://expcarry.com/wow-forever-hyjal-summit-raid-guide",
+   "sources": [
+    "https://expcarry.com/wow-forever-hyjal-summit-raid-guide"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-26",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-06:3",
+   "doc": "KB-06",
+   "title": "Tier sets, crafted tier and raid loot structure (scope: forever)",
+   "text": "\"Hyjal\" tier armour models exist for all 9 classes.",
+   "source_url": "https://kami-labs.fr/en/wow-forever/wow-forever-tenues-raid-hyjal/",
+   "sources": [
+    "https://kami-labs.fr/en/wow-forever/wow-forever-tenues-raid-hyjal/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-09-17",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-06:4",
+   "doc": "KB-06",
+   "title": "Tier sets, crafted tier and raid loot structure (scope: forever)",
+   "text": "Tier shoulders, hands, legs and feet appear to be crafted from Hyjal vendor recipes using Malleable Essence of Nature, which comes from disenchanting raid items. Head and chest appear to drop in the raid.",
+   "source_url": "https://allthings.how/wow-forever-hyjal-summit/",
+   "sources": [
+    "https://allthings.how/wow-forever-hyjal-summit/"
+   ],
+   "source_type": "commercial",
+   "date": "2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-06:5",
+   "doc": "KB-06",
+   "title": "Tier sets, crafted tier and raid loot structure (scope: forever)",
+   "text": "No source describes Classic-style turn-in tier tokens or raid coin and idol currencies for the new raids.",
+   "source_url": "https://leprestore.com/guides/world-of-warcraft-forever/raiding-in-forever-will-not-be-what-you-expect/",
+   "sources": [
+    "https://leprestore.com/guides/world-of-warcraft-forever/raiding-in-forever-will-not-be-what-you-expect/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-06:7",
+   "doc": "KB-06",
+   "title": "Tier sets, crafted tier and raid loot structure (scope: forever)",
+   "text": "The Swift Hyjal Stag mount exists in the data. Whether it drops in a raid is only an inference.",
+   "source_url": "https://www.warcrafttavern.com/forever/news/mount-names-datamined-in-wow-forever/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/mount-names-datamined-in-wow-forever/"
+   ],
+   "source_type": "guide",
+   "date": "2026-09-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-06:8",
+   "doc": "KB-06",
+   "title": "Tier sets, crafted tier and raid loot structure (scope: forever)",
+   "text": "Tier 1 class sets from Classic (Molten Core) are still in the client, although MC is not announced.",
+   "source_url": "https://mmonster.co/wow-forever/guides/raids/molten-core",
+   "sources": [
+    "https://mmonster.co/wow-forever/guides/raids/molten-core"
+   ],
+   "source_type": "guide",
+   "date": "2026-10-21",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-07:1",
+   "doc": "KB-07",
+   "title": "Future and unannounced raids (scope: forever)",
+   "text": "The two Spring 2027 raids are not named, and no datamined names exist.",
+   "source_url": "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/",
+   "sources": [
+    "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/"
+   ],
+   "source_type": "press",
+   "date": "2026-11-08",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-07:2",
+   "doc": "KB-07",
+   "title": "Future and unannounced raids (scope: forever)",
+   "text": "Molten Core, BWL, ZG, AQ20, AQ40 and Naxxramas have not been announced for Forever. The official raid overview lists only three raids.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009",
+    "https://mmonster.co/wow-forever/guides/raids/molten-core"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-07:3",
+   "doc": "KB-07",
+   "title": "Future and unannounced raids (scope: forever)",
+   "text": "The beta client still contains MC, BWL, ZG, AQ and Naxx map data. This does not mean they are available.",
+   "source_url": "https://kami-labs.fr/en/donjons-raids-wow-forever/",
+   "sources": [
+    "https://kami-labs.fr/en/donjons-raids-wow-forever/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-10-10",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-07:5",
+   "doc": "KB-07",
+   "title": "Future and unannounced raids (scope: forever)",
+   "text": "Warcraft Tavern says Scarlet Enclave (from Season of Discovery) is a confirmed future raid. No official source backs this.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/raids/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/raids/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:1",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Nine new dungeons, with official levels: Hall of Thanes 13–18 (under Ironforge); Ruins of Lordaeron 15–20 (Tirisfal); Excavation Site: Wetlands 24–29; City of Dalaran 28–33 (Alterac); The Drowned City 35–40 (off the Stranglethorn coast); Krol'dok Stronghold 40–45 (Riverglades); Alcaz Prison 48–53 (Dustwallow); Blackmaw Hold 55–60 (Azshara); Shaper's Terrace 58–60 (Un'Goro).",
+   "source_url": "https://news.blizzard.com/en-us/article/24301455",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24301455"
+   ],
+   "source_type": "official",
+   "date": "est. Sep–Oct 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:2",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Krol'dok was shown at BlizzCon as 40–55. Kaivax corrected it to 40–45.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/krol%E2%80%99dok-stronghold/2349672",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/krol%E2%80%99dok-stronghold/2349672",
+    "https://www.warcrafttavern.com/forever/news/kroldok-stronghold-dungeon-level-range-corrected/"
+   ],
+   "source_type": "official",
+   "date": "2026-09-15",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:3",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Only Blackmaw Hold and Shaper's Terrace are level-60 new dungeons. The others are levelling content.",
+   "source_url": "https://news.blizzard.com/en-us/article/24301455",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24301455"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:4",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Blackmaw Hold is behind a long-sealed furbolg gate in Azshara. It has multiple routes, and it also leads into Barrow Deeps.",
+   "source_url": "https://news.blizzard.com/en-us/article/24301455",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24301455",
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:5",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Shaper's Terrace is a titan facility in Un'Goro. You bring Un'Goro power crystals to consoles inside.",
+   "source_url": "https://news.blizzard.com/en-us/article/24301455",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24301455"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:6",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Shaper's Terrace has 10 bosses, of which 5 are required. Archival Panels summon bosses, and the final boss is Nanaya.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/shapers-terrace/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/shapers-terrace/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:7",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Alcaz Prison (48–53) has five encounters: Overseer Wrex, Tidemistress Ca'zass, Katerina the Cleaner, Zarla Ober/Blazeroar and The Questioner. Wrex drops the Overseer's Keyring, which opens the lower floor.",
+   "source_url": "https://www.magicgameworld.com/?p=149466",
+   "sources": [
+    "https://www.magicgameworld.com/?p=149466"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-12",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:8",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "City of Dalaran has 8 bosses, the end boss is the Shade of the Archmage, and the area ID is 16560.",
+   "source_url": "https://warcraft.wiki.gg/wiki/City_of_Dalaran",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/City_of_Dalaran"
+   ],
+   "source_type": "community",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:9",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "There is one difficulty per dungeon. LFG lists groups but does not match or teleport. The instance cap is 5 per hour.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/dungeons/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:10",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Dungeon loot was re-itemized. Dungeons drop the Tarnished Undermine Real currency, which is spent at Pix Xizzix in Booty Bay. Uncommon and rare BoP drops unlock the appearance for every eligible looter.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/dungeons/",
+    "https://news.blizzard.com/en-us/article/24303313"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:11",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Classic max-level dungeon level bands in Forever: Sunken Temple 50–60, BRD 52–60, DM East 54–60, LBRS 55–60, DM West/North 56–60, Stratholme 58–60, Scholomance 58–60, UBRS 59–60. GameLeap gives wider bands (BRD 50–60, the rest 54–60).",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/dungeons/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:12",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Beta client minimum levels: BRD 48, Blackrock Spire 53, Dire Maul 54, Stratholme 55, Scholomance 57.",
+   "source_url": "https://kami-labs.fr/en/donjons-raids-wow-forever/",
+   "sources": [
+    "https://kami-labs.fr/en/donjons-raids-wow-forever/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-10-10",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:13",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "On 17 Nov UBRS health and damage were restored to intended values, so it needs a full group again.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24315281",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24315281"
+   ],
+   "source_type": "official",
+   "date": "2026-11-17",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:14",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Dungeon kill XP was raised 50% on 9 Nov. Since 13 Nov, party members get no XP from kills that are trivial for any member of the group.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24315281",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24315281"
+   ],
+   "source_type": "official",
+   "date": "2026-11-09/13",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:15",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Some quest drops now drop for every party member on the quest. Group quest items are otherwise looted in turns.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24315281",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24315281",
+    "https://www.pcgames.de/World-of-Warcraft-Spiel-42971/News/WoW-Forever-neues-Loot-System-1555032/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:16",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "No verified loot tables exist for Drowned City, Krol'dok, Alcaz, Blackmaw Hold or Shaper's Terrace. Several guides list them as TBA.",
+   "source_url": "https://leprestore.com/guides/world-of-warcraft-forever/wow-forever-dungeons-guide/",
+   "sources": [
+    "https://leprestore.com/guides/world-of-warcraft-forever/wow-forever-dungeons-guide/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-09:18",
+   "doc": "KB-09",
+   "title": "Max-level and new dungeons (scope: forever unless marked)",
+   "text": "Two further dungeons arrive in Spring 2027 and two in Summer 2027. Manor Mistmantle and Half-Pint Tavern are only datamined candidates.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/dungeons/",
+    "https://gamerant.com/wow-forever-roadmap-future-updates-release-date/"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:1",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "Keys are bind-on-pickup and take no bag slot. One key holder can usually open a door for the group. Attunements are per player.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:2",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "City of Dalaran needs a faction attunement. Alliance starts with \"An Alarming Request\" from Emissary Jacques in Southshore. Horde starts with \"Key to the City\" and \"Prison Break-In\" from Magus Wordeen Voidglare in Tarren Mill.",
+   "source_url": "https://news.blizzard.com/en-us/article/24301455",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24301455"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:3",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "The Dalaran Sewer Key comes from \"Heart of Disruption\" (Image of Archmage Modera). The key quests need level 30, and one key per group is enough.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:4",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "The Scholomance Skeleton Key chain still starts at Chillwind Camp or the Bulwark, and its final quest requires level 55. Lockpicking or a Seaforium charge can open the gate instead.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:5",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "The Stratholme Key to the City drops from Magistrate Barthilas and opens the service gate. Don't confuse it with the Horde Dalaran quest of the same name.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:6",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "The Shadowforge Key comes from the Dark Iron Legacy quest (level 52, startable at 48). GameLeap says Lockpicking 280 also opens the door.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:7",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "The Crescent Key drops from Pusillin in DM East and opens DM West and North. Lockpicking 300 also works.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:8",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "The Gnomeregan Workshop Key drops from Electrocutioner 6000.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:9",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "The Seal of Ascension chain (Vaelan, three gems, Emberstrife) still exists. Whether the UBRS door still needs the seal is disputed.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-onyxia-attunement/"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:10",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "New keys exist in the data with unknown use: Krol'dok Compound Key, Krol'dok Ogre Key and Azsharan Key.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:11",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "Onyxia attunement: see KB-05. Barrow Deeps and Hyjal need no attunement.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:12",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "The Attunement to the Core quest still exists in the BRD data, although MC is not live.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-attunements/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:13",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "Classic Skeleton Key: a faction chain with skeletal fragments, a thorium task, Araj the Summoner's scarab and 15 g.",
+   "source_url": "https://www.warcrafttavern.com/wow-classic/guides/attunements/",
+   "sources": [
+    "https://www.warcrafttavern.com/wow-classic/guides/attunements/"
+   ],
+   "source_type": "guide",
+   "date": "n/a",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:14",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "Classic Shadowforge Key: Franclorn Forgewright's ghost, then Fineous Darkvire, then the Shrine of Thaurissan.",
+   "source_url": "https://www.warcrafttavern.com/wow-classic/guides/attunements/",
+   "sources": [
+    "https://www.warcrafttavern.com/wow-classic/guides/attunements/"
+   ],
+   "source_type": "guide",
+   "date": "n/a",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-10:15",
+   "doc": "KB-10",
+   "title": "Keys and attunements (scope: forever, with classic_fallback rows marked)",
+   "text": "Classic MC, BWL and Naxx attunements: see KB-08.",
+   "source_url": "https://www.warcrafttavern.com/wow-classic/guides/attunements/",
+   "sources": [
+    "https://www.warcrafttavern.com/wow-classic/guides/attunements/"
+   ],
+   "source_type": "guide",
+   "date": "n/a",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:1",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Reputation thresholds are unchanged: 3,000 / 6,000 / 12,000 / 21,000, so 42,000 from Neutral to Exalted.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-reputation",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-reputation",
+    "https://www.wowhead.com/forever/faction=529/argent-dawn"
+   ],
+   "source_type": "commercial",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:2",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Exalted with each of four PvP factions (AV, AB, WSG, Darkspear Islands) is worth 1 Legacy point.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:3",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "The Darkspear Islands battleground (levels 30–60, 15v15) has its own faction pair, Darkspear Raiders and Theramore Expeditionary Force. Rewards include PvP gear, Mp5 signets and a tabard.",
+   "source_url": "https://expcarry.com/wow-forever-reputations-guide",
+   "sources": [
+    "https://expcarry.com/wow-forever-reputations-guide",
+    "https://lfcarry.com/guides/wow-forever-reputation"
+   ],
+   "source_type": "commercial",
+   "date": "Oct–Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:4",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Theramore Expeditionary Force Exalted gear (shoulders, gloves) appears in several pre-raid lists.",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:5",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Guardians of Hyjal (level 60): the Revered Rousing Seed Pod raises the Artisan's-tier equip limit from 1 to 2, Exalted gives a tabard, and the vendor is Rhylin Stonethorn. It is not confirmed as a raid requirement.",
+   "source_url": "https://expcarry.com/wow-forever-hyjal-summit-raid-guide",
+   "sources": [
+    "https://expcarry.com/wow-forever-hyjal-summit-raid-guide",
+    "https://expcarry.com/wow-forever-reputations-guide"
+   ],
+   "source_type": "commercial",
+   "date": "2026-10-26",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:6",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Kirin Tor (Dalaran) rewards recipes at Friendly and a tabard at Exalted. The quartermaster is Archmage Alvareaux. Reputation comes from Dalaran and Alterac quests, the City of Dalaran dungeon and a +300 journal in Alcaz Prison. Sources disagree on whether it is Alliance-only.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-reputation",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-reputation",
+    "https://expcarry.com/wow-forever-kirin-tor-reputation-guide"
+   ],
+   "source_type": "commercial",
+   "date": "Sep–Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:7",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Nightclaw Druids offer 48 recipes, a Shadowgale Squirrel at Revered and a mantle at Exalted. The repeatable is Al'Aketh cultist ears, and the rep value is disputed.",
+   "source_url": "https://expcarry.com/wow-forever-reputations-guide",
+   "sources": [
+    "https://expcarry.com/wow-forever-reputations-guide",
+    "https://lfcarry.com/guides/wow-forever-reputation"
+   ],
+   "source_type": "commercial",
+   "date": "2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:8",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "The crafting-writ factions are Azeroth Commerce Authority (Alliance) and Durotar Supply and Logistics (Horde). Rewards include titles and a Pack Kodo.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-reputation",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-reputation"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-16",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:9",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Datamined new factions: Windshapers and High Order (Skyborne), Guardians of Hyjal, Barkskin Burrow, Cenarion Scouts, Kirin Tor, Brotherhood of the Horse, Powderfuse, Bolder'ok Clan, The Watchers and Earthen Ring.",
+   "source_url": "https://kami-labs.fr/en/wow-forever/wow-forever-17-reputations-fuitees/",
+   "sources": [
+    "https://kami-labs.fr/en/wow-forever/wow-forever-17-reputations-fuitees/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-09-17",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:11",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Timbermaw Hold is present. Meilosh items in Felwood (Timbermaw belts, mantles, tunics) appear in nearly every pre-raid list.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-reputation",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-reputation"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:12",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Argent Dawn exists in the Wowhead Forever database. Its Forever rewards are unconfirmed.",
+   "source_url": "https://www.wowhead.com/forever/faction=529/argent-dawn",
+   "sources": [
+    "https://www.wowhead.com/forever/faction=529/argent-dawn"
+   ],
+   "source_type": "datamined",
+   "date": "2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:13",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Cenarion Circle, Steamwheedle Cartel and Zandalar Tribe are reported as present. Zandalar has no content source, since ZG is not announced.",
+   "source_url": "https://expcarry.com/wow-forever-reputations-guide",
+   "sources": [
+    "https://expcarry.com/wow-forever-reputations-guide",
+    "https://lfcarry.com/guides/wow-forever-reputation"
+   ],
+   "source_type": "commercial",
+   "date": "2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:15",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Honored with your home city gives 10% off mounts. The Diplomat Legacy perk gives up to +10% reputation gain (5 ranks × 2%).",
+   "source_url": "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+   "sources": [
+    "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+    "https://expcarry.com/wow-forever-reputations-guide"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:16",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "AV reputation rewards include Don Julio's Band and Lei of the Lifegiver. WSG gives cloaks and Exalted legs. AB gives a talisman and boots.",
+   "source_url": "https://lfcarry.com/guides/wow-forever-reputation",
+   "sources": [
+    "https://lfcarry.com/guides/wow-forever-reputation"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-11:17",
+   "doc": "KB-11",
+   "title": "Reputations that matter at 60 (scope: forever, with classic_fallback rows marked)",
+   "text": "Classic Argent Dawn: Scourge kills and Scourgestones; Exalted gives the Chromatic shoulder enchant. Classic Timbermaw: furbolg camps; patterns. Thorium Brotherhood: fire-resistance plans. Hydraxian Waterlords: MC. Zandalar: ZG. Cenarion Circle and Brood of Nozdormu: AQ.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Game_Guide/Classic_Reputation",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Game_Guide/Classic_Reputation"
+   ],
+   "source_type": "community",
+   "date": "n/a",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:1",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "There are 65 Legacy Challenges at launch, each worth exactly 1 Legacy Point.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/",
+    "https://warcraft.wiki.gg/wiki/Legacy_Challenges"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:2",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "Points are account-wide (except on Hardcore). A character can spend at most 16 at launch. One character with no alts can earn up to 29.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/",
+    "https://news.blizzard.com/en-us/article/24315821/wow-foreverwhats-new-and-what-feels-familiar"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:3",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "Category totals: Classes 27 (levels 25/45/60 × 9 classes), Tradeskills 18 (150/225/300 × 6 crafting professions), PvP 12, Dungeons 3, Raids 3, Adventure 2.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/",
+    "https://allthings.how/wow-forever-legacy-points/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:4",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "Novice Spelunker (62031): final bosses of Ragefire Chasm or Hall of Thanes, Ruins of Lordaeron, Wailing Caverns, Deadmines, Shadowfang Keep and Excavation Site.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Novice_Spelunker",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Novice_Spelunker",
+    "https://allthings.how/wow-forever-legacy-points/",
+    "https://www.method.gg/wow-forever/the-fastest-way-to-get-legacy-points-in-wow-forever"
+   ],
+   "source_type": "community",
+   "date": "Nov 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:5",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "Experienced Spelunker (62032): City of Dalaran, BFD, Gnomeregan, Drowned City, all 4 Scarlet Monastery wings, RFK and Krol'dok.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Novice_Spelunker",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Novice_Spelunker",
+    "https://allthings.how/wow-forever-legacy-points/"
+   ],
+   "source_type": "community",
+   "date": "Nov 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:6",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "Master Spelunker (62033), 17 dungeons: RFD, Uldaman, ZF, Maraudon, Alcaz, Sunken Temple, BRD, LBRS, UBRS, Scholomance, Stratholme Live and Dead, DM East, West and North, Shaper's Terrace and Blackmaw Hold.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Novice_Spelunker",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Novice_Spelunker",
+    "https://allthings.how/wow-forever-legacy-points/"
+   ],
+   "source_type": "community",
+   "date": "Nov 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:7",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "A 13 Nov hotfix made Balnazzar count toward Master Spelunker.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24315281",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24315281"
+   ],
+   "source_type": "official",
+   "date": "2026-11-13",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:8",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "Stockades is not required for Novice Spelunker.",
+   "source_url": "https://allthings.how/wow-forever-legacy-points/",
+   "sources": [
+    "https://allthings.how/wow-forever-legacy-points/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-08",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:9",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "Raid challenges: Conqueror of the Lair (Onyxia), Conqueror of the Wilds (Hyjal) and Conqueror of the Deeps (Barrow Deeps).",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:10",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "PvP challenges: ranks 3, 7, 10, 13 and 14 (5 points), Exalted with 4 battleground factions (4), and Field of Honor weeks 4, 7 and 10 (3). They cannot be done on Hardcore.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:11",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "Adventure challenges: explore the whole map (1), and the Lord Valthalak questline from \"An Earnest Proposition\" to \"Saving the Best for Last\" (1). That questline is a UBRS/BRD chain and is also the T0.5 upgrade chain.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/",
+    "https://allthings.how/wow-forever-legacy-points/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:12",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "There are three perk trees (Professions, Adventure, Resourcefulness) with 7 nodes each. Account rewards are the Replica Ironforge Air Rifle, Spectral Bear Cub, Spectral Bear Tabard and Reins of the Spectral Bear.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:13",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "Account reward thresholds of about 15/25/40/55 points are reported. One BlizzCon listing puts the rifle at 10.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Legacy_Challenges",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Legacy_Challenges"
+   ],
+   "source_type": "community",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:14",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "12 Hardcore-only challenges will arrive with Hardcore.",
+   "source_url": "https://news.blizzard.com/en-us/article/24307383/",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-12:15",
+   "doc": "KB-12",
+   "title": "Legacy points from PvE, PvP and other challenges (scope: forever)",
+   "text": "The client exposes trait currency for achievements (`C_Traits.GetTraitCurrencyForAchievement`) and a Legacy UI. Legacy points are TraitTree currency driven by achievements.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes"
+   ],
+   "source_type": "community",
+   "date": "2026-10-02",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:1",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "There are 27 talent trees (9 classes × 3), plus 3 account Legacy trees. No new specs.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes"
+   ],
+   "source_type": "community",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:3",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "Horde can play Undead Paladins and Alliance can play Dwarf Shamans, so both classes exist on both factions.",
+   "source_url": "https://news.blizzard.com/en-us/article/24315821/wow-foreverwhats-new-and-what-feels-familiar",
+   "sources": [
+    "https://news.blizzard.com/en-us/article/24315821/wow-foreverwhats-new-and-what-feels-familiar",
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:5",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "Only two new-dungeon items appear in any list, both from Blackmaw Hold: Robes of Dark Summons (caster chest, from Impaan the Imprisoner) and Behemoth Bones (feral trinket, from Blackmaw Behemoth).",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:6",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "Hand of Justice was reportedly nerfed to 12 AP (Classic: 20).",
+   "source_url": "https://boostroom.com/blog/wow-forever-pre-raid-bis-guide-best-gear-before-raiding",
+   "sources": [
+    "https://boostroom.com/blog/wow-forever-pre-raid-bis-guide-best-gear-before-raiding"
+   ],
+   "source_type": "commercial",
+   "date": "2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Warrior Arms",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S3 (L); S4 snippet",
+   "source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/warrior/{arms",
+   "sources": [
+    "https://timesaver.gg/tools/wow-forever/leveling-gear/warrior/{arms"
+   ],
+   "source_type": "commercial",
+   "date": "data 2026-11-13",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Warrior Fury",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S4 (L-M)",
+   "source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/warrior/{arms",
+   "sources": [
+    "https://timesaver.gg/tools/wow-forever/leveling-gear/warrior/{arms"
+   ],
+   "source_type": "commercial",
+   "date": "data 2026-11-13",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Warrior Protection",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S1 (Wowhead-P1 relay, M); S2",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Paladin Holy",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S2 (L-M)",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Paladin Retribution",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S2 (L-M). The S1 Ret table is a copy error.",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Hunter MM",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S2 (L-M)",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Rogue (Combat; Assassination and Subtlety pages not read)",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S2 (L-M)",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Shaman Enhancement",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S2 (L-M)",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Shaman Restoration",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S1 (L; copy of the Elemental list)",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Mage (Fire; Arcane and Frost pages not read)",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S2 (L-M)",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Warlock (Destruction; Affliction and Demonology pages not read)",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S2 (L-M)",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Druid Feral Cat",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S2 (L-M)",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-13:Druid Restoration",
+   "doc": "KB-13",
+   "title": "Pre-raid best-in-slot per class and spec (scope: forever-community; low–medium confidence overall)",
+   "text": "S2 (L-M)",
+   "source_url": "https://wowtbc.gg/warcraftforever/bis-list/{spec}/",
+   "sources": [
+    "https://wowtbc.gg/warcraftforever/bis-list/{spec}/"
+   ],
+   "source_type": "commercial",
+   "date": "undated (read 2026-11-18)",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:1",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Client text gives six Classic world buffs a line saying they have no effect inside a raid instance: the three DM tribute buffs, Rallying Cry, Songflower and Warchief's Blessing. All eight Sayge fortunes have the same line. Spirit of Zandalar does not.",
+   "source_url": "https://kami-labs.fr/en/wow-forever/world-buffs-raids-wow-forever/",
+   "sources": [
+    "https://kami-labs.fr/en/wow-forever/world-buffs-raids-wow-forever/"
+   ],
+   "source_type": "datamined",
+   "date": "2026-11-10",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:2",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "No blue post on world buffs exists. Warcraft Tavern cites a developer's X post saying they don't work in raids.",
+   "source_url": "https://www.warcrafttavern.com/forever/news/forever-world-buffs-now-provided-in-razor-hill-goldshire-lakeshire-sentinel-hill/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/forever-world-buffs-now-provided-in-razor-hill-goldshire-lakeshire-sentinel-hill/",
+    "https://kami-labs.fr/en/wow-forever/world-buffs-raids-wow-forever/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:3",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Rend-head buffs are now also handed out in Razor Hill, Goldshire, Lakeshire and Sentinel Hill. Since 17 Nov they always drop on death.",
+   "source_url": "https://www.warcrafttavern.com/forever/news/forever-world-buffs-now-provided-in-razor-hill-goldshire-lakeshire-sentinel-hill/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/forever-world-buffs-now-provided-in-razor-hill-goldshire-lakeshire-sentinel-hill/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-12/17",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:4",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Scrolls now trigger the global cooldown.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:5",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Draught of Predatory Senses is now a combat potion with a shorter duration.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:6",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Druids can drink mana potions in Bear, Dire Bear and Cat form. Discolored Healing Potions no longer break crowd control.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-10-08",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:7",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Minor, Lesser and regular Wizard Oil are back to 8/16/24 spell power. Brilliant Wizard Oil is unchanged.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-09-24",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:8",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Healing potions moved to First Aid. Alchemists get portable Alchemy Laboratories, so flasks need no Scholomance trip. They also get a \"Mana Well\" camp object.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/alchemy/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/alchemy/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:9",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "New Natural flasks (Accuracy, Precision, Aggression, Swiftness): 60 Stamina plus a small secondary bonus, working only in Mount Hyjal, Hyjal Summit and Barrow Deeps. The bonus size is disputed.",
+   "source_url": "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever",
+   "sources": [
+    "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever",
+    "https://rankedboost.com/world-of-warcraft/forever/buffs/consumables/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:10",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "New or changed elixirs: Grizzly (25 Str + 2% crit), Owl (25 Int + 2% crit), Whale/Sages (25 Spi + 2% crit), Cunning (25 Agi/Int) and Ferocity (18 Str/Agi). Mongoose is unchanged (25 Agi + 2% crit).",
+   "source_url": "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever",
+   "sources": [
+    "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever",
+    "https://www.warcrafttavern.com/forever/guides/alchemy/"
+   ],
+   "source_type": "guide",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:11",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "New combat potions: Major Frenzy (+80 AP), Major Spellblasting (+47 SP) and Major Mender's (+88 healing).",
+   "source_url": "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever",
+   "sources": [
+    "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-02",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:12",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Every Forever food also gives +5% XP from kills. Raid foods top out around +20 to one stat, +40 AP, +28 SP or +44 healing.",
+   "source_url": "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever",
+   "sources": [
+    "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-02",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:13",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Stacking rules are disputed. One guide says there are no battle/guardian elixir slots: one flask plus one elixir per stat. All potions share a 2-minute cooldown, and healthstones and runes share a separate one.",
+   "source_url": "https://rankedboost.com/world-of-warcraft/forever/buffs/consumables/",
+   "sources": [
+    "https://rankedboost.com/world-of-warcraft/forever/buffs/consumables/",
+    "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:14",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Jujus, Winterfall Firewater and the Blasted Lands buffs are not confirmed for Forever.",
+   "source_url": "https://rankedboost.com/world-of-warcraft/forever/buffs/consumables/",
+   "sources": [
+    "https://rankedboost.com/world-of-warcraft/forever/buffs/consumables/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-10",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:15",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Blizzard tells players to build fire resistance for Onyxia. No resistance needs are published for the new raids.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24303009",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24303009",
+    "https://timesaver.gg/blog/wow-forever-raid-stockpile"
+   ],
+   "source_type": "official",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:16",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "Per-role kit (theory, before any raid has opened). Tank: Titans or Chromatic, Phalanx/Troll's Blood, Stamina food, Greater Stoneshield and protection potions. Strength melee: Titans, Grizzly or Mongoose, Major Frenzy, Elemental Sharpening Stone. Agility melee and hunter: Titans, Mongoose, Agility food, Major Frenzy. Caster: Supreme Power, Greater Arcane + school elixir + Owl, Major Spellblasting, Major Mana, Brilliant Wizard Oil. Healer: Distilled Wisdom, Greater Cleric's/Mageblood/Owl, Major Mender's, Brilliant Mana Oil.",
+   "source_url": "https://rankedboost.com/world-of-warcraft/forever/buffs/consumables/",
+   "sources": [
+    "https://rankedboost.com/world-of-warcraft/forever/buffs/consumables/",
+    "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever"
+   ],
+   "source_type": "commercial",
+   "date": "Nov 2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-14:18",
+   "doc": "KB-14",
+   "title": "Consumables and world buffs (scope: forever, with classic_fallback rows marked)",
+   "text": "The Classic raid stack for comparison: Juju, Firewater, Giants, Greater Firepower, Blasted Lands buffs and full world buffs.",
+   "source_url": "https://www.method.gg/wow-classic/list-of-all-wow-classic-consumables-enchants-and-world-buffs",
+   "sources": [
+    "https://www.method.gg/wow-classic/list-of-all-wow-classic-consumables-enchants-and-world-buffs"
+   ],
+   "source_type": "guide",
+   "date": "2025-04-28",
+   "confidence": "high",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:1",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "Necklace enchants are new: +5 Str, +5 Agi, +6 SP, Healing Power and Deflection (+5 defense). They need a Runed Truesilver Rod.",
+   "source_url": "https://blizzardwatch.com/2026/09/21/every-new-enchant-world-warcraft-forever/",
+   "sources": [
+    "https://blizzardwatch.com/2026/09/21/every-new-enchant-world-warcraft-forever/",
+    "https://www.warcrafttavern.com/forever/guides/enchanting/"
+   ],
+   "source_type": "guide",
+   "date": "2026-09-21; Nov",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:2",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "Other new enchants: Chest Absorption; Bracer Superior Agility, Intellect, Deflection and Healing; Gloves Natural Power and Lotus Claw; Cloak Agility 5; 1H Insight, Recovery and Revelation; 2H Strength 25, Mighty Spell Power (+55) and Mighty Healing (+100).",
+   "source_url": "https://blizzardwatch.com/2026/09/21/every-new-enchant-world-warcraft-forever/",
+   "sources": [
+    "https://blizzardwatch.com/2026/09/21/every-new-enchant-world-warcraft-forever/"
+   ],
+   "source_type": "guide",
+   "date": "2026-09-21",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:3",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "Enchanters can craft relics (librams, idols, totems) and Heart of the Mountain trinkets.",
+   "source_url": "https://blizzardwatch.com/2026/09/21/every-new-enchant-world-warcraft-forever/",
+   "sources": [
+    "https://blizzardwatch.com/2026/09/21/every-new-enchant-world-warcraft-forever/"
+   ],
+   "source_type": "guide",
+   "date": "2026-09-21",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:4",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "No ring enchants exist (disputed by a Mobalytics snippet). There are no vellums, so others' gear is enchanted through the trade window. Level-60 enchants need a Runed Arcanite Rod.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-15",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:5",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "Head and leg arcanums are present per beta data: Lesser Arcanums from the Atal'ai Exile and the Lydros arcanums in Dire Maul. Their level-60 quests were untestable in beta.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-15",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:6",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "Zandalar signets are in the client, but ZG is not announced. Argent Dawn shoulder enchants are unconfirmed.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-15",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:7",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "Fixes: the Revelation buff persists through form changes, Recovery works in shapeshift, Insight raises Spirit, and armor kits no longer double ranged AP.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "Oct 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:8",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "Per-role picks. Tank: Deflection neck, Stamina on bracer, chest and boots, Agility or Recovery weapon. Melee: Crusader, Str/Agi neck, Superior Strength bracer, Agility cloak. Hunter: Agility everywhere. Caster: Mighty Int or Spellblasting weapon, Greater Spellpower bracer, SP neck, school-power gloves. Healer: healing weapon, bracer and neck, Major Int chest.",
+   "source_url": "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/",
+   "sources": [
+    "https://conquestcapped.com/guides/wow-forever/wow-forever-best-enchants/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-15",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:9",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "Engineering scopes (Biznicks, Sniper Scope) and Leatherworking armor kits still exist.",
+   "source_url": "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever",
+   "sources": [
+    "https://www.method.gg/wow-forever/list-of-all-consumables-and-enchants-in-wow-forever"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-02",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-15:10",
+   "doc": "KB-15",
+   "title": "Enchants (scope: forever, with classic_fallback rows marked)",
+   "text": "Classic ZG enchants: Zanza's head/leg enchants need Friendly plus a voodoo doll and an idol. Zandalar Signets need Exalted. Argent Dawn shoulder enchants need Revered, or Exalted for the Chromatic one.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Zul%27Gurub_enchantment",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Zul%27Gurub_enchantment"
+   ],
+   "source_type": "community",
+   "date": "n/a",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-16:1",
+   "doc": "KB-16",
+   "title": "Professions for raiding (scope: forever)",
+   "text": "Characters get 2 primary professions plus Cooking, First Aid and Fishing. The skill cap is 300, and Artisan is available from level 35. There is no Jewelcrafting.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/professions/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/professions/"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-16:2",
+   "doc": "KB-16",
+   "title": "Professions for raiding (scope: forever)",
+   "text": "Professions give no passive combat bonuses, apart from racial ones (Gnome engineering, Tauren Cultivation).",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/professions/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/professions/"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-16:3",
+   "doc": "KB-16",
+   "title": "Professions for raiding (scope: forever)",
+   "text": "Tauren Cultivation requires player level ≥ herb skill ÷ 5, and its cooldown is now 15 minutes.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696"
+   ],
+   "source_type": "official",
+   "date": "2026-09-24 / 10-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-16:4",
+   "doc": "KB-16",
+   "title": "Professions for raiding (scope: forever)",
+   "text": "Recommendations: Engineering is the top combat profession for melee, tanks and hunters. Casters and healers lean toward Tailoring + Enchanting. One guide does not recommend Alchemy for PvE. Guilds will still want alchemists for flasks.",
+   "source_url": "https://mein-mmo.de/en/wow-forever-professions-the-best-for-all-classes-in-pve-and-pvp",
+   "sources": [
+    "https://mein-mmo.de/en/wow-forever-professions-the-best-for-all-classes-in-pve-and-pvp"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-16",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-16:5",
+   "doc": "KB-16",
+   "title": "Professions for raiding (scope: forever)",
+   "text": "Crafted items sell to vendors for less, and wands sell for 1c. Some BS and LW recipes drop in dungeons. Bag recipes were reworked, and the Tanning Rack requirement dropped to 125.",
+   "source_url": "https://us.forums.blizzard.com/en/wow/t/2360696",
+   "sources": [
+    "https://us.forums.blizzard.com/en/wow/t/2360696",
+    "https://worldofwarcraft.blizzard.com/news/24315281"
+   ],
+   "source_type": "official",
+   "date": "Oct–Nov 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-16:6",
+   "doc": "KB-16",
+   "title": "Professions for raiding (scope: forever)",
+   "text": "Legacy profession perks include Working Overtime and Dedicated Study. Each crafting profession at 150, 225 and 300 is worth 1 Legacy point.",
+   "source_url": "https://www.warcrafttavern.com/forever/guides/enchanting/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/guides/enchanting/",
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-16:7",
+   "doc": "KB-16",
+   "title": "Professions for raiding (scope: forever)",
+   "text": "97 recipes use Malleable Essence of Nature, which comes from disenchanting raid items.",
+   "source_url": "https://allthings.how/wow-forever-hyjal-summit/",
+   "sources": [
+    "https://allthings.how/wow-forever-hyjal-summit/"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-08",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-17:1",
+   "doc": "KB-17",
+   "title": "Gold at max level (scope: forever, with classic_fallback rows marked)",
+   "text": "Apprentice Riding at level 40 costs 100 g including the first mount (+60%). Extra colours cost 20 g.",
+   "source_url": "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+   "sources": [
+    "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options"
+   ],
+   "source_type": "guide",
+   "date": "2026-10-21",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-17:2",
+   "doc": "KB-17",
+   "title": "Gold at max level (scope: forever, with classic_fallback rows marked)",
+   "text": "Journeyman Riding at level 60 costs 1,000 g, and an epic mount costs 200 g (+100%), so about 1,200 g minimum.",
+   "source_url": "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+   "sources": [
+    "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+    "https://www.warcrafttavern.com/forever/guides/riding/"
+   ],
+   "source_type": "guide",
+   "date": "2026-10",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-17:3",
+   "doc": "KB-17",
+   "title": "Gold at max level (scope: forever, with classic_fallback rows marked)",
+   "text": "Honored with your home faction gives 10% off. The Bartering Legacy perk gives up to 10% more, on mounts only.",
+   "source_url": "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+   "sources": [
+    "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options"
+   ],
+   "source_type": "guide",
+   "date": "2026-10-21",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-17:4",
+   "doc": "KB-17",
+   "title": "Gold at max level (scope: forever, with classic_fallback rows marked)",
+   "text": "Warlocks and Paladins get a free level-40 mount. Their level-60 class mount quests need reagents worth hundreds of gold. Racial vendor mounts are BoP since 10 Nov.",
+   "source_url": "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+   "sources": [
+    "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options",
+    "https://worldofwarcraft.blizzard.com/news/24315281"
+   ],
+   "source_type": "guide",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-17:5",
+   "doc": "KB-17",
+   "title": "Gold at max level (scope: forever, with classic_fallback rows marked)",
+   "text": "Training every class ability from 1 to 60 costs about 206–207 g for any class.",
+   "source_url": "https://eu.forums.blizzard.com/en/wow/t/631316",
+   "sources": [
+    "https://eu.forums.blizzard.com/en/wow/t/631316"
+   ],
+   "source_type": "official",
+   "date": "2026-11-03",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-17:6",
+   "doc": "KB-17",
+   "title": "Gold at max level (scope: forever, with classic_fallback rows marked)",
+   "text": "Talent respec reportedly costs 1 g, rising to a 50 g cap. Dual spec unlocks at level 40, at an unknown price.",
+   "source_url": "https://kami-labs.fr/en/wow-forever/wow-forever-niveau-40-monture-double-specialisation/",
+   "sources": [
+    "https://kami-labs.fr/en/wow-forever/wow-forever-niveau-40-monture-double-specialisation/"
+   ],
+   "source_type": "datamined",
+   "date": "2026",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-17:7",
+   "doc": "KB-17",
+   "title": "Gold at max level (scope: forever, with classic_fallback rows marked)",
+   "text": "There is no WoW Token. AH deposits were lowered, and quests at level 48+ now also give gold.",
+   "source_url": "https://timesaver.gg/blog/wow-forever-raid-stockpile",
+   "sources": [
+    "https://timesaver.gg/blog/wow-forever-raid-stockpile",
+    "https://worldofwarcraft.blizzard.com/news/24315281"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-17:8",
+   "doc": "KB-17",
+   "title": "Gold at max level (scope: forever, with classic_fallback rows marked)",
+   "text": "AH asking prices on 14 Nov: Flask of the Titans materials about 23–25 g, Black Lotus 12–15 g, Greater Fire Protection Potion 4–7 g, Major Mana about 1 g. These are asking prices, not completed sales.",
+   "source_url": "https://timesaver.gg/blog/wow-forever-raid-stockpile",
+   "sources": [
+    "https://timesaver.gg/blog/wow-forever-raid-stockpile"
+   ],
+   "source_type": "commercial",
+   "date": "2026-11-14",
+   "confidence": "low",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-17:11",
+   "doc": "KB-17",
+   "title": "Gold at max level (scope: forever, with classic_fallback rows marked)",
+   "text": "Classic level-40 mount: 20 g riding + 80 g mount. Classic epic mount: about 1,000 g total, about 800 g with discounts.",
+   "source_url": "https://warcrafttavern.com/wow-classic/guides/mounts",
+   "sources": [
+    "https://warcrafttavern.com/wow-classic/guides/mounts"
+   ],
+   "source_type": "guide",
+   "date": "n/a",
+   "confidence": "medium",
+   "scope": "classic_fallback",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-19:1",
+   "doc": "KB-19",
+   "title": "Datamined identifiers (scope: forever)",
+   "text": "Interface version 16001, patch 1.60.1. Beta builds 70009, 70170, 70291 and 70425. Datamines cite builds 70205, 70532, 70862, 70938 and 70959.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes",
+    "https://kami-labs.fr/en/wow-forever/world-buffs-raids-wow-forever/"
+   ],
+   "source_type": "community",
+   "date": "2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-19:2",
+   "doc": "KB-19",
+   "title": "Datamined identifiers (scope: forever)",
+   "text": "The client maps game type `forever` to codename \"Camelot\", with `WOW_PROJECT_CAMELOT` = 18.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes"
+   ],
+   "source_type": "community",
+   "date": "2026-10-02",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-19:3",
+   "doc": "KB-19",
+   "title": "Datamined identifiers (scope: forever)",
+   "text": "Achievement IDs: 62031/62032/62033 (Spelunker tiers), 62034 (Hyjal), 62035 (Barrow Deeps), 684 (Onyxia).",
+   "source_url": "https://warcraft.wiki.gg/wiki/Novice_Spelunker",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Novice_Spelunker"
+   ],
+   "source_type": "community",
+   "date": "2026-11-14",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-19:4",
+   "doc": "KB-19",
+   "title": "Datamined identifiers (scope: forever)",
+   "text": "City of Dalaran area ID 16560. No other map IDs were found.",
+   "source_url": "https://warcraft.wiki.gg/wiki/City_of_Dalaran",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/City_of_Dalaran"
+   ],
+   "source_type": "community",
+   "date": "Nov 2026",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-19:5",
+   "doc": "KB-19",
+   "title": "Datamined identifiers (scope: forever)",
+   "text": "Encounter Journal and Mythic+ APIs were removed, and a Vanilla-style group finder API was added.",
+   "source_url": "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes",
+   "sources": [
+    "https://warcraft.wiki.gg/wiki/Patch_1.60.1/API_changes"
+   ],
+   "source_type": "community",
+   "date": "2026-10-02",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-19:7",
+   "doc": "KB-19",
+   "title": "Datamined identifiers (scope: forever)",
+   "text": "The crowd-sourced Forever database at forever.warcraftdb.com (Lexicon Client) exists because of the obfuscation.",
+   "source_url": "https://www.warcrafttavern.com/forever/news/help-build-a-better-database-for-wow-forever-with-the-lexicon-client/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/help-build-a-better-database-for-wow-forever-with-the-lexicon-client/"
+   ],
+   "source_type": "guide",
+   "date": "2026-11-05",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:KB-19:9",
+   "doc": "KB-19",
+   "title": "Datamined identifiers (scope: forever)",
+   "text": "Datamined titles include no raid titles. \"the Harbinger of Darkness\" has an unknown source.",
+   "source_url": "https://www.warcrafttavern.com/forever/news/titles-datamined-for-professions-pvp-ranks-in-wow-forever/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/titles-datamined-for-professions-pvp-ranks-in-wow-forever/"
+   ],
+   "source_type": "guide",
+   "date": "2026-09-16",
+   "confidence": "high",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  }
+ ],
+ "contradictions": [
+  {
+   "id": "raids-endgame:register:contradiction:1",
+   "doc": "register",
+   "text": "**Raid date wording:** Warcraft Tavern (WT-3RAIDS) says Forever \"launches December 9\". The game launched on 4 Nov, and only the raids open on 9 Dec (BZ-RAID). One aggregator says an official video implied Onyxia at launch.",
+   "source_url": "https://www.warcrafttavern.com/forever/news/three-new-raids-coming-to-world-of-warcraft-forever/",
+   "sources": [
+    "https://www.warcrafttavern.com/forever/news/three-new-raids-coming-to-world-of-warcraft-forever/",
+    "https://worldofwarcraft.blizzard.com/news/24303009"
+   ],
+   "source_type": "guide",
+   "date": "compiled 2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:rule:legacy.dungeon_challenges:contradiction",
+   "doc": "rules",
+   "text": "Rule legacy.dungeon_challenges: lane dungeons has null (https://worldofwarcraft.blizzard.com/news/24307383/); lane raids-endgame has [{\"name\": \"Novice Spelunker\", \"achievement_id\": 62031, \"points\": 1, \"band\": \"15-25\", \"dungeons\": [\"Ragefire Chasm OR Hall of Thanes\", \"Ruins of Lordaeron\", \"Wailing Caverns\", \"Deadmines\", \"Shadowfang  (https://warcraft.wiki.gg/wiki/Master_Spelunker ; https://allthings.how/wow-forever-legacy-points/ ; https://news.blizzard.com/en-us/article/24307383/), kept as legacy.dungeon_challenges@raids-endgame.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24307383/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24307383/",
+    "https://warcraft.wiki.gg/wiki/Master_Spelunker ; https://allthings.how/wow-forever-legacy-points/ ; https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "compiled 2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  },
+  {
+   "id": "raids-endgame:rule:legacy.pvp_challenges:contradiction",
+   "doc": "rules",
+   "text": "Rule legacy.pvp_challenges: lane pvp has [{\"challenge\": \"reach_pvp_rank\", \"ranks\": [3, 7, 10, 13, 14], \"points_each\": 1}, {\"challenge\": \"exalted_bg_reputation\", \"battlegrounds\": [\"Warsong Gulch\", \"Arathi Basin\", \"Alterac Valley\", \"Darkspear  (https://worldofwarcraft.blizzard.com/news/24307383/); lane raids-endgame has {\"ranks\": [3, 7, 10, 13, 14], \"exalted_factions\": [\"Alterac Valley\", \"Arathi Basin\", \"Warsong Gulch\", \"Darkspear Islands\"], \"field_of_honor_weeks\": [4, 7, 10], \"hardcore_eligible\": false} (https://news.blizzard.com/en-us/article/24307383/), kept as legacy.pvp_challenges@raids-endgame.",
+   "source_url": "https://worldofwarcraft.blizzard.com/news/24307383/",
+   "sources": [
+    "https://worldofwarcraft.blizzard.com/news/24307383/",
+    "https://news.blizzard.com/en-us/article/24307383/"
+   ],
+   "source_type": "official",
+   "date": "compiled 2026-11-18",
+   "confidence": "medium",
+   "scope": "forever",
+   "last_verified": "2026-11-18"
+  }
+ ],
+ "open_questions": [
+  {
+   "id": "raids-endgame:open:1",
+   "text": "**Raid reset day and time:** for EU and US, and whether the 10-, 20- and 40-player raids share a lockout or a weekly participation limit."
+  },
+  {
+   "id": "raids-endgame:open:2",
+   "text": "**Raid-lock extension:** whether it exists (the API hint `IsRaidLockExtendFeatureSupported` suggests it might)."
+  },
+  {
+   "id": "raids-endgame:open:3",
+   "text": "**Raid loot:** the loot method (master, group or personal loot); full loot tables, item levels, tier-slot distribution per boss, chase items and drop rates; and how the Legendary is obtained."
+  },
+  {
+   "id": "raids-endgame:open:4",
+   "text": "**Raid bosses:** the official kill order and mechanics for Barrow Deeps and Hyjal Summit."
+  },
+  {
+   "id": "raids-endgame:open:5",
+   "text": "**Onyxia:** whether her encounter is retuned, and whether she drops Tier 2 helms or Forever tier."
+  },
+  {
+   "id": "raids-endgame:open:6",
+   "text": "**Raid requirements:** resistance needs for Barrow Deeps and Hyjal, and whether any reputation (e.g. Guardians of Hyjal) is earned in or required for the raids."
+  },
+  {
+   "id": "raids-endgame:open:7",
+   "text": "**Raid limits:** any debuff or buff slot limit."
+  },
+  {
+   "id": "raids-endgame:open:8",
+   "text": "**World buffs:** live behaviour inside raids (only client text exists), plus their status in battlegrounds and dungeons, and the status of Spirit of Zandalar."
+  },
+  {
+   "id": "raids-endgame:open:9",
+   "text": "**Flask and elixir stacking:** the stacking rules and the exact Natural flask bonus."
+  },
+  {
+   "id": "raids-endgame:open:10",
+   "text": "**Missing Classic content:** Consumables: whether Jujus, Winterfall Firewater, Blasted Lands buffs and Chronoboon exist. Enchants: whether Argent Dawn shoulder enchants, ZG enchants and level-60 arcanum quests work."
+  },
+  {
+   "id": "raids-endgame:open:11",
+   "text": "**Classic reputations:** whether Thorium Brotherhood, Hydraxian Waterlords and Brood of Nozdormu exist or matter."
+  },
+  {
+   "id": "raids-endgame:open:12",
+   "text": "**Kirin Tor:** which faction can earn it."
+  },
+  {
+   "id": "raids-endgame:open:13",
+   "text": "**New-dungeon content:** loot and boss rosters for Drowned City, Krol'dok, Alcaz, Blackmaw Hold and Shaper's Terrace; Forever-specific drops in re-itemized Classic dungeons; and what the Krol'dok and Azsharan keys open."
+  },
+  {
+   "id": "raids-endgame:open:14",
+   "text": "**Seal of Ascension:** whether the UBRS door still needs it."
+  },
+  {
+   "id": "raids-endgame:open:15",
+   "text": "**Prices:** official riding and epic-mount prices, the dual-spec price, repair-cost changes, and the Draught of Predatory Senses duration."
+  },
+  {
+   "id": "raids-endgame:open:16",
+   "text": "**Pre-raid BiS:** any authoritative Forever list; Forever level-60 item stats; the Assassination/Subtlety, Arcane/Frost, Affliction/Demonology, Resto Shaman, Shockadin and Bear lists (pages exist but were not read); and Horde equivalents of the Paladin T0.5 quests."
+  },
+  {
+   "id": "raids-endgame:open:17",
+   "text": "**Future raids:** the identity of the Spring 2027 raids and the Summer 2027 \"revamped iconic raid\", Scarlet Enclave as a future raid, and the \"Molten Core someday\" quote."
+  },
+  {
+   "id": "raids-endgame:open:18",
+   "text": "**Data access:** Battle.net `static-forever` / `profile-forever` namespaces and their endpoints. wago.tools product name and DB2 rows (Map, MapDifficulty, LFGDungeons, ItemSet, Mount), which were blocked. Map IDs for every Forever instance."
+  },
+  {
+   "id": "raids-endgame:open:19",
+   "text": "**Official page dates:** exact publication dates for several Blizzard news pages that show none."
+  },
+  {
+   "id": "raids-endgame:dropped:1",
+   "text": "KB-01 #11: Blizzard reportedly told IGN it plans a new raid tier about every 4 months, with at least 2 raids per tier. The interview itself was not read.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:2",
+   "text": "KB-01 #12: Developers say every tier will contain at least one 10-player and one 20-player raid, with a 40-player raid sometimes added.",
+   "why": "dropped at import (only off-list sources: halfbakedwarcraft.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:3",
+   "text": "KB-02 #3: Blizzard has not said whether the 10- and 20-player raids share a lockout.",
+   "why": "dropped at import (only off-list sources: guildorder.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:4",
+   "text": "KB-02 #7: The item-power increase between tiers is kept small, so older gear stays relevant. Gear often carries effects against specific creature types or biomes.",
+   "why": "dropped at import (only off-list sources: halfbakedwarcraft.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:5",
+   "text": "KB-02 #12: The developers want world-buff stacking replaced by consumables, class diversity and reputation.",
+   "why": "dropped at import (only off-list sources: halfbakedwarcraft.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:6",
+   "text": "KB-02 #13: The loot method (master loot, group loot or personal loot) is not published anywhere.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:7",
+   "text": "KB-05 #2: The entrance is in the Wyrmbog.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:8",
+   "text": "KB-05 #9: The client shows the same encounter as Classic, and none of the 17 Classic loot items changed in the client datamine.",
+   "why": "dropped at import (only off-list sources: theforeverera.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:9",
+   "text": "KB-05 #10: Whether Onyxia drops Tier 2 helms in Forever is unconfirmed and disputed.",
+   "why": "dropped at import (only off-list sources: theforeverera.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:10",
+   "text": "KB-05 #11: Classic loot for reference: Onyxia Hide Backpack, Tier 2 helms, Deathbringer, Vis'kag the Bloodletter, Sapphiron Drape, Ring of Binding, Eskhandar's Collar, Ancient Cornerstone Grimoire, Shard of the Scale, Head of Onyxia, and the Quel'Serrar chain.",
+   "why": "dropped at import (only off-list sources: theforeverera.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:11",
+   "text": "KB-06 #6: The datamined legendary clues point to a healing staff from a 3-stage questline with Hyjal and Archimonde references. It may belong to the Spring 2027 update.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:12",
+   "text": "KB-07 #4: Developers reportedly said Molten Core will come \"someday, but not now\". This comes from secondary summaries only.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:13",
+   "text": "KB-07 #6: An expanded Mistmantle estate in Duskwood was found in beta. Calling it a possible future instance is speculation.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:14",
+   "text": "KB-09 #17: Blackmaw Hold has seven bosses according to one guide. This is unverified.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:15",
+   "text": "KB-11 #10: The Watchers have ring signets used in pre-raid lists: Signet of Ferocity, Signet of Brilliance.",
+   "why": "dropped at import (only off-list sources: frostyboost.com, wow4ever.quest); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:16",
+   "text": "KB-11 #14: No Forever source mentions Thorium Brotherhood, Hydraxian Waterlords or Brood of Nozdormu.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:17",
+   "text": "KB-13 #2: Shaman has no tank spec. Enhancement can tank only lower-end content (the Spirit Weapons talent). No shaman-tank BiS exists.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:18",
+   "text": "KB-13 #4: Common sources across the lists: Pix Xizzix in Booty Bay (Tarnished Undermine Reals, 50–125 per item); the Tier 0.5 quest sets via the Anthion/Valthalak chain (Heroism, Soulforge, Darkmantle, Sorcerer's, Deathmist, Feralheart); Meilosh/Timbermaw; Theramore, AV and WSG reputation; crafted staples.",
+   "why": "dropped at import (only off-list sources: frostyboost.com, wow4ever.quest); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:19",
+   "text": "KB-13 #Spec: Primary list (src, conf)",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:20",
+   "text": "KB-13 #Paladin Protection: S1 (M)",
+   "why": "dropped at import (only off-list sources: wow4ever.quest); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:21",
+   "text": "KB-13 #Hunter BM / SV: S3 (L)",
+   "why": "dropped at import (only off-list sources: frostyboost.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:22",
+   "text": "KB-13 #Priest Holy / Disc: S1 (L-M); S3 calls them identical",
+   "why": "dropped at import (only off-list sources: frostyboost.com, wow4ever.quest); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:23",
+   "text": "KB-13 #Priest Shadow: S1 (L-M)",
+   "why": "dropped at import (only off-list sources: frostyboost.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:24",
+   "text": "KB-13 #Shaman Elemental: S1 (M)",
+   "why": "dropped at import (only off-list sources: wow4ever.quest); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:25",
+   "text": "KB-13 #Druid Balance: S3 (L)",
+   "why": "dropped at import (only off-list sources: frostyboost.com); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:26",
+   "text": "KB-13 #Druid Feral Bear: S1 (L)",
+   "why": "dropped at import (only off-list sources: wow4ever.quest); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:27",
+   "text": "KB-14 #17: Engineering consumables: Goblin Sapper Charge (trainer recipe), Iron and EZ-Thro grenades.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:28",
+   "text": "KB-17 #9: Repair costs: no Forever change was found.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:29",
+   "text": "KB-17 #10: Weekly consumable budget: no source gives one. My own arithmetic from point 8, about 35–45 g per flasked raid night, is NOT a sourced fact and must not be stated as one.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:30",
+   "text": "KB-19 #6: About 12,594 items are hidden from datamining.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:31",
+   "text": "KB-19 #8: No public evidence of `static-forever` or `profile-forever` Battle.net API namespaces was found. The docs are JS-only.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:32",
+   "text": "contradiction in register: **Barrow Deeps size:** Blizzard, Method and Warcraft Tavern say 10. The Warcraft Wiki intro and one aggregator say 20. Use 10 (official).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:33",
+   "text": "contradiction in register: **Barrow Deeps boss order:** Warcraft Tavern and the wiki achievement order differ from MmonsteR's order, and MmonsteR calls the raid non-linear. Treat kill order as unknown.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:34",
+   "text": "contradiction in register: **Hyjal final boss and spellings:** Warcraft Tavern has \"Nythus the Dreadbound\" last and \"Elder Minderei\". The wiki and allthings.how have \"Nythus the Dreambound\", \"Elder Minderel\", \"Sylvesteris\" or \"Sylvestris\", and The Wild King last. Prefer the achievement-criteria spellings.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:35",
+   "text": "contradiction in register: **Hyjal location:** Warcraft Tavern says \"above Wintergrasp\", an error for Winterspring.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:36",
+   "text": "contradiction in register: **Barrow Deeps location:** \"within Mount Hyjal\" (Blizzard) vs \"beneath Kalimdor\" (WT news).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:37",
+   "text": "contradiction in register: **Onyxia Tier 2 helms:** Woweternity lists them, The Forever Era says they are unconfirmed, and one tier guide says the full set needs Onyxia.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:38",
+   "text": "contradiction in register: **Onyxia attunement:** a few guides call it unconfirmed, but Blizzard's raid overview confirms it. The official source wins.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:39",
+   "text": "contradiction in register: **2027 raid count:** most sources say 2 in spring and 2 in summer. One says three new raids plus a revamped one.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:40",
+   "text": "contradiction in register: **Excavation Site levels:** 24–29 (official dungeon article), 26–31 (1 Oct beta notes), 26–33 (wiki).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:41",
+   "text": "contradiction in register: **City of Dalaran levels:** 28–33 (official), 28–34 (wiki instance page), 28–35 (wiki main page).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:42",
+   "text": "contradiction in register: **Krol'dok levels:** 40–45 (official correction), 40–47 (Warcraft Tavern), 40–55 (BlizzCon and Boostroom).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:43",
+   "text": "contradiction in register: **Other new-dungeon bands:** Warcraft Tavern gives player-facing bands (e.g. Alcaz 48–55) against the official 48–53.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:44",
+   "text": "contradiction in register: **Classic dungeon bands:** Warcraft Tavern and GameLeap differ, e.g. UBRS 59–60 vs 54–60.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:45",
+   "text": "contradiction in register: **Seal of Ascension:** one ConquestCapped page says it is no longer needed. GameLeap and a later ConquestCapped update say it is still required.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:46",
+   "text": "contradiction in register: **Kirin Tor faction side:** guides say Alliance-only. A dev note reportedly fixed Horde reputation gain, and the Horde has a Dalaran attunement chain.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:47",
+   "text": "contradiction in register: **Faction count:** Kami says 17 leaked factions but lists 13. ExpCarry lists 14 and includes Nightclaw.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:48",
+   "text": "contradiction in register: **Nightclaw ear turn-in:** 1,000 vs 200 reputation per 5 ears.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:49",
+   "text": "contradiction in register: **Blackmaw Hold:** \"no verified roster or loot\" (Sep–Oct) vs \"seven bosses\" and named drops (mid-Nov).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:50",
+   "text": "contradiction in register: **Honor cap:** 25,000 (beta dev notes) vs 15,000 (Warcraft Tavern PvP summary).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:51",
+   "text": "contradiction in register: **World buffs in battlegrounds and dungeons:** the Icy Veins subtitle says they are benched in battlegrounds, but the client text only restricts raids.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:52",
+   "text": "contradiction in register: **Flask and elixir stacking:** Method says they \"seem to stack\". RankedBoost says one flask plus one elixir per stat.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:53",
+   "text": "contradiction in register: **Natural flask bonus:** 4–5% (Method) vs 2% (RankedBoost).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:54",
+   "text": "contradiction in register: **Ring enchants:** none per ConquestCapped, Blizzard Watch and Warcraft Tavern, vs 5 tiers per a Mobalytics snippet.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:55",
+   "text": "contradiction in register: **Honored mount discount scope:** skill plus mount (Warcraft Tavern) vs mounts only (Method, in places).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:56",
+   "text": "contradiction in register: **Epic mount price:** 200 g in most guides. Timesaver says Blizzard never published it.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:57",
+   "text": "contradiction in register: **Legacy thresholds:** 15/25/40/55 vs a BlizzCon listing with the rifle at 10. The wiki header gives Classes 24 / Tradeskills 21, but its own lists sum to 27 and 18.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:58",
+   "text": "contradiction in register: **Hand of Justice:** 20 AP (Classic, Boostroom) vs 12 AP nerf (Frostyboost).",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:59",
+   "text": "contradiction in register: **Pre-raid lists:** they disagree on almost every shoulder, chest and hands slot. S1's Ret Paladin table copies its Warrior table, and its Resto Shaman table copies Elemental. Soulforge is tagged Alliance-only although Horde can now play Paladins. Lei of the Lifegiver is attributed to an AV vendor in one list and to AV Exalted in another.",
+   "why": "dropped at import (only off-list sources: wow4ever.quest); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:60",
+   "text": "contradiction in register: **ZG enchants:** the Warcraft Wiki says they \"remain in Forever\", while ConquestCapped says ZG is not announced.",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:61",
+   "text": "contradiction in register: **Classic epic mount split:** 900 g + 100 g vs 100 g + 800–1,000 g. The total of about 1,000 g is consistent. ---",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:62",
+   "text": "rule raid.loot_method: {\"value\": \"unknown\"}",
+   "why": "dropped at import (no source); needs a source on the allow-list"
+  },
+  {
+   "id": "raids-endgame:dropped:63",
+   "text": "rule raid.shared_lockout_10_20: {\"value\": \"unknown\"}",
+   "why": "dropped at import (only off-list sources: guildorder.com); needs a source on the allow-list"
+  }
+ ]
+}

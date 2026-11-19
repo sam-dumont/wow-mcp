@@ -1,0 +1,84 @@
+# Rebuilds data/route-reference.json, data/gear-reference.json and
+# data/forever-reference.json from the Polestar release named below and fails
+# when one differs from the committed file (docs/route-reference.md,
+# docs/gear-reference.md, docs/forever-reference.md), then runs
+# Polestar's own gear scoring (Gear.lua) against wowstats/gear.py on every item
+# (tests/test_gear_parity.py). It never commits: a new Polestar tag (POLESTAR_TAG,
+# bumped by hand when kb-refresh's watcher reports the release) fails here
+# until someone reruns both exports and commits the new files in that PR.
+# Actions are pinned by commit SHA (the comment is the tag it was taken from).
+name: route-reference
+on:
+  push:
+    branches: [main]
+    paths:
+      - tools/route_reference/**
+      - tools/gear_reference/**
+      - tools/forever_reference/**
+      - data/route-reference.json
+      - data/gear-reference.json
+      - data/forever-reference.json
+      - wowstats/gear.py
+      - tests/test_gear_parity.py
+      - .github/workflows/route-reference.yml
+  pull_request:
+    paths:
+      - tools/route_reference/**
+      - tools/gear_reference/**
+      - tools/forever_reference/**
+      - data/route-reference.json
+      - data/gear-reference.json
+      - data/forever-reference.json
+      - wowstats/gear.py
+      - tests/test_gear_parity.py
+      - .github/workflows/route-reference.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+
+env:
+  # The one place the Polestar version is set, for both exports.
+  POLESTAR_TAG: v0.4.1
+  # Same Node as the export was last run with: Math.hypot and friends may round differently elsewhere.
+  NODE_VERSION: 24.5.0
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Lua, to read the addon's compiled files
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends lua5.4
+      - name: Polestar at its tag
+        run: git clone -q --depth 1 --branch "$POLESTAR_TAG" https://github.com/fitzforge/polestar "$RUNNER_TEMP/polestar"
+      - name: Export
+        run: |
+          node tools/route_reference/export.mjs --polestar "$RUNNER_TEMP/polestar" --lua lua5.4
+          node tools/gear_reference/export.mjs --polestar "$RUNNER_TEMP/polestar" --lua lua5.4
+          # Stdlib Python; reads forever-db from the checkout and Forever's
+          # AreaTable, Map and GroupFinderActivity from wago.tools.
+          python3 tools/forever_reference/export.py --polestar "$RUNNER_TEMP/polestar"
+      - name: The committed files are the export
+        run: |
+          bad=0
+          for f in route gear forever; do
+            if ! git diff --quiet -- "data/$f-reference.json"; then
+              git diff --stat -- "data/$f-reference.json"
+              echo "::error::data/$f-reference.json is not the export of Polestar $POLESTAR_TAG: run tools/${f}_reference/export.* (docs/$f-reference.md) and commit the result"
+              bad=1
+            fi
+          done
+          exit "$bad"
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Gear scoring matches Polestar's Gear.lua, item by item
+        env:
+          LUA: lua5.4
+        run: |
+          uv sync --frozen
+          POLESTAR_CHECKOUT="$RUNNER_TEMP/polestar" uv run pytest -q -rs tests/test_gear_parity.py

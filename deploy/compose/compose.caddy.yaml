@@ -1,0 +1,34 @@
+# Caddy in front of the kit: HTTPS with automatic certificates, two names.
+# docs/self-host/reverse-proxy.md walks through it. Start everything with:
+#   docker compose -f compose.yaml -f compose.caddy.yaml up -d --build
+# .env names the two hosts (WOW_SITE_HOST, WOW_FULL_HOST) and the page's
+# login (BASIC_AUTH_USER, BASIC_AUTH_PASSWORD): nothing starts without them.
+services:
+  caddy:
+    image: docker.io/library/caddy:2.10.2-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    depends_on: [ui, site]
+    environment:
+      WOW_SITE_HOST: ${WOW_SITE_HOST:?set WOW_SITE_HOST in .env}
+      WOW_FULL_HOST: ${WOW_FULL_HOST:?set WOW_FULL_HOST in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+  # The proxy reaches ui over Docker's network, so 127.0.0.1 on the host no
+  # longer keeps strangers out: the page gets its own login, whatever UI_AUTH
+  # says, and answers for the full view's name.
+  ui:
+    environment:
+      AUTH: basic
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:?set BASIC_AUTH_USER in .env}
+      BASIC_AUTH_PASSWORD: ${BASIC_AUTH_PASSWORD:?set BASIC_AUTH_PASSWORD in .env (12+ characters)}
+      ALLOWED_HOSTS: ${WOW_FULL_HOST:?set WOW_FULL_HOST in .env}
+
+volumes:
+  caddy-data:
+  caddy-config:

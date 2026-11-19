@@ -1,0 +1,5009 @@
+{
+ "schema": 1,
+ "source": {
+  "polestar": {
+   "tag": "v0.4.1",
+   "commit": "c85dd863d1628c8d6b5e7d233428710334cd72d6",
+   "licence": "GPL-3.0",
+   "files": [
+    "addon/Polestar_Guides/Guides.lua",
+    "addon/Polestar/QoL/Riding.lua"
+   ]
+  },
+  "note": "trainer lists: Forever's, as Polestar's guides ship them; prices as each note scopes them"
+ },
+ "professions": {
+  "129": {
+   "name": "First Aid",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 4211,
+       "name": "Dannelor",
+       "map": 1457,
+       "x": 51.56,
+       "y": 12.44,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 2326,
+       "name": "Thamner Pol",
+       "map": 1426,
+       "x": 47.17,
+       "y": 52.54,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 5943,
+       "name": "Rawrk",
+       "map": 1411,
+       "x": 54.1,
+       "y": 41.96,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 2329,
+       "name": "Michelle Belle",
+       "map": 1429,
+       "x": 43.33,
+       "y": 65.53,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 5150,
+       "name": "Nissa Firestone",
+       "map": 1455,
+       "x": 54.96,
+       "y": 58.7,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 5939,
+       "name": "Vira Younghoof",
+       "map": 1412,
+       "x": 46.01,
+       "y": 63.89,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 3373,
+       "name": "Arnok",
+       "map": 1454,
+       "x": 34.18,
+       "y": 84.39,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 2327,
+       "name": "Shaina Fuller",
+       "map": 1453,
+       "x": 53.0,
+       "y": 44.72,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 6094,
+       "name": "Byancie",
+       "map": 1438,
+       "x": 55.27,
+       "y": 56.78,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 2798,
+       "name": "Pand Stonebinder",
+       "map": 1456,
+       "x": 29.51,
+       "y": 21.43,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 5759,
+       "name": "Nurse Neela",
+       "map": 1420,
+       "x": 61.73,
+       "y": 52.8,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4591,
+       "name": "Mary Edras",
+       "map": 1458,
+       "x": 73.43,
+       "y": 55.27,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 3181,
+       "name": "Fremal Doohickey",
+       "map": 1437,
+       "x": 10.78,
+       "y": 61.24,
+       "side": "A",
+       "zone": "Wetlands"
+      },
+      {
+       "npc": 257007,
+       "name": "Melasa Fairmend",
+       "map": 2521,
+       "x": 63.13,
+       "y": 72.57,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257018,
+       "name": "Naleeia Tattermend",
+       "map": 2521,
+       "x": 43.09,
+       "y": 46.29,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 0,
+     "price_copper": 500,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 4211,
+       "name": "Dannelor",
+       "map": 1457,
+       "x": 51.56,
+       "y": 12.44,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 2326,
+       "name": "Thamner Pol",
+       "map": 1426,
+       "x": 47.17,
+       "y": 52.54,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 5943,
+       "name": "Rawrk",
+       "map": 1411,
+       "x": 54.1,
+       "y": 41.96,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 2329,
+       "name": "Michelle Belle",
+       "map": 1429,
+       "x": 43.33,
+       "y": 65.53,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 5150,
+       "name": "Nissa Firestone",
+       "map": 1455,
+       "x": 54.96,
+       "y": 58.7,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 5939,
+       "name": "Vira Younghoof",
+       "map": 1412,
+       "x": 46.01,
+       "y": 63.89,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 3373,
+       "name": "Arnok",
+       "map": 1454,
+       "x": 34.18,
+       "y": 84.39,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 2327,
+       "name": "Shaina Fuller",
+       "map": 1453,
+       "x": 53.0,
+       "y": 44.72,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 6094,
+       "name": "Byancie",
+       "map": 1438,
+       "x": 55.27,
+       "y": 56.78,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 2798,
+       "name": "Pand Stonebinder",
+       "map": 1456,
+       "x": 29.51,
+       "y": 21.43,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 5759,
+       "name": "Nurse Neela",
+       "map": 1420,
+       "x": 61.73,
+       "y": 52.8,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4591,
+       "name": "Mary Edras",
+       "map": 1458,
+       "x": 73.43,
+       "y": 55.27,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 3181,
+       "name": "Fremal Doohickey",
+       "map": 1437,
+       "x": 10.78,
+       "y": 61.24,
+       "side": "A",
+       "zone": "Wetlands"
+      },
+      {
+       "npc": 257007,
+       "name": "Melasa Fairmend",
+       "map": 2521,
+       "x": 63.13,
+       "y": 72.57,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257018,
+       "name": "Naleeia Tattermend",
+       "map": 2521,
+       "x": 43.09,
+       "y": 46.29,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    }
+   }
+  },
+  "164": {
+   "name": "Blacksmithing",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": 10,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 6299,
+       "name": "Delfrum Flintbeard",
+       "map": 1439,
+       "x": 38.18,
+       "y": 40.88,
+       "side": "A",
+       "zone": "Darkshore"
+      },
+      {
+       "npc": 1241,
+       "name": "Tognus Flintfire",
+       "map": 1426,
+       "x": 45.23,
+       "y": 51.91,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 3174,
+       "name": "Dwukk",
+       "map": 1411,
+       "x": 51.97,
+       "y": 40.65,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 514,
+       "name": "Smith Argus",
+       "map": 1429,
+       "x": 41.59,
+       "y": 65.58,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 10277,
+       "name": "Groum Stonebeard",
+       "map": 1455,
+       "x": 51.97,
+       "y": 41.99,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 10266,
+       "name": "Ug'thok",
+       "map": 1454,
+       "x": 80.42,
+       "y": 23.53,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 957,
+       "name": "Dane Lindgren",
+       "map": 1453,
+       "x": 63.81,
+       "y": 37.13,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 10278,
+       "name": "Thrag Stonehoof",
+       "map": 1456,
+       "x": 39.27,
+       "y": 56.59,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 276067,
+       "name": "Angus Hammerhand",
+       "map": 1420,
+       "x": 21.05,
+       "y": 45.69,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4605,
+       "name": "Basil Frye",
+       "map": 1458,
+       "x": 60.06,
+       "y": 28.86,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 251913,
+       "name": "Aedi Thriceforged",
+       "map": 2521,
+       "x": 44.81,
+       "y": 44.36,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 252479,
+       "name": "Daeann Steelwind",
+       "map": 2521,
+       "x": 65.33,
+       "y": 79.99,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 10,
+     "price_copper": 500,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 3136,
+       "name": "Clarise Gnarltree",
+       "map": 1431,
+       "x": 73.88,
+       "y": 48.4,
+       "side": "A",
+       "zone": "Duskwood"
+      },
+      {
+       "npc": 10276,
+       "name": "Rotgath Stonebeard",
+       "map": 1455,
+       "x": 52.07,
+       "y": 42.46,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1383,
+       "name": "Snarl",
+       "map": 1454,
+       "x": 79.82,
+       "y": 23.31,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 5511,
+       "name": "Therum Deepforge",
+       "map": 1453,
+       "x": 63.71,
+       "y": 36.87,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 3478,
+       "name": "Traugh",
+       "map": 1413,
+       "x": 51.26,
+       "y": 28.94,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 2998,
+       "name": "Karn Stonehoof",
+       "map": 1456,
+       "x": 39.5,
+       "y": 55.16,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 276067,
+       "name": "Angus Hammerhand",
+       "map": 1420,
+       "x": 21.05,
+       "y": 45.69,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4596,
+       "name": "James Van Brunt",
+       "map": 1458,
+       "x": 61.0,
+       "y": 30.11,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 252479,
+       "name": "Daeann Steelwind",
+       "map": 2521,
+       "x": 65.33,
+       "y": 79.99,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "3": {
+     "name": "Expert",
+     "max": 225,
+     "level": 20,
+     "price_copper": 5000,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 4258,
+       "name": "Bengus Deepforge",
+       "map": 1455,
+       "x": 52.27,
+       "y": 41.27,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 3355,
+       "name": "Saru Steelfury",
+       "map": 1454,
+       "x": 82.11,
+       "y": 23.29,
+       "side": "H",
+       "zone": "Orgrimmar"
+      }
+     ]
+    },
+    "4": {
+     "name": "Artisan",
+     "max": 300,
+     "level": 35,
+     "price_copper": 50000,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 2836,
+       "name": "Brikk Keencraft",
+       "map": 1434,
+       "x": 28.99,
+       "y": 75.47,
+       "side": "AH",
+       "zone": "Stranglethorn Vale"
+      }
+     ]
+    }
+   }
+  },
+  "165": {
+   "name": "Leatherworking",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": 10,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 11083,
+       "name": "Darianna",
+       "map": 1457,
+       "x": 64.3,
+       "y": 20.89,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 1632,
+       "name": "Adele Fielder",
+       "map": 1429,
+       "x": 46.31,
+       "y": 62.17,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 1466,
+       "name": "Gretta Finespindle",
+       "map": 1455,
+       "x": 39.16,
+       "y": 33.09,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 3069,
+       "name": "Chaw Stronghide",
+       "map": 1412,
+       "x": 44.92,
+       "y": 61.54,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 5811,
+       "name": "Kamari",
+       "map": 1454,
+       "x": 62.96,
+       "y": 44.95,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 11096,
+       "name": "Randal Worth",
+       "map": 1453,
+       "x": 71.82,
+       "y": 62.72,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 3605,
+       "name": "Nadyia Maneweaver",
+       "map": 1438,
+       "x": 41.77,
+       "y": 49.44,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 3008,
+       "name": "Mak",
+       "map": 1456,
+       "x": 42.07,
+       "y": 43.25,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 3549,
+       "name": "Shelene Rhobart",
+       "map": 1420,
+       "x": 65.33,
+       "y": 60.16,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 223,
+       "name": "Dan Golthas",
+       "map": 1458,
+       "x": 70.71,
+       "y": 58.71,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 252376,
+       "name": "Emerii Tallgust",
+       "map": 2521,
+       "x": 63.73,
+       "y": 80.62,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 251993,
+       "name": "Indari Sunseam",
+       "map": 2521,
+       "x": 44.59,
+       "y": 44.46,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 10,
+     "price_copper": 500,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 3967,
+       "name": "Aayndia Floralwind",
+       "map": 1440,
+       "x": 35.91,
+       "y": 52.07,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 11081,
+       "name": "Faldron",
+       "map": 1457,
+       "x": 64.62,
+       "y": 21.68,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 8153,
+       "name": "Narv Hidecrafter",
+       "map": 1443,
+       "x": 55.27,
+       "y": 56.33,
+       "side": "H",
+       "zone": "Desolace"
+      },
+      {
+       "npc": 5127,
+       "name": "Fimble Finespindle",
+       "map": 1455,
+       "x": 39.77,
+       "y": 33.45,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 3365,
+       "name": "Karolek",
+       "map": 1454,
+       "x": 62.9,
+       "y": 44.43,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 5564,
+       "name": "Simon Tanner",
+       "map": 1453,
+       "x": 71.7,
+       "y": 62.63,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 1385,
+       "name": "Brawn",
+       "map": 1434,
+       "x": 31.73,
+       "y": 28.85,
+       "side": "H",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 3703,
+       "name": "Krulmoo Fullmoon",
+       "map": 1413,
+       "x": 44.8,
+       "y": 59.38,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 11084,
+       "name": "Tarn",
+       "map": 1456,
+       "x": 42.37,
+       "y": 42.66,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 4588,
+       "name": "Arthur Moore",
+       "map": 1458,
+       "x": 70.35,
+       "y": 57.76,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 252376,
+       "name": "Emerii Tallgust",
+       "map": 2521,
+       "x": 63.73,
+       "y": 80.62,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "3": {
+     "name": "Expert",
+     "max": 225,
+     "level": 20,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 4212,
+       "name": "Telonis",
+       "map": 1457,
+       "x": 64.2,
+       "y": 21.38,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 3007,
+       "name": "Una",
+       "map": 1456,
+       "x": 41.74,
+       "y": 42.94,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      }
+     ]
+    },
+    "4": {
+     "name": "Artisan",
+     "max": 300,
+     "level": 35,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 11098,
+       "name": "Hahrana Ironhide",
+       "map": 1444,
+       "x": 74.37,
+       "y": 43.1,
+       "side": "H",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 11097,
+       "name": "Drakk Stonehand",
+       "map": 1424,
+       "x": 98.7,
+       "y": 2.3,
+       "side": "A",
+       "zone": "Hillsbrad Foothills"
+      }
+     ]
+    }
+   }
+  },
+  "171": {
+   "name": "Alchemy",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": 10,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 11041,
+       "name": "Milla Fairancora",
+       "map": 1457,
+       "x": 55.28,
+       "y": 23.12,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 3184,
+       "name": "Miao'zan",
+       "map": 1411,
+       "x": 55.42,
+       "y": 73.98,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 1215,
+       "name": "Alchemist Mallory",
+       "map": 1429,
+       "x": 39.81,
+       "y": 48.38,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 1246,
+       "name": "Vosur Brakthel",
+       "map": 1455,
+       "x": 66.55,
+       "y": 55.2,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1470,
+       "name": "Ghak Healtouch",
+       "map": 1432,
+       "x": 36.98,
+       "y": 49.28,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 11046,
+       "name": "Whuut",
+       "map": 1454,
+       "x": 55.96,
+       "y": 33.03,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 5500,
+       "name": "Tel'Athir",
+       "map": 1453,
+       "x": 55.41,
+       "y": 85.47,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 3603,
+       "name": "Cyndra Kindwhisper",
+       "map": 1438,
+       "x": 57.6,
+       "y": 60.68,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 11047,
+       "name": "Kray",
+       "map": 1456,
+       "x": 46.96,
+       "y": 34.07,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 2132,
+       "name": "Carolai Anise",
+       "map": 1420,
+       "x": 59.4,
+       "y": 52.26,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 11044,
+       "name": "Doctor Martin Felben",
+       "map": 1458,
+       "x": 46.38,
+       "y": 73.97,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 253004,
+       "name": "Iaadaria Bitterwind",
+       "map": 2521,
+       "x": 66.25,
+       "y": 79.54,
+       "side": "A",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257019,
+       "name": "Nyassa Swiftdraught",
+       "map": 2521,
+       "x": 43.69,
+       "y": 43.4,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257005,
+       "name": "Valiena Swiftgale",
+       "map": 2521,
+       "x": 59.19,
+       "y": 76.34,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 10,
+     "price_copper": 450,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 2391,
+       "name": "Serge Hinott",
+       "map": 1416,
+       "x": 60.3,
+       "y": 80.9,
+       "side": "H",
+       "zone": "Alterac Mountains"
+      },
+      {
+       "npc": 3964,
+       "name": "Kylanna",
+       "map": 1440,
+       "x": 50.85,
+       "y": 67.11,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 11042,
+       "name": "Sylvanna Forestmoon",
+       "map": 1457,
+       "x": 56.24,
+       "y": 24.38,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 4900,
+       "name": "Alchemist Narett",
+       "map": 1445,
+       "x": 63.96,
+       "y": 47.61,
+       "side": "A",
+       "zone": "Dustwallow Marsh"
+      },
+      {
+       "npc": 5177,
+       "name": "Tally Berryfizz",
+       "map": 1455,
+       "x": 66.51,
+       "y": 55.12,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 3347,
+       "name": "Yelmak",
+       "map": 1454,
+       "x": 56.51,
+       "y": 33.71,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 5499,
+       "name": "Lilyssia Nightbreeze",
+       "map": 1453,
+       "x": 55.54,
+       "y": 85.68,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 2837,
+       "name": "Jaxin Chong",
+       "map": 1434,
+       "x": 28.06,
+       "y": 77.97,
+       "side": "AH",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 3009,
+       "name": "Bena Winterhoof",
+       "map": 1456,
+       "x": 46.62,
+       "y": 33.68,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 4609,
+       "name": "Doctor Marsh",
+       "map": 1458,
+       "x": 51.16,
+       "y": 74.44,
+       "side": "H",
+       "zone": "Undercity"
+      }
+     ]
+    },
+    "3": {
+     "name": "Expert",
+     "max": 225,
+     "level": 20,
+     "price_copper": 5000,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 4160,
+       "name": "Ainethil",
+       "map": 1457,
+       "x": 54.99,
+       "y": 23.75,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 4611,
+       "name": "Doctor Herbert Halsey",
+       "map": 1458,
+       "x": 47.76,
+       "y": 73.08,
+       "side": "H",
+       "zone": "Undercity"
+      }
+     ]
+    },
+    "4": {
+     "name": "Artisan",
+     "max": 300,
+     "level": 35,
+     "price_copper": 45000,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 7948,
+       "name": "Kylanna Windwhisper",
+       "map": 1444,
+       "x": 32.58,
+       "y": 43.78,
+       "side": "A",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 1386,
+       "name": "Rogvar",
+       "map": 1435,
+       "x": 48.32,
+       "y": 55.71,
+       "side": "H",
+       "zone": "Swamp of Sorrows"
+      }
+     ]
+    }
+   }
+  },
+  "182": {
+   "name": "Herbalism",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 2390,
+       "name": "Aranae Venomblood",
+       "map": 1416,
+       "x": 60.4,
+       "y": 81.2,
+       "side": "H",
+       "zone": "Alterac Mountains"
+      },
+      {
+       "npc": 3965,
+       "name": "Cylania Rootstalker",
+       "map": 1440,
+       "x": 50.63,
+       "y": 67.15,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 4204,
+       "name": "Firodren Mooncaller",
+       "map": 1457,
+       "x": 47.9,
+       "y": 68.43,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 267338,
+       "name": "Emrys Flintbeard",
+       "map": 1426,
+       "x": 28.9,
+       "y": 66.6,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 3185,
+       "name": "Mishiki",
+       "map": 1411,
+       "x": 55.45,
+       "y": 75.09,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 267329,
+       "name": "Zor'la",
+       "map": 1411,
+       "x": 42.61,
+       "y": 67.38,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 4898,
+       "name": "Brant Jasperbloom",
+       "map": 1445,
+       "x": 63.99,
+       "y": 47.57,
+       "side": "A",
+       "zone": "Dustwallow Marsh"
+      },
+      {
+       "npc": 1218,
+       "name": "Herbalist Pomeroy",
+       "map": 1429,
+       "x": 39.83,
+       "y": 48.41,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 247223,
+       "name": "Nancy Songflower",
+       "map": 1429,
+       "x": 52.3,
+       "y": 43.86,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 8146,
+       "name": "Ruw",
+       "map": 1444,
+       "x": 75.96,
+       "y": 43.39,
+       "side": "H",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 5137,
+       "name": "Reyna Stonebranch",
+       "map": 1455,
+       "x": 55.42,
+       "y": 58.84,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1473,
+       "name": "Kali Healtouch",
+       "map": 1432,
+       "x": 36.45,
+       "y": 48.26,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 12025,
+       "name": "Malvor",
+       "map": 1450,
+       "x": 45.55,
+       "y": 46.97,
+       "side": "AH",
+       "zone": "Moonglade"
+      },
+      {
+       "npc": 267332,
+       "name": "Garan Sunstrider",
+       "map": 1412,
+       "x": 44.11,
+       "y": 78.01,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 3404,
+       "name": "Jandi",
+       "map": 1454,
+       "x": 55.33,
+       "y": 39.57,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 812,
+       "name": "Alma Jainrose",
+       "map": 1433,
+       "x": 16.31,
+       "y": 45.62,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 5502,
+       "name": "Shylamiir",
+       "map": 1453,
+       "x": 31.2,
+       "y": 62.76,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 5566,
+       "name": "Tannysa",
+       "map": 1453,
+       "x": 54.18,
+       "y": 84.34,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 2856,
+       "name": "Angrun",
+       "map": 1434,
+       "x": 32.2,
+       "y": 27.45,
+       "side": "H",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 908,
+       "name": "Flora Silverwind",
+       "map": 1434,
+       "x": 27.71,
+       "y": 77.84,
+       "side": "AH",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 267335,
+       "name": "Eleyna Duskbreeze",
+       "map": 1438,
+       "x": 59.79,
+       "y": 41.4,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 3604,
+       "name": "Malorne Bladeleaf",
+       "map": 1438,
+       "x": 57.63,
+       "y": 60.63,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 3013,
+       "name": "Komin Winterhoof",
+       "map": 1456,
+       "x": 49.84,
+       "y": 40.0,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 2114,
+       "name": "Faruza",
+       "map": 1420,
+       "x": 59.72,
+       "y": 52.07,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 267326,
+       "name": "Florence Nightshade",
+       "map": 1420,
+       "x": 32.38,
+       "y": 65.17,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4614,
+       "name": "Martha Alliestar",
+       "map": 1458,
+       "x": 54.3,
+       "y": 49.67,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 1458,
+       "name": "Telurinon Moonshadow",
+       "map": 1437,
+       "x": 7.88,
+       "y": 55.81,
+       "side": "A",
+       "zone": "Wetlands"
+      },
+      {
+       "npc": 257021,
+       "name": "Halassa Fernbreeze",
+       "map": 2521,
+       "x": 42.97,
+       "y": 43.54,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 254345,
+       "name": "Syriel Nightrain",
+       "map": 2521,
+       "x": 57.88,
+       "y": 75.51,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 0,
+     "price_copper": 500,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 2390,
+       "name": "Aranae Venomblood",
+       "map": 1416,
+       "x": 60.4,
+       "y": 81.2,
+       "side": "H",
+       "zone": "Alterac Mountains"
+      },
+      {
+       "npc": 3965,
+       "name": "Cylania Rootstalker",
+       "map": 1440,
+       "x": 50.63,
+       "y": 67.15,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 4204,
+       "name": "Firodren Mooncaller",
+       "map": 1457,
+       "x": 47.9,
+       "y": 68.43,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 3185,
+       "name": "Mishiki",
+       "map": 1411,
+       "x": 55.45,
+       "y": 75.09,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 4898,
+       "name": "Brant Jasperbloom",
+       "map": 1445,
+       "x": 63.99,
+       "y": 47.57,
+       "side": "A",
+       "zone": "Dustwallow Marsh"
+      },
+      {
+       "npc": 1218,
+       "name": "Herbalist Pomeroy",
+       "map": 1429,
+       "x": 39.83,
+       "y": 48.41,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 8146,
+       "name": "Ruw",
+       "map": 1444,
+       "x": 75.96,
+       "y": 43.39,
+       "side": "H",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 5137,
+       "name": "Reyna Stonebranch",
+       "map": 1455,
+       "x": 55.42,
+       "y": 58.84,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1473,
+       "name": "Kali Healtouch",
+       "map": 1432,
+       "x": 36.45,
+       "y": 48.26,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 12025,
+       "name": "Malvor",
+       "map": 1450,
+       "x": 45.55,
+       "y": 46.97,
+       "side": "AH",
+       "zone": "Moonglade"
+      },
+      {
+       "npc": 3404,
+       "name": "Jandi",
+       "map": 1454,
+       "x": 55.33,
+       "y": 39.57,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 812,
+       "name": "Alma Jainrose",
+       "map": 1433,
+       "x": 16.31,
+       "y": 45.62,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 5502,
+       "name": "Shylamiir",
+       "map": 1453,
+       "x": 31.2,
+       "y": 62.76,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 5566,
+       "name": "Tannysa",
+       "map": 1453,
+       "x": 54.18,
+       "y": 84.34,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 2856,
+       "name": "Angrun",
+       "map": 1434,
+       "x": 32.2,
+       "y": 27.45,
+       "side": "H",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 908,
+       "name": "Flora Silverwind",
+       "map": 1434,
+       "x": 27.71,
+       "y": 77.84,
+       "side": "AH",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 3604,
+       "name": "Malorne Bladeleaf",
+       "map": 1438,
+       "x": 57.63,
+       "y": 60.63,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 3013,
+       "name": "Komin Winterhoof",
+       "map": 1456,
+       "x": 49.84,
+       "y": 40.0,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 2114,
+       "name": "Faruza",
+       "map": 1420,
+       "x": 59.72,
+       "y": 52.07,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4614,
+       "name": "Martha Alliestar",
+       "map": 1458,
+       "x": 54.3,
+       "y": 49.67,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 1458,
+       "name": "Telurinon Moonshadow",
+       "map": 1437,
+       "x": 7.88,
+       "y": 55.81,
+       "side": "A",
+       "zone": "Wetlands"
+      },
+      {
+       "npc": 257021,
+       "name": "Halassa Fernbreeze",
+       "map": 2521,
+       "x": 42.97,
+       "y": 43.54,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 254345,
+       "name": "Syriel Nightrain",
+       "map": 2521,
+       "x": 57.88,
+       "y": 75.51,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "3": {
+     "name": "Expert",
+     "max": 225,
+     "level": 0,
+     "price_copper": 5000,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 2390,
+       "name": "Aranae Venomblood",
+       "map": 1416,
+       "x": 60.4,
+       "y": 81.2,
+       "side": "H",
+       "zone": "Alterac Mountains"
+      },
+      {
+       "npc": 3965,
+       "name": "Cylania Rootstalker",
+       "map": 1440,
+       "x": 50.63,
+       "y": 67.15,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 4204,
+       "name": "Firodren Mooncaller",
+       "map": 1457,
+       "x": 47.9,
+       "y": 68.43,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 3185,
+       "name": "Mishiki",
+       "map": 1411,
+       "x": 55.45,
+       "y": 75.09,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 4898,
+       "name": "Brant Jasperbloom",
+       "map": 1445,
+       "x": 63.99,
+       "y": 47.57,
+       "side": "A",
+       "zone": "Dustwallow Marsh"
+      },
+      {
+       "npc": 1218,
+       "name": "Herbalist Pomeroy",
+       "map": 1429,
+       "x": 39.83,
+       "y": 48.41,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 8146,
+       "name": "Ruw",
+       "map": 1444,
+       "x": 75.96,
+       "y": 43.39,
+       "side": "H",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 5137,
+       "name": "Reyna Stonebranch",
+       "map": 1455,
+       "x": 55.42,
+       "y": 58.84,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1473,
+       "name": "Kali Healtouch",
+       "map": 1432,
+       "x": 36.45,
+       "y": 48.26,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 12025,
+       "name": "Malvor",
+       "map": 1450,
+       "x": 45.55,
+       "y": 46.97,
+       "side": "AH",
+       "zone": "Moonglade"
+      },
+      {
+       "npc": 3404,
+       "name": "Jandi",
+       "map": 1454,
+       "x": 55.33,
+       "y": 39.57,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 812,
+       "name": "Alma Jainrose",
+       "map": 1433,
+       "x": 16.31,
+       "y": 45.62,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 5502,
+       "name": "Shylamiir",
+       "map": 1453,
+       "x": 31.2,
+       "y": 62.76,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 5566,
+       "name": "Tannysa",
+       "map": 1453,
+       "x": 54.18,
+       "y": 84.34,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 2856,
+       "name": "Angrun",
+       "map": 1434,
+       "x": 32.2,
+       "y": 27.45,
+       "side": "H",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 908,
+       "name": "Flora Silverwind",
+       "map": 1434,
+       "x": 27.71,
+       "y": 77.84,
+       "side": "AH",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 3604,
+       "name": "Malorne Bladeleaf",
+       "map": 1438,
+       "x": 57.63,
+       "y": 60.63,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 3013,
+       "name": "Komin Winterhoof",
+       "map": 1456,
+       "x": 49.84,
+       "y": 40.0,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 2114,
+       "name": "Faruza",
+       "map": 1420,
+       "x": 59.72,
+       "y": 52.07,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4614,
+       "name": "Martha Alliestar",
+       "map": 1458,
+       "x": 54.3,
+       "y": 49.67,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 1458,
+       "name": "Telurinon Moonshadow",
+       "map": 1437,
+       "x": 7.88,
+       "y": 55.81,
+       "side": "A",
+       "zone": "Wetlands"
+      },
+      {
+       "npc": 257021,
+       "name": "Halassa Fernbreeze",
+       "map": 2521,
+       "x": 42.97,
+       "y": 43.54,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 254345,
+       "name": "Syriel Nightrain",
+       "map": 2521,
+       "x": 57.88,
+       "y": 75.51,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "4": {
+     "name": "Artisan",
+     "max": 300,
+     "level": 0,
+     "price_copper": 50000,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 2390,
+       "name": "Aranae Venomblood",
+       "map": 1416,
+       "x": 60.4,
+       "y": 81.2,
+       "side": "H",
+       "zone": "Alterac Mountains"
+      },
+      {
+       "npc": 3965,
+       "name": "Cylania Rootstalker",
+       "map": 1440,
+       "x": 50.63,
+       "y": 67.15,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 4204,
+       "name": "Firodren Mooncaller",
+       "map": 1457,
+       "x": 47.9,
+       "y": 68.43,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 3185,
+       "name": "Mishiki",
+       "map": 1411,
+       "x": 55.45,
+       "y": 75.09,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 4898,
+       "name": "Brant Jasperbloom",
+       "map": 1445,
+       "x": 63.99,
+       "y": 47.57,
+       "side": "A",
+       "zone": "Dustwallow Marsh"
+      },
+      {
+       "npc": 1218,
+       "name": "Herbalist Pomeroy",
+       "map": 1429,
+       "x": 39.83,
+       "y": 48.41,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 8146,
+       "name": "Ruw",
+       "map": 1444,
+       "x": 75.96,
+       "y": 43.39,
+       "side": "H",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 5137,
+       "name": "Reyna Stonebranch",
+       "map": 1455,
+       "x": 55.42,
+       "y": 58.84,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1473,
+       "name": "Kali Healtouch",
+       "map": 1432,
+       "x": 36.45,
+       "y": 48.26,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 12025,
+       "name": "Malvor",
+       "map": 1450,
+       "x": 45.55,
+       "y": 46.97,
+       "side": "AH",
+       "zone": "Moonglade"
+      },
+      {
+       "npc": 3404,
+       "name": "Jandi",
+       "map": 1454,
+       "x": 55.33,
+       "y": 39.57,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 812,
+       "name": "Alma Jainrose",
+       "map": 1433,
+       "x": 16.31,
+       "y": 45.62,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 5502,
+       "name": "Shylamiir",
+       "map": 1453,
+       "x": 31.2,
+       "y": 62.76,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 5566,
+       "name": "Tannysa",
+       "map": 1453,
+       "x": 54.18,
+       "y": 84.34,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 2856,
+       "name": "Angrun",
+       "map": 1434,
+       "x": 32.2,
+       "y": 27.45,
+       "side": "H",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 908,
+       "name": "Flora Silverwind",
+       "map": 1434,
+       "x": 27.71,
+       "y": 77.84,
+       "side": "AH",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 3604,
+       "name": "Malorne Bladeleaf",
+       "map": 1438,
+       "x": 57.63,
+       "y": 60.63,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 3013,
+       "name": "Komin Winterhoof",
+       "map": 1456,
+       "x": 49.84,
+       "y": 40.0,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 2114,
+       "name": "Faruza",
+       "map": 1420,
+       "x": 59.72,
+       "y": 52.07,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4614,
+       "name": "Martha Alliestar",
+       "map": 1458,
+       "x": 54.3,
+       "y": 49.67,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 1458,
+       "name": "Telurinon Moonshadow",
+       "map": 1437,
+       "x": 7.88,
+       "y": 55.81,
+       "side": "A",
+       "zone": "Wetlands"
+      },
+      {
+       "npc": 257021,
+       "name": "Halassa Fernbreeze",
+       "map": 2521,
+       "x": 42.97,
+       "y": 43.54,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 254345,
+       "name": "Syriel Nightrain",
+       "map": 2521,
+       "x": 57.88,
+       "y": 75.51,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    }
+   }
+  },
+  "185": {
+   "name": "Cooking",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 4210,
+       "name": "Alegorn",
+       "map": 1457,
+       "x": 48.94,
+       "y": 21.23,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 1355,
+       "name": "Cook Ghilm",
+       "map": 1426,
+       "x": 68.33,
+       "y": 54.59,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 1699,
+       "name": "Gremlock Pilsnor",
+       "map": 1426,
+       "x": 47.58,
+       "y": 52.36,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 3191,
+       "name": "Cook Torka",
+       "map": 1411,
+       "x": 51.06,
+       "y": 42.44,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 1430,
+       "name": "Tomas",
+       "map": 1429,
+       "x": 44.22,
+       "y": 66.01,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 5159,
+       "name": "Daryl Riknussun",
+       "map": 1455,
+       "x": 60.25,
+       "y": 36.79,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 3067,
+       "name": "Pyall Silentstride",
+       "map": 1412,
+       "x": 44.89,
+       "y": 61.65,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 3399,
+       "name": "Zamja",
+       "map": 1454,
+       "x": 57.28,
+       "y": 53.63,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 3087,
+       "name": "Crystal Boughman",
+       "map": 1433,
+       "x": 17.63,
+       "y": 43.65,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 5482,
+       "name": "Stephen Ryback",
+       "map": 1453,
+       "x": 78.23,
+       "y": 53.04,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 1382,
+       "name": "Mudduk",
+       "map": 1434,
+       "x": 31.35,
+       "y": 28.01,
+       "side": "H",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 6286,
+       "name": "Zarrin",
+       "map": 1438,
+       "x": 57.04,
+       "y": 61.22,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 8306,
+       "name": "Duhng",
+       "map": 1413,
+       "x": 55.26,
+       "y": 31.81,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 3026,
+       "name": "Aska Mistrunner",
+       "map": 1456,
+       "x": 50.97,
+       "y": 52.87,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 265944,
+       "name": "William Pickman",
+       "map": 1420,
+       "x": 61.69,
+       "y": 51.44,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4552,
+       "name": "Eunice Burch",
+       "map": 1458,
+       "x": 62.21,
+       "y": 44.56,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 257006,
+       "name": "Nyalah Brightfire",
+       "map": 2521,
+       "x": 60.63,
+       "y": 72.69,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 251905,
+       "name": "Zerril Softbreeze",
+       "map": 2521,
+       "x": 43.78,
+       "y": 43.85,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 0,
+     "price_copper": 500,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 4210,
+       "name": "Alegorn",
+       "map": 1457,
+       "x": 48.94,
+       "y": 21.23,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 1355,
+       "name": "Cook Ghilm",
+       "map": 1426,
+       "x": 68.33,
+       "y": 54.59,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 1699,
+       "name": "Gremlock Pilsnor",
+       "map": 1426,
+       "x": 47.58,
+       "y": 52.36,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 1430,
+       "name": "Tomas",
+       "map": 1429,
+       "x": 44.22,
+       "y": 66.01,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 5159,
+       "name": "Daryl Riknussun",
+       "map": 1455,
+       "x": 60.25,
+       "y": 36.79,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 3067,
+       "name": "Pyall Silentstride",
+       "map": 1412,
+       "x": 44.89,
+       "y": 61.65,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 3399,
+       "name": "Zamja",
+       "map": 1454,
+       "x": 57.28,
+       "y": 53.63,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 3087,
+       "name": "Crystal Boughman",
+       "map": 1433,
+       "x": 17.63,
+       "y": 43.65,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 5482,
+       "name": "Stephen Ryback",
+       "map": 1453,
+       "x": 78.23,
+       "y": 53.04,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 1382,
+       "name": "Mudduk",
+       "map": 1434,
+       "x": 31.35,
+       "y": 28.01,
+       "side": "H",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 6286,
+       "name": "Zarrin",
+       "map": 1438,
+       "x": 57.04,
+       "y": 61.22,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 8306,
+       "name": "Duhng",
+       "map": 1413,
+       "x": 55.26,
+       "y": 31.81,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 3026,
+       "name": "Aska Mistrunner",
+       "map": 1456,
+       "x": 50.97,
+       "y": 52.87,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 265944,
+       "name": "William Pickman",
+       "map": 1420,
+       "x": 61.69,
+       "y": 51.44,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4552,
+       "name": "Eunice Burch",
+       "map": 1458,
+       "x": 62.21,
+       "y": 44.56,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 257006,
+       "name": "Nyalah Brightfire",
+       "map": 2521,
+       "x": 60.63,
+       "y": 72.69,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 251905,
+       "name": "Zerril Softbreeze",
+       "map": 2521,
+       "x": 43.78,
+       "y": 43.85,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    }
+   }
+  },
+  "186": {
+   "name": "Mining",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 6297,
+       "name": "Kurdram Stonehammer",
+       "map": 1439,
+       "x": 38.2,
+       "y": 41.03,
+       "side": "A",
+       "zone": "Darkshore"
+      },
+      {
+       "npc": 1701,
+       "name": "Dank Drizzlecut",
+       "map": 1426,
+       "x": 69.25,
+       "y": 55.48,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 267337,
+       "name": "Sally Swiftwrench",
+       "map": 1426,
+       "x": 28.9,
+       "y": 67.81,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 5392,
+       "name": "Yarr Hammerstone",
+       "map": 1426,
+       "x": 50.02,
+       "y": 50.31,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 3175,
+       "name": "Krunn",
+       "map": 1411,
+       "x": 51.81,
+       "y": 40.9,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 267328,
+       "name": "Norzsh",
+       "map": 1411,
+       "x": 40.58,
+       "y": 68.17,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 3137,
+       "name": "Matt Johnson",
+       "map": 1431,
+       "x": 73.93,
+       "y": 49.71,
+       "side": "A",
+       "zone": "Duskwood"
+      },
+      {
+       "npc": 247226,
+       "name": "Kelsey Fargo",
+       "map": 1429,
+       "x": 47.05,
+       "y": 32.28,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 4254,
+       "name": "Geofram Bouldertoe",
+       "map": 1455,
+       "x": 50.32,
+       "y": 26.34,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1681,
+       "name": "Brock Stoneseeker",
+       "map": 1432,
+       "x": 37.01,
+       "y": 47.75,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 267331,
+       "name": "Vartha Rockmane",
+       "map": 1412,
+       "x": 44.26,
+       "y": 78.46,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 3357,
+       "name": "Makaru",
+       "map": 1454,
+       "x": 72.96,
+       "y": 26.43,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 3555,
+       "name": "Johan Focht",
+       "map": 1421,
+       "x": 43.31,
+       "y": 40.55,
+       "side": "H",
+       "zone": "Silverpine Forest"
+      },
+      {
+       "npc": 5513,
+       "name": "Gelman Stonehand",
+       "map": 1453,
+       "x": 59.26,
+       "y": 37.69,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 8128,
+       "name": "Pikkle",
+       "map": 1446,
+       "x": 51.08,
+       "y": 28.05,
+       "side": "AH",
+       "zone": "Tanaris"
+      },
+      {
+       "npc": 267334,
+       "name": "Fanorran Stilloak",
+       "map": 1438,
+       "x": 58.09,
+       "y": 41.48,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 3001,
+       "name": "Brek Stonehoof",
+       "map": 1456,
+       "x": 34.45,
+       "y": 57.57,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 267325,
+       "name": "Walter Mason",
+       "map": 1420,
+       "x": 32.24,
+       "y": 65.71,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4598,
+       "name": "Brom Killian",
+       "map": 1458,
+       "x": 56.09,
+       "y": 37.05,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 252388,
+       "name": "Halavuul Cragwind",
+       "map": 2521,
+       "x": 65.38,
+       "y": 80.46,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257022,
+       "name": "Messana Crestwind",
+       "map": 2521,
+       "x": 44.68,
+       "y": 44.53,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 0,
+     "price_copper": 500,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 6297,
+       "name": "Kurdram Stonehammer",
+       "map": 1439,
+       "x": 38.2,
+       "y": 41.03,
+       "side": "A",
+       "zone": "Darkshore"
+      },
+      {
+       "npc": 1701,
+       "name": "Dank Drizzlecut",
+       "map": 1426,
+       "x": 69.25,
+       "y": 55.48,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 5392,
+       "name": "Yarr Hammerstone",
+       "map": 1426,
+       "x": 50.02,
+       "y": 50.31,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 3175,
+       "name": "Krunn",
+       "map": 1411,
+       "x": 51.81,
+       "y": 40.9,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 3137,
+       "name": "Matt Johnson",
+       "map": 1431,
+       "x": 73.93,
+       "y": 49.71,
+       "side": "A",
+       "zone": "Duskwood"
+      },
+      {
+       "npc": 4254,
+       "name": "Geofram Bouldertoe",
+       "map": 1455,
+       "x": 50.32,
+       "y": 26.34,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1681,
+       "name": "Brock Stoneseeker",
+       "map": 1432,
+       "x": 37.01,
+       "y": 47.75,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 3357,
+       "name": "Makaru",
+       "map": 1454,
+       "x": 72.96,
+       "y": 26.43,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 3555,
+       "name": "Johan Focht",
+       "map": 1421,
+       "x": 43.31,
+       "y": 40.55,
+       "side": "H",
+       "zone": "Silverpine Forest"
+      },
+      {
+       "npc": 5513,
+       "name": "Gelman Stonehand",
+       "map": 1453,
+       "x": 59.26,
+       "y": 37.69,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 8128,
+       "name": "Pikkle",
+       "map": 1446,
+       "x": 51.08,
+       "y": 28.05,
+       "side": "AH",
+       "zone": "Tanaris"
+      },
+      {
+       "npc": 3001,
+       "name": "Brek Stonehoof",
+       "map": 1456,
+       "x": 34.45,
+       "y": 57.57,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 4598,
+       "name": "Brom Killian",
+       "map": 1458,
+       "x": 56.09,
+       "y": 37.05,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 252388,
+       "name": "Halavuul Cragwind",
+       "map": 2521,
+       "x": 65.38,
+       "y": 80.46,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257022,
+       "name": "Messana Crestwind",
+       "map": 2521,
+       "x": 44.68,
+       "y": 44.53,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "3": {
+     "name": "Expert",
+     "max": 225,
+     "level": 0,
+     "price_copper": 5000,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 6297,
+       "name": "Kurdram Stonehammer",
+       "map": 1439,
+       "x": 38.2,
+       "y": 41.03,
+       "side": "A",
+       "zone": "Darkshore"
+      },
+      {
+       "npc": 1701,
+       "name": "Dank Drizzlecut",
+       "map": 1426,
+       "x": 69.25,
+       "y": 55.48,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 5392,
+       "name": "Yarr Hammerstone",
+       "map": 1426,
+       "x": 50.02,
+       "y": 50.31,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 3175,
+       "name": "Krunn",
+       "map": 1411,
+       "x": 51.81,
+       "y": 40.9,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 3137,
+       "name": "Matt Johnson",
+       "map": 1431,
+       "x": 73.93,
+       "y": 49.71,
+       "side": "A",
+       "zone": "Duskwood"
+      },
+      {
+       "npc": 4254,
+       "name": "Geofram Bouldertoe",
+       "map": 1455,
+       "x": 50.32,
+       "y": 26.34,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1681,
+       "name": "Brock Stoneseeker",
+       "map": 1432,
+       "x": 37.01,
+       "y": 47.75,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 3357,
+       "name": "Makaru",
+       "map": 1454,
+       "x": 72.96,
+       "y": 26.43,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 3555,
+       "name": "Johan Focht",
+       "map": 1421,
+       "x": 43.31,
+       "y": 40.55,
+       "side": "H",
+       "zone": "Silverpine Forest"
+      },
+      {
+       "npc": 5513,
+       "name": "Gelman Stonehand",
+       "map": 1453,
+       "x": 59.26,
+       "y": 37.69,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 8128,
+       "name": "Pikkle",
+       "map": 1446,
+       "x": 51.08,
+       "y": 28.05,
+       "side": "AH",
+       "zone": "Tanaris"
+      },
+      {
+       "npc": 3001,
+       "name": "Brek Stonehoof",
+       "map": 1456,
+       "x": 34.45,
+       "y": 57.57,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 4598,
+       "name": "Brom Killian",
+       "map": 1458,
+       "x": 56.09,
+       "y": 37.05,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 252388,
+       "name": "Halavuul Cragwind",
+       "map": 2521,
+       "x": 65.38,
+       "y": 80.46,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257022,
+       "name": "Messana Crestwind",
+       "map": 2521,
+       "x": 44.68,
+       "y": 44.53,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "4": {
+     "name": "Artisan",
+     "max": 300,
+     "level": 0,
+     "price_copper": 50000,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 6297,
+       "name": "Kurdram Stonehammer",
+       "map": 1439,
+       "x": 38.2,
+       "y": 41.03,
+       "side": "A",
+       "zone": "Darkshore"
+      },
+      {
+       "npc": 1701,
+       "name": "Dank Drizzlecut",
+       "map": 1426,
+       "x": 69.25,
+       "y": 55.48,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 5392,
+       "name": "Yarr Hammerstone",
+       "map": 1426,
+       "x": 50.02,
+       "y": 50.31,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 3175,
+       "name": "Krunn",
+       "map": 1411,
+       "x": 51.81,
+       "y": 40.9,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 3137,
+       "name": "Matt Johnson",
+       "map": 1431,
+       "x": 73.93,
+       "y": 49.71,
+       "side": "A",
+       "zone": "Duskwood"
+      },
+      {
+       "npc": 4254,
+       "name": "Geofram Bouldertoe",
+       "map": 1455,
+       "x": 50.32,
+       "y": 26.34,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1681,
+       "name": "Brock Stoneseeker",
+       "map": 1432,
+       "x": 37.01,
+       "y": 47.75,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 3357,
+       "name": "Makaru",
+       "map": 1454,
+       "x": 72.96,
+       "y": 26.43,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 3555,
+       "name": "Johan Focht",
+       "map": 1421,
+       "x": 43.31,
+       "y": 40.55,
+       "side": "H",
+       "zone": "Silverpine Forest"
+      },
+      {
+       "npc": 5513,
+       "name": "Gelman Stonehand",
+       "map": 1453,
+       "x": 59.26,
+       "y": 37.69,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 8128,
+       "name": "Pikkle",
+       "map": 1446,
+       "x": 51.08,
+       "y": 28.05,
+       "side": "AH",
+       "zone": "Tanaris"
+      },
+      {
+       "npc": 3001,
+       "name": "Brek Stonehoof",
+       "map": 1456,
+       "x": 34.45,
+       "y": 57.57,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 4598,
+       "name": "Brom Killian",
+       "map": 1458,
+       "x": 56.09,
+       "y": 37.05,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 252388,
+       "name": "Halavuul Cragwind",
+       "map": 2521,
+       "x": 65.38,
+       "y": 80.46,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257022,
+       "name": "Messana Crestwind",
+       "map": 2521,
+       "x": 44.68,
+       "y": 44.53,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    }
+   }
+  },
+  "197": {
+   "name": "Tailoring",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": 10,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 4193,
+       "name": "Grondal Moonbreeze",
+       "map": 1439,
+       "x": 38.16,
+       "y": 40.55,
+       "side": "A",
+       "zone": "Darkshore"
+      },
+      {
+       "npc": 11050,
+       "name": "Trianna",
+       "map": 1457,
+       "x": 63.56,
+       "y": 21.4,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 1103,
+       "name": "Eldrin",
+       "map": 1429,
+       "x": 79.22,
+       "y": 69.1,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 1703,
+       "name": "Uthrar Threx",
+       "map": 1455,
+       "x": 43.42,
+       "y": 28.13,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 2855,
+       "name": "Snang",
+       "map": 1454,
+       "x": 62.96,
+       "y": 49.66,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 1300,
+       "name": "Lawrence Schneider",
+       "map": 1453,
+       "x": 53.24,
+       "y": 81.55,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 3484,
+       "name": "Kil'hala",
+       "map": 1413,
+       "x": 52.18,
+       "y": 31.75,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 11051,
+       "name": "Vhan",
+       "map": 1456,
+       "x": 44.03,
+       "y": 44.55,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 3523,
+       "name": "Bowen Brisboise",
+       "map": 1420,
+       "x": 52.54,
+       "y": 55.59,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 11048,
+       "name": "Victor Ward",
+       "map": 1458,
+       "x": 70.21,
+       "y": 29.59,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 252380,
+       "name": "Othesia Evengale",
+       "map": 2521,
+       "x": 64.35,
+       "y": 81.17,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 251991,
+       "name": "Taleen Shimmerthread",
+       "map": 2521,
+       "x": 44.8,
+       "y": 44.25,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 10,
+     "price_copper": 500,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 4159,
+       "name": "Me'lynn",
+       "map": 1457,
+       "x": 63.45,
+       "y": 22.13,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 5153,
+       "name": "Jormund Stonebrow",
+       "map": 1455,
+       "x": 43.25,
+       "y": 28.7,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 3363,
+       "name": "Magar",
+       "map": 1454,
+       "x": 63.27,
+       "y": 50.01,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 5567,
+       "name": "Sellandus",
+       "map": 1453,
+       "x": 52.11,
+       "y": 83.52,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 2627,
+       "name": "Grarnik Goodstitch",
+       "map": 1434,
+       "x": 28.72,
+       "y": 76.82,
+       "side": "AH",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 3704,
+       "name": "Mahani",
+       "map": 1413,
+       "x": 44.88,
+       "y": 59.39,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 3004,
+       "name": "Tepa",
+       "map": 1456,
+       "x": 43.99,
+       "y": 44.91,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 11049,
+       "name": "Rhiannon Davis",
+       "map": 1458,
+       "x": 70.18,
+       "y": 30.48,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 252380,
+       "name": "Othesia Evengale",
+       "map": 2521,
+       "x": 64.35,
+       "y": 81.17,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 251991,
+       "name": "Taleen Shimmerthread",
+       "map": 2521,
+       "x": 44.8,
+       "y": 44.25,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "3": {
+     "name": "Expert",
+     "max": 225,
+     "level": 20,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 1346,
+       "name": "Georgio Bolero",
+       "map": 1453,
+       "x": 53.12,
+       "y": 81.24,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 4576,
+       "name": "Josef Gregorian",
+       "map": 1458,
+       "x": 70.55,
+       "y": 30.38,
+       "side": "H",
+       "zone": "Undercity"
+      }
+     ]
+    },
+    "4": {
+     "name": "Artisan",
+     "max": 300,
+     "level": 35,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 2399,
+       "name": "Daryl Stack",
+       "map": 1416,
+       "x": 62.7,
+       "y": 82.7,
+       "side": "H",
+       "zone": "Alterac Mountains"
+      },
+      {
+       "npc": 11052,
+       "name": "Timothy Worthington",
+       "map": 1445,
+       "x": 66.17,
+       "y": 51.73,
+       "side": "A",
+       "zone": "Dustwallow Marsh"
+      }
+     ]
+    }
+   }
+  },
+  "202": {
+   "name": "Engineering",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": 10,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 11037,
+       "name": "Jenna Lemkenilli",
+       "map": 1439,
+       "x": 38.23,
+       "y": 41.07,
+       "side": "A",
+       "zone": "Darkshore"
+      },
+      {
+       "npc": 1702,
+       "name": "Bronk Guzzlegear",
+       "map": 1426,
+       "x": 50.13,
+       "y": 50.38,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 11025,
+       "name": "Mukdrak",
+       "map": 1411,
+       "x": 52.1,
+       "y": 40.8,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 11028,
+       "name": "Jemma Quikswitch",
+       "map": 1455,
+       "x": 67.71,
+       "y": 44.06,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 10993,
+       "name": "Twizwick Sprocketgrind",
+       "map": 1412,
+       "x": 58.65,
+       "y": 39.38,
+       "side": "AH",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 2857,
+       "name": "Thund",
+       "map": 1454,
+       "x": 75.77,
+       "y": 24.52,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 11026,
+       "name": "Sprite Jumpsprocket",
+       "map": 1453,
+       "x": 61.88,
+       "y": 30.77,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 4586,
+       "name": "Graham Van Talen",
+       "map": 1458,
+       "x": 75.71,
+       "y": 73.18,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 251684,
+       "name": "Strange Hermit",
+       "map": 2521,
+       "x": 53.97,
+       "y": 39.0,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 10,
+     "price_copper": 500,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 1676,
+       "name": "Finbus Geargrind",
+       "map": 1431,
+       "x": 77.33,
+       "y": 48.68,
+       "side": "A",
+       "zone": "Duskwood"
+      },
+      {
+       "npc": 11029,
+       "name": "Trixie Quikswitch",
+       "map": 1455,
+       "x": 67.62,
+       "y": 43.23,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 5518,
+       "name": "Lilliam Sparkspindle",
+       "map": 1453,
+       "x": 61.98,
+       "y": 30.62,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 11031,
+       "name": "Franklin Lloyd",
+       "map": 1458,
+       "x": 75.69,
+       "y": 74.38,
+       "side": "H",
+       "zone": "Undercity"
+      }
+     ]
+    },
+    "3": {
+     "name": "Expert",
+     "max": 225,
+     "level": 20,
+     "price_copper": 5000,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 5174,
+       "name": "Springspindle Fizzlegear",
+       "map": 1455,
+       "x": 68.13,
+       "y": 43.75,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 11017,
+       "name": "Roxxik",
+       "map": 1454,
+       "x": 75.87,
+       "y": 24.95,
+       "side": "H",
+       "zone": "Orgrimmar"
+      }
+     ]
+    },
+    "4": {
+     "name": "Artisan",
+     "max": 300,
+     "level": 35,
+     "price_copper": 45000,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 8736,
+       "name": "Buzzek Bracketswing",
+       "map": 1446,
+       "x": 52.28,
+       "y": 27.66,
+       "side": "AH",
+       "zone": "Tanaris"
+      }
+     ]
+    }
+   }
+  },
+  "333": {
+   "name": "Enchanting",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": 10,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 11070,
+       "name": "Lalina Summermoon",
+       "map": 1457,
+       "x": 58.82,
+       "y": 12.95,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 266881,
+       "name": "Pa'zula",
+       "map": 1411,
+       "x": 56.61,
+       "y": 73.72,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 11065,
+       "name": "Thonys Pillarstone",
+       "map": 1455,
+       "x": 60.44,
+       "y": 44.98,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 11066,
+       "name": "Jhag",
+       "map": 1454,
+       "x": 53.45,
+       "y": 38.25,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 11068,
+       "name": "Betty Quin",
+       "map": 1453,
+       "x": 52.92,
+       "y": 73.96,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 3606,
+       "name": "Alanna Raveneye",
+       "map": 1438,
+       "x": 36.67,
+       "y": 34.24,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 11071,
+       "name": "Mot Dawnstrider",
+       "map": 1456,
+       "x": 44.66,
+       "y": 38.81,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 5695,
+       "name": "Vance Undergloom",
+       "map": 1420,
+       "x": 61.69,
+       "y": 51.58,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 11067,
+       "name": "Malcomb Wynn",
+       "map": 1458,
+       "x": 62.35,
+       "y": 60.67,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 257004,
+       "name": "Eaysaa Brightgust",
+       "map": 2521,
+       "x": 59.1,
+       "y": 76.39,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257020,
+       "name": "Nasalanna Windsinger",
+       "map": 2521,
+       "x": 43.2,
+       "y": 43.24,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 10,
+     "price_copper": 500,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 4213,
+       "name": "Taladan",
+       "map": 1457,
+       "x": 58.54,
+       "y": 13.19,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 7949,
+       "name": "Xylinnia Starshine",
+       "map": 1444,
+       "x": 31.55,
+       "y": 44.25,
+       "side": "A",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 5157,
+       "name": "Gimble Thistlefuzz",
+       "map": 1455,
+       "x": 60.15,
+       "y": 45.15,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 3345,
+       "name": "Godan",
+       "map": 1454,
+       "x": 53.76,
+       "y": 38.6,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 1317,
+       "name": "Lucan Cordell",
+       "map": 1453,
+       "x": 52.87,
+       "y": 74.29,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 3011,
+       "name": "Teg Dawnstrider",
+       "map": 1456,
+       "x": 44.98,
+       "y": 37.81,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 4616,
+       "name": "Lavinia Crowe",
+       "map": 1458,
+       "x": 62.32,
+       "y": 61.5,
+       "side": "H",
+       "zone": "Undercity"
+      }
+     ]
+    },
+    "3": {
+     "name": "Expert",
+     "max": 225,
+     "level": 20,
+     "price_copper": 5000,
+     "price_scope": "Classic Era price",
+     "trainers": [
+      {
+       "npc": 11072,
+       "name": "Kitta Firewind",
+       "map": 1429,
+       "x": 64.83,
+       "y": 70.56,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 11074,
+       "name": "Hgarth",
+       "map": 1442,
+       "x": 49.11,
+       "y": 57.29,
+       "side": "H",
+       "zone": "Stonetalon Mountains"
+      }
+     ]
+    }
+   }
+  },
+  "356": {
+   "name": "Fishing",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 12961,
+       "name": "Kil'Hiwana",
+       "map": 1440,
+       "x": 10.81,
+       "y": 33.63,
+       "side": "H",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 4156,
+       "name": "Astaia",
+       "map": 1457,
+       "x": 47.5,
+       "y": 56.63,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 12032,
+       "name": "Lui'Mala",
+       "map": 1443,
+       "x": 22.68,
+       "y": 72.54,
+       "side": "H",
+       "zone": "Desolace"
+      },
+      {
+       "npc": 1700,
+       "name": "Paxton Ganter",
+       "map": 1426,
+       "x": 35.42,
+       "y": 40.14,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 5941,
+       "name": "Lau'Tiki",
+       "map": 1411,
+       "x": 53.21,
+       "y": 81.45,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 1651,
+       "name": "Lee Brown",
+       "map": 1429,
+       "x": 47.42,
+       "y": 62.21,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 7946,
+       "name": "Brannock",
+       "map": 1444,
+       "x": 32.25,
+       "y": 41.61,
+       "side": "A",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 2367,
+       "name": "Donald Rabonne",
+       "map": 1424,
+       "x": 50.32,
+       "y": 64.17,
+       "side": "A",
+       "zone": "Hillsbrad Foothills"
+      },
+      {
+       "npc": 5161,
+       "name": "Grimnur Stonebrand",
+       "map": 1455,
+       "x": 48.02,
+       "y": 6.74,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1683,
+       "name": "Warg Deepwater",
+       "map": 1432,
+       "x": 40.49,
+       "y": 39.53,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 5938,
+       "name": "Uthan Stillwater",
+       "map": 1412,
+       "x": 44.11,
+       "y": 63.78,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 3332,
+       "name": "Lumak",
+       "map": 1454,
+       "x": 69.58,
+       "y": 29.07,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 1680,
+       "name": "Matthew Hooper",
+       "map": 1433,
+       "x": 21.37,
+       "y": 51.14,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 5493,
+       "name": "Arnold Leland",
+       "map": 1453,
+       "x": 55.01,
+       "y": 69.37,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 2834,
+       "name": "Myizz Luckycatch",
+       "map": 1434,
+       "x": 27.4,
+       "y": 77.07,
+       "side": "AH",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 3607,
+       "name": "Androl Oakhand",
+       "map": 1438,
+       "x": 55.81,
+       "y": 93.47,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 14740,
+       "name": "Katoom the Angler",
+       "map": 1425,
+       "x": 80.26,
+       "y": 81.3,
+       "side": "H",
+       "zone": "The Hinterlands"
+      },
+      {
+       "npc": 3028,
+       "name": "Kah Mistrunner",
+       "map": 1456,
+       "x": 56.17,
+       "y": 47.12,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 5690,
+       "name": "Clyde Kellen",
+       "map": 1420,
+       "x": 67.06,
+       "y": 50.93,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4573,
+       "name": "Armand Cromwell",
+       "map": 1458,
+       "x": 81.11,
+       "y": 31.25,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 3179,
+       "name": "Harold Riggs",
+       "map": 1437,
+       "x": 8.09,
+       "y": 58.47,
+       "side": "A",
+       "zone": "Wetlands"
+      },
+      {
+       "npc": 257008,
+       "name": "Baelann Swiftcurrent",
+       "map": 2521,
+       "x": 63.19,
+       "y": 75.75,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 251992,
+       "name": "Fenn Fairweather",
+       "map": 2521,
+       "x": 44.94,
+       "y": 48.43,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 10,
+     "price_copper": 500,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 12961,
+       "name": "Kil'Hiwana",
+       "map": 1440,
+       "x": 10.81,
+       "y": 33.63,
+       "side": "H",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 4156,
+       "name": "Astaia",
+       "map": 1457,
+       "x": 47.5,
+       "y": 56.63,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 12032,
+       "name": "Lui'Mala",
+       "map": 1443,
+       "x": 22.68,
+       "y": 72.54,
+       "side": "H",
+       "zone": "Desolace"
+      },
+      {
+       "npc": 1700,
+       "name": "Paxton Ganter",
+       "map": 1426,
+       "x": 35.42,
+       "y": 40.14,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 5941,
+       "name": "Lau'Tiki",
+       "map": 1411,
+       "x": 53.21,
+       "y": 81.45,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 1651,
+       "name": "Lee Brown",
+       "map": 1429,
+       "x": 47.42,
+       "y": 62.21,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 7946,
+       "name": "Brannock",
+       "map": 1444,
+       "x": 32.25,
+       "y": 41.61,
+       "side": "A",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 2367,
+       "name": "Donald Rabonne",
+       "map": 1424,
+       "x": 50.32,
+       "y": 64.17,
+       "side": "A",
+       "zone": "Hillsbrad Foothills"
+      },
+      {
+       "npc": 5161,
+       "name": "Grimnur Stonebrand",
+       "map": 1455,
+       "x": 48.02,
+       "y": 6.74,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 1683,
+       "name": "Warg Deepwater",
+       "map": 1432,
+       "x": 40.49,
+       "y": 39.53,
+       "side": "A",
+       "zone": "Loch Modan"
+      },
+      {
+       "npc": 5938,
+       "name": "Uthan Stillwater",
+       "map": 1412,
+       "x": 44.11,
+       "y": 63.78,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 3332,
+       "name": "Lumak",
+       "map": 1454,
+       "x": 69.58,
+       "y": 29.07,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 1680,
+       "name": "Matthew Hooper",
+       "map": 1433,
+       "x": 21.37,
+       "y": 51.14,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 5493,
+       "name": "Arnold Leland",
+       "map": 1453,
+       "x": 55.01,
+       "y": 69.37,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 2834,
+       "name": "Myizz Luckycatch",
+       "map": 1434,
+       "x": 27.4,
+       "y": 77.07,
+       "side": "AH",
+       "zone": "Stranglethorn Vale"
+      },
+      {
+       "npc": 3607,
+       "name": "Androl Oakhand",
+       "map": 1438,
+       "x": 55.81,
+       "y": 93.47,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 14740,
+       "name": "Katoom the Angler",
+       "map": 1425,
+       "x": 80.26,
+       "y": 81.3,
+       "side": "H",
+       "zone": "The Hinterlands"
+      },
+      {
+       "npc": 3028,
+       "name": "Kah Mistrunner",
+       "map": 1456,
+       "x": 56.17,
+       "y": 47.12,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 5690,
+       "name": "Clyde Kellen",
+       "map": 1420,
+       "x": 67.06,
+       "y": 50.93,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 4573,
+       "name": "Armand Cromwell",
+       "map": 1458,
+       "x": 81.11,
+       "y": 31.25,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 3179,
+       "name": "Harold Riggs",
+       "map": 1437,
+       "x": 8.09,
+       "y": 58.47,
+       "side": "A",
+       "zone": "Wetlands"
+      },
+      {
+       "npc": 257008,
+       "name": "Baelann Swiftcurrent",
+       "map": 2521,
+       "x": 63.19,
+       "y": 75.75,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 251992,
+       "name": "Fenn Fairweather",
+       "map": 2521,
+       "x": 44.94,
+       "y": 48.43,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    }
+   }
+  },
+  "393": {
+   "name": "Skinning",
+   "ranks": {
+    "1": {
+     "name": "Apprentice",
+     "max": 75,
+     "level": null,
+     "price_copper": null,
+     "price_scope": null,
+     "trainers": [
+      {
+       "npc": 6288,
+       "name": "Jayla",
+       "map": 1440,
+       "x": 49.94,
+       "y": 67.2,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 6292,
+       "name": "Eladriel",
+       "map": 1457,
+       "x": 64.1,
+       "y": 21.86,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 12030,
+       "name": "Malux",
+       "map": 1443,
+       "x": 23.18,
+       "y": 69.81,
+       "side": "H",
+       "zone": "Desolace"
+      },
+      {
+       "npc": 267336,
+       "name": "Brighid Stormflayer",
+       "map": 1426,
+       "x": 29.12,
+       "y": 67.66,
+       "side": "A",
+       "zone": "Dun Morogh"
+      },
+      {
+       "npc": 267327,
+       "name": "Kagil",
+       "map": 1411,
+       "x": 40.74,
+       "y": 67.89,
+       "side": "H",
+       "zone": "Durotar"
+      },
+      {
+       "npc": 6306,
+       "name": "Helene Peltskinner",
+       "map": 1429,
+       "x": 46.22,
+       "y": 62.34,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 247227,
+       "name": "Riley Peltskinner",
+       "map": 1429,
+       "x": 46.86,
+       "y": 40.04,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 8144,
+       "name": "Kulleg Stonehorn",
+       "map": 1444,
+       "x": 74.41,
+       "y": 43.03,
+       "side": "H",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 6291,
+       "name": "Balthus Stoneflayer",
+       "map": 1455,
+       "x": 39.58,
+       "y": 32.64,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 267330,
+       "name": "Nawka Wildsong",
+       "map": 1412,
+       "x": 44.46,
+       "y": 76.73,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 6290,
+       "name": "Yonn Deepcut",
+       "map": 1412,
+       "x": 44.97,
+       "y": 61.53,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 7088,
+       "name": "Thuwd",
+       "map": 1454,
+       "x": 63.27,
+       "y": 45.36,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 6295,
+       "name": "Wilma Ranthal",
+       "map": 1433,
+       "x": 83.62,
+       "y": 71.02,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 1292,
+       "name": "Maris Granger",
+       "map": 1453,
+       "x": 71.88,
+       "y": 62.33,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 6287,
+       "name": "Radnaal Maneweaver",
+       "map": 1438,
+       "x": 42.02,
+       "y": 50.02,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 267333,
+       "name": "Terunne Bearshaper",
+       "map": 1438,
+       "x": 59.34,
+       "y": 38.76,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 6387,
+       "name": "Dranh",
+       "map": 1413,
+       "x": 45.03,
+       "y": 59.04,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 7089,
+       "name": "Mooranta",
+       "map": 1456,
+       "x": 44.56,
+       "y": 42.85,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 267324,
+       "name": "Margaret Weaver",
+       "map": 1420,
+       "x": 32.55,
+       "y": 65.72,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 6289,
+       "name": "Rand Rhobart",
+       "map": 1420,
+       "x": 65.49,
+       "y": 59.96,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 7087,
+       "name": "Killian Hagey",
+       "map": 1458,
+       "x": 70.41,
+       "y": 59.19,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 257003,
+       "name": "Ishlee Breezewhisper",
+       "map": 2521,
+       "x": 59.58,
+       "y": 76.01,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257024,
+       "name": "Mendalass Tattermend",
+       "map": 2521,
+       "x": 43.21,
+       "y": 43.45,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "2": {
+     "name": "Journeyman",
+     "max": 150,
+     "level": 0,
+     "price_copper": 500,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 6288,
+       "name": "Jayla",
+       "map": 1440,
+       "x": 49.94,
+       "y": 67.2,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 6292,
+       "name": "Eladriel",
+       "map": 1457,
+       "x": 64.1,
+       "y": 21.86,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 12030,
+       "name": "Malux",
+       "map": 1443,
+       "x": 23.18,
+       "y": 69.81,
+       "side": "H",
+       "zone": "Desolace"
+      },
+      {
+       "npc": 6306,
+       "name": "Helene Peltskinner",
+       "map": 1429,
+       "x": 46.22,
+       "y": 62.34,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 8144,
+       "name": "Kulleg Stonehorn",
+       "map": 1444,
+       "x": 74.41,
+       "y": 43.03,
+       "side": "H",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 6291,
+       "name": "Balthus Stoneflayer",
+       "map": 1455,
+       "x": 39.58,
+       "y": 32.64,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 6290,
+       "name": "Yonn Deepcut",
+       "map": 1412,
+       "x": 44.97,
+       "y": 61.53,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 7088,
+       "name": "Thuwd",
+       "map": 1454,
+       "x": 63.27,
+       "y": 45.36,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 6295,
+       "name": "Wilma Ranthal",
+       "map": 1433,
+       "x": 83.62,
+       "y": 71.02,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 1292,
+       "name": "Maris Granger",
+       "map": 1453,
+       "x": 71.88,
+       "y": 62.33,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 6287,
+       "name": "Radnaal Maneweaver",
+       "map": 1438,
+       "x": 42.02,
+       "y": 50.02,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 6387,
+       "name": "Dranh",
+       "map": 1413,
+       "x": 45.03,
+       "y": 59.04,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 7089,
+       "name": "Mooranta",
+       "map": 1456,
+       "x": 44.56,
+       "y": 42.85,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 6289,
+       "name": "Rand Rhobart",
+       "map": 1420,
+       "x": 65.49,
+       "y": 59.96,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 7087,
+       "name": "Killian Hagey",
+       "map": 1458,
+       "x": 70.41,
+       "y": 59.19,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 257003,
+       "name": "Ishlee Breezewhisper",
+       "map": 2521,
+       "x": 59.58,
+       "y": 76.01,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257024,
+       "name": "Mendalass Tattermend",
+       "map": 2521,
+       "x": 43.21,
+       "y": 43.45,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "3": {
+     "name": "Expert",
+     "max": 225,
+     "level": 0,
+     "price_copper": 5000,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 6288,
+       "name": "Jayla",
+       "map": 1440,
+       "x": 49.94,
+       "y": 67.2,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 6292,
+       "name": "Eladriel",
+       "map": 1457,
+       "x": 64.1,
+       "y": 21.86,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 12030,
+       "name": "Malux",
+       "map": 1443,
+       "x": 23.18,
+       "y": 69.81,
+       "side": "H",
+       "zone": "Desolace"
+      },
+      {
+       "npc": 6306,
+       "name": "Helene Peltskinner",
+       "map": 1429,
+       "x": 46.22,
+       "y": 62.34,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 8144,
+       "name": "Kulleg Stonehorn",
+       "map": 1444,
+       "x": 74.41,
+       "y": 43.03,
+       "side": "H",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 6291,
+       "name": "Balthus Stoneflayer",
+       "map": 1455,
+       "x": 39.58,
+       "y": 32.64,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 6290,
+       "name": "Yonn Deepcut",
+       "map": 1412,
+       "x": 44.97,
+       "y": 61.53,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 7088,
+       "name": "Thuwd",
+       "map": 1454,
+       "x": 63.27,
+       "y": 45.36,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 6295,
+       "name": "Wilma Ranthal",
+       "map": 1433,
+       "x": 83.62,
+       "y": 71.02,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 1292,
+       "name": "Maris Granger",
+       "map": 1453,
+       "x": 71.88,
+       "y": 62.33,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 6287,
+       "name": "Radnaal Maneweaver",
+       "map": 1438,
+       "x": 42.02,
+       "y": 50.02,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 6387,
+       "name": "Dranh",
+       "map": 1413,
+       "x": 45.03,
+       "y": 59.04,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 7089,
+       "name": "Mooranta",
+       "map": 1456,
+       "x": 44.56,
+       "y": 42.85,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 6289,
+       "name": "Rand Rhobart",
+       "map": 1420,
+       "x": 65.49,
+       "y": 59.96,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 7087,
+       "name": "Killian Hagey",
+       "map": 1458,
+       "x": 70.41,
+       "y": 59.19,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 257003,
+       "name": "Ishlee Breezewhisper",
+       "map": 2521,
+       "x": 59.58,
+       "y": 76.01,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257024,
+       "name": "Mendalass Tattermend",
+       "map": 2521,
+       "x": 43.21,
+       "y": 43.45,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    },
+    "4": {
+     "name": "Artisan",
+     "max": 300,
+     "level": 0,
+     "price_copper": 50000,
+     "price_scope": "Polestar's guide",
+     "trainers": [
+      {
+       "npc": 6288,
+       "name": "Jayla",
+       "map": 1440,
+       "x": 49.94,
+       "y": 67.2,
+       "side": "A",
+       "zone": "Ashenvale"
+      },
+      {
+       "npc": 6292,
+       "name": "Eladriel",
+       "map": 1457,
+       "x": 64.1,
+       "y": 21.86,
+       "side": "A",
+       "zone": "Darnassus"
+      },
+      {
+       "npc": 12030,
+       "name": "Malux",
+       "map": 1443,
+       "x": 23.18,
+       "y": 69.81,
+       "side": "H",
+       "zone": "Desolace"
+      },
+      {
+       "npc": 6306,
+       "name": "Helene Peltskinner",
+       "map": 1429,
+       "x": 46.22,
+       "y": 62.34,
+       "side": "A",
+       "zone": "Elwynn Forest"
+      },
+      {
+       "npc": 8144,
+       "name": "Kulleg Stonehorn",
+       "map": 1444,
+       "x": 74.41,
+       "y": 43.03,
+       "side": "H",
+       "zone": "Feralas"
+      },
+      {
+       "npc": 6291,
+       "name": "Balthus Stoneflayer",
+       "map": 1455,
+       "x": 39.58,
+       "y": 32.64,
+       "side": "A",
+       "zone": "Ironforge"
+      },
+      {
+       "npc": 6290,
+       "name": "Yonn Deepcut",
+       "map": 1412,
+       "x": 44.97,
+       "y": 61.53,
+       "side": "H",
+       "zone": "Mulgore"
+      },
+      {
+       "npc": 7088,
+       "name": "Thuwd",
+       "map": 1454,
+       "x": 63.27,
+       "y": 45.36,
+       "side": "H",
+       "zone": "Orgrimmar"
+      },
+      {
+       "npc": 6295,
+       "name": "Wilma Ranthal",
+       "map": 1433,
+       "x": 83.62,
+       "y": 71.02,
+       "side": "A",
+       "zone": "Redridge Mountains"
+      },
+      {
+       "npc": 1292,
+       "name": "Maris Granger",
+       "map": 1453,
+       "x": 71.88,
+       "y": 62.33,
+       "side": "A",
+       "zone": "Stormwind City"
+      },
+      {
+       "npc": 6287,
+       "name": "Radnaal Maneweaver",
+       "map": 1438,
+       "x": 42.02,
+       "y": 50.02,
+       "side": "A",
+       "zone": "Teldrassil"
+      },
+      {
+       "npc": 6387,
+       "name": "Dranh",
+       "map": 1413,
+       "x": 45.03,
+       "y": 59.04,
+       "side": "H",
+       "zone": "The Barrens"
+      },
+      {
+       "npc": 7089,
+       "name": "Mooranta",
+       "map": 1456,
+       "x": 44.56,
+       "y": 42.85,
+       "side": "H",
+       "zone": "Thunder Bluff"
+      },
+      {
+       "npc": 6289,
+       "name": "Rand Rhobart",
+       "map": 1420,
+       "x": 65.49,
+       "y": 59.96,
+       "side": "H",
+       "zone": "Tirisfal Glades"
+      },
+      {
+       "npc": 7087,
+       "name": "Killian Hagey",
+       "map": 1458,
+       "x": 70.41,
+       "y": 59.19,
+       "side": "H",
+       "zone": "Undercity"
+      },
+      {
+       "npc": 257003,
+       "name": "Ishlee Breezewhisper",
+       "map": 2521,
+       "x": 59.58,
+       "y": 76.01,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      },
+      {
+       "npc": 257024,
+       "name": "Mendalass Tattermend",
+       "map": 2521,
+       "x": 43.21,
+       "y": 43.45,
+       "side": "AH",
+       "zone": "Zephras Isle"
+      }
+     ]
+    }
+   }
+  }
+ },
+ "riding": {
+  "tiers": {
+   "1": {
+    "level": 40,
+    "price_copper": 1000000
+   },
+   "2": {
+    "level": 60,
+    "price_copper": 10000000
+   }
+  },
+  "price_scope": "Polestar's riding reminder, before a reputation discount",
+  "trainers": {
+   "Dwarf": {
+    "npc": 4772,
+    "name": "Ultham Ironhorn",
+    "map": 1426,
+    "x": 63.7,
+    "y": 50.1,
+    "zone": "Dun Morogh"
+   },
+   "Gnome": {
+    "npc": 7954,
+    "name": "Binjy Featherwhistle",
+    "map": 1426,
+    "x": 49.2,
+    "y": 48.1,
+    "zone": "Dun Morogh"
+   },
+   "Human": {
+    "npc": 4732,
+    "name": "Randal Hunter",
+    "map": 1429,
+    "x": 84.3,
+    "y": 64.9,
+    "zone": "Elwynn Forest"
+   },
+   "NightElf": {
+    "npc": 4753,
+    "name": "Jartsam",
+    "map": 1438,
+    "x": 25.3,
+    "y": 50.2,
+    "zone": "Teldrassil"
+   },
+   "Orc": {
+    "npc": 4752,
+    "name": "Kildar",
+    "map": 1454,
+    "x": 69.4,
+    "y": 13.1,
+    "zone": "Orgrimmar"
+   },
+   "Scourge": {
+    "npc": 4773,
+    "name": "Velma Warnam",
+    "map": 1420,
+    "x": 60.1,
+    "y": 52.6,
+    "zone": "Tirisfal Glades"
+   },
+   "Skyborne:Alliance": {
+    "npc": 265756,
+    "name": "Genn Fairweather",
+    "map": 2521,
+    "x": 53.5,
+    "y": 80.5,
+    "zone": "Zephras Isle"
+   },
+   "Skyborne:Horde": {
+    "npc": 265756,
+    "name": "Genn Fairweather",
+    "map": 2521,
+    "x": 53.5,
+    "y": 80.5,
+    "zone": "Zephras Isle"
+   },
+   "Tauren": {
+    "npc": 3690,
+    "name": "Kar Stormsinger",
+    "map": 1412,
+    "x": 46.8,
+    "y": 62.0,
+    "zone": "Mulgore"
+   },
+   "Troll": {
+    "npc": 7953,
+    "name": "Xar'Ti",
+    "map": 1411,
+    "x": 55.3,
+    "y": 75.5,
+    "zone": "Durotar"
+   }
+  }
+ },
+ "zones": {
+  "1411": "Durotar",
+  "1412": "Mulgore",
+  "1413": "The Barrens",
+  "1414": "Kalimdor",
+  "1415": "Eastern Kingdoms",
+  "1416": "Alterac Mountains",
+  "1417": "Arathi Highlands",
+  "1418": "Badlands",
+  "1419": "Blasted Lands",
+  "1420": "Tirisfal Glades",
+  "1421": "Silverpine Forest",
+  "1422": "Western Plaguelands",
+  "1423": "Eastern Plaguelands",
+  "1424": "Hillsbrad Foothills",
+  "1425": "The Hinterlands",
+  "1426": "Dun Morogh",
+  "1427": "Searing Gorge",
+  "1428": "Burning Steppes",
+  "1429": "Elwynn Forest",
+  "1430": "Deadwind Pass",
+  "1431": "Duskwood",
+  "1432": "Loch Modan",
+  "1433": "Redridge Mountains",
+  "1434": "Stranglethorn Vale",
+  "1435": "Swamp of Sorrows",
+  "1436": "Westfall",
+  "1437": "Wetlands",
+  "1438": "Teldrassil",
+  "1439": "Darkshore",
+  "1440": "Ashenvale",
+  "1441": "Thousand Needles",
+  "1442": "Stonetalon Mountains",
+  "1443": "Desolace",
+  "1444": "Feralas",
+  "1445": "Dustwallow Marsh",
+  "1446": "Tanaris",
+  "1447": "Azshara",
+  "1448": "Felwood",
+  "1449": "Un'Goro Crater",
+  "1450": "Moonglade",
+  "1451": "Silithus",
+  "1452": "Winterspring",
+  "1453": "Stormwind City",
+  "1454": "Orgrimmar",
+  "1455": "Ironforge",
+  "1456": "Thunder Bluff",
+  "1457": "Darnassus",
+  "1458": "Undercity",
+  "1459": "Alterac Valley",
+  "1460": "Warsong Gulch",
+  "1461": "Arathi Basin",
+  "2482": "Mount Hyjal",
+  "2521": "Zephras Isle",
+  "2524": "Darkspear Islands",
+  "2548": "Riverglades",
+  "2652": "Shen'dralas"
+ }
+}

@@ -1,0 +1,359 @@
+"""/start in a real browser (Chromium and WebKit, Playwright), in each of
+its states, as a friend opens it after Sam sends the link:
+
+- new: not installed. The install command for their computer is the hero,
+  already made (one click on Copy), Mac and Windows one switch apart.
+- wait: installed in the last 15 minutes, nothing yet: play.
+- none: installed, nothing ever arrived: red, and the one fix.
+- ok: data arrives: green, when it last did, "Open my page".
+- quiet: data arrived, but not for days: amber, and what to do.
+
+Each state shows about 150 words before anything is opened (owner,
+2026-11-19: the seven-step wizard was "SO SO SO MUCH information"), fits a
+phone, and keeps every older function one fold away: the addon ticks, the
+AI address, updating, the reset, uninstalling, the troubleshooting, the
+clips and the printable guide.
+
+Needs the `browser` group (`uv run --group browser playwright install
+chromium webkit` once). WOW_SHOTS=<dir> saves screenshots of each state,
+light and dark, at 1920 and 390 px (the first phone screen too)."""
+
+import json
+import os
+import re
+import tempfile
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pytest
+
+sync_api = pytest.importorskip("playwright.sync_api")
+
+from tests.test_tenancy import TenantVL  # noqa: E402
+from wowstats import account, tenancy, ui  # noqa: E402
+
+WORDS = 150
+FRIENDS = {"friend-sub-2": "mira", "friend-3": "pip", "friend-4": "kit", "friend-5": "lou", "friend-6": "zed",
+           "friend-7": "ivy", "friend-8": "ada", "friend-9": "bo"}
+# Not in STATES (the word counts): ada's data starts arriving mid-test, bo hides the tab.
+MOVING, HIDING = "friend-8", "friend-9"
+CTX: dict = {}
+STATES = {"new": "friend-3", "ok": "friend-sub-2", "none": "friend-4", "wait": "friend-5", "quiet": "friend-6",
+          "partial": "friend-7"}
+
+# The words a reader sees before opening anything: closed folds show their
+# summary only, hidden parts nothing.
+SEEN_WORDS = r"""() => document.body.innerText.split(/\s+/).filter((w) => /\w/.test(w)).length"""
+OVER = "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
+
+
+def iso(ago: timedelta) -> str:
+    return (datetime.now(UTC) - ago).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def status_rules(last: timedelta, recorder: bool = True) -> list:
+    """What the store answers for /api/me/status: three feeds, a /played
+    and Questie's quests (so Altoholic and Questie tick)."""
+    first, last_ = iso(timedelta(days=9)), iso(last)
+    span = {"first": first, "last": last_}
+    feeds = (("wow-level", "420"), ("wow-recorder", "3100"), ("wow-gear", "80"))
+    return [("stats by (feed) count() as n", [{"feed": f, "n": n, **span} for f, n in feeds
+                                              if recorder or f != "wow-recorder"]),
+            ("stats min(_time) as first", [span]),
+            ("kind:=played", [{"n": "4"}]),
+            ('feed:="wow-quests"', [{"source": "questie", "n": "120"}])]
+
+
+# The shipper's setup report (wowstats.missing): what is installed, with its
+# version, and the Recorder's switch. Auctionator isn't installed, so prices
+# are missing ("Add Auctionator.").
+SETUP = {"polestar": "1.4.2", "recorder": "0.9.1", "syndicator": "0.6", "questie": "9.8.0", "altoholic": "2.4"}
+
+
+def preflight_rules(char: str, recorder_on: bool = True) -> list:
+    """The setup report and what arrived per character, for status.setup and status.missing."""
+    arrived = [{"char": char, "feed": f, "n": "5"} for f in ("wow-level", "wow-recorder", "wow-bags")]
+    arrived += [{"char": char, "feed": "wow-quests", "source": "questie", "n": "120"},
+                {"char": char, "feed": "wow-character", "kind": "played", "n": "4"}]
+    return [("stats by (char, feed, source, kind)", arrived),
+            ("fields _time, addons, recorder_on", [{"_time": iso(timedelta(hours=1)), "addons": json.dumps(SETUP),
+                                                    "recorder_on": json.dumps(recorder_on), "saved_chars": "1"}])]
+
+
+@pytest.fixture(scope="module")
+def site():
+    vl = TenantVL()
+    tmp = Path(tempfile.mkdtemp())
+    master = tmp / "master.key"
+    master.write_text(tenancy.b64u(b"m" * 32))
+    friends = tmp / "friends.json"
+    friends.write_text(json.dumps(FRIENDS))
+    env = {"BIND": "127.0.0.1", "VIEW": "full", "AUTH": "proxy", "PROXY_TRUSTED_CIDRS": "127.0.0.1/32", "VL_URL": vl.url, "VM_URL": vl.url,
+           "FRIENDS_VL_URL": vl.url, "WOW_STATE_DIR": str(tmp / "state"), "WOW_OWNER_SUB": "owner-sub-1",
+           "WOW_OWNER_SLUG": "sam", "WOW_FRIENDS_FILE": str(friends), "SITE_DOMAIN": "m.example",
+           "PUBLIC_URL": "https://wow-full.m.example", "ZOGZOG_MASTER_KEY_FILE": str(master),
+           "ZOGZOG_KEY_FILE": str(tmp / "z.key"), "MODEL3D": "off", "MODEL3D_CACHE_DIR": str(tmp / "c"),
+           "ANALYSIS_STATE_DIR": str(tmp / "a")}
+    app = ui.App(env)
+    t = ui.tenancy_of(env, app)
+    ids = {sub: t.resolve_tenant(sub).account_id for sub in FRIENDS}
+    vl.rules[str(ids[STATES["ok"]])] = (preflight_rules("Testfriend-Otherhall") + status_rules(timedelta(hours=2))
+                                        + vl.rules.get(str(ids[STATES["ok"]]), []))
+    vl.rules[str(ids[STATES["quiet"]])] = status_rules(timedelta(days=5))
+    vl.rules[str(ids[STATES["partial"]])] = (preflight_rules("Testfriend-Otherhall", recorder_on=False)
+                                             + status_rules(timedelta(minutes=20), recorder=False))
+    for sub, ago in ((STATES["ok"], timedelta(days=9)), (STATES["none"], timedelta(days=1)),
+                     (STATES["wait"], timedelta(minutes=2)), (STATES["quiet"], timedelta(days=9)),
+                     (STATES["partial"], timedelta(days=9)), (MOVING, timedelta(days=1))):
+        t.registry.update(sub, ingest_sha256="x" * 64,
+                          ingest_set_at=(datetime.now(UTC) - ago).isoformat(timespec="seconds"))
+    CTX.update(vl=vl, ids=ids)
+    app.port = 0
+    srv = ui.serve(app)
+    srv.RequestHandlerClass = ui.make_handler(app, t)
+    import threading
+
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_address[1]}"
+    srv.shutdown()
+    srv.server_close()
+    vl.close()
+
+
+@pytest.fixture(scope="module")
+def pw():
+    with sync_api.sync_playwright() as p:
+        yield p
+
+
+def open_start(browser, base, state, width, scheme="light", sub=None):
+    c = browser.new_context(viewport={"width": width, "height": 844 if width < 600 else 1080},
+                            color_scheme=scheme, extra_http_headers={"X-Forwarded-User": sub or STATES[state]},
+                            device_scale_factor=2 if width < 600 else 1)
+    pg = c.new_page()
+    errors = []
+    pg.on("pageerror", lambda e: errors.append(str(e)))
+    pg.goto(f"{base}/start")
+    pg.wait_for_selector(f"body[data-state={'ok' if state in ('quiet', 'partial') else state}]")
+    if state == "new":
+        pg.wait_for_selector(".hero-cmd:visible code")
+    pg.wait_for_timeout(200)
+    return c, pg, errors
+
+
+def shoot(pg, name):
+    """A page (full, plus the first screen on a phone), or one element."""
+    out = os.environ.get("WOW_SHOTS")
+    if not out:
+        return
+    Path(out).mkdir(parents=True, exist_ok=True)
+    if not hasattr(pg, "viewport_size"):  # a Locator
+        pg.screenshot(path=f"{out}/{name}.png")
+        return
+    pg.screenshot(path=f"{out}/{name}-full.png", full_page=True)
+    if pg.viewport_size["width"] < 600:
+        pg.screenshot(path=f"{out}/{name}-first.png")
+
+
+def open_folds(pg):
+    pg.evaluate("() => document.querySelectorAll('details.fold:not([hidden])').forEach((d) => { d.open = true; })")
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_start_page_states(site, pw, engine):
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001 - that browser isn't installed
+        pytest.skip(f"no {engine}: {e}")
+    schemes = ("light", "dark") if os.environ.get("WOW_SHOTS") else ("light",)
+    counts = {}
+    for width in (390, 1920):
+        for state in STATES:
+            for scheme in schemes:
+                c, pg, errors = open_start(b, site, state, width, scheme)
+                words = pg.evaluate(SEEN_WORDS)
+                counts[state] = words
+                assert words <= WORDS, (state, width, words, pg.locator("body").inner_text())
+                assert pg.evaluate(OVER) <= 0, (state, width)
+                shoot(pg, f"after-{state}-{engine}-{width}-{scheme}")
+                if state == "ok":  # what the folds hold, for the review
+                    open_folds(pg)
+                    shoot(pg, f"after-{state}-open-{engine}-{width}-{scheme}")
+                c.close()
+                assert not errors, errors
+    print(engine, "words seen per state:", counts)
+    b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_new_friend_gets_the_command_first(site, pw, engine):
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"no {engine}: {e}")
+    c, pg, errors = open_start(b, site, "new", 390)
+    # The command is made as the page opens: Copy is the one action.
+    cmd = pg.locator(".hero-cmd:visible code")
+    assert cmd.count() == 1
+    pg.locator("ol.setup [data-pick-os=windows]").click()
+    assert re.fullmatch(r"irm https://wow-full\.m\.example/install/\w+ \| iex", cmd.inner_text().strip())
+    assert "PowerShell" in pg.locator("ol.setup h2:visible").first.inner_text()
+    pg.locator("ol.setup [data-pick-os=mac]").click()
+    assert re.fullmatch(r"curl -fsSL https://wow-full\.m\.example/install/\w+ \| bash", cmd.inner_text().strip())
+    assert "Terminal" in pg.locator("ol.setup h2:visible").first.inner_text()
+    pg.reload()
+    pg.wait_for_selector(".hero-cmd:visible code")
+    assert pg.locator("ol.setup [data-pick-os=mac]").get_attribute("aria-pressed") == "true"  # the pick stays
+    # The rest is one fold away; nothing about updating before an install.
+    assert pg.locator(".hero[data-in=new] button:visible", has_text="Copy").count() == 1
+    assert not pg.locator("#f-update").is_visible() and not pg.locator("#f-ai").is_visible()
+    open_folds(pg)
+    text = pg.locator(".folds").inner_text()
+    for addon in account.addons():
+        assert addon["name"] in text
+    assert "WoW folder not found" in text
+    assert pg.locator("#f-videos video").count() >= 2
+    assert pg.locator("a[href='/start/print']").is_visible()
+    c.close()
+    assert not errors, errors
+    b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_working_and_broken_say_so_in_one_line(site, pw, engine):
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"no {engine}: {e}")
+    c, pg, errors = open_start(b, site, "ok", 390)
+    hero = pg.locator(".hero[data-in=ok]")
+    assert hero.locator("h1").inner_text().strip().lower() == "it works"
+    assert re.search(r"Last data 2 hours ago, for Testfriend", hero.inner_text())
+    assert hero.locator("a.btn[href='/']").is_visible()
+    assert not hero.locator(".warn").is_visible()
+    assert re.search(r"Your addons: \d+ sending", pg.locator("#f-addons summary").inner_text())
+    open_folds(pg)
+    # Every older function, one fold away.
+    assert pg.locator("#f-addons li.seen > a", has_text=re.compile("^Questie$")).count() == 1
+    assert pg.locator("#f-addons li.seen > a", has_text=re.compile("^Altoholic$")).count() == 1
+    assert pg.locator("#f-addons li.unseen > a", has_text=re.compile("^Auctionator$")).count() == 1
+    # The setup report: a tick and the version per installed addon, a cross
+    # and what it adds otherwise, the Recorder's switch.
+    li = pg.locator("#f-addons li[data-addon=polestar]")
+    assert li.locator(".inst").inner_text() == "\u2713 1.4.2" and not li.locator(".what").is_visible()
+    li = pg.locator("#f-addons li[data-addon=auctionator]")
+    assert li.locator(".inst").inner_text() == "\u2717 not installed" and li.locator(".what").is_visible()
+    assert pg.locator("#f-addons li[data-addon=recorder] .note").inner_text() == "Recording is on."
+    # What the pages can't show yet, each line with its fix and the addon's link.
+    gap = pg.locator("#f-addons ul.gaps li[data-kind=prices]")
+    assert gap.inner_text() == "Missing: auction prices. Add Auctionator."
+    assert gap.locator("a", has_text="Auctionator").get_attribute("href").startswith("https://www.curseforge.com/")
+    assert pg.locator("#f-addons ul.gaps li").count() == 1
+    assert re.search(r"Your addons: \d+ sending, 1 missing", pg.locator("#f-addons summary").inner_text())
+    # One block per AI app, picked like Mac/Windows; the address is shared.
+    ai = pg.locator("#f-ai")
+    assert "https://wow-full.m.example/mcp" in ai.inner_text()
+    assert ai.locator("[data-app]:visible").count() == 1 and "Add custom connector" in ai.inner_text()
+    ai.locator("[data-pick-app=chatgpt]").click()
+    assert "Add custom MCP server" in ai.inner_text() and "Add custom connector" not in ai.inner_text()
+    ai.locator("[data-pick-app=claude-code]").click()
+    assert "claude mcp add --transport http wow https://wow-full.m.example/mcp" in ai.inner_text()
+    ai.locator("[data-pick-app=other]").click()
+    assert "remote MCP server" in ai.inner_text()
+    ai.locator("[data-pick-app=chatgpt]").click()
+    shoot(pg.locator("#f-ai"), f"after-ai-chatgpt-{engine}-390-light")
+    pg.locator("[data-pick-app=claude]").click()
+    upd = pg.locator("#f-update")
+    assert "install/update" in upd.inner_text()
+    assert upd.locator("button", has_text="Reset my upload password").is_visible()
+    leave = pg.locator("#f-leave").inner_text()
+    assert "launchctl bootout" in leave and "friends list" in leave
+    pg.locator("#f-leave [data-pick-os=windows]").click()
+    assert "schtasks /Delete" in pg.locator("#f-leave").inner_text()
+    assert pg.evaluate(OVER) <= 0
+    c.close()
+
+    c, pg, errors2 = open_start(b, site, "none", 390)
+    h1 = pg.locator(".hero[data-in=none] h1")
+    assert h1.inner_text().strip().lower() == "nothing has arrived yet" and "bad" in h1.get_attribute("class")
+    assert "/psrec on" in pg.locator(".hero[data-in=none]").inner_text()
+    is_open = "(d) => d.open"
+    assert not pg.locator("#f-trouble").evaluate(is_open)
+    pg.locator("[data-open=tr-no-data]").click()
+    # The fold and the answer open together.
+    assert pg.locator("#f-trouble").evaluate(is_open) and pg.locator("#tr-no-data").evaluate(is_open)
+    assert pg.locator("#tr-no-data p").first.is_visible()
+    c.close()
+
+    c, pg, errors3 = open_start(b, site, "wait", 390)
+    assert pg.locator(".hero[data-in=wait] h1").inner_text().strip().lower().startswith("installed")
+    c.close()
+
+    c, pg, errors4 = open_start(b, site, "quiet", 390)
+    h1 = pg.locator(".hero[data-in=ok] h1")
+    assert h1.inner_text().strip().lower() == "last data 5 days ago" and "quiet" in h1.get_attribute("class")
+    c.close()
+
+    c, pg, errors5 = open_start(b, site, "partial", 390)
+    warn = pg.locator(".hero[data-in=ok] .warn")
+    assert warn.is_visible() and "/psrec on" in warn.inner_text() and "Recorder is off" in warn.inner_text()
+    open_folds(pg)
+    note = pg.locator("#f-addons li[data-addon=recorder] .note")
+    assert "Recording is off" in note.inner_text() and "/psrec on" in note.inner_text()
+    c.close()
+    assert not (errors + errors2 + errors3 + errors4 + errors5)
+    b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_a_status_change_leaves_the_reader_alone(site, pw, engine):
+    """The data starts arriving while the reader has a fold open and an AI
+    app picked: the lamp turns green, and nothing they touched moves."""
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"no {engine}: {e}")
+    vl, tid = CTX["vl"], str(CTX["ids"][MOVING])
+    vl.rules.pop(tid, None)
+    account.STATUS._c.clear()
+    c, pg, errors = open_start(b, site, "none", 390, sub=MOVING)
+    pg.locator("#f-ai summary").click()
+    pg.locator("#f-ai [data-pick-app=chatgpt]").click()
+    pg.locator("#f-addons summary").click()
+    pg.evaluate("() => { document.querySelector('#f-addons ul.addons').dataset.mark = 'same'; }")
+    vl.rules[tid] = status_rules(timedelta(minutes=3))
+    account.STATUS._c.clear()
+    pg.wait_for_selector("body[data-state=ok]", timeout=25_000)  # the next 10 s poll
+    assert pg.locator(".hero[data-in=ok] h1").inner_text().strip().lower() == "it works"
+    assert pg.locator("#f-ai").evaluate("(d) => d.open") and pg.locator("#f-addons").evaluate("(d) => d.open")
+    assert pg.locator("#f-ai [data-pick-app=chatgpt]").get_attribute("aria-pressed") == "true"
+    assert "Add custom MCP server" in pg.locator("#f-ai [data-app]:visible").inner_text()
+    assert pg.locator("#f-addons ul.addons").get_attribute("data-mark") == "same"  # not rebuilt
+    assert pg.locator("#f-addons li.seen").count() >= 1
+    c.close()
+    assert not errors, errors
+    b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_a_hidden_tab_asks_nothing(site, pw, engine):
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"no {engine}: {e}")
+    c, pg, errors = open_start(b, site, "new", 390, sub=HIDING)
+    asked = []
+    pg.on("request", lambda r: asked.append(r.url) if "/api/me" in r.url else None)
+    flip = """(v) => { Object.defineProperty(document, 'visibilityState', {value: v, configurable: true});
+                       document.dispatchEvent(new Event('visibilitychange')); }"""
+    pg.evaluate(flip, "hidden")
+    pg.wait_for_timeout(500)
+    asked.clear()
+    pg.wait_for_timeout(12_000)  # more than one 10 s poll
+    assert asked == [], asked
+    pg.evaluate(flip, "visible")  # back: one check at once
+    pg.wait_for_timeout(1500)
+    assert any("/api/me/status" in u for u in asked), asked
+    c.close()
+    assert not errors, errors
+    b.close()

@@ -1,0 +1,23 @@
+# Two hosts (docs/self-host/reverse-proxy.md):
+#   WOW_SITE_HOST  the static sites for friends: files only, no login, no cookie
+#   WOW_FULL_HOST  your full view (its own login: BASIC_AUTH_USER in .env) and the
+#                  MCP endpoint for your AI (its own OAuth login)
+# Caddy gets a certificate for each from Let's Encrypt: both names must point
+# at this machine and ports 80 and 443 must reach it.
+
+{$WOW_SITE_HOST} {
+	reverse_proxy site:8080
+}
+
+{$WOW_FULL_HOST} {
+	# The MCP endpoint and its login live on port 8090. No page login in front:
+	# the MCP's own tokens protect them, and cookies must pass on the login pages.
+	@mcp path /mcp /mcp/* /authorize /token /register /revoke /consent /oauth/callback /.well-known/oauth-authorization-server /.well-known/oauth-authorization-server/* /.well-known/oauth-protected-resource /.well-known/oauth-protected-resource/*
+	handle @mcp {
+		reverse_proxy ui:8090
+	}
+	# Everything else is the page on 8080, /ingest (the shipper) included.
+	handle {
+		reverse_proxy ui:8080
+	}
+}

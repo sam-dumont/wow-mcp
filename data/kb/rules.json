@@ -1,0 +1,506 @@
+{
+  "schema": 1,
+  "about": "Static game rules wow-stats code reads (wowstats.analysis.kb.rule). Every rule names its source and carries source_url, source_type, date, confidence, scope and last_verified (wowstats.analysis.kbschema); one without them, or citing a domain off data/kb/sources.json, is refused at load. A rule that isn't here is unknown: the feature says so and skips. The research catalogue's rules (data/kb/research/*.json) win over these of the same name.",
+  "rules": {
+    "riding.apprentice": {
+      "statement": "Apprentice Riding (skill 75) is trained from level 40 and costs 100g; the training comes with a mount.",
+      "value": {
+        "level": 40,
+        "skill": 75,
+        "training_copper": 1000000,
+        "comes_with_mount": true
+      },
+      "source_url": "https://github.com/fitzforge/polestar/blob/c85dd863d1628c8d6b5e7d233428710334cd72d6/guides/forever/collectibles/mounts/alliance/mechanostrider.guide",
+      "source_type": "Polestar guide notes, quoting Forever's world data (riding trainers, build 70124)",
+      "date": "2026-11-18 (retrieved, Polestar v0.4.1)",
+      "confidence": "medium",
+      "scope": "forever",
+      "last_verified": "2026-11-18",
+      "sources": [
+        "https://github.com/fitzforge/polestar/blob/c85dd863d1628c8d6b5e7d233428710334cd72d6/guides/forever/collectibles/mounts/alliance/mechanostrider.guide",
+        "https://www.warcrafttavern.com/forever/guides/riding/",
+        "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options"
+      ]
+    },
+    "riding.journeyman": {
+      "statement": "Journeyman Riding (skill 150) is trained at level 60 and costs 1,000g; the training comes with a mount.",
+      "value": {
+        "level": 60,
+        "skill": 150,
+        "training_copper": 10000000,
+        "comes_with_mount": true
+      },
+      "source_url": "https://github.com/fitzforge/polestar/blob/c85dd863d1628c8d6b5e7d233428710334cd72d6/guides/forever/collectibles/mounts/alliance/mechanostrider.guide",
+      "source_type": "Polestar guide notes, quoting Forever's world data (riding trainers, build 70124)",
+      "date": "2026-11-18 (retrieved, Polestar v0.4.1)",
+      "confidence": "medium",
+      "scope": "forever",
+      "last_verified": "2026-11-18",
+      "sources": [
+        "https://github.com/fitzforge/polestar/blob/c85dd863d1628c8d6b5e7d233428710334cd72d6/guides/forever/collectibles/mounts/alliance/mechanostrider.guide",
+        "https://www.warcrafttavern.com/forever/guides/riding/",
+        "https://www.method.gg/wow-forever/how-to-get-a-mount-in-wow-forever-cost-requirement-and-mount-options"
+      ]
+    },
+    "riding.vendor_mounts": {
+      "statement": "Vendor mounts list 20g at level 40 and 200g at level 60 in the client's item table, before any reputation discount.",
+      "value": {
+        "40": 200000,
+        "60": 2000000
+      },
+      "source_url": "https://wago.tools/db2/ItemSparse?build=1.60.1.70959",
+      "source_type": "Forever client tables (DB2 ItemSparse via wago.tools)",
+      "date": "2026-11-18 (build 1.60.1.70959)",
+      "confidence": "high",
+      "scope": "forever",
+      "last_verified": "2026-11-18"
+    },
+    "riding.city_discount": {
+      "statement": "Honored with your race's home city takes 10% off riding training and mounts. Polestar marks this ASSUMED, from beta player guides and Classic.",
+      "value": {
+        "pct": 10,
+        "reputation": "Honored"
+      },
+      "source_url": "https://github.com/fitzforge/polestar/blob/c85dd863d1628c8d6b5e7d233428710334cd72d6/guides/forever/collectibles/mounts/alliance/mechanostrider.guide",
+      "source_type": "Polestar guide notes (marked ASSUMED there)",
+      "date": "2026-11-18 (retrieved, Polestar v0.4.1)",
+      "confidence": "low",
+      "scope": "classic_fallback",
+      "last_verified": "2026-11-18",
+      "sources": [
+        "https://github.com/fitzforge/polestar/blob/c85dd863d1628c8d6b5e7d233428710334cd72d6/guides/forever/collectibles/mounts/alliance/mechanostrider.guide",
+        "https://www.warcrafttavern.com/forever/guides/riding/"
+      ]
+    },
+    "rested.accrual": {
+      "statement": "Logged out in an inn or a city a character gains rested XP worth 5% of a level per 8 hours, a quarter of that elsewhere, up to 1.5 levels. Polestar uses Classic's numbers; Forever's rates are unverified.",
+      "value": {
+        "per_8h_rested_area": 0.05,
+        "away_factor": 0.25,
+        "cap_levels": 1.5
+      },
+      "source_url": "https://github.com/fitzforge/polestar/blob/c85dd863d1628c8d6b5e7d233428710334cd72d6/addon/Polestar/Alts/Snapshot.lua",
+      "source_type": "Polestar addon code (Classic's numbers, labelled so there)",
+      "date": "2026-11-18 (retrieved, Polestar v0.4.1)",
+      "confidence": "low",
+      "scope": "classic_fallback",
+      "last_verified": "2026-11-18"
+    },
+    "quest_xp.share_by_levels_over": {
+      "statement": "At a hand-in Forever pays a quest's full XP up to 5 levels over it, 80% at 6, 60% at 7 and half from 8 levels over on (players' recorded hand-ins).",
+      "value": {
+        "full_up_to": 5,
+        "6": 0.8,
+        "7": 0.6,
+        "8_and_over": 0.5
+      },
+      "source_url": "https://github.com/fitzforge/polestar/blob/c85dd863d1628c8d6b5e7d233428710334cd72d6/docs/forge/model.md",
+      "source_type": "Polestar time model docs, from players' recorded hand-ins",
+      "date": "2026-11-18 (retrieved, Polestar v0.4.1)",
+      "confidence": "medium",
+      "scope": "forever",
+      "last_verified": "2026-11-18"
+    },
+    "profession.tiers": {
+      "statement": "Each profession rank is learned from a trainer: Journeyman (cap 150) needs level 10 and skill 50, Expert (cap 225) level 20 and skill 125, Artisan (cap 300) level 35 and skill 200. Skill points stop at the cap until the next rank is trained. Secondary professions' Expert and Artisan ranks come from a book or a quest instead (research lane economy-professions, prof.secondary.*).",
+      "value": [
+        {
+          "rank": 1,
+          "name": "Apprentice",
+          "cap": 75,
+          "need_level": null,
+          "need_skill": 0
+        },
+        {
+          "rank": 2,
+          "name": "Journeyman",
+          "cap": 150,
+          "need_level": 10,
+          "need_skill": 50
+        },
+        {
+          "rank": 3,
+          "name": "Expert",
+          "cap": 225,
+          "need_level": 20,
+          "need_skill": 125
+        },
+        {
+          "rank": 4,
+          "name": "Artisan",
+          "cap": 300,
+          "need_level": 35,
+          "need_skill": 200
+        }
+      ],
+      "source_url": "https://www.warcrafttavern.com/forever/guides/professions/",
+      "sources": [
+        "https://www.warcrafttavern.com/forever/guides/professions/",
+        "https://www.wow-professions.com/forever/mining-trainers"
+      ],
+      "source_type": "guide",
+      "date": "2026-11",
+      "confidence": "medium",
+      "scope": "forever",
+      "last_verified": "2026-11-18",
+      "note": "Research lanes game-rules (professions.tiers) and economy-professions (prof.ranks). The Apprentice level gate is disputed between sources (economy-professions contradiction X10)."
+    },
+    "profession.training_cost": {
+      "statement": "Training a primary profession rank costs 10 copper (Apprentice), 5 silver (Journeyman), 50 silver (Expert) and 5 gold (Artisan). Forever's trainer pages print the numbers without units; the units follow the Classic pattern. No official source.",
+      "value": {
+        "1": 10,
+        "2": 500,
+        "3": 5000,
+        "4": 50000
+      },
+      "source_url": "https://www.wow-professions.com/forever/tailoring-trainers",
+      "sources": [
+        "https://www.wow-professions.com/forever/tailoring-trainers",
+        "https://www.wow-professions.com/forever/mining-trainers",
+        "https://www.wow-professions.com/forever/leatherworking-leveling-guide"
+      ],
+      "source_type": "guide",
+      "date": "2026-11",
+      "confidence": "low",
+      "scope": "forever",
+      "last_verified": "2026-11-18",
+      "note": "Research lane economy-professions, prof.training_cost.primary (status unverified)."
+    },
+    "talents.points": {
+      "statement": "Talent points come one a level from level 10; a tree's last talent (the capstone) needs 31 points in it, so a character can first take it at level 40. 51 points at 60.",
+      "value": {
+        "first_level": 10,
+        "capstone_points": 31,
+        "points_at_60": 51
+      },
+      "source_url": "https://news.blizzard.com/en-us/article/24301515/",
+      "sources": [
+        "https://news.blizzard.com/en-us/article/24301515/",
+        "https://www.warcrafttavern.com/forever/guides/legacy/"
+      ],
+      "source_type": "official",
+      "date": "2026-09",
+      "confidence": "high",
+      "scope": "forever",
+      "last_verified": "2026-11-18",
+      "note": "Research lanes game-rules (talents.first_level, talents.milestones [11, 16, 21, 31]) and levelling (talents.first_level, points_at_60). The Legacy perk Talented moves the first point earlier (talents.points_formula)."
+    },
+    "instance.entries_per_hour": {
+      "statement": "A character can enter at most 5 instances per hour. Only a guide states it; Blizzard has published no number, and one player reports going past 5.",
+      "value": {
+        "per_hour": 5
+      },
+      "source_url": "https://www.warcrafttavern.com/forever/guides/dungeons/",
+      "sources": [
+        "https://www.warcrafttavern.com/forever/guides/dungeons/",
+        "https://eu.forums.blizzard.com/en/wow/t/are-more-than-5-dungeon-resets-per-hour-allowed-in-wow-forever/642420"
+      ],
+      "source_type": "guide",
+      "date": "2026-11",
+      "confidence": "low",
+      "scope": "forever",
+      "last_verified": "2026-11-18",
+      "note": "Research lanes game-rules (instance.limit_per_hour), dungeons (instance.cap_per_hour), raids-endgame (instance.hourly_cap). Classic's is 10 (instance.limit_per_hour_classic)."
+    },
+    "dungeon.forever_new": {
+      "statement": "Forever's nine new dungeons, their zones and level ranges. The client's own table and Polestar agree on these ranges. Blizzard's announcement gave narrower ones: Ruins of Lordaeron 15-20, Excavation Site 24-29, City of Dalaran 28-33.",
+      "value": {
+        "The Hall of Thanes": {
+          "levels": [
+            13,
+            18
+          ],
+          "zone": "Dun Morogh"
+        },
+        "Ruins of Lordaeron": {
+          "levels": [
+            15,
+            22
+          ],
+          "zone": "Tirisfal Glades"
+        },
+        "Excavation Site: Wetlands": {
+          "levels": [
+            26,
+            33
+          ],
+          "zone": "Wetlands"
+        },
+        "City of Dalaran": {
+          "levels": [
+            28,
+            35
+          ],
+          "zone": "Alterac Mountains"
+        },
+        "The Drowned City": {
+          "levels": [
+            35,
+            40
+          ],
+          "zone": "Stranglethorn Vale"
+        },
+        "Krol'dok Stronghold": {
+          "levels": [
+            40,
+            45
+          ],
+          "zone": "Riverglades"
+        },
+        "Alcaz Prison": {
+          "levels": [
+            48,
+            53
+          ],
+          "zone": "Dustwallow Marsh"
+        },
+        "Blackmaw Hold": {
+          "levels": [
+            55,
+            60
+          ],
+          "zone": "Azshara"
+        },
+        "Shaper's Terrace": {
+          "levels": [
+            58,
+            60
+          ],
+          "zone": "Un'Goro Crater"
+        }
+      },
+      "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24301455",
+      "sources": [
+        "https://worldofwarcraft.blizzard.com/en-us/news/24301455",
+        "https://us.forums.blizzard.com/en/wow/t/krol%E2%80%99dok-stronghold/2349672",
+        "https://wago.tools/db2/GroupFinderActivity"
+      ],
+      "source_type": "official",
+      "date": "2026-10-20",
+      "confidence": "high",
+      "scope": "forever",
+      "last_verified": "2026-11-18",
+      "note": "Research lanes dungeons (dungeon.*), game-rules (dungeons.new_official_ranges), levelling (dungeon.new_official_ranges)."
+    },
+    "dungeon.forever_new_entrances": {
+      "statement": "Where the new dungeons the client's tables don't list open: the entrance on the zone map and each side's nearest flight path, with what to bring. Coordinates come from guides and the wiki; Krol'dok Stronghold's conflict between sources, so none is given.",
+      "value": {
+        "The Drowned City": {
+          "x": 21,
+          "y": 28,
+          "flight": {
+            "Alliance": "Booty Bay",
+            "Horde": "Grom'gol"
+          },
+          "prep": "Water breathing recommended: the entrance is underwater, west of Grom'gol."
+        },
+        "Krol'dok Stronghold": {
+          "x": null,
+          "y": null,
+          "flight": {
+            "Alliance": "Farholde Keep",
+            "Horde": "Rog'mar"
+          },
+          "prep": "Bring 12 Iron Bar and 4 Thick Leather for Key Ingredients."
+        },
+        "Alcaz Prison": {
+          "x": 75.3,
+          "y": 14.1,
+          "flight": {
+            "Alliance": "Theramore",
+            "Horde": "Brackenwall Village"
+          },
+          "prep": null
+        },
+        "Blackmaw Hold": {
+          "x": 38.7,
+          "y": 33.4,
+          "flight": {
+            "Alliance": "Talrendis Point",
+            "Horde": "Valormok"
+          },
+          "prep": null
+        },
+        "Shaper's Terrace": {
+          "x": 48.1,
+          "y": 6.1,
+          "flight": {
+            "Alliance": "Marshal's Refuge",
+            "Horde": "Marshal's Refuge"
+          },
+          "prep": "Collect 15 power crystals of each colour (red, blue, green, yellow) for the final boss."
+        }
+      },
+      "source_url": "https://warcraft.wiki.gg/wiki/The_Drowned_City",
+      "sources": [
+        "https://warcraft.wiki.gg/wiki/The_Drowned_City",
+        "https://www.method.gg/wow-forever/dungeons/the-drowned-city",
+        "https://wow.gg/guides/kroldok-stronghold",
+        "https://www.method.gg/wow-forever/dungeons/kroldok-stronghold",
+        "https://www.warcrafttavern.com/forever/guides/alcaz-island-prison/",
+        "https://www.warcrafttavern.com/forever/guides/blackmaw-hold/",
+        "https://www.warcrafttavern.com/forever/guides/shapers-terrace/"
+      ],
+      "source_type": "guide",
+      "date": "2026-11",
+      "confidence": "medium",
+      "scope": "forever",
+      "last_verified": "2026-11-18",
+      "note": "Research lane dungeons (dungeon.drowned_city, kroldok_stronghold, alcaz_prison, blackmaw_hold, shapers_terrace)."
+    },
+    "dungeon.wowhead_guides": {
+      "statement": "Wowhead's WoW Forever dungeon guides, one per dungeon or one per wing. Each URL was fetched on the date checked and answered 200 with that dungeon's guide; the list is Wowhead's own dungeon guide menu. Krol'dok Stronghold, Blackmaw Hold and Shaper's Terrace have no guide yet: their links stay on Wowhead's database.",
+      "value": {
+        "Ragefire Chasm": "https://www.wowhead.com/forever/guide/ragefire-chasm-dungeon-overview-location-rewards",
+        "The Hall of Thanes": "https://www.wowhead.com/forever/guide/hall-of-thanes-dungeon-overview-location-rewards",
+        "Wailing Caverns": "https://www.wowhead.com/forever/guide/wailing-caverns-dungeon-overview-location-rewards",
+        "Ruins of Lordaeron": "https://www.wowhead.com/forever/guide/ruins-of-lordaeron-dungeon-overview-location-rewards",
+        "The Deadmines": "https://www.wowhead.com/forever/guide/the-deadmines-dungeon-overview-location-rewards",
+        "Shadowfang Keep": "https://www.wowhead.com/forever/guide/shadowfang-keep-dungeon-overview-location-rewards",
+        "The Stockade": "https://www.wowhead.com/forever/guide/the-stockade-dungeon-overview-location-rewards",
+        "Blackfathom Deeps": "https://www.wowhead.com/forever/guide/blackfathom-deeps-dungeon-overview-location-rewards",
+        "Excavation Site: Wetlands": "https://www.wowhead.com/forever/guide/excavation-site-wetlands-dungeon-overview-location-rewards",
+        "City of Dalaran": "https://www.wowhead.com/forever/guide/city-of-dalaran-dungeon-overview-location-rewards",
+        "Razorfen Kraul": "https://www.wowhead.com/forever/guide/razerfen-kraul-dungeon-overview-location-rewards",
+        "Gnomeregan": "https://www.wowhead.com/forever/guide/gnomeregan-dungeon-overview-location-rewards",
+        "Scarlet Monastery": {
+          "Graveyard": "https://www.wowhead.com/forever/guide/scarlet-monastery-graveyard-dungeon-overview-location-rewards",
+          "Library": "https://www.wowhead.com/forever/guide/scarlet-monastery-library-dungeon-overview-location-rewards",
+          "Armory": "https://www.wowhead.com/forever/guide/scarlet-monastery-armory-dungeon-overview-location-rewards",
+          "Cathedral": "https://www.wowhead.com/forever/guide/scarlet-monastery-cathedral-dungeon-overview-location-rewards"
+        },
+        "The Drowned City": "https://www.wowhead.com/forever/guide/the-drowned-city-dungeon-overview-location-rewards",
+        "Razorfen Downs": "https://www.wowhead.com/forever/guide/razorfen-downs-dungeon-overview-location-rewards",
+        "Uldaman": "https://www.wowhead.com/forever/guide/uldaman-dungeon-overview-location-rewards",
+        "Zul'Farrak": "https://www.wowhead.com/forever/guide/zulfarrak-dungeon-overview-location-rewards",
+        "Maraudon": "https://www.wowhead.com/forever/guide/maraudon-dungeon-overview-location-rewards",
+        "Alcaz Prison": "https://www.wowhead.com/forever/guide/alcaz-prison-dungeon-overview-location-rewards",
+        "Sunken Temple": "https://www.wowhead.com/forever/guide/the-temple-of-atalhakkar-dungeon-overview-location-rewards",
+        "Blackrock Depths": "https://www.wowhead.com/forever/guide/blackrock-depths-dungeon-overview-location-rewards",
+        "Dire Maul": {
+          "East": "https://www.wowhead.com/forever/guide/dire-maul-warpwood-quarter-east-dungeon-overview-location-rewards",
+          "West": "https://www.wowhead.com/forever/guide/dire-maul-capital-gardens-west-dungeon-overview-location-rewards",
+          "North": "https://www.wowhead.com/forever/guide/dire-maul-gordoks-commons-north-dungeon-overview-location-rewards"
+        },
+        "Blackrock Spire": {
+          "Lower": "https://www.wowhead.com/forever/guide/lower-blackrock-spire-dungeon-overview-location-rewards",
+          "Upper": "https://www.wowhead.com/forever/guide/upper-blackrock-spire-dungeon-overview-location-rewards"
+        },
+        "Stratholme": {
+          "Live": "https://www.wowhead.com/forever/guide/stratholme-live-side-dungeon-overview-location-rewards",
+          "Undead": "https://www.wowhead.com/forever/guide/stratholme-undead-side-dungeon-overview-location-rewards"
+        },
+        "Scholomance": "https://www.wowhead.com/forever/guide/scholomance-dungeon-overview-location-rewards"
+      },
+      "source_url": "https://www.wowhead.com/forever/guide/dungeons-overview-locations-details",
+      "source_type": "Wowhead's guide pages, each fetched",
+      "date": "2026-11-19",
+      "confidence": "high",
+      "scope": "forever",
+      "last_verified": "2026-11-19",
+      "note": "Static: nothing fetches these at runtime. Re-check with a fetch of each URL (a 200 whose title names the dungeon) before adding one; a dungeon without a verified guide keeps its zone link (wowstats.links.dungeon_url)."
+    },
+    "xp.kill_formula": {
+      "statement": "A kill pays 5 x the character's level + 45 XP for a mob of the same level; 5% more per level the mob is above (up to 4 levels); below, less in a straight line down to nothing at the zero-difference gap (5 at levels 1-7 up to 17 at 60); nothing for a grey mob (level 6-39: L - floor(L/10) - 5; 40-59: L - floor(L/5) - 1; 60: 51); an elite pays twice. Classic's rule: Forever's dungeon kill bonus and group split change the size of a kill, not how it changes with the character's level.",
+      "value": {
+        "base": [
+          5,
+          45
+        ],
+        "above_per_level": 0.05,
+        "above_cap": 4,
+        "zero_difference": [
+          [
+            1,
+            7,
+            5
+          ],
+          [
+            8,
+            9,
+            6
+          ],
+          [
+            10,
+            11,
+            7
+          ],
+          [
+            12,
+            15,
+            8
+          ],
+          [
+            16,
+            19,
+            9
+          ],
+          [
+            20,
+            29,
+            11
+          ],
+          [
+            30,
+            39,
+            12
+          ],
+          [
+            40,
+            44,
+            13
+          ],
+          [
+            45,
+            49,
+            14
+          ],
+          [
+            50,
+            54,
+            15
+          ],
+          [
+            55,
+            59,
+            16
+          ],
+          [
+            60,
+            60,
+            17
+          ]
+        ],
+        "grey": [
+          [
+            1,
+            5,
+            null,
+            null
+          ],
+          [
+            6,
+            39,
+            10,
+            5
+          ],
+          [
+            40,
+            59,
+            5,
+            1
+          ]
+        ],
+        "grey_at_60": 51,
+        "elite_factor": 2
+      },
+      "source_url": "https://warcraft.wiki.gg/wiki/Mob_experience",
+      "source_type": "community wiki (Classic's formulas, before patch 4.0.3a)",
+      "date": "2026-11-19 (retrieved)",
+      "confidence": "medium",
+      "scope": "classic_fallback",
+      "last_verified": "2026-11-19",
+      "note": "Used only to carry a dungeon run's measured kill XP from the level it was run at to the character's level now (wowstats.plan.dungeongain); the bonus and the split cancel out in that ratio."
+    }
+  }
+}
