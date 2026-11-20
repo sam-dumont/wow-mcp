@@ -11,7 +11,7 @@
       "title": "Log in",
       "caption": "Sign in with the link the owner sent you.",
       "body": [
-        "Sign in the way the owner told you: the account they made for you, or Battle.net when the button is there."
+        "Sign in the way the owner told you: the account they made for you, or Battle.net when the button is there. Your page's address is already set: the owner picked it."
       ],
       "check": "You land on this page, with your install command ready.",
       "if_not": "\"You're signed in, but the person who runs this site hasn't let you in yet\": the owner hasn't added you yet. Tell them you signed in, then reload the page. A login loop: same message to the owner.",
