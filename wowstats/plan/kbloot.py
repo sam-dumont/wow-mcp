@@ -26,12 +26,17 @@ from __future__ import annotations
 
 import functools
 import json
+import logging
 import re
-from pathlib import Path
 
 from wowstats import gearfit, itemfacts
+from wowstats.analysis import kb
 
-LANE = Path(__file__).resolve().parents[2] / "data" / "kb" / "research" / "dungeons.json"
+log = logging.getLogger(__name__)
+# Found through kb.data_file: the checkout's data/ or the installed package's
+# wowstats/data/ (the image has no checkout; a parents[2] path here once gave
+# an empty drops list there, silently).
+LANE = "kb/research/dungeons.json"
 LEADS = ("Drops", "Bosses and drops", "Notable drops")
 ARMOUR = {"cloth": 1, "leather": 2, "mail": 3, "plate": 4}
 # Words next to an item that say whom it's for: the roles of gearfit.ROLES.
@@ -63,9 +68,14 @@ NOT_A_BOSS = re.compile(r"/|\b(?:neck|ring|trinket|cloak|shield|off-hand|wand|st
 
 @functools.cache
 def _statements() -> tuple[dict, ...]:
+    path = kb.data_file(LANE)
+    if path is None:
+        log.warning("kbloot: %s is not in any data directory, dungeon drops will be empty", LANE)
+        return ()
     try:
-        return tuple(json.loads(LANE.read_text(encoding="utf-8")).get("statements") or ())
+        return tuple(json.loads(path.read_text(encoding="utf-8")).get("statements") or ())
     except (OSError, ValueError):
+        log.warning("kbloot: %s is unreadable, dungeon drops will be empty", path, exc_info=True)
         return ()
 
 

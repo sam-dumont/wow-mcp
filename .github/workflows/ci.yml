@@ -197,6 +197,13 @@ jobs:
         run: |
           docker run --rm --entrypoint python wow-stats:ci -c \
             "import shutil, sys; found = [x for x in ('sh', 'bash', 'dash', 'ash', 'busybox', 'apk', 'apt', 'apt-get', 'dpkg') if shutil.which(x)]; print(found or 'none'); sys.exit(bool(found))"
+      # The image has no checkout: wowstats is in site-packages and its data
+      # under wowstats/data/. A path built from the checkout's layout finds
+      # nothing there (kbloot gave no drops for The Drowned City).
+      - name: Installed layout (bundled data found, dungeon drops resolve)
+        run: |
+          docker run --rm -v "$PWD/tools:/src/tools:ro" -v "$PWD/pyproject.toml:/src/pyproject.toml:ro" \
+            --entrypoint python wow-stats:ci /src/tools/image_layout_check.py /src/pyproject.toml
       - name: Smoke test (read-only root, uid 10001, both views)
         run: |
           set -eu
