@@ -639,6 +639,16 @@ TEXT_FIELDS = {
     "zone", "known_nodes", "services", "rest_kind", "error", "skill_line",
 }
 BOOL_FIELDS = {"indoors", "done", "on", "tapped", "success", "raid", "wanted"}
+# What a Recorder event may carry (security review H1): its kind's own fields
+# (KINDS), what the shipper derives from them, and the fields every event
+# has. A kind this list doesn't know goes with its time and kind only, and a
+# record's fields past its spec are dropped: a Recorder version that records
+# more (other players, say) sends nothing new until the shipper learns it.
+# wowstats/otherplayers.py holds a copy for 0.6.x shippers' events;
+# tests/test_otherplayers.py keeps the two equal.
+REC_DERIVED = frozenset({"map_id", "x", "y", "login", "quest_name", "duration_s", "xp_gained", "npc_name",
+                         "item_names", "zone"})
+EVENT_BASE = frozenset({"_time", "feed", "char", "kind", "source_id", "_msg", "rev", "demo"})
 QUEST_NAME_KINDS = {"accept", "turnin", "complete", "abandon", "fail"}
 LOGIN_GAP_S = 120  # more than a /reload: the first record after it is a login
 
@@ -657,12 +667,25 @@ def _scalar(name: str, v: str):
             return v
 
 
+def rec_keys(kind: str) -> frozenset:
+    """The fields an event of this Recorder kind may carry, besides EVENT_BASE."""
+    spec = KINDS.get(kind)
+    return frozenset(n for n in spec if n != "P") | REC_DERIVED if spec else frozenset()
+
+
+def rec_line(kind: str, line: str) -> str:
+    """A record line cut to the fields its kind is known to have: the kind,
+    the time offset and KINDS' fields ("P" is three)."""
+    spec = KINDS.get(kind) or []
+    return "\t".join(line.split("\t")[:2 + sum(3 if n == "P" else 1 for n in spec)])
+
+
 def parse_record(kind: str, fields: list[str]) -> dict:
+    """The known fields of a record; anything past its spec, or every field
+    of a kind KINDS doesn't know, is left out (rec_keys)."""
     spec = KINDS.get(kind)
     out: dict = {}
     if spec is None:
-        if fields:
-            out["args"] = "\t".join(fields)
         return out
     i = 0
     for name in spec:
@@ -677,8 +700,6 @@ def parse_record(kind: str, fields: list[str]) -> dict:
         if i < len(fields) and fields[i] != "":
             out[name] = _scalar(name, fields[i])
         i += 1
-    if i < len(fields) and any(fields[i:]):
-        out["args"] = "\t".join(fields[i:])
     if kind == "pos" and isinstance(out.get("speed"), int):
         out["speed"] = out["speed"] / 10  # tenths of a yard per second
     if kind == "map" and "map" in out:  # a map's projection, not a position
@@ -927,8 +948,10 @@ def extract_recorder(sessions: list[dict], map_types: dict, char_ids: dict, stat
             key = f"{cid}:{seq}"
             if r["idx"] <= done.get(key, 0):
                 continue
+            keys = rec_keys(kind)
             out.emit({"_time": iso(r["t"]), "feed": "wow-recorder", "char": char, "kind": kind,
-                      "_msg": r["line"], "source_id": f"rec:{cid}:{seq}:{r['idx']}", **ev})
+                      "_msg": rec_line(kind, r["line"]), "source_id": f"rec:{cid}:{seq}:{r['idx']}",
+                      **{k: v for k, v in ev.items() if k in keys}})
         for c in s["chunks"]:
             key = f"{cid}:{c['seq']}"
             last_idx = c["recs"][-1]["idx"] if c["recs"] else 0
@@ -998,20 +1021,21 @@ def extract_polestar(acct: Path, char_dirs: list[Path], sessions, char_ids, stat
         # Players Polestar's version probe asked: same faction, targeted or moused
         # over out of combat, outside groups, guilds, instances and rest areas;
         # one per player a week, at most 10 a session (Polestar/Core/Update.lua).
+        # Only what the People tab shows goes (PLAYER_KEYS): the name, when and
+        # the zone. Never their realm (security review H1).
         probed = ((pdb.get("update") or {}).get("probed")) or {}
         for raw, at in probed.items():
             if not isinstance(at, (int, float)) or not isinstance(raw, str):
                 continue
-            player, realm = player_of(raw)
+            player = player_of(raw)[0]
             sid = f"player:probed:{player}:{int(at)}"
             if not once(sid):
                 continue
-            char, zone, map_id = where_at(sessions, char_ids, map_names, at)
+            char, zone, _ = where_at(sessions, char_ids, map_names, at)
             char = char or (alts_latest[0] if alts_latest else None)
             out.emit({"_time": iso(at), "feed": "wow-player", "char": char, "source_id": sid,
                       "_msg": f"seen {player}" + (f" in {zone}" if zone else ""),
-                      "player": player, "player_realm": realm, "context": "seen", "source": "polestar-probe",
-                      "zone": zone, "map_id": map_id})
+                      "player": player, "context": "seen", "source": "polestar-probe", "zone": zone})
 
     for cdir in char_dirs:
         char = char_of(cdir.parent.name)
@@ -1913,6 +1937,46 @@ CL_GUID = re.compile(r"^(?:[A-Za-z]+-\d|0000000000000000$)")
 AFFIL_MINE, AFFIL_GROUP = 0x1, 0x2 | 0x4
 TYPE_PLAYER = 0x400
 PLAYER_BUCKET_S = 600
+# What a combat log line sends (security review H1): its event, the zone, and
+# who did it to whom, where "who" is your own character or a creature. Any
+# other player is ANOTHER_PLAYER: no name, realm or GUID of theirs leaves the
+# PC in wow-combatlog, and never the raw line (`_msg` is built from these).
+# The People tab's names come from the wow-player events (PLAYER_KEYS).
+# wowstats/otherplayers.py holds the same code for 0.6.x shippers' raw lines;
+# tests/test_otherplayers.py keeps the two equal.
+ANOTHER_PLAYER = "another player"
+CL_KEYS = frozenset({"event", "zone", "source_name", "dest_name"})
+PLAYER_KEYS = frozenset({"player", "context", "zone", "level", "class", "race", "dungeon", "source"})
+
+
+def cl_standard(cols: list[str]) -> bool:
+    """The standard source/dest prefix: GUID, name, flags, raid flags, twice
+    (COMBATANT_INFO also opens with a player's GUID, then numbers)."""
+    return len(cols) >= 8 and bool(CL_GUID.match(cols[0])) and cols[2][:2] == cols[6][:2] == "0x"
+
+
+def cl_fields(event: str, cols: list[str], mine: set[str]) -> dict:
+    """A combat log line's sent fields (CL_KEYS and `_msg`) from its event and
+    columns. `mine`: our characters, in the character-folder form."""
+    ev = {"event": event}
+    if event == "ZONE_CHANGE" and len(cols) >= 2:
+        ev["zone"] = cols[1]
+    if cl_standard(cols):
+        for key, guid, name, flags in (("source_name", *cols[0:3]), ("dest_name", *cols[4:7])):
+            if not name or name == "nil":
+                continue
+            if guid.startswith("Player-"):
+                try:
+                    own = int(flags, 16) & AFFIL_MINE
+                except ValueError:
+                    own = 0
+                folder = unicodedata.normalize("NFC", name.partition("-")[0].strip()).replace(" ", "-")
+                if not own and folder not in mine:
+                    name = ANOTHER_PLAYER
+            ev[key] = name
+    who = " > ".join(ev[k] for k in ("source_name", "dest_name") if k in ev)
+    ev["_msg"] = " ".join(x for x in (event, ev.get("zone"), who) if x)
+    return ev
 
 
 def cl_time(m: re.Match) -> float:
@@ -1967,12 +2031,12 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
             t = cl_time(m)
             event, rest = m.group(9), m.group(10) or ""
             cols = next(csv.reader([rest]), []) if rest else []
-            ev = {"_time": iso(t), "feed": "wow-combatlog", "char": char, "event": event, "_msg": line,
-                  "source_id": f"cl:{path.name}:{offset}", "zone": fs.get("zone")}
+            ev = {"_time": iso(t), "feed": "wow-combatlog", "char": char,
+                  "source_id": f"cl:{path.name}:{offset}", "zone": fs.get("zone"),
+                  **cl_fields(event, cols, our_chars | {char} if char else our_chars)}
             if event == "ZONE_CHANGE" and len(cols) >= 2:
-                fs["zone"] = ev["zone"] = cols[1]
-            if len(cols) >= 7 and CL_GUID.match(cols[0]):  # the standard source/dest prefix
-                ev["source_name"], ev["dest_name"] = cols[1] if cols[1] != "nil" else None, cols[5] if cols[5] != "nil" else None
+                fs["zone"] = cols[1]
+            if cl_standard(cols):
                 for guid, name, flags in ((cols[0], cols[1], cols[2]), (cols[4], cols[5], cols[6])):
                     if not guid.startswith("Player-"):
                         continue
@@ -1980,7 +2044,7 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
                         fl = int(flags, 16)
                     except ValueError:
                         continue
-                    player, realm = player_of(name)
+                    player = player_of(name)[0]
                     if fl & AFFIL_MINE or player in our_chars:
                         continue
                     bucket = int(t // PLAYER_BUCKET_S * PLAYER_BUCKET_S)
@@ -1991,8 +2055,7 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
                     ctx = "grouped" if fl & AFFIL_GROUP else "combat"
                     out.emit({"_time": iso(t), "feed": "wow-player", "char": char, "source_id": sid,
                               "_msg": f"{ctx} {player}" + (f" in {fs['zone']}" if fs.get("zone") else ""),
-                              "player": player, "player_realm": realm, "context": ctx, "source": "combatlog",
-                              "zone": fs.get("zone")})
+                              "player": player, "context": ctx, "source": "combatlog", "zone": fs.get("zone")})
             out.emit(ev)
         fs["offset"] = pos
     cutoff = time.time() - 2 * 86400

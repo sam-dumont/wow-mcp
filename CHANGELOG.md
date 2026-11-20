@@ -24,6 +24,24 @@ graded pass, warn or fail against the official Updated and Classic renders,
 with a contact sheet per case. The repository keeps anonymous specs only;
 names and renders stay on your disk, 30 days at most (tools/3dcases/README.md).
 
+**Other players' data stays on your PC unless a page uses it.** The
+shipper sent every combat log line as it was, with the name, realm and game
+id of every player in range, plus each Recorder record whole (fields it
+didn't know included) and the realm of every player Polestar's probe noted.
+Now the combat log goes out parsed: the event, the zone, and who did what to
+whom, where anyone but you and the monsters is "another player". Recorder
+records carry only the kinds and fields the shipper knows, so a future
+Recorder version that records more sends nothing new until the shipper
+learns it. Other players reach the server as a name, when and where you met
+them, and how (grouped, nearby, targeted): what the People tab, the journal
+and the MCP's `players` read. No realm, no position. `/ingest` applies the
+same cut to what a 0.6 shipper still sends until it updates
+(`wowstats/otherplayers.py`). Every page works as before.
+
+Upgrading: lines stored before this keep what 0.6 sent. The event contract
+lists the LogsQL filters that find them (docs/contract.md, "Stored before
+0.7.0"); read what they select before deleting anything.
+
 **Releases are one button, and this repository is the only one.**
 Development moved here from the private repository it was exported from.
 Actions > release > Run workflow picks the next version (`rc` for a
