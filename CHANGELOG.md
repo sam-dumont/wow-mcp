@@ -115,9 +115,10 @@ through a pull request, builds and signs both images, tags and publishes
 the GitHub release with this file's section and each image's digest
 (docs/development.md, "Releasing"). The knowledge base's refresh job runs
 in a private CI mirror that holds its credentials, and its pull requests
-land here behind the same checks. The shipper now orders release
-candidates: `0.7.0-rc.1` updates a 0.6 install, and a candidate sorts below
-its final.
+land here behind the same checks. From 0.7.0 the shipper orders release
+candidates: a candidate sorts below its final, and a 0.7 shipper takes one.
+A 0.6 shipper can't read a candidate's version: it stays put and takes the
+final.
 
 **The installers download a pinned uv.** When a friend's machine has no uv,
 the install command fetches uv 0.13.9 from its GitHub release and checks the
@@ -168,6 +169,14 @@ installers write the WoW folder as a proper TOML string, so a folder like
 The 3D view's file reader holds every compressed block to its declared size
 (80 MB used to come out of a block that declared 16 bytes). And the Mac
 install line refuses anything but https, redirects included.
+
+**0.6 shippers update themselves to 0.7.0, no reinstall.** They ask the
+server they ship to, never GitHub, so the repository move changes nothing
+for them: within 6 hours of the server moving to 0.7.0 they take it, and
+from then on every update is signed. `tests/test_shipper_upgrade.py` runs
+the real 0.6.1 file against this server to prove it. A shipper that still
+reports an older version 7 hours after the server moved (`auto_update =
+false`, or an update it refused) gets the update command on its start page.
 
 **kb_topics names every document.** A lane's statements folded in from
 another lane, or written by a model pass, carry no research document; the

@@ -35,6 +35,7 @@ from pathlib import Path
 
 from wowstats import __version__, bar, missing, source_tag_url
 from wowstats import tenancy as T
+from wowstats.admin import vtuple
 
 _HERE = Path(__file__).resolve().parent
 
@@ -425,6 +426,7 @@ fixed.</p>
 <h1 class="lamp good" data-fill="headline">It works</h1>
 <p class="lead" data-fill="last"></p>
 <p class="warn" data-fill="warn" hidden></p>
+<p class="once" data-fill="update-by-hand" hidden></p>
 <p class="once" data-fill="update-once" hidden>The program on your computer can't update itself yet.
 <a href="#f-update" data-open="f-update">Run the update command once</a>: after that it updates by itself.</p>
 <p><a class="btn" href="/">Open my page</a></p>
@@ -653,12 +655,44 @@ class Status:
         # Data arrives from a shipper whose setup report names no version: one
         # from before the auto-update, which needs the update command once.
         out["update_once"] = bool(out["events"]) and not (out.get("setup") or {}).get("shipper")
+        out["update_by_hand"] = update_by_hand(out.get("setup"))
         with self._lock:
             self._c[sub] = (time.time(), out)
         return out
 
 
 STATUS = Status()
+
+# When this server started serving its shipper. A shipper checks for an
+# update every 2 hours after a run (every 6 before 0.7.0), so one that still
+# reports an older version 7 hours later didn't take it: `auto_update =
+# false` in its config, or an update it refused.
+STARTED = time.time()
+UPDATE_GRACE_S = 7 * 3600
+
+
+def update_by_hand(setup: dict | None, started: float | None = None) -> dict | None:
+    """{have, server} when the person's shipper is behind this server's and
+    should have caught up by now: /start then gives the update command. None
+    for a release candidate: that's the owner's test, nobody is asked to
+    update by hand for one (and a 0.6 shipper can't read its version)."""
+    have = (setup or {}).get("shipper")
+    if not vtuple(have):
+        return None
+    try:
+        server = json.loads(shipper_manifest()).get("version")
+    except OSError:  # an install without the shipper's files: nothing to offer
+        return None
+    h, s = vtuple(have), vtuple(server)
+    if not (h and s) or h >= s or s[3] == 0:
+        return None
+    try:
+        at = datetime.fromisoformat(str((setup or {}).get("at") or "").replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+    if at < (STARTED if started is None else started) + UPDATE_GRACE_S:
+        return None
+    return {"have": have, "server": server}
 
 
 # ---------------------------------------------------------------- dns check (the public host)
