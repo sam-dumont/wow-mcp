@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0-rc.1 (2026-11-20)
+
 **New dungeon loot gets its stats from your own game.** Forever's new
 items (The Drowned City's) aren't in the item reference yet. The shipper
 now reads the game's hotfix cache, sends the server the facts of the items
