@@ -27,7 +27,7 @@ publish = ["cryptography>=46"]
 # Boring Semantic Layer (MIT, on ibis and sqlglot) compiles the metric
 # catalogue (wowstats/analysis/semantic.yaml) to DuckDB SQL. Only compiled:
 # no ibis backend, so no pandas or pyarrow (docs/reference/semantic-layer.md).
-mcp = ["fastmcp==4.1.8", "cryptography>=46", "duckdb==2.0.0", "boring-semantic-layer==0.3.19"]
+mcp = ["fastmcp==4.2.0", "cryptography>=46", "duckdb==2.0.0", "boring-semantic-layer==0.3.19"]
 # `wow-stats render` (wowstats.renderer): a past level's picture, drawn by the
 # 3D view's own viewer in a headless Chromium. Its own image target
 # (Dockerfile `renderer`), never in the main image. Pinned like the browser
