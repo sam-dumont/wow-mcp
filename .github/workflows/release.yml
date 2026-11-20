@@ -678,7 +678,10 @@ jobs:
             echo "- \`$RENDER\`"
           } > "$RUNNER_TEMP/notes.md"
           # A tag left by an interrupted run is reused only on the same commit.
-          have=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)
+          # On a 404 gh still prints the error body to stdout (--jq is not
+          # applied), so the output only counts when the call succeeded: that
+          # body once read as an existing tag and failed 0.7.0-rc.1's publish.
+          have=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null) || have=""
           if [ -z "$have" ]; then
             GH_TOKEN=$TAG_TOKEN gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA" >/dev/null
           elif [ "$have" != "$SHA" ]; then
