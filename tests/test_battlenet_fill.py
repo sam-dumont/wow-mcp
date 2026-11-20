@@ -75,7 +75,7 @@ def test_no_gear_event_takes_battlenets(monkeypatch, tmp_path):
         g = app.char(D.CHAR)["gear"]
         assert g["items_from"] == "battle.net" and {i["item_id"] for i in g["items"]} == {10504, 1317}
         assert {i["slot"] for i in g["items"]} == {1, 16}
-        assert "Battle.net" in g["items_note"] and "Syndicator" in g["items_note"]
+        assert g["items_note"].startswith("Gear from Battle.net,") and "Syndicator shows it" in g["items_note"]
     finally:
         vl.close()
 

@@ -124,6 +124,17 @@ def char_key(char: str) -> str:
 _MOVE_LOCK = threading.Lock()
 
 
+def _inside(state: Path, name: str) -> Path:
+    """state/chars/<name>, refused if it would land anywhere else. The keys
+    hold only a-z, 0-9, `-`, `_` and `.` before a hash, so it never does;
+    the check says so where the path is made."""
+    root = os.path.realpath(os.path.join(state, "chars"))
+    p = os.path.normpath(os.path.join(root, name))
+    if not p.startswith(root + os.sep):
+        raise ValueError(f"not a character folder: {name!r}")
+    return Path(p)
+
+
 def char_dir(env: dict, char: str) -> Path | None:
     """One directory per character under the state dir. A folder from before
     0.7 moves to the new name the first time the character comes up, when
@@ -132,9 +143,8 @@ def char_dir(env: dict, char: str) -> Path | None:
     d = state_dir(env)
     if d is None or not char:
         return None
-    new = d / "chars" / char_key(char)
+    new, old = _inside(d, char_key(char)), _inside(d, _legacy_key(char))
     with _MOVE_LOCK:
-        old = d / "chars" / _legacy_key(char)
         if not new.exists() and old.is_dir():
             named = str(_read(old / STATE_FILE).get("char") or "")
             folded = _legacy_key(char) != _norm(char)

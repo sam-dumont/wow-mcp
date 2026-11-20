@@ -339,7 +339,8 @@ class App:
                 value = fn()
             except SourceError as e:
                 if hit:
-                    return {**hit[1], "stale": True, "error": public_error(e, key)}
+                    # The answer's kind only: its key can hold the 3D view's sex.
+                    return {**hit[1], "stale": True, "error": public_error(e, key.split(":", 1)[0])}
                 raise
             value = {**value, "generated_at": iso(datetime.now(UTC))}
             self._cache[key] = (time.time(), value)
@@ -1112,7 +1113,8 @@ def make_handler(root: App, tenancy=None):
                 req = urllib.request.Request(f"{vl_url}/insert/jsonline?{q}", data=b"\n".join(lines) + b"\n",
                                              method="POST", headers={"Content-Type": "application/stream+json",
                                                                      **tenant_headers(account_id)})
-                at = f"VictoriaLogs at {urllib.parse.urlsplit(vl_url).netloc}"  # the log's, never the reply's
+                vl = urllib.parse.urlsplit(vl_url)  # host and port only: a user:password@ stays out of the log
+                at = f"VictoriaLogs at {vl.hostname}{f':{vl.port}' if vl.port else ''}"  # the log's, never the reply's
                 try:
                     with urllib.request.urlopen(req, timeout=60) as r:
                         r.read()
