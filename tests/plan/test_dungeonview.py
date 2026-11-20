@@ -247,6 +247,22 @@ def test_a_blocked_quest_says_how_to_get_its_prerequisite(priest):
     assert [(w["kind"], w["name"]) for w in n["starts"]] == [("item", "An Unsent Letter")]
     assert [(w["kind"], w["name"]) for w in n["drops"]] == [("npc", "Edwin VanCleef")]
     assert n["url"].endswith("quest=373")
+    assert "found" not in n  # a creature drops the letter: nothing lies in the world
+
+
+def test_an_item_lying_in_the_world_is_found_not_dropped():
+    """Lonebrow's Journal (1100) starts from Henrig Lonebrow's Journal, an
+    item whose only source is an object of the same name (the journal on
+    the ground): it goes under "found", never under "drops", so no page says
+    the journal drops from the journal."""
+    k = kb.build({"KB_GAME_TABLES": "off"})
+    fresh = facts.dungeon_quests(k, "Alliance", {})
+    crone = next(q for d in fresh.values() for q in d["quests"] if q["quest_id"] == 1101)
+    how = crone["pre"]["1100"]
+    assert [(w["kind"], w["id"]) for w in how["starts"]] == [("item", 5791)]
+    assert how["drops"] == []
+    assert [(w["kind"], w["id"], w["name"]) for w in how["found"]] == \
+        [("object", 19861, "Henrig Lonebrow's Journal")]
 
 def _caster_at_30(priest):
     """Testpriest's inputs at level 30, his own worn gear (the advice answer's

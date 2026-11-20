@@ -2046,7 +2046,7 @@ function npcs(list) {
   return list.flatMap((w, i) => {
     const where = at(w);
     return [i ? ', or ' : '', w.kind === 'item' ? h('span', {}, 'the item ', whLink(w.url, w.name)) : whLink(w.url, w.name),
-      where ? h('span', { class: 'at', text: ` in ${where}` }) : null];
+      where ? h('span', { class: 'at', text: w.inside ? ` ${where}` : ` in ${where}` }) : null];
   });
 }
 
@@ -2056,12 +2056,24 @@ function questRefs(list) {
 }
 
 // How to get the prerequisite, in one line: who gives it, or the item that
-// starts it and what drops that; without data the quest link above stands.
+// starts it and what drops that, or where it lies (an object in the world,
+// often named like the item: never "X drops from X"); without data the
+// quest link above stands.
 function needHow(needs) {
-  const n = needs.find((x) => x.state === 'new' && ((x.starts || []).length || (x.drops || []).length));
+  const n = needs.find((x) => x.state === 'new'
+    && ((x.starts || []).length || (x.drops || []).length || (x.found || []).length));
   if (!n) return null;
   const item = (n.starts || []).find((w) => w.kind === 'item');
   if (item && (n.drops || []).length) return h('span', {}, ': ', whLink(item.url, item.name), ' drops from ', npcs(n.drops.slice(0, 2)));
+  const o = item && (n.found || [])[0];
+  if (o) {
+    const where = at(o);
+    const on = o.name && o.name !== item.name ? [' on ', whLink(o.url, o.name)] : [];
+    if (on.length || where) {
+      return h('span', {}, ': the item ', whLink(item.url, item.name), ', found', on,
+        where ? (o.inside ? ` ${where}` : ` in ${where}`) : null);
+    }
+  }
   if ((n.starts || []).length) return h('span', {}, ': from ', npcs(n.starts.slice(0, 2)));
   return null;
 }

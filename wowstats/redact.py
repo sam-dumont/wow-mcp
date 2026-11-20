@@ -250,7 +250,7 @@ LOOT_ITEM = _keys("item_id", "name", "quality", "count", "t", "zone")
 
 # The Dungeons panel (wowstats.plan.dungeonview): game data, his own runs
 # (no party), what he has of each dungeon's items, the gold its loot made.
-QREF = {**_keys("quest_id", "name", "state", "url", "any"), "starts": [WHO], "drops": [WHO]}
+QREF = {**_keys("quest_id", "name", "state", "url", "any"), "starts": [WHO], "drops": [WHO], "found": [WHO]}
 DUNGEON = {
     **_keys("area_id", "name", "min", "max", "state", "opens_at", "url", "zone_url", "value", "verdict", "why",
             "drops_shown", "missing_now", "obtained", "expected_gain_per_clear", "expected_gain_share_pct",

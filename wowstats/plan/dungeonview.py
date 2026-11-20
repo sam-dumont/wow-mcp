@@ -347,10 +347,11 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
 
 def _how(qid: int, pre: dict, who) -> dict:
     """How to get a prerequisite quest: who or what starts it, and for an item
-    the creatures that drop it ("starts"/"drops": same shape as a quest's
-    starts). Empty when the data doesn't say; the page then links the quest."""
+    the creatures that drop it and the objects that hold it
+    ("starts"/"drops"/"found": same shape as a quest's starts). Empty when
+    the data doesn't say; the page then links the quest."""
     h = pre.get(str(qid)) or {}
-    return {k: [who(w) for w in h.get(k) or []] for k in ("starts", "drops") if h.get(k)}
+    return {k: [who(w) for w in h.get(k) or []] for k in ("starts", "drops", "found") if h.get(k)}
 
 
 def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
