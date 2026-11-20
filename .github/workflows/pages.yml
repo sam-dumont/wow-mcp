@@ -97,7 +97,7 @@ jobs:
       # the 3D view and the pictures: all copied into the bundle.
       - run: site/scripts/build-demo.sh
       # Every section of the demo shows data: a fallback fails the build.
-      - run: uv run --frozen --extra render --group browser pytest -q -rs tests/test_demo_complete_browser.py
+      - run: uv run --frozen --extra render --group browser pytest -q -rs -m browser tests/test_demo_complete_browser.py
         env:
           WOW_DEMO_DIR: site/public/demo
           WOW_DEMO_ENGINES: chromium

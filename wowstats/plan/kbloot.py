@@ -8,8 +8,7 @@ Shackles (mail), ..." or "Drops. • Cloth: Glinteye Slippers (Saltspine),
 
 Each item: its name, the boss when the text gives one, the armour type and
 role words the text puts next to it, and the item ID when one of our item
-sources knows the name (forever-db's item names, Polestar's gear data, the
-item catalog already loaded). No stats: the text has none, so whether an
+files knows the name (forever-db's item names, Polestar's gear data). No stats: the text has none, so whether an
 item is made for him comes from those words (his armour type at his level,
 his spec's role), and is None when the text says neither. Everything here
 is marked `confidence: low` (one research note, not the client's tables);
@@ -154,15 +153,11 @@ def _ids() -> dict[str, int]:
 
 
 def item_id(name: str) -> int | None:
-    got = _ids().get(name.lower())
-    if got is None:
-        from wowstats import itemcard
-
-        cat = itemcard.shared()
-        for k, v in (getattr(cat, "cards", None) or {}).items():  # only what's loaded: no fetch here
-            if str(v.get("n") or "").lower() == name.lower():
-                return int(k)
-    return got
+    # The files on disk only, never the item catalog: whether it happened to
+    # be loaded made the answer change from run to run, and asking for it
+    # here created the shared catalog early (a sealed bundle in the tests
+    # then got icons it shouldn't have).
+    return _ids().get(name.lower())
 
 
 def fit(it: dict, cls: str | None, spec: str | None, level: int) -> bool | None:
