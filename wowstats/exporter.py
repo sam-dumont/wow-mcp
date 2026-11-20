@@ -58,8 +58,19 @@ import urllib.request
 from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-REGION = LOCALE = API = OAUTH = FOREVER_NS = PROFILE_NS = PUSH_URL = MERGE_URL = MERGE_KEY_FILE = ""
-CLIENT_ID_FILE = CLIENT_SECRET_FILE = ""
+# One line each: a chained `a = b = ""` ties a key file's name to the
+# values the log prints, as far as CodeQL's taint tracking can tell.
+REGION = ""
+LOCALE = ""
+API = ""
+OAUTH = ""
+FOREVER_NS = ""
+PROFILE_NS = ""
+PUSH_URL = ""
+MERGE_URL = ""
+MERGE_KEY_FILE = ""
+CLIENT_ID_FILE = ""
+CLIENT_SECRET_FILE = ""
 TOKEN_NAMESPACES: dict = {}
 PROFILE_CHARS: list = []
 # Several people (wowstats.tenancy): the full view's list of every person's

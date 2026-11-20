@@ -217,9 +217,12 @@ def _session(h: Path, rec: Path, meta: dict, proxy: Proxy, *, image, ref, label:
             shutil.copytree(rec / "state", state)
         else:
             state.mkdir()
-        os.chmod(state, 0o777)  # the image's user writes the run's copy
+        # The copy holds the person's real data: owner only. The image runs
+        # as this user (`docker run --user`, run_target), so that's enough for it
+        # to write.
+        os.chmod(state, 0o700)
         for d in state.rglob("*"):
-            os.chmod(d, 0o777 if d.is_dir() else 0o666)
+            os.chmod(d, 0o700 if d.is_dir() else 0o600)
         ports = {}
         for store in ("vl", "vm"):
             url = proxy.start(store)

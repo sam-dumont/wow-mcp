@@ -1138,8 +1138,11 @@ def route(h, t: T.Tenancy, u: T.User, app, path: str) -> bool:
         return True
     if path.startswith("/start/media/") and get:
         name = Path(urllib.parse.unquote(path.rsplit("/", 1)[1])).name
-        f = _media_dir() / name
-        if not name or not f.is_file():
+        media = _media_dir().resolve()
+        f = (media / name).resolve()
+        # A file directly in the media folder, nothing else (no dotfile, no
+        # link out of it).
+        if not name or name.startswith(".") or f.parent != media or not f.is_file():
             h.not_found()
             return True
         send_media(h, f.read_bytes(), MEDIA_TYPES.get(f.suffix, "application/octet-stream"))

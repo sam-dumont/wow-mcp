@@ -263,3 +263,34 @@ def test_profile_list_is_per_account_capped_and_first_claim_wins(monkeypatch):
     out = exporter.render_data()
     assert 'wow_character_profile{account_id="1",character="Testpriest-Fixture",' in out
     assert 'account_id="0",character="Testpriest-Fixture"' not in out
+
+
+def test_the_log_never_carries_the_client_secret(tmp_path, monkeypatch, capsys):
+    """The Battle.net client's id and secret, and the merge key, are read from
+    files and sent in a header: no log line (start, a refused token, an
+    unreachable API) prints them."""
+    import urllib.error
+
+    secret, key = "s3cret-client-value-0123456789", "merge-key-value-9876543210"
+    (tmp_path / "id").write_text("client-id-value\n")
+    (tmp_path / "secret").write_text(secret + "\n")
+    (tmp_path / "key").write_text(key + "\n")
+    exporter.configure({"BNET_CLIENT_ID_FILE": str(tmp_path / "id"), "BNET_CLIENT_SECRET_FILE": str(tmp_path / "secret"),
+                        "VM_PUSH_URL": "http://vm:8428/api/v1/import/prometheus",
+                        "VM_MERGE_KEY_FILE": str(tmp_path / "key")})
+    monkeypatch.setitem(exporter._token, "value", "")
+    exporter.log(f"listening on :{exporter.LISTEN}, region {exporter.REGION}")
+
+    def refused(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, 401, "Unauthorized", req.headers, None)
+    monkeypatch.setattr(exporter.urllib.request, "urlopen", refused)
+    assert exporter.run_task("token") is False
+
+    def down(req, timeout=None):
+        raise urllib.error.URLError(f"no route to {req.full_url}")
+    monkeypatch.setattr(exporter.urllib.request, "urlopen", down)
+    assert exporter.run_task("token") is False
+
+    out = capsys.readouterr().out
+    assert "region eu" in out and "token:" in out
+    assert secret not in out and key not in out and "client-id-value" not in out

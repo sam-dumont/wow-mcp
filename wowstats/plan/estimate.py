@@ -74,14 +74,20 @@ def flevel(lv: float) -> str:
 # ---------------------------------------------------------------- constraints
 
 
+# A request is a sentence or two. The cap keeps the patterns below (some
+# backtrack on long runs of spaces) linear in practice, whatever is posted.
+MAX_CONSTRAINTS = 500
+
+
 def parse_constraints(text: str) -> dict:
     """Plain text to switches: 'no dungeons', 'only 2h', 'I want to level
     tailoring', 'group with friends', 'no professions'. What isn't
-    understood is kept and said back."""
-    t = (text or "").strip()
+    understood is kept and said back. Only the first MAX_CONSTRAINTS
+    characters are read, with runs of whitespace folded to one space."""
+    t = " ".join((text or "")[: MAX_CONSTRAINTS * 4].split())[:MAX_CONSTRAINTS]
     low = t.lower()
     out: dict = {"text": t}
-    m = re.search(r"(?:only|just|max(?:imum)?|about|for)?\s*(\d+(?:[.,]\d+)?)\s*(h|hours?|hrs?|min|minutes?)\b", low)
+    m = re.search(r"(?:only|just|max(?:imum)?|about|for)? ?(\d+(?:[.,]\d+)?) ?(h|hours?|hrs?|min|minutes?)\b", low)
     if m:
         v = float(m.group(1).replace(",", "."))
         out["hours"] = v / 60 if m.group(2).startswith("m") else v
@@ -96,7 +102,7 @@ def parse_constraints(text: str) -> dict:
         out["profession"] = m.group(2).title()
     if re.search(r"\bno (professions?|crafting)\b", low):
         out["no_professions"] = True
-    known = re.sub(r"(only|just|max(imum)?|about|for)?\s*\d+(?:[.,]\d+)?\s*(h|hours?|hrs?|min|minutes?)\b|"
+    known = re.sub(r"(only|just|max(imum)?|about|for)? ?\d+(?:[.,]\d+)? ?(h|hours?|hrs?|min|minutes?)\b|"
                    r"no (dungeons?|instances?|groups?|professions?|crafting)|solo|without (a )?(group|dungeon)|"
                    r"group|friends?|party|i want to|level|skill|train|work on|push|tailoring|enchanting|cooking|"
                    r"first aid|fishing|alchemy|blacksmithing|leatherworking|engineering|herbalism|mining|"

@@ -251,6 +251,11 @@ class Proxy:
         base = self.upstreams[store]
         qs = urllib.parse.urlencode([tuple(p) for p in req["query"]]) if req["query"] else ""
         url = f"{base}{req['path']}" + (f"?{qs}" if qs else "")
+        # check() already holds the path to a store's read routes; the target
+        # stays the store this run records, whatever the path held.
+        want, got = urllib.parse.urlsplit(base), urllib.parse.urlsplit(url)
+        if (got.scheme, got.netloc) != (want.scheme, want.netloc):
+            return 403, "text/plain", b"ab-proxy refused: the request left the recorded store\n"
         fwd = {k: headers.get(k) for k in ("Accept", *TENANT_HEADERS) if headers.get(k) is not None}
         # A form body was folded into the query above; send everything as a GET's
         # parameters or the original body, never both.
