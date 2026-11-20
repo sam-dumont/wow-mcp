@@ -182,8 +182,10 @@ def open_3d(page, i: int) -> str:
     """Click the i-th visible "View in 3D", return the viewer's state."""
     page.locator("button.m3dtoggle:visible").nth(i).click()
     frame = page.wait_for_selector("iframe.m3dframe >> visible=true", timeout=15000).content_frame()
-    frame.wait_for_function("() => ['drawn', 'error'].includes(document.documentElement.dataset.state)",
-                            timeout=60000)
+    # The frame is still on its way from about:blank to the viewer: no root
+    # element for a moment, and a throw there ends the wait instead of polling.
+    frame.wait_for_function("() => { const r = document.documentElement;"
+                            " return !!r && ['drawn', 'error'].includes(r.dataset.state); }", timeout=60000)
     state = frame.evaluate("() => document.documentElement.dataset.state + ' '"
                            " + ((document.getElementById('status') || {}).textContent || '')")
     page.locator("button.m3dtoggle[aria-pressed=true]:visible").first.click()
