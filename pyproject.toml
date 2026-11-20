@@ -102,6 +102,8 @@ packages = ["wowstats"]
 "shipper/install-windows.ps1" = "wowstats/data/shipper/install-windows.ps1"
 "shipper/wow-stats.plist" = "wowstats/data/shipper/wow-stats.plist"
 "shipper/config.example.toml" = "wowstats/data/shipper/config.example.toml"
+# The release signature of the files above (tools/release/shipper_sign.py), served in the update manifest.
+"shipper/update-signature.json" = "wowstats/data/shipper/update-signature.json"
 # The MIT notices that come with the gear data travel with it.
 "THIRD_PARTY.md" = "wowstats/data/THIRD_PARTY.md"
 # The program's own license, which the one-line installers put next to the shipper (wowstats.account).

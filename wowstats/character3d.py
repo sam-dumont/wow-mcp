@@ -171,18 +171,22 @@ ARMOR = {1, 3, 4, 5, 6, 7, 8, 9, 10, 16, 19, 20}
 HELD = {13, 14, 15, 17, 21, 22, 23, 25, 26}
 UNSEEN_SLOTS = {2, 11, 12, 13, 14}
 RIGHT, LEFT = 21, 22
+# The hand a ranged weapon takes when one is free (a bow in the left, a gun or thrown in the right).
 HAND = {13: RIGHT, 17: RIGHT, 21: RIGHT, 25: RIGHT, 26: RIGHT, 14: LEFT, 15: LEFT, 22: LEFT, 23: LEFT}
-INV_SHIELD = 14
+# The main hand's item is in the right hand, the off hand's in the left (a one-hander there too);
+# Blizzard's renders, 2026-11-20 (tools/3dcases: four dual-wielders).
+SLOT_HAND = {16: RIGHT, 17: LEFT}
+INV_SHIELD, INV_2H = 14, 17
 WEAPON, WAND = 2, 19
 RANGED_SLOT = 18
-HUNTER = 3
 
 # The original models: ChrModel rows with these display ids (Forever's tables give them their own
 # options and the texture layout 203, but tie none of them to a race; the game picks them in code).
-# Race -> (male, female) CreatureDisplayInfo ids. 1-8: the 2004 models (ChrModel 257-272). 95/96
-# Skyborne: Forever's own pair on layout 203 (ChrModel 277, 278), inferred: the only other two.
+# Race -> (male, female) CreatureDisplayInfo ids. 1-8: the 2004 models (ChrModel 257-272). The
+# Skyborne (95/96) have none: Blizzard's Classic render of them is their Updated model
+# (tools/3dcases c22, c23); ChrModel 277/278 on layout 203 draw a goblin.
 CLASSIC_DISPLAYS = {1: (49, 50), 2: (51, 52), 3: (53, 54), 4: (55, 56), 5: (57, 58), 6: (59, 60),
-                    7: (1563, 1564), 8: (1478, 1479), 95: (146599, 146600), 96: (146599, 146600)}
+                    7: (1563, 1564), 8: (1478, 1479)}
 
 GENDER_ANY_MODEL, GENDER_ANY_TEXTURE = 2, 3  # ComponentModelFileData / ComponentTextureFileData
 
@@ -561,9 +565,11 @@ def worn(tables: Mapping[str, Mapping[int, dict]], items: Iterable[dict] | None,
 
 def _worn(ix: Index, items: Iterable[dict], class_id: int) -> tuple[list[dict], list[dict]]:
     """The items drawn (with their display and hand) and the ones that
-    can't be, wowstats.model3d's rules: neck, rings, trinkets, ammo, relics
-    and a ranged wand are left out quietly; two weapons for one hand: a
-    hunter holds the ranged one, everyone else the melee one."""
+    can't be: neck, rings, trinkets, ammo, relics and a ranged wand are left
+    out quietly. The main hand holds its item in the right hand, the off
+    hand in the left (a two-hander takes both); a ranged weapon only gets a
+    hand nothing else holds, whatever the class (Blizzard's renders of
+    hunters show the melee weapons, tools/3dcases)."""
     rows, missing = [], []
     for it in items:
         if not isinstance(it, dict):
@@ -590,12 +596,13 @@ def _worn(ix: Index, items: Iterable[dict], class_id: int) -> tuple[list[dict], 
         rows.append({"slot": slot, "item_id": item_id, "display": display, "inv": inv, "subclass": sub,
                      "class": item_class, "name": it.get("name"), "enchant": it.get("enchant"),
                      "ranged": slot == RANGED_SLOT})
-    hunter = class_id == HUNTER
-    rows.sort(key=lambda r: (r["ranged"] != hunter, r["slot"]))
+    rows.sort(key=lambda r: (r["ranged"], r["slot"]))
     held: dict[int, dict] = {}
     out = []
     for r in rows:
-        hand = HAND.get(r["inv"])
+        hand = SLOT_HAND.get(r["slot"]) if r["inv"] in HELD else None
+        if r["ranged"]:
+            hand = HAND.get(r["inv"])
         if hand:
             if hand in held:
                 if not r["ranged"]:  # a ranged weapon that loses its hand stays out quietly
@@ -604,6 +611,8 @@ def _worn(ix: Index, items: Iterable[dict], class_id: int) -> tuple[list[dict], 
                 continue
             held[hand] = r
             r["hand"] = hand
+            if r["inv"] == INV_2H:
+                held.setdefault(LEFT if hand == RIGHT else RIGHT, r)
         out.append(r)
     out.sort(key=lambda r: r["slot"])
     missing.sort(key=lambda m: m["slot"])
@@ -790,8 +799,11 @@ class _Assembly:
                 if not r:
                     continue
                 m = ix.pick_model(ix.models.get(r, []), self.race, self.sex, self.model_fallback)
+                # A shoulder's list is by position (left, right): a one-sided pauldron at [1] goes on
+                # the right shoulder (tools/3dcases c16), the rest fill the attachments in order.
+                at = i if slot == 3 else k
                 if m:
-                    placed.append((m, attach_ids[k] if k < len(attach_ids) else None, textures[i]))
+                    placed.append((m, attach_ids[at] if at < len(attach_ids) else None, textures[i]))
                 k += 1
         if slot == 15 and not placed:
             # A cape without a model of its own is the body's cape geosets, wearing its texture.

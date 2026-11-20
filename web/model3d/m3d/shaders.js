@@ -559,8 +559,8 @@ void main() {
 	// apply lighting
 	vec3 lit_color = calc_lighting(mat_diffuse, v_normal);
 
-	// add specular (disabled for debugging)
-	// lit_color += specular;
+	// what the combiners keep apart (env map, glow): wow.export left it out "for debugging"
+	lit_color += specular;
 
 	frag_color = vec4(lit_color, final_opacity);
 }

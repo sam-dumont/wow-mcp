@@ -17,6 +17,8 @@ the receiver is:
   ahead) is kept at the time it arrived, under feed `wow-invalid`, with
   `feed_sent`, `ingest_error` and `time_sent` saying what to fix;
 - `_msg` is capped at 4096 characters (empty: "<feed> <char>");
+- other players' data is cut to what a feature reads, for shippers before
+  0.7.0 that still send raw lines (wowstats.otherplayers.allowed);
 - a line whose `char` can't be a file name (wowstats.names.valid_char:
   letters, space, hyphen, apostrophe) is refused: the publisher writes
   each character's files under that name.
@@ -33,6 +35,7 @@ import re
 import threading
 from datetime import UTC, datetime, timedelta
 
+from wowstats import otherplayers
 from wowstats.names import valid_char
 
 FEED_RE = re.compile(r"^wow-[a-z]{1,24}$")
@@ -103,7 +106,7 @@ def parse(body: bytes, now: datetime | None = None) -> tuple[list[bytes], int]:
         if not raw.strip():
             continue
         try:
-            ev = screen(json.loads(raw), now)
+            ev = screen(otherplayers.allowed(json.loads(raw)), now)  # security review H1
         except ValueError:
             ev = None
         if ev is None:

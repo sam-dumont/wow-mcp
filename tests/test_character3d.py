@@ -95,15 +95,18 @@ def world() -> dict:
         # item: (class, subclass, inventory type)
         "Item": {i: {"ClassID": c, "SubclassID": s, "InventoryType": t} for i, (c, s, t) in {
             100: (4, 1, 20), 101: (4, 1, 1), 102: (4, 1, 8), 103: (2, 7, 21), 104: (2, 3, 26), 105: (4, 6, 14),
-            106: (4, 1, 3), 107: (4, 1, 16), 108: (4, 0, 2), 109: (2, 19, 26), 110: (4, 1, 7)}.items()},
+            106: (4, 1, 3), 107: (4, 1, 16), 108: (4, 0, 2), 109: (2, 19, 26), 110: (4, 1, 7),
+            111: (2, 7, 13), 112: (2, 2, 15), 113: (2, 1, 17), 114: (4, 3, 3)}.items()},
         "ItemModifiedAppearance": {
             1: {"ItemID": 100, "ItemAppearanceModifierID": 0, "ItemAppearanceID": 200, "OrderIndex": 0},
             2: {"ItemID": 100, "ItemAppearanceModifierID": 1, "ItemAppearanceID": 299, "OrderIndex": 0},
             **{k: {"ItemID": i, "ItemAppearanceModifierID": 0, "ItemAppearanceID": i + 100, "OrderIndex": 0}
                for k, i in ((3, 101), (4, 102), (5, 103), (6, 104), (7, 105), (8, 106), (9, 107), (10, 108),
-                            (11, 109))},
+                            (11, 109), (12, 111), (13, 112), (14, 113), (15, 114))},
         },
         "ItemAppearance": {**{a: {"ItemDisplayInfoID": a + 100} for a in range(200, 210)},
+                           211: {"ItemDisplayInfoID": 303}, 212: {"ItemDisplayInfoID": 304},
+                           213: {"ItemDisplayInfoID": 303}, 214: {"ItemDisplayInfoID": 310},
                            299: {"ItemDisplayInfoID": 399}},
         "ItemDisplayInfo": {
             300: idi(geosets=[1, 0, 1]),  # a robe: sleeves 802, chest 1002, trousers 1302
@@ -116,6 +119,7 @@ def world() -> dict:
             307: idi(mats=[4600], geosets=[5]),  # a cape: the body's cape geosets, textured
             308: idi(),
             309: idi(models=[660]),
+            310: idi(models=[0, 630], mats=[0, 4600]),  # one pauldron, the right one
             399: idi(geosets=[9, 9, 9]),
         },
         "ItemDisplayInfoMaterialRes": {1: {"ItemDisplayInfoID": 300, "ComponentSection": 3, "MaterialResourcesID": 4100},
@@ -235,6 +239,19 @@ def test_shoulders_shield_and_cape():
     assert r["textures"] == {"2": 8600} and r["geosets"]["groups"]["15"] == 6
 
 
+def test_a_one_sided_pauldron_on_its_own_shoulder():
+    """tools/3dcases c16: the only model at the list's second place is the
+    right shoulder's (Blizzard's render), not the first attachment's."""
+    r = build(items=[(3, 114)])["recipe"]
+    assert [(a["slot"], a["attach"]) for a in r["attachments"]] == [(3, 5)]
+
+
+def test_the_skyborne_have_no_original_model():
+    """tools/3dcases c22, c23: Blizzard's Classic render of a Skyborne is the
+    Updated model; the layout-203 pair once guessed for them is a goblin."""
+    assert 95 not in c3.CLASSIC_DISPLAYS and 96 not in c3.CLASSIC_DISPLAYS
+
+
 def test_what_isnt_drawn():
     out = build(items=[(2, 108), (11, 108), (16, 103), (18, 104, {"name": "Gun"}), (5, 555), (7, 110)])
     # A neck is never drawn; a priest holds the sword, the gun stays out quietly; an unknown item and one
@@ -244,12 +261,36 @@ def test_what_isnt_drawn():
                               {"slot": 7, "item_id": 110, "why": "no appearance in Forever's item tables"}]
 
 
-def test_a_hunter_holds_the_ranged_weapon():
+def held(out):
+    return [(a["slot"], a["attach"]) for a in out["recipe"]["attachments"]]
+
+
+def test_two_one_handers_and_a_ranged_weapon():
+    """tools/3dcases c20 (a hunter, two one-handers and a crossbow) and c04
+    (a rogue, two one-handers and a bow): Blizzard's renders show a weapon in
+    each hand, the ranged one nowhere."""
+    for cls in (HUNTER, PRIEST):
+        out = build(items=[(16, 111), (17, 111), (18, 104)], cls=cls)
+        assert held(out) == [(16, 1), (17, 2)]
+        assert out["missing"] == []
+        assert held(build(items=[(16, 111), (17, 111), (18, 112)], cls=cls)) == [(16, 1), (17, 2)]
+
+
+def test_a_ranged_weapon_takes_a_free_hand():
+    # A gun in the right hand when the main hand is empty; a bow in the left beside a one-hander.
+    assert held(build(items=[(18, 104)], cls=HUNTER)) == [(18, 1)]
+    assert held(build(items=[(16, 111), (18, 112)], cls=HUNTER)) == [(16, 1), (18, 2)]
+    # A sword in the main hand keeps it; the gun stays out quietly.
     out = build(items=[(16, 103, {"name": "Sword"}), (18, 104, {"name": "Gun"})], cls=HUNTER)
-    assert [(a["slot"], a["attach"], a["model"]) for a in out["recipe"]["attachments"]] == [(18, 1, 9800)]
-    assert out["missing"] == [{"slot": 16, "item_id": 103, "why": "Gun is in that hand"}]
+    assert held(out) == [(16, 1)] and out["missing"] == []
+    # A two-hander takes both hands: no bow beside it (tools/3dcases c16).
+    assert held(build(items=[(16, 113), (18, 112)], cls=HUNTER)) == [(16, 1)]
     # A wand in the ranged slot is never drawn.
     assert build(items=[(18, 109)], cls=HUNTER)["recipe"]["attachments"] == []
+
+
+def test_a_shield_on_the_shield_point():
+    assert held(build(items=[(16, 111), (17, 105)])) == [(16, 1), (17, 0)]
 
 
 def test_skinned_model_replaces_the_base_limb():

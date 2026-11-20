@@ -6,6 +6,11 @@
 useDefault = true
 
 [[allowlists]]
+description = "shipper/wow_stats.py UPDATE_KEY: the release key's PUBLIC half, pinned on purpose (docs/shipper.md, Auto-update)"
+regexes = ['''UPDATE_KEY = "[0-9a-f]{64}"''']
+regexTarget = "line"
+
+[[allowlists]]
 description = "data/kb/watch.json keys: Blizzard news article ids (blizzard-news-<number>), not API keys"
 regexes = ['''^blizzard-news-\d+$''']
 regexTarget = "secret"

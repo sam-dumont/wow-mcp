@@ -219,7 +219,7 @@ def test_new_friend_gets_the_command_first(site, pw, engine):
     assert re.fullmatch(r"irm https://wow-full\.m\.example/install/\w+ \| iex", cmd.inner_text().strip())
     assert "PowerShell" in pg.locator("ol.setup h2:visible").first.inner_text()
     pg.locator("ol.setup [data-pick-os=mac]").click()
-    assert re.fullmatch(r"curl -fsSL https://wow-full\.m\.example/install/\w+ \| bash", cmd.inner_text().strip())
+    assert re.fullmatch(r"curl --proto '=https' --proto-redir '=https' -fsSL https://wow-full\.m\.example/install/\w+ \| bash", cmd.inner_text().strip())
     assert "Terminal" in pg.locator("ol.setup h2:visible").first.inner_text()
     pg.reload()
     pg.wait_for_selector(".hero-cmd:visible code")

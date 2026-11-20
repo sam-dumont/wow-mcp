@@ -162,18 +162,34 @@ def test_phone_framing(browser, tmp_path, monkeypatch):
         httpd.shutdown()
 
 
-def test_no_recipe_keeps_the_picture_and_says_why(browser, tmp_path, monkeypatch):
+@pytest.mark.parametrize("size", [None, (390, 844), (320, 568)])
+def test_no_recipe_keeps_the_picture_and_says_why(browser, tmp_path, monkeypatch, size):
+    """Nothing to draw (no game files yet): the line says why in one
+    sentence, the toggle is off with that line as its reason, and on a phone
+    the line keeps between the two icon columns (it ran under them, 2026-11-20)."""
     httpd, base = bundle(tmp_path, monkeypatch, with_files=False)
-    ctx, page, asked, outside, errors = open_page(browser, base)
+    ctx, page, asked, outside, errors = open_page(browser, base, *(size or ()))
     try:
         btn = page.locator("#gear button.m3dtoggle").first
         btn.wait_for(timeout=20000)
-        btn.click()
         why = page.locator("#gear .m3dwhy")
         why.wait_for(timeout=10000)
-        assert "haven't come" in why.text_content()
+        text = why.text_content()
+        assert text == "No 3D model yet: the shipper sends the game files from your computer on its next run."
+        assert btn.is_disabled()
+        assert btn.get_attribute("aria-describedby") == why.get_attribute("id")
         assert page.locator("iframe.m3dframe").count() == 0
         assert btn.get_attribute("aria-pressed") in (None, "false")
+        if size:
+            line = why.bounding_box()
+            left = page.locator("#gear .doll > .slots.left").bounding_box()
+            right = page.locator("#gear .doll > .slots.right").bounding_box()
+            stage = page.locator("#gear .doll > .stage").bounding_box()
+            assert line["x"] >= left["x"] + left["width"] - 1, (line, left)
+            assert line["x"] + line["width"] <= right["x"] + 1, (line, right)
+            assert stage["x"] <= line["x"] and line["y"] + line["height"] <= stage["y"] + stage["height"]
+            # the text itself wraps inside its box: nothing scrolls sideways
+            assert why.evaluate("(e) => e.scrollWidth <= e.clientWidth + 1")
         assert not [u for u in asked if u.startswith("/model3d/file/")]
         assert not outside and not errors, (outside, errors)
     finally:

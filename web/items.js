@@ -98,9 +98,7 @@
     const path = `data/icon/${size}/${name}.jpg`;
     if (!SEALED) return Promise.resolve(path);
     if (!icons.has(path)) {
-      icons.set(path, fetch(path + '.enc', { credentials: 'same-origin' })
-        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
-        .then((buf) => window.wowOpenBytes(path, buf))
+      icons.set(path, window.wowFetchSealed(path)
         .then((bytes) => {
           let s = '';
           for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));

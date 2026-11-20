@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+**3D view: lit like Blizzard's renders.** The light comes from the front,
+above and the right, where it came from the left almost level: a blade
+turned that way got no light and showed half as bright. The shine some
+materials add on top is drawn too.
+
+**3D view: a weapon in each hand, pauldrons on the right shoulder.** An
+off-hand weapon is drawn in the left hand (it was refused as "in that
+hand"), and a hunter holds their melee weapons like everyone else, the bow
+or gun only when a hand is free, as Blizzard's own renders show them. A
+one-sided pauldron sits on the shoulder it was made for, and a Skyborne's
+Classic look is their Updated model (it was a goblin).
+
+**No 3D model yet, said once and in the middle.** With nothing to draw,
+"View in 3D" is off from the start and the line above it says why in one
+sentence; on a phone that line stays between the two icon columns.
+
+**tools/3dcases: the 3D view checked against Blizzard's renders.** Real
+characters from public Battle.net profiles, drawn from your own install and
+graded pass, warn or fail against the official Updated and Classic renders,
+with a contact sheet per case. The repository keeps anonymous specs only;
+names and renders stay on your disk, 30 days at most (tools/3dcases/README.md).
+
+**Other players' data stays on your PC unless a page uses it.** The
+shipper sent every combat log line as it was, with the name, realm and game
+id of every player in range, plus each Recorder record whole (fields it
+didn't know included) and the realm of every player Polestar's probe noted.
+Now the combat log goes out parsed: the event, the zone, and who did what to
+whom, where anyone but you and the monsters is "another player". Recorder
+records carry only the kinds and fields the shipper knows, so a future
+Recorder version that records more sends nothing new until the shipper
+learns it. Other players reach the server as a name, when and where you met
+them, and how (grouped, nearby, targeted): what the People tab, the journal
+and the MCP's `players` read. No realm, no position. `/ingest` applies the
+same cut to what a 0.6 shipper still sends until it updates
+(`wowstats/otherplayers.py`). Every page works as before.
+
+Upgrading: lines stored before this keep what 0.6 sent. The event contract
+lists the LogsQL filters that find them (docs/contract.md, "Stored before
+0.7.0"); read what they select before deleting anything.
+
 **Releases are one button, and this repository is the only one.**
 Development moved here from the private repository it was exported from.
 Actions > release > Run workflow picks the next version (`rc` for a
@@ -19,6 +59,50 @@ the install command fetches uv 0.13.9 from its GitHub release and checks the
 SHA-256 before unpacking it, instead of piping astral.sh's installer into a
 shell. The proxy docs now lead with `PROXY_SECRET_FILE`: trusting a subnet
 also trusts every other container on it.
+
+**The shipper only takes signed updates.** Each release signs the shipper
+files (version plus every file's sha256) with an Ed25519 key that lives in
+a GitHub environment, and the shipper pins the public half. Before, the
+hashes came from the same server as the files, so whoever took over a
+server could run code on every friend's PC within 2 hours. Now the worst
+they get is holding people on their version. An update without a valid
+signature is refused: the shipper keeps its version, logs why, and the
+owner's overview shows "auto-update refused" on that row. Shippers from
+0.5.1 to 0.6.x don't check signatures yet, so they take 0.7.0 the old way
+and check everything after it. Building your own image with a changed
+shipper: sign it with your own key first (docs/self-host/upgrade.md,
+"Signing your own build"), or your players stay on their version.
+
+**/zogzog/ file names give nothing away.** A sealed file used to sit at
+`data/char/<Name>.json.enc`, so a 404 or a 200 told anyone whether a
+hidden character existed. Names are now an HMAC of the path under the
+link's key. The publisher rewrites the files on the new version and the
+links people already have keep working.
+
+**The knowledge base's text is marked as data for AI clients.** The KB
+refreshes and merges on its own, from web pages through a model, and the
+MCP hands that text to friends' AI clients. A new gate refuses any KB text
+shaped like an instruction to a model (tool-call markup, "ignore the
+previous instructions", a chat role at the start of a line), and every
+tool that answers with KB text says so in its description and in an
+`untrusted_reference_data` field at the top of the answer.
+
+**One odd addon file no longer stops the shipping.** A SavedVariables file
+nested 5,000 deep, or a Syndicator file with a string where a table goes,
+made the run fail before it shipped or checked for updates, so the fix
+could never arrive. Each addon is now read on its own: a file that can't be
+read costs its events for that run and one line in the log, and the run
+still ships what's spooled and checks for an update. A corrupt `state.json`
+is kept as `state.json.corrupt` and the run starts fresh.
+
+**Smaller fixes from the same review.** The shipper never follows a
+redirect when it ships or checks the server (a 302 used to carry the upload
+password to the other host, and its 200 marked the events sent). The
+installers write the WoW folder as a proper TOML string, so a folder like
+`D:\Jeux d'été\...` works on Windows and is no longer left out on a Mac.
+The 3D view's file reader holds every compressed block to its declared size
+(80 MB used to come out of a block that declared 16 bytes). And the Mac
+install line refuses anything but https, redirects included.
 
 **kb_topics names every document.** A lane's statements folded in from
 another lane, or written by a model pass, carry no research document; the

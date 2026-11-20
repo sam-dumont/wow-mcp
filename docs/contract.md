@@ -42,7 +42,8 @@ itself.
 - `char`: `Name-Surname` as in the WTF folder, `Testchar-Demo`. Polestar's
   account data writes `Testchar Demo` (a space): the UI treats both as one
   character.
-- `_msg`: a short human line (Recorder events: the raw record line).
+- `_msg`: a short human line (Recorder events: the record line, cut to the
+  fields the shipper knows for its kind). Never a raw combat log line.
 - `source_id`: unique per event, so a resend or a `--backfill` is harmless:
   `rec:<charId>:<chunkSeq>:<line>`, `level:<char>:<level>`,
   `dungeon:<char>:<entered>`, `character:<char>:<seen>`,
@@ -66,8 +67,12 @@ Never sent: the Battle.net account id or the account folder name.
 map name when the shipper can resolve it), and per kind what the record holds:
 `quest_id`, `level`, `xp`, `xp_max`, `xp_gained` (the change since the
 character's previous `xp` record), `money_copper`, `xp_reward`, `npc_id` (with `npc_name` from LibForeverData's NPC table on death, unit, kill, rare and loot records), `item_names` on loot records (a JSON object, item id to name, from LibForeverData's item table; the loot history),
-`step`, `guide`. Unparsed values stay in `args` (a string). Records naming
-another player keep the name in `player`.
+`step`, `guide`. Only known kinds and their known fields go
+(`shipper/wow_stats.py` `KINDS` and `REC_DERIVED`): a field past a kind's
+spec is dropped, and a kind the shipper doesn't know goes with its time and
+`kind` alone, so a Recorder version that records more (other players, say)
+sends nothing new until the shipper learns it. Shippers before 0.7.0 sent
+the rest in `args`; `/ingest` drops it.
 
 - `duration_s`, computed by the shipper so the UI only adds up: on `zone`
   (until the next zone change or the end of the chunk), on `step` (since the
@@ -246,12 +251,15 @@ recipe reads. A look that doesn't fit the model (a race change) falls back
 to the default per option. Shippers before 2026-11-20 could send `looks`
 on `wow-character` (Narcissus's barber shop): still stored, read by nothing.
 
-**`wow-player`**: one event per sighting of another player, from every source
-that names one (Polestar's probe list, Recorder records, dungeon rosters,
-combat log party members): `player` (`Name-Realm`), `context` (`seen`,
-`grouped`, `dungeon`, `quest-nearby`, `combat`), `zone`/`map_id` when known,
-`level`, `class`/`race` when known, `dungeon` for dungeon runs. Player names
-are fields, never stream fields. Full view only.
+**`wow-player`**: one event per sighting of another player, from Polestar's
+probe list (`context: seen`: players you targeted or moused over) and the
+combat log (`grouped`, or `combat` for a player your log saw nearby, once
+per player per 10 minutes): `player` (`Name-Surname`, the character-folder
+form), `context`, `source`, `zone` when known. The People tab, the journal's
+"players met" and the MCP's `players` and `people` read these; nothing else about another
+player is sent (`PLAYER_KEYS`): no realm, no GUID, no position. Shippers
+before 0.7.0 also sent `player_realm` and `map_id`; `/ingest` drops them.
+Player names are fields, never stream fields. Full view only.
 
 **`wow-prices`** (the account's `Auctionator.lua`,
 `AUCTIONATOR_PRICE_DATABASE`): one event per item and scan day, from the
@@ -273,8 +281,30 @@ player's own auction house scans.
   `--backfill`), never writes it. Full view only.
 
 **`wow-combatlog`** (`Logs/WoWCombatLog*.txt`, when combat logging is on):
-`event` (`SPELL_DAMAGE`...), `_msg` is the raw line, `_time` from the line's
-own timestamp (the PC's local time, converted to UTC).
+parsed fields only, never the raw line (`CL_KEYS`): `event`
+(`SPELL_DAMAGE`...), `zone`, and `source_name`/`dest_name` when the line has
+the standard prefix. A name is your own character's or a creature's;
+any other player is `another player`, with no name, realm or GUID. `_msg`
+is built from those (`SPELL_DAMAGE Testchar Demo-Realm > Young Wolf`),
+`_time` from the line's own timestamp (the PC's local time, converted to
+UTC). No page reads this feed yet; the players it saw go out as `wow-player`
+events. Shippers before 0.7.0 sent the raw line: `/ingest` parses it again
+the same way and stores only these fields (`wowstats/otherplayers.py`).
+
+**Stored before 0.7.0.** Every shipper up to 0.6.1 sent other players' data
+that 0.7.0 no longer sends, and `/ingest` stored it as it came. To find it
+(VictoriaLogs deletes whole events, so read what a filter selects before
+deleting anything):
+
+| What | LogsQL |
+|---|---|
+| Raw combat log lines (every name, realm and GUID in range) | `feed:="wow-combatlog" _msg:~"^[0-9]{1,2}/[0-9]{1,2}"` |
+| Recorder fields the shipper didn't know (`args`) | `feed:="wow-recorder" args:*` |
+| Other players' realms and the sightings' map ids | `feed:="wow-player" (player_realm:* OR map_id:*)` |
+
+The combat log events have no feature reading them, so the first set can
+go whole. The other two are real records with one field too many:
+deleting them loses the record.
 
 **`wow-setup`** (the shipper's own check, no character): `addons` (the
 addons of `docs/videos/steps.json` found in `Interface/AddOns`, id to its

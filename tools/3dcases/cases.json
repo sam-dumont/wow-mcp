@@ -1,0 +1,5325 @@
+{
+ "_": "Anonymous 3D test cases (tools/3dcases/README.md): what the assembly reads, never a name. Picked from public Battle.net profiles; the references are fetched at test time.",
+ "cases": [
+  {
+   "cells": [
+    "armour:cloth",
+    "gear:cloak",
+    "gear:two-hand",
+    "look:facial-hair",
+    "model:classic",
+    "model:updated",
+    "race:gnome/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 1174,
+     "optionId": 80
+    },
+    {
+     "choiceId": 1186,
+     "optionId": 81
+    },
+    {
+     "choiceId": 1210,
+     "optionId": 82
+    },
+    {
+     "choiceId": 1220,
+     "optionId": 83
+    },
+    {
+     "choiceId": 5621,
+     "optionId": 548
+    },
+    {
+     "choiceId": 8767,
+     "optionId": 784
+    },
+    {
+     "choiceId": 78873,
+     "optionId": 9486
+    }
+   ],
+   "class": 5,
+   "gear": {
+    "10": [
+     4,
+     1,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     10,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     2,
+     19,
+     "RANGEDRIGHT"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     1,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     1,
+     "ROBE"
+    ],
+    "6": [
+     4,
+     1,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     1,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     1,
+     "FEET"
+    ],
+    "9": [
+     4,
+     1,
+     "WRIST"
+    ]
+   },
+   "id": "c01",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 281321,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 5820,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 53,
+     "slot": 4
+    },
+    {
+     "enchant": 254,
+     "item_id": 270261,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 251962,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 270036,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 4313,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 273036,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 273034,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 1116,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 281304,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 273298,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 279835,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 273040,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 7001,
+     "slot": 18
+    }
+   ],
+   "level": 33,
+   "picked": "2026-11-20",
+   "race": 7,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:leather",
+    "gear:cloak",
+    "gear:dual-wield",
+    "gear:helm",
+    "gear:ranged",
+    "gear:weapon-glow",
+    "model:classic",
+    "model:updated",
+    "race:undead/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 988,
+     "optionId": 63
+    },
+    {
+     "choiceId": 991,
+     "optionId": 64
+    },
+    {
+     "choiceId": 1021,
+     "optionId": 65
+    },
+    {
+     "choiceId": 1035,
+     "optionId": 66
+    },
+    {
+     "choiceId": 1037,
+     "optionId": 67
+    },
+    {
+     "choiceId": 6305,
+     "optionId": 535
+    },
+    {
+     "choiceId": 6275,
+     "optionId": 559
+    },
+    {
+     "choiceId": 6524,
+     "optionId": 568
+    },
+    {
+     "choiceId": 45122,
+     "optionId": 6347
+    }
+   ],
+   "class": 4,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     7,
+     "WEAPON"
+    ],
+    "17": [
+     2,
+     13,
+     "WEAPON"
+    ],
+    "18": [
+     2,
+     3,
+     "RANGEDRIGHT"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c02",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 9859,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 4721,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 2105,
+     "slot": 4
+    },
+    {
+     "enchant": 254,
+     "item_id": 9835,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 16659,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 14574,
+     "slot": 7
+    },
+    {
+     "enchant": 247,
+     "item_id": 6420,
+     "slot": 8
+    },
+    {
+     "enchant": 247,
+     "item_id": 270032,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 4107,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 6414,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 17694,
+     "slot": 12
+    },
+    {
+     "enchant": 247,
+     "item_id": 6314,
+     "slot": 15
+    },
+    {
+     "enchant": 241,
+     "item_id": 16886,
+     "slot": 16
+    },
+    {
+     "enchant": 241,
+     "item_id": 7683,
+     "slot": 17
+    },
+    {
+     "enchant": 0,
+     "item_id": 274084,
+     "slot": 18
+    }
+   ],
+   "level": 36,
+   "picked": "2026-11-20",
+   "race": 5,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "gear:weapon-glow",
+    "model:classic",
+    "model:updated",
+    "race:undead/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 917,
+     "optionId": 58
+    },
+    {
+     "choiceId": 921,
+     "optionId": 59
+    },
+    {
+     "choiceId": 948,
+     "optionId": 60
+    },
+    {
+     "choiceId": 961,
+     "optionId": 61
+    },
+    {
+     "choiceId": 979,
+     "optionId": 62
+    },
+    {
+     "choiceId": 5330,
+     "optionId": 534
+    },
+    {
+     "choiceId": 6293,
+     "optionId": 563
+    },
+    {
+     "choiceId": 6527,
+     "optionId": 567
+    },
+    {
+     "choiceId": 45118,
+     "optionId": 6346
+    }
+   ],
+   "class": 2,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     4,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     8,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     4,
+     7,
+     "RELIC"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     4,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     4,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     4,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     4,
+     "FEET"
+    ],
+    "9": [
+     4,
+     4,
+     "WRIST"
+    ]
+   },
+   "id": "c03",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 134110,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 15411,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 271754,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 142503,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 271753,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 271746,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 271752,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 271747,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 13400,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 271750,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 12545,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 13098,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 19120,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 270225,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 271748,
+     "slot": 15
+    },
+    {
+     "enchant": 1900,
+     "item_id": 13348,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 272435,
+     "slot": 18
+    }
+   ],
+   "level": 60,
+   "picked": "2026-11-20",
+   "race": 5,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:leather",
+    "gear:cloak",
+    "gear:dual-wield",
+    "gear:helm",
+    "gear:ranged",
+    "gear:tabard",
+    "model:classic",
+    "model:updated",
+    "race:undead/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 917,
+     "optionId": 58
+    },
+    {
+     "choiceId": 920,
+     "optionId": 59
+    },
+    {
+     "choiceId": 940,
+     "optionId": 60
+    },
+    {
+     "choiceId": 957,
+     "optionId": 61
+    },
+    {
+     "choiceId": 967,
+     "optionId": 62
+    },
+    {
+     "choiceId": 5330,
+     "optionId": 534
+    },
+    {
+     "choiceId": 6293,
+     "optionId": 563
+    },
+    {
+     "choiceId": 6527,
+     "optionId": 567
+    },
+    {
+     "choiceId": 45118,
+     "optionId": 6346
+    }
+   ],
+   "class": 4,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     7,
+     "WEAPON"
+    ],
+    "17": [
+     2,
+     7,
+     "WEAPON"
+    ],
+    "18": [
+     2,
+     2,
+     "RANGED"
+    ],
+    "19": [
+     4,
+     0,
+     "TABARD"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c04",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 134110,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 19159,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 11963,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 5107,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 11193,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 13962,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 270115,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 13210,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 270124,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 21319,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 264908,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 17713,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 19120,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 270226,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 134111,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 17705,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 280012,
+     "slot": 17
+    },
+    {
+     "enchant": 0,
+     "item_id": 12653,
+     "slot": 18
+    },
+    {
+     "enchant": 0,
+     "item_id": 5976,
+     "slot": 19
+    }
+   ],
+   "level": 60,
+   "picked": "2026-11-20",
+   "race": 5,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:plate",
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "model:classic",
+    "model:updated",
+    "race:undead/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 917,
+     "optionId": 58
+    },
+    {
+     "choiceId": 920,
+     "optionId": 59
+    },
+    {
+     "choiceId": 948,
+     "optionId": 60
+    },
+    {
+     "choiceId": 960,
+     "optionId": 61
+    },
+    {
+     "choiceId": 967,
+     "optionId": 62
+    },
+    {
+     "choiceId": 5330,
+     "optionId": 534
+    },
+    {
+     "choiceId": 6288,
+     "optionId": 563
+    },
+    {
+     "choiceId": 6527,
+     "optionId": 567
+    },
+    {
+     "choiceId": 45118,
+     "optionId": 6346
+    }
+   ],
+   "class": 2,
+   "gear": {
+    "1": [
+     4,
+     4,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     4,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     1,
+     "TWOHWEAPON"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     4,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     4,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     3,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     4,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     3,
+     "FEET"
+    ],
+    "9": [
+     4,
+     3,
+     "WRIST"
+    ]
+   },
+   "id": "c05",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 17734,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 9641,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 9476,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 6125,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 274651,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 273846,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 287013,
+     "slot": 7
+    },
+    {
+     "enchant": 8484,
+     "item_id": 273842,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 17714,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 287012,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 274642,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 275045,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 17774,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 270225,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 274645,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 17730,
+     "slot": 16
+    }
+   ],
+   "level": 50,
+   "picked": "2026-11-20",
+   "race": 5,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:mail",
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "model:classic",
+    "model:updated",
+    "race:undead/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 916,
+     "optionId": 58
+    },
+    {
+     "choiceId": 921,
+     "optionId": 59
+    },
+    {
+     "choiceId": 954,
+     "optionId": 60
+    },
+    {
+     "choiceId": 965,
+     "optionId": 61
+    },
+    {
+     "choiceId": 975,
+     "optionId": 62
+    },
+    {
+     "choiceId": 5330,
+     "optionId": 534
+    },
+    {
+     "choiceId": 6288,
+     "optionId": 563
+    },
+    {
+     "choiceId": 6527,
+     "optionId": 567
+    },
+    {
+     "choiceId": 45118,
+     "optionId": 6346
+    }
+   ],
+   "class": 2,
+   "gear": {
+    "1": [
+     4,
+     3,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     1,
+     "TWOHWEAPON"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     3,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     3,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     3,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     3,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c06",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 15550,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 12020,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 7913,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 6125,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 2870,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 250556,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 6690,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 9895,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 270032,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 4107,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 6749,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 17694,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 276895,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 271719,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 13017,
+     "slot": 16
+    }
+   ],
+   "level": 36,
+   "picked": "2026-11-20",
+   "race": 5,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:plate",
+    "gear:cloak",
+    "gear:helm",
+    "gear:shield",
+    "gear:tabard",
+    "model:classic",
+    "model:updated",
+    "race:undead/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 914,
+     "optionId": 58
+    },
+    {
+     "choiceId": 921,
+     "optionId": 59
+    },
+    {
+     "choiceId": 952,
+     "optionId": 60
+    },
+    {
+     "choiceId": 965,
+     "optionId": 61
+    },
+    {
+     "choiceId": 967,
+     "optionId": 62
+    },
+    {
+     "choiceId": 5330,
+     "optionId": 534
+    },
+    {
+     "choiceId": 6287,
+     "optionId": 563
+    },
+    {
+     "choiceId": 6527,
+     "optionId": 567
+    },
+    {
+     "choiceId": 45118,
+     "optionId": 6346
+    }
+   ],
+   "class": 2,
+   "gear": {
+    "1": [
+     4,
+     3,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     3,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     7,
+     "WEAPON"
+    ],
+    "17": [
+     4,
+     6,
+     "SHIELD"
+    ],
+    "19": [
+     4,
+     0,
+     "TABARD"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     3,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     4,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     3,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     3,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     3,
+     "FEET"
+    ],
+    "9": [
+     4,
+     3,
+     "WRIST"
+    ]
+   },
+   "id": "c07",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 134110,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 10711,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 271754,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 6096,
+     "slot": 4
+    },
+    {
+     "enchant": 8485,
+     "item_id": 10775,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 271746,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 271752,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 271747,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 11849,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 271750,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 9588,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 275045,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 276895,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 271748,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 16891,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 3655,
+     "slot": 17
+    },
+    {
+     "enchant": 0,
+     "item_id": 280404,
+     "slot": 19
+    }
+   ],
+   "level": 45,
+   "picked": "2026-11-20",
+   "race": 5,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:mail",
+    "gear:cloak",
+    "gear:two-hand",
+    "look:facial-hair",
+    "model:classic",
+    "model:updated",
+    "race:human/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 3,
+     "optionId": 9
+    },
+    {
+     "choiceId": 25,
+     "optionId": 10
+    },
+    {
+     "choiceId": 53,
+     "optionId": 11
+    },
+    {
+     "choiceId": 70,
+     "optionId": 12
+    },
+    {
+     "choiceId": 4126,
+     "optionId": 463
+    },
+    {
+     "choiceId": 5057,
+     "optionId": 525
+    },
+    {
+     "choiceId": 9922,
+     "optionId": 890
+    },
+    {
+     "choiceId": 56651,
+     "optionId": 8789
+    },
+    {
+     "choiceId": 78941,
+     "optionId": 9494
+    }
+   ],
+   "class": 2,
+   "gear": {
+    "10": [
+     4,
+     3,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     5,
+     "TWOHWEAPON"
+    ],
+    "3": [
+     4,
+     3,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     3,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     3,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     3,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     3,
+     "FEET"
+    ],
+    "9": [
+     4,
+     3,
+     "WRIST"
+    ]
+   },
+   "id": "c08",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 6189,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 859,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 6580,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 4697,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 6087,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 277234,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 7003,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 6906,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 11968,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 1319,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 273298,
+     "slot": 13
+    },
+    {
+     "enchant": 1888,
+     "item_id": 6340,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 6953,
+     "slot": 16
+    }
+   ],
+   "level": 30,
+   "picked": "2026-11-20",
+   "race": 1,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "model:classic",
+    "model:updated",
+    "race:human/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 87,
+     "optionId": 14
+    },
+    {
+     "choiceId": 109,
+     "optionId": 15
+    },
+    {
+     "choiceId": 140,
+     "optionId": 16
+    },
+    {
+     "choiceId": 164,
+     "optionId": 17
+    },
+    {
+     "choiceId": 4168,
+     "optionId": 464
+    },
+    {
+     "choiceId": 4752,
+     "optionId": 501
+    },
+    {
+     "choiceId": 4939,
+     "optionId": 516
+    },
+    {
+     "choiceId": 5061,
+     "optionId": 526
+    },
+    {
+     "choiceId": 15673,
+     "optionId": 970
+    },
+    {
+     "choiceId": 56653,
+     "optionId": 8790
+    }
+   ],
+   "class": 8,
+   "gear": {
+    "1": [
+     4,
+     1,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     1,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     10,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     2,
+     19,
+     "RANGEDRIGHT"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     1,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     1,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     1,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     1,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     1,
+     "FEET"
+    ],
+    "9": [
+     4,
+     1,
+     "WRIST"
+    ]
+   },
+   "id": "c09",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 4041,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 7746,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 271754,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 4334,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 271749,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 4672,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 271662,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 271747,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 1183,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 271750,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 11986,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 2933,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 271748,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 271767,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 273043,
+     "slot": 18
+    }
+   ],
+   "level": 38,
+   "picked": "2026-11-20",
+   "race": 1,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "armour:cloth",
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "look:piercings",
+    "model:classic",
+    "model:updated",
+    "race:human/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 86,
+     "optionId": 14
+    },
+    {
+     "choiceId": 102,
+     "optionId": 15
+    },
+    {
+     "choiceId": 153,
+     "optionId": 16
+    },
+    {
+     "choiceId": 156,
+     "optionId": 17
+    },
+    {
+     "choiceId": 4166,
+     "optionId": 464
+    },
+    {
+     "choiceId": 4755,
+     "optionId": 501
+    },
+    {
+     "choiceId": 4963,
+     "optionId": 516
+    },
+    {
+     "choiceId": 5060,
+     "optionId": 526
+    },
+    {
+     "choiceId": 15682,
+     "optionId": 970
+    },
+    {
+     "choiceId": 56653,
+     "optionId": 8790
+    }
+   ],
+   "class": 8,
+   "gear": {
+    "1": [
+     4,
+     1,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     1,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     10,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     2,
+     19,
+     "RANGEDRIGHT"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     1,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     1,
+     "ROBE"
+    ],
+    "6": [
+     4,
+     1,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     1,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     1,
+     "FEET"
+    ],
+    "9": [
+     4,
+     1,
+     "WRIST"
+    ]
+   },
+   "id": "c10",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 134110,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 273457,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 273051,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 142503,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 273044,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 273089,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 279175,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 286987,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 14366,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 4318,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 273031,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 271670,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 7356,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 9452,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 5207,
+     "slot": 18
+    }
+   ],
+   "level": 32,
+   "picked": "2026-11-20",
+   "race": 1,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "gear:cloak",
+    "gear:helm",
+    "gear:ranged",
+    "gear:tabard",
+    "gear:two-hand",
+    "look:facial-hair",
+    "model:classic",
+    "model:updated",
+    "race:dwarf/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 524,
+     "optionId": 30
+    },
+    {
+     "choiceId": 559,
+     "optionId": 31
+    },
+    {
+     "choiceId": 576,
+     "optionId": 32
+    },
+    {
+     "choiceId": 591,
+     "optionId": 33
+    },
+    {
+     "choiceId": 605,
+     "optionId": 34
+    },
+    {
+     "choiceId": 5550,
+     "optionId": 544
+    },
+    {
+     "choiceId": 15447,
+     "optionId": 936
+    },
+    {
+     "choiceId": 15451,
+     "optionId": 937
+    }
+   ],
+   "class": 1,
+   "gear": {
+    "1": [
+     4,
+     4,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     4,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     20,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     2,
+     3,
+     "RANGEDRIGHT"
+    ],
+    "19": [
+     4,
+     0,
+     "TABARD"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     4,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     4,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     4,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     4,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     4,
+     "FEET"
+    ],
+    "9": [
+     4,
+     4,
+     "WRIST"
+    ]
+   },
+   "id": "c11",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 134110,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 275736,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 20517,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 38,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 279173,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 279174,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 279175,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 279176,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 279177,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 279178,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 10795,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 11669,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 17774,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 270275,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 4114,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 6256,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 280020,
+     "slot": 18
+    },
+    {
+     "enchant": 0,
+     "item_id": 275042,
+     "slot": 19
+    }
+   ],
+   "level": 60,
+   "picked": "2026-11-20",
+   "race": 3,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:mail",
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "gear:weapon-glow",
+    "look:piercings",
+    "model:classic",
+    "model:updated",
+    "race:dwarf/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 617,
+     "optionId": 35
+    },
+    {
+     "choiceId": 642,
+     "optionId": 36
+    },
+    {
+     "choiceId": 667,
+     "optionId": 37
+    },
+    {
+     "choiceId": 681,
+     "optionId": 38
+    },
+    {
+     "choiceId": 5572,
+     "optionId": 545
+    },
+    {
+     "choiceId": 78953,
+     "optionId": 9496
+    }
+   ],
+   "class": 7,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     3,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     1,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     4,
+     9,
+     "RELIC"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     3,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     3,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     3,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c12",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 287019,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 12042,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 10745,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 270334,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 276739,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 281262,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 6690,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 10846,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 270042,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 14551,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 12002,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 12010,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 270276,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 270275,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 9877,
+     "slot": 15
+    },
+    {
+     "enchant": 37,
+     "item_id": 13018,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 263412,
+     "slot": 18
+    }
+   ],
+   "level": 52,
+   "picked": "2026-11-20",
+   "race": 3,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "armour:leather",
+    "gear:cloak",
+    "gear:two-hand",
+    "look:facial-hair",
+    "model:classic",
+    "model:updated",
+    "race:nightelf/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 698,
+     "optionId": 40
+    },
+    {
+     "choiceId": 723,
+     "optionId": 41
+    },
+    {
+     "choiceId": 745,
+     "optionId": 42
+    },
+    {
+     "choiceId": 753,
+     "optionId": 43
+    },
+    {
+     "choiceId": 7610,
+     "optionId": 682
+    },
+    {
+     "choiceId": 8062,
+     "optionId": 734
+    },
+    {
+     "choiceId": 8089,
+     "optionId": 738
+    },
+    {
+     "choiceId": 6516,
+     "optionId": 901
+    },
+    {
+     "choiceId": 7155,
+     "optionId": 911
+    },
+    {
+     "choiceId": 78912,
+     "optionId": 9490
+    }
+   ],
+   "class": 11,
+   "gear": {
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     5,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     4,
+     8,
+     "RELIC"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c13",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 281290,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 5404,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 2041,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 273807,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 273022,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 10402,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 3230,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 10413,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 1076,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 2933,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 273298,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 6449,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 271766,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 263411,
+     "slot": 18
+    }
+   ],
+   "level": 30,
+   "picked": "2026-11-20",
+   "race": 4,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:leather",
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "look:tattoos",
+    "model:classic",
+    "model:updated",
+    "race:nightelf/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 808,
+     "optionId": 49
+    },
+    {
+     "choiceId": 831,
+     "optionId": 50
+    },
+    {
+     "choiceId": 843,
+     "optionId": 51
+    },
+    {
+     "choiceId": 865,
+     "optionId": 52
+    },
+    {
+     "choiceId": 872,
+     "optionId": 53
+    },
+    {
+     "choiceId": 7619,
+     "optionId": 683
+    },
+    {
+     "choiceId": 8052,
+     "optionId": 732
+    },
+    {
+     "choiceId": 8071,
+     "optionId": 736
+    },
+    {
+     "choiceId": 8177,
+     "optionId": 745
+    },
+    {
+     "choiceId": 79128,
+     "optionId": 901
+    },
+    {
+     "choiceId": 79119,
+     "optionId": 911
+    }
+   ],
+   "class": 11,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     5,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     4,
+     8,
+     "RELIC"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c14",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 134110,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 273049,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 279879,
+     "slot": 3
+    },
+    {
+     "enchant": 8481,
+     "item_id": 2041,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 6468,
+     "slot": 6
+    },
+    {
+     "enchant": 8481,
+     "item_id": 9624,
+     "slot": 7
+    },
+    {
+     "enchant": 8481,
+     "item_id": 6752,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 19508,
+     "slot": 9
+    },
+    {
+     "enchant": 8481,
+     "item_id": 4253,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 2933,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 273032,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 2805,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 279841,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 263411,
+     "slot": 18
+    }
+   ],
+   "level": 42,
+   "picked": "2026-11-20",
+   "race": 4,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "armour:cloth",
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "look:piercings",
+    "model:classic",
+    "model:updated",
+    "race:gnome/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 1235,
+     "optionId": 85
+    },
+    {
+     "choiceId": 1246,
+     "optionId": 86
+    },
+    {
+     "choiceId": 1262,
+     "optionId": 87
+    },
+    {
+     "choiceId": 1278,
+     "optionId": 88
+    },
+    {
+     "choiceId": 1290,
+     "optionId": 89
+    },
+    {
+     "choiceId": 5635,
+     "optionId": 549
+    },
+    {
+     "choiceId": 15658,
+     "optionId": 786
+    }
+   ],
+   "class": 8,
+   "gear": {
+    "1": [
+     4,
+     1,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     1,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     10,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     2,
+     19,
+     "RANGEDRIGHT"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     1,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     1,
+     "ROBE"
+    ],
+    "6": [
+     4,
+     1,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     1,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     1,
+     "FEET"
+    ],
+    "9": [
+     4,
+     1,
+     "WRIST"
+    ]
+   },
+   "id": "c15",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 10751,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 22403,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 18720,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 6096,
+     "slot": 4
+    },
+    {
+     "enchant": 913,
+     "item_id": 276394,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 16685,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 13170,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 11822,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 16683,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 16684,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 12543,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 270081,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 12846,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 270276,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 18496,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 18353,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 274655,
+     "slot": 18
+    }
+   ],
+   "level": 60,
+   "picked": "2026-11-20",
+   "race": 7,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "armour:mail",
+    "gear:cloak",
+    "gear:helm",
+    "gear:ranged",
+    "gear:two-hand",
+    "gear:weapon-glow",
+    "look:facial-hair",
+    "model:classic",
+    "model:updated",
+    "race:tauren/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 1047,
+     "optionId": 68
+    },
+    {
+     "choiceId": 1091,
+     "optionId": 71
+    },
+    {
+     "choiceId": 1102,
+     "optionId": 72
+    },
+    {
+     "choiceId": 1108,
+     "optionId": 73
+    },
+    {
+     "choiceId": 1078,
+     "optionId": 378
+    },
+    {
+     "choiceId": 7279,
+     "optionId": 646
+    },
+    {
+     "choiceId": 7345,
+     "optionId": 661
+    },
+    {
+     "choiceId": 7411,
+     "optionId": 671
+    },
+    {
+     "choiceId": 7425,
+     "optionId": 672
+    },
+    {
+     "choiceId": 9017,
+     "optionId": 803
+    }
+   ],
+   "class": 1,
+   "gear": {
+    "1": [
+     4,
+     4,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     1,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     2,
+     3,
+     "RANGEDRIGHT"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     3,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     3,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     3,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     3,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     3,
+     "FEET"
+    ],
+    "9": [
+     4,
+     3,
+     "WRIST"
+    ]
+   },
+   "id": "c16",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 275006,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 274068,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 7718,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 6125,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 6642,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 10768,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 9625,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 9510,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 16794,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 4107,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 275000,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 274614,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 276895,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 273045,
+     "slot": 15
+    },
+    {
+     "enchant": 37,
+     "item_id": 6975,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 17687,
+     "slot": 18
+    }
+   ],
+   "level": 43,
+   "picked": "2026-11-20",
+   "race": 6,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:leather",
+    "gear:cloak",
+    "gear:two-hand",
+    "model:classic",
+    "model:updated",
+    "race:tauren/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 1120,
+     "optionId": 74
+    },
+    {
+     "choiceId": 1143,
+     "optionId": 77
+    },
+    {
+     "choiceId": 1162,
+     "optionId": 78
+    },
+    {
+     "choiceId": 1170,
+     "optionId": 79
+    },
+    {
+     "choiceId": 1136,
+     "optionId": 379
+    },
+    {
+     "choiceId": 7284,
+     "optionId": 647
+    },
+    {
+     "choiceId": 7433,
+     "optionId": 673
+    },
+    {
+     "choiceId": 9019,
+     "optionId": 805
+    }
+   ],
+   "class": 11,
+   "gear": {
+    "10": [
+     4,
+     1,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     10,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     4,
+     8,
+     "RELIC"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     1,
+     "WRIST"
+    ]
+   },
+   "id": "c17",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 7415,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 15471,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 5355,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 270037,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 251963,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 271740,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 286979,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 279845,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 5009,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 276895,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 134111,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 271767,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 263411,
+     "slot": 18
+    }
+   ],
+   "level": 34,
+   "picked": "2026-11-20",
+   "race": 6,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "armour:mail",
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "gear:weapon-glow",
+    "look:tattoos",
+    "model:classic",
+    "model:updated",
+    "race:troll/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 1299,
+     "optionId": 90
+    },
+    {
+     "choiceId": 1317,
+     "optionId": 91
+    },
+    {
+     "choiceId": 1327,
+     "optionId": 92
+    },
+    {
+     "choiceId": 1339,
+     "optionId": 93
+    },
+    {
+     "choiceId": 1354,
+     "optionId": 94
+    },
+    {
+     "choiceId": 8437,
+     "optionId": 756
+    },
+    {
+     "choiceId": 8540,
+     "optionId": 767
+    },
+    {
+     "choiceId": 8569,
+     "optionId": 768
+    }
+   ],
+   "class": 7,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     3,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     1,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     4,
+     9,
+     "RELIC"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     3,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     3,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     3,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     3,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     3,
+     "FEET"
+    ],
+    "9": [
+     4,
+     3,
+     "WRIST"
+    ]
+   },
+   "id": "c18",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 12587,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 15411,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 4443,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 6134,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 21320,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 274653,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 273048,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 15626,
+     "slot": 8
+    },
+    {
+     "enchant": 856,
+     "item_id": 16681,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 281280,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 17045,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 13217,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 13965,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 280032,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 273654,
+     "slot": 15
+    },
+    {
+     "enchant": 803,
+     "item_id": 280056,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 263412,
+     "slot": 18
+    }
+   ],
+   "level": 60,
+   "picked": "2026-11-20",
+   "race": 8,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:leather",
+    "gear:cloak",
+    "gear:helm",
+    "gear:two-hand",
+    "model:classic",
+    "model:updated",
+    "race:troll/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 1366,
+     "optionId": 95
+    },
+    {
+     "choiceId": 1387,
+     "optionId": 96
+    },
+    {
+     "choiceId": 1398,
+     "optionId": 97
+    },
+    {
+     "choiceId": 1408,
+     "optionId": 98
+    },
+    {
+     "choiceId": 1421,
+     "optionId": 99
+    },
+    {
+     "choiceId": 8460,
+     "optionId": 757
+    },
+    {
+     "choiceId": 8510,
+     "optionId": 766
+    }
+   ],
+   "class": 7,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     5,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     4,
+     9,
+     "RELIC"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c19",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 134110,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 12019,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 270023,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 273026,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 279846,
+     "slot": 6
+    },
+    {
+     "enchant": 8484,
+     "item_id": 252516,
+     "slot": 7
+    },
+    {
+     "enchant": 8484,
+     "item_id": 16977,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 270032,
+     "slot": 9
+    },
+    {
+     "enchant": 8484,
+     "item_id": 4253,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 17694,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 6414,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 273643,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 134111,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 271766,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 263412,
+     "slot": 18
+    }
+   ],
+   "level": 33,
+   "picked": "2026-11-20",
+   "race": 8,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "armour:leather",
+    "gear:cloak",
+    "gear:dual-wield",
+    "gear:helm",
+    "gear:ranged",
+    "look:facial-hair",
+    "model:classic",
+    "model:updated",
+    "race:orc/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 357,
+     "optionId": 19
+    },
+    {
+     "choiceId": 390,
+     "optionId": 20
+    },
+    {
+     "choiceId": 406,
+     "optionId": 21
+    },
+    {
+     "choiceId": 422,
+     "optionId": 22
+    },
+    {
+     "choiceId": 15782,
+     "optionId": 824
+    },
+    {
+     "choiceId": 9825,
+     "optionId": 877
+    },
+    {
+     "choiceId": 78927,
+     "optionId": 9493
+    }
+   ],
+   "class": 3,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "14": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     0,
+     "WEAPON"
+    ],
+    "17": [
+     2,
+     7,
+     "WEAPON"
+    ],
+    "18": [
+     2,
+     18,
+     "RANGEDRIGHT"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     3,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c20",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 10406,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 10824,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 270023,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 2105,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 273026,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 279882,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 1507,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 16977,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 270042,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 158329,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 13093,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 6748,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 276895,
+     "slot": 14
+    },
+    {
+     "enchant": 0,
+     "item_id": 134111,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 279887,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 10823,
+     "slot": 17
+    },
+    {
+     "enchant": 0,
+     "item_id": 274293,
+     "slot": 18
+    }
+   ],
+   "level": 43,
+   "picked": "2026-11-20",
+   "race": 2,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "gear:cloak",
+    "gear:dual-wield",
+    "gear:helm",
+    "gear:ranged",
+    "look:piercings",
+    "model:classic",
+    "model:updated",
+    "race:orc/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 441,
+     "optionId": 25
+    },
+    {
+     "choiceId": 476,
+     "optionId": 26
+    },
+    {
+     "choiceId": 494,
+     "optionId": 27
+    },
+    {
+     "choiceId": 507,
+     "optionId": 28
+    },
+    {
+     "choiceId": 9298,
+     "optionId": 825
+    },
+    {
+     "choiceId": 78949,
+     "optionId": 9495
+    }
+   ],
+   "class": 4,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     0,
+     "WEAPON"
+    ],
+    "17": [
+     2,
+     0,
+     "WEAPON"
+    ],
+    "18": [
+     2,
+     3,
+     "RANGEDRIGHT"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c21",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 7997,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 273457,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 134112,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 142503,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 271749,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 271746,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 271752,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 252425,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 270032,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 271750,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 277210,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 6414,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 271748,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 274598,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 274598,
+     "slot": 17
+    },
+    {
+     "enchant": 0,
+     "item_id": 274084,
+     "slot": 18
+    }
+   ],
+   "level": 36,
+   "picked": "2026-11-20",
+   "race": 2,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "gear:cloak",
+    "gear:ranged",
+    "gear:two-hand",
+    "look:piercings",
+    "look:tattoos",
+    "model:classic",
+    "model:updated",
+    "race:skyborne/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 60952,
+     "optionId": 9033
+    },
+    {
+     "choiceId": 62211,
+     "optionId": 9034
+    },
+    {
+     "choiceId": 61008,
+     "optionId": 9035
+    },
+    {
+     "choiceId": 62837,
+     "optionId": 9036
+    },
+    {
+     "choiceId": 61045,
+     "optionId": 9037
+    },
+    {
+     "choiceId": 62418,
+     "optionId": 9038
+    },
+    {
+     "choiceId": 61086,
+     "optionId": 9039
+    },
+    {
+     "choiceId": 61098,
+     "optionId": 9040
+    },
+    {
+     "choiceId": 61103,
+     "optionId": 9041
+    },
+    {
+     "choiceId": 63095,
+     "optionId": 9043
+    },
+    {
+     "choiceId": 63098,
+     "optionId": 9044
+    },
+    {
+     "choiceId": 61138,
+     "optionId": 9046
+    },
+    {
+     "choiceId": 61146,
+     "optionId": 9048
+    },
+    {
+     "choiceId": 62898,
+     "optionId": 9218
+    },
+    {
+     "choiceId": 62903,
+     "optionId": 9219
+    },
+    {
+     "choiceId": 63030,
+     "optionId": 9230
+    },
+    {
+     "choiceId": 63102,
+     "optionId": 9233
+    },
+    {
+     "choiceId": 63105,
+     "optionId": 9234
+    }
+   ],
+   "class": 3,
+   "gear": {
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     10,
+     "TWOHWEAPON"
+    ],
+    "18": [
+     2,
+     18,
+     "RANGEDRIGHT"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c22",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 4252,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 6097,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 168659,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 4666,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 6553,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 270006,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 168665,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 3286,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 270053,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 1076,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 134111,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 2280,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 263404,
+     "slot": 18
+    }
+   ],
+   "level": 30,
+   "picked": "2026-11-20",
+   "race": 95,
+   "sex": 1
+  },
+  {
+   "cells": [
+    "armour:leather",
+    "gear:cloak",
+    "gear:dual-wield",
+    "gear:helm",
+    "gear:ranged",
+    "model:classic",
+    "model:updated",
+    "race:skyborne/male"
+   ],
+   "choices": [
+    {
+     "choiceId": 60775,
+     "optionId": 9020
+    },
+    {
+     "choiceId": 62229,
+     "optionId": 9021
+    },
+    {
+     "choiceId": 60825,
+     "optionId": 9022
+    },
+    {
+     "choiceId": 62240,
+     "optionId": 9023
+    },
+    {
+     "choiceId": 60859,
+     "optionId": 9024
+    },
+    {
+     "choiceId": 60874,
+     "optionId": 9025
+    },
+    {
+     "choiceId": 60875,
+     "optionId": 9026
+    },
+    {
+     "choiceId": 60882,
+     "optionId": 9027
+    },
+    {
+     "choiceId": 60894,
+     "optionId": 9028
+    },
+    {
+     "choiceId": 60901,
+     "optionId": 9029
+    },
+    {
+     "choiceId": 62432,
+     "optionId": 9030
+    },
+    {
+     "choiceId": 60941,
+     "optionId": 9031
+    },
+    {
+     "choiceId": 62866,
+     "optionId": 9217
+    },
+    {
+     "choiceId": 62910,
+     "optionId": 9220
+    },
+    {
+     "choiceId": 63028,
+     "optionId": 9229
+    },
+    {
+     "choiceId": 63088,
+     "optionId": 9231
+    },
+    {
+     "choiceId": 63092,
+     "optionId": 9232
+    }
+   ],
+   "class": 4,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     7,
+     "WEAPON"
+    ],
+    "17": [
+     2,
+     15,
+     "WEAPON"
+    ],
+    "18": [
+     2,
+     16,
+     "THROWN"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c23",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 252504,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 270044,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 273815,
+     "slot": 4
+    },
+    {
+     "enchant": 8484,
+     "item_id": 7374,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 252459,
+     "slot": 6
+    },
+    {
+     "enchant": 8483,
+     "item_id": 281309,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 7409,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 19508,
+     "slot": 9
+    },
+    {
+     "enchant": 8483,
+     "item_id": 4253,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 6757,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 270053,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 2953,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 6829,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 8006,
+     "slot": 17
+    },
+    {
+     "enchant": 0,
+     "item_id": 287069,
+     "slot": 18
+    }
+   ],
+   "level": 40,
+   "picked": "2026-11-20",
+   "race": 95,
+   "sex": 0
+  },
+  {
+   "cells": [
+    "armour:leather",
+    "gear:cloak",
+    "gear:dual-wield",
+    "gear:helm",
+    "gear:ranged",
+    "look:piercings",
+    "model:classic",
+    "model:updated",
+    "race:dwarf/female"
+   ],
+   "choices": [
+    {
+     "choiceId": 623,
+     "optionId": 35
+    },
+    {
+     "choiceId": 642,
+     "optionId": 36
+    },
+    {
+     "choiceId": 666,
+     "optionId": 37
+    },
+    {
+     "choiceId": 684,
+     "optionId": 38
+    },
+    {
+     "choiceId": 5561,
+     "optionId": 545
+    },
+    {
+     "choiceId": 78955,
+     "optionId": 9496
+    }
+   ],
+   "class": 3,
+   "gear": {
+    "1": [
+     4,
+     2,
+     "HEAD"
+    ],
+    "10": [
+     4,
+     2,
+     "HAND"
+    ],
+    "11": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "12": [
+     4,
+     0,
+     "FINGER"
+    ],
+    "13": [
+     4,
+     0,
+     "TRINKET"
+    ],
+    "15": [
+     4,
+     1,
+     "CLOAK"
+    ],
+    "16": [
+     2,
+     7,
+     "WEAPONMAINHAND"
+    ],
+    "17": [
+     2,
+     0,
+     "WEAPONOFFHAND"
+    ],
+    "18": [
+     2,
+     3,
+     "RANGEDRIGHT"
+    ],
+    "2": [
+     4,
+     0,
+     "NECK"
+    ],
+    "3": [
+     4,
+     2,
+     "SHOULDER"
+    ],
+    "4": [
+     4,
+     0,
+     "BODY"
+    ],
+    "5": [
+     4,
+     2,
+     "CHEST"
+    ],
+    "6": [
+     4,
+     2,
+     "WAIST"
+    ],
+    "7": [
+     4,
+     2,
+     "LEGS"
+    ],
+    "8": [
+     4,
+     2,
+     "FEET"
+    ],
+    "9": [
+     4,
+     2,
+     "WRIST"
+    ]
+   },
+   "id": "c24",
+   "items": [
+    {
+     "enchant": 0,
+     "item_id": 252505,
+     "slot": 1
+    },
+    {
+     "enchant": 0,
+     "item_id": 5003,
+     "slot": 2
+    },
+    {
+     "enchant": 0,
+     "item_id": 7415,
+     "slot": 3
+    },
+    {
+     "enchant": 0,
+     "item_id": 3428,
+     "slot": 4
+    },
+    {
+     "enchant": 0,
+     "item_id": 273038,
+     "slot": 5
+    },
+    {
+     "enchant": 0,
+     "item_id": 252520,
+     "slot": 6
+    },
+    {
+     "enchant": 0,
+     "item_id": 9624,
+     "slot": 7
+    },
+    {
+     "enchant": 0,
+     "item_id": 279840,
+     "slot": 8
+    },
+    {
+     "enchant": 0,
+     "item_id": 270032,
+     "slot": 9
+    },
+    {
+     "enchant": 0,
+     "item_id": 279849,
+     "slot": 10
+    },
+    {
+     "enchant": 0,
+     "item_id": 6743,
+     "slot": 11
+    },
+    {
+     "enchant": 0,
+     "item_id": 1076,
+     "slot": 12
+    },
+    {
+     "enchant": 0,
+     "item_id": 280766,
+     "slot": 13
+    },
+    {
+     "enchant": 0,
+     "item_id": 271716,
+     "slot": 15
+    },
+    {
+     "enchant": 0,
+     "item_id": 9446,
+     "slot": 16
+    },
+    {
+     "enchant": 0,
+     "item_id": 9608,
+     "slot": 17
+    },
+    {
+     "enchant": 0,
+     "item_id": 273029,
+     "slot": 18
+    }
+   ],
+   "level": 34,
+   "picked": "2026-11-20",
+   "race": 3,
+   "sex": 1
+  }
+ ]
+}

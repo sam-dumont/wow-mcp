@@ -66,6 +66,8 @@ UPSTREAMS = {
     "gnu.org", "fsf.org", "creativecommons.org", "sil.org", "purl.org", "w3.org", "openjsf.org", "jquery.com",
     "opencollective.com", "tidelift.com", "patreon.com", "git-scm.com", "docker.com", "debian.org",
     "renovatebot.com", "dotenvx.com", "gofastmcp.com", "remotion.dev", "plausible.io",
+    # THIRD_PARTY.md: the Ed25519 code the shipper's update check comes from (RFC 8032).
+    "rfc-editor.org",
     # CODE_OF_CONDUCT.md adopts the Contributor Covenant by link.
     "contributor-covenant.org",
     # docs/development.md: the SBOM attestation's predicate type (an SPDX URI).

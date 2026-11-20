@@ -27,7 +27,8 @@ its SavedVariables (logout, /reload). Four steps, each safe to rerun:
    the same NDJSON. Sent files go to sent/ gzipped. No [ship] url or no
    network: log it and stop, the spool waits.
 4. update: at most every 2 hours, ask the same server for a newer version
-   of this file and replace it (check_update; `auto_update = false` pins it).
+   of this file and replace it once the release's signature checks out
+   (check_update; `auto_update = false` pins it).
 
 Python standard library only (3.11+). Settings: config.toml, see
 config.example.toml (~/.config/wow-stats/ on macOS and Linux,
@@ -44,6 +45,7 @@ from __future__ import annotations
 import argparse
 import base64
 import bisect
+import contextlib
 import csv
 import gzip
 import hashlib
@@ -351,8 +353,11 @@ def read_sv(path: Path, raw: bool = False) -> dict | None:
         return None
     try:
         return LuaReader(data, raw).document()
-    except (LuaError, IndexError, ValueError) as e:
-        log(f"cannot parse {path.name}: {e}")
+    # RecursionError (tables nested thousands deep), TypeError (a table used
+    # as a key), OverflowError (a huge \u{} escape): one odd file is skipped,
+    # never the run (client review 2026-11-20, M1).
+    except (LuaError, IndexError, ValueError, RecursionError, TypeError, OverflowError) as e:
+        log(f"cannot parse {path.name}: {type(e).__name__}: {str(e)[:200]}")
         return None
 
 
@@ -439,8 +444,8 @@ def cbor_decode(data: bytes):
 
     try:
         return item(0)[0]
-    except (IndexError, struct.error) as e:
-        raise CborError(str(e)) from None
+    except (IndexError, struct.error, RecursionError, OverflowError) as e:
+        raise CborError(f"{type(e).__name__}: {str(e)[:200]}") from None
 
 
 # ---------------------------------------------------------------------------
@@ -639,6 +644,16 @@ TEXT_FIELDS = {
     "zone", "known_nodes", "services", "rest_kind", "error", "skill_line",
 }
 BOOL_FIELDS = {"indoors", "done", "on", "tapped", "success", "raid", "wanted"}
+# What a Recorder event may carry (security review H1): its kind's own fields
+# (KINDS), what the shipper derives from them, and the fields every event
+# has. A kind this list doesn't know goes with its time and kind only, and a
+# record's fields past its spec are dropped: a Recorder version that records
+# more (other players, say) sends nothing new until the shipper learns it.
+# wowstats/otherplayers.py holds a copy for 0.6.x shippers' events;
+# tests/test_otherplayers.py keeps the two equal.
+REC_DERIVED = frozenset({"map_id", "x", "y", "login", "quest_name", "duration_s", "xp_gained", "npc_name",
+                         "item_names", "zone"})
+EVENT_BASE = frozenset({"_time", "feed", "char", "kind", "source_id", "_msg", "rev", "demo"})
 QUEST_NAME_KINDS = {"accept", "turnin", "complete", "abandon", "fail"}
 LOGIN_GAP_S = 120  # more than a /reload: the first record after it is a login
 
@@ -657,12 +672,25 @@ def _scalar(name: str, v: str):
             return v
 
 
+def rec_keys(kind: str) -> frozenset:
+    """The fields an event of this Recorder kind may carry, besides EVENT_BASE."""
+    spec = KINDS.get(kind)
+    return frozenset(n for n in spec if n != "P") | REC_DERIVED if spec else frozenset()
+
+
+def rec_line(kind: str, line: str) -> str:
+    """A record line cut to the fields its kind is known to have: the kind,
+    the time offset and KINDS' fields ("P" is three)."""
+    spec = KINDS.get(kind) or []
+    return "\t".join(line.split("\t")[:2 + sum(3 if n == "P" else 1 for n in spec)])
+
+
 def parse_record(kind: str, fields: list[str]) -> dict:
+    """The known fields of a record; anything past its spec, or every field
+    of a kind KINDS doesn't know, is left out (rec_keys)."""
     spec = KINDS.get(kind)
     out: dict = {}
     if spec is None:
-        if fields:
-            out["args"] = "\t".join(fields)
         return out
     i = 0
     for name in spec:
@@ -677,8 +705,6 @@ def parse_record(kind: str, fields: list[str]) -> dict:
         if i < len(fields) and fields[i] != "":
             out[name] = _scalar(name, fields[i])
         i += 1
-    if i < len(fields) and any(fields[i:]):
-        out["args"] = "\t".join(fields[i:])
     if kind == "pos" and isinstance(out.get("speed"), int):
         out["speed"] = out["speed"] / 10  # tenths of a yard per second
     if kind == "map" and "map" in out:  # a map's projection, not a position
@@ -927,8 +953,10 @@ def extract_recorder(sessions: list[dict], map_types: dict, char_ids: dict, stat
             key = f"{cid}:{seq}"
             if r["idx"] <= done.get(key, 0):
                 continue
+            keys = rec_keys(kind)
             out.emit({"_time": iso(r["t"]), "feed": "wow-recorder", "char": char, "kind": kind,
-                      "_msg": r["line"], "source_id": f"rec:{cid}:{seq}:{r['idx']}", **ev})
+                      "_msg": rec_line(kind, r["line"]), "source_id": f"rec:{cid}:{seq}:{r['idx']}",
+                      **{k: v for k, v in ev.items() if k in keys}})
         for c in s["chunks"]:
             key = f"{cid}:{c['seq']}"
             last_idx = c["recs"][-1]["idx"] if c["recs"] else 0
@@ -998,20 +1026,21 @@ def extract_polestar(acct: Path, char_dirs: list[Path], sessions, char_ids, stat
         # Players Polestar's version probe asked: same faction, targeted or moused
         # over out of combat, outside groups, guilds, instances and rest areas;
         # one per player a week, at most 10 a session (Polestar/Core/Update.lua).
+        # Only what the People tab shows goes (PLAYER_KEYS): the name, when and
+        # the zone. Never their realm (security review H1).
         probed = ((pdb.get("update") or {}).get("probed")) or {}
         for raw, at in probed.items():
             if not isinstance(at, (int, float)) or not isinstance(raw, str):
                 continue
-            player, realm = player_of(raw)
+            player = player_of(raw)[0]
             sid = f"player:probed:{player}:{int(at)}"
             if not once(sid):
                 continue
-            char, zone, map_id = where_at(sessions, char_ids, map_names, at)
+            char, zone, _ = where_at(sessions, char_ids, map_names, at)
             char = char or (alts_latest[0] if alts_latest else None)
             out.emit({"_time": iso(at), "feed": "wow-player", "char": char, "source_id": sid,
                       "_msg": f"seen {player}" + (f" in {zone}" if zone else ""),
-                      "player": player, "player_realm": realm, "context": "seen", "source": "polestar-probe",
-                      "zone": zone, "map_id": map_id})
+                      "player": player, "context": "seen", "source": "polestar-probe", "zone": zone})
 
     for cdir in char_dirs:
         char = char_of(cdir.parent.name)
@@ -1913,6 +1942,46 @@ CL_GUID = re.compile(r"^(?:[A-Za-z]+-\d|0000000000000000$)")
 AFFIL_MINE, AFFIL_GROUP = 0x1, 0x2 | 0x4
 TYPE_PLAYER = 0x400
 PLAYER_BUCKET_S = 600
+# What a combat log line sends (security review H1): its event, the zone, and
+# who did it to whom, where "who" is your own character or a creature. Any
+# other player is ANOTHER_PLAYER: no name, realm or GUID of theirs leaves the
+# PC in wow-combatlog, and never the raw line (`_msg` is built from these).
+# The People tab's names come from the wow-player events (PLAYER_KEYS).
+# wowstats/otherplayers.py holds the same code for 0.6.x shippers' raw lines;
+# tests/test_otherplayers.py keeps the two equal.
+ANOTHER_PLAYER = "another player"
+CL_KEYS = frozenset({"event", "zone", "source_name", "dest_name"})
+PLAYER_KEYS = frozenset({"player", "context", "zone", "level", "class", "race", "dungeon", "source"})
+
+
+def cl_standard(cols: list[str]) -> bool:
+    """The standard source/dest prefix: GUID, name, flags, raid flags, twice
+    (COMBATANT_INFO also opens with a player's GUID, then numbers)."""
+    return len(cols) >= 8 and bool(CL_GUID.match(cols[0])) and cols[2][:2] == cols[6][:2] == "0x"
+
+
+def cl_fields(event: str, cols: list[str], mine: set[str]) -> dict:
+    """A combat log line's sent fields (CL_KEYS and `_msg`) from its event and
+    columns. `mine`: our characters, in the character-folder form."""
+    ev = {"event": event}
+    if event == "ZONE_CHANGE" and len(cols) >= 2:
+        ev["zone"] = cols[1]
+    if cl_standard(cols):
+        for key, guid, name, flags in (("source_name", *cols[0:3]), ("dest_name", *cols[4:7])):
+            if not name or name == "nil":
+                continue
+            if guid.startswith("Player-"):
+                try:
+                    own = int(flags, 16) & AFFIL_MINE
+                except ValueError:
+                    own = 0
+                folder = unicodedata.normalize("NFC", name.partition("-")[0].strip()).replace(" ", "-")
+                if not own and folder not in mine:
+                    name = ANOTHER_PLAYER
+            ev[key] = name
+    who = " > ".join(ev[k] for k in ("source_name", "dest_name") if k in ev)
+    ev["_msg"] = " ".join(x for x in (event, ev.get("zone"), who) if x)
+    return ev
 
 
 def cl_time(m: re.Match) -> float:
@@ -1967,12 +2036,12 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
             t = cl_time(m)
             event, rest = m.group(9), m.group(10) or ""
             cols = next(csv.reader([rest]), []) if rest else []
-            ev = {"_time": iso(t), "feed": "wow-combatlog", "char": char, "event": event, "_msg": line,
-                  "source_id": f"cl:{path.name}:{offset}", "zone": fs.get("zone")}
+            ev = {"_time": iso(t), "feed": "wow-combatlog", "char": char,
+                  "source_id": f"cl:{path.name}:{offset}", "zone": fs.get("zone"),
+                  **cl_fields(event, cols, our_chars | {char} if char else our_chars)}
             if event == "ZONE_CHANGE" and len(cols) >= 2:
-                fs["zone"] = ev["zone"] = cols[1]
-            if len(cols) >= 7 and CL_GUID.match(cols[0]):  # the standard source/dest prefix
-                ev["source_name"], ev["dest_name"] = cols[1] if cols[1] != "nil" else None, cols[5] if cols[5] != "nil" else None
+                fs["zone"] = cols[1]
+            if cl_standard(cols):
                 for guid, name, flags in ((cols[0], cols[1], cols[2]), (cols[4], cols[5], cols[6])):
                     if not guid.startswith("Player-"):
                         continue
@@ -1980,7 +2049,7 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
                         fl = int(flags, 16)
                     except ValueError:
                         continue
-                    player, realm = player_of(name)
+                    player = player_of(name)[0]
                     if fl & AFFIL_MINE or player in our_chars:
                         continue
                     bucket = int(t // PLAYER_BUCKET_S * PLAYER_BUCKET_S)
@@ -1991,8 +2060,7 @@ def extract_combatlogs(our_chars: set[str], fallback_char: str | None, state: di
                     ctx = "grouped" if fl & AFFIL_GROUP else "combat"
                     out.emit({"_time": iso(t), "feed": "wow-player", "char": char, "source_id": sid,
                               "_msg": f"{ctx} {player}" + (f" in {fs['zone']}" if fs.get("zone") else ""),
-                              "player": player, "player_realm": realm, "context": ctx, "source": "combatlog",
-                              "zone": fs.get("zone")})
+                              "player": player, "context": ctx, "source": "combatlog", "zone": fs.get("zone")})
             out.emit(ev)
         fs["offset"] = pos
     cutoff = time.time() - 2 * 86400
@@ -2023,26 +2091,47 @@ def extract_tree(wtf: Path, state: dict, out: Out, live: bool = True) -> list[di
         cdirs = char_sv_dirs(acct)
         for d in cdirs:
             for db in read_sv_versions(d / "Polestar_Recorder.lua"):
-                cid = (db.get("PolestarRecorderCharDB") or {}).get("id")
+                cid = (db.get("PolestarRecorderCharDB") or {}).get("id") if isinstance(db, dict) else None
                 if isinstance(cid, str):
                     char_ids[cid] = char_of(d.parent.name)
-        chunks, map_types = load_chunks([acct / "SavedVariables"])
-        merge_chunks(chunks, client_chunks_of(acct))
-        sessions = sessions_of(chunks)
-        extract_recorder(sessions, map_types, char_ids, state, out)
-        chars = roster(acct)
-        latest = extract_polestar(acct, cdirs, sessions, char_ids, state, out)
+
+        def recorder():
+            chunks, map_types = load_chunks([acct / "SavedVariables"])
+            merge_chunks(chunks, client_chunks_of(acct))
+            found = sessions_of(chunks)
+            extract_recorder(found, map_types, char_ids, state, out)
+            return found
+
+        sessions = step("recorder", recorder) or []
+        chars = step("roster", roster, acct) or {}
+        latest = step("polestar", extract_polestar, acct, cdirs, sessions, char_ids, state, out)
         if not live:
             chars = {k: c for k, c in chars.items() if "polestar" in c["sources"]}
-        extract_roster(chars, state, out)
-        extract_gear(acct, chars, state, out)
-        extract_inventory(acct, chars, state, out)
-        extract_played(acct, chars, state, out)
-        extract_quests(acct, chars, state, out)
-        extract_talents(acct, chars, state, out)
-        extract_auctionator(acct, latest or (char_of(cdirs[-1].parent.name) if cdirs else None), state, out)
+        step("roster", extract_roster, chars, state, out)
+        step("gear", extract_gear, acct, chars, state, out)
+        step("inventory", extract_inventory, acct, chars, state, out)
+        step("played", extract_played, acct, chars, state, out)
+        step("quests", extract_quests, acct, chars, state, out)
+        step("talents", extract_talents, acct, chars, state, out)
+        step("auctionator", extract_auctionator, acct,
+             latest or (char_of(cdirs[-1].parent.name) if cdirs else None), state, out)
         all_sessions += sessions
     return all_sessions
+
+
+def step(name: str, fn, *args):
+    """One extraction step: an addon file the parser didn't expect (a string
+    where a table should be, a field of another type) skips that step for
+    this run, logged, and every other step, the shipping and the update
+    check go on (client review 2026-11-20, M1: one bad file stopped them all,
+    so not even an update that fixes it could arrive)."""
+    try:
+        return fn(*args)
+    except Exception as e:  # noqa: BLE001 - see above; the log keeps the bug
+        tb = traceback.extract_tb(e.__traceback__)
+        where = f" at line {tb[-1].lineno}" if tb else ""
+        log(f"extract: {name} skipped this run ({type(e).__name__}: {str(e)[:200]}{where})")
+        return None
 
 
 def our_characters(wtf: Path) -> tuple[set[str], str | None]:
@@ -2201,7 +2290,10 @@ def post(url: str, headers: dict, body: bytes) -> int | None:
     the write sends the lines twice; queries dedupe on source_id."""
     req = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=180) as r:
+        # No redirects: one would carry the upload password to another host,
+        # and its 200 would move the spool to sent/ unstored (client review
+        # 2026-11-20, L1). A 3xx is an answer like any other: the spool waits.
+        with urllib.request.build_opener(_NoRedirect).open(req, timeout=180) as r:
             return r.status
     except urllib.error.HTTPError as e:
         return e.code
@@ -2307,10 +2399,20 @@ def ship() -> None:
 # ---------------------------------------------------------------------------
 
 def load_state() -> dict:
+    """The state, {} when there is none. A corrupt one (a crash mid-write on
+    an old version, a disk error) is kept aside as state.json.corrupt and
+    the run starts over from {}: the events it repeats carry the same
+    source_id, which queries dedupe (client review 2026-11-20, M1)."""
     try:
-        return json.loads(STATE.read_text())
+        state = json.loads(STATE.read_text())
     except FileNotFoundError:
         return {}
+    except (OSError, ValueError) as e:
+        log(f"state.json unreadable ({type(e).__name__}): kept as state.json.corrupt, starting over")
+        with contextlib.suppress(OSError):
+            os.replace(STATE, STATE.with_name("state.json.corrupt"))
+        return {}
+    return state if isinstance(state, dict) else {}
 
 
 def save_state(state: dict) -> None:
@@ -2615,6 +2717,9 @@ def setup_event(state: dict, out: Out, force: bool) -> None:
     """The setup report with a send (force: other events go), when it
     changed, and once a day: /start and the pages read the newest one."""
     rep = setup_report(WOW)
+    refused = (state.get("update") or {}).get("refused")
+    if refused:  # the auto-update's last refusal (check_update), for the owner's overview
+        rep["update_refused"] = str(refused)
     digest = hashlib.sha256(json.dumps(rep, sort_keys=True).encode()).hexdigest()[:16]
     last = state.get("setup") or {}
     now = time.time()
@@ -2634,7 +2739,7 @@ def server_check() -> tuple[bool, str, bool]:
     url, headers = settings
     try:
         req = urllib.request.Request(url, data=b"", headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=20) as r:
+        with urllib.request.build_opener(_NoRedirect).open(req, timeout=20) as r:  # as post(): no redirects
             code = r.status
     except urllib.error.HTTPError as e:
         code = e.code
@@ -2842,12 +2947,19 @@ def db2_path(table: str) -> str:
 class Blte:
     """One BLTE-encoded file, its blocks decoded as they are read."""
 
-    def __init__(self, data: bytes, blank_encrypted: bool = False):
+    def __init__(self, data: bytes, blank_encrypted: bool = False, limit: int = CASC_MAX_SYSTEM, depth: int = 0):
         # Client tables keep their hidden rows in encrypted blocks inside an
         # otherwise plain file (no key here): with `blank_encrypted` those
         # blocks read as zeros, as wow.export does, and the table reader
         # skips their sections. `blanked` says it happened.
-        self.blank_encrypted, self.blanked = blank_encrypted, False
+        # `limit`: the most the whole file may decode to, checked against the
+        # declared sizes before anything is inflated, and each block held to
+        # its own declared size (client review 2026-11-20, L3: 81 KB on disk
+        # declared 16 bytes and decoded to 80 MB). `depth`: a block that is
+        # itself BLTE (mode F) nests once or twice at most.
+        self.blank_encrypted, self.blanked, self.limit, self.depth = blank_encrypted, False, limit, depth
+        if depth > 2:
+            raise CascMissing("BLTE nested too deep")
         if data[:4] != b"BLTE":
             raise CascMissing("not a BLTE file")
         header = struct.unpack_from(">I", data, 4)[0]
@@ -2875,6 +2987,8 @@ class Blte:
             self.starts.append(at)
             at += max(dec, 0)
         self.size = at if all(b[2] >= 0 for b in self.blocks) else -1
+        if self.size > limit:
+            raise CascMissing("too large")
 
     def block(self, i: int) -> bytes:
         if i not in self.cache:
@@ -2886,7 +3000,7 @@ class Blte:
                 self.blanked = True
                 self.cache[i] = bytes(dec)
             else:
-                self.cache[i] = _blte_block(raw)
+                self.cache[i] = _blte_block(raw, dec, self.limit, self.depth)
         return self.cache[i]
 
     def md5(self) -> bytes:
@@ -2919,21 +3033,27 @@ class Blte:
         return b"".join(out)
 
 
-def _blte_block(raw: bytes) -> bytes:
+def _blte_block(raw: bytes, dec: int = -1, limit: int = CASC_MAX_SYSTEM, depth: int = 0) -> bytes:
+    """One block, decoded to at most its declared size `dec` (-1: unknown,
+    then `limit`); a block that decodes to more, or less, is refused."""
+    cap = dec if 0 <= dec <= limit else limit
     mode = raw[:1]
     if mode == b"N":
-        return raw[1:]
-    if mode == b"Z":
+        out = raw[1:]
+    elif mode == b"Z":
         d = zlib.decompressobj()
-        out = d.decompress(raw[1:], CASC_MAX_SYSTEM + 1)
-        if len(out) > CASC_MAX_SYSTEM or d.unconsumed_tail:
+        out = d.decompress(raw[1:], cap + 1)
+        if len(out) > cap or d.unconsumed_tail:
             raise CascMissing("a BLTE block is too large")
-        return out
-    if mode == b"F":
-        return Blte(raw[1:]).read()
-    if mode == b"E":
+    elif mode == b"F":
+        out = Blte(raw[1:], limit=cap, depth=depth + 1).read()
+    elif mode == b"E":
         raise CascMissing("encrypted")
-    raise CascMissing(f"BLTE mode {mode!r} isn't supported")
+    else:
+        raise CascMissing(f"BLTE mode {mode!r} isn't supported")
+    if dec >= 0 and len(out) != dec:
+        raise CascMissing("a BLTE block isn't its declared size")
+    return out
 
 
 def _config(text: str) -> dict[str, str]:
@@ -3204,6 +3324,8 @@ class Casc:
             page = struct.unpack_from(">H", head, 5)[0] * 1024
             pages = struct.unpack_from(">I", head, 9)[0]
             espec = struct.unpack_from(">I", head, 18)[0]
+            if blte.size >= 0 and 22 + espec + pages * (ck + 16) > blte.size:  # client review L3
+                raise CascError("bad encoding file (its page count runs past its end)")
             index = blte.read(22 + espec, pages * (ck + 16))
             firsts = [index[i * (ck + 16):i * (ck + 16) + ck] for i in range(pages)]
             self._enc = (blte, ck, ek, page, 22 + espec + pages * (ck + 16), firsts, {})
@@ -3384,7 +3506,7 @@ class Casc:
         plain blocks are still checked one by one, and `self.blanked`
         collects the content keys that came out partial."""
         def checked(raw: bytes) -> bytes:
-            blte = Blte(raw, blank_encrypted=table)
+            blte = Blte(raw, blank_encrypted=table, limit=CASC_MAX_FILE)
             data = blte.read()
             if len(data) > CASC_MAX_FILE:
                 raise CascMissing("too large")
@@ -3675,17 +3797,126 @@ def _diagnose_place(casc: Casc, ek: bytes, archive: int, offset: int, size: int)
     return line
 
 
+# ---------------------------------------------------------------- Ed25519 (verify only)
+
+# The update's signature check (check_update). Python's standard library has
+# no Ed25519, and the shipper takes no dependency, so this is the reference
+# code of RFC 8032 section 6 (Simplified BSD License, IETF Trust), verify
+# half, unchanged but for names and two fixes: a wrong-length signature or
+# key returns False instead of passing through. Slow (tens of ms) and not
+# constant-time, which a check of public data doesn't need. Test vectors:
+# tests/test_shipper_signing.py (RFC 8032 section 7.1).
+_ED_P = 2 ** 255 - 19
+_ED_Q = 2 ** 252 + 27742317777372353535851937790883648493
+_ED_D = -121665 * pow(121666, _ED_P - 2, _ED_P) % _ED_P
+_ED_SQRT_M1 = pow(2, (_ED_P - 1) // 4, _ED_P)
+
+
+def _ed_add(P, Q):
+    A, B = (P[1] - P[0]) * (Q[1] - Q[0]) % _ED_P, (P[1] + P[0]) * (Q[1] + Q[0]) % _ED_P
+    C, D = 2 * P[3] * Q[3] * _ED_D % _ED_P, 2 * P[2] * Q[2] % _ED_P
+    E, F, G, H = B - A, D - C, D + C, B + A
+    return (E * F, G * H, F * G, E * H)
+
+
+def _ed_mul(s: int, P):
+    Q = (0, 1, 1, 0)
+    while s > 0:
+        if s & 1:
+            Q = _ed_add(Q, P)
+        P = _ed_add(P, P)
+        s >>= 1
+    return Q
+
+
+def _ed_equal(P, Q) -> bool:
+    return (P[0] * Q[2] - Q[0] * P[2]) % _ED_P == 0 and (P[1] * Q[2] - Q[1] * P[2]) % _ED_P == 0
+
+
+def _ed_recover_x(y: int, sign: int) -> int | None:
+    if y >= _ED_P:
+        return None
+    x2 = (y * y - 1) * pow(_ED_D * y * y + 1, _ED_P - 2, _ED_P)
+    if x2 == 0:
+        return None if sign else 0
+    x = pow(x2, (_ED_P + 3) // 8, _ED_P)
+    if (x * x - x2) % _ED_P != 0:
+        x = x * _ED_SQRT_M1 % _ED_P
+    if (x * x - x2) % _ED_P != 0:
+        return None
+    if (x & 1) != sign:
+        x = _ED_P - x
+    return x
+
+
+_ED_GY = 4 * pow(5, _ED_P - 2, _ED_P) % _ED_P
+_ED_GX = _ed_recover_x(_ED_GY, 0)
+_ED_G = (_ED_GX, _ED_GY, 1, _ED_GX * _ED_GY % _ED_P)
+
+
+def _ed_compress(P) -> bytes:
+    zinv = pow(P[2], _ED_P - 2, _ED_P)
+    x, y = P[0] * zinv % _ED_P, P[1] * zinv % _ED_P
+    return int.to_bytes(y | ((x & 1) << 255), 32, "little")
+
+
+def _ed_decompress(s: bytes):
+    if len(s) != 32:
+        return None
+    y = int.from_bytes(s, "little")
+    sign = y >> 255
+    y &= (1 << 255) - 1
+    x = _ed_recover_x(y, sign)
+    return None if x is None else (x, y, 1, x * y % _ED_P)
+
+
+def _ed_hash_q(b: bytes) -> int:
+    return int.from_bytes(hashlib.sha512(b).digest(), "little") % _ED_Q
+
+
+def ed25519_verify(public: bytes, msg: bytes, signature: bytes) -> bool:
+    if len(public) != 32 or len(signature) != 64:
+        return False
+    A = _ed_decompress(public)
+    if not A:
+        return False
+    Rs = signature[:32]
+    R = _ed_decompress(Rs)
+    if not R:
+        return False
+    s = int.from_bytes(signature[32:], "little")
+    if s >= _ED_Q:
+        return False
+    h = _ed_hash_q(Rs + public + msg)
+    return _ed_equal(_ed_mul(s, _ED_G), _ed_add(R, _ed_mul(h, A)))
+
+
 # ---------------------------------------------------------------- auto-update
 
 # Once every 2 hours at most, after the run's own work: the shipper asks the
 # server it ships to for the current version (GET <base>/install/update/shipper,
 # with the upload password) and, when it is newer, takes the file from the same
-# server, checks its sha256 and that it compiles, then replaces itself (the old
-# copy stays as wow_stats.py.prev). The new version runs from the next run on.
-# Same trust as the update command, no wider: the same server, the same
-# password, HTTPS (or this computer). Never a downgrade; any failure keeps the
-# running version and logs one line. `auto_update = false` in the config pins it.
+# server, checks it against the release's signature, checks that it compiles,
+# then replaces itself (the old copy stays as wow_stats.py.prev). The new
+# version runs from the next run on.
+#
+# The signature (security review 2026-11-20, finding 2): each release signs a
+# statement of its version and every shipper file's sha256 with the project's
+# Ed25519 key (tools/release/shipper_sign.py, in release.yml's sign job), and
+# the server serves that statement as it is. The shipper takes only what the
+# statement names and checks it with UPDATE_KEY, so whoever takes over a
+# server can't push code to the players' computers: no valid signature, no
+# update. A failed check keeps the running version and says why in the log
+# and in the setup report (the owner's overview shows it); the update line
+# on the start page still works by hand. Never a downgrade; any failure keeps
+# the running version and logs one line. `auto_update = false` in the config
+# pins it.
 UPDATE_EVERY_S = 2 * 3600  # owner, 2026-11-20: every 2 hours for now (was 6)
+# The public half of the key releases are signed with (Ed25519, hex). A
+# self-hoster who builds their own shipper pins their own key here with
+# `tools/release/shipper_sign.py sign --key <file> --pin` (docs/self-host/
+# upgrade.md, "Signing your own build").
+UPDATE_KEY = "b3f7c6004ecadefdbcc43ddcccab28fbe1e17f2910d2b12611bb2b7bd0f11990"
 UPDATE_PATH = "/install/update/shipper"
 UPDATE_MAX_BYTES = 8 * 1024 * 1024
 # The files that define the background program, per platform: when the
@@ -3764,6 +3995,32 @@ def _fetch(url: str, headers: dict, limit: int) -> bytes:
     if len(data) > limit:
         raise UpdateError(f"{url.rsplit('/', 1)[-1]} is over {limit} bytes")
     return data
+
+
+def signed_release(man: dict) -> dict:
+    """The release statement in the manifest's `signature`, once its
+    signature checks out with UPDATE_KEY: {"version", "files": {name:
+    {"sha256", "size"}}}. UpdateError otherwise."""
+    sig = man.get("signature")
+    if not isinstance(sig, dict):
+        raise UpdateError("the server's update isn't signed (a build without the release signature)")
+    statement, signature = sig.get("statement"), sig.get("signature")
+    try:
+        raw = base64.b64decode(str(signature), validate=True)
+        ok = isinstance(statement, str) and ed25519_verify(bytes.fromhex(UPDATE_KEY), statement.encode(), raw)
+    except ValueError:
+        ok = False
+    if not ok:
+        raise UpdateError("the update's signature doesn't match this shipper's key")
+    try:
+        rel = json.loads(statement)
+    except ValueError:
+        rel = None
+    if not isinstance(rel, dict) or not isinstance(rel.get("files"), dict):
+        raise UpdateError("the signed statement isn't a release")
+    if str(rel.get("version")) != str(man.get("version")):
+        raise UpdateError(f"the signed release is {rel.get('version')}, the server announces {man.get('version')}")
+    return rel
 
 
 def _verified(base: str, headers: dict, files: dict, name: str) -> bytes:
@@ -3860,8 +4117,9 @@ def check_update(state: dict, now: float | None = None) -> str | None:
         if new_v is None:
             raise UpdateError("the server names no version")
         if cur_v is not None and new_v <= cur_v:  # never a downgrade
+            up.pop("refused", None)
             return "current"
-        files = man.get("files")
+        files = signed_release(man)["files"]
         new = _verified(base, headers, files, "wow_stats.py")
         try:
             compile(new, str(SELF), "exec")
@@ -3881,7 +4139,9 @@ def check_update(state: dict, now: float | None = None) -> str | None:
         apply_update(new)
     except (UpdateError, OSError) as e:
         log(f"auto-update: {e}; keeping {VERSION}")
+        up["refused"] = str(e)[:200]
         return "kept"
+    up.pop("refused", None)
     log(f"auto-update: {VERSION} -> {man['version']}, from the next run on"
         + ("; the background program is set up again" if agent else ""))
     if agent:
@@ -4141,22 +4401,26 @@ def main() -> int:
 
     state = load_state()
     out = Out(dry=False)
+    failed = False
     try:
         if a.backfill:
             backfill(state, out)
-        load_client(state)  # after the backfill: the current tree's pass takes them, once
+        step("Polestar Client", load_client, state)  # after the backfill: the current tree's pass takes them, once
         extract_tree(tree, state, out)
         ours, latest = our_characters(tree)
-        extract_combatlogs(ours, latest, state, out)
+        step("combat log", extract_combatlogs, ours, latest, state, out)
         setup_event(state, out, force=bool(out.counts))
-    except Exception:
+    except Exception:  # noqa: BLE001 - what is spooled still ships, and an update may bring the fix
         out.discard()
-        raise
-    spooled = out.close()  # the spool first: a crash before the state only repeats events
-    save_state(state)
-    if spooled:
-        log(f"extract: {spooled.name}:", json.dumps(dict(sorted(out.counts.items()))))
-        log(f"extract: {spooled.name}:", out.summary())
+        log("extract failed; sending what is spooled:\n" + traceback.format_exc())
+        failed = True
+        state = load_state()  # without this run's half-done marks: the next run extracts it again
+    if not failed:
+        spooled = out.close()  # the spool first: a crash before the state only repeats events
+        save_state(state)
+        if spooled:
+            log(f"extract: {spooled.name}:", json.dumps(dict(sorted(out.counts.items()))))
+            log(f"extract: {spooled.name}:", out.summary())
     if not a.no_ship:
         ship()
         try:
@@ -4168,7 +4432,7 @@ def main() -> int:
         except Exception as e:  # noqa: BLE001 - an update bug never stops the shipping
             log(f"auto-update: {type(e).__name__}: {e}; keeping {VERSION}")
         save_state(state)
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
