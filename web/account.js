@@ -174,6 +174,17 @@
     warn.hidden = !fix;
     // A shipper from before the auto-update: the update command, once.
     fill("update-once").hidden = !st.update_once;
+    // One that should have updated itself by now and didn't: the same command.
+    var behind = st.update_by_hand, hand = fill("update-by-hand");
+    hand.textContent = "";
+    if (behind) {
+      hand.appendChild(document.createTextNode("The program on your computer is version " + behind.have +
+        " and this site has " + behind.server + ": it didn't update itself (its settings may say " +
+        "auto_update = false). "));
+      hand.appendChild(el("a", { href: "#f-update", "data-open": "f-update", text: "Run the update command" }));
+      hand.appendChild(document.createTextNode(" to catch up: it keeps your settings."));
+    }
+    hand.hidden = !behind;
   }
 
   // No address: the friends list gave this person a name that is taken or

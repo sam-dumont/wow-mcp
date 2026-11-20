@@ -281,7 +281,7 @@ def test_working_and_broken_say_so_in_one_line(site, pw, engine):
     assert re.search(r"Last data 2 hours ago, for Testfriend", hero.inner_text())
     assert hero.locator("a.btn[href='/']").is_visible()
     assert not hero.locator(".warn").is_visible()
-    assert not hero.locator(".once").is_visible()  # its shipper updates itself
+    assert not hero.locator(".once:visible").count()  # its shipper updates itself
     assert re.search(r"Your addons: \d+ sending", pg.locator("#f-addons summary").inner_text())
     open_folds(pg)
     # Every older function, one fold away.
@@ -353,7 +353,7 @@ def test_working_and_broken_say_so_in_one_line(site, pw, engine):
     h1 = pg.locator(".hero[data-in=ok] h1")
     assert h1.inner_text().strip().lower() == "last data 5 days ago" and "quiet" in h1.get_attribute("class")
     # No setup report with a version: a shipper from before the auto-update.
-    once = pg.locator(".hero[data-in=ok] .once")
+    once = pg.locator(".hero[data-in=ok] [data-fill=update-once]")
     assert once.is_visible() and "update command once" in once.inner_text()
     once.locator("[data-open=f-update]").click()
     assert pg.locator("#f-update").evaluate("(d) => d.open") and "install/update" in pg.locator("#f-update").inner_text()
@@ -400,6 +400,32 @@ def test_a_status_change_leaves_the_reader_alone(site, pw, engine):
     c.close()
     assert not errors, errors
     b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_a_shipper_that_stayed_behind_gets_the_update_command(site, pw, engine, monkeypatch):
+    """Its setup report (version 0.5.1, an hour ago) still names an older
+    version long after this server started serving a newer one: auto_update
+    off, or an update it refused. One line, with the update command's fold."""
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"no {engine}: {e}")
+    monkeypatch.setattr(account, "STARTED", 0)
+    account.STATUS._c.clear()
+    try:
+        c, pg, errors = open_start(b, site, "ok", 390)
+        line = pg.locator(".hero[data-in=ok] [data-fill=update-by-hand]")
+        assert line.is_visible() and not pg.locator("[data-fill=update-once]").is_visible()
+        server = json.loads(account.shipper_manifest())["version"]
+        assert line.inner_text().startswith(f"The program on your computer is version 0.5.1 and this site has {server}")
+        line.locator("a", has_text="Run the update command").click()
+        assert pg.locator("#f-update").evaluate("(d) => d.open")
+        c.close()
+        assert not errors, errors
+    finally:
+        account.STATUS._c.clear()
+        b.close()
 
 
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])

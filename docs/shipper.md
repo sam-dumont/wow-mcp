@@ -90,7 +90,8 @@ What it never does:
   updates itself, not a git checkout.
 
 To pin the version you have, put this at the top of the config, next to
-`wow_dir`:
+`wow_dir` (your start page then gives the update command once the server
+has had a newer version for 7 hours):
 
 ```toml
 auto_update = false

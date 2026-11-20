@@ -35,6 +35,21 @@ pytest.importorskip("cryptography")
 from cryptography.exceptions import InvalidTag  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def own_planner_inputs(monkeypatch):
+    """Every publish here reads the planner's inputs from its own fake store,
+    never a cached gather. The Dungeons panel asks plan.inputs, which keeps
+    a gather two minutes per character in the process: run one after the
+    other, the publishes below `site` found its poisoned store's gather in
+    that cache, and on their own (a pytest-xdist worker that ran no `site`
+    test first) they built a real store and asked vl.invalid."""
+    from wowstats import plan
+    from wowstats.plan import facts
+
+    monkeypatch.setattr(plan, "_CACHE", {})
+    monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
+
+
 @pytest.fixture
 def site(tmp_path, monkeypatch):
     def store(vl, archive="", vm="", *a, **k):

@@ -448,3 +448,68 @@ def test_a_bad_checksum_touches_no_addon(fresh_policy, recorder_release, shell):
     assert task(env) is not None
     wait_idle(env)  # a running task holds its folder open
     clean(env)
+
+
+def wow_tasks(env: dict) -> int:
+    """Scheduled tasks that run the shipper, whatever their name."""
+    _, out = ps("powershell", "@(Get-ScheduledTask | Where-Object { \"$($_.Actions.Arguments)\" -like "
+                "'*wow_stats.py*' }).Count", env, encoding="utf-8")
+    return int(out.strip().splitlines()[-1])
+
+
+@ON_WINDOWS_CI
+def test_a_061_install_updates_itself_to_070(fresh_policy, lab, recorder_release, monkeypatch):
+    """Most friends are on Windows: their 0.6.1 shipper (the real file, from
+    the v0.6.1 tag) takes 0.7.0 from the server on the task's next run, keeps
+    .prev, reruns the server's changed installer (the task rewritten, not a
+    second one) and ships as 0.7.0 on the run after."""
+    from tests.test_shipper_upgrade import Served, at_tag, release
+
+    env = profile_env(None)
+    clean(env)
+    write_wtf(BATTLENET_WOW, FIRST)
+    local = Path(env["LOCALAPPDATA"]) / "wow-stats"
+    script, state = local / "wow_stats.py", Path(env["USERPROFILE"]) / "WoWArchive" / "state.json"
+    h = friend_ready(lab)
+    u = lab.t.registry.get(FRIEND)
+    rc, out = ps("powershell", recorder_release() + install_line(lab, h), env)
+    assert rc == 0 and "wow-stats is installed." in out, out
+    wait_for(lab, u, lambda e: e.get("feed") == "wow-recorder", "recorder events", env)
+    wait_idle(env)
+
+    # What a 0.6.1 install looks like: its script, and the update check due.
+    old = at_tag("shipper/wow_stats.py")
+    script.write_bytes(old)
+    st = json.loads(state.read_text(encoding="utf-8"))
+    st.setdefault("update", {})["checked"] = 0
+    state.write_text(json.dumps(st), encoding="utf-8")
+    ps1 = account.shipper_file("install-windows.ps1") + b"# a release that changed the installer\r\n"
+    files = Served(monkeypatch).set("0.7.0", changed={"install-windows.ps1": ps1})
+    assert wow_tasks(env) == 1
+
+    # The task's run: 0.6.1 ships, updates, and starts the new installer.
+    rc, _ = ps("powershell", "Start-ScheduledTask -TaskName wow-stats", env)
+    assert rc == 0
+    log = local / "wow-stats.log"
+    deadline = time.time() + 300
+    while time.time() < deadline and not ((local / "install-windows.ps1").read_bytes() == ps1
+                                          and script.read_bytes() == files["wow_stats.py"]):
+        time.sleep(3)
+    text = log.read_text(encoding="utf-8", errors="replace")
+    assert "auto-update: 0.6.1 -> 0.7.0, from the next run on; the background program is set up again" in text, text
+    assert script.read_bytes() == files["wow_stats.py"] == release("0.7.0")
+    assert (local / "wow_stats.py.prev").read_bytes() == old
+    assert (local / "install-windows.ps1").read_bytes() == ps1, text  # the rerun installer's own copy
+    wait_idle(env)
+    t = task(env)
+    assert t is not None and str(script) in t["arguments"] and wow_tasks(env) == 1, t
+
+    # The next run is 0.7.0's: it ships and says so in its setup report.
+    write_wtf(BATTLENET_WOW, FIRST + [("bbbb", 2)])
+    rc, _ = ps("powershell", "Start-ScheduledTask -TaskName wow-stats", env)
+    assert rc == 0
+    wait_for(lab, u, lambda e: str(e.get("source_id", "")).startswith("rec:bbbb:2:"), "the new chunk", env)
+    wait_for(lab, u, lambda e: e.get("feed") == "wow-setup" and e.get("shipper") == "0.7.0",
+             "0.7.0's setup report", env)
+    wait_idle(env)
+    clean(env)

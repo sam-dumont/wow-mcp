@@ -53,6 +53,7 @@ from before 0.5.1 can't do that yet: run the installer again once
 `powershell -ExecutionPolicy Bypass -File .\shipper\install-windows.ps1` from the new
 copy; players on a friend's server run the update line from their start page,
 [Update](../players/getting-started.md#update)). It keeps your config and archive.
+0.6.x updates itself within 6 hours of the server moving to 0.7.0: no reinstall.
 
 To pin the shipper to the version it has, put `auto_update = false` at the top of its
 config.

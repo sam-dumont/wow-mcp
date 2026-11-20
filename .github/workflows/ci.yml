@@ -28,6 +28,11 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The release tags: tests/test_shipper_upgrade.py runs the v0.6.1
+          # shipper against this tree's server.
+          fetch-depth: 0
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       # The publish extra: the static bundles' allow-list tests need it. The
       # mcp extra: FastMCP, which tests/mcp drives in memory and over HTTP. The
@@ -100,14 +105,18 @@ jobs:
   # A friend's Windows path on a real Windows: the install line the app
   # hands out, the scheduled task, a ship to /ingest, the update, a reset and
   # the help's uninstall line, in Windows PowerShell 5.1 and PowerShell 7,
-  # with a fresh Windows's execution policy and an accented profile folder
-  # (tests/test_windows_e2e.py). No harden-runner: it supports Linux only.
+  # with a fresh Windows's execution policy and an accented profile folder,
+  # and a 0.6.1 install updating itself (tests/test_windows_e2e.py). No harden-runner: it supports Linux only.
   windows:
     if: github.repository_id == '1464458020'
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The release tags: the 0.6.1 shipper's update to this tree runs here too.
+          fetch-depth: 0
+          persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --frozen --extra publish --extra mcp
       - run: uv run pytest -v -rs -m ci_only tests/test_windows_e2e.py
