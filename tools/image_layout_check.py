@@ -21,7 +21,8 @@ def main(pyproject: str) -> int:
     pkg = Path(wowstats.__file__).resolve().parent
     bad: list[str] = []
     # Every file the wheel force-includes lands where the code expects it.
-    force = tomllib.loads(Path(pyproject).read_text(encoding="utf-8"))["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
+    conf = tomllib.loads(Path(pyproject).read_text(encoding="utf-8"))
+    force = conf["tool"]["hatch"]["build"]["targets"]["wheel"]["force-include"]
     for dest in force.values():
         if not (pkg.parent / dest).exists():
             bad.append(f"missing from the image: {dest}")
@@ -36,9 +37,9 @@ def main(pyproject: str) -> int:
         except Exception:
             continue  # optional extras; the smoke tests start the real apps
         for name, val in vars(mod).items():
-            if name.isupper() and isinstance(val, tuple) and val and all(isinstance(p, Path) for p in val):
-                if not any(p.exists() for p in val):
-                    bad.append(f"{m.name}.{name}: none of {[str(p) for p in val]} exists")
+            is_paths = name.isupper() and isinstance(val, tuple) and val and all(isinstance(p, Path) for p in val)
+            if is_paths and not any(p.exists() for p in val):
+                bad.append(f"{m.name}.{name}: none of {[str(p) for p in val]} exists")
     n = len(kbloot.drops("The Drowned City"))
     if n < MIN_DROPS:
         bad.append(f"kbloot: {n} drops for The Drowned City, expected >= {MIN_DROPS}")
