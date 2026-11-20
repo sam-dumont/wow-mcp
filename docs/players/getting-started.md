@@ -157,7 +157,7 @@ What the program sends, and what it never touches: [What's shared, and with whom
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
 - Addons: Update all in the CurseForge app.
-- The program updates itself, Polestar Recorder too, within a few hours of a new version: nothing to reinstall. Only an install from before 0.5.1 needs the update line once, and your start page says so.
+- The program updates itself, Polestar Recorder too, within a few hours of a new version: nothing to reinstall. When one didn't (an old install, or updates switched off), your start page shows the update line.
 - New computer or leaked upload password: Reset my upload password on your start page, then run the new install command.
 
 <details>

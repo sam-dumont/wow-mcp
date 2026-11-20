@@ -564,7 +564,7 @@ def block_update() -> str:
     out = [f"- {text(u)}" for u in st["update"]]
     upd = next((s["update"] for s in st["steps"] if s.get("update")), {})
     if upd:
-        # Only an install from before 0.5.1 needs it: folded.
+        # Only a shipper that didn't update itself needs it: folded.
         out += ["", "<details>", "<summary>The update line, when your start page asks for it</summary>", "",
                 *clip(st.get("update_media"), "an update"), "No code needed:", ""]
         for key, label in (("windows", "Windows (PowerShell)"), ("mac", "Mac (Terminal)")):
