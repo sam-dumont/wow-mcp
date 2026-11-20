@@ -13,7 +13,12 @@ the computer you play on:
   in, kills, deaths, flights, guide steps, dungeon runs, gold at logout, and the players you
   crossed paths with.
 - **Auctionator**: your own auction house scans, one price per item and day.
-- **The combat log** (`Logs/WoWCombatLog*.txt`), when you turn it on in game.
+- **The combat log** (`Logs/WoWCombatLog*.txt`), when you turn it on in game: its events,
+  parsed. Only your own character and creatures are named; any other player is "another
+  player". The players it saw go to the People list by name only.
+- **Other players**, everywhere: only what the People tab shows (name, when, zone, how you
+  met). No realm, no game id, and nothing a Recorder version records beyond what the shipper
+  knows ([The event contract](../contract.md), `wow-player`).
 - **Syndicator** and the `WTF` character folders: every character of the account with its
   race, class, gold and the gear it wears. Sex and guild come from Battle.net, when you set it
   up.

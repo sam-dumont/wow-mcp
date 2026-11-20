@@ -455,8 +455,9 @@ see it too, plus a few logs listed below.</p>
 <ul>
 <li>What your addons save in your WoW folder (Polestar, Polestar Recorder and the optional ones you
 installed): your characters, their levels, quests, zones, deaths, dungeons, gear, gold, and the auction
-prices you scanned. Also the names of other players your game showed you: in groups, nearby, and in your
-combat logs if you turned combat logging on.</li>
+prices you scanned. Also the names of other players your game showed you, with when and where: in
+groups, nearby in your combat logs if you turned combat logging on, and the ones you targeted. Never their
+realm or game id; your combat log names only you and the monsters.</li>
 <li>What you or your AI write down: the goals you gave the play analysis (up to 600 characters), what you
 asked a plan to work around (up to 300 characters), and the findings the analysis kept about your play.</li>
 <li>Your login's id (a number from the login service) and your page's name, set by the owner. No email address, no

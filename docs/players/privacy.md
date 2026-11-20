@@ -11,6 +11,11 @@ folder, and sends them to the server you were invited to, with your own upload p
 
 - **Sent:** your addons' saved files (every character), and WoW's combat logs if you turned
   combat logging on.
+- **About other players, only this:** the name (no realm) of a player you grouped with, one
+  your combat log saw nearby, or one you targeted or moused over that Polestar noted, with
+  when and in which zone. That's what the People tab shows. Your combat log goes as "who did
+  what to whom", where anyone but you and the monsters is "another player": never their name,
+  realm or game id, never the raw line.
 - **Never sent:** your WoW or Battle.net password, your Battle.net account name, anything
   outside the WoW folder.
 - **Kept on your computer too:** a copy of everything it sent, in `WoWArchive` in your home
@@ -41,7 +46,10 @@ Hide a character from either page: Settings, Characters, untick it.
 ## What the owner can see
 
 - **Your game data**, including the names of other players your game showed you: in groups,
-  nearby, and in your combat logs.
+  nearby, and the ones you targeted. Their names only, with when and where (the list above).
+  Before version 0.7.0 of the program, your combat logs went line by line, with every player
+  in range: the person who runs the server can delete those lines (the operator's
+  [event contract](../contract.md)).
 - **What you or your AI write down**: the goals you gave the play analysis, what you asked a
   plan to work around, and the findings the analysis kept.
 - **The web server's log**: one line each time your browser, your AI or the program on your
