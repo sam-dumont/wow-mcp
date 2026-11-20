@@ -79,8 +79,8 @@ policy only, and my proxy shows a small sign-in page of its own, with one button
 on wow-stats without a session. The button links to ZITADEL's
 authorize URL with two reserved scopes: the friends org (`urn:zitadel:iam:org:id:<id>`) and
 the provider (`urn:zitadel:iam:org:idp:id:<id>`). ZITADEL then skips its own pages, goes
-straight to Battle.net, and a new account lands in the friends org. The AI's login does the
-same with `OIDC_BATTLENET_ORG_ID` and `OIDC_BATTLENET_IDP_ID`
+straight to Battle.net, and a new account lands in the friends org. The AI's consent page
+gets the same button from `OIDC_BATTLENET_ORG_ID` and `OIDC_BATTLENET_IDP_ID`
 ([Set up the login for your AI](oidc.md#a-battlenet-button-zitadel)).
 
 ## The webhook fills in the blanks

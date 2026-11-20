@@ -137,11 +137,13 @@ Keycloak lets in any user of the realm; `OIDC_ALLOWED_SUBS` is what keeps wow-st
 
 ### A Battle.net button (ZITADEL)
 
-Friends who sign in to their page with Battle.net need the same button when their AI logs in.
-With Battle.net as a provider in ZITADEL, set `OIDC_BATTLENET_ORG_ID` (the org your friends'
-accounts live in) and `OIDC_BATTLENET_IDP_ID` (the provider's id): the AI's login then offers
-**Battle.net**, which asks ZITADEL for that org and provider and goes straight to Battle.net.
-Leave both empty and the login is your provider's usual page. How I set up the provider:
+Friends who sign in to their page with Battle.net need the same button when their AI logs in:
+ZITADEL's own login page shows only the default org's sign-in methods. With Battle.net as a
+provider in ZITADEL, set both `OIDC_BATTLENET_ORG_ID` (the org your friends' accounts live in)
+and `OIDC_BATTLENET_IDP_ID` (the provider's id). The consent page then has **Sign in with
+Battle.net** next to **Allow Access**: it asks ZITADEL for that org and provider, so Battle.net
+opens straight away. **Allow Access** stays the normal login, for your own account. Both empty
+(the default): no button. How I set up the provider:
 [How I run it](how-i-run-it.md#battlenet-as-an-identity-provider).
 
 Every login setting: [Environment variables, the MCP endpoint](../reference/environment.md#the-mcp-endpoint-and-its-login).
