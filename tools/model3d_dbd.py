@@ -1,5 +1,6 @@
 """Writes data/dbd/: the WoWDBDefs definitions of the client tables the 3D
-view reads, trimmed to Forever's builds (wowstats.db2 reads them).
+view and the item facts read, trimmed to Forever's builds (wowstats.db2
+reads them).
 
 WoWDBDefs (github.com/wowdev/WoWDBDefs, CC BY-SA 4.0, THIRD_PARTY.md) has
 one .dbd file per table with every layout since 2004. The server only meets
@@ -33,6 +34,8 @@ TABLES = (
     "ItemAppearance", "ItemDisplayInfo", "ItemDisplayInfoMaterialRes", "ItemDisplayInfoModelMatRes",
     "ItemModifiedAppearance", "ItemVisuals", "ItemVisualsXEffect", "ModelFileData", "SpellItemEnchantment",
     "TextureFileData",
+    # The item facts' stat budget per item level (wowstats/itemfacts.py).
+    "RandPropPoints",
 )
 
 

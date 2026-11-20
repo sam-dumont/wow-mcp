@@ -34,6 +34,13 @@
 # it asks for. false: never; the 3D view then shows Battle.net's picture.
 # model3d_files = false
 
+# Item facts: when the game's hotfix cache (_forever_/Cache/ADB/<locale>/
+# DBCache.bin) holds weapons or armour the server's data doesn't have yet (a
+# new dungeon's drops), the shipper sends their facts: name, slot, item level,
+# stats. Read only, once per change of that file, only the items the server
+# asks for. false: never; those items then show by name only.
+# item_facts = false
+
 # Default: ~/Library/Logs/wow-stats.log (macOS),
 # %LOCALAPPDATA%\wow-stats\wow-stats.log (Windows).
 # log_file = "~/wow-stats.log"

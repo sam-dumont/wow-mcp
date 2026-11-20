@@ -326,7 +326,7 @@ def fetch_analysis(env: dict) -> dict:
     return {"available": bool(chars), "chars": chars}
 
 
-def put_items(b: Bundle, tier: str) -> int:
+def put_items(b: Bundle, tier: str, cards_of=None) -> int:
     """The tooltips of every item the bundle's answers name, and their icons
     (both sizes) under data/icon/, sealed in /zogzog/ like every data file:
     which icons a bundle holds would list its loot. Icons come from the
@@ -336,16 +336,19 @@ def put_items(b: Bundle, tier: str) -> int:
     item the client tables have no icon for (or don't have at all). An icon
     that can't be fetched fails the publish with the list: the page would
     show an empty frame (0.2.3: Forever's new items, whose icon is only on
-    their appearance, came out blank and nothing said so)."""
+    their appearance, came out blank and nothing said so). `cards_of(ids)`:
+    the person's cards (ui.App.item_cards: the catalog's, and their item
+    facts for what it lacks), else the catalog's."""
     cat = itemcard.shared()
     ids = sorted(b.item_ids)
-    cards = cat.many(ids)
+    catalog = cat.many(ids)
+    cards = cards_of(ids) if cards_of is not None else catalog
     # Written even empty (no catalog, no items): the page always asks for it,
     # and a 404 in a bundle is a bug the browser test looks for.
     b.json("data/items.json", redact.TIERS[tier]("items", {"items": [{"id": int(k), **v} for k, v in cards.items()]}))
     if not getattr(cat, "on", True):
         return 0  # WOW_ITEMS=off: no cards, no icons, the page draws its own marks
-    if ids and not cards and not getattr(cat, "cards", True):
+    if ids and not catalog and not getattr(cat, "cards", True):
         # No catalog at all (wago.tools down and nothing cached): every item
         # would come out as the question mark. Publish nothing, so the last
         # bundle, icons and all, stays up until the next try.
@@ -372,13 +375,14 @@ def put_items(b: Bundle, tier: str) -> int:
     return n
 
 
-def check_names(b: Bundle, tier: str) -> None:
+def check_names(b: Bundle, tier: str, cards_of=None) -> None:
     """Every item and quest the bundle shows has a name. One that a source
     names but the answer doesn't fails the publish (a view that skipped the
     lookup: 0.2.3's journal printed "quest 631"); one no source names is
     logged, and the page says "Unknown quest (631)" (an item: its slot,
     with its Wowhead link)."""
-    cards = itemcard.shared().many(sorted(b.unnamed["item"])) if b.unnamed["item"] else {}
+    many = cards_of if cards_of is not None else itemcard.shared().many
+    cards = many(sorted(b.unnamed["item"])) if b.unnamed["item"] else {}
     items = [i for i in sorted(b.unnamed["item"]) if not (cards.get(str(i)) or {}).get("n")]
     quests = sorted(b.unnamed["quest"])
     missed = [q for q in quests if (forever.quest(q) or {}).get("name")]
@@ -489,8 +493,8 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
                 sn = {**sn, **put_picture(b, pics, name, lv, ans, store_reader(full_app))}
             put("snapshot", data_path("snapshot", name, lv), lambda: sn)
     if "items" in files:
-        put_items(b, tier)
-    check_names(b, tier)
+        put_items(b, tier, full_app.item_cards)
+    check_names(b, tier, full_app.item_cards)
 
 
 def put_picture(b: Bundle, pics: pictures.Pictures | None, name: str, level: int, ans: dict,
@@ -896,6 +900,7 @@ def user_env(env: dict, u: dict) -> dict:
     users = urllib.parse.urlsplit((env.get("USERS_URL") or "").strip())
     if users.scheme in ("http", "https") and users.netloc:
         e["MODEL3D_ASSETS_URL"] = f"{users.scheme}://{users.netloc}/assets/{slug}/"
+        e["ITEM_FACTS_URL"] = f"{users.scheme}://{users.netloc}/items/{slug}/"
     share = (env.get("ANALYSIS_SHARE_URL") or "").strip()
     if share:
         e["ANALYSIS_SHARE_URL"] = share + ("&" if "?" in share else "?") + urllib.parse.urlencode({"slug": slug})

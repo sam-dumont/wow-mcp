@@ -57,7 +57,7 @@ from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from wowstats import bar, guard, httpserve, insights, model3d, prebuilt, redact
+from wowstats import bar, guard, httpserve, insights, itemcard, itemfacts, model3d, prebuilt, redact
 from wowstats.stores import SourceError, Store, env_account, iso, parse_t, public_error, tenant_headers
 from wowstats.views import Settings, Views
 
@@ -266,6 +266,9 @@ class App:
         if self.model3d is not None:
             self.model3d.assets = self.assets
             self.assets.wanted = lambda: self.model3d.wanted(self)
+        # The facts of the items the reference lacks, from the person's own
+        # game client (wowstats.itemfacts): read for their answers only.
+        self.item_facts = itemfacts.for_env(env)
         # Plausible on every page of the full view too (owner, 2026-11-20):
         # the same PLAUSIBLE_DOMAIN as the static sites, so every wow host
         # counts into one Plausible site, told apart by hostname. Checked
@@ -306,6 +309,8 @@ class App:
         """The prebuilt answer when there is one (wowstats.prebuilt). Else
         fresh for cache_ttl seconds; one refresh at a time per key; a failed
         refresh serves the last good answer, marked stale."""
+        # Worked out with this person's item facts (wowstats.itemfacts), never another's.
+        fn = self._with_facts(fn)
         building = getattr(self._building, "answers", None)
         if building is not None:  # the builder's own thread: worked out now, once per build
             if key not in building:
@@ -329,6 +334,30 @@ class App:
                 entry[1] -= 1
                 if entry[1] == 0:
                     self._locks.pop(key, None)
+
+    def _with_facts(self, fn):
+        def run():
+            with itemfacts.using(self.item_facts.facts()):
+                return fn()
+
+        return run
+
+    def item_cards(self, ids) -> dict[str, dict]:
+        """The tooltip cards of `ids` (wowstats.itemcard), and for an item the
+        catalog has no card for, or a card without stats, this person's item
+        facts (wowstats.itemfacts): the catalog's card wins field by field."""
+        cat = itemcard.shared()
+        cards = cat.many(ids)
+        facts = self.item_facts.facts()
+        if not facts:
+            return cards
+        for i in ids:
+            if str(i) in cards and (cards[str(i)].get("w") or cards[str(i)].get("g")):
+                continue
+            got = facts.card(i, getattr(cat, "icon_files", None), getattr(cat, "subclasses", None))
+            if got:
+                cards[str(i)] = {**got, **cards.get(str(i), {})}
+        return cards
 
     def _build(self, key: str, fn, lock: threading.Lock):
         with lock:
@@ -682,6 +711,8 @@ INSTALL_CODE_PATH = re.compile(r"/install/(?!update\b)[^/]+")
 # The shipper's auto-update: its version and files (wowstats.account.handle_shipper).
 SHIPPER_UPDATE = "/install/update/shipper"
 ASSETS = "/install/assets/"
+# The item facts the shipper reads from the game's hotfix cache (wowstats.itemfacts).
+ITEMS = "/install/items/"
 # web/stats.js on the full view: under /privacy/ with the privacy note's
 # other files, the only paths the login proxy lets through before a login
 # (with /install/), so the privacy note counts its visits too.
@@ -814,7 +845,7 @@ def make_handler(root: App, tenancy=None):
                 # which a rebinding page doesn't have; the shipper may know the
                 # server by any name.
                 shipper = (path == SHIPPER_UPDATE or path.startswith(SHIPPER_UPDATE + "/")
-                           or path.startswith(ASSETS))
+                           or path.startswith(ASSETS) or path.startswith(ITEMS))
                 if path != "/ingest" and not shipper and not root.hosts.ok(self.headers.get("Host")):
                     return self.send(421, root.hosts.refusal(self.headers.get("Host")), "text/plain; charset=utf-8")
                 if (path != "/ingest" and not shipper and app.auth_mode == "open" and full
@@ -830,6 +861,21 @@ def make_handler(root: App, tenancy=None):
                     if not self._authorized(app.ingest_expected):
                         return None
                     return self._ingest(app.store.vl_url, app.store.account_id)
+                if path.startswith(ITEMS) and full:  # item facts: the upload password and budget of /ingest
+                    allows = spend = None
+                    target = app
+                    if tenancy is not None:
+                        u = self._ingest_user()
+                        if u is None:
+                            return None
+                        target = tenancy.app_for(u)
+                        allows = lambda n, s=u.slug: tenancy.ingest_budget.allows(s, n)  # noqa: E731
+                        spend = lambda n, s=u.slug: tenancy.ingest_budget.spend(s, n)  # noqa: E731
+                    elif app.ingest_expected is None:
+                        return self.not_found()
+                    elif not self._authorized(app.ingest_expected):
+                        return None
+                    return target.item_facts.handle(self, path[len(ITEMS):], qs, allows, spend)
                 if path.startswith(ASSETS):  # the 3D view's files: the upload password and budget of /ingest
                     allows = spend = None
                     target = app
@@ -934,7 +980,7 @@ def make_handler(root: App, tenancy=None):
 
                     ids = [int(x) for x in qs.get("ids", [""])[0].split(",")[:400] if x.isdigit() and len(x) < 9]
                     return self.json(200, {"items": [{"id": int(k), **v}
-                                                     for k, v in itemcard.shared().many(ids).items()]})
+                                                     for k, v in app.item_cards(ids).items()]})
                 m = ICON_PATH.match(path) if full else None
                 if m:
                     from wowstats import itemcard

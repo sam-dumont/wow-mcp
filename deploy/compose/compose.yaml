@@ -151,6 +151,8 @@ services:
       # The game files your shipper sent the ui, for the 3D answers and
       # the files the sites carry (read-only, on the ui's volume).
       MODEL3D_ASSETS_DIR: /ui-state/model3d-cache/assets
+      # Item facts from the shipper (the game's hotfix cache), same volume.
+      ITEM_FACTS_DIR: /ui-state/model3d-cache/item-facts
       # Optional, docs/deploy.md "Visitor counts": your Plausible site's
       # domain. The static pages then load /js/script.js and post to
       # /api/event on their own address: route those two paths to your

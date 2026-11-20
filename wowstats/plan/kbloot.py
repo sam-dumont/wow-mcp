@@ -8,11 +8,18 @@ Shackles (mail), ..." or "Drops. • Cloth: Glinteye Slippers (Saltspine),
 
 Each item: its name, the boss when the text gives one, the armour type and
 role words the text puts next to it, and the item ID when one of our item
-files knows the name (forever-db's item names, Polestar's gear data). No stats: the text has none, so whether an
-item is made for him comes from those words (his armour type at his level,
-his spec's role), and is None when the text says neither. Everything here
-is marked `confidence: low` (one research note, not the client's tables);
-the page shows only the items and their bosses, never where they come
+sources knows the name (forever-db's item names, Polestar's gear data,
+then the player's own item facts: wowstats.itemfacts, read from their game
+client's hotfix cache).
+
+With the item's facts (Polestar's gear data first, else the player's), the
+row carries its item level, slot, armour type and stats, and whether it is
+made for him is the gear advice's own check on those stats
+(wowstats.gearfit: his spec, his best armour type, what his class can
+use). Without them, the words next to it decide (his armour type at his
+level, his spec's role), and None when the text says neither. Everything
+here is marked `confidence: low` (the list is one research note); the page
+shows only the items, their bosses and their facts, never where they come
 from."""
 
 from __future__ import annotations
@@ -22,7 +29,7 @@ import json
 import re
 from pathlib import Path
 
-from wowstats import gearfit
+from wowstats import gearfit, itemfacts
 
 LANE = Path(__file__).resolve().parents[2] / "data" / "kb" / "research" / "dungeons.json"
 LEADS = ("Drops", "Bosses and drops", "Notable drops")
@@ -41,6 +48,14 @@ ROLE_WORDS = {
 GROUPS = set(ARMOUR) | set(ROLE_WORDS) | {"weapons", "trinkets", "other", "jewellery", "jewelry", "accessories"}
 FILLER = {"and", "leaning"}
 RECIPES = {"recipe", "recipes"}
+# The short stat lines of a row, in the tooltip's order (the card has the full ones).
+SHORT = (("str", "Strength"), ("agi", "Agility"), ("sta", "Stamina"), ("int", "Intellect"), ("spi", "Spirit"),
+         ("ap", "Attack Power"), ("rap", "Ranged Attack Power"), ("sp", "Spell Power"), ("heal", "Healing"),
+         ("spArcane", "Arcane Spell Damage"), ("spFire", "Fire Spell Damage"), ("spFrost", "Frost Spell Damage"),
+         ("spHoly", "Holy Spell Damage"), ("spNature", "Nature Spell Damage"), ("spShadow", "Shadow Spell Damage"),
+         ("mp5", "Mana per 5 sec."), ("hp5", "Health per 5 sec."), ("defense", "Defense"),
+         ("blockValue", "Block Value"))
+ARMOUR_NAME = {v: k for k, v in ARMOUR.items()}
 # A capitalised word in brackets is the boss unless it names a kind of item.
 NOT_A_BOSS = re.compile(r"/|\b(?:neck|ring|trinket|cloak|shield|off-hand|wand|staff|mace|sword|axe|dagger|bow|gun|"
                         r"polearm|handed|set|bind|trash|chest|helm|boots|gloves|belt|bracers|quest)\b", re.I)
@@ -153,11 +168,61 @@ def _ids() -> dict[str, int]:
 
 
 def item_id(name: str) -> int | None:
-    # The files on disk only, never the item catalog: whether it happened to
-    # be loaded made the answer change from run to run, and asking for it
-    # here created the shared catalog early (a sealed bundle in the tests
-    # then got icons it shouldn't have).
-    return _ids().get(name.lower())
+    # The files on disk, never the item catalog: whether it happened to be
+    # loaded made the answer change from run to run, and asking for it here
+    # created the shared catalog early (a sealed bundle in the tests then got
+    # icons it shouldn't have). Then the facts of the person whose answer
+    # this is (set around it, wowstats.itemfacts.using): the files win.
+    got = _ids().get(name.lower())
+    if got is None:
+        facts = itemfacts.current()
+        if facts:
+            return facts.by_name(name)
+    return got
+
+
+def info_of(iid: int | None) -> dict | None:
+    """The item's facts: Polestar's gear data when it has them (it wins),
+    else the player's own (wowstats.itemfacts)."""
+    from wowstats import gear
+
+    if not iid:
+        return None
+    ref = gear.reference()
+    got = ref.item(iid) if ref.available else None
+    if got is None:
+        facts = itemfacts.current()
+        got = facts.info(iid) if facts else None
+    return got
+
+
+def stat_lines(stats: dict) -> list[str]:
+    same = stats.get("sp") and stats.get("sp") == stats.get("heal")  # spell power already heals
+    return [f"+{round(stats[k])} {word}" for k, word in SHORT
+            if stats.get(k) and not (same and k == "heal")]
+
+
+def stat_fit(info: dict, cls: str | None, spec: str | None, level: int) -> bool | None:
+    """Made for him by the item's own stats: the gear advice's check
+    (wowstats.gearfit.fit) for his spec at his level. False for what his
+    class can't use or a lower armour type than his best; None when his
+    role is unknown and the armour says nothing."""
+    from wowstats import gear
+
+    ref = gear.reference()
+    if not cls or not ref.available:
+        return None
+    if not gear.usability(ref, info, cls, level)[0]:
+        return False
+    key, how = gear.resolve_spec(ref, cls, {}, spec or None)
+    w, _ = gear.weights_for(ref, cls, key, level) if key else (None, None)
+    w = gearfit.model_weights(ref, w, cls, key, level) if w else None
+    if not w:
+        return None
+    f = gearfit.fit(ref, info, cls, key, how, level, w)
+    if f["armor"]:
+        return False
+    return {"yes": True, "any": True, "spec": False, "class": False}.get(f["for_you"])
 
 
 def fit(it: dict, cls: str | None, spec: str | None, level: int) -> bool | None:
@@ -184,14 +249,27 @@ def fit(it: dict, cls: str | None, spec: str | None, level: int) -> bool | None:
 def for_block(dungeon: str, cls: str | None, spec: str | None, level: int) -> list[dict]:
     """The dungeon's KB drops for the panel: made for him first, then the
     ones the text doesn't say, then the rest."""
+    from wowstats import itemcard
     from wowstats.links import wowhead_url
 
     out = []
     for it in drops(dungeon):
         iid = item_id(it["name"])
-        out.append({"name": it["name"], "boss": it["boss"], "armour": it["armour"], "roles": it["roles"],
-                    "item_id": iid, "url": wowhead_url("item", iid) if iid else None,
-                    "fit": fit(it, cls, spec, level), "confidence": "low"})
+        info = info_of(iid)
+        row = {"name": it["name"], "boss": it["boss"], "armour": it["armour"], "roles": it["roles"],
+               "item_id": iid, "url": wowhead_url("item", iid) if iid else None,
+               "fit": fit(it, cls, spec, level), "confidence": "low"}
+        if info:
+            armour = ARMOUR_NAME.get(gearfit.armor_of(info) or 0)
+            if armour or info.get("class") == 2 or info.get("inv") in (2, 11, 12, 16):
+                row["armour"] = armour  # the item's own type, over the note's word
+            row.update({"item_level": info.get("ilvl"), "quality": info.get("quality"),
+                        "slot_name": itemcard.SLOT_TEXT.get(info.get("inv")), "stats": stat_lines(info["stats"])})
+            if info.get("stats"):
+                row["fit"] = stat_fit(info, cls, spec, level)
+            else:
+                row["fit"] = fit({**it, "armour": row["armour"]}, cls, spec, level)
+        out.append(row)
     rank = {True: 0, None: 1, False: 2}
     out.sort(key=lambda x: rank[x["fit"]])
     return out

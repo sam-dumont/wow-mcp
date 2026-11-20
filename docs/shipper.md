@@ -31,7 +31,9 @@ run), then:
    after each post, so a run cut short resends nothing.
 4. **3D files**: at most every 15 minutes, sends the game files the 3D view
    asked for ([The 3D view's files](#the-3d-views-files)).
-5. **update**: at most every 2 hours, asks the same server for a newer
+5. **item facts**: when the game's hotfix cache changed, sends the facts of
+   the items the server lacks ([Item facts](#item-facts)).
+6. **update**: at most every 2 hours, asks the same server for a newer
    shipper and takes it ([Auto-update](#auto-update)).
 
 ## Auto-update
@@ -129,6 +131,28 @@ Nothing goes anywhere but your server. With several people, your files stay
 in your own folder there and go with your account. `model3d_files = false`
 in the config turns it off; the 3D view then keeps Battle.net's picture and
 says why.
+
+## Item facts
+
+Forever adds items the item reference doesn't have yet (a new dungeon's
+loot). Your game already knows them: it keeps the rows the server sent it
+in its hotfix cache, `_forever_/Cache/ADB/<locale>/DBCache.bin`. The
+shipper reads that one file (read-only, never more than 64 MB) and:
+
+- sends `POST <server>/install/items/need` the list of weapons and armour in
+  it (id and a checksum of each, about 6,500 items, no names);
+- sends the facts of the items the server says it lacks, 500 a post: name,
+  slot, armour or weapon type, quality, item level, required level, stat
+  allocations, speed, icon id, sell price;
+- once per game patch, the game's item-level budget table (`RandPropPoints`,
+  36 kB), which turns the allocations into the tooltip's numbers.
+
+It reads the file again only when it changed, and asks once a day anyway.
+An item the reference has is never sent. A cache it can't read (a new
+format, a damaged file) sends nothing and says why in the log. Same upload
+password and daily budget as `/ingest`; with several people, your facts
+stay in your own folder there and go with your account.
+`item_facts = false` in the config turns it off.
 
 ## Stats only (no WTF archive)
 

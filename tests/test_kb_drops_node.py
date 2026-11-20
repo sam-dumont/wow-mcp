@@ -86,3 +86,12 @@ def test_nothing_made_for_him_says_so_and_still_lists_them():
     t = render({"kb_drops": [drop("Harpoon of Command", False), drop("Dreadfrost Saber", None)]})
     texts = [n["text"] for n in walk(t)]
     assert "Drops" in texts and "None made for your class and spec." in texts and "2 drops" in texts
+
+
+def test_an_item_with_facts_shows_its_level_and_stats():
+    with_facts = {**drop("Serpentbane Crown", False, 900609, armour="mail"), "item_level": 42, "quality": 3,
+                  "slot_name": "Head", "stats": ["+16 Stamina", "+9 Strength"]}
+    t = render({"kb_drops": [with_facts, drop("Robe of the Drowned", True)]})
+    got = rows(t, "ul")
+    assert ["Serpentbane Crown", "item level 42", "mail", "Zul'Alai", "+16 Stamina, +9 Strength"] in got
+    assert ["Robe of the Drowned", "Zul'Alai"] in got  # no facts: no empty stats line

@@ -67,6 +67,7 @@ What the servers download, and the bundled reference data.
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
 | `GEAR_REFERENCE_FILE` | ui, publish | path or `off` | the bundled Polestar gear data | `off` | Another gear data file, or `off` to turn gear advice off. |
+| `ITEM_FACTS_DIR` | ui, publish, compose | path | `<MODEL3D_CACHE_DIR>/item-facts` | `/data/item-facts` | Where the item facts each person's shipper reads from their game's hotfix cache are kept (items the reference doesn't have yet). With several people, each one's are in their own folder (`users/<id>/items`) and go when the person is removed; this setting is then ignored. The publisher reads the ui's folder (read-only). |
 | `KB_GAME_TABLES` | ui, publish | `on` or `off` | `on` | `off` | The knowledge base's spell and zone documents from Forever's tables. |
 | `MODEL3D` | ui, publish, compose | `on` or `off` | `on` | `off` | The "View in 3D" toggle: the character drawn from the game files your shipper sends (nothing downloaded). `off` removes it, and the shipper stops sending them. |
 | `MODEL3D_ASSETS_DIR` | ui, publish, compose | path | `<MODEL3D_CACHE_DIR>/assets` | `/data/model3d-assets` | Where the game files the shipper sends for the 3D view are kept. With several people, each one's are in their own folder (`users/<id>/assets`) and go when the person is removed; this setting is then ignored. The publisher reads the ui's folder (read-only) to bundle each character's files. |
@@ -162,6 +163,7 @@ Off until `WOW_STATE_DIR` is set. [Add friends](../self-host/friends.md).
 | `FRIENDS_RECONCILE_S` | ui | seconds | `120` | `120` | How often the friends list gets a full pass anyway (a change to the file applies sooner, within about 10 seconds); it retries what failed. |
 | `FRIENDS_VL_DELETE_KEY_FILE` | ui, users | path | empty | `/run/secrets/vl_delete_key` | That VictoriaLogs' `-deleteAuthKey`, so a friend's events can be deleted. |
 | `FRIENDS_VL_URL` | ui, publish, users | URL | empty: no friends | `http://vl-friends:9428` | The friends' VictoriaLogs, one tenant each. |
+| `ITEM_FACTS_URL` | publish | URL | set per person from `USERS_URL` | `http://ui:8091/items/sam/` | Where the publisher reads one person's item facts: the full view's share port. Set by the publisher itself with several people; leave it unset. |
 | `MODEL3D_ASSETS_URL` | publish | URL | set per person from `USERS_URL` | `http://ui:8091/assets/sam/` | Where the publisher reads one person's 3D files: the full view's share port. Set by the publisher itself with several people; leave it unset. |
 | `PRIVACY_BACKUP_DAYS` | ui | days | empty: the privacy page says to ask the owner | `30` | How long your backups keep events, as the privacy page tells your friends. |
 | `PRIVACY_LOG_DAYS` | ui | days | empty: the privacy page says to ask the owner | `30` | How long the server's logs keep a request (the web server's access log and the app's own log), as the privacy page tells your friends. |

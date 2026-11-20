@@ -30,7 +30,7 @@ Only on a shared install. Same port.
 | `/help`, `/help/`, `/help/help.js`, `/help/help.css` | through your login | the manual for friends: install steps, the page tour, connecting their AI |
 | `/install/<code>`, `/privacy`, `/privacy/*` | no login | the install command (the single-use code is the credential) and the privacy page: no login |
 
-## The shipper's auto-update and the 3D view's files: inside `wow-stats ui`, same port
+## The shipper's auto-update, the 3D view's files and the item facts: inside `wow-stats ui`, same port
 
 With one person or several. Route it like `/ingest`, **without** your page login: the shipper sends its upload password.
 
@@ -40,6 +40,7 @@ With one person or several. Route it like `/ingest`, **without** your page login
 | `/install/update/shipper/<name>` | no login | `GET`, upload password: one of the shipper's files (`wow_stats.py`, the installers) |
 | `/install/assets/need` | no login | `GET`, upload password, while `MODEL3D` is on: the game files the 3D view still wants from that person's shipper (client tables by file id, then models and textures), as JSON |
 | `/install/assets/table/<Name>`, `/install/assets/file/<id>` | no login | `POST`, upload password and `/ingest`'s daily budget: one client table, or one model, skin, skeleton, animation or texture the server asked for (`X-Content-SHA256`), 16 MB at most, kept in that person's own folder |
+| `/install/items/need`, `/install/items/facts`, `/install/items/table/<Name>` | no login | `POST`, upload password (`facts` and `table` within `/ingest`'s daily budget): which items from the game's hotfix cache the server lacks, then their facts (JSON, 500 items a post) and the client's item-level budget table (`X-Content-SHA256`), kept in that person's own folder |
 
 ## The MCP endpoint: inside `wow-stats ui`, port 8090 (`MCP_PORT`)
 
@@ -69,7 +70,7 @@ Internal listeners. Keep them on a private network.
 | Path | Route | What |
 |---|---|---|
 | `/bundle`, `/bundles` | never | the static server's upload port (`UPLOAD_PORT`) |
-| `/analysis.json`, `/users.json`, `/hosts.json`, `/profile-characters`, `/publisher.json`, `/assets/<slug>/*` | never | the full view's share port (`ANALYSIS_SHARE_PORT`); the publisher POSTs its pass to `/publisher.json` and reads each person's 3D files from `/assets/<slug>/` |
+| `/analysis.json`, `/users.json`, `/hosts.json`, `/profile-characters`, `/publisher.json`, `/assets/<slug>/*`, `/items/<slug>/facts` | never | the full view's share port (`ANALYSIS_SHARE_PORT`); the publisher POSTs its pass to `/publisher.json` and reads each person's 3D files from `/assets/<slug>/` and item facts from `/items/<slug>/facts` |
 | `/render`, `/file/<id>`, `/model3d/view`, `/healthz` | never | the renderer, port 8083: the publisher POSTs a recipe to `/render` and the files it lacks to `/file/<id>` |
 | `/metrics`, `/healthz` | never | the exporter, port 9464 (`LISTEN_PORT`): its own health only, never Blizzard's data |
 | `/select/*`, `/insert/*` | never | VictoriaLogs, port 9428: your events, readable without a login |

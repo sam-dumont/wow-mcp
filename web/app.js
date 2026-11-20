@@ -1990,11 +1990,14 @@ const questOnly = (x) => !x.drops.length && x.quests.length;
 // each drop and its boss, the ones made for him first. No gain: nothing
 // scores them. An icon only when the item is known by its ID.
 function kbDropRow(x) {
+  const stats = (x.stats || []).join(', ');
   return h('li', { class: 'dgdrop missing' + (x.item_id ? '' : ' nochip') },
     h('div', { class: 'dgitem' }, x.item_id ? [itemChip(x), whMark(x.url, x.name)] : h('span', { class: 'iname', text: x.name })),
     h('div', { class: 'dgmeta' },
+      x.item_level ? h('span', { class: 'src', text: `item level ${x.item_level}` }) : null,
       x.armour ? h('span', { class: 'pill', text: x.armour }) : null,
-      x.boss ? h('span', { class: 'src', text: x.boss }) : null));
+      x.boss ? h('span', { class: 'src', text: x.boss }) : null),
+    stats ? h('div', { class: 'dgstats sub', text: stats }) : null);
 }
 
 function kbDrops(b) {
