@@ -98,13 +98,18 @@
     const path = `data/icon/${size}/${name}.jpg`;
     if (!SEALED) return Promise.resolve(path);
     if (!icons.has(path)) {
-      icons.set(path, window.wowFetchSealed(path)
+      const load = () => window.wowFetchSealed(path)
         .then((bytes) => {
           let s = '';
           for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
           return 'data:image/jpeg;base64,' + btoa(s);  // CSP img-src 'self' data:
-        })
-        .catch(() => null));
+        });
+      // A page asks for a few hundred icons at once: one dropped connection
+      // (a phone changing networks) gets a second try, and a failure isn't
+      // kept, or every item with that icon would stay on its "?".
+      icons.set(path, load()
+        .catch(() => new Promise((r) => setTimeout(r, 500)).then(load))
+        .catch(() => { icons.delete(path); return null; }));
     }
     return icons.get(path);
   }

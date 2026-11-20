@@ -14,6 +14,10 @@ Every tab of the public page and of the friends' page is opened; on each:
 - none of the fallback phrases (FALLBACK);
 - the character's picture in place of the silhouette wherever a `.still`
   shows (the Equipment panel, Back in time at every level);
+- every icon drawn, collapsed lists opened and lazy images loaded first: no
+  item frame still on its "?" or its slot's glyph, no talent showing its letter,
+  no broken `<img>` (naturalWidth 0), and no item on the game's question
+  mark (an item the bundle has no card or icon for);
 - "View in 3D" opens a model the viewer drew (data-state drawn).
 
 The demo has no degraded section on purpose: a section that falls back is
@@ -47,7 +51,8 @@ ENGINES = [e for e in os.environ.get("WOW_DEMO_ENGINES", "chromium,webkit").spli
 FALLBACK = ("not known yet", "No talents yet", "unknown until", "No 3D model", "nothing banked", "not recorded",
             "Picture on its way", "haven't come", "haven’t come", "No equipment saved yet", "No gear advice yet",
             "needs Polestar", "No dungeon in reach yet", "No analysis yet", "No talent change",
-            "Talent changes need Battle.net", "can’t be read right now", "Couldn’t draw")
+            "Talent changes need Battle.net", "can’t be read right now", "Couldn’t draw", "no landing seen",
+            "travel 0s", "quests 0s")
 # `.empty` lines that summarise rather than say a section is empty.
 EMPTY_OK = ("And ", "None: every step was reached in order")
 
@@ -91,7 +96,9 @@ def base(demo_dir):
     """The demo under /demo/ on 127.0.0.1: a secure context, as the sealed
     page's WebCrypto needs."""
     handler = functools.partial(Pages, directory=str(demo_dir.parent))
-    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    # The page fetches a few hundred icons at once: the default backlog (5)
+    # resets connections that GitHub Pages would answer.
+    srv = type("Server", (http.server.ThreadingHTTPServer,), {"request_queue_size": 256})(("127.0.0.1", 0), handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{srv.server_address[1]}/{demo_dir.name}/"
     srv.shutdown()
@@ -124,6 +131,45 @@ def gaps(page) -> list[str]:
         ".still", "els => els.filter(e => e.offsetParent !== null).map(e => e.className)")
     out += [f"silhouette: .{c}" for c in stills if "has-render" not in c.split()]
     return out
+
+
+# Every image loaded now (they're lazy: a phone shows them as you scroll)
+# and every collapsed list open, then what still isn't an icon.
+ICONS_JS = """async () => {
+  const vis = (e) => e.offsetParent !== null;
+  for (const d of document.querySelectorAll('details:not([open])')) d.open = true;
+  const QM = window.wowIcon ? await window.wowIcon('inv_misc_questionmark', 'medium').catch(() => null) : null;
+  const settle = async () => {
+    for (const i of document.images) i.loading = 'eager';
+    await Promise.all([...document.images].map((i) => i.complete ? 0
+      : new Promise((r) => { i.onload = i.onerror = r; setTimeout(r, 5000); })));
+  };
+  for (let n = 0; n < 20; n++) {
+    await settle();
+    await new Promise((r) => setTimeout(r, 250));
+    const busy = [...document.querySelectorAll('button.itm[aria-label]:not([aria-label=""]) .ifr:not(.has-icon)')].filter(vis).length
+      + [...document.images].filter((i) => !i.complete).length;
+    if (!busy) break;
+  }
+  const name = (e) => ((e.closest('[aria-label]') || {}).ariaLabel || e.closest('li, div')?.innerText || '')
+    .trim().split('\\n')[0].slice(0, 60);
+  const out = [];
+  for (const f of document.querySelectorAll('.ifr.noicon')) if (vis(f)) out.push('icon "?": ' + name(f));
+  // A slot draws its glyph until the icon comes: an item's frame without it.
+  for (const f of document.querySelectorAll('button.itm[aria-label]:not([aria-label=""]) .ifr:not(.has-icon):not(.noicon)'))
+    if (vis(f)) out.push('icon missing: ' + name(f));
+  for (const f of document.querySelectorAll('.tface')) if (vis(f) && !f.querySelector('img')) out.push('talent letter: ' + name(f));
+  for (const i of document.images) {
+    if (!vis(i)) continue;
+    if (i.complete && i.naturalWidth === 0) out.push('broken image: ' + (i.currentSrc || i.src).slice(0, 80) + ' ' + name(i));
+    else if (QM && i.src === QM) out.push('question mark icon: ' + name(i));
+  }
+  return out;
+}"""
+
+
+def icon_gaps(page) -> list[str]:
+    return page.evaluate(ICONS_JS)
 
 
 def wait_stills(page) -> None:
@@ -166,7 +212,7 @@ def test_demo_has_no_gap(browser, base, which, width):
         if with_still:
             with contextlib.suppress(sync_api.TimeoutError):  # gaps() names it
                 wait_stills(page)
-        got = gaps(page)
+        got = gaps(page) + icon_gaps(page)
         # Back in time: every level, its picture and its numbers.
         slider = page.locator("input[type=range][aria-label=Level]")
         if slider.count() and slider.first.is_visible():
@@ -176,7 +222,7 @@ def test_demo_has_no_gap(browser, base, which, width):
                 page.wait_for_timeout(300)
                 with contextlib.suppress(sync_api.TimeoutError):
                     wait_stills(page)
-                got += [f"level {i}: {g}" for g in gaps(page)]
+                got += [f"level {i}: {g}" for g in gaps(page) + icon_gaps(page)]
         for i in range(page.locator("button.m3dtoggle:visible").count()):
             state = open_3d(page, i)
             if not state.startswith("drawn"):

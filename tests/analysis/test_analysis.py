@@ -566,7 +566,7 @@ def test_a_dungeon_trip_spans_the_lookup_guides():
     t = trips[0]
     assert t["bracket"] == "guides" and t["level_start"] == 31
     assert t["start_local"] == "2026-10-14T19:07:51+02:00"  # the first pickup step
-    assert t["end_local"] == "2026-10-14T19:50:31+02:00"  # the last hand-in step
+    assert t["end_local"] == "2026-10-14T19:51:16+02:00"  # the last hand-in step (after the walk to Darkshire's flight master)
     assert json.loads(t["quest_ids"]) == [377, 378, 386, 387, 388, 391]
     assert t["quests_handed_in"] == 6 and t["inside_s"] == 1354
     assert abs(t["pickup_s"] + t["travel_to_s"] + t["inside_s"] + t["travel_back_s"] + t["handin_s"]

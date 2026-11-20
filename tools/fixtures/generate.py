@@ -811,6 +811,9 @@ def sessions_priest(p: Player) -> dict:
     p.turnin(q[377], reward=270029)
     p.worn[10] = 270029
     p.step("lookup/handin/stormwind-stockade", 4, "auto")
+    # A walk to Darkshire's flight master: the next flight starts after the
+    # landing, not in the same second (the Flights list pairs them by time).
+    p.wait(45, moving=True)
     p.fly("Wetlands", "Menethil Harbor", "Menethil Harbor", "Darkshire")
     p.turnin(q[378], reward=270036)
     p.worn[7] = 270036
@@ -1140,7 +1143,9 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
         p.kill(b, elite=True)
         p.rec("encounter", difficulty=1, encounter_id=3100 + DALARAN_BOSSES.index(b), size=5, success=True,
               zone=p.zone)
-    p.rec("loot", items="251961:1;273044:1;273045:1", npc_id=246016, npc_kind="c", **p.here())
+    # The quest's Arcane Mote (251961) isn't in the loot line: Forever's
+    # client tables have no icon for it, and the demo shows no question mark.
+    p.rec("loot", items="273044:1;273045:1", npc_id=246016, npc_kind="c", **p.here())
     p.rec("progress", have=1, need=1, objective=1, quest_id=92458, **p.here())
     p.rec("complete", quest_id=92458, quest_name=q[92458]["name"], zone=p.zone)
     p.worn[5] = 273044
@@ -1241,7 +1246,7 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
     p.accept(q[663])  # Land Ho!: a word to the pirates' lookout, and back
     p.wait(300, moving=True)
     p.turnin(q[663])
-    p.profession(TAILORING, 9)
+    p.profession(TAILORING, 45)  # to 140: Black Slippers open (the Tailoring crafts list)
     p.wait(420, moving=False)  # the mailbox, the bank
     p.profession(ENCHANTING, 4)
     p.wait(480, moving=False)

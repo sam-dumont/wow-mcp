@@ -2127,7 +2127,11 @@ function dungeonTrip(b) {
   const facts = [];
   // Where the trip's time goes, from his runs there.
   if (t.measured) {
-    facts.push(fact('Your trips there', dur(t.total_s), `inside ${dur(t.inside_s)}, travel ${dur(t.travel_s)}, quests ${dur(t.quests_s)}`));
+    // A part his runs never had (logged in at the door, no quest there)
+    // stays out rather than reading "0s".
+    const parts = [['inside', t.inside_s], ['travel', t.travel_s], ['quests', t.quests_s]]
+      .filter(([, sec]) => sec > 0).map(([k, sec]) => `${k} ${dur(sec)}`);
+    facts.push(fact('Your trips there', dur(t.total_s), parts.join(', ')));
   }
   facts.push(fact('Gear a clear', b.missing_now ? `+${b.expected_gain_per_clear.toFixed(1)}` : 'none',
     b.missing_now ? `${b.chance_one_per_clear_pct}% one of ${plural(b.missing_now, 'upgrade')} drops` : 'nothing missing at your level'));
