@@ -7,7 +7,7 @@ Two bundles from one pass over the stores, written side by side:
             timeline, 3D), served at ZOGZOG_PATH (default /zogzog/), with
             every data file sealed: AES-256-GCM under ZOGZOG_KEY_FILE, a
             random 96-bit nonce per file and the file's path as associated
-            data. The page takes the key from the link's fragment
+            data, named by a keyed hash of that path (sealed_name). The page takes the key from the link's fragment
             (/zogzog/#<key>), which browsers never send to a server.
 
 No Ask links, MCP, LogsQL box or write endpoint in either: those live only on
@@ -50,6 +50,7 @@ from __future__ import annotations
 import base64
 import contextlib
 import hashlib
+import hmac
 import io
 import json
 import os
@@ -149,6 +150,20 @@ def seal(key: bytes, path: str, data: bytes) -> bytes:
     return nonce + AESGCM(key).encrypt(nonce, data, path.encode())
 
 
+NAMES_LABEL = b"wow-stats zogzog file names v1"
+
+
+def sealed_name(key: bytes, path: str) -> str:
+    """Where the sealed file for `path` (data/char/<Name>.json...) lives in
+    the bundle: data/<HMAC-SHA256 of the path>.enc, under a key derived from
+    the link's key. A name in the clear would say which characters exist,
+    hidden or not (a 200 against a 404; security review 2026-11-20, finding
+    4). The page computes the same name (web/app.js sealedUrl). The seal's
+    associated data stays the path itself."""
+    names_key = hmac.new(key, NAMES_LABEL, hashlib.sha256).digest()
+    return "data/" + b64u(hmac.new(names_key, path.encode(), hashlib.sha256).digest()) + ENC
+
+
 def unseal(key: bytes, path: str, blob: bytes) -> bytes:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
@@ -181,10 +196,10 @@ class Bundle:
             p = names.inside(self.root, rel)
         except names.Escape as e:
             raise PublishError(str(e)) from None
-        p.parent.mkdir(parents=True, exist_ok=True)
         if self.key is not None and rel.startswith("data/"):
-            p = p.with_name(p.name + ENC)
+            p = self.root / sealed_name(self.key, rel)
             body = seal(self.key, rel, body)
+        p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(body)
         self.files += 1
 

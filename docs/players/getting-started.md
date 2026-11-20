@@ -81,7 +81,7 @@ It installs: `%LOCALAPPDATA%\wow-stats` and a scheduled task "wow-stats" (every 
 Your command is on your start page. It looks like this (the code is yours, single use):
 
 ```sh
-curl -fsSL https://wow.example.org/install/<your code> | bash
+curl --proto '=https' --proto-redir '=https' -fsSL https://wow.example.org/install/<your code> | bash
 ```
 
 It installs: `~/.local/share/wow-stats`, `~/.config/wow-stats/config.toml` and a launchd agent local.wow-stats (every 5 minutes). Log: `~/Library/Logs/wow-stats.log`. Polestar Recorder in `_forever_/Interface/AddOns`.
@@ -183,7 +183,7 @@ irm https://wow.example.org/install/update | iex
 **Mac (Terminal).**
 
 ```sh
-curl -fsSL https://wow.example.org/install/update | bash
+curl --proto '=https' --proto-redir '=https' -fsSL https://wow.example.org/install/update | bash
 ```
 
 </div>

@@ -133,31 +133,46 @@ if (SEALED) {
   });
 }
 let cryptoKey = null;
+let nameKey = null;
+function keyBytes() {
+  return Uint8Array.from(atob(KEY.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
+}
 async function openBytes(path, buf) {
-  if (!cryptoKey) {
-    const raw = Uint8Array.from(atob(KEY.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0));
-    cryptoKey = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['decrypt']);
-  }
+  if (!cryptoKey) cryptoKey = await crypto.subtle.importKey('raw', keyBytes(), 'AES-GCM', false, ['decrypt']);
   const b = new Uint8Array(buf);
   return new Uint8Array(await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: b.slice(0, 12), additionalData: new TextEncoder().encode(path) }, cryptoKey, b.slice(12)));
 }
-// The item icons (web/items.js) are sealed data files too.
-window.wowOpenBytes = openBytes;
-async function openSealed(path, buf) {
-  return JSON.parse(new TextDecoder().decode(await openBytes(path, buf)));
+// A sealed file's name is a keyed hash of its path (wowstats/publish.py
+// sealed_name), so the folder doesn't say which characters exist: the same
+// HMAC-SHA256 under a key derived from the link's key.
+const HMAC = { name: 'HMAC', hash: 'SHA-256' };
+async function sealedUrl(path) {
+  if (!nameKey) {
+    const k = await crypto.subtle.importKey('raw', keyBytes(), HMAC, false, ['sign']);
+    const nk = await crypto.subtle.sign('HMAC', k, new TextEncoder().encode('wow-stats zogzog file names v1'));
+    nameKey = await crypto.subtle.importKey('raw', nk, HMAC, false, ['sign']);
+  }
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', nameKey, new TextEncoder().encode(path)));
+  let bin = '';
+  for (const b of mac) bin += String.fromCharCode(b);
+  return 'data/' + btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.enc';
 }
+// The decrypted bytes of the bundle's data/<path>; throws when it isn't there.
+async function fetchSealed(path) {
+  const r = await fetch(await sealedUrl(path), { credentials: 'same-origin' });
+  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return openBytes(path, await r.arrayBuffer());
+}
+// The item icons (web/items.js) are sealed data files too.
+window.wowFetchSealed = fetchSealed;
 function locked() {
   document.body.replaceChildren(h('main', { class: 'locked' }, h('p', { text: 'Nothing here.' })));
   document.title = 'Leveling log';
 }
 
 async function getJSON(url) {
-  if (SEALED) {
-    const r = await fetch(url + '.enc', { credentials: 'same-origin' });
-    if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-    return openSealed(url, await r.arrayBuffer());
-  }
+  if (SEALED) return JSON.parse(new TextDecoder().decode(await fetchSealed(url)));
   const r = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
   let body = null;
   try { body = await r.json(); } catch (e) { body = null; }
@@ -456,9 +471,8 @@ async function bundleImage(rel, mime) {
   if (!STATIC) return '/' + rel;
   const path = 'data/' + rel;
   if (!SEALED) return path;
-  const res = await fetch(path + '.enc', { credentials: 'same-origin' });
-  if (!res.ok) return null;
-  const bytes = await openBytes(path, await res.arrayBuffer());
+  let bytes;
+  try { bytes = await fetchSealed(path); } catch (e) { return null; }
   let bin = '';
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
   return `data:${mime};base64,` + btoa(bin);
@@ -639,9 +653,7 @@ async function talentIcon(name) {
   if (STATIC && !SEALED) return rel;
   if (SEALED) {  // sealed like the answers: decrypted here, shown as a data: URL (the CSP's img-src)
     try {
-      const r = await fetch(rel + '.enc', { credentials: 'same-origin' });
-      if (!r.ok) return null;
-      const bytes = new Uint8Array(await openBytes(rel, await r.arrayBuffer()));
+      const bytes = await fetchSealed(rel);
       let bin = '';
       for (const b of bytes) bin += String.fromCharCode(b);
       return 'data:image/jpeg;base64,' + btoa(bin);

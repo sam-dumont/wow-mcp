@@ -40,17 +40,29 @@ The shipper updates itself. After a run's own work, at most once every 2
 hours, it asks the server it ships to for the current version:
 `GET <server>/install/update/shipper`, with the same upload password as
 `/ingest`. The answer is the version of the `wow_stats.py` that server
-carries (its `VERSION` line) and the sha256 of each file:
+carries (its `VERSION` line), the sha256 of each file, and the release's
+signature over both:
 
 ```json
-{"version": "0.5.1",
+{"version": "0.7.0",
  "files": {"wow_stats.py": {"sha256": "9f2c...", "size": 121344},
-           "install-mac.sh": {"sha256": "51ab...", "size": 4310}}}
+           "install-mac.sh": {"sha256": "51ab...", "size": 4310}},
+ "signature": {"statement": "{\"files\":{...},\"version\":\"0.7.0\"}",
+               "signature": "base64 Ed25519 signature"}}
 ```
 
-When that version is higher than its own, it downloads
-`/install/update/shipper/wow_stats.py` from the same server, checks the
-sha256 and that the file compiles and names the version announced, writes
+Each release signs the statement (the version and every shipper file's
+sha256) with the project's Ed25519 key, and the shipper pins the public half
+(`UPDATE_KEY` in `wow_stats.py`). The server only passes the statement on, so
+whoever takes over a server can't push code to your computer: the shipper
+checks the signature first and takes only the files the statement names,
+with their hashes. No signature, or one that doesn't check out: it keeps its
+version, logs why, and the owner's overview shows "auto-update refused" on
+your row. The update line on your start page still works by hand.
+
+When that version is higher than its own and the signature checks out, it
+downloads `/install/update/shipper/wow_stats.py` from the same server, checks the
+signed sha256 and that the file compiles and names the version announced, writes
 it next to itself and renames it into place in one step. The old copy
 stays as `wow_stats.py.prev`. The new version runs from the next run on.
 When the server's installer for your system (`install-mac.sh` and
@@ -63,9 +75,14 @@ What it never does:
 - **Downgrade.** An equal or lower version is left alone.
 - **Talk to anyone else.** Only the server in `[ship] url`, over https (plain
   http only to this computer, `127.0.0.1` or `localhost`), and no redirect.
+- **Take an unsigned update.** A server built from a tree between releases
+  (or your own fork's, see [Signing your own build](self-host/upgrade.md#signing-your-own-build))
+  serves no signature the shipper accepts: it stays on its version.
 - **Break the shipping.** No endpoint (a server older than 0.5.1), no network,
-  a wrong hash, a file that doesn't compile: it keeps the running version and
-  logs one line (`auto-update: ...; keeping 0.5.0`).
+  no signature, a wrong hash, a file that doesn't compile: it keeps the running
+  version and logs one line (`auto-update: ...; keeping 0.7.0`). An addon
+  file it can't read costs that file's events for the run, never the
+  shipping or the update check.
 - **Touch your config or `state.json`.** They stay where they are; a version
   that changes their format reads the old one.
 - **Rewrite a copy you run by hand.** Only the installed script
@@ -80,7 +97,9 @@ auto_update = false
 ```
 
 A shipper from before 0.5.1 can't update itself: run the update line once
-(below). `/start` says so while the server still sees one: its setup report
+(below). Shippers from 0.5.1 to 0.6.x check no signature: they take the first
+signed release (0.7.0) the old way, on the sha256 alone, and check every
+update after it. `/start` says so while the server still sees one: its setup report
 carries the shipper's version from 0.5.1 on.
 
 ## The 3D view's files

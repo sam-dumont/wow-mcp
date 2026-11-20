@@ -38,7 +38,7 @@ with Take("wizard") as t:
     page.locator('.hero-cmd[data-os="mac"] button').click()
     t.mark("install")
     mac = page.locator(cmd).inner_text()
-    (t.state / "install-url").write_text(mac.removeprefix("curl -fsSL ").removesuffix(" | bash").strip())
+    (t.state / "install-url").write_text(mac.split(" -fsSL ", 1)[-1].removesuffix(" | bash").strip())
     t.pause(2.5)
     t.scroll_to("ol.setup > li:nth-child(3)")
     t.mark("waiting")

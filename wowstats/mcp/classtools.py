@@ -272,10 +272,10 @@ CLASS_TOOLS = (
            "the talents gained or dropped (rank before and after). Newest first.",
            T.schema({"char": CHAR}), t_talent_changes),
     T.Tool("news", "This week on Forever",
-           "What's new on Forever: this week's news digest (patches, hotfixes, class changes, openings, phases, "
+           "New on Forever: this week's news digest (patches, hotfixes, class changes, openings, phases, "
            "known issues), or everything since a day, what concerns the character first; what is coming, with "
-           "its announced day or 'announced, no date'; and what players are saying (community: opinions). "
-           "Sourced and dated. `class`, `level`, `role` filter instead; `category` keeps one.",
+           "its announced day or 'announced, no date'; and what players say (community: opinions). "
+           "Sourced, dated. `class`, `level`, `role` filter instead; `category` keeps one.",
            T.schema({"char": CHAR,
                      "since": {"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$",
                                "description": "Everything said since this day (YYYY-MM-DD) instead of one week."},
