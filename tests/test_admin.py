@@ -249,3 +249,11 @@ def test_a_listed_name_that_clashes_shows_as_a_name_conflict(server):  # noqa: F
     assert b"name conflict: <code>sam</code> (taken)" in body
     assert b"name conflict: <code>admin</code> (reserved)" in body
     assert b"(no name yet)" not in body
+
+
+def test_versions_order_release_candidates():
+    """A server on a release candidate still flags older shippers, and never
+    compares a version it can't read (tools/release/release.py's X.Y.Z-rc.N)."""
+    v = admin.vtuple
+    assert v("0.6.1") < v("0.7.0-rc.1") < v("0.7.0-rc.2") < v("0.7.0") < v("v0.7.1")
+    assert v("0.7.0rc1") is None and v("0.7") is None and v(None) is None

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import time
 import urllib.request
@@ -186,8 +187,13 @@ def exporter_last(app) -> float | None:
 
 
 def vtuple(v) -> tuple[int, ...] | None:
-    parts = str(v or "").strip().lstrip("v").split(".")
-    return tuple(int(p) for p in parts) if len(parts) == 3 and all(p.isdigit() for p in parts) else None
+    """X.Y.Z or a release candidate X.Y.Z-rc.N, below its final (the
+    shipper's version_tuple orders them the same)."""
+    m = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?", str(v or "").strip())
+    if not m:
+        return None
+    a, b, c, rc = m.groups()
+    return (int(a), int(b), int(c), 0, int(rc)) if rc else (int(a), int(b), int(c), 1, 0)
 
 
 def _epoch(s) -> float | None:
