@@ -91,7 +91,7 @@ def shipper_file(name: str) -> bytes:
 # installers copy next to them.
 SHIPPER_FILES = ("wow_stats.py", "install-mac.sh", "wow-stats.plist", "install-windows.ps1",
                  "config.example.toml", "LICENSE")
-_SHIPPER_VERSION = re.compile(rb'(?m)^VERSION = "(\d+\.\d+\.\d+)"$')
+_SHIPPER_VERSION = re.compile(rb'(?m)^VERSION = "(\d+\.\d+\.\d+(?:-rc\.\d+)?)"$')  # X.Y.Z or X.Y.Z-rc.N
 
 
 @functools.cache

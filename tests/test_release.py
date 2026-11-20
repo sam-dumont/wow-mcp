@@ -152,3 +152,14 @@ def test_plan_reads_the_tree_and_the_tags(tree):
 def test_the_real_changelog_has_an_unreleased_section():
     release.unreleased(ROOT)  # raises when the heading is gone
     assert release.current_version(ROOT) is not None
+
+
+def test_the_server_announces_a_candidate_shipper(tree):
+    """The server reads the shipper's VERSION line to announce updates
+    (wowstats/account.py): a candidate's must read too, or every install
+    sees "the server names no version"."""
+    from wowstats import account
+
+    release.apply(tree, V("1.2.0-rc.3"), dt.date(2026, 1, 4))
+    m = account._SHIPPER_VERSION.search((tree / "shipper/wow_stats.py").read_bytes())
+    assert m and m.group(1) == b"1.2.0-rc.3"
