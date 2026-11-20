@@ -50,8 +50,8 @@ assistant quotes a number, the server re-runs the query behind it.
 [Connect your AI](../ai/connect.md).
 
 **Battle.net data, optional.** With your own Battle.net API client, the server also fetches
-your character's look (for the 3D view), the WoW Token price and a small auction house watch
-list. Blizzard's terms cap that data at 30 days, so it lives in its own store with a 23-day
+your character's look (for the 3D view) and the WoW Token price; never the auction house, whose
+prices come from your own Auctionator scans. Blizzard's terms cap that data at 30 days, so it lives in its own store with a 23-day
 retention. [Battle.net data](../self-host/battlenet.md).
 
 ## Where to go next

@@ -29,13 +29,13 @@ class McpNeverServesMarket(unittest.TestCase):
         r = inmem.call(ctx, "market")
         self.assertTrue(r.is_error)
         self.assertIn("unknown tool", r.content[0].text)
-        self.assertFalse(any("wow_auction" in q.get("query", "") for q in self.fake.queries[before:]))
+        self.assertFalse(any("wow_" in q.get("query", "") for q in self.fake.queries[before:]))
 
     def test_listed_and_callable_when_the_person_opted_in(self):
         ctx = mcp.context({"VL_URL": self.fake.url, "VM_URL": self.fake.url})
         ctx.bnet = True
         self.assertIn("market", inmem.listed(ctx))
-        out = inmem.call(ctx, "market", {"faction": "horde"})
+        out = inmem.call(ctx, "market")
         self.assertFalse(out.is_error, out)
         ctx.bnet = False
         self.assertNotIn("market", inmem.listed(ctx))

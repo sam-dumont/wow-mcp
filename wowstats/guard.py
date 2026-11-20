@@ -99,7 +99,8 @@ class Hosts:
         return (f"This server doesn't answer for the host {host_of(header or '')[:80]!r}. It answers for "
                 f"localhost, IP addresses and the hosts of PUBLIC_URL, MCP_PUBLIC_URL and ALLOWED_HOSTS "
                 f"({allowed}). Reaching it by another name? Add that name to ALLOWED_HOSTS "
-                f"(comma separated).\n").encode()
+                f"(comma separated) and set a login (AUTH=basic or AUTH=proxy): a name here means "
+                f"a proxy or another computer in front of this server.\n").encode()
 
 
 # ---------------------------------------------------------------- AUTH=open (L6)
@@ -118,6 +119,27 @@ def check_open(env: dict, bind: str) -> None:
         "Either publish the port on 127.0.0.1 only and set PUBLISHED_ON to that address (the compose kit "
         "does: UI_PUBLISH), or set AUTH=basic or AUTH=proxy, or set ALLOW_OPEN=1 if everyone who can reach "
         "it may see it (a public view).")
+
+
+# Headers a reverse proxy adds. A full view with no login never sits behind one:
+# a host-level nginx passes `Host: 127.0.0.1:8080`, which every check above
+# accepts, and the page would be on the internet (review 0.6.0, S4).
+PROXY_HEADERS = ("X-Forwarded-For", "X-Forwarded-Host", "X-Forwarded-Proto", "Forwarded", "Via", "X-Real-IP")
+PROXIED = (b"This server has no login (AUTH=open) and this request came through a proxy. Set a login "
+           b"(AUTH=basic or AUTH=proxy) before putting a proxy in front of it.\n")
+
+
+def check_open_hosts(env: dict) -> None:
+    """A full view with no login and names to answer for is a proxy setup
+    without a login: stop at start."""
+    if (env.get("ALLOWED_HOSTS") or "").strip():
+        raise GuardError(
+            "AUTH=open with ALLOWED_HOSTS set: a name to answer for means a proxy or another computer in "
+            "front of a view with no login. Set AUTH=basic or AUTH=proxy, or empty ALLOWED_HOSTS.")
+
+
+def proxied(headers) -> bool:
+    return any(headers.get(h) is not None for h in PROXY_HEADERS)
 
 
 # ---------------------------------------------------------------- AUTH=proxy (M4)

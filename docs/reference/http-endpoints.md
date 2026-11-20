@@ -58,7 +58,7 @@ Files only, no login, no cookie. Safe to put on the internet.
 |---|---|---|
 | `/`, `/zogzog/`, `/help/` | no login | the public site, the sealed friends' site (`ZOGZOG_PATH`) and the help page (with `HELP_KEY_FILE`) |
 | `/healthz` | no login | health check |
-| `/js/script.js`, `/api/event` | no login | only with `PLAUSIBLE_DOMAIN`: route these two to your Plausible, nothing else |
+| `/js/script.js`, `/api/event` | no login | only with `PLAUSIBLE_DOMAIN`: route these two to your Plausible, nothing else (on the full view's name too, ahead of its login, when the ui has `PLAUSIBLE_DOMAIN`) |
 
 ## Never route these from outside
 

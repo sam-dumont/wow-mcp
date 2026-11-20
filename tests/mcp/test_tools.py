@@ -113,11 +113,13 @@ class ToolsTest(unittest.TestCase):
             self.call("market")
 
     def test_market(self):
-        out = tools.call(self.ctx, "market", {"faction": "horde"}, (tools.MARKET,))
-        self.assertEqual(out["items"][0]["min_buyout"], "0s 45c")
-        self.assertEqual(out["items"][0]["change_1d"], "0s 5c")
+        before = len(self.fake.queries)
+        out = tools.call(self.ctx, "market", {}, (tools.MARKET,))
         self.assertEqual(out["retail_token_gold"], 251235)
-        self.assertTrue(any('faction="horde"' in q.get("query", "") for q in self.fake.queries))
+        self.assertEqual(out["retail_token_change_7d"], 1235)
+        self.assertEqual(out["rulesets"], [{"name": "Forever", "up": True}])
+        self.assertNotIn("items", out)  # no Auction House API (owner's rule, 2026-11-20)
+        self.assertFalse(any("auction" in q.get("query", "") for q in self.fake.queries[before:]))
 
     def test_route_reference_off_says_what_instead(self):
         with mock.patch.dict(os.environ, {"ROUTE_REFERENCE_FILE": "off"}):

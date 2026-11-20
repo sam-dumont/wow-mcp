@@ -1,18 +1,22 @@
 """Battle.net API exporter for WoW: Forever (and the Retail WoW Token).
 
-Stdlib only, one process, four polling loops on their own cadence:
+Stdlib only, one process, three polling loops on their own cadence:
   token     /data/wow/token/index per game namespace, every 20 min
   realm     /data/wow/ruleset/index and each ruleset, every 5 min (Forever is
             realmless: a ruleset's status is the closest thing to realm status)
-  auctions  the ruleset's auction-house index, then each house of one faction
-            (commodities only by default), every hour (Blizzard refreshes them
-            hourly)
   profile   each character in PROFILE_CHARACTERS, once a day: its profile,
             appearance, equipment and talents (/specializations). Forever has no realms: a character is
             `{name}-{surname}` lowercased (testpriest-fixture) in the
             profile-forever-{region} namespace (checked live 2026-11-18). A
             character the API doesn't know yet (404, too low or never seen)
             reads wow_character_profile_found 0 and nothing else.
+            Every series carries the `account_id` of the person whose
+            character it is (0: the owner, and PROFILE_CHARACTERS); the
+            readers ask for their own account only (wowstats.stores).
+
+No auction house: the project reads no Auction House API (owner's rule,
+2026-11-20). Prices come from the player's own Auctionator scans
+(wowstats/ahsource.py), which the shipper uploads like any other event.
 
 Every request sends If-Modified-Since (the API answers 304, checked live
 2026-11-18) and Accept-Encoding: gzip, so an unchanged snapshot costs a few
@@ -31,12 +35,10 @@ Logs carry status codes and counts, never prices: container logs often end
 up in a store kept longer than 30 days.
 
 Environment: BNET_CLIENT_ID_FILE, BNET_CLIENT_SECRET_FILE (required: your own
-client, README), BNET_REGION (eu), BNET_LOCALE (en_GB), BNET_RULESET_ID (2),
-AH_FACTION (Alliance), AH_NONCOMMODITY (false), PROFILE_CHARACTERS (comma
-list of Name-Surname, as the WTF folders name them), BNET_PROFILE_NAMESPACE
-(profile-forever-{region}), PROFILE_INTERVAL (86400), WATCH_ITEMS (JSON object
-{"item id": "name"} or a path to one), VM_PUSH_URL (may carry its own query
-args), VM_PUSH_EXTRA_LABELS (comma list of name=value), VM_PUSH_INTERVAL (60),
+client, README), BNET_REGION (eu), BNET_LOCALE (en_GB), PROFILE_CHARACTERS
+(comma list of Name-Surname, as the WTF folders name them),
+BNET_PROFILE_NAMESPACE (profile-forever-{region}), PROFILE_INTERVAL (86400),
+VM_PUSH_URL (may carry its own query args), VM_PUSH_EXTRA_LABELS (comma list of name=value), VM_PUSH_INTERVAL (60),
 VM_MERGE_KEY_FILE, VM_MERGE_URL (default: VM_PUSH_URL's host,
 /internal/force_merge), LISTEN_PORT (9464).
 """
@@ -55,17 +57,19 @@ import urllib.request
 from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-REGION = LOCALE = API = OAUTH = FOREVER_NS = PROFILE_NS = AH_FACTION = PUSH_URL = MERGE_URL = MERGE_KEY_FILE = ""
+REGION = LOCALE = API = OAUTH = FOREVER_NS = PROFILE_NS = PUSH_URL = MERGE_URL = MERGE_KEY_FILE = ""
 CLIENT_ID_FILE = CLIENT_SECRET_FILE = ""
 TOKEN_NAMESPACES: dict = {}
-RULESET_ID = 2
-AH_NONCOMMODITY = False
-WATCH: dict = {}
 PROFILE_CHARS: list = []
 # Several people (wowstats.tenancy): the full view's list of every person's
-# characters, read at each profile pass and added to PROFILE_CHARACTERS.
+# characters, one "<account_id>\t<name>" per line, read at each profile pass
+# and added to PROFILE_CHARACTERS (account 0).
 PROFILE_CHARS_URL = ""
-INTERVALS = {"token": 1200, "realm": 300, "auctions": 3600, "profile": 86400}
+# Characters read per person a day from that list, newest first (security
+# review 0.6.0 S1: a friend's invented names can't make this client fetch
+# without end). The owner's account (0) and PROFILE_CHARACTERS have no cap.
+PER_ACCOUNT = 12
+INTERVALS = {"token": 1200, "realm": 300, "profile": 86400}
 # Blizzard's Developer API Terms: API data is kept 30 days at most.
 KEEP_S = 30 * 86400
 PUSH_LABELS: list = []
@@ -90,19 +94,10 @@ def push_target(push_url: str, extra_labels: list) -> str:
     return push_url + ("&" if urllib.parse.urlsplit(push_url).query else "?") + q
 
 
-def watch_items(raw: str) -> dict:
-    """WATCH_ITEMS: a JSON object {"item id": "name"}, inline or in a file."""
-    raw = raw.strip()
-    if raw and not raw.startswith("{"):
-        with open(raw, encoding="utf-8") as f:
-            raw = f.read()
-    return {int(k): v for k, v in json.loads(raw or "{}").items()}
-
-
 def configure(env=None):
-    global REGION, LOCALE, API, OAUTH, FOREVER_NS, PROFILE_NS, PROFILE_CHARS, AH_FACTION, PROFILE_CHARS_URL
+    global REGION, LOCALE, API, OAUTH, FOREVER_NS, PROFILE_NS, PROFILE_CHARS, PROFILE_CHARS_URL
     global PUSH_URL, MERGE_URL, MERGE_KEY_FILE
-    global CLIENT_ID_FILE, CLIENT_SECRET_FILE, TOKEN_NAMESPACES, RULESET_ID, AH_NONCOMMODITY, WATCH
+    global CLIENT_ID_FILE, CLIENT_SECRET_FILE, TOKEN_NAMESPACES
     global INTERVALS, PUSH_LABELS, PUSH_INTERVAL, MERGE_INTERVAL, LISTEN, TIMEOUT
     env = os.environ if env is None else env
     REGION = env.get("BNET_REGION", "eu")
@@ -121,14 +116,9 @@ def configure(env=None):
     PROFILE_NS = env.get("BNET_PROFILE_NAMESPACE", f"profile-forever-{REGION}")
     PROFILE_CHARS = [c.strip() for c in env.get("PROFILE_CHARACTERS", "").split(",") if c.strip()]
     PROFILE_CHARS_URL = env.get("PROFILE_CHARACTERS_URL", "").strip()
-    RULESET_ID = int(env.get("BNET_RULESET_ID", "2"))
-    AH_FACTION = env.get("AH_FACTION", "Alliance")
-    AH_NONCOMMODITY = env.get("AH_NONCOMMODITY", "false") == "true"
-    WATCH = watch_items(env.get("WATCH_ITEMS", ""))
     INTERVALS = {
         "token": int(env.get("TOKEN_INTERVAL", "1200")),
         "realm": int(env.get("REALM_INTERVAL", "300")),
-        "auctions": int(env.get("AH_INTERVAL", "3600")),
         "profile": int(env.get("PROFILE_INTERVAL", "86400")),
     }
     PUSH_URL = env.get("VM_PUSH_URL", "")
@@ -205,11 +195,9 @@ def count(endpoint, code):
         health["requests"][k] = health["requests"].get(k, 0) + 1
 
 
-def api_get(path, namespace, endpoint, reduce=None):
+def api_get(path, namespace, endpoint):
     """GET with the cached token; returns the parsed body (cached on 304) or
-    None on 404. Raises ApiError for anything else that isn't 2xx. `reduce`
-    trims the body before it is cached: a house's commodities are 80k
-    entries, of which a dozen items matter."""
+    None on 404. Raises ApiError for anything else that isn't 2xx."""
     global pause_until, backoff
     url = f"{API}{path}?{urllib.parse.urlencode({'locale': LOCALE})}"
     key = f"{namespace} {url}"
@@ -229,8 +217,6 @@ def api_get(path, namespace, endpoint, reduce=None):
                     raw = gzip.decompress(raw)
                 body = json.loads(raw)
                 del raw
-                if reduce:
-                    body = reduce(body)
                 cache[key] = (r.headers.get("Last-Modified") or formatdate(usegmt=True), body)
                 count(endpoint, r.status)
                 backoff = 0
@@ -265,7 +251,7 @@ def put(name, labels, value, task):
 
 def drop(name, task, keep):
     """Forget series of `name` written by `task` that the last run didn't see
-    (an item that sold out, a house that disappeared)."""
+    (a ruleset that disappeared, a slot now empty)."""
     with lock:
         series = data.get(name, {})
         for k in [k for k, v in series.items() if v[2] == task and k not in keep]:
@@ -312,54 +298,6 @@ def poll_realm():
     drop("wow_realm_up", "realm", up)
     drop("wow_realm_population", "realm", pop)
     return f"{len(up)} rulesets"
-
-
-def watched_only(body):
-    return {"auctions": [a for a in body.get("auctions") or [] if a.get("item", {}).get("id") in WATCH]}
-
-
-def poll_auctions():
-    index = api_get(f"/data/wow/ruleset/{RULESET_ID}/auctions/", FOREVER_NS, "auction_index")
-    if index is None:
-        raise ApiError(404, "auction_index")
-    # Every ruleset lists the same houses with the same auctions (checked
-    # live: ruleset 1 and 2, house 110), so one ruleset is enough. The five
-    # Alliance houses hold different auctions (no shared auction id), so each
-    # is its own market: the house label keeps them apart.
-    houses = [h for h in index.get("auctions", []) if h.get("name", "").startswith(AH_FACTION)]
-    keep_price, keep_qty, n = set(), set(), 0
-    for h in houses:
-        best, qty = {}, {}
-        paths = [f"/data/wow/ruleset/{RULESET_ID}/auctions/{h['id']}/commodities"]
-        if AH_NONCOMMODITY:
-            paths.append(f"/data/wow/ruleset/{RULESET_ID}/auctions/{h['id']}")
-        for path in paths:
-            body = api_get(path, FOREVER_NS, "auctions", reduce=watched_only)
-            for a in (body or {}).get("auctions") or []:
-                item = a.get("item", {}).get("id")
-                if item not in WATCH:
-                    continue
-                q = int(a.get("quantity", 1)) or 1
-                # Commodities: unit_price. Other auctions: buyout for the stack
-                # (bid-only auctions have none and only count as quantity).
-                unit = a.get("unit_price")
-                if unit is None and a.get("buyout") is not None:
-                    unit = a["buyout"] / q
-                qty[item] = qty.get(item, 0) + q
-                if unit is not None and (item not in best or unit < best[item]):
-                    best[item] = unit
-        n += 1
-        for item, name in WATCH.items():
-            labels = {"item_id": str(item), "item": name, "house": str(h["id"]), "faction": AH_FACTION.lower()}
-            k = tuple(sorted(labels.items()))
-            put("wow_auction_quantity", labels, qty.get(item, 0), "auctions")
-            keep_qty.add(k)
-            if item in best:
-                put("wow_auction_min_buyout_copper", labels, best[item], "auctions")
-                keep_price.add(k)
-    drop("wow_auction_quantity", "auctions", keep_qty)
-    drop("wow_auction_min_buyout_copper", "auctions", keep_price)
-    return f"{n} houses, {len(WATCH)} items"
 
 
 def char_slug(name: str) -> str:
@@ -437,23 +375,35 @@ def forget_old(now=None):
 NAME_RE = re.compile(r"^[^\x00-\x1f\"\\/]{1,64}$")
 
 
-def profile_chars() -> list[str]:
-    """PROFILE_CHARACTERS plus the full view's list (PROFILE_CHARACTERS_URL),
-    one name per line. The list down: the last answer is not kept, the env
-    list alone goes this pass (a character missed today is read tomorrow)."""
-    names = list(PROFILE_CHARS)
+def profile_chars() -> list[tuple[str, str]]:
+    """(account_id, name) pairs: PROFILE_CHARACTERS as account 0, plus the
+    full view's list (PROFILE_CHARACTERS_URL), "<account_id>\t<name>" per
+    line, at most PER_ACCOUNT per friend. A name is read for one account
+    only, the first that lists it (the full view gives a name claimed by
+    two people to the owner or to nobody: wowstats.tenancy). The list down:
+    the last answer is not kept, the env list alone goes this pass (a
+    character missed today is read tomorrow)."""
+    out = [("0", n) for n in dict.fromkeys(PROFILE_CHARS)]
+    taken = {n for _, n in out}
     if PROFILE_CHARS_URL:
+        per: dict[str, int] = {}
         try:
             from wowstats import guard
 
             with guard.share_open(PROFILE_CHARS_URL) as r:
                 for line in r.read(1_000_000).decode("utf-8", "replace").splitlines():
-                    n = line.strip()
-                    if n and NAME_RE.match(n) and n not in names:
-                        names.append(n)
+                    acct, _, n = line.strip().partition("\t")
+                    if not acct.isdigit() or not NAME_RE.match(n) or n in taken:
+                        continue
+                    acct = str(int(acct))
+                    if acct != "0" and per.get(acct, 0) >= PER_ACCOUNT:
+                        continue
+                    per[acct] = per.get(acct, 0) + 1
+                    taken.add(n)
+                    out.append((acct, n))
         except OSError as e:
             log(f"profile characters from {urllib.parse.urlsplit(PROFILE_CHARS_URL).hostname}: {e}")
-    return names
+    return out
 
 
 def poll_profile():
@@ -462,27 +412,28 @@ def poll_profile():
     keep = {n: set() for n in PROFILE_SERIES}
     found = 0
     chars = profile_chars()
-    for name in chars:
+    for acct, name in chars:
+        who = {"character": name, "account_id": acct}  # on every series: whose character it is
         path = f"/profile/wow/character/{char_slug(name)}"
         prof = api_get(path, PROFILE_NS, "profile")
-        put("wow_character_profile_found", {"character": name}, 1 if prof else 0, "profile")
+        put("wow_character_profile_found", who, 1 if prof else 0, "profile")
         if not prof:
             continue  # not on Battle.net yet: its other series go below
         found += 1
         look = api_get(f"{path}/appearance", PROFILE_NS, "profile_appearance") or {}
         race = (prof.get("race") or look.get("playable_race") or {}).get("id")
         gender = ((prof.get("gender") or look.get("gender") or {}).get("type") or "").lower()
-        labels = {"character": name, "race_id": str(race or ""), "gender": gender}
+        labels = {**who, "race_id": str(race or ""), "gender": gender}
         put("wow_character_profile", labels, prof.get("level") or 0, "profile")
         keep["wow_character_profile"].add(tuple(sorted(labels.items())))
         # When Blizzard's answer was read: the page says how old the look is,
         # and the series is pushed every minute whatever its age.
-        put("wow_character_profile_refreshed_timestamp_seconds", {"character": name}, time.time(), "profile")
-        keep["wow_character_profile_refreshed_timestamp_seconds"].add((("character", name),))
+        put("wow_character_profile_refreshed_timestamp_seconds", who, time.time(), "profile")
+        keep["wow_character_profile_refreshed_timestamp_seconds"].add(tuple(sorted(who.items())))
         for c in look.get("customizations") or []:
             opt, choice = (c.get("option") or {}).get("id"), (c.get("choice") or {}).get("id")
             if opt and choice:
-                labels = {"character": name, "option_id": str(opt)}
+                labels = {**who, "option_id": str(opt)}
                 put("wow_character_customization", labels, choice, "profile")
                 keep["wow_character_customization"].add(tuple(sorted(labels.items())))
         # The armory's item level: Blizzard's own count (every slot, an
@@ -490,7 +441,7 @@ def poll_profile():
         for kind in ("equipped", "average"):
             v = prof.get(f"{kind}_item_level")
             if isinstance(v, (int, float)):
-                labels = {"character": name, "kind": kind}
+                labels = {**who, "kind": kind}
                 put("wow_character_item_level", labels, v, "profile")
                 keep["wow_character_item_level"].add(tuple(sorted(labels.items())))
         # The armory's full-body render: its address, which the publisher
@@ -498,14 +449,14 @@ def poll_profile():
         # days, like everything of Battle.net's).
         got = render_url(api_get(f"{path}/character-media", PROFILE_NS, "profile_media"))
         if got:
-            labels = {"character": name, "asset": got[0], "url": got[1]}
+            labels = {**who, "asset": got[0], "url": got[1]}
             put("wow_character_render", labels, time.time(), "profile")
             keep["wow_character_render"].add(tuple(sorted(labels.items())))
         gear = api_get(f"{path}/equipment", PROFILE_NS, "profile_equipment") or {}
         for it in gear.get("equipped_items") or []:
             slot, item = (it.get("slot") or {}).get("type"), (it.get("item") or {}).get("id")
             if slot and item:
-                labels = {"character": name, "slot": slot.lower()}
+                labels = {**who, "slot": slot.lower()}
                 put("wow_character_equipped", labels, item, "profile")
                 keep["wow_character_equipped"].add(tuple(sorted(labels.items())))
                 for st in it.get("stats") or []:
@@ -518,22 +469,22 @@ def poll_profile():
         # Forever (Altoholic keeps only the class name, /simx is by hand).
         trees, ranks = talent_readings(api_get(f"{path}/specializations", PROFILE_NS, "profile_specializations"))
         for i, t in enumerate(trees):
-            labels = {"character": name, "tree": t["tree"], "order": str(i)}
+            labels = {**who, "tree": t["tree"], "order": str(i)}
             put("wow_character_talent_points", labels, t["points"], "profile")
             keep["wow_character_talent_points"].add(tuple(sorted(labels.items())))
         for sp, (rk, tname) in ranks.items():
-            labels = {"character": name, "spell_id": str(sp), "talent": tname}
+            labels = {**who, "spell_id": str(sp), "talent": tname}
             put("wow_character_talent_rank", labels, rk, "profile")
             keep["wow_character_talent_rank"].add(tuple(sorted(labels.items())))
     for n, k in keep.items():
         drop(n, "profile", k)
     drop("wow_character_profile_found", "profile",
-         {(("character", c),) for c in chars})
+         {(("account_id", a), ("character", c)) for a, c in chars})
     forget_old()
     return f"{found} of {len(chars)} characters"
 
 
-TASKS = {"token": poll_token, "realm": poll_realm, "auctions": poll_auctions, "profile": poll_profile}
+TASKS = {"token": poll_token, "realm": poll_realm, "profile": poll_profile}
 
 
 def esc(v):
@@ -651,13 +602,11 @@ def main():
     configure()
     if not PUSH_URL:
         log("VM_PUSH_URL is empty: the game data stays in memory, nothing is stored")
-    if not WATCH:
-        log("WATCH_ITEMS is empty: no auction metrics")
     if not PROFILE_CHARS and not PROFILE_CHARS_URL:
         log("PROFILE_CHARACTERS is empty: no appearance from Battle.net")
     server = ThreadingHTTPServer(("", LISTEN), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    log(f"listening on :{LISTEN}, region {REGION}, ruleset {RULESET_ID}, {len(WATCH)} watched items")
+    log(f"listening on :{LISTEN}, region {REGION}")
     due = {name: 0.0 for name in TASKS}
     fails = {name: 0 for name in TASKS}
     next_push = time.time() + 10

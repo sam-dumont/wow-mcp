@@ -240,9 +240,30 @@
     return !RENDER && want === 'sd' && d.model_sd ? 'sd' : 'hd';
   }
 
+  // A frame with no size yet: opened inside a hidden tab (3D remembered, the
+  // full view opening on Home). The viewer takes its aspect from the frame
+  // and throws on 0/0 (a bare string, "Bad aspect ratio given"), so wait
+  // until the tab is shown: the frame then gets its size and a resize event.
+  function sized() {
+    if (window.innerWidth > 0 && window.innerHeight > 0) return Promise.resolve();
+    return new Promise((resolve) => {
+      const on = () => {
+        if (window.innerWidth > 0 && window.innerHeight > 0) {
+          window.removeEventListener('resize', on);
+          resolve();
+        }
+      };
+      window.addEventListener('resize', on);
+    });
+  }
+
+  // Wowhead's viewer throws strings, not Errors: say what it said.
+  const why = (e) => String((e && e.message) || e || 'unknown error');
+
   async function show(d) {
     if (!d || !d.model) return fail(`No model: ${(d && d.why) || 'nothing to draw'}.`);
     await libs();
+    await sized();
     status.hidden = true;
     classic = models(d) === 'sd';
     draw(classic ? { ...d, model: d.model_sd } : d);
@@ -262,12 +283,12 @@
       if (!RENDER) {
         onAnswer = (d) => {
           if (d.error) return fail(`Couldn’t draw the model: ${d.error}.`);
-          show(d.answer).catch((e) => fail(`Couldn’t draw the model: ${e.message}.`));
+          show(d.answer).catch((e) => fail(`Couldn’t draw the model: ${why(e)}.`));
         };
       }
       await show(first);
     } catch (e) {
-      fail(`Couldn’t draw the model: ${e.message}.`);
+      fail(`Couldn’t draw the model: ${why(e)}.`);
     }
   })();
 })();

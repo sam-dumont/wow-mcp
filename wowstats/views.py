@@ -40,7 +40,6 @@ class Settings:
     """What the UI server was started with (wowstats.ui reads the environment)."""
 
     view: str = "full"  # "full" or "public"
-    ah_faction: str = "Alliance"
     default_char: str = ""
     price_days: int = 90
     weights: dict = field(default_factory=dict)  # WEIGHTS: character -> spec the gear is scored for
@@ -731,33 +730,23 @@ class Views:
 
     # ------------------------------------------------------------ market (Battle.net API)
 
-    def market(self, faction: str | None = None) -> dict:
+    def market(self) -> dict:
         """WoW Forever has no token and no realms (Battle.net API): the token
-        is Retail's (game="retail"), wow_realm_up is one series per ruleset, and
-        auction prices come per house, so an item's price is its lowest across
-        the faction's houses."""
-        faction = faction or self.settings.ah_faction
+        is Retail's (game="retail") and wow_realm_up is one series per
+        ruleset. No auction house: the project reads no Auction House API
+        (prices are the player's own Auctionator scans, prices())."""
         if not self.store.vm_url:
-            return {"token": None, "realms": [], "auctions": [], "faction": faction, "factions": [],
-                    "configured": False, "reason": "no-exporter"}
+            return {"token": None, "realms": [], "configured": False, "reason": "no-exporter"}
         now = datetime.now(UTC)
-        # The exporter labels houses with the faction in lower case: match either.
-        fac = json.dumps(f"(?i){faction}")
-        ah = f"min by (item_id, item) (last_over_time(wow_auction_min_buyout_copper{{faction=~{fac}}}[3h]"
         sub = self.pool.submit
         s = self.store
         jobs = {
             "token": sub(s.vm_range, 'wow_token_price_gold{game="retail"}', now - timedelta(days=7), now, "1h"),
             "realm": sub(s.vm_query, "last_over_time(wow_realm_up[15m])"),
             "realm_day": sub(s.vm_query, "min_over_time(wow_realm_up[24h])"),
-            "ah": sub(s.vm_query, ah + "))"),
-            "ah_prev": sub(s.vm_query, ah + " offset 1d))"),
-            "ah_qty": sub(s.vm_query, f"sum by (item_id, item) (last_over_time(wow_auction_quantity"
-                                      f"{{faction=~{fac}}}[3h]))"),
-            "factions": sub(s.vm_query, "count by (faction) (last_over_time(wow_auction_min_buyout_copper[3h]))"),
         }
         res = {k: f.result() for k, f in jobs.items()}
-        return build_market(res, faction)
+        return build_market(res)
 
     # ------------------------------------------------------------ debug
 
@@ -1207,7 +1196,7 @@ def build_prices(rows: list[dict]) -> dict:
             "last_scan": max(days) if days else None}
 
 
-def build_market(res: dict, faction: str) -> dict:
+def build_market(res: dict) -> dict:
     def key(metric: dict) -> str:
         return json.dumps({k: v for k, v in metric.items() if k != "__name__"}, sort_keys=True)
 
@@ -1222,21 +1211,8 @@ def build_market(res: dict, faction: str) -> dict:
     realms = [{"name": r["metric"].get("realm") or f"ruleset {r['metric'].get('ruleset_id', '?')}",
                "up": float(r["value"][1]) >= 1, "dipped_24h": day_min.get(key(r["metric"]), 1) < 1}
               for r in res["realm"]]
-    prev = {key(r["metric"]): float(r["value"][1]) for r in res["ah_prev"]}
-    qty = {key(r["metric"]): float(r["value"][1]) for r in res["ah_qty"]}
-    auctions = []
-    for r in res["ah"]:
-        k = key(r["metric"])
-        v = float(r["value"][1])
-        auctions.append({"item": r["metric"].get("item") or f"item {r['metric'].get('item_id', '?')}",
-                         "item_id": r["metric"].get("item_id"), "copper": v,
-                         "quantity": int(qty[k]) if k in qty else None,
-                         "change_1d": (v - prev[k]) if k in prev else None})
-    auctions.sort(key=lambda a: a["item"])
-    factions = sorted({str(r["metric"].get("faction")).title() for r in res["factions"] if r["metric"].get("faction")})
-    configured = bool(token or realms or auctions)
-    return {"token": token, "realms": sorted(realms, key=lambda r: r["name"]), "auctions": auctions[:24],
-            "faction": faction, "factions": factions, "configured": configured,
+    configured = bool(token or realms)
+    return {"token": token, "realms": sorted(realms, key=lambda r: r["name"]), "configured": configured,
             "reason": None if configured else "no-data"}
 
 

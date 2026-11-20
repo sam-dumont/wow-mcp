@@ -215,7 +215,7 @@ then shows the Ask Claude and Ask ChatGPT links.
 **No model runs on the server** (owner, 2026-11-18): not for the analysis,
 not for plans, not for anyone. The user's own client does the reasoning;
 the server prepares data and judges. Blizzard API data (the market strip:
-token price, ruleset status, auction watch list) reaches a model only
+token price, ruleset status) reaches a model only
 through the MCP's `market` tool, and only for a person who turned on
 "Battle.net data to my AI" in their settings (their own data to their own
 assistant, owner ruling 2026-11-18); otherwise it is neither listed nor

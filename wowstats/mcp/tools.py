@@ -556,45 +556,26 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
 
 
 def t_market(ctx: Ctx, args: dict) -> dict:
-    """Battle.net API data (30-day store): the auction house per faction and
-    the token. Not served over the MCP (MARKET below) unless the person
-    turned on "Battle.net data to my AI" (mcp_tools, wowstats.tenancy): a
-    chat keeps a tool's answer longer than Blizzard's 30 days (docs/mcp.md)."""
-    faction = (args.get("faction") or ctx.environ().get("AH_FACTION", "Alliance")).lower()
-    want = (args.get("item") or "").strip().lower()
-    limit = limit_arg(args, 20, 100)
-    fac = json.dumps(faction)
+    """Battle.net API data (30-day store): the Retail WoW Token and the
+    Forever rulesets' status. No auction house: the project reads no Auction
+    House API (owner's rule, 2026-11-20); `prices` has the player's own
+    Auctionator scans. Not served over the MCP (MARKET below) unless the
+    person turned on "Battle.net data to my AI" (mcp_tools, wowstats.tenancy):
+    a chat keeps a tool's answer longer than Blizzard's 30 days (docs/mcp.md)."""
     st = ctx.store
     try:
-        ah = st.metrics(f"min by (item_id, item) (last_over_time(wow_auction_min_buyout_copper{{faction={fac}}}[3h]))")
-        prev = st.metrics(f"min by (item_id, item) (last_over_time(wow_auction_min_buyout_copper{{faction={fac}}}"
-                          f"[3h] offset 1d))")
-        week = st.metrics(f"min by (item_id, item) (min_over_time(wow_auction_min_buyout_copper{{faction={fac}}}"
-                          f"[7d]))")
-        qty = st.metrics(f"sum by (item_id, item) (last_over_time(wow_auction_quantity{{faction={fac}}}[3h]))")
         token = st.metrics('last_over_time(wow_token_price_gold{game="retail"}[3h])')
+        week = st.metrics('last_over_time(wow_token_price_gold{game="retail"}[3h] offset 7d)')
+        realms = st.metrics("last_over_time(wow_realm_up[15m])")
     except SourceError as e:
         raise ToolError(str(e)) from None
-
-    def k(m):
-        return (m.get("item_id"), m.get("item"))
-    pmap = {k(r["metric"]): float(r["value"][1]) for r in prev}
-    wmap = {k(r["metric"]): float(r["value"][1]) for r in week}
-    qmap = {k(r["metric"]): float(r["value"][1]) for r in qty}
-    items = []
-    for r in ah:
-        m = r["metric"]
-        name = m.get("item") or f"item {m.get('item_id')}"
-        if want and want not in name.lower() and want != m.get("item_id"):
-            continue
-        v = float(r["value"][1])
-        items.append({"item": name, "item_id": opt_num(m.get("item_id")), "min_buyout": gold(v),
-                      "change_1d": gold(v - pmap[k(m)]) if k(m) in pmap else None,
-                      "low_7d": gold(wmap[k(m)]) if k(m) in wmap else None,
-                      "quantity": int(qmap[k(m)]) if k(m) in qmap else None})
-    items.sort(key=lambda i: i["item"])
     tok = round(float(token[0]["value"][1])) if token else None
-    return {"faction": faction, "items": items[:limit], "retail_token_gold": tok,
+    prev = round(float(week[0]["value"][1])) if week else None
+    rulesets = [{"name": r["metric"].get("realm") or f"ruleset {r['metric'].get('ruleset_id', '?')}",
+                 "up": float(r["value"][1]) >= 1} for r in realms]
+    return {"retail_token_gold": tok,
+            "retail_token_change_7d": tok - prev if tok is not None and prev is not None else None,
+            "rulesets": sorted(rulesets, key=lambda r: r["name"]),
             "source": "Battle.net API, kept 30 days at most"}
 
 
@@ -981,14 +962,11 @@ TOOLS: tuple[Tool, ...] = (
 # turned on "Battle.net data to my AI" (mcp_tools; owner ruling 2026-11-18:
 # their own data to their own assistant). Otherwise it is neither listed nor
 # callable, whatever the env (tests/route/test_market_gating.py).
-MARKET = Tool("market", "Auction house (API)",
-              "Auction house from Blizzard's API (30-day store): lowest buyout per watched item for a faction, "
-              "change over a day, 7-day low, quantity; the Retail token price.",
-              schema({"item": {"type": "string", "description": "Part of an item name, or an item id."},
-                      "faction": {"type": "string", "enum": ["alliance", "horde"],
-                                  "description": "Whose auction house: alliance or horde. Default: the site's own "
-                                                 "(AH_FACTION, else alliance)."},
-                      "limit": lim(20, 100)}), t_market)
+MARKET = Tool("market", "WoW Token and rulesets (API)",
+              "From Blizzard's API (30-day store): the Retail WoW Token price and its change over 7 days, and "
+              "whether each Forever ruleset is up. No auction house prices here: `prices` has the player's own "
+              "Auctionator scans.",
+              schema({}), t_market)
 
 # Last: clients that list the tools show the long-standing ones first.
 TOOLS = TOOLS + (

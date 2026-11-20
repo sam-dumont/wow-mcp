@@ -1,5 +1,80 @@
 # Changelog
 
+## 0.6.1 (2026-11-20)
+
+The fixes from the review before the repository went public, Battle.net
+data per person, no more Auction House API, and visitor counts on the full
+view. On upgrade: drop the Auction House settings, and route Plausible ahead
+of the full view's login if you count visits (both below). The shipper
+picks up 0.6.1 by itself within 6 hours.
+
+**Battle.net data is per person.** Every profile series the exporter writes
+now carries the `account_id` of the person whose character it is, and every
+reader (the pages, `/render/`, the 3D view, the MCP, the publisher) asks for
+its own account. A character name two people send goes to the owner if it is
+theirs, else to nobody: a friend who names someone else's character reads
+nothing. The exporter reads at most 12 characters a day per friend. On
+upgrade, the exporter's first profile pass (at start) relabels everything;
+until it runs, pages show no Battle.net data. The privacy page also says
+that the program updates itself without asking, that the /zogzog/ link
+exists for everyone, and that the app's log names a character in a few lines.
+
+**No Auction House API.** The exporter no longer reads Blizzard's Auction
+House API: no `auctions` loop, no `wow_auction_*` series. Auction prices come
+only from your own Auctionator scans, as the gear advice and the price list
+already did. The full view's market strip keeps the WoW Token and the
+ruleset status; the MCP's `market` tool (still behind "Battle.net data to my
+AI") now returns those two and takes no arguments. `/api/market` takes no
+`faction`. On upgrade, drop `AH_FACTION`, `AH_NONCOMMODITY`, `AH_INTERVAL`,
+`WATCH_ITEMS` and `BNET_RULESET_ID` from your settings: nothing reads them.
+Auction series already in your Battle.net store expire with its retention.
+
+**The full view counts visits too.** With `PLAUSIBLE_DOMAIN` set on the ui,
+every page of the full view sends one Plausible pageview, like the public and
+`/zogzog/` pages: its path alone, never the query or the `#fragment`, an
+install code replaced by `code`. Use the same `PLAUSIBLE_DOMAIN` as the
+publisher and every host counts into one Plausible site, a new friend's page
+included; Plausible's Hostname filter tells them apart. The privacy page now
+says what Plausible gets. On upgrade: route `/js/script.js` and `/api/event`
+on the full view's name to Plausible ahead of its login, and let
+`GET /privacy/*` through without one (docs/deploy.md, "Visitor counts").
+
+**Classic models say when they can't show the hairstyle.** The updated
+models added hairstyles (and faces, beards) the classic ones never had: a
+gnome male's "Genius" is the 12th style, classic gnome males have 7, so
+Classic drew the 7th. Forever has no classic customization to map it
+properly, so under Classic one line now says "This hairstyle doesn't exist
+on classic models: switch to Updated to see it." The same goes for any
+other choice past the end of the classic list. Nothing changes under
+Updated.
+
+**Three review fixes (memory and a proxy).** `play_sql` values are capped at
+64 KB instead of 1 MB: the sorter kept 1,000 rows of 999 KB in memory (568
+MB) and now spills to disk (57 MB). `/api/model3d` answers 400 to a `sex`
+that isn't male or female, `/api/plan` checks the character like the other
+routes, and the per-key lock tables no longer grow (a lock lives while its
+answer is built; the plan's locks are 64 stripes and its cache 64 entries), so a friend can't grow the shared process one name
+at a time. With `AUTH=open` on the full view, a request that carries a
+proxy header (`X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto`,
+`Forwarded`, `Via`, `X-Real-IP`) gets 403, and `ALLOWED_HOSTS` together
+with `AUTH=open` stops the server at start: put a login on it first
+(`AUTH=basic` or `AUTH=proxy`). The public view and `ALLOW_OPEN=1` are
+unchanged. The 421 page now says to set a login too.
+
+**The 3D model draws when the Character tab opens.** With 3D remembered
+from an earlier visit, the full view (which opens on Home) started the
+model in the hidden Character tab, where the frame had no size. Wowhead's
+viewer refused a 0/0 aspect ratio and the page said "Couldn't draw the
+model: undefined." twice. The frame now waits until the tab is shown, and
+an error from the viewer says what it said instead of "undefined".
+
+**A friend who isn't on the list yet knows they're waiting.** The refusal
+page said "This account doesn't have access yet. Ask the person who runs
+this site to add you." It now says they're signed in, the person who runs
+the site hasn't let them in yet, and to reload once they have. With a login
+provider that lets everyone through (the friends list being the lock),
+that's the page a new friend sees after their first sign-in.
+
 ## 0.6.0 (2026-11-19)
 
 Everything since 0.5.0 in one release. The full view opens on answers it

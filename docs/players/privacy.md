@@ -15,6 +15,12 @@ folder, and sends them to the server you were invited to, with your own upload p
   outside the WoW folder.
 - **Kept on your computer too:** a copy of everything it sent, in `WoWArchive` in your home
   folder. Uninstalling leaves it; delete the folder if you don't want it.
+- **Updates:** the program updates itself from the server, without asking, within a few hours
+  of a new version. You trust the person who runs the server like anyone whose program you
+  install.
+- **Battle.net data** (your characters' look, item level, talents) is read once a day for your
+  own characters only. A character name someone else on the server also sends gets none, unless
+  it is the owner's.
 
 ## Who sees what
 
@@ -24,7 +30,7 @@ folder, and sends them to the server you were invited to, with your own upload p
 | The person who runs the server | Everything you send, and the logs below. They run the database it lives in, so trust them like you'd trust anyone holding your files. |
 | Friends you send your zogzog link to | Your page minus the private parts: the journal, gear advice, prices, deaths per zone and level, dungeons. Never other players, what killed you, or where your character is right now. |
 | Anyone, once you switch your public page on | Your characters' card, level climb and dungeons cleared. No gold, no zones, no journal, no other players. Off until you turn it on in Settings. |
-| Your AI assistant, once you connect it | What its questions read from your own data, the players your game showed you included. Nobody else's page. Battle.net data (look, item level, auction prices) only if you turn on "Battle.net data to my AI" in Settings. |
+| Your AI assistant, once you connect it | What its questions read from your own data, the players your game showed you included. Nobody else's page. Battle.net data (look, item level, the WoW Token) only if you turn on "Battle.net data to my AI" in Settings. |
 
 Your zogzog link works like a password: anyone who has it can open it. Send it only to people
 you want there. Sent it to the wrong person? Settings, **Make a new link**: the old one stops
@@ -42,7 +48,8 @@ Hide a character from either page: Settings, Characters, untick it.
   computer asks the server for something. The time, your IP address, your browser, the page
   asked for (without the part after `?`) and who you are logged in as.
 - **The app's own log**: when your AI logs in, the name of an AI tool that failed, when you
-  install or update the program, and when you get added or removed. No game content.
+  install or update the program, and when you get added or removed, plus a character's name
+  in a few lines (a picture asked for, an analysis that failed). No other game content.
 - **The login service**, which they run or manage: your email address, your name, when you
   logged in.
 - **Their overview page**: when you last opened your page, used your AI and sent data, the

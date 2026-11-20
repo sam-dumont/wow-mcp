@@ -52,7 +52,7 @@ apart.
 | The Dungeons panel | `dungeons` | yes | yes, without the party | no |
 | Loot history | `loot` | yes | yes | no |
 | The play analysis' nudges | `analysis` | yes | screened nudges and time per level | no |
-| Auction house, WoW Token, realm status (Battle.net, with the exporter) | `market` | yes | yes | no |
+| WoW Token, realm status (Battle.net, with the exporter) | `market` | yes | yes | no |
 | Your own Auctionator prices | `prices` | yes | yes | no |
 | Other players: the People view, groups, who you crossed | `people` | yes | no | no |
 <!-- /privacy-table -->
@@ -96,12 +96,14 @@ things, so you tell it:
 ## Your AI
 
 Your AI assistant reads what the MCP tools return: your own game data, the players your game
-showed you included. Battle.net data (auction house, token, the armory look) reaches it only
+showed you included. Battle.net data (token, the armory look) reaches it only
 when a person turns on "Battle.net data to my AI" on a shared install, for their own data.
 [Ask about your character](../ai/asking.md#what-the-assistant-can-see).
 
 ## Visitor counts
 
-Optional (`PLAUSIBLE_DOMAIN`): one pageview per visit on the static sites, through your own
-address, with the path alone (`/` or `/zogzog/`): never the `/zogzog/` key, the query or a
-referrer. [Share your page, visitor counts](../self-host/sharing.md#visitor-counts-optional).
+Optional (`PLAUSIBLE_DOMAIN`): one pageview per page on the static sites and, with it set on
+the ui too, the full view, through your own address. Plausible gets the path alone (`/`,
+`/zogzog/`, `/settings`), never the `/zogzog/` key or the query; the site that sent the
+visitor when their browser says; their browser, device type and country. No cookies. The
+privacy page tells friends the same. [Share your page, visitor counts](../self-host/sharing.md#visitor-counts-optional).

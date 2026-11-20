@@ -126,7 +126,7 @@ Game facts: quests, items, NPCs, zones, rules, and how to level your class.
 
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
-| `market` | Auction house from Blizzard's API (30-day store): lowest buyout per watched item for a faction, change over a day, 7-day low, quantity; the Retail token price. | `item`: Part of an item name, or an item id.; `faction`: Whose auction house: alliance or horde. Default: the site's own (AH_FACTION, else alliance).; `limit`: Max rows (default 20). | reads |
+| `market` | From Blizzard's API (30-day store): the Retail WoW Token price and its change over 7 days, and whether each Forever ruleset is up. No auction house prices here: `prices` has the player's own Auctionator scans. | none | reads |
 
 ## Prompts
 

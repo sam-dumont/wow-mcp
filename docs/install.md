@@ -194,7 +194,7 @@ the three have no limit.
 
 ### Battle.net data (optional)
 
-The WoW Token price, a small auction house watch list and your look from the armory, with
+The WoW Token price and your look from the armory, with
 your own Battle.net API client: [Battle.net data](self-host/battlenet.md).
 
 ## 3. The shipper

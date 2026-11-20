@@ -116,7 +116,9 @@ PUBLIC: dict[str, dict] = {
         "why": None, "source": None, "models": None,
         "model": {"chr_model": None, "gender": None, "options": [{"optionId": None, "choiceId": None}]},
         # The same character on its original model (Classic, the page's toggle).
-        "model_sd": {"chr_model": None, "gender": None, "options": [{"optionId": None, "choiceId": None}]},
+        "model_sd": {"chr_model": None, "gender": None, "options": [{"optionId": None, "choiceId": None}],
+                     # The options with no original version (the page's note under Classic).
+                     "no_classic": [None]},
         "appearance": {"source": None, "refreshed": None},
         "items": [M3D_ITEM], "missing": [M3D_ITEM],
     },
@@ -330,10 +332,9 @@ ZOGZOG: dict[str, dict] = {
     "analysis": {**_keys("available", "char"),
                  "nudges": [_keys("text", "where", "blocked_by", "next_step", "verdict", "at_level")],
                  "time_budget": [_keys("level", "online_s", "instance_s", "taxi_s", "dead_s", "afk_s", "planned_s")]},
-    "market": {**_keys("faction", "configured", "reason", "generated_at"), "factions": [None],
+    "market": {**_keys("configured", "reason", "generated_at"),
                "token": {**_keys("label", "gold", "change_7d", "at"), "series": [[None]]},
-               "realms": [_keys("name", "up", "dipped_24h")],
-               "auctions": [_keys("item", "item_id", "copper", "quantity", "change_1d")]},
+               "realms": [_keys("name", "up", "dipped_24h")]},
     "prices": {**_keys("generated_at", "last_scan", "scan_days", "total"),
                "items": [{**_keys("available", "change", "day", "item_id", "item_key", "max", "min", "name", "price",
                                   "realm", "scans"),

@@ -101,7 +101,7 @@ The owner adds its address once, usually within a day. Settings says "live" when
 Settings is in the menu at the top right of your page. Your own page always shows everything: these only change what others see.
 
 - **Hide a character**: tick it under Characters: off the public page, off the zogzog link, or both.
-- **Battle.net data to my AI**: on, your AI gets your characters' Battle.net data (look, item level, talents) and auction prices. Off, it doesn't.
+- **Battle.net data to my AI**: on, your AI gets your characters' Battle.net data (look, item level, talents) and the WoW Token price. Off, it doesn't.
 - **Reset your upload password**: new computer, or the password leaked: Reset my upload password. The old one stops at once; run the new install command on the computer you play on.
 - **Delete your data**: ask the owner to take you off the friends list. Within minutes your events, settings, upload password and pages are gone; backups keep the events 30 more days. Then uninstall below.
 

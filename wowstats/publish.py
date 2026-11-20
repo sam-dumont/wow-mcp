@@ -20,7 +20,7 @@ Battle.net data in vm-wow changed (the exporter refreshes each profile,
 look and equipment once a day, with or without a game session: a hash of
 them, Store.profile_fingerprint), or when the bundle is older than
 MAX_AGE_S whatever happened: Blizzard's API terms keep Battle.net data (the
-look from the profile API, the auction house) at most 30 days, and a daily
+look from the profile API, the token) at most 30 days, and a daily
 rebuild keeps every copy in the bundle far inside that.
 
 Each build is written in <out>/.build-<n>/, renamed to <out>/b<n>/ when
@@ -202,7 +202,8 @@ OWN_PATH = re.compile(r"^/(?!/)[A-Za-z0-9._~/-]*$")
 
 
 def analytics(env: dict) -> dict | None:
-    """Plausible on the two static sites, off unless PLAUSIBLE_DOMAIN is set
+    """Plausible on the two static sites and every page of the live full
+    view (wowstats.ui, Handler.send), off unless PLAUSIBLE_DOMAIN is set
     (a standalone install tracks nobody by default). Pageviews only, through
     Plausible's `manual` script: no hash routing, no outbound-link or file
     download events, and the page sends its address itself, as the bundle's
@@ -210,7 +211,9 @@ def analytics(env: dict) -> dict | None:
     nor the query. PLAUSIBLE_SCRIPT and PLAUSIBLE_API are paths on the site's
     own origin, which your reverse proxy sends to Plausible (its
     /js/script.manual.js and /api/event): the page's CSP stays 'self' and the
-    browser never calls a third party. Never in the live full view."""
+    browser never calls a third party. One PLAUSIBLE_DOMAIN for every host
+    (the public page, each friend's, the full view): one Plausible site,
+    told apart by Plausible's Hostname filter."""
     domain = env.get("PLAUSIBLE_DOMAIN", "").strip().lower()
     if not domain:
         return None
@@ -234,11 +237,7 @@ def page(app: ui.App, sealed: bool, stats: dict | None = None, path: str = "/") 
     else:
         html = DEBUG.sub("", ASK.sub("", html))
     if stats is not None:
-        # stats.js first: it queues the pageview the deferred script sends.
-        tags = (f'<script src="stats.js" data-path="{path}" defer></script>\n'
-                f'<script src="{stats["script"]}" data-domain="{stats["domain"]}" data-api="{stats["api"]}" defer>'
-                "</script>\n")
-        html = html.replace("</head>", tags + "</head>", 1)
+        html = html.replace("</head>", ui.stats_tags(stats, "stats.js", path) + "</head>", 1)
     attrs = 'data-static="1"' + (' data-sealed="1"' if sealed else "")
     return html.replace("@VIEW@", app.view).replace("<html ", f"<html {attrs} ", 1).encode()
 
@@ -412,7 +411,7 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
     put("chars", data_path("chars"), lambda: {**{k: (v if k != "chars" else [c for c in v if c.get("char") in own])
                                                  for k, v in app.chars().items()}, "sources": app.store.sources()})
     if full and feats.get("market"):
-        put("market", data_path("market"), lambda: app.views.market(app.settings.ah_faction))
+        put("market", data_path("market"), app.views.market)
     if full and feats.get("prices"):
         put("prices", data_path("prices"), app.views.prices)
     for c in chars:

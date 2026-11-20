@@ -1,4 +1,4 @@
-import json
+from pathlib import Path
 
 import pytest
 
@@ -14,13 +14,17 @@ def test_push_target_keeps_existing_query():
         "http://vm:8428/api/v1/import/prometheus?extra_label=job%3Dwow"
 
 
-def test_merge_url_and_watch_items(tmp_path):
+def test_merge_url():
     assert exporter.merge_url_for("http://vm:8428/api/v1/import/prometheus?extra_label=a=b") == \
         "http://vm:8428/internal/force_merge"
-    assert exporter.watch_items('{"2592": "Wool Cloth"}') == {2592: "Wool Cloth"}
-    f = tmp_path / "watch.json"
-    f.write_text(json.dumps({"4306": "Silk Cloth"}))
-    assert exporter.watch_items(str(f)) == {4306: "Silk Cloth"}
+
+
+def test_no_auction_house_api():
+    """The owner's rule (2026-11-20): no Auction House API. Prices come from
+    the player's own Auctionator scans (wowstats/ahsource.py)."""
+    assert set(exporter.TASKS) == {"token", "realm", "profile"}
+    src = Path(exporter.__file__).read_text(encoding="utf-8")
+    assert "/auctions" not in src and "commodities" not in src
 
 
 def test_configure_needs_own_client():
@@ -69,21 +73,21 @@ def test_profile_keys_forever_characters_without_realm(monkeypatch):
     assert exporter.poll_profile() == "1 of 2 characters"
     assert ("/profile/wow/character/testhunter-fixture", "profile-forever-eu") in calls
     out = exporter.render_data()
-    assert 'wow_character_customization{character="Testpriest-Fixture",option_id="80"} 1174.0' in out
-    assert 'wow_character_customization{character="Testpriest-Fixture",option_id="82"} 1210.0' in out
-    assert 'wow_character_profile{character="Testpriest-Fixture",gender="male",race_id="7"} 32.0' in out
-    assert 'wow_character_equipped{character="Testpriest-Fixture",slot="main_hand"} 1317.0' in out
+    assert 'wow_character_customization{account_id="0",character="Testpriest-Fixture",option_id="80"} 1174.0' in out
+    assert 'wow_character_customization{account_id="0",character="Testpriest-Fixture",option_id="82"} 1210.0' in out
+    assert 'wow_character_profile{account_id="0",character="Testpriest-Fixture",gender="male",race_id="7"} 32.0' in out
+    assert 'wow_character_equipped{account_id="0",character="Testpriest-Fixture",slot="main_hand"} 1317.0' in out
     # A random suffix's stats are in no item table: the armory's, per slot.
-    assert 'wow_character_equipped_stat{character="Testpriest-Fixture",slot="back",stat="INTELLECT"} 4.0' in out
-    assert 'wow_character_profile_found{character="Testhunter-Fixture"} 0.0' in out
-    assert "Testhunter-Fixture" not in out.replace('wow_character_profile_found{character="Testhunter-Fixture"}', "")
+    assert 'wow_character_equipped_stat{account_id="0",character="Testpriest-Fixture",slot="back",stat="INTELLECT"} 4.0' in out
+    assert 'wow_character_profile_found{account_id="0",character="Testhunter-Fixture"} 0.0' in out
+    assert "Testhunter-Fixture" not in out.replace('wow_character_profile_found{account_id="0",character="Testhunter-Fixture"}', "")
 
     # Gone from the API: only "not found" stays, the look and gear go.
     monkeypatch.setattr(exporter, "api_get", fake_api({}, calls))
     exporter.poll_profile()
     out = exporter.render_data()
     assert "customization" not in out and "equipped" not in out
-    assert 'wow_character_profile_found{character="Testpriest-Fixture"} 0.0' in out
+    assert 'wow_character_profile_found{account_id="0",character="Testpriest-Fixture"} 0.0' in out
 
 
 def test_profile_kept_30_days_at_most(monkeypatch):
@@ -131,10 +135,10 @@ def test_profile_reads_forever_talents(monkeypatch):
     exporter.poll_profile()
     assert (p + "/specializations", "profile-forever-eu") in calls
     out = exporter.render_data()
-    assert 'wow_character_talent_points{character="Testpriest-Fixture",order="0",tree="Discipline"} 16.0' in out
-    assert 'wow_character_talent_points{character="Testpriest-Fixture",order="1",tree="Shadow Magic"} 7.0' in out
-    assert 'wow_character_talent_points{character="Testpriest-Fixture",order="2",tree="Holy"} 0.0' in out
-    assert 'wow_character_talent_rank{character="Testpriest-Fixture",spell_id="15270",talent="Spirit Tap"} 5.0' in out
+    assert 'wow_character_talent_points{account_id="0",character="Testpriest-Fixture",order="0",tree="Discipline"} 16.0' in out
+    assert 'wow_character_talent_points{account_id="0",character="Testpriest-Fixture",order="1",tree="Shadow Magic"} 7.0' in out
+    assert 'wow_character_talent_points{account_id="0",character="Testpriest-Fixture",order="2",tree="Holy"} 0.0' in out
+    assert 'wow_character_talent_rank{account_id="0",character="Testpriest-Fixture",spell_id="15270",talent="Spirit Tap"} 5.0' in out
     assert out.count("wow_character_talent_rank{") == 8 and "Healing Focus" not in out
     trees, ranks = exporter.talent_readings(PRIEST_SPECS)
     assert [(t["tree"], t["points"]) for t in trees] == [("Discipline", 16), ("Shadow Magic", 7), ("Holy", 0)]
@@ -160,9 +164,9 @@ def test_profile_keeps_the_armory_item_level_and_render(monkeypatch):
          p + "/character-media": MEDIA}, []))
     exporter.poll_profile()
     out = exporter.render_data()
-    assert 'wow_character_item_level{character="Testpriest-Fixture",kind="equipped"} 23' in out
-    assert 'wow_character_item_level{character="Testpriest-Fixture",kind="average"} 24' in out
-    assert ('wow_character_render{asset="main-raw",character="Testpriest-Fixture",'
+    assert 'wow_character_item_level{account_id="0",character="Testpriest-Fixture",kind="equipped"} 23' in out
+    assert 'wow_character_item_level{account_id="0",character="Testpriest-Fixture",kind="average"} 24' in out
+    assert ('wow_character_render{account_id="0",asset="main-raw",character="Testpriest-Fixture",'
             'url="https://render.worldofwarcraft.com/classic-eu/character/x/1/2-main-raw.png"}') in out
     # Thirty days on, the render's address goes with the rest.
     exporter.forget_old(now=exporter.time.time() + 31 * 86400)
@@ -181,3 +185,50 @@ def test_profile_keeps_the_armory_item_level_and_render(monkeypatch):
 def test_render_url(media, want):
     got = exporter.render_url(media)
     assert (got[0] if got else None) == want
+
+
+class _Answer:
+    def __init__(self, body: bytes):
+        self.body = body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def read(self, n=-1):
+        return self.body
+
+
+def test_profile_list_is_per_account_capped_and_first_claim_wins(monkeypatch):
+    """Security review 0.6.0 S1: every series names whose character it is,
+    a name is read for one account only, and a friend's list is capped."""
+    from wowstats import guard
+
+    exporter.configure({"BNET_CLIENT_ID_FILE": "/x", "BNET_CLIENT_SECRET_FILE": "/y",
+                        "PROFILE_CHARACTERS": "Ownerchar-Fixture",
+                        "PROFILE_CHARACTERS_URL": "http://full.invalid:9/profile-characters"})
+    lines = ["0\tOwnerchar-Fixture", "1\tOwnerchar-Fixture", "1\tShared-Fixture", "2\tShared-Fixture",
+             "bad line", "x\tNope-Fixture", "2\tFriendtwo-Fixture"]
+    lines += [f"3\tMany{i}-Fixture" for i in range(exporter.PER_ACCOUNT + 5)]
+    lines += [f"0\tAlt{i}-Fixture" for i in range(exporter.PER_ACCOUNT + 1)]
+    monkeypatch.setattr(guard, "share_open", lambda url: _Answer("\n".join(lines).encode()))
+    got = exporter.profile_chars()
+    assert got[0] == ("0", "Ownerchar-Fixture")
+    assert ("1", "Ownerchar-Fixture") not in got  # the env list (account 0) had it first
+    assert ("1", "Shared-Fixture") in got and ("2", "Shared-Fixture") not in got
+    assert ("2", "Friendtwo-Fixture") in got
+    assert sum(1 for a, _ in got if a == "3") == exporter.PER_ACCOUNT
+    assert sum(1 for a, n in got if a == "0" and n.startswith("Alt")) == exporter.PER_ACCOUNT + 1  # owner: no cap
+    assert not any(n == "Nope-Fixture" for _, n in got)
+
+    exporter.data.clear()
+    calls = []
+    monkeypatch.setattr(guard, "share_open", lambda url: _Answer(b"1\tTestpriest-Fixture\n"))
+    p = "/profile/wow/character/testpriest-fixture"
+    monkeypatch.setattr(exporter, "api_get", fake_api({p: PRIEST, p + "/appearance": LOOK}, calls))
+    exporter.poll_profile()
+    out = exporter.render_data()
+    assert 'wow_character_profile{account_id="1",character="Testpriest-Fixture",' in out
+    assert 'account_id="0",character="Testpriest-Fixture"' not in out

@@ -32,8 +32,10 @@ MAX_CHARS = 9000
 _ALLOWED = {20, 21, 31, 33}  # READ, SELECT, FUNCTION, RECURSIVE
 _DENY_FUNCS = {"load_extension", "readfile", "writefile", "edit", "fts3_tokenizer", "randomblob", "zeroblob"}
 # The largest string or blob a query may make (a row of the prep is a few
-# hundred bytes; the answer shown is MAX_CHARS), and the longest query.
-MAX_VALUE = 1_000_000
+# hundred bytes; the answer shown is MAX_CHARS), and the longest query. 64 KB,
+# not 1 MB: the sorter keeps rows that size in memory (568 MB for 1,000
+# rows of 999 KB), and under 64 KB it spills to disk (57 MB; review 0.6.0, S2).
+MAX_VALUE = 64_000
 MAX_SQL = 100_000
 # Leading blanks and comments, then the statement's first word.
 _LEAD = re.compile(r"(?:\s+|--[^\n]*(?:\n|$)|/\*.*?(?:\*/|$))*", re.S)

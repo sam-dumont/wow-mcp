@@ -291,17 +291,33 @@
           h('ul', { class: 'm3dmissing' }, d.missing.map((m) => h('li', {}, chip(m),
             h('span', { class: 'sub', text: ` ${m.slot_name}: ${m.why}` })))));
       }
-      notes.replaceChildren(modelsSwitch(d), ...lines);
+      notes.replaceChildren(modelsSwitch(d), classicNote(d), ...lines);
     } catch (e) {
       if (run === st.run) status.textContent = '';  // the frame says what went wrong
     }
+  }
+
+  // Classic only: the choices the original models don't have (a gnome
+  // male's "Genius" hair; wowstats/model3d.py classic_gaps), drawn as the
+  // nearest one there. One plain line, hidden under Updated.
+  function classicNote(d) {
+    const gaps = (d.model_sd && d.model_sd.no_classic || []).map((n) => String(n).toLowerCase()
+      .replace(/^hair style$/, 'hairstyle')).filter(Boolean);
+    if (!gaps.length) return '';
+    const one = gaps.length === 1;
+    const what = one ? gaps[0] : `${gaps.slice(0, -1).join(', ')} and ${gaps[gaps.length - 1]}`;
+    return h('p', { class: 'm3dclassic', hidden: !classicShown(d),
+      text: `This ${what} ${one ? 'doesn’t' : 'don’t'} exist on classic models: switch to Updated to see ${one ? 'it' : 'them'}.` });
+  }
+  function classicShown(d) {
+    return (modelsPick() || d.models || 'hd') === 'sd' && !!d.model_sd;
   }
 
   // Updated or Classic models, as the game's Character Models option. The
   // pick is this browser's (modelsPick); each open frame reloads on its new
   // address, which names it (view.js reads it there).
   function modelsSwitch(d) {
-    const cur = (modelsPick() || d.models || 'hd') === 'sd' && d.model_sd ? 'sd' : 'hd';
+    const cur = classicShown(d) ? 'sd' : 'hd';
     const tips = {
       hd: 'The updated character models.',
       sd: d.model_sd ? 'The original models, like the game’s Standard Definition option. The face and hair are '
@@ -315,6 +331,7 @@
         if (b.getAttribute('aria-pressed') === 'true') return;
         setModelsPick(v);
         btns.forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+        document.querySelectorAll('.m3dclassic').forEach((p) => { p.hidden = v !== 'sd'; });
         document.querySelectorAll('iframe.m3dframe').forEach((f) => {
           f.src = 'model3d/view' + frameQuery(f.dataset.name, f.dataset.level || null);
         });

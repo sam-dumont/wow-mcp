@@ -118,7 +118,6 @@ window.wowApi = api;
 // stays in the address bar so the link can be bookmarked and shared.
 const SEALED = document.documentElement.dataset.sealed === '1';
 const KEY = SEALED ? location.hash.slice(1) : '';
-window.wowKey = KEY;
 // A pasted link that only changes the fragment doesn't reload the page.
 if (SEALED) window.addEventListener('hashchange', () => location.reload());
 // So the section links (#levels, #dungeons...) jump by script: following one
@@ -1364,7 +1363,7 @@ function renderMarket(m, err) {
   const el = $('#market');
   if (!el) return;
   if (err) {
-    fill(el, h('p', { class: 'note' }, `Token and auction numbers are unavailable: ${err}.`));
+    fill(el, h('p', { class: 'note' }, `Token and ruleset numbers are unavailable: ${err}.`));
     return;
   }
   // Not set up, or nothing read yet: nothing to show and nothing the
@@ -1381,16 +1380,6 @@ function renderMarket(m, err) {
     kids.push(h('div', { class: 'm', title: 'Forever has no realms; the API reports one status per ruleset.' },
       h('span', { class: r.up ? 'up' : 'down', text: `${r.name} ruleset` }),
       h('span', { text: r.up ? (r.dipped_24h ? 'up, was down today' : 'up') : 'down' })));
-  }
-  if (m.auctions.length) {
-    const item = (a) => h('li', {
-      title: a.change_1d !== null ? `${a.change_1d >= 0 ? '+' : '\u2212'}${fmtNum(Math.abs(a.change_1d))} copper since yesterday` : '',
-    }, h('span', { text: a.item }), h('span', { class: 'r' }, coins(a.copper),
-      a.quantity !== null ? h('small', { text: ` ${fmtNum(a.quantity)} listed` }) : null));
-    kids.push(h('details', { class: 'm ahbox' },
-      h('summary', {}, `${m.faction} auction house, lowest buyout`,
-        h('span', { class: 'ahpeek' }, m.auctions.slice(0, 2).map((a) => h('span', {}, `${a.item} `, coins(a.copper))))),
-      h('ul', { class: 'ahlist' }, m.auctions.map(item))));
   }
   fill(el, ...kids);
 }

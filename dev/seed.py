@@ -316,10 +316,6 @@ if "--metrics" in sys.argv:
     end = int(datetime.now(UTC).timestamp()) // 300 * 300
     lines = []
     price = 281_400.0
-    houses = ["Alliance 1", "Alliance 2", "Alliance 3"]
-    watch = {"2592": ("Wool Cloth", 38), "4306": ("Silk Cloth", 96), "4338": ("Mageweave Cloth", 214),
-             "4305": ("Bolt of Silk Cloth", 410), "10940": ("Strange Dust", 145), "10939": ("Greater Magic Essence", 820),
-             "3730": ("Big Bear Meat", 63), "3685": ("Raptor Egg", 88)}
     steps = [end - h * 3600 for h in range(24 * 14, 48, -1)] + [end - 48 * 3600 + i * 300 for i in range(48 * 12 + 1)]
     for t in steps:
         h = (end - t) // 3600
@@ -327,11 +323,6 @@ if "--metrics" in sys.argv:
         price = max(240_000, price + rnd.uniform(-1800, 2100))
         lines.append(f'wow_token_price_gold{{game="retail"}} {price:.0f} {t}')
         lines.append(f'wow_realm_up{{realm="Normal",ruleset_id="2"}} {0 if h in (30, 31) else 1} {t}')
-        for iid, (item, base) in watch.items():
-            for house in houses:
-                lab = f'item_id="{iid}",item="{item}",house="{house}",faction="Alliance"'
-                lines.append(f"wow_auction_min_buyout_copper{{{lab}}} {int(base * rnd.uniform(0.85, 1.25))} {t}")
-                lines.append(f"wow_auction_quantity{{{lab}}} {rnd.randint(20, 900)} {t}")
     urllib.request.urlopen(urllib.request.Request(f"{VM}/api/v1/import/prometheus",
                                                   data="\n".join(lines).encode(), method="POST"), timeout=30).read()
     print(f"{len(lines)} samples into {VM}")

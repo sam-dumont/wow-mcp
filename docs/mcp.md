@@ -388,10 +388,11 @@ quick player: real players take 1.3 to 3.3 times as long).
 hand-made `{"levels": {"12": 2400}, "guides": {...}}`), `off` turns the
 comparison off and the `coach` prompt compares you with your own past levels instead.
 
-## Auction house data reaches the MCP only when you turn it on
+## Battle.net data reaches the MCP only when you turn it on
 
-The auction house numbers, the WoW Token price and the ruleset status come
-from Blizzard's API. Blizzard's terms keep API data for 30 days at most and
+The WoW Token price and the ruleset status come from Blizzard's API (the
+project reads no Auction House API: auction prices are your own Auctionator
+scans). Blizzard's terms keep API data for 30 days at most and
 don't allow passing it on, and a claude.ai chat keeps what a tool returned
 for as long as the chat exists. So the `market` tool is off by default:
 the MCP neither lists nor runs it, whatever the env. A person on a

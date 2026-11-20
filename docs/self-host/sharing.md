@@ -77,7 +77,9 @@ has the hardening.
 With your own [Plausible](https://plausible.io/) and `PLAUSIBLE_DOMAIN` set, the static pages
 send one pageview per visit, through your own address: route `/js/script.js` and `/api/event`
 on the public name to your Plausible. The pageview carries the path alone (`/` or
-`/zogzog/`), never the key, the query or a referrer. Empty: no analytics at all.
+`/zogzog/`), never the key or the query. Set it on the ui too and the full view counts into
+the same Plausible site ([Deploy without compose, visitor counts](../deploy.md#visitor-counts-plausible)).
+Empty: no analytics at all.
 
 ## Small machine or no internet
 

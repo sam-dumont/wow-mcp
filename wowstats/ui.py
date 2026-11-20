@@ -18,7 +18,6 @@ Environment (defaults suit deploy/compose):
                          (empty: no exporter; full view only)
   LOGS_FILTER            LogsQL filter that selects the events (feed:wow-*)
   VL_CONCURRENCY         VictoriaLogs requests at once, all callers together (2)
-  AH_FACTION             auction house shown (Alliance)
   DEFAULT_CHAR           character opened first (empty: the latest seen)
   BIND, PORT             127.0.0.1, 8080
   AUTH                   none | basic | proxy | open (docs/deploy.md, "Logins")
@@ -206,10 +205,13 @@ class App:
         try:
             if mode == "open":
                 guard.check_open(env, self.bind)
+                if self.view == "full" and (env.get("ALLOW_OPEN") or "").strip().lower() not in guard.TRUE:
+                    guard.check_open_hosts(env)
             self.proxy = guard.ProxyTrust(env) if mode == "proxy" else None
         except guard.GuardError as e:
             raise ConfigError(str(e.code)) from None
         self.hosts = guard.Hosts(env)
+        self.open_on_purpose = (env.get("ALLOW_OPEN") or "").strip().lower() in guard.TRUE
 
         ingest_pw = _secret(env, "INGEST_PASSWORD")
         self.ingest_expected: bytes | None = None
@@ -225,7 +227,7 @@ class App:
             profile_vm_url=env.get("VM_URL", ""),  # the profile: allowed in public (stores.py)
             account_id=env_account(env))
         self.settings = Settings(
-            view=view, ah_faction=env.get("AH_FACTION", "Alliance"), default_char=env.get("DEFAULT_CHAR", ""),
+            view=view, default_char=env.get("DEFAULT_CHAR", ""),
             price_days=int(env.get("PRICE_DAYS", "90")), weights=parse_weights(env.get("WEIGHTS", "")))
         self.views = Views(self.store, self.settings)
         self.cache_ttl = int(env.get("CACHE_TTL", "45"))
@@ -241,9 +243,19 @@ class App:
         # is stripped and the page's CSP stays the strict one.
         on = env.get("MODEL3D", "on").strip().lower() not in ("off", "0", "false", "no")
         self.model3d = model3d.Model3D(env, self.static) if full and on else None
+        # Plausible on every page of the full view too (owner, 2026-11-20):
+        # the same PLAUSIBLE_DOMAIN as the static sites, so every wow host
+        # counts into one Plausible site, told apart by hostname. Checked
+        # now, so a bad value stops the server at start.
+        self.stats = None
+        if full:
+            from wowstats import publish
+
+            self.stats = publish.analytics(env)
         self.env = env
         self._cache: dict[str, tuple[float, dict]] = {}
-        self._locks: dict[str, threading.Lock] = {}
+        # key -> [lock, users]: only keys being built (review 0.6.0, S5).
+        self._locks: dict[str, list] = {}
         self._guard = threading.Lock()
         # The answers built once per new data (wowstats.prebuilt); the thread
         # building them records into its own dict (page_answers).
@@ -279,11 +291,23 @@ class App:
         hit = self.prebuilt.get(key)
         if hit is not None:
             return hit
-        with self._guard:
-            lock = self._locks.setdefault(key, threading.Lock())
         hit = self._cache.get(key)
         if hit and time.time() - hit[0] < self.cache_ttl:
             return hit[1]
+        # One lock per key in flight, dropped with its last user: a fixed
+        # array of locks would deadlock a build that asks for another key.
+        with self._guard:
+            entry = self._locks.setdefault(key, [threading.Lock(), 0])
+            entry[1] += 1
+        try:
+            return self._build(key, fn, entry[0])
+        finally:
+            with self._guard:
+                entry[1] -= 1
+                if entry[1] == 0:
+                    self._locks.pop(key, None)
+
+    def _build(self, key: str, fn, lock: threading.Lock):
         with lock:
             hit = self._cache.get(key)
             if hit and time.time() - hit[0] < self.cache_ttl:
@@ -448,9 +472,9 @@ class App:
 
         return self.cached(f"plan:{name}", build)
 
-    def market(self, faction: str) -> dict:
+    def market(self) -> dict:
         self._full_only()
-        return self.cached(f"market:{faction}", lambda: self.views.market(faction))
+        return self.cached("market:api", self.views.market)
 
     def prices(self) -> dict:
         self._full_only()
@@ -502,7 +526,7 @@ class App:
         try:
             full = self.view == "full"
             if full:
-                ask(self.market, self.settings.ah_faction)
+                ask(self.market)
             if only:
                 return out
             self.views.expire()  # nothing read before this build is reused in it
@@ -579,6 +603,23 @@ def og_tags(html: str, header: dict | None) -> str:
 INSTALL_CODE_PATH = re.compile(r"/install/(?!update\b)[^/]+")
 # The shipper's auto-update: its version and files (wowstats.account.handle_shipper).
 SHIPPER_UPDATE = "/install/update/shipper"
+# web/stats.js on the full view: under /privacy/ with the privacy note's
+# other files, the only paths the login proxy lets through before a login
+# (with /install/), so the privacy note counts its visits too.
+STATS_JS = "/privacy/stats.js"
+
+
+def stats_tags(stats: dict, src: str, path: str) -> str:
+    """The two script tags of a Plausible pageview (wowstats.publish
+    analytics()): stats.js first, which queues the pageview with `path` as
+    its address, then Plausible's manual script, which sends it. `path` is
+    the page's path alone, percent-encoded: never the query, never the
+    #fragment, and an install code (a bearer for 15 minutes) never."""
+    path = INSTALL_CODE_PATH.sub("/install/code", path)[:200]
+    path = urllib.parse.quote(path, safe="/-._~") or "/"
+    return (f'<script src="{src}" data-path="{path}" defer></script>\n'
+            f'<script src="{stats["script"]}" data-domain="{stats["domain"]}" data-api="{stats["api"]}" defer>'
+            "</script>\n")
 
 
 def og_generic(html: str) -> str:
@@ -604,7 +645,14 @@ def make_handler(root: App, tenancy=None):
 
         # Helpers the optional MCP module may use too.
         def send(self, code: int, body: bytes, ctype: str, cache: str = "no-store", headers: dict | None = None,
-                 csp: str = CSP):
+                 csp: str = CSP, stats: bool = True):
+            """`stats`: every HTML page of the full view gets the Plausible
+            pageview when PLAUSIBLE_DOMAIN is set (App.stats); False for a
+            page inside another one (the 3D viewer's frame), which would
+            count the visit twice."""
+            if stats and root.stats is not None and ctype.startswith("text/html") and b"</head>" in body:
+                tags = stats_tags(root.stats, STATS_JS, urllib.parse.urlsplit(self.path).path)
+                body = body.replace(b"</head>", tags.encode() + b"</head>", 1)
             self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
@@ -685,6 +733,9 @@ def make_handler(root: App, tenancy=None):
                 shipper = path == SHIPPER_UPDATE or path.startswith(SHIPPER_UPDATE + "/")
                 if path != "/ingest" and not shipper and not root.hosts.ok(self.headers.get("Host")):
                     return self.send(421, root.hosts.refusal(self.headers.get("Host")), "text/plain; charset=utf-8")
+                if (path != "/ingest" and not shipper and app.auth_mode == "open" and full
+                        and not app.open_on_purpose and guard.proxied(self.headers)):
+                    return self.send(403, guard.PROXIED, "text/plain; charset=utf-8")
                 if path == "/ingest":
                     if self.command != "POST":
                         return self.not_found()
@@ -712,6 +763,10 @@ def make_handler(root: App, tenancy=None):
                     from wowstats import account
 
                     return account.handle_install(self, tenancy, path[len("/install/"):])
+                if path == STATS_JS and root.stats is not None and self.command in ("GET", "HEAD"):
+                    # Before any login: the privacy note loads it too.
+                    return self.send(200, (root.static / "stats.js").read_bytes(), "text/javascript; charset=utf-8",
+                                     "public, max-age=3600")
                 if tenancy is not None and path == "/privacy" and self.command in ("GET", "HEAD"):
                     from wowstats import account
 
@@ -849,13 +904,14 @@ def make_handler(root: App, tenancy=None):
                         return self.json(400, {"error": "bad character name"})
                     return self.json(200, analysis.answer(app.analysis_env, name, "full"))
                 if path == "/api/plan":  # the mount goal and the last plan against what happened
-                    name = (qs.get("char", [""])[0] or app.settings.default_char or "").replace(" ", "-")[:64]
+                    name = (qs.get("char", [""])[0] or app.settings.default_char or "").replace(" ", "-")
+                    if not CHAR_RE.match(name):
+                        return self.json(400, {"error": "bad character name"})
+                    if not app.known(name):
+                        return self.json(404, {"error": f"no events for {name}"})
                     return self.json(200, app.plan(name))
                 if path == "/api/market":
-                    faction = qs.get("faction", [app.settings.ah_faction])[0]
-                    if faction not in ("Alliance", "Horde"):
-                        return self.json(400, {"error": "faction is Alliance or Horde"})
-                    return self.json(200, app.market(faction))
+                    return self.json(200, app.market())
                 if path == "/api/prices":
                     return self.json(200, app.prices())
                 if path == "/api/logsql":

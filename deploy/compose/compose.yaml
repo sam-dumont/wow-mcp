@@ -79,7 +79,6 @@ services:
       VL_URL: http://victorialogs:9428
       # Set to http://victoriametrics:8428 when you run the exporter profile.
       VM_URL: ${VM_URL:-}
-      AH_FACTION: ${AH_FACTION:-Alliance}
       DEFAULT_CHAR: ${DEFAULT_CHAR:-}
       # The shipper's login for POST /ingest (user "wow").
       INGEST_PASSWORD: ${INGEST_PASSWORD:?set INGEST_PASSWORD in .env (12+ characters)}
@@ -131,7 +130,6 @@ services:
     environment:
       VL_URL: http://victorialogs:9428
       VM_URL: ${VM_URL:-}
-      AH_FACTION: ${AH_FACTION:-Alliance}
       DEFAULT_CHAR: ${DEFAULT_CHAR:-}
       PUBLISH_DIR: /data/site
       PUBLISH_INTERVAL: ${PUBLISH_INTERVAL:-600}
@@ -223,9 +221,6 @@ services:
       BNET_CLIENT_ID_FILE: /run/secrets/bnet_client_id
       BNET_CLIENT_SECRET_FILE: /run/secrets/bnet_client_secret
       BNET_REGION: ${BNET_REGION:-eu}
-      AH_FACTION: ${AH_FACTION:-Alliance}
-      # {"item id": "name", ...}: set it in .env.
-      WATCH_ITEMS: ${WATCH_ITEMS:-}
       PROFILE_CHARACTERS: ${PROFILE_CHARACTERS:-}
       VM_PUSH_URL: http://victoriametrics:8428/api/v1/import/prometheus
       VM_MERGE_KEY_FILE: /run/secrets/vm_merge_key

@@ -469,17 +469,20 @@ asked a plan to work around (up to 300 characters), and the findings the analysi
 wow-stats. No email address, no
 password: the login service keeps those.</li>
 <li>Battle.net data about your characters (their look, item level, talents), fetched once a day from
-Blizzard's public API. It is deleted after 30 days at most, as Blizzard's API terms require.</li>
+Blizzard's public API, for your own characters only: a character name someone else here also sends
+gets none, unless it is the owner's. It is deleted after 30 days at most, as Blizzard's API terms
+require.</li>
 </ul>
 <h2>Who sees it</h2>
 <ul>
 <li>You, on your page, after logging in. The app has no view of other people's data: not for friends,
 not for the owner.</li>
-<li>Your public page and your /zogzog/ link, only if you turn them on (Settings), and only what they
-show: never other players' names, never where your character is now.</li>
+<li>Your public page, only if you turn it on (Settings), and your /zogzog/ link, which anyone you give it
+to can open. Only what they show: never other players' names, never where your character is now.</li>
 <li>The owner, and your AI assistant when you connect it: both below.</li>
-<li>Installing and updating wow-stats runs what this server sends on your computer: you trust the owner
-the way you trust anyone whose program you install.</li>
+<li>Installing and updating wow-stats runs what this server sends on your computer. The program updates
+itself from this server, without asking, within a few hours of a new version: you trust the owner the
+way you trust anyone whose program you install.</li>
 </ul>
 <h2>What the owner can see</h2>
 <ul>
@@ -490,14 +493,15 @@ asks this server for something, the web server writes a line: the time, your IP 
 the page asked for (without the part after <code>?</code>) and who you are logged in as. @LOGS@</li>
 <li>The app's own log: the page asked for, when your AI logs in (with your login id), the name of an AI
 tool that failed, and when you install or update the program, reset your upload password, or get added
-or removed (with your account number and page name). No game content.</li>
+or removed (with your account number and page name), and a character's name in a few lines (a picture
+asked for, an analysis that failed). No other game content.</li>
 <li>The login service. You log in through a service the owner runs or manages. It has your email address,
 your name and when you logged in.</li>
 <li>The owner's overview page shows, for each person: your page's name, when you last opened your page, used your AI
 assistant and sent data (with how many events, the version of the little program that sends it, and
 Mac or Windows), how many characters you have (a number, no names), whether your public page is on and
 when it was last built, and whether the addons are all there. Never a character's name, a zone, your gold
-or anything you played.@VISITS@</li>
+or anything you played.</li>@VISITS@
 </ul>
 <h2>Your AI assistant</h2>
 <p>Your AI reads your data with your login. This server gets the tool your AI picked (like "show my gear")
@@ -534,7 +538,12 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
     with PLAUSIBLE_DOMAIN set, how long backups keep events with
     PRIVACY_BACKUP_DAYS, how long the logs keep a request with
     PRIVACY_LOG_DAYS; without those the page says to ask the owner."""
-    visits = " The owner sees visit counts per site (Plausible, no cookies)." if (
+    # The same counting on every wow page: this full view (ui send()), the
+    # public page and /zogzog/ (wowstats.publish), all with stats.js.
+    visits = ("\n<li>Visit counts (Plausible, on this server's own address). Each page you open here, on your "
+              "public page or on your /zogzog/ page sends one pageview: the page's address without the part "
+              "after <code>?</code> or <code>#</code>, the site that sent you there when your browser says, "
+              "your browser, device type and country. No cookies, nothing about your game.</li>") if (
         env.get("PLAUSIBLE_DOMAIN") or "").strip() else ""
     days = _days(env.get("PRIVACY_BACKUP_DAYS"))
     backups = (f"Backups of your events expire {days} days later." if days is not None else

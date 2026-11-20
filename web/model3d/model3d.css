@@ -21,6 +21,8 @@
 .m3dmodel[aria-pressed="true"] { background: var(--raised); color: var(--ink); border-color: var(--gold); }
 .m3dmodel:disabled { cursor: not-allowed; opacity: .55; }
 .m3dmodel:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px; }
+/* Classic only: a choice the original models don't have (classicNote). */
+.m3dnotes p.m3dclassic { color: var(--ink); }
 /* An item with no 3D model: its icon instead, and why. */
 .m3dnotes ul.m3dmissing { list-style: none; padding: 0; display: grid; gap: 6px; }
 .m3dmissing li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; }

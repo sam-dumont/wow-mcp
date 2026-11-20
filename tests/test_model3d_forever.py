@@ -183,11 +183,32 @@ def test_classic_look_matches_option_by_option():
                                                     {"optionId": 4, "choiceId": 141}]
 
 
+def test_classic_gaps_name_the_choices_the_original_lacks():
+    """A gnome male's "Genius" hair (8th style) on a 7-style classic list:
+    classic_look draws the last one, classic_gaps names it for the page."""
+    hd = [{"Id": 3, "Name": "Hair Style", "Choices": [{"Id": 30 + i} for i in range(8)]},
+          {"Id": 2, "Name": "Face", "Choices": [{"Id": 21}, {"Id": 22}]},
+          {"Id": 5, "Name": "Hair Color", "Choices": [{"Id": 51}, {"Id": 52}]}]
+    sd = [{"Id": 3, "Name": "Hair Style", "Choices": [{"Id": 130 + i} for i in range(7)]},
+          {"Id": 2, "Name": "Face", "Choices": [{"Id": 121}, {"Id": 122}]},
+          {"Id": 5, "Name": "Hair Color", "Choices": [{"Id": 151}, {"Id": 152}]}]
+    genius = [{"optionId": 3, "choiceId": 37}, {"optionId": 2, "choiceId": 22}, {"optionId": 5, "choiceId": 52}]
+    assert model3d.classic_look(hd, genius, sd)[0] == {"optionId": 3, "choiceId": 136}
+    assert model3d.classic_gaps(hd, genius, sd) == ["Hair Style"]
+    # One the original has (the 7th style), or nothing saved: no gap.
+    assert model3d.classic_gaps(hd, [{"optionId": 3, "choiceId": 36}], sd) == []
+    assert model3d.classic_gaps(hd, [], sd) == []
+    # Several at once, by name when the ids differ.
+    sd2 = [{**sd[0], "Id": 93}, {"Id": 92, "Name": "face", "Choices": [{"Id": 121}]}]
+    assert model3d.classic_gaps(hd, genius, sd2) == ["Hair Style", "face"]
+
+
 def test_the_answer_has_both_models(m3d, upstream):
     d = m3d.character({"race": "Gnome", "sex": "female", "class": "MAGE", "items": []})
     assert d["model"]["chr_model"] == 14 and d["model_sd"]["chr_model"] == 14
     assert d["model_sd"]["gender"] == 1
     assert {o["optionId"] for o in d["model_sd"]["options"]} == {1, 3}
+    assert d["model_sd"]["no_classic"] == []
     # The original model from the classic data only, under sd/, never live/.
     assert m3d.relay.get("sd/meta/character/14.json") == b'{"Model":119159}'
     assert m3d.relay.get("meta/character/14.json") == b'{"Model":900914}'

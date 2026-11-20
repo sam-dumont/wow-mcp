@@ -141,13 +141,10 @@ def _vec(metric: dict, v: float) -> dict:
     return {"metric": metric, "value": [1763400000, str(v)]}
 
 
-LINEN = {"item_id": "2589", "item": "Linen Cloth"}
 METRICS = [
-    ("offset 1d", [_vec(LINEN, 40)]),
-    ("min_over_time(wow_auction_min_buyout_copper", [_vec(LINEN, 30)]),
-    ("wow_auction_min_buyout_copper", [_vec(LINEN, 45)]),
-    ("wow_auction_quantity", [_vec(LINEN, 300)]),
+    ("offset 7d", [_vec({"game": "retail"}, 250000)]),
     ("wow_token_price_gold", [_vec({"game": "retail"}, 251234.6)]),
+    ("wow_realm_up", [_vec({"realm": "Forever", "ruleset_id": "2"}, 1)]),
 ]
 
 

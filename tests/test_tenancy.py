@@ -284,7 +284,8 @@ def test_unlisted_or_no_login_is_refused(server):
     # /privacy/ assets, the only ones they can load), what to do, a way out.
     code, headers, body = server.get("/", headers=as_user("someone"))
     assert code == 403 and headers["Content-Type"].startswith("text/html")
-    assert b"This account doesn&#x27;t have access yet. Ask the person who runs this site to add you." in body
+    assert (b"You&#x27;re signed in, but the person who runs this site hasn&#x27;t let you in yet. Ask them to "
+            b"add you, then reload this page.") in body
     assert b'href="/oauth2/logout"' in body and b'href="/privacy/account.css"' in body
     assert b"organisation" not in body and b"<script" not in body and not leaks(body)
     assert server.get("/privacy/account.css", headers=as_user("someone"))[0] == 200
@@ -1021,7 +1022,8 @@ def test_the_privacy_page_says_what_this_install_does():
     assert "ask the owner" in bare.lower()
     lab = account.privacy_page(False, {"PLAUSIBLE_DOMAIN": "wow.m.example", "PRIVACY_BACKUP_DAYS": "30",
                                        "PRIVACY_LOG_DAYS": "30"}).decode()
-    assert "The owner sees visit counts per site (Plausible, no cookies)." in lab
+    assert "Visit counts (Plausible, on this server's own address)." in lab
+    assert "No cookies, nothing about your game." in lab
     assert "Backups of your events expire 30 days later." in lab
     assert "ask the owner how long" not in lab.lower()
 

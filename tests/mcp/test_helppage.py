@@ -58,7 +58,8 @@ def test_every_argument_has_its_own_meaning_in_the_schema():
             for name in ("faction", "race", "class", "level"):
                 spec = (t.input_schema.get("properties") or {}).get(name)
                 assert not spec or "route" not in spec["description"], f"{t.name}.{name}"
-    assert "auction" in tools.MARKET.input_schema["properties"]["faction"]["description"]
+    # No Auction House API (owner's rule, 2026-11-20): market takes no faction.
+    assert tools.MARKET.input_schema["properties"] == {}
 
 
 def test_every_tool_has_one_group_and_every_ask_names_real_things():

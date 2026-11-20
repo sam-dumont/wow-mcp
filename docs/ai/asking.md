@@ -56,7 +56,7 @@ assistant sees your characters only, and on a shared server only yours.
 
 What it doesn't get:
 
-- **Battle.net data** (auction house, WoW Token, your look from the armory) stays off unless
+- **Battle.net data** (WoW Token, your look from the armory) stays off unless
   you turn on "Battle.net data to my AI" in your Settings, on a shared server. Blizzard's
   terms keep that data 30 days at most, and a chat keeps what a tool answered for as long as
   the chat exists, so that's your call. Your own Auctionator scans aren't Battle.net data: the

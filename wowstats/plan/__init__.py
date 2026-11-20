@@ -25,7 +25,10 @@ _CACHE: dict = {}
 CACHE_S = 120
 
 
-_KEY_LOCKS: dict[tuple, threading.Lock] = {}
+# Striped, and the cache capped: one lock and one entry per name asked for
+# grew without limit (review 0.6.0, S5).
+_KEY_LOCKS = [threading.Lock() for _ in range(64)]
+MAX_CACHED = 64
 
 
 def inputs(env: dict, char: str | None = None, store=None) -> dict:
@@ -38,7 +41,7 @@ def inputs(env: dict, char: str | None = None, store=None) -> dict:
 
     key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower())
     with _LOCK:
-        lock = _KEY_LOCKS.setdefault(key, threading.Lock())
+        lock = _KEY_LOCKS[hash(key) % len(_KEY_LOCKS)]
     with lock:
         with _LOCK:
             hit = _CACHE.get(key)
@@ -47,6 +50,8 @@ def inputs(env: dict, char: str | None = None, store=None) -> dict:
         inp = facts.gather(env, char, store=store)
         with _LOCK:
             _CACHE[key] = (time.time(), inp)
+            while len(_CACHE) > MAX_CACHED:
+                _CACHE.pop(min(_CACHE, key=lambda k: _CACHE[k][0]), None)
         return inp
 
 

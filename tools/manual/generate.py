@@ -427,7 +427,8 @@ ENDPOINTS = [
           "the public site, the sealed friends' site (`ZOGZOG_PATH`) and the help page (with `HELP_KEY_FILE`)"),
          (["/healthz"], "public", "health check"),
          (["/js/script.js", "/api/event"], "public",
-          "only with `PLAUSIBLE_DOMAIN`: route these two to your Plausible, nothing else"),
+          "only with `PLAUSIBLE_DOMAIN`: route these two to your Plausible, nothing else (on the full view's name "
+          "too, ahead of its login, when the ui has `PLAUSIBLE_DOMAIN`)"),
      ]),
     ("Never route these from outside", "Internal listeners. Keep them on a private network.", [
         (["/bundle", "/bundles"], "never", "the static server's upload port (`UPLOAD_PORT`)"),

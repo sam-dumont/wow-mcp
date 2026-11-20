@@ -567,8 +567,8 @@ def share_server(env: dict, tenancy=None):
     With several people (wowstats.tenancy) it also answers
     /analysis.json?slug=<slug> (that person's lines), /users.json (who has a
     site and what is on: no hashes, no keys) for the publisher,
-    /profile-characters (every person's characters, one per line) for the
-    exporter, and /hosts.json (each site's host) for the host's DNS automation;
+    /profile-characters (every person's characters, "<account_id>\t<name>"
+    per line) for the exporter, and /hosts.json (each site's host) for the host's DNS automation;
     the publisher POSTs its pass to /publisher.json (the owner's overview)."""
     port = (env.get("ANALYSIS_SHARE_PORT") or "").strip()
     if not port or (state_dir(env) is None and tenancy is None):
@@ -607,7 +607,8 @@ def share_server(env: dict, tenancy=None):
             elif tenancy is not None and u.path == "/hosts.json":
                 body, ctype = json.dumps({"hosts": tenancy.host_list()}).encode(), "application/json"
             elif tenancy is not None and u.path == "/profile-characters":
-                body, ctype = "".join(c + "\n" for c in tenancy.profile_characters()).encode(), "text/plain"
+                body = "".join(f"{a}\t{c}\n" for a, c in tenancy.profile_characters()).encode()
+                ctype = "text/plain"
             else:
                 self.send_error(404)
                 return

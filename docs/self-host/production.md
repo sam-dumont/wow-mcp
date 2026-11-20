@@ -15,7 +15,7 @@ fine start: [Sizing](sizing.md)) at home or anywhere. Start from a working
 | 3. Share your page | A public site for anyone, a sealed one for friends with the link | [Share your page](sharing.md) |
 | 4. Your AI from anywhere | claude.ai and ChatGPT call your server from theirs: they need HTTPS and an OAuth login | [Set up the login for your AI](oidc.md) |
 | 5. Friends with their own pages | Several players, each with their own data, link and AI | [Add friends](friends.md) |
-| 6. Battle.net data (optional) | The WoW Token, a small auction house watch list, your look in 3D | [Battle.net data](battlenet.md) |
+| 6. Battle.net data (optional) | The WoW Token, your look in 3D | [Battle.net data](battlenet.md) |
 
 Then keep it running:
 

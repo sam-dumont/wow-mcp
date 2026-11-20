@@ -247,7 +247,7 @@ ALLOWED = {
                 "model.options[].choiceId", "appearance.source", "appearance.refreshed",
                 # The same look on the original model (the Classic switch), and the default models.
                 "model_sd", "model_sd.chr_model", "model_sd.gender", "model_sd.options",
-                "model_sd.options[].optionId", "model_sd.options[].choiceId", "models",
+                "model_sd.options[].optionId", "model_sd.options[].choiceId", "model_sd.no_classic", "models",
                 *keys("items[].", M3D_ITEM), *keys("missing[].", M3D_ITEM)},
 }
 # Besides data/: the page itself, its script, style, fonts and the 3D viewer.
@@ -539,7 +539,8 @@ def test_analytics_off_by_default(site):
 
 def test_analytics_on_the_static_sites_only(site_stats, monkeypatch):
     """Pageviews on / and /zogzog/, each with its own path and nothing more;
-    never in the 3D frame, never in the live full view."""
+    never in the 3D frame. The live full view's index.html stays bare: its
+    server adds the tags when it sends a page (tests/test_full_stats.py)."""
     env, _, _, cur = site_stats
     for bundle, path in (("public", "/"), ("zogzog", "/zogzog/")):
         html = (cur / bundle / "index.html").read_text()

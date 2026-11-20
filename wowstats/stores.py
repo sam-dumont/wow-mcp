@@ -369,6 +369,15 @@ class Store:
                       "wow_character_talent_points", "wow_character_talent_rank")
 
 
+    def profile_sel(self, name: str = "") -> str:
+        """The selector of this person's profile series: the exporter labels
+        each with the account whose character it is (wowstats.exporter), so
+        a friend reads their own characters' Battle.net data only, never a
+        series another person's character name happens to match (security
+        review 0.6.0 S1)."""
+        acct = f"account_id={json.dumps(str(self.account_id))}"
+        return f"{{character={json.dumps(name)},{acct}}}" if name else f"{{{acct}}}"
+
     def profile_fingerprint(self) -> str:
         """A hash of every profile, appearance and equipment value vm-wow
         holds now, as character_look reads them (last value over 2 days).
@@ -379,7 +388,7 @@ class Store:
             return ""
         rows = []
         for name in self.PROFILE_SERIES:
-            for r in self.vm_query(f"last_over_time({name}[2d])"):
+            for r in self.vm_query(f"last_over_time({name}{self.profile_sel()}[2d])"):
                 rows.append([name, sorted((r.get("metric") or {}).items()), (r.get("value") or [None, None])[1]])
         rows.sort(key=lambda r: json.dumps(r))
         return hashlib.sha256(json.dumps(rows).encode()).hexdigest()[:16]
@@ -392,7 +401,7 @@ class Store:
         out: dict = {"item_level": None, "render": None}
         if not self.profile_vm_url:
             return out
-        sel = f'{{character={json.dumps(name)}}}'
+        sel = self.profile_sel(name)
         for r in self.profile_query(f"last_over_time(wow_character_item_level{sel}[2d])"):
             if (r.get("metric") or {}).get("kind") == "equipped":
                 out["item_level"] = float(r["value"][1])
@@ -413,7 +422,7 @@ class Store:
         Empty without vm-wow."""
         if not self.profile_vm_url:
             return {}
-        sel = f'{{character={json.dumps(name)}}}'
+        sel = self.profile_sel(name)
         out: dict = {}
         for r in self.profile_query(f"last_over_time(wow_character_equipped{sel}[2d])"):
             slot = (r.get("metric") or {}).get("slot")
@@ -435,7 +444,7 @@ class Store:
             return None
         q = self.profile_query
 
-        sel = f'{{character={json.dumps(name)}}}'
+        sel = self.profile_sel(name)
         pts = q(f"last_over_time(wow_character_talent_points{sel}[2d])")
         if not pts:
             return None
@@ -458,7 +467,7 @@ class Store:
         when the API doesn't know the character (or there is no vm-wow)."""
         if not self.vm_url:
             return None
-        sel = f'{{character={json.dumps(name)}}}'
+        sel = self.profile_sel(name)
         opts = self.vm_query(f"last_over_time(wow_character_customization{sel}[2d])")
         if not opts:
             return None

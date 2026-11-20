@@ -125,7 +125,10 @@ another proxy (HAProxy, your router's): follow that table and the files above. W
 most:
 
 - **A login on the full view.** With a proxy in front, `UI_AUTH=open` would let anyone the
-  proxy lets in see everything. The kit's proxy files force `AUTH=basic`; do the same.
+  proxy lets in see everything. The kit's proxy files force `AUTH=basic`; do the same. The
+  server enforces it: with `AUTH=open` on the full view, a request that carries
+  `X-Forwarded-For`, `X-Forwarded-Host`, `X-Forwarded-Proto`, `Forwarded`, `Via` or `X-Real-IP`
+  gets a 403, and `ALLOWED_HOSTS` with `AUTH=open` stops the server at start.
 - **Pass the `Host` header through**, and add your full view's name to `ALLOWED_HOSTS`. A
   proxy that rewrites `Host` to `ui:8080` gets a 421.
 - **`/ingest`, `/install/update/shipper*`, `/healthz` and the MCP paths skip your page

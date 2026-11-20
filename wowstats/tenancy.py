@@ -468,7 +468,11 @@ class Tenancy:
         # A broken list changes nothing (reconcile): the registry, which
         # mirrors the last good one, answers until it's fixed.
         if (sub not in listed) if listed is not None else (u is None):
-            return Who(None, 403, f"This account doesn't have access yet. Ask {RUNS_IT} to add you.")
+            # Also the page of a friend whose first sign-in made their account
+            # and who now waits for the owner: what happened, what to do,
+            # what comes next (owner, 2026-11-20).
+            return Who(None, 403, f"You're signed in, but {RUNS_IT} hasn't let you in yet. Ask them to add "
+                                  "you, then reload this page.")
         if not self.friends_vl:
             return Who(None, 403, f"This install doesn't take friends yet. Ask {RUNS_IT}.")
         if u is None:
@@ -616,19 +620,42 @@ class Tenancy:
                         "hosts": self.hosts_of(u), "canonical": self.canonical_host(u)})
         return {"users": out}
 
-    def profile_characters(self) -> list[str]:
-        """The union of every active person's characters, for the exporter
-        (one Battle.net profile call a day each)."""
-        names: set[str] = set()
+    def profile_characters(self) -> list[tuple[int, str]]:
+        """(account_id, character) for the exporter (one Battle.net profile
+        call a day each; its series carry the account_id, which every reader
+        asks for: wowstats.stores.profile_sel). Each person's characters in
+        their order, newest first; the exporter caps a friend's count.
+
+        A name is one character on Battle.net, so it belongs to one person.
+        Anyone can upload an event naming any character, so a name two
+        people have goes to the owner when the owner has it, else to nobody:
+        a friend can't read another person's Battle.net data by naming
+        their character (security review 0.6.0 S1). Logged as a count."""
+        claims: dict[str, list[User]] = {}
+        order: list[tuple[User, str]] = []
         for u in self.registry.users():
             if not u.active:
                 continue
             try:
                 app = self.app_for(u)
-                names |= {c["char"] for c in app.views.chars() if not c.get("demo")}
+                names = [c["char"] for c in app.views.chars() if not c.get("demo")]
             except Exception:  # noqa: BLE001 - one store down doesn't empty everyone's list
                 continue
-        return sorted(names)
+            for n in dict.fromkeys(names):
+                claims.setdefault(n, []).append(u)
+                order.append((u, n))
+        out, contested = [], 0
+        for u, n in order:
+            who = claims[n]
+            if len(who) > 1:
+                if u.account_id == who[0].account_id:
+                    contested += 1
+                if not u.owner:
+                    continue
+            out.append((u.account_id, n))
+        if contested:
+            log_event("profile_names_contested", count=contested)
+        return out
 
 
 # ---------------------------------------------------------------- deletion

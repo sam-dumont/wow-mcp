@@ -186,7 +186,7 @@ def test_a_rebinding_page_reads_nothing(env, run_app):
 def test_the_public_url_and_allowed_hosts_are_answered(run_app):
     from tests.test_public_view import PoisonStore
 
-    env = {**LOCAL, "PUBLIC_URL": "https://wow.example.org/", "ALLOWED_HOSTS": "nas.local, Other.Example:8443"}
+    env = {**LOCAL, "AUTH": "none", "PUBLIC_URL": "https://wow.example.org/", "ALLOWED_HOSTS": "nas.local, Other.Example:8443"}
     srv = run_app(ui.App(env, store=PoisonStore()))
     for host in ("wow.example.org", "WOW.example.org:443", "nas.local:8080", "other.example"):
         assert srv.get("/api/config", headers={"Host": host})[0] == 200, host

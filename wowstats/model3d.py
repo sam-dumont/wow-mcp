@@ -804,9 +804,12 @@ class Model3D:
             level = qs.get("level", [""])[0]
             if level and not (level.isdigit() and 1 <= int(level) <= 60):
                 return handler.json(400, {"error": "level is 1 to 60"})
+            sex = qs.get("sex", [""])[0]
+            if sex and sex not in GENDERS:  # part of the cache key: never a free-form string
+                return handler.json(400, {"error": "sex is male or female"})
             try:
                 # Through the App: a plain open's answer is prebuilt (wowstats.prebuilt).
-                ans = app.model3d_answer(name, int(level) if level else None, qs.get("sex", [""])[0])
+                ans = app.model3d_answer(name, int(level) if level else None, sex)
                 # The default models at the time of asking, not of the
                 # prebuilt answer: a change in Settings shows at once.
                 return handler.json(200, {**ans, "models": self.default_models(app)})
@@ -815,7 +818,8 @@ class Model3D:
         rest = path[len("/model3d/"):]
         if rest == "view":
             body = view_page(self.static)
-            return handler.send(200, body, "text/html; charset=utf-8", "no-cache", csp=view_csp(body))
+            # A frame in the page: the page counts the visit (ui send()).
+            return handler.send(200, body, "text/html; charset=utf-8", "no-cache", csp=view_csp(body), stats=False)
         if rest in OWN:
             return handler.send(200, (self.static / rest).read_bytes(), OWN[rest], "no-cache")
         zam = f"zam/{ZAM_REV}/"
@@ -870,7 +874,8 @@ class Model3D:
             sd_options = json.loads(custom).get("Options") or []
         except (Upstream, ValueError, AttributeError):
             return None
-        return {"chr_model": chr_model, "gender": gender, "options": classic_look(options, chosen, sd_options)}
+        return {"chr_model": chr_model, "gender": gender, "options": classic_look(options, chosen, sd_options),
+                "no_classic": classic_gaps(options, chosen, sd_options)}
 
     def character(self, gear: dict, header: dict | None = None, sex_override: str = "",
                   look: dict | None = None) -> dict:
@@ -1016,21 +1021,16 @@ def apply_look(options: list, saved: list | None) -> list[dict]:
     return out
 
 
-def classic_look(options: list, chosen: list, sd_options: list) -> list[dict]:
-    """The updated look (`chosen`, in the ids of `options`) on the original
-    model's options (`sd_options`, Wowhead's classic customization): option
-    by option, by id (Skin Color, Face, Hair Style, Hair Color and Facial
-    Hair keep theirs) or else by name, the choice at the same place in the
-    list, the last one when the original has fewer. Approximate: the
-    updated models added faces and hair styles the original never had, and
-    Forever saves only the updated look; the page says so."""
+def _classic_match(options: list, chosen: list, sd_options: list):
+    """For each original option: (it, its choice ids, the place of the
+    updated choice in the updated list). Shared by classic_look and
+    classic_gaps so the note and the drawing never disagree."""
     pick = {}
     for o in chosen or []:
         with contextlib.suppress(KeyError, TypeError, ValueError):
             pick[int(o["optionId"])] = int(o["choiceId"])
     hd = {o.get("Id"): [c.get("Id") for c in o.get("Choices") or []] for o in options or [] if isinstance(o, dict)}
     by_name = {str(o.get("Name") or "").lower(): o.get("Id") for o in options or [] if isinstance(o, dict)}
-    out = []
     for o in sd_options or []:
         if not isinstance(o, dict):
             continue
@@ -1039,9 +1039,29 @@ def classic_look(options: list, chosen: list, sd_options: list) -> list[dict]:
             continue
         src = o.get("Id") if o.get("Id") in hd else by_name.get(str(o.get("Name") or "").lower())
         at = hd.get(src) or []
-        idx = at.index(pick[src]) if src in pick and pick[src] in at else 0
-        out.append({"optionId": o.get("Id"), "choiceId": ids[min(idx, len(ids) - 1)]})
-    return out
+        yield o, ids, at.index(pick[src]) if src in pick and pick[src] in at else 0
+
+
+def classic_look(options: list, chosen: list, sd_options: list) -> list[dict]:
+    """The updated look (`chosen`, in the ids of `options`) on the original
+    model's options (`sd_options`, Wowhead's classic customization): option
+    by option, by id (Skin Color, Face, Hair Style, Hair Color and Facial
+    Hair keep theirs) or else by name, the choice at the same place in the
+    list, the last one when the original has fewer. Approximate: the
+    updated models added faces and hair styles the original never had, and
+    Forever saves only the updated look (classic_gaps names those)."""
+    return [{"optionId": o.get("Id"), "choiceId": ids[min(idx, len(ids) - 1)]}
+            for o, ids, idx in _classic_match(options, chosen, sd_options)]
+
+
+def classic_gaps(options: list, chosen: list, sd_options: list) -> list[str]:
+    """The original options (their names, e.g. "Hair Style") whose chosen
+    updated choice is past the end of the original list: classic_look draws
+    the last one instead, so the Classic view isn't this character's look
+    there (a gnome male's "Genius" hair: 7 classic styles). Forever has no
+    classic customization to map them properly; the page says so."""
+    return [str(o.get("Name") or "") for o, ids, idx in _classic_match(options, chosen, sd_options)
+            if idx >= len(ids)]
 
 
 def narcissus_look(rows: list[dict]) -> dict | None:

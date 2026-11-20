@@ -92,7 +92,7 @@ def test_limits_hold_only_during_a_query(db):
     the sandbox's, put back after each query."""
     before = db.getlimit(sqlite3.SQLITE_LIMIT_LENGTH)
     ro = ReadOnly(db)
-    assert ro.run("SELECT length(printf('%.*c', 900000, 'x')) AS n")[1] == [(900000,)]
+    assert ro.run("SELECT length(printf('%.*c', 60000, 'x')) AS n")[1] == [(60000,)]
     assert db.getlimit(sqlite3.SQLITE_LIMIT_LENGTH) == before
     assert db.execute("SELECT length(zeroblob(5000000))").fetchone()[0] == 5000000
 
@@ -102,3 +102,18 @@ def test_ordinary_queries_still_work(db):
         assert ro.run("WITH x AS (SELECT a FROM sessions) SELECT SUM(a) AS n FROM x")[1] == [(6,)]
         assert ro.run("\n  select b from sessions where a = 2")[1] == [("s2",)]
         assert ro.run("SELECT printf('%.1f', 3.14159) AS p")[1] == [("3.1",)]
+
+
+def test_a_row_over_the_cap_fails_and_small_rows_sort(db):
+    """The sorter keeps rows in memory up to a size; 64 KB each spills
+    (review 0.6.0, S2). A row past the cap is refused, cleanly."""
+    assert MAX_VALUE == 64_000
+    big = ("WITH RECURSIVE c(i, s) AS (SELECT 1, 'x' UNION ALL SELECT i + 1, s || s FROM c WHERE i < 17) "
+           "SELECT i, s FROM c ORDER BY s DESC")  # the last rows are 65,536 bytes and up
+    for ro in both(db):
+        with pytest.raises(QueryError, match="past 64000 bytes"):
+            ro.run(big)
+        ok = ("WITH RECURSIVE c(i, s) AS (SELECT 1, 'x' UNION ALL SELECT i + 1, s || s FROM c WHERE i < 15) "
+              "SELECT i, length(s) AS n FROM c ORDER BY s DESC")
+        assert ro.run(ok)[1][0] == (15, 16384)
+        assert ro.run("SELECT COUNT(*) AS n FROM sessions")[1] == [(4,)]

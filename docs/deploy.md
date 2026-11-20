@@ -60,7 +60,6 @@ needed, so a long history comes back whole rather than cut.
 | `VL_ARCHIVE_URL`, `VL_ARCHIVE_AFTER_DAYS` | empty, `89` | optional second VictoriaLogs for days older than that; empty: one store holds everything |
 | `LOGS_FILTER` | `feed:wow-*` | LogsQL filter that selects the events (add your own labels here) |
 | `VM_URL` | empty | VictoriaMetrics the exporter pushes to. With `VIEW=public` only the character profile is read from it (the armory render, Battle.net's item level, the talents: the card shows them); no market or prices, which are never public. The publisher builds the public bundle through that same reader, so the render reaches `data/render/` there |
-| `AH_FACTION` | `Alliance` | the auction house shown (matched in any case) |
 | `DEFAULT_CHAR` | empty (latest seen) | `Name-Surname` |
 | `WEIGHTS` | empty | the spec each character's gear is scored for, over what its add-ons say: `Testchar-Demo:shadow,Name-Surname:holy` (a spec key or name of the class). The page's own selector still wins. The card shows it next to the talents, which stay as the game has them |
 | `PRICE_DAYS` | `90` | days of Auctionator scans in the prices panel |
@@ -297,14 +296,11 @@ serves its own health there.
 |---|---|---|
 | `BNET_CLIENT_ID_FILE`, `BNET_CLIENT_SECRET_FILE` | required | files holding your client's id and secret |
 | `BNET_REGION`, `BNET_LOCALE` | `eu`, `en_GB` | |
-| `BNET_RULESET_ID` | `2` | the Forever ruleset watched for status |
 | `BNET_FOREVER_NAMESPACE`, `BNET_TOKEN_NAMESPACES` | derived from the region | |
 | `BNET_API_URL`, `BNET_OAUTH_URL` | Blizzard's | |
-| `AH_FACTION`, `AH_NONCOMMODITY` | `Alliance`, `false` | |
-| `WATCH_ITEMS` | empty | JSON `{"item id": "name"}`, or a path to a JSON file |
 | `PROFILE_CHARACTERS` | empty | comma list of `Name-Surname` (the WTF folder names): profile, appearance and equipment once a day |
 | `BNET_PROFILE_NAMESPACE` | `profile-forever-<region>` | |
-| `TOKEN_INTERVAL`, `REALM_INTERVAL`, `AH_INTERVAL`, `PROFILE_INTERVAL` | `1200`, `300`, `3600`, `86400` | seconds between API polls |
+| `TOKEN_INTERVAL`, `REALM_INTERVAL`, `PROFILE_INTERVAL` | `1200`, `300`, `86400` | seconds between API polls |
 | `HTTP_TIMEOUT` | `60` | |
 | `VM_PUSH_URL` | empty (nothing stored) | `.../api/v1/import/prometheus`. It may already carry `extra_label=...` query args: the exporter appends its own with `&`, never replaces them |
 | `VM_PUSH_EXTRA_LABELS` | empty | comma list of `name=value` added as `extra_label` |
@@ -362,8 +358,8 @@ through VictoriaLogs:
 
 ### Battle.net data and models
 
-No model runs on the server. The MCP's `market` tool (the auction house,
-token price and ruleset status from Blizzard's API) is neither listed nor
+No model runs on the server. The MCP's `market` tool (the WoW
+Token price and ruleset status from Blizzard's API) is neither listed nor
 callable, whatever the env, except for a person who turned on "Battle.net
 data to my AI" in their settings on a multi-user install (their own data to
 their own assistant, owner ruling 2026-11-18;
@@ -416,7 +412,7 @@ a new key and rebuilds: every old link stops working. The publisher holds
 the key; the static server never does.
 
 The 30-day rule: both bundles carry Battle.net data (the look from the
-profile API; in `/zogzog/` also the auction house), so a build is never older
+profile API; in `/zogzog/` also the token and ruleset status), so a build is never older
 than a day and each build replaces the last; at most two older builds stay
 on disk for requests in flight.
 
@@ -448,7 +444,7 @@ on disk for requests in flight.
 | `SITE_DIR` (static) | `/data/site` | the publisher's `PUBLISH_DIR`, or the `emptyDir` it pushes to |
 | `UPLOAD_PORT`, `UPLOAD_TOKEN_FILE` (static) | off | the push listener; never route it from outside |
 | `FULL_DOOR_PATH` (ui) | `/full/` | the login door of the live full view; empty: off |
-| `PLAUSIBLE_DOMAIN` | empty | your Plausible site's domain: pageviews on the static sites (below); empty: no analytics at all |
+| `PLAUSIBLE_DOMAIN` | empty | your Plausible site's domain: pageviews on the static sites and, set on the ui too, the full view (below); empty: no analytics at all |
 | `PLAUSIBLE_SCRIPT`, `PLAUSIBLE_API` | `/js/script.js`, `/api/event` | the script and event paths, on the site's own address |
 | `RENDER_URL` | empty: no pictures | the renderer (`wow-stats render`, below): each past level's picture |
 | `RENDER_TOKEN_FILE` | required with `RENDER_URL` | the renderer's token, the same file the renderer reads (below). Without it the publisher draws no pictures and says why in its log |
@@ -476,21 +472,38 @@ ids, never a name (docs/architecture.md, "A past level's picture").
 
 ### Visitor counts (Plausible)
 
-With `PLAUSIBLE_DOMAIN` set, the public and `/zogzog/` pages (never the
-full view) load `/js/script.js` and send one pageview to `/api/event`, both
-on the site's own address: route those two paths, and nothing else, to your
-Plausible in the reverse proxy (`/js/script.js` to its
-`/js/script.manual.js`, with `Host` set to Plausible's), so the CSP stays
-`'self'` and no visitor's browser talks to a third party. The static pod
-itself still makes no request.
+With `PLAUSIBLE_DOMAIN` set, the public and `/zogzog/` pages load
+`/js/script.js` and send one pageview to `/api/event`, both on the site's
+own address: route those two paths, and nothing else, to your Plausible in
+the reverse proxy (`/js/script.js` to its `/js/script.manual.js`, with
+`Host` set to Plausible's), so the CSP stays `'self'` and no visitor's
+browser talks to a third party. The static pod itself still makes no
+request.
 
-The pageview's address is the bundle's path alone (`/` or `/zogzog/`): the
-page sends it explicitly (`web/stats.js`) instead of `location.href`, and the
-manual script has no hash tracking, so `/zogzog/`'s key (the fragment) and
-the query never reach Plausible; `Referrer-Policy: no-referrer` stays.
+Set the same `PLAUSIBLE_DOMAIN` on the ui and every page of the full view
+counts too (the privacy note, the 404 and refusal pages included; never the
+3D viewer's frame, which would count the visit twice). Route the same two
+paths on the full view's name to Plausible, ahead of its login, with its
+cookies stripped; the page loads `stats.js` from `/privacy/stats.js`, which
+the app serves before any login, like the rest of `/privacy/*`.
+
+One `PLAUSIBLE_DOMAIN` for every host (the public page, each friend's
+`<slug>-wow` page, the full view) means one Plausible site: a new friend's
+page counts with no setup, and Plausible's Hostname filter (or the Pages
+report broken down by URL) tells the hosts apart. If you set a hostname
+allow list in Plausible (Site settings, Shields, Hostnames), cover them all,
+for example `*.example.org`.
+
+The pageview's address is the page's path alone (`/`, `/zogzog/`,
+`/settings`): the page sends it explicitly (`web/stats.js`) instead of
+`location.href`, and the manual script has no hash tracking, so `/zogzog/`'s
+key (the fragment) and the query never reach Plausible; an install code in a
+path is replaced by `code`. The referrer is the site that sent the visitor,
+when their browser says: never another wow page, since every page answers
+with `Referrer-Policy: no-referrer`.
 `tests/test_browser.py` runs Plausible's own script in Chromium on a
 `/zogzog/#<key>` address and checks every field of the payload and every
-header.
+header; `tests/test_full_stats_browser.py` does the same on the full view.
 
 ### Item icons, tooltips and the render
 
@@ -547,14 +560,17 @@ use the same rule (`tenancy.Tenancy.identify`; the MCP's auth calls
 whatever renders the list. Until 0.4.0 the web view also needed the org id in
 `X-Forwarded-Org`; the proxy sent it empty and everyone was refused, so it
 is gone, with `WOW_OWNER_ORG`, `OIDC_ALLOWED_ORGS` and `PROXY_ORG_HEADER`
-in this mode. A refused login gets a short page: no access yet, ask the
-owner, and a log-out link (`/oauth2/logout`) to switch accounts.
+in this mode. A refused login gets a short page: signed in but not let in
+yet, ask the person who runs the site, then reload; and a log-out link
+(`/oauth2/logout`) to switch accounts. Your login provider may then let
+anyone through to that page (no role or group check of its own): the
+friends list is the lock either way.
 
 | `wow-stats ui` | |
 |---|---|
 | `WOW_STATE_DIR` | the registry (`users.json`, 0600) and each person's state, on a volume |
 | `WOW_OWNER_SUB` | the owner's login id |
-| `WOW_OWNER_SLUG` (empty by default: set your own), `WOW_OWNER_ALIASES` | the owner's site name, and hosts that are theirs too (`wow.example.org`): all reserved for them. Refusal pages name the owner by it, capitalised ("Ask Alex to add you" for `alex`) |
+| `WOW_OWNER_SLUG` (empty by default: set your own), `WOW_OWNER_ALIASES` | the owner's site name, and hosts that are theirs too (`wow.example.org`): all reserved for them. Pages never print it to friends: they say "the person who runs this site" |
 | `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}`, watched for changes (mount its folder, not the file); how often a full pass runs anyway. Unset: the owner only |
 | `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends |
 | `FRIENDS_VL_DELETE_KEY_FILE` | its `-deleteAuthKey`, for `wow-stats users delete` |
@@ -563,7 +579,7 @@ owner, and a log-out link (`/oauth2/logout`) to switch accounts.
 | `INGEST_DAILY_MB` (512) | what `/ingest` accepts from one person a day; past it a 429, and the shipper keeps its spool for the next day. `0`: no limit |
 | `PRIVACY_BACKUP_DAYS` (empty) | how long your backups keep a person's events, for the privacy page ("Backups of your events expire N days later"). Empty: the page tells friends to ask you |
 | `PRIVACY_LOG_DAYS` (empty) | how long your logs keep a request: the web server's access log in front of the app and the app's own log, whichever keeps longer. For the privacy page ("These lines are kept N days"). Empty: the page tells friends to ask you |
-| `PLAUSIBLE_DOMAIN` (on the full view too) | set it here as on the publisher, and the privacy page says you see visit counts |
+| `PLAUSIBLE_DOMAIN` (on the full view too) | set it here as on the publisher: every full-view page counts, and the privacy page says what Plausible gets ("Visitor counts" above) |
 | `PROXY_USER_HEADER` | default `X-Forwarded-User`; believed only from the proxy (`PROXY_TRUSTED_CIDRS`, `PROXY_SECRET_FILE`: "Behind a reverse proxy") |
 | `DOH_URL` | a DNS-over-HTTPS resolver to tell whether a friend's host resolves yet (egress to it) |
 
@@ -577,7 +593,7 @@ code is the credential: single use, 15 minutes), `/ingest` with basic auth
 |---|---|
 | `wow-stats publish` | `USERS_URL` (the full view's share port, `/users.json`) builds one site per person into `PUBLISH_DIR/<slug>/`, pushes with `?slug=`, and drops sites of people who left from every static pod (`GET /bundles` on the upload port). Needs `ANALYSIS_SHARE_TOKEN_FILE`, the full view's share token |
 | `wow-stats static` | `SITE_DOMAIN` serves `<slug>-wow.<domain>` from `SITE_DIR/<slug>/current`; `SITE_ALIASES=wow.example.org=alex`; any other host, or a site whose public page is off, is a 404 |
-| `wow-stats exporter` | `PROFILE_CHARACTERS_URL` (share port, `/profile-characters`) adds every person's characters to `PROFILE_CHARACTERS`. Needs `ANALYSIS_SHARE_TOKEN_FILE` too |
+| `wow-stats exporter` | `PROFILE_CHARACTERS_URL` (share port, `/profile-characters`) adds every person's characters to `PROFILE_CHARACTERS`, each labelled with its person's account (at most 12 a day per friend; a name two people send goes to the owner or to nobody). Needs `ANALYSIS_SHARE_TOKEN_FILE` too |
 | `wow-stats users list\|hosts\|reconcile\|disable\|enable\|delete <slug> [--yes]` | in the full view's pod; `reconcile` applies the friends list now; `delete` runs VictoriaLogs' delete task for the tenant, then removes the state and the registry entry (dry run without `--yes`) |
 
 Revoking access: `wow-stats users disable <slug>` refuses the web view and

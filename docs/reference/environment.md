@@ -14,8 +14,7 @@ The live full view, and the old live public view.
 
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
-| `AH_FACTION` | ui, publish, exporter | `Alliance` or `Horde` | `Alliance` | `Horde` | The auction house shown and watched. |
-| `ALLOWED_HOSTS` | ui | host names, comma separated | empty: localhost, IP addresses and the hosts of `PUBLIC_URL` and `MCP_PUBLIC_URL` only | `nas.local,wow-full.example.org` | More names the page answers for. Any other `Host` gets 421, so a web page can't read yours through your browser. In the compose kit: `UI_ALLOWED_HOSTS` (and `PUBLIC_ALLOWED_HOSTS` for the public view). |
+| `ALLOWED_HOSTS` | ui | host names, comma separated | empty: localhost, IP addresses and the hosts of `PUBLIC_URL` and `MCP_PUBLIC_URL` only | `nas.local,wow-full.example.org` | More names the page answers for. Any other `Host` gets 421, so a web page can't read yours through your browser. A name here means a proxy or another computer in front, so the full view with `AUTH=open` refuses to start with it: set a login (`AUTH=basic` or `AUTH=proxy`). In the compose kit: `UI_ALLOWED_HOSTS` (and `PUBLIC_ALLOWED_HOSTS` for the public view). |
 | `ALLOW_OPEN` | ui | `1` or empty | empty | `1` | Lets `AUTH=open` listen beyond loopback: everyone who reaches the port gets in. Only for a public view. In the compose kit: `PUBLIC_ALLOW_OPEN`. |
 | `AUTH` | ui | `none`, `open`, `proxy` or `basic` | `none` on a loopback `BIND`, else required | `proxy` | The page's login. `none`: loopback only. `open`: no login, on purpose. `proxy`: a reverse proxy in front logs people in. `basic`: HTTP basic auth. |
 | `BASIC_AUTH_PASSWORD` | ui | secret, 12+ characters | empty | a long random string | The password for `AUTH=basic`. Prefer `BASIC_AUTH_PASSWORD_FILE`. |
@@ -125,9 +124,9 @@ The public site and the sealed `/zogzog/` site. [Share your page](../self-host/s
 |---|---|---|---|---|---|
 | `HELP_KEY_FILE` | publish | path | empty: no help page | `/data/help.key` | The friends' help page key (`/help/#<key>`), 43 base64url characters. Never made for you: no file, no page. |
 | `HELP_MCP_URL` | publish | URL | `MCP_PUBLIC_URL` | `https://wow.example.org/mcp` | The MCP address the help page shows. |
-| `PLAUSIBLE_API` | publish | path | `/api/event` | `/api/event` | The event path on the site's own address. Route it to your Plausible. |
-| `PLAUSIBLE_DOMAIN` | publish, compose | domain | empty: no analytics | `wow.example.org` | Your Plausible site: one pageview per visit on the static sites, through your own address, without the `/zogzog/` key. |
-| `PLAUSIBLE_SCRIPT` | publish | path | `/js/script.js` | `/js/script.js` | The script path on the site's own address. Route it to your Plausible. |
+| `PLAUSIBLE_API` | publish, ui | path | `/api/event` | `/api/event` | The event path on the site's own address. Route it to your Plausible. |
+| `PLAUSIBLE_DOMAIN` | publish, ui, compose | domain | empty: no analytics | `wow.example.org` | Your Plausible site: one pageview per page on the static sites and the full view, through your own address, without the `/zogzog/` key. The same value on the publisher and the ui: one Plausible site for every host. |
+| `PLAUSIBLE_SCRIPT` | publish, ui | path | `/js/script.js` | `/js/script.js` | The script path on the site's own address. Route it to your Plausible. |
 | `PUBLISH_DIR` | publish | path | `/data/site` | `/data/site` | Where builds go; `current` points at the live one. |
 | `PUBLISH_INTERVAL` | publish, compose | seconds | `600` | `600` | With `--loop`: how often to check for new events. |
 | `PUBLISH_PUSH_TOKEN_FILE` | publish | path | empty | `/run/secrets/upload_token` | The push token, 32+ characters. Same value as the static server's `UPLOAD_TOKEN_FILE`. |
@@ -163,7 +162,7 @@ Off until `WOW_STATE_DIR` is set. [Add friends](../self-host/friends.md).
 | `FRIENDS_VL_URL` | ui, publish, users | URL | empty: no friends | `http://vl-friends:9428` | The friends' VictoriaLogs, one tenant each. |
 | `PRIVACY_BACKUP_DAYS` | ui | days | empty: the privacy page says to ask the owner | `30` | How long your backups keep events, as the privacy page tells your friends. |
 | `PRIVACY_LOG_DAYS` | ui | days | empty: the privacy page says to ask the owner | `30` | How long the server's logs keep a request (the web server's access log and the app's own log), as the privacy page tells your friends. |
-| `PROFILE_CHARACTERS_URL` | exporter | URL | empty | `http://ui:8091/profile-characters` | Adds every person's characters to `PROFILE_CHARACTERS`. |
+| `PROFILE_CHARACTERS_URL` | exporter | URL | empty | `http://ui:8091/profile-characters` | Adds every person's characters to `PROFILE_CHARACTERS`, each under its own account: at most 12 a day per friend. |
 | `PROXY_USER_HEADER` | ui | header name | `X-Forwarded-User` | `X-Forwarded-User` | The header your login proxy puts the account id in. The proxy must strip any copy the client sent. |
 | `PUBLIC_URL` | ui | URL | empty | `https://wow-full.example.org` | The full view's address, for install commands and the MCP. |
 | `PUBLISH_REPORT_URL` | publish | URL | `USERS_URL`'s folder, `/publisher.json` | `http://ui:8091/publisher.json` | Where the publisher reports each pass, for the owner's overview (`/admin`). |
@@ -183,15 +182,12 @@ Optional. Needs your own API client. [Battle.net data](../self-host/battlenet.md
 
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
-| `AH_INTERVAL` | exporter | seconds | `3600` | `3600` | Seconds between auction house reads. |
-| `AH_NONCOMMODITY` | exporter | `true` or `false` | `false` | `true` | Also read the non-commodity auctions (gear). Bigger answers. |
 | `BNET_CLIENT_ID_FILE` | exporter | path | required | `/run/secrets/bnet_client_id` | A file holding **your own** Battle.net API client id. |
 | `BNET_CLIENT_SECRET_FILE` | exporter | path | required | `/run/secrets/bnet_client_secret` | A file holding that client's secret. |
-| `BNET_FOREVER_NAMESPACE` | exporter | text | `dynamic-forever-<region>` | `dynamic-forever-eu` | The API namespace for Forever's realms and auctions. |
+| `BNET_FOREVER_NAMESPACE` | exporter | text | `dynamic-forever-<region>` | `dynamic-forever-eu` | The API namespace for Forever's ruleset status. |
 | `BNET_LOCALE` | exporter | locale | `en_GB` | `en_US` | The language of names in the API's answers. |
 | `BNET_PROFILE_NAMESPACE` | exporter | text | `profile-forever-<region>` | `profile-forever-eu` | The namespace for character profiles. |
 | `BNET_REGION` | exporter, compose | `eu`, `us`, `kr` or `tw` | `eu` | `us` | Your Battle.net region. |
-| `BNET_RULESET_ID` | exporter | number | `2` | `2` | The Forever ruleset watched for status. |
 | `BNET_TOKEN_NAMESPACES` | exporter | comma list | derived from the region | `dynamic-eu` | The namespaces read for the WoW Token price. |
 | `HTTP_TIMEOUT` | exporter | seconds | `60` | `60` | Timeout of one API call. |
 | `LISTEN_PORT` | exporter | port | `9464` | `9464` | The exporter's own port: `/healthz` and its own health metrics on `/metrics`, never Blizzard's data. |
@@ -205,7 +201,6 @@ Optional. Needs your own API client. [Battle.net data](../self-host/battlenet.md
 | `VM_PUSH_EXTRA_LABELS` | exporter | comma list of `name=value` | empty | `site=home` | Labels added to every pushed series. |
 | `VM_PUSH_INTERVAL` | exporter | seconds | `60` | `60` | Seconds between pushes. |
 | `VM_PUSH_URL` | exporter | URL | empty: nothing stored | `http://victoriametrics:8428/api/v1/import/prometheus` | Where the exporter pushes. Must be a VictoriaMetrics with a retention under 30 days. |
-| `WATCH_ITEMS` | exporter, compose | JSON `{"item id": "name"}`, or a path to one | empty | `{"2592": "Wool Cloth"}` | The short auction house watch list. |
 
 ## The player's computer
 

@@ -139,7 +139,7 @@ def test_market_on_its_own_clock_and_a_daily_rebuild(full):
     app.prebuilt.check(now=1000.0)
     first = app.prebuilt.answers
     assert app.prebuilt.check(now=1000.0 + prebuilt.MARKET_S) == "market"
-    assert app.prebuilt.answers["market:Alliance"] is not first["market:Alliance"]
+    assert app.prebuilt.answers["market:api"] is not first["market:api"]
     assert app.prebuilt.answers[f"api:char:{CHAR}"] is first[f"api:char:{CHAR}"]
     assert app.prebuilt.check(now=1000.0 + prebuilt.MAX_AGE_S) == "daily rebuild"
 

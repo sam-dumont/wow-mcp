@@ -1,14 +1,15 @@
 # Battle.net data
 
-**For:** self-hosters who want the WoW Token price, a small auction house watch list and their
-characters' look from the armory. **At the end:** the exporter runs with your own Battle.net
+**For:** self-hosters who want the WoW Token price and their characters' look from the
+armory. **At the end:** the exporter runs with your own Battle.net
 API client, and you know what its data may and may not be used for.
 
 Optional. Everything else works without it: the game's own files give the climb, the gear,
-the journal and your own Auctionator prices. The exporter adds:
+the journal and your own Auctionator prices. The exporter never reads Blizzard's Auction House
+API: auction prices come only from your own Auctionator scans. The exporter adds:
 
-- the WoW Token price, the Forever ruleset's status and a short auction house watch list, in
-  your full view and on the sealed friends' site;
+- the WoW Token price and the Forever ruleset's status, in your full view and on the sealed
+  friends' site;
 - your characters' look, level, gear and talents from the Profile API once a day, for the 3D
   view and the character card (this part may show on the public site too).
 
@@ -20,7 +21,7 @@ apply to everything the API returns:
 | Rule | What the kit does |
 |---|---|
 | Your client secret stays yours (§2.12) | Each player makes their own client. Never use someone else's |
-| The data is for your own use (§2.9) | Market data (token, auctions, realm status) stays in your full view and the sealed site, never the public one. Your character's look is the one piece the public site shows |
+| The data is for your own use (§2.9) | Market data (token, ruleset status) stays in your full view and the sealed site, never the public one. Your character's look is the one piece the public site shows |
 | Data from the API is kept 30 days at most (§2.18) | It lives in its own VictoriaMetrics, which keeps 23 days and is force-merged daily, so expired data is really gone before day 30. Never in VictoriaLogs, never in backups. The static sites rebuild at least daily, so no copy there outlives it either |
 | | It reaches no AI by default: the MCP's `market` tool is off unless a person turns on "Battle.net data to my AI" on a shared install |
 
@@ -56,8 +57,8 @@ From `deploy/compose`:
 
    On Windows, put any 30 random letters in `secrets\vm_merge_key`.
 2. In `.env`: uncomment `VM_URL=http://victoriametrics:8428`, set `BNET_REGION` (`eu` or
-   `us`), `AH_FACTION`, and your characters as their WTF folders name them:
-   `PROFILE_CHARACTERS=Testchar-Demo,Testalt-Demo`. `WATCH_ITEMS` holds the watch list.
+   `us`), and your characters as their WTF folders name them:
+   `PROFILE_CHARACTERS=Testchar-Demo,Testalt-Demo`.
 3. Start it:
 
    ```sh

@@ -14,7 +14,7 @@ in; before it (the process just started), answers are worked out as before.
 here the number of events (a late upload of an old session moves no
 newest time), and the Battle.net fingerprint in vm-wow. One small stats
 query and one vm-wow read per check, every CHECK_S, per person. The
-auction house and the token come from VictoriaMetrics on their own clock:
+token and the ruleset status come from VictoriaMetrics on their own clock:
 those answers alone are rebuilt every MARKET_S. Everything is rebuilt at
 least every MAX_AGE_S (Battle.net data in an answer stays far inside the
 API terms' 30 days).

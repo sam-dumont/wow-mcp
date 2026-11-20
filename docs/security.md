@@ -28,7 +28,7 @@ checks each attack is refused. Setup recipes: [deploy.md](deploy.md),
 | M3 the share port was open and served sealed data | a bearer token on every request (`ANALYSIS_SHARE_TOKEN_FILE`, made 0600 on first start), 127.0.0.1 unless `ANALYSIS_SHARE_BIND` says otherwise; the publisher and the exporter send it, and the compose kit shares the file through the `ui-state` volume |
 | M2 Wowhead's viewer ran in the app's origin | the 3D frame is sandboxed (`allow-scripts` only: an opaque origin) with no network; the page around it fetches only the relay's allow-listed files for it and keeps the /zogzog/ key. The relay serves one reviewed build of the viewer (`MODEL3D_VIEWER_SHA256`); Wowhead publishes no licence for it, so it isn't vendored. `unsafe-eval` is in the frame's policy only |
 | Info 2 the relay's maps grew with every path asked | misses are pruned at 4096, locks are 64 stripes |
-| L1, L2 `play_sql` | the authorizer is in place before anything compiles, PRAGMA and every non-SELECT are refused, and a value is capped at 1 MB while a query runs (#65) |
+| L1, L2 `play_sql` | the authorizer is in place before anything compiles, PRAGMA and every non-SELECT are refused, and a value is capped at 64 KB while a query runs (#65, 64 KB since 0.6.1: at 1 MB a sort held about 0.5 GB) |
 
 ## What the low findings changed
 
@@ -51,6 +51,27 @@ checks each attack is refused. Setup recipes: [deploy.md](deploy.md),
 | Info 10 docs drift and lab names in comments | `WOW_OWNER_SLUG` documented as empty by default; the lab's store name, its identity provider and the owner's phone are out of the comments (and the compose file's "prints the link" comment) |
 | Info 11 the owner's first zogzog key wasn't length-checked | refused unless it is 256 bits, as the publisher does |
 | Info 12 friends trust the operator with code execution | said on the privacy page |
+
+## What the 0.6.0 review changed
+
+The pre-launch review of 0.6.0 (2026-11-20) found nothing a stranger can use
+against the image or the compose kit. These are friend-level and
+operator-trust items.
+
+| Finding | Now |
+|---|---|
+| D1 the exporter read Blizzard's Auction House API | gone: no auction loop, no `wow_auction_*` series. Auction prices come only from the player's own Auctionator scans |
+| S1 Battle.net data keyed by character name only | every profile series carries the `account_id` of the person whose character it is, and every reader (pages, `/render/`, the 3D view, the MCP, the publisher) asks for its own account. A name two people send goes to the owner if it's theirs, else to nobody, so naming someone else's character reads nothing. The exporter reads at most 12 characters a day per friend, newest first |
+| S2 `play_sql` could hold about 0.5 GB through the sorter | a value is capped at 64 KB, so the sorter spills to disk |
+| S4 a host proxy in front of `AUTH=open` exposed the full view | with `AUTH=open` the full view answers 403 to any request carrying proxy headers (`X-Forwarded-*`, `Forwarded`, `Via`, `X-Real-IP`), refuses to start with a non-empty `ALLOWED_HOSTS`, and the 421 page says to set a login. `ALLOW_OPEN=1` and the public view are exempt |
+| S5 a friend could grow the shared process's memory | `/api/model3d` takes only a known `sex`, `/api/plan` only a known character; the per-key lock maps are refcounted or striped |
+| S6 repository rulesets while private | not available on a private free repository: merge commits are off until the switch, then the rulesets |
+| S7 privacy page statements | the page says the /zogzog/ link exists for everyone (it opens for whoever has it), that the app's log names a character in a few lines, and that the program updates itself without asking |
+
+**Left open: a friend can still make the exporter read names nobody here
+owns.** Forever has no proof that a character is yours short of a Battle.net
+login. Such a name is read for that friend only, at most 12 a day, and it's
+Blizzard's public armory data.
 
 ## Accepted findings
 
@@ -90,12 +111,6 @@ would cost the bundles their readable layout for very little.
 time per level are part of the public page on purpose: they are the climb.
 The Settings toggle now says so; turn the public page off to hide them.
 
-**Info 5, Battle.net profiles are keyed by name.** The profile store holds one
-entry per character name, for every tenant. A friend can send an event that
-names someone else's character and read its look, item level and picture,
-and so make the exporter poll any name. It's the public armory: the same data
-Blizzard shows anyone who types the name.
-
 **Info 8, two downloads without a pinned hash.** The installers fetch uv from
 astral.sh over https (its official installer), and the renderer image gets
 Playwright's Chromium from Playwright's CDN. Both move with their projects'
@@ -112,6 +127,23 @@ with the person. The publisher reports its pass over the share port
 (`POST /publisher.json`, same token); the full view keeps only the known
 fields, capped.
 
+**S3, the shipper updates itself from the server.** At most every 6 hours
+the program on each player's computer fetches the server's manifest and, on
+a newer version, swaps itself in and reruns its installer, without asking.
+The manifest's hashes come from the same server, so they catch a truncated
+download, not a hostile server: whoever controls the server (a stolen deploy
+credential, a hole in the app, a hostile fork's operator) can run code on
+every player's computer within hours. The privacy page and `/start` say the
+program updates itself; players can set `auto_update = false`
+([shipper.md](shipper.md)). The plan, before friends outside the owner's
+circle install it:
+
+1. Each release signs the shipper manifest with an offline Ed25519 key; the
+   public key is pinned in `shipper/wow_stats.py`.
+2. The shipper installs an update only when the signature checks against
+   the pinned key, so the server can serve only code that was released.
+3. Key rotation ships as a signed update carrying the next key.
+
 ## Operator checklist
 
 - `PUBLIC_URL` is https.
@@ -126,7 +158,8 @@ fields, capped.
   characters: `head -c 32 /dev/urandom | base64`).
 - On the full view: `PRIVACY_BACKUP_DAYS` set to what your backups really
   keep, `PRIVACY_LOG_DAYS` to what your log store really keeps, and
-  `PLAUSIBLE_DOMAIN` when the static sites count visits.
+  `PLAUSIBLE_DOMAIN` when the sites count visits: the full view then counts
+  its own pages too, and the privacy page says so.
 - The reverse proxy's access log leaves out query strings: the page's API
   calls carry character names there (`/api/loot?name=...`).
 - A reverse proxy with timeouts sits in front of anything reachable from the
