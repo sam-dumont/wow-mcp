@@ -291,7 +291,10 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 .upmeta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
 .pill {
   display: inline-block; padding: 0 7px; border: 1px solid var(--rule); border-radius: 999px; white-space: nowrap;
-  font: 600 12px/1.55 var(--sans); color: var(--muted); background: color-mix(in srgb, var(--rule) 25%, transparent);
+  /* A fifth of the way from --muted to --ink: the tint under it costs muted text
+     AA on the sunk dungeon cards in the light theme (4.33:1, the armour pills). */
+  font: 600 12px/1.55 var(--sans); color: color-mix(in srgb, var(--muted) 80%, var(--ink));
+  background: color-mix(in srgb, var(--rule) 25%, transparent);
 }
 .pill.now { color: var(--gold-hi); border-color: var(--gold-lo); }
 .pill.here { color: var(--gold-hi); border-color: var(--gold-lo); }
