@@ -518,6 +518,11 @@
 			get errors() { return viewer.files.errors.slice(); },
 			debug: {
 				project: (p) => viewer.project(p),
+				// turn the model to an angle (radians; FACING faces the camera)
+				turn: (rad) => {
+					viewer.rotation = viewer.controls.rotation = rad;
+					viewer.turn();
+				},
 				material: (type) => {
 					const m = viewer.scene && viewer.scene.materials.get(type);
 					return m ? { width: m.width, height: m.height, data: m.readPixels() } : null;
