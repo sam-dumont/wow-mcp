@@ -35,7 +35,10 @@ Stormwind 31.2, 62.8, then go in at Alterac Mountains 14.7, 63".
 quest that gives them.
 
 **Drops for you**: the bosses' drops that are upgrades, with the slot, the points, the boss
-and its drop chance. "5 more" opens the rest.
+and its drop chance. "5 more" opens the rest. Forever's newest dungeons (The Drowned City,
+Krol'dok Stronghold and three more) aren't in any item data yet. Their cards list each boss's
+drops from the project's research notes instead, with no points: the ones in your armour type or
+made for your role come first.
 
 **Already yours**: drops you have, worn or looted. Without Syndicator the page can't see your
 bags, so "looted" may mean you sold it since.

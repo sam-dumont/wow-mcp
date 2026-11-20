@@ -258,6 +258,8 @@ DUNGEON = {
     "drops": [{**_keys("item_id", "name", "quality", "item_level", "slot_name", "score", "gain", "gain_pct",
                        "fills_empty", "level", "now", "state", "where", "url", "value"),
                "drops": [_keys("boss", "npc_id", "chance_pct", "wing", "url")], "quests": [None], "fit": FIT}],
+    "kb_drops": [{**_keys("name", "boss", "armour", "item_id", "url", "fit", "confidence"), "roles": [None]}],
+    "kb_fit": None,
     "quests": [{**_keys("quest_id", "name", "level", "min_level", "xp", "money_copper", "route", "state", "complete",
                         "xp_now", "url", "reward_choices"),
                 "starts": [WHO], "ends": [WHO], "needs": [QREF], "blocked": None,

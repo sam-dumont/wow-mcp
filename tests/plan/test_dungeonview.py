@@ -325,3 +325,71 @@ def test_planner_files_quest_rewards_under_their_dungeon():
         {"kind": "quest", "quest_id": 92489, "name": "Power Overwhelming", "zone": "Stormwind City", "dungeon": True}]}
     d = E.dungeon_items({"upgrades": [up]})
     assert list(d) == ["City of Dalaran"] and d["City of Dalaran"]["quests"][0]["quest_id"] == 92489
+
+
+# Forever's newest dungeons that no item data covers yet: their loot from
+# the research notes (data/kb/research/dungeons.json, read as shipped).
+KB_ONLY = ("The Drowned City", "Blackmaw Hold", "Krol'dok Stronghold", "Alcaz Prison", "Shaper's Terrace")
+
+
+def test_a_dungeon_without_loot_data_lists_the_notes_drops(priest):
+    from wowstats import redact
+
+    b = by_name(V.build(copy.deepcopy(priest)))["The Drowned City"]
+    assert b["drops"] == [] and b["state"] == "soon"
+    kbd = {d["name"]: d for d in b["kb_drops"]}
+    assert len(kbd) == 23 and {d["confidence"] for d in kbd.values()} == {"low"}
+    assert [n for n, d in kbd.items() if d["boss"] == "Zul'Alai"] == [
+        "Berserker Shackles", "Oathbound Bracers", "Bloodslash Axe"]
+    # "The wiki adds" an item to a boss: still that boss's.
+    assert kbd["Linken's Boots of Iron"]["boss"] == "Primeval Elemental"
+    assert kbd["Gill's Gills"]["boss"] == "Gill"  # "Rare Gill"
+    # Known by name: its ID; the rest by name and boss, no ID, not dropped.
+    assert kbd["Briny Sash"]["item_id"] == 274605
+    assert kbd["Serpentbane Crown"]["item_id"] is None and kbd["Serpentbane Crown"]["boss"] == "Min'loth the Serpent"
+    # A shadow priest at 32: cloth and caster pieces are his; mail, a tank
+    # shield and the melee ring aren't; a saber the notes say nothing of: unknown.
+    assert kbd["Robe of the Drowned"]["fit"] is True and kbd["Priestess Cloak"]["fit"] is True
+    assert kbd["Viscera Spaulders"]["fit"] is False and kbd["Maw of Min'loth"]["fit"] is False
+    assert kbd["Knucklebone Ring"]["fit"] is False and kbd["Dreadfrost Saber"]["fit"] is None
+    fits = [d["fit"] for d in b["kb_drops"]]
+    assert fits == sorted(fits, key=lambda f: {True: 0, None: 1, False: 2}[f])
+    assert b["kb_fit"] == 7
+    assert (b["verdict"], b["why"], b["value"]) == ("opens at 35", "waiting there: 7 drops made for you", "some")
+    # The sealed page keeps the list (wowstats.redact).
+    z = redact.zogzog("dungeons", {"dungeons": [b]})["dungeons"][0]
+    assert z["kb_fit"] == 7 and z["kb_drops"][0].keys() >= {"name", "boss", "item_id", "fit", "confidence"}
+
+
+def test_a_dungeon_with_loot_data_never_takes_the_notes(priest):
+    view = by_name(V.build(copy.deepcopy(priest)))
+    for name in ("City of Dalaran", "Excavation Site: Wetlands"):
+        assert view[name]["drops"] and view[name]["kb_drops"] == []
+
+
+def test_the_notes_drops_for_a_warrior_are_plate_and_tank_pieces(priest):
+    inp = copy.deepcopy(priest)
+    inp["level"] = 44
+    inp["who"] = {**inp["who"], "class": "WARRIOR"}
+    inp["gear_spec"] = "Protection"
+    inp["dungeon_loot"] = {}
+    b = by_name(V.build(inp)).get("Krol'dok Stronghold")
+    assert b is not None
+    mine = {d["name"] for d in b["kb_drops"] if d["fit"]}
+    assert {"Krol'dok Warplate Chest", "Warplate Legplates", "Zarmok's Plated Signet"} <= mine
+    assert not mine & {"Shadecaster's Leggings", "Shadowlight Athame", "Chain of Binding"}
+
+
+@pytest.mark.parametrize("name", KB_ONLY)
+def test_every_kb_only_dungeon_reads_as_items(name):
+    from wowstats.plan import kbloot
+
+    got = kbloot.drops(name)
+    assert len(got) >= 15
+    names = [d["name"] for d in got]
+    assert len(names) == len(set(names))
+    for d in got:
+        # Items, not the notes' headings, recipes or role words.
+        assert d["name"][0].isupper() and ":" not in d["name"] and " / " not in d["name"]
+        assert d["boss"] is None or d["boss"].lower() not in kbloot.GROUPS | kbloot.RECIPES
+        assert d["armour"] in (None, *kbloot.ARMOUR)

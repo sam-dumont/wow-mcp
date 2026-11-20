@@ -1985,7 +1985,31 @@ function ownText(x) {
 
 // A quest's reward is listed under the quests' rewards, not as a drop.
 const questOnly = (x) => !x.drops.length && x.quests.length;
+
+// A dungeon whose loot only the research notes list (wowstats/plan/kbloot.py):
+// each drop and its boss, the ones made for him first. No gain: nothing
+// scores them. An icon only when the item is known by its ID.
+function kbDropRow(x) {
+  return h('li', { class: 'dgdrop missing' },
+    h('div', { class: 'dgitem' }, x.item_id ? [itemChip(x), whMark(x.url, x.name)] : h('span', { class: 'iname', text: x.name })),
+    h('div', { class: 'dgmeta' },
+      x.armour ? h('span', { class: 'pill', text: x.armour }) : null,
+      x.boss ? h('span', { class: 'src', text: x.boss }) : null));
+}
+
+function kbDrops(b) {
+  const mine = b.kb_drops.filter((x) => x.fit);
+  const shown = mine.slice(0, b.drops_shown || 3);
+  const rest = [...mine.slice(shown.length), ...b.kb_drops.filter((x) => !x.fit)];
+  return h('div', { class: 'dgsec' },
+    h('h4', { text: mine.length ? 'Drops for you' : 'Drops' }),
+    shown.length ? h('ul', { class: 'dgdrops' }, shown.map(kbDropRow)) : h('p', { class: 'sub', text: 'None made for your class and spec.' }),
+    rest.length ? h('details', { class: 'dgmore' }, h('summary', { text: shown.length ? `${rest.length} more` : plural(rest.length, 'drop') }),
+      h('ul', { class: 'dgdrops' }, rest.map(kbDropRow))) : null);
+}
+
 function dungeonDrops(b, level, inv) {
+  if (!b.drops.length && (b.kb_drops || []).length) return kbDrops(b);
   const missing = b.drops.filter((x) => x.state === 'missing' && !questOnly(x));
   const mine = b.drops.filter((x) => x.state === 'obtained');
   const shown = missing.slice(0, b.drops_shown || 3);
@@ -2145,8 +2169,12 @@ function dungeonTrip(b) {
       .filter(([, sec]) => sec > 0).map(([k, sec]) => `${k} ${dur(sec)}`);
     facts.push(fact('Your trips there', dur(t.total_s), parts.join(', ')));
   }
-  facts.push(fact('Gear a clear', b.missing_now ? `+${b.expected_gain_per_clear.toFixed(1)}` : 'none',
-    b.missing_now ? `${b.chance_one_per_clear_pct}% one of ${plural(b.missing_now, 'upgrade')} drops` : 'nothing missing at your level'));
+  if (!b.drops.length && (b.kb_drops || []).length) {
+    facts.push(fact('Gear a clear', b.kb_fit ? plural(b.kb_fit, 'drop') : 'none', b.kb_fit ? 'made for you' : 'none made for you'));
+  } else {
+    facts.push(fact('Gear a clear', b.missing_now ? `+${b.expected_gain_per_clear.toFixed(1)}` : 'none',
+      b.missing_now ? `${b.chance_one_per_clear_pct}% one of ${plural(b.missing_now, 'upgrade')} drops` : 'nothing missing at your level'));
+  }
   if (t.measured) {
     facts.push(fact('Loot a run', coins(t.vendor_copper),
       [t.ah_copper ? `${Math.round(t.ah_copper / 100) / 100}g at your AH prices` : null, t.quest_money_copper ? 'plus quest money' : null].filter(Boolean).join(', ')));
