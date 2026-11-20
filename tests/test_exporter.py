@@ -22,7 +22,7 @@ def test_merge_url():
 def test_no_auction_house_api():
     """The owner's rule (2026-11-20): no Auction House API. Prices come from
     the player's own Auctionator scans (wowstats/ahsource.py)."""
-    assert set(exporter.TASKS) == {"token", "realm", "profile"}
+    assert set(exporter.TASKS) == {"token", "realm", "profile", "new"}
     src = Path(exporter.__file__).read_text(encoding="utf-8")
     assert "/auctions" not in src and "commodities" not in src
 
@@ -75,8 +75,8 @@ def test_profile_keys_forever_characters_without_realm(monkeypatch):
     out = exporter.render_data()
     assert 'wow_character_customization{account_id="0",character="Testpriest-Fixture",option_id="80"} 1174.0' in out
     assert 'wow_character_customization{account_id="0",character="Testpriest-Fixture",option_id="82"} 1210.0' in out
-    assert ('wow_character_profile{account_id="0",character="Testpriest-Fixture",gender="male",in_guild="false",'
-            'race_id="7"} 32.0') in out
+    assert ('wow_character_profile{account_id="0",character="Testpriest-Fixture",class_id="",faction="",gender="male",'
+            'in_guild="false",race_id="7"} 32.0') in out
     # No /achievements answer: no "read" marker, so the Legacy count stays unknown.
     assert "wow_character_achievements_read" not in out
     assert 'wow_character_equipped{account_id="0",character="Testpriest-Fixture",slot="main_hand"} 1317.0' in out
@@ -111,7 +111,7 @@ def test_profile_reads_guild_and_achievements(monkeypatch):
     exporter.poll_profile()
     assert (p + "/achievements", "profile-forever-eu") in calls
     out = exporter.render_data()
-    assert ('wow_character_profile{account_id="0",character="Testpriest-Fixture",gender="male",guild="Test Guild",'
+    assert ('wow_character_profile{account_id="0",character="Testpriest-Fixture",class_id="",faction="",gender="male",guild="Test Guild",'
             'in_guild="true",race_id="7"} 32.0') in out
     assert 'wow_character_achievements_read{account_id="0",character="Testpriest-Fixture"} 2' in out
     assert 'wow_character_achievement{account_id="0",achievement_id="61994",character="Testpriest-Fixture"} 1763460000.0' in out
@@ -294,3 +294,60 @@ def test_the_log_never_carries_the_client_secret(tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "region eu" in out and "token:" in out
     assert secret not in out and key not in out and "client-id-value" not in out
+
+
+def test_a_new_character_is_read_within_minutes_not_tomorrow(monkeypatch):
+    """A friend who installs at 09:30: the daily pass ran at 06:00, so their
+    character waited until the next morning. poll_new (every 5 minutes)
+    reads a character the list names for the first time, once; one already
+    read, or one Battle.net doesn't know (a 404), waits for the daily pass."""
+    exporter.configure({"BNET_CLIENT_ID_FILE": "/x", "BNET_CLIENT_SECRET_FILE": "/y",
+                        "PROFILE_CHARACTERS": "Testhunter-Fixture"})
+    exporter.data.clear()
+    calls = []
+    p = "/profile/wow/character/testpriest-fixture"
+    monkeypatch.setattr(exporter, "api_get", fake_api(
+        {p: PRIEST, p + "/appearance": LOOK, p + "/equipment": GEAR}, calls))
+    assert exporter.INTERVALS["new"] <= 300 and exporter.INTERVALS["profile"] == 7200
+    assert exporter.poll_profile() == "0 of 1 characters"  # the morning's pass: the hunter only
+    # The friend's first upload puts the priest on the full view's list.
+    listed = [("0", "Testhunter-Fixture"), ("3", "Testpriest-Fixture")]
+    monkeypatch.setattr(exporter, "profile_chars", lambda: listed)
+    calls.clear()
+    assert exporter.poll_new() == "1 of 1 new characters"
+    assert {c[0] for c in calls} >= {p, p + "/equipment"}
+    assert "/profile/wow/character/testhunter-fixture" not in {c[0] for c in calls}  # read this morning
+    out = exporter.render_data()
+    assert 'wow_character_equipped{account_id="3",character="Testpriest-Fixture",slot="main_hand"} 1317.0' in out
+    # Five minutes later: nobody new, no call to Battle.net at all.
+    calls.clear()
+    assert exporter.poll_new() == "0 of 0 new characters" and calls == []
+    # The 30-day rule still applies to what poll_new read.
+    exporter.forget_old(now=__import__("time").time() + exporter.KEEP_S + 1)
+    assert "Testpriest-Fixture" not in exporter.render_data()
+
+
+def test_profile_pass_every_2_hours_on_the_clock():
+    """Owner, 2026-11-20: every 2 hours (PROFILE_INTERVAL), at 00:00, 02:00...
+    UTC whenever the pod started; poll_new keeps its 5 minutes."""
+    exporter.configure({"BNET_CLIENT_ID_FILE": "/x", "BNET_CLIENT_SECRET_FILE": "/y"})
+    assert exporter.INTERVALS["profile"] == 7200
+    start = 1795170600.0  # 2026-11-20 10:30 UTC
+    assert exporter.next_slot("profile", start) == 1795176000.0  # 12:00 UTC
+    assert exporter.next_slot("profile", 1795176000.0) == 1795176000.0 + 7200  # run at 12:00: next at 14:00
+    assert exporter.next_slot("new", start) == start + 300
+    exporter.configure({"BNET_CLIENT_ID_FILE": "/x", "BNET_CLIENT_SECRET_FILE": "/y", "PROFILE_INTERVAL": "21600"})
+    assert exporter.next_slot("profile", start) == 1795176000.0  # every 6 h: 12:00 UTC too
+    assert exporter.next_slot("profile", 1795176000.0) == 1795176000.0 + 21600  # then 18:00
+
+
+def test_profile_keeps_class_and_faction():
+    """For a character the addons sent no class or faction for."""
+    exporter.configure({"BNET_CLIENT_ID_FILE": "/x", "BNET_CLIENT_SECRET_FILE": "/y", "PROFILE_CHARACTERS": "Testpriest-Fixture"})
+    exporter.data.clear()
+    p = "/profile/wow/character/testpriest-fixture"
+    prof = {**PRIEST, "character_class": {"id": 5, "name": "Priest"}, "faction": {"type": "ALLIANCE"}}
+    with pytest.MonkeyPatch.context() as m:
+        m.setattr(exporter, "api_get", fake_api({p: prof}, []))
+        exporter.poll_profile()
+    assert 'class_id="5",faction="alliance"' in exporter.render_data()

@@ -23,7 +23,7 @@ folder, and sends them to the server you were invited to, with your own upload p
 - **Updates:** the program updates itself from the server, without asking, within a few hours
   of a new version. You trust the owner (who runs the server) like anyone whose program
   you install.
-- **Battle.net data** (your characters' look, item level, talents) is read once a day for your
+- **Battle.net data** (your characters' look, item level, gear, talents) is read every 2 hours for your
   own characters only. A character name someone else on the server also sends gets none, unless
   it is the owner's.
 

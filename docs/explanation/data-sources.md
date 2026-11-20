@@ -41,7 +41,8 @@ addons.
 
 ## Field by field
 
-"API" means the exporter's daily read of Blizzard's profile API, kept 23 days. "Live" means
+"API" means the exporter's read of Blizzard's profile API, every 2 hours (a new character within
+about 10 minutes), kept 23 days. "Live" means
 the exporter calls it on Forever today; "listed" means the endpoint exists for Classic but
 nobody here has called it on Forever yet.
 
@@ -50,9 +51,9 @@ nobody here has called it on Forever yet.
 | Talents, spec hint by points | API (`/specializations`) | yes, live | - |
 | The 3D look | API (`/appearance`) | yes, live | - |
 | Armory render, armory item level | API (`/character-media`, profile) | yes, live | - |
-| Worn items | Syndicator; API for random-suffix stats | yes, live (`/equipment`) | history: gear per level, after 30 days |
+| Worn items | Syndicator; without its items (not installed, or a gear event with the professions only), the API's whole set; API for random-suffix stats | yes, live (`/equipment`) | history: gear per level, after 30 days |
 | Item level (our average) | Syndicator + Polestar_ItemDB | yes, live (profile) | history |
-| Level, class, race, faction | Polestar, Syndicator | yes, live (profile) | history: the level curve |
+| Level, class, race, faction | Polestar, Syndicator; each one they didn't send, the API's | yes, live (profile) | history: the level curve |
 | Sex | API (profile `gender`) | yes, live | - |
 | Guild | API (profile `guild`) | yes, listed | - |
 | Level splits, time per level, XP | Polestar | no | no API |
@@ -69,8 +70,16 @@ nobody here has called it on Forever yet.
 | Legacy points earned | API (`/achievements`: each Legacy challenge is one) | yes, listed | - |
 | Legacy points spent | not shown | no | no addon saves them either |
 | Talent changes, every one | WoWSims Exporter, optional | no (your own file) | history: every change since you installed it |
-| Talent changes, last 3 weeks (without WoWSims Exporter) | API (`/specializations`, each daily read in vm-wow) | yes, live | - |
+| Talent changes, last 3 weeks (without WoWSims Exporter) | API (`/specializations`, each read in vm-wow) | yes, live | - |
 | Reputations | not used | yes, listed | - |
+
+The rule per kind (owner, 2026-11-20): when an addon sent it, the addon's value is used and
+the API's isn't, even when the exporter read one. When no addon did, the API's fills it. An
+API value read 30 days ago or more is never shown, whatever a store still holds (Blizzard's
+terms), and it never goes into VictoriaLogs, the analysis folders or a backup. Worn items come
+as a whole set, never slot by slot: a Syndicator sheet with items lists every slot worn, so an
+empty slot there is really empty. Professions have no Classic profile endpoint, so they stay
+the addon's.
 
 ## The MCP
 

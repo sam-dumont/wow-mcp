@@ -31,7 +31,7 @@ import threading
 import time
 from datetime import UTC, datetime
 
-from wowstats.stores import SourceError, iso
+from wowstats.stores import SourceError, iso, public_error
 
 CHECK_S = 60
 MARKET_S = 300
@@ -76,6 +76,7 @@ class Prebuilt:
         self.market_at = 0.0
         self.checked_at = ""
         self.error: str | None = None
+        self.public_error: str | None = None  # what readers see: no host, no store text (stores.public_error)
         self.dirty = False
         self.seconds = 0.0
         self._lock = threading.Lock()  # one build at a time per App
@@ -88,8 +89,8 @@ class Prebuilt:
         if hit is None:
             return None
         out = {**hit, "generated_at": self.checked_at or hit.get("generated_at")}
-        if self.error:
-            out.update(stale=True, error=self.error)
+        if self.error:  # the detail stays in self.error, for the owner's overview (wowstats.admin)
+            out.update(stale=True, error=self.public_error or "the data store didn't answer")
         return out
 
     def changed(self, prefix: str = "") -> None:
@@ -109,7 +110,7 @@ class Prebuilt:
             try:
                 mark = self.app.data_mark(self.mark)
             except SourceError as e:
-                self.error = str(e)
+                self.error, self.public_error = str(e), public_error(e, "the answers' check")
                 return None
             why = ("first build" if self.answers is None else "new data" if mark != self.mark
                    else "changed" if self.dirty else "daily rebuild" if now - self.built_at >= MAX_AGE_S
@@ -127,7 +128,7 @@ class Prebuilt:
                     self.mark, self.built_at = mark, now
             except SourceError as e:
                 # A store down mid-build: the last set stays, marked stale.
-                self.error = str(e)
+                self.error, self.public_error = str(e), public_error(e, f"the answers' build ({why})")
                 self.dirty = self.dirty or why == "changed"
                 log(f"{why}: kept the last answers: {e}")
                 return None

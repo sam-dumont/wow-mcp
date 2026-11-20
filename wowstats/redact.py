@@ -115,6 +115,8 @@ PUBLIC: dict[str, dict] = {
         # Cleared, when, at what level: no group, no bosses, no time or XP.
         "dungeons": [{"name": None, "level": None, "t": None}],
         "gear": {"item_level": None, "armory_item_level": None, "armory_item_level_source": None,
+                 # Battle.net's items when Syndicator sent none, and the line that says so.
+                 "items_from": None, "items_note": None,
                  "render": {"asset": None, "refreshed": None, "ext": None}, "items": [ITEM],
                  "professions": [PROFESSION]},
         "spec": SPEC_CARD, "talents": TALENTS, "legacy": LEGACY, "class_guide": CLASS_GUIDE,
@@ -239,7 +241,7 @@ UPGRADE = {**ADVICE_ITEM, **_keys("level", "slot", "slot_name", "gain", "gain_pc
 UPGRADE_PAIR = {**UPGRADE, "with": {**UPGRADE, "kind": None}}
 SPEC = {**_keys("key", "label", "source", "adjusted", "why", "role"), "choices": [_keys("key", "label")]}
 GEAR_SHEET = {**_keys("at", "item_level", "guild", "spec", "class", "race", "faction", "sex", "armory_item_level",
-                      "armory_item_level_source"),
+                      "armory_item_level_source", "items_from", "items_note"),
               "render": _keys("asset", "refreshed", "ext"),
               "items": [ITEM], "professions": [PROFESSION],
               "wanted": [_keys("item_id", "name", "item_level", "req_level", "slot_name", "level")]}

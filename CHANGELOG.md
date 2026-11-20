@@ -42,6 +42,53 @@ Upgrading: lines stored before this keep what 0.6 sent. The event contract
 lists the LogsQL filters that find them (docs/contract.md, "Stored before
 0.7.0"); read what they select before deleting anything.
 
+**Battle.net fills what the addons didn't send, every 2 hours.** The
+exporter reads every character every 2 hours on the clock (00:00, 02:00...
+UTC, `PROFILE_INTERVAL=7200`) instead of once a day from whenever the pod
+started, and a character it has never read within about 5 minutes: a friend
+who installs at 09:30 no longer waits until the next morning. That's 6 calls
+a character a pass, one at a time: about 390 calls an hour for 130
+characters, 1% of Blizzard's 36,000 an hour. On the page, per kind: what an
+addon sent wins and the API isn't used for it; what no addon sent comes from
+the API. A friend without Syndicator sends a gear event with the professions
+and no item, and the paperdoll was empty: it now shows Battle.net's worn
+items (the whole set, said so), and the gear advice scores them. Level
+splits only? The class, race and faction come from Battle.net, so the class
+tools and the advice work. An API value read 30 days ago or more is never
+shown. With nothing from either yet, the Equipment panel says when
+Battle.net's copy comes instead of staying blank.
+
+Upgrading: `PROFILE_INTERVAL` now defaults to 7200 (it was 86400). If you
+set it yourself, it now also picks the clock slots: 86400 runs at 00:00 UTC.
+
+**Six fixes from the server's security review.** Nothing removed, every
+SQL function still there.
+
+- `play_sql`, the judge and the recheck run their DuckDB queries in a child
+  process capped at 512 MB over its loaded data. DuckDB's own
+  `memory_limit` doesn't count a single value: `x || x || ...` over a
+  `string_agg` took 2.3 GB with the limit at 256 MB, and 64 of them killed
+  the whole server. Now only that query fails, with "aggregate or narrow
+  it", and the next one gets a fresh child.
+- The live public view (`ui-public`) follows Settings when you give it
+  `USERS_URL` and the share token: public page off answers 404 everywhere,
+  and a character you hid from the public page isn't there. Before, it
+  showed everyone.
+- `/ingest` answers 400 to JSON nested a few thousand levels deep, instead
+  of a 500.
+- A store error no longer hands its VictoriaLogs address and error text to
+  the page, the shipper or the AI: they get "the data store didn't answer"
+  with a request id, and the server's log has the detail under that id.
+- Outbound downloads (wago.tools, the icon host, Blizzard's render host,
+  `RENDER_FROM`) follow a redirect only to the same host, or to another
+  allowed render address. Anywhere else is an error.
+- Each character's analysis folder is its name plus a short hash, so Ærin
+  and Érin of one realm no longer share one. An existing folder moves to
+  its new name the first time the character comes up.
+
+Upgrading: nothing to do. `ui-public` with several people takes `USERS_URL`
+and `ANALYSIS_SHARE_TOKEN_FILE` to follow Settings (docs/self-host/friends.md).
+
 **Releases are one button, and this repository is the only one.**
 Development moved here from the private repository it was exported from.
 Actions > release > Run workflow picks the next version (`rc` for a

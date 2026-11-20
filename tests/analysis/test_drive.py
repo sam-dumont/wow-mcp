@@ -92,3 +92,31 @@ def test_the_store_is_read_in_small_pages():
     prep.query(Store(), "feed:wow-*", CHAR)
     assert seen == [(f'feed:wow-* char:in("Testpriest Fixture", "{CHAR}") -feed:wow-player -feed:wow-prices '
                      '-feed:wow-combatlog', prep.VL_PAGE)] and prep.VL_PAGE <= 5000
+
+
+# The review's proof (2026-11-20): `||` over a string_agg builds one value
+# DuckDB's memory_limit doesn't count; 64 of them took 3 GB containers down.
+BOMB = ("WITH a AS (SELECT string_agg('xxxxxxxxxxxxxxxx','') AS x FROM range(1000000)) "
+        "SELECT length(" + " || ".join(["x"] * 64) + ") FROM a")
+
+
+def test_play_sql_value_bomb_stops_only_the_query(env, monkeypatch):
+    """The query dies with a plain answer; this process (the server) keeps
+    its memory, and the next query runs in a fresh child."""
+    import resource
+    import sys
+
+    from wowstats.analysis import duckproc
+
+    monkeypatch.setattr(duckproc, "QUERY_MEMORY", 300 << 20)
+    unit = 1 if sys.platform == "darwin" else 1024
+    assert call("play_sql", {"query": "SELECT COUNT(*) AS n FROM levels"})["result"].startswith("n\n")
+    before = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * unit
+    got = call("play_sql", {"query": BOMB})
+    assert "more memory than a query may use" in got["error"]
+    assert resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * unit - before < 200 << 20
+    again = call("play_sql", {"query": "SELECT level FROM levels ORDER BY level LIMIT 1"})
+    assert again["result"].startswith("level\n") and "error" not in again
+    # every function stays available: the same operators on a small value answer
+    small = call("play_sql", {"query": "SELECT length(string_agg('ab', '') || 'x') AS n FROM range(10)"})
+    assert small["result"] == "n\n21"

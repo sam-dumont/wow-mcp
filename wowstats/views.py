@@ -245,6 +245,11 @@ class Views:
             pages.apply_rows(levels, dungeons, layer)
             pages.apply_deaths(deaths, layer, death_rows)
         gear = build_gear(newest(res["gear"]))
+        if not (gear and gear["items"]):
+            # Syndicator's items win; without them (no gear event, or one
+            # with the professions only), Battle.net's whole set.
+            gear = with_battlenet_items(gear, gearmod.armory_worn(self.store, char),
+                                        bool(getattr(self.store, "profile_vm_url", "")))
         if gear:
             gear["professions"] = profcaps.fill(gear["professions"], profcaps.newest_skills(res["skills"]))
             try:  # vm-wow down or absent: the item level computed, the silhouette
@@ -262,7 +267,7 @@ class Views:
             current_s = recorder_played([b.get("_time") for b in buckets])
         header = build_header(char, levels, res, gear, current_s, pages.header(layer) if layer else None)
         header.update(played_total(res["played"], levels, header))
-        header.update(self.bnet_profile(char))
+        fill_from_battlenet(header, self.bnet_profile(char))
         cat = talents.shared().get()
         bnet = self.bnet_talents(char)
         cls = header.get("class") or (gear or {}).get("class")
@@ -391,15 +396,12 @@ class Views:
                 "changes": talents.history(cat, cls, readings)}
 
     def bnet_profile(self, char: str) -> dict:
-        """Sex and guild from Battle.net's profile (owner, 2026-11-20: the
-        API, not an addon): {"sex", "guild", "guild_known"}; None and False
-        (unknown) when vm-wow is down, absent, or the API doesn't know the
-        character. guild None with guild_known True: no guild."""
+        """Battle.net's profile (stores.character_profile), {} when vm-wow
+        is down, absent, or holds nothing read in the last 30 days."""
         try:
-            p = self.store.character_profile(char) or {}
+            return self.store.character_profile(char) or {}
         except Exception:  # noqa: BLE001
-            p = {}
-        return {"sex": p.get("sex"), "guild": p.get("guild"), "guild_known": bool(p.get("guild_known"))}
+            return {}
 
     def bnet_achievements(self) -> dict | None:
         """The account's completed achievements on Battle.net (the Legacy
@@ -445,15 +447,17 @@ class Views:
         res = {k: f.result() for k, f in jobs.items()}
         row = newest(res["gear"])
         header = build_header(char, [], res)
+        fill_from_battlenet(header, self.bnet_profile(char))
         base = {"char": char, "name": header["name"], "polestar": header["polestar"]}
         worn = gearmod.armory_worn(self.store, char)
         worn_from = "sheet"
-        if not row:
-            # No Syndicator sheet: Battle.net's equipment, else every slot
+        if not gearmod.sheet_has_items(row):
+            # No items from Syndicator (no gear event, or one with the
+            # professions only): Battle.net's equipment, else every slot
             # open (the best items for the level), said to be an estimate.
-            if not header.get("class"):
+            if not (header.get("class") or (row or {}).get("class")):
                 return {**base, "available": False, "why": "no character sheet yet"}
-            row, worn_from = gearmod.no_sheet(header, worn)
+            row, worn_from = gearmod.no_sheet(header, worn, row)
         sheet = gearmod.sheet(row, header)
         sheet["talents"] = self.talent_points(char, sheet.get("class"))  # spec detection: Battle.net only
         sheet["worn_stats"] = worn
@@ -1099,6 +1103,47 @@ def build_gear(row: dict) -> dict | None:
             "spec": row.get("spec") or None,
             "class": row.get("class") or None, "race": row.get("race") or None,
             "faction": row.get("faction") or None}
+
+
+# What the page takes from Battle.net only when the addons sent nothing for
+# it; the addon's value wins (owner, 2026-11-20). Gear is with_battlenet_items.
+BNET_FILLS = ("class", "race", "faction", "level")
+
+
+def fill_from_battlenet(header: dict, prof: dict) -> None:
+    """Battle.net's profile into the hero line: sex and guild always (no
+    addon has them), class, race, faction and level only where the addons
+    sent none (`from_battlenet` lists which). `prof` is {} without one read
+    in the last 30 days: those stay unknown."""
+    header.update(sex=prof.get("sex"), guild=prof.get("guild"), guild_known=bool(prof.get("guild_known")))
+    used = []
+    for k in BNET_FILLS:
+        if header.get(k) in (None, "") and prof.get(k):
+            header[k] = prof[k].title() if k == "class" else prof[k]
+            used.append(k)
+    if used:  # absent when the addons sent everything
+        header["from_battlenet"] = used
+        header["battlenet_read"] = prof.get("refreshed")
+
+
+def with_battlenet_items(gear: dict | None, worn: dict, exporter_on: bool) -> dict | None:
+    """The page's gear when the shipper sent no equipped item: Battle.net's
+    (items_from "battle.net"), else what fills it and when (items_note),
+    never an empty paperdoll that says nothing."""
+    items = gearmod.battlenet_items(worn)
+    if not items and gear is None and not exporter_on:
+        return None  # the page's own empty panel says which addon fills it
+    gear = gear or {"at": None, "items": [], "item_level": None, "professions": [], "wanted": [], "spec": None,
+                    "class": None, "race": None, "faction": None}
+    if items:
+        return {**gear, "items": items, "items_from": "battle.net",
+                "items_note": "Gear from Battle.net, read every 2 hours. Syndicator shows it right away: turn it "
+                              "on in AddOns, log in, then /reload."}
+    when = ("Battle.net's copy comes within about 10 minutes of a character's first upload, and within 2 "
+            "hours after that. " if exporter_on else "")
+    return {**gear,
+            "items_note": f"No equipped items saved yet. {when}Syndicator shows them right away: turn it on in "
+                          "AddOns, log in, then /reload."}
 
 
 # The armory's item level: every slot but the shirt and tabard, an empty

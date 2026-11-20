@@ -6,6 +6,8 @@ tools/gear_reference/parity.lua; tests/test_gear_parity.py does that for
 every item when a Polestar checkout is at hand). The character is a level
 32 Gnome Priest, Shadow, wearing a two-handed staff and one trinket."""
 
+import time
+
 import pytest
 
 from wowstats import gear
@@ -375,6 +377,8 @@ def test_store_reads_battlenet_equipment():
 
     class Fake(Store):
         def profile_query(self, q):
+            if "refreshed" in q:  # read an hour ago (30 days at most: Blizzard's terms)
+                return [{"metric": {}, "value": [1, str(time.time() - 3600)]}]
             if "wow_character_equipped_stat" in q:
                 return [{"metric": {"slot": "back", "stat": "INTELLECT"}, "value": [1, "4"]},
                         {"metric": {"slot": "back", "stat": "FIRE_RESISTANCE"}, "value": [1, "5"]}]

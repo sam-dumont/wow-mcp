@@ -196,6 +196,10 @@ services:
       ALLOWED_HOSTS: ${PUBLIC_ALLOWED_HOSTS:-}
       VL_URL: http://victorialogs:9428
       DEFAULT_CHAR: ${DEFAULT_CHAR:-}
+      # Several people (WOW_STATE_DIR on ui): add USERS_URL and
+      # ANALYSIS_SHARE_TOKEN_FILE as on publish, so this page follows your
+      # Settings (public page off, hidden characters). Without them it shows
+      # every character in your store.
     ports:
       - "${PUBLIC_PUBLISH:-127.0.0.1:8082}:8080"
 

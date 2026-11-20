@@ -253,7 +253,7 @@ ALLOWED = {
              *keys("dungeons[].", ("name", "level", "t")),
              "gear.item_level", "gear.items", "gear.professions", *keys("gear.items[].", ITEM),
              "gear.armory_item_level", "gear.armory_item_level_source", "gear.render", "gear.render.asset",
-             "gear.render.refreshed", "gear.render.ext",
+             "gear.render.refreshed", "gear.render.ext", "gear.items_from", "gear.items_note",
              *keys("gear.professions[].", ("skill_id", "name", "rank", "max_rank", "max_rank_from")), *TALENT_KEYS,
              *CLASS_GUIDE_KEYS},
     "timeline": {"char", "generated_at", "levels"},

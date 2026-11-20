@@ -23,11 +23,43 @@ class Upstream(Exception):
     pass
 
 
+def same_origin(url: str):
+    """The redirect rule for a fixed host: only to the same scheme, host and
+    port as `url`."""
+    want = urllib.parse.urlsplit(url)
+
+    def ok(new: str) -> bool:
+        u = urllib.parse.urlsplit(new)
+        return (u.scheme, u.hostname, u.port) == (want.scheme, want.hostname, want.port) and not u.username
+
+    return ok
+
+
+class _Redirects(urllib.request.HTTPRedirectHandler):
+    """urllib follows a redirect anywhere; this one only where `allow` says
+    (2026-11-20 server review, info 4). Off it, the redirect itself comes back
+    as an HTTPError with its code."""
+
+    def __init__(self, allow):
+        self.allow = allow
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not self.allow(urllib.parse.urljoin(req.full_url, newurl)):
+            raise urllib.error.HTTPError(req.full_url, code, "redirect off the allowed hosts", headers, fp)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def urlopen(req: urllib.request.Request, timeout: float, allow=None):
+    """urllib.request.urlopen, with redirects followed only where `allow`
+    (a function of the new URL) says; by default to the same origin."""
+    return urllib.request.build_opener(_Redirects(allow or same_origin(req.full_url))).open(req, timeout=timeout)
+
+
 def fetch(url: str, timeout: int = 30) -> bytes | None:
     """GET a URL: the body, None on a 404, Upstream on anything else."""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 - fixed hosts, or a test's
+        with urlopen(req, timeout=timeout) as r:  # fixed hosts, or a test's; redirects stay on them
             body = r.read(MAX_FILE + 1)
     except urllib.error.HTTPError as e:
         if e.code == 404:

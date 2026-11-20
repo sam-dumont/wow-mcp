@@ -534,17 +534,51 @@ def armory_worn(store, char: str) -> dict:
         return {}
 
 
-def no_sheet(fallback: dict, worn: dict) -> tuple[dict, str | None]:
-    """A sheet for a character Syndicator never saved (sheet()'s input):
-    what Battle.net says it wears (armory_worn), else nothing worn, every
-    slot open, so the advice is the best items for its level. Class, race
-    and faction from `fallback` (Polestar's character sheet). Returns the
-    row and where the worn items come from ("battle.net", or None:
-    unknown)."""
+def sheet_has_items(row: dict | None) -> bool:
+    """The shipper's gear event lists equipped items. Without Syndicator it
+    still sends one, with the professions and no item (2026-11-20)."""
+    return any(isinstance(i, dict) and _num(i.get("item_id")) for i in _jlist((row or {}).get("items")))
+
+
+def no_sheet(fallback: dict, worn: dict, row: dict | None = None) -> tuple[dict, str | None]:
+    """A sheet whose equipped items Syndicator never saved (sheet()'s
+    input): what Battle.net says it wears (armory_worn), else nothing worn,
+    every slot open, so the advice is the best items for its level. `row`:
+    the shipper's gear event without items, whose professions, spec and
+    the rest stay. The whole set comes from Battle.net, never slot by slot:
+    a sheet with items lists every slot worn, so an empty one there is
+    really empty. Class, race and faction from the row, else `fallback`
+    (Polestar's character sheet). Returns the row and where the worn items
+    come from ("battle.net", or None: unknown)."""
     items = [{"slot": slot, "item_id": r["item_id"]} for slot, r in sorted((worn or {}).items())
              if isinstance(r.get("item_id"), int)]
-    row = {"items": items, **{k: fallback.get(k) for k in ("class", "race", "faction")}}
+    row = {**(row or {}), "items": items,
+           **{k: (row or {}).get(k) or fallback.get(k) for k in ("class", "race", "faction")}}
     return row, ("battle.net" if items else None)
+
+
+def battlenet_items(worn: dict) -> list[dict]:
+    """The page's equipped items from Battle.net's equipment (armory_worn):
+    slot, id, name, quality and item level, as build_gear gives the
+    shipper's. vm-wow keeps 23 days and the store reads the last 2, so
+    nothing older than Blizzard's 30 days ever shows."""
+    from wowstats import items as itemnames
+
+    ref = reference()
+    out = []
+    for slot, r in sorted((worn or {}).items()):
+        iid = r.get("item_id")
+        if not isinstance(iid, int):
+            continue
+        info = ref.item(iid) or {}
+        try:
+            name, quality = itemnames.shared().get(iid)
+        except Exception:  # noqa: BLE001 - no name is no reason to lose the slot
+            name, quality = None, info.get("quality")
+        out.append({"slot": slot, "item_id": iid, "name": name, "quality": quality if quality is not None
+                    else info.get("quality"), "item_level": info.get("ilvl"), "req_level": info.get("req"),
+                    "enchant_id": None, "enchant": None, "slot_name": None})
+    return out
 
 
 # The one action that turns the estimate into upgrades over what is worn.
@@ -1609,8 +1643,8 @@ def spec_why(ref: Reference, cls: str, key: str, label: str, how: str, sheet: di
         addon = sheet.get("spec_from") or "a gear addon (ForeverLevelingBiS or GearQuestForever)"
         why = SPEC_WHY.get(how, how).format(label=label, addon=addon, cls=cls.title())
         if how == "default":
-            why += (". No talents known yet: once Battle.net's daily read knows the character, the tree with the "
-                    "most points is the hint")
+            why += (". No talents known yet: once Battle.net's read (every 2 hours) knows the character, "
+                    "the tree with the most points is the hint")
     if adjusted:
         why += f". Your {adjusted} edit{'s' if adjusted > 1 else ''} in Polestar's Adjust weights count"
     return f"Scored for {label} because {why}."

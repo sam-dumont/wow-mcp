@@ -31,6 +31,10 @@ Environment (defaults suit deploy/compose):
                          loopback BIND)
   MODEL3D, MODEL3D_*     the 3D character (wowstats.model3d), full view only;
                          on unless MODEL3D=off
+  USERS_URL, ANALYSIS_SHARE_TOKEN_FILE: public view only, with several
+                         people: the full view's /users.json, so the live
+                         page follows Settings (public page off, hidden
+                         characters; wowstats.sitesettings)
 """
 
 from __future__ import annotations
@@ -54,7 +58,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from wowstats import bar, guard, httpserve, insights, model3d, prebuilt, redact
-from wowstats.stores import SourceError, Store, env_account, iso, parse_t, tenant_headers
+from wowstats.stores import SourceError, Store, env_account, iso, parse_t, public_error, tenant_headers
 from wowstats.views import Settings, Views
 
 # media-src: the manual's clips, from /start/media/ and, on the help page, as
@@ -232,6 +236,14 @@ class App:
             view=view, default_char=env.get("DEFAULT_CHAR", ""),
             price_days=int(env.get("PRICE_DAYS", "90")), weights=parse_weights(env.get("WEIGHTS", "")))
         self.views = Views(self.store, self.settings)
+        # The person's Settings (public page on or off, hidden characters) for
+        # the live public view, from the full view's share port; None: one
+        # person, no Settings, everything shown (wowstats.sitesettings).
+        self.page_settings = None
+        if view == "public":
+            from wowstats import sitesettings
+
+            self.page_settings = sitesettings.live(env, env_account(env))
         self.cache_ttl = int(env.get("CACHE_TTL", "45"))
         door = env.get("FULL_DOOR_PATH", "/full/").strip().strip("/")
         self.door = f"/{door}/" if door else ""
@@ -327,7 +339,9 @@ class App:
                 value = fn()
             except SourceError as e:
                 if hit:
-                    return {**hit[1], "stale": True, "error": str(e)}
+                    # Nothing from the key in the log: it can hold the 3D
+                    # view's sex (CodeQL py/clear-text-logging, PR #8).
+                    return {**hit[1], "stale": True, "error": public_error(e, "a cached answer")}
                 raise
             value = {**value, "generated_at": iso(datetime.now(UTC))}
             self._cache[key] = (time.time(), value)
@@ -346,19 +360,32 @@ class App:
                  "plan": full}
         return feats if full else redact.public("config", feats)
 
+    def public_off(self) -> bool:
+        """The person turned their public page off in Settings (public view only)."""
+        return self.page_settings is not None and not self.page_settings.get().public
+
+    def hidden(self) -> frozenset:
+        """The characters this view never shows: the public view's hidden list."""
+        return self.page_settings.get().hide_public if self.page_settings is not None else frozenset()
+
     def chars(self) -> dict:
         rows = self.cached("chars", lambda: {"chars": self.views.chars()})["chars"]
         if not rows:
             # A store with nothing yet (a fresh install, the demo before its
             # seed): ask again next time instead of showing no one for CACHE_TTL.
             self._cache.pop("chars", None)
-        return {"chars": rows} if self.view == "full" else redact.public("chars", {"chars": rows})
+        if self.view == "full":
+            return {"chars": rows}
+        hide = self.hidden()
+        return redact.public("chars", {"chars": [c for c in rows if c["char"] not in hide]})
 
     @staticmethod
     def valid_char(name: str) -> bool:
         return bool(CHAR_RE.match(name))
 
     def known(self, name: str) -> bool:
+        if name in self.hidden():
+            return False
         return name in {c["char"] for c in self.cached("chars", lambda: {"chars": self.views.chars()})["chars"]}
 
     def render(self, name: str, ext: str) -> bytes | None:
@@ -581,7 +608,7 @@ class App:
                 ask(self.prices)
             for c in self.cached("chars", lambda: {"chars": self.views.chars()})["chars"]:
                 name = c.get("char")
-                if not isinstance(name, str) or not self.valid_char(name):
+                if not isinstance(name, str) or not self.valid_char(name) or name in self.hidden():
                     continue
                 ask(self.api_char, name)
                 tl = ask(self.timeline, name) or {}
@@ -623,7 +650,8 @@ class App:
         """The page's own character's header (as this view may show it), for
         the og tags; None when the store can't answer."""
         try:
-            name = self.settings.default_char or next(iter(c["char"] for c in self.chars()["chars"]), "")
+            name = self.settings.default_char if self.settings.default_char not in self.hidden() else ""
+            name = name or next(iter(c["char"] for c in self.chars()["chars"]), "")
             return self.char(name)["header"] if name else None
         except Exception:  # noqa: BLE001 - a link preview is never worth a failed page
             return None
@@ -780,6 +808,8 @@ def make_handler(root: App, tenancy=None):
             try:
                 if path == "/healthz" and self.command in ("GET", "HEAD"):
                     return self.send(200, b"ok\n", "text/plain")
+                if not full and app.public_off():  # what the static server says for a site built with it off
+                    return self.not_found()
                 # /ingest and the shipper's update carry their own credentials,
                 # which a rebinding page doesn't have; the shipper may know the
                 # server by any name.
@@ -1006,7 +1036,7 @@ def make_handler(root: App, tenancy=None):
             except FullOnly:
                 return self.not_found()
             except SourceError as e:
-                return self.json(502, {"error": str(e)})
+                return self.json(502, {"error": public_error(e, path)})
             except Exception as e:  # noqa: BLE001 - the page shows it; the log keeps it
                 sys.stdout.write(f"error on {path}: {e!r}\n")
                 return self.json(500, {"error": "the server hit a bug; see its log"})
@@ -1084,13 +1114,15 @@ def make_handler(root: App, tenancy=None):
                 req = urllib.request.Request(f"{vl_url}/insert/jsonline?{q}", data=b"\n".join(lines) + b"\n",
                                              method="POST", headers={"Content-Type": "application/stream+json",
                                                                      **tenant_headers(account_id)})
+                vl = urllib.parse.urlsplit(vl_url)  # host and port only: a user:password@ stays out of the log
+                at = f"VictoriaLogs at {vl.hostname}{f':{vl.port}' if vl.port else ''}"  # the log's, never the reply's
                 try:
                     with urllib.request.urlopen(req, timeout=60) as r:
                         r.read()
                 except urllib.error.HTTPError as e:
-                    return self.json(502, {"error": f"VictoriaLogs answered {e.code}"})
+                    return self.json(502, {"error": public_error(f"{at} answered {e.code}", "/ingest")})
                 except (urllib.error.URLError, OSError) as e:
-                    return self.json(502, {"error": f"VictoriaLogs unreachable: {e}"})
+                    return self.json(502, {"error": public_error(f"{at} unreachable: {e}", "/ingest")})
                 prebuilt.soon()  # the page catches up with the start page's "It works"
             return self.json(200, {"accepted": len(lines)})
 

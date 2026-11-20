@@ -42,7 +42,8 @@ BASE = "https://wow.example.org"  # what {base} becomes: the server's address in
 NAME = re.compile(r"^[A-Z][A-Z0-9_]{2,}$")
 # Set by the OS or by the code for a library, never by an operator.
 NOT_SETTINGS = frozenset({"APPDATA", "LOCALAPPDATA", "XDG_DATA_HOME", "HOME", "USERPROFILE", "USERNAME",
-                          "USERDOMAIN", "PYTHONIOENCODING", "FASTMCP_CHECK_FOR_UPDATES", "LASTEXITCODE"})
+                          "USERDOMAIN", "PYTHONIOENCODING", "FASTMCP_CHECK_FOR_UPDATES", "LASTEXITCODE",
+                          "SYSTEMROOT"})
 SHELL_VAR = re.compile(r"\$(?:\{|env:)?(WOW_STATS_[A-Z0-9_]+)")
 
 
