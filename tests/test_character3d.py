@@ -96,17 +96,17 @@ def world() -> dict:
         "Item": {i: {"ClassID": c, "SubclassID": s, "InventoryType": t} for i, (c, s, t) in {
             100: (4, 1, 20), 101: (4, 1, 1), 102: (4, 1, 8), 103: (2, 7, 21), 104: (2, 3, 26), 105: (4, 6, 14),
             106: (4, 1, 3), 107: (4, 1, 16), 108: (4, 0, 2), 109: (2, 19, 26), 110: (4, 1, 7),
-            111: (2, 7, 13), 112: (2, 2, 15), 113: (2, 1, 17)}.items()},
+            111: (2, 7, 13), 112: (2, 2, 15), 113: (2, 1, 17), 114: (4, 3, 3)}.items()},
         "ItemModifiedAppearance": {
             1: {"ItemID": 100, "ItemAppearanceModifierID": 0, "ItemAppearanceID": 200, "OrderIndex": 0},
             2: {"ItemID": 100, "ItemAppearanceModifierID": 1, "ItemAppearanceID": 299, "OrderIndex": 0},
             **{k: {"ItemID": i, "ItemAppearanceModifierID": 0, "ItemAppearanceID": i + 100, "OrderIndex": 0}
                for k, i in ((3, 101), (4, 102), (5, 103), (6, 104), (7, 105), (8, 106), (9, 107), (10, 108),
-                            (11, 109), (12, 111), (13, 112), (14, 113))},
+                            (11, 109), (12, 111), (13, 112), (14, 113), (15, 114))},
         },
         "ItemAppearance": {**{a: {"ItemDisplayInfoID": a + 100} for a in range(200, 210)},
                            211: {"ItemDisplayInfoID": 303}, 212: {"ItemDisplayInfoID": 304},
-                           213: {"ItemDisplayInfoID": 303},
+                           213: {"ItemDisplayInfoID": 303}, 214: {"ItemDisplayInfoID": 310},
                            299: {"ItemDisplayInfoID": 399}},
         "ItemDisplayInfo": {
             300: idi(geosets=[1, 0, 1]),  # a robe: sleeves 802, chest 1002, trousers 1302
@@ -119,6 +119,7 @@ def world() -> dict:
             307: idi(mats=[4600], geosets=[5]),  # a cape: the body's cape geosets, textured
             308: idi(),
             309: idi(models=[660]),
+            310: idi(models=[0, 630], mats=[0, 4600]),  # one pauldron, the right one
             399: idi(geosets=[9, 9, 9]),
         },
         "ItemDisplayInfoMaterialRes": {1: {"ItemDisplayInfoID": 300, "ComponentSection": 3, "MaterialResourcesID": 4100},
@@ -236,6 +237,19 @@ def test_shoulders_shield_and_cape():
     assert [(a["slot"], a["attach"], a["model"]) for a in r["attachments"]] == [(3, 6, 9700), (3, 5, 9701),
                                                                                  (17, 0, 9900)]
     assert r["textures"] == {"2": 8600} and r["geosets"]["groups"]["15"] == 6
+
+
+def test_a_one_sided_pauldron_on_its_own_shoulder():
+    """tools/3dcases c16: the only model at the list's second place is the
+    right shoulder's (Blizzard's render), not the first attachment's."""
+    r = build(items=[(3, 114)])["recipe"]
+    assert [(a["slot"], a["attach"]) for a in r["attachments"]] == [(3, 5)]
+
+
+def test_the_skyborne_have_no_original_model():
+    """tools/3dcases c22, c23: Blizzard's Classic render of a Skyborne is the
+    Updated model; the layout-203 pair once guessed for them is a goblin."""
+    assert 95 not in c3.CLASSIC_DISPLAYS and 96 not in c3.CLASSIC_DISPLAYS
 
 
 def test_what_isnt_drawn():

@@ -182,10 +182,11 @@ RANGED_SLOT = 18
 
 # The original models: ChrModel rows with these display ids (Forever's tables give them their own
 # options and the texture layout 203, but tie none of them to a race; the game picks them in code).
-# Race -> (male, female) CreatureDisplayInfo ids. 1-8: the 2004 models (ChrModel 257-272). 95/96
-# Skyborne: Forever's own pair on layout 203 (ChrModel 277, 278), inferred: the only other two.
+# Race -> (male, female) CreatureDisplayInfo ids. 1-8: the 2004 models (ChrModel 257-272). The
+# Skyborne (95/96) have none: Blizzard's Classic render of them is their Updated model
+# (tools/3dcases c22, c23); ChrModel 277/278 on layout 203 draw a goblin.
 CLASSIC_DISPLAYS = {1: (49, 50), 2: (51, 52), 3: (53, 54), 4: (55, 56), 5: (57, 58), 6: (59, 60),
-                    7: (1563, 1564), 8: (1478, 1479), 95: (146599, 146600), 96: (146599, 146600)}
+                    7: (1563, 1564), 8: (1478, 1479)}
 
 GENDER_ANY_MODEL, GENDER_ANY_TEXTURE = 2, 3  # ComponentModelFileData / ComponentTextureFileData
 
@@ -798,8 +799,11 @@ class _Assembly:
                 if not r:
                     continue
                 m = ix.pick_model(ix.models.get(r, []), self.race, self.sex, self.model_fallback)
+                # A shoulder's list is by position (left, right): a one-sided pauldron at [1] goes on
+                # the right shoulder (tools/3dcases c16), the rest fill the attachments in order.
+                at = i if slot == 3 else k
                 if m:
-                    placed.append((m, attach_ids[k] if k < len(attach_ids) else None, textures[i]))
+                    placed.append((m, attach_ids[at] if at < len(attach_ids) else None, textures[i]))
                 k += 1
         if slot == 15 and not placed:
             # A cape without a model of its own is the body's cape geosets, wearing its texture.
