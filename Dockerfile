@@ -2,8 +2,9 @@
 # plus the renderer's (target renderer, wow-mcp-render; names in release.yml).
 # No model runs in it: the play analysis, plans and coaching run in the
 # user's own MCP client (docs/mcp.md). Four modes: `wow-stats ui` (the default),
-# `exporter`, `publish` and `static`. The runtime is the standard library only (plus cryptography
-# for publish's sealed bundle); uv builds the venv in a first
+# `exporter`, `publish` and `static`. The runtime is the standard library plus cryptography
+# (publish's sealed bundle), the MCP server and DuckDB with its semantic
+# layer (the analysis' queries); uv builds the venv in a first
 # stage and the second stage copies it, nothing else. Runs as uid 10001 with
 # a read-only root filesystem: bytecode is compiled at build time and the
 # processes write nothing (HOME=/tmp for whatever insists).
@@ -15,16 +16,30 @@ ARG VERSION=dev
 ARG REVISION=unknown
 
 # The bases, pinned by tag and digest on literal FROM lines so Dependabot can
-# read and bump them (it doesn't follow ARGs). The Python minor moves on
-# purpose, not with the weekly digest bumps (.github/dependabot.yml).
+# read and bump them (it doesn't follow ARGs).
 FROM ghcr.io/astral-sh/uv:0.13@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d AS uv
-FROM docker.io/library/python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd AS base
-# The renderer's base (target renderer, below): glibc, for Playwright's Chromium.
+# The main image on Docker Hardened Images' Python since 0.7 (Debian 13,
+# Apache 2.0): glibc, which DuckDB needs (wowstats/analysis/duck.py: its
+# wheels are manylinux only, none for Alpine's musl since 1.3), and no shell
+# or system package manager in the runtime variant. Debian slim, the first
+# glibc base, carried 53 HIGH/CRITICAL findings, 47 of them with no Debian
+# fix (2026-11-20). Chainguard's image was the other candidate: free only as
+# `latest`, with no clear terms for publishing images built on it. dhi.io
+# takes no anonymous pulls: `docker login dhi.io` with a free Docker Hub
+# account (docs/development.md). The -dev variant (bash, apt) only builds the
+# venv; both carry the same python-3.15 package at /usr/bin/python3.15.
+FROM dhi.io/python:3.15-debian13-dev@sha256:3ba5300d40d7b20ed83d4968a66dc1e92d3c53bc86c5305eec3a08cf85165ee3 AS build-base
+FROM dhi.io/python:3.15-debian13@sha256:5f3efbd860ff18cf93c93e5812e300a17e6e06d35be4f973581f3129addeccac AS base
+# The renderer stays on Debian slim: Playwright's Chromium wants Debian's
+# libraries, pinned below by a snapshot date. The Python minor moves on
+# purpose, not with the weekly digest bumps (.github/dependabot.yml).
 FROM docker.io/library/python:3.15-slim-trixie@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS render-base
 
-FROM base AS builder
+FROM build-base AS builder
+USER root
 COPY --from=uv /uv /usr/local/bin/uv
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never UV_PYTHON=/usr/local/bin/python3
+# The venv's python links to /usr/bin/python3.15, which the runtime base has too.
+ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never UV_PYTHON=/usr/bin/python3.15
 WORKDIR /app
 COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY wowstats ./wowstats
@@ -36,23 +51,22 @@ COPY data/kb ./data/kb
 COPY data/forever-reference.json ./data/forever-reference.json
 COPY data/trainers-reference.json ./data/trainers-reference.json
 COPY data/class-reference.json ./data/class-reference.json
-COPY data/model3d-reference.json.gz ./data/model3d-reference.json.gz
+COPY data/dbd ./data/dbd
+COPY data/wowsims-talents.json ./data/wowsims-talents.json
+COPY data/battlenet-look.json ./data/battlenet-look.json
 COPY THIRD_PARTY.md ./THIRD_PARTY.md
 COPY shipper ./shipper
 COPY docs/videos/steps.json ./docs/videos/steps.json
 COPY docs/videos/media ./docs/videos/media
-# The analysis' knowledge base needs SQLite's FTS5: fail the build, not the first nightly run.
 RUN uv sync --frozen --no-dev --no-editable --extra publish --extra mcp && chmod -R a+rX,go-w /app/.venv \
-    && mkdir -p /empty/data \
-    && /app/.venv/bin/python -c "import sqlite3; sqlite3.connect(':memory:').execute('CREATE VIRTUAL TABLE t USING fts5(a)')" \
-    && FASTMCP_CHECK_FOR_UPDATES=off /app/.venv/bin/python -c "import wowstats.mcp.server"
+    && mkdir -p /empty/data
 
 # The renderer (`wow-stats render`, wowstats/renderer.py): a past level's
-# picture, drawn by Wowhead's viewer in a headless Chromium, in a pod that
-# holds no key and no store. Its own target and image
+# picture, drawn by the 3D view's own viewer in a headless Chromium, in a
+# pod that holds no key and no store. Its own target and image
 # (wow-mcp-render), so Chromium and its libraries never
-# reach the main image above. Debian, not Alpine: Playwright's Chromium is a
-# glibc build. Only the headless shell and the libraries it links (no fonts,
+# reach the main image above. Debian (Playwright's
+# Chromium is a glibc build). Only the headless shell and the libraries it links (no fonts,
 # no X server: the picture has no text). Pinned: the base by digest, Chromium
 # by the Playwright version in uv.lock (its browsers.json names the build),
 # its libraries from Debian's snapshot archive at one date, so a rebuild
@@ -72,7 +86,9 @@ COPY data/kb ./data/kb
 COPY data/forever-reference.json ./data/forever-reference.json
 COPY data/trainers-reference.json ./data/trainers-reference.json
 COPY data/class-reference.json ./data/class-reference.json
-COPY data/model3d-reference.json.gz ./data/model3d-reference.json.gz
+COPY data/dbd ./data/dbd
+COPY data/wowsims-talents.json ./data/wowsims-talents.json
+COPY data/battlenet-look.json ./data/battlenet-look.json
 COPY THIRD_PARTY.md ./THIRD_PARTY.md
 COPY shipper ./shipper
 COPY docs/videos/steps.json ./docs/videos/steps.json
@@ -143,6 +159,11 @@ ENV PATH=/app/.venv/bin:$PATH \
 # A container needs a non-loopback bind to be reachable at all, so VIEW and
 # AUTH have no defaults here: the server refuses to start until both are set.
 USER 10001:10001
+# Checked on the runtime base itself, as the runtime user, in exec form (the
+# base has no shell): fail the build, not the first nightly run. The Python
+# minor, SQLite's FTS5 for the knowledge base, the IANA zones for
+# WOW_TIMEZONE, DuckDB and the MCP server's imports.
+RUN ["python", "-c", "import sys, sqlite3, zoneinfo, duckdb, wowstats.mcp.server; assert sys.version_info[:2] == (3, 15), sys.version; sqlite3.connect(':memory:').execute('CREATE VIRTUAL TABLE t USING fts5(a)'); zoneinfo.ZoneInfo('Europe/Brussels')"]
 # 8090: the MCP endpoint (FastMCP), only when MCP_PUBLIC_URL is set.
 EXPOSE 8080 8090 9464
 # docker ps and compose read this; Kubernetes uses its own probes. The mode

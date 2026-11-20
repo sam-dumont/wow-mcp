@@ -7,7 +7,9 @@ No model runs on the server.
   analysis_brief     the instructions, the schema, the profile and the KB's
                      contents, in sections and pages for small contexts
   play_sql           read-only SQL on the character's prep database, paged
-  propose_finding    the judge: re-runs the SQL, stores or refuses with why
+  list_metrics       the semantic layer's catalogue: metrics, definitions, dimensions, grains
+  query_metric       a metric question compiled to SQL and run: rows, the SQL, the definitions
+  propose_finding    the judge: re-runs the SQL (or the query_metric call), stores or refuses with why
   analysis_submit    a pass's answer; the server answers with the next step
   analysis_progress  where the run stands, to go on in a new chat
   kb_get, kb_lookup  knowledge base documents and names by id
@@ -70,6 +72,29 @@ def t_play_sql(ctx: T.Ctx, args: dict) -> dict:
                      ctx.store)
 
 
+def t_list_metrics(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import semantic
+
+    cat = semantic.catalogue()
+    return {"metrics": [{k: m[k] for k in ("name", "kind", "unit", "description", "caveats", "group_by")}
+                        for m in cat["metrics"]],
+            "dimensions": [{k: d[k] for k in ("name", "description", "models") if k in d} | (
+                {"grains": d["grains"]} if "grains" in d else {}) for d in cat["dimensions"]],
+            "grains": cat["grains"], "ops": cat["ops"],
+            "how": "query_metric with metrics (names above), group_by (dimensions), where ([{dimension, op, "
+                   "value}] or values for in), grain (day, week, month: groups by time), since/until "
+                   "(YYYY-MM-DD), order_by (names, '-name' for descending), limit. Metrics from different "
+                   "models are each aggregated, then joined on group_by."}
+
+
+def t_query_metric(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats.analysis import drive
+
+    q = {k: _obj(args[k]) if k in ("where",) else args[k] for k in
+         ("metrics", "group_by", "where", "grain", "since", "until", "order_by", "limit") if k in args}
+    return drive.metric(_env(ctx), _run_char(ctx, args), q, ctx.store)
+
+
 def _obj(v):
     """Some clients send nested objects as JSON text."""
     if isinstance(v, str):
@@ -88,6 +113,8 @@ def t_propose_finding(ctx: T.Ctx, args: dict) -> dict:
         raise T.ToolError("finding must be an object (analysis_brief section `lane` has its shape)")
     if args.get("sql"):
         f = {**f, "sql": args["sql"]}
+    if args.get("metric_query"):
+        f = {**f, "metric_query": _obj(args["metric_query"])}
     return drive.propose(_env(ctx), _run_char(ctx, args), f, ctx.store)
 
 
@@ -171,26 +198,61 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
               "restart": {"type": "boolean", "description": "Drop the open run and start a new one."}}),
            _guard(t_analysis_brief), writes="replaces"),
     T.Tool("play_sql", "Query the play database",
-           "One read-only SQLite SELECT (WITH allowed) on the character's analysis database (analysis_brief "
-           "section schema describes it). Paged: page_size rows (default 40, at most 60) as tab-separated text, "
-           "`more` when there are further pages; long cells and pages are cut.",
+           "One read-only DuckDB SELECT (WITH allowed) on the character's analysis database (analysis_brief "
+           "section schema). DuckDB, not SQLite: 7/2 = 3.5 (// for whole numbers), strftime(time, fmt), "
+           "COUNT(*) FILTER (WHERE ...); no files, ATTACH or repeat/lpad/printf/replace. Paged: page_size rows "
+           "(default 40, at most 60), `more` when there's more. Named metrics: list_metrics, query_metric.",
            S({"char": CHAR, "query": {"type": "string", "maxLength": 8000,
-                                 "description": "One read-only SQLite SELECT (WITH allowed); analysis_brief "
+                                 "description": "One read-only DuckDB SELECT (WITH allowed); analysis_brief "
                                                 "describes the tables."},
               "page": {"type": "integer", "minimum": 1, "maximum": 25,
                        "description": "Which page of the result."},
               "page_size": {"type": "integer", "minimum": 1, "maximum": 60,
                             "description": "Rows per page (default 40)."}}, ("char", "query")),
            _guard(t_play_sql), writes="adds"),
+    T.Tool("list_metrics", "Metric catalogue",
+           "The semantic layer's catalogue: every named metric with its kind (simple, ratio, derived), unit, "
+           "one-line definition and caveats, the dimensions it can be grouped and filtered by, and the time "
+           "grains. Four metrics count time at a level four ways: played_s (Polestar's split), online_s (the "
+           "Recorder's timeline), active_s (online, AFK off) and calendar_s (ding to ding, offline included).",
+           S({}), _guard(t_list_metrics)),
+    T.Tool("query_metric", "Query a metric",
+           "Named metrics (list_metrics) grouped by dimensions, filtered, cut by a time grain: the server "
+           "compiles the question from the declared model and runs it read-only on the character's data. "
+           "Returns the rows, the SQL with its bound parameters (values never go into the SQL) and each "
+           "metric's definition and caveats. propose_finding takes the same call as evidence (metric_query).",
+           S({"char": CHAR,
+              "metrics": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 8,
+                          "description": "Metric names from list_metrics, e.g. [\"played_s\", \"online_s\"]."},
+              "group_by": {"type": "array", "items": {"type": "string"}, "maxItems": 4,
+                           "description": "Dimension names, e.g. [\"level\"] or [\"zone\"]."},
+              "where": {"type": "array", "maxItems": 8, "items": {"type": "object"},
+                        "description": "Conditions [{dimension, op, value}]: op is =, !=, <, <=, >, >=, in, "
+                                       "not in (with values: [...]), is null, is not null."},
+              "grain": {"type": "string", "enum": ["day", "week", "month"],
+                        "description": "Group by time at this grain (local time)."},
+              "since": {"type": "string", "description": "From this date, YYYY-MM-DD (local time)."},
+              "until": {"type": "string", "description": "Through this date, YYYY-MM-DD (local time)."},
+              "order_by": {"type": "array", "items": {"type": "string"}, "maxItems": 4,
+                           "description": "Output names; prefix with - for descending, e.g. [\"-deaths\"]."},
+              "limit": {"type": "integer", "minimum": 1, "maximum": 500,
+                        "description": "Rows at most (default 50)."}}, ("char", "metrics")),
+           _guard(t_query_metric)),
     T.Tool("propose_finding", "Propose a finding",
-           "Hand one finding to the judge: it re-runs the SQL, checks every number (placeholders, expect, holds), "
+           "Hand one finding to the judge: it re-runs the SQL (or the finding's metric_query, a query_metric "
+           "call), checks every number (placeholders, expect, holds), "
            "the action and the knowledge base ids, then stores it in the character's analysis or says why not. "
            "A finding with `action: null` is kept as an observation, shown apart.",
            S({"char": CHAR, "finding": {"type": "object", "description": "key, title, claim, sql, expect, "
                                         "relevance, action ({do, where, blocked_by, next_step} or null), and "
                                         "optionally holds, effect, sample, kb"},
               "sql": {"type": "string", "maxLength": 8000,
-                      "description": "The SQL behind the finding, re-run by the judge."}}, ("char", "finding")),
+                      "description": "The SQL behind the finding, re-run by the judge."},
+              "metric_query": {"type": "object",
+                               "description": "Instead of sql: the query_metric arguments behind the finding "
+                                              "(metrics, group_by, where, grain...); the judge compiles and re-runs "
+                                              "it, and the finding's placeholders name its output columns."}},
+             ("char", "finding")),
            _guard(t_propose_finding), writes="replaces"),
     T.Tool("analysis_submit", "Hand in a pass",
            "Hand in what a pass produced: pass survey ({questions}), lane ({lane, answers, ask_next}), pick "

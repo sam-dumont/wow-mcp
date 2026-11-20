@@ -34,10 +34,13 @@ import re
 
 INTRO = """\
 You are looking at one World of Warcraft: Forever character's play history, recorded in game by the Polestar \
-addon and loaded into a SQLite database (the schema section describes it). The player wants to understand how \
+addon and loaded into a DuckDB database (the schema section describes it; DuckDB's SQL: 7/2 is 3.5, `//` \
+divides whole numbers, COUNT(*) FILTER (WHERE ...) counts a condition). The player wants to understand how \
 they play. You run the analysis; the server keeps the run's state and judges every finding.
 
-Your tools (the wow MCP server): `play_sql` runs one read-only SELECT on the database (paged); `kb_search`, \
+Your tools (the wow MCP server): `play_sql` runs one read-only SELECT on the database (paged); \
+`list_metrics` and `query_metric` answer with named metrics (each with its definition and caveats) compiled to \
+SQL, and a finding may cite a query_metric call as its evidence (metric_query) instead of SQL; `kb_search`, \
 `kb_get` and `kb_lookup` reach a knowledge base: game reference (spells, items, quests, NPCs, zones and talents, \
 by id or name), levelling strategy documents and the research catalogue's sourced statements, contradictions \
 and open questions (kinds kb-statement, kb-contradiction, kb-open-question), each with its source, scope and \

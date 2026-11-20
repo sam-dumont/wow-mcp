@@ -33,6 +33,61 @@ A_MARKERS = [k.encode() for k in RENAME] + [k.lower().encode() for k in RENAME]
 A_CHAR, B_CHAR = "Testpriest-Fixture", "Testfriend-Otherhall"
 OWNER, FRIEND, FRIENDS_ORG = "owner-sub-1", "friend-sub-2", "org-friends"
 
+# vm-wow is ONE VictoriaMetrics for everyone (not split by tenant like
+# VictoriaLogs): the exporter puts the person's account_id on every series,
+# and every reader must ask for its own. The owner (0) and the friend (1)
+# each have Battle.net data for their character; the owner's account also
+# holds a series under the friend's character's name (a forged or reused
+# name), which the friend must never read. Owner's markers carry A's names.
+SERIES = re.compile(r"([a-z_]+)\{([^}]*)\}")
+LABEL = re.compile(r'([a-z_]+)=("(?:[^"\\]|\\.)*")')
+
+
+def _profile(acct: str, char: str, guild: str, trees: list[tuple[str, int]], ach: int, spell: int) -> list:
+    who = {"character": char, "account_id": acct}
+    return [("wow_character_profile", {**who, "race_id": "7", "gender": "female", "guild": guild}, 30.0),
+            ("wow_character_profile_found", who, 1.0),
+            ("wow_character_profile_refreshed_timestamp_seconds", who, 1795000000.0),
+            ("wow_character_achievement", {**who, "achievement_id": str(ach)}, 1795000000.0),
+            ("wow_character_achievements_read", who, 1.0),
+            ("wow_character_talent_rank", {**who, "spell_id": str(spell), "talent": ""}, 2.0),
+            *[("wow_character_talent_points", {**who, "tree": t, "order": str(i)}, float(n))
+              for i, (t, n) in enumerate(trees)]]
+
+
+PROFILE = (_profile("0", A_CHAR, "Thrall Company", [("Discipline", 16), ("Holy", 0), ("Shadow", 7)], 61499,
+                      14521)
+           + _profile("0", B_CHAR, "Jaina Company", [("Discipline", 0), ("Holy", 21), ("Shadow", 0)], 61500,
+                        14524)
+           + _profile("1", B_CHAR, "Varian Company", [("Discipline", 0), ("Holy", 0), ("Shadow", 21)], 61502,
+                        15338))
+
+
+def vm_answer(query: str) -> list[dict] | None:
+    """VictoriaMetrics' answer for a profile series query: every label
+    matcher must hold, as the real store does. None for other queries."""
+    m = SERIES.search(query)
+    if not m or not m.group(1).startswith("wow_character_"):
+        return None
+    want = {k: json.loads(v) for k, v in LABEL.findall(m.group(2))}
+    return [{"metric": {"__name__": n, **lab}, "value": [1795000000, str(v)]}
+            for n, lab, v in PROFILE if n == m.group(1) and all(lab.get(k) == x for k, x in want.items())]
+
+
+def vm_range_answer(query: str, start: int, end: int) -> list[dict]:
+    """vm-wow over time (the talent history): every profile series as it is
+    now at `end`, and the talent trees at 0 a day after `start` (a fresh
+    character then), so each person's history is one change, to their own
+    build. The same label matching as vm_answer."""
+    rows = vm_answer(query) or []
+    out = []
+    for r in rows:
+        values = [[end, r["value"][1]]]
+        if r["metric"]["__name__"] == "wow_character_talent_points":
+            values.insert(0, [start + 86400, "0"])
+        out.append({"metric": r["metric"], "values": values})
+    return out
+
 
 def renamed(v):
     if isinstance(v, str):
@@ -53,11 +108,22 @@ class TenantVL:
         # The web view's character list asks with counts (the MCP's fakes don't).
         ui_rules = [("stats by (char) count() as events", [{**c, "events": "120"} for c in fakes.CHARS])]
         self.rules = {"0": ui_rules + fakes.LOGS, "1": renamed(ui_rules + fakes.LOGS)}
+        # The owner has WoWSims Exporter (his own wow-talents events, in his
+        # tenant); the friend hasn't: his history is Battle.net's.
+        # One character's reads go through the event cache: its hourly count, then the hours' rows.
+        saves = [{"_time": "2026-10-01T20:00:00Z", "feed": "wow-talents", "char": A_CHAR, "talents": "0050",
+                  "level": 12, "class": "priest"},
+                 {"_time": "2026-11-18T20:00:00Z", "feed": "wow-talents", "char": A_CHAR,
+                  "talents": "02500420103--00502", "level": 33, "class": "priest"}]
+        self.rules["0"] = [("-feed:wow-combatlog | stats by (_time:1h) count() as n",
+                            [{"_time": r["_time"], "n": "1"} for r in saves]),
+                           ('feed:="wow-talents"', saves), ("-feed:wow-combatlog", saves), *self.rules["0"]]
         assert "Testpriest" not in json.dumps(self.rules["1"])
         self.chars = {"0": {c["char"] for c in fakes.CHARS}, "1": {renamed(c["char"]) for c in fakes.CHARS}}
         self.untagged: list[str] = []
         self.inserted: dict[str, list[dict]] = {}
         self.deleted: list[tuple[str, str]] = []
+        self.vm_queries: list[str] = []
         fake = self
 
         class H(BaseHTTPRequestHandler):
@@ -94,10 +160,15 @@ class TenantVL:
                     return self._send(200, "".join(json.dumps(r) + "\n" for r in rows).encode(),
                                       "application/stream+json")
                 if u.path == "/api/v1/query":
-                    res = next((r for s, r in fakes.METRICS if s in q.get("query", "")), [])
+                    fake.vm_queries.append(q.get("query", ""))
+                    res = vm_answer(q.get("query", ""))
+                    if res is None:
+                        res = next((r for s, r in fakes.METRICS if s in q.get("query", "")), [])
                     return self._send(200, json.dumps({"status": "success", "data": {"result": res}}).encode())
                 if u.path == "/api/v1/query_range":
-                    return self._send(200, json.dumps({"status": "success", "data": {"result": []}}).encode())
+                    fake.vm_queries.append(q.get("query", ""))
+                    res = vm_range_answer(q.get("query", ""), int(q.get("start") or 0), int(q.get("end") or 0))
+                    return self._send(200, json.dumps({"status": "success", "data": {"result": res}}).encode())
                 self._send(404, b"")
 
             def do_POST(self):
@@ -287,8 +358,11 @@ def test_unlisted_or_no_login_is_refused(server):
     assert (b"You&#x27;re signed in, but the person who runs this site hasn&#x27;t let you in yet. Ask them to "
             b"add you, then reload this page.") in body
     assert b'href="/oauth2/logout"' in body and b'href="/privacy/account.css"' in body
-    assert b"organisation" not in body and b"<script" not in body and not leaks(body)
-    assert server.get("/privacy/account.css", headers=as_user("someone"))[0] == 200
+    assert b"organisation" not in body and not leaks(body)
+    # Its only script is the shared theme switch, from the same login-free place.
+    assert re.findall(rb'<script src="([^"]+)"', body) == [b"/privacy/theme.js"]
+    for asset in ("/privacy/base.css", "/privacy/account.css", "/privacy/theme.js"):
+        assert server.get(asset, headers=as_user("someone"))[0] == 200, asset
 
 
 def test_no_list_means_the_owner_only(env, run_app):
@@ -324,6 +398,102 @@ def test_every_mcp_tool_as_the_friend(server):
             assert not leaks(body), (tool.name, args, leaks(body), body[:300])
             ran += 1
     assert ran > 30
+
+
+@pytest.fixture
+def talent_catalog(monkeypatch):
+    """Forever's talent tables (the test slice), so Battle.net's points make a frame."""
+    import time
+
+    from tests.test_talents import TABLES
+    from wowstats import talents
+
+    c = talents.Catalog("http://wago.invalid", "wowf", None)
+    c.data, c.checked = talents.catalog_from(lambda name: iter(TABLES.get(name, []))), time.time()
+    monkeypatch.setattr(talents, "_shared", c)
+
+
+def test_battlenet_data_is_each_persons_own(server, vl, talent_catalog):
+    """The owner asked (2026-11-20): "we only see OUR data, right?". vm-wow
+    isn't split per tenant, so every read is filtered by the account_id the
+    exporter puts on each series, never by the character name alone. Every
+    MCP tool, as the owner and as the friend, with no char, their own and
+    the other's: each vm-wow query names the caller's account only, and the
+    talents, guild and Legacy points they get are their own. The dashboard
+    reads through the same store methods: checked too."""
+    from wowstats.mcp import classtools
+
+    friend_ready(server)
+    people = {"0": server.t.registry.get(OWNER) or server.t.identify(OWNER).user,
+              "1": server.t.registry.get(FRIEND)}
+    own = {"0": (A_CHAR, "Discipline", "Thrall Company"), "1": (B_CHAR, "Shadow", "Varian Company")}
+    for acct, u in people.items():
+        server.t.app_for(u)
+        ctx = server.t.ctx_for(u)
+        assert str(ctx.store.account_id) == acct and ctx.bnet is True
+        mine, spec, guild = own[acct]
+        other = own["1" if acct == "0" else "0"][0]
+        vl.vm_queries.clear()
+        ran = 0
+        for tool in tools.mcp_tools(ctx):
+            props = tool.input_schema["properties"]
+            for args in ({}, {"char": mine}, {"char": other}):
+                if any(k not in props for k in args):
+                    continue
+                try:
+                    out = tools.call(ctx, tool.name, dict(args), tools.mcp_tools(ctx))
+                except (tools.ToolError, LookupError) as e:
+                    out = {"error": str(e)}
+                body = json.dumps(out)
+                for _, (_, _, g) in ((k, v) for k, v in own.items() if k != acct):
+                    assert g not in body, (acct, tool.name, args)
+                ran += 1
+        assert ran > 30
+        profile_qs = [q for q in vl.vm_queries if "wow_character_" in q]
+        assert profile_qs, "no tool read Battle.net's talents"
+        assert all(f'account_id="{acct}"' in q for q in profile_qs), [q for q in profile_qs
+                                                                   if f'account_id="{acct}"' not in q][:3]
+        # Their own talents, and none under the other's name (the friend's
+        # name exists in the owner's account too: still nothing for the friend).
+        got = tools.call(ctx, "character_summary", {"char": mine})
+        assert got["talents"]["spec"] == spec, (acct, got["talents"])
+        assert classtools._who(ctx, mine)["talents"]["spec"] == spec
+        if acct == "1":
+            assert tools.call(ctx, "character_summary", {"char": A_CHAR})["talents"] is None
+            assert classtools._who(ctx, A_CHAR)["talents"] is None
+        # The talent history (owner, 2026-11-20): their own build's change
+        # only, through the MCP and the page's own route alike; the other
+        # person's character (its name in the owner's account too) has none.
+        hist = tools.call(ctx, "talent_changes", {"char": mine})
+        assert hist["changes"], (acct, hist)
+        assert hist["source"] == {"0": "WoWSims Exporter", "1": "Battle.net"}[acct], (acct, hist["source"])
+        top = max(hist["changes"][0]["after"], key=lambda t: t["points"])
+        assert top["tree"] == spec, (acct, hist["changes"])
+        if acct == "1":
+            assert tools.call(ctx, "talent_changes", {"char": A_CHAR})["changes"] is None
+        code, _, body = server.get(f"/api/talents?name={mine}", headers=as_user(u.sub))
+        page = json.loads(body)
+        def same(cs):  # the build moved; read seconds apart, maybe a name from the catalog
+            return [(c["before"], c["after"], [g["spell"] for g in c["gained"]]) for c in cs]
+
+        assert code == 200 and same(page["changes"]) == same(hist["changes"]), (acct, page)
+        # The dashboard, through the same store: its talent read (the card's
+        # Views.bnet_talents), then guild and Legacy on the page itself.
+        views = server.t.app_for(u).views
+        top = max(views.bnet_talents(mine)["trees"], key=lambda t: t["points"])
+        assert top["tree"] == spec, (acct, top)
+        if acct == "1":
+            assert views.bnet_talents(A_CHAR) is None
+        h = as_user(u.sub)
+        code, _, body = server.get(f"/api/char?name={mine}", headers=h)
+        d = json.loads(body)
+        assert code == 200 and d["header"]["guild"] == guild, d["header"]
+        # Account-wide: the owner's two characters' challenges, the friend's one.
+        assert d["legacy"]["earned_points"] == {"0": 2, "1": 1}[acct]
+        if acct == "1":
+            for c in (A_CHAR, B_CHAR):
+                _, _, body = server.get(f"/api/char?name={c}", headers=h)
+                assert b"Thrall Company" not in body and b"Jaina Company" not in body and b"Discipline 16" not in body
 
 
 def test_mcp_over_http_scopes_and_revokes(server, env, tmp_path):
@@ -445,6 +615,7 @@ def test_installers_carry_the_token_and_never_print_it(server):
     code = t.registry.new_code(u.sub)
     st, _, sh = server.get(f"/install/{code}", headers={"User-Agent": "curl/8.7.1"})
     assert st == 200 and sh.startswith(b"#!/bin/bash")
+    assert b"shasum -a 256 -c" in sh and b"astral.sh/uv/install" not in sh  # uv pinned, checked
     token = re.search(rb'^password = "([A-Za-z0-9_-]{32,})"$', sh, re.M).group(1).decode()
     assert t.registry.check_ingest("mira", token) is not None
     assert b"echo" not in sh.split(token.encode())[0].rsplit(b"\n", 1)[-1]
@@ -452,7 +623,7 @@ def test_installers_carry_the_token_and_never_print_it(server):
     assert st == 404  # once
     code = t.registry.new_code(u.sub)
     st, _, ps = server.get(f"/install/{code}", headers={"User-Agent": "Mozilla/5.0 WindowsPowerShell/5.1"})
-    assert st == 200 and b"Invoke-RestMethod https://astral.sh/uv/install.ps1" in ps
+    assert st == 200 and b"Get-FileHash $uvZip" in ps and b"astral.sh/uv/install" not in ps
     assert t.registry.check_ingest("mira", token) is None  # a new code, a new token
 
 
@@ -666,6 +837,8 @@ def test_login_free_pages_load_nothing_behind_the_login(server):
             assert st == 200, (path, ua, st)
             text = body.decode("utf-8", "replace")
             refs = re.findall(r'(?:src|href)="(/[^"]*)"', text) + re.findall(r'url\("?(/[^")]+)"?\)', text)
+            if hdr["Content-Type"].startswith("text/css"):  # base.css names its fonts relative to itself
+                refs += [urllib.parse.urljoin(path, u) for u in re.findall(r'url\("?([a-z][^":)]+)"?\)', text)]
             refs += [u.split("/install/", 1)[1] and "/install/" + u.split("/install/", 1)[1]
                      for u in re.findall(r"\$base(/install/[\w/]+)", text)]
             for ref in refs:
@@ -674,7 +847,7 @@ def test_login_free_pages_load_nothing_behind_the_login(server):
                     assert ref.startswith(("/privacy/", "/install/")), (path, "loads", ref)
                     if ref != "/install/update/payload":  # basic auth: the install's own password
                         todo.append(ref)
-    assert "/privacy/account.css" in seen and any(s.startswith("/privacy/fonts/") for s in seen)
+    assert {"/privacy/base.css", "/privacy/account.css"} <= seen and any(s.startswith("/privacy/fonts/") for s in seen)
     # the payload answers to the install's own password, not to a login
     st, _, _ = server.get("/install/update/payload", headers={"User-Agent": "curl/8.7.1"})
     assert st == 401

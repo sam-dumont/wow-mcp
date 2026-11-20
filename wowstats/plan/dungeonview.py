@@ -266,12 +266,18 @@ def drops_for(inp: dict, aid: str, top: int | None = None) -> list[dict]:
     out = []
     for it in (inp.get("dungeon_loot") or {}).get(aid) or []:
         where = "worn" if it.get("equipped") else _where(owned, it["item_id"])
-        gain = (adv_gain.get(it["item_id"]) or {}).get("gain", it.get("gain"))
+        adv = adv_gain.get(it["item_id"]) or {}
+        gain = adv.get("gain", it.get("gain"))
         if not where and not (gain and gain > 0):
             continue
+        # Who it's built for (wowstats.gearfit), and the gain the ranking
+        # uses: less for an item a group usually hands to someone else.
+        fit = adv.get("fit") or it.get("fit")
+        value = gain * (fit or {}).get("factor", 1.0) if gain is not None else None
         out.append({**{k: it.get(k) for k in ("item_id", "name", "quality", "item_level", "slot_name", "score",
                                                "gain_pct", "fills_empty")},
                     "gain": round(gain, 1) if gain is not None else None, "level": it.get("level"),
+                    "value": round(value, 1) if value is not None else None, "fit": fit,
                     "now": (it.get("level") or 0) <= level, "state": "obtained" if where else "missing",
                     "where": where, "url": wowhead_url("item", it["item_id"]),
                     "drops": [{**d, "url": wowhead_url("npc", d["npc_id"]) if d.get("npc_id") else None}
@@ -282,7 +288,7 @@ def drops_for(inp: dict, aid: str, top: int | None = None) -> list[dict]:
     # each by gain; then what he has, the best for him first.
     def order(x):
         when = 0 if x["now"] else 1 if top is None or (x["level"] or 0) <= top else 2
-        return (x["state"] != "missing", when, -((x["gain"] if x["state"] == "missing" else x["score"]) or 0),
+        return (x["state"] != "missing", when, -((x["value"] if x["state"] == "missing" else x["score"]) or 0),
                 x["item_id"])
 
     out.sort(key=order)
@@ -356,7 +362,7 @@ def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
         rw = [d for d in drops if q["quest_id"] in d["quests"] and d["state"] == "missing"]
         if q["state"] == "done" or not rw:
             continue
-        best = max(rw, key=lambda d: d["gain"] or 0)
+        best = max(rw, key=lambda d: d.get("value", d["gain"]) or 0)
         out.append({**{k: best[k] for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_pct",
                                             "fills_empty", "level", "now", "url")},
                     "of": len(rw), "quest": {**{k: q[k] for k in ("quest_id", "name", "url", "state", "complete")},
@@ -469,7 +475,9 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
     open_ids = {o["quest_id"]: o for o in inp.get("open_quests") or []}
     ent = kb_entrance(area, side) if str(aid).startswith("kb:") else entrance(places, area, side)
     missing_now = [d for d in drops if d["state"] == "missing" and d["now"]]
-    chances = [{"slot": d["slot_name"], "gain": d["gain"] or 0,
+    # The value, not the raw gain: a dungeon whose drops are built for this
+    # spec beats one whose only upgrade is another role's piece.
+    chances = [{"slot": d["slot_name"], "gain": d.get("value", d["gain"]) or 0,
                 "chance": max((x.get("chance_pct") or 0 for x in d["drops"]), default=0)} for d in missing_now]
     exp_gain = E.expected_best([c for c in chances if c["chance"]])
     p_one = 1.0

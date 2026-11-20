@@ -1,11 +1,11 @@
 """Talents and Legacy points, laid out like the game's frames.
 
 Forever 1.60.1 has no classic talent API: a class's talents are one trait
-tree (C_Traits) that holds the three classic trees side by side, and an
-export lists what is learned as talent spell IDs and ranks (VulcanSimBench's
-/simx `ts` field, its Collect.lua "Forever's talents"). This module turns
-those ranks into the frame the game draws, from Forever's own tables on
-wago.tools (product wowf), as wowstats.items and wowstats.model3d read theirs:
+tree (C_Traits) that holds the three classic trees side by side, and
+Battle.net's /specializations lists what is learned as talent spell IDs and
+ranks (wowstats.exporter). This module turns those ranks into the frame the
+game draws, from Forever's own tables on
+wago.tools (product wowf), as wowstats.items and wowstats.character3d read theirs:
 
   TraitTree, TraitNode (PosX, PosY: the frame's grid), TraitNodeXTraitNodeEntry,
   TraitNodeEntry (MaxRanks), TraitDefinition (the talent's SpellID),
@@ -21,10 +21,9 @@ Legacy points (Forever's "Legacy" system) are an account-wide currency
 in TraitCurrencySource (a class reaching 25, 45 and 60, a crafting profession
 at 150, 225 and 300, PvP ranks and reputations, exploring, dungeons and
 raids), and spent in three account-wide Legacy talent trees (TraitTree 1187,
-1188, 1189: Well Rested, Thrill of Adventure, Talented...). No add-on the
-shipper reads saves them; what the log knows (each character's class, level
-and profession skill) proves some challenges done, so the count shown is a
-floor, marked as derived.
+1188, 1189: Well Rested, Thrill of Adventure, Talented...). The count comes
+from Battle.net's /achievements (the exporter), every character of the
+account together; without Battle.net it is unknown.
 
 The catalog is built once per wago.tools build and kept on disk next to the
 item tables. Environment: WOW_TALENTS (on | off; WOW_ITEMS=off turns it off
@@ -56,8 +55,9 @@ TABLES = ("TraitTree", "TraitNode", "TraitNodeXTraitNodeEntry", "TraitNodeEntry"
           "TraitTreeXTraitCurrency", "TraitCurrencySource", "Talent", "TalentTab", "TraitEdge")
 # The cached catalog's shape: a catalog written by an older build of this
 # module is rebuilt, not reused (2: the grid from the commonest step, off-grid
-# nodes dropped, the prerequisite edges).
-FORMAT = 2
+# nodes dropped, the prerequisite edges; 3: each Legacy challenge's
+# achievement ids, both client versions').
+FORMAT = 4
 # Read in a second pass, only the rows the trees need (they're large).
 SPELL_TABLES = ("SpellName", "Spell", "SpellEffect", "SpellMisc", "ManifestInterfaceData")
 
@@ -148,18 +148,22 @@ def build_catalog(t: dict[str, list[dict]]) -> dict:
         if not kind:
             continue
         spells = []
+        dids = []
         maxr = 0
         for e in node_entries.get(n["ID"], []):
             en = entries.get(e)
             d = defs.get(en["TraitDefinitionID"]) if en else None
             if d and _i(d.get("SpellID")) > 0:
                 spells.append(str(_i(d["SpellID"])))
+                dids.append(_i(d["ID"]))
                 maxr = max(maxr, _i(en.get("MaxRanks")))
         if not spells:
             continue
         cls_tal = by_spell.get(spells[0])
         trees.setdefault(tree, {"kind": kind, "nodes": []})["nodes"].append({
             "id": _i(n["ID"]), "x": _i(n["PosX"]), "y": _i(n["PosY"]), "spells": list(dict.fromkeys(spells)),
+            # TraitDefinition IDs: what C_Traits (and so WowSimsExporter's string) names a talent by.
+            "defs": list(dict.fromkeys(dids)),
             "max": maxr or 1,
             "tab": cls_tal[0]["TabID"] if cls_tal else None,
             # The classic talent's own spell per rank, when it has one.
@@ -230,7 +234,7 @@ def build_catalog(t: dict[str, list[dict]]) -> dict:
                     continue  # off the grid: a duplicate the game never draws (the stray above)
                 placed.append({"id": nd["id"], "col": round((nd["x"] - sp[0]) / step),
                                "row": row_at[round((nd["y"] - ys[0]) / ystep)], "spells": nd["spells"],
-                               "max": nd["max"],
+                               "defs": nd["defs"], "max": nd["max"],
                                "ranks": nd["ranks"]})
             # The game's prerequisite arrows (TraitEdge: left node -> right
             # node), between two talents of this tree.
@@ -242,15 +246,22 @@ def build_catalog(t: dict[str, list[dict]]) -> dict:
         out_trees.append({"id": _i(tid), "kind": tr["kind"], "class": cls, "sections": sections})
 
     legacy = []
-    seen = set()
+    by_req: dict[str, dict] = {}
     for r in t["TraitCurrencySource"]:
         if r.get("TraitCurrencyID") != LEGACY_CURRENCY or _i(r.get("Amount")) <= 0:
             continue
         req = (r.get("Requirement_lang") or "").strip()
-        if not req or req in seen:  # each challenge is listed twice (two versions in the client)
+        if not req:
             continue
-        seen.add(req)
-        legacy.append({"requirement": req, "amount": _i(r["Amount"]), "achievement": _i(r.get("AchievementID"))})
+        # Each challenge is listed twice (two versions in the client), with
+        # two achievement ids: Battle.net may answer either.
+        cur = by_req.get(req)
+        if cur is None:
+            cur = by_req[req] = {"requirement": req, "amount": _i(r["Amount"]),
+                                 "achievement": _i(r.get("AchievementID")), "achievements": []}
+            legacy.append(cur)
+        if _i(r.get("AchievementID")) > 0 and _i(r.get("AchievementID")) not in cur["achievements"]:
+            cur["achievements"].append(_i(r.get("AchievementID")))
     return {"trees": out_trees, "legacy_sources": legacy}
 
 
@@ -304,7 +315,8 @@ class Catalog:
                         self.data, self.build, self.checked = d["catalog"], d["build"], float(d["checked"])
                 if self.data and time.time() - self.checked < DAY:
                     return
-            from wowstats.model3d import Upstream, _write, fetch
+            from wowstats.upstream import Upstream, fetch
+            from wowstats.upstream import write_file as _write
 
             try:
                 latest = json.loads(fetch(f"{self.wago}/api/builds/{urllib.parse.quote(self.product)}/latest")
@@ -374,7 +386,7 @@ def shared() -> Catalog:
                 cache.mkdir(parents=True, exist_ok=True)
             except OSError:
                 cache = None
-            from wowstats.model3d import PRODUCT, WAGO_URL
+            from wowstats.upstream import PRODUCT, WAGO_URL
 
             off = ("off", "0", "false", "no")
             on = (env.get("WOW_TALENTS", "on").strip().lower() not in off
@@ -384,16 +396,6 @@ def shared() -> Catalog:
 
 
 # ------------------------------------------------------------------ answers
-
-
-def parse_ranks(v) -> dict[str, int]:
-    """[{"spell": id, "rank": n}, ...] (the shipper's talent_ranks, or the
-    exporter's readings) -> {spell id: rank}."""
-    out: dict[str, int] = {}
-    for x in v if isinstance(v, list) else []:
-        if isinstance(x, dict) and _i(x.get("spell")) > 0 and _i(x.get("rank")) > 0:
-            out[str(_i(x["spell"]))] = _i(x["rank"])
-    return out
 
 
 def frame(cat: dict | None, cls, ranks: dict[str, int], kind: str = "class") -> dict | None:
@@ -453,38 +455,29 @@ def answer(cat: dict | None, cls, ranks: dict[str, int], source: str | None, at:
             "unmatched": f["unmatched"], "why": None}
 
 
-_LEVEL = re.compile(r"^Reach Level (\d+) for the first time on an? ([A-Za-z ]+)$")
-_SKILL = re.compile(r"^Reach (\d+) skill in ([A-Za-z ]+)$")
+LEGACY_UNKNOWN = ("Unknown: Legacy points come from Battle.net's achievements (Legacy challenges are "
+                  "achievements), and Battle.net hasn't read this account's characters (a site without a "
+                  "Battle.net API client has none).")
 
 
-def legacy(cat: dict | None, roster: list[dict]) -> dict:
-    """Legacy points the log proves earned: a class level or profession skill
-    reached by any character on the account. roster: [{"class", "level",
-    "professions": [{"name", "rank"}]}]. The game's own count also has PvP,
-    exploring, dungeons, raids and quests, and the points spent, which no
-    add-on here saves: this is a floor."""
+def legacy(cat: dict | None, achievements: dict | None) -> dict:
+    """Legacy points earned, from Battle.net's achievements (owner,
+    2026-11-20: the API, not a guess from levels and skills): a Legacy
+    challenge counts when any of the account's characters completed its
+    achievement. achievements: {id: when} (stores.account_achievements),
+    None without Battle.net: then the count is unknown. What was spent in
+    the Legacy trees isn't in the API."""
     sources = (cat or {}).get("legacy_sources") or []
-    earned = []
-    for s in sources:
-        req = s["requirement"]
-        m = _LEVEL.match(req)
-        if m:
-            lv, cls = int(m.group(1)), class_token(m.group(2))
-            if any(class_token(c.get("class")) == cls and _i(c.get("level")) >= lv for c in roster):
-                earned.append(req)
-            continue
-        m = _SKILL.match(req)
-        if m:
-            skill, prof = int(m.group(1)), m.group(2).strip().lower()
-            if any(str(p.get("name") or "").strip().lower() == prof and _i(p.get("rank")) >= skill
-                   for c in roster for p in c.get("professions") or []):
-                earned.append(req)
-    return {"available": bool(sources), "derived_min": sum(1 for _ in earned) if sources else None,
-            "earned": earned, "total": sum(s["amount"] for s in sources) if sources else None,
-            "spent": None,
-            "why": "Derived from each character's level and profession skills. The game's own count also has PvP, "
-                   "exploring, dungeons, raids and quests, and what was spent in the Legacy trees, which no add-on "
-                   "here saves (Altoholic's DataStore_Achievements would: Legacy Challenges are achievements)."}
+    total = sum(s["amount"] for s in sources) if sources else None
+    if not sources or achievements is None:
+        return {"available": False, "earned_points": None, "earned": [], "total": total, "spent": None,
+                "why": LEGACY_UNKNOWN if sources else "Forever's Legacy challenges aren't loaded yet."}
+    got = {int(k) for k in achievements}
+    earned = [s for s in sources if got & set(s.get("achievements") or [s.get("achievement")])]
+    return {"available": True, "earned_points": sum(s["amount"] for s in earned),
+            "earned": [s["requirement"] for s in earned], "total": total, "spent": None,
+            "why": "From Battle.net's achievements, as its daily read last saw them: each Legacy challenge is "
+                   "one. What was spent in the Legacy trees isn't in the API."}
 
 
 def icon_names(*answers) -> set[str]:
@@ -506,12 +499,8 @@ def icon_names(*answers) -> set[str]:
     return out
 
 
-NO_TALENTS = ("No talents known yet. Battle.net's daily profile refresh fills them once it knows the character "
-              "(no add-on on Forever saves them by itself); Vulcan SimBench's /simx saves them on the spot, and "
-              "keeps them.")
-HISTORY_WHY = ("One stop per /simx export the shipper saw (SimBench keeps only the last one). Battle.net's daily "
-               "readings aren't kept (its terms allow 30 days), and the game writes no event when a point is "
-               "spent, so when each point went in between two exports isn't known.")
+NO_TALENTS = ("No talents known yet. They come from Battle.net's daily profile read, once it knows the "
+              "character (a site without a Battle.net API client has none).")
 
 
 def match_ranks(cat: dict | None, cls, readings) -> dict[str, int]:
@@ -599,65 +588,24 @@ def in_tab_order(trees: list[dict], tabs: list[str]) -> list[dict]:
     return out + left
 
 
-def from_rows(cat: dict | None, rows: list[dict], cls, bnet: dict | None = None) -> tuple[dict, dict]:
+def from_battlenet(cat: dict | None, cls, bnet: dict | None = None) -> tuple[dict, dict]:
     """The card's talents and its spec line, from Battle.net's readings
-    (stores.character_talents: trees, ranks, refreshed) and the character's
-    wow-gear events that carry a /simx export (talent_ranks, talent_nodes,
-    talents_level, talents_date; one history stop per distinct export).
+    (stores.character_talents: trees, ranks, refreshed), the only source
+    since 2026-11-20 (owner: the API first, an add-on only when there is no
+    other way). A past level's build is unknown: Battle.net's readings can't
+    be kept past 30 days and the game saves no talents itself; the last 3
+    weeks' changes are history(), read from vm-wow as it holds them.
 
-    Talents are shown as the game has them (owner, 2026-11-18): Battle.net
-    first (automatic, daily), else the last /simx. The spec line is the tree
-    with the most points and the split, "Discipline 16/0/7", never relabelled
-    by a gear setting: what the gear is scored for is its own line
-    (gear.scored_for)."""
-    import json as _json
-
-    def ranks_of(r):
-        v = r.get("talent_ranks")
-        if isinstance(v, str):
-            try:
-                v = _json.loads(v or "[]")
-            except ValueError:
-                v = []
-        return parse_ranks(v)
-
-    exports = []
-    seen = set()
-    for r in sorted(rows, key=lambda r: str(r.get("_time") or "")):
-        if r.get("talent_ranks") in (None, "") and r.get("talent_nodes") in (None, ""):
-            continue
-        rk = ranks_of(r)
-        key = (_json.dumps(rk, sort_keys=True), str(r.get("talents_level")), str(r.get("talents_date")))
-        if key in seen:
-            continue
-        seen.add(key)
-        exports.append((r, rk, _i(r.get("talents_level")) or None))
-    simx = exports[-1] if exports else None
-    simx_at = (simx[0].get("talents_date") or simx[0].get("_time")) if simx else None
+    Talents are shown as the game has them (owner, 2026-11-18). The spec
+    line is the tree with the most points and the split, "Discipline
+    16/0/7", never relabelled by a gear setting: what the gear is scored for
+    is its own line (gear.scored_for)."""
     b_ranks = match_ranks(cat, cls, (bnet or {}).get("ranks"))
     b_trees = [t for t in (bnet or {}).get("trees") or [] if isinstance(t, dict) and t.get("tree")]
     if b_ranks or b_trees:
         ans = answer(cat, cls, b_ranks, "Battle.net", (bnet or {}).get("refreshed"), None)
-        if b_ranks and simx:
-            diff = sum(1 for k in set(b_ranks) | set(simx[1]) if b_ranks.get(k) != simx[1].get(k))
-            ans["cross_check"] = (f"The last /simx ({simx_at}) agrees" if not diff else
-                                  f"The last /simx ({simx_at}) differs on {diff} talent{'s' if diff != 1 else ''}")
-        else:
-            ans["cross_check"] = None
-    elif simx:
-        ans = answer(cat, cls, simx[1], "VulcanSimBench /simx", simx_at, simx[2])
-        ans["cross_check"] = None
     else:
         ans = answer(cat, cls, {}, None, None)
-        ans["cross_check"] = None
-    hist = []
-    for r, rk, lvl in exports:
-        f = frame(cat, cls, rk) if rk else None
-        pts = [{"tree": s["name"], "points": s["points"]} for s in (f or {}).get("sections") or []]
-        hist.append({"level": lvl, "date": r.get("talents_date"), "at": r.get("_time"), "points": pts,
-                     "spec": top_tree(pts)})
-    ans["history"] = sorted(hist, key=lambda h: (h["level"] or 0, str(h["at"] or "")))
-    ans["history_why"] = HISTORY_WHY
     # The split in the game's tab order (Discipline / Holy / Shadow for a
     # priest: the frame's sections, TalentTab.OrderIndex), every tree shown,
     # 0 too; Battle.net's own tree names and points when it gave them (it
@@ -672,35 +620,52 @@ def from_rows(cat: dict | None, rows: list[dict], cls, bnet: dict | None = None)
     return ans, spec
 
 
-def roster_rows(chars: list[dict], gears: list[dict]) -> list[dict]:
-    """The legacy() roster from wow-character stats rows (char, class,
-    level) and wow-gear rows (char, professions, _time): one entry per
-    character, its newest professions."""
-    import json as _json
+def _node_names(cat: dict | None, cls) -> dict[str, str]:
+    """Every rank spell of the class's talents -> the talent's name (the
+    catalog's), for readings Battle.net sent without one."""
+    out: dict[str, str] = {}
+    spells = (cat or {}).get("spells") or {}
+    token = class_token(cls)
+    for tr in (cat or {}).get("trees") or []:
+        if tr.get("kind") != "class" or tr.get("class") != token:
+            continue
+        for sec in tr["sections"]:
+            for nd in sec["nodes"]:
+                name = (spells.get(nd["spells"][0]) or {}).get("name") if nd["spells"] else None
+                for sp in [*nd["spells"], *nd["ranks"]] if name else []:
+                    out.setdefault(str(sp), name)
+    return out
 
-    out: dict[str, dict] = {}
-    for c in chars:
-        name = c.get("char")
-        if not name:
-            continue
-        cur = out.setdefault(name, {"class": None, "level": 0, "professions": []})
-        cur["class"] = cur["class"] or c.get("class")
-        cur["level"] = max(cur["level"], _i(c.get("level")))
-    newest: dict[str, str] = {}
-    for g in gears:
-        name = g.get("char")
-        if not name or str(g.get("_time") or "") < newest.get(name, ""):
-            continue
-        newest[name] = str(g.get("_time") or "")
-        p = g.get("professions")
-        if isinstance(p, str):
-            try:
-                p = _json.loads(p or "[]")
-            except ValueError:
-                p = []
-        out.setdefault(name, {"class": None, "level": 0, "professions": []})["professions"] = [
-            x for x in p if isinstance(x, dict)] if isinstance(p, list) else []
-    return list(out.values())
+
+def history(cat: dict | None, cls, readings: list[dict]) -> list[dict]:
+    """What changed between the daily readings (stores.talent_readings),
+    newest first: [{"date", "t", "before": [{tree, points}], "after": [...],
+    "gained": [{name, spell, from, to}], "dropped": [...]}]. Trees in the
+    frame's tab order, like the card; a rank up is gained, a rank down
+    dropped. A day the same as the one before is no change."""
+    tabs = [s["name"] for s in (frame(cat, cls, {}) or {}).get("sections") or []]
+    names = _node_names(cat, cls)
+
+    def split(r: dict) -> list[dict]:
+        return in_tab_order([{"tree": t["tree"], "points": _i(t.get("points"))} for t in r.get("trees") or []], tabs)
+
+    out = []
+    for a, b in zip(readings, readings[1:], strict=False):
+        ra, rb = a.get("ranks") or {}, b.get("ranks") or {}
+        before, after = split(a), split(b)
+        gained, dropped = [], []
+        for k in sorted(set(ra) | set(rb)):
+            was, now = _i((ra.get(k) or {}).get("rank")), _i((rb.get(k) or {}).get("rank"))
+            if was == now:
+                continue
+            x = rb.get(k) or ra.get(k)
+            row = {"name": x.get("name") or names.get(str(x.get("spell"))) or None,
+                   "spell": _i(x.get("spell")) or None, "from": was, "to": now}
+            (gained if now > was else dropped).append(row)
+        if gained or dropped or before != after:
+            out.append({"date": str(b.get("t") or "")[:10], "t": b.get("t"), "before": before, "after": after,
+                        "gained": gained, "dropped": dropped})
+    return out[::-1]
 
 
 ICON_URL = "https://wow.zamimg.com/images/wow/icons/{size}/{name}.jpg"
@@ -721,7 +686,8 @@ def icon_bytes(name: str, size: str = "medium") -> bytes | None:
         return None
     if (size, name) in _icons:
         return _icons[(size, name)]
-    from wowstats.model3d import _write, fetch
+    from wowstats.upstream import fetch
+    from wowstats.upstream import write_file as _write
 
     cat = shared()
     f = cat.file.parent / "icons" / size / f"{name}.jpg" if cat.file else None

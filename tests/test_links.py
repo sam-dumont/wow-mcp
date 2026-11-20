@@ -45,16 +45,17 @@ CHECKED_ADDONS = {
     "auctionator": "https://www.curseforge.com/wow/addons/auctionator",
     "altoholic": "https://www.curseforge.com/wow/addons/altoholic",
     "questie": "https://www.curseforge.com/wow/addons/questie",
-    "characterexport": "https://www.curseforge.com/wow/addons/characterexport",
-    "narcissus": "https://www.curseforge.com/wow/addons/narcissus",
-    "simbench": "https://www.curseforge.com/wow/addons/vulcan-simbench",
+    # Checked 2026-11-20 in WebKit (page title "WoWSims Exporter"), project 590920.
+    "wowsims": "https://www.curseforge.com/wow/addons/wowsims-exporter",
 }
 # Every other https link the page code and the manual write (Ask links get
 # the prompt appended; the 3D viewer's credit is Wowhead's home page).
 CHECKED_FIXED = {
     "https://www.wowhead.com/forever", "https://www.wowhead.com", "https://claude.ai/new?q=",
     "https://chatgpt.com/?prompt=", "https://www.curseforge.com/download/app", "https://polestar.guide/client",
-    "https://docs.astral.sh/uv/", "https://astral.sh/uv/install.sh", "https://astral.sh/uv/install.ps1",
+    "https://docs.astral.sh/uv/",
+    # wowstats/account.py's pinned uv, UV_URL: fetched and checked against UV_SHA256.
+    "https://github.com/astral-sh/uv/releases/download/",
     *CHECKED_ADDONS.values(),
 }
 URL = re.compile(r"https://[^\s\"'`<>)\\]+")

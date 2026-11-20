@@ -1,4 +1,6 @@
+import contextlib
 import importlib.util
+import os
 import sys
 import threading
 import urllib.error
@@ -8,6 +10,18 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
+# Fixtures only: the shipper (and every subprocess a test starts) refuses a
+# WoW folder outside a temp directory, never the real install of the machine
+# running the tests (2026-11-20).
+os.environ["NO_REAL_WOW"] = "1"
+
+
+@pytest.fixture(autouse=True)
+def wow_folder_is_a_fixture():
+    yield
+    mod = sys.modules.get("wow_stats_shipper")
+    if mod is not None:
+        assert mod.SANDBOX and mod.in_temp(mod.WOW), f"a test pointed the shipper at {mod.WOW}"
 
 
 @pytest.fixture(autouse=True)
@@ -19,6 +33,37 @@ def no_item_tables(monkeypatch):
     monkeypatch.setattr(items, "_shared", None)
     monkeypatch.setattr(talents, "_shared", None)
     monkeypatch.setattr(talents, "_icons", {})
+
+
+@pytest.fixture(autouse=True)
+def close_browsers_a_test_opened():
+    """A browser a test launches is closed when the test ends, failed or not.
+    The browser tests launch one per test and close it on their last line,
+    which an assertion before it skips: a run with many failures left 71
+    Chromium and dozens of WebKit processes open on the owner's Mac
+    (2026-11-20). Module-scoped browsers are launched before this and are
+    left to their own fixture."""
+    try:
+        from playwright.sync_api import BrowserType
+    except ImportError:
+        yield
+        return
+    opened = []
+    launch = BrowserType.launch
+
+    def tracked(self, *a, **k):
+        b = launch(self, *a, **k)
+        opened.append(b)
+        return b
+
+    BrowserType.launch = tracked
+    try:
+        yield
+    finally:
+        BrowserType.launch = launch
+        for b in opened:
+            with contextlib.suppress(Exception):  # already closed, or its driver is gone
+                b.close()
 
 
 @pytest.fixture(scope="session")

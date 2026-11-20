@@ -2,11 +2,13 @@
 (`wow-stats render`, wowstats.renderer) at RENDER_URL and kept by what was
 drawn. RENDER_URL empty: no pictures, and a past level shows its 3D model.
 
-The publisher sends what a drawing needs, cut from the 3D view's answer for
-that level (wowstats.model3d): the model (race and sex), the look and each
-drawn item's inventory type and display id. No character name, no level, no
-item id, no account. The picture is kept under
-PUBLISH_DIR/pictures/<sha256 of that request and renderer.REV>.webp, beside
+The publisher sends the 3D view's recipe for that level (wowstats.model3d,
+the updated model) and, when the renderer answers 428 with the files it
+lacks, those files from the person's own store (POST /file/<id>, with their
+SHA-256), then asks again. A file the store doesn't have either goes in
+the next request's `absent`, so it is drawn without it. No character name,
+no level, no item id, no account. The picture is kept under
+PUBLISH_DIR/pictures/<sha256 of the recipe and renderer.REV>.webp, beside
 the builds, so a level is drawn once, and a level that looks like another
 (the same gear and look) is never drawn twice.
 
@@ -29,6 +31,7 @@ import os
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from pathlib import Path
 
 from wowstats import bearer, renderer
@@ -36,24 +39,16 @@ from wowstats import bearer, renderer
 MAX_AGE_S = 25 * 86400
 RETRY_S = 900
 EXT = "webp"
+# Rounds of 428 and uploads before giving up: a model, then its skin and
+# skeleton, then the parent skeleton and its animations.
+ROUNDS = 8
 
 
-def request(answer: dict | None, metas: dict | None = None) -> dict | None:
+def request(answer: dict | None) -> dict | None:
     """The renderer's request for a 3D answer, or None when there is nothing
-    to draw (no model: an unknown race, the viewer's files missing). `metas`:
-    the items' metas Wowhead lacks (Model3D.stand_ins), sent along
-    only when there are some, so every other picture keeps its key."""
-    model = (answer or {}).get("model")
-    if not isinstance(model, dict) or not model.get("chr_model"):
-        return None
-    req = {"model": {"chr_model": model["chr_model"], "gender": model.get("gender", 0),
-                     "options": [{"optionId": o["optionId"], "choiceId": o["choiceId"]}
-                                 for o in model.get("options") or []]},
-           "items": [[i["inventory_type"], i["display_id"]] for i in answer.get("items") or []
-                     if i.get("inventory_type") and i.get("display_id")]}
-    if metas:
-        req["metas"] = {str(k): v for k, v in metas.items()}
-    return req
+    to draw (no recipe: the race unknown, the game files not sent yet)."""
+    recipe = (answer or {}).get("recipe")
+    return {"recipe": recipe} if isinstance(recipe, dict) and recipe.get("model") else None
 
 
 def key(req: dict) -> str:
@@ -78,12 +73,13 @@ class Pictures:
         self.used: set[str] = set()
         self.pending: set[str] = set()
 
-    def get(self, answer: dict | None, metas: dict | None = None) -> bytes | None | str:
+    def get(self, answer: dict | None, read: Callable[[int], bytes | None] | None = None) -> bytes | None | str:
         """The picture's bytes, "pending" (not drawn yet, or the renderer
-        down), or None (off, or nothing to draw)."""
+        down), or None (off, or nothing to draw). `read`: file id -> its
+        bytes from the person's store, for the renderer's 428s."""
         if not self.on:
             return None
-        req = request(answer, metas)
+        req = request(answer)
         if req is None:
             return None
         k = key(req)
@@ -98,7 +94,7 @@ class Pictures:
             self.pending.add(k)
             return "pending"
         t0 = time.time()
-        body = self._ask(req)
+        body = self._ask(req, read or (lambda fdid: None))
         self.spent += time.time() - t0
         if body is None:
             self.pending.add(k)
@@ -111,26 +107,57 @@ class Pictures:
         self.pending.discard(k)
         return body
 
-    def _ask(self, req: dict) -> bytes | None:
-        r = urllib.request.Request(self.url + "/render", data=json.dumps(req).encode(), method="POST",
-                                   headers={"Content-Type": "application/json",
-                                            "Authorization": f"Bearer {self.token}"})
+    def _post(self, path: str, body: bytes, headers: dict) -> tuple[int, bytes]:
+        r = urllib.request.Request(self.url + path, data=body, method="POST",
+                                   headers={**headers, "Authorization": f"Bearer {self.token}"})
         try:
             with urllib.request.urlopen(r, timeout=self.timeout) as resp:  # noqa: S310 - our own env's address
-                body = resp.read(8 * 1024 * 1024)
+                return resp.status, resp.read(8 * 1024 * 1024)
         except urllib.error.HTTPError as e:
-            self.log(f"picture: the renderer answered {e.code}: {e.read(200).decode(errors='replace').strip()}")
-            self.down = e.code != 400  # a request it refuses stays refused; anything else: try next pass
-            return None
+            return e.code, e.read(64 * 1024)
+
+    def _ask(self, req: dict, read: Callable[[int], bytes | None]) -> bytes | None:
+        """POST /render; on 428, send the files it lacks and ask again."""
+        absent: set[int] = set()
+        try:
+            for _ in range(ROUNDS):
+                code, body = self._post("/render", json.dumps({**req, "absent": sorted(absent)}).encode(),
+                                        {"Content-Type": "application/json"})
+                if code == 428:
+                    try:
+                        lack = [int(x) for x in json.loads(body)["files"]]
+                    except (ValueError, KeyError, TypeError):
+                        lack = []
+                    if not lack:
+                        break
+                    for fdid in lack:
+                        data = read(fdid)
+                        if data is None:
+                            absent.add(fdid)
+                            continue
+                        sha = hashlib.sha256(data).hexdigest()
+                        c, msg = self._post(f"/file/{fdid}", data, {"Content-Type": "application/octet-stream",
+                                                                     "X-Content-SHA256": sha})
+                        if c != 204:
+                            absent.add(fdid)  # refused (not a game file): drawn without it
+                            self.log(f"picture: the renderer refused file {fdid} ({c}): "
+                                     f"{msg[:200].decode(errors='replace').strip()}")
+                    continue
+                if code != 200:
+                    self.log(f"picture: the renderer answered {code}: {body[:200].decode(errors='replace').strip()}")
+                    self.down = code != 400  # a request it refuses stays refused; anything else: try next pass
+                    return None
+                if body[:4] != b"RIFF" or body[8:12] != b"WEBP":
+                    self.log("picture: the renderer didn't answer a WebP image")
+                    self.down = True
+                    return None
+                return body
         except (OSError, TimeoutError) as e:
             self.log(f"picture: the renderer is unreachable: {e}")
             self.down = True
             return None
-        if body[:4] != b"RIFF" or body[8:12] != b"WEBP":
-            self.log("picture: the renderer didn't answer a WebP image")
-            self.down = True
-            return None
-        return body
+        self.log(f"picture: the renderer still lacked files after {ROUNDS} rounds")
+        return None
 
     def prune(self) -> int:
         """Remove the pictures no answer of this build asked for."""

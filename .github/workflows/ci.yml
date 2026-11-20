@@ -7,12 +7,18 @@ on:
   pull_request:
   # release.yml runs this whole workflow before it builds an image.
   workflow_call:
+    secrets:
+      DOCKERHUB_USERNAME:
+        required: false
+      DOCKERHUB_TOKEN:
+        required: false
   workflow_dispatch:
 permissions:
   contents: read
 
 jobs:
   test:
+    if: github.repository_id == '1464458020'
     runs-on: ubuntu-24.04
     # A hang (2026-11-19: the apt step of the browser install, 30 min) stops
     # here, not at GitHub's 6-hour default. The job takes about 5 minutes.
@@ -48,6 +54,7 @@ jobs:
   # with a reason), and no secret in the tree or the history (gitleaks,
   # .gitleaks.toml). The tools are pinned by version and SHA-256.
   audit:
+    if: github.repository_id == '1464458020'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -94,6 +101,7 @@ jobs:
   # with a fresh Windows's execution policy and an accented profile folder
   # (tests/test_windows_e2e.py). No harden-runner: it supports Linux only.
   windows:
+    if: github.repository_id == '1464458020'
     runs-on: windows-latest
     timeout-minutes: 15
     steps:
@@ -118,7 +126,20 @@ jobs:
             Write-Host "${ps}: $n events"
           }
 
+  # A fork's pull request can't read the dhi.io credentials (secrets stay out
+  # of forks' runs), so it can't pull the main image's base: the image job
+  # skips there, and only there, with the notice below. Anywhere else a
+  # missing credential fails the login step.
+  image-fork:
+    if: github.repository_id == '1464458020' && (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Image build skipped
+        run: 'echo "::notice title=image::image build skipped: no dhi.io credentials, forks can''t read secrets"'
+
   image:
+    if: github.repository_id == '1464458020' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -126,13 +147,25 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # The main image's base is a Docker Hardened Image (Dockerfile), and
+      # dhi.io takes no anonymous pulls: a Docker Hub account's read-only
+      # token, in the repository's Actions secrets and its Dependabot secrets
+      # (Dependabot's pull requests get only those). release.yml passes them
+      # here with `secrets: inherit`. A fork's pull request has neither: it
+      # runs image-fork instead.
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - run: docker build -t wow-stats:ci .
       - name: The renderer image starts Chromium (read-only root, uid 10001)
         run: |
           set -eu
           docker build --target renderer -t wow-stats-render:ci .
-          # The main image has no Playwright (`!` alone wouldn't fail the step under set -e).
-          if docker run --rm --entrypoint sh wow-stats:ci -c 'command -v playwright'; then exit 1; fi
+          # The main image has no Playwright. It has no shell either, so the check is Python's.
+          docker run --rm --entrypoint python wow-stats:ci -c \
+            "import importlib.util as u, shutil, sys; sys.exit(bool(u.find_spec('playwright') or shutil.which('playwright')))"
           docker run -d --name render --read-only --tmpfs /tmp -p 127.0.0.1:18083:8083 wow-stats-render:ci
           for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:18083/healthz >/dev/null 2>&1 && break; sleep 1; done
           curl -fsS http://127.0.0.1:18083/healthz || { docker ps -a; docker logs render; exit 1; }
@@ -145,7 +178,14 @@ jobs:
           test "$(code -X POST -H "@$RUNNER_TEMP/render.hdr" -d '{}' http://127.0.0.1:18083/render)" = 400
           docker rm -f render
       - name: No model CLI in the image (the lab runs no LLM)
-        run: "! docker run --rm --entrypoint sh wow-stats:ci -c 'command -v claude'"
+        run: docker run --rm --entrypoint python wow-stats:ci -c "import shutil, sys; sys.exit(bool(shutil.which('claude')))"
+      # The runtime base (Dockerfile) has no shell and no system package
+      # manager (pip stays: the hardened image ships it). A base or a stage
+      # that brings one back fails here.
+      - name: No shell or package manager in the main image
+        run: |
+          docker run --rm --entrypoint python wow-stats:ci -c \
+            "import shutil, sys; found = [x for x in ('sh', 'bash', 'dash', 'ash', 'busybox', 'apk', 'apt', 'apt-get', 'dpkg') if shutil.which(x)]; print(found or 'none'); sys.exit(bool(found))"
       - name: Smoke test (read-only root, uid 10001, both views)
         run: |
           set -eu
@@ -165,7 +205,8 @@ jobs:
           for view in public full; do
             port=$(docker port "ui-$view" 8080 | head -1 | cut -d: -f2)
             curl -fsS "http://127.0.0.1:$port/healthz"
-            test "$(docker exec "ui-$view" id -u)" = 10001
+            # No `id` in the image (no coreutils): the process's own uid, from Python.
+            test "$(docker exec "ui-$view" python -c 'import os; print(os.getuid())')" = 10001
           done
           pport=$(docker port ui-public 8080 | head -1 | cut -d: -f2)
           test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$pport/api/prices")" = 404

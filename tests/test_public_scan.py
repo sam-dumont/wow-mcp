@@ -74,6 +74,8 @@ UPSTREAMS = {
     "paulmillr.com", "locize.com", "i18next.com",
     # What the manual sets up next to it: an identity provider, a DNS-over-HTTPS resolver.
     "keycloak.org", "cloudflare-dns.com",
+    # docs/self-host/how-i-run-it.md: the identity provider of the worked example.
+    "zitadel.com",
     # The public edition's own site: the manual and the live demo.
     "sam-dumont.github.io",
     # The MCP clients the OAuth redirect list and the docs name.
@@ -87,15 +89,20 @@ UPSTREAMS = {
     "gamerant.com", "iggm.com", "tentonhammer.com", "forg.gg", "zygorguides.com", "overgear.com",
     "devtrackers.gg", "boostroom.com", "wowforevertalents.com", "wowisclassic.com", "pcgames.de", "engadget.com",
     "mobalytics.gg", "kotaku.com", "dotesports.com", "reddit.com", "ezg.com", "seemeta.com", "efficient.games",
+    # Gear tables the fit model is checked against (tests/data/gearfit-refs.json:
+    # item IDs, ranks and the page each came from).
+    "wowforeverbislist.com", "noobtoboss.com",
 }
 # Hosts that stand for an attacker in the security tests (open redirects,
 # lookalike origins): never contacted.
 TEST_VECTORS = {"evil.com"}
 
 # Emails: the reserved domains, no-reply senders, and public upstream
-# addresses the product or THIRD_PARTY.md quotes.
+# addresses the product or THIRD_PARTY.md quotes (wow.export's MIT notice
+# names its two authors by address, and the notice is kept as written).
 EMAIL_OK = re.compile(r"(^noreply@|^no-reply@|@(?:[a-z0-9-]+\.)*(?:example\.(?:org|com|net)|example|invalid|test)$"
-                      r"|@render\.worldofwarcraft\.com$|@users\.noreply\.github\.com$|@fsf\.org$|@gnu\.org$)", re.I)
+                      r"|@render\.worldofwarcraft\.com$|@users\.noreply\.github\.com$|@fsf\.org$|@gnu\.org$"
+                      r"|^kruithne@gmail\.com$|^marlamin@marlamin\.com$)", re.I)
 
 # Private networks: RFC 1918, shared address space (RFC 6598, VPN overlays)
 # and link-local.

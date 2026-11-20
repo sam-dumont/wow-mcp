@@ -11,7 +11,7 @@
 //
 // It fails the build (exit 1) on:
 //   - a Markdown file under docs/ or site/pages/ that SECTIONS doesn't place
-//     (docs/private/ is never published: tools/export-public.sh drops it);
+//     (docs/private/, if one exists, is never published);
 //   - a page SECTIONS names that doesn't exist;
 //   - a link to a repository path that doesn't exist, or to an anchor that
 //     isn't a heading of its page.
@@ -41,6 +41,11 @@ const SECTIONS = [
       description: "wow-stats turns the files WoW Forever and your addons already write into a levelling log: your pace, your next upgrade and where it drops, the dungeon worth running, and an AI assistant that reads it all.",
       hero: {
         tagline: "A levelling log for WoW Forever: your pace against the route, your next upgrade and where it drops, the dungeon worth running. Made from the files your game and addons already write.",
+        // The tour (docs/videos/media, made by demo/), muted; it plays by
+        // itself unless the reader asked for less motion (Footer.astro).
+        image: { html: ["light", "dark"].map((t) =>
+          `<video class="${t}-only" data-autoplay src="@BASE@videos/tour-${t}.mp4" poster="@BASE@images/overview${t === "dark" ? "-dark" : ""}.webp" width="1280" height="800" muted loop playsinline controls preload="none" aria-label="A one-minute tour of the demo priest's page: the Overview, his gear and upgrades, the dungeons, the climb and the journal"></video>`,
+        ).join("") + `<p>A one-minute tour of Nibbet, a made-up priest. <a href="@BASE@demo/">Open his pages</a>.</p>` },
         actions: [
           { text: "How it works", link: "@BASE@how-it-works/", variant: "primary", icon: "right-arrow" },
           { text: "See a live demo", link: "@BASE@demo/", variant: "minimal", icon: "external" },
@@ -49,6 +54,7 @@ const SECTIONS = [
     } },
     { src: "docs/explanation/how-it-works.md", slug: "how-it-works", label: "How it works" },
     { src: "docs/faq.md", slug: "faq", label: "Questions and answers" },
+    { src: "docs/glossary.md", slug: "glossary", label: "Glossary" },
     { src: "site/pages/demo.md", slug: "try", label: "The live demo" },
     { src: "docs/README.md", slug: "manual", label: "Every page" },
     { src: "site/pages/404.md", route: "404", label: "Not found", hidden: true, meta: { template: "splash", pagefind: false } },
@@ -58,6 +64,7 @@ const SECTIONS = [
     { src: "docs/players/your-page.md", label: "Your page at a glance" },
     { src: "docs/players/overview.md", label: "Overview and next moves" },
     { src: "docs/players/gear.md", label: "Gear and upgrades" },
+    { src: "docs/players/meta.md", label: "Your class's meta" },
     { src: "docs/players/dungeons.md", label: "Dungeons" },
     { src: "docs/players/plan.md", label: "Plan your next hours" },
     { src: "docs/players/history.md", label: "Climb, timeline, journal" },
@@ -69,6 +76,7 @@ const SECTIONS = [
     { src: "docs/ai/asking.md", label: "Ask about your character" },
     { src: "site/pages/mcp-session.md", slug: "session", label: "A session, recorded" },
     { src: "docs/reference/mcp-tools.md", slug: "tools", label: "Tools and prompts" },
+    { src: "docs/reference/semantic-layer.md", slug: "semantic-layer", label: "Semantic layer" },
   ] },
   { dir: "self-host", label: "Self-host", pages: [
     { src: "docs/self-host/demo.md", slug: "try-at-home", label: "Try it at home" },
@@ -79,11 +87,13 @@ const SECTIONS = [
       { src: "docs/self-host/oidc.md", label: "The login for your AI" },
       { src: "docs/self-host/sharing.md", label: "Share your page" },
       { src: "docs/self-host/friends.md", label: "Add friends" },
+      { src: "docs/self-host/how-i-run-it.md", label: "How I run it" },
       { src: "docs/self-host/admin.md", label: "Admin overview" },
       { src: "docs/self-host/battlenet.md", label: "Battle.net data" },
       { src: "docs/deploy.md", label: "Without Docker Compose" },
     ] },
     { group: "Keep it running", pages: [
+      { src: "docs/self-host/troubleshooting.md", label: "When it stops" },
       { src: "docs/self-host/backup.md", label: "Back up and restore" },
       { src: "docs/self-host/upgrade.md", label: "Upgrade" },
       { src: "docs/self-host/monitoring.md", label: "Monitor it" },
@@ -103,13 +113,13 @@ const SECTIONS = [
     { src: "docs/gear-reference.md", label: "Gear upgrades" },
     { src: "docs/route-reference.md", label: "Route times" },
     { src: "docs/forever-reference.md", label: "Forever reference" },
-    { src: "docs/model3d-reference.md", label: "Model reference" },
     { src: "docs/kb.md", label: "The knowledge base" },
   ] },
   { dir: "explain", label: "Under the hood", pages: [
     { src: "docs/architecture.md", label: "Architecture" },
     { src: "docs/mcp.md", label: "MCP and the play analysis" },
     { src: "docs/explanation/privacy.md", slug: "privacy-tiers", label: "Privacy tiers" },
+    { src: "docs/explanation/data-sources.md", slug: "data-sources", label: "Where the data comes from" },
     { src: "docs/security.md", label: "Security notes" },
   ] },
   { dir: "project", label: "Project", pages: [
@@ -287,12 +297,14 @@ function main() {
     mapOutsideFences(md, (t) => {
       const img = image(src, resolve);
       const links = replaceOutsideCode(t, /(!?)\[((?:[^[\]]|\[[^\]]*\])*)\]\(<?([^)\s>]+)>?(\s+"[^"]*")?\)/g,
-        (_, bang, label, to, title) => `${bang}[${label}](${(bang ? img : resolve)(to)}${title ?? ""})`);
-      return replaceOutsideCode(links, /\b(href|src|srcset)="([^"]+)"/g, (_, a, to) => `${a}="${(a === "href" ? resolve : img)(to)}"`);
+        (_, bang, label, to, title) => `${bang}[${label}](${img(to)}${title ?? ""})`);
+      // A link to a picture (docs/images/) opens the site's copy too.
+      return replaceOutsideCode(links, /\b(href|src|srcset)="([^"]+)"/g, (_, a, to) => `${a}="${img(to)}"`);
     });
 
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.rmSync(path.join(PUB, "images"), { recursive: true, force: true });
+  fs.rmSync(path.join(PUB, "videos"), { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
   const llms = [];
   for (const [src, { route, label, meta: extra }] of placed) {
@@ -314,9 +326,12 @@ function main() {
     const fm = `---\n${Object.entries(meta).map(([k, v]) => `${k}: ${JSON.stringify(v)}`).join("\n")}${updated ? `\nlastUpdated: ${updated}` : ""}\n---\n\n`;
     const file = path.join(OUT, `${route}.md`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, fm + md.trimStart());
+    fs.writeFileSync(file, fm + forSite(md).trimStart());
     if (route !== "404") llms.push({ route, title: route === "index" ? "wow-stats" : title, label, md });
   }
+  // The home page's hero (SECTIONS): the tour and its posters.
+  for (const f of ["docs/videos/media/tour-light.mp4", "docs/videos/media/tour-dark.mp4"]) publish(f, "videos");
+  for (const f of ["docs/images/overview.webp", "docs/images/overview-dark.webp"]) publish(f, "images");
   // The link preview every page names (astro.config.mjs): no page shows it.
   const social = path.join(REPO, "docs/images/social.png");
   if (fs.existsSync(social)) {
@@ -331,6 +346,51 @@ function main() {
     process.exit(1);
   }
   console.log(`prepared ${placed.size} pages under ${BASE}`);
+}
+
+// What only the site shows differently from GitHub (the Markdown for an
+// assistant keeps the plain form):
+//   - a screenshot docs/images/x.webp with an x-dark.webp next to it shows
+//     the one for the reader's theme; every screenshot opens full size;
+//   - a paragraph that is only a link to docs/videos/media/x-light.mp4 is
+//     the clip itself, light or dark with the theme (on GitHub the link
+//     opens the file, which plays there);
+//   - a ```mermaid block is drawn in the browser (src/components/Footer.astro).
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const reEsc = (s) => s.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+
+function publish(rel, dir) {
+  const name = path.posix.basename(rel);
+  fs.mkdirSync(path.join(PUB, dir), { recursive: true });
+  fs.copyFileSync(path.join(REPO, rel), path.join(PUB, dir, name));
+  return `${BASE}${dir}/${name}`;
+}
+
+function forSite(md) {
+  const mermaid = md.replace(/^```mermaid[ \t]*\n([\s\S]*?)^```[ \t]*$/gm,
+    (_, code) => `<pre class="mermaid not-content">${esc(code.trimEnd())}</pre>`);
+  const clip = new RegExp(`^\\[([^\\]\\n]+)\\]\\(${reEsc(REPO_URL)}/blob/main/(docs/videos/media/[\\w.-]+)-light\\.mp4\\)[ \\t]*$`, "gm");
+  return mapOutsideFences(mermaid, (t) => {
+    const clips = t.replace(clip, (all, label, stem) => {
+      const light = `${stem}-light.mp4`, dark = `${stem}-dark.mp4`;
+      const one = (rel, cls) =>
+        // #t=1.5: the still before play is a frame from the clip, not its
+        // first one, which is black where the clip fades in.
+        `<video class="${cls}" src="${publish(rel, "videos")}#t=1.5" controls muted playsinline preload="metadata" aria-label="${esc(label)}"></video>`;
+      const both = fs.existsSync(path.join(REPO, dark)) ? one(light, "light-only") + one(dark, "dark-only") : one(light, "");
+      return `<figure class="clip">${both}<figcaption>${esc(label)}</figcaption></figure>`;
+    });
+    const prefix = `${BASE}images/`;
+    return replaceOutsideCode(clips, /!\[([^\]]*)\]\(([^)\s]+)\)/g, (all, alt, to) => {
+      if (!to.startsWith(prefix) || /\.svg$/i.test(to)) return all;
+      const file = to.slice(prefix.length);
+      const darkRel = `docs/images/${file.replace(/(\.\w+)$/, "-dark$1")}`;
+      const zoom = (href, cls, a) =>
+        `<a class="zoom${cls ? ` ${cls}` : ""}" href="${href}" title="Open the full-size picture"><img src="${href}" alt="${esc(a)}" loading="lazy"></a>`;
+      if (!fs.existsSync(path.join(REPO, darkRel))) return zoom(to, "", alt);
+      return zoom(to, "light-only", alt) + zoom(publish(darkRel, "images"), "dark-only", alt);
+    });
+  });
 }
 
 // The pages as Markdown for an assistant: each at its address plus .md,

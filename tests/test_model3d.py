@@ -1,425 +1,281 @@
-"""The 3D character view: full view only, its own CSP, display ids from a
-(fake) wago.tools, the model files through the relay from a (fake)
-wow.zamimg.com. Nothing here talks to the internet."""
+"""The 3D view's server side (wowstats.model3d): the answer is a recipe
+assembled from the person's own client tables (character3d), the files come
+from the person's own store (/model3d/file/<id>), the frame runs our viewer
+without eval, and nobody reads another person's answer or files. Made-up
+tables and files only (tests/model3d_world.py)."""
 
-import hashlib
+from __future__ import annotations
+
 import json
-import re
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
+from tests import model3d_world as w
+from tests.test_assets import several  # noqa: F401 - a fixture
 from tests.test_public_view import (
     CHAR,
-    fake_extras,  # noqa: F401 - a fixture (stand-ins for the MCP and coach)
+    fake_extras,  # noqa: F401 - a fixture
     make,
 )
-from wowstats import links, model3d, ui
+from tests.test_tenancy import FRIEND, as_user
+from wowstats import assets, model3d, ui
 
-ITEM = ("ID,InventoryType,ClassID,SubclassID\n"
-        "5820,3,4,1\n53,4,4,0\n1489,5,4,2\n911,17,2,10\n935,13,2,7\n3021,15,2,2\n4369,26,2,3\n"
-        "5069,26,2,19\n2512,24,6,2\n2101,18,11,2\n1116,11,4,0\n2585,20,4,1\n7777,10,4,1\n")
-IMA = ("ID,ItemID,ItemAppearanceModifierID,ItemAppearanceID,OrderIndex\n"
-       "1,5820,0,105820,0\n2,53,0,100053,0\n3,1489,0,101489,0\n4,911,0,100911,0\n5,935,0,100935,0\n"
-       "6,3021,0,103021,0\n7,4369,0,104369,0\n8,5069,0,105069,0\n9,2512,0,102512,0\n10,2101,0,102101,0\n"
-       "11,1116,0,101116,0\n12,2585,0,102585,0\n13,7777,0,107777,0\n"
-       # A heroic look (modifier 1) never wins over the base one.
-       "14,5820,1,199999,0\n")
-IA = "ID,ItemDisplayInfoID\n" + "".join(f"{a},{a - 100000 + 900000}\n" for a in (
-    105820, 100053, 101489, 100911, 100935, 103021, 104369, 105069, 102512, 102101, 101116, 102585, 107777)) + \
-    "199999,1\n"
+# A full view loads the MCP module when it is installed: a stand-in here.
+pytestmark = pytest.mark.usefixtures("fake_extras")
+SHEET = {"race": "Gnome", "sex": "female", "class": "PRIEST", "items": w.GEAR}
 
 
-def disp(item: int) -> int:
-    return item + 900000
-
-
-class Upstream:
-    """wago.tools and wow.zamimg.com in one local server."""
-
-    def __init__(self):
-        self.files: dict[str, bytes] = {"/api/builds/wowf/latest": json.dumps({"version": "1.60.1.1"}).encode()}
-        for name, body in (("Item", ITEM), ("ItemModifiedAppearance", IMA), ("ItemAppearance", IA)):
-            self.files[f"/db2/{name}/csv?build=1.60.1.1"] = body.encode()
-        custom = json.dumps({"Options": [{"Id": 1, "Name": "Skin", "Choices": [{"Id": 11}, {"Id": 12}]},
-                                         {"Id": 2, "Name": "Face", "Choices": [{"Id": 21}]}]}).encode()
-        for m in range(1, 17):
-            self.files[f"/modelviewer/classic/meta/character/{m}.json"] = b"{}"
-            self.files[f"/modelviewer/classic/meta/charactercustomization/{m}.json"] = custom
-        for m in (19, 20):  # the Blood Elf: Wowhead's live data only
-            self.files[f"/modelviewer/live/meta/character/{m}.json"] = b"{}"
-            self.files[f"/modelviewer/live/meta/charactercustomization/{m}.json"] = custom
-        for item in (5820, 53, 1489, 911, 935, 3021, 4369, 2585):
-            inv = {5820: 3, 53: 4, 1489: 5, 2585: 20}.get(item)
-            where = f"armor/{inv}" if inv else "item"
-            self.files[f"/modelviewer/classic/meta/{where}/{disp(item)}.json"] = b"{}"
-        self.files["/modelviewer/live/viewer/viewer.min.js"] = b"window.ZamModelViewer=function(){};"
-        self.seen: list[str] = []
-        self.down = False
-        up = self
-
-        class H(BaseHTTPRequestHandler):
-            def do_GET(self):
-                up.seen.append(self.path)
-                body = None if up.down else up.files.get(self.path)
-                self.send_response(503 if up.down else 200 if body is not None else 404)
-                self.end_headers()
-                self.wfile.write(body or b"")
-
-            def log_message(self, *a):
-                pass
-
-        self.srv = ThreadingHTTPServer(("127.0.0.1", 0), H)
-        self.base = f"http://127.0.0.1:{self.srv.server_address[1]}"
-        threading.Thread(target=self.srv.serve_forever, daemon=True).start()
-
-    def env(self, tmp_path) -> dict:
-        # The fake viewer is pinned by its hash, as an operator pins a new
-        # build of the real one (wowstats.model3d.VIEWER_SHA256).
-        viewer = hashlib.sha256(self.files["/modelviewer/live/viewer/viewer.min.js"]).hexdigest()
-        return {"MODEL3D_WAGO_URL": self.base, "MODEL3D_ZAM_URL": self.base + "/modelviewer/",
-                "MODEL3D_CACHE_DIR": str(tmp_path / "cache"), "MODEL3D_VIEWER_SHA256": viewer}
+@pytest.fixture(autouse=True)
+def tables(monkeypatch):
+    w.patch_tables(monkeypatch)
 
 
 @pytest.fixture
-def upstream():
-    u = Upstream()
-    yield u
-    u.srv.shutdown()
-    u.srv.server_close()
+def m3d(tmp_path):
+    store = w.fill(tmp_path / "assets")
+    m = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path / "cache")}, ui.static_dir())
+    m.assets = type("A", (), {"store": store})()
+    return m
 
 
-@pytest.fixture
-def m3d(upstream, tmp_path):
-    return model3d.Model3D(upstream.env(tmp_path), ui.static_dir())
+def full(tmp_path, **env):
+    return make("full", MODEL3D_CACHE_DIR=str(tmp_path / "cache"), MODEL3D_ASSETS_DIR=str(tmp_path / "assets"), **env)
 
 
-def items(*rows):
-    return [{"slot": s, "slot_name": n, "item_id": i, "name": nm} for s, n, i, nm in rows]
+# --- the answer -------------------------------------------------------------
+
+def test_the_answer_is_a_recipe_from_the_persons_tables(m3d):
+    d = m3d.character(SHEET)
+    assert (d["race"], d["sex"], d["sex_known"], d["class"]) == ("Gnome", "female", True, "PRIEST")
+    assert d["recipe"]["model"] == w.FX.CHAR_M2 and d["recipe"]["v"] == 1
+    assert d["recipe_sd"]["model"] == w.SD_M2, "the original model is in the store too"
+    # The boots are a collection model, the sword an attachment; a neck is
+    # never drawn (quietly); an item the tables don't know is said.
+    assert {i["item_id"] for i in d["items"]} == {w.BOOTS, w.SWORD}
+    assert d["missing"] == [] and "why" not in d
+    d = m3d.character({**SHEET, "items": [*w.GEAR, {"slot": 5, "slot_name": "Chest", "item_id": 555,
+                                                    "name": "Test Robe"}]})
+    assert d["missing"] == [{"slot": 5, "slot_name": "Chest", "item_id": 555, "name": "Test Robe",
+                             "why": "not in Forever's item tables"}]
+    # Every field the page reads, and nothing of Wowhead's.
+    assert {"race", "sex", "sex_known", "class", "recipe", "recipe_sd", "no_classic", "items", "missing",
+            "appearance"} <= set(d)
+    assert not {"model", "model_sd", "stand_in", "source"} & set(d)
 
 
-# --- what the public view never gets -------------------------------------
-
-PATHS_3D = ["/model3d/view", "/model3d/view.js", "/model3d/model3d.js", "/model3d/model3d.css",
-            "/model3d/jquery-3.7.1.min.js", "/model3d/zam/r2/viewer/viewer.min.js",
-            "/model3d/zam/r2/meta/character/13.json", f"/api/model3d?name={CHAR}"]
-
-
-def test_public_view_never_has_3d(run_app, upstream, tmp_path):
-    srv = run_app(make("public", **upstream.env(tmp_path)))
-    for path in PATHS_3D:
-        for method in ("GET", "POST", "HEAD"):
-            assert srv.get(path, method=method, data=b"{}" if method == "POST" else None)[0] == 404, path
-    code, headers, body = srv.get("/")
-    for text in (body.decode(), srv.get("/app.js")[2].decode(), srv.get("/app.css")[2].decode()):
-        # Links to Wowhead's pages are fine (the Overview names items and
-        # zones with one, from addresses the server writes, and the public
-        # view has no answer that carries one); loading anything from it isn't.
-        for word in ("model3d", "zamimg", "wowhead.com", "Show in 3D"):
-            assert word not in text.lower() if word.islower() else word not in text
-        # Wowhead only as a plain link, from web/items.js's one constant: never a script, a frame or an image.
-        assert "wowhead.com" not in text
-    items = srv.get("/items.js")[2].decode()
-    assert re.findall(r"https://[\w.]*wowhead\.com[^'\"]*", items) == [links.WOWHEAD_BASE]
-    csp = headers["Content-Security-Policy"]
-    assert "frame-src" not in csp and "unsafe-eval" not in csp and "zamimg" not in csp
-    assert upstream.seen == [], "a public server never calls Wowhead or wago.tools"
+def test_the_enchant_reaches_the_weapon(m3d):
+    plain = m3d.character(SHEET)["recipe"]
+    glowing = m3d.character({**SHEET, "items": [{**w.GEAR[1], "enchant_id": 1}]})["recipe"]
+    sword = [a for a in glowing["attachments"] if a["slot"] == 16]
+    assert sword and plain != glowing, "the enchant id changes the weapon's visuals"
 
 
-@pytest.mark.usefixtures("fake_extras")
-def test_csp_per_view(run_app, upstream, tmp_path):
-    srv = run_app(make("full", **upstream.env(tmp_path)))
-    _, headers, body = srv.get("/")
-    page = headers["Content-Security-Policy"]
-    assert "frame-src 'self'" in page and "unsafe-eval" not in page and "http" not in page
-    assert b"model3d/model3d.js" in body and b'id="model3d"' not in body  # the toggle is on the paperdoll
-    assert upstream.seen == [], "nothing loads before the click"
-    code, headers, body = srv.get("/model3d/view?name=" + CHAR)
-    csp = headers["Content-Security-Policy"]
-    assert code == 200 and "frame-ancestors 'self'" in csp and "sandbox allow-scripts" in csp and "http" not in csp
-    # Only the page itself and its own frame: every other answer keeps the strict CSP.
-    assert "frame-src" not in srv.get("/api/chars")[1]["Content-Security-Policy"]
-    assert "unsafe-eval" not in srv.get("/model3d/model3d.js")[1]["Content-Security-Policy"]
-    off = run_app(make("full", MODEL3D="off", **upstream.env(tmp_path)))
-    assert off.get("/model3d/view")[0] == 404 and b"model3d" not in off.get("/")[2]
+def test_classic_says_which_choices_it_lacks(m3d):
+    d = m3d.character(SHEET, look={"options": [{"optionId": 87, "choiceId": 1262}], "source": "battle.net",
+                                   "refreshed": "2026-11-18"})
+    assert d["no_classic"] == ["Hair Style"] and d["appearance"]["source"] == "battle.net"
+    assert m3d.character(SHEET)["no_classic"] == []
 
 
-@pytest.mark.usefixtures("fake_extras")
-def test_relay_only_what_the_viewer_needs(run_app, upstream, tmp_path):
-    srv = run_app(make("full", **upstream.env(tmp_path)))
-    zam = f"/model3d/zam/{model3d.ZAM_REV}/"
-    code, headers, body = srv.get(zam + "meta/character/13.json")
-    assert code == 200 and body == b"{}" and headers["Content-Type"] == "application/json"
-    assert srv.get(zam + "meta/character/19.json")[0] == 200  # from live/ when classic/ has none
-    assert srv.get(zam + "viewer/viewer.min.js")[0] == 200
-    n = len(upstream.seen)
-    assert srv.get(zam + "meta/character/13.json")[0] == 200
-    assert len(upstream.seen) == n, "served from the disk cache"
-    for bad in ("../../etc/passwd", "meta/character/..%2f..%2fx.json",
-                "m2/1.skin", "textures/1.js", "https://evil.example/x.js", "viewer/other.js"):
-        assert srv.get(zam + bad)[0] == 404, bad
-    # The unversioned paths are gone: no browser cache from v0.2.x matches.
-    assert srv.get("/model3d/zam/meta/character/13.json")[0] == 404
-    assert not any("evil" in p or "passwd" in p for p in upstream.seen)
+def test_male_has_no_original_model_here(m3d):
+    d = m3d.character({**SHEET, "sex": "male"})
+    assert d["recipe"] and d["recipe_sd"] is None and d["no_classic"] == []
 
 
-# --- races, sexes, models ------------------------------------------------
-
-RACES = ["Human", "Orc", "Dwarf", "Night Elf", "Undead", "Tauren", "Gnome", "Troll", "Skyborne"]
-
-
-@pytest.mark.parametrize("race", RACES)
-@pytest.mark.parametrize("sex", ["male", "female"])
-def test_every_race_and_sex_has_a_model(m3d, race, sex):
-    d = m3d.character({"race": race, "sex": sex, "class": "WARRIOR", "items": []})
-    assert d["model"] is not None, d.get("why")
-    want = model3d.CHR_MODELS[race.lower()][sex == "female"]
-    if race == "Skyborne":  # Forever's own race, on the Blood Elf body Wowhead has
-        assert d["stand_in"] == "Blood Elf" and d["model"]["chr_model"] == (19, 20)[sex == "female"]
-    else:
-        assert d["stand_in"] is None and d["model"]["chr_model"] == want
-    assert d["model"]["gender"] == (sex == "female")
-    assert d["model"]["options"] == [{"optionId": 1, "choiceId": 11}, {"optionId": 2, "choiceId": 21}]
-    assert d["appearance"] is None
+def test_sex_unknown_takes_the_pick(m3d):
+    d = m3d.character({**SHEET, "sex": None}, sex_override="female")
+    assert (d["sex"], d["sex_known"]) == ("female", False) and d["recipe_sd"]
+    d = m3d.character({**SHEET, "sex": None})
+    assert (d["sex"], d["sex_known"]) == ("male", False)
+    # Battle.net's gender, when no sheet has it.
+    assert m3d.character({**SHEET, "sex": None}, look={"gender": "female"})["sex_known"] is True
 
 
-def test_race_spellings():
-    """Syndicator and Polestar write the client's race names; ChrRaces has
-    two Skyborne factions."""
-    pairs = {model3d.chr_model(r, s) for r in RACES for s in ("male", "female")}
-    assert len(pairs) == 18
-    for alias, race in (("NightElf", "Night Elf"), ("Scourge", "Undead"), ("High Order Skyborne", "Skyborne"),
-                        ("Windshaper Skyborne", "Skyborne"), ("night elf", "Night Elf")):
-        assert model3d.chr_model(alias, "female") == model3d.chr_model(race, "female")
-    assert model3d.chr_model("Murloc", "male") is None
-    assert model3d.chr_model("Gnome", None) == model3d.chr_model("Gnome", "male")
+@pytest.mark.parametrize("sheet,why", [
+    ({**SHEET, "race": "Orc"}, "no model for the race Orc"),
+    ({**SHEET, "race": None}, "the race isn't known yet"),
+])
+def test_no_recipe_says_why(m3d, sheet, why):
+    d = m3d.character(sheet)
+    assert d["recipe"] is None and d["recipe_sd"] is None and why in d["why"]
 
 
-def test_sex_override_only_when_unknown(m3d):
-    d = m3d.character({"race": "Gnome", "class": "PRIEST", "items": []}, sex_override="female")
-    assert (d["sex"], d["sex_known"], d["model"]["chr_model"]) == ("female", False, 14)
-    d = m3d.character({"race": "Gnome", "sex": "male", "items": []}, sex_override="female")
-    assert (d["sex"], d["sex_known"], d["model"]["chr_model"]) == ("male", True, 13)
-    d = m3d.character({}, {"race": "Dwarf", "sex": "female", "class": "Hunter"})  # header only: Syndicator
-    assert d["model"]["chr_model"] == 6 and d["class"] == "HUNTER"
+def test_no_tables_or_no_model_file_says_why(tmp_path):
+    m = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path / "cache")}, ui.static_dir())
+    m.assets = type("A", (), {"store": w.fill(tmp_path / "none", with_files=False)})()
+    d = m.character(SHEET)
+    assert d["recipe"] is None and "haven't come from your computer" in d["why"]
+    empty = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path / "c2")}, ui.static_dir())
+    empty.assets = type("A", (), {"store": assets.Store(tmp_path / "blank")})()
+    d = empty.character(SHEET)
+    assert d["recipe"] is None and "game files haven't come" in d["why"]
 
 
-def test_no_race_says_why(m3d):
-    d = m3d.character({}, {"race": None})
-    assert d["model"] is None and "isn't saved" in d["why"]
+def test_an_item_whose_files_are_late_is_listed(tmp_path):
+    store = w.fill(tmp_path / "assets")
+    for f in (tmp_path / "assets" / "files").glob(f"{w.FX.BELT_M2}.*"):
+        f.unlink()
+    m = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path / "cache")}, ui.static_dir())
+    m.assets = type("A", (), {"store": store})()
+    d = m.character(SHEET)
+    assert d["recipe"] and w.BOOTS not in {i["item_id"] for i in d["items"]}
+    assert any(r["item_id"] == w.BOOTS and "haven't come" in r["why"] for r in d["missing"])
 
 
-# --- dressing ------------------------------------------------------------
-
-def test_display_ids_for_any_item(m3d, upstream):
-    d = m3d.character({"race": "Night Elf", "sex": "female", "class": "PRIEST", "items": items(
-        (3, "Shoulder", 5820, "Faerie Mantle"), (4, "Shirt", 53, "Shirt"), (5, "Chest", 2585, "Gray Woolen Robe"),
-        (11, "Finger", 1116, "Ring"), (10, "Hands", 7777, "Gloves Wowhead lacks"),
-        (19, "Tabard", 424242, "Unknown Tabard"), (16, "Main hand", 911, "Staff"), (18, "Ranged", 5069, "Wand"))})
-    shown = {(i["item_id"], i["inventory_type"], i["display_id"]) for i in d["items"]}
-    assert shown == {(5820, 3, disp(5820)), (53, 4, disp(53)), (2585, 20, disp(2585)), (911, 17, disp(911))}
-    why = {m["item_id"]: m["why"] for m in d["missing"]}
-    assert why == {7777: "Wowhead's viewer has no model for it", 424242: "not in Forever's item tables"}
-    assert d["source"] == "wago.tools wowf 1.60.1.1"
-    # The ring and the wand are left out without a word, like the game does.
-    assert 1116 not in why and 5069 not in why
+def test_needs_cover_both_models_and_both_sexes_when_unknown(m3d):
+    known = m3d.needs(SHEET, None, None)
+    unknown = m3d.needs({**SHEET, "sex": None}, None, None)
+    assert {w.FX.CHAR_M2, w.SD_M2} <= known and known <= unknown
+    assert m3d.needs({**SHEET, "race": "Orc"}, None, None) == set()
 
 
-def test_hunter_holds_the_ranged_weapon(m3d):
-    gear = {"race": "Dwarf", "sex": "male", "class": "HUNTER", "items": items(
-        (16, "Main hand", 935, "Night Watch Shortsword"), (18, "Ranged", 4369, "Deadly Blunderbuss"),
-        (0, "Ammo", 2512, "Rough Arrow"), (19, "Quiver", 2101, "Light Quiver"))}
-    d = m3d.character(gear)
-    assert [(i["item_id"], i["inventory_type"]) for i in d["items"]] == [(4369, 26)]
-    assert d["missing"] == [{"slot": 16, "slot_name": "Main hand", "item_id": 935, "name": "Night Watch Shortsword",
-                             "inventory_type": 13, "display_id": disp(935),
-                             "why": "Deadly Blunderbuss is in that hand"}]
-    # A bow goes in the off hand: the sword stays.
-    gear["items"] = items((16, "Main hand", 935, "Sword"), (18, "Ranged", 3021, "Ranger Bow"))
-    assert {i["item_id"] for i in m3d.character(gear)["items"]} == {935, 3021}
-    # Not a hunter: the melee weapon wins, the gun stays out quietly.
-    gear["class"] = "WARRIOR"
-    gear["items"] = items((16, "Main hand", 935, "Sword"), (18, "Ranged", 4369, "Gun"))
-    d = m3d.character(gear)
-    assert [i["item_id"] for i in d["items"]] == [935] and d["missing"] == []
+# --- routes -----------------------------------------------------------------
 
-
-# Spine of the Devourer: a staff Forever added (display 752138), whose model
-# (resource 16577) Wowhead has under older displays, with Forever's own
-# texture (material 23305 -> file 147522). Display 905120 stands for an old
-# display of that model.
-FOREVER_STAFF = 273040
-
-
-def forever_staff(upstream):
-    up = upstream.files
-    up["/db2/Item/csv?build=1.60.1.1"] += b"273040,17,2,10\n"
-    up["/db2/ItemModifiedAppearance/csv?build=1.60.1.1"] += b"99,273040,0,173040,0\n"
-    up["/db2/ItemAppearance/csv?build=1.60.1.1"] += b"173040,752138\n"
-    up["/db2/ItemDisplayInfo/csv?build=1.60.1.1"] = (
-        b"ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1\n"
-        b"905070,16577,0,23304,0\n905120,16577,0,23302,0\n752138,16577,0,23305,0\n"
-        b"777777,4242,0,1,0\n888888,16577,0,99999,0\n")
-    up["/db2/TextureFileData/csv?build=1.60.1.1"] = (
-        b"FileDataID,UsageType,MaterialResourcesID\n147518,0,23302\n147520,0,23304\n147522,0,23305\n")
-    up["/modelviewer/classic/meta/item/905120.json"] = json.dumps({
-        "Model": 0, "Textures": {"2": 147518},
-        "ModelFiles": {"16577": [{"FileDataId": 147517, "Gender": 2, "Class": 0, "Race": 0}]},
-        "Item": {"InventoryType": 17, "ItemClass": 2, "ItemSubClass": 10}}).encode()
-
-
-def test_a_weapon_forever_added_is_drawn(m3d, upstream):
-    """The main hand and the ranged weapon go to the viewer when worn, a
-    weapon Forever added included (2026-11-19: the model had none)."""
-    forever_staff(upstream)
-    gear = {"race": "Gnome", "sex": "male", "class": "PRIEST", "items": items(
-        (5, "Chest", 2585, "Robe"), (16, "Main hand", FOREVER_STAFF, "Spine of the Devourer"),
-        (18, "Ranged", 5069, "Gravestone Scepter"))}
-    d = m3d.character(gear)
-    shown = {i["slot"]: (i["item_id"], i["inventory_type"], i["display_id"]) for i in d["items"]}
-    assert shown[16] == (FOREVER_STAFF, 17, 752138)
-    assert d["missing"] == []
-    # The wand is left out without a word: the game never draws one.
-    assert 18 not in shown
-    # Its meta: the old display's model, with Forever's own texture.
-    meta = json.loads(m3d.relay.get("meta/item/752138.json"))
-    assert meta["Textures"] == {"2": 147522} and "16577" in meta["ModelFiles"]
-    assert "textures/147522.webp" in model3d.viewer_files(m3d.relay, d)
-    # A static bundle and a level picture get the same meta (the renderer
-    # can't make it).
-    assert m3d.stand_ins(d) == {752138: meta}
-    # A ranged weapon the game draws (a bow) goes with the staff.
-    gear["items"] = items((16, "Main hand", FOREVER_STAFF, "Staff"), (18, "Ranged", 3021, "Bow"))
-    assert {i["slot"] for i in m3d.character(gear)["items"]} == {16, 18}
-
-
-def test_no_stand_in_without_the_same_model_and_texture(m3d, upstream):
-    forever_staff(upstream)
-    assert m3d.relay.get("meta/item/777777.json") is None  # a model no known display has
-    assert m3d.relay.get("meta/item/888888.json") is None  # its texture is unknown: no wrong look
-    assert m3d.relay.get("meta/item/123.json") is None  # not in Forever's tables
-
-
-def test_display_ids_cached_and_kept_when_upstream_fails(upstream, tmp_path, monkeypatch):
-    ids = model3d.DisplayIds(upstream.base, "wowf", tmp_path)
-    assert ids.get(5820) == (3, disp(5820), 4, 1)  # the base look, not the heroic one
-    assert ids.get(999) is None
-    fetched = len(upstream.seen)
-    again = model3d.DisplayIds(upstream.base, "wowf", tmp_path)  # a restart: from disk
-    assert again.get(911) == (17, disp(911), 2, 10) and len(upstream.seen) == fetched
-    upstream.down = True
-    monkeypatch.setattr(model3d.time, "time", lambda: 10 ** 12)  # a day later: the check fails
-    assert again.get(911) == (17, disp(911), 2, 10)
-    empty = model3d.DisplayIds(upstream.base, "wowf", None)
-    with pytest.raises(model3d.Upstream):
-        empty.get(911)
-
-
-@pytest.mark.usefixtures("fake_extras")
-def test_api_for_a_character(run_app, upstream, tmp_path):
-    srv = run_app(make("full", **upstream.env(tmp_path)))
-    code, _, body = srv.get(f"/api/model3d?name={CHAR}")
+def test_api_and_files_on_a_full_view(run_app, tmp_path):
+    w.fill(tmp_path / "assets")
+    srv = run_app(full(tmp_path))
+    code, _, body = srv.get(f"/api/model3d?name={CHAR}&sex=female")
     d = json.loads(body)
-    assert code == 200 and d["race"] == "Gnome" and d["model"]["chr_model"] == 13
-    assert [i["item_id"] for i in d["items"]] == [5820]
-    assert srv.get("/api/model3d?name=%22x")[0] == 400
-    assert srv.get("/api/model3d?name=Nobody-Here")[0] == 404
-    upstream.down = True
-    other = run_app(make("full", **upstream.env(tmp_path / "other")))
-    code, _, body = other.get(f"/api/model3d?name={CHAR}")
-    assert code == 502 and "error" in json.loads(body)
+    assert code == 200 and d["recipe"]["model"] == w.FX.CHAR_M2 and d["models"] == "hd"
+    code, headers, body = srv.get(f"/model3d/file/{w.FX.CHAR_M2}")
+    assert code == 200 and body == w.files()[w.FX.CHAR_M2]
+    assert headers["Content-Type"] == "application/octet-stream" and headers["Cache-Control"].startswith("private")
+    for path in ("/model3d/file/999999", "/model3d/file/abc", "/model3d/file/12345678901", "/model3d/file/",
+                 "/model3d/zam/r2/viewer/viewer.min.js", "/model3d/jquery-3.7.1.min.js"):
+        assert srv.get(path)[0] == 404, path
+    assert srv.get(f"/model3d/file/{w.FX.CHAR_M2}", method="POST", data=b"x")[0] == 404
 
 
-def test_saved_look_replaces_the_default_per_option(m3d):
-    base = {"race": "Gnome", "sex": "male", "class": "PRIEST", "items": []}
-    d = m3d.character(base)
-    assert d["model"]["options"][0] == {"optionId": 1, "choiceId": 11} and d["appearance"] is None
-    look = {"source": "battle.net", "refreshed": "2026-11-18T06:00:00Z", "gender": "male",
-            "options": [{"optionId": 1, "choiceId": 12}, {"optionId": 999, "choiceId": 5}]}
-    d = m3d.character(base, look=look)
-    assert d["model"]["options"][0] == {"optionId": 1, "choiceId": 12}
-    assert d["appearance"] == {"source": "battle.net", "refreshed": "2026-11-18T06:00:00Z"}
-    # Another race's choice (not offered by this model) falls back to the default.
-    d = m3d.character(base, look={"source": "narcissus", "options": [{"optionId": 1, "choiceId": 77}]})
-    assert d["model"]["options"][0] == {"optionId": 1, "choiceId": 11} and d["appearance"]["source"] == "narcissus"
-    # Battle.net's gender fills in when no addon saved the sex.
-    d = m3d.character({"race": "Gnome", "items": []}, look={**look, "gender": "female"})
-    assert d["sex"] == "female" and d["sex_known"]
+def test_the_public_view_has_none_of_it(run_app, tmp_path):
+    w.fill(tmp_path / "assets")
+    srv = run_app(make("public", MODEL3D_ASSETS_DIR=str(tmp_path / "assets")))
+    for path in ("/model3d/view", "/model3d/view.js", "/model3d/model3d.js", f"/model3d/file/{w.FX.CHAR_M2}",
+                 f"/api/model3d?name={CHAR}"):
+        assert srv.get(path)[0] == 404, path
 
 
-def test_narcissus_rows():
-    from wowstats.model3d import narcissus_look
-    assert narcissus_look([]) is None
-    rows = [{"_time": "2026-11-18T10:00:00Z", "looks": '[{"optionId": 80, "choiceId": 1174}]'}]
-    assert narcissus_look(rows)["options"] == [{"optionId": 80, "choiceId": 1174}]
+def test_the_frame_runs_without_eval(run_app, tmp_path):
+    srv = run_app(full(tmp_path))
+    _, headers, page = srv.get("/")
+    assert "unsafe-eval" not in headers["Content-Security-Policy"] and b"model3d/model3d.js" in page
+    code, headers, body = srv.get("/model3d/view")
+    csp = headers["Content-Security-Policy"]
+    assert code == 200 and "sandbox allow-scripts" in csp and "frame-ancestors 'self'" in csp
+    for word in ("unsafe-eval", "wasm-unsafe-eval", "zamimg", "http", "unsafe-inline"):
+        assert word not in csp, word
+    assert "connect-src 'none'" in csp
+    html = body.decode()
+    assert "M3D.draw" in html and "ZamModelViewer" not in html and "jquery" not in html.lower()
+    # The renderer's copy reads its own files: connect-src 'self', still no eval.
+    render = model3d.view_csp(model3d.view_page(ui.static_dir() / "model3d", render=True), render=True)
+    assert "connect-src 'self'" in render and "eval" not in render
 
 
-def test_battle_net_look_from_vm_wow(monkeypatch):
-    from wowstats.stores import Store
-    s = Store("http://vl", vm_url="http://vm")
-    assert Store("http://vl").character_look("Testpriest-Fixture") is None
-    answers = {
-        "wow_character_customization": [{"metric": {"option_id": "82"}, "value": [0, "1210"]},
-                                        {"metric": {"option_id": "80"}, "value": [0, "1174"]}],
-        "wow_character_profile{": [{"metric": {"gender": "male", "race_id": "7"}, "value": [0, "32"]}],
-        "wow_character_profile_refreshed": [{"metric": {}, "value": [0, "1795413600"]}],
-    }
+def test_each_person_their_own_3d(several):  # noqa: F811
+    t = several.t
+    mira, pip = t.registry.get(FRIEND), t.registry.get("friend-3")
+    w.fill(t.user_dir(mira) / "assets")
+    a_mira, a_pip = t.app_for(mira).model3d, t.app_for(pip).model3d
+    assert a_mira.character(SHEET)["recipe"], "Mira's own files draw her"
+    d = a_pip.character(SHEET)
+    assert d["recipe"] is None and d["why"], "Pip's server has no tables of its own: Mira's never answer for Pip"
+    path = f"/model3d/file/{w.FX.CHAR_M2}"
+    code, _, body = several.get(path, headers=as_user(FRIEND))
+    assert code == 200 and body == w.files()[w.FX.CHAR_M2]
+    assert several.get(path, headers=as_user("friend-3"))[0] == 404
+    assert several.get(path)[0] in (302, 401, 403), "no login, no file"
+
+
+def test_wanted_is_every_characters_needs(run_app, tmp_path):
+    w.fill(tmp_path / "assets")
+    app = full(tmp_path)
+    got = app.model3d.wanted(app)
+    assert w.FX.CHAR_M2 in got and w.SD_M2 in got
+    assert app.assets.wanted() == got
+
+
+def test_the_publisher_reads_each_persons_files_through_the_share_port(several, tmp_path):  # noqa: F811
+    """The publisher's pod has no disk of the full view's: it reads one
+    person's tables and files from the share port, with its token, under
+    that person's slug only (publish.user_env sets the address)."""
+    import urllib.error
+    import urllib.request
+
+    from wowstats import analysis, publish
+
+    t = several.t
+    mira = t.registry.get(FRIEND)
+    w.fill(t.user_dir(mira) / "assets")
+    e = {"ANALYSIS_SHARE_PORT": "0", "ANALYSIS_SHARE_TOKEN_FILE": str(tmp_path / "share-token")}
+    srv = analysis.share_server(e, t)
+    try:
+        base = f"http://127.0.0.1:{srv.server_address[1]}"
+        pe = publish.user_env({**e, "USERS_URL": base + "/users.json", "FRIENDS_VL_URL": "http://vl.invalid"},
+                              {"slug": "mira", "account_id": 1})
+        assert pe["MODEL3D_ASSETS_URL"] == base + "/assets/mira/"
+        store = assets.RemoteStore(pe["MODEL3D_ASSETS_URL"], pe, tmp_path / "pub-cache")
+        assert store.build() == w.BUILD and store.table("ChrModel") == b"WDC5 made-up"
+        assert store.read(w.FX.CHAR_M2) == w.files()[w.FX.CHAR_M2] and store.read(424242) is None
+        # Pip's slug reads Pip's folder: none of Mira's.
+        pip = assets.RemoteStore(base + "/assets/pip/", pe, tmp_path / "pub-cache")
+        assert pip.read(w.FX.CHAR_M2) is None and pip.build() == ""
+        for path in (f"/assets/mira/file/{w.FX.CHAR_M2}", "/assets/nobody/build", "/assets/../x/build"):
+            with pytest.raises(urllib.error.HTTPError) as err:
+                urllib.request.urlopen(base + path, timeout=10)  # no token
+            assert err.value.code in (401, 404), path
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_wanted_covers_every_outfit_of_the_history_once(tmp_path, monkeypatch):
+    """Now, each past level, every gear sheet the shipper sent and every
+    point of the Recorder's replay (an outfit worn for half a level too);
+    the same outfit is worked out once."""
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from wowstats import history
+
+    def outfit(*ids):
+        return [{"slot": 5, "item_id": i} for i in ids]
+
+    rp = history.Replay(start=datetime(2026, 11, 1, tzinfo=UTC))
+    for day, iid in ((1, 400), (2, 500), (3, 200)):  # 500 replaced the next day, inside one level
+        rp.put(5, history.Span(datetime(2026, 11, day, tzinfo=UTC), iid, {}))
+    sheets = {None: outfit(100), 22: outfit(200), 23: outfit(100)}
+    views = SimpleNamespace(
+        snapshot=lambda name, lv: {"gear": {"items": sheets[lv]}},
+        snapshot_inputs=lambda name: ({}, {}, [], [{"items": outfit(200)}, {"items": outfit(300)},
+                                                   {"items": outfit(100)}, {"items": []}]),
+        reconstruction=lambda name, data, gh: (rp, {}, {}))
+    app = SimpleNamespace(
+        chars=lambda: {"chars": [{"char": "Testchar"}]}, valid_char=lambda n: True,
+        char=lambda n: {"gear": {"race": "Gnome", "class": "PRIEST", "items": outfit(100)}, "header": {}},
+        timeline=lambda n: {"levels": [22, 23]}, views=views)
+    monkeypatch.setattr(model3d, "find_look", lambda app, name: None)
+    m = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path)}, tmp_path, None)
     seen = []
-
-    def vm_query(q):
-        seen.append(q)
-        return next((v for k, v in answers.items() if k in q), [])
-    monkeypatch.setattr(s, "vm_query", vm_query)
-    look = s.character_look("Testpriest-Fixture")
-    assert look["options"] == [{"optionId": 80, "choiceId": 1174}, {"optionId": 82, "choiceId": 1210}]
-    assert look["gender"] == "male" and look["refreshed"].startswith("2026-")
-    assert 'character="Testpriest-Fixture"' in seen[0]
-    answers["wow_character_customization"] = []  # Testhunter: not on Battle.net
-    assert s.character_look("Testhunter-Fixture") is None
+    monkeypatch.setattr(m, "needs", lambda gear, header, look: seen.append(gear["items"][0]["item_id"])
+                        or {gear["items"][0]["item_id"]})
+    assert m.wanted(app) == {100, 200, 300, 400, 500}
+    assert sorted(seen) == [100, 200, 300, 400, 500]
 
 
-def test_a_battle_net_look_keeps_its_hair_and_beard():
-    """Testpriest (Gnome male) came out bald and beardless: Battle.net's ids are
-    those of Wowhead's current data, and Forever's one Facial Hair option
-    (9486) is Beard plus Mustache there. Matched by id, else by geoset."""
-    from wowstats.model3d import LIVE_FIRST, apply_look, translate_look
+def test_a_history_that_cant_be_read_still_counts_the_levels(tmp_path, monkeypatch):
+    from types import SimpleNamespace
 
-    def choice(cid, *geosets):
-        return {"Id": cid, "Elements": [{"Geoset": {"GeosetType": t, "GeosetID": g}} for t, g in geosets]}
+    def boom(name):
+        raise OSError("store down")
 
-    meta = [
-        {"Id": 80, "Choices": [choice(1173), choice(1174)]},
-        {"Id": 82, "Choices": [choice(1199, (0, 0)), choice(1210, (0, 12))]},
-        {"Id": 84, "Choices": [choice(1227, (1, 0)), choice(1233, (1, 6))]},
-        {"Id": 783, "Choices": [choice(8757, (3, 0)), choice(8762, (3, 5))]},
-    ]
-    saved = [{"optionId": 80, "choiceId": 1174}, {"optionId": 82, "choiceId": 1210},
-             {"optionId": 9486, "choiceId": 78873}]
-    forever = {78873: [(1, 6), (3, 5)]}
-    got = apply_look(meta, translate_look(meta, saved, lambda c: forever.get(c, [])))
-    assert got == [{"optionId": 80, "choiceId": 1174}, {"optionId": 82, "choiceId": 1210},
-                   {"optionId": 84, "choiceId": 1233}, {"optionId": 783, "choiceId": 8762}]
-    # Without Forever's tables the facial hair is lost, not wrong.
-    got = apply_look(meta, translate_look(meta, saved, lambda c: []))
-    assert {"optionId": 84, "choiceId": 1227} in got and {"optionId": 82, "choiceId": 1210} in got
-    assert LIVE_FIRST.match("meta/charactercustomization/13.json") and not LIVE_FIRST.match("meta/item/1.json")
-
-
-def test_cache_rules_keep_only_what_never_changes():
-    """v0.2.1 moved the character metas from classic to live data under the
-    same URLs, cached a day: browsers mixed v0.2.0's classic meta with the
-    new files and drew a broken head. Only files named by a FileDataID are
-    cached; the metas and the viewer script revalidate."""
-    for path in ("m2/900914.m2", "skin/490253.skin", "textures/916430.webp", "bone/1053747.bone",
-                 "skel/2184855.skel", "anim/1-0.anim", "phys/1.phys"):
-        assert model3d.cache_control(path) == "public, max-age=86400", path
-        assert model3d.cache_control(path, "private") == "private, max-age=86400"
-    for path in ("meta/character/13.json", "meta/charactercustomization/13.json", "meta/item/20377.json",
-                 "meta/armor/3/9077.json", "viewer/viewer.min.js"):
-        assert model3d.cache_control(path) == "no-cache", path
-
-
-def test_view_js_reads_the_current_revision():
-    js = (ui.static_dir() / "model3d" / "view.js").read_text()
-    assert f"const ZAM = 'zam/{model3d.ZAM_REV}/';" in js
+    views = SimpleNamespace(snapshot=lambda name, lv: {"gear": {"items": [{"slot": 5, "item_id": 200}]}},
+                            snapshot_inputs=boom)
+    app = SimpleNamespace(
+        chars=lambda: {"chars": [{"char": "Testchar"}]}, valid_char=lambda n: True,
+        char=lambda n: {"gear": {"race": "Gnome", "class": "PRIEST", "items": [{"slot": 5, "item_id": 100}]},
+                        "header": {}},
+        timeline=lambda n: {"levels": [22]}, views=views)
+    monkeypatch.setattr(model3d, "find_look", lambda app, name: None)
+    m = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path)}, tmp_path, None)
+    monkeypatch.setattr(m, "needs", lambda gear, header, look: {gear["items"][0]["item_id"]})
+    assert m.wanted(app) == {100, 200}

@@ -10,6 +10,7 @@ Same setup as tests/test_browser.py (needs the `browser` group)."""
 import gzip
 import io
 import json
+import os
 import re
 import threading
 from contextlib import redirect_stdout
@@ -184,5 +185,49 @@ def test_character_tab_links_wowhead_only(site, pw, engine):
         kinds = {WOWHEAD.match(h).group(1) for h, *_ in links}
         assert {"item", "quest", "npc"} <= kinds, kinds
         assert not [u for u in seen if "wowhead" in u], "Wowhead is linked, never loaded"
+    finally:
+        b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+@pytest.mark.parametrize("scheme", ["dark", "light"])
+def test_each_upgrade_says_who_it_is_built_for(site, pw, engine, scheme):
+    """Every upgrade row carries its fit line (wowstats/gearfit.py): Testpriest
+    is Shadow at 32, so Embalmed Shroud, a healer's head piece, reads as not
+    made for his spec but fine while levelling (he still heals himself
+    before Shadowform), and its comparison names the head piece built for
+    him and where it comes from. WOW_SHOTS=<dir> saves the list and the
+    comparison."""
+    url, gear = site
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # browsers not installed
+        pytest.skip(f"no {engine}: {e}")
+    try:
+        pg = b.new_page(viewport={"width": 1280, "height": 1000}, color_scheme=scheme)
+        pg.goto(url)
+        pg.locator(".tabs button", has_text="Character").first.click()
+        wait_count(pg, "#advice .cand")
+        pg.locator("#advice details.upmore").evaluate_all("els => els.forEach(e => e.open = true)")
+        rows = pg.locator("#advice li.cand")
+        assert rows.count() and rows.count() == pg.locator("#advice li.cand .fit").count()
+        shroud = pg.locator("#advice li.cand", has_text="Embalmed Shroud").first
+        line = shroud.locator(".fit").inner_text()
+        assert line.startswith("Not made for your spec. Fine while levelling") and "don't roll Need" in line, line
+        assert pg.locator("#advice li.cand .fit.yes", has_text="Built for your spec").count() >= 10
+        # Readable in both schemes: the label isn't the page's own colour.
+        col = shroud.locator(".fitlabel").evaluate("e => getComputedStyle(e).color")
+        bg = pg.evaluate("() => getComputedStyle(document.body).backgroundColor")
+        assert col != bg
+        shots = os.environ.get("WOW_SHOTS")
+        if shots:
+            shroud.scroll_into_view_if_needed()
+            pg.screenshot(path=f"{shots}/fit-list-{engine}-{scheme}.png")
+        shroud.locator(".candmain .itm").click()
+        wait_count(pg, ".cmp", 1)
+        alt = pg.locator(".cmp .fitalt").inner_text()
+        assert alt.startswith("Built for your spec instead: ") and "Electromagnetic Gigaflux Reactivator" in alt, alt
+        if shots:
+            pg.locator(".cmp").screenshot(path=f"{shots}/fit-compare-{engine}-{scheme}.png")
     finally:
         b.close()

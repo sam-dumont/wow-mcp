@@ -1,0 +1,119 @@
+# Mirror main to the private CI repository, sam-dumont/wow-mcp-ci, where the
+# jobs that hold credentials run (docs/development.md, "The CI mirror"):
+# the knowledge base's refresh with its Anthropic federation (kb-refresh.yaml),
+# started on time by the owner's scheduler. Their output comes back here as
+# pull requests, opened by the CI GitHub App so they pass the same checks as
+# any other.
+#
+# Triggers: a push to main, or a dispatch for a branch. NEVER pull_request:
+# a fork's code must never reach the mirror's credentials.
+#
+# The force-push overwrites the mirror's main: nothing is ever committed
+# there, private or not. Secrets live in the mirror's settings; real data in
+# the owner's stores. The App's key, here and there, is in the environment
+# main-only, which only main can deploy to: a branch pushed to the mirror
+# carries its own workflow files, and they must not reach the key.
+#
+# Every other workflow's jobs carry `github.repository_id == '1464458020'`
+# (this repository), so the push brings them along without running them
+# there; kb-refresh.yaml's job carries the mirror's id, 1465633168, so it runs
+# nowhere else. tests/test_workflow_guard.py fails on an unguarded job.
+name: mirror
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "A branch of this repository to push to the mirror as well (main always goes)"
+        required: false
+        type: string
+
+# Every write goes through a one-hour token the CI GitHub App mints for the
+# mirror alone; GITHUB_TOKEN only reads.
+permissions:
+  contents: read
+
+concurrency:
+  group: mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    if: github.repository_id == '1464458020'
+    runs-on: ubuntu-24.04
+    environment: main-only
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          # Checkout's stored header would go to the mirror next to the App
+          # token's, and GitHub refuses two. This repository is public.
+          persist-credentials: false
+      # Only a branch of this repository: never a ref a fork can write
+      # (refs/pull/N/head), whose workflow files would run in the mirror.
+      - name: Branch
+        id: target
+        env:
+          BRANCH: ${{ inputs.branch || 'main' }}
+        run: |
+          set -euo pipefail
+          case "$BRANCH" in
+            refs/* | pull/*) echo "::error::$BRANCH: give a branch name, not a ref"; exit 1 ;;
+          esac
+          git check-ref-format --branch "$BRANCH" >/dev/null
+          git ls-remote --exit-code origin "refs/heads/$BRANCH" >/dev/null \
+            || { echo "::error::$BRANCH: no such branch in $GITHUB_REPOSITORY"; exit 1; }
+          git fetch -q origin "refs/heads/$BRANCH"
+          echo "sha=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+      - name: Mint a token for the mirror
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: wow-mcp-ci
+          # workflows: the push carries workflow files; pull-requests: the
+          # mirror's bot PRs, closed below.
+          permission-contents: write
+          permission-workflows: write
+          permission-pull-requests: write
+      - name: Push to the mirror
+        env:
+          TOKEN: ${{ steps.token.outputs.token }}
+          BRANCH: ${{ steps.target.outputs.branch }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          set -euo pipefail
+          mirror=https://github.com/sam-dumont/wow-mcp-ci.git
+          git remote add mirror "$mirror"
+          # A header scoped to the mirror's URL keeps the token out of the
+          # remote URL, and so out of the logs.
+          basic=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
+          echo "::add-mask::$basic"
+          git config "http.$mirror/.extraheader" "AUTHORIZATION: basic $basic"
+          trap 'git config --unset-all "http.$mirror/.extraheader" || true' EXIT
+          # main first: a dispatched workflow must exist on the default branch.
+          git fetch -q origin main
+          git push -q mirror --force "origin/main:refs/heads/main"
+          [ "$BRANCH" = main ] || git push -q mirror --force "$SHA:refs/heads/$BRANCH"
+          echo "Mirrored main ($(git rev-parse --short origin/main)) and $BRANCH" >> "$GITHUB_STEP_SUMMARY"
+      # Dependabot reads the dependabot.yml the push carries and opens the
+      # same update PRs on the mirror. Merging one there does nothing (the
+      # next push overwrites main), so they're closed.
+      - name: Close the mirror's bot PRs
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          for n in $(gh api "repos/sam-dumont/wow-mcp-ci/pulls?state=open&per_page=100" \
+                       --jq '.[] | select(.user.login == "dependabot[bot]") | .number'); do
+            gh pr close "$n" -R sam-dumont/wow-mcp-ci \
+              -c "CI mirror: main is force-pushed from sam-dumont/wow-mcp, where dependency updates land."
+          done

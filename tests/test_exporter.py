@@ -75,7 +75,10 @@ def test_profile_keys_forever_characters_without_realm(monkeypatch):
     out = exporter.render_data()
     assert 'wow_character_customization{account_id="0",character="Testpriest-Fixture",option_id="80"} 1174.0' in out
     assert 'wow_character_customization{account_id="0",character="Testpriest-Fixture",option_id="82"} 1210.0' in out
-    assert 'wow_character_profile{account_id="0",character="Testpriest-Fixture",gender="male",race_id="7"} 32.0' in out
+    assert ('wow_character_profile{account_id="0",character="Testpriest-Fixture",gender="male",in_guild="false",'
+            'race_id="7"} 32.0') in out
+    # No /achievements answer: no "read" marker, so the Legacy count stays unknown.
+    assert "wow_character_achievements_read" not in out
     assert 'wow_character_equipped{account_id="0",character="Testpriest-Fixture",slot="main_hand"} 1317.0' in out
     # A random suffix's stats are in no item table: the armory's, per slot.
     assert 'wow_character_equipped_stat{account_id="0",character="Testpriest-Fixture",slot="back",stat="INTELLECT"} 4.0' in out
@@ -88,6 +91,34 @@ def test_profile_keys_forever_characters_without_realm(monkeypatch):
     out = exporter.render_data()
     assert "customization" not in out and "equipped" not in out
     assert 'wow_character_profile_found{account_id="0",character="Testpriest-Fixture"} 0.0' in out
+
+
+def test_profile_reads_guild_and_achievements(monkeypatch):
+    """Guild and completed achievements come from Battle.net (owner,
+    2026-11-20): the guild on the profile series, each completed
+    achievement with when, an unfinished one left out. Kept 30 days at most."""
+    exporter.configure({"BNET_CLIENT_ID_FILE": "/x", "BNET_CLIENT_SECRET_FILE": "/y",
+                        "PROFILE_CHARACTERS": "Testpriest-Fixture"})
+    exporter.data.clear()
+    p = "/profile/wow/character/testpriest-fixture"
+    calls = []
+    ach = {"achievements": [
+        {"id": 61994, "achievement": {"id": 61994, "name": "Legacy: Mage 25"}, "completed_timestamp": 1763460000000},
+        {"achievement": {"id": 63970}, "criteria": {"is_completed": True}},
+        {"id": 62000, "criteria": {"is_completed": False}}]}
+    monkeypatch.setattr(exporter, "api_get", fake_api(
+        {p: {**PRIEST, "guild": {"name": "Test Guild", "id": 1}}, p + "/achievements": ach}, calls))
+    exporter.poll_profile()
+    assert (p + "/achievements", "profile-forever-eu") in calls
+    out = exporter.render_data()
+    assert ('wow_character_profile{account_id="0",character="Testpriest-Fixture",gender="male",guild="Test Guild",'
+            'in_guild="true",race_id="7"} 32.0') in out
+    assert 'wow_character_achievements_read{account_id="0",character="Testpriest-Fixture"} 2' in out
+    assert 'wow_character_achievement{account_id="0",achievement_id="61994",character="Testpriest-Fixture"} 1763460000.0' in out
+    assert 'achievement_id="63970"' in out and 'achievement_id="62000"' not in out
+    assert exporter.completed_achievements(None) == {}
+    exporter.forget_old(now=exporter.time.time() + 31 * 86400)
+    assert not exporter.data.get("wow_character_achievement")
 
 
 def test_profile_kept_30_days_at_most(monkeypatch):
@@ -232,3 +263,34 @@ def test_profile_list_is_per_account_capped_and_first_claim_wins(monkeypatch):
     out = exporter.render_data()
     assert 'wow_character_profile{account_id="1",character="Testpriest-Fixture",' in out
     assert 'account_id="0",character="Testpriest-Fixture"' not in out
+
+
+def test_the_log_never_carries_the_client_secret(tmp_path, monkeypatch, capsys):
+    """The Battle.net client's id and secret, and the merge key, are read from
+    files and sent in a header: no log line (start, a refused token, an
+    unreachable API) prints them."""
+    import urllib.error
+
+    secret, key = "s3cret-client-value-0123456789", "merge-key-value-9876543210"
+    (tmp_path / "id").write_text("client-id-value\n")
+    (tmp_path / "secret").write_text(secret + "\n")
+    (tmp_path / "key").write_text(key + "\n")
+    exporter.configure({"BNET_CLIENT_ID_FILE": str(tmp_path / "id"), "BNET_CLIENT_SECRET_FILE": str(tmp_path / "secret"),
+                        "VM_PUSH_URL": "http://vm:8428/api/v1/import/prometheus",
+                        "VM_MERGE_KEY_FILE": str(tmp_path / "key")})
+    monkeypatch.setitem(exporter._token, "value", "")
+    exporter.log(f"listening on :{exporter.LISTEN}, region {exporter.REGION}")
+
+    def refused(req, timeout=None):
+        raise urllib.error.HTTPError(req.full_url, 401, "Unauthorized", req.headers, None)
+    monkeypatch.setattr(exporter.urllib.request, "urlopen", refused)
+    assert exporter.run_task("token") is False
+
+    def down(req, timeout=None):
+        raise urllib.error.URLError(f"no route to {req.full_url}")
+    monkeypatch.setattr(exporter.urllib.request, "urlopen", down)
+    assert exporter.run_task("token") is False
+
+    out = capsys.readouterr().out
+    assert "region eu" in out and "token:" in out
+    assert secret not in out and key not in out and "client-id-value" not in out

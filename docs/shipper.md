@@ -29,12 +29,14 @@ run), then:
    then moves it to `~/WoWArchive/sent/` gzipped. Server down or no network:
    it logs that and the spool waits for the next run. The spool file shrinks
    after each post, so a run cut short resends nothing.
-4. **update**: at most every 6 hours, asks the same server for a newer
+4. **3D files**: at most every 15 minutes, sends the game files the 3D view
+   asked for ([The 3D view's files](#the-3d-views-files)).
+5. **update**: at most every 2 hours, asks the same server for a newer
    shipper and takes it ([Auto-update](#auto-update)).
 
 ## Auto-update
 
-The shipper updates itself. After a run's own work, at most once every 6
+The shipper updates itself. After a run's own work, at most once every 2
 hours, it asks the server it ships to for the current version:
 `GET <server>/install/update/shipper`, with the same upload password as
 `/ingest`. The answer is the version of the `wow_stats.py` that server
@@ -80,6 +82,33 @@ auto_update = false
 A shipper from before 0.5.1 can't update itself: run the update line once
 (below). `/start` says so while the server still sees one: its setup report
 carries the shipper's version from 0.5.1 on.
+
+## The 3D view's files
+
+The 3D view draws your characters from the game's own files, with its own
+viewer: nothing comes from anyone else. Your shipper reads them from your WoW install (read-only: it opens
+the game's storage under `Data/` and never writes there) and sends them to
+your own server, the one in `[ship]`, with the same upload password as
+`/ingest`:
+
+- it asks `GET <server>/install/assets/need` what the server still wants:
+  about 30 client tables (how races are built, how items dress them, some
+  11 MB once per game patch), then the models and textures your characters
+  wear, then what those name (skin, skeleton, standing animation, closed
+  hands);
+- it sends them one by one, at most 96 MB a run, within the same daily
+  budget as your events. A file the server already has is never sent again.
+
+Only what your game has on disk can go: the launcher downloads some files
+only when the game needs them, so a look you never saw in game (the Classic
+models while you play with the updated ones) may lack pieces. The view draws
+without them and lists what's missing. A table's encrypted rows (content not
+out yet) go blank.
+
+Nothing goes anywhere but your server. With several people, your files stay
+in your own folder there and go with your account. `model3d_files = false`
+in the config turns it off; the 3D view then keeps Battle.net's picture and
+says why.
 
 ## Stats only (no WTF archive)
 
@@ -193,14 +222,33 @@ usual install places), `archive_dir`, `wtf_archive` (default `true`),
   (no WoW folder, the password refused, no background program); a missing
   addon is a cross, never a failure. The addon list is
   `docs/videos/steps.json`'s, copied into `ADDONS` (a test keeps them equal).
+- `--talents-check`: what the shipper reads from WoWSims Exporter's file,
+  per account, as counts only (entries, readable saves, saves with the
+  character's full name, saves matched to one character, characters on the
+  account): no name, no build. Read-only, sends nothing.
+
+- `--casc-extract FOLDER --fdids <ids> --tables <names>`: copies the
+  game files the 3D view would ask for (file ids, client tables such as
+  `ChrModel`) from your WoW install to FOLDER, one file per id plus
+  `manifest.json` (what was missing and why). Read-only on the game folder;
+  it also takes what each model names (its first skin, skeleton, parent
+  skeleton and standing animation). `@file` reads either list from a file;
+  `--wow-root` overrides the folder holding `.build.info` (default: the one
+  above your `_forever_`). For checking by hand: nothing is sent.
+- `--casc-diagnose`: prints how the WoW install's storage is laid out
+  (each index's versions and header, the archives' sizes, where the
+  encoding table is and whether it reads), never a file's contents. For a
+  report when `--casc-extract` fails.
 
 ## Addons it reads
 
 Polestar and Polestar Recorder for nearly everything, Auctionator for prices,
-Syndicator (equipped items), CharacterExport-Forever (profession caps),
-Altoholic (its DataStore_Characters: `/played` since level 1; its
+Syndicator (equipped items), Altoholic (its DataStore_Characters: `/played` since level 1; its
 DataStore_Quests: the quests done before Polestar), Questie (the same
-quests, exact),
+quests, exact), WoWSims Exporter (`WowSimsExporter.lua`, its
+`profiles.*.savedCharacters` only: each character's talents, one
+`wow-talents` event per change; never its `global` table, which holds
+other players),
 GearQuestForever and ForeverLevelingBiS (tracked upgrades, spec) for the
 gear panel, and LibForeverData, Polestar_QuestDB or Polestar_ItemDB only to
 look up quest and item names and item levels.

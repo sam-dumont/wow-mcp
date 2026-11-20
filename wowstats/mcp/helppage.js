@@ -1,7 +1,7 @@
 // The help page's only script (wowstats/mcp/helppage.py). On the static
 // site it decrypts the sealed content (nonce + AES-GCM, @AD@ as associated
 // data, the same scheme as web/app.js) with the key in the fragment; on the
-// full view the content is already there. Then it wires the theme, the
+// full view the content is already there. Then it wires the
 // Mac/Windows tabs and the AI app picker (remembered per viewer), in-page
 // links, copy buttons and any clips.
 // No key, a wrong key or a tampered file: "Nothing here." and nothing else.
@@ -11,23 +11,6 @@
     get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } },
   };
-
-  // The site's theme switch, same key and cycle as web/app.js.
-  const THEMES = ['system', 'light', 'dark'];
-  const themeBtn = document.getElementById('theme');
-  const applyTheme = (t) => {
-    if (t === 'system') delete document.documentElement.dataset.theme;
-    else document.documentElement.dataset.theme = t;
-    themeBtn.textContent = { system: 'Auto', light: 'Day', dark: 'Night' }[t];
-    themeBtn.setAttribute('aria-label', `Colour theme: ${{ system: 'auto', light: 'day', dark: 'night' }[t]}. Switch`);
-  };
-  const saved = store.get('wow-theme');
-  applyTheme(THEMES.includes(saved) ? saved : 'system');
-  themeBtn.addEventListener('click', () => {
-    const next = THEMES[(THEMES.indexOf(document.documentElement.dataset.theme || 'system') + 1) % THEMES.length];
-    applyTheme(next);
-    store.set('wow-theme', next);
-  });
 
   const nothing = () => {
     main.replaceChildren(Object.assign(document.createElement('p'), { textContent: 'Nothing here.' }));
@@ -194,7 +177,8 @@
   // reads one section doesn't download all of them.
   const figs = [...main.querySelectorAll('figure[data-media], figure[data-dark]')];
   const themed = () => figs.filter((f) => f.dataset.dark && f.dataset.shown && f.isConnected).forEach(show);
-  themeBtn.addEventListener('click', themed);
+  // The bar's switch (web/theme.js) sets data-theme on <html>.
+  new MutationObserver(themed).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themed);
   const near = new IntersectionObserver((entries) => entries.filter((e) => e.isIntersecting).forEach((e) => {
     near.unobserve(e.target);

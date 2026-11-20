@@ -72,14 +72,15 @@ def status_rules(last: timedelta, recorder: bool = True) -> list:
 SETUP = {"polestar": "1.4.2", "recorder": "0.9.1", "syndicator": "0.6", "questie": "9.8.0", "altoholic": "2.4"}
 
 
-def preflight_rules(char: str, recorder_on: bool = True) -> list:
+def preflight_rules(char: str, recorder_on: bool | str = True) -> list:
     """The setup report and what arrived per character, for status.setup and status.missing."""
     arrived = [{"char": char, "feed": f, "n": "5"} for f in ("wow-level", "wow-recorder", "wow-bags")]
     arrived += [{"char": char, "feed": "wow-quests", "source": "questie", "n": "120"},
                 {"char": char, "feed": "wow-character", "kind": "played", "n": "4"}]
     return [("stats by (char, feed, source, kind)", arrived),
             ("fields _time, addons, recorder_on", [{"_time": iso(timedelta(hours=1)), "addons": json.dumps(SETUP),
-                                                    "recorder_on": json.dumps(recorder_on), "saved_chars": "1",
+                                                    "recorder_on": recorder_on if isinstance(recorder_on, str)
+                                                    else json.dumps(recorder_on), "saved_chars": "1",
                                                     "shipper": "0.5.1"}])]
 
 
@@ -118,7 +119,7 @@ def site():
     vl.rules[str(ids[STATES["ok"]])] = (preflight_rules("Testfriend-Otherhall") + status_rules(timedelta(hours=2))
                                         + vl.rules.get(str(ids[STATES["ok"]]), []))
     vl.rules[str(ids[STATES["quiet"]])] = status_rules(timedelta(days=5))
-    vl.rules[str(ids[STATES["partial"]])] = (preflight_rules("Testfriend-Otherhall", recorder_on=False)
+    vl.rules[str(ids[STATES["partial"]])] = (preflight_rules("Testfriend-Otherhall", recorder_on="unknown")
                                              + status_rules(timedelta(minutes=20), recorder=False))
     vl.rules[str(ids[ALTS])] = alt_rules() + status_rules(timedelta(hours=1))
     for sub, ago in ((STATES["ok"], timedelta(days=9)), (STATES["none"], timedelta(days=1)), (ALTS, timedelta(days=9)),
@@ -292,14 +293,23 @@ def test_working_and_broken_say_so_in_one_line(site, pw, engine):
     li = pg.locator("#f-addons li[data-addon=polestar]")
     assert li.locator(".inst").inner_text() == "\u2713 1.4.2" and not li.locator(".what").is_visible()
     li = pg.locator("#f-addons li[data-addon=auctionator]")
-    assert li.locator(".inst").inner_text() == "\u2717 not installed" and li.locator(".what").is_visible()
+    # Optional and not installed: a choice, said neutrally, never a red cross.
+    assert li.locator(".inst").inner_text() == "optional, not installed" and li.locator(".what").is_visible()
+    assert "opt" in li.locator(".inst").get_attribute("class").split()
+    assert li.locator(".step1").inner_text() == "Install it, then scan the auction house once."
+    # Installed but not sending: only the step left, never "Install it".
+    li = pg.locator("#f-addons li[data-addon=syndicator]")
+    assert li.locator(".inst").inner_text().startswith("\u2713") and "unseen" in li.get_attribute("class")
+    assert li.locator(".step1").inner_text() == "Log in once with each character."
     assert pg.locator("#f-addons li[data-addon=recorder] .note").inner_text() == "Recording is on."
     # What the pages can't show yet, each line with its fix and the addon's link.
     gap = pg.locator("#f-addons ul.gaps li[data-kind=prices]")
     assert gap.inner_text() == "Missing: auction prices. Add Auctionator."
     assert gap.locator("a", has_text="Auctionator").get_attribute("href").startswith("https://www.curseforge.com/")
     assert pg.locator("#f-addons ul.gaps li").count() == 1
-    assert re.search(r"Your addons: \d+ sending, 1 missing", pg.locator("#f-addons summary").inner_text())
+    # The summary counts the rows: 4 green, Syndicator quiet, Auctionator and WoWSims Exporter to add.
+    assert pg.locator("#f-addons summary").inner_text() == (
+        "Your addons: 4 sending \u00b7 1 installed, not sending yet \u00b7 2 optional to add")
     # One block per AI app, picked like Mac/Windows; the address is shared.
     ai = pg.locator("#f-ai")
     assert "https://wow-full.m.example/mcp" in ai.inner_text()
@@ -351,10 +361,12 @@ def test_working_and_broken_say_so_in_one_line(site, pw, engine):
 
     c, pg, errors5 = open_start(b, site, "partial", 390)
     warn = pg.locator(".hero[data-in=ok] .warn")
-    assert warn.is_visible() and "/psrec on" in warn.inner_text() and "Recorder is off" in warn.inner_text()
+    # Installed by the installer, never switched on in game (the shipper says "unknown"):
+    # the same fix as "off", never just "installed" (a friend's page, 2026-11-20).
+    assert warn.is_visible() and "/psrec on" in warn.inner_text() and "not switched on yet" in warn.inner_text()
     open_folds(pg)
     note = pg.locator("#f-addons li[data-addon=recorder] .note")
-    assert "Recording is off" in note.inner_text() and "/psrec on" in note.inner_text()
+    assert "not switched on yet" in note.inner_text() and "/psrec on" in note.inner_text()
     c.close()
     assert not (errors + errors2 + errors3 + errors4 + errors5)
     b.close()
@@ -438,6 +450,35 @@ def test_the_addon_gaps_name_the_character_and_never_blame_an_installed_addon(si
         assert pg.evaluate(OVER) <= 0
         if engine == "chromium":
             shoot(pg.locator("#f-addons"), f"missing-addons-{width}-{scheme}")
+        c.close()
+        assert not errors, errors
+    b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_the_addon_list_is_steps_json_with_one_step_each(site, pw, engine):
+    """Owner, 2026-11-20: each addon with what it unlocks and its one step,
+    WoWSims Exporter among them, the same list as /help/ and the docs."""
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"no {engine}: {e}")
+    for width, scheme in ((390, "light"), (390, "dark"), (1280, "light"), (1280, "dark")):
+        c, pg, errors = open_start(b, site, "ok", width, scheme)
+        open_folds(pg)
+        lis = pg.locator("#f-addons ul.addons li")
+        assert [x.get_attribute("data-addon") for x in lis.all()] == [a["id"] for a in account.addons()]
+        for a in account.addons():
+            li = pg.locator(f"#f-addons li[data-addon={a['id']}]")
+            installed = li.locator(".inst").inner_text().startswith("\u2713")
+            assert li.locator(".what").text_content() == a["what"]
+            assert li.locator(".step1").text_content() == (a["then"] if installed else a["step"]), a["id"]
+            # Shown until its data arrives: then the step is done.
+            assert li.locator(".step1").is_visible() == ((li.get_attribute("class") or "") != "seen"
+                                                         and not (installed and a["id"] == "recorder")), a["id"]
+        assert pg.evaluate(OVER) <= 0
+        pg.locator("#f-addons").scroll_into_view_if_needed()
+        shoot(pg.locator("#f-addons"), f"start-addons-{engine}-{width}-{scheme}")
         c.close()
         assert not errors, errors
     b.close()

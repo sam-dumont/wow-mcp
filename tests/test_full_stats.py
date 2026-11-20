@@ -9,7 +9,6 @@ import re
 
 import pytest
 
-from tests.test_model3d import upstream  # noqa: F401 - a fixture
 from tests.test_public_view import fake_extras, make  # noqa: F401 - fake_extras is a fixture
 from tests.test_tenancy import OWNER, as_user, env, friend_ready, server, vl  # noqa: F401 - fixtures
 from wowstats import ui
@@ -112,10 +111,10 @@ def test_a_bad_domain_stops_the_full_view_at_start():
 
 
 @pytest.mark.usefixtures("fake_extras")
-def test_the_3d_frame_never_counts(run_app, upstream, tmp_path):  # noqa: F811 - the fixture
+def test_the_3d_frame_never_counts(run_app, tmp_path):
     """/model3d/view is a frame inside the page, which already counted the
     visit: a second pageview would count it twice."""
-    srv = run_app(make("full", PLAUSIBLE_DOMAIN=DOMAIN, **upstream.env(tmp_path)))
+    srv = run_app(make("full", PLAUSIBLE_DOMAIN=DOMAIN, MODEL3D_CACHE_DIR=str(tmp_path / "cache")))
     assert pageview(srv.get("/")[2]) == ("/", DOMAIN)
     code, _, body = srv.get("/model3d/view")
     assert code == 200 and b"data-domain" not in body and b"stats.js" not in body

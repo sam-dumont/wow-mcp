@@ -125,7 +125,7 @@ def test_newer_version_replaces_the_script(shipper, installed, fake):
     # Same server, same password, nothing else asked.
     assert fake.seen == [("/install/update/shipper", AUTH), ("/install/update/shipper/wow_stats.py", AUTH)]
     assert installed.installers == []  # no agent copies to compare: the agent is left alone
-    # Once every 6 hours at most.
+    # Once every 2 hours at most.
     assert shipper.check_update(state, now=1_000_000 + 3600) is None
     assert len(fake.seen) == 2
 
@@ -162,6 +162,18 @@ def test_never_downgrades(shipper, installed, fake):
     assert installed.path.read_bytes() == before
     assert all(p == "/install/update/shipper" for p, _ in fake.seen)  # the file never fetched
     assert installed.lines() == []
+
+
+def test_release_candidates_sort_below_their_final(shipper, installed, fake):
+    """A release candidate is an update over the last final and below its own
+    final (tools/release/release.py names them X.Y.Z-rc.N)."""
+    vt = shipper.version_tuple
+    assert vt("0.6.1") < vt("0.7.0-rc.1") < vt("0.7.0-rc.2") < vt("0.7.0") < vt("0.7.1-rc.1")
+    assert vt("0.7.0-rc") is None and vt("0.7.0rc1") is None
+    installed.ship(fake.base + "/ingest")
+    fake.offer("0.7.0-rc.1", with_version(REAL, "0.7.0-rc.1"))
+    assert shipper.check_update({}, now=1) == "updated"
+    assert installed.lines() == ["auto-update: 0.5.1 -> 0.7.0-rc.1, from the next run on"]
 
 
 def test_server_without_the_endpoint(shipper, installed, fake):

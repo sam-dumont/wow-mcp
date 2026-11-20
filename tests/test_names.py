@@ -87,5 +87,5 @@ def test_no_bundle_write_leaves_the_bundle(tmp_path, rel):
 def test_bundle_writes_inside_still_work(tmp_path):
     b = publish.Bundle(tmp_path / "public")
     b.put("data/char/Zo%C3%AB.json", b"{}")
-    b.put("model3d/zam/1/a.js", b"x")
+    b.put("model3d/file/100001", b"x")
     assert (tmp_path / "public" / "data" / "char" / "Zoë.json").read_bytes() == b"{}"

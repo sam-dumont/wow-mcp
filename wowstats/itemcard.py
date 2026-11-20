@@ -127,9 +127,19 @@ def stat_lines(stats: dict) -> tuple[list[str], list[str]]:
     white = [fmt.format(_num(stats[k])) for k, fmt in WHITE if stats.get(k)]
     green = []
     sp, heal = stats.get("sp"), stats.get("heal")
+    # A healing item that also carries some damage reads as one line in
+    # Forever ("healing done by up to 20 and damage done by up to 7"), the
+    # game's own wording; equal values are the "damage and healing" line.
+    split = bool(sp and heal and heal != sp)
     for k, fmt in EQUIP:
         v = stats.get(k)
         if not v or (k == "heal" and sp and heal == sp):  # spell power already says "and healing"
+            continue
+        if split and k == "sp":
+            green.append(f"Equip: Increases healing done by up to {_num(heal)} and damage done by up to {_num(sp)} "
+                         "for all magical spells and effects.")
+            continue
+        if split and k == "heal":
             continue
         green.append("Equip: " + fmt.format(_num(v)))
     return white, green
@@ -284,7 +294,8 @@ class Catalog:
                     self.build, self.checked = d["build"], float(d["checked"])
                 if self.cards and time.time() - self.checked < DAY:
                     return
-            from wowstats.model3d import Upstream, _write, fetch
+            from wowstats.upstream import Upstream, fetch
+            from wowstats.upstream import write_file as _write
 
             try:
                 latest = json.loads(fetch(f"{self.wago}/api/builds/{urllib.parse.quote(self.product)}/latest")
@@ -369,7 +380,8 @@ class Catalog:
         if f is not None and f.is_file():
             with contextlib.suppress(OSError):
                 return f.read_bytes()
-        from wowstats.model3d import Upstream, _write, fetch
+        from wowstats.upstream import Upstream, fetch
+        from wowstats.upstream import write_file as _write
 
         try:
             body = fetch(f"{self.icon_url}{size}/{name}.jpg")
@@ -394,7 +406,7 @@ def shared() -> Catalog:
             import os
             import tempfile
 
-            from wowstats.model3d import PRODUCT, WAGO_URL
+            from wowstats.upstream import PRODUCT, WAGO_URL
 
             env = os.environ
             cache: Path | None = Path(env.get("MODEL3D_CACHE_DIR") or Path(tempfile.gettempdir()) / "wow-stats-model3d")

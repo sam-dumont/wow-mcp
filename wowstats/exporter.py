@@ -5,7 +5,8 @@ Stdlib only, one process, three polling loops on their own cadence:
   realm     /data/wow/ruleset/index and each ruleset, every 5 min (Forever is
             realmless: a ruleset's status is the closest thing to realm status)
   profile   each character in PROFILE_CHARACTERS, once a day: its profile,
-            appearance, equipment and talents (/specializations). Forever has no realms: a character is
+            appearance (and sex), guild, equipment, talents (/specializations) and
+            completed achievements (the Legacy points). Forever has no realms: a character is
             `{name}-{surname}` lowercased (testpriest-fixture) in the
             profile-forever-{region} namespace (checked live 2026-11-18). A
             character the API doesn't know yet (404, too low or never seen)
@@ -57,8 +58,19 @@ import urllib.request
 from email.utils import formatdate
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-REGION = LOCALE = API = OAUTH = FOREVER_NS = PROFILE_NS = PUSH_URL = MERGE_URL = MERGE_KEY_FILE = ""
-CLIENT_ID_FILE = CLIENT_SECRET_FILE = ""
+# One line each: a chained `a = b = ""` ties a key file's name to the
+# values the log prints, as far as CodeQL's taint tracking can tell.
+REGION = ""
+LOCALE = ""
+API = ""
+OAUTH = ""
+FOREVER_NS = ""
+PROFILE_NS = ""
+PUSH_URL = ""
+MERGE_URL = ""
+MERGE_KEY_FILE = ""
+CLIENT_ID_FILE = ""
+CLIENT_SECRET_FILE = ""
 TOKEN_NAMESPACES: dict = {}
 PROFILE_CHARS: list = []
 # Several people (wowstats.tenancy): the full view's list of every person's
@@ -313,7 +325,13 @@ PROFILE_SERIES = ("wow_character_profile", "wow_character_customization", "wow_c
                   # suffix's ("of the Owl") are in no item table (gear advice).
                   "wow_character_equipped_stat",
                   # Talents (/specializations): the active group's points per tree and ranks.
-                  "wow_character_talent_points", "wow_character_talent_rank")
+                  "wow_character_talent_points", "wow_character_talent_rank",
+                  # Completed achievements (/achievements): the Legacy points'
+                  # challenges are achievements (wowstats.talents.legacy).
+                  "wow_character_achievement",
+                  # How many it completed, written only when /achievements
+                  # answered: without it the Legacy count is unknown, not 0.
+                  "wow_character_achievements_read")
 # Where /character-media's renders may come from: the armory's own image
 # host. The publisher downloads the image from there (its only egress for
 # it); any other address is ignored.
@@ -359,6 +377,26 @@ def talent_readings(body) -> tuple[list[dict], dict[int, tuple[int, str]]]:
                 name = ((t.get("talent") or {}).get("name") or spell.get("name") or "")
                 ranks[spell["id"]] = (rank, str(name))
     return trees, ranks
+
+
+def completed_achievements(body) -> dict[int, float]:
+    """{achievement id: completed at (epoch seconds)} from an /achievements
+    answer: achievements[] {id, achievement {id}, completed_timestamp (ms)}.
+    Without a timestamp an entry counts only when its criteria say
+    is_completed (then "now": when is unknown)."""
+    out: dict[int, float] = {}
+    for a in (body.get("achievements") if isinstance(body, dict) else None) or []:
+        if not isinstance(a, dict):
+            continue
+        aid = a.get("id") if isinstance(a.get("id"), int) else (a.get("achievement") or {}).get("id")
+        if not isinstance(aid, int):
+            continue
+        ts = a.get("completed_timestamp")
+        if isinstance(ts, (int, float)) and ts > 0:
+            out[aid] = ts / 1000 if ts > 1e11 else float(ts)
+        elif (a.get("criteria") or {}).get("is_completed") is True:
+            out[aid] = time.time()
+    return out
 
 
 def forget_old(now=None):
@@ -408,7 +446,7 @@ def profile_chars() -> list[tuple[str, str]]:
 
 def poll_profile():
     """Each listed character's profile, appearance and equipment. The look is
-    option/choice ids, the same ids Wowhead's viewer takes."""
+    option/choice ids, the ones the 3D view's recipe reads (character3d)."""
     keep = {n: set() for n in PROFILE_SERIES}
     found = 0
     chars = profile_chars()
@@ -423,7 +461,14 @@ def poll_profile():
         look = api_get(f"{path}/appearance", PROFILE_NS, "profile_appearance") or {}
         race = (prof.get("race") or look.get("playable_race") or {}).get("id")
         gender = ((prof.get("gender") or look.get("gender") or {}).get("type") or "").lower()
-        labels = {**who, "race_id": str(race or ""), "gender": gender}
+        # The guild's name, from the profile (owner, 2026-11-20: Battle.net,
+        # not an addon); none when the character has no guild.
+        guild = (prof.get("guild") or {}).get("name") if isinstance(prof.get("guild"), dict) else None
+        in_guild = isinstance(guild, str) and bool(guild)
+        # in_guild says the profile was read for it: a series without it
+        # (an older exporter) leaves the guild unknown, not "none".
+        labels = {**who, "race_id": str(race or ""), "gender": gender, "in_guild": str(in_guild).lower(),
+                  **({"guild": str(guild)} if in_guild else {})}
         put("wow_character_profile", labels, prof.get("level") or 0, "profile")
         keep["wow_character_profile"].add(tuple(sorted(labels.items())))
         # When Blizzard's answer was read: the page says how old the look is,
@@ -465,8 +510,8 @@ def poll_profile():
                         sl = {**labels, "stat": str(kind)}
                         put("wow_character_equipped_stat", sl, v, "profile")
                         keep["wow_character_equipped_stat"].add(tuple(sorted(sl.items())))
-        # Talents for the card: no local add-on saves them by itself on
-        # Forever (Altoholic keeps only the class name, /simx is by hand).
+        # Talents for the card, the spec and the meta score: the only source
+        # (the game saves none; Altoholic keeps only the class name).
         trees, ranks = talent_readings(api_get(f"{path}/specializations", PROFILE_NS, "profile_specializations"))
         for i, t in enumerate(trees):
             labels = {**who, "tree": t["tree"], "order": str(i)}
@@ -476,6 +521,16 @@ def poll_profile():
             labels = {**who, "spell_id": str(sp), "talent": tname}
             put("wow_character_talent_rank", labels, rk, "profile")
             keep["wow_character_talent_rank"].add(tuple(sorted(labels.items())))
+        # Completed achievements: the Legacy points (owner, 2026-11-20).
+        body = api_get(f"{path}/achievements", PROFILE_NS, "profile_achievements")
+        got = completed_achievements(body)
+        if isinstance(body, dict):
+            put("wow_character_achievements_read", who, len(got), "profile")
+            keep["wow_character_achievements_read"].add(tuple(sorted(who.items())))
+        for aid, at in got.items():
+            labels = {**who, "achievement_id": str(aid)}
+            put("wow_character_achievement", labels, at, "profile")
+            keep["wow_character_achievement"].add(tuple(sorted(labels.items())))
     for n, k in keep.items():
         drop(n, "profile", k)
     drop("wow_character_profile_found", "profile",

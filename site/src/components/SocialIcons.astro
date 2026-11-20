@@ -1,0 +1,23 @@
+---
+// The version these docs describe, next to the GitHub link: a reader with an
+// older install sees at once that a page may say more than theirs does.
+import Default from "@astrojs/starlight/components/SocialIcons.astro";
+import { BASE } from "../../scripts/site.mjs";
+---
+
+<a class="docs-version" href={`${BASE}project/changelog/`} title="What changed in each version">v{__WOW_VERSION__}</a>
+<Default />
+
+<style>
+  .docs-version {
+    font-size: var(--sl-text-xs);
+    font-weight: 600;
+    color: var(--sl-color-gray-2);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .docs-version:hover { color: var(--sl-color-text-accent); border-color: var(--sl-color-text-accent); }
+</style>

@@ -12,9 +12,9 @@ after the game saves them, and turns them into pages you can act on.
 ## The four pieces
 
 **The addons.** [Polestar](https://github.com/fitzforge/polestar) and its Recorder do most of
-the work: route steps, levels, sessions, zones, deaths. Syndicator adds your bags, Auctionator
-your auction house scans, Questie or Altoholic the quests you did before. wow-stats ships no
-addon of its own. The full list: [Addons it reads](../reference/addons.md).
+the work: route steps, levels, sessions, zones, deaths. The optional ones each add one part
+(bags, auction scans, older quests, talent history). wow-stats ships no addon of its own.
+The full list, with what each one adds: [Addons it reads](../reference/addons.md).
 
 **SavedVariables.** That's where addons keep their data: plain text files in the game's `WTF`
 folder. WoW writes them only when you `/reload`, log out or switch character. A crash or
@@ -27,8 +27,8 @@ to your server with your own upload password. It keeps a copy of everything it s
 `WoWArchive` folder in your home folder. It never reads your WoW or Battle.net password, and
 nothing outside the WoW folder. [What it sends](../players/getting-started.md#what-the-program-on-your-computer-does).
 
-**The server.** One `docker compose up` on a small box: 2 vCPU and 2 GiB of RAM run it for a
-handful of players, and a year of one player's events takes a few MiB. It keeps the events
+**The server.** One `docker compose up` on a small box: 2 vCPU and 2 GiB of RAM run it for
+one player, and a year of one player's events takes a few MiB. It keeps the events
 and works out everything else from them, every time you open a page: pace, upgrades,
 dungeons, plans. Someone you know can run it for you, and then you skip this part.
 
@@ -38,8 +38,8 @@ dungeons, plans. Someone you know can run it for you, and then you skip this par
 next upgrade per slot and where it drops, the dungeon worth running, your climb, one journal
 entry per play session. A tour: [Your page at a glance](../players/your-page.md).
 
-**Pages for others, if you want them.** A sealed copy for the friends you pick (the key sits
-in the link, so the server can't read it) and a public one cut down to an allow list. Neither
+**Pages for others, if you want them.** A sealed copy for the friends you pick (encrypted, with
+the key in the link, which your browser never sends to the web server) and a public one cut down to an allow list. Neither
 ever shows other players, what killed you, or where your character is right now.
 [What's shared](../players/privacy.md).
 

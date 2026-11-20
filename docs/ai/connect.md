@@ -19,7 +19,7 @@ plan.
 - **Your login for the server.** The assistant opens your browser once to log in, the same
   account as your page.
 
-Running the server yourself? It needs a public HTTPS address and a login provider first:
+Running the server yourself: it needs a public HTTPS address and a login provider first:
 [Set up the login for your AI](../self-host/oidc.md). On the computer that runs the server
 there's a shortcut with no login: [On the server's own computer](#on-the-servers-own-computer).
 
@@ -105,7 +105,7 @@ codex mcp add wow --url https://wow.example.org/mcp && codex mcp login wow
 https://wow.example.org/mcp
 ```
 
-> Not checked end to end yet: the exact path Copilot CLI's login comes back on. If it's refused, say so to whoever runs this site.
+> Not checked end to end yet: the exact path Copilot CLI's login comes back on. If it's refused, tell the owner.
 
 **It worked when:** Ask "use wow-stats: what's my character doing?": the answer names your character and its level.
 
@@ -185,7 +185,7 @@ https://wow.example.org/mcp
 {"mcpServers": {"wow": {"serverUrl": "https://wow.example.org/mcp"}}}
 ```
 
-> Not checked yet: where Windsurf sends your browser back after the login. If it's refused, say so to whoever runs this site.
+> Not checked yet: where Windsurf sends your browser back after the login. If it's refused, tell the owner.
 
 **It worked when:** Ask "use wow-stats: what's my character doing?": the answer names your character and its level.
 

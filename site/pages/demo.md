@@ -21,7 +21,7 @@ The pages are plain files on GitHub Pages, so anything that needs the server is 
 
 - no login, no full view (other players, gold over time, the live timeline);
 - no MCP: [a recorded session](mcp-session.md) shows what an assistant gets from the same data;
-- no Battle.net data: Nibbet has no Battle.net profile, so his card shows the outline instead of his render. "View in 3D" still dresses the model in his gear (Wowhead's viewer and the model files are copied into the page when it's built).
+- no Battle.net data: Nibbet has no Battle.net profile, so his card shows the outline instead of his render. "View in 3D" says why it has nothing to draw: the model comes from a player's own game files, and the demo has none.
 
 The dates move: every build shifts his play so his last evening is the day before. The auction house only lists what was on sale today or yesterday, so a demo frozen in October would have an empty auction house.
 

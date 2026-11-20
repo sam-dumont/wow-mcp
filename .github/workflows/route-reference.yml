@@ -3,9 +3,10 @@
 # when one differs from the committed file (docs/route-reference.md,
 # docs/gear-reference.md, docs/forever-reference.md), then runs
 # Polestar's own gear scoring (Gear.lua) against wowstats/gear.py on every item
-# (tests/test_gear_parity.py). It never commits: a new Polestar tag (POLESTAR_TAG,
-# bumped by hand when kb-refresh's watcher reports the release) fails here
-# until someone reruns both exports and commits the new files in that PR.
+# (tests/test_gear_parity.py). It never commits: the Polestar tag lives in
+# tools/polestar-tag (a file, so kb-refresh's token, which can't edit a
+# workflow, can move it), and kb-refresh bumps it with the exports in one PR
+# when the watcher sees a release; a tag moved without the exports fails here.
 # Actions are pinned by commit SHA (the comment is the tag it was taken from).
 name: route-reference
 on:
@@ -15,6 +16,7 @@ on:
       - tools/route_reference/**
       - tools/gear_reference/**
       - tools/forever_reference/**
+      - tools/polestar-tag
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
@@ -26,6 +28,7 @@ on:
       - tools/route_reference/**
       - tools/gear_reference/**
       - tools/forever_reference/**
+      - tools/polestar-tag
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
@@ -37,13 +40,12 @@ permissions:
   contents: read
 
 env:
-  # The one place the Polestar version is set, for both exports.
-  POLESTAR_TAG: v0.4.1
   # Same Node as the export was last run with: Math.hypot and friends may round differently elsewhere.
   NODE_VERSION: 24.5.0
 
 jobs:
   check:
+    if: github.repository_id == '1464458020'
     runs-on: ubuntu-latest
     steps:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
@@ -55,6 +57,9 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
       - name: Lua, to read the addon's compiled files
         run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends lua5.4
+      # The one place the Polestar version is set, for every export.
+      - name: The Polestar tag
+        run: echo "POLESTAR_TAG=$(tr -d '[:space:]' < tools/polestar-tag)" >> "$GITHUB_ENV"
       - name: Polestar at its tag
         run: git clone -q --depth 1 --branch "$POLESTAR_TAG" https://github.com/fitzforge/polestar "$RUNNER_TEMP/polestar"
       - name: Export

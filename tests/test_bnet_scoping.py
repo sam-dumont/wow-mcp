@@ -26,7 +26,11 @@ def _series(acct: str, name: str, ilvl: float, option_choice: int, tree: str) ->
         ("wow_character_render", {**who, "asset": "main-raw",
                                   "url": f"https://render.worldofwarcraft.com/x/{acct}-main-raw.png"}, 1795000000.0),
         ("wow_character_customization", {**who, "option_id": "80"}, float(option_choice)),
-        ("wow_character_profile", {**who, "race_id": "7", "gender": "male"}, 30.0),
+        ("wow_character_profile", {**who, "race_id": "7", "gender": "male", "in_guild": "true",
+                                   "guild": f"Guild {acct}"}, 30.0),
+        ("wow_character_profile_found", who, 1.0),
+        ("wow_character_achievement", {**who, "achievement_id": str(61000 + int(acct))}, 1795000000.0),
+        ("wow_character_achievements_read", who, 1.0),
         ("wow_character_profile_refreshed_timestamp_seconds", who, 1795000000.0),
         ("wow_character_equipped", {**who, "slot": "head"}, 1000.0 + int(acct)),
         ("wow_character_equipped_stat", {**who, "slot": "head", "stat": "INTELLECT"}, float(acct)),
@@ -71,6 +75,11 @@ def test_each_friend_reads_only_their_own_copy_of_a_shared_name():
     assert one.character_equipment(SHARED)["head"]["item_id"] == 1001
     assert one.character_talents(SHARED)["trees"] == [{"tree": "Holy", "points": 5}]
     assert two.character_talents(SHARED)["trees"] == [{"tree": "Shadow", "points": 5}]
+    # Guild, sex and the Legacy achievements (2026-11-20) too.
+    assert one.character_profile(SHARED)["guild"] == "Guild 1"
+    assert two.character_profile(SHARED) == {"sex": "male", "guild": "Guild 2", "guild_known": True,
+                                             "refreshed": two.character_profile(SHARED)["refreshed"]}
+    assert list(one.account_achievements()) == [61001] and list(two.account_achievements()) == [61002]
     # Every profile read names the account, the fingerprint too.
     one.profile_fingerprint()
     assert one.queries and all('account_id="1"' in q for q in one.queries), one.queries
@@ -82,6 +91,8 @@ def test_a_friend_naming_the_owners_character_reads_nothing():
     assert friend.character_look("Ownerchar-Fixture") is None
     assert friend.character_talents("Ownerchar-Fixture") is None
     assert friend.character_equipment("Ownerchar-Fixture") == {}
+    assert friend.character_profile("Ownerchar-Fixture") is None
+    assert FakeVM(3).account_achievements() is None
     assert FakeVM(0).character_armory("Ownerchar-Fixture")["item_level"] == 40.0
     # A third person with no Battle.net data of their own sees none of theirs.
     assert FakeVM(3).character_look(SHARED) is None
@@ -113,3 +124,32 @@ def test_the_exporter_list_gives_a_shared_name_to_the_owner_or_to_nobody(capsys)
 def test_one_person_keeps_all_their_names():
     t = _people({0: ["Ownerchar-Fixture", "Owneralt-Fixture"]})
     assert tenancy.Tenancy.profile_characters(t) == [(0, "Ownerchar-Fixture"), (0, "Owneralt-Fixture")]
+
+
+def test_what_battlenet_never_read_is_unknown_never_0_or_none(monkeypatch):
+    """Degraded mode (owner, 2026-11-20): an exporter that never read
+    /achievements (an older one, or the API failed) leaves the Legacy count
+    unknown, not 0; a profile series without in_guild leaves the guild
+    unknown, not "no guild". What Battle.net did answer stays a fact."""
+    import sys
+
+    from wowstats import talents
+
+    mod = sys.modules[__name__]
+
+    who = {"character": "Old-Fixture", "account_id": "0"}
+    monkeypatch.setattr(mod, "VM", [
+        ("wow_character_profile", {**who, "race_id": "7", "gender": "female"}, 30.0),
+        ("wow_character_profile_found", who, 1.0)])
+    vm = FakeVM(0)
+    assert vm.account_achievements() is None
+    assert talents.legacy({"legacy_sources": [{"amount": 1, "requirement": "x", "achievements": [1]}]},
+                          vm.account_achievements())["earned_points"] is None
+    assert vm.character_profile("Old-Fixture")["guild"] is None
+    assert vm.character_profile("Old-Fixture")["guild_known"] is False
+    # Read, and nothing there: 0 points, and no guild for a fact.
+    monkeypatch.setattr(mod, "VM", [
+        ("wow_character_profile", {**who, "race_id": "7", "gender": "female", "in_guild": "false"}, 30.0),
+        ("wow_character_achievements_read", who, 0.0)])
+    assert vm.account_achievements() == {}
+    assert vm.character_profile("Old-Fixture")["guild_known"] is True

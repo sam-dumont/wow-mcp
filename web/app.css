@@ -2,147 +2,8 @@
    gold leaf; day is parchment. The character plate (banner and equipment)
    stays leather in both, like the game's own character sheet. Nothing here
    comes from the game: the crest, the glyphs and the filigree are drawn in
-   this file and in app.js. Fonts are OFL and served by this server
-   (web/fonts, licences next to them). */
-
-@font-face { font-family: "Cinzel"; src: url("fonts/cinzel.woff2") format("woff2"); font-weight: 400 900; font-display: swap; }
-@font-face { font-family: "Alegreya"; src: url("fonts/alegreya.woff2") format("woff2"); font-weight: 400 900; font-style: normal; font-display: swap; }
-@font-face { font-family: "Alegreya"; src: url("fonts/alegreya-italic.woff2") format("woff2"); font-weight: 400 900; font-style: italic; font-display: swap; }
-@font-face { font-family: "Alegreya Sans"; src: url("fonts/alegreya-sans-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
-@font-face { font-family: "Alegreya Sans"; src: url("fonts/alegreya-sans-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
-@font-face { font-family: "Alegreya Sans"; src: url("fonts/alegreya-sans-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
-
-/* One palette a surface, never a mix: the night palette is the page at
-   night and the character plate in both themes; the day palette is the page
-   by day and the journal's parchment in both. A box drawn on a surface (the
-   comparison under the doll, a list) takes every colour from that surface,
-   its background as well as its text: the plate once kept the day page's
-   --panel under its own night ink, and the comparison under the doll read
-   cream on parchment (2026-11-19). */
-:root, .plate {
-  --display: "Cinzel", "Trajan Pro", "Times New Roman", serif;
-  --serif: "Alegreya", "Iowan Old Style", Palatino, Georgia, serif;
-  --sans: "Alegreya Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
-
-  /* night: the page */
-  --page: #16110C;
-  --panel: #251B13;
-  --raised: #31241A;
-  --sunk: #120D09;
-  --rule: #4A3826;
-  --frame: #6B5032;
-  --gold: #C99A3B;
-  --gold-hi: #F0CF7A;
-  --gold-lo: #7A5A22;
-  --ink: #EFE4CA;
-  --muted: #B09C7A;
-  --quest: #E3B73E;
-  --kill: #C8553F;
-  --death: #D9604A;
-  --good: #7DC160;
-  --bar: linear-gradient(180deg, #D9AE4E, #9C7426);
-  --focus: #F0CF7A;
-  --grain-a: .5;
-  /* WoW's quality colours are made for a dark tooltip: by day they go
-     darker, keeping their hue (the share of the colour mixed with black). */
-  --qmix: 100%;
-
-  /* the character plate: the same in both themes */
-  --plate: #221911;
-  --plate-ink: #F2E8CF;
-  --plate-muted: #B8A27C;
-
-  /* the journal's parchment, a little dimmed at night */
-  --parch: #D8C49A;
-  --parch-edge: #A8895A;
-  --parch-ink: #2E2012;
-  --parch-muted: #58442A;
-
-  /* XP: purple, blue while rested (as in the game) */
-  --xp: #9A35B4;
-  --xp-hi: #C268DA;
-  --rest: #2366D1;
-  --rest-hi: #5B94F0;
-
-  /* item quality */
-  --q0: #9D9D9D; --q1: #FFFFFF; --q2: #1EFF00; --q3: #2F86F2; --q4: #A335EE; --q5: #FF8000;
-
-  /* Procedural noise tiles. stitchTiles only lines up the noise with the edges of
-     the filter region, so the region is pinned to the tile (x/y 0, 100%): the
-     default -10%/120% region left a seam every tile width. */
-  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='p' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .09' numOctaves='3' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .24 0 0 0 0 .1 0 0 0 .28 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
-  --c-tl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cg%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M2 28V10.5C2 5.8 5.8 2 10.5 2H28' stroke-width='1.4'/%3E%3Cpath d='M6 28V12Q6 6 12 6H28' stroke-width='.8' opacity='.55'/%3E%3Cpath d='M10.5 18c0-4.4 3.1-7.5 7.5-7.5' stroke-width='1'/%3E%3C/g%3E%3Ccircle cx='6' cy='6' r='1.9'/%3E%3C/g%3E%3C/svg%3E");
-  --c-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cg transform='matrix(-1 0 0 1 30 0)'%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M2 28V10.5C2 5.8 5.8 2 10.5 2H28' stroke-width='1.4'/%3E%3Cpath d='M6 28V12Q6 6 12 6H28' stroke-width='.8' opacity='.55'/%3E%3Cpath d='M10.5 18c0-4.4 3.1-7.5 7.5-7.5' stroke-width='1'/%3E%3C/g%3E%3Ccircle cx='6' cy='6' r='1.9'/%3E%3C/g%3E%3C/svg%3E");
-  --c-bl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cg transform='matrix(1 0 0 -1 0 30)'%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M2 28V10.5C2 5.8 5.8 2 10.5 2H28' stroke-width='1.4'/%3E%3Cpath d='M6 28V12Q6 6 12 6H28' stroke-width='.8' opacity='.55'/%3E%3Cpath d='M10.5 18c0-4.4 3.1-7.5 7.5-7.5' stroke-width='1'/%3E%3C/g%3E%3Ccircle cx='6' cy='6' r='1.9'/%3E%3C/g%3E%3C/svg%3E");
-  --c-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cg transform='matrix(-1 0 0 -1 30 30)'%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M2 28V10.5C2 5.8 5.8 2 10.5 2H28' stroke-width='1.4'/%3E%3Cpath d='M6 28V12Q6 6 12 6H28' stroke-width='.8' opacity='.55'/%3E%3Cpath d='M10.5 18c0-4.4 3.1-7.5 7.5-7.5' stroke-width='1'/%3E%3C/g%3E%3Ccircle cx='6' cy='6' r='1.9'/%3E%3C/g%3E%3C/svg%3E");
-  color-scheme: dark;
-}
-
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme="dark"]) {
-    --page: #E6D5AE;
-    --panel: #F1E4C4;
-    --raised: #EADAB4;
-    --sunk: #DCC89C;
-    --rule: #C9AF7C;
-    --frame: #A9874F;
-    --gold: #704D0F;
-    --gold-hi: #6E4A0B;
-    --gold-lo: #B8975A;
-    --ink: #2C1F12;
-    --muted: #675032;
-    --quest: #9A6A00;
-    --kill: #A23B26;
-    --death: #A8331F;
-    --good: #3B7A22;
-    --bar: linear-gradient(180deg, #B58A35, #8A5F12);
-    --focus: #8A5F12;
-    --grain-a: .35;
-    --qmix: 35%;
-    --parch: #EFE0BC;
-    color-scheme: light;
-  }
-}
-:root[data-theme="light"], .jentry {
-  --page: #E6D5AE;
-  --panel: #F1E4C4;
-  --raised: #EADAB4;
-  --sunk: #DCC89C;
-  --rule: #C9AF7C;
-  --frame: #A9874F;
-  --gold: #704D0F;
-  --gold-hi: #6E4A0B;
-  --gold-lo: #B8975A;
-  --ink: #2C1F12;
-  --muted: #675032;
-  --quest: #9A6A00;
-  --kill: #A23B26;
-  --death: #A8331F;
-  --good: #3B7A22;
-  --bar: linear-gradient(180deg, #B58A35, #8A5F12);
-  --focus: #8A5F12;
-  --grain-a: .35;
-  --qmix: 35%;
-  --parch: #EFE0BC;
-  color-scheme: light;
-}
-
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; scroll-padding-top: 64px; }
-body {
-  margin: 0;
-  background-color: var(--page);
-  background-image: var(--grain), radial-gradient(ellipse 120% 900px at 50% -200px, rgba(201, 154, 59, .10), transparent 70%);
-  background-repeat: repeat, no-repeat;
-  color: var(--ink);
-  font: 16px/1.5 var(--sans);
-  font-variant-numeric: lining-nums tabular-nums;
-}
-a { color: inherit; }
-:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+   this file and in app.js. The fonts, the palettes and the bar come from
+   base.css, loaded first. */
 
 /* ------------------------------------------------------------ frames */
 
@@ -193,12 +54,8 @@ a { color: inherit; }
   background: var(--gold); box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--gold-lo);
 }
 
-/* ------------------------------------------------------------ top bar */
+/* ------------------------------------------------------------ the bar's tools: character and tabs */
 
-.topbar {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  max-width: 1160px; margin: 0 auto; padding: 14px 16px 12px;
-}
 .switcher select {
   appearance: none; -webkit-appearance: none;
   font: 600 16px/1.2 var(--display); letter-spacing: .03em;
@@ -210,7 +67,7 @@ a { color: inherit; }
   background-size: 5px 5px; background-repeat: no-repeat;
 }
 .switcher select option { background: var(--panel); color: var(--ink); font-family: var(--sans); }
-.tabs { display: flex; gap: 2px; margin-left: auto; padding: 3px; border: 1px solid var(--rule); border-radius: 4px; background: var(--sunk); }
+.tabs { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--rule); border-radius: 4px; background: var(--sunk); }
 .tabs button {
   font: 600 13px/1 var(--display); letter-spacing: .06em; color: var(--muted); background: none;
   border: 1px solid transparent; border-radius: 3px; padding: 8px 12px; cursor: pointer;
@@ -220,11 +77,6 @@ a { color: inherit; }
   background: linear-gradient(180deg, var(--raised), var(--panel));
 }
 .tabs button:hover { color: var(--ink); }
-.theme {
-  font: 500 14px var(--sans); color: var(--muted); background: none;
-  border: 1px solid var(--rule); border-radius: 4px; padding: 7px 11px; cursor: pointer; white-space: nowrap;
-}
-.theme:hover { color: var(--ink); border-color: var(--frame); }
 
 main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 
@@ -654,7 +506,7 @@ h3 { font: 600 14px/1.3 var(--display); letter-spacing: .05em; margin: 18px 0 6p
 .dgdrops, .dgqs { list-style: none; margin: 0; padding: 0; }
 .dgdrop { display: grid; gap: 1px; padding: 5px 0; min-width: 0; }
 .dgdrop + .dgdrop { border-top: 1px dashed color-mix(in srgb, var(--rule) 55%, transparent); }
-.dgitem { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.dgitem { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
 .dgitem .itm { min-width: 0; }
 .dgmeta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding-left: 44px; font-size: 13.5px; color: var(--muted); }
 .dgmeta .gain { color: var(--good); font-weight: 700; white-space: nowrap; font-size: 14px; }
@@ -725,6 +577,8 @@ a.whx:hover { color: var(--gold-hi); background: color-mix(in srgb, var(--rule) 
 .journal h2 { font-size: 28px; }
 .journal .jhead .lede { color: var(--muted); margin: 0 0 18px; max-width: 70ch; font: 17px/1.5 var(--serif); }
 .jlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+/* Where the Recorder's detail starts (switched on later): one quiet line. */
+.jmark { color: var(--muted); font-size: 14px; padding: 8px 4px 0; border-top: 1px dashed currentColor; }
 .jentry {
   --ink: var(--parch-ink); --muted: var(--parch-muted); --rule: #B89A68; --gold: #64410A; --gold-hi: #5C3A06;
   --gold-lo: #B8975A; --sunk: #CDB58A; --bar: linear-gradient(180deg, #A97C2A, #7A4F0C); --death: #832717;
@@ -785,10 +639,7 @@ a.whx:hover { color: var(--gold-hi); background: color-mix(in srgb, var(--rule) 
 
 @media (max-width: 600px) {
   body { font-size: 15px; }
-  .topbar { flex-wrap: wrap; padding-bottom: 10px; }
-  .switcher { flex: 1 1 auto; }
   .switcher select { max-width: 100%; width: 100%; }
-  .tabs { order: 3; margin-left: 0; flex: 1 1 100%; min-width: 0; }
   /* Four tabs on a phone: they share the width instead of pushing it. */
   .tabs button { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; letter-spacing: .01em; font-size: 12px; }
   .banner { padding: 18px 16px 16px; }
@@ -1106,7 +957,12 @@ a.whsmall { font: 500 12.5px/1 var(--sans); color: var(--muted); }
 .tnode:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ttip b { display: block; } .ttip .trank { color: var(--muted); font-size: 13px; } .ttip p { margin: 4px 0 0; max-width: 32ch; }
 .thistory, .legacy { margin-top: 16px; }
-.thistory ol { margin: 0 0 6px; padding-left: 20px; }
+.tchanges { margin: 0 0 6px; padding-left: 0; list-style: none; max-width: 70ch; }
+.tchanges li { padding: 6px 0; border-top: 1px solid var(--rule); }
+.tchanges li:first-child { border-top: 0; }
+.tchanges p { margin: 0 0 2px; }
+.tchk { color: var(--muted); }
+.thint { margin: 6px 0 0; max-width: 70ch; }
 .legacy p { margin: 0 0 6px; max-width: 70ch; }
 .legacy details { margin: 0 0 6px; }
 @media (max-width: 600px) {
@@ -1131,6 +987,55 @@ a.whsmall { font: 500 12.5px/1 var(--sans); color: var(--muted); }
   background: var(--gold-lo); }
 .cgrespec { margin: 0; max-width: 60ch; }
 @media (max-width: 600px) { .classguide { padding: 16px 12px; } }
+
+/* State of the meta (renderMeta, renderMetaFull): the paragraph, the score
+   with its parts, the gaps as moves, the meta in full behind a toggle. */
+.metabox { padding: 22px 24px; margin-bottom: 18px; display: grid; gap: 14px; }
+.metabox .rule-title { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin: 0; }
+.metawhen { font: 600 13px var(--sans); letter-spacing: 0; color: var(--muted); }
+.metawhen.stale { color: var(--warn, var(--gold)); }
+.metatext { margin: 0; max-width: 68ch; font: 16px/1.5 var(--serif); color: var(--ink); }
+.metabox h3 { font-family: var(--display); font-size: 15px; letter-spacing: .04em; color: var(--gold-hi); margin: 0 0 6px; }
+.metascore { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 18px; align-items: center;
+  padding: 14px 0; border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); }
+.msnum { display: flex; align-items: baseline; gap: 2px; }
+.msnum b { font: 600 44px/1 var(--display); color: var(--gold-hi); }
+.msnum span { color: var(--muted); font: 600 15px var(--sans); }
+.mslabel { display: grid; gap: 2px; }
+.mslabel b { font: 600 18px/1.3 var(--sans); }
+.metaparts { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.metapart { display: grid; grid-template-columns: 6.5em minmax(60px, 1fr) 3.2em; gap: 2px 12px; align-items: center; }
+.mpname { font: 600 13px/1.4 var(--display); letter-spacing: .05em; color: var(--gold); }
+.mpbar { height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--rule) 60%, transparent); overflow: hidden; }
+.mpbar span { display: block; height: 100%; background: var(--gold); border-radius: 4px; }
+.mppct { text-align: right; font: 600 15px var(--sans); font-variant-numeric: tabular-nums; }
+.mpsub { grid-column: 2 / -1; color: var(--muted); font-size: 14px; }
+.metamore summary { cursor: pointer; font: 600 14px var(--display); letter-spacing: .05em; color: var(--gold); padding: 4px 0; }
+.metagrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px 28px; margin-top: 12px; }
+.metacol { min-width: 0; }
+.metalist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.metalist li { padding-left: 14px; position: relative; max-width: 62ch; line-height: 1.45; }
+.metalist li::before { content: ""; position: absolute; left: 0; top: .6em; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gold-lo); }
+.metasoon { margin: 0; font: 600 15px/1.45 var(--sans); color: var(--gold-hi); }
+.metacoming .mcline { display: block; color: var(--muted); font-size: 15px; }
+.metacoming .mcline.you { color: var(--ink); }
+.ovnews { margin-top: 16px; }
+.ovnews h2 { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+.nwitem.you .mk { color: var(--gold-hi); }
+.nwweeks { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+.nwcommunity { margin-top: 14px; }
+.nwcommunity h3 { margin: 0 0 6px; font: 600 15px/1.4 var(--sans); display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: 2px 12px; }
+.nwsaid .mk { color: var(--muted); }
+.nwsaid.you .mk { color: var(--gold-hi); }
+.nwsaid a.mtitle { color: inherit; text-decoration: underline; text-decoration-color: var(--gold-lo); text-underline-offset: 3px; }
+@media (max-width: 600px) {
+  .metabox { padding: 16px 12px; }
+  .msnum b { font-size: 36px; }
+  .metapart { grid-template-columns: 5.5em minmax(40px, 1fr) 3em; }
+}
 
 /* The paperdoll on a phone, as the armory's: icon-only columns over the
    character, the weapons under it; a tap on an icon opens the tooltip. */
@@ -1196,6 +1101,17 @@ li.cand:first-child { border-top: 0; }
 .candmeta .slotname { font: 600 11.5px/1.4 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
 .advice .gain, .cand .gain { color: var(--good); font-weight: 700; }
 .cands.compact .cand { font-size: 14px; }
+/* Who an upgrade is built for: a quiet line under the item, the label in
+   green when it's yours, gold for another spec of your class, red when
+   it's made for another class. */
+.fit { flex-basis: 100%; margin: 0; font-size: 13.5px; color: var(--muted); }
+.fit .fitlabel { font-weight: 600; }
+.fit.yes .fitlabel { color: var(--good); }
+.fit.spec .fitlabel, .fit.unknown .fitlabel { color: var(--gold); }
+.fit.class .fitlabel { color: var(--bad); }
+.fitalt { margin: 0; font-size: 14px; color: var(--muted); }
+.fitalt b { color: var(--ink); }
+.dgitem .fit { margin-top: 2px; }
 .upmore { margin-top: 10px; color: var(--muted); }
 .upmore > summary { cursor: pointer; font-size: 14.5px; }
 .upmore .cands { margin-top: 6px; color: var(--ink); }
@@ -1257,7 +1173,3 @@ li.cand:first-child { border-top: 0; }
   .byslot tr.cmprow, .byslot tr.cmprow > td { display: block; padding: 0; border: 0; }
 }
 
-/* Several people (wowstats.account): Start and Settings next to the theme switch. */
-.acc-links { display: flex; gap: 12px; margin-left: auto; font-family: var(--sans); font-size: 15px; }
-.acc-links a { color: var(--muted); text-decoration: none; }
-.acc-links a:hover { color: var(--ink); }

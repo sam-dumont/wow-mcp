@@ -55,7 +55,7 @@ class Server(httpserve.Server):
 
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
          ".css": "text/css; charset=utf-8", ".json": "application/json", ".woff2": "font/woff2",
-         ".webp": "image/webp", ".png": "image/png", ".txt": "text/plain; charset=utf-8",
+         ".webp": "image/webp", ".png": "image/png", ".svg": "image/svg+xml", ".txt": "text/plain; charset=utf-8",
          ".enc": "application/octet-stream"}
 NOT_FOUND = notice.not_found_page()
 BUILD = re.compile(r"^b\d{1,12}$")
@@ -182,9 +182,9 @@ def make_handler(site: Site):
             path = urllib.parse.urlsplit(self.path).path
             sys.stdout.write(f"{self.command} {path} {code}\n")
             if str(code) == "404" and "/model3d/" in path:
-                # The bundle lacks a file the 3D viewer asked for (or the
-                # browser holds an old revision's file): the model draws
-                # wrong or not at all. One line to grep for.
+                # The bundle lacks a file the 3D viewer asked for (the
+                # player's shipper hadn't sent it at build time): drawn
+                # without it. One line to grep for.
                 sys.stdout.write(f"missing 3D file: {path}\n")
 
         def _send(self, code: int, body: bytes, ctype: str, csp: str, bundle: str, cache: str) -> None:
@@ -219,12 +219,9 @@ def make_handler(site: Site):
             body = f.read_bytes()
             # The 3D frame: its own sandboxed policy, read from the page.
             csp = m3d.view_csp(body) if f.name == "view.html" else ui.CSP_3D
-            # The 3D files named by a FileDataID never change; the metas and
-            # the viewer script do (wowstats.model3d.cache_control).
-            posix = f.as_posix()
-            zam = f"/model3d/zam/{m3d.ZAM_REV}/"
-            cache = (m3d.cache_control(posix.split(zam, 1)[1]) if zam in posix
-                     else "public, max-age=86400" if f.suffix == ".woff2" else "no-cache")
+            # The 3D files are named by their file id, whose content never changes.
+            immutable = f.suffix == ".woff2" or (f.parent.name == "file" and f.parent.parent.name == "model3d")
+            cache = f"public, {m3d.FILE_CACHE}" if immutable else "no-cache"
             self._send(200, body, TYPES.get(f.suffix, "application/octet-stream"), csp, bundle, cache)
 
         do_HEAD = do_GET

@@ -12,9 +12,9 @@ Your own page. Route it through your login, except the rows that say otherwise.
 
 | Path | Route | What |
 |---|---|---|
-| `/`, `/app.js`, `/app.css`, `/items.js`, `/fonts/*` | through your login | the page and its files |
-| `/api/config`, `/api/chars`, `/api/char`, `/api/journal`, `/api/overview`, `/api/timeline`, `/api/snapshot`, `/api/people`, `/api/loot`, `/api/dungeons`, `/api/gear`, `/api/analysis`, `/api/items`, `/api/plan`, `/api/market`, `/api/prices`, `/api/logsql`, `/api/*` | through your login | the page's JSON answers (`/api/plan` also takes a POST) |
-| `/model3d/*`, `/api/model3d`, `/render/<char>.<ext>`, `/icons/<size>/<name>.jpg` | through your login | the 3D view, the armory picture, the item icons |
+| `/`, `/app.js`, `/app.css`, `/base.css`, `/theme.js`, `/items.js`, `/fonts/*` | through your login | the page and its files |
+| `/api/config`, `/api/chars`, `/api/char`, `/api/journal`, `/api/overview`, `/api/timeline`, `/api/snapshot`, `/api/people`, `/api/loot`, `/api/dungeons`, `/api/meta`, `/api/news`, `/api/gear`, `/api/analysis`, `/api/items`, `/api/plan`, `/api/market`, `/api/prices`, `/api/logsql`, `/api/*` | through your login | the page's JSON answers (`/api/plan` also takes a POST) |
+| `/model3d/*`, `/model3d/file/<id>`, `/api/model3d`, `/render/<char>.<ext>`, `/icons/<size>/<name>.jpg` | through your login | the 3D view (its frame, and the game files your shipper sent, by id), the armory picture, the item icons |
 | `/full/` | through your login | `FULL_DOOR_PATH`: a redirect to `/`, through your login. Empty: off |
 | `/healthz` | no login | health check: `200 ok`, no login. Fine to route; probes need no credentials |
 | `/ingest` | no login | `POST` from the shipper, with its own password (`INGEST_PASSWORD`). Route it **without** your page login, or the shipper can't get through |
@@ -26,11 +26,11 @@ Only on a shared install. Same port.
 | Path | Route | What |
 |---|---|---|
 | `/start`, `/start/print`, `/start/media/*`, `/settings`, `/account.js`, `/account.css`, `/api/me`, `/api/me/status`, `/api/me/install-code`, `/api/me/settings`, `/api/me/*`, `/api/admin/hosts` | through your login | the start page, settings, and each person's own answers |
-| `/admin`, `/admin.css`, `/api/admin/overview` | through your login | the owner's overview ([Admin overview](../self-host/admin.md)); 404 for anyone else |
+| `/admin`, `/api/admin/overview` | through your login | the owner's overview ([Admin overview](../self-host/admin.md)); 404 for anyone else |
 | `/help`, `/help/`, `/help/help.js`, `/help/help.css` | through your login | the manual for friends: install steps, the page tour, connecting their AI |
 | `/install/<code>`, `/privacy`, `/privacy/*` | no login | the install command (the single-use code is the credential) and the privacy page: no login |
 
-## The shipper's auto-update: inside `wow-stats ui`, same port
+## The shipper's auto-update and the 3D view's files: inside `wow-stats ui`, same port
 
 With one person or several. Route it like `/ingest`, **without** your page login: the shipper sends its upload password.
 
@@ -38,6 +38,8 @@ With one person or several. Route it like `/ingest`, **without** your page login
 |---|---|---|
 | `/install/update/shipper` | no login | `GET`, upload password: the shipper's version and each file's sha256, as JSON |
 | `/install/update/shipper/<name>` | no login | `GET`, upload password: one of the shipper's files (`wow_stats.py`, the installers) |
+| `/install/assets/need` | no login | `GET`, upload password, while `MODEL3D` is on: the game files the 3D view still wants from that person's shipper (client tables by file id, then models and textures), as JSON |
+| `/install/assets/table/<Name>`, `/install/assets/file/<id>` | no login | `POST`, upload password and `/ingest`'s daily budget: one client table, or one model, skin, skeleton, animation or texture the server asked for (`X-Content-SHA256`), 16 MB at most, kept in that person's own folder |
 
 ## The MCP endpoint: inside `wow-stats ui`, port 8090 (`MCP_PORT`)
 
@@ -67,7 +69,7 @@ Internal listeners. Keep them on a private network.
 | Path | Route | What |
 |---|---|---|
 | `/bundle`, `/bundles` | never | the static server's upload port (`UPLOAD_PORT`) |
-| `/analysis.json`, `/users.json`, `/hosts.json`, `/profile-characters`, `/publisher.json` | never | the full view's share port (`ANALYSIS_SHARE_PORT`); the publisher POSTs its pass to `/publisher.json` |
-| `/render`, `/model3d/view`, `/healthz` | never | the renderer, port 8083 |
+| `/analysis.json`, `/users.json`, `/hosts.json`, `/profile-characters`, `/publisher.json`, `/assets/<slug>/*` | never | the full view's share port (`ANALYSIS_SHARE_PORT`); the publisher POSTs its pass to `/publisher.json` and reads each person's 3D files from `/assets/<slug>/` |
+| `/render`, `/file/<id>`, `/model3d/view`, `/healthz` | never | the renderer, port 8083: the publisher POSTs a recipe to `/render` and the files it lacks to `/file/<id>` |
 | `/metrics`, `/healthz` | never | the exporter, port 9464 (`LISTEN_PORT`): its own health only, never Blizzard's data |
 | `/select/*`, `/insert/*` | never | VictoriaLogs, port 9428: your events, readable without a login |

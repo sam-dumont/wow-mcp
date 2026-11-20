@@ -59,7 +59,7 @@ def test_logged_in_gets_the_help_page_with_its_content(server):
     assert f"href='{BASE}/start' target='_blank'" in static
     # Its script and stylesheet come from the same place.
     for path, ctype in (("/help/help.js", "text/javascript"), ("/help/help.css", "text/css"),
-                        ("/app.css", "text/css")):
+                        ("/base.css", "text/css"), ("/theme.js", "text/javascript")):
         code, hdr, asset = server.get(path, headers=h)
         assert code == 200 and hdr["Content-Type"].startswith(ctype), path
     assert b"mediaBase" in server.get("/help/help.js", headers=h)[2]
@@ -113,7 +113,8 @@ def test_unknown_page_is_a_styled_404_with_the_way_back(server):
     assert code == 404 and hdr["Content-Type"].startswith("text/html")
     p = parsed(body)
     assert {"/", "/start", "/help/"} <= set(p.hrefs)
-    assert b'href="/privacy/account.css"' in body and b"<script" not in body
+    assert b'href="/privacy/account.css"' in body
+    assert re.findall(rb'<script src="([^"]+)"', body) == [b"/privacy/theme.js"]
     # Scripts, the API and the MCP clients keep the plain answer.
     assert server.get("/nope", headers=h)[:1] == (404,)
     assert server.get("/nope", headers=h)[2] == b"not found\n"

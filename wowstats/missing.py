@@ -140,7 +140,9 @@ def line_for(kind: dict, rep: dict | None, known: dict[str, dict] | None = None,
     have = [i for i in ids if i in rep["addons"]]
     if not have:
         return f"Add {_names(ids, known)}.", _links(ids, known)
-    if "recorder" in have and rep.get("recorder_on") is False:
+    # None too: the switch was never saved ("unknown"; a shipper before 0.7.0
+    # left the field out), so the Recorder never ran with it on.
+    if "recorder" in have and rep.get("recorder_on") is not True:
         return kind["fix"], []
     # Which characters skip an addon only means something for a character's
     # own kinds; an account-wide one (prices) comes from whoever has it on.

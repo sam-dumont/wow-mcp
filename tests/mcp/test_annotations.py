@@ -34,10 +34,10 @@ WRITERS = {
     "kb_search": "adds",
     "plan_session": "replaces",  # keeps the plan check_plan reads; the oldest drop past 30
 }
-READ_ONLY = {"character_summary", "levels", "sessions", "zones", "guide_steps", "deaths", "dungeons", "players",
+READ_ONLY = {"list_metrics", "query_metric", "character_summary", "levels", "sessions", "zones", "guide_steps", "deaths", "dungeons", "players",
              "prices", "gear", "next_moves", "sanity_check", "people", "route_reference", "market", "play_analysis",
              "check_plan", "how_did_my_plan_go", "next_step", "gear_options", "dungeon_options", "mount_goal",
-             "whats_new", "kb_rule", "kb_topics", "analyse", "analysis_progress", "class_guide"}
+             "whats_new", "kb_rule", "kb_topics", "analyse", "analysis_progress", "class_guide", "class_meta", "news", "talent_changes"}
 ALL = (*tools.TOOLS, tools.MARKET)
 
 
@@ -97,6 +97,8 @@ CALLS = [
     ("analysis_brief", {"goals": "Gear for dungeons."}),
     ("analysis_brief", {"section": "schema"}),
     ("play_sql", {"query": "SELECT COUNT(*) AS n FROM levels"}),
+    ("list_metrics", {}),
+    ("query_metric", {"metrics": ["played_s", "online_s"], "group_by": ["level"]}),
     ("propose_finding", {"finding": {"key": "levels-count", "title": "{n} levels", "claim": "You have {n} levels.",
                                      "sql": "SELECT COUNT(*) AS n FROM levels", "relevance": 1, "action": None}}),
     ("kb_search", {"query": "riding", "char": CHAR}),
@@ -118,6 +120,9 @@ CALLS = [
     ("kb_topics", {}),
     ("kb_search", {"query": "riding"}),
     ("class_guide", {}),
+    ("class_meta", {}),
+    ("talent_changes", {}),
+    ("news", {}),
     ("character_summary", {}), ("levels", {}), ("sessions", {"since": "2026-11-01"}), ("zones", {}),
     ("guide_steps", {}), ("deaths", {}), ("dungeons", {}), ("players", {}), ("prices", {}), ("gear", {}),
     ("next_moves", {}), ("sanity_check", {}), ("people", {}), ("route_reference", {}), ("market", {}),

@@ -3,15 +3,16 @@
 //
 // Adds a "3D" toggle to the middle of the paperdoll, as the armory does:
 // the still (Battle.net's render, or the silhouette) swaps in place for a
-// frame on /model3d/view, the page that runs Wowhead's model viewer
-// (view.js) under its own, wider CSP, and back. Nothing of Wowhead's loads
-// until it's toggled. This page keeps the strict CSP.
+// frame on /model3d/view, the page that runs our viewer (view.js, m3d/)
+// under its own CSP, and back. When the answer has nothing to draw (the
+// player's game files haven't come yet), the still stays, with why in one
+// line. This page keeps the strict CSP.
 //
 // The frame is sandboxed (allow-scripts only: an opaque origin, no network):
-// Wowhead's script can't read this page, its cookies, the /zogzog/ key or
-// call /api/* (pre-publication review M2). This file is its only way out:
-// it answers the frame's requests for the files on RELAY's list and for
-// the answer to draw, and nothing else (bridge() below).
+// it can't read this page, its cookies, the /zogzog/ key or call /api/*
+// (pre-publication review M2). This file is its only way out: it answers
+// the frame's requests for model3d/file/<id> and for the answer to draw,
+// and nothing else (the message listener below).
 //
 // app.js knows nothing of this file: it fires `wow:gear` on the document
 // each time it draws the equipment panel.
@@ -56,22 +57,25 @@
 
   // ---------------------------------------------------------------- the frame's only way out
 
-  // Wowhead's files the relay serves (wowstats/model3d.py RELAY, under
-  // zam/<ZAM_REV>/) and the vendored jQuery: nothing else is fetched for the
-  // frame, whatever it asks. Change both lists together.
-  const RELAY = new RegExp('^(?:jquery-3\\.7\\.1\\.min\\.js|zam/r2/(?:viewer/viewer\\.min\\.js'
-    + '|meta/(?:character|charactercustomization|item|itemvisual|armor/\\d{1,2})/\\d{1,10}\\.json'
-    + '|sd/meta/(?:character|charactercustomization)/\\d{1,10}\\.json'
-    + '|textures/\\d{1,10}\\.(?:webp|png)'
-    + '|(?<k>m2|skin|anim|skel|phys|bone)/\\d{1,10}(?:-\\d{1,6}){0,2}\\.\\k<k>))$');
-  window.wowRelayPath = (p) => typeof p === 'string' && RELAY.test(p);
+  // The person's game files by id (wowstats/model3d.py FILE): nothing else
+  // is fetched for the frame, whatever it asks.
+  const FILE = /^file\/\d{1,10}$/;
+  window.wowM3dPath = (p) => typeof p === 'string' && FILE.test(p);
 
-  // The answer a frame draws: this page's own request (the login's, or the
-  // sealed file opened with the key here).
+  // The answer for a character (and level): this page's own request (the
+  // login's, or the sealed file opened with the key here), asked once per
+  // address while the page lives.
+  const answers = new Map();
+  function answerOf(name, level) {
+    const url = window.wowApi('model3d', STATIC ? { name, level } : { name, level, sex: sexPick(name) });
+    if (!answers.has(url)) {
+      answers.set(url, window.wowGetJSON(url).catch((e) => { answers.delete(url); throw e; }));
+      setTimeout(() => answers.delete(url), 60000);  // the live view's files arrive: ask again later
+    }
+    return answers.get(url);
+  }
   function answerFor(f) {
-    const name = f.dataset.name;
-    const level = f.dataset.level || null;
-    return window.wowGetJSON(window.wowApi('model3d', STATIC ? { name, level } : { name, level, sex: sexPick(name) }));
+    return answerOf(f.dataset.name, f.dataset.level || null);
   }
   function sendAnswer(f) {
     const to = f.contentWindow;
@@ -91,13 +95,26 @@
     if (d.wowM3d !== 'get' || !Number.isInteger(d.id)) return;
     const reply = (status, body, type) => ev.source.postMessage({ wowM3d: 'file', id: d.id, status, body, type }, '*',
       body ? [body] : []);
-    if (!window.wowRelayPath(d.path)) return reply(404, new ArrayBuffer(0), '');
+    if (!window.wowM3dPath(d.path)) return reply(404, new ArrayBuffer(0), '');
     fetch('model3d/' + d.path, { credentials: 'same-origin' })
       .then(async (r) => reply(r.status, await r.arrayBuffer(), r.headers.get('Content-Type') || ''))
       .catch(() => reply(0, null, ''));
   });
+  // One line on the stage saying why there's no 3D model (the answer's
+  // why), or none.
+  function whyLine(stage, text) {
+    let p = stage.querySelector('.m3dwhy');
+    if (!text) { if (p) p.remove(); return; }
+    if (!p) {
+      p = h('p', { class: 'm3dwhy' });
+      stage.append(p);
+    }
+    p.textContent = `No 3D model yet: ${text}.`;
+  }
+
   // One stage: the still, or the model on the toggle. `src` gives the
-  // frame's character and level, read when it opens.
+  // frame's character and level, read when it opens. The answer comes
+  // first: with nothing to draw, the still stays and says why.
   function toggle(stage, title, src, onOpen) {
     const still = stage.querySelector('.still');
     let btn = stage.querySelector('.m3dtoggle');
@@ -111,17 +128,29 @@
       btn.setAttribute('aria-label', on ? 'Back to the picture' : 'View in 3D');
       stage.classList.toggle('in3d', on);
     };
-    btn.onclick = () => {
+    btn.onclick = async (ev) => {
       const frame = stage.querySelector('.m3dframe');
-      setMode(frame ? '2d' : '3d');
+      // A click the visitor made changes the remembered choice; the page
+      // opening 3D by itself (mode() already '3d') doesn't.
+      if (ev && ev.isTrusted !== false) setMode(frame ? '2d' : '3d');
       if (frame) {
         frame.remove();  // the viewer goes with it
         if (still) still.hidden = false;
         set(false);
         return;
       }
-      if (still) still.hidden = true;
       const at = src();
+      let d = null;
+      try { d = await answerOf(at.name, at.level); } catch (e) { d = { why: String(e.message || e) }; }
+      if (stage.querySelector('.m3dframe')) return;  // a second click while asking
+      if (!d || !d.recipe) {
+        whyLine(stage, (d && d.why) || 'nothing to draw');
+        if (still) still.hidden = false;
+        set(false);
+        return;
+      }
+      whyLine(stage, '');
+      if (still) still.hidden = true;
       stage.insertBefore(frameEl(title, at.name, at.level), btn);
       set(true);
       if (onOpen) onOpen();
@@ -163,7 +192,19 @@
       return;
     }
     if (!picture) {
-      holder.replaceChildren(h('div', { class: 'stage snapstage in3d' }, frameEl(title, name, level)));
+      // No picture service: the level is its 3D model alone, or, with
+      // nothing to draw, the silhouette and why.
+      const stage = h('div', { class: 'stage snapstage in3d' }, frameEl(title, name, level));
+      holder.replaceChildren(stage);
+      answerOf(name, level).then((d) => (d && d.recipe ? null : d && d.why), (e) => String(e.message || e))
+        .then((why) => {
+          if (!why || holder.dataset.level !== String(level) || !stage.isConnected) return;
+          const box = window.wowLevelStill(document.createElement('div'), name, level, null);
+          box.querySelectorAll('.stillnote').forEach((n) => n.remove());
+          stage.classList.remove('in3d');
+          stage.replaceChildren(box);
+          whyLine(stage, why);
+        });
       return;
     }
     const box = window.wowLevelStill(document.createElement('div'), name, level, picture);
@@ -250,26 +291,20 @@
     sec.hidden = false;
     const status = h('p', { class: 'm3dstatus sub', text: 'Dressing the model' });
     const notes = h('div', { class: 'm3dnotes' });
-    sec.replaceChildren(status, notes,
-      h('p', { class: 'm3dcredit' }, '3D viewer by ',
-        h('a', { href: 'https://www.wowhead.com', target: '_blank', rel: 'noopener noreferrer', text: 'Wowhead' })));
+    sec.replaceChildren(status, notes);
     try {
-      const d = await window.wowGetJSON(window.wowApi('model3d', STATIC ? { name: st.char } : { name: st.char, sex: sexPick(st.char) }));
+      const d = await answerOf(st.char, null);
       if (run !== st.run) return;
-      if (!d.model) {
-        status.textContent = '';  // the frame says why
+      if (!d.recipe) {
+        status.textContent = '';  // the stage says why
         return;
       }
       const n = d.items.length;
       status.textContent = `${[d.race, d.sex || 'male'].filter(Boolean).join(' ')}, ${n} item${n === 1 ? '' : 's'} shown. Drag to turn it.`;
       const look = d.appearance;
       const when = look && look.refreshed ? new Date(look.refreshed).toLocaleDateString() : '';
-      const lines = [h('p', { text: !look ? 'Default look: not on Battle.net yet and no Narcissus save.'
-        : look.source === 'battle.net' ? `Look from Battle.net${when ? `, refreshed ${when}` : ''}.`
-          : 'Look saved by Narcissus’s barber shop.' })];
-      if (d.stand_in) {
-        lines.push(h('p', { text: `Wowhead has no ${d.race} model: shown on the ${d.stand_in} body, which has the same build.` }));
-      }
+      const lines = [h('p', { text: look ? `Look from Battle.net${when ? `, refreshed ${when}` : ''}.`
+        : 'Default look: Battle.net doesn’t know this character yet.' })];
       if (!d.sex_known) {
         const pick = h('select', { 'aria-label': 'Shown as' },
           ['male', 'female'].map((v) => h('option', { value: v, text: v, selected: d.sex === v })));
@@ -298,10 +333,10 @@
   }
 
   // Classic only: the choices the original models don't have (a gnome
-  // male's "Genius" hair; wowstats/model3d.py classic_gaps), drawn as the
-  // nearest one there. One plain line, hidden under Updated.
+  // male's "Genius" hair; wowstats/character3d.py classic_gaps), drawn as
+  // the nearest one there. One plain line, hidden under Updated.
   function classicNote(d) {
-    const gaps = (d.model_sd && d.model_sd.no_classic || []).map((n) => String(n).toLowerCase()
+    const gaps = (d.no_classic || []).map((n) => String(n).toLowerCase()
       .replace(/^hair style$/, 'hairstyle')).filter(Boolean);
     if (!gaps.length) return '';
     const one = gaps.length === 1;
@@ -310,7 +345,7 @@
       text: `This ${what} ${one ? 'doesn’t' : 'don’t'} exist on classic models: switch to Updated to see ${one ? 'it' : 'them'}.` });
   }
   function classicShown(d) {
-    return (modelsPick() || d.models || 'hd') === 'sd' && !!d.model_sd;
+    return (modelsPick() || d.models || 'hd') === 'sd' && !!d.recipe_sd;
   }
 
   // Updated or Classic models, as the game's Character Models option. The
@@ -320,13 +355,13 @@
     const cur = classicShown(d) ? 'sd' : 'hd';
     const tips = {
       hd: 'The updated character models.',
-      sd: d.model_sd ? 'The original models, like the game’s Standard Definition option. The face and hair are '
+      sd: d.recipe_sd ? 'The original models, like the game’s Standard Definition option. The face and hair are '
         + 'approximate: the game only saves the updated look.'
-        : `Wowhead has no original model for ${d.race || 'this race'}.`,
+        : `No original model for ${d.race || 'this race'} in the game files yet.`,
     };
     const btns = [['hd', 'Updated'], ['sd', 'Classic']].map(([v, label]) => {
       const b = h('button', { type: 'button', class: 'm3dmodel', 'aria-pressed': String(v === cur), title: tips[v],
-        disabled: v === 'sd' && !d.model_sd, text: label });
+        disabled: v === 'sd' && !d.recipe_sd, text: label });
       b.addEventListener('click', () => {
         if (b.getAttribute('aria-pressed') === 'true') return;
         setModelsPick(v);
@@ -343,7 +378,7 @@
   }
 
   // The frame reports a failure here too, under the panel (its text is set
-  // as text: the frame is someone else's code).
+  // as text: whatever the frame says stays text).
   function frameStatus(msg) {
     const status = box() && box().querySelector('.m3dstatus');
     if (status && !msg.ok) {

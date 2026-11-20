@@ -1,33 +1,18 @@
-/* The help page (/help/, wowstats/mcp/helppage.py). On top of ../app.css:
-   its colour tokens, fonts and theme switch. Every new class here starts
-   with h (or sits under .hmain), so nothing collides with app.css's own
+/* The help page (/help/, wowstats/mcp/helppage.py). On top of ../base.css:
+   its fonts, colour tokens, the bar and the theme switch. Every class here
+   starts with h (or sits under .hmain), so nothing collides with app.css's
    names (.badge was the level ring once). Cinzel for headings, Alegreya
    Sans for reading, mono only for what you copy. The 3 steps hang on a gold
    route line, like a guide's waypoints: that is the one bold thing; the rest
    is quiet and folded. The first phone screen holds the promise and the 3
    steps. Text columns stop at 68ch. */
 
-.helpdoc { --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace; }
-.helpdoc .hbar {
-  display: flex; align-items: center; gap: 14px;
-  max-width: 860px; margin: 0 auto; padding: 10px 16px 4px;
-}
-.hbrand { font: 600 15px/1 var(--display); letter-spacing: .06em; color: var(--gold-hi); }
-.hnav { display: flex; gap: 2px 14px; flex-wrap: wrap; margin-left: auto; }
+/* On this page: a row right under the bar. The first phone screen holds
+   the promise and the 3 steps (tests/test_browser.py), so no room to spare. */
+.helpdoc .bar { margin-bottom: 0; }
+.hnav { display: flex; gap: 2px 14px; flex-wrap: wrap; max-width: 860px; margin: 0 auto; padding: 0 16px; }
 .hnav a { font: 600 15px/1.2 var(--sans); color: var(--muted); text-decoration: none; padding: 6px 0; }
 .hnav a:hover, .hnav a:focus-visible { color: var(--gold-hi); }
-.hnav[hidden] + .theme { margin-left: auto; }
-/* The full view's copy (/help/, helppage.full_page) adds the reader's own
-   pages, like every logged-in page's nav; the on-this-page links then take
-   a row of their own under it. */
-.helpdoc .hbar:has(.hsite) { flex-wrap: wrap; gap: 4px 14px; }
-.hbrand[href] { text-decoration: none; }
-.hsite { display: flex; gap: 2px 14px; flex-wrap: wrap; margin-left: auto; }
-.hsite a { font: 600 15px/1.2 var(--sans); color: var(--ink); text-decoration: none; padding: 6px 0; }
-.hsite a:hover, .hsite a:focus-visible, .hsite a[aria-current] { color: var(--gold-hi); }
-.hsite ~ .hnav {
-  order: 3; flex-basis: 100%; margin-left: 0; padding-top: 2px; border-top: 1px solid var(--rule);
-}
 .hmain { max-width: 860px; margin: 0 auto; padding: 0 16px 72px; font-size: 17px; line-height: 1.5; }
 .hwait { color: var(--muted); }
 .hmain p, .hmain li, .hmain dd { max-width: 68ch; overflow-wrap: anywhere; }
@@ -95,6 +80,7 @@
 .hopt summary { color: var(--muted); padding: 4px 0; }
 .hopt ul { list-style: none; padding: 0; margin: 6px 0; display: grid; gap: 6px; }
 .hopt li { font-size: 15px; color: var(--muted); }
+.hopt .hstep1 { color: var(--ink, inherit); }
 
 /* Mac / Windows tabs and the client panels. */
 .hmain .sw { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 6px; }
@@ -185,9 +171,7 @@
 }
 
 @media (max-width: 560px) {
-  .hbrand { display: none; }
-  .hnav { margin-left: 0; gap: 2px 12px; }
-  .helpdoc .theme { margin-left: auto; }
+  .hnav { gap: 2px 12px; }
   .hmain { font-size: 16px; line-height: 1.45; }
   .hmain .lead { font-size: 17px; }
   .htabs, .points { grid-template-columns: 1fr; gap: 0; }

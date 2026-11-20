@@ -10,8 +10,9 @@ API: auction prices come only from your own Auctionator scans. The exporter adds
 
 - the WoW Token price and the Forever ruleset's status, in your full view and on the sealed
   friends' site;
-- your characters' look, level, gear and talents from the Profile API once a day, for the 3D
-  view and the character card (this part may show on the public site too).
+- your characters' look, sex, level, guild, gear, talents and completed achievements (the
+  Legacy points) from the Profile API once a day, for the 3D view and the character card
+  (this part may show on the public site too; the guild only on the sealed one).
 
 ## Blizzard's rules, and what the kit does about them
 
@@ -73,8 +74,13 @@ docker compose --profile exporter exec exporter python -c "import urllib.request
 ```
 
 `wow_api_up 1` means the client works. A character the Profile API doesn't know yet (new or
-low level) answers 404: it shows up by itself later, and until then the 3D view uses a
-[Narcissus](../reference/addons.md) look or the race's default.
+low level) answers 404: it shows up by itself later, and until then the 3D view uses the
+race's default look and the card shows no talents.
+
+Without this client at all, a self-hosted site has no talents, no look (every character gets its
+race's default), no talent-based spec hint for the gear advice, and sex, guild and Legacy points
+read "unknown": those come from Blizzard's API only. Profession caps don't need it (Polestar Recorder's skill
+records). See [Where the data comes from](../explanation/data-sources.md).
 
 The exporter's `/metrics` holds its own health only, never Blizzard's data: don't point a
 long-term scraper (Prometheus, vmagent) at it expecting game data, and never keep the

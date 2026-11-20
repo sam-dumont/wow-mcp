@@ -25,6 +25,6 @@ Then keep it running:
 - [Harden it](hardening.md): what's locked down already, and what's on you.
 - [Uninstall](uninstall.md): the server, the player's computer, and the data, separately.
 
-Not using Docker Compose (Kubernetes, Nomad, plain containers)? The same image runs every
+Without Docker Compose (Kubernetes, Nomad, plain containers), the same image runs every
 part: [Deploy without compose](../deploy.md) has the commands, ports and mounts, and
 [Environment variables](../reference/environment.md) every setting.

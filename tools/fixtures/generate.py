@@ -874,10 +874,11 @@ def gear_sheet(p: Player) -> None:
                       "quality": info.get("quality"), "req_level": info.get("req") or None, "slot": slot,
                       "slot_name": slot_names[slot]})
     ilvl = [i["item_level"] for i in items if i["item_level"]]
-    profs = [{"max_rank": cap, "name": PROF_NAMES[s], "rank": rank, "skill_id": s}
-             for s, (rank, cap) in sorted(p.skills.items())]
+    # As the shipper sends them since 2026-11-20: Polestar's ranks, no cap
+    # (the Recorder's skill records carry it) and no talents (Battle.net's).
+    profs = [{"name": PROF_NAMES[s], "rank": rank, "skill_id": s} for s, (rank, _cap) in sorted(p.skills.items())]
     p.other("wow-gear", **p.who, item_level=round(sum(ilvl) / len(ilvl), 1), items=items, professions=profs,
-            spec="Shadow", talents=[{"tree": "Discipline", "points": 5}, {"tree": "Shadow", "points": 17}])
+            spec="Shadow")
 
 
 Player.gear_sheet = gear_sheet

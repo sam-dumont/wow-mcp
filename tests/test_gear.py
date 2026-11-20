@@ -123,21 +123,35 @@ def test_spec_order(ref):
 
 def test_spec_from_talents(ref):
     """Polestar's mostPoints: the tree with the most points, by name, else
-    by position. After Polestar's own setting, before an addon's saved pick."""
+    by position. Only a hint, when nothing the player chose says a spec
+    (owner, 2026-11-18, restored 2026-11-20)."""
     t = [{"tree": "Discipline", "points": 5}, {"tree": "Holy", "points": 14}, {"tree": "Shadow", "points": 3}]
+    assert gear.resolve_spec(ref, "PRIEST", sheet(spec=None, talents=t)) == ("holy", "talents")
+    assert gear.resolve_spec(ref, "PRIEST", {"talents": t, "polestar_spec": "auto"}) == ("holy", "talents")
     s = sheet(spec="Shadow", talents=t)
-    assert gear.resolve_spec(ref, "PRIEST", s) == ("holy", "talents")
-    assert gear.resolve_spec(ref, "PRIEST", {**s, "polestar_spec": "shadow"}) == ("shadow", "setting")
-    assert gear.resolve_spec(ref, "PRIEST", {**s, "polestar_spec": "auto"}) == ("holy", "talents")
+    assert gear.resolve_spec(ref, "PRIEST", s) == ("shadow", "picked")
+    assert gear.resolve_spec(ref, "PRIEST", {**s, "polestar_spec": "discipline"}) == ("discipline", "setting")
     assert gear.resolve_spec(ref, "PRIEST", s, "discipline") == ("discipline", "page")
+
+
+def test_shadow_priest_with_most_points_in_discipline_is_scored_shadow(ref):
+    """Leveling Discipline on the way to Shadowform: whatever the player
+    chose (a gear addon's pick, Polestar's Stat weights, the site's
+    WEIGHTS) beats the points; the points decide only when nothing does."""
+    disc = [{"tree": "Discipline", "points": 16}, {"tree": "Holy", "points": 0}, {"tree": "Shadow", "points": 7}]
+    assert gear.resolve_spec(ref, "PRIEST", sheet(spec="Shadow", talents=disc)) == ("shadow", "picked")
+    assert gear.resolve_spec(ref, "PRIEST", {"talents": disc, "polestar_spec": "shadow"}) == ("shadow", "setting")
+    assert gear.resolve_spec(ref, "PRIEST", {"talents": disc}, None, "shadow") == ("shadow", "server")
+    assert gear.resolve_spec(ref, "PRIEST", {"talents": disc}) == ("discipline", "talents")
     # A tie goes to the first tree; no names: position; no points: next step.
     assert gear.most_points(ref, "PRIEST", [{"tree": "Discipline", "points": 7}, {"tree": "Shadow", "points": 7}]) \
         == "discipline"
     assert gear.most_points(ref, "MAGE", [{"tree": None, "points": 0}, {"tree": None, "points": 11}]) == "fire"
     assert gear.resolve_spec(ref, "PRIEST", sheet(spec="Shadow", talents=[{"tree": "Holy", "points": 0}])) \
         == ("shadow", "picked")
-    assert gear.sheet({"talents": '[{"tree": "Holy", "points": 14}]', "class": "PRIEST"})["talents"] \
-        == [{"tree": "Holy", "points": 14}]
+    # A stored sheet's talents (Vulcan SimBench's, before 2026-11-20) aren't
+    # read: talents come from Battle.net, which Views puts in.
+    assert gear.sheet({"talents": '[{"tree": "Holy", "points": 14}]', "class": "PRIEST"})["talents"] is None
 
 
 def test_advice(ref):
@@ -236,9 +250,11 @@ def test_gain_in_points_and_share(ref):
     assert a["gear_score"] == pytest.approx(sum((s["current"] or {}).get("score") or 0 for s in a["slots"]), abs=0.1)
     for u in a["upgrades"]:
         assert u["gain_share_pct"] == pytest.approx(u["gain"] / a["gear_score"] * 100, abs=0.06)
-    # Ordered by points, not by percent over a weak item.
-    now = [u["gain"] for u in a["upgrades"] if u["now"] and not u["vs_unknown"]]
+    # Ordered by points (the gain, less for an item built for someone else:
+    # wowstats.gearfit), not by percent over a weak item.
+    now = [u["value"] for u in a["upgrades"] if u["now"] and not u["vs_unknown"]]
     assert now == sorted(now, reverse=True)
+    assert all(u["value"] == pytest.approx(u["gain"] * u["fit"]["factor"], abs=0.02) for u in a["upgrades"])
 
 
 def test_one_line_per_source(ref):
@@ -256,7 +272,10 @@ def test_spec_said_in_plain_words(ref):
     assert a["spec"]["why"].startswith("Scored for Shadow because most of your talent points are in Shadow "
                                        "(Shadow 21, Discipline 5")
     a = gear.advise(ref, sheet(spec_from="ForeverLevelingBiS"), level=32)
-    assert "you picked Shadow in ForeverLevelingBiS" in a["spec"]["why"] and "/simx" in a["spec"]["why"]
+    assert a["spec"]["why"] == "Scored for Shadow because you picked Shadow in ForeverLevelingBiS."
+    a = gear.advise(ref, sheet(spec=None), level=32)
+    assert a["spec"]["source"] == "default" and "Battle.net" in a["spec"]["why"]
+    assert "simx" not in a["spec"]["why"]
 
 
 @pytest.mark.parametrize("srcs,want", [

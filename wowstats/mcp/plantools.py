@@ -68,12 +68,33 @@ def t_plan_session(ctx: T.Ctx, args: dict) -> dict:
     from wowstats.plan import write
 
     return {"char": char, "context": e.get("context"), "supported": e.get("supported"),
-            "brief": write.CLIENT_BRIEF if e.get("supported") else None,
+            "estimated": bool(e.get("estimated")), "unlock": e.get("unlock"),
+            "brief": (write.CLIENT_BRIEF + (write.ESTIMATED_BRIEF if e.get("estimated") else ""))
+            if e.get("supported") else None,
             "markdown": out["markdown"], "facts": e.get("facts") or {},
             "blocks": [{"id": b["id"], "keys": sorted(k for k in e["facts"] if k.startswith(b["id"] + "."))}
                        for b in e.get("blocks") or []],
-            "constraints": e.get("constraints"),
-            "note": "markdown is the estimator's own text; write it up per brief, from facts only. " + CITE}
+            "constraints": e.get("constraints"), "coming_up": _near_events(ctx, char),
+            "note": "markdown is the estimator's own text; write it up per brief, from facts only. " + CITE
+                    + " coming_up: Forever events within 4 weeks that concern the character (news tool), with "
+                      "their announced day; mention one when it changes what the session should do."}
+
+
+def _near_events(ctx: T.Ctx, char: str) -> list[dict]:
+    """The events within news.NEAR_DAYS that concern the character, sourced:
+    so a plan can make room for an attunement before a raid opens."""
+    from wowstats import news
+
+    from .classtools import _who
+
+    try:
+        who = _who(ctx, char)
+    except Exception:  # noqa: BLE001 - no class or level: no events to weigh
+        return []
+    rows = news.upcoming(char={**who, "spec": (who.get("talents") or {}).get("spec")
+                               if isinstance(who.get("talents"), dict) else None}, cite=True)
+    return [r for r in rows if r.get("concerns_you") and r.get("in_days") is not None
+            and r["in_days"] <= news.NEAR_DAYS]
 
 
 def t_check_plan(ctx: T.Ctx, args: dict) -> dict:
@@ -119,12 +140,13 @@ def t_next_step(ctx: T.Ctx, args: dict) -> dict:
     inp = _inputs(ctx, args)
     e = E.estimate(inp, 0.75, "")
     if not e.get("supported"):
-        return {"char": inp["who"]["char"], "answer": None, "why": e["message"]}
+        return {"char": inp["who"]["char"], "answer": None, "why": e["message"], "unlock": e.get("unlock")}
     f = e["facts"]
     return {"char": inp["who"]["char"], "start_level": f["start.level"],
+            "estimated": bool(e.get("estimated")), "unlock": e.get("unlock"),
             "blocks": [{"when": f"{f[b['id'] + '.start']} to {f[b['id'] + '.end']}", "what": b["title"],
-                        "level_after": f[b["id"] + ".level"], "why": [f"{w['text']} ({w['from']})"
-                                                                     for w in b["why"]],
+                        "level_after": f[b["id"] + ".level"],
+                        "why": [f"{w['text']} ({w['from']})" if w.get("from") else w["text"] for w in b["why"]],
                         "town_stop": b.get("town_stop", False)} for b in e["blocks"]],
             "town_errands": [f[k] for k in sorted(f) if k.startswith("town.errand")]
             if any(b.get("town_stop") for b in e["blocks"]) else [],
@@ -285,7 +307,7 @@ def t_kb_topics(ctx: T.Ctx, args: dict) -> dict:
                                                       "confidence": r[7], "scope": r[8], "last_verified": r[9]}
                                                      if kind == "kb-contradiction" else {})}
                          for r in rows if r[1] == kind]
-    lim = T.limit_arg(args, 40, 200)
+    lim = T.limit_arg(args, 15, 50)  # a slice: kb_search finds the rest
     con, opn = pick("kb-contradiction"), pick("kb-open-question")
     return {"lane": lane, **lanes[lane], "contradictions": con[:lim], "open_questions": opn[:lim],
             "truncated": len(con) > lim or len(opn) > lim,
@@ -299,10 +321,10 @@ def _iso(t) -> str | None:
 S = T.schema
 PLAN_TOOLS: tuple[T.Tool, ...] = (
     T.Tool("plan_session", "Plan my next hours",
-           "A time-boxed plan for the next N hours (default 3): blocks (start, length, what, why), checkpoints, "
-           "the expected level, XP and gold at the end, a town stop, where to log out, what to skip, a dungeon "
-           "branch, the mount. Numbers from the character's own measured pace only. Constraints in plain words ('no "
-           "dungeons', 'only 2h', 'level tailoring'). Kept for how_did_my_plan_go.",
+           "A time-boxed plan for the next N hours (default 3): blocks, checkpoints, the level, XP and gold at "
+           "the end, a town stop, where to log out, what to skip, a dungeon branch, the mount, from the character's "
+           "own pace. No Recorder events: a plan by level (estimated) and the line that unlocks the full one "
+           "(unlock). Constraints in plain words ('no dungeons', 'only 2h'). Kept for how_did_my_plan_go.",
            S({"char": CHAR, "hours": {"type": "number", "minimum": 0.5, "maximum": 8,
                                  "description": "How long to plan for, in hours."},
               "constraints": {"type": "string", "maxLength": 300,
@@ -366,5 +388,5 @@ PLAN_TOOLS: tuple[T.Tool, ...] = (
            "lane: its documents, its contradictions with their sources, its open questions.",
            S({"lane": {"type": "string", "maxLength": 40,
                        "description": "A research lane's name (without it: the list of lanes), e.g. dungeons."},
-              "limit": T.lim(40, 200)}), t_kb_topics),
+              "limit": T.lim(15, 50)}), t_kb_topics),
 )

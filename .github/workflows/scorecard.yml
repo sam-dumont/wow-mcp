@@ -20,7 +20,7 @@ permissions: read-all
 
 jobs:
   analysis:
-    if: github.event.repository.visibility == 'public'
+    if: github.repository_id == '1464458020' && (github.event.repository.visibility == 'public')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

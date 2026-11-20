@@ -42,7 +42,8 @@ Each level also has a picture of your character in the gear of that level. A new
 picture takes a few minutes: until then it says "Picture on its way" and **View in 3D** shows
 the model instead. Drag to turn it.
 
-The model is Wowhead's viewer, dressed in your gear. When the page doesn't know your
+The model is drawn from your own game files (the program on your computer sends them), dressed in your gear.
+Until they've come, the page keeps the picture and says why. When the page doesn't know your
 character's face and hair (no Battle.net data on the server yet), it uses a default look for
 your race and says so under the model.
 
@@ -50,8 +51,9 @@ your race and says so under the model.
 
 ![The Journal: one entry for the evening of Wed 18 Nov, 17:30 to 20:20, level 33 to 34 in Arathi Highlands, with played time, XP, quests, deaths, gold, zones and the quests handed in](../images/journal.webp)
 
-One entry per play session. A session ends when the Recorder goes quiet for 20 minutes or you
-log in again. Each entry shows when, the levels, where, then played time, XP, quests, deaths
+One entry per play session. A session ends when the Recorder goes quiet for more than 5 and a half
+minutes (it writes at least every 5 while the game runs): a /reload or a quick relog stays in
+the same session. Each entry shows when, the levels, where, then played time, XP, quests, deaths
 and gold won or lost, the time per zone and the quests you handed in. Older entries are folded:
 click one to open it.
 
@@ -62,4 +64,4 @@ crosses in 10 is the detour to cut next time.
 ## Next
 
 - [Overview and next moves](overview.md): what to do with all of this tonight.
-- [What's shared](privacy.md): which of these your friends' link and your public page show.
+- [What's shared](privacy.md): which of these your zogzog link and your public page show.

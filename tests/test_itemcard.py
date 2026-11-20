@@ -113,10 +113,10 @@ class Wago:
 
 
 def test_catalog_reads_wago_once_and_caches_icons(tmp_path, monkeypatch):
-    from wowstats import model3d
+    from wowstats import upstream
 
     wago = Wago()
-    monkeypatch.setattr(model3d, "fetch", wago)
+    monkeypatch.setattr(upstream, "fetch", wago)
     cat = itemcard.Catalog("https://wago.test", "wowf", tmp_path, icon_url="https://zam.test/images/wow/icons/")
     assert cat.card(19019)["i"] == "inv_sword_39"
     assert cat.enchant(66) == "Stamina +3" and cat.enchant(744) == "Armor +20" and cat.enchant(0) is None
@@ -138,13 +138,13 @@ def test_base_items_take_the_era_clients_name(tmp_path, monkeypatch):
     """A base item Forever's tables don't name gets the Classic Era
     client's name; Forever's own name always wins; Era unreachable, the
     item stays unnamed and nothing fails (the page then calls it by slot)."""
-    from wowstats import model3d
+    from wowstats import upstream
 
-    monkeypatch.setattr(model3d, "fetch", Wago())
+    monkeypatch.setattr(upstream, "fetch", Wago())
     cat = itemcard.Catalog("https://wago.test", "wowf", tmp_path / "a")
     assert cat.card(211500)["n"] == "Resilient Cloth Headband" and cat.card(211500)["s"] == "Head"
     assert cat.card(4504)["n"] == "Dwarven Guard Cloak"
-    monkeypatch.setattr(model3d, "fetch", Wago(era=False))
+    monkeypatch.setattr(upstream, "fetch", Wago(era=False))
     cat = itemcard.Catalog("https://wago.test", "wowf", tmp_path / "b")
     assert "n" not in cat.card(211500) and cat.card(211500)["s"] == "Head"
     assert cat.card(19019)["n"].startswith("Thunderfury")
@@ -231,9 +231,9 @@ def test_an_item_without_its_own_icon_takes_its_appearances(tmp_path, monkeypatc
     """0.2.3 showed an empty frame for Ephemeral Grips and Black Handwraps:
     Item.IconFileDataID is 0 for 1,617 of Forever's items, and the game
     takes the icon from the base appearance (modifier 0) instead."""
-    from wowstats import model3d
+    from wowstats import upstream
 
-    monkeypatch.setattr(model3d, "fetch", Wago())
+    monkeypatch.setattr(upstream, "fetch", Wago())
     cat = itemcard.Catalog("https://wago.test", "wowf", tmp_path)
     assert cat.card(273034)["i"] == "inv_gauntlets_24"
     assert cat.card(19019)["i"] == "inv_sword_39", "Item's own icon first"
@@ -243,3 +243,10 @@ def test_an_item_with_no_icon_anywhere_gets_the_question_mark():
     items = [*ITEMS, {"ID": "5", "ClassID": "4", "SubclassID": "1", "InventoryType": "10", "IconFileDataID": "0"}]
     cards = itemcard.build_cards(SPARSE, items, ICONS, {}, {}, {"5": {"quality": 2, "inv": 10}}, {})
     assert cards[5]["i"] == itemcard.QUESTION == "inv_misc_questionmark"
+
+
+def test_a_healing_item_with_some_damage_reads_as_forevers_one_line():
+    """Stoneweaver Leggings in Forever: healing 20 and damage 7 on one line."""
+    _, green = itemcard.stat_lines({"armor": 53, "heal": 20, "int": 8, "sp": 7, "spi": 12, "sta": 9})
+    assert green == ["Equip: Increases healing done by up to 20 and damage done by up to 7 for all magical spells "
+                     "and effects."]

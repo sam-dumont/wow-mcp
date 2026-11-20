@@ -101,7 +101,8 @@ class GameTables:
             cached = self._cached()
             if cached and time.time() - cached["checked"] < DAY:
                 return cached["docs"], cached["build"]
-            from wowstats.model3d import Upstream, _write, fetch
+            from wowstats.upstream import Upstream, fetch
+            from wowstats.upstream import write_file as _write
 
             try:
                 latest = json.loads(fetch(f"{self.wago}/api/builds/{urllib.parse.quote(self.product)}/latest")
@@ -498,8 +499,15 @@ def research_records(allow: dict | None = None) -> tuple[list[dict], list[str]]:
             files.append((p, json.loads(p.read_text(encoding="utf-8"))))
         except (OSError, ValueError) as e:
             bad.append(f"{p.name}: {e}")
-    # A refresh (tools/kb/refresh.py) replaces a statement by naming it in `supersedes`.
-    gone = {r["supersedes"] for _, f in files for r in f.get("statements") or [] if r.get("supersedes")}
+    # A refresh (tools/kb/refresh.py) replaces a statement by naming it in
+    # `supersedes`, or the old one names its replacement in `superseded_by`;
+    # past its `expires` a statement is out. The weekly job
+    # (tools/kb/lifecycle.py) removes them from the files; until it runs,
+    # the loader already leaves them out.
+    from datetime import UTC, datetime
+
+    today = datetime.now(UTC).date()
+    gone = kbschema.retired_ids([r for _, f in files for r in f.get("statements") or []], today)
     for p, f in files:
         lane = f.get("lane") or p.stem
         for key, kind in (("statements", "kb-statement"), ("contradictions", "kb-contradiction")):
@@ -588,9 +596,13 @@ def research_summary() -> dict:
     for p in sorted(root.glob("*.json")) if root and root.is_dir() else []:
         with contextlib.suppress(OSError, ValueError):
             f = json.loads(p.read_text(encoding="utf-8"))
+            # A lane's research documents, by id. Statements folded in from
+            # another lane or written by a model pass carry no document: they
+            # count as statements, never as a nameless "" document.
             docs: dict[str, str] = {}
             for s in f.get("statements") or []:
-                docs.setdefault(s.get("doc") or "", s.get("title") or "")
+                if s.get("doc"):
+                    docs.setdefault(s["doc"], s.get("title") or "")
             out[f.get("lane") or p.stem] = {
                 "title": f.get("title"), "last_verified": f.get("last_verified"),
                 "statements": len(f.get("statements") or []), "rules": len(f.get("rules") or {}),
@@ -672,7 +684,7 @@ def build(env: dict | None = None, game: GameTables | None = None) -> KB:
     meta["research"] = research_summary()
     docs = docs + notes() + rule_docs_of(rules) + research_docs() + research
     if game is None:
-        from wowstats.model3d import PRODUCT, WAGO_URL
+        from wowstats.upstream import PRODUCT, WAGO_URL
 
         cache = Path(env.get("MODEL3D_CACHE_DIR") or Path(tempfile.gettempdir()) / "wow-stats-model3d")
         try:

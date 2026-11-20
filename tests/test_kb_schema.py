@@ -7,6 +7,7 @@ with another shape)."""
 from __future__ import annotations
 
 import json
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -57,7 +58,37 @@ def test_code_rules_never_share_a_name_with_a_lane():
 def test_the_loader_refuses_nothing_shipped():
     k = kb.build({"KB_GAME_TABLES": "off"})
     assert k.meta["rules_refused"] == []
-    assert k.kinds()["kb-statement"] == sum(len(json.loads(p.read_text())["statements"]) for p in RESEARCH)
+    # A superseded or expired statement is left out by design until the weekly
+    # job removes it (2026-11-20: a refresh's 6 `supersedes` failed this count
+    # and the run died before its PR, #105).
+    every = [s for p in RESEARCH for s in json.loads(p.read_text())["statements"]]
+    gone = kbschema.retired_ids(every, datetime.now(UTC).date())
+    assert k.kinds()["kb-statement"] == len([s for s in every if s["id"] not in gone])
+
+
+def test_lists_and_builds_have_two_sources_or_say_single_source(allow):
+    bad = []
+    for p in RESEARCH:
+        doc = json.loads(p.read_text())
+        paths = doc.get("paths") or {}
+        for key, recs in (("statements", doc["statements"]), ("builds", doc.get("builds") or []),
+                          ("paths", list(paths.values()) if isinstance(paths, dict) else paths)):
+            bad += [f"{p.stem}: {r.get('id') or r.get('spec')}: {why}" for r in recs
+                    if kbschema.is_list_or_build(r, key) and (why := kbschema.multi_source(r, allow))]
+    assert bad == []
+
+
+@pytest.mark.parametrize("rec, why", [
+    ({"sources": ["https://www.icy-veins.com/a", "https://www.method.gg/b"]}, ""),
+    ({"single_source": True, "confidence": "low"}, ""),
+    ({"single_source": True}, "confidence isn't low"),
+    ({}, "one source"),
+    ({"source_url": "https://worldofwarcraft.blizzard.com/en-us/news/1"}, ""),
+])
+def test_the_multi_source_rule(allow, rec, why):
+    base = {"source_url": "https://www.icy-veins.com/a", "confidence": "medium", "aspect": "enchants"}
+    got = kbschema.multi_source({**base, **rec}, allow)
+    assert (why in got) if why else got == ""
 
 
 @pytest.mark.parametrize("rec, why", [

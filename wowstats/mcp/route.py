@@ -34,9 +34,6 @@ NOTE = ("Polestar's planner on its guides, uncalibrated, with straight-line walk
         "not anyone's /played. Real players take longer; compare the shape (which levels are slow) more than the "
         "totals.")
 SIDES = ("Alliance", "Horde")
-RACES = {"human": "Human", "dwarf": "Dwarf", "gnome": "Gnome", "nightelf": "NightElf", "night elf": "NightElf",
-         "orc": "Orc", "troll": "Troll", "tauren": "Tauren", "undead": "Scourge", "scourge": "Scourge",
-         "skyborne": "Skyborne"}
 
 
 def _dur(s) -> str | None:
@@ -50,10 +47,6 @@ def _dur(s) -> str | None:
 def norm_side(v) -> str | None:
     v = str(v or "").strip().lower()
     return next((s for s in SIDES if s.lower() == v), None)
-
-
-def norm_race(v) -> str | None:
-    return RACES.get(str(v or "").strip().lower())
 
 
 def norm_class(v) -> str | None:
@@ -135,31 +128,18 @@ class Reference:
 
     # ------------------------------------------------------------ levels
 
-    def _route(self, side, race, cls) -> dict | None:
-        for r in self.routes:
-            if r.get("faction") == side and r.get("race") == race and r.get("class") == cls:
-                return r
-        return None
-
-    def level(self, level: int, side: str | None = None, race: str | None = None,
-              cls: str | None = None) -> dict | None:
-        """The expected time in `level` (from reaching it to the next ding),
-        for this race and class when the export has their run, else the
-        side's median, else both sides' median."""
+    def level(self, level: int, side: str | None = None, cls: str | None = None) -> dict | None:
+        """The expected time in `level` (from reaching it to the next ding):
+        the class's median over the side's starting races, else the side's
+        median over races and classes (both sides' when the side isn't
+        known). One definition for the pages, the MCP and the semantic
+        layer's planned_s (wowstats.analysis.prep): a race's own run isn't
+        used, so every race of a class gets the same plan."""
         level = int(level)
-        side, race, cls = norm_side(side), norm_race(race), norm_class(cls)
+        side, cls = norm_side(side), norm_class(cls)
         if self.legacy_levels:
             s = self.legacy_levels.get(str(level))
             return {"level": level, "expected_s": s, "expected": _dur(s), "basis": "your route file"} if s else None
-        r = self._route(side, race, cls) if side and race and cls else None
-        if r:
-            at = dict((int(lv), t) for lv, t in r.get("dings") or [])
-            if level in at and level + 1 in at:
-                s = at[level + 1] - at[level]
-                row = (self.levels.get(side) or {}).get(str(level)) or {}
-                return {"level": level, "expected_s": s, "expected": _dur(s),
-                        "basis": f"route for {race} {cls.title()}", "guide": row.get("guide"),
-                        "range_s": [row.get("min_s"), row.get("max_s")] if row else None}
         sides = [side] if side else list(SIDES)
         rows = [(s, (self.levels.get(s) or {}).get(str(level))) for s in sides]
         rows = [(s, r) for s, r in rows if r]
@@ -186,7 +166,7 @@ class Reference:
         out = []
         for lv in levels:
             row = dict(lv)
-            exp = self.level(lv["level"], who.get("faction"), who.get("race"), who.get("class"))
+            exp = self.level(lv["level"], who.get("faction"), who.get("class"))
             if exp and exp.get("expected_s"):
                 row["route"] = exp["expected"]
                 row["route_s"] = exp["expected_s"]
@@ -199,17 +179,17 @@ class Reference:
 
     def lookup(self, args: dict, who: dict | None = None) -> dict:
         who = dict(who or {})
-        for k in ("faction", "race", "class"):
+        for k in ("faction", "class"):
             if args.get(k):
                 who[k] = args[k]
         out: dict = {"available": True, "source": self.source, "note": NOTE}
         if self.polestar:
             out["polestar"] = self.polestar.get("tag") or self.polestar.get("version")
         if who:
-            out["for"] = {k: v for k, v in who.items() if v}
+            out["for"] = {k: v for k, v in who.items() if v and k in ("faction", "class")}
         lvl = args.get("level")
         if lvl is not None:
-            out["level"] = self.level(int(lvl), who.get("faction"), who.get("race"), who.get("class")) or {
+            out["level"] = self.level(int(lvl), who.get("faction"), who.get("class")) or {
                 "level": int(lvl), "expected_s": None}
         if args.get("guide"):
             g = self.guide(args["guide"])

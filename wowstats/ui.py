@@ -53,7 +53,7 @@ from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from wowstats import guard, httpserve, insights, model3d, prebuilt, redact
+from wowstats import bar, guard, httpserve, insights, model3d, prebuilt, redact
 from wowstats.stores import SourceError, Store, env_account, iso, parse_t, tenant_headers
 from wowstats.views import Settings, Views
 
@@ -63,7 +63,7 @@ CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' 
        "connect-src 'self'; font-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; "
        "frame-ancestors 'none'")
 # The full page with the 3D character only adds a frame of its own origin:
-# /model3d/view, which carries the viewer's wider CSP (wowstats.model3d).
+# /model3d/view, sandboxed under its own policy (wowstats.model3d).
 CSP_3D = CSP.replace("frame-ancestors 'none'", "frame-src 'self'; frame-ancestors 'none'")
 CHAR_RE = re.compile(r"^[^\x00-\x1f\"\\]{1,64}$")
 SPEC_RE = re.compile(r"^[a-z]{1,20}$")
@@ -74,17 +74,19 @@ STATIC = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/app.css": ("app.css", "text/css; charset=utf-8"),
+    "/base.css": ("base.css", "text/css; charset=utf-8"),
+    "/theme.js": ("theme.js", "text/javascript; charset=utf-8"),
     "/items.js": ("items.js", "text/javascript; charset=utf-8"),
 }
 # The game's item icons (wowstats.itemcard), full view only: the pod that
-# fetches them is the one with a route to wow.zamimg.com.
+# fetches them is the one with a route to Wowhead's icon host.
 ICON_PATH = re.compile(r"^/icons/(large|medium)/([a-z0-9_\-]{1,96})\.jpg$")
 # The armory's render of a character (wowstats.armory), both views: it is
 # Battle.net's public image, like the public bundle's copy.
 RENDER_PATH = re.compile(r"^/render/([^/]{1,80})\.(png|jpg)$")
-# The page's own fonts (OFL, vendored in web/fonts): no font CDN, CSP font-src 'self'.
-FONTS = {f"/fonts/{n}.woff2": f"fonts/{n}.woff2" for n in (
-    "cinzel", "alegreya", "alegreya-italic", "alegreya-sans-400", "alegreya-sans-500", "alegreya-sans-700")}
+# /fonts/<name>.woff2: the pages' own fonts (bar.FONTS; OFL, vendored in
+# web/fonts): no font CDN, CSP font-src 'self'.
+FONTS = {"/" + rel: rel for rel in bar.FONTS}
 
 
 def static_dir() -> Path:
@@ -243,6 +245,15 @@ class App:
         # is stripped and the page's CSP stays the strict one.
         on = env.get("MODEL3D", "on").strip().lower() not in ("off", "0", "false", "no")
         self.model3d = model3d.Model3D(env, self.static) if full and on else None
+        # The game files the person's shipper sends for the 3D view
+        # (wowstats.assets): theirs only, with the 3D view only. The shipper
+        # is asked for what this person's characters' recipes name.
+        from wowstats import assets
+
+        self.assets = assets.Assets(env, self.model3d.cache) if self.model3d is not None else None
+        if self.model3d is not None:
+            self.model3d.assets = self.assets
+            self.assets.wanted = lambda: self.model3d.wanted(self)
         # Plausible on every page of the full view too (owner, 2026-11-20):
         # the same PLAUSIBLE_DOMAIN as the static sites, so every wow host
         # counts into one Plausible site, told apart by hostname. Checked
@@ -438,6 +449,39 @@ class App:
         self._full_only()
         return self.cached(f"gear:{name}:{spec or ''}", lambda: self.views.gear(name, spec))
 
+    def meta(self, name: str) -> dict:
+        """The class's meta and the character's adherence (wowstats.classmeta),
+        from the page's own char and gear answers; full view only."""
+        self._full_only()
+        return self.cached(f"meta:{name}", lambda: self.views.meta(name, self.char(name), self.gear(name, None)))
+
+    def talent_history(self, name: str) -> dict:
+        """The talent changes of the last 3 weeks (wowstats.views), full view
+        only and never through the answer cache: Battle.net's readings are
+        read from vm-wow per request and kept nowhere else. No tier lists
+        it (redact), so no bundle carries it."""
+        self._full_only()
+        hd = (self.char(name) or {}).get("header") or {}
+        return self.views.talent_history(name, hd.get("class"))
+
+    def news(self, name: str | None, week: str | None = None) -> dict:
+        """This week on Forever (wowstats.news): the weekly digest, what
+        concerns the viewer's characters first (the open one by class,
+        level and role; the others by level), and what is coming. Full view
+        only; the earlier weeks with `week`."""
+        self._full_only()
+        from wowstats import news
+
+        def build() -> dict:
+            mine = []
+            if name:
+                hd = (self.char(name) or {}).get("header") or {}
+                mine.append(hd)
+            mine += [{"level": c.get("level")} for c in self.chars()["chars"] if c.get("char") != name]
+            return news.digest(chars=mine, week=week)
+
+        return self.cached(f"news:{name or ''}:{week or ''}", build)
+
     def api_chars(self) -> dict:
         """/api/chars as the route sends it."""
         if self.view != "full":
@@ -482,7 +526,9 @@ class App:
 
     def model3d_answer(self, name: str, level: int | None = None, sex: str = "") -> dict:
         """/api/model3d: the 3D viewer's answer (wowstats.model3d)."""
-        return self.cached(f"model3d:{name}:{level or ''}:{sex}",
+        # The store's stamp in the key: files that arrive make a recipe
+        # drawable without a new event (a prebuilt answer would wait for one).
+        return self.cached(f"model3d:{name}:{level or ''}:{sex}:{self.model3d.stamp()}",
                            lambda: self.model3d.for_char(self, name, level, sex))
 
     # ------------------------------------------------------------ prebuilt
@@ -540,7 +586,8 @@ class App:
                 ask(self.api_char, name)
                 tl = ask(self.timeline, name) or {}
                 if full:
-                    for fn in (self.api_journal, self.overview, self.dungeons, self.loot, self.people, self.plan):
+                    for fn in (self.api_journal, self.overview, self.dungeons, self.loot, self.people, self.plan,
+                               self.meta):
                         ask(fn, name)
                     g = ask(self.gear, name, None) or {}
                     for spec in ((g.get("spec") or {}).get("choices") or []):
@@ -561,12 +608,15 @@ class App:
         if self.view != "full":
             raise FullOnly
 
-    def index_html(self) -> bytes:
+    def index_html(self, nav: str = "") -> bytes:
+        """The character pages; `nav`: the reader's pages in the bar (bar.links)."""
         html = (self.static / "index.html").read_text(encoding="utf-8")
         if self.view == "public":
             html = FULL_BLOCK.sub("", html)
         if self.model3d is None:
             html = MODEL3D_BLOCK.sub("", html)
+        # The tab icon from where no login stands in the way (bar.ICON).
+        html = bar.fill(html, "./", nav).replace('rel="icon" href="favicon.svg"', f'rel="icon" href="{bar.ICON}"', 1)
         return og_tags(html, self.default_header()).replace("@VIEW@", self.view).encode()
 
     def default_header(self) -> dict | None:
@@ -603,10 +653,13 @@ def og_tags(html: str, header: dict | None) -> str:
 INSTALL_CODE_PATH = re.compile(r"/install/(?!update\b)[^/]+")
 # The shipper's auto-update: its version and files (wowstats.account.handle_shipper).
 SHIPPER_UPDATE = "/install/update/shipper"
+ASSETS = "/install/assets/"
 # web/stats.js on the full view: under /privacy/ with the privacy note's
 # other files, the only paths the login proxy lets through before a login
 # (with /install/), so the privacy note counts its visits too.
 STATS_JS = "/privacy/stats.js"
+# The tab icon (web/favicon.svg), any view, before any login (bar.ICON).
+ICON_PATHS = ("/favicon.ico", "/favicon.svg", bar.ICON)
 
 
 def stats_tags(stats: dict, src: str, path: str) -> str:
@@ -730,7 +783,8 @@ def make_handler(root: App, tenancy=None):
                 # /ingest and the shipper's update carry their own credentials,
                 # which a rebinding page doesn't have; the shipper may know the
                 # server by any name.
-                shipper = path == SHIPPER_UPDATE or path.startswith(SHIPPER_UPDATE + "/")
+                shipper = (path == SHIPPER_UPDATE or path.startswith(SHIPPER_UPDATE + "/")
+                           or path.startswith(ASSETS))
                 if path != "/ingest" and not shipper and not root.hosts.ok(self.headers.get("Host")):
                     return self.send(421, root.hosts.refusal(self.headers.get("Host")), "text/plain; charset=utf-8")
                 if (path != "/ingest" and not shipper and app.auth_mode == "open" and full
@@ -746,6 +800,23 @@ def make_handler(root: App, tenancy=None):
                     if not self._authorized(app.ingest_expected):
                         return None
                     return self._ingest(app.store.vl_url, app.store.account_id)
+                if path.startswith(ASSETS):  # the 3D view's files: the upload password and budget of /ingest
+                    allows = spend = None
+                    target = app
+                    if tenancy is not None:
+                        u = self._ingest_user()
+                        if u is None:
+                            return None
+                        target = tenancy.app_for(u)
+                        allows = lambda n, s=u.slug: tenancy.ingest_budget.allows(s, n)  # noqa: E731
+                        spend = lambda n, s=u.slug: tenancy.ingest_budget.spend(s, n)  # noqa: E731
+                    elif app.ingest_expected is None:
+                        return self.not_found()
+                    elif not self._authorized(app.ingest_expected):
+                        return None
+                    if target.assets is None:
+                        return self.not_found()
+                    return target.assets.handle(self, path[len(ASSETS):], qs, allows, spend)
                 if shipper:  # the upload password, like /ingest: the same installs, no page login
                     if self.command not in ("GET", "HEAD"):
                         return self.not_found()
@@ -763,6 +834,11 @@ def make_handler(root: App, tenancy=None):
                     from wowstats import account
 
                     return account.handle_install(self, tenancy, path[len("/install/"):])
+                if path in ICON_PATHS and self.command in ("GET", "HEAD"):
+                    # Before any login: browsers ask for the icon without being
+                    # told to, and a 401 there is noise on every page.
+                    return self.send(200, (root.static / "favicon.svg").read_bytes(), "image/svg+xml",
+                                     "public, max-age=86400")
                 if path == STATS_JS and root.stats is not None and self.command in ("GET", "HEAD"):
                     # Before any login: the privacy note loads it too.
                     return self.send(200, (root.static / "stats.js").read_bytes(), "text/javascript; charset=utf-8",
@@ -815,13 +891,8 @@ def make_handler(root: App, tenancy=None):
                     name, ctype = STATIC[path]
                     if name != "index.html":
                         return self.send(200, (app.static / name).read_bytes(), ctype, "no-cache")
-                    html = app.index_html()
-                    if tenancy is not None:  # the person's own pages (wowstats.account)
-                        from wowstats import account
-
-                        nav = account.nav_links(skip=("/", "/privacy")).encode()
-                        html = html.replace(b'<button id="theme"',
-                                            b'<nav class="acc-links">' + nav + b'</nav><button id="theme"', 1)
+                    # The person's own pages (wowstats.account), with several people.
+                    html = app.index_html(bar.links("/") if tenancy is not None else "")
                     return self.send(200, html, ctype, "no-cache", csp=CSP_3D if app.model3d is not None else CSP)
                 if path in FONTS:
                     return self.send(200, (app.static / FONTS[path]).read_bytes(), "font/woff2",
@@ -852,6 +923,12 @@ def make_handler(root: App, tenancy=None):
                                      "private, max-age=3600")
                 if path == "/api/chars":
                     return self.json(200, app.api_chars())
+                if path == "/api/news" and full:
+                    name = qs.get("name", [""])[0]
+                    week = qs.get("week", [""])[0]
+                    if (name and not CHAR_RE.match(name)) or (week and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", week)):
+                        return self.json(400, {"error": "bad character name or week"})
+                    return self.json(200, app.news(name if name and app.known(name) else None, week or None))
                 if path == "/api/gear" and full:
                     name = qs.get("name", [""])[0]
                     spec = qs.get("spec", [""])[0].strip().lower() or None
@@ -863,11 +940,12 @@ def make_handler(root: App, tenancy=None):
                         return self.json(404, {"error": f"no events for {name}"})
                     return self.json(200, app.gear(name, spec))
                 if path in ("/api/overview", "/api/timeline", "/api/snapshot", "/api/people", "/api/loot",
-                            "/api/dungeons"):
+                            "/api/dungeons", "/api/meta", "/api/talents"):
                     name = qs.get("name", [""])[0]
                     if not CHAR_RE.match(name):
                         return self.json(400, {"error": "bad character name"})
-                    if path in ("/api/people", "/api/overview", "/api/loot", "/api/dungeons") and not full:
+                    if path in ("/api/people", "/api/overview", "/api/loot", "/api/dungeons", "/api/meta",
+                                "/api/talents") and not full:
                         return self.not_found()  # full view only (redact.PUBLIC)
                     if not app.known(name):
                         return self.json(404, {"error": f"no events for {name}"})
@@ -879,6 +957,10 @@ def make_handler(root: App, tenancy=None):
                         return self.json(200, app.loot(name))
                     if path == "/api/dungeons":
                         return self.json(200, app.dungeons(name))
+                    if path == "/api/meta":
+                        return self.json(200, app.meta(name))
+                    if path == "/api/talents":
+                        return self.json(200, app.talent_history(name))
                     if path == "/api/people":
                         return self.json(200, app.people(name))
                     lv = qs.get("level", [""])[0]

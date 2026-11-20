@@ -50,6 +50,13 @@ PROVENANCE = {"source", "sources", "source_url", "source_url_2", "cost_source_ur
               "forever_note_source", "source_type", "date", "confidence", "scope", "id", "status", "verified"}
 
 
+def plain(value) -> str:
+    """A rule's value inside a sentence: its JSON without the quotation marks
+    around strings, which would read as a quote of a source
+    (tests/test_kb_verbatim.py)."""
+    return json.dumps(value, ensure_ascii=False).replace('"', "")
+
+
 def clean_url(u: str) -> str:
     return u.rstrip(".:*_")
 
@@ -336,7 +343,7 @@ class Lane:
             if prov is None or not value_known:
                 note = r.get("note") or r.get("rule") or ""
                 self.drop(f"rule {rid}", f"value unknown. {note}".strip() if not value_known else
-                          json.dumps({k: v for k, v in r.items() if k not in PROVENANCE})[:400], urls)
+                          plain({k: v for k, v in r.items() if k not in PROVENANCE})[:400], urls)
                 continue
             body = {k: v for k, v in r.items() if k not in PROVENANCE}
             if "statement" not in body:
@@ -391,8 +398,8 @@ def merge(lanes: dict[str, dict], allow: dict) -> None:
                 seen[rid] = lane
             lanes[lane]["contradictions"].append({
                 "id": f"{lane}:rule:{rid}:contradiction", "doc": "rules",
-                "text": (f"Rule {rid}: lane {keep['lane']} has {json.dumps(keep.get('value'))[:200]} "
-                         f"({keep['source_url']}); lane {move_lane} has {json.dumps(move.get('value'))[:200]} "
+                "text": (f"Rule {rid}: lane {keep['lane']} has {plain(keep.get('value'))[:200]} "
+                         f"({keep['source_url']}); lane {move_lane} has {plain(move.get('value'))[:200]} "
                          f"({move['source_url']}), kept as {rid}@{move_lane}."),
                 "source_url": keep["source_url"], "sources": list(dict.fromkeys(keep["sources"] + move["sources"])),
                 "source_type": keep["source_type"], "date": f"compiled {keep['last_verified']}",

@@ -5,8 +5,8 @@ end:** the server runs, the addons and the shipper are on the computer you play 
 climb fills in by itself a few minutes after each logout.
 
 From zero to your climb in a web page, on Windows or a Mac. Count an hour the first time,
-most of it waiting for downloads. Tried [the demo](self-host/demo.md) already? Same server,
-without the made-up characters.
+most of it waiting for downloads. If you tried [the demo](self-host/demo.md), it's the same
+server, without the made-up characters.
 
 > Every step below was run on a Mac (Apple silicon) from a clean home folder. On Windows the
 > shipper's install is tested on every change; the Docker steps follow Docker's and
@@ -95,9 +95,9 @@ In `.env`, set `INGEST_PASSWORD` to a password of 12 characters or more:
 the shipper uses it to send your events. Two optional lines while you're
 there:
 
-- `MODEL3D=off` and `WOW_ITEMS=off`, the **small preset**: no 3D view, and
-  no item names, icons or tooltip cards fetched from wago.tools and
-  Wowhead's file host. For a server with no internet access, or a small
+- `MODEL3D=off` and `WOW_ITEMS=off`, the **small preset**: no 3D view (the
+  shipper stops sending game files), and no item names, icons or tooltip
+  cards fetched from wago.tools and Wowhead's file host. For a server with no internet access, or a small
   one. Both default to `on`.
 - `VL_MAX_DISK=20GiB` (any size): a ceiling for your game events, see
   [Disk space](#disk-space). Empty (the default): no ceiling.
@@ -111,10 +111,11 @@ docker compose up -d --build
 ```
 
 The first time it builds the wow-stats image from the kit (a minute or
-two) and pulls VictoriaLogs. Then open <http://127.0.0.1:8080>: an empty
+two) and pulls VictoriaLogs. The build's base comes from Docker's hardened
+images: run `docker login dhi.io` once before, with a free Docker Hub account. Then open <http://127.0.0.1:8080>: an empty
 page until the shipper sends something.
 
-Want to see a filled page first? Load the demo's five made-up characters
+To see a filled page first, load the demo's five made-up characters
 (they carry a DEMO DATA banner; `docker compose down -v` before your real
 install wipes them):
 
@@ -207,7 +208,7 @@ and, for the history, git.
 The history is a git repository of your whole `WTF` folder in
 `~/WoWArchive/wtf`: every version of every SavedVariables file, which is
 what `--backfill` replays. It grows with everything in `WTF`, other addons'
-files included. Don't want it? Skip git, or set `wtf_archive = false` in
+files included. To go without it, skip git, or set `wtf_archive = false` in
 the config (below): the shipper then reads the game files directly and
 keeps the stats only. [docs/shipper.md](shipper.md#stats-only-no-wtf-archive)
 has what stays either way.
@@ -333,7 +334,7 @@ friends; log in, then `/reload` or log out. On a Mac run
 
 **Battle.net says 404 for a character.** The profile API doesn't know new
 or low-level characters yet. It shows up later by itself; until then the
-3D view uses the Narcissus look or the race's default.
+3D view uses the race's default look, and the card has no talents.
 
 **Nothing arrives.** Read the shipper's log, the last lines say what each
 step did:
@@ -353,11 +354,10 @@ server keeps 100 years, so delete that line, move the files back into the
 spool and run the shipper (Mac: `mv ~/WoWArchive/too-old/* ~/WoWArchive/spool/`;
 Windows: `Move-Item $env:USERPROFILE\WoWArchive\too-old\* $env:USERPROFILE\WoWArchive\spool\`).
 
-**The look is wrong.** Battle.net's look comes first (the exporter,
-refreshed once a day; the full view says which source it used). No
-Battle.net look: visit a barber with Narcissus on and save the look there,
-with CharacterExport-Forever on so it lands on the right character, then
-log out.
+**The look is wrong.** The look comes from Battle.net only (the exporter,
+refreshed once a day). Changed it at a barber? Wait for the next daily read.
+No Battle.net client on your server, or a character it doesn't know yet:
+the race's default look.
 
 **`/played` before Polestar is unknown.** The page counts played time from
 Polestar's level splits, which start the day Polestar did: "played since

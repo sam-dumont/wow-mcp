@@ -3,7 +3,6 @@ and a proxy can't put a no-login full view on the internet (S4)."""
 
 import pytest
 
-from tests.test_model3d import upstream  # noqa: F401 - a fixture
 from tests.test_public_view import CHAR, fake_extras, make  # noqa: F401 - fixtures and helpers
 from wowstats import guard, plan, ui
 from wowstats.ui import ConfigError
@@ -11,8 +10,8 @@ from wowstats.ui import ConfigError
 # ---------------------------------------------------------------- S5
 
 
-def test_model3d_refuses_a_free_form_sex(run_app, upstream, tmp_path, monkeypatch, fake_extras):  # noqa: F811
-    app = make("full", **upstream.env(tmp_path))
+def test_model3d_refuses_a_free_form_sex(run_app, tmp_path, monkeypatch, fake_extras):  # noqa: F811
+    app = make("full", MODEL3D_CACHE_DIR=str(tmp_path / "cache"))
     monkeypatch.setattr(app, "known", lambda name: True)
     srv = run_app(app)
     before = len(app._cache)

@@ -1,19 +1,19 @@
 """The session journal: one entry per play session.
 
-A session ends when the Recorder goes quiet for more than GAP_S, or when the
-shipper marked a login (`login=true`, the first record after a logout). The
-Recorder writes a `session` record at the top of every 5-minute chunk, so
-those can't mark logins by themselves; they still carry the level.
+A session ends when the Recorder writes nothing for more than GAP_S (330 s):
+the rule of the Overview, the timeline and the semantic layer's sessions
+(wowstats.stores.split_sessions). A /reload or a quick relog inside that
+doesn't end one.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from wowstats.stores import num, opt_num, parse_t
+from wowstats.stores import SESSION_GAP_S, num, opt_num, parse_t, split_sessions
 
-GAP_S = 20 * 60
-BUCKET_S = 60
+GAP_S = SESSION_GAP_S
+BUCKET_S = 60  # the XP query's buckets (Views.journal: stats by (_time:1m))
 
 
 def _ts(s) -> float | None:
@@ -25,35 +25,12 @@ def _iso(t: float) -> str:
     return datetime.fromtimestamp(t, tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def split(minutes: list[float], logins: list[float], gap: float = GAP_S) -> list[tuple[float, float]]:
-    """(start, end) of each session, from the starts of the 1-minute buckets
-    that hold any record and the times of login records."""
-    ms = sorted(set(minutes))
-    if not ms:
-        return []
-    login_buckets = sorted({t - t % BUCKET_S for t in logins})
-    out = []
-    start = prev = ms[0]
-    li = 0
-    for t in ms[1:]:
-        while li < len(login_buckets) and login_buckets[li] <= prev:
-            li += 1
-        login_between = li < len(login_buckets) and prev < login_buckets[li] <= t
-        if t - (prev + BUCKET_S) > gap or login_between:
-            out.append((start, prev + BUCKET_S))
-            start = t
-        prev = t
-    out.append((start, prev + BUCKET_S))
-    return out
-
-
-def build(minutes: list[dict], xp: list[dict], events: list[dict], logins: list[dict], dungeons: list[dict],
+def build(minutes: list[dict], xp: list[dict], events: list[dict], dungeons: list[dict],
           players: list[dict], snaps: list[dict], own: str = "") -> list[dict]:
-    """Newest session first. `players` and gold are kept here; the public
-    view drops them (wowstats.redact)."""
-    mins = [t for r in minutes if num(r.get("n")) > 0 and (t := _ts(r.get("_time"))) is not None]
-    login_t = [t for t in (_ts(r.get("_time")) for r in logins) if t is not None]
-    spans = split(mins, login_t)
+    """Newest session first. `minutes`: the Recorder's SESSION_BUCKETS rows.
+    `players` and gold are kept here; the public view drops them
+    (wowstats.redact)."""
+    spans = split_sessions(minutes)
     if not spans:
         return []
     sessions = [{"start": a, "end": b, "xp": 0, "levels": [], "level_start": None, "level_end": None,
@@ -68,8 +45,16 @@ def build(minutes: list[dict], xp: list[dict], events: list[dict], logins: list[
                 return s
         return None
 
+    def find_minute(t: float | None):
+        # The XP comes summed per minute (the bucket's start), the sessions
+        # to the second: a bucket belongs to the session it overlaps, or a
+        # session's first partial minute loses its XP.
+        if t is None:
+            return None
+        return next((s for s in sessions if s["start"] < t + BUCKET_S and t < s["end"] + 1), None)
+
     for r in xp:
-        s = find(_ts(r.get("_time")))
+        s = find_minute(_ts(r.get("_time")))
         if s:
             s["xp"] += int(num(r.get("xp")))
     for r in sorted(events, key=lambda e: parse_t(e.get("_time"))):
@@ -156,3 +141,82 @@ def build(minutes: list[dict], xp: list[dict], events: list[dict], logins: list[
         })
     out.reverse()
     return out
+
+
+# ---------------------------------------------------------------- without the Recorder
+
+
+def played_between(levels: list[dict], a: tuple, b: tuple) -> float | None:
+    """Played seconds from (level, xp) `a` to `b`, from Polestar's level
+    splits ({level, seconds, xp, partial}): each level crossed at its own
+    seconds per XP (the nearest lower measured level's for one not
+    measured). None when no level is measured, `b` isn't later, or a level
+    crossed has no known size."""
+    (la, xa), (lb, xb) = a, b
+    if la is None or lb is None or (lb, xb or 0) <= (la, xa or 0):
+        return None
+    per = {int(r["level"]): r["seconds"] / r["xp"] for r in levels if (r.get("seconds") or 0) > 0 and
+           (r.get("xp") or 0) > 0}
+    if not per:
+        return None
+    need = {int(r["level"]): r["xp"] for r in levels if r.get("xp") and not r.get("partial")}
+    total = 0.0
+    for lv in range(int(la), int(lb) + 1):
+        rate = per.get(lv) or per[max((k for k in per if k <= lv), default=min(per))]
+        lo = (xa or 0) if lv == la else 0
+        hi = (xb or 0) if lv == lb else need.get(lv)
+        if hi is None:
+            return None
+        total += max(0, hi - lo) * rate
+    return total
+
+
+def by_logout(snaps: list[dict], levels: list[dict], dungeons: list[dict], until: float | None = None) -> list[dict]:
+    """Newest first: one entry per logout sheet (Polestar's, feed
+    wow-character) that moved the level or the gold, for a character with
+    no Recorder events. The time played since the sheet before comes from
+    the level splits (played_between), so `start` is an estimate: the
+    logout minus that time; `estimated` says so. Zones, quests and deaths
+    need the Recorder and stay empty; dungeon runs and dings are in.
+    `until`: the Recorder's first record, for a character that switched it
+    on later; only the logouts before it, so no play is counted twice."""
+    rows = []
+    for r in snaps:
+        t = _ts(r.get("_time"))
+        if t is not None and opt_num(r.get("level")) is not None:
+            rows.append((t, r))
+    rows.sort(key=lambda x: x[0])
+    lv_rows = [{"level": int(n), "seconds": num(r.get("seconds")), "xp": num(r.get("xp")),
+                "partial": str(r.get("partial")).lower() == "true", "t": _ts(r.get("_time"))}
+               for r in levels if (n := opt_num(r.get("level"))) is not None]
+    out = []
+    for (t0, a), (t1, b) in zip(rows, rows[1:], strict=False):
+        if until is not None and t1 > until:
+            break
+        la, lb = int(num(a["level"])), int(num(b["level"]))
+        xa, xb = opt_num(a.get("xp")), opt_num(b.get("xp"))
+        ga, gb = opt_num(a.get("money_copper")), opt_num(b.get("money_copper"))
+        played = played_between(lv_rows, (la, xa), (lb, xb))
+        gold = int(gb - ga) if ga is not None and gb is not None else None
+        if not played and not gold:
+            continue  # a sheet saved again without play
+        played = played or 0.0
+        start = max(t0, t1 - played)
+        runs = [{"name": d.get("name"), "level": opt_num(d.get("level")), "seconds": opt_num(d.get("seconds")),
+                 "xp": opt_num(d.get("xp"))} for d in dungeons if t0 < (_ts(d.get("_time")) or 0) <= t1]
+        dings = sorted(r["level"] + 1 for r in lv_rows if not r["partial"] and r["t"] and t0 < r["t"] <= t1)
+        out.append({"start": _iso(start), "end": _iso(t1), "played_s": int(played), "level_start": la,
+                    "level_end": lb, "levels_gained": max(0, lb - la), "dings": dings,
+                    "xp": None, "zones": [], "quests": [], "deaths": {"total": 0, "by_zone": []},
+                    "dungeons": runs, "players": [], "gold_delta_copper": gold, "estimated": True})
+    out.reverse()
+    return out
+
+
+def with_history(sessions: list[dict], snaps: list[dict], levels: list[dict], dungeons: list[dict]) -> list[dict]:
+    """The Recorder's sessions (newest first), then the logouts from before
+    its first record (by_logout): a character that switched the Recorder on
+    later keeps its earlier history, estimated, and one without it gets the
+    logouts alone."""
+    first = min((t for x in sessions if (t := _ts(x["start"])) is not None), default=None)
+    return sessions + by_logout(snaps, levels, dungeons, until=first)

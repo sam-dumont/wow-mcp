@@ -68,11 +68,11 @@ What the servers download, and the bundled reference data.
 |---|---|---|---|---|---|
 | `GEAR_REFERENCE_FILE` | ui, publish | path or `off` | the bundled Polestar gear data | `off` | Another gear data file, or `off` to turn gear advice off. |
 | `KB_GAME_TABLES` | ui, publish | `on` or `off` | `on` | `off` | The knowledge base's spell and zone documents from Forever's tables. |
-| `MODEL3D` | ui, publish, compose | `on` or `off` | `on` | `off` | The "View in 3D" toggle and its downloads from Wowhead's model host. `off` removes it. |
-| `MODEL3D_CACHE_DIR` | ui, publish | path | a folder under the temp dir | `/data/model3d-cache` | Where downloaded game tables, icons and model files are kept. Put it on a volume so a restart doesn't download them again. |
-| `MODEL3D_CACHE_MB` | ui, publish | MiB | `512` | `256` | The most disk the model files may take. |
+| `MODEL3D` | ui, publish, compose | `on` or `off` | `on` | `off` | The "View in 3D" toggle: the character drawn from the game files your shipper sends (nothing downloaded). `off` removes it, and the shipper stops sending them. |
+| `MODEL3D_ASSETS_DIR` | ui, publish, compose | path | `<MODEL3D_CACHE_DIR>/assets` | `/data/model3d-assets` | Where the game files the shipper sends for the 3D view are kept. With several people, each one's are in their own folder (`users/<id>/assets`) and go when the person is removed; this setting is then ignored. The publisher reads the ui's folder (read-only) to bundle each character's files. |
+| `MODEL3D_ASSETS_MB` | ui | MiB | `512` | `1024` | The most disk one person's 3D files may take; past it an upload gets a 507 and the shipper stops sending. |
+| `MODEL3D_CACHE_DIR` | ui, publish | path | a folder under the temp dir | `/data/model3d-cache` | Where downloaded game tables and icons are kept, and the 3D answers. Put it on a volume so a restart doesn't download them again. |
 | `MODEL3D_MODELS` | ui, publish | `hd` or `sd` | `hd` | `sd` | The models the 3D view opens on: `hd` the updated ones, `sd` the original (Classic) ones. A visitor's own pick in the view wins. With several people, each one's Settings choice replaces it. |
-| `MODEL3D_VIEWER_SHA256` | ui, publish, render | sha256 (hex) | the build reviewed on 2026-11-19 | `ce4ceffb…cdd241` | The only build of Wowhead's 3D viewer script the server passes on. When Wowhead ships another, the log says "Wowhead's viewer changed", the last good copy keeps working, and a fresh cache shows no 3D until someone reads the new script and sets its hash here. |
 | `ROUTE_REFERENCE_FILE` | ui, publish | path or `off` | the bundled Polestar route times | `off` | Another route times file, or `off` to compare levels with your own past levels only. |
 | `WOW_ITEMS` | ui, publish, compose | `on` or `off` | `on` | `off` | Item names, icons and tooltip cards from Forever's tables on wago.tools. `off` with `MODEL3D=off` is the small preset: no downloads at all. |
 | `WOW_TALENTS` | ui, publish | `on` or `off` | `on` (`off` when `WOW_ITEMS=off`) | `off` | Talent names and icons from Forever's tables. |
@@ -145,8 +145,8 @@ Optional. A separate image with Chromium.
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
 | `RENDER_BUDGET_S` | publish | seconds | `60` | `60` | How long a build spends drawing. The rest wait for the next pass. |
-| `RENDER_CACHE_DIR` | render | path | a folder under `/tmp` | `/tmp/render-cache` | Where the renderer keeps Wowhead's files. |
-| `RENDER_CACHE_MB` | render | MiB | `256` | `256` | The most disk the renderer's cache may take. |
+| `RENDER_CACHE_DIR` | render | path | a folder under `/tmp` | `/tmp/render-cache` | Where the renderer keeps the game files the publisher sent it (by file id, no names) and its token. |
+| `RENDER_CACHE_MB` | render | MiB | `256` | `256` | The most disk those files may take; the least recently used go first. |
 | `RENDER_TIMEOUT_S` | publish, render | seconds | `120` in `publish`, `90` in `render` | `120` | The longest one picture may take. |
 | `RENDER_URL` | publish | URL | empty: no pictures | `http://render:8083` | The renderer that draws each past level's picture. |
 
@@ -160,6 +160,7 @@ Off until `WOW_STATE_DIR` is set. [Add friends](../self-host/friends.md).
 | `FRIENDS_RECONCILE_S` | ui | seconds | `120` | `120` | How often the friends list gets a full pass anyway (a change to the file applies sooner, within about 10 seconds); it retries what failed. |
 | `FRIENDS_VL_DELETE_KEY_FILE` | ui, users | path | empty | `/run/secrets/vl_delete_key` | That VictoriaLogs' `-deleteAuthKey`, so a friend's events can be deleted. |
 | `FRIENDS_VL_URL` | ui, publish, users | URL | empty: no friends | `http://vl-friends:9428` | The friends' VictoriaLogs, one tenant each. |
+| `MODEL3D_ASSETS_URL` | publish | URL | set per person from `USERS_URL` | `http://ui:8091/assets/sam/` | Where the publisher reads one person's 3D files: the full view's share port. Set by the publisher itself with several people; leave it unset. |
 | `PRIVACY_BACKUP_DAYS` | ui | days | empty: the privacy page says to ask the owner | `30` | How long your backups keep events, as the privacy page tells your friends. |
 | `PRIVACY_LOG_DAYS` | ui | days | empty: the privacy page says to ask the owner | `30` | How long the server's logs keep a request (the web server's access log and the app's own log), as the privacy page tells your friends. |
 | `PROFILE_CHARACTERS_URL` | exporter | URL | empty | `http://ui:8091/profile-characters` | Adds every person's characters to `PROFILE_CHARACTERS`, each under its own account: at most 12 a day per friend. |
@@ -245,9 +246,8 @@ Point an upstream at a local server. Leave them alone in production.
 | `BNET_OAUTH_URL` | exporter | URL | `https://oauth.battle.net/token` | `http://127.0.0.1:9002/token` | Blizzard's token endpoint. Tests point it at a local server. |
 | `ICON_URL` | ui, publish | URL | `https://wow.zamimg.com/images/wow/icons/` | `http://127.0.0.1:9000/icons/` | Where item icons are fetched. Tests point it at a local server. |
 | `MODEL3D_PRODUCT` | ui, publish | text | `wowf` | `wowf` | The game build family read on wago.tools. |
-| `MODEL3D_REFERENCE` | ui, publish | path | the bundled `model3d-reference.json.gz` | `./tests/armor.json` | Another armor reference ([Model reference](../model3d-reference.md)). Tests point it at a made-up one. |
 | `MODEL3D_WAGO_URL` | ui, publish | URL | `https://wago.tools` | `http://127.0.0.1:9001` | Forever's game tables. Tests point it at a local server. |
-| `MODEL3D_ZAM_URL` | ui, publish, render | URL | `https://wow.zamimg.com/modelviewer/` | `http://127.0.0.1:9000/` | Wowhead's model host. Tests point it at a local server. |
+| `NO_REAL_WOW` | shipper | flag | unset | `1` | Tests and agents: the shipper only takes a WoW folder under a temp directory, never the real install (the test suite sets it). |
 | `STATIC_DIR` | ui | path | the packaged `web/` | `./web` | Serve the page's files from another folder. For working on the page. |
 | `WOW_STATS_RECORDER_SHA256` | shipper | hex | the pinned release's | `e3b0c442...` | The checksum that zip must have. |
 | `WOW_STATS_RECORDER_URL` | shipper | URL | the pinned Polestar Recorder release | `file:///tmp/Polestar_Recorder.zip` | Where the installer gets Polestar Recorder. Tests only; pair it with `WOW_STATS_RECORDER_SHA256`. |

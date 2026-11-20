@@ -10,7 +10,8 @@ VictoriaLogs first. Steps:
    shifted so the last evening is the given day (default: yesterday, UTC);
 2. into VictoriaLogs through wowstats.ingest's screening, as /ingest would;
 3. wowstats.publish, as `wow-stats publish --force` (item cards and icons
-   from wago.tools, the 3D viewer and models from Wowhead's CDN, copied in);
+   from wago.tools; no game files, so "View in 3D" keeps the outline and
+   says why);
 4. <out>/ the public bundle, <out>/zogzog/ the sealed one, <out>/friends/
    a page that opens it with the demo's key.
 

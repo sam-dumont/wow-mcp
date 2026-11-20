@@ -64,6 +64,18 @@ def trim(v, depth: int = 0):
     return v
 
 
+FOLD = 20  # answers longer than this many lines start folded: a phone scrolls past them
+
+
+def reply(lead: str, body: str) -> str:
+    """The server's answer: a long one folded in <details>, its size in the summary."""
+    block = f"```json\n{body}\n```\n"
+    n = body.count("\n") + 1
+    if n <= FOLD:
+        return f"{lead}:\n\n{block}"
+    return f"<details>\n<summary>{lead} ({n} lines of JSON)</summary>\n\n{block}\n</details>\n"
+
+
 def answer(res) -> object:
     if res.structured_content is not None:
         sc = res.structured_content
@@ -93,8 +105,7 @@ async def record(vl: str) -> str:
                 md = got.pop("markdown", None) if isinstance(got, dict) else None
                 body = json.dumps(trim(got), indent=1, ensure_ascii=False)
                 parts.append(f"## {ask}\n\nThe assistant calls `{tool}`:\n\n```json\n{json.dumps(args)}\n```\n\n"
-                             f"{'The server refuses' if res.is_error else 'The server answers'}:\n\n"
-                             f"```json\n{body}\n```\n")
+                             + reply('The server refuses' if res.is_error else 'The server answers', body))
                 if md:
                     # Its headings as bold lines: they'd fill the page's own contents.
                     lines = [re.sub(r"^#+ +(.*)$", r"**\1**", ln) for ln in md.strip().splitlines()]

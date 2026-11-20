@@ -1,13 +1,33 @@
-# A v* tag builds the images and pushes them with the tag without its v, to
-# ghcr.io/<repository owner>/$IMAGE_NAME and $RENDER_IMAGE_NAME (the env
-# block below, the one place the names live; a fork pushes to its own
-# namespace). The command inside stays `wow-stats`. No model runs in them
-# (docs/mcp.md).
-# linux/amd64 and linux/arm64 (a Raspberry Pi, an ARM VM): one multi-arch
-# index per image; the summary prints each tag@digest to pin. Package
-# visibility is set by hand in the package's settings, never here: a new
-# package from a private repository is private, and pulling it needs a
-# token with read:packages (docs/development.md, "Releasing").
+# The release button (docs/development.md, "Releasing"): Actions > release >
+# Run workflow on main, with a channel (stable, or rc for a release
+# candidate X.Y.Z-rc.N, published as a prerelease), a version bump and
+# dry_run. One run, in this order, so nothing public happens before
+# everything that can fail has passed:
+#
+# 1. plan: tools/release/release.py picks the version from pyproject.toml,
+#    CHANGELOG.md's "Unreleased" and the v* tags, and writes the notes.
+# 2. test: ci.yml in full, on the commit the run started from.
+# 3. prepare: the release commit (the version everywhere the tree carries
+#    it, "Unreleased" moved under its heading) goes through a pull request
+#    like any change: main's ruleset takes nothing else. The PR is opened
+#    with the CI GitHub App's token, so its checks run (a GITHUB_TOKEN PR
+#    starts none), and auto-merge squashes it once they pass. A tree that
+#    already carries an untagged version (an interrupted run, a release PR
+#    merged by hand) skips this step and releases that version as it is.
+# 4. build and merge: both images, both platforms, from the merged commit,
+#    pushed as ghcr.io/<owner>/$IMAGE_NAME:<version> and
+#    $RENDER_IMAGE_NAME:<version> (the env block below, the one place the
+#    names live; a fork pushes to its own namespace), checked, attested and
+#    signed. No `latest` tag: deployments pin a version and its digest.
+# 5. publish: the v<version> tag on that commit, then the GitHub release with
+#    the CHANGELOG section and each image's tag@digest; a candidate is a
+#    prerelease and never "Latest". GITHUB_TOKEN writes both; a tag it
+#    pushes starts no workflow, so nothing builds twice.
+#
+# dry_run does 1, 2 and 4 against a registry on the runner: the plan, the
+# notes and the image tags are in the run summary, nothing is committed,
+# pushed, tagged or published. Its images are built from the commit the run
+# started on, labelled with the planned version.
 #
 # Each platform builds on a runner of its own architecture, arm64 on
 # GitHub's native arm64 runner: under QEMU on one amd64 runner the two
@@ -17,55 +37,73 @@
 #
 # Supply chain (docs/development.md, "Verifying an image"): each image
 # carries BuildKit's SLSA provenance and an SPDX SBOM per platform in its
-# index, whatever the repository's visibility; the merge job checks both on
-# the merged index. The SBOMs are also kept as the run's artifact. In a
-# public repository the run adds GitHub artifact attestations (build
-# provenance and the SBOMs, `gh attestation verify`) and a keyless cosign
-# signature of each index, both through Sigstore's public log. A private
-# repository on a personal plan can't attest (that needs Enterprise Cloud)
-# and must not write its name to a public log, so those steps skip there;
-# the visibility test fails closed.
+# index; the merge job checks both on the merged index. The SBOMs are also
+# kept as the run's artifact. In a public repository the run adds GitHub
+# artifact attestations (build provenance and the SBOMs, `gh attestation
+# verify`) and a keyless cosign signature of each index, both through
+# Sigstore's public log. The visibility test fails closed.
 #
-# A pull request that touches the build runs the same jobs as a dry run: the
-# legs push to a registry on their own runner, the merge job joins them in a
-# registry of its own and runs the same checks. Nothing is pushed, attested
-# or signed, and the tests are ci.yml's own run on that pull request.
-name: release-image
+# A pull request that touches the build or the release tooling runs plan
+# (the dry version sha-<commit>), build and merge as a dry run. Its tests
+# are ci.yml's own run on that pull request.
+#
+# Every job carries `github.repository_id == '1464458020'` (this
+# repository): mirror.yml force-pushes main to the private CI mirror, and
+# nothing here may run there (tests/test_workflow_guard.py).
+name: release
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      channel:
+        description: "stable = X.Y.Z; rc = a release candidate X.Y.Z-rc.N (a prerelease)"
+        type: choice
+        default: rc
+        options: [rc, stable]
+      bump:
+        description: "auto = patch, or the open candidate series (rc: next candidate; stable: its final)"
+        type: choice
+        default: auto
+        options: [auto, patch, minor, major]
+      dry_run:
+        description: "Dry run: plan, notes, tests and image builds; nothing pushed, tagged or published"
+        type: boolean
+        default: true
   pull_request:
     paths:
       - Dockerfile
       - .dockerignore
       - .github/workflows/release.yml
+      - tools/release/**
 
 env:
   IMAGE_NAME: wow-mcp
   RENDER_IMAGE_NAME: wow-mcp-render
   PUBLIC: ${{ github.event.repository.visibility == 'public' }}
-  PUSH: ${{ github.event_name != 'pull_request' }}
+  # Images, tag and release only from a real run of the button.
+  PUSH: ${{ github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
   # The dry run's local registry (distribution 3), pinned by digest.
   LOCAL_REGISTRY_IMAGE: docker.io/library/registry:3@sha256:82f6ff4a7f982960c8aa51617fea3aabc485df6e55cce80d22deb1de36f1bc3c
 
 permissions:
   contents: read
 
+# One release at a time, never cancelled; a pull request's dry run is
+# replaced by its next push.
 concurrency:
-  group: release-${{ github.ref }}
+  group: ${{ github.event_name == 'pull_request' && format('release-pr-{0}', github.ref) || 'release' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
-    if: github.event_name != 'pull_request'
-    uses: ./.github/workflows/ci.yml
-
-  meta:
+  plan:
+    if: github.repository_id == '1464458020'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
+      mode: ${{ steps.v.outputs.mode }}
       version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      prerelease: ${{ steps.v.outputs.prerelease }}
+      sha: ${{ steps.v.outputs.sha }}
       image: ${{ steps.names.outputs.image }}
       render-image: ${{ steps.names.outputs.render-image }}
     steps:
@@ -75,20 +113,51 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The v* tags: release.py checks whether the tree's version has one.
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: Version
         id: v
+        env:
+          CHANNEL: ${{ inputs.channel }}
+          BUMP: ${{ inputs.bump }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          [ "$GITHUB_REF_TYPE" = "tag" ] || version="sha-${GITHUB_SHA:0:12}"
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            want=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
-            [ "$want" = "$version" ] || { echo "tag $version but pyproject.toml says $want"; exit 1; }
+          set -euo pipefail
+          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            printf 'mode=dry\nversion=sha-%s\ntag=\nprerelease=false\n' "${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$PUSH" = true ] && [ "$GITHUB_REF" != refs/heads/main ]; then
+            echo "::error::A release runs on main; on $GITHUB_REF only a dry run works."
+            exit 1
+          fi
+          release() { uv run --no-project python tools/release/release.py "$@"; }
+          plan=$(release plan --channel "$CHANNEL" --bump "$BUMP")
+          echo "$plan" >> "$GITHUB_OUTPUT"
+          mode=$(sed -n 's/^mode=//p' <<<"$plan")
+          version=$(sed -n 's/^version=//p' <<<"$plan")
+          # The release commit, applied here only to show it (prepare makes it).
+          [ "$mode" = tag ] || release apply "$version" >/dev/null
+          release notes "$version" > "$RUNNER_TEMP/notes.md"
+          {
+            if [ "$PUSH" = true ]; then echo "### Releasing v$version"; else echo "### Dry run: would release v$version"; fi
+            echo
+            echo "Channel \`$CHANNEL\`, bump \`$BUMP\`, from $(sed -n 's/^version = "\(.*\)"/\1/p' <<<"$(git show HEAD:pyproject.toml)") at \`${GITHUB_SHA:0:12}\`."
+            if [ "$mode" = tag ]; then
+              echo "main already carries $version, untagged: tag it as it is."
+            else
+              echo "The release commit (a pull request, merged when its checks pass):"
+              echo; echo '```'; git diff --stat; echo '```'
+            fi
+            echo; echo "#### Notes"; echo; cat "$RUNNER_TEMP/notes.md"
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Image names
         id: names
         env:
           OWNER: ${{ github.repository_owner }}
+          VERSION: ${{ steps.v.outputs.version }}
         run: |
           # Registry names are lowercase; an owner name may not be.
           owner=$(printf '%s' "$OWNER" | tr '[:upper:]' '[:lower:]')
@@ -98,12 +167,105 @@ jobs:
           # The renderer (Dockerfile target renderer): past levels' pictures,
           # in a container of its own with Chromium (docs/architecture.md).
           echo "render-image=$registry/$owner/$RENDER_IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          {
+            echo; echo "#### Images"; echo
+            echo "- \`ghcr.io/$owner/$IMAGE_NAME:$VERSION\`"
+            echo "- \`ghcr.io/$owner/$RENDER_IMAGE_NAME:$VERSION\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  test:
+    if: github.repository_id == '1464458020' && github.event_name != 'pull_request'
+    uses: ./.github/workflows/ci.yml
+    # ci.yml's image job logs in to dhi.io with these, and needs no other.
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+  # The release commit, through main's ruleset like any change. The CI
+  # GitHub App (variable CI_APP_CLIENT_ID, secret CI_APP_PRIVATE_KEY in the
+  # environment main-only, which only main can deploy to) opens the PR so its
+  # checks run, and auto-merge squashes it when they pass.
+  prepare:
+    needs: [plan, test]
+    if: github.repository_id == '1464458020' && needs.plan.outputs.mode == 'prepare' && github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-24.04
+    environment: main-only
+    # The PR's checks take about 20 minutes (the Windows job, the image).
+    timeout-minutes: 60
+    outputs:
+      sha: ${{ steps.pr.outputs.sha }}
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Mint the App's token for this repository
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+      - name: Release pull request, merged when its checks pass
+        id: pr
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -euo pipefail
+          [ "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA" ] \
+            || { echo "::error::main moved since this run started: run it again."; exit 1; }
+          release() { uv run --no-project python tools/release/release.py "$@"; }
+          release apply "$VERSION"
+          branch="release/v$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git switch -qc "$branch"
+          git commit -qam "Release $VERSION"
+          gh auth setup-git
+          git push -qf origin "HEAD:refs/heads/$branch"
+          {
+            echo "The release commit for v$VERSION: the version in every file that carries it, and CHANGELOG.md's \"Unreleased\" under its heading. The release run merges it once the checks pass, then builds, tags and publishes."
+            echo
+            release notes "$VERSION"
+          } > "$RUNNER_TEMP/body.md"
+          pr=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$pr" ]; then
+            pr=$(gh pr create --base main --head "$branch" --title "Release $VERSION" --body-file "$RUNNER_TEMP/body.md" | grep -oE '[0-9]+$')
+          else
+            gh pr edit "$pr" --body-file "$RUNNER_TEMP/body.md"
+          fi
+          echo "Release PR: #$pr"
+          gh pr merge "$pr" --auto --squash --match-head-commit "$(git rev-parse HEAD)"
+          for _ in $(seq 100); do
+            sleep 30
+            read -r state sha < <(gh pr view "$pr" --json state,mergeCommit --jq '"\(.state) \(.mergeCommit.oid // "")"')
+            case "$state" in
+              MERGED) echo "sha=$sha" >> "$GITHUB_OUTPUT"; echo "Merged as $sha"; exit 0 ;;
+              CLOSED) echo "::error::#$pr was closed without merging."; exit 1 ;;
+            esac
+            failed=$(gh pr view "$pr" --json statusCheckRollup \
+              --jq '[.statusCheckRollup[] | select(.conclusion == "FAILURE" or .conclusion == "CANCELLED" or .conclusion == "TIMED_OUT" or .conclusion == "ACTION_REQUIRED" or .state == "FAILURE" or .state == "ERROR")] | map(.name // .context) | join(", ")')
+            [ -z "$failed" ] || { echo "::error::#$pr: $failed failed. Fix main, then run the release again."; exit 1; }
+          done
+          echo "::error::#$pr not merged after 50 minutes"; exit 1
 
   # One leg per image and platform, each on a runner of that architecture.
   build:
-    needs: [test, meta]
-    # The tests skip on a pull request (ci.yml runs there on its own).
-    if: ${{ !cancelled() && needs.meta.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') }}
+    needs: [plan, test, prepare]
+    # The tests skip on a pull request (ci.yml runs there on its own), and
+    # prepare when there's no release commit to make (a dry run, a tree that
+    # already carries its version). A fork's pull request can't read the
+    # dhi.io credentials the main image's base needs (ci.yml's image-fork job
+    # says so on that run): no dry run there.
+    if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.plan.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     name: build (${{ matrix.target }}, ${{ matrix.arch }})
     strategy:
       fail-fast: true
@@ -123,7 +285,9 @@ jobs:
       contents: read
       packages: write
     env:
-      IMAGE: ${{ matrix.target == 'runtime' && needs.meta.outputs.image || needs.meta.outputs.render-image }}
+      IMAGE: ${{ matrix.target == 'runtime' && needs.plan.outputs.image || needs.plan.outputs.render-image }}
+      # The merged release commit, else the commit the run started on.
+      SHA: ${{ needs.prepare.outputs.sha || needs.plan.outputs.sha }}
     steps:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
         with:
@@ -131,6 +295,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ env.SHA }}
       - name: Local registry (dry run)
         if: env.PUSH != 'true'
         run: |
@@ -150,6 +315,13 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # The main image's base is a Docker Hardened Image: dhi.io takes no
+      # anonymous pulls (ci.yml's image job says where the token lives).
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: dhi.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       # The leg's index holds its image and the attestation manifest
       # (provenance, SBOM); imagetools create keeps both in the merged index.
       # The index annotations GHCR shows are set there, not here.
@@ -162,8 +334,8 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             SOURCE_URL=${{ github.server_url }}/${{ github.repository }}
-            VERSION=${{ needs.meta.outputs.version }}
-            REVISION=${{ github.sha }}
+            VERSION=${{ needs.plan.outputs.version }}
+            REVISION=${{ env.SHA }}
           provenance: mode=max
           sbom: true
           outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
@@ -202,8 +374,8 @@ jobs:
           retention-days: 1
 
   merge:
-    needs: [meta, build]
-    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    needs: [plan, prepare, build]
+    if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -212,10 +384,14 @@ jobs:
       # Sigstore's signing certificate (attestations, cosign), from the run's OIDC token.
       id-token: write
       attestations: write
+    outputs:
+      main: ${{ steps.index.outputs.main }}
+      render: ${{ steps.index.outputs.render }}
     env:
-      VERSION: ${{ needs.meta.outputs.version }}
-      IMAGE: ${{ needs.meta.outputs.image }}
-      RENDER_IMAGE: ${{ needs.meta.outputs.render-image }}
+      VERSION: ${{ needs.plan.outputs.version }}
+      IMAGE: ${{ needs.plan.outputs.image }}
+      RENDER_IMAGE: ${{ needs.plan.outputs.render-image }}
+      REVISION: ${{ needs.prepare.outputs.sha || needs.plan.outputs.sha }}
       SOURCE_URL: ${{ github.server_url }}/${{ github.repository }}
     steps:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
@@ -262,7 +438,7 @@ jobs:
               --annotation "index:org.opencontainers.image.source=$SOURCE_URL"
               --annotation "index:org.opencontainers.image.licenses=GPL-3.0-only"
               --annotation "index:org.opencontainers.image.version=$VERSION"
-              --annotation "index:org.opencontainers.image.revision=$GITHUB_SHA"
+              --annotation "index:org.opencontainers.image.revision=$REVISION"
               --annotation "index:org.opencontainers.image.description=$description"
               --tag "$image:$VERSION"
             )
@@ -395,3 +571,70 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "$MAIN"
           echo "$RENDER"
+
+  # The point of no return, once both images are pushed, checked and signed.
+  publish:
+    needs: [plan, prepare, merge]
+    if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.merge.result == 'success' && github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
+    runs-on: ubuntu-24.04
+    # The tag is made with the CI App's token: the `release tags` ruleset
+    # lets only that App create a v* tag (docs/development.md, "Releasing").
+    environment: main-only
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      TAG: ${{ needs.plan.outputs.tag }}
+      PRERELEASE: ${{ needs.plan.outputs.prerelease }}
+      SHA: ${{ needs.prepare.outputs.sha || needs.plan.outputs.sha }}
+      MAIN: ${{ needs.plan.outputs.image }}:${{ needs.plan.outputs.version }}@${{ needs.merge.outputs.main }}
+      RENDER: ${{ needs.plan.outputs.render-image }}:${{ needs.plan.outputs.version }}@${{ needs.merge.outputs.render }}
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ env.SHA }}
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Mint the App's token for the tag
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -euo pipefail
+          {
+            uv run --no-project python tools/release/release.py notes "$VERSION"
+            echo
+            echo "### Images"
+            echo
+            echo "Pin by digest (docs/development.md, \"Verifying an image\"):"
+            echo
+            echo "- \`$MAIN\`"
+            echo "- \`$RENDER\`"
+          } > "$RUNNER_TEMP/notes.md"
+          # A tag left by an interrupted run is reused only on the same commit.
+          have=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)
+          if [ -z "$have" ]; then
+            GH_TOKEN=$TAG_TOKEN gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA" >/dev/null
+          elif [ "$have" != "$SHA" ]; then
+            echo "::error::$TAG already points at $have, not $SHA"; exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::$TAG is already released"; exit 1
+          fi
+          flags=(--verify-tag --title "wow-mcp $VERSION" --notes-file "$RUNNER_TEMP/notes.md")
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease --latest=false); else flags+=(--latest); fi
+          gh release create "$TAG" "${flags[@]}"
+          echo "### Released [$TAG]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG)" >> "$GITHUB_STEP_SUMMARY"

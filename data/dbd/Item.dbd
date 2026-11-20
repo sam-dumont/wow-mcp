@@ -1,0 +1,52 @@
+COLUMNS
+int ID
+int<ItemClass::ClassID> ClassID
+int<FileData::ID> IconFileDataID
+int InventoryType
+int<ItemGroupSounds::ID> ItemGroupSoundsID
+int<Material::ID> Material
+int SheatheType
+int Sound_override_subclassID
+int SubclassID
+int DisplayInfoID
+int MaxDurability?
+int AmmunitionType
+int MinDamage
+int MaxDamage
+int DamageType
+int Resistances
+int<ModifiedCraftingReagentItem::ID> ModifiedCraftingReagentItemID?
+int RequiredLevel?
+int RandomSelect?
+int ItemRandomSuffixGroupID?
+int<ContentTuning::ID> ContentTuningID?
+int<CraftingQuality::ID> CraftingQualityID?
+int<ScalingStatDistribution::ID> ScalingStatDistributionID?
+int ScalingStatValue?
+int Field_12_0_0_63534_010?
+float RecraftReagentCountPercentage?
+int OrderSource?
+int<ItemSquishEra::ID> ItemSquishEraID?
+int Field_5_5_4_67090_015?
+int<ItemPetFood::ID> ItemPetFoodID? // matched against CreatureFamily::PetFoodMask by C_PetInfo.CanPetEatItem
+
+LAYOUT 9A2A4834
+BUILD 12.1.7.70424, 12.1.7.70493, 12.1.7.70668, 12.1.7.70740, 12.1.7.70892, 12.1.7.70986
+BUILD 1.60.1.69876, 1.60.1.69893, 1.60.1.69913, 1.60.1.69977, 1.60.1.70009, 1.60.1.70058, 1.60.1.70094, 1.60.1.70124, 1.60.1.70170, 1.60.1.70178, 1.60.1.70205, 1.60.1.70235, 1.60.1.70245, 1.60.1.70291, 1.60.1.70334, 1.60.1.70338, 1.60.1.70374, 1.60.1.70425, 1.60.1.70450, 1.60.1.70532, 1.60.1.70630, 1.60.1.70634, 1.60.1.70658, 1.60.1.70685, 1.60.1.70707, 1.60.1.70753, 1.60.1.70755, 1.60.1.70790, 1.60.1.70840, 1.60.1.70862, 1.60.1.70888, 1.60.1.70938, 1.60.1.70959
+$noninline,id$ID<32>
+ClassID<32>
+SubclassID<u8>
+Material<u8>
+InventoryType<8>
+SheatheType<u8>
+ItemPetFoodID<32>
+Sound_override_subclassID<8>
+IconFileDataID<32>
+ItemGroupSoundsID<u32>
+ContentTuningID<32>
+ModifiedCraftingReagentItemID<32>
+AmmunitionType<u8>
+CraftingQualityID<32>
+ItemSquishEraID<32>
+RecraftReagentCountPercentage
+OrderSource<u8>

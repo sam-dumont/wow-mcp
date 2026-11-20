@@ -1,18 +1,12 @@
 # wow-stats
 
-<figure class="shot">
-<img class="light-only" src="../../docs/images/overview-light.webp" width="1100" height="705" alt="The Overview of a made-up level 34 priest: behind the route at 2.0 times Polestar's time, the next level in 2h 27m of play, 90% of guide steps in order, then his next moves and his time per level">
-<img class="dark-only" src="../../docs/images/overview-dark.webp" width="1100" height="705" alt="The same Overview in the dark theme">
-<figcaption>The Overview of Nibbet, a made-up priest. <a href="@BASE@demo/">Open his pages</a>.</figcaption>
-</figure>
-
 ## Pick your path
 
 <div class="paths">
 <a class="path" href="../../docs/players/getting-started.md">
 <span class="path-kicker">Play</span>
 <strong>A friend runs a server</strong>
-<span>They sent you a link. Add Polestar, run one command, play. About 15 minutes, no admin rights.</span>
+<span>They sent you a link. Add Polestar, run one command, play. About 5 minutes, no admin rights.</span>
 <span class="path-go">Join a friend's server</span>
 </a>
 <a class="path" href="../../docs/ai/connect.md">
@@ -31,22 +25,81 @@
 
 ## What's on your page
 
-- **Your pace**: your time per level against [Polestar](https://github.com/fitzforge/polestar)'s route, and the hours of play to the next level. [Overview and next moves](../../docs/players/overview.md)
-- **Your next upgrade**: the best item per slot, the points it adds and where it drops, auction house included. [Gear and upgrades](../../docs/players/gear.md)
-- **The dungeon worth running**: XP against your questing pace, the quests to pick up first, the drops you'd wear. [Dungeons](../../docs/players/dungeons.md)
-- **A plan for tonight**: 1 to 6 hours of guide steps, checkpoints and where to log out. [Plan your next hours](../../docs/players/plan.md)
-- **Your history**: every level, one journal entry per evening, your look at each level in 3D. [Climb, timeline, journal](../../docs/players/history.md)
+<div class="feature">
 
-## What it doesn't do
+![The Next moves box of the demo priest: 3 talent points unspent, an off-hand upgrade from Scarlet Monastery Library, and City of Dalaran with the quests to pick up first and the drops worth having](../../docs/images/next-moves.webp)
 
-- **Touch the game.** It reads the files WoW and your addons already save, after they save
-  them. No addon of its own, no memory reading.
-- **Send your data anywhere.** It goes from your computer to the server you (or a friend)
-  run, and nowhere else. Friends see what you choose to share. [What's shared](../../docs/players/privacy.md)
-- **Run an AI on the server.** Your own assistant does the thinking, in your own account.
+<div>
+<p class="eyebrow">Before you log in</p>
+<h3>What to do with the next hour</h3>
+<p>The Overview puts your pace against <a href="https://github.com/fitzforge/polestar">Polestar</a>'s route (2.0× is twice the route's time) and the hours of play to your next level. Under that, up to three next moves: the upgrade and who drops it, the dungeon worth a run with the quests to grab first, the talent points you forgot to spend.</p>
+<p><a href="../../docs/players/overview.md">Overview and next moves →</a></p>
+</div>
+</div>
+
+<div class="feature flip">
+
+![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, City of Dalaran, the Auction House with a cheap hood on sale yesterday, and quests in Stranglethorn Vale](../../docs/images/upgrades.webp)
+
+<div>
+<p class="eyebrow">Gear</p>
+<h3>Every slot, its next upgrade, and where it drops</h3>
+<p>The best item you can wear now and within 3 levels, the points it adds, and where to get it: a boss, a quest, or the auction house at yesterday's price. If it's already in your bags, the page tells you to equip it.</p>
+<p><a href="../../docs/players/gear.md">Gear and upgrades →</a></p>
+</div>
+</div>
+
+<div class="feature">
+
+![Two dungeon cards from the demo: Razorfen Kraul and City of Dalaran, each with a worth-a-run line, the quests to pick up, the drops you could use, and what a trip is worth](../../docs/images/dungeons.webp)
+
+<div>
+<p class="eyebrow">Dungeons</p>
+<h3>The dungeon worth running</h3>
+<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing (3.4× faster, for the demo priest in City of Dalaran).</p>
+<p><a href="../../docs/players/dungeons.md">Dungeons →</a></p>
+</div>
+</div>
+
+Also on your page: **a plan for tonight**, 1 to 6 hours of guide steps with checkpoints and
+where to log out ([Plan your next hours](../../docs/players/plan.md)), and **your history**:
+every level, one journal entry per evening, your look at each level in 3D
+([Climb, timeline, journal](../../docs/players/history.md)).
+
+<div class="need">
+<div>
+<p class="eyebrow">What you need</p>
+
+### To play on a friend's server
+
+- WoW Forever on Windows 10/11 or a Mac, logged in once.
+- [Polestar](https://github.com/fitzforge/polestar), from the CurseForge app.
+- One command from your start page. No admin rights.
+
+### To run your own
+
+- Docker, and a box that stays on: 2 vCPU and 2 GiB of RAM for one player.
+- About 10 minutes to [try it with made-up characters](../../docs/self-host/demo.md) first.
+
+</div>
+<div>
+<p class="eyebrow">What it doesn't do</p>
+
+### Your data stays yours
+
+- **No touching the game.** It reads the files WoW and your addons already save, after they
+  save them. No addon of its own, no memory reading.
+- **No sending your data elsewhere.** It goes from your computer to the server you (or a
+  friend) run, and nowhere else. Friends see what you choose to share.
+- **No AI on the server.** Your own assistant does the thinking, in your own account.
+
+[What's shared →](../../docs/players/privacy.md)
+
+</div>
+</div>
 
 How the pieces fit: [How it works](../../docs/explanation/how-it-works.md). Questions:
-[Questions and answers](../../docs/faq.md).
+[Questions and answers](../../docs/faq.md). The words these pages use: [Glossary](../../docs/glossary.md).
 
 <p class="fineprint">Free software under the GPL-3.0. The route times and gear scoring come from
 <a href="https://github.com/fitzforge/polestar">Polestar</a> and its contributors; other credits in

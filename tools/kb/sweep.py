@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from collections import defaultdict
 from datetime import UTC, date, datetime
@@ -125,7 +124,7 @@ def main(argv: list[str] | None = None) -> int:
     path.write_text(json.dumps({"swept": day, "urls": now}, indent=1, sort_keys=True) + "\n", encoding="utf-8")
     old = stale()
     body = body_of(look, urls, old, day)
-    did = web.keep_issue(web.GitHub(os.environ.get("GITHUB_REPOSITORY")), "sweep", LABEL,
+    did = web.keep_issue(web.GitHub(web.repo()), "sweep", LABEL,
                          "KB sweep: cited sources to look at", body) if a.github else ("changed" if body else "none")
     print(json.dumps({"urls": len(urls), **{k: len(v) for k, v in look.items()}, "stale": len(old), "issue": did}))
     return 0

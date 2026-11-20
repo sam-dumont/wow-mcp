@@ -22,6 +22,11 @@ needs a knowledge base source (kb_search) or is "unknown". Then call check_plan 
 number that isn't in the facts; fix those before answering."""
 
 
+# A plan by level (no Recorder events: no route step known).
+ESTIMATED_BRIEF = (" This plan is estimated by level from the player's level times, not from guide steps: say "
+                   "'estimated' once, give the checkpoints by level, and end with the `unlock` line as it is.")
+
+
 def check(text: str, facts: dict, constraints: dict | None = None, hours: float | None = None) -> dict:
     """A write-up (anyone's) against a plan: the numbers in it that no fact
     holds, and the player's own constraints from the session request
@@ -113,10 +118,18 @@ def fallback(est: dict) -> str:
     f = est["facts"]
     xp = (f" ({f['end.xp']} XP" + (f", {f['end.rested_used']} of it rested" if est['end']['rested_used'] else "")
           + ")") if "end.xp" in f else " (on the route's own clock: none of your levels measured yet)"
-    out = [f"## Your next {f['hours']}",
-           f"Level {f['start.level']} now, about {f['end.level']} at the end{xp}. "
-           f"{f['play']} of play, {f['stops']} kept for unplanned stops ({f['stops.share']} of your recent "
-           f"sessions)."]
+    if est.get("mode") == "by_level":
+        # No route step known: an estimate by level, said once, with the
+        # one thing that makes it the step-by-step plan.
+        basis = (f"your last {f['xph.n']} levels, {f['xph']} XP an hour with your breaks" if "xph" in f
+                 else "Polestar's own time per level")
+        out = [f"## Your next {f['hours']} (estimated)",
+               f"Level {f['start.level']} now, about {f['end.level']} at the end{xp}, at the pace of {basis}."]
+    else:
+        out = [f"## Your next {f['hours']}",
+               f"Level {f['start.level']} now, about {f['end.level']} at the end{xp}. "
+               f"{f['play']} of play, {f['stops']} kept for unplanned stops ({f['stops.share']} of your recent "
+               f"sessions)."]
     out.append("\n### Blocks")
     for b in est["blocks"]:
         i = b["id"]
@@ -126,6 +139,10 @@ def fallback(est: dict) -> str:
                 out.append(f"  - {f[i + '.why' + str(j)]}")
         if b.get("town_stop") and est.get("town_stop"):
             out.append("  - Town stop here: " + "; ".join(f[k] for k in sorted(f) if k.startswith("town.errand")))
+    cps = [k for k in f if re.fullmatch(r"cp\d+\.level", k)]
+    if cps:
+        out.append("\n### Checkpoints")
+        out += [f"- Level {f[k]} at about {f[k[:-6] + '.at']}" for k in sorted(cps, key=lambda k: int(k[2:-6]))]
     if est.get("town_stop") and not any(b.get("town_stop") for b in est["blocks"]):
         out.append("\n### Town stop (at the end)")
         out += [f"- {f[k]}" for k in sorted(f) if k.startswith("town.errand")]
@@ -135,16 +152,20 @@ def fallback(est: dict) -> str:
         out += [f"- {f[k]}" for k in sk]
     if "branch.dungeon" in f:
         out.append("\n### If you get a group")
+        gear = f", gear {f['branch.gear']} points expected" if f["branch.gear"] not in ("+0", "+0.0") else ""
         out.append(f"- {f['branch.dungeon']}: {f['branch.time']} for the whole trip, about {f['branch.xp']} XP "
-                   f"({f['branch.xph']} XP/h), gear {f['branch.gear']} points expected ({f['branch.from']}).")
+                   f"({f['branch.xph']} XP/h){gear} ({f['branch.from']}).")
         if "branch.vs_guide" in f:
             out.append(f"  - {f['branch.vs_guide']}")
     m = est["mount"]
     cur = m.get("current")
     if cur:
         i = m["tiers"].index(cur) + 1
-        line = (f"- Riding at {f[f'mount{i}.level']}: {f[f'mount{i}.need']} needed, {f[f'mount{i}.left']} to go"
-                + (f" at {f['gold.rate']} net" if f.get("gold.rate") != "n/a" else ", no gold rate measured yet"))
+        if est["start"].get("gold_copper") is None:  # no character sheet yet: the gold isn't known
+            line = f"- Riding at {f[f'mount{i}.level']}: {f[f'mount{i}.need']} needed (your gold isn't known yet)"
+        else:
+            line = (f"- Riding at {f[f'mount{i}.level']}: {f[f'mount{i}.need']} needed, {f[f'mount{i}.left']} to go"
+                    + (f" at {f['gold.rate']} net" if f.get("gold.rate") != "n/a" else ", no gold rate measured yet"))
         if f"mount{i}.eta" in f:
             line += f": about {f[f'mount{i}.eta']} of play" + (f" (level {f[f'mount{i}.eta_level']})"
                                                                if f"mount{i}.eta_level" in f else
@@ -155,4 +176,6 @@ def fallback(est: dict) -> str:
     out.append("\n### Log out")
     out.append(f"- {f['logout.where']}" + (f" ({f['logout.how']})" if "logout.how" in f else "")
                + (f": {f['logout.rested']}" if "logout.rested" in f else ""))
+    if f.get("unlock"):
+        out.append("\n" + f["unlock"])
     return "\n".join(out)

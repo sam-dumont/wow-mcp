@@ -59,3 +59,156 @@ figure.shot figcaption { font-size: var(--sl-text-sm); color: var(--sl-color-gra
   text-decoration: none;
   font-weight: 600;
 }
+
+/* Every screenshot opens full size (scripts/prepare.mjs wraps it). */
+.sl-markdown-content a.zoom { display: block; cursor: zoom-in; }
+.sl-markdown-content a.zoom img {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18), 0 6px 20px rgb(0 0 0 / 0.12);
+}
+
+/* A clip from the product (docs/videos/media), one per theme. */
+figure.clip { margin: 1.25rem 0 1.75rem; }
+figure.clip video {
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  background: var(--sl-color-gray-6);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.18), 0 6px 20px rgb(0 0 0 / 0.12);
+}
+figure.clip figcaption { font-size: var(--sl-text-sm); color: var(--sl-color-gray-3); margin-top: 0.5rem; }
+video.light-only, video.dark-only { display: block; }
+:root[data-theme="light"] video.dark-only,
+:root:not([data-theme="light"]) video.light-only { display: none; }
+
+/* Windows | Mac tabs over the OS blocks (src/components/Footer.astro). */
+.os-tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.2rem;
+  margin: 0.5rem 0 0.25rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 999px;
+}
+.os-tabs button {
+  font: inherit;
+  font-size: var(--sl-text-sm);
+  font-weight: 600;
+  padding: 0.3rem 0.9rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--sl-color-gray-2);
+  cursor: pointer;
+}
+.os-tabs button[aria-selected="true"] { background: var(--sl-color-accent); color: var(--sl-color-black); }
+:root[data-theme="light"] .os-tabs button[aria-selected="true"] { color: var(--sl-color-white); }
+.sl-markdown-content .os[hidden] { display: none; }
+
+/* Mermaid diagrams: the source until the script draws it, then the SVG. */
+pre.mermaid {
+  background: transparent;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+  text-align: center;
+  white-space: pre;
+}
+pre.mermaid[data-processed] { white-space: normal; }
+pre.mermaid svg { max-width: none; height: auto; }
+
+/* The home page: the tour beside the title on a wide screen, under it on a
+   phone. Starlight's hero is made for a square logo; this one is a 16:10
+   clip. */
+@media (min-width: 50rem) {
+  .hero { grid-template-columns: 5fr 6fr !important; }
+  .hero > .hero-html { width: 100% !important; }
+}
+.hero > .hero-html { width: 100% !important; flex-direction: column; gap: 0.5rem; order: 2; }
+.hero-html video {
+  width: 100%;
+  height: auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.2), 0 12px 32px rgb(0 0 0 / 0.18);
+}
+.hero-html p { margin: 0; font-size: var(--sl-text-sm); color: var(--sl-color-gray-3); text-align: center; }
+.hero-html a { color: var(--sl-color-text-accent); }
+
+/* The home page's rows: a screenshot and what it's for, side by side. */
+.feature {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem 2.5rem;
+  align-items: center;
+  margin: 2.5rem 0;
+}
+@media (min-width: 50rem) {
+  .feature { grid-template-columns: 6fr 5fr; }
+  .feature.flip > :first-child { order: 2; }
+}
+.sl-markdown-content .feature > * { margin: 0; }
+/* A tall screenshot shows its top; the click opens all of it. */
+.feature a.zoom img { width: 100%; max-height: 28rem; object-fit: cover; object-position: top; }
+.feature .eyebrow, .need .eyebrow {
+  font-size: var(--sl-text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--sl-color-accent-high);
+  margin: 0 0 0.3rem;
+}
+.feature h3 { margin: 0 0 0.6rem; font-size: var(--sl-text-2xl); }
+.feature p { margin: 0 0 0.6rem; }
+
+/* What you need, and what it doesn't do: two panels. */
+.need {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  margin: 2.5rem 0 1rem;
+}
+@media (min-width: 50rem) { .need { grid-template-columns: 1fr 1fr; } }
+.sl-markdown-content .need > div {
+  margin: 0;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.75rem;
+  background: var(--sl-color-gray-7, var(--sl-color-black));
+}
+.sl-markdown-content .need h3 { margin: 0; font-size: var(--sl-text-lg); }
+.sl-markdown-content .need .sl-heading-wrapper { margin: 0.2rem 0 0.6rem !important; }
+.sl-markdown-content .need ul + .sl-heading-wrapper { margin-top: 1.4rem !important; }
+.need .sl-anchor-link { display: none; }
+.sl-markdown-content .need ul { padding-inline-start: 1.1rem; margin: 0 0 0.6rem; }
+.sl-markdown-content .need li { margin: 0.25rem 0; }
+.sl-markdown-content .need pre { margin: 0.5rem 0; }
+
+/* Tables and diagrams on a phone: Starlight lets a table scroll in its own box
+   (display: block), but its columns shrink to a letter or two first, as
+   words break anywhere. A floor per cell keeps them readable and the table
+   scrolls sideways instead; the shadow on an edge says there is more. A
+   diagram keeps its own size (shrunk to a phone, its labels can't be read)
+   and scrolls the same way. */
+@media (max-width: 50rem) {
+  /* The first column is usually a short name; the others hold prose, the
+     last one most often. */
+  .sl-markdown-content :is(th, td) { min-width: 12rem; }
+  .sl-markdown-content :is(th, td):first-child { min-width: 6rem; }
+  .sl-markdown-content :is(th, td):last-child:not(:first-child) { min-width: 15rem; }
+  .sl-markdown-content table, pre.mermaid[data-processed] {
+    max-width: 100%;
+    overflow-x: auto;
+    background:
+      linear-gradient(to right, var(--sl-color-bg), var(--sl-color-bg)) left / 1.5rem 100% no-repeat local,
+      linear-gradient(to left, var(--sl-color-bg), var(--sl-color-bg)) right / 1.5rem 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, rgb(0 0 0 / 0.35), transparent) left / 0.75rem 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, rgb(0 0 0 / 0.35), transparent) right / 0.75rem 100% no-repeat scroll;
+  }
+  :root[data-theme="dark"] :is(.sl-markdown-content table, pre.mermaid[data-processed]) {
+    background:
+      linear-gradient(to right, var(--sl-color-bg), var(--sl-color-bg)) left / 1.5rem 100% no-repeat local,
+      linear-gradient(to left, var(--sl-color-bg), var(--sl-color-bg)) right / 1.5rem 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%, rgb(255 255 255 / 0.3), transparent) left / 0.75rem 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%, rgb(255 255 255 / 0.3), transparent) right / 0.75rem 100% no-repeat scroll;
+  }
+}

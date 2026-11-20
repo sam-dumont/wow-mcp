@@ -71,8 +71,8 @@ at a 30% drop chance, or 1g now.
 1. Take the top group in "By where you get it": that's the trip worth the most points.
 2. Before a dungeon, read its card in [Dungeons](dungeons.md): the quests to pick up first make
    the run worth more.
-3. Already carry an upgrade? It says "In your bags: equip it". That needs Syndicator, which
+3. An upgrade you already carry says "In your bags: equip it". That needs Syndicator, which
    tells the page what's in your bags.
 
-Missing the list, or bags never counted? [A part of my page is empty](troubleshooting.md#a-part-of-my-page-is-empty)
+List missing, or bags never counted: [A part of my page is empty](troubleshooting.md#a-part-of-my-page-is-empty)
 says which addon fills each part.

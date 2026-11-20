@@ -1,5 +1,326 @@
 # Changelog
 
+## Unreleased
+
+**Releases are one button, and this repository is the only one.**
+Development moved here from the private repository it was exported from.
+Actions > release > Run workflow picks the next version (`rc` for a
+release candidate `X.Y.Z-rc.N`, a prerelease), merges the release commit
+through a pull request, builds and signs both images, tags and publishes
+the GitHub release with this file's section and each image's digest
+(docs/development.md, "Releasing"). The knowledge base's refresh job runs
+in a private CI mirror that holds its credentials, and its pull requests
+land here behind the same checks. The shipper now orders release
+candidates: `0.7.0-rc.1` updates a 0.6 install, and a candidate sorts below
+its final.
+
+**The installers download a pinned uv.** When a friend's machine has no uv,
+the install command fetches uv 0.13.9 from its GitHub release and checks the
+SHA-256 before unpacking it, instead of piping astral.sh's installer into a
+shell. The proxy docs now lead with `PROXY_SECRET_FILE`: trusting a subnet
+also trusts every other container on it.
+
+**kb_topics names every document.** A lane's statements folded in from
+another lane, or written by a model pass, carry no research document; the
+lane's `documents` no longer lists them as a nameless `""` entry (the 0.7.0
+release candidate's A/B check).
+
+**Four things the A/B check caught before 0.7.0.** Without a Battle.net
+read of the achievements, the Legacy count says "unknown" again instead of
+0, and the card's guild tells "no guild" from "not read yet" (the exporter
+now says which). A level's snapshot shows each profession's cap as the
+Recorder had seen it by then. A session that starts mid-minute keeps that
+minute's XP in the journal. And the class guide keeps its contradictions and
+knowledge-base ids: the 24,000-character cap now cuts them last, and the
+next bracket sends the statements it repeats by id.
+
+**Every page with a source missing.** Without Syndicator, the gear page and
+the `gear` tool give the best items for your level (or upgrades over what
+Battle.net says you wear), marked as an estimate, with the one step that
+turns them into upgrades over your own gear. Without the Recorder, the
+journal has one entry per logout with the time played estimated from your
+level times, the level page counts Polestar's quests and kills, and
+`sessions` answers the same way. With only level splits, the summary takes
+the level from them, and the class tools say the class isn't known yet
+instead of failing. Switch the Recorder on later (or install Syndicator)
+and the earlier history stays, with one marker where the detail starts;
+the hint goes once its data arrives, and the plan turns step by step.
+
+**Gear says who it's built for.** Every upgrade, dungeon drop and the MCP
+`gear` tool now say "Built for your spec", "Not made for your spec. Fine
+while levelling", "Made for healers, not for a mage", or "Role unknown: pick
+your role in settings",
+with what it costs you ("Leather: you can wear mail", "Most of its stats do
+nothing for a Fury warrior") and who usually rolls first in a group.
+Off-spec pieces name the on-spec one for the same slot. Stats your class
+can't use (healing power for a warrior, Spirit for a rogue, attack power for
+a mage) now count zero; stats your class uses but your spec doesn't (a
+shadow priest's healing power) count partly, more before the spec's
+31-point talent at 40. Close options rank the on-spec one first, so some
+lists, dungeon suggestions and plans reorder.
+Nothing is hidden. Checked against published gear tables for every spec
+(docs/gear-reference.md, "Who an item is built for").
+
+**An A/B check before each release.** `tools/ab/ab.py` records what your
+install asks its stores once, then shows the same answers to the old and the
+new version with the clock frozen, and lists every answer that changed, a
+section per feature, regressions first (docs/development.md, "Before a
+release: the A/B check"). Recordings stay out of git and go after 30 days.
+
+**"View in 3D" draws your character from your own game files, with our own
+viewer.** The 3D view no longer loads anything from Wowhead, so Forever's
+own races and items (Skyborne on its own body, the armor Forever added)
+show as in game, with the enchant's glow, and the Updated/Classic switch
+works for every race the game has both models of. The files are the ones
+your shipper sends (it updates itself); until they've come, the toggle keeps
+Battle.net's picture and says why in one line. The public and friends'
+sites carry each character's files, nothing more.
+
+**/start's addon list reads true.** The summary counts the rows ("4 sending
+· 1 installed, not sending yet · 2 optional to add"), an optional addon you
+haven't installed says "optional, not installed" instead of a red cross,
+and an installed one that isn't sending yet shows only the step left ("Log
+in once with each character"), never "Install it".
+
+**A plan without the Recorder.** "Plan my next 2 hours" used to refuse a
+character whose Polestar Recorder was off. It now plans by level from
+Polestar's level splits: the XP an hour of the last five levels, the level
+reached in the time asked, Polestar's guide for each level, a checkpoint at
+each level-up, the dungeon branch and the mount goal. The plan says it is
+estimated and ends with the one line that turns it into the step-by-step
+plan (`/psrec on`, then `/reload`). The gold rate and a plan's review use the
+level splits too when the Recorder's online time is missing.
+
+**The shipper sends the 3D view its files.** Every 15 minutes at most, it
+asks your server which game files the 3D view still wants (client tables,
+then your characters' models and textures) and sends them from your WoW
+install, within the same daily budget as your events, never twice. Each
+person's files are kept in their own folder and go when they are removed.
+`model3d_files = false` turns it off (docs/shipper.md, "The 3D view's
+files").
+
+**The shipper no longer calls valid game files missing.** It checks each
+file against its content key instead of header fields the game doesn't
+keep reliably, and reads the files the game downloaded while playing
+(stored with no header). It also tries every index entry and reads the index again
+when the game rewrites it, and tries each copy the game lists for a file
+(one per platform, say) before calling it missing.
+
+**Every talent change, with WoWSims Exporter.** An optional addon now
+fills the talent history: WoWSims Exporter saves your build each time a
+talent changes, at every level, and the shipper sends one event per change
+(never the other players the addon keeps in its file). With it, the talents
+end with every change since you installed it; without it, Battle.net's last
+3 weeks and the one step that fills in the rest. A talent the addon can't
+save is named under the history, not dropped. The MCP's `talent_changes`
+gives the same. Help, /start, the installers' check and the docs now show
+one addon list, each with what it adds and its one step; the shipper's
+`--talents-check` counts what it would read from the addon's file, counts
+only.
+
+**Talent changes are back, from Battle.net.** The character page's talents
+end with "Talent changes over the last 3 weeks", where "Build by level" was:
+each day the build changed, the points per tree before and after, and the
+talents gained or dropped. It reads the exporter's daily talent reads
+straight from vm-wow (23 days), on the live full view only: no static
+bundle, file or cache keeps them. Without Battle.net, or with no change,
+the block says so in one line. The MCP has the same answer in a new tool,
+`talent_changes`, under the same "Battle.net data to my AI" switch.
+
+**Some figures shift slightly: sessions and route time have one definition
+everywhere**, the semantic layer's: a session ends after 330 s without a
+Recorder record (was 20 minutes or a login), at its last record, and a
+level's route time is the class's median over its side's races (was your
+race's own run). `route_reference` drops `race`.
+
+**The shipper can read the game's own files.** A first step towards a 3D
+view drawn from each player's own WoW install instead of Wowhead's: the
+shipper reads Forever's storage (CASC), read-only, and
+`wow_stats.py --casc-extract` copies the files the 3D view needs to a folder
+for checking by hand (docs/shipper.md, "Flags"). Nothing is sent yet.
+
+**The shipper checks for updates every 2 hours** instead of 6, so fixes reach
+players' PCs the same afternoon. Shippers already installed keep their 6 hours
+until they take this version. `auto_update = false` still pins it.
+
+**Blue posts from Wowhead's Forever blue tracker.** The weekly meta pass no
+longer reads the forums' own staff-post list (`/groups/blizzard-tracker`,
+which the forums' robots.txt disallows). It takes the list from Wowhead's
+Forever blue tracker feed and each staff post's text from the forum topic's
+JSON, with any player post it quotes cut out. The digest line says "Blizzard
+staff", never a name (docs/kb.md, "The meta pass").
+
+**Three addons fewer: Blizzard's API first.** wow-stats no longer reads
+CharacterExport-Forever, Narcissus or Vulcan SimBench. The rule now: data
+comes from Blizzard's API when it has it, from an addon only when it doesn't
+or when you need history past Blizzard's 30 days (new page: [Where the data
+comes from](docs/explanation/data-sources.md)).
+
+- Talents come from Battle.net only. A character Battle.net doesn't know
+  yet has no talents on the card. The "Build by level" talent
+  history and the talents line in level snapshots are gone: they came from
+  `/simx` exports, and Battle.net's readings can't be kept.
+- The 3D look comes from Battle.net only; a character it doesn't know wears
+  its race's default look.
+- Profession caps come from Polestar Recorder's skill records, else from the
+  trainer tiers (a floor: the move then says "if you haven't trained it
+  yet"). Professions in the answers carry `max_rank_from` (`recorder` or
+  `tiers`).
+- A self-hosted site without a Battle.net client has no talents and no
+  looks (every model wears the race's default).
+
+**Your choice of spec first, the talents only as a hint.** The gear advice
+scores for the spec you chose (the site's `WEIGHTS`, Polestar's Stat
+weights, then ForeverLevelingBiS's or GearQuestForever's pick) and falls
+back on the tree with the most talent points only when none of them says
+anything. A Shadow priest levelling with most points in Discipline gets
+Shadow weights. This is the 2026-11-18 rule again: the change above had put
+the talents before the addon's pick.
+
+**Sex, guild and Legacy points from Battle.net.** The exporter now reads
+the guild from the profile and the completed achievements (each Legacy
+challenge is one). The card's guild, the 3D model's sex and the Legacy
+count come from there. Without Battle.net they read "unknown", and the
+Legacy count is no longer a floor guessed from levels and skills. The
+shipper stops sending `sex` and `guild`.
+
+**The MCP has your current talents.** `character_summary` gives the spec,
+the points per tree and when Battle.net read them; `class_guide`,
+`class_meta` and `sanity_check` use them. Read live from the dashboard's
+VictoriaMetrics (23 days), nothing kept. On a multi-user install the
+"Battle.net data to my AI" setting decides.
+
+Upgrading: nothing to change. Events already stored with `talents`,
+`talent_ranks`, `looks` or a CharacterExport cap stay stored and nothing
+reads them. The shipper updates itself and stops sending those fields; an
+older server takes the newer shipper's events (the fields are just absent),
+and this server takes an older shipper's (it ignores them). You can uninstall
+the three addons.
+
+**Level times and dungeon runs from Mac characters with an accent.** The
+Mac client can hand back a character folder's name with its accents split
+off ("E" plus a combining mark). The shipper used that name for level
+splits, dungeon runs and the Recorder's sessions, the app refuses it, so
+those events were skipped while the character itself (named by Polestar)
+arrived. Names are now composed (NFC) everywhere; the next run sends the
+whole history Polestar kept.
+
+**"Installed" is not "on" for Polestar Recorder.** The setup report says
+`recorder_on: "unknown"` when no account ever saved the Recorder's switch
+(installed by the install command, the game not played since), instead of
+leaving the field out. The start page, the admin badge and the missing-data
+lines treat it like "off": type /psrec on in game, then /reload.
+
+**State of the meta for your class.** The character card has a short
+paragraph on what your class and spec run on Forever right now, with the
+day it was last checked; friends see it on your zogzog link (it holds
+nothing of yours). Your own page adds a 0-100 score of how close you are
+(talents against the levelling build, gear against the best you can wear
+now, enchants the meta uses), the gaps that cost the most with where to fix
+each, and the meta in full. The MCP's new `class_meta` tool answers "how
+close am I to the meta?". The knowledge comes from a new sourced KB lane
+(`data/kb/research/class-meta.json`), and the weekly meta pass now tags each
+class statement with its spec and the part of the meta it changes. New
+route: `/api/meta` (full view only).
+
+Tank and healer specs score their talents against the levelling build
+before 60 and against their role's endgame build at 60 (eight sourced
+builds in the lane; a spec without one shows "no target yet").
+
+**This week on Forever.** The weekly KB pass now also writes a news digest:
+one line per item in our own words, with its category, day, source and who
+it concerns, and the events it announces (with the day only when the source
+names it, else "announced, no date"). The full view's Overview has a "This week
+on Forever" panel (your characters' news first, earlier weeks a click away),
+the meta box a "Coming up" list, and "What to change" the prep for an event
+less than four weeks away (attunement quests, resistance, consumables:
+advice, not scored). The card (and the zogzog link) gets one line when an
+event for the class and level is under two weeks away. New MCP tool `news`;
+`class_meta` and `plan_session` know what's coming. New route: `/api/news`
+(full view only).
+
+**Named metrics for your AI.** Two new MCP tools, `list_metrics` and
+`query_metric`, answer from a semantic layer: 47 metrics (time at a level
+counted four ways, XP per hour, dungeon time, deaths, gold, sessions...) and
+14 dimensions, defined once in `wowstats/analysis/semantic.yaml` and compiled
+to SQL by [Boring Semantic Layer](https://github.com/boringdata/boring-semantic-layer).
+An answer carries its rows, the SQL that made them and each metric's
+definition; filter values are bound as parameters, never written into the SQL.
+`propose_finding` takes a `query_metric` call as evidence (`metric_query`).
+[Semantic layer](docs/reference/semantic-layer.md) has the catalogue.
+
+**The layer answers the four questions it couldn't.** 66 metrics now, 25
+dimensions:
+- **Quests:** `quest` and `quest_id` dimensions over a new `quests` table
+  (each accept paired with its hand-in or abandon), and `quest_xp_per_min`.
+  A quest's time is the online time while it was in the log, shared equally
+  among the quests open then: the times add up to the time played, nothing
+  counted twice ([Time on a quest](docs/reference/semantic-layer.md#time-on-a-quest)).
+- **Guide steps:** `guide`, `step`, and their titles from the route
+  reference, on the timeline.
+- **Money:** `unexplained_gold_delta`, what the purse did between two logouts
+  less the quest money in between, by level or by week (`gold_moved_copper`
+  adds up, unlike `gold_delta_copper`). No addon the kit reads saves
+  spending, so it is never "repairs".
+- **Across two models:** `kills_per_combat_hour`, `deaths_per_online_hour`,
+  `quest_xp_per_played_hour`, declared as expressions over metric names
+  and grouped by the dimensions both models share.
+
+**The character page reads the layer.** Time, XP, quests and kills per
+level, the pace and the average level, each dungeon run's time and XP/hour,
+and the deaths by zone and level come from the same definitions as
+`query_metric`, worked out when the answers are built (never per page
+view). Same numbers on the demo, checked against a snapshot taken before.
+A death record with no level or zone of its own now counts at the level of
+the dings and session records around it and in the zone of the last zone
+record, as `query_metric` always counted it (it showed under "Unknown" or no
+level before). The session journal, the Overview's pace against the route
+and the purse still count their own way: the layer defines those
+differently, and changing them is a separate decision.
+
+**`play_sql` runs on DuckDB.** Same tables, columns, row cap and timeout, one
+character's data, read only, no file or network access. The dialect changes in
+a few places: `7/2` is 3.5 (`//` for whole numbers), `SUM(kind = 'kill')`
+becomes `COUNT(*) FILTER (WHERE kind = 'kill')`, and `repeat`, `lpad`, `rpad`,
+`printf`, `format`, `replace` and `regexp_replace` are refused (they can build
+a value bigger than the memory limit counts). Findings kept before keep
+being rechecked on SQLite.
+
+**The main image is on Docker's hardened Python, not Alpine.** DuckDB ships
+no wheel for Alpine's musl, and Debian slim, the first glibc base we tried,
+came with 53 HIGH and CRITICAL findings in Trivy (47 with no fix).
+`dhi.io/python:3.15-debian13` is glibc, has no shell and no system package
+manager, and its HIGH findings drop to 15, all marked not affected in the
+image's own VEX statements. The image is 291 MB (amd64). Same user (10001),
+ports, entrypoint and read-only root filesystem. `docker exec ... sh` no
+longer works: use `docker exec ... python -c ...` or `wow-stats ...`.
+**Building from source now needs a free Docker Hub account**: run
+`docker login dhi.io` once. The released images pull as before. The
+renderer stays on Debian slim. Sizes in [Sizing](docs/self-host/sizing.md).
+
+**What players are saying.** "This week on Forever" now ends with up to
+five of the week's busiest threads from the official forums' Forever
+discussion and r/wowforever, each with one line in our own words and a link
+to the thread, labelled as opinion: they never set a date or count as a
+fact. The weekly KB pass writes them (`data/kb/community.json`); Reddit is
+read through the model's web search, never Reddit's site or API. The MCP's
+`news` returns them as `community`, or alone with `category=community`.
+
+**The knowledge base stops growing week after week.** A lifecycle runs with
+the weekly KB pass (`tools/kb/lifecycle.py`, same PR): the week's file folds
+into the lanes (one current file each, git keeps the history), statements
+leave a week after their `expires` or once `superseded_by` a newer one, the
+same claim from two sources becomes one statement citing both, statements
+not checked for 120 days are re-read against their source, and the news
+keeps 8 weeks in `data/kb/news.json` (older weeks: one line each in
+`digest-history.json`). First run: 2.10 MiB to 1.71 MiB, 6 duplicates
+merged. Each KB file and the total have a size cap
+(`data/kb/budget.json`); going over fails a test and opens one issue.
+The MCP's KB answers (`kb_*`, `class_guide`, `class_meta`, `news`) stay
+under 24,000 characters (the largest was 86,924): `kb_topics` lists 15
+per lane by default, `class_guide` no longer sends the next bracket's
+repeats twice, and anything past the cap says what it cut.
+
 ## 0.6.1 (2026-11-20)
 
 The fixes from the review before the repository went public, Battle.net
@@ -62,7 +383,7 @@ with `AUTH=open` stops the server at start: put a login on it first
 unchanged. The 421 page now says to set a login too.
 
 **The 3D model draws when the Character tab opens.** With 3D remembered
-from an earlier visit, the full view (which opens on Home) started the
+from an earlier visit, the full view (which opens on the Overview) started the
 model in the hidden Character tab, where the frame had no size. Wowhead's
 viewer refused a 0/0 aspect ratio and the page said "Couldn't draw the
 model: undefined." twice. The frame now waits until the tab is shown, and

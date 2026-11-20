@@ -40,6 +40,7 @@ jobs:
   # Whether the repository is public. A scheduled run's event carries no
   # repository, so github.event.repository.private can't answer there.
   visibility:
+    if: github.repository_id == '1464458020'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -59,7 +60,7 @@ jobs:
     needs: visibility
     # A private repository builds on pushes and pull requests (the preview),
     # not every day.
-    if: github.event_name != 'schedule' || needs.visibility.outputs.public == 'true'
+    if: github.repository_id == '1464458020' && (github.event_name != 'schedule' || needs.visibility.outputs.public == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -109,9 +110,11 @@ jobs:
     # Public repositories only (see the top). Pushes and manual runs read the
     # event's own flag; a scheduled run, which has none, the visibility job's.
     if: >-
-      github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
-      (github.event.repository.private == false ||
-       (github.event_name == 'schedule' && needs.visibility.outputs.public == 'true'))
+      github.repository_id == '1464458020' && (
+        github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
+        (github.event.repository.private == false ||
+         (github.event_name == 'schedule' && needs.visibility.outputs.public == 'true'))
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

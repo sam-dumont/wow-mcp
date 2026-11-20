@@ -40,10 +40,10 @@ COUNTS = [{"kind": "kill", "n": "1234"}, {"kind": "turnin", "n": "87"}]
 CHARS = [{"char": CHAR, "last_seen": _t(17, 21, 40)}, {"char": ALT, "last_seen": _t(10, 12)}]
 
 # Two sessions: the 16th 19:00-20:30 and the 17th 20:00-21:40.
-BUCKETS = ([{"_time": _t(16, 19, m), "n": "40"} for m in range(0, 60, 5)]
-           + [{"_time": _t(16, 20, m), "n": "30"} for m in range(0, 30, 5)]
-           + [{"_time": _t(17, 20, m), "n": "50"} for m in range(0, 60, 5)]
-           + [{"_time": _t(17, 21, m), "n": "45"} for m in range(0, 40, 5)])
+BUCKETS = ([{"_time": _t(16, 19, m), "n": "40", "t0": _t(16, 19, m), "t1": _t(16, 19, m)} for m in range(0, 60, 5)]
+           + [{"_time": _t(16, 20, m), "n": "30", "t0": _t(16, 20, m), "t1": _t(16, 20, m)} for m in range(0, 30, 5)]
+           + [{"_time": _t(17, 20, m), "n": "50", "t0": _t(17, 20, m), "t1": _t(17, 20, m)} for m in range(0, 60, 5)]
+           + [{"_time": _t(17, 21, m), "n": "45", "t0": _t(17, 21, m), "t1": _t(17, 21, m)} for m in range(0, 40, 5)])
 
 EVENTS = [
     # The chunk's session record: the player's level (a kill's is the creature's).
@@ -123,7 +123,7 @@ LOGS = [
     ("kind:in(xp, level, zone) | fields", LAST_REC),
     ("kind:in(kill, turnin) | uniq", COUNTS),
     ('feed:="wow-level"', LEVELS),
-    ("stats by (_time:5m)", BUCKETS),
+    ("min(_time) as t0", BUCKETS),
     ("kind:in(zone, step, skip, kill", EVENTS),
     ('feed:="wow-dungeon"', DUNGEONS),
     ("stats by (player, context, _time:1d)", PLAYER_DAYS),

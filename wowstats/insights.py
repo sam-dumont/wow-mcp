@@ -17,13 +17,13 @@ import math
 import re
 from collections import Counter, defaultdict
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
-from . import forever, trainers
+from . import forever, profcaps, trainers
 from . import gear as gearmod
 from .analysis import kb
 from .links import dungeon_url, wowhead_url
-from .stores import iso, lq, num, opt_num, parse_t
+from .stores import SESSION_BUCKETS, iso, lq, num, opt_num, parse_t, split_sessions
 
 Q = Callable[[str], list[dict]]
 
@@ -373,7 +373,7 @@ def _route_ratio(ref, levels: list[dict], who: dict) -> list[dict]:
     for lv in levels:
         if lv["partial"]:
             continue
-        r = ref.level(lv["level"], who.get("faction"), who.get("race"), who.get("class"))
+        r = ref.level(lv["level"], who.get("faction"), who.get("class"))
         if r and r.get("expected_s"):
             out.append({"level": lv["level"], "seconds": lv["seconds"], "route_s": r["expected_s"],
                         "ratio": round(lv["seconds"] / r["expected_s"], 2)})
@@ -426,7 +426,7 @@ def on_track(levels: list[dict], header: dict, ref, who: dict) -> dict:
     # No level anywhere (no snapshot, no ding, no split): nothing to say
     # about the level in play.
     if t_in and header.get("level") and header.get("xp_max") and header.get("xp") is not None:
-        plan = ref.level(header["level"], who.get("faction"), who.get("race"), who.get("class")) \
+        plan = ref.level(header["level"], who.get("faction"), who.get("class")) \
             if ref and ref.available else None
         out["level_played_s"] = t_in
         share = header["xp"] / header["xp_max"]
@@ -437,7 +437,7 @@ def on_track(levels: list[dict], header: dict, ref, who: dict) -> dict:
             f"{dur(t_in)} played at level {header.get('level')} so far, {way}{tail}",
             "#levels", "Polestar_Recorder logged-in time since the ding"))
     if cur and ref and ref.available:
-        r = ref.level(cur["level"], who.get("faction"), who.get("race"), who.get("class"))
+        r = ref.level(cur["level"], who.get("faction"), who.get("class"))
         if r and r.get("expected_s") and header.get("xp_pct") is not None:
             out["current_route_s"] = r["expected_s"]
     ratio = out.get("route_ratio")
@@ -573,21 +573,11 @@ def _where(s: dict) -> str:
 # ------------------------------------------------------------------ sessions
 
 
-def sessions(q: Q, cf: str, gap_s: int = 1200) -> list[dict]:
-    """Play sessions: runs of recorder activity with no gap over 20 min."""
-    rows = q(f"{rec(cf)} kind:in(pos, xp, kill, turnin, step, zone, session) | stats by (_time:5m) count() as n")
-    ts = sorted(parse_t(r.get("_time")) for r in rows if r.get("_time"))
-    out, start, prev = [], None, None
-    for t in ts:
-        if start is None:
-            start = prev = t
-            continue
-        if (t - prev).total_seconds() > gap_s:
-            out.append((start, prev + timedelta(minutes=5)))
-            start = t
-        prev = t
-    if start is not None:
-        out.append((start, prev + timedelta(minutes=5)))
+def sessions(q: Q, cf: str) -> list[dict]:
+    """Play sessions, newest first: the journal's and the semantic layer's
+    rule (wowstats.stores.split_sessions)."""
+    spans = split_sessions(q(f"{rec(cf)} {SESSION_BUCKETS}"))
+    out = [(datetime.fromtimestamp(a, tz=UTC), datetime.fromtimestamp(b, tz=UTC)) for a, b in spans]
     return [{"start": iso(a), "end": iso(b), "seconds": int((b - a).total_seconds()),
              "when": a.strftime("%Y-%m-%d %H:%M UTC")} for a, b in reversed(out)]
 
@@ -602,7 +592,7 @@ IMPLEMENTED_SANITY = [
     "guide steps skipped or passed over",
     "upgrades you could wear now and haven't picked up",
     "profession capped at its trainer tier while the next tier is open",
-    "unspent talent points (only once VulcanSimBench saved your talents)",
+    "unspent talent points (only once Battle.net's API knows the character)",
     "enchantable slots with no enchant (from the item links, shipper 0.2.2 on)",
     "levels much slower than your own usual pace",
 ]
@@ -667,43 +657,20 @@ def training_price(ref: dict | None, rank_no: int) -> tuple[int | None, str | No
     return None, None
 
 
-# How long the character may play after its cap was read before a trainer
-# visit could have raised it unseen (a save a few seconds later is the same
-# reading).
-CAP_FRESH_S = 60
-
-
-def profession_cap(p: dict, rec: dict | None, sheet_at: str | None) -> tuple[int, int, bool]:
-    """(rank, cap, may be stale) of one profession. The sheet's cap comes
-    from the profession window (CharacterExport-Forever reads it on
-    TRADE_SKILL_* only, at max_rank_at); the Recorder's skill record is the
-    game's skill list at a change. The newer reading wins. The reading may
-    be stale when the character played after it (the sheet is a later save)
-    or its time is unknown: a rank trained since stays unseen until the
-    window is opened again. The Recorder can't close that gap: it diffs
-    against a baseline it takes silently at login."""
-    rank, cap = int(p.get("rank") or 0), int(p.get("max_rank") or 0)
-    at = parse_t(p.get("max_rank_at")) if p.get("max_rank_at") else None
-    rt = parse_t(rec.get("t")) if rec and rec.get("t") else None
-    if rec and rec.get("max_rank") and rt and (at is None or rt > at):
-        rank, cap, at = max(rank, int(rec.get("rank") or 0)), int(rec["max_rank"]), rt
-    sheet = parse_t(sheet_at) if sheet_at else None
-    stale = at is None or (sheet is not None and (sheet - at).total_seconds() > CAP_FRESH_S)
-    return rank, cap, stale
-
-
 def profession_claims(level: int | None, gear_profs: list[dict], skills: dict[int, dict],
-                      header: dict | None = None, sheet_at: str | None = None) -> list[dict]:
+                      header: dict | None = None) -> list[dict]:
     """A profession at its cap: the next rank, who trains it for the
     character's side and where, what it needs (each requirement met or not)
-    and what it costs, with whose price it is. A cap read before the
-    character last played says so and how to refresh it (profession_cap)."""
+    and what it costs, with whose price it is. The cap is the Recorder's
+    when it has one, else the trainer tier the rank sits under
+    (wowstats.profcaps); a tier cap is a floor, so that move hedges."""
     out = []
     faction = (header or {}).get("faction")
     profs = {int(p["skill_id"]): p for p in gear_profs or [] if p.get("skill_id")}
     tiers = next_tiers()
     for sid, p in profs.items():
-        rank, cap, stale = profession_cap(p, (skills or {}).get(sid), sheet_at)
+        rank, cap, src = profcaps.cap_of(opt_num(p.get("rank")), (skills or {}).get(sid))
+        stale = src != "recorder"
         tier = tiers.get(cap)
         if not tier or level is None or rank < cap - 5:
             continue
@@ -718,14 +685,15 @@ def profession_claims(level: int | None, gear_profs: list[dict], skills: dict[in
         needs = (f"needs level {need_level} ({'met' if level_ok else f'you are {level}'})" if need_level
                  else "needs no character level")
         where = _trainer_text(ts) if ts else "trainer location not in our data"
-        text = (f"Capped at {cap}{f' when your {prof} window was last open' if stale else ''}: skill-ups are "
-                f"wasted until you train {name} {prof}. {where}; {needs}"
+        head = (f"{prof} {rank}/{cap} if you haven't trained {name} yet: skill-ups stop at {cap} until you do."
+                if stale else f"Capped at {cap}: skill-ups are wasted until you train {name} {prof}.")
+        text = (f"{head} {where}; {needs}"
                 + (f"; {_coins(cost)} ({scope})" if cost else "; price not in our data") + ".")
-        refresh = (f"Trained {name} already? Open your {prof} window, then type /reload: the cap is read from "
-                   f"that window.") if stale else None
+        refresh = (f"Trained {name} already? The cap shows once Polestar Recorder sees your next {prof} "
+                   f"skill-up.") if stale else None
         out.append(claim(text + (f" {refresh}" if refresh else ""), "#gear",
-                         "professions in wow-gear (CharacterExport-Forever's profession window, Polestar) and the "
-                         "Recorder's skill records, the newer cap; ranks, gates and price: the "
+                         "the rank in wow-gear (Polestar), the cap from the Recorder's skill records or else the "
+                         "trainer tier; ranks, gates and price: the "
                          "knowledge base's profession.tiers and profession.training_cost; trainers: "
                          "Polestar's profession guides (data/trainers-reference.json)",
                          kind="profession", title=f"Train {name} {prof}", weight=3 if level_ok else 1.5,
@@ -831,7 +799,8 @@ def _per_clear(pairs: list[tuple[dict, float | None]]) -> float:
     by_slot: dict = defaultdict(list)
     for u, pct in pairs:
         if pct:
-            by_slot[u.get("slot")].append((u.get("gain") or 0, min(100.0, pct) / 100))
+            # The ranking's value (wowstats.gearfit): another role's piece counts less.
+            by_slot[u.get("slot")].append((u.get("value", u.get("gain")) or 0, min(100.0, pct) / 100))
     total = 0.0
     for its in by_slot.values():
         miss = 1.0
@@ -869,7 +838,7 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]]) -> list[di
 
     def rank(kv):
         z, pairs = kv
-        return (later(z), -_per_clear(pairs), -sum(u["gain"] for u, _ in pairs))
+        return (later(z), -_per_clear(pairs), -sum(u.get("value", u["gain"]) or 0 for u, _ in pairs))
 
     out = []
     for z, pairs in sorted(by.items(), key=rank)[:2]:
@@ -889,7 +858,7 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]]) -> list[di
 
 
 def next_moves(level: int | None, advice: dict | None, header: dict, track: dict, follow: dict,
-               gear_profs: list[dict], skills: dict[int, dict], sheet_at: str | None = None) -> dict:
+               gear_profs: list[dict], skills: dict[int, dict]) -> dict:
     """Besides following Polestar: what pays now."""
     reach = in_reach(advice, level)
     # The best for each slot: two pairs of trousers for the same legs are one
@@ -901,7 +870,7 @@ def next_moves(level: int | None, advice: dict | None, header: dict, track: dict
     moves = [_upgrade_claim(u, s, _pick_text(u, s), "gear advice (Polestar's scoring)", level)
              for u, s in list(best.values())[:3]]
     moves += dungeon_claims(level, reach)
-    moves += profession_claims(level, gear_profs, skills, header, sheet_at)
+    moves += profession_claims(level, gear_profs, skills, header)
     moves += riding_claims(level, header, skills)
     rested = opt_num(header.get("rested_xp"))
     if rested:
@@ -958,8 +927,7 @@ def deaths_zone_claim(zone: str, ds: list[dict], level: int | None) -> dict | No
 
 def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, advice: dict | None,
                  gear_profs: list[dict], skills: dict[int, dict], talents: list[dict] | None,
-                 gear_items: list[dict] | None = None, header: dict | None = None,
-                 sheet_at: str | None = None) -> dict:
+                 gear_items: list[dict] | None = None, header: dict | None = None) -> dict:
     """What looks like a mistake in the recorded play, worst first."""
     found = []
     for c in death_clusters(ds):
@@ -997,14 +965,14 @@ def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, a
         found.append(_upgrade_claim(u, s, f"You could wear {u['name']} now: +{u['gain']:.1f} points, "
                                           f"{u.get('gain_share_pct'):.0f}% of your gear ({_where(s)}).",
                                     "gear advice", level))
-    found += profession_claims(level, gear_profs, skills, header, sheet_at)
+    found += profession_claims(level, gear_profs, skills, header)
     if talents and level and level >= 10:
         spent = sum(int(t.get("points") or 0) for t in talents)
         if spent < level - 9:
             n = level - 9 - spent
             found.append(claim(f"{n} talent point{'s' if n > 1 else ''} unspent: spend {'them' if n > 1 else 'it'} "
                                f"in the talent pane (N), anywhere.",
-                               "#talents", "VulcanSimBench's saved talents",
+                               "#talents", "Battle.net's talents (its daily profile read)",
                                kind="talents", title=f"{n} talent point{'s' if n > 1 else ''} unspent", weight=4))
     found += enchant_claims(gear_items, gear_profs)
     if (track.get("own_ratio") or 0) >= 1.5:
@@ -1079,6 +1047,12 @@ def timeline(data: dict, ds: list[dict], runs: list[dict], sess: list[dict], gea
     for s in sess:
         ev.append({"t": s["start"], "type": "session", "text": f"Session, {dur(s['seconds'])}",
                    "seconds": s["seconds"], "link": "#timeline"})
+    first = min((s["start"] for s in sess), default=None)
+    if first is not None and any(p["t"] < first for p in data.get("climb") or []):
+        # The Recorder switched on after some play: one marker where its
+        # detail starts; the levels and dungeons before it stay.
+        ev.append({"t": first, "type": "session", "text": "Recorder on: zones, quests and deaths from here",
+                   "marker": "tracking", "link": "#timeline"})
     for r in runs:
         ev.append({"t": r["t"], "type": "dungeon", "text": f"{r['name']} at level {r['level']}, "
                    f"{dur(r['seconds'])}" + (f", {r['bosses']} bosses" if r.get("bosses") else ""),
@@ -1182,8 +1156,14 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
                     got.add(int(num(r["item"])))
             out["looted_item_ids"] = sorted(got)
         out["deaths"] = [d for d in ds if t0 <= parse_t(d["t"]) <= end]
+    early = bool(t0 and out.get("counts") and not q(f"{rec(cf)} _time:[2000-01-01T00:00:00Z, {iso(t0)}] | limit 1")
+                 and lv and not lv["partial"])
+    if (not out.get("counts") or early) and lv and (lv.get("quests") is not None or lv.get("kills") is not None):
+        # No Recorder, or switched on during this level (it saw only part of
+        # it): Polestar's own count of the level's quests and kills.
+        out["counts"] = {k: int(lv[f]) for k, f in (("turnin", "quests"), ("kill", "kills")) if lv.get(f) is not None}
     if ref and ref.available:
-        r = ref.level(level, who.get("faction"), who.get("race"), who.get("class"))
+        r = ref.level(level, who.get("faction"), who.get("class"))
         out["route_s"] = r.get("expected_s") if r else None
     return out
 

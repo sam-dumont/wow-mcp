@@ -23,6 +23,7 @@ tests skip; CI doesn't install them, so run them locally before a release.
 ```sh
 uv run ruff check .
 uv run pytest -q -rs        # about 950 tests, a few minutes; -rs lists what skipped
+docker login dhi.io         # once: the main image's base needs a free Docker Hub account
 docker build -t wow-stats:dev .
 docker build --target renderer -t wow-stats-render:dev .
 ```
@@ -34,7 +35,6 @@ What skips without what:
 | browser tests | the `browser` group and its browsers |
 | `tests/test_compose.py` | `docker compose` |
 | `tests/test_windows_e2e.py` | Windows (CI runs it on `windows-latest`) |
-| `tests/test_renderer_browser.py`, `tests/test_model3d_browser.py` | `WOW_STATS_BROWSER=1`: they fetch Wowhead's viewer over the network |
 | `tests/test_gear_parity.py` | `POLESTAR_CHECKOUT`: a Polestar clone at the pinned tag ([docs/gear-reference.md](gear-reference.md)) |
 | `tests/test_public_scan.py`, the name check | the denylist file (below) |
 
@@ -68,7 +68,20 @@ server doesn't map `model3d/view` to `model3d/view.html` the way GitHub Pages do
 
 The manual's screenshots come from that demo, never from a real player:
 `uv run --extra render python site/scripts/screenshots.py <address of the built site>` writes
-`docs/images/*.webp` and the link preview `docs/images/social.png`; commit them.
+`docs/images/<name>.webp` (light), `<name>-dark.webp` and the link preview
+`docs/images/social.png`; commit them.
+
+Write the pages as plain GitHub Markdown; the site adds four things on top:
+
+- `![alt](../images/x.webp)` shows `x-dark.webp` instead in the dark theme when it exists, and
+  every screenshot opens full size.
+- A paragraph that is only a link to a clip, `[Watch: ...](../videos/media/x-light.mp4)`, plays
+  the clip in the reader's theme (`x-dark.mp4` next to it). On GitHub it stays a link. The
+  install steps' clips come from `media` in `docs/videos/steps.json`.
+- Consecutive `<div class="os" data-os="windows|mac">` blocks become Windows | Mac tabs, one
+  choice for the whole page. `tools/manual/generate.py` writes them for the install steps.
+- A ` ```mermaid ` block is drawn in the browser (Mermaid, with ELK as the layout when the
+  diagram asks for it). `src/components/Footer.astro` holds these three scripts.
 
 `.github/workflows/pages.yml` builds the site on every push to `main` and deploys it to GitHub
 Pages once the repository is public; before that, and on pull requests, the build is a
@@ -122,9 +135,17 @@ skip, which counts as passed for a required check:
   tag and digest on literal `FROM` lines (Dependabot doesn't follow
   `ARG`s), Python packages by `uv.lock` with hashes. The Python minor
   (3.15) moves by hand, not with the weekly bumps.
-- **Moved by hand**: `POLESTAR_TAG` in `route-reference.yml` (kb-refresh's
-  watcher reports new Polestar releases), the renderer's Debian snapshot
-  date, and the Polestar Recorder version and checksum in the shipper.
+- **The main image's base** is a Docker Hardened Image,
+  `dhi.io/python:3.15-debian13` (Apache 2.0, glibc for DuckDB's wheels, no
+  shell, few known CVEs), built in its `-dev` variant. dhi.io takes no
+  anonymous pulls: building it needs `docker login dhi.io` with a free
+  Docker Hub account, locally and in CI (`DOCKERHUB_USERNAME` and
+  `DOCKERHUB_TOKEN`, a read-only token, in the repository's Actions secrets
+  and its Dependabot secrets; Dependabot reads the digests with them too).
+- **Moved by kb-refresh**: the Polestar tag (`tools/polestar-tag`) with
+  its exports, when a release passes the job's checks (docs/kb.md).
+- **Moved by hand**: the renderer's Debian snapshot date, and the Polestar
+  Recorder version and checksum in the shipper.
 - **The `audit` job** (CI, every push and pull request):
   - `actionlint` on the workflows, with shellcheck on their scripts;
   - `uv lock --check`: `uv.lock` in step with `pyproject.toml`;
@@ -154,24 +175,70 @@ it by hand, and its model pass skips with a notice.
 
 ## Releasing
 
-1. Bump `version` in `pyproject.toml`, `__version__` in `wowstats/__init__.py` and
-   `VERSION` in `shipper/wow_stats.py` (a test keeps the three equal: every install's
-   shipper updates itself to a higher `VERSION`), write the CHANGELOG entry (what
-   changed for a player, then "Upgrading" with every changed variable, port,
-   volume or route), merge.
-2. Run the full checks above on that commit, browsers included.
-3. Tag it `vX.Y.Z` and push the tag. `.github/workflows/release.yml` builds
-   both images for linux/amd64 and linux/arm64, pushes
-   `ghcr.io/<owner>/wow-mcp:X.Y.Z` and `ghcr.io/<owner>/wow-mcp-render:X.Y.Z`
-   and prints each `tag@digest` in the run summary. The tag must match
-   `pyproject.toml` or the run stops. Each platform builds on a runner of
-   its own architecture (GitHub's `ubuntu-24.04-arm` for arm64, no
-   emulation), and a merge job joins them into one index per image.
+One button: **Actions > release > Run workflow**, branch `main`. Three inputs:
 
-A pull request that changes the `Dockerfile`, `.dockerignore` or
-`release.yml` runs the same workflow as a dry run: both platforms build,
-merge in a registry on the runner and pass the same checks. Nothing is
-pushed.
+| Input | Values | What it does |
+|---|---|---|
+| `channel` | `rc` (default), `stable` | `rc` cuts a release candidate `X.Y.Z-rc.N`, published as a prerelease; `stable` cuts `X.Y.Z`, marked Latest |
+| `bump` | `auto` (default), `patch`, `minor`, `major` | the next `X.Y.Z` from the version in `pyproject.toml`; `auto` is `patch`, or the open candidate series |
+| `dry_run` | on (default), off | on: the plan, the notes, the tests and both image builds, nothing pushed, tagged or published |
+
+So a minor release goes like this, from `0.6.1`:
+
+1. `channel=rc`, `bump=minor`, `dry_run` on: read the run summary (the
+   version, the release commit's files, the notes, the image tags).
+2. The same with `dry_run` off: `0.7.0-rc.1`. Deploy it, run the A/B check
+   below against it.
+3. Fixes merged since? `channel=rc`, `bump=auto`: `0.7.0-rc.2`.
+4. `channel=stable`, `bump=auto`: `0.7.0`, from the last candidate as it is
+   or with what merged after it.
+
+A real run (`.github/workflows/release.yml`, its header has the detail):
+
+1. `tools/release/release.py plan` picks the version and refuses what makes
+   no sense, saying what to press instead: nothing under "Unreleased", a
+   `bump` while a candidate series is open, a `channel` that doesn't match a
+   version already prepared.
+2. `ci.yml` runs in full.
+3. The release commit: the version in `pyproject.toml`, `wowstats/__init__.py`,
+   `shipper/wow_stats.py`, `uv.lock` and the bug template, and CHANGELOG.md's
+   "Unreleased" under `## X.Y.Z (date)`. It goes through a pull request,
+   `Release X.Y.Z`, opened by the CI GitHub App so its checks run, and
+   auto-merge squashes it when they pass. A red check stops the run: fix
+   main, press again.
+4. Both images for linux/amd64 and linux/arm64, from the merged commit:
+   `ghcr.io/<owner>/wow-mcp:<version>` and `ghcr.io/<owner>/wow-mcp-render:<version>`,
+   checked, attested and signed (below). No `latest` tag.
+5. The `v<version>` tag on that commit and the GitHub release: the
+   CHANGELOG section (a final also carries its candidates' sections) and
+   each image's `tag@digest` to pin.
+
+What an rc changes for the people running it: the shipper on their PCs
+updates itself to any higher version, candidates included, and a candidate
+sorts below its final (`0.7.0-rc.2` < `0.7.0`). Shippers before 0.7.0 only
+read `X.Y.Z`: they log "the server names no version" every 6 hours and move
+at the final.
+
+Before pressing for real: the full checks above on main, browsers
+included, and the A/B check below. Write the CHANGELOG as you merge, under
+"Unreleased": what changed for a player, then "Upgrading" with every
+changed variable, port, volume or route.
+
+An interrupted run (a build failed after the release PR merged) leaves main
+carrying an untagged version with an empty "Unreleased". Press again with
+the same `channel` and `bump=auto`: it tags and publishes that version as
+it is. The same goes for a release PR made by hand
+(`uv run python tools/release/release.py apply X.Y.Z`, then a PR).
+
+A pull request that changes the `Dockerfile`, `.dockerignore`,
+`release.yml` or `tools/release/` runs the builds as a dry run: both
+platforms build, merge in a registry on the runner and pass the same checks.
+
+Only the CI GitHub App can create a `v*` tag: the `release tags` ruleset
+refuses everyone else, and the release run makes its tag with the App's
+token. The first release candidate after the rule went in is its live test:
+if that run stops at "Tag and release" on a refused ref, the rule is what
+to read.
 
 Each image carries BuildKit's SLSA provenance and an SPDX SBOM per
 platform, and the run keeps the SBOMs as an artifact. From a public
@@ -181,12 +248,84 @@ attestations need GitHub Enterprise Cloud there, and a signature would put
 the private repository's name in Sigstore's public log.
 
 The image names live in one place, the `env:` block at the top of
-`release.yml`. The owner part comes from the repository, so a fork publishes
-to its own namespace. The builds stamp the repository's URL in the
-`org.opencontainers.image.source` label.
+`release.yml`. The owner part comes from the repository. The builds stamp
+the repository's URL in the `org.opencontainers.image.source` label.
 
-A package pushed from a private repository is private. Its visibility is
-set by hand in the package settings, never by the workflow.
+## The CI mirror
+
+The jobs that hold credentials never run in this public repository, where a
+fork's pull request could reach them. They run in a private mirror,
+`sam-dumont/wow-mcp-ci`:
+
+- `mirror.yml` force-pushes main there on every push to main (and a
+  branch on request), with the CI GitHub App's token. Never on a pull
+  request. The push overwrites the mirror's main, so nothing is committed
+  there: its secrets live in its settings, real data in the owner's stores.
+- `kb-refresh.yaml` (docs/kb.md) runs only there: the Anthropic federation
+  and the schedule point at the mirror. Its branch, PR and issues land
+  here, through the same App, and its PRs pass the same required checks
+  as any other.
+- Every job of every workflow names the one repository it runs in by id, as
+  a top-level `&&` term of its `if:`: `1464458020` (this repository) for
+  all but `kb-refresh.yaml`, which names the mirror (`1465633168`).
+  `tests/test_workflow_guard.py` fails on a job without it. In a fork,
+  replace the id with your repository's (`gh api repos/<owner>/<repo> --jq .id`),
+  or nothing runs.
+
+The App (variable `CI_APP_CLIENT_ID`, secret `CI_APP_PRIVATE_KEY` in the
+environment `main-only` of both repositories, which only main can deploy
+to: a branch pushed to the mirror brings its own workflow files) has Contents, Workflows, Pull requests and Issues write on
+these two repositories only. The release's PR, its tag and the mirror push
+use it; GITHUB_TOKEN writes only the GitHub release.
+
+## Before a release: the A/B check
+
+`tools/ab/ab.py` shows two versions the same real data and lists every
+answer that changed: gear and upgrades, the plan for 1, 2 and 4 hours,
+talents, gold and mount, pace, journal, timeline, the analysis, every MCP
+tool, the public and zogzog bundles. Errors, empty answers and NaN that the
+old version didn't have come first, as regressions.
+
+It records once and replays after. `record` runs the current version against
+your stores through a proxy that keeps every request the app makes and its
+answer, read-only and for the default VictoriaLogs tenant (AccountID 0)
+only. `replay` runs any version against that recording alone, with the clock
+frozen at the recording's instant, so the old and the new version see
+exactly the same inputs even though you kept playing in between.
+
+```sh
+# Today, on the version you run (its image by digest, or a ref):
+uv run python tools/ab/ab.py record --vl http://127.0.0.1:9428 --vm http://127.0.0.1:8429 \
+  --image ghcr.io/<owner>/wow-mcp@sha256:<platform digest> \
+  --env DEFAULT_CHAR=<char> --state <copy of ANALYSIS_STATE_DIR>
+uv run python tools/ab/ab.py replay <recording> --image <same> --label baseline
+# Within 24 h, optional: add what main asks that the old version never did.
+uv run python tools/ab/ab.py extend <recording> --vl ... --vm ... --ref origin/main --label extend
+# Later, the release candidate:
+uv run python tools/ab/ab.py replay <recording> --ref <rc commit> --label rc
+uv run python tools/ab/ab.py diff baseline rc
+```
+
+- **Determinism first**: replay the baseline version twice and diff the two
+  runs. The diff must be empty; anything in it is noise the report would
+  blame on the release.
+- **Settings**: `--env` takes the few the app needs to read your stores the
+  way your install does (`LOGS_FILTER`, `DEFAULT_CHAR`,
+  `VL_ARCHIVE_AFTER_DAYS`...); the recording keeps them for every replay.
+- **Recording misses**: a request the recording doesn't have gets an error
+  and shows as a regression, because that answer wasn't tested. `extend`,
+  run soon after `record`, closes most of them.
+- **Where it writes**: `WOW_AB_HOME`, else `wow-ab/` next to your checkout.
+  It refuses any folder inside a git work tree: a recording holds your game
+  data and Battle.net data.
+- **30 days**: Blizzard's terms keep Battle.net data 30 days at most. Each
+  recording carries its date and its `delete_by`; `replay` refuses one past
+  30 days and `purge` deletes it with its runs. `info` lists the dates.
+- **Not covered**: the 3D view and the level pictures (the renderer), both
+  off during a run: they draw from game files, not from the stores.
+- Heavy: a run takes 1 to 3 minutes and Docker is capped at 4 CPUs and 6 GB.
+  Docker runs `--image` with the image's own platform, emulated if needed;
+  name a multi-platform image by its platform's manifest digest.
 
 ## Using a released image
 
@@ -206,37 +345,46 @@ with that permission):
   ports and mounts are in [docs/deploy.md](deploy.md).
 
 Without `WOW_STATS_IMAGE` the compose kit builds the image from the tree
-(`docker compose up -d --build`), so a clone runs with no registry at all.
+(`docker compose up -d --build`). That build pulls the base from dhi.io, so
+it needs `docker login dhi.io` once, with a free Docker Hub account.
 
 ## Verifying an image
 
 Releases from the public repository are attested and signed by
-`release.yml` in that repository, on a `v*` tag. Replace `<owner>` with the
+`release.yml` in that repository: from 0.7.0, a run of the release button
+on main; up to 0.6.1, a push of the `v*` tag. Replace `<owner>` with the
 repository's owner and `X.Y.Z` with the release.
 
 Build provenance (which workflow, commit and tag built it), with the
 [GitHub CLI](https://cli.github.com/):
 
 ```sh
-gh attestation verify oci://ghcr.io/<owner>/wow-mcp:X.Y.Z --repo <owner>/wow-mcp
-gh attestation verify oci://ghcr.io/<owner>/wow-mcp-render:X.Y.Z --repo <owner>/wow-mcp
+for image in wow-mcp wow-mcp-render; do
+  gh attestation verify oci://ghcr.io/<owner>/$image:X.Y.Z --repo <owner>/wow-mcp \
+    --signer-workflow <owner>/wow-mcp/.github/workflows/release.yml \
+    --source-ref refs/heads/main
+done
 ```
+
+Up to 0.6.1, `--source-ref refs/tags/vX.Y.Z`.
 
 The SBOM attestations (one per platform), and the SBOM itself:
 
 ```sh
 gh attestation verify oci://ghcr.io/<owner>/wow-mcp:X.Y.Z --repo <owner>/wow-mcp \
-  --predicate-type https://spdx.dev/Document/v2.3
+  --signer-workflow <owner>/wow-mcp/.github/workflows/release.yml \
+  --source-ref refs/heads/main --predicate-type https://spdx.dev/Document/v2.3
 docker buildx imagetools inspect ghcr.io/<owner>/wow-mcp:X.Y.Z \
   --format '{{ json (index .SBOM "linux/amd64").SPDX }}' > wow-mcp-amd64.spdx.json
 ```
 
-The cosign signature, tied to the release workflow at a tag:
+The cosign signature, tied to the release workflow on main (from 0.7.0) or
+on a release tag (up to 0.6.1):
 
 ```sh
 cosign verify ghcr.io/<owner>/wow-mcp@sha256:<digest> \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp '^https://github\.com/<owner>/wow-mcp/\.github/workflows/release\.yml@refs/tags/v'
+  --certificate-identity-regexp '^https://github\.com/<owner>/wow-mcp/\.github/workflows/release\.yml@refs/(heads/main|tags/v\d+\.\d+\.\d+(-rc\.\d+)?)$'
 ```
 
 Pin what you verified by digest (`ghcr.io/<owner>/wow-mcp:X.Y.Z@sha256:...`):

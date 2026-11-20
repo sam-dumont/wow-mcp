@@ -25,6 +25,8 @@ SECRETS = [SECRET_PLAYER, "Secretfriend", SECRET_MONEY, SECRET_X, SECRET_Y, SECR
 def poison_row(i: int, kind: str) -> dict:
     return {
         "_time": f"2026-11-17T15:{i:02d}:00Z", "char": CHAR, "feed": "wow-recorder", "kind": kind,
+        # The session buckets' first and last record (stores.SESSION_BUCKETS).
+        "t0": f"2026-11-17T15:{i:02d}:00Z", "t1": f"2026-11-17T15:{i:02d}:00Z",
         "source_id": f"s{i}", "level": "12", "xp": "100", "xp_max": "2000", "xp_gained": "50",
         "zone": "Elwynn Forest", "duration_s": "60", "secs": "60", "visits": "1", "n": "3", "events": "9",
         "last_seen": "2026-11-17T15:00:00Z", "seen": "2026-11-17T15:00:00Z",
@@ -160,7 +162,11 @@ def test_public_config_and_payload_shape(run_app):
     # No vm-wow here: the armory's count is ours, no render.
     assert g["armory_item_level_source"] == "computed" and g["render"] is None
     assert g["items"][0]["name"] == "Faerie Mantle" and g["items"][0]["quality"] == 2
-    assert g["professions"][0] == {"skill_id": 185, "name": "Cooking", "rank": 130, "max_rank": 225}
+    # The cap: no Recorder skill record here, so the trainer tier over 130
+    # (150); the sheet's 225 came from CharacterExport-Forever, dropped
+    # 2026-11-20, and is not read.
+    assert g["professions"][0] == {"skill_id": 185, "name": "Cooking", "rank": 130, "max_rank": 150,
+                                   "max_rank_from": "tiers"}
     chars = json.loads(srv.get("/api/chars")[2])
     assert chars == {"chars": [{"char": CHAR, "level": 12, "demo": True}]}
 

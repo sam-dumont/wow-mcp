@@ -1,0 +1,57 @@
+{
+  "_doc": "What the A/B driver asks (tools/ab/driver.py). {char} is the character under test. A route or tool a version doesn't have is recorded as absent, not as an error. MCP tools not listed under mcp.calls get one call with their schema's defaults; mcp.last run after every other tool because they write (to the run's own copy of the state only).",
+  "api_global": [
+    ["page", "/"],
+    ["config", "/api/config"],
+    ["chars", "/api/chars"],
+    ["market", "/api/market"],
+    ["prices", "/api/prices"]
+  ],
+  "api_char": [
+    ["char", "/api/char?name={char}"],
+    ["journal", "/api/journal?name={char}"],
+    ["overview", "/api/overview?name={char}"],
+    ["timeline", "/api/timeline?name={char}"],
+    ["loot", "/api/loot?name={char}"],
+    ["dungeons", "/api/dungeons?name={char}"],
+    ["people", "/api/people?name={char}"],
+    ["meta", "/api/meta?name={char}"],
+    ["talents", "/api/talents?name={char}"],
+    ["news", "/api/news?name={char}"],
+    ["plan", "/api/plan?char={char}"],
+    ["analysis", "/api/analysis?name={char}"],
+    ["gear", "/api/gear?name={char}"]
+  ],
+  "plan_hours": [1, 2, 4],
+  "mcp": {
+    "calls": {
+      "levels": [{}, {"from_level": 1, "to_level": 10}],
+      "sessions": [{}, {"since": "7d", "limit": 50}],
+      "guide_steps": [{}],
+      "players": [{}],
+      "prices": [{}],
+      "gear": [{}],
+      "route_reference": [{}, {"level": 30}],
+      "class_guide": [{}],
+      "class_meta": [{}],
+      "news": [{}],
+      "kb_search": [{"query": "riding"}, {"query": "Deadmines", "limit": 5}],
+      "kb_rule": [{"name": "riding.apprentice"}, {}],
+      "kb_topics": [{}, {"lane": "dungeons"}],
+      "whats_new": [{}, {"days": 30}],
+      "analysis_brief": [{"section": "start"}, {"section": "schema"}, {"section": "survey"}],
+      "play_sql": [{"query": "SELECT level, count(*) AS n FROM levels GROUP BY level ORDER BY level"}],
+      "query_metric": [{"metrics": ["played_s", "online_s"], "group_by": ["level"]}],
+      "kb_get": [{"ids": ["note:xp-sources", "quest:56"]}],
+      "kb_lookup": [{"ids": ["quest:56", "npc:1234", "zone:12", "item:2589"]}]
+    },
+    "last": {
+      "plan_session": [{"hours": 1}, {"hours": 2}, {"hours": 4}, {"hours": 2, "constraints": "no dungeons"}],
+      "check_plan": [{"text": "Two hours: quest in the current zone, then a town stop."}],
+      "propose_finding": [{"finding": {"key": "ab-check", "title": "A/B check", "claim": "{n} levels on record",
+                                       "sql": "SELECT count(*) AS n FROM levels", "expect": {}, "relevance": "check",
+                                       "action": null}}],
+      "analysis_submit": [{"pass": "survey", "answer": {"questions": []}}]
+    }
+  }
+}

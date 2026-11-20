@@ -99,8 +99,9 @@ def test_the_other_panels_are_legible(site, pw, engine, scheme):  # noqa: F811
         legible(pg, "#gear", "the character plate (doll and advice)", least=40)
         pg.locator(".tabs button", has_text="Journal").first.click()
         wait_count(pg, ".jentry")
-        pg.evaluate("() => document.querySelectorAll('.jentry details, details.jentry').forEach((d) => { d.open = true; })")
+        # Click first (it toggles), then open them all: a single session stays open.
         pg.locator(".jentry summary").first.click()
+        pg.evaluate("() => document.querySelectorAll('.jentry details, details.jentry').forEach((d) => { d.open = true; })")
         legible(pg, ".jentry", "journal entries", least=20)
         pg.goto(public)
         tooltip(pg, pg.locator(".slotitm:visible").first)

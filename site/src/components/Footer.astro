@@ -1,0 +1,146 @@
+---
+// Starlight's footer (edit link, date, previous / next), then the site's
+// own: where to start, the project's pages and the version these docs
+// describe. Also the page's three small behaviours, loaded on every page:
+// Windows | Mac tabs, Mermaid diagrams, the home page's autoplaying clip.
+import Default from "@astrojs/starlight/components/Footer.astro";
+import { BASE, REPO_URL } from "../../scripts/site.mjs";
+
+const links = [
+  ["Join a friend's server", "play/getting-started/"],
+  ["Try it at home", "self-host/try-at-home/"],
+  ["What's shared", "play/privacy/"],
+  ["Changelog", "project/changelog/"],
+  ["Security policy", "project/security/"],
+  ["For AI assistants (llms.txt)", "llms.txt"],
+];
+---
+
+<Default />
+<nav class="site-footer" aria-label="Site">
+  <ul>
+    {links.map(([label, to]) => <li><a href={`${BASE}${to}`}>{label}</a></li>)}
+    <li><a href={REPO_URL}>GitHub</a></li>
+  </ul>
+  <p>wow-stats {__WOW_VERSION__} · GPL-3.0 · not affiliated with Blizzard Entertainment</p>
+</nav>
+
+<script>
+  const store = {
+    get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
+    set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
+  };
+
+  // Windows | Mac: consecutive <div class="os" data-os> blocks (written by
+  // tools/manual/generate.py) become one set of tabs. Every set on the page
+  // follows the same choice, remembered for the next page.
+  const OS_LABEL: Record<string, string> = { windows: "Windows", mac: "Mac" };
+  function osTabs() {
+    const groups: HTMLElement[][] = [];
+    for (const el of document.querySelectorAll<HTMLElement>(".sl-markdown-content .os[data-os]")) {
+      const prev = el.previousElementSibling;
+      const last = groups.at(-1);
+      if (last && prev === last.at(-1)) last.push(el);
+      else groups.push([el]);
+    }
+    const sets = groups.filter((g) => g.length > 1);
+    if (!sets.length) return;
+    const guess = /Mac|iPhone|iPad/.test(navigator.userAgent) ? "mac" : "windows";
+    const show = (os: string) => {
+      for (const g of sets) {
+        const has = g.some((el) => el.dataset.os === os);
+        for (const el of g) el.hidden = has && el.dataset.os !== os;
+      }
+      for (const b of document.querySelectorAll<HTMLButtonElement>(".os-tabs button")) {
+        b.setAttribute("aria-selected", String(b.dataset.os === os));
+      }
+    };
+    for (const g of sets) {
+      const bar = document.createElement("div");
+      bar.className = "os-tabs not-content";
+      bar.setAttribute("role", "tablist");
+      bar.setAttribute("aria-label", "Your computer");
+      for (const el of g) {
+        const os = el.dataset.os!;
+        const b = document.createElement("button");
+        b.type = "button";
+        b.setAttribute("role", "tab");
+        b.dataset.os = os;
+        b.textContent = OS_LABEL[os] ?? os;
+        b.addEventListener("click", () => { store.set("wow-docs-os", os); show(os); });
+        bar.append(b);
+      }
+      g[0].before(bar);
+    }
+    show(store.get("wow-docs-os") ?? guess);
+  }
+
+  // ```mermaid blocks (site/scripts/prepare.mjs turns them into
+  // <pre class="mermaid">), drawn here, again when the theme changes.
+  // Mermaid and ELK load only on a page that has one.
+  async function diagrams() {
+    const blocks = [...document.querySelectorAll<HTMLElement>("pre.mermaid")];
+    if (!blocks.length) return;
+    for (const b of blocks) b.dataset.src ??= b.textContent ?? "";
+    const [{ default: mermaid }, { default: elk }] = await Promise.all([
+      import("mermaid"), import("@mermaid-js/layout-elk"),
+    ]);
+    mermaid.registerLayoutLoaders(elk);
+    const draw = async () => {
+      const dark = document.documentElement.dataset.theme !== "light";
+      // Drawn at its own size, scrolling sideways on a phone, rather than
+      // shrunk to the column until the labels can't be read.
+      mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: dark ? "dark" : "neutral",
+        flowchart: { useMaxWidth: false } });
+      for (const b of blocks) {
+        b.removeAttribute("data-processed");
+        b.textContent = b.dataset.src!;
+      }
+      await mermaid.run({ nodes: blocks });
+    };
+    await draw();
+    new MutationObserver(() => void draw()).observe(document.documentElement, { attributeFilter: ["data-theme"] });
+  }
+
+  // The home page's tour plays muted, unless the reader asked for less
+  // motion; only the copy for the current theme plays.
+  function autoplay() {
+    const clips = [...document.querySelectorAll<HTMLVideoElement>("video[data-autoplay]")];
+    if (!clips.length) return;
+    const still = matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => {
+      for (const v of clips) {
+        if (!still.matches && v.offsetParent !== null) void v.play().catch(() => undefined);
+        else v.pause();
+      }
+    };
+    apply();
+    still.addEventListener("change", apply);
+    new MutationObserver(apply).observe(document.documentElement, { attributeFilter: ["data-theme"] });
+  }
+
+  osTabs();
+  autoplay();
+  void diagrams();
+</script>
+
+<style>
+  .site-footer {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--sl-color-hairline);
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-3);
+  }
+  .site-footer ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.75rem;
+  }
+  .site-footer a { color: var(--sl-color-gray-2); text-decoration: none; }
+  .site-footer a:hover { color: var(--sl-color-text-accent); text-decoration: underline; }
+  .site-footer p { margin: 0; font-size: var(--sl-text-xs); }
+</style>

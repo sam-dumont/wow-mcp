@@ -6,17 +6,15 @@
 
 wow-stats never ships an addon of its own. It reads the files well-known addons already save in your `_forever_` folder, when you `/reload` or log out. A missing optional addon leaves its part of the page empty; nothing breaks.
 
-| Addon | Needed | What it gives your page | Folder in `Interface/AddOns` | Fills |
-|---|---|---|---|---|
-| [Polestar](https://www.curseforge.com/wow/addons/polestar) | required | level splits, quests, deaths, dungeons, the gear advice | `Polestar` | level times, dungeon runs and gear advice |
-| [Polestar Recorder](https://github.com/fitzforge/polestar/releases/latest) | required | your play sessions, zone by zone | `Polestar_Recorder` | play sessions, zones, deaths and loot |
-| [Syndicator](https://www.curseforge.com/wow/addons/syndicator) | optional | gear and gold on every character | `Syndicator` | your gear and bags |
-| [Auctionator](https://www.curseforge.com/wow/addons/auctionator) | optional | prices from your own auction house scans | `Auctionator` | auction prices |
-| [Altoholic](https://www.curseforge.com/wow/addons/altoholic) | optional | your full /played from level 1, the quests you finished before Polestar, and the recipes you know | `Altoholic` | quests you did before installing |
-| [Questie](https://www.curseforge.com/wow/addons/questie) | optional | the quests you finished before Polestar (Altoholic does it too: one of the two is enough) | `Questie` | quests you did before installing |
-| [CharacterExport-Forever](https://www.curseforge.com/wow/addons/characterexport) | optional | profession caps | `CharacterExport-Forever` | no section of its own |
-| [Narcissus](https://www.curseforge.com/wow/addons/narcissus) | optional | your character's look in 3D before Battle.net knows it | `Narcissus` | no section of its own |
-| [Vulcan SimBench](https://www.curseforge.com/wow/addons/vulcan-simbench) | optional | a history of your talents | `VulcanSimBench` | no section of its own |
+| Addon | Needed | What it gives your page | The one step | Folder in `Interface/AddOns` | Fills |
+|---|---|---|---|---|---|
+| [Polestar](https://www.curseforge.com/wow/addons/polestar) | required | level times, quests, deaths, dungeons, the gear advice | Install it, then tick it in AddOns at character select. | `Polestar` | level times, dungeon runs and gear advice |
+| [Polestar Recorder](https://github.com/fitzforge/polestar/releases/latest) | required | your play sessions, zone by zone | The install command adds it: type /psrec on once in game. | `Polestar_Recorder` | play sessions, zones, deaths and loot |
+| [Syndicator](https://www.curseforge.com/wow/addons/syndicator) | optional | gear and gold on every character | Install it, then log in once with each character. | `Syndicator` | your gear and bags |
+| [Auctionator](https://www.curseforge.com/wow/addons/auctionator) | optional | prices from your own auction house scans | Install it, then scan the auction house once. | `Auctionator` | auction prices |
+| [Altoholic](https://www.curseforge.com/wow/addons/altoholic) | optional | your full /played from level 1, the quests you finished before Polestar, and the recipes you know | Install it, then log in once with each character. | `Altoholic` | quests you did before installing |
+| [Questie](https://www.curseforge.com/wow/addons/questie) | optional | the quests you finished before Polestar (Altoholic does it too: one of the two is enough) | Install it, then log in once with each character. | `Questie` | quests you did before installing |
+| [WoWSims Exporter](https://www.curseforge.com/wow/addons/wowsims-exporter) | optional | every talent change, for your full talent history (without it: the last 3 weeks) | Install it, then tick it in the AddOns list at character select: it starts switched off. | `WowSimsExporter` | no section of its own |
 
 ## With the CurseForge app (recommended)
 

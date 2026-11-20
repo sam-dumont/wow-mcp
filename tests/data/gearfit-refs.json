@@ -1,0 +1,7364 @@
+{
+"about": "Reference gear tables for tools/gearfit_check.py: item IDs, slot, level bracket, rank and source URL only (no text). Collected 2026-11-20; scope era = a Classic Era table where no Forever one was found. traps: items a spec should see labelled as built for someone else.",
+"collected": "2026-11-20",
+"specs": {
+"WARRIOR": {
+"arms": [
+{
+"item_id": 12640,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 15411,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 19491,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 12927,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 13340,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 252484,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 252483,
+"slot": "Chest",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 12936,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 226861,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 19049,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 272403,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 19044,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 22385,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 15065,
+"slot": "Legs",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 226857,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 12548,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 260219,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 11815,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 13965,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 647,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 280020,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 13098,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/arms/",
+"scope": "forever"
+},
+{
+"item_id": 7133,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6972,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6975,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6977,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6976,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+}
+],
+"fury": [
+{
+"item_id": 12640,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 15411,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 19491,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 22150,
+"slot": "Neck",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 22241,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 19058,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 272414,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 252484,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 252483,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 12936,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 226861,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 19049,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 15063,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 272403,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 19044,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 22385,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 15065,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 287033,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 12548,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 260219,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 11815,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 13965,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 22384,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 2100,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 13098,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/fury/",
+"scope": "forever"
+},
+{
+"item_id": 7133,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6972,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6975,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6977,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6976,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+}
+],
+"protection": [
+{
+"item_id": 226869,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 12620,
+"slot": "Head",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 13091,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 14552,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250577,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250578,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 18495,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 18413,
+"slot": "Back",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 226872,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 12618,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250582,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250583,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 14525,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250552,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250572,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250573,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 22328,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 226871,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250562,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 2246,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 272409,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 18466,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 272440,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 10779,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 280022,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 16996,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250552,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 22331,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 272437,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 281587,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/warrior/protection/",
+"scope": "forever"
+},
+{
+"item_id": 7133,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6972,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/warrior-leveling/",
+"scope": "forever"
+}
+]
+},
+"PALADIN": {
+"holy": [
+{
+"item_id": 252561,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 14140,
+"slot": "Head",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 18723,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 12625,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 14139,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 18510,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 15047,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 250601,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 13969,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 250584,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 18409,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 250554,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 20296,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 14553,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 250600,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 252486,
+"slot": "Legs",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 275609,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 275621,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 16058,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 22334,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 18472,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 272439,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 18717,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 272436,
+"slot": "Relic",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/holy/",
+"scope": "forever"
+},
+{
+"item_id": 9607,
+"slot": "Offhand",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6953,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 268484,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 267369,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 277205,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+}
+],
+"protection": [
+{
+"item_id": 226989,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 12620,
+"slot": "Head",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 13177,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 14552,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250578,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250577,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 18495,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 18413,
+"slot": "Back",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 12895,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250583,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250582,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 14622,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250553,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250552,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 14620,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250573,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250572,
+"slot": "Waist",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 22328,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 226991,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 250563,
+"slot": "Feet",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 22331,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 272409,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 17774,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 19024,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 272440,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 10779,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 22383,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 272434,
+"slot": "Relic",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/protection/",
+"scope": "forever"
+},
+{
+"item_id": 9607,
+"slot": "Offhand",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6953,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 268484,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 267369,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 277205,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+}
+],
+"retribution": [
+{
+"item_id": 12640,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 250599,
+"slot": "Head",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 22403,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 22150,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 227808,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 19050,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 272411,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 252484,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 22089,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 12936,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 280028,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 22090,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 228190,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 18405,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 252606,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 252486,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 22385,
+"slot": "Legs",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 287033,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 22433,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 272406,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 13965,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 272437,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 647,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 250617,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 272435,
+"slot": "Relic",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/paladin/retribution/",
+"scope": "forever"
+},
+{
+"item_id": 9607,
+"slot": "Offhand",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 6953,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 268484,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 267369,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+},
+{
+"item_id": 277205,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.warcrafttavern.com/forever/guides/paladin-leveling/",
+"scope": "forever"
+}
+]
+},
+"ROGUE": {
+"assassination": [
+{
+"item_id": 226829,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 15411,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 19491,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 15058,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 13340,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 18511,
+"slot": "Back",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 252483,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 252484,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 22009,
+"slot": "Chest",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 18375,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 21278,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 15063,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 272395,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 19044,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 15057,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 15062,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 15065,
+"slot": "Legs",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 226831,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 13098,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 272408,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 11815,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 13965,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 12590,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+},
+{
+"item_id": 2100,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/assassination/",
+"scope": "forever"
+}
+],
+"combat": [
+{
+"item_id": 226829,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 15411,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 19491,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 15058,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 13340,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 252483,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 252484,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 22009,
+"slot": "Chest",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 18375,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 21278,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 272395,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 19044,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 15057,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 15062,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 15065,
+"slot": "Legs",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 226831,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 13098,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 13098,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 11815,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 280065,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 22384,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+},
+{
+"item_id": 2100,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/combat/",
+"scope": "forever"
+}
+],
+"subtlety": [
+{
+"item_id": 226829,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 15411,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 19491,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 15058,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 13340,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 252483,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 252484,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 22009,
+"slot": "Chest",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 18375,
+"slot": "Wrists",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 21278,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 272395,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 19044,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 15057,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 15062,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 15065,
+"slot": "Legs",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 226831,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 18506,
+"slot": "Feet",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 13098,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 272408,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 11815,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 280065,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 12590,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 12783,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+},
+{
+"item_id": 2100,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://wowforeverbislist.com/preraid/rogue/subtlety/",
+"scope": "forever"
+}
+]
+},
+"HUNTER": {
+"beastmastery": [
+{
+"item_id": 270227,
+"slot": "Neck",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 271097,
+"slot": "Back",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 270231,
+"slot": "Hands",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 270260,
+"slot": "Legs",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 252504,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 6449,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 2041,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 271716,
+"slot": "Back",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 273026,
+"slot": "Chest",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 273824,
+"slot": "Hands",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 3562,
+"slot": "Waist",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 279850,
+"slot": "Neck",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 271716,
+"slot": "Back",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 10328,
+"slot": "Chest",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 10331,
+"slot": "Hands",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 276740,
+"slot": "Neck",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 11626,
+"slot": "Back",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 276739,
+"slot": "Chest",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 10331,
+"slot": "Hands",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 13404,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 275736,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 277117,
+"slot": "Shoulder",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 18511,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 252483,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 13211,
+"slot": "Wrist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 15063,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 18393,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 15062,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 13967,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 18314,
+"slot": "Finger",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 13213,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 279910,
+"slot": "Main Hand",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 13392,
+"slot": "Finger",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+},
+{
+"item_id": 249469,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/beast-mastery",
+"scope": "forever"
+}
+],
+"marksmanship": [
+{
+"item_id": 270227,
+"slot": "Neck",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 271097,
+"slot": "Back",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 270231,
+"slot": "Hands",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 270260,
+"slot": "Legs",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 252504,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 6449,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 2041,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 271716,
+"slot": "Back",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 273026,
+"slot": "Chest",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 273824,
+"slot": "Hands",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 3562,
+"slot": "Waist",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 279850,
+"slot": "Neck",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 271716,
+"slot": "Back",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 10328,
+"slot": "Chest",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 10331,
+"slot": "Hands",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 276740,
+"slot": "Neck",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 11626,
+"slot": "Back",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 276739,
+"slot": "Chest",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 10331,
+"slot": "Hands",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 13404,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 275736,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 277117,
+"slot": "Shoulder",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 18511,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 252483,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 13211,
+"slot": "Wrist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 15063,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 18393,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 15062,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 13967,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 18314,
+"slot": "Finger",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 13213,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 279910,
+"slot": "Main Hand",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 13392,
+"slot": "Finger",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+},
+{
+"item_id": 249469,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/marksmanship",
+"scope": "forever"
+}
+],
+"survival": [
+{
+"item_id": 270227,
+"slot": "Neck",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 271097,
+"slot": "Back",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 270231,
+"slot": "Hands",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 270260,
+"slot": "Legs",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 252504,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 6449,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 2041,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 271716,
+"slot": "Back",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 273026,
+"slot": "Chest",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 273824,
+"slot": "Hands",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 3562,
+"slot": "Waist",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 279850,
+"slot": "Neck",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 271716,
+"slot": "Back",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 10328,
+"slot": "Chest",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 10331,
+"slot": "Hands",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 276740,
+"slot": "Neck",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 11626,
+"slot": "Back",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 276739,
+"slot": "Chest",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 10331,
+"slot": "Hands",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 13404,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 275736,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 277117,
+"slot": "Shoulder",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 18511,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 252483,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 13211,
+"slot": "Wrist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 15063,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 18393,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 15062,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 13967,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 18314,
+"slot": "Finger",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 13213,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 279910,
+"slot": "Main Hand",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 13392,
+"slot": "Finger",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+},
+{
+"item_id": 249469,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/hunter/survival",
+"scope": "forever"
+}
+]
+},
+"SHAMAN": {
+"elemental": [
+{
+"item_id": 270227,
+"slot": "Neck",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 270260,
+"slot": "Legs",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 273007,
+"slot": "Feet",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 252448,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 273457,
+"slot": "Neck",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 6629,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 6473,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 274155,
+"slot": "Head",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 18442,
+"slot": "Neck",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 274149,
+"slot": "Back",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 273026,
+"slot": "Chest",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 7722,
+"slot": "Neck",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 273028,
+"slot": "Shoulder",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 10328,
+"slot": "Chest",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 10331,
+"slot": "Hands",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 7673,
+"slot": "Neck",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 274638,
+"slot": "Shoulder",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 11623,
+"slot": "Back",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 276739,
+"slot": "Chest",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 16667,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 19426,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 15067,
+"slot": "Shoulder",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 279270,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 16666,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 13179,
+"slot": "Wrist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 16672,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 18721,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 20295,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 16670,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 13392,
+"slot": "Finger",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 274615,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 18485,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+},
+{
+"item_id": 22433,
+"slot": "Finger",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/elemental",
+"scope": "forever"
+}
+],
+"enhancement": [
+{
+"item_id": 270227,
+"slot": "Neck",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 271097,
+"slot": "Back",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 270231,
+"slot": "Hands",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 273007,
+"slot": "Feet",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 252447,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 273088,
+"slot": "Neck",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 6449,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 2041,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 274068,
+"slot": "Neck",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 273804,
+"slot": "Shoulder",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 271716,
+"slot": "Back",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 273026,
+"slot": "Chest",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 274159,
+"slot": "Hands",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 273049,
+"slot": "Neck",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 274607,
+"slot": "Shoulder",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 274612,
+"slot": "Back",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 10328,
+"slot": "Chest",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 276740,
+"slot": "Neck",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 9411,
+"slot": "Shoulder",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 11626,
+"slot": "Back",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 276739,
+"slot": "Chest",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 13404,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 22150,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 277117,
+"slot": "Shoulder",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 13340,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 11726,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 13211,
+"slot": "Wrist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 15063,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 19044,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 15062,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 13967,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 13392,
+"slot": "Finger",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 13213,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+},
+{
+"item_id": 17713,
+"slot": "Finger",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/enhancement",
+"scope": "forever"
+}
+],
+"restoration": [
+{
+"item_id": 270227,
+"slot": "Neck",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 270231,
+"slot": "Hands",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 270260,
+"slot": "Legs",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 273007,
+"slot": "Feet",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 252507,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 273457,
+"slot": "Neck",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 6629,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 6473,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 274155,
+"slot": "Head",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 18442,
+"slot": "Neck",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 273825,
+"slot": "Back",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 273026,
+"slot": "Chest",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 10769,
+"slot": "Neck",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 279839,
+"slot": "Shoulder",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 274613,
+"slot": "Back",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 10764,
+"slot": "Chest",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 7719,
+"slot": "Head",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 10769,
+"slot": "Neck",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 274638,
+"slot": "Shoulder",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 11623,
+"slot": "Back",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 9469,
+"slot": "Chest",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 252561,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 18723,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16718,
+"slot": "Shoulder",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 18510,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16666,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 13969,
+"slot": "Wrist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16717,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 18391,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16719,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16715,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 13392,
+"slot": "Finger",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 274615,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 279262,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16058,
+"slot": "Finger",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+},
+{
+"item_id": 11819,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/shaman/restoration",
+"scope": "forever"
+}
+]
+},
+"DRUID": {
+"balance": [
+{
+"item_id": 270227,
+"slot": "Neck",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 270260,
+"slot": "Legs",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 273007,
+"slot": "Feet",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 252448,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 273457,
+"slot": "Neck",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 6629,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 6473,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 274155,
+"slot": "Head",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 18442,
+"slot": "Neck",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 274149,
+"slot": "Back",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 273026,
+"slot": "Chest",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 7722,
+"slot": "Neck",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 10774,
+"slot": "Shoulder",
+"bracket": "40-49",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 273038,
+"slot": "Chest",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 274599,
+"slot": "Wrist",
+"bracket": "40-49",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 6911,
+"slot": "Waist",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 17740,
+"slot": "Head",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 7673,
+"slot": "Neck",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 11623,
+"slot": "Back",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 11747,
+"slot": "Chest",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 274599,
+"slot": "Wrist",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 16720,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 19426,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 15067,
+"slot": "Shoulder",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 279270,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 15066,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 252542,
+"slot": "Wrist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 16717,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 18504,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 252486,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 16715,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 13392,
+"slot": "Finger",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 274615,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 22253,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+},
+{
+"item_id": 13001,
+"slot": "Finger",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/balance",
+"scope": "forever"
+}
+],
+"feral": [
+{
+"item_id": 271097,
+"slot": "Back",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 270231,
+"slot": "Hands",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 273007,
+"slot": "Feet",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 14149,
+"slot": "Back",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 252504,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 6449,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 2041,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 274068,
+"slot": "Neck",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 6449,
+"slot": "Back",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 2041,
+"slot": "Chest",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 6902,
+"slot": "Wrist",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 279879,
+"slot": "Shoulder",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 274612,
+"slot": "Back",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 10583,
+"slot": "Chest",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 274599,
+"slot": "Wrist",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 10760,
+"slot": "Hands",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 276740,
+"slot": "Neck",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 276741,
+"slot": "Shoulder",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 11626,
+"slot": "Back",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 22274,
+"slot": "Chest",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 274599,
+"slot": "Wrist",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 13404,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 22150,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 12927,
+"slot": "Shoulder",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 13340,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 252483,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 12966,
+"slot": "Wrist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 15063,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 19044,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 15062,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 16711,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 17713,
+"slot": "Finger",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 13213,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+},
+{
+"item_id": 13392,
+"slot": "Finger",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/feral",
+"scope": "forever"
+}
+],
+"restoration": [
+{
+"item_id": 270227,
+"slot": "Neck",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 271097,
+"slot": "Back",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 271202,
+"slot": "Wrist",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 270231,
+"slot": "Hands",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 270260,
+"slot": "Legs",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 252507,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 270227,
+"slot": "Neck",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 5404,
+"slot": "Shoulder",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 271097,
+"slot": "Back",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 6473,
+"slot": "Chest",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 274155,
+"slot": "Head",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 281321,
+"slot": "Neck",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 273804,
+"slot": "Shoulder",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 6901,
+"slot": "Back",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 6473,
+"slot": "Chest",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 274155,
+"slot": "Head",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 10769,
+"slot": "Neck",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 273804,
+"slot": "Shoulder",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 274613,
+"slot": "Back",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 6473,
+"slot": "Chest",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 9534,
+"slot": "Head",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 10769,
+"slot": "Neck",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 11623,
+"slot": "Back",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 22272,
+"slot": "Chest",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 18436,
+"slot": "Wrist",
+"bracket": "50-59",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 252561,
+"slot": "Head",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 18723,
+"slot": "Neck",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16718,
+"slot": "Shoulder",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 18510,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 15066,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 18525,
+"slot": "Wrist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16717,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 279252,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16719,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16715,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 13392,
+"slot": "Finger",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 18470,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 15805,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 16058,
+"slot": "Finger",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+},
+{
+"item_id": 274615,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://timesaver.gg/tools/wow-forever/leveling-gear/druid/restoration",
+"scope": "forever"
+}
+]
+},
+"MAGE": {
+"arcane": [
+{
+"item_id": 19426,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11782,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19682,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14152,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13253,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13870,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 21318,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11662,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13956,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19683,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19165,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13170,
+"slot": "Legs",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19684,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11822,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 942,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12545,
+"slot": "Ring",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13001,
+"slot": "Ring",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12930,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13964,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11904,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19108,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13938,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11288,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 271215,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 253977,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7001,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7514,
+"slot": "Ranged",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7685,
+"slot": "Off Hand",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7714,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+}
+],
+"fire": [
+{
+"item_id": 19426,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11782,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19682,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14152,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13253,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13870,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 21318,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11662,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13956,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19683,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19165,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13170,
+"slot": "Legs",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19684,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11822,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 942,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12545,
+"slot": "Ring",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13001,
+"slot": "Ring",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12930,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13964,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11904,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19108,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13938,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11288,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 271215,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 253977,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7001,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7514,
+"slot": "Ranged",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7685,
+"slot": "Off Hand",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7714,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+}
+],
+"frost": [
+{
+"item_id": 19426,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11782,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19682,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14152,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13253,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13870,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 21318,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11662,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13956,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19683,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19165,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13170,
+"slot": "Legs",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19684,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11822,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 942,
+"slot": "Ring",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12545,
+"slot": "Ring",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13001,
+"slot": "Ring",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12930,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13964,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11904,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19108,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13938,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/mage/dps/ (shared list for all mage DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11288,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 271215,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 253977,
+"slot": "Head",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7001,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7514,
+"slot": "Ranged",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7685,
+"slot": "Off Hand",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+},
+{
+"item_id": 7714,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-mage-leveling-guide-and-talents (shared across mage specs)",
+"scope": "forever"
+}
+]
+},
+"WARLOCK": {
+"affliction": [
+{
+"item_id": 14111,
+"slot": "Head",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19426,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 18691,
+"slot": "Neck",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14112,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19682,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14153,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14136,
+"slot": "Chest",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14106,
+"slot": "Chest",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 18407,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14146,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13253,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 21318,
+"slot": "Hands",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11662,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13956,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19683,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19165,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13170,
+"slot": "Legs",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19684,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 18735,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11822,
+"slot": "Feet",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13001,
+"slot": "Ring",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12545,
+"slot": "Ring",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12930,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 22383,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13964,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 7,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11904,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13396,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13938,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11288,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 279896,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 5356,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 3446,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 15397,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 15444,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 5201,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 4,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 5198,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 4,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 15109,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 7001,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 1155,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 9452,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 273043,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 273040,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 4,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 7708,
+"slot": "Ranged",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 7713,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249144,
+"slot": "Ranged",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 271803,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249234,
+"slot": "Ranged",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 18082,
+"slot": "Weapon",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249232,
+"slot": "Ranged",
+"bracket": "40-49",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 20536,
+"slot": "Weapon",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249237,
+"slot": "Ranged",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 280023,
+"slot": "Weapon",
+"bracket": "50-59",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 279246,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+}
+],
+"demonology": [
+{
+"item_id": 14111,
+"slot": "Head",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19426,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 18691,
+"slot": "Neck",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14112,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19682,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14153,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14136,
+"slot": "Chest",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14106,
+"slot": "Chest",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 18407,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14146,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13253,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 21318,
+"slot": "Hands",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11662,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13956,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19683,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19165,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13170,
+"slot": "Legs",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19684,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 18735,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11822,
+"slot": "Feet",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13001,
+"slot": "Ring",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12545,
+"slot": "Ring",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12930,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 22383,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13964,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 7,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11904,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13396,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13938,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11288,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 279896,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 5356,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 3446,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 15397,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 15444,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 5201,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 4,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 5198,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 4,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 15109,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 7001,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 1155,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 9452,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 273043,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 273040,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 4,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 7708,
+"slot": "Ranged",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 7713,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249144,
+"slot": "Ranged",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 271803,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249234,
+"slot": "Ranged",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 18082,
+"slot": "Weapon",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249232,
+"slot": "Ranged",
+"bracket": "40-49",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 20536,
+"slot": "Weapon",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249237,
+"slot": "Ranged",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 280023,
+"slot": "Weapon",
+"bracket": "50-59",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 279246,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+}
+],
+"destruction": [
+{
+"item_id": 14111,
+"slot": "Head",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19426,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 18691,
+"slot": "Neck",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14112,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19682,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14153,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14136,
+"slot": "Chest",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14106,
+"slot": "Chest",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 18407,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 14146,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13253,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 21318,
+"slot": "Hands",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11662,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13956,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19683,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19165,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13170,
+"slot": "Legs",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 19684,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 18735,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11822,
+"slot": "Feet",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13001,
+"slot": "Ring",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12545,
+"slot": "Ring",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 12930,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 22383,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13964,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 7,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11904,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13396,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 13938,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/warlock/dps/ (shared list for all warlock DPS specs)",
+"scope": "era"
+},
+{
+"item_id": 11288,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 279896,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 5356,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 3446,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 15397,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 15444,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 5201,
+"slot": "Weapon",
+"bracket": "10-19",
+"rank": 4,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 5198,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 4,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 15109,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 7001,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 1155,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 9452,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 273043,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 273040,
+"slot": "Weapon",
+"bracket": "20-29",
+"rank": 4,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 7708,
+"slot": "Ranged",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 7713,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249144,
+"slot": "Ranged",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 271803,
+"slot": "Weapon",
+"bracket": "30-39",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249234,
+"slot": "Ranged",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 18082,
+"slot": "Weapon",
+"bracket": "40-49",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249232,
+"slot": "Ranged",
+"bracket": "40-49",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 20536,
+"slot": "Weapon",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 249237,
+"slot": "Ranged",
+"bracket": "50-59",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 280023,
+"slot": "Weapon",
+"bracket": "50-59",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+},
+{
+"item_id": 279246,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-warlock-leveling-guide-and-talents (shared across warlock specs)",
+"scope": "forever"
+}
+]
+},
+"PRIEST": {
+"shadow": [
+{
+"item_id": 14111,
+"slot": "Head",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 19426,
+"slot": "Neck",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 18691,
+"slot": "Neck",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 14112,
+"slot": "Shoulders",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 19682,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 14136,
+"slot": "Chest",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 14106,
+"slot": "Chest",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 18407,
+"slot": "Hands",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 13253,
+"slot": "Hands",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 21318,
+"slot": "Hands",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 11662,
+"slot": "Waist",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 13956,
+"slot": "Waist",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 19683,
+"slot": "Legs",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 19165,
+"slot": "Legs",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 13170,
+"slot": "Legs",
+"bracket": "60",
+"rank": 4,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 19684,
+"slot": "Feet",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 18735,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 11822,
+"slot": "Feet",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 13001,
+"slot": "Ring",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 12545,
+"slot": "Ring",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 12930,
+"slot": "Trinket",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 22383,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 5,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 13964,
+"slot": "Weapon",
+"bracket": "60",
+"rank": 7,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 11904,
+"slot": "Off Hand",
+"bracket": "60",
+"rank": 3,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 13396,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 13938,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://www.zockify.com/classic/priest/shadow/",
+"scope": "era"
+},
+{
+"item_id": 11288,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 5250,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 7001,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 273043,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 6806,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+}
+],
+"holy": [
+{
+"item_id": 16693,
+"slot": "Head",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 18510,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 14154,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 11822,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 16997,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 11288,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 5250,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 7001,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 273043,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 6806,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+}
+],
+"discipline": [
+{
+"item_id": 16693,
+"slot": "Head",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 18510,
+"slot": "Back",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 14154,
+"slot": "Chest",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 11822,
+"slot": "Feet",
+"bracket": "60",
+"rank": 2,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 16997,
+"slot": "Ranged",
+"bracket": "60",
+"rank": 1,
+"source_url": "https://noobtoboss.com/wow-classic-priest-pre-raid-bis/",
+"scope": "era"
+},
+{
+"item_id": 11288,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 5250,
+"slot": "Ranged",
+"bracket": "10-19",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 7001,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 1,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 273043,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 2,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+},
+{
+"item_id": 6806,
+"slot": "Ranged",
+"bracket": "20-29",
+"rank": 3,
+"source_url": "https://www.method.gg/wow-forever/wow-forever-priest-leveling-guide-and-talents (shared across priest specs)",
+"scope": "forever"
+}
+]
+}
+},
+"traps": [
+{
+"class": "MAGE",
+"spec": "frost",
+"level": 36,
+"item_id": 9407,
+"why": "healer cloth for a mage"
+},
+{
+"class": "PRIEST",
+"spec": "shadow",
+"level": 36,
+"item_id": 9407,
+"why": "healer cloth for a shadow priest"
+},
+{
+"class": "WARLOCK",
+"spec": "affliction",
+"level": 50,
+"item_id": 254097,
+"why": "frost damage gloves for a warlock"
+},
+{
+"class": "PRIEST",
+"spec": "holy",
+"level": 50,
+"item_id": 254097,
+"why": "frost damage gloves for a healer"
+},
+{
+"class": "WARRIOR",
+"spec": "fury",
+"level": 56,
+"item_id": 250601,
+"why": "spirit and healing plate for a warrior"
+},
+{
+"class": "PALADIN",
+"spec": "retribution",
+"level": 56,
+"item_id": 250601,
+"why": "healing plate for a retribution paladin"
+},
+{
+"class": "DRUID",
+"spec": "feral",
+"level": 50,
+"item_id": 252477,
+"why": "healing leather for a feral druid"
+},
+{
+"class": "HUNTER",
+"spec": "marksmanship",
+"level": 50,
+"item_id": 15064,
+"why": "leather agility for a hunter who wears mail"
+},
+{
+"class": "WARRIOR",
+"spec": "fury",
+"level": 48,
+"item_id": 15076,
+"why": "agility mail for a plate wearer"
+},
+{
+"class": "PALADIN",
+"spec": "holy",
+"level": 55,
+"item_id": 12422,
+"why": "strength plate for a holy paladin"
+},
+{
+"class": "SHAMAN",
+"spec": "elemental",
+"level": 48,
+"item_id": 15076,
+"why": "agility mail for an elemental shaman"
+},
+{
+"class": "ROGUE",
+"spec": "combat",
+"level": 50,
+"item_id": 252477,
+"why": "healing leather for a rogue"
+}
+]
+}

@@ -259,7 +259,7 @@ def next_talents(cls: str, level: int, ranks: dict[str, int] | None = None, n: i
 
 def ranks_of(tal: dict | None) -> dict[str, int] | None:
     """{talent name: rank} from the character page's talents answer, or None
-    when no export holds them."""
+    when Battle.net gave none."""
     if not tal or not tal.get("available"):
         return None
     out: dict[str, int] = {}
@@ -351,7 +351,8 @@ def guide(cls, level: int, race=None, faction=None, tal: dict | None = None) -> 
         "train": train(c, level, race, faction, have),
         "trainers": trainers(c, race, faction),
         "next_talents": next_talents(c, level, ranks, 6),
-        "talents_from": "the character's export" if ranks is not None else "the class path (no talent export)",
+        "talents_from": ("Battle.net's talents now" if ranks is not None
+                         else "the class path (no talents from Battle.net)"),
         "respec": respec(c, level),
         "talents": topic("talents", 1, MAX_LEVEL),
         "spells": topic("spells", 1, MAX_LEVEL),

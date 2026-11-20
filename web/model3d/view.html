@@ -7,14 +7,15 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark">
 <title>In 3D</title>
-<!-- The page around Wowhead's model viewer, in a sandboxed frame of the
-     page (opaque origin, no network: wowstats/model3d.py VIEW_POLICY).
-     A template: wowstats.model3d.view_page inlines view.css and view.js
-     here and puts the policy, with their hashes, in the <meta> above. -->
+<!-- The page around the 3D viewer (m3d/, a port of wow.export's renderer),
+     in a sandboxed frame of the page (opaque origin, no network:
+     wowstats/model3d.py VIEW_POLICY). A template: wowstats.model3d.view_page
+     inlines view.css, the viewer and view.js here and puts the policy, with
+     their hashes, in the <meta> above. -->
 <!--inline:view.css-->
 </head>
 <body>
-<div id="stage" class="stage"></div>
+<canvas id="stage" class="stage" aria-label="The character in 3D: drag to turn it"></canvas>
 <p id="status" class="status">Dressing the model</p>
 <!--inline:view.js-->
 </body>

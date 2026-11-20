@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -30,7 +31,7 @@ from tests.test_tenancy import (  # noqa: F401 - fixtures
 )
 from wowstats import __version__, activity, admin, analysis, guard, publish
 
-PATHS = ("/admin", "/admin.css", "/api/admin/overview")
+PATHS = ("/admin", "/api/admin/overview")
 # Every character name, both tenants', as the page could print it.
 NAMES = [c["char"].split("-")[0].encode() for c in fakes.CHARS] + [v.encode() for v in RENAME.values()] + A_MARKERS
 
@@ -55,8 +56,9 @@ def test_the_owner_gets_the_page(server):  # noqa: F811
         assert code == 200, (path, body[:200])
     code, headers, body = server.get("/admin", headers=as_user(OWNER))
     assert headers["Content-Type"].startswith("text/html")
-    assert b'href="/admin.css"' in body and b'href="/admin">Reload</a>' in body
-    assert b"<script" not in body and b"http-equiv" not in body  # no auto-refresh
+    assert b'href="/account.css"' in body and b'href="/admin">Reload</a>' in body
+    # One script, the shared theme switch: nothing reloads the page by itself.
+    assert re.findall(rb'<script src="([^"]+)"', body) == [b"/theme.js"] and b"http-equiv" not in body
     assert headers["Cache-Control"] == "no-store"
 
 
@@ -142,6 +144,10 @@ def test_the_setup_report_is_one_badge():
     assert admin.addons_badge({"addons": '{"questie": "1"}'})["text"] == "2 missing"
     assert admin.addons_badge({"addons": {"polestar": "1", "recorder": "2"}, "recorder_on": "false"})["text"] == \
         "Recorder off"
+    # Never switched on: the shipper says "unknown" (before 0.7.0 it left the field out).
+    for rep in ({"addons": {"polestar": "1", "recorder": "2"}, "recorder_on": "unknown"},
+                {"addons": {"polestar": "1", "recorder": "2"}}):
+        assert admin.addons_badge(rep) == {"state": "bad", "text": "Recorder not switched on yet"}
 
 
 def test_no_character_name_no_secret_on_the_page(server):  # noqa: F811
@@ -243,3 +249,11 @@ def test_a_listed_name_that_clashes_shows_as_a_name_conflict(server):  # noqa: F
     assert b"name conflict: <code>sam</code> (taken)" in body
     assert b"name conflict: <code>admin</code> (reserved)" in body
     assert b"(no name yet)" not in body
+
+
+def test_versions_order_release_candidates():
+    """A server on a release candidate still flags older shippers, and never
+    compares a version it can't read (tools/release/release.py's X.Y.Z-rc.N)."""
+    v = admin.vtuple
+    assert v("0.6.1") < v("0.7.0-rc.1") < v("0.7.0-rc.2") < v("0.7.0") < v("v0.7.1")
+    assert v("0.7.0rc1") is None and v("0.7") is None and v(None) is None

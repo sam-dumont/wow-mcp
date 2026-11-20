@@ -22,11 +22,17 @@
 # still read, sent, and kept in <archive_dir>/sent (gzipped).
 # wtf_archive = false
 
-# Auto-update: every 6 hours at most, the shipper asks the server in [ship]
+# Auto-update: every 2 hours at most, the shipper asks the server in [ship]
 # for its version and replaces itself with a newer one (same server, same
 # password, https or this computer only, sha256 checked, never older).
 # false: keep this version until you install another one yourself.
 # auto_update = false
+
+# The 3D view: the shipper reads the game files your characters wear (models,
+# textures, a few client tables) from your own WoW folder, read only, and
+# sends them to the server in [ship], at most every 15 minutes and only what
+# it asks for. false: never; the 3D view then shows Battle.net's picture.
+# model3d_files = false
 
 # Default: ~/Library/Logs/wow-stats.log (macOS),
 # %LOCALAPPDATA%\wow-stats\wow-stats.log (Windows).

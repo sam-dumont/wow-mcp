@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import time
 import urllib.request
@@ -186,8 +187,13 @@ def exporter_last(app) -> float | None:
 
 
 def vtuple(v) -> tuple[int, ...] | None:
-    parts = str(v or "").strip().lstrip("v").split(".")
-    return tuple(int(p) for p in parts) if len(parts) == 3 and all(p.isdigit() for p in parts) else None
+    """X.Y.Z or a release candidate X.Y.Z-rc.N, below its final (the
+    shipper's version_tuple orders them the same)."""
+    m = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?", str(v or "").strip())
+    if not m:
+        return None
+    a, b, c, rc = m.groups()
+    return (int(a), int(b), int(c), 0, int(rc)) if rc else (int(a), int(b), int(c), 1, 0)
 
 
 def _epoch(s) -> float | None:
@@ -217,8 +223,9 @@ def addons_badge(rep: dict | None) -> dict:
     lack = [a["id"] for a in account.addons() if a.get("required") and a["id"] not in got]
     if lack:
         return {"state": "bad", "text": f"{len(lack)} missing"}
-    if str(rep.get("recorder_on")).lower() == "false":
-        return {"state": "bad", "text": "Recorder off"}
+    if "recorder" in got and str(rep.get("recorder_on")).lower() != "true":
+        return {"state": "bad", "text": "Recorder off" if str(rep.get("recorder_on")).lower() == "false"
+                else "Recorder not switched on yet"}
     return {"state": "ok", "text": "addons OK"}
 
 
@@ -403,19 +410,16 @@ def page_body(o: dict) -> str:
 def page(o: dict) -> bytes:
     from wowstats import account
 
-    html = account.page("Admin", page_body(o), "admin", script=False)
-    return html.replace(b"</head>", b'<link rel="stylesheet" href="/admin.css">\n</head>', 1)
+    return account.page("Admin", page_body(o), "admin", script=False)
 
 
 def route(h, t: T.Tenancy, u: T.User, app, path: str) -> None:
-    """GET /admin, /admin.css, /api/admin/overview: the owner's; 404 for
+    """GET /admin, /api/admin/overview: the owner's; 404 for
     anyone else, like any address that leads nowhere."""
     if not u.owner:
         return h.not_found()
     if path == "/admin/":
         return h.send(301, b"", "text/plain", headers={"Location": "/admin"})
-    if path == "/admin.css":
-        return h.send(200, (app.static / "admin.css").read_bytes(), "text/css; charset=utf-8", "no-cache")
     o = overview(t)
     if path == "/api/admin/overview":
         return h.json(200, o)

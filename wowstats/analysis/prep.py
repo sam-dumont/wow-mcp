@@ -9,8 +9,8 @@ are the model's). Every table and column is described in `dictionary`.
 
 The database lives in memory and is rebuilt on every run from the stores:
 nothing here is ever written to disk. Battle.net data (vm-wow, 30 days at
-most by Blizzard's terms) stays out of it entirely: talents come from the
-shipper's own sheet when it has them.
+most by Blizzard's terms) stays out of it entirely, so it has no talents:
+since 2026-11-20 they come from Battle.net's API only (no add-on).
 """
 
 from __future__ import annotations
@@ -24,7 +24,8 @@ import sys
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from wowstats.stores import VL_PAGE, dedupe, parse_t
+from wowstats import profcaps
+from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits, truthy
 
 
 def _zone() -> tuple[str, ZoneInfo]:
@@ -43,7 +44,7 @@ TZ_NAME, TZ = _zone()
 # The Recorder opens a chunk with a `session` record every 300 s while the
 # game runs (Polestar_Recorder CHUNK_SECONDS): a silence longer than this is
 # time logged out.
-OFFLINE_S = 330
+OFFLINE_S = SESSION_GAP_S  # one session rule with the pages (wowstats.stores)
 # A dungeon trip's guide steps chain while each comes within this of the next
 # (or of the instance): an older pickup step belongs to an earlier attempt.
 TRIP_GAP_S = 7200
@@ -252,10 +253,10 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "level": "the character's level then (newest record at or before the sheet)", "slot": "inventory slot 1-19",
         "slot_name": "slot", "item_id": "item id", "name": "item name", "quality": "0 poor .. 5 legendary",
         "item_level": "item level", "req_level": "required level"}),
-    "professions": ("Professions on the newest sheet.", {
-        "skill_id": "skill line id", "name": "name", "rank": "rank", "max_rank": "cap"}),
-    "talents": ("Talent points per tree from the shipper's sheet (SimBench export), when present.", {
-        "tree": "tree name", "points": "points"}),
+    "professions": ("Professions on the newest sheet (ranks from Polestar).", {
+        "skill_id": "skill line id", "name": "name", "rank": "rank",
+        "max_rank": "cap: the Recorder's newest skill record, else the trainer tier the rank sits under",
+        "max_rank_from": "recorder (read in game) or tiers (a floor from the trainer tiers)"}),
     "snapshots": ("The character snapshots the shipper sends at logout and /reload (from the game's saved "
                   "variables): money, XP and where the hearthstone is bound.", {
         "t": "unix seconds", "time_local": "ISO time, local (meta.timezone)", "level": "level",
@@ -263,6 +264,32 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "zone": "zone", "bind": "the inn or place the hearthstone is bound to",
         "resting": "1 when the character was in a rested area (inn or city), 0 when not, NULL when unknown",
         "online_s_since_prev": "online time (timeline) between the previous snapshot and this one"}),
+    "quests": ("Each quest the log held: its accept paired with its hand-in or abandon (records by quest_id, in "
+               "time order), and the online time it took. A quest's time is quest_s: every online second while it "
+               "was in the log, shared equally among the quests open then, so the quests' times add up to the "
+               "online time with a quest open (nothing counted twice).", {
+        "quest_row": "row number", "quest_id": "quest id", "quest_name": "title, when a record names it",
+        "status": "done (accept and hand-in seen), abandoned, open (still in the log) or untimed (handed in, "
+                  "accepted before tracking began)",
+        "accepted_t": "accept, unix s", "closed_t": "hand-in or abandon, unix s",
+        "accepted_local": "accept, local time", "closed_local": "hand-in or abandon, local time",
+        "level_accepted": "level at the accept", "level": "level at the hand-in or abandon (else at the accept)",
+        "zone": "zone of the hand-in (else of the accept)", "xp": "XP the hand-in paid",
+        "money_copper": "money the hand-in paid, copper", "wall_s": "calendar seconds from accept to close",
+        "open_online_s": "online seconds while in the log (each open quest counts them in full)",
+        "quest_s": "online seconds while in the log, each shared among the quests open then"}),
+    "gold_moves": ("The purse between two consecutive snapshots (logout or /reload): what it moved and the part "
+                   "the records name (quest money). No addon the kit reads saves spending (repairs, vendors, "
+                   "training), so other_copper is everything else together.", {
+        "t0": "first snapshot, unix s", "t1": "second snapshot, unix s", "time_local": "first snapshot, local",
+        "level": "level at the first snapshot", "level_end": "level at the second",
+        "money_before": "money at the first, copper", "money_after": "money at the second, copper",
+        "delta_copper": "money_after - money_before",
+        "quest_copper": "money paid by hand-ins after the first snapshot, up to the second",
+        "other_copper": "delta_copper - quest_copper: loot coin, sales and mail in, less repairs, "
+                        "purchases, training, flights and mail out",
+        "dings": "level-ups strictly between the two snapshots",
+        "online_s": "online time (timeline) between the two"}),
     "upgrade_candidates": ("Every gear upgrade the player's own gear advice finds (Polestar's scoring with the "
                            "weights the player chose, items within 3 levels), one row per item and source. Facts "
                            "of the advice, no ranking: join on instance or zone to compare places.", {
@@ -586,6 +613,8 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     _gear(db, rows)
     _dungeon_trips(db, rows)
     _snapshots(db, rows)
+    _quests(db)
+    _gold_moves(db)
     _upgrades(db, upgrades or [])
     _meta(db, char, rows, rec, now)
     _aggregates(db)
@@ -638,8 +667,7 @@ def _schema(db: sqlite3.Connection) -> None:
         craft_t REAL, vendor_seen INTEGER, first_t REAL, first_level INTEGER);
     CREATE TABLE gear_sheets (sheet_t REAL, time_local TEXT, level INTEGER, slot INTEGER, slot_name TEXT,
         item_id INTEGER, name TEXT, quality INTEGER, item_level INTEGER, req_level INTEGER);
-    CREATE TABLE professions (skill_id INTEGER, name TEXT, rank INTEGER, max_rank INTEGER);
-    CREATE TABLE talents (tree TEXT, points INTEGER);
+    CREATE TABLE professions (skill_id INTEGER, name TEXT, rank INTEGER, max_rank INTEGER, max_rank_from TEXT);
     CREATE TABLE snapshots (t REAL, time_local TEXT, level INTEGER, xp INTEGER, xp_max INTEGER,
         money_copper INTEGER, zone TEXT, bind TEXT, resting INTEGER, online_s_since_prev REAL);
     CREATE TABLE upgrade_candidates (item_id INTEGER, name TEXT, quality INTEGER, slot_name TEXT, gain REAL,
@@ -647,6 +675,13 @@ def _schema(db: sqlite3.Connection) -> None:
         source_kind TEXT, instance TEXT, instance_min_level INTEGER, instance_max_level INTEGER, zone TEXT, boss TEXT,
         npc_id INTEGER, drop_chance_pct REAL, quest_id INTEGER, quest_name TEXT, quest_choices INTEGER,
         profession TEXT, skill INTEGER, can_make INTEGER);
+    CREATE TABLE quests (quest_row INTEGER PRIMARY KEY, quest_id INTEGER, quest_name TEXT, status TEXT,
+        accepted_t REAL, closed_t REAL, accepted_local TEXT, closed_local TEXT, level_accepted INTEGER,
+        level INTEGER, zone TEXT, xp INTEGER, money_copper INTEGER, wall_s REAL, open_online_s REAL,
+        quest_s REAL);
+    CREATE TABLE gold_moves (t0 REAL, t1 REAL, time_local TEXT, level INTEGER, level_end INTEGER,
+        money_before INTEGER, money_after INTEGER, delta_copper INTEGER, quest_copper INTEGER,
+        other_copper INTEGER, dings INTEGER, online_s REAL);
     CREATE TABLE dictionary (table_name TEXT, column_name TEXT, description TEXT);
     """)
 
@@ -681,16 +716,14 @@ def _sessions(db: sqlite3.Connection) -> None:
 
 
 def _levels(db, rows, rec, route) -> None:
-    splits = {}
-    for r in rows:
-        if r.get("feed") == "wow-level" and (lv := _int(r.get("level"))):
-            splits[lv] = r
+    splits = {lv: r for lv, r in pick_splits([r for r in rows if r.get("feed") == "wow-level"]).items()
+              if isinstance(lv, int) and lv}
     dings = {}
     for r in rec:
         if r.get("kind") == "level" and (lv := _int(r.get("level"))):
             dings.setdefault(lv - 1, r["_t"])
     who = next((r for r in reversed(rec) if r.get("kind") == "session"), {})
-    side, race, cls = who.get("faction"), who.get("race"), who.get("class")
+    side, cls = who.get("faction"), who.get("class")
     seen = set(splits) | set(dings)
     cur = db.execute("SELECT MAX(level) FROM records").fetchone()[0]
     if cur:
@@ -700,14 +733,15 @@ def _levels(db, rows, rec, route) -> None:
         s = splits.get(lv) or {}
         plan = med = guide = None
         if route is not None and getattr(route, "available", False):
-            row = (route.levels.get(side or "Alliance") or {}).get(str(lv)) or {}
-            plan = (row.get("by_class") or {}).get(str(cls or "").upper())
-            med, guide = row.get("seconds"), row.get("guide")
+            # The pages' and the MCP's route time (Route.level), and beside it the median over classes.
+            exp = route.level(lv, side, cls) if cls else None
+            plan = exp.get("expected_s") if exp else None
+            med_row = route.level(lv, side)
+            med, guide = (med_row.get("expected_s"), med_row.get("guide")) if med_row else (None, None)
         ding = dings.get(lv) or (s.get("_t") if s else None)
         out.append((lv, ding, _flt(s.get("seconds")), _int(s.get("xp")), _int(s.get("quests")), _int(s.get("kills")),
-                    1 if str(s.get("partial")).lower() == "true" else 0 if s else None, plan, med, guide))
+                    (1 if truthy(s.get("partial")) else 0) if s else None, plan, med, guide))
     db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?)", out)
-    _ = race
 
 
 def _route_steps(db, route) -> None:
@@ -775,16 +809,12 @@ def _gear(db, rows) -> None:
         profs = json.loads(profs) if isinstance(profs, str) else (profs or [])
     except ValueError:
         profs = []
-    db.executemany("INSERT INTO professions VALUES (?,?,?,?)",
-                   [(_int(p.get("skill_id")), p.get("name"), _int(p.get("rank")), _int(p.get("max_rank")))
-                    for p in profs if isinstance(p, dict)])
-    tal = g.get("talents")
-    try:
-        tal = json.loads(tal) if isinstance(tal, str) else (tal or [])
-    except ValueError:
-        tal = []
-    db.executemany("INSERT INTO talents VALUES (?,?)",
-                   [(p.get("tree"), _int(p.get("points"))) for p in tal if isinstance(p, dict)])
+    skills = profcaps.newest_skills([r for r in rows if r.get("feed") == "wow-recorder" and r.get("kind") == "skill"],
+                                    "_t")
+    db.executemany("INSERT INTO professions VALUES (?,?,?,?,?)",
+                   [(_int(p.get("skill_id")), p.get("name"), _int(p.get("rank")), _int(p.get("max_rank")),
+                     p.get("max_rank_from"))
+                    for p in profcaps.fill([p for p in profs if isinstance(p, dict)], skills)])
 
 
 def _snapshots(db, rows) -> None:
@@ -800,6 +830,93 @@ def _snapshots(db, rows) -> None:
                     _online(db, prev, r["_t"]) if prev is not None else None))
         prev = r["_t"]
     db.executemany("INSERT INTO snapshots VALUES (?,?,?,?,?,?,?,?,?,?)", out)
+
+
+def _quests(db) -> None:
+    """Each quest the log held, from its accept to its hand-in or abandon
+    (records paired by quest_id, in time order), and the online time it took.
+
+    Time on a quest is `quest_s`: every online second (timeline) while the
+    quest was in the log, shared equally among the quests open in that
+    second. Wall time from accept to hand-in (`wall_s`) counts the nights in
+    between, and online time while open (`open_online_s`) counts the same
+    second once per open quest: ten quests in the log would each claim the
+    whole evening. Shared, the quests' times add up to the online time with
+    at least one quest open, nothing counted twice. It doesn't know which
+    quest the player was working on: a quest that sits in the log while
+    others get done takes its share of their time.
+
+    A hand-in with no accept before it (accepted before tracking began) is
+    `untimed`; an accept while the same quest is already open keeps the
+    first; an abandon closes it; what is still in the log is `open`, its
+    time counted up to the last record."""
+    evs = db.execute("SELECT t, kind, quest_id, quest_name, level, zone, xp_reward, money_copper FROM records "
+                     "WHERE kind IN ('accept', 'turnin', 'abandon') AND quest_id IS NOT NULL ORDER BY t, rec_id"
+                     ).fetchall()
+    rows: list[dict] = []
+    open_: dict[int, dict] = {}
+    for t, kind, qid, name, lv, zone, xp, money in evs:
+        q = open_.get(qid)
+        if kind == "accept":
+            if q is None:
+                q = {"quest_id": qid, "quest_name": name, "status": "open", "accepted_t": t, "closed_t": None,
+                     "level_accepted": lv, "level": lv, "zone": zone, "xp": None, "money_copper": None}
+                open_[qid] = q
+                rows.append(q)
+        elif kind == "turnin":
+            if q is None:
+                rows.append({"quest_id": qid, "quest_name": name, "status": "untimed", "accepted_t": None,
+                             "closed_t": t, "level_accepted": None, "level": lv, "zone": zone, "xp": xp,
+                             "money_copper": money})
+                continue
+            q.update(status="done", closed_t=t, level=lv, zone=zone or q["zone"], xp=xp, money_copper=money,
+                     quest_name=q["quest_name"] or name)
+            del open_[qid]
+        elif q is not None:  # abandon
+            q.update(status="abandoned", closed_t=t, level=lv, quest_name=q["quest_name"] or name)
+            del open_[qid]
+    # The time: one sweep over the timeline, quests opened as their accept passes.
+    timed = sorted((q for q in rows if q["accepted_t"] is not None), key=lambda q: q["accepted_t"])
+    for q in timed:
+        q["open_online_s"] = q["quest_s"] = 0.0
+    active: list[dict] = []
+    i = 0
+    for t0, dur in db.execute("SELECT t0, dur_s FROM timeline ORDER BY t0"):
+        while i < len(timed) and timed[i]["accepted_t"] <= t0:
+            active.append(timed[i])
+            i += 1
+        active = [q for q in active if q["closed_t"] is None or q["closed_t"] > t0]
+        if active and dur:
+            share = dur / len(active)
+            for q in active:
+                q["open_online_s"] += dur
+                q["quest_s"] += share
+    out = []
+    for n, q in enumerate(rows, 1):
+        a, c = q["accepted_t"], q["closed_t"]
+        out.append((n, q["quest_id"], q["quest_name"], q["status"], a, c, _iso(a, TZ) if a else None,
+                    _iso(c, TZ) if c else None, q["level_accepted"], q["level"], q["zone"], q["xp"],
+                    q["money_copper"], (c - a) if a is not None and c is not None else None,
+                    q.get("open_online_s"), q.get("quest_s")))
+    db.executemany("INSERT INTO quests VALUES (" + ",".join("?" * 16) + ")", out)
+
+
+def _gold_moves(db) -> None:
+    """The purse between two logout snapshots: what it moved, the part the
+    records name (quest money handed in after the first and up to the
+    second), and the rest. Nothing the addons save records spending, so the
+    rest is never called repairs: it is loot coin, vendor and auction sales
+    and mail in, less repairs, purchases, training, flights and mail out."""
+    snaps = db.execute("SELECT t, level, money_copper FROM snapshots ORDER BY t").fetchall()
+    out = []
+    for (t0, lv0, m0), (t1, lv1, m1) in zip(snaps, snaps[1:], strict=False):
+        quest = db.execute("SELECT COALESCE(SUM(money_copper), 0) FROM records WHERE kind = 'turnin' AND t > ? "
+                           "AND t <= ?", (t0, t1)).fetchone()[0]
+        dings = db.execute("SELECT COUNT(*) FROM records WHERE kind = 'level' AND t > ? AND t < ?",
+                           (t0, t1)).fetchone()[0]
+        out.append((t0, t1, _iso(t0, TZ), lv0, lv1, m0, m1, m1 - m0, quest, m1 - m0 - quest, dings,
+                    _online(db, t0, t1)))
+    db.executemany("INSERT INTO gold_moves VALUES (" + ",".join("?" * 12) + ")", out)
 
 
 def _upgrades(db, ups: list[dict]) -> None:

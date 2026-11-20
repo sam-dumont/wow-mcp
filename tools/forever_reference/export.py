@@ -4,7 +4,7 @@ instances, so the server names every quest and dungeon it shows.
 Two sources, both facts about the game:
 
 - forever-db (Polestar's quest database, GPL-3.0, in the Polestar checkout at
-  POLESTAR_TAG): each quest's title, level, minimum level and zone, its part
+  tools/polestar-tag): each quest's title, level, minimum level and zone, its part
   in a chain of quests with the same title (from the prerequisites), the
   quests it needs done first (breadcrumbs left out), each item's name
   (Forever's ItemSparse holds only the items Forever changed), and the

@@ -43,6 +43,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from wowstats import bar
+
 from . import tools
 
 DIR = "help"
@@ -54,16 +56,16 @@ _SHELL = """<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="dark light">
-<title>{title}</title><link rel="stylesheet" href="../app.css"><link rel="stylesheet" href="help.css"></head>
-<body class="helpdoc"><header class="hbar">{brand}{site}
+<title>{title}</title>{head}</head>
+<body class="helpdoc">{bar}
 <nav class="hnav" id="hnav" aria-label="On this page"{hidden}><a href="#start" data-jump="start">Start</a>
 <a href="#page" data-jump="page">Your page</a><a href="#ai" data-jump="ai">Your AI</a>
 <a href="#trouble" data-jump="trouble">Problems</a></nav>
-<button id="theme" class="theme" type="button" aria-label="Switch colour theme">Auto</button></header>
 <main id="help" class="hmain"{main}>{content}</main><script src="help.js"></script></body></html>
 """
 # The static site's shell: the content arrives sealed (helppage.js opens it).
-SHELL = _SHELL.format(title="Leveling log", brand="<span class=\"hbrand\">wow-stats</span>", site="",
+# Home is the site's own page (its root); nothing behind the login.
+SHELL = _SHELL.format(title="Leveling log", head=bar.head("../", "help.css"), bar=bar.header("../"),
                       hidden=" hidden", main="", content="<p class=\"hwait\">Opening…</p>")
 
 
@@ -145,8 +147,8 @@ CLIENTS: tuple[Client, ...] = (
     Client("Copilot CLI",
            ("In the CLI, /mcp add, pick HTTP and paste the URL.", "Log in when your browser opens."),
            "{url}",
-           "Not checked end to end yet: the exact path Copilot CLI's login comes back on. If it's refused, say so "
-           "to whoever runs this site.", checked=False),
+           "Not checked end to end yet: the exact path Copilot CLI's login comes back on. If it's refused, tell "
+           "the owner.", checked=False),
     Client("Cursor",
            ("Add this to ~/.cursor/mcp.json (or .cursor/mcp.json in a project).",
             "Cursor shows a Login button next to the server: click it and log in."),
@@ -174,8 +176,8 @@ CLIENTS: tuple[Client, ...] = (
     Client("Windsurf (Devin)",
            ("Add this to mcp_config.json.", "Log in when your browser opens."),
            '{"mcpServers": {"wow": {"serverUrl": "{url}"}}}',
-           "Not checked yet: where Windsurf sends your browser back after the login. If it's refused, say so to "
-           "whoever runs this site.", checked=False),
+           "Not checked yet: where Windsurf sends your browser back after the login. If it's refused, tell "
+           "the owner.", checked=False),
 )
 
 # ---------------------------------------------------------------- MCP: asks and groups
@@ -199,15 +201,18 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("Deaths", "where, at what level, what killed you", ("deaths",)),
     ("Dungeons", "your runs, and which ones are worth it now", ("dungeons", "dungeon_options")),
     ("Gear", "what you wear and every way to an upgrade", ("gear", "gear_options")),
+    ("Talents", "how your talents changed, day by day", ("talent_changes",)),
     ("Gold", "your auction prices, and the next riding tier", ("prices", "mount_goal")),
     ("Plans", "session plans at your pace, and how they went",
      ("plan_session", "check_plan", "how_did_my_plan_go", "next_step", "next_moves")),
     ("Analysis", "findings about how you play, re-checked before they're kept",
-     ("analyse", "play_analysis", "whats_new", "sanity_check", "analysis_brief", "play_sql", "propose_finding",
+     ("analyse", "play_analysis", "whats_new", "sanity_check", "analysis_brief", "play_sql", "list_metrics",
+      "query_metric", "propose_finding",
       "analysis_submit", "analysis_progress")),
     ("People", "players your game showed you", ("players", "people")),
-    ("Game rules", "game facts: quests, items, NPCs, zones, rules, and how to level your class",
-     ("kb_search", "kb_get", "kb_lookup", "kb_rule", "kb_topics", "class_guide")),
+    ("Game rules", "game facts: quests, items, NPCs, zones, rules, how to level your class and its meta",
+     ("kb_search", "kb_get", "kb_lookup", "kb_rule", "kb_topics", "class_guide", "class_meta")),
+    ("News", "what's new on Forever this week, and what is coming", ("news",)),
 )
 
 def _e(s) -> str:
@@ -385,7 +390,9 @@ def _start(st: dict, links: str, have: dict, sub) -> str:
                 chips = "".join(_chip(a) for a in req)
                 more = ""
                 if opt:
-                    lines = "".join(f"<li>{_chip(a)} {_e(a.get('what'))}</li>" for a in opt)
+                    lines = "".join(f"<li>{_chip(a)} {_e(a.get('what'))}."
+                                    + (f" <span class='hstep1'>{_e(a['step'])}</span>" if a.get("step") else "")
+                                    + "</li>" for a in opt)
                     more = (f"<details class='hopt'><summary>{_e(q.get('optional', '{n} more').format(n=len(opt)))}"
                             f"</summary><ul>{lines}</ul></details>")
                 body += ((f"<p class='hact'>{act}</p>" if act else "") + f"<p class='hchips'>{chips}</p>"
@@ -453,7 +460,7 @@ def _client(c: Client, url: str) -> str:
 
 OTHER = ("<h3>An app that isn't listed</h3><p>Add the address as a remote MCP server (Streamable HTTP) with OAuth. "
          "An app on your computer opens your browser to log in and gets its access back through a loopback "
-         "redirect to your own computer. Refused at login: ask whoever sent you the link to add it.</p>")
+         "redirect to your own computer. Refused at login: ask the owner to add it.</p>")
 
 
 def _mcp(url: str, base: str, st: dict, links: str) -> str:
@@ -592,12 +599,10 @@ def full_page(mcp_url: str) -> bytes:
     comes as it is, in-page links are plain #anchors, and the clips are the
     start page's own (/start/media/). Made once per address: the steps file
     and the server's tool list only change with the image."""
-    from wowstats import account
-
     st = load_steps()
     return _SHELL.format(
-        title="Help", brand="<a class=\"hbrand\" href=\"/\">wow-stats</a>",
-        site=f"<nav class=\"hsite\" aria-label=\"Your pages\">{account.nav_links('/help/')}</nav>", hidden="",
+        title="Help", head=bar.head("/", "help.css", icon=bar.ICON), bar=bar.header("/", bar.links("/help/")),
+        hidden="",
         main=" data-media-base=\"/start/media/\"", content=render(mcp_url, st, media_files(st), here=True)).encode()
 
 

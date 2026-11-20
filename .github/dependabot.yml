@@ -13,12 +13,21 @@
 # moves both. Base images stay pinned by tag and digest on literal FROM lines
 # (Dockerfile).
 #
-# Not covered: POLESTAR_TAG in route-reference.yml (kb-refresh's watcher
-# opens an issue when Polestar tags a release, docs/kb.md), the snapshot date
+# Not covered: the Polestar tag (tools/polestar-tag: kb-refresh moves it with
+# the exports when Polestar tags a release, docs/kb.md), the snapshot date
 # of the renderer's Debian packages, and the Polestar Recorder version and
 # checksum in the shipper.
 # Those move by hand.
 version: 2
+# The main image's base comes from dhi.io (Docker Hardened Images), which
+# takes no anonymous pulls: Dependabot reads its digests with the same Docker
+# Hub read-only token as CI, stored as Dependabot secrets (not Actions ones).
+registries:
+  dhi:
+    type: docker-registry
+    url: dhi.io
+    username: ${{secrets.DOCKERHUB_USERNAME}}
+    password: ${{secrets.DOCKERHUB_TOKEN}}
 updates:
   - package-ecosystem: uv
     directory: /
@@ -56,6 +65,7 @@ updates:
 
   - package-ecosystem: docker
     directory: /
+    registries: [dhi]
     schedule:
       interval: weekly
       day: monday
@@ -72,10 +82,12 @@ updates:
         update-types: [major]
     ignore:
       # 3.15 -> 3.16 is a decision (wheels, the test suite), not a weekly bump.
-      # The digest of 3.15-alpine and 3.15-slim-trixie still moves.
+      # The digests of 3.15-debian13 (dhi.io) and 3.15-slim-trixie still move.
       - dependency-name: python
         update-types: [version-update:semver-major, version-update:semver-minor]
       - dependency-name: library/python
+        update-types: [version-update:semver-major, version-update:semver-minor]
+      - dependency-name: dhi.io/python
         update-types: [version-update:semver-major, version-update:semver-minor]
 
   - package-ecosystem: docker-compose

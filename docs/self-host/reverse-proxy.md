@@ -4,7 +4,7 @@
 answers on `https://wow-full.example.org` behind a password, the sites for friends on
 `https://wow.example.org`, both over HTTPS, and the shipper sends over HTTPS.
 
-Out of the box everything listens on `127.0.0.1` only. To reach it from elsewhere, put a
+By default everything listens on `127.0.0.1` only. To reach it from elsewhere, put a
 reverse proxy in front: a server that takes HTTPS on ports 80 and 443 and forwards each
 request to the right container. The kit ships three, each tested: [Caddy](#caddy) (the
 shortest: it gets certificates by itself), [Traefik](#traefik) and [nginx](#nginx). Pick one.
@@ -131,7 +131,7 @@ most:
   gets a 403, and `ALLOWED_HOSTS` with `AUTH=open` stops the server at start.
 - **Pass the `Host` header through**, and add your full view's name to `ALLOWED_HOSTS`. A
   proxy that rewrites `Host` to `ui:8080` gets a 421.
-- **`/ingest`, `/install/update/shipper*`, `/healthz` and the MCP paths skip your page
+- **`/ingest`, `/install/update/shipper*`, `/install/assets/*`, `/healthz` and the MCP paths skip your page
   login.** They have their own. A login in front of `/ingest` blocks the shipper; one in
   front of `/install/update/shipper` stops its auto-update; one in front of the MCP paths
   blocks every AI client.

@@ -26,8 +26,8 @@ checks each attack is refused. Setup recipes: [deploy.md](deploy.md),
 | L6 the full view with no login on any address | `AUTH=open` starts only on a loopback `BIND`, when `PUBLISHED_ON` says the port is published on 127.0.0.1 (the compose kit passes it), or with `ALLOW_OPEN=1` |
 | M4 `AUTH=proxy` believed any client's header | it doesn't start without `PROXY_TRUSTED_CIDRS` or `PROXY_SECRET_FILE`; a request from anywhere else gets 403, and an identity header sent twice or appended to (a comma) gets 400 |
 | M3 the share port was open and served sealed data | a bearer token on every request (`ANALYSIS_SHARE_TOKEN_FILE`, made 0600 on first start), 127.0.0.1 unless `ANALYSIS_SHARE_BIND` says otherwise; the publisher and the exporter send it, and the compose kit shares the file through the `ui-state` volume |
-| M2 Wowhead's viewer ran in the app's origin | the 3D frame is sandboxed (`allow-scripts` only: an opaque origin) with no network; the page around it fetches only the relay's allow-listed files for it and keeps the /zogzog/ key. The relay serves one reviewed build of the viewer (`MODEL3D_VIEWER_SHA256`); Wowhead publishes no licence for it, so it isn't vendored. `unsafe-eval` is in the frame's policy only |
-| Info 2 the relay's maps grew with every path asked | misses are pruned at 4096, locks are 64 stripes |
+| M2 Wowhead's viewer ran in the app's origin | gone since the 3D view draws with its own viewer (`web/model3d/m3d/`, no eval, no WebAssembly). The frame stays sandboxed (`allow-scripts` only: an opaque origin) with no network; the page around it fetches only `model3d/file/<id>` (the person's own files, behind the login) and keeps the /zogzog/ key |
+| Info 2 the relay's maps grew with every path asked | the relay is gone |
 | L1, L2 `play_sql` | the authorizer is in place before anything compiles, PRAGMA and every non-SELECT are refused, and a value is capped at 64 KB while a query runs (#65, 64 KB since 0.6.1: at 1 MB a sort held about 0.5 GB) |
 
 ## What the low findings changed
@@ -127,7 +127,7 @@ with the person. The publisher reports its pass over the share port
 (`POST /publisher.json`, same token); the full view keeps only the known
 fields, capped.
 
-**S3, the shipper updates itself from the server.** At most every 6 hours
+**S3, the shipper updates itself from the server.** At most every 2 hours
 the program on each player's computer fetches the server's manifest and, on
 a newer version, swaps itself in and reruns its installer, without asking.
 The manifest's hashes come from the same server, so they catch a truncated
