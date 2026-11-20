@@ -36,9 +36,12 @@ def wow_folder_is_a_fixture():
 @pytest.fixture(autouse=True)
 def no_item_tables(monkeypatch):
     """The loot history's item table comes from wago.tools: never in tests."""
-    from wowstats import items, talents
+    from wowstats import itemcard, items, talents
 
     monkeypatch.setenv("WOW_ITEMS", "off")
+    # The item catalog too: one made by a module-scoped fixture, before this
+    # one turns WOW_ITEMS off, stayed on for the rest of the worker.
+    monkeypatch.setattr(itemcard, "_shared", None)
     monkeypatch.setattr(items, "_shared", None)
     monkeypatch.setattr(talents, "_shared", None)
     monkeypatch.setattr(talents, "_icons", {})

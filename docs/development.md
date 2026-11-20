@@ -76,16 +76,36 @@ and sidebar place come from `SECTIONS` in `site/scripts/prepare.mjs`. A Markdown
 `docs/images/`: the site serves them itself.
 
 ```bash
-site/scripts/build-demo.sh        # the demo character's pages; needs uv and Docker (or VL_BIN)
+site/scripts/build-demo.sh        # the demo character's pages; needs uv, Docker (or VL_BIN and VM_BIN)
+                                  # and Playwright's Chromium (uv run --extra render playwright install chromium)
 npm --prefix site ci && npm --prefix site run build
 npm --prefix site run preview     # http://localhost:4321/wow-mcp/
 ```
 
-`build-demo.sh` plays Nibbet, a made-up priest (`tools/fixtures/generate.py --demo`, seeded,
-so every build plays the same evenings, shifted so his last one is yesterday), then runs the
-product's own publisher to build his public and friends' pages under `/demo/`. Astro's preview
-server doesn't map `model3d/view` to `model3d/view.html` the way GitHub Pages does, so View in
-3D stays blank there.
+`build-demo.sh` plays Nibbet, a made-up priest (`tools/fixtures/generate.py`, `build_demo`,
+seeded, so every build plays the same sessions, shifted so his last one is yesterday), then
+runs the product's own publisher to build his public and friends' pages under `/demo/`. For
+the length of the build it starts an empty VictoriaLogs (his events), an empty VictoriaMetrics
+(his Battle.net series, as the exporter writes them: `bnet_series`) and the picture renderer
+(`wow-stats render`).
+
+His game files are `tools/fixtures/golden3d.py`: a blocky gnome and every item he wears,
+written as the shipper sends a player's files (WDC5 tables, M2 models and skins, BLP
+textures), with made-up row and file ids. Nothing comes from Blizzard's files. Only the
+generator is committed: its output is about 200 kB and takes a second to make
+(`uv run python tools/fixtures/golden3d.py <dir>` writes a store to look at). The same files
+are the 3D tests' golden input (`tests/test_golden3d.py`, `tests/test_golden3d_browser.py`).
+His portrait is the renderer's still of that model, left in the armory cache under the address
+his Battle.net series names, so the publisher's usual path finds it.
+
+`tests/test_demo_complete_browser.py` opens every tab of both pages at 390 px and 1280 px in
+Chromium and WebKit and fails on any empty section, fallback line or silhouette, and on a 3D
+view that doesn't draw. It builds the demo itself, or reads `WOW_DEMO_DIR`; the pages
+workflow runs it after its build. A section that falls back is a gap in the demo's data or in
+the publisher: fix that, don't allow it in the test.
+
+Astro's preview server doesn't map `model3d/view` to `model3d/view.html` the way GitHub Pages
+does, so View in 3D stays blank there.
 
 The manual's screenshots come from that demo, never from a real player:
 `uv run --extra render python site/scripts/screenshots.py <address of the built site>` writes

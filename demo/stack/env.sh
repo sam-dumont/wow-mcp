@@ -1,6 +1,6 @@
 # The demo lab's ports and shared helpers (sourced by stack/up.sh, lab and
 # record.sh; $state and $here set by the caller).
-APP=19470 VL=19471 PROXY_DARK=19472 PROXY_LIGHT=19473 IDP=19474 MCP=19475 SHARE=19476 SITE=19477
+APP=19470 VL=19471 PROXY_DARK=19472 PROXY_LIGHT=19473 IDP=19474 MCP=19475 SHARE=19476 SITE=19477 OWNER_PROXY=19478
 BASE=http://localhost:$PROXY_DARK
 repo=$(cd "$here/.." && pwd)
 

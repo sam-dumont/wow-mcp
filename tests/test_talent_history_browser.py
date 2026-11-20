@@ -218,10 +218,12 @@ def test_every_missing_source_says_one_line(site, pw, engine, mode, line):
 
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
 def test_zogzog_has_no_talent_history(site, pw, engine):
-    """Blizzard's 30 days: the static bundles never carry it."""
+    """Blizzard's 30 days: the bundle has no Battle.net history, so the
+    sealed page leaves the section out (no "not available" line)."""
     b, pg, errors = open_page(pw, engine, site["zogzog"], 1280)
     try:
-        assert pg.locator("#talents .thistory").count() == 0 and not errors
+        pg.wait_for_function("() => !document.querySelector('#talents .thistory[aria-busy]')", timeout=10000)
+        assert pg.locator("#talents .thistory:visible").count() == 0 and not errors
     finally:
         b.close()
     assert not list(site["bundle"].rglob("*talents/*")), "a bundle holds a talent answer"

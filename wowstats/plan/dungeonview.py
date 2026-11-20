@@ -46,6 +46,7 @@ from wowstats.links import WOWHEAD_BASE, dungeon_guides, dungeon_url, wowhead_ur
 
 from . import dungeongain as G
 from . import estimate as E
+from . import kbloot
 from . import vsguide as V
 
 OPENS_WITHIN = 5   # levels: a dungeon that opens this close is shown, "opens at N"
@@ -347,10 +348,11 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
 
 def _how(qid: int, pre: dict, who) -> dict:
     """How to get a prerequisite quest: who or what starts it, and for an item
-    the creatures that drop it ("starts"/"drops": same shape as a quest's
-    starts). Empty when the data doesn't say; the page then links the quest."""
+    the creatures that drop it and the objects that hold it
+    ("starts"/"drops"/"found": same shape as a quest's starts). Empty when
+    the data doesn't say; the page then links the quest."""
     h = pre.get(str(qid)) or {}
-    return {k: [who(w) for w in h.get(k) or []] for k in ("starts", "drops") if h.get(k)}
+    return {k: [who(w) for w in h.get(k) or []] for k in ("starts", "drops", "found") if h.get(k)}
 
 
 def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
@@ -468,6 +470,12 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
     level = inp["level"]
     lo, hi = area["levels"]
     drops = drops_for(inp, aid, hi)
+    # No loot in the client's tables or Polestar's data (Forever's newest
+    # dungeons): the research notes' boss-by-boss list, unscored, each
+    # item made for him or not by the words next to it (wowstats.plan.kbloot).
+    kb_drops = [] if (inp.get("dungeon_loot") or {}).get(aid) else kbloot.for_block(
+        area["name"], (inp.get("who") or {}).get("class"), re.sub(r"\s+", "", inp.get("gear_spec") or ""), level)
+    kb_fit = sum(1 for d in kb_drops if d["fit"])
     places = _places()
     quests = quests_for(inp, aid, drops, places)
     side = (inp.get("who") or {}).get("faction")
@@ -490,7 +498,7 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
     gs = inp.get("gear_score") or 0
     share = exp_gain / gs * 100 if gs > 0 else None
     verdict, why, value = judge(inp, state, lo, drops, missing_now, quests, gain, quest_xph, mount, exp_gain, share,
-                                p_one, trip)
+                                p_one, trip, kb_fit)
     # Under Polestar's floor with no reason of his own (his quests there,
     # his runs there beating his questing): it waits for the floor, as
     # Polestar's list has it (wowstats.plan.vsguide). Gear alone isn't one.
@@ -514,7 +522,8 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
             "opens_at": lo if lo > level else None,
             "url": dungeon_url(area["name"]) or zone_url, "zone_url": zone_url, "guides": guides,
             "value": value, "verdict": verdict, "why": why,
-            "drops": drops, "drops_shown": SHOWN, "missing_now": len(missing_now),
+            "drops": drops, "kb_drops": kb_drops, "kb_fit": kb_fit, "drops_shown": SHOWN,
+            "missing_now": len(missing_now),
             "obtained": sum(1 for d in drops if d["state"] == "obtained"),
             "expected_gain_per_clear": round(exp_gain, 1), "expected_gain_share_pct": round(share, 1)
             if share is not None else None, "chance_one_per_clear_pct": round(p_one * 100),
@@ -535,7 +544,8 @@ def _n(n: int, word: str) -> str:
     return f"{n} {word}{'s' if n != 1 else ''}"
 
 
-def judge(inp, state, lo, drops, missing_now, quests, gain, quest_xph, mount, exp_gain, share, p_one, trip):
+def judge(inp, state, lo, drops, missing_now, quests, gain, quest_xph, mount, exp_gain, share, p_one, trip,
+          kb_fit=0):
     """One line and its reason, and the block's value (high, some, none):
     gear, quests, XP and gold together. The gear counts when a clear's
     expected gain is HIGH_GAIN_SHARE percent of what he wears or more; the
@@ -543,7 +553,9 @@ def judge(inp, state, lo, drops, missing_now, quests, gain, quest_xph, mount, ex
     his questing; XP per hour only with the kills known (his own runs
     there, wowstats.plan.dungeongain); gold when the mount is behind and
     looping it beats his own gold per hour twice. The quests and the XP are
-    the estimate's, so the verdict and the numbers under it agree."""
+    the estimate's, so the verdict and the numbers under it agree. kb_fit:
+    the drops made for him in a dungeon known only from the research notes
+    (no gain to weigh: they count, but never make it "high")."""
     n_miss = len(missing_now)
     todo = {q["quest_id"] for q in gain["quests"]}
     left = [q for q in quests if q["quest_id"] in todo]
@@ -555,6 +567,7 @@ def judge(inp, state, lo, drops, missing_now, quests, gain, quest_xph, mount, ex
     quest_bit = _n(len(left), "quest") + " left" + (f" ({quest_xp:,} XP)" if quest_xp else "")
     if state == "soon":
         waiting = [_n(len([d for d in drops if d["state"] == "missing"]), "upgrade") if drops else None,
+                   _n(kb_fit, "drop") + " made for you" if kb_fit else None,
                    _n(len(quests), "quest") if quests else None]
         waiting = [w for w in waiting if w]
         return (f"opens at {lo}", ("waiting there: " + " and ".join(waiting)) if waiting
@@ -578,6 +591,9 @@ def judge(inp, state, lo, drops, missing_now, quests, gain, quest_xph, mount, ex
         return ("worth a run for XP", "another run's XP per hour matches your questing", "high")
     if gold:
         return ("worth a loop for gold", "looping it earns twice your gold per hour, and the mount is behind", "high")
+    if kb_fit:
+        return ("worth a look for gear", _n(kb_fit, "drop") + " made for you" + (f", and {quest_bit}" if left else ""),
+                "some")
     small = [quest_bit if left else None, f"{ups} at {odds}" if n_miss else None]
     small = [x for x in small if x]
     if small:

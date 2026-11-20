@@ -162,7 +162,10 @@ def test_home_shows_this_week_on_forever(site, pw, engine, width):
         items = panel.locator(".nwitem")
         assert items.count() >= 3
         # What concerns this priest first: the "for you" lines lead.
-        flags = [items.nth(i).locator(".pill").count() > 0 for i in range(items.count())]
+        # One read of one render: item by item, a second render of the
+        # Overview (its own loadNews) could land between two reads and mix
+        # two lists (flaky under the parallel browser suite).
+        flags = panel.evaluate("e => [...e.querySelectorAll('.nwitem')].map((li) => !!li.querySelector('.pill'))")
         assert flags[0] and flags == sorted(flags, reverse=True)
         assert no_side_scroll(pg) and not errors
     finally:

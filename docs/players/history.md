@@ -26,7 +26,7 @@ steps** sections list both.
 
 ## Timeline
 
-![The Timeline tab: "Back in time" at level 34, with time, route plan, quests, kills, deaths, item level, zones, the gear worn then and the best upgrades at the time, and the character model](../images/timeline.webp)
+![The Timeline tab: "Back in time" at level 34, with time, route plan, quests, kills, deaths, item level, zones, the gear worn then and the best upgrades at the time, and his picture at that level](../images/timeline.webp)
 
 Everything recorded, newest first: levels, deaths, dungeon runs, sessions.
 
@@ -49,7 +49,7 @@ your race and says so under the model.
 
 ## Journal
 
-![The Journal: one entry for the evening of Wed 18 Nov, 17:30 to 20:20, level 33 to 34 in Arathi Highlands, with played time, XP, quests, deaths, gold, zones and the quests handed in](../images/journal.webp)
+![The Journal: one entry for the morning of Thu 19 Nov, 09:40 to 10:05, level 34 in Arathi Highlands, with played time, XP, quests, deaths, gold, zones and the quest handed in, then the evenings before it](../images/journal.webp)
 
 One entry per play session. A session ends when the Recorder goes quiet for more than 5 and a half
 minutes (it writes at least every 5 while the game runs): a /reload or a quick relog stays in

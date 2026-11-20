@@ -798,9 +798,10 @@ function renderTalents(d) {
         grid);
     })));
   }
-  // The last 3 weeks' changes (where "Build by level" was): the live full
-  // view only, fetched on its own (/api/talents), never in a bundle.
-  if (!PUBLIC && !STATIC) {
+  // The changes (where "Build by level" was), fetched on its own
+  // (/api/talents): the live full view, and a sealed bundle when they come
+  // from WoWSims Exporter's saves (Battle.net's are never in a bundle).
+  if (!PUBLIC) {
     const keep = state.thist && state.thist.name === d.char ? state.thist.node : null;
     kids.push(keep || h('div', { class: 'thistory', 'aria-busy': 'true' }, h('h3', { text: THIST_TITLE })));
   }
@@ -864,6 +865,15 @@ function renderTalentHistory(name, t) {
 async function loadTalentHistory(name) {
   let t = null;
   try { t = await getJSON(api('talents', { name })); } catch (e) { t = { available: false, why: 'unreachable' }; }
+  if (STATIC && !(t && t.available)) {
+    // A bundle holds the changes only from WoWSims Exporter's saves
+    // (wowstats/publish.py): without them the section stays out.
+    const node = h('div', { class: 'thistory', hidden: '' });
+    state.thist = { name, node };
+    const old = $('#talents .thistory');
+    if (old && name === state.char) old.replaceWith(node);
+    return;
+  }
   if (name === state.char) renderTalentHistory(name, t);
 }
 
@@ -1975,7 +1985,31 @@ function ownText(x) {
 
 // A quest's reward is listed under the quests' rewards, not as a drop.
 const questOnly = (x) => !x.drops.length && x.quests.length;
+
+// A dungeon whose loot only the research notes list (wowstats/plan/kbloot.py):
+// each drop and its boss, the ones made for him first. No gain: nothing
+// scores them. An icon only when the item is known by its ID.
+function kbDropRow(x) {
+  return h('li', { class: 'dgdrop missing' + (x.item_id ? '' : ' nochip') },
+    h('div', { class: 'dgitem' }, x.item_id ? [itemChip(x), whMark(x.url, x.name)] : h('span', { class: 'iname', text: x.name })),
+    h('div', { class: 'dgmeta' },
+      x.armour ? h('span', { class: 'pill', text: x.armour }) : null,
+      x.boss ? h('span', { class: 'src', text: x.boss }) : null));
+}
+
+function kbDrops(b) {
+  const mine = b.kb_drops.filter((x) => x.fit);
+  const shown = mine.slice(0, b.drops_shown || 3);
+  const rest = [...mine.slice(shown.length), ...b.kb_drops.filter((x) => !x.fit)];
+  return h('div', { class: 'dgsec' },
+    h('h4', { text: mine.length ? 'Drops for you' : 'Drops' }),
+    shown.length ? h('ul', { class: 'dgdrops' }, shown.map(kbDropRow)) : h('p', { class: 'sub', text: 'None made for your class and spec.' }),
+    rest.length ? h('details', { class: 'dgmore' }, h('summary', { text: shown.length ? `${rest.length} more` : plural(rest.length, 'drop') }),
+      h('ul', { class: 'dgdrops' }, rest.map(kbDropRow))) : null);
+}
+
 function dungeonDrops(b, level, inv) {
+  if (!b.drops.length && (b.kb_drops || []).length) return kbDrops(b);
   const missing = b.drops.filter((x) => x.state === 'missing' && !questOnly(x));
   const mine = b.drops.filter((x) => x.state === 'obtained');
   const shown = missing.slice(0, b.drops_shown || 3);
@@ -2036,7 +2070,7 @@ function npcs(list) {
   return list.flatMap((w, i) => {
     const where = at(w);
     return [i ? ', or ' : '', w.kind === 'item' ? h('span', {}, 'the item ', whLink(w.url, w.name)) : whLink(w.url, w.name),
-      where ? h('span', { class: 'at', text: ` in ${where}` }) : null];
+      where ? h('span', { class: 'at', text: w.inside ? ` ${where}` : ` in ${where}` }) : null];
   });
 }
 
@@ -2046,12 +2080,24 @@ function questRefs(list) {
 }
 
 // How to get the prerequisite, in one line: who gives it, or the item that
-// starts it and what drops that; without data the quest link above stands.
+// starts it and what drops that, or where it lies (an object in the world,
+// often named like the item: never "X drops from X"); without data the
+// quest link above stands.
 function needHow(needs) {
-  const n = needs.find((x) => x.state === 'new' && ((x.starts || []).length || (x.drops || []).length));
+  const n = needs.find((x) => x.state === 'new'
+    && ((x.starts || []).length || (x.drops || []).length || (x.found || []).length));
   if (!n) return null;
   const item = (n.starts || []).find((w) => w.kind === 'item');
   if (item && (n.drops || []).length) return h('span', {}, ': ', whLink(item.url, item.name), ' drops from ', npcs(n.drops.slice(0, 2)));
+  const o = item && (n.found || [])[0];
+  if (o) {
+    const where = at(o);
+    const on = o.name && o.name !== item.name ? [' on ', whLink(o.url, o.name)] : [];
+    if (on.length || where) {
+      return h('span', {}, ': the item ', whLink(item.url, item.name), ', found', on,
+        where ? (o.inside ? ` ${where}` : ` in ${where}`) : null);
+    }
+  }
   if ((n.starts || []).length) return h('span', {}, ': from ', npcs(n.starts.slice(0, 2)));
   return null;
 }
@@ -2117,10 +2163,18 @@ function dungeonTrip(b) {
   const facts = [];
   // Where the trip's time goes, from his runs there.
   if (t.measured) {
-    facts.push(fact('Your trips there', dur(t.total_s), `inside ${dur(t.inside_s)}, travel ${dur(t.travel_s)}, quests ${dur(t.quests_s)}`));
+    // A part his runs never had (logged in at the door, no quest there)
+    // stays out rather than reading "0s".
+    const parts = [['inside', t.inside_s], ['travel', t.travel_s], ['quests', t.quests_s]]
+      .filter(([, sec]) => sec > 0).map(([k, sec]) => `${k} ${dur(sec)}`);
+    facts.push(fact('Your trips there', dur(t.total_s), parts.join(', ')));
   }
-  facts.push(fact('Gear a clear', b.missing_now ? `+${b.expected_gain_per_clear.toFixed(1)}` : 'none',
-    b.missing_now ? `${b.chance_one_per_clear_pct}% one of ${plural(b.missing_now, 'upgrade')} drops` : 'nothing missing at your level'));
+  if (!b.drops.length && (b.kb_drops || []).length) {
+    facts.push(fact('Gear a clear', b.kb_fit ? plural(b.kb_fit, 'drop') : 'none', b.kb_fit ? 'made for you' : 'none made for you'));
+  } else {
+    facts.push(fact('Gear a clear', b.missing_now ? `+${b.expected_gain_per_clear.toFixed(1)}` : 'none',
+      b.missing_now ? `${b.chance_one_per_clear_pct}% one of ${plural(b.missing_now, 'upgrade')} drops` : 'nothing missing at your level'));
+  }
   if (t.measured) {
     facts.push(fact('Loot a run', coins(t.vendor_copper),
       [t.ah_copper ? `${Math.round(t.ah_copper / 100) / 100}g at your AH prices` : null, t.quest_money_copper ? 'plus quest money' : null].filter(Boolean).join(', ')));
@@ -2489,7 +2543,7 @@ function renderPrices(p, err) {
   };
   search.addEventListener('input', show);
   fill(el, h('details', { class: 'm ahbox' },
-    h('summary', {}, `Your Auctionator scans: ${fmtNum(p.total)} items, last scan ${day(p.last_scan + 'T12:00:00')}`),
+    h('summary', {}, h('span', { class: 'ahsum', text: `Your Auctionator scans: ${fmtNum(p.total)} items, last scan ${day(p.last_scan + 'T12:00:00')}` })),
     search, list));
   show();
 }
@@ -3527,7 +3581,7 @@ async function loadChar(name, quiet) {
     if (!PUBLIC) more.push(loadAnalysis(name));
     if (!PUBLIC) more.push(loadDungeons(name));
     if (!PUBLIC && !STATIC) more.push(loadMeta(name));
-    if (!PUBLIC && !STATIC) more.push(loadTalentHistory(name));
+    if (!PUBLIC) more.push(loadTalentHistory(name));
     if (!PUBLIC && feat('plan')) more.push(loadPlan(name));
     if (!PUBLIC) setAsk(name);
     if (state.tab === 'journal') more.push(loadJournal(quiet));
