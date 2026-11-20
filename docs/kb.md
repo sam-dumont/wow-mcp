@@ -118,6 +118,18 @@ gets the credit and you can check the claim.
   the refresh job's gates check before they merge. At run time the KB reads only the game client's tables
   on wago.tools (spells, zones, talents).
 
+- **Corroboration only:** a domain flagged `corroboration_only` in
+  `sources.json` is never read by the refresh and may be cited only next
+  to another source; it never counts as a source, toward the two-source
+  rule or the confidence cap (`wowstats/analysis/kbschema.py`). JudgeHype
+  is the one so far (owner, 2026-11-20): of its 17 newest Forever items, 10
+  relayed sources the KB already reads, and only 3 held a fact the KB
+  lacked.
+- **Relays:** `relays` ({cited domain: the domain it relays}) marks a page
+  that only passes on another site's work, like JudgeHype's raid tier
+  list (Wowhead's, translated). The two count as one origin, so the record
+  is `single_source` at low confidence until another site backs it.
+
 Wowhead, Icy Veins, Method, Warcraft Tavern and the other guide sites keep
 their text and their tables. We cite them, we don't copy them, and we don't
 rebuild their databases one page at a time.

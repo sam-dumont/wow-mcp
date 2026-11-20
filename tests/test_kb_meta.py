@@ -301,3 +301,13 @@ def test_every_meta_source_is_allow_listed():
         assert kbschema.domain(g["url"]) in ALLOW and g["url"].startswith("https://")
         assert g.get("class", "Priest") in meta.CLASSES
     assert len({g["key"] for g in s["guides"]}) == len(s["guides"])
+
+
+def test_a_tier_list_lands_in_class_meta_or_the_lane_it_ranks():
+    lc = load("lifecycle")
+    lanes = set(lc.LANES) | {lc.CLASS_LANE}
+    assert lc.lane_for({"topic": "class-meta", "class": "HUNTER"}, lanes) == "class-meta"
+    assert lc.lane_for({"topic": "spec tier list"}, lanes) == "class-meta"
+    assert lc.lane_for({"topic": "raid tier list"}, lanes) == "raids-endgame"
+    assert lc.lane_for({"topic": "dungeons"}, lanes) == "dungeons"
+    assert "tier list" in meta.SYSTEM

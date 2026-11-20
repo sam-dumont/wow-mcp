@@ -42,17 +42,25 @@ class Fetcher:
             return 0, b""
 
 
-def text_of(body: bytes) -> str:
-    """A page's readable text: the <article> (else <main>, else the whole
-    page) without scripts, styles and tags, whitespace collapsed. Stable
-    across fetches of an unchanged page (checked on Blizzard's hotfix page)."""
-    t = body.decode("utf-8", "replace")
-    m = re.search(r"<article\b[^>]*>(.*?)</article>", t, re.S | re.I) or re.search(
-        r"<main\b[^>]*>(.*?)</main>", t, re.S | re.I)
-    b = m.group(1) if m else t
-    b = re.sub(r"<(script|style|noscript|svg)\b.*?</\1>", " ", b, flags=re.S | re.I)
+def _plain(fragment: str) -> str:
+    b = re.sub(r"<(script|style|noscript|svg)\b.*?</\1>", " ", fragment, flags=re.S | re.I)
     b = re.sub(r"<[^>]+>", " ", b)
     return re.sub(r"\s+", " ", html.unescape(b)).strip()
+
+
+def text_of(body: bytes) -> str:
+    """A page's readable text: its main <article> (else <main>, else the
+    whole page) without scripts, styles and tags, whitespace collapsed. The
+    main article is the one with the most text: a page can open with
+    sidebar or teaser <article>s (JudgeHype's guides do), and the first one
+    is then a neighbour's headline. Stable across fetches of an unchanged
+    page (checked on Blizzard's hotfix page)."""
+    t = body.decode("utf-8", "replace")
+    arts = [_plain(a) for a in re.findall(r"<article\b[^>]*>(.*?)</article>", t, re.S | re.I)]
+    if arts:
+        return max(arts, key=len)
+    m = re.search(r"<main\b[^>]*>(.*?)</main>", t, re.S | re.I)
+    return _plain(m.group(1) if m else t)
 
 
 def digest(text: str) -> str:
