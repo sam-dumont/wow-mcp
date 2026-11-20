@@ -4,7 +4,10 @@ Stdlib only, one process, three polling loops on their own cadence:
   token     /data/wow/token/index per game namespace, every 20 min
   realm     /data/wow/ruleset/index and each ruleset, every 5 min (Forever is
             realmless: a ruleset's status is the closest thing to realm status)
-  profile   each character in PROFILE_CHARACTERS, once a day: its profile,
+  profile   each character in PROFILE_CHARACTERS, every PROFILE_INTERVAL (2 h)
+            on the clock (00:00, 02:00... UTC, not from the pod's start), and
+            a character listed for the first time within 5 minutes (poll_new):
+            its profile,
             appearance (and sex), guild, equipment, talents (/specializations) and
             completed achievements (the Legacy points). Forever has no realms: a character is
             `{name}-{surname}` lowercased (testpriest-fixture) in the
@@ -38,7 +41,7 @@ up in a store kept longer than 30 days.
 Environment: BNET_CLIENT_ID_FILE, BNET_CLIENT_SECRET_FILE (required: your own
 client, README), BNET_REGION (eu), BNET_LOCALE (en_GB), PROFILE_CHARACTERS
 (comma list of Name-Surname, as the WTF folders name them),
-BNET_PROFILE_NAMESPACE (profile-forever-{region}), PROFILE_INTERVAL (86400),
+BNET_PROFILE_NAMESPACE (profile-forever-{region}), PROFILE_INTERVAL (7200),
 VM_PUSH_URL (may carry its own query args), VM_PUSH_EXTRA_LABELS (comma list of name=value), VM_PUSH_INTERVAL (60),
 VM_MERGE_KEY_FILE, VM_MERGE_URL (default: VM_PUSH_URL's host,
 /internal/force_merge), LISTEN_PORT (9464).
@@ -81,7 +84,17 @@ PROFILE_CHARS_URL = ""
 # review 0.6.0 S1: a friend's invented names can't make this client fetch
 # without end). The owner's account (0) and PROFILE_CHARACTERS have no cap.
 PER_ACCOUNT = 12
-INTERVALS = {"token": 1200, "realm": 300, "profile": 86400}
+# "new": how often the character list is checked for a character never read (poll_new).
+# "profile": every character, on the clock (owner, 2026-11-20: every 2 hours).
+# Budget: 6 calls a character a pass (profile, appearance, character-media,
+# equipment, specializations, achievements), one at a time, so 3 an hour per
+# character against Blizzard's 36,000 an hour and 100 a second per client:
+# the owner plus 10 friends at PER_ACCOUNT is ~130 characters, ~390 calls an
+# hour, about 1% of the quota, and most answers are 304s.
+INTERVALS = {"token": 1200, "realm": 300, "profile": 7200, "new": 300}
+# Tasks that run on the clock (multiples of their interval since the epoch,
+# UTC) instead of from the process' start.
+ON_THE_CLOCK = ("profile",)
 # Blizzard's Developer API Terms: API data is kept 30 days at most.
 KEEP_S = 30 * 86400
 PUSH_LABELS: list = []
@@ -131,7 +144,8 @@ def configure(env=None):
     INTERVALS = {
         "token": int(env.get("TOKEN_INTERVAL", "1200")),
         "realm": int(env.get("REALM_INTERVAL", "300")),
-        "profile": int(env.get("PROFILE_INTERVAL", "86400")),
+        "profile": int(env.get("PROFILE_INTERVAL", "7200")),
+        "new": 300,
     }
     PUSH_URL = env.get("VM_PUSH_URL", "")
     PUSH_LABELS = [x for x in env.get("VM_PUSH_EXTRA_LABELS", "").split(",") if x]
@@ -444,93 +458,103 @@ def profile_chars() -> list[tuple[str, str]]:
     return out
 
 
+def read_character(acct: str, name: str, keep: dict) -> bool:
+    """One character's profile, appearance, equipment, talents and
+    achievements into `data`, the series' keys added to `keep`. The look is
+    option/choice ids, the ones the 3D view's recipe reads (character3d).
+    False: Battle.net doesn't know it (yet)."""
+    who = {"character": name, "account_id": acct}  # on every series: whose character it is
+    path = f"/profile/wow/character/{char_slug(name)}"
+    prof = api_get(path, PROFILE_NS, "profile")
+    put("wow_character_profile_found", who, 1 if prof else 0, "profile")
+    if not prof:
+        return False  # not on Battle.net yet: the next pass drops its other series
+    look = api_get(f"{path}/appearance", PROFILE_NS, "profile_appearance") or {}
+    race = (prof.get("race") or look.get("playable_race") or {}).get("id")
+    gender = ((prof.get("gender") or look.get("gender") or {}).get("type") or "").lower()
+    # The guild's name, from the profile (owner, 2026-11-20: Battle.net,
+    # not an addon); none when the character has no guild.
+    guild = (prof.get("guild") or {}).get("name") if isinstance(prof.get("guild"), dict) else None
+    in_guild = isinstance(guild, str) and bool(guild)
+    # in_guild says the profile was read for it: a series without it
+    # (an older exporter) leaves the guild unknown, not "none".
+    # Class and faction too: the page fills them from here only when the
+    # addons sent none (a friend with level splits only).
+    cls = (prof.get("character_class") or {}).get("id") if isinstance(prof.get("character_class"), dict) else None
+    side = ((prof.get("faction") or {}).get("type") or "").lower() if isinstance(prof.get("faction"), dict) else ""
+    labels = {**who, "race_id": str(race or ""), "gender": gender, "in_guild": str(in_guild).lower(),
+              "class_id": str(cls or ""), "faction": side, **({"guild": str(guild)} if in_guild else {})}
+    put("wow_character_profile", labels, prof.get("level") or 0, "profile")
+    keep["wow_character_profile"].add(tuple(sorted(labels.items())))
+    # When Blizzard's answer was read: the page says how old the look is,
+    # and the series is pushed every minute whatever its age.
+    put("wow_character_profile_refreshed_timestamp_seconds", who, time.time(), "profile")
+    keep["wow_character_profile_refreshed_timestamp_seconds"].add(tuple(sorted(who.items())))
+    for c in look.get("customizations") or []:
+        opt, choice = (c.get("option") or {}).get("id"), (c.get("choice") or {}).get("id")
+        if opt and choice:
+            labels = {**who, "option_id": str(opt)}
+            put("wow_character_customization", labels, choice, "profile")
+            keep["wow_character_customization"].add(tuple(sorted(labels.items())))
+    # The armory's item level: Blizzard's own count (every slot, an
+    # empty one 0), which the page shows next to its own average.
+    for kind in ("equipped", "average"):
+        v = prof.get(f"{kind}_item_level")
+        if isinstance(v, (int, float)):
+            labels = {**who, "kind": kind}
+            put("wow_character_item_level", labels, v, "profile")
+            keep["wow_character_item_level"].add(tuple(sorted(labels.items())))
+    # The armory's full-body render: its address, which the publisher
+    # downloads into the static bundles (gone with the series after 30
+    # days, like everything of Battle.net's).
+    got = render_url(api_get(f"{path}/character-media", PROFILE_NS, "profile_media"))
+    if got:
+        labels = {**who, "asset": got[0], "url": got[1]}
+        put("wow_character_render", labels, time.time(), "profile")
+        keep["wow_character_render"].add(tuple(sorted(labels.items())))
+    gear = api_get(f"{path}/equipment", PROFILE_NS, "profile_equipment") or {}
+    for it in gear.get("equipped_items") or []:
+        slot, item = (it.get("slot") or {}).get("type"), (it.get("item") or {}).get("id")
+        if slot and item:
+            labels = {**who, "slot": slot.lower()}
+            put("wow_character_equipped", labels, item, "profile")
+            keep["wow_character_equipped"].add(tuple(sorted(labels.items())))
+            for st in it.get("stats") or []:
+                kind, v = ((st or {}).get("type") or {}).get("type"), (st or {}).get("value")
+                if kind and isinstance(v, (int, float)) and not st.get("is_negated"):
+                    sl = {**labels, "stat": str(kind)}
+                    put("wow_character_equipped_stat", sl, v, "profile")
+                    keep["wow_character_equipped_stat"].add(tuple(sorted(sl.items())))
+    # Talents for the card, the spec and the meta score: the only source
+    # (the game saves none; Altoholic keeps only the class name).
+    trees, ranks = talent_readings(api_get(f"{path}/specializations", PROFILE_NS, "profile_specializations"))
+    for i, t in enumerate(trees):
+        labels = {**who, "tree": t["tree"], "order": str(i)}
+        put("wow_character_talent_points", labels, t["points"], "profile")
+        keep["wow_character_talent_points"].add(tuple(sorted(labels.items())))
+    for sp, (rk, tname) in ranks.items():
+        labels = {**who, "spell_id": str(sp), "talent": tname}
+        put("wow_character_talent_rank", labels, rk, "profile")
+        keep["wow_character_talent_rank"].add(tuple(sorted(labels.items())))
+    # Completed achievements: the Legacy points (owner, 2026-11-20).
+    body = api_get(f"{path}/achievements", PROFILE_NS, "profile_achievements")
+    got = completed_achievements(body)
+    if isinstance(body, dict):
+        put("wow_character_achievements_read", who, len(got), "profile")
+        keep["wow_character_achievements_read"].add(tuple(sorted(who.items())))
+    for aid, at in got.items():
+        labels = {**who, "achievement_id": str(aid)}
+        put("wow_character_achievement", labels, at, "profile")
+        keep["wow_character_achievement"].add(tuple(sorted(labels.items())))
+    return True
+
+
 def poll_profile():
-    """Each listed character's profile, appearance and equipment. The look is
-    option/choice ids, the ones the 3D view's recipe reads (character3d)."""
+    """Every listed character, every PROFILE_INTERVAL on the clock; what the
+    run didn't see goes, and anything not refreshed for 30 days."""
     keep = {n: set() for n in PROFILE_SERIES}
-    found = 0
     chars = profile_chars()
-    for acct, name in chars:
-        who = {"character": name, "account_id": acct}  # on every series: whose character it is
-        path = f"/profile/wow/character/{char_slug(name)}"
-        prof = api_get(path, PROFILE_NS, "profile")
-        put("wow_character_profile_found", who, 1 if prof else 0, "profile")
-        if not prof:
-            continue  # not on Battle.net yet: its other series go below
-        found += 1
-        look = api_get(f"{path}/appearance", PROFILE_NS, "profile_appearance") or {}
-        race = (prof.get("race") or look.get("playable_race") or {}).get("id")
-        gender = ((prof.get("gender") or look.get("gender") or {}).get("type") or "").lower()
-        # The guild's name, from the profile (owner, 2026-11-20: Battle.net,
-        # not an addon); none when the character has no guild.
-        guild = (prof.get("guild") or {}).get("name") if isinstance(prof.get("guild"), dict) else None
-        in_guild = isinstance(guild, str) and bool(guild)
-        # in_guild says the profile was read for it: a series without it
-        # (an older exporter) leaves the guild unknown, not "none".
-        labels = {**who, "race_id": str(race or ""), "gender": gender, "in_guild": str(in_guild).lower(),
-                  **({"guild": str(guild)} if in_guild else {})}
-        put("wow_character_profile", labels, prof.get("level") or 0, "profile")
-        keep["wow_character_profile"].add(tuple(sorted(labels.items())))
-        # When Blizzard's answer was read: the page says how old the look is,
-        # and the series is pushed every minute whatever its age.
-        put("wow_character_profile_refreshed_timestamp_seconds", who, time.time(), "profile")
-        keep["wow_character_profile_refreshed_timestamp_seconds"].add(tuple(sorted(who.items())))
-        for c in look.get("customizations") or []:
-            opt, choice = (c.get("option") or {}).get("id"), (c.get("choice") or {}).get("id")
-            if opt and choice:
-                labels = {**who, "option_id": str(opt)}
-                put("wow_character_customization", labels, choice, "profile")
-                keep["wow_character_customization"].add(tuple(sorted(labels.items())))
-        # The armory's item level: Blizzard's own count (every slot, an
-        # empty one 0), which the page shows next to its own average.
-        for kind in ("equipped", "average"):
-            v = prof.get(f"{kind}_item_level")
-            if isinstance(v, (int, float)):
-                labels = {**who, "kind": kind}
-                put("wow_character_item_level", labels, v, "profile")
-                keep["wow_character_item_level"].add(tuple(sorted(labels.items())))
-        # The armory's full-body render: its address, which the publisher
-        # downloads into the static bundles (gone with the series after 30
-        # days, like everything of Battle.net's).
-        got = render_url(api_get(f"{path}/character-media", PROFILE_NS, "profile_media"))
-        if got:
-            labels = {**who, "asset": got[0], "url": got[1]}
-            put("wow_character_render", labels, time.time(), "profile")
-            keep["wow_character_render"].add(tuple(sorted(labels.items())))
-        gear = api_get(f"{path}/equipment", PROFILE_NS, "profile_equipment") or {}
-        for it in gear.get("equipped_items") or []:
-            slot, item = (it.get("slot") or {}).get("type"), (it.get("item") or {}).get("id")
-            if slot and item:
-                labels = {**who, "slot": slot.lower()}
-                put("wow_character_equipped", labels, item, "profile")
-                keep["wow_character_equipped"].add(tuple(sorted(labels.items())))
-                for st in it.get("stats") or []:
-                    kind, v = ((st or {}).get("type") or {}).get("type"), (st or {}).get("value")
-                    if kind and isinstance(v, (int, float)) and not st.get("is_negated"):
-                        sl = {**labels, "stat": str(kind)}
-                        put("wow_character_equipped_stat", sl, v, "profile")
-                        keep["wow_character_equipped_stat"].add(tuple(sorted(sl.items())))
-        # Talents for the card, the spec and the meta score: the only source
-        # (the game saves none; Altoholic keeps only the class name).
-        trees, ranks = talent_readings(api_get(f"{path}/specializations", PROFILE_NS, "profile_specializations"))
-        for i, t in enumerate(trees):
-            labels = {**who, "tree": t["tree"], "order": str(i)}
-            put("wow_character_talent_points", labels, t["points"], "profile")
-            keep["wow_character_talent_points"].add(tuple(sorted(labels.items())))
-        for sp, (rk, tname) in ranks.items():
-            labels = {**who, "spell_id": str(sp), "talent": tname}
-            put("wow_character_talent_rank", labels, rk, "profile")
-            keep["wow_character_talent_rank"].add(tuple(sorted(labels.items())))
-        # Completed achievements: the Legacy points (owner, 2026-11-20).
-        body = api_get(f"{path}/achievements", PROFILE_NS, "profile_achievements")
-        got = completed_achievements(body)
-        if isinstance(body, dict):
-            put("wow_character_achievements_read", who, len(got), "profile")
-            keep["wow_character_achievements_read"].add(tuple(sorted(who.items())))
-        for aid, at in got.items():
-            labels = {**who, "achievement_id": str(aid)}
-            put("wow_character_achievement", labels, at, "profile")
-            keep["wow_character_achievement"].add(tuple(sorted(labels.items())))
+    found = sum(read_character(acct, name, keep) for acct, name in chars)
     for n, k in keep.items():
         drop(n, "profile", k)
     drop("wow_character_profile_found", "profile",
@@ -539,7 +563,26 @@ def poll_profile():
     return f"{found} of {len(chars)} characters"
 
 
-TASKS = {"token": poll_token, "realm": poll_realm, "profile": poll_profile}
+def never_read(acct: str, name: str) -> bool:
+    """No profile read for this character since the exporter started (or
+    since the daily pass forgot it)."""
+    with lock:
+        return (("account_id", acct), ("character", name)) not in data.get("wow_character_profile_found", {})
+
+
+def poll_new():
+    """A character the list names for the first time is read now, not at
+    the next pass: a friend who installs at 09:30 has their Battle.net gear,
+    look and talents a few minutes later. One read each (a 404 counts: it
+    waits for the next pass), one call at a time like the passes; the
+    passes and the 30-day rule are unchanged."""
+    chars = [(a, n) for a, n in profile_chars() if never_read(a, n)]
+    keep = {n: set() for n in PROFILE_SERIES}
+    found = sum(read_character(acct, name, keep) for acct, name in chars)
+    return f"{found} of {len(chars)} new characters"
+
+
+TASKS = {"token": poll_token, "realm": poll_realm, "profile": poll_profile, "new": poll_new}
 
 
 def esc(v):
@@ -634,6 +677,14 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+def next_slot(name, now):
+    """When `name` runs next: on the clock (the next multiple of its interval
+    since the epoch, so 2 h is 00:00, 02:00... UTC) for ON_THE_CLOCK, else
+    one interval from now."""
+    every = INTERVALS[name]
+    return (now // every + 1) * every if name in ON_THE_CLOCK else now + every
+
+
 def run_task(name):
     try:
         summary = TASKS[name]()
@@ -662,7 +713,9 @@ def main():
     server = ThreadingHTTPServer(("", LISTEN), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     log(f"listening on :{LISTEN}, region {REGION}")
-    due = {name: 0.0 for name in TASKS}
+    # The clock tasks wait for their slot: poll_new reads every character
+    # within its first run anyway (nothing is read yet after a start).
+    due = {name: next_slot(name, time.time()) if name in ON_THE_CLOCK else 0.0 for name in TASKS}
     fails = {name: 0 for name in TASKS}
     next_push = time.time() + 10
     next_merge = time.time() + 600
@@ -673,12 +726,13 @@ def main():
                 if now >= due[name]:
                     if run_task(name):
                         fails[name] = 0
-                        due[name] = time.time() + INTERVALS[name]
+                        due[name] = next_slot(name, time.time())
                     else:
                         # Retry sooner than the full interval, but back off:
-                        # 1, 2, 4... min, never more often than the interval.
+                        # 1, 2, 4... min, never past the next slot.
                         fails[name] += 1
-                        due[name] = time.time() + min(INTERVALS[name], 60 * 2 ** (fails[name] - 1))
+                        due[name] = min(next_slot(name, time.time()),
+                                        time.time() + min(INTERVALS[name], 60 * 2 ** (fails[name] - 1)))
                     if time.time() < pause_until:
                         break
         if PUSH_URL and time.time() >= next_push:

@@ -574,9 +574,12 @@ function renderGear(d) {
   if (!g || (!(g.items || []).length && !(g.professions || []).length)) {
     // Every character gets the panel: empty, it says which addon fills it.
     box.hidden = false;
+    // items_note (wowstats/views.py): when Battle.net's copy comes too.
     fill_(box, h('h2', { class: 'rule-title', text: 'Equipment' }),
-      h('p', { class: 'empty' }, h('strong', { text: 'No equipment saved yet.' }), ' ',
-        'Turn Syndicator on in AddOns, log in with ' + d.header.name + ', then /reload.'));
+      g && g.items_note
+        ? h('p', { class: 'empty' }, g.items_note)
+        : h('p', { class: 'empty' }, h('strong', { text: 'No equipment saved yet.' }), ' ',
+          'Turn Syndicator on in AddOns, log in with ' + d.header.name + ', then /reload.'));
     // The advice still comes: Battle.net's worn items, or the best for the level.
     if (!PUBLIC) box.append(h('div', { id: 'advice', class: 'advice', 'aria-live': 'polite' }));
     gearDrawn(null);
@@ -629,6 +632,8 @@ function renderGear(d) {
       col([10, 6, 7, 8, 11, 12, 13, 14], 'right'),
       h('ul', { class: 'slots weapons' }, [16, 17, 18].map((sl) => slotRow(sl, by[sl])))),
     h('div', { class: 'dollfoot' },
+      // Where the worn items come from when Syndicator sent none (Battle.net), or when they will.
+      g.items_note ? h('p', { class: 'empty' }, g.items_note) : null,
       ilvl,
       profs.length ? h('ul', { class: 'profs', 'aria-label': 'Professions' }, profs) : null,
       wanted.length ? h('div', { class: 'wanted' }, h('h3', { text: 'Tracked upgrades' }), h('ul', {}, wanted)) : null),

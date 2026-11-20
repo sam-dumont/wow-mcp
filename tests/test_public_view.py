@@ -158,7 +158,9 @@ def test_public_config_and_payload_shape(run_app):
     assert d["dungeons"] and all(set(r) == {"name", "level", "t"} for r in d["dungeons"])
     # Gear and professions are public (no gold in them); tracked upgrades aren't.
     g = d["gear"]
-    assert set(g) == {"item_level", "armory_item_level", "armory_item_level_source", "render", "items", "professions"}
+    assert set(g) == {"item_level", "armory_item_level", "armory_item_level_source", "render", "items", "professions",
+                      "items_from", "items_note"}
+    assert g["items_from"] is None and g["items_note"] is None  # Syndicator's items: Battle.net isn't asked
     # No vm-wow here: the armory's count is ours, no render.
     assert g["armory_item_level_source"] == "computed" and g["render"] is None
     assert g["items"][0]["name"] == "Faerie Mantle" and g["items"][0]["quality"] == 2

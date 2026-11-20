@@ -67,7 +67,7 @@ How your talents changed, day by day.
 
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
-| `talent_changes` | How the character's talents changed: every change when the player has WoWSims Exporter, else the last 3 weeks of Battle.net's daily read. Each: the day, the points per tree before and after, the talents gained or dropped (rank before and after). Newest first. | none | reads |
+| `talent_changes` | How the character's talents changed: every change when the player has WoWSims Exporter, else the last 3 weeks of Battle.net's reads. Each: the day, the points per tree before and after, the talents gained or dropped (rank before and after). Newest first. | none | reads |
 
 ## Gold
 

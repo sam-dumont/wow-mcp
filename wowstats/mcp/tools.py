@@ -743,15 +743,23 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                    f"class, race, faction | sort by (_time desc) | limit 1", limit=1)
     worn = gearmod.armory_worn(st, char)
     worn_from = "sheet"
-    if not rows:
-        # No Syndicator sheet: Battle.net's equipment, else every slot open
+    if not gearmod.sheet_has_items(rows[0] if rows else None):
+        # No items from Syndicator (no gear event, or one with the
+        # professions only): Battle.net's equipment, else every slot open
         # (the best items for the level), said so with what unlocks the rest.
-        if not (snap and snap[0].get("class")):
+        # The class, race and faction: the addons', else Battle.net's.
+        try:
+            prof = st.character_profile(char) or {}
+        except Exception:  # noqa: BLE001 - vm-wow down: the addons' alone
+            prof = {}
+        known = {k: (snap[0] if snap else {}).get(k) or (rows[0] if rows else {}).get(k) or prof.get(k)
+                 for k in ("class", "race", "faction")}
+        if not known["class"]:
             # Not even the class (only level splits arrived): nothing to
             # score items for. Say so with what unlocks it, never an error.
             return {"char": char, "answer": None, "why": "no character sheet yet: the class isn't known",
                     "unlock": "Log in once with Polestar on, then log out. " + gearmod.SHEET_UNLOCK}
-        row, worn_from = gearmod.no_sheet(snap[0], worn)
+        row, worn_from = gearmod.no_sheet({**(snap[0] if snap else {}), **known}, worn, rows[0] if rows else None)
         rows = [row]
     last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, level, zone "
                    f"| sort by (_time desc) | limit 1", limit=1)

@@ -39,6 +39,16 @@ class SourceError(Exception):
     pass
 
 
+# Blizzard's Developer API Terms: API data is kept 30 days at most.
+BNET_KEEP_S = 30 * 86400
+# Battle.net's class and race ids as the addons name them (the profile
+# carries ids; its names follow BNET_LOCALE).
+BNET_CLASSES = {"1": "WARRIOR", "2": "PALADIN", "3": "HUNTER", "4": "ROGUE", "5": "PRIEST", "7": "SHAMAN",
+                "8": "MAGE", "9": "WARLOCK", "11": "DRUID"}
+BNET_RACES = {"1": "Human", "2": "Orc", "3": "Dwarf", "4": "Night Elf", "5": "Undead", "6": "Tauren", "7": "Gnome",
+              "8": "Troll", "10": "Blood Elf", "11": "Draenei"}
+
+
 def public_error(e: BaseException, where: str = "") -> str:
     """What a page, the shipper or an AI client is told when a store fails:
     no host name, no store message (2026-11-20 server review, info 2: the
@@ -433,6 +443,18 @@ class Store:
         acct = f"account_id={json.dumps(str(self.account_id))}"
         return f"{{character={json.dumps(name)},{acct}}}" if name else f"{{{acct}}}"
 
+    def bnet_read_at(self, name: str) -> float | None:
+        """When the exporter last read this character from Battle.net (its
+        refreshed series), or None when it never did or that was 30 days ago
+        or more: Blizzard's terms cap API data at 30 days, so a value older
+        than that is never shown, whatever a store still holds."""
+        rows = self.profile_query(
+            f"last_over_time(wow_character_profile_refreshed_timestamp_seconds{self.profile_sel(name)}[2d])")
+        if not rows:
+            return None
+        at = max(float((r.get("value") or [0, 0])[1]) for r in rows)
+        return at if time.time() - at < BNET_KEEP_S else None
+
     def profile_fingerprint(self) -> str:
         """A hash of every profile, appearance and equipment value vm-wow
         holds now, as character_look reads them (last value over 2 days).
@@ -475,7 +497,7 @@ class Store:
         {"item_id", "stats": {"INTELLECT": 5, ...}}}, for scoring a worn
         random-suffix item on its real stats (wowstats.gear.worn_stats).
         Empty without vm-wow."""
-        if not self.profile_vm_url:
+        if not self.profile_vm_url or self.bnet_read_at(name) is None:
             return {}
         sel = self.profile_sel(name)
         out: dict = {}
@@ -590,24 +612,33 @@ class Store:
     def character_profile(self, name: str) -> dict | None:
         """Sex and guild as Battle.net's profile gives them (owner,
         2026-11-20: the API, not an addon), from the exporter's gauges in
-        vm-wow (23 days, refreshed daily): {"sex": "male"|"female"|None,
+        vm-wow (23 days, refreshed every 2 hours): {"sex": "male"|"female"|None,
         "guild": name or None, "guild_known": whether Battle.net said (a
-        name, or no guild), "refreshed"}, or None when vm-wow holds no
-        profile for the character (no Battle.net client, or the API doesn't
-        know it): the page then says neither. A profile series from an
-        exporter older than `in_guild` leaves the guild unknown."""
+        name, or no guild), "class", "race", "faction", "level" (for what
+        the addons didn't send), "refreshed"}, or None when vm-wow holds no
+        profile for the character read in the last 30 days (no Battle.net
+        client, or the API doesn't know it): the page then says neither. A
+        profile series from an exporter older than `in_guild` leaves the
+        guild unknown, one older than `class_id` the class."""
         if not self.profile_vm_url:
             return None
         sel = self.profile_sel(name)
         prof = self.profile_query(f"last_over_time(wow_character_profile{sel}[2d])")
         if not prof:
             return None
-        m = max(prof, key=lambda r: float((r.get("value") or [0, 0])[1])).get("metric") or {}
-        when = self.profile_query(f"last_over_time(wow_character_profile_refreshed_timestamp_seconds{sel}[2d])")
+        best = max(prof, key=lambda r: float((r.get("value") or [0, 0])[1]))
+        m = best.get("metric") or {}
+        when = self.bnet_read_at(name)
+        if when is None:
+            return None  # never read, or 30 days ago: Blizzard's cap
         sex = m.get("gender") if m.get("gender") in ("male", "female") else None
         guild = m.get("guild") or None
+        level = float((best.get("value") or [0, 0])[1])
         return {"sex": sex, "guild": guild, "guild_known": bool(guild) or m.get("in_guild") == "false",
-                "refreshed": iso(datetime.fromtimestamp(float(when[0]["value"][1]), UTC)) if when else None}
+                # For what the addons didn't send (wowstats.views.fill_from_battlenet).
+                "class": BNET_CLASSES.get(m.get("class_id") or ""), "race": BNET_RACES.get(m.get("race_id") or ""),
+                "faction": (m.get("faction") or "").title() or None, "level": int(level) if level > 0 else None,
+                "refreshed": iso(datetime.fromtimestamp(when, UTC))}
 
     def account_achievements(self) -> dict[int, str] | None:
         """Every achievement any of this person's characters completed, as

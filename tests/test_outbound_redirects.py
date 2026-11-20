@@ -69,4 +69,4 @@ def test_render_hosts_follow_redirects_to_render_hosts_only():
     assert ok.allow("https://render.worldofwarcraft.com/eu/character/x-main.png")
     assert not ok.allow("https://evil.example/x.png")
     assert not ok.allow("http://render.worldofwarcraft.com/eu/x.png")
-    assert not ok.allow("http://169.254.169.254/latest/meta-data/")
+    assert not ok.allow("http://metadata.invalid/latest/meta-data/")

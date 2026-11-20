@@ -268,7 +268,7 @@ CLASS_TOOLS = (
            t_class_meta),
     T.Tool("talent_changes", "Talent changes",
            "How the character's talents changed: every change when the player has WoWSims Exporter, else "
-           "the last 3 weeks of Battle.net's daily read. Each: the day, the points per tree before and after, "
+           "the last 3 weeks of Battle.net's reads. Each: the day, the points per tree before and after, "
            "the talents gained or dropped (rank before and after). Newest first.",
            T.schema({"char": CHAR}), t_talent_changes),
     T.Tool("news", "This week on Forever",

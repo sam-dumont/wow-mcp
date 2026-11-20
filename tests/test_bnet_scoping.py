@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from types import SimpleNamespace
 
 from wowstats import tenancy
@@ -31,7 +32,8 @@ def _series(acct: str, name: str, ilvl: float, option_choice: int, tree: str) ->
         ("wow_character_profile_found", who, 1.0),
         ("wow_character_achievement", {**who, "achievement_id": str(61000 + int(acct))}, 1795000000.0),
         ("wow_character_achievements_read", who, 1.0),
-        ("wow_character_profile_refreshed_timestamp_seconds", who, 1795000000.0),
+        # Read an hour ago: Battle.net data older than 30 days is never shown.
+        ("wow_character_profile_refreshed_timestamp_seconds", who, time.time() - 3600),
         ("wow_character_equipped", {**who, "slot": "head"}, 1000.0 + int(acct)),
         ("wow_character_equipped_stat", {**who, "slot": "head", "stat": "INTELLECT"}, float(acct)),
         ("wow_character_talent_points", {**who, "tree": tree, "order": "0"}, 5.0),
@@ -78,6 +80,7 @@ def test_each_friend_reads_only_their_own_copy_of_a_shared_name():
     # Guild, sex and the Legacy achievements (2026-11-20) too.
     assert one.character_profile(SHARED)["guild"] == "Guild 1"
     assert two.character_profile(SHARED) == {"sex": "male", "guild": "Guild 2", "guild_known": True,
+                                             "class": None, "race": "Gnome", "faction": None, "level": 30,
                                              "refreshed": two.character_profile(SHARED)["refreshed"]}
     assert list(one.account_achievements()) == [61001] and list(two.account_achievements()) == [61002]
     # Every profile read names the account, the fingerprint too.
@@ -140,6 +143,7 @@ def test_what_battlenet_never_read_is_unknown_never_0_or_none(monkeypatch):
     who = {"character": "Old-Fixture", "account_id": "0"}
     monkeypatch.setattr(mod, "VM", [
         ("wow_character_profile", {**who, "race_id": "7", "gender": "female"}, 30.0),
+        ("wow_character_profile_refreshed_timestamp_seconds", who, time.time() - 3600),
         ("wow_character_profile_found", who, 1.0)])
     vm = FakeVM(0)
     assert vm.account_achievements() is None
@@ -150,6 +154,7 @@ def test_what_battlenet_never_read_is_unknown_never_0_or_none(monkeypatch):
     # Read, and nothing there: 0 points, and no guild for a fact.
     monkeypatch.setattr(mod, "VM", [
         ("wow_character_profile", {**who, "race_id": "7", "gender": "female", "in_guild": "false"}, 30.0),
+        ("wow_character_profile_refreshed_timestamp_seconds", who, time.time() - 3600),
         ("wow_character_achievements_read", who, 0.0)])
     assert vm.account_achievements() == {}
     assert vm.character_profile("Old-Fixture")["guild_known"] is True

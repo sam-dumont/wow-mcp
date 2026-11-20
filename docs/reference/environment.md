@@ -192,8 +192,8 @@ Optional. Needs your own API client. [Battle.net data](../self-host/battlenet.md
 | `BNET_TOKEN_NAMESPACES` | exporter | comma list | derived from the region | `dynamic-eu` | The namespaces read for the WoW Token price. |
 | `HTTP_TIMEOUT` | exporter | seconds | `60` | `60` | Timeout of one API call. |
 | `LISTEN_PORT` | exporter | port | `9464` | `9464` | The exporter's own port: `/healthz` and its own health metrics on `/metrics`, never Blizzard's data. |
-| `PROFILE_CHARACTERS` | exporter, compose | comma list of `Name-Surname` | empty | `Testchar-Demo,Testalt-Demo` | Your characters, as their WTF folders name them: their look, level, gear and talents are read once a day. |
-| `PROFILE_INTERVAL` | exporter | seconds | `86400` | `86400` | Seconds between profile reads. |
+| `PROFILE_CHARACTERS` | exporter, compose | comma list of `Name-Surname` | empty | `Testchar-Demo,Testalt-Demo` | Your characters, as their WTF folders name them: their look, level, gear and talents are read every 2 hours. |
+| `PROFILE_INTERVAL` | exporter | seconds | `7200` | `7200` | Seconds between profile reads, on the clock (7200: 00:00, 02:00... UTC, whenever the exporter started). A character the list names for the first time is read within 5 minutes anyway, once. |
 | `REALM_INTERVAL` | exporter | seconds | `300` | `300` | Seconds between ruleset status reads. |
 | `TOKEN_INTERVAL` | exporter | seconds | `1200` | `1200` | Seconds between WoW Token reads. |
 | `VM_MERGE_INTERVAL` | exporter | seconds | `86400` | `86400` | Seconds between force-merges. |
