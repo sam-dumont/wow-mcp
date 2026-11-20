@@ -61,7 +61,7 @@
         "mac": {
           "label": "Mac (Terminal)",
           "how": "Cmd+Space, type Terminal, Enter. Paste with Cmd+V, press Enter.",
-          "command": "curl -fsSL {base}/install/{code} | bash",
+          "command": "curl --proto '=https' --proto-redir '=https' -fsSL {base}/install/{code} | bash",
           "installs": "~/.local/share/wow-stats, ~/.config/wow-stats/config.toml and a launchd agent local.wow-stats (every 5 minutes). Log: ~/Library/Logs/wow-stats.log. Polestar Recorder in _forever_/Interface/AddOns."
         }
       },
@@ -72,7 +72,7 @@
       "clip": "install-mac",
       "update": {
         "windows": "irm {base}/install/update | iex",
-        "mac": "curl -fsSL {base}/install/update | bash"
+        "mac": "curl --proto '=https' --proto-redir '=https' -fsSL {base}/install/update | bash"
       }
     },
     {

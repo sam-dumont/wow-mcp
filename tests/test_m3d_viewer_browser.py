@@ -238,6 +238,81 @@ def test_animation_moves_the_head_and_the_item(draw):
     assert not check(d, SCENE["expect"]["t0"][:8])
 
 
+# A blade's shine: one unit of shader 0x8001 (Diffuse_T1_Env, Combiners_Opaque_AddAlpha) on the
+# recipe's texture plus a reflection the M2 names itself, unlit, so the colour is their sum. Built
+# here, not in tools/model3d_fixtures.py (the demo's files come from there).
+SHINY_M2, SHINY_SKIN, TEX_DARK, TEX_ENV = 100061, 100062, 200011, 200012
+DARK, ENV, SHINY = (60, 60, 60), (100, 100, 100), (160, 160, 160)
+
+
+def shiny_files():
+    import struct
+
+    _geo, verts, idx = 0, *FX.box((-0.08, -0.08, -0.08), (0.08, 0.08, 0.08), 0)
+    skin_file, all_verts = FX.skin([(0, verts, idx)], [(0, 0)])
+    # the one texture unit, as FX.skin packs it, with the shader id and two textures
+    plain = struct.pack("<BbHHHHHHHHHHH", 0, 0, 0, 0, 0, 0xFFFF, 0, 0, 1, 0, 0, 0xFFFF, 0xFFFF)
+    shiny = struct.pack("<BbHHHHHHHHHHH", 0, 0, 0x8001, 0, 0, 0xFFFF, 0, 0, 2, 0, 0, 0xFFFF, 0xFFFF)
+    assert skin_file.count(plain) == 1
+    return {
+        SHINY_SKIN: skin_file.replace(plain, shiny),
+        SHINY_M2: FX.m2(verts=all_verts, textures=[(2, 0), (0, TEX_ENV)], bounds=((-0.1,) * 3, (0.1,) * 3),
+                        skin_id=SHINY_SKIN, bones=[lambda d: FX.bone(d, FX.PIVOT_ROOT, -1, 0)]),
+        TEX_DARK: FX.blp_bgra(4, 4, [(*DARK, 255)] * 16),
+        TEX_ENV: FX.blp_bgra(4, 4, [(*ENV, 255)] * 16),
+    }
+
+
+SCENE["files"].update(shiny_files())
+
+# A lit box (two-sided, not unlit) whose every normal faces the picture's right, as a blade held in
+# the right hand does: the light must reach it (tools/3dcases c03, c23).
+LIT_M2, LIT_SKIN, TEX_GREY = 100071, 100072, 200013
+GREY = (200, 200, 200)
+
+
+def lit_files():
+    verts, idx = FX.box((-0.08, -0.08, -0.08), (0.08, 0.08, 0.08), 0)
+    verts = [(pos, (0, 1, 0), uv, b) for pos, _n, uv, b in verts]
+    skin_file, all_verts = FX.skin([(0, verts, idx)], [(0, 0)])
+    unlit = FX.UNLIT_TWO_SIDED
+    FX.UNLIT_TWO_SIDED = 0x4  # m2() writes this as the material's flags: lighting on
+    try:
+        model = FX.m2(verts=all_verts, textures=[(2, 0)], bounds=((-0.1,) * 3, (0.1,) * 3), skin_id=LIT_SKIN,
+                      bones=[lambda d: FX.bone(d, FX.PIVOT_ROOT, -1, 0)])
+    finally:
+        FX.UNLIT_TWO_SIDED = unlit
+    return {LIT_SKIN: skin_file, LIT_M2: model, TEX_GREY: FX.blp_bgra(4, 4, [(*GREY, 255)] * 16)}
+
+
+SCENE["files"].update(lit_files())
+
+
+def test_the_light_reaches_a_face_turned_to_the_right(draw):
+    """Ambient 0.5 plus 0.7 of the light from the front, above and the
+    picture's right (2/3 on this face): 0.967 of the texture. The old light
+    came from the left and left it at the ambient alone (100)."""
+    recipe = json.loads(json.dumps(SCENE["recipe"]))
+    recipe["attachments"] = [{"slot": 16, "attach": 1, "model": LIT_M2, "textures": {"2": TEX_GREY},
+                              "visuals": [], "scale": 1.0}]
+    d = draw(recipe, name="lit")
+    d.at(0)
+    bad = check(d, [((0.08, 0.7, 0.78), (193, 193, 193), "lit from the right")])
+    assert not bad, (bad, d.logs)
+
+
+def test_a_blades_reflection_is_added(draw):
+    """Combiners_Opaque_AddAlpha keeps the env map apart as specular; the
+    shader dropped it (tools/3dcases c04: weapons too dark)."""
+    recipe = json.loads(json.dumps(SCENE["recipe"]))
+    recipe["attachments"] = [{"slot": 16, "attach": 1, "model": SHINY_M2, "textures": {"2": TEX_DARK},
+                              "visuals": [], "scale": 1.0}]
+    d = draw(recipe, name="shiny")
+    d.at(0)
+    bad = check(d, [((0.08, 0.7, 0.78), SHINY, "diffuse plus the reflection")])
+    assert not bad, (bad, d.logs)
+
+
 def test_missing_files_are_listed_not_fatal(draw):
     d = draw()
     assert sorted(d.handle("missing")) == SCENE["expect"]["missing"]

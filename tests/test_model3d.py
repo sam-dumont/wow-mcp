@@ -104,11 +104,13 @@ def test_no_tables_or_no_model_file_says_why(tmp_path):
     m = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path / "cache")}, ui.static_dir())
     m.assets = type("A", (), {"store": w.fill(tmp_path / "none", with_files=False)})()
     d = m.character(SHEET)
-    assert d["recipe"] is None and "haven't come from your computer" in d["why"]
+    assert d["recipe"] is None and d["why"] == "the shipper sends this model's files from your computer on its next run"
     empty = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path / "c2")}, ui.static_dir())
     empty.assets = type("A", (), {"store": assets.Store(tmp_path / "blank")})()
     d = empty.character(SHEET)
-    assert d["recipe"] is None and "game files haven't come" in d["why"]
+    # One sentence on the stage: "No 3D model yet: <why>." (model3d.js whyLine), one colon.
+    assert d["recipe"] is None and d["why"] == "the shipper sends the game files from your computer on its next run"
+    assert ":" not in d["why"]
 
 
 def test_an_item_whose_files_are_late_is_listed(tmp_path):

@@ -57,6 +57,25 @@ copy; players on a friend's server run the update line from their start page,
 To pin the shipper to the version it has, put `auto_update = false` at the top of its
 config.
 
+### Signing your own build
+
+The shipper only takes an update signed with the key it pins (`UPDATE_KEY` in
+`shipper/wow_stats.py`, the project's by default). The official images carry the project's
+signature, and so does an image you build from a release tag. Change a shipper file and
+build your own: sign it with your own key before `docker build`, or your players' shippers
+keep their version.
+
+```sh
+uv run --no-project python tools/release/shipper_sign.py keygen --out ~/wow-update-key.pem
+uv run --no-project python tools/release/shipper_sign.py sign --key ~/wow-update-key.pem --pin
+docker build .
+```
+
+`--pin` writes your public key into `shipper/wow_stats.py`; `sign` writes
+`shipper/update-signature.json`. Keep the `.pem` out of the repository. Shippers installed
+from an image with the other key refuse your first update: run the update line once on each
+PC, and from then on they follow your key.
+
 ## Going back
 
 Check out the old version and run `docker compose up -d --build` again (or put the old image

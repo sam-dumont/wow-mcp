@@ -5,6 +5,7 @@ install folder, never the real install."""
 
 import base64
 import hashlib
+import importlib.util
 import json
 import re
 import threading
@@ -19,6 +20,18 @@ from wowstats import account, missing, ui
 
 ROOT = Path(__file__).resolve().parent.parent
 REAL = (ROOT / "shipper" / "wow_stats.py").read_bytes()
+_spec = importlib.util.spec_from_file_location("shipper_sign", ROOT / "tools/release/shipper_sign.py")
+signer = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(signer)
+# A throwaway release key: the installed copy below pins its public half.
+SEED = bytes(range(32))
+TEST_KEY = signer.public_key(SEED).hex()
+
+
+def signature(version: str, files: dict, seed: bytes = SEED) -> dict:
+    """The manifest's `signature`, as tools/release/shipper_sign.py writes it."""
+    text = json.dumps({"files": files, "version": version}, sort_keys=True, separators=(",", ":"))
+    return {"statement": text, "signature": base64.b64encode(signer.sign_bytes(seed, text.encode())).decode()}
 PW = "a-long-enough-password"
 AUTH = "Basic " + base64.b64encode(b"u:password-long-enough").decode()
 
@@ -53,12 +66,19 @@ class Fake:
         self.base = f"http://127.0.0.1:{self.srv.server_address[1]}"
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
 
-    def offer(self, version: str, body: bytes, sha: str | None = None, extra: dict | None = None):
+    def offer(self, version: str, body: bytes, sha: str | None = None, extra: dict | None = None,
+              sign: bytes | None = SEED, man: dict | None = None):
+        """A release signed with `sign` (None: unsigned, as before 0.7.0);
+        `man` overrides fields of the manifest after signing."""
         files = {"wow_stats.py": {"sha256": sha or hashlib.sha256(body).hexdigest(), "size": len(body)}}
         for name, b in (extra or {}).items():
             files[name] = {"sha256": hashlib.sha256(b).hexdigest(), "size": len(b)}
             self.routes[f"/install/update/shipper/{name}"] = (200, b)
-        self.routes["/install/update/shipper"] = (200, json.dumps({"version": version, "files": files}).encode())
+        out = {"version": version, "files": files}
+        if sign is not None:
+            out["signature"] = signature(version, files, sign)
+        out.update(man or {})
+        self.routes["/install/update/shipper"] = (200, json.dumps(out).encode())
         self.routes["/install/update/shipper/wow_stats.py"] = (200, body)
 
     def close(self):
@@ -82,6 +102,7 @@ def installed(shipper, tmp_path, monkeypatch):
     me.write_bytes(with_version(REAL, "0.5.1"))
     monkeypatch.setattr(shipper, "SELF", me)
     monkeypatch.setattr(shipper, "VERSION", "0.5.1")
+    monkeypatch.setattr(shipper, "UPDATE_KEY", TEST_KEY)
     monkeypatch.setattr(shipper, "install_dir", lambda: d)
     monkeypatch.setattr(shipper, "LOG", tmp_path / "wow-stats.log")
     monkeypatch.setattr(shipper, "DRY", False)
@@ -260,8 +281,26 @@ def test_route_on_a_one_person_server(run_app, shipper, installed, monkeypatch):
     monkeypatch.setattr(shipper, "VERSION", "0.0.1")
     installed.path.write_bytes(with_version(REAL, "0.0.1"))
     monkeypatch.setattr(shipper, "CONFIG", {"ship": {"url": srv.base + "/ingest", "user": "wow", "password": PW}})
-    assert shipper.check_update({}, now=1) == "updated"
-    assert installed.path.read_bytes() == REAL
+    # A tree between releases carries no signature: the shipper keeps its version.
+    state: dict = {}
+    if "signature" not in man:
+        assert shipper.check_update(state, now=1) == "kept"
+        assert state["update"]["refused"].startswith("the server's update isn't signed")
+        assert installed.path.read_bytes() == with_version(REAL, "0.0.1")
+    # The release's signature (release.yml signs the tree with the project's
+    # key; the test key here): the shipper takes the server's copy.
+    signed = json.dumps(signature(wowstats.__version__,
+                                  json.loads(signer.statement(ROOT))["files"])).encode()
+    real_file = account.shipper_file
+    monkeypatch.setattr(account, "shipper_file",
+                        lambda n: signed if n == account.SIGNATURE_FILE else real_file(n))
+    account.shipper_manifest.cache_clear()
+    try:
+        assert "signature" in json.loads(srv.get("/install/update/shipper", headers=good)[2])
+        assert shipper.check_update(state, now=1 + shipper.UPDATE_EVERY_S) == "updated"
+    finally:
+        account.shipper_manifest.cache_clear()
+    assert installed.path.read_bytes() == REAL and "refused" not in state["update"]
 
 
 def test_setup_report_names_the_version(shipper, tmp_path):

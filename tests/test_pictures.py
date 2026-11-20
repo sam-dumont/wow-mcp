@@ -152,8 +152,8 @@ def test_both_bundles_carry_each_levels_picture(world):
     for k in drawn:
         char, level = k.split("/")
         assert (cur / "public" / "data" / "picture" / char / f"{level}.webp").read_bytes() == WEBP
-        sealed = cur / "zogzog" / "data" / "picture" / char / f"{level}.webp.enc"
         key = publish.read_key(env["ZOGZOG_KEY_FILE"])
+        sealed = cur / "zogzog" / publish.sealed_name(key, f"data/picture/{char}/{level}.webp")
         assert publish.unseal(key, f"data/picture/{char}/{level}.webp", sealed.read_bytes()) == WEBP
         assert WEBP not in sealed.read_bytes()
     # What the renderer was told: a drawing. No character, no item id or

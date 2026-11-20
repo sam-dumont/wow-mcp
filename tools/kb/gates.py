@@ -18,6 +18,12 @@ started from) and checks:
   refused; every record cites its source (the schema);
 - multi-source: a new or changed list item or build has two sources, or
   `single_source` at low confidence, or an official page;
+- instructions: no text in the KB reads like an instruction aimed at an
+  assistant ("ignore previous instructions", "you must now", a role or tool
+  call marker, a prompt delimiter). The MCP hands KB text to the players'
+  assistants, so model-written text that merges on its own is a stored
+  prompt-injection path (security review 2026-11-20, finding 7); the MCP also
+  labels it as data (wowstats.mcp.tools KB_TEXT_TOOLS);
 - size: data/kb/budget.json (tools/kb/lifecycle.over_budget);
 - churn: statements the loader would no longer serve, against the base: at
   most CHURN_MAX in all and CHURN_SHARE of any lane (never a whole lane), so
@@ -141,6 +147,63 @@ def licence_gate(base: dict[str, dict], head: dict[str, dict], sources: dict[str
     return out, n
 
 
+# Instruction-shaped text aimed at an assistant, never game facts: each is
+# something a page or a model answer would say only to steer the reader's
+# model. Kept narrow on purpose (tests/test_kb_gates.py runs the whole KB
+# through it): "you must" alone is game advice, "you must now ignore" isn't.
+INSTRUCTION_PATTERNS = [re.compile(p, re.I) for p in (
+    r"\b(ignore|disregard|forget|override)\b.{0,40}\b(previous|prior|above|earlier|all|any|your|the)\b.{0,20}"
+    r"\b(instructions?|prompts?|messages?|rules|guidelines|context)\b",
+    r"\byou (must|should|will|are to) now\b",
+    r"\b(from now on|henceforth),? (you|the assistant)\b",
+    r"\byou are (now )?(an?|the) (\w+ ){0,2}(ai|assistant|language model|llm|chatbot)\b",
+    r"\b(new|updated|real|hidden|secret) (system )?(instructions?|prompt)\b",
+    r"\bsystem prompt\b",
+    r"\b(do not|don't|never) (tell|inform|show|mention (this|it) to) the (user|player)\b",
+    r"\b(as|to) (an? )?(ai|assistant|language model)\b.{0,30}\b(must|should|need)\b",
+    r"\b(call|use|invoke|run|execute) the (\w+ )?(tool|function|command)\b",
+    # A chat role at the start of a line ("Human" is a race here: left out).
+    r"(?m)^\s*(assistant|system|user)\s*:",
+    r"</?\s*(system|assistant|user|human|instructions?|tool_call|tool_use|tool_result|function_calls?|invoke|"
+    r"parameter|antml:[a-z_]+)\b[^>]*>",
+    r"<\|[a-z_]+\|>|\[/?INST\]|<<\s*/?SYS\s*>>|^\s*#{2,}\s*(system|instructions?|assistant)\b",
+    r"\{\s*\"(tool|name|function)\"\s*:\s*\"[^\"]+\"\s*,\s*\"(arguments|input|parameters)\"",
+)]
+
+
+def strings(v, path: str = ""):
+    """(path, text) for every string in a KB document, URLs and ids left out."""
+    if isinstance(v, dict):
+        for k, x in v.items():
+            if k in ("id", "source_url", "sources", "url", "urls", "origin", "link"):
+                continue
+            yield from strings(x, f"{path}.{k}" if path else str(k))
+    elif isinstance(v, list):
+        for i, x in enumerate(v):
+            yield from strings(x, f"{path}[{i}]")
+    elif isinstance(v, str) and not v.startswith(("http://", "https://")):
+        yield path, v
+
+
+def instruction_shaped(text: str) -> str:
+    """The first instruction-shaped part of `text`, "" when there is none."""
+    for p in INSTRUCTION_PATTERNS:
+        m = p.search(text)
+        if m:
+            return m.group(0)
+    return ""
+
+
+def instructions_gate(head: dict[str, dict]) -> list[str]:
+    out = []
+    for name, doc in sorted(head.items()):
+        for path, text in strings(doc):
+            hit = instruction_shaped(text)
+            if hit:
+                out.append(f"instructions: `{name}` {path}: reads like an instruction to an assistant ({hit[:60]!r})")
+    return out
+
+
 def multi_source_gate(base: dict[str, dict], head: dict[str, dict], allow: dict) -> list[str]:
     was = {(name, key, json.dumps(r, sort_keys=True)) for name, key, r in records(base)}
     out = []
@@ -209,6 +272,10 @@ def run(base_ref: str, sources_path: str | None, tests: bool, kb_dir: Path = KB)
     lic, checked = licence_gate(base, head, sources)
     refused += lic
     refused += multi_source_gate(base, head, allow)
+    # community.json too: the meta pass writes its one-line summaries.
+    community = {"community.json": json.loads((kb_dir / "community.json").read_text(encoding="utf-8"))} \
+        if (kb_dir / "community.json").exists() else {}
+    refused += instructions_gate({**head, **community})
     refused += [f"size: {o}" for o in lifecycle.over_budget(kb_dir)]
     ch, removed = churn_gate(base, head, today)
     refused += ch

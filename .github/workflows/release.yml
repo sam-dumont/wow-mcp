@@ -7,8 +7,13 @@
 # 1. plan: tools/release/release.py picks the version from pyproject.toml,
 #    CHANGELOG.md's "Unreleased" and the v* tags, and writes the notes.
 # 2. test: ci.yml in full, on the commit the run started from.
-# 3. prepare: the release commit (the version everywhere the tree carries
-#    it, "Unreleased" moved under its heading) goes through a pull request
+# 3. sign: the shipper files of the release commit, signed with the
+#    project's Ed25519 key (tools/release/shipper_sign.py; the secret
+#    SHIPPER_SIGNING_KEY of environment shipper-signing, limited to main,
+#    read by this job's one step and never printed). Every installed shipper
+#    checks this signature before it updates itself (docs/shipper.md).
+#    prepare: the release commit (the version everywhere the tree carries
+#    it, "Unreleased" moved under its heading, the signature) goes through a pull request
 #    like any change: main's ruleset takes nothing else. The PR is opened
 #    with the CI GitHub App's token, so its checks run (a GITHUB_TOKEN PR
 #    starts none), and auto-merge squashes it once they pass. A tree that
@@ -181,12 +186,52 @@ jobs:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
+  # The shipper's release signature (security review 2026-11-20): the same
+  # release commit prepare makes (release.py apply is deterministic for the
+  # shipper files), signed here, in a job of its own: the key lives only in
+  # this job's environment and only its signing step reads it. The output
+  # (the statement and the signature, public) goes into the release commit.
+  sign:
+    needs: [plan, test]
+    if: github.repository_id == '1464458020' && needs.plan.outputs.mode == 'prepare' && github.event_name == 'workflow_dispatch' && !inputs.dry_run
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    environment: shipper-signing
+    outputs:
+      signature: ${{ steps.sign.outputs.signature }}
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: The release commit's tree
+        run: uv run --no-project python tools/release/release.py apply "$VERSION" >/dev/null
+      - name: Sign the shipper files
+        id: sign
+        env:
+          SHIPPER_SIGNING_KEY: ${{ secrets.SHIPPER_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/shipper-signing.pem"
+          trap 'rm -f "$key"' EXIT
+          [ -n "$SHIPPER_SIGNING_KEY" ] || { echo "::error::environment shipper-signing has no SHIPPER_SIGNING_KEY"; exit 1; }
+          (umask 077; printf '%s\n' "$SHIPPER_SIGNING_KEY" > "$key")
+          unset SHIPPER_SIGNING_KEY
+          uv run --no-project python tools/release/shipper_sign.py sign --key "$key"
+          uv run --no-project python tools/release/shipper_sign.py verify
+          echo "signature=$(base64 -w0 shipper/update-signature.json)" >> "$GITHUB_OUTPUT"
+
   # The release commit, through main's ruleset like any change. The CI
   # GitHub App (variable CI_APP_CLIENT_ID, secret CI_APP_PRIVATE_KEY in the
   # environment main-only, which only main can deploy to) opens the PR so its
   # checks run, and auto-merge squashes it when they pass.
   prepare:
-    needs: [plan, test]
+    needs: [plan, test, sign]
     if: github.repository_id == '1464458020' && needs.plan.outputs.mode == 'prepare' && github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-24.04
     environment: main-only
@@ -218,12 +263,15 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
+          SIGNATURE: ${{ needs.sign.outputs.signature }}
         run: |
           set -euo pipefail
           [ "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA" ] \
             || { echo "::error::main moved since this run started: run it again."; exit 1; }
           release() { uv run --no-project python tools/release/release.py "$@"; }
           release apply "$VERSION"
+          base64 -d <<<"$SIGNATURE" > shipper/update-signature.json
+          uv run --no-project python tools/release/shipper_sign.py verify
           branch="release/v$VERSION"
           git config user.name "github-actions[bot]"
           git config user.email "41898+github-actions[bot]@users.noreply.github.com"
@@ -259,13 +307,13 @@ jobs:
 
   # One leg per image and platform, each on a runner of that architecture.
   build:
-    needs: [plan, test, prepare]
+    needs: [plan, test, sign, prepare]
     # The tests skip on a pull request (ci.yml runs there on its own), and
     # prepare when there's no release commit to make (a dry run, a tree that
     # already carries its version). A fork's pull request can't read the
     # dhi.io credentials the main image's base needs (ci.yml's image-fork job
     # says so on that run): no dry run there.
-    if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.plan.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.plan.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') && (needs.sign.result == 'success' || needs.sign.result == 'skipped') && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     name: build (${{ matrix.target }}, ${{ matrix.arch }})
     strategy:
       fail-fast: true
@@ -296,6 +344,11 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.SHA }}
+      # A release image serves only a signed shipper: installed shippers
+      # refuse an update without the signature (docs/shipper.md).
+      - name: The shipper's release signature
+        if: env.PUSH == 'true' && matrix.target == 'runtime'
+        run: python3 tools/release/shipper_sign.py verify
       - name: Local registry (dry run)
         if: env.PUSH != 'true'
         run: |
