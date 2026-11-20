@@ -45,7 +45,7 @@ Peak use per service (`memory.peak`), and the limit it ran under:
 
 After the long-history build, the four together sat at 445 MiB.
 
-**Since DuckDB and the semantic layer** (the next release after 0.6.1), the analysis holds a
+**Since DuckDB and the semantic layer** (0.7.0), the analysis holds a
 second copy of a character's tables in DuckDB, and the MCP loads DuckDB, ibis and sqlglot the
 first time an analysis tool runs. Measured on 2026-11-20, same demo, same calls (the analysis
 brief, a `play_sql` count, plus two `query_metric` calls after), amd64 image under emulation:

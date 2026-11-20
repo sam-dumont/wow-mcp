@@ -3,13 +3,12 @@
 **For:** WoW Forever players a friend invited to their wow-stats server. **At the end:** your
 characters are on your own page, and it updates by itself a few minutes after you log out.
 
-Someone runs wow-stats for you and your friends and sent you a link. You need no code from
-this repository and no server: a few addons, one command on the computer you play on, and
-you play. About 5 minutes the first time.
+A friend runs wow-stats and sent you a link. You need a few addons and one command on the
+computer you play on: about 5 minutes, no admin rights, nothing from this repository.
 
-The same steps live on your start page, `https://<their server>/start`, with your personal
-install command in them and a tick when each step works. Use that page if you can. This page
-is the same guide, for reading before you start or when the start page isn't at hand.
+The link opens your start page, `https://<their server>/start`: these same steps with your
+own install command in them, and a tick when each one works. Use it if you can; this page is
+for reading before you start.
 
 ## What you need
 
@@ -24,8 +23,7 @@ is the same guide, for reading before you start or when the start page isn't at 
 
 ## The steps
 
-The examples use `https://wow.example.org` for your friend's server: use the address they
-sent you.
+The examples use `https://wow.example.org`: your friend's server has its own address.
 
 <!-- generated:player-steps -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
@@ -130,32 +128,9 @@ Your assistant reads your stats and plans the next session: what to do in 2 hour
 
 <!-- /generated:player-steps -->
 
-## What the program on your computer does
+What the program sends, and what it never touches: [What's shared, and with whom](privacy.md).
 
-<!-- generated:player-shipper -->
-<!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
-
-A small Python program that runs in the background on the computer you play on, every 5 minutes. It never touches the game: it reads the files WoW writes on `/reload` or logout.
-
-Each run turns what's new in your WTF folder into events and posts them to your page with your own upload password; a copy of what it sent stays in WoWArchive in your home folder. With Git installed (Macs often have it), it also keeps every version of the WTF folder there. Nothing is sent twice; offline, it waits for the next run.
-
-The first run sends your whole history: everything your addons saved so far.
-
-It sends:
-
-- your addons' saved files (SavedVariables), every character
-- WoW's combat logs, when there are any
-
-It never sends:
-
-- your WoW or Battle.net password
-- anything outside the WoW folder
-
-<!-- /generated:player-shipper -->
-
-What your friend's server shows to whom: [What's shared, and with whom](privacy.md).
-
-## Update
+## Updates
 
 <!-- generated:player-update -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
@@ -192,6 +167,9 @@ curl --proto '=https' --proto-redir '=https' -fsSL https://wow.example.org/insta
 
 ## Uninstall
 
+<details>
+<summary>Remove the program from your computer</summary>
+
 <!-- generated:player-uninstall -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
@@ -223,10 +201,10 @@ launchctl bootout gui/$(id -u)/local.wow-stats; rm -f ~/Library/LaunchAgents/loc
 
 <!-- /generated:player-uninstall -->
 
+</details>
+
 ## Next
 
-- [Your page, tab by tab](your-page.md): what each part shows and what to do with it.
+- [Your page at a glance](your-page.md): the tabs, your links and Settings.
 - [Something's wrong](troubleshooting.md): fixes by symptom.
-- [Connect your AI](../ai/connect.md): ask Claude, ChatGPT or another assistant about your
-  character.
-- [Addons](../reference/addons.md): every addon wow-stats reads and what each one adds.
+- [Connect your AI](../ai/connect.md): Claude, ChatGPT or another assistant on your character.

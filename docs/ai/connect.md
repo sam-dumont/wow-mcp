@@ -1,27 +1,24 @@
 # Connect your AI
 
-**For:** players and self-hosters who use Claude, ChatGPT or another AI assistant. **At the
+**For:** anyone with a wow-stats page and Claude, ChatGPT or another AI assistant. **At the
 end:** your assistant answers questions about your character from your own data.
 
-wow-stats speaks MCP (Model Context Protocol: the standard way an AI assistant calls outside
-tools). You add the server's MCP address to your assistant once, log in, and from then on it
-can read your characters' history and plans when you ask about them. No model runs on the
-server: your assistant does the thinking, in your own account, at no extra cost beyond your
-plan.
+You add one address to your assistant, log in once, and from then on it reads your characters'
+history and plans when you ask. No model runs on the server: your assistant does the thinking,
+in your own account, at no extra cost beyond your plan. (Under the hood that's MCP, the
+standard way an assistant calls outside tools.)
 
-## What you need
+You need:
 
-- **The server's MCP address.** It's the server's address plus `/mcp`, for example
-  `https://wow.example.org/mcp`. On a friend's server, the start page and the help page show
-  it.
-- **An assistant that takes custom MCP servers.** Every client below does. Some plans limit
-  custom connectors: check yours.
-- **Your login for the server.** The assistant opens your browser once to log in, the same
-  account as your page.
+- **The address**: the server's address plus `/mcp`, like `https://wow.example.org/mcp`. Your
+  start page shows it.
+- **An assistant that takes custom connectors.** Every client below does; some plans limit
+  them.
+- **Your login**: the assistant opens your browser once, for the same account as your page
+  (Battle.net, when your page signs in with it).
 
-Running the server yourself: it needs a public HTTPS address and a login provider first:
-[Set up the login for your AI](../self-host/oidc.md). On the computer that runs the server
-there's a shortcut with no login: [On the server's own computer](#on-the-servers-own-computer).
+Running the server yourself: it needs a public HTTPS address and a login provider first,
+[Set up the login for your AI](../self-host/oidc.md).
 
 ## Pick your client
 
@@ -193,6 +190,9 @@ https://wow.example.org/mcp
 
 ## On the server's own computer
 
+<details>
+<summary>Claude Code next to the compose kit: no port, no login</summary>
+
 Running the compose kit and an MCP client on the same computer: the client can start the
 tools itself over stdin and stdout. No port, no login, nothing anyone else can reach. It reads
 the same data and keeps plans in the same place as the HTTPS endpoint.
@@ -208,6 +208,8 @@ Any other client that starts a local command: the command is `docker`, the argum
 
 This doesn't work on a shared install (several people): there the server must know who is
 asking, so use the HTTPS address.
+
+</details>
 
 ## When it doesn't work
 

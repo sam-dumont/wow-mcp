@@ -49,6 +49,10 @@ The red flags:
   they stopped playing, or their shipper stopped. Ask before you debug.
 - **shipper older than the server**: their shipper's version is below the server's. The update
   line on their start page fixes it.
+- **auto-update refused**: their shipper's last update check failed, with the reason: most
+  often a build signed with another key or none, sometimes a server it couldn't reach. It
+  keeps its version.
+  [Signing your own build](upgrade.md#signing-your-own-build).
 
 The shipper's version comes from its setup report when it sends one, otherwise from the last
 install or update command they ran. A row without a version or OS is someone who installed before

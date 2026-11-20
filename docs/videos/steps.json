@@ -9,20 +9,20 @@
       "audience": "start",
       "icon": "key",
       "title": "Log in",
-      "caption": "Log in with the account you were sent.",
+      "caption": "Sign in with the link the owner sent you.",
       "body": [
-        "Open the link you were sent and log in with the username and password from the invite. Your page's address is already set: the owner chose it when they made your account."
+        "Sign in the way the owner told you: the account they made for you, or Battle.net when their sign-in page has the button. Your page's address is already set: the owner picked it."
       ],
       "check": "You land on this page, with your install command ready.",
-      "if_not": "\"Access denied\" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with.",
+      "if_not": "\"You're signed in, but the person who runs this site hasn't let you in yet\": the owner hasn't added you yet. Tell them you signed in, then reload the page. A login loop: same message to the owner.",
       "media": null,
       "clip": "browser#welcome",
       "generic": {
         "body": [
-          "Your start page, {base}/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent. Your page's address is already set: the owner chose it when they made your account."
+          "The owner sends you a link to your start page, {base}/start: this guide with your own install command in it, and a tick when each step works. Sign in the way they told you: the account they made for you, or Battle.net when their sign-in page has the button. Your page's address is already set: the owner picked it."
         ],
         "check": "Your start page opens with your install command ready.",
-        "if_not": "\"Access denied\" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with."
+        "if_not": "\"You're signed in, but the person who runs this site hasn't let you in yet\": the owner hasn't added you yet. Tell them you signed in, then reload the page. A login loop: same message to the owner."
       }
     },
     {
@@ -30,16 +30,16 @@
       "audience": "both",
       "icon": "puzzle",
       "title": "Install the addons",
-      "caption": "Polestar is required. The install command (step 3) adds Polestar Recorder.",
+      "caption": "Polestar, and Syndicator for your gear. The install command adds Polestar Recorder.",
       "body": [
-        "Easiest: the CurseForge app (https://www.curseforge.com/download/app) lists WoW Forever as its own WoW install; restart the app if Forever doesn't show up."
+        "Easiest: the CurseForge app (https://www.curseforge.com/download/app), which lists WoW Forever as its own install (restart the app if it doesn't). Polestar is required: your level times, quests and dungeons. Syndicator is worth adding: it tells your page what you wear and carry, so the gear advice starts from your own bags. Without it your gear comes from Battle.net, when the owner set that up. The others are optional; your start page lists what each one adds."
       ],
-      "check": "Character select, AddOns: Polestar and Polestar Recorder are ticked. In game, /psrec on was typed once (not needed with the Polestar Client). Once data arrives (step 4), each addon turns green in the list on this page.",
+      "check": "Character select, AddOns: Polestar, Polestar Recorder and Syndicator are ticked, and you typed /psrec on once in game (not needed with the Polestar Client). Once data arrives (step 4), each addon turns green in the list on this page.",
       "if_not": "Missing from the AddOns list: the folder is one level too deep (Interface/AddOns/Polestar/Polestar/...). Move it up so Interface/AddOns/Polestar/Polestar.toc exists, then restart WoW.",
       "media": null,
       "clip": "browser#addons",
       "generic": {
-        "check": "Character select, AddOns: Polestar and Polestar Recorder are ticked. In game, /psrec on was typed once (not needed with the Polestar Client). Once data arrives, each addon turns green on your start page."
+        "check": "Character select, AddOns: Polestar, Polestar Recorder and Syndicator are ticked, and you typed /psrec on once in game (not needed with the Polestar Client). Once data arrives, each addon turns green on your start page."
       }
     },
     {
@@ -49,7 +49,7 @@
       "title": "Run the install command",
       "caption": "One line in a terminal. No admin rights.",
       "body": [
-        "The command installs a small program that runs every 5 minutes, reads what WoW and your addons saved in your WTF/ folder and sends what's new to your page. It also puts Polestar Recorder in WoW's AddOns folder (the official release, checked before it's copied), unless you have a newer one. It finds the WoW folder by itself, writes only under your user folder and to that AddOns folder, and never prints your password."
+        "It installs a small program that sends what WoW and your addons save to your page, every 5 minutes, and adds Polestar Recorder to WoW's AddOns folder (the official release, checked) unless you have a newer one. It finds the WoW folder by itself and writes only under your user folder and to that AddOns folder."
       ],
       "os": {
         "windows": {
@@ -65,7 +65,7 @@
           "installs": "~/.local/share/wow-stats, ~/.config/wow-stats/config.toml and a launchd agent local.wow-stats (every 5 minutes). Log: ~/Library/Logs/wow-stats.log. Polestar Recorder in _forever_/Interface/AddOns."
         }
       },
-      "code_note": "The command works once, for 15 minutes, and is only for the first install. Used or expired before you ran it: click \"Get my install command\" again. Updates later need no code: once installed, the update line shows in this step.",
+      "code_note": "The command works once, within 15 minutes. Used or expired: click \"Get my install command\" again. You only need it once: the program updates itself.",
       "check": "The output says \"wow-stats is installed. WoW folder: ...\" and that folder is your _forever_ folder.",
       "if_not": "\"WoW folder not found\" or the wrong folder: see that troubleshooting entry. \"This install code expired or was used already\": get a new command and run it.",
       "media": "install-mac.mp4",
@@ -82,9 +82,9 @@
       "title": "Play 5 minutes",
       "caption": "Play, then /reload or log out.",
       "body": [
-        "Play a few minutes with the addons on. WoW writes the addons' files only on /reload, logout or character switch: do one, then wait up to 5 minutes.",
-        "The first run sends everything your addons saved so far, every character: a few seconds, a minute with a long combat log. After that, only what's new.",
-        "A game or computer crash, or Alt+F4, loses what every addon gathered since the last save. Type /reload after a dungeon, after an Auction House scan and before a break."
+        "Play a few minutes, then /reload or log out: WoW saves the addons' files only then. Your page gets them within 5 minutes.",
+        "The first run sends everything your addons saved so far, every character. After that, only what's new.",
+        "A crash or Alt+F4 loses what the addons gathered since the last save: /reload after a dungeon, an Auction House scan, and before a break."
       ],
       "check": "\"Data arrived\" ticks on this page by itself. No refresh needed.",
       "if_not": "Nothing after 10 minutes: first type /psrec on in WoW (the Recorder starts off without the Polestar Client), then /reload. Still nothing: see \"My page is still empty after 10 minutes\".",
@@ -102,7 +102,7 @@
       "caption": "Your character, your climb and your gear.",
       "body": [
         "Open My page: each character you played with the addons on is in the list at the top, with level, gear and time per level.",
-        "Settings decides what's public. The public page is off until you switch it on; then the owner adds its address (usually within a day)."
+        "Battle.net's copy of your characters (their look, and your gear without Syndicator) comes within minutes of your first data, then every 2 hours, if the owner set it up. Settings decides what others see: your public page stays off until you switch it on."
       ],
       "check": "Your character is in the list at the top of My page.",
       "if_not": "Step 4 ticked but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, /reload, wait 5 minutes.",
@@ -110,7 +110,7 @@
       "clip": "browser#character",
       "generic": {
         "body": [
-          "Open {base}: each character you played with the addons on is in the list at the top, with level, gear and time per level. Settings decides what's public; the public page is off until you switch it on."
+          "Open {base}: each character you played with the addons on is in the list at the top, with level, gear and time per level. Battle.net's copy of your characters (their look, and your gear without Syndicator) comes within minutes of your first data, then every 2 hours, if the owner set it up. Settings decides what others see: your public page stays off until you switch it on."
         ],
         "check": "Your character is in the list at the top of your page.",
         "if_not": "Data arrived but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, /reload, wait 5 minutes."
@@ -123,7 +123,7 @@
       "title": "Connect your AI",
       "caption": "Add wow-stats as a connector once.",
       "body": [
-        "Your assistant reads your stats and plans the next session: what to do in 2 hours, which gear to chase, when a dungeon is worth it. It uses your own AI account; wow-stats never sees the conversation."
+        "Claude, ChatGPT or another assistant reads your stats and plans your next session: what to do in 2 hours, which gear to chase, which dungeon is worth it. It runs on your own AI account: wow-stats never sees the conversation."
       ],
       "os": {
         "claude": {
@@ -154,7 +154,7 @@
     {
       "id": "lost-session",
       "title": "My last session is missing",
-      "body": "WoW addons write their files only at logout, /reload or a clean quit. A crash of the game or the computer, or Alt+F4, loses everything since the last save, for every addon (Polestar, Auctionator...), not just this one. An addon can't save on a timer: a reload needs a key press.",
+      "body": "WoW addons write their files only at logout, /reload or a clean quit. A crash, or Alt+F4, loses everything every addon gathered since the last save. No addon can save on a timer.",
       "fix": "Type /reload after a dungeon, after an Auction House scan and before a break, or put /reload on a macro key. What the game never wrote can't be recovered.",
       "part": "install"
     },
@@ -162,7 +162,7 @@
       "id": "no-folder",
       "title": "\"WoW folder not found\" (or the wrong folder)",
       "body": "The installer looks for a _forever_ folder with WTF/ in it where Battle.net puts WoW: C:\\Program Files (x86)\\World of Warcraft\\_forever_ on Windows (or the World of Warcraft folder Battle.net registered, on any drive), /Applications/World of Warcraft/_forever_ on a Mac. WTF/ only exists after one login.",
-      "fix": "Log in to WoW Forever once, quit, then run a new install command. Not sure where WoW is: in the Battle.net app, pick World of Warcraft, click the cog next to Play, then Show in Explorer (Show in Finder on a Mac); the _forever_ folder is in the World of Warcraft folder. WoW installed somewhere else: on a Mac, set the folder in the command, `curl -fsSL <your command's address> | WOW_STATS_WOW_DIR=\"/path/to/_forever_\" bash`; on Windows, first run `$env:WOW_STATS_WOW_DIR = 'D:\\Games\\World of Warcraft\\_forever_'` in the same PowerShell window, then the command.",
+      "fix": "Log in to WoW Forever once, quit, then run a new install command. Not sure where WoW is: in the Battle.net app, pick World of Warcraft, click the cog next to Play, then Show in Explorer (Show in Finder on a Mac); the _forever_ folder is in the World of Warcraft folder. WoW installed somewhere else: on a Mac, put `WOW_STATS_WOW_DIR=\"/path/to/_forever_\"` before `bash` at the end of your command (`... | WOW_STATS_WOW_DIR=\"/path/to/_forever_\" bash`); on Windows, first run `$env:WOW_STATS_WOW_DIR = 'D:\\Games\\World of Warcraft\\_forever_'` in the same PowerShell window, then the command.",
       "part": "install"
     },
     {
@@ -191,7 +191,7 @@
       "part": "mcp",
       "title": "The AI login keeps coming back",
       "body": "A login request is good for a few minutes and once. A login tab left open, or a second login started in another tab, sends you round again. A sign-in page that keeps returning means you're signed in there with an account that has no wow-stats access.",
-      "fix": "Close every login tab, start the connection again from the client and sign in straight away. Sign-in page loop: sign out there (or use a private window) and sign in with the account you were sent."
+      "fix": "Close every login tab, start the connection again from the client and sign in straight away. Sign-in page loop: sign out there (or use a private window) and sign in with the account your page uses."
     },
     {
       "id": "no-tools",
@@ -310,7 +310,7 @@
   ],
   "needs": [
     "WoW Forever on Windows 10 or 11, or macOS, logged in once (so its WTF folder exists).",
-    "Your wow-stats account: the owner sends you the link.",
+    "The link the owner sent you.",
     "No admin rights: everything installs for your user only."
   ],
   "addon_routes": {
@@ -352,9 +352,9 @@
     ]
   },
   "update": [
-    "Addons: the CurseForge app's Update all; by hand, delete the old folders, then unzip the new ones.",
-    "The program on your computer updates itself, within a few hours of a new version on the server. Installed before version 0.5.1? Run the update line for your OS once (your start page says so when it's needed); from then on it updates by itself. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.",
-    "Moving to another computer, or the password leaked: Reset my upload password on your start page. The old password stops at once; run the new install command it gives you."
+    "Addons: Update all in the CurseForge app.",
+    "The program on your computer updates itself, and Polestar Recorder with it, within a few hours of a new version on the server. Nothing to run, nothing to reinstall. Only an install from before version 0.5.1 needs the update line once: your start page says so when yours does.",
+    "New computer, or your upload password leaked: Reset my upload password on your start page, then run the install command it gives you. The old password stops at once."
   ],
   "uninstall": {
     "body": [
@@ -543,7 +543,7 @@
         "title": "Your zogzog link",
         "caption": "The whole story, for the friends you pick.",
         "body": [
-          "Settings has your zogzog link: your page for friends, with the journal, the gear advice, prices and deaths per zone. Anyone with the link can open it, so send it only to the people you want there. It never shows other players or where your character is right now.",
+          "Settings has your zogzog link: your page for friends, with the journal, the gear advice, prices and deaths per zone. Anyone with the link can open it, so send it only to people you want there. It never shows other players or where your character is now.",
           "It catches up within about 10 minutes of a play session.",
           "Sent to the wrong person: Settings, Make a new link. The old one stops working at the next update."
         ],
@@ -579,7 +579,7 @@
           ],
           [
             "Delete your data",
-            "ask the owner to take you off the friends list. Within minutes your events, settings, upload password and pages are gone; backups keep the events 30 more days. Then uninstall below."
+            "ask the owner to take you off the friends list. Within minutes your events, settings, upload password and pages are gone; backups expire on their own (the Privacy page says when). Then uninstall the program."
           ]
         ],
         "media": "settings.mp4"

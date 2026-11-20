@@ -1,7 +1,7 @@
-# Your page, tab by tab
+# Your page at a glance
 
-**For:** players with data on a wow-stats page (their own server or a friend's). **At the
-end:** you know what each tab shows and what to do with it.
+**For:** players with data on a wow-stats page. **At the end:** you know where everything is,
+and what your links and Settings change.
 
 ![The Overview tab of the demo character Nibbet: the pace line, four numbers, the next moves and time per level](../images/overview.webp)
 
@@ -113,13 +113,14 @@ Settings is in the menu at the top right of your page. Your own page always show
 
 <!-- /generated:player-page -->
 
-## Each part in detail
+## Each tab in detail
 
-- [Overview and next moves](overview.md): the four numbers and what to do first.
-- [Gear and upgrades](gear.md): points, the upgrades list, the auction house.
-- [Dungeons](dungeons.md): reading a dungeon card, and which one to run.
-- [Plan your next hours](plan.md): the session planner.
+- [Overview and next moves](overview.md): the four numbers, and which move to do first.
+- [Gear and upgrades](gear.md): your next item, where it drops, and the auction house.
+- [Your class's meta](meta.md): what your spec runs on Forever, and how close you are.
+- [Dungeons](dungeons.md): which one to run, and what to do before you go.
+- [Plan your next hours](plan.md): tonight's session, step by step.
 - [Climb, timeline, journal](history.md): your history, and your look at every level.
 
-Something missing from a tab? [Something's wrong](troubleshooting.md#a-part-of-my-page-is-empty)
+A part of your page is empty: [Something's wrong](troubleshooting.md#a-part-of-my-page-is-empty)
 says which addon fills it.

@@ -16,6 +16,12 @@ of the server's data and the player's archive, and you've seen a restore work.
 The volume names start with the compose project's name, `wow-stats`. `docker volume ls`
 lists them.
 
+With friends on the install ([Add friends](friends.md)), add three more: the friends'
+VictoriaLogs (their events, same steps as yours), the state folder (`WOW_STATE_DIR`: who is
+who, settings, upload passwords) and the master key (`ZOGZOG_MASTER_KEY_FILE`: without it every
+sealed link changes). Signing your own shipper builds? Keep that `.pem` too: a new key means
+every player runs the update line once ([Upgrade](upgrade.md#signing-your-own-build)).
+
 On the computer you play on, the shipper's archive is a second copy of everything:
 `~/WoWArchive` (Mac) or `%USERPROFILE%\WoWArchive` (Windows). Its `sent/` folder holds every
 event already sent, and `wtf/` every version of your game files (unless you turned that off).

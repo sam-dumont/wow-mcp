@@ -25,7 +25,7 @@ having: `/reload` after a dungeon, an auction house scan, or before a break.
 changed in `WTF` (and the combat log, if you turned it on), turns it into events and sends them
 to your server with your own upload password. It keeps a copy of everything it sent in a
 `WoWArchive` folder in your home folder. It never reads your WoW or Battle.net password, and
-nothing outside the WoW folder. [What it sends](../players/getting-started.md#what-the-program-on-your-computer-does).
+nothing outside the WoW folder. [What it sends](../players/privacy.md#what-leaves-your-computer).
 
 **The server.** One `docker compose up` on a small box: 2 vCPU and 2 GiB of RAM run it for
 one player, and a year of one player's events takes a few MiB. It keeps the events

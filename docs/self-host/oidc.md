@@ -135,6 +135,15 @@ Keycloak lets in any user of the realm; `OIDC_ALLOWED_SUBS` is what keeps wow-st
 - **Others with roles or organisations**: set `OIDC_ROLES_CLAIM` and `OIDC_ORG_CLAIM` to the
   claim names your provider uses, then the two settings above.
 
+### A Battle.net button (ZITADEL)
+
+Friends who sign in to their page with Battle.net need the same button when their AI logs in.
+With Battle.net as a provider in ZITADEL, set `OIDC_BATTLENET_ORG_ID` (the org your friends'
+accounts live in) and `OIDC_BATTLENET_IDP_ID` (the provider's id): the AI's login then offers
+**Battle.net**, which asks ZITADEL for that org and provider and goes straight to Battle.net.
+Leave both empty and the login is your provider's usual page. How I set up the provider:
+[How I run it](how-i-run-it.md#battlenet-as-an-identity-provider).
+
 Every login setting: [Environment variables, the MCP endpoint](../reference/environment.md#the-mcp-endpoint-and-its-login).
 
 ## When it doesn't work

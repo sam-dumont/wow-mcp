@@ -547,8 +547,11 @@ def block_steps() -> str:
             out += _os_cmds(s["os"], personal=True)
         if s.get("code_note"):
             out += [text(s["code_note"]), ""]
+        # What to do when it didn't work stays folded: one action per step
+        # in sight, the fix a click away.
         out += [f"**It worked when:** {text(g.get('check') or s['check'])}", "",
-                f"**If not:** {text(g.get('if_not') or s['if_not'])}", ""]
+                "<details>", "<summary>Didn't work?</summary>", "",
+                text(g.get('if_not') or s['if_not']), "", "</details>", ""]
     return "\n".join(out)
 
 
@@ -608,11 +611,18 @@ def block_missing() -> str:
     return table(["Missing from your page", "Comes from", "Fix"], rows)
 
 
+# The guide's sections the manual gives a page of their own (docs/players/):
+# "Your page at a glance" links those instead of saying it all twice.
+OWN_PAGE = frozenset({"overview", "character", "dungeons", "plan", "timeline"})
+
+
 def block_page() -> str:
     g = steps()["guide"]
     out = [text(p) + "\n" for p in g["what"]["body"]]
     out += ["The tabs at a glance:", ""] + [f"- **{t}**: {text(d)}" for t, d in g["tabs"]] + [""]
     for sec in g["page"]:
+        if sec["id"] in OWN_PAGE:
+            continue
         out += [f"## {sec['title']}", ""]
         if sec.get("caption"):
             out += [f"*{text(sec['caption'])}*", ""]
@@ -637,8 +647,15 @@ def block_clients() -> str:
 
     url = BASE + "/mcp"
     out = []
-    for c in helppage.CLIENTS:
-        out += [f"### {c.name}", ""]
+    # The first client (Claude) in full, the others folded under their name:
+    # a reader looks for one client, not thirteen.
+    for i, c in enumerate(helppage.CLIENTS):
+        if i == 1:
+            out += ["### Other clients", ""]
+        if i:
+            out += ["<details>", f"<summary>{c.name}</summary>", ""]
+        else:
+            out += [f"### {c.name}", ""]
         out += [f"{i}. {text(s)}" for i, s in enumerate(c.steps, 1)] + [""]
         if c.snippet:
             snip = c.snippet.replace("{url}", url)
@@ -647,6 +664,8 @@ def block_clients() -> str:
         if c.note:
             out += [f"> {text(c.note)}", ""]
         out += [f"**It worked when:** {text(c.check or helppage.CHECK)}", ""]
+        if i:
+            out += ["</details>", ""]
     return "\n".join(out).rstrip()
 
 

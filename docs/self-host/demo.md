@@ -63,7 +63,7 @@ DEMO DATA banner:
 
 ![The Overview of the demo character Testchar, level 32: on track at 1.5 times Polestar's route time, the next level in 1h 11m of play, 90% of guide steps in order, the next move, and time per level against the route](../images/local-demo.webp)
 
-[Your page, tab by tab](../players/your-page.md) explains each tab.
+[Your page at a glance](../players/your-page.md) walks through each tab.
 
 Port 8080 already taken on your computer? `docker compose up` says `port is already
 allocated`. Set `UI_PUBLISH=127.0.0.1:18080` in `.env`, run step 1's command again, and open

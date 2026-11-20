@@ -22,16 +22,16 @@ and the install command comes from their server.
 ![The Overview of the demo character Nibbet, level 34: behind the route at 2.2 times Polestar's route time, the next level in 2h 24m of play, 91% of guide steps in order, his next moves, and time per level against the route](docs/images/overview.webp)
 
 **[Live demo](https://sam-dumont.github.io/wow-mcp/demo/)**: Nibbet-Gearholt, an invented Gnome
-priest, no install (online once the repository is public).
+priest, no install.
 
 ## Three ways in
 
-1. **[Try the demo](docs/self-host/demo.md)**: Docker and five made-up characters on your
-   computer, about 10 minutes, no game needed.
-2. **[Track my character](docs/install.md)**: run the server, add the addons and the small
-   program on the computer you play on.
-3. **[Join a friend's server](docs/players/getting-started.md)**: someone runs it for you and
+1. **[Join a friend's server](docs/players/getting-started.md)**: someone runs it for you and
    sent you a link. Nothing from this repository needed.
+2. **[Try the demo](docs/self-host/demo.md)**: Docker and five made-up characters on your
+   computer, about 10 minutes, no game needed.
+3. **[Track my character](docs/install.md)**: run the server, add the addons and the small
+   program on the computer you play on.
 
 Then, for your AI: **[Connect your AI](docs/ai/connect.md)**. Everything else is in
 **[the manual](docs/README.md)**, also on the [docs site](https://sam-dumont.github.io/wow-mcp/).
@@ -79,7 +79,7 @@ PowerShell, a port already taken, or the sites for friends: [Try the demo](docs/
 
 | You are | Start here |
 |---|---|
-| A player a friend invited | [Join a friend's server](docs/players/getting-started.md), then [your page, tab by tab](docs/players/your-page.md) and [something's wrong](docs/players/troubleshooting.md) |
+| A player a friend invited | [Join a friend's server](docs/players/getting-started.md), then [your page at a glance](docs/players/your-page.md) and [something's wrong](docs/players/troubleshooting.md) |
 | Running your own server | [Try the demo](docs/self-host/demo.md), [install it](docs/install.md), then [run it on a server](docs/self-host/production.md) |
 | Using an AI assistant | [Connect your AI](docs/ai/connect.md), [ask about your character](docs/ai/asking.md), [every tool](docs/reference/mcp-tools.md) |
 | Contributing | [Development](docs/development.md), [architecture](docs/architecture.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
@@ -96,11 +96,8 @@ are theirs. The gear data carries parts under MIT, from ForeverLevelingBiS
 v0.12.0-beta by Thunder and from wowsims: their notices are in
 [THIRD_PARTY.md](THIRD_PARTY.md).
 
-The images (`/app/LICENSE`) and the shipper's installers (`LICENSE` next to
-the installed script) carry the license and name the source they were built
-from: this repository at the matching tag, `<SOURCE_URL>/tree/v<version>`,
-where `SOURCE_URL` is `wowstats.SOURCE_URL` (pyproject's `[project.urls]`
-`Source`).
+The images (`/app/LICENSE`) and the installed shipper (`LICENSE` next to it)
+carry the license and the source they were built from.
 
 The page's fonts (Cinzel, Alegreya, Alegreya Sans) are under the SIL Open
 Font License, their license files in `web/fonts/`.

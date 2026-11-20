@@ -41,11 +41,8 @@ one adds: [Addons](reference/addons.md). The easiest way to install them is the
 stays off until you type `/psrec on` once in game. It then records on this
 computer only, into its SavedVariables, which is all the shipper needs.
 
-Polestar Client, the uploader ([polestar.guide/client](https://polestar.guide/client)),
-is optional. With it, the Recorder records while the client's sharing is on
-(its default), the client uploads the chunks to Polestar's own service and
-the Recorder then deletes them from the game file. The client keeps the last
-8 days of them in `sent.jsonl`, and the shipper reads that file too, so
+Polestar Client ([polestar.guide/client](https://polestar.guide/client)) is optional:
+with it the Recorder is on by itself, and the shipper reads the client's copy too, so
 nothing is lost either way.
 
 ### Turn them on, per character
@@ -162,6 +159,9 @@ phone or the internet, with HTTPS and a login:
 
 ### Disk space
 
+<details>
+<summary>How big it gets, and how to cap it</summary>
+
 Your game events are kept 100 years (`-retentionPeriod=100y` in
 `compose.yaml`), so nothing ages out by date. They compress well: 55 copies
 of the demo's week, 100,705 events, took 6.5 MiB (VictoriaLogs v1.54.0,
@@ -181,7 +181,12 @@ and their key, rebuilt after each play session) and `wow-stats_ui-state`
 tables `ui` downloads for item names and the 3D view, in
 `MODEL3D_CACHE_DIR=/data/model3d-cache`).
 
+</details>
+
 ### Memory
+
+<details>
+<summary>When to give `ui` more than 1 GiB</summary>
 
 `ui` is the one that grows with your history: it answers the page and
 prepares the AI's analysis, which holds a character's whole history in
@@ -193,9 +198,11 @@ twice the measured peak. A much longer history than that: raise it
 publisher peaked at 342 MiB, VictoriaLogs at 217 MiB and `site` at 22 MiB;
 the three have no limit.
 
+</details>
+
 ### Battle.net data (optional)
 
-The WoW Token price and your look from the armory, with
+The WoW Token price, your look, talents, and your gear when Syndicator didn't send it, with
 your own Battle.net API client: [Battle.net data](self-host/battlenet.md).
 
 ## 3. The shipper
@@ -355,7 +362,7 @@ spool and run the shipper (Mac: `mv ~/WoWArchive/too-old/* ~/WoWArchive/spool/`;
 Windows: `Move-Item $env:USERPROFILE\WoWArchive\too-old\* $env:USERPROFILE\WoWArchive\spool\`).
 
 **The look is wrong.** The look comes from Battle.net only (the exporter,
-refreshed once a day). Changed it at a barber? Wait for the next daily read.
+every 2 hours). Changed it at a barber? Wait for the next read.
 No Battle.net client on your server, or a character it doesn't know yet:
 the race's default look.
 

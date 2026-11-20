@@ -3,11 +3,9 @@
 **For:** players whose page is empty, stale or missing a part. **At the end:** you've found
 your symptom and its fix, or you know what to send the owner of your server.
 
-Start with the symptom that matches. Each fix is one thing to try; most problems are an addon
-switched off for one character, or the game not having saved yet. WoW writes the addons'
-files only when you `/reload`, log out or switch character, and the program that sends them
-runs every 5 minutes. So "nothing yet" right after playing is normal: give it 5 minutes after
-a logout.
+Find your symptom. Most problems are an addon switched off for one character, or the game
+not having saved yet: WoW writes the addons' files only on `/reload` or logout, and the program
+sends them within 5 minutes. "Nothing yet" right after playing is normal.
 
 <!-- generated:player-trouble -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
@@ -62,9 +60,8 @@ empty part; this table is the same list.
 
 <!-- /generated:player-missing -->
 
-The Recorder is off when your page has levels and gear but no sessions, zones or deaths. Type
-`/psrec on` once in game, then `/reload`. The Polestar Client turns it on by itself if you use
-it.
+Gear and look but no bags: that's Battle.net's copy, read every 2 hours. Syndicator gives
+the page your own gear and bags.
 
 ## Check that the program sends your data
 
