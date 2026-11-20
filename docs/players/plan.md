@@ -8,7 +8,7 @@ stop in town, what to skip, and where to log out. It follows your Polestar guide
 pace, measured from your last sessions, not the route's.
 
 The planner lives on your own page (the full view, behind your login), in the Character tab
-under the character sheet. The friends' link and the live demo don't have it: it needs the
+under the character sheet. Your zogzog link and the live demo don't have it: it needs the
 server. [A recorded session](../../site/pages/mcp-session.md) shows the same plan coming out of
 an AI assistant.
 

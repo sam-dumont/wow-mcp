@@ -217,16 +217,16 @@ stores through `wowstats.mcp.store`, built from the same `VL_URL`,
 `/api/config` reports `"mcp": true` when it is on, and the character page
 then shows the Ask Claude and Ask ChatGPT links.
 
-**No model runs on the server** (owner, 2026-11-18): not for the analysis,
+**No model runs on the server**: not for the analysis,
 not for plans, not for anyone. The user's own client does the reasoning;
 the server prepares data and judges. Blizzard API data reaches a model
 through two doors only: the MCP's `market` tool (token price, ruleset
 status), and the character's current talents in `character_summary`,
-`class_guide`, `class_meta` and `sanity_check` (owner, 2026-11-20: read live
+`class_guide`, `class_meta` and `sanity_check` (read live
 from vm-wow, kept nowhere). On a multi-user install both follow the
 person's "Battle.net data to my AI" setting (their own data to their own
-assistant, owner ruling 2026-11-18); a one-person install never serves
-`market` and gives the talents to the operator who set `VM_URL`. `tests/route/test_market_gating.py` holds that line, and the
+assistant); a one-person install never serves
+`market` and gives the talents to the owner, who set `VM_URL`. `tests/route/test_market_gating.py` holds that line, and the
 analysis' allowlist (`wowstats/analysis/TABLES`) has no Battle.net source.
 
 ## Data retention

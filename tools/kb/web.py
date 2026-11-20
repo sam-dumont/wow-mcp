@@ -17,6 +17,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+from pathlib import Path
 
 UA = "wow-stats-kb-watch (+https://github.com/sam-dumont/wow-mcp)"
 TIMEOUT = 30
@@ -129,7 +130,17 @@ class GitHub:
 def keep_issue(gh, kind: str, label: str, title: str, body: str | None,
                closing: str = "Back to what the KB knows (data/kb/watch.json): nothing to review.") -> str:
     """Open, edit or close the one issue of a change kind: body None means
-    nothing changed (close it if open). Returns what it did."""
+    nothing changed (close it if open). Returns what it did.
+
+    With KB_ISSUES_OUT set (the refresh job's `run`, which holds no write
+    token), the call is written there as a JSON line instead, and `land`
+    replays it with the App's token: `web.py --replay-issues FILE`."""
+    out = os.environ.get("KB_ISSUES_OUT")
+    if out:
+        rec = {"kind": kind, "label": label, "title": title, "body": body, "closing": closing}
+        with open(out, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec) + "\n")
+        return "deferred"
     marker = f"<!-- kb-watch:{kind} -->"
     existing = gh.find_issue(marker, label)
     if body is None:
@@ -143,3 +154,23 @@ def keep_issue(gh, kind: str, label: str, title: str, body: str | None,
         return "edited"
     gh.create_issue(title, body, [label])
     return "opened"
+
+
+def replay_issues(path: str, gh) -> list[str]:
+    """The issue calls a run deferred (KB_ISSUES_OUT), made for real."""
+    done = []
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            r = json.loads(line)
+            done.append(f"{r['kind']}: " + keep_issue(gh, r["kind"], r["label"], r["title"], r["body"], r["closing"]))
+    return done
+
+
+if __name__ == "__main__":
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Replay the issue calls a refresh run deferred (GH_TOKEN).")
+    ap.add_argument("--replay-issues", required=True, metavar="FILE")
+    args = ap.parse_args()
+    os.environ.pop("KB_ISSUES_OUT", None)
+    print("\n".join(replay_issues(args.replay_issues, GitHub(repo()))))

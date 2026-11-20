@@ -5,7 +5,7 @@ characters are on your own page, and it updates by itself a few minutes after yo
 
 Someone runs wow-stats for you and your friends and sent you a link. You need no code from
 this repository and no server: a few addons, one command on the computer you play on, and
-you play. About 15 minutes the first time.
+you play. About 5 minutes the first time.
 
 The same steps live on your start page, `https://<their server>/start`, with your personal
 install command in them and a tick when each step works. Use that page if you can. This page
@@ -36,7 +36,7 @@ sent you.
 
 *Log in with the account you were sent.*
 
-Your start page, https://wow.example.org/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent. Your page's address is already set: the person who runs wow-stats chose it when they made your account.
+Your start page, https://wow.example.org/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent. Your page's address is already set: the owner chose it when they made your account.
 
 **It worked when:** Your start page opens with your install command ready.
 
@@ -58,7 +58,7 @@ Easiest: the CurseForge app (https://www.curseforge.com/download/app) lists WoW 
 
 [Watch: run the install command (Mac)](../videos/media/install-mac-light.mp4)
 
-The command installs the shipper: a small Python script (uv fetches Python if needed) that runs every 5 minutes, reads your `WTF/` folder and sends new events to your page. It also puts Polestar Recorder in WoW's AddOns folder (its official release, checked), unless you have a newer one. It finds the WoW folder itself, writes only under your user folder and to that AddOns folder, and never prints your password.
+The command installs a small program that runs every 5 minutes, reads what WoW and your addons saved in your `WTF/` folder and sends what's new to your page. It also puts Polestar Recorder in WoW's AddOns folder (the official release, checked before it's copied), unless you have a newer one. It finds the WoW folder by itself, writes only under your user folder and to that AddOns folder, and never prints your password.
 
 <div class="os" data-os="windows">
 
@@ -70,7 +70,7 @@ Your command is on your start page. It looks like this (the code is yours, singl
 irm https://wow.example.org/install/<your code> | iex
 ```
 
-It installs: `%LOCALAPPDATA%\wow-stats` and a scheduled task "wow-stats" (every 5 minutes, as you, no admin). Log: `%LOCALAPPDATA%\wow-stats\wow-stats.log.` Polestar Recorder in `_forever_\Interface\AddOns.`
+It installs: `%LOCALAPPDATA%\wow-stats` and a scheduled task "wow-stats" (every 5 minutes, as you, no admin). Log: `%LOCALAPPDATA%\wow-stats\wow-stats.log`. Polestar Recorder in `_forever_\Interface\AddOns`.
 
 </div>
 
@@ -84,7 +84,7 @@ Your command is on your start page. It looks like this (the code is yours, singl
 curl -fsSL https://wow.example.org/install/<your code> | bash
 ```
 
-It installs: `~/.local/share/wow-stats`, `~/.config/wow-stats/config.toml` and a launchd agent local.wow-stats (every 5 minutes). Log: `~/Library/Logs/wow-stats.log.` Polestar Recorder in `_forever_/Interface/AddOns.`
+It installs: `~/.local/share/wow-stats`, `~/.config/wow-stats/config.toml` and a launchd agent local.wow-stats (every 5 minutes). Log: `~/Library/Logs/wow-stats.log`. Polestar Recorder in `_forever_/Interface/AddOns`.
 
 </div>
 
@@ -104,7 +104,7 @@ The first run sends everything your addons saved so far, every character: a few 
 
 A game or computer crash, or Alt+F4, loses what every addon gathered since the last save. Type `/reload` after a dungeon, after an Auction House scan and before a break.
 
-**It worked when:** "Data arrived" ticks on your start page by itself, and the shipper's log ends in a line like "ship: ... sent (N events)".
+**It worked when:** "Data arrived" ticks on your start page by itself, and the program's log ends in a line like "ship: ... sent (N events)".
 
 **If not:** Nothing after 10 minutes: first type `/psrec on` in WoW (the Recorder starts off without the Polestar Client), then `/reload`. Still nothing: see "My page is still empty after 10 minutes".
 
@@ -161,7 +161,7 @@ What your friend's server shows to whom: [What's shared, and with whom](privacy.
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
 - Addons: the CurseForge app's Update all; by hand, delete the old folders, then unzip the new ones.
-- The shipper updates itself, within a few hours of a new version on the server. Installed before version 0.5.1? Run the update line for your OS once (your start page says so when it's needed); from then on it updates by itself. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.
+- The program on your computer updates itself, within a few hours of a new version on the server. Installed before version 0.5.1? Run the update line for your OS once (your start page says so when it's needed); from then on it updates by itself. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.
 - Moving to another computer, or the password leaked: Reset my upload password on your start page. The old password stops at once; run the new install command it gives you.
 
 [Watch: an update (Mac)](../videos/media/update-mac-light.mp4)
@@ -197,7 +197,7 @@ curl -fsSL https://wow.example.org/install/update | bash
 
 [Watch: an uninstall (Mac)](../videos/media/uninstall-mac-light.mp4)
 
-Run the line for your OS. It stops the job and removes the program and your config. Your addons stay, Polestar Recorder included: remove them in CurseForge, or delete their folders in `_forever_/Interface/AddOns.`
+Run the line for your OS. It stops the job and removes the program and your config. Your addons stay, Polestar Recorder included: remove them in CurseForge, or delete their folders in `_forever_/Interface/AddOns`.
 
 Your archive (WoWArchive in your home folder) stays: delete it yourself if you don't want the history. To delete your data on the site, ask the owner to take you off the friends list: it goes within minutes.
 

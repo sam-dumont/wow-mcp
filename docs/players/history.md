@@ -42,7 +42,7 @@ Each level also has a picture of your character in the gear of that level. A new
 picture takes a few minutes: until then it says "Picture on its way" and **View in 3D** shows
 the model instead. Drag to turn it.
 
-The model is drawn from your own game files (your shipper sends them), dressed in your gear.
+The model is drawn from your own game files (the program on your computer sends them), dressed in your gear.
 Until they've come, the page keeps the picture and says why. When the page doesn't know your
 character's face and hair (no Battle.net data on the server yet), it uses a default look for
 your race and says so under the model.
@@ -64,4 +64,4 @@ crosses in 10 is the detour to cut next time.
 ## Next
 
 - [Overview and next moves](overview.md): what to do with all of this tonight.
-- [What's shared](privacy.md): which of these your friends' link and your public page show.
+- [What's shared](privacy.md): which of these your zogzog link and your public page show.

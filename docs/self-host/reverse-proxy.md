@@ -4,7 +4,7 @@
 answers on `https://wow-full.example.org` behind a password, the sites for friends on
 `https://wow.example.org`, both over HTTPS, and the shipper sends over HTTPS.
 
-Out of the box everything listens on `127.0.0.1` only. To reach it from elsewhere, put a
+By default everything listens on `127.0.0.1` only. To reach it from elsewhere, put a
 reverse proxy in front: a server that takes HTTPS on ports 80 and 443 and forwards each
 request to the right container. The kit ships three, each tested: [Caddy](#caddy) (the
 shortest: it gets certificates by itself), [Traefik](#traefik) and [nginx](#nginx). Pick one.

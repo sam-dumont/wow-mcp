@@ -8,10 +8,11 @@ New here? [How it works](explanation/how-it-works.md) in five minutes, the
 
 ## Play
 
-A friend runs wow-stats and sent you a link.
+A friend runs wow-stats and sent you a link. You're trusting that friend: they hold your
+data, and the install command comes from their server.
 
 1. [Join a friend's server](players/getting-started.md): the addons, one command, about
-   15 minutes.
+   5 minutes.
 2. [Your page at a glance](players/your-page.md), then each part in detail:
    [Overview and next moves](players/overview.md), [Gear and upgrades](players/gear.md), [Your class's meta](players/meta.md),
    [Dungeons](players/dungeons.md), [Plan your next hours](players/plan.md),
@@ -29,6 +30,9 @@ A friend runs wow-stats and sent you a link.
    how to check an answer.
 
 ## Self-host
+
+A hobby project: no warranty, no support promise (GPL-3.0), security fixes when I can make
+them. Your friends trust you with their data and with the installer your server hands them.
 
 Start here:
 

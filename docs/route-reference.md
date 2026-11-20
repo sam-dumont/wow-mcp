@@ -4,13 +4,13 @@
 
 The `coach` prompt (your assistant, over the MCP) says "level 28 took you 4h10m, the route plans 1h39m". The second
 number comes from `data/route-reference.json`, which ships in the image: how
-long each level, each leveling guide and each guide step takes on Polestar's
+long each level, each levelling guide and each guide step takes on Polestar's
 route, for every starting race and class of both sides.
 
 ## Credit and licence
 
 The numbers are Polestar's. [Polestar](https://github.com/fitzforge/polestar)
-is the leveling guide addon for WoW Forever, by fitzforge and its
+is the levelling guide addon for WoW Forever, by fitzforge and its
 contributors, licensed GPL-3.0-only. The file is made by Polestar's own route
 planner from Polestar's own guides and its open quest database (forever-db,
 GPL-3.0), so it is GPL-3.0 too, and so is wow-stats (`LICENSE`: the GNU GPL

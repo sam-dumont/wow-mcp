@@ -6,7 +6,8 @@ and (if you use Claude Code) your assistant answering from the demo data. About 
 
 You need [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on Mac and Windows,
 started once so it says "Engine running") and a copy of this repository: `git clone` it, or
-download a release's source zip and unpack it. No game, no account.
+download a release's source zip and unpack it. No game and no Battle.net account (a free
+Docker Hub one, below).
 
 ## 1. Start the page
 
@@ -18,8 +19,8 @@ cp .env.example .env
 ```
 
 Open `.env` in any text editor and set `INGEST_PASSWORD` to anything of 12 characters or more.
-The demo doesn't use it, but nothing starts without it. No internet on this machine, or a
-small one? Also set `MODEL3D=off` and `WOW_ITEMS=off` (no 3D view, no item icons; the
+The demo doesn't use it, but nothing starts without it. On a machine with no internet, or a
+small one, also set `MODEL3D=off` and `WOW_ITEMS=off` (no 3D view, no item icons; the
 pages still work).
 
 Then start the page. The first time builds the image from your copy, a minute or two. The

@@ -16,9 +16,9 @@ that has `read:packages` (an `imagePullSecrets` entry; docs/development.md,
 | `wow-stats exporter` | 9464 (`LISTEN_PORT`) | `GET /healthz` | `GET /metrics`: `wow_api_up`, `wow_api_paused`, `wow_exporter_*` (its own health, never Blizzard's data) |
 | `wow-stats publish [--loop] [--force]` | none | its log line per build | writes the static sites to `PUBLISH_DIR` (or pushes them, below) |
 | `wow-stats static` | 8080, upload on `UPLOAD_PORT` | `GET /healthz` | the files `publish` wrote, nothing else |
-| `wow-stats zogzog-key rotate` | none | | a new key for the full-content link, and a rebuild |
+| `wow-stats zogzog-key rotate` | none | | a new key for the sealed link, and a rebuild |
 | `wow-stats render` (image `wow-mcp-render`, `docker build --target renderer .`) | 8083 (`PORT`) | `GET /healthz`: 200 once Chromium runs | `POST /render`: a past level's picture, for `publish` only (below) |
-| `wow-stats zogzog-key link` | none | | prints the full-content link (never logged) |
+| `wow-stats zogzog-key link` | none | | prints the sealed link (never logged) |
 
 ## The container
 
@@ -123,11 +123,12 @@ and `ALLOWED_HOSTS`. Anything else gets a 421 that says what to set.
 
 `AUTH=proxy`: the proxy logs people in and tells the app who they are in
 `PROXY_USER_HEADER` (`X-Forwarded-User`; with several people, the login's
-`sub`). The app believes that header only on a request from the proxy, so
-set `PROXY_TRUSTED_CIDRS` to the proxy's address as the app sees it, or
+`sub`). The app believes that header only on a request from the proxy:
 give both a secret (`PROXY_SECRET_FILE` on the app, the same value sent in
-`X-Proxy-Auth` by the proxy), or both. Without either the server doesn't
-start. The proxy must **replace** the identity header on every route,
+`X-Proxy-Auth` by the proxy). `PROXY_TRUSTED_CIDRS` (the proxy's address as
+the app sees it) is the weaker option: every container on that network can
+send the header too, so use it alone only when the proxy has the network to
+itself, or next to the secret. Without either the server doesn't start. The proxy must **replace** the identity header on every route,
 including the ones without a login (`/ingest`, `/install/*`, `/privacy`):
 a proxy that passes on a header the client sent lets anyone claim to be
 anyone. The app refuses the header when it comes twice or holds a list
@@ -144,8 +145,8 @@ The app, on a Docker network shared with the proxy:
 
 ```
 VIEW=full AUTH=proxy PUBLIC_URL=https://wow.example.org
-PROXY_TRUSTED_CIDRS=<subnet>          # docker network inspect <network>: its IPAM subnet
-PROXY_SECRET_FILE=/run/secrets/proxy   # optional, with the same value in the proxy
+PROXY_SECRET_FILE=/run/secrets/proxy   # 32+ characters, the same value sent by the proxy
+PROXY_TRUSTED_CIDRS=<subnet>          # optional on top: docker network inspect <network>
 ```
 
 On a flat network where other containers share the proxy's subnet, the
@@ -223,8 +224,8 @@ server {
 }
 ```
 
-A `proxy_set_header` inside a `location` replaces every one set above it,
-hence the repeats.
+A `proxy_set_header` inside a `location` replaces every one set above it:
+that's why they repeat.
 
 **Traefik** (Docker labels on the app's container)
 
@@ -247,7 +248,8 @@ Traefik copies the login's `X-Auth-Request-User` as is: set
 `PROXY_USER_HEADER=X-Auth-Request-User` on the app with this one. A secret
 in Traefik sits in a label or a middleware (`customrequestheaders.X-Proxy-Auth`),
 readable by whoever reads your container config; trusting Traefik's address
-(`PROXY_TRUSTED_CIDRS`) on a network of its own is often the simpler choice.
+(`PROXY_TRUSTED_CIDRS`) works too, on a network that holds only Traefik and
+the app: any other container on it could claim to be anyone.
 
 `/ingest` always has its own login and only exists when `INGEST_PASSWORD` is
 set. `/healthz` never asks for one, so probes need no credentials.
@@ -364,10 +366,10 @@ No model runs on the server. The MCP's `market` tool (the WoW
 Token price and ruleset status from Blizzard's API) is neither listed nor
 callable, whatever the env, except for a person who turned on "Battle.net
 data to my AI" in their settings on a multi-user install (their own data to
-their own assistant, owner ruling 2026-11-18;
+their own assistant;
 `tests/route/test_market_gating.py`). A chat keeps a tool's answer longer
 than Blizzard's 30 days (§2.18), so that switch is the person's call. The
-character's current talents (owner, 2026-11-20) follow the same switch on
+character's current talents follow the same switch on
 a multi-user install; on a one-person install the MCP reads them when
 `VM_URL` is set. Either way they're read live from vm-wow, never copied. The analysis' tables (`wowstats.analysis.TABLES`) are
 all built from the player's own game files in VictoriaLogs; `gear`,
@@ -441,7 +443,7 @@ on disk for requests in flight.
 |---|---|---|
 | `PUBLISH_DIR` | `/data/site` | where builds go; `current` points at the live one |
 | `PUBLISH_INTERVAL` | `600` | seconds between checks with `--loop` |
-| `ZOGZOG_PATH` | `/zogzog/` | the full-content site's path; empty: not built, not served |
+| `ZOGZOG_PATH` | `/zogzog/` | the sealed site's path; empty: not built, not served |
 | `ZOGZOG_KEY_FILE` | `<PUBLISH_DIR>/../zogzog.key` | 43 base64url characters; made (0600) when missing |
 | `HELP_KEY_FILE` | unset: no help page | The MCP help page's own key (`/help/#<key>`, docs/mcp.md), 43 base64url characters; never made: no file, no page |
 | `HELP_MCP_URL` | `MCP_PUBLIC_URL` | The MCP address the help page shows |
@@ -582,7 +584,7 @@ friends list is the lock either way.
 | `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}`, watched for changes (mount its folder, not the file); how often a full pass runs anyway. Unset: the owner only |
 | `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends |
 | `FRIENDS_VL_DELETE_KEY_FILE` | its `-deleteAuthKey`, for `wow-stats users delete` |
-| `ZOGZOG_MASTER_KEY_FILE` | 32+ random bytes, base64url: each person's zogzog key is derived from it. The owner's `ZOGZOG_KEY_FILE` only seeds his first link: after "Make a new link" his key is derived too, so the full view and the publisher agree without sharing a file |
+| `ZOGZOG_MASTER_KEY_FILE` | 32+ random bytes, base64url: each person's zogzog key is derived from it. The owner's `ZOGZOG_KEY_FILE` only seeds their first link: after "Make a new link" their key is derived too, so the full view and the publisher agree without sharing a file |
 | `PUBLIC_URL`, `SITE_DOMAIN` | the full view's address (install commands, MCP), and the domain friends' sites live under (`<slug>-wow.<domain>`). `PUBLIC_URL` must be https (plain http only on 127.0.0.1 or localhost): every install and update runs what that address sends |
 | `INGEST_DAILY_MB` (512) | what `/ingest` accepts from one person a day; past it a 429, and the shipper keeps its spool for the next day. `0`: no limit |
 | `PRIVACY_BACKUP_DAYS` (empty) | how long your backups keep a person's events, for the privacy page ("Backups of your events expire N days later"). Empty: the page tells friends to ask you |

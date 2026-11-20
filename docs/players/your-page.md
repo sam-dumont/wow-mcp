@@ -64,7 +64,7 @@ In the Character tab, under the sheet: pick 1 to 6 hours, add what you don't wan
 
 It needs your Polestar guide steps: a character that never followed a guide gets no plan. The same box shows the gold you have toward riding and how many hours of play it takes at your rate.
 
-Want it explained or changed? Ask your AI (the Your AI part of this page).
+To have it explained or changed, ask your AI (the Your AI part of this page).
 
 ## Timeline and Journal
 
@@ -90,7 +90,7 @@ Settings has your zogzog link: your page for friends, with the journal, the gear
 
 It catches up within about 10 minutes of a play session.
 
-Sent it to the wrong person? Settings, Make a new link: the old one stops working at the next update.
+Sent to the wrong person: Settings, Make a new link. The old one stops working at the next update.
 
 ## Your public page
 

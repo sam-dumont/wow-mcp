@@ -5,8 +5,8 @@ end:** the server runs, the addons and the shipper are on the computer you play 
 climb fills in by itself a few minutes after each logout.
 
 From zero to your climb in a web page, on Windows or a Mac. Count an hour the first time,
-most of it waiting for downloads. Tried [the demo](self-host/demo.md) already? Same server,
-without the made-up characters.
+most of it waiting for downloads. If you tried [the demo](self-host/demo.md), it's the same
+server, without the made-up characters.
 
 > Every step below was run on a Mac (Apple silicon) from a clean home folder. On Windows the
 > shipper's install is tested on every change; the Docker steps follow Docker's and
@@ -115,7 +115,7 @@ two) and pulls VictoriaLogs. The build's base comes from Docker's hardened
 images: run `docker login dhi.io` once before, with a free Docker Hub account. Then open <http://127.0.0.1:8080>: an empty
 page until the shipper sends something.
 
-Want to see a filled page first? Load the demo's five made-up characters
+To see a filled page first, load the demo's five made-up characters
 (they carry a DEMO DATA banner; `docker compose down -v` before your real
 install wipes them):
 
@@ -208,7 +208,7 @@ and, for the history, git.
 The history is a git repository of your whole `WTF` folder in
 `~/WoWArchive/wtf`: every version of every SavedVariables file, which is
 what `--backfill` replays. It grows with everything in `WTF`, other addons'
-files included. Don't want it? Skip git, or set `wtf_archive = false` in
+files included. To go without it, skip git, or set `wtf_archive = false` in
 the config (below): the shipper then reads the game files directly and
 keeps the stats only. [docs/shipper.md](shipper.md#stats-only-no-wtf-archive)
 has what stays either way.

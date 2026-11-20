@@ -11,7 +11,13 @@ MCP client can ask about it, and the server re-runs the SQL behind every number 
 wants to keep.
 
 It runs on your computer or a small box at home. Nothing goes anywhere else unless you set it
-up that way.
+up that way. (Yes, it's absolutely overkill for levelling stats: a hardened image, signed
+releases, OIDC, and a 3D viewer that reads the game's own files. The character page still
+answers in 31 ms on the demo.)
+
+It's a hobby project: GPL-3.0, no warranty, no support promise, and security fixes land when
+I can make them. If you use a friend's server, you trust that friend: they hold your data,
+and the install command comes from their server.
 
 ![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's route time, the next level in 2h 27m of play, 90% of guide steps in order, his next moves, and time per level against the route](docs/images/overview.webp)
 
@@ -97,7 +103,7 @@ where `SOURCE_URL` is `wowstats.SOURCE_URL` (pyproject's `[project.urls]`
 `Source`).
 
 The page's fonts (Cinzel, Alegreya, Alegreya Sans) are under the SIL Open
-Font License, their licence files in `web/fonts/`.
+Font License, their license files in `web/fonts/`.
 
 World of Warcraft is a trademark of Blizzard Entertainment. Item names,
 icons and models the server fetches stay Blizzard's: this kit doesn't

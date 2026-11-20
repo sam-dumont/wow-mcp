@@ -176,16 +176,20 @@ jobs:
   test:
     if: github.repository_id == '1464458020' && github.event_name != 'pull_request'
     uses: ./.github/workflows/ci.yml
-    # ci.yml's image job logs in to dhi.io with DOCKERHUB_USERNAME/_TOKEN.
-    secrets: inherit
+    # ci.yml's image job logs in to dhi.io with these, and needs no other.
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
   # The release commit, through main's ruleset like any change. The CI
-  # GitHub App (variable CI_APP_CLIENT_ID, secret CI_APP_PRIVATE_KEY) opens
-  # the PR so its checks run, and auto-merge squashes it when they pass.
+  # GitHub App (variable CI_APP_CLIENT_ID, secret CI_APP_PRIVATE_KEY in the
+  # environment main-only, which only main can deploy to) opens the PR so its
+  # checks run, and auto-merge squashes it when they pass.
   prepare:
     needs: [plan, test]
     if: github.repository_id == '1464458020' && needs.plan.outputs.mode == 'prepare' && github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-24.04
+    environment: main-only
     # The PR's checks take about 20 minutes (the Windows job, the image).
     timeout-minutes: 60
     outputs:
@@ -573,6 +577,9 @@ jobs:
     needs: [plan, prepare, merge]
     if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.merge.result == 'success' && github.event_name == 'workflow_dispatch' && !inputs.dry_run }}
     runs-on: ubuntu-24.04
+    # The tag is made with the CI App's token: the `release tags` ruleset
+    # lets only that App create a v* tag (docs/development.md, "Releasing").
+    environment: main-only
     timeout-minutes: 5
     permissions:
       contents: write
@@ -592,9 +599,19 @@ jobs:
           persist-credentials: false
           ref: ${{ env.SHA }}
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Mint the App's token for the tag
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
       - name: Tag and release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           set -euo pipefail
           {
@@ -610,7 +627,7 @@ jobs:
           # A tag left by an interrupted run is reused only on the same commit.
           have=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)
           if [ -z "$have" ]; then
-            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA" >/dev/null
+            GH_TOKEN=$TAG_TOKEN gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$SHA" >/dev/null
           elif [ "$have" != "$SHA" ]; then
             echo "::error::$TAG already points at $have, not $SHA"; exit 1
           fi

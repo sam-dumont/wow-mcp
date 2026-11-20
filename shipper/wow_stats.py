@@ -2515,7 +2515,7 @@ def install_recorder(wow: Path, fetch=_download, url: str | None = None, sha256:
 ADDONS = [
     {"id": "polestar", "name": "Polestar", "dir": "Polestar", "required": True,
      "url": "https://www.curseforge.com/wow/addons/polestar",
-     "what": "level splits, quests, deaths, dungeons, the gear advice"},
+     "what": "level times, quests, deaths, dungeons, the gear advice"},
     {"id": "recorder", "name": "Polestar Recorder", "dir": "Polestar_Recorder", "required": True,
      "url": "https://github.com/fitzforge/polestar/releases/latest", "what": "your play sessions, zone by zone"},
     {"id": "syndicator", "name": "Syndicator", "dir": "Syndicator", "required": False,

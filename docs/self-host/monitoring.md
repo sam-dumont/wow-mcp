@@ -3,7 +3,7 @@
 **For:** self-hosters who want to know it's working without opening the page. **At the
 end:** you can check each service's health, read its logs and see the disk it uses.
 
-## Is it up?
+## Health checks
 
 From `deploy/compose`:
 
@@ -27,7 +27,7 @@ curl -s http://127.0.0.1:8080/healthz
 
 prints `ok`.
 
-## Is data arriving?
+## Data arriving
 
 The page itself: the newest session in the Journal tab. Or ask VictoriaLogs for the newest
 event, through the `ui` container (VictoriaLogs has no published port):

@@ -152,7 +152,7 @@
       head.textContent = "Last data " + ago(st.last_event);
       head.className = "lamp quiet";
       last.textContent = "";
-      ["Played since then? In WoW, type ", el("kbd", { text: "/reload" }), " or log out: it shows up within 5 minutes."]
+      ["Played since then: in WoW, type ", el("kbd", { text: "/reload" }), " or log out, and it shows up within 5 minutes."]
         .forEach(function (x) { last.appendChild(typeof x === "string" ? document.createTextNode(x) : x); });
     } else {
       head.textContent = "It works";
@@ -344,7 +344,7 @@
     box.textContent = "";
     var out = el("div");
     if (ME.shipper_set_at) {
-      box.appendChild(el("p", { text: "New computer, or think your upload password leaked? Reset it, then run the new command on the computer you play on. This install stops sending at once." }));
+      box.appendChild(el("p", { text: "New computer, or you think your upload password leaked: reset it, then run the new command on the computer you play on. This install stops sending at once." }));
       box.appendChild(codeButton(box, out, "Reset my upload password", true));
     } else if (!showFresh(out)) {
       box.appendChild(codeButton(box, out, "Get my install command", false));
@@ -502,13 +502,13 @@
       "you give it to. Whoever has the link can open it. Never other players or your position." }));
     if (ME.zogzog) box.appendChild(copyRow(ME.zogzog));
     box.appendChild(el("button", { cls: "ghost", type: "button", text: "Make a new link (the old one stops working)",
-      onclick: function () { save({ new_zogzog_link: true }, "New link made: the old one stops working at the next rebuild."); } }));
+      onclick: function () { save({ new_zogzog_link: true }, "New link made: the old one stops working at the next update."); } }));
     // The upload password: reset here too, not only on the start page
     // (a friend moving to another computer looks in Settings).
     box.appendChild(el("h2", { text: "Your upload password" }));
     var out = el("div");
     if (ME.shipper_set_at) {
-      box.appendChild(el("p", { cls: "pending", text: "Moving to another computer, or think it leaked? Reset it, " +
+      box.appendChild(el("p", { cls: "pending", text: "Moving to another computer, or you think it leaked: reset it, " +
         "then run the new install command on the computer you play on. The current install stops sending at once." }));
       box.appendChild(codeButton(box, out, "Reset my upload password", true));
     } else if (lastCmd && Date.now() < lastCmd.until) {

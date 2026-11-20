@@ -20,7 +20,8 @@ The assistant calls `character_summary`:
 {"char": "Nibbet-Gearholt"}
 ```
 
-The server answers:
+<details>
+<summary>The server answers (29 lines of JSON)</summary>
 
 ```json
 {
@@ -54,6 +55,8 @@ The server answers:
 }
 ```
 
+</details>
+
 ## Besides following Polestar, what should I do now?
 
 The assistant calls `next_moves`:
@@ -62,7 +65,8 @@ The assistant calls `next_moves`:
 {"char": "Nibbet-Gearholt"}
 ```
 
-The server answers:
+<details>
+<summary>The server answers (59 lines of JSON)</summary>
 
 ```json
 {
@@ -126,6 +130,8 @@ The server answers:
 }
 ```
 
+</details>
+
 ## Is a dungeon worth it at my level?
 
 The assistant calls `dungeon_options`:
@@ -134,7 +140,8 @@ The assistant calls `dungeon_options`:
 {"char": "Nibbet-Gearholt"}
 ```
 
-The server answers:
+<details>
+<summary>The server answers (669 lines of JSON)</summary>
 
 ```json
 {
@@ -808,6 +815,8 @@ The server answers:
 }
 ```
 
+</details>
+
 ## Plan my next two hours.
 
 The assistant calls `plan_session`:
@@ -816,7 +825,8 @@ The assistant calls `plan_session`:
 {"char": "Nibbet-Gearholt", "hours": 2}
 ```
 
-The server answers:
+<details>
+<summary>The server answers (58 lines of JSON)</summary>
 
 ```json
 {
@@ -879,6 +889,8 @@ The server answers:
 }
 ```
 
+</details>
+
 Its `markdown` field, the draft the assistant starts from:
 
 > **Your next 2h00**
@@ -923,7 +935,8 @@ The assistant calls `sanity_check`:
 {"char": "Nibbet-Gearholt"}
 ```
 
-The server answers:
+<details>
+<summary>The server answers (117 lines of JSON)</summary>
 
 ```json
 {
@@ -1044,3 +1057,5 @@ The server answers:
  ]
 }
 ```
+
+</details>

@@ -1,6 +1,6 @@
 # Ask your assistant about your character (MCP)
 
-**For:** self-hosters and contributors who want the details behind the MCP. **At the end:** you know how the tools, the plans, the play analysis and the login work inside. Just connecting? [Connect your AI](ai/connect.md).
+**For:** self-hosters and contributors who want the details behind the MCP. **At the end:** you know how the tools, the plans, the play analysis and the login work inside. To connect only: [Connect your AI](ai/connect.md).
 
 The full view can answer questions from your own assistant: "why was level
 12 so slow?", "plan my next hour", "analyse how I play". Add `/mcp` as a
@@ -8,7 +8,7 @@ connector in claude.ai (web, desktop, phone), Claude Code, ChatGPT or any
 MCP client, and the model calls the tools below itself, in your own account.
 Nothing to pay beyond your plan.
 
-**No model runs on the server** (owner, 2026-11-18). The server prepares the
+**No model runs on the server.** The server prepares the
 data, holds the analysis' state and judges every number; the reasoning is
 your client's. The character page's **Ask Claude** and **Ask ChatGPT** links
 open a new chat (`https://claude.ai/new?q=`, `https://chatgpt.com/?prompt=`: ChatGPT's `?q=` would send it at once) with
@@ -155,7 +155,7 @@ The brief is neutral on purpose: the schema, a profile of every table, the
 tools, the player's goals in their own words and the pass' task. No
 hypothesis, no category: the model asks its own questions.
 
-Everything shown is actionable (owner, 2026-11-18). A finding carries an
+Everything shown says what to do. A finding carries an
 `action`: what to do, where, what blocks it, the next step. The judge
 refuses one too vague to act on (`do` and `next_step` need a few real
 words); a finding sent with `action: null` is kept as an **observation**,
@@ -394,7 +394,7 @@ comparison off and the `coach` prompt compares you with your own past levels ins
 
 ## Battle.net data reaches the MCP only when you turn it on
 
-Your character's current talents come from Battle.net (owner, 2026-11-20):
+Your character's current talents come from Battle.net:
 `character_summary` gives the spec, the points per tree and when Battle.net
 read them, `talent_changes` what changed over the last 3 weeks (every change with WoWSims Exporter), and
 `class_guide`, `class_meta` and `sanity_check` work from them. The MCP reads them live from vm-wow, the store the dashboard reads
@@ -411,7 +411,7 @@ don't allow passing it on, and a claude.ai chat keeps what a tool returned
 for as long as the chat exists. So the `market` tool is off by default:
 the MCP neither lists nor runs it, whatever the env. A person on a
 multi-user install can turn on "Battle.net data to my AI" in Settings
-(their own data to their own assistant, owner ruling 2026-11-18); then
+(their own data to their own assistant); then
 their MCP lists `market`, and only theirs. A one-person install has no
 such setting and never serves it. No model runs on the server, so without
 that setting Battle.net data reaches no model at all; the full view's

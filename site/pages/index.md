@@ -6,7 +6,7 @@
 <a class="path" href="../../docs/players/getting-started.md">
 <span class="path-kicker">Play</span>
 <strong>A friend runs a server</strong>
-<span>They sent you a link. Add Polestar, run one command, play. About 15 minutes, no admin rights.</span>
+<span>They sent you a link. Add Polestar, run one command, play. About 5 minutes, no admin rights.</span>
 <span class="path-go">Join a friend's server</span>
 </a>
 <a class="path" href="../../docs/ai/connect.md">
@@ -78,7 +78,7 @@ every level, one journal entry per evening, your look at each level in 3D
 
 ### To run your own
 
-- Docker, and a box that stays on: 2 vCPU and 2 GiB of RAM for a few players.
+- Docker, and a box that stays on: 2 vCPU and 2 GiB of RAM for one player.
 - About 10 minutes to [try it with made-up characters](../../docs/self-host/demo.md) first.
 
 </div>
@@ -87,11 +87,11 @@ every level, one journal entry per evening, your look at each level in 3D
 
 ### Your data stays yours
 
-- **Touch the game.** It reads the files WoW and your addons already save, after they save
-  them. No addon of its own, no memory reading.
-- **Send your data anywhere.** It goes from your computer to the server you (or a friend)
-  run, and nowhere else. Friends see what you choose to share.
-- **Run an AI on the server.** Your own assistant does the thinking, in your own account.
+- **No touching the game.** It reads the files WoW and your addons already save, after they
+  save them. No addon of its own, no memory reading.
+- **No sending your data elsewhere.** It goes from your computer to the server you (or a
+  friend) run, and nowhere else. Friends see what you choose to share.
+- **No AI on the server.** Your own assistant does the thinking, in your own account.
 
 [What's shared →](../../docs/players/privacy.md)
 

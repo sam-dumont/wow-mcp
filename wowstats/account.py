@@ -404,7 +404,7 @@ fixed.</p>
     labels = {k: v for k, v in os_.items()}
     upd = inst.get("update") or {}
     update = (OS_SWITCH + "<p>The program that sends your data updates itself, within a few hours of a new "
-              "version. Installed it before it could? Run this once. It keeps your settings and updates "
+              "version. Installed before it could: run this once. It keeps your settings and updates "
               "Polestar Recorder too.</p>"
               + _cmds({k: fill(v, base) for k, v in upd.items()}, labels)
               + '<div class="widget" data-widget="reset"></div>')
@@ -459,8 +459,7 @@ prices you scanned. Also the names of other players your game showed you: in gro
 combat logs if you turned combat logging on.</li>
 <li>What you or your AI write down: the goals you gave the play analysis (up to 600 characters), what you
 asked a plan to work around (up to 300 characters), and the findings the analysis kept about your play.</li>
-<li>Your login's id (a number from the login service) and your page's name, set by the person who runs
-wow-stats. No email address, no
+<li>Your login's id (a number from the login service) and your page's name, set by the owner. No email address, no
 password: the login service keeps those.</li>
 <li>Battle.net data about your characters (their look, item level, talents), fetched once a day from
 Blizzard's public API, for your own characters only: a character name someone else here also sends
@@ -729,6 +728,19 @@ def _toml_str(s: str) -> str:
     return json.dumps(s)
 
 
+# uv, which runs Python for the shipper, when a friend's machine has none: a
+# pinned release checked against its SHA-256 (the release's own .sha256
+# files), never a script piped into a shell. Bump the four together.
+UV_VERSION = "0.13.9"
+UV_SHA256 = {
+    "aarch64-apple-darwin": "5aeca67f2283f75235de40d0bd9c0a5bbc5fce23b6d48b3bf9fa1b2db08382ca",
+    "x86_64-apple-darwin": "617a3211261b0fc739562f0071aa34e9739797c510208ede8e2977c30903d041",
+    "x86_64-pc-windows-msvc": "edd61f7f5728a56cc62455386661860bdfc7bab65872f39b0c25bdcc1d8e1beb",
+    "aarch64-pc-windows-msvc": "72eed595983a4d7d22d79f21065b0f4479cc7e5c7a89104bb410c8f47559a878",
+}
+UV_URL = "https://github.com/astral-sh/uv/releases/download/" + UV_VERSION + "/uv-{target}"
+
+
 def mac_installer(t: T.Tenancy, u: T.User, token: str | None) -> bytes:
     """A bash script with the shipper, the stock installer and the person's
     config inside. The token is written to the config (0600) and never
@@ -759,10 +771,21 @@ trap 'rm -rf "$tmp"' EXIT
 {heredocs}
 chmod 755 "$tmp/install-mac.sh"
 
-# Python, through uv: installed for this user when missing (astral.sh's own installer).
+# Python, through uv: a pinned release for this user when missing, checked
+# against its SHA-256.
 if ! command -v uv >/dev/null 2>&1 && [ ! -x "$HOME/.local/bin/uv" ] && [ ! -x /opt/homebrew/bin/uv ]; then
-  echo "Installing uv (runs Python for wow-stats)..."
-  curl -LsSf https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh >/dev/null
+  echo "Installing uv {UV_VERSION} (runs Python for wow-stats)..."
+  if [ "$(uname -m)" = arm64 ]; then
+    uvt=aarch64-apple-darwin uvsum={UV_SHA256["aarch64-apple-darwin"]}
+  else
+    uvt=x86_64-apple-darwin uvsum={UV_SHA256["x86_64-apple-darwin"]}
+  fi
+  curl -fsSL -o "$tmp/uv.tar.gz" "{UV_URL.format(target="$uvt.tar.gz")}"
+  echo "$uvsum  $tmp/uv.tar.gz" | shasum -a 256 -c - >/dev/null \
+    || {{ echo "uv's download doesn't match its checksum: stopping, nothing installed." >&2; exit 1; }}
+  tar xzf "$tmp/uv.tar.gz" -C "$tmp"
+  mkdir -p "$HOME/.local/bin"
+  install -m 755 "$tmp/uv-$uvt/uv" "$tmp/uv-$uvt/uvx" "$HOME/.local/bin/"
 fi
 
 # The WoW Forever folder.
@@ -831,12 +854,25 @@ try {{
 
   $uvExe = Join-Path $env:USERPROFILE '.local\\bin\\uv.exe'
   if (-not (Get-Command uv -ErrorAction SilentlyContinue) -and -not (Test-Path $uvExe)) {{
-    Write-Host 'Installing uv (runs Python for wow-stats)...'
-    # uv's installer refuses a fresh Windows's execution policy (Restricted):
-    # a child PowerShell with Bypass, as astral's own docs do.
-    & powershell -NoProfile -ExecutionPolicy Bypass -Command ('$env:UV_NO_MODIFY_PATH = ''1''; ' +
-        'Invoke-RestMethod https://astral.sh/uv/install.ps1 | Invoke-Expression') | Out-Null
-    if ($LASTEXITCODE) {{ throw "uv's installer stopped (code $LASTEXITCODE)" }}
+    Write-Host 'Installing uv {UV_VERSION} (runs Python for wow-stats)...'
+    # A pinned release, checked against its SHA-256: no script runs.
+    $uvSums = @{{
+      'aarch64-pc-windows-msvc' = '{UV_SHA256["aarch64-pc-windows-msvc"]}'
+      'x86_64-pc-windows-msvc' = '{UV_SHA256["x86_64-pc-windows-msvc"]}'
+    }}
+    $uvT = 'x86_64-pc-windows-msvc'
+    if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') {{ $uvT = 'aarch64-pc-windows-msvc' }}
+    $uvZip = Join-Path $tmp 'uv.zip'
+    $uvUrl = '{UV_URL.format(target="")}' + $uvT + '.zip'
+    # Windows PowerShell's progress bar makes a 30 MB download take minutes.
+    $ProgressPreference = 'SilentlyContinue'
+    Invoke-WebRequest -UseBasicParsing -Uri $uvUrl -OutFile $uvZip
+    if ((Get-FileHash $uvZip -Algorithm SHA256).Hash -ne $uvSums[$uvT]) {{
+      throw "uv's download doesn't match its checksum: nothing installed"
+    }}
+    $uvDir = Split-Path $uvExe -Parent
+    New-Item -ItemType Directory -Force -Path $uvDir | Out-Null
+    Expand-Archive -Path $uvZip -DestinationPath $uvDir -Force
   }}
 
   $wow = $env:WOW_STATS_WOW_DIR

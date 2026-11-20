@@ -615,6 +615,7 @@ def test_installers_carry_the_token_and_never_print_it(server):
     code = t.registry.new_code(u.sub)
     st, _, sh = server.get(f"/install/{code}", headers={"User-Agent": "curl/8.7.1"})
     assert st == 200 and sh.startswith(b"#!/bin/bash")
+    assert b"shasum -a 256 -c" in sh and b"astral.sh/uv/install" not in sh  # uv pinned, checked
     token = re.search(rb'^password = "([A-Za-z0-9_-]{32,})"$', sh, re.M).group(1).decode()
     assert t.registry.check_ingest("mira", token) is not None
     assert b"echo" not in sh.split(token.encode())[0].rsplit(b"\n", 1)[-1]
@@ -622,7 +623,7 @@ def test_installers_carry_the_token_and_never_print_it(server):
     assert st == 404  # once
     code = t.registry.new_code(u.sub)
     st, _, ps = server.get(f"/install/{code}", headers={"User-Agent": "Mozilla/5.0 WindowsPowerShell/5.1"})
-    assert st == 200 and b"Invoke-RestMethod https://astral.sh/uv/install.ps1" in ps
+    assert st == 200 and b"Get-FileHash $uvZip" in ps and b"astral.sh/uv/install" not in ps
     assert t.registry.check_ingest("mira", token) is None  # a new code, a new token
 
 

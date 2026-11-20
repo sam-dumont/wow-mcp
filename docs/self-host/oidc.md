@@ -47,7 +47,7 @@ chmod 644 secrets/oidc_client_secret secrets/mcp_signing_key
 ```
 
 The signing key signs the tokens wow-stats hands to clients. Keep it: a new one logs every
-client out. The containers run as their own user, hence `chmod 644`.
+client out. The containers run as their own user, so `chmod 644`.
 
 Then in `.env`:
 

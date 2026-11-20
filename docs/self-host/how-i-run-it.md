@@ -3,7 +3,8 @@
 **For:** self-hosters who want a worked example with friends on it. **At the end:** you know
 how my install lets friends sign in with their Battle.net account, and what each piece costs.
 
-This is my own install, written down as an example. You don't need any of it: the kit runs
+Nobody needs an identity provider and a webhook to share WoW levelling stats with a few
+friends. I had them already (it's my homelab), so here's how they fit. You don't need any of it: the kit runs
 with basic auth, or behind any login proxy that sets the user's `sub`
 ([Add friends](friends.md)). The part worth copying is the sign-in: friends click
 **Battle.net**, and nobody gets in until I say so.

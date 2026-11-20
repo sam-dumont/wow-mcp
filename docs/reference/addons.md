@@ -8,7 +8,7 @@ wow-stats never ships an addon of its own. It reads the files well-known addons 
 
 | Addon | Needed | What it gives your page | The one step | Folder in `Interface/AddOns` | Fills |
 |---|---|---|---|---|---|
-| [Polestar](https://www.curseforge.com/wow/addons/polestar) | required | level splits, quests, deaths, dungeons, the gear advice | Install it, then tick it in AddOns at character select. | `Polestar` | level times, dungeon runs and gear advice |
+| [Polestar](https://www.curseforge.com/wow/addons/polestar) | required | level times, quests, deaths, dungeons, the gear advice | Install it, then tick it in AddOns at character select. | `Polestar` | level times, dungeon runs and gear advice |
 | [Polestar Recorder](https://github.com/fitzforge/polestar/releases/latest) | required | your play sessions, zone by zone | The install command adds it: type /psrec on once in game. | `Polestar_Recorder` | play sessions, zones, deaths and loot |
 | [Syndicator](https://www.curseforge.com/wow/addons/syndicator) | optional | gear and gold on every character | Install it, then log in once with each character. | `Syndicator` | your gear and bags |
 | [Auctionator](https://www.curseforge.com/wow/addons/auctionator) | optional | prices from your own auction house scans | Install it, then scan the auction house once. | `Auctionator` | auction prices |

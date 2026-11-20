@@ -234,6 +234,12 @@ A pull request that changes the `Dockerfile`, `.dockerignore`,
 `release.yml` or `tools/release/` runs the builds as a dry run: both
 platforms build, merge in a registry on the runner and pass the same checks.
 
+Only the CI GitHub App can create a `v*` tag: the `release tags` ruleset
+refuses everyone else, and the release run makes its tag with the App's
+token. The first release candidate after the rule went in is its live test:
+if that run stops at "Tag and release" on a refused ref, the rule is what
+to read.
+
 Each image carries BuildKit's SLSA provenance and an SPDX SBOM per
 platform, and the run keeps the SBOMs as an artifact. From a public
 repository the run also writes GitHub artifact attestations and a keyless
@@ -266,10 +272,11 @@ fork's pull request could reach them. They run in a private mirror,
   replace the id with your repository's (`gh api repos/<owner>/<repo> --jq .id`),
   or nothing runs.
 
-The App (variable `CI_APP_CLIENT_ID`, secret `CI_APP_PRIVATE_KEY`, in both
-repositories) has Contents, Workflows, Pull requests and Issues write on
-these two repositories only. The release's PR and the mirror push use it;
-GITHUB_TOKEN writes only the release's tag and the GitHub release.
+The App (variable `CI_APP_CLIENT_ID`, secret `CI_APP_PRIVATE_KEY` in the
+environment `main-only` of both repositories, which only main can deploy
+to: a branch pushed to the mirror brings its own workflow files) has Contents, Workflows, Pull requests and Issues write on
+these two repositories only. The release's PR, its tag and the mirror push
+use it; GITHUB_TOKEN writes only the GitHub release.
 
 ## Before a release: the A/B check
 
@@ -352,26 +359,32 @@ Build provenance (which workflow, commit and tag built it), with the
 [GitHub CLI](https://cli.github.com/):
 
 ```sh
-gh attestation verify oci://ghcr.io/<owner>/wow-mcp:X.Y.Z --repo <owner>/wow-mcp
-gh attestation verify oci://ghcr.io/<owner>/wow-mcp-render:X.Y.Z --repo <owner>/wow-mcp
+for image in wow-mcp wow-mcp-render; do
+  gh attestation verify oci://ghcr.io/<owner>/$image:X.Y.Z --repo <owner>/wow-mcp \
+    --signer-workflow <owner>/wow-mcp/.github/workflows/release.yml \
+    --source-ref refs/heads/main
+done
 ```
+
+Up to 0.6.1, `--source-ref refs/tags/vX.Y.Z`.
 
 The SBOM attestations (one per platform), and the SBOM itself:
 
 ```sh
 gh attestation verify oci://ghcr.io/<owner>/wow-mcp:X.Y.Z --repo <owner>/wow-mcp \
-  --predicate-type https://spdx.dev/Document/v2.3
+  --signer-workflow <owner>/wow-mcp/.github/workflows/release.yml \
+  --source-ref refs/heads/main --predicate-type https://spdx.dev/Document/v2.3
 docker buildx imagetools inspect ghcr.io/<owner>/wow-mcp:X.Y.Z \
   --format '{{ json (index .SBOM "linux/amd64").SPDX }}' > wow-mcp-amd64.spdx.json
 ```
 
-The cosign signature, tied to the release workflow on main (from 0.7.0;
-up to 0.6.1 the identity ends in `@refs/tags/v<version>`):
+The cosign signature, tied to the release workflow on main (from 0.7.0) or
+on a release tag (up to 0.6.1):
 
 ```sh
 cosign verify ghcr.io/<owner>/wow-mcp@sha256:<digest> \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp '^https://github\.com/<owner>/wow-mcp/\.github/workflows/release\.yml@refs/(heads/main|tags/v)'
+  --certificate-identity-regexp '^https://github\.com/<owner>/wow-mcp/\.github/workflows/release\.yml@refs/(heads/main|tags/v\d+\.\d+\.\d+(-rc\.\d+)?)$'
 ```
 
 Pin what you verified by digest (`ghcr.io/<owner>/wow-mcp:X.Y.Z@sha256:...`):

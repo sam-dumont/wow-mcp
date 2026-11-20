@@ -165,6 +165,15 @@ _TOKEN = re.compile("|".join([re.escape(p) for p in _PATHS] + [
 ]))
 
 
+def _span(m: re.Match) -> str:
+    """A path in a code span. A sentence's full stop stays outside it: the
+    path pattern takes dots, so "...wow-stats.log." would end up in the span."""
+    tok = m.group(0)
+    if tok.endswith(".") and not tok.endswith(".."):
+        return f"`{tok[:-1]}`."
+    return f"`{tok}`"
+
+
 def text(s: str) -> str:
     """steps.json prose as Markdown: paths and slash commands in code spans
     (a bare `_forever_` would turn italic), existing code spans kept."""
@@ -172,7 +181,7 @@ def text(s: str) -> str:
     parts = re.split(r"(`[^`]*`)", s)
     for i, p in enumerate(parts):
         if i % 2 == 0:
-            p = _TOKEN.sub(lambda m: f"`{m.group(0)}`", p.replace("*", "\\*"))
+            p = _TOKEN.sub(_span, p.replace("*", "\\*"))
             parts[i] = p
     return "".join(parts)
 

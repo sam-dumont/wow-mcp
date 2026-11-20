@@ -55,5 +55,5 @@ locked down already, and the few things that are on you.
 8. **Update.** Read the [changelog](../../CHANGELOG.md) and [upgrade](upgrade.md) when a
    release comes out.
 
-What the security review left open on purpose: [Security notes](../security.md). Found a
-security problem in wow-stats itself? See [SECURITY.md](../../SECURITY.md).
+What the security review left open on purpose: [Security notes](../security.md). A security
+problem in wow-stats itself goes through [SECURITY.md](../../SECURITY.md).

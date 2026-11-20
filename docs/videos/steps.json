@@ -2,7 +2,7 @@
   "version": 2,
   "about": "The install steps: one source for /start (wizard and manual, personal: the command carries your code) and /help/ (generic: points to /start for the command). Ids are stable: the video slots and both pages key on them. Placeholders in text: {base} is the full view's address, {code} the single-use install code (on /help/, render the command as a pointer to /start). audience: start = /start only (needs a login), both = /start and /help/. Every step has check (how to know it worked) and if_not (what to do when it didn't); every troubleshooting entry ends in fix. addons: links verified in a browser on 2026-11-18 (source: curseforge or github); note is shown under the addon when set. steps.install.update: the code-free update commands (same placeholders). media: a clip's file name in docs/videos/media; name.mp4 stands for name-dark.mp4 and name-light.mp4 when those exist (the page picks the one for its theme). update_media and uninstall.media: the clips of those two sections. guide: /help/ only, the manual around the steps: what (its first line and the onboarding clip), quick (the 3 steps on its first screen, one action each), tabs (one line per tab of your page), status (checking the program sends, folded under Everything else) and page (each tab in detail, folded); a page section has id, title, body, and may have caption, points ([label, text]), os (like a step's) and media.",
   "title": "Getting started with wow-stats",
-  "intro": "Six steps, about 15 minutes. After that you just play: your page updates within 5 minutes of a /reload or logout.",
+  "intro": "Six steps, about 5 minutes. After that you just play: your page updates within 5 minutes of a /reload or logout.",
   "steps": [
     {
       "id": "login",
@@ -11,7 +11,7 @@
       "title": "Log in",
       "caption": "Log in with the account you were sent.",
       "body": [
-        "Open the link you were sent and log in with the username and password from the invite. Your page's address is already set: the person who runs wow-stats chose it when they made your account."
+        "Open the link you were sent and log in with the username and password from the invite. Your page's address is already set: the owner chose it when they made your account."
       ],
       "check": "You land on this page, with your install command ready.",
       "if_not": "\"Access denied\" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with.",
@@ -19,7 +19,7 @@
       "clip": "browser#welcome",
       "generic": {
         "body": [
-          "Your start page, {base}/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent. Your page's address is already set: the person who runs wow-stats chose it when they made your account."
+          "Your start page, {base}/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent. Your page's address is already set: the owner chose it when they made your account."
         ],
         "check": "Your start page opens with your install command ready.",
         "if_not": "\"Access denied\" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with."
@@ -49,7 +49,7 @@
       "title": "Run the install command",
       "caption": "One line in a terminal. No admin rights.",
       "body": [
-        "The command installs the shipper: a small Python script (uv fetches Python if needed) that runs every 5 minutes, reads your WTF/ folder and sends new events to your page. It also puts Polestar Recorder in WoW's AddOns folder (its official release, checked), unless you have a newer one. It finds the WoW folder itself, writes only under your user folder and to that AddOns folder, and never prints your password."
+        "The command installs a small program that runs every 5 minutes, reads what WoW and your addons saved in your WTF/ folder and sends what's new to your page. It also puts Polestar Recorder in WoW's AddOns folder (the official release, checked before it's copied), unless you have a newer one. It finds the WoW folder by itself, writes only under your user folder and to that AddOns folder, and never prints your password."
       ],
       "os": {
         "windows": {
@@ -91,7 +91,7 @@
       "media": null,
       "clip": "browser#data",
       "generic": {
-        "check": "\"Data arrived\" ticks on your start page by itself, and the shipper's log ends in a line like \"ship: ... sent (N events)\"."
+        "check": "\"Data arrived\" ticks on your start page by itself, and the program's log ends in a line like \"ship: ... sent (N events)\"."
       }
     },
     {
@@ -214,7 +214,7 @@
       "name": "Polestar",
       "required": true,
       "url": "https://www.curseforge.com/wow/addons/polestar",
-      "what": "level splits, quests, deaths, dungeons, the gear advice",
+      "what": "level times, quests, deaths, dungeons, the gear advice",
       "step": "Install it, then tick it in AddOns at character select.",
       "then": "Tick it in AddOns at character select.",
       "source": "curseforge",
@@ -353,7 +353,7 @@
   },
   "update": [
     "Addons: the CurseForge app's Update all; by hand, delete the old folders, then unzip the new ones.",
-    "The shipper updates itself, within a few hours of a new version on the server. Installed before version 0.5.1? Run the update line for your OS once (your start page says so when it's needed); from then on it updates by itself. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.",
+    "The program on your computer updates itself, within a few hours of a new version on the server. Installed before version 0.5.1? Run the update line for your OS once (your start page says so when it's needed); from then on it updates by itself. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.",
     "Moving to another computer, or the password leaked: Reset my upload password on your start page. The old password stops at once; run the new install command it gives you."
   ],
   "uninstall": {
@@ -385,7 +385,7 @@
     },
     "quick": {
       "title": "Get started in 3 steps",
-      "caption": "On the computer you play on. About 15 minutes.",
+      "caption": "On the computer you play on. About 5 minutes.",
       "steps": [
         {
           "id": "addons",
@@ -418,7 +418,7 @@
       "title": "Check that it sends your data",
       "body": [
         "Read the end of its log: each run writes what it did. A good run ends in a line like \"ship: ... sent (120 events)\"; a run with nothing new to send writes almost nothing.",
-        "Don't want to wait 5 minutes? Run it now with the second line: it prints nothing and writes the log."
+        "To skip the 5-minute wait, run it now with the second line: it prints nothing and writes the log."
       ],
       "os": {
         "mac": {
@@ -518,7 +518,7 @@
         "body": [
           "In the Character tab, under the sheet: pick 1 to 6 hours, add what you don't want (\"no dungeons\") and click Plan it. The plan follows your Polestar guide at your own pace: the steps to do, your level at the end, the steps worth skipping, a dungeon if you find a group, where to log out.",
           "It needs your Polestar guide steps: a character that never followed a guide gets no plan. The same box shows the gold you have toward riding and how many hours of play it takes at your rate.",
-          "Want it explained or changed? Ask your AI (the Your AI part of this page)."
+          "To have it explained or changed, ask your AI (the Your AI part of this page)."
         ]
       },
       {
@@ -545,7 +545,7 @@
         "body": [
           "Settings has your zogzog link: your page for friends, with the journal, the gear advice, prices and deaths per zone. Anyone with the link can open it, so send it only to the people you want there. It never shows other players or where your character is right now.",
           "It catches up within about 10 minutes of a play session.",
-          "Sent it to the wrong person? Settings, Make a new link: the old one stops working at the next update."
+          "Sent to the wrong person: Settings, Make a new link. The old one stops working at the next update."
         ],
         "media": "private.mp4"
       },

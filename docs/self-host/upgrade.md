@@ -10,7 +10,7 @@ change only when you take a new version of this repository.
 ## Before you start
 
 1. Read the [changelog](../../CHANGELOG.md) for every version between yours and the new one.
-   Each entry ends with what an operator must change, under "Upgrading" when there's
+   Each entry ends with what you must change, under "Upgrading" when there's
    something: a renamed variable, a new volume, a route to add to your proxy. Your version:
    `docker compose exec ui wow-stats --version`.
 2. [Back up](backup.md) the events volume and `ui-state`.

@@ -16,8 +16,11 @@ Include what you can of:
 Leave out real keys, share links (`/zogzog/#...`), tokens, passwords and
 character or account names: a made-up value shows the bug just as well.
 
-This is a one-maintainer project. I aim to acknowledge a report within 7
-days and to agree on a disclosure date with you once the fix is understood.
+This is a one-maintainer hobby project, with no warranty and no support
+promise (the GPL-3.0's sections 15 and 16): security fixes are best effort.
+I aim to acknowledge a report within 7 days and to agree on a disclosure
+date with you once the fix is understood. Players on someone's server trust
+whoever runs it: that person holds their data and serves their installer.
 Credit goes in the advisory and the CHANGELOG, unless you'd rather not.
 
 ## Supported versions
@@ -33,7 +36,7 @@ fix ships in a new release, and the advisory says which one.
 ## In scope
 
 The server (`wow-stats ui`, the MCP endpoint and its OAuth login, `publish`
-and the sealed full-content site, `static`, `exporter`, `render`), the
+and the sealed site, `static`, `exporter`, `render`), the
 shipper and its one-line installers, the container images and the
 release workflow.
 

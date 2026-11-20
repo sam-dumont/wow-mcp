@@ -21,7 +21,7 @@ for example), one more line says what and when.
 Your friends see this paragraph on your zogzog link. It says nothing about you: it's the same
 text for every character of that class and spec.
 
-## How close am I?
+## How close you are
 
 On your own page (not the zogzog link) the box adds a score and what to change.
 
@@ -33,8 +33,8 @@ On your own page (not the zogzog link) the box adds a score and what to change.
 | Gear | 40 | Your gear's points against the best you could wear now, slot by slot |
 | Enchants | 20 | The slots the meta enchants at your level that have an enchant |
 
-A part with nothing to measure (no talents on your page yet, no enchant info from an older
-shipper) is left out and the other two count for more. It never counts as zero.
+A part with nothing to measure (no talents on your page yet, no enchant info because the
+program on your computer is out of date) is left out and the other two count for more. It never counts as zero.
 
 - **90 and up:** on the meta.
 - **70 to 89:** close.
@@ -73,7 +73,7 @@ yet" and the talents part is left out.
 
 ## This week on Forever
 
-The Home tab of your own page (not the zogzog link) has a **This week on Forever** panel: the
+The Overview tab of your own page (not the zogzog link) has a **This week on Forever** panel: the
 week's news in one line each (patches, hotfixes, class changes, meta shifts, openings, known
 issues, what's announced). What concerns your characters comes first, marked "for you"; an event
 or a class change you can act on links to the meta box. "Earlier weeks" shows the past ones.
@@ -81,6 +81,6 @@ Under it, **What players are saying**: up to five of the week's busiest threads 
 forums and r/wowforever, each with one line on what people are discussing and a link to the
 thread. That is opinion, not news: nothing there sets a date or changes your score.
 
-Ask your AI "how close am I to the meta?": the `class_meta` tool gives it the same score, every
-gap, what's coming, and each statement with its source. "What's new on Forever?" goes to the
-`news` tool ([Connect your AI](../ai/connect.md)).
+Ask your AI "how close am I to the meta?": it gets the same score, every gap, what's coming,
+and each statement with its source. It answers "What's new on Forever?" too
+([Connect your AI](../ai/connect.md)).

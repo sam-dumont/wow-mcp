@@ -9,7 +9,7 @@ leaves the full view.
 Everything comes from files the game writes in the `_forever_` folder, read by the shipper on
 the computer you play on:
 
-- **Polestar** and **Polestar Recorder**: level splits, XP, zones, quests accepted and handed
+- **Polestar** and **Polestar Recorder**: level times, XP, zones, quests accepted and handed
   in, kills, deaths, flights, guide steps, dungeon runs, gold at logout, and the players you
   crossed paths with.
 - **Auctionator**: your own auction house scans, one price per item and day.

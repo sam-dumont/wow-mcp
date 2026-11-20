@@ -20,7 +20,7 @@ Each optional one fills one more part of the page; a missing one leaves that par
 <!-- generated:addon-list -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
-- **[Polestar](https://www.curseforge.com/wow/addons/polestar)** (required): level splits, quests, deaths, dungeons, the gear advice. Install it, then tick it in AddOns at character select.
+- **[Polestar](https://www.curseforge.com/wow/addons/polestar)** (required): level times, quests, deaths, dungeons, the gear advice. Install it, then tick it in AddOns at character select.
 - **[Polestar Recorder](https://github.com/fitzforge/polestar/releases/latest)** (required): your play sessions, zone by zone. The install command adds it: type `/psrec on` once in game.
 - **[Syndicator](https://www.curseforge.com/wow/addons/syndicator)** (optional): gear and gold on every character. Install it, then log in once with each character.
 - **[Auctionator](https://www.curseforge.com/wow/addons/auctionator)** (optional): prices from your own auction house scans. Install it, then scan the auction house once.
@@ -44,7 +44,7 @@ you already have: 2 vCPU and 2 GiB of RAM. The AI part uses your own assistant's
 
 ### Who sees my data?
 
-You see everything on your page. Friends see only what's on the sealed link you send them,
+You see everything on your page. Friends see only what's on the zogzog link you send them,
 anyone sees your public page if you switch it on. Neither ever shows other players, what
 killed you, or where you are right now. [What's shared](players/privacy.md).
 
@@ -53,7 +53,7 @@ killed you, or where you are right now. [What's shared](players/privacy.md).
 ### My page is empty after I played
 
 The game writes the addons' files only on `/reload`, logout or a character switch, and the
-shipper runs every 5 minutes. Type `/reload`, wait 5 minutes, refresh. Still empty: type
+program on your computer runs every 5 minutes. Type `/reload`, wait 5 minutes, refresh. Still empty: type
 `/psrec on` once (the Recorder starts off unless the Polestar Client installed it), then
 `/reload` again. [My page is still empty after 10 minutes](players/troubleshooting.md#my-page-is-still-empty-after-10-minutes).
 
@@ -106,7 +106,7 @@ add it again with the same address, and connect once more. [When it doesn't work
 
 ### What do I need?
 
-Docker, and a computer or small box that stays on: 2 vCPU and 2 GiB of RAM for a few players.
+Docker, and a computer or small box that stays on: 2 vCPU and 2 GiB of RAM for one player.
 For friends and for claude.ai or ChatGPT to reach it, a domain name and HTTPS.
 [Run it on a server](self-host/production.md).
 

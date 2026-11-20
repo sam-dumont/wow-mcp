@@ -53,7 +53,9 @@ CHECKED_ADDONS = {
 CHECKED_FIXED = {
     "https://www.wowhead.com/forever", "https://www.wowhead.com", "https://claude.ai/new?q=",
     "https://chatgpt.com/?prompt=", "https://www.curseforge.com/download/app", "https://polestar.guide/client",
-    "https://docs.astral.sh/uv/", "https://astral.sh/uv/install.sh", "https://astral.sh/uv/install.ps1",
+    "https://docs.astral.sh/uv/",
+    # wowstats/account.py's pinned uv, UV_URL: fetched and checked against UV_SHA256.
+    "https://github.com/astral-sh/uv/releases/download/",
     *CHECKED_ADDONS.values(),
 }
 URL = re.compile(r"https://[^\s\"'`<>)\\]+")

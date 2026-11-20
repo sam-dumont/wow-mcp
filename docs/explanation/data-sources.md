@@ -19,10 +19,9 @@ two cases:
    Cloth cost last month: none of that survives from the API. The addon copy is your own file
    and you keep it as long as you want.
 
-Since 2026-11-20 profession caps, the look and the current talents come from the API, not
-from an addon. The same day sex, guild and Legacy points moved to the API too: the shipper
-stopped sending sex and guild, and the server stopped guessing Legacy points from levels and
-skills.
+Profession caps, the look, the current talents, sex, guild and Legacy points come from the
+API, not from an addon: the shipper doesn't send sex or guild, and the server doesn't guess
+Legacy points from levels and skills.
 
 Talent history: [WoWSims Exporter](https://www.curseforge.com/wow/addons/wowsims-exporter)
 (optional) saves your build by itself each time a talent changes, at every level, and the

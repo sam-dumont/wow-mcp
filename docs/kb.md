@@ -101,7 +101,7 @@ gets the credit and you can check the claim.
   tables through wago.tools (Blizzard's, used as facts).
   [`THIRD_PARTY.md`](../THIRD_PARTY.md) lists each one and the file it
   lands in.
-- **Talent builds and class lists** (owner, 2026-11-20): a levelling path
+- **Talent builds and class lists**: a levelling path
   or a level-60 build is a consensus of every guide that publishes one for
   the spec (Icy Veins, Kami-Labs, ForeverDB, Method, Warcraft Tavern,
   Wowhead), never one site's sequence. A point is in the build when most
@@ -130,9 +130,8 @@ in the private CI mirror (docs/development.md, "The CI mirror"), never in the
 public repository: the mirror holds the Anthropic federation and the App key.
 Its branch, PR and issues land in the public repository.
 **Every mode ends in one PR that merges on its own when the gates pass**
-(owner, 2026-11-20: "the goal is automated refreshes"; it replaced the
-earlier design, where every change waited in an issue or a PR for a
-person). An issue (label `kb-watch`) is only for what a gate or a check
+(it replaced the earlier design, where every change waited in an issue or
+a PR for a person). An issue (label `kb-watch`) is only for what a gate or a check
 refused, and it says why.
 
 | Mode | When | What |
@@ -389,7 +388,9 @@ it in the fork itself:
    token starts no `ci`, so the job opens its PRs with a GitHub App's token:
    an App with Contents, Issues and Pull requests write, installed on the
    repository, its client id in the variable `CI_APP_CLIENT_ID` and its
-   private key in the secret `CI_APP_PRIVATE_KEY`. Turn on "Allow
+   private key in the secret `CI_APP_PRIVATE_KEY` of an environment
+   `main-only` limited to main (the job that lands declares it; the model's
+   job doesn't, so its OIDC subject stays the plain ref). Turn on "Allow
    auto-merge" (Settings > General): the job merges with
    `gh pr merge --auto` once the checks pass.
 3. **The model pass (optional).** It has no API key: GitHub's OIDC token is

@@ -3,8 +3,16 @@
 # public repository: the job's `if:` carries the mirror's repository id.
 # Everything it writes (the branch, the PR, the issues) goes to the public
 # repository, KB_REPO below, through the CI GitHub App's token (variable
-# CI_APP_CLIENT_ID, secret CI_APP_PRIVATE_KEY in the mirror): a PR the App
-# opens runs the public repository's checks like any other. Every
+# CI_APP_CLIENT_ID, secret CI_APP_PRIVATE_KEY in the mirror's environment
+# main-only, which only main can deploy to): a PR the App opens runs the
+# public repository's checks like any other.
+#
+# Two jobs, so the App's key and the model never meet: `run` (no
+# environment, so its OIDC subject stays the federation rule's) does the
+# work, the model passes and the gates, with the mirror's read-only token;
+# what it would write to GitHub (the commits, the issues) goes to `land` as
+# an artifact. `land` (environment main-only) holds the App's token, opens
+# and merges the PR and keeps the issues. Every
 # mode ends in one PR that merges on its own when the gates pass (owner,
 # 2026-11-20: "the goal is automated refreshes"); an issue (label kb-watch)
 # is only for what the gates or a check refused, and says why.
@@ -69,8 +77,8 @@ on:
         type: string
         default: ""
 
-# GITHUB_TOKEN only reads the mirror; writes go to the public repository
-# with the App's token.
+# GITHUB_TOKEN only reads (the public repository too); writes go to the
+# public repository with the App's token, in `land`.
 permissions:
   contents: read
   id-token: write
@@ -86,10 +94,15 @@ jobs:
     # The gates run the whole suite (about 5 minutes), once more if main
     # moved during the run; a Polestar bump adds a 450 MB clone and the exports.
     timeout-minutes: 75
-    # GH_TOKEN (contents, issues and PR write) is given to the steps that
-    # call GitHub and to no other: never to the model passes, which handle
-    # outside text, nor to the gates, which run the tests. The checkout keeps
-    # no credentials either; land.py signs its push with gh.
+    # GH_TOKEN (the mirror's token: it only reads) is given to the steps
+    # that read GitHub and to no other: never to the model passes, which
+    # handle outside text, nor to the gates, which run the tests. The
+    # checkout keeps no credentials either.
+    outputs:
+      base: ${{ steps.base.outputs.sha }}
+      title: ${{ steps.pr.outputs.title }}
+      kinds: ${{ steps.watch.outputs.kinds }}
+      refresh: ${{ steps.refresh.outcome }}
     env:
       # The model pass's spend cap per run, in USD (tools/kb/refresh.py).
       KB_REFRESH_MAX_USD: "3"
@@ -106,34 +119,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          # land.py rebases on a main that moved during the run.
           fetch-depth: 0
-      # The mirror's main is the public main, force-pushed; land.py fetches,
-      # rebases and pushes against the public repository itself.
-      - name: Fetch from and push to the public repository
-        run: git remote set-url origin "https://github.com/$KB_REPO.git"
-      # One hour each: a second one before landing, for runs that take longer.
-      - name: Mint the App's token for the public repository
-        id: token
-        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        with:
-          client-id: ${{ vars.CI_APP_CLIENT_ID }}
-          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
-          owner: sam-dumont
-          repositories: wow-mcp
-          permission-contents: write
-          permission-issues: write
-          permission-pull-requests: write
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       # The kb group (anthropic, by hash from uv.lock), and what the test
       # suite needs, as CI's test job installs it.
       - run: uv sync --frozen --group kb --extra publish --extra mcp
-      - name: Labels
-        env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
-        run: |
-          gh label create kb-watch --color 5319e7 --description "KB refresh job, a source changed" --force
-          gh label create kb-refused --color b60205 --description "KB refresh job: the gates refused it, a person decides" --force
       - name: Where the run starts
         id: base
         run: |
@@ -144,20 +134,23 @@ jobs:
           # {kind: why it isn't landed}, for the watch issues.
           echo "WHY=$RUNNER_TEMP/kb-why.json" >> "$GITHUB_ENV"
           echo '{}' > "$RUNNER_TEMP/kb-why.json"
+          # The issues the tools would keep (tools/kb/web.py keep_issue),
+          # for `land` to write.
+          echo "KB_ISSUES_OUT=$RUNNER_TEMP/kb-issues.jsonl" >> "$GITHUB_ENV"
           git config user.name "github-actions[bot]"
           git config user.email "41898+github-actions[bot]@users.noreply.github.com"
           git switch -c "$BRANCH"
       - name: An earlier run's PR still open?
         id: open
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: uv run --frozen python tools/kb/land.py --check-open --branch "$BRANCH"
 
       - name: Watch
         id: watch
         if: inputs.mode == 'watch'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: uv run --frozen python tools/kb/watch.py
       - name: Nothing new while the last PR is open
         if: inputs.mode == 'watch' && steps.open.outputs.pr != ''
@@ -174,7 +167,7 @@ jobs:
         id: polestar
         if: inputs.mode == 'watch' && steps.open.outputs.pr == '' && steps.watch.outputs.polestar_tag != ''
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.watch.outputs.polestar_tag }}
         run: |
           if uv run --frozen python tools/kb/bump.py polestar "$TAG" --why "$WHY"; then
@@ -230,7 +223,7 @@ jobs:
       - name: Addon releases, checked and accepted
         if: inputs.mode == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'addons')
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
           if uv run --frozen python tools/kb/bump.py addons --why "$WHY"; then
@@ -377,13 +370,13 @@ jobs:
       - name: Sweep
         if: inputs.mode == 'sweep' && steps.open.outputs.pr == ''
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: uv run --frozen python tools/kb/sweep.py --github
 
       - name: Size budget issue
         if: inputs.mode == 'meta'
         env:
-          GH_TOKEN: ${{ steps.token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: uv run --frozen python tools/kb/lifecycle.py --budget-issue
 
       # --- One PR, gated.
@@ -424,9 +417,90 @@ jobs:
         run: >-
           uv run --frozen python tools/kb/gates.py --base "$BASE"
           --out "$RUNNER_TEMP/gates.json" --markdown "$RUNNER_TEMP/gates.md" || true
-      - name: Mint a fresh token for landing
-        id: token-land
+      # Everything `land` needs, whatever happened: the commits since the
+      # base (a bundle), the reasons, the PR text, the gates' verdict, the
+      # texts the model read (the gates again after a rebase) and the
+      # issues the tools kept. One day, in this private repository.
+      - name: Hand over to land
         if: always()
+        env:
+          BASE: ${{ steps.base.outputs.sha }}
+        run: |
+          set -u
+          out="$RUNNER_TEMP/handoff"
+          mkdir -p "$out"
+          if [ -n "$BASE" ] && [ "$(git rev-parse HEAD)" != "$BASE" ]; then
+            git bundle create "$out/kb.bundle" HEAD "^$BASE"
+          fi
+          for f in kb-why.json kb-sources.jsonl kb-issues.jsonl pr-body.md gates.json gates.md; do
+            [ -f "$RUNNER_TEMP/$f" ] && cp "$RUNNER_TEMP/$f" "$out/"
+          done
+          ls -la "$out"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: kb-handoff
+          path: ${{ runner.temp }}/handoff/
+          retention-days: 1
+          if-no-files-found: ignore
+
+  # The writes, with the App's token: the PR (merged when the gates and the
+  # public repository's checks pass), the issues. The App's key lives in the
+  # environment main-only; this job runs no model and reads no page.
+  land:
+    needs: run
+    if: github.repository_id == '1465633168' && (always() && github.ref == 'refs/heads/main' && needs.run.result != 'cancelled' && needs.run.result != 'skipped')
+    runs-on: ubuntu-24.04
+    environment: main-only
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      MODE: ${{ inputs.mode }}
+      BRANCH: kb-${{ inputs.mode }}
+      KB_REPO: sam-dumont/wow-mcp
+      GH_REPO: sam-dumont/wow-mcp
+      BASE: ${{ needs.run.outputs.base }}
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      # The public repository at the run's base: land.py rebases on its main
+      # if it moved, and pushes there.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: sam-dumont/wow-mcp
+          ref: ${{ needs.run.outputs.base || 'main' }}
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      # The gates run again after a rebase: the suite's dependencies.
+      - run: uv sync --frozen --group kb --extra publish --extra mcp
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          name: kb-handoff
+          path: ${{ runner.temp }}/handoff
+      - name: Where the run left off
+        run: |
+          set -eu
+          HANDOFF="$RUNNER_TEMP/handoff"
+          echo "HANDOFF=$HANDOFF" >> "$GITHUB_ENV"
+          mkdir -p "$HANDOFF"
+          [ -f "$HANDOFF/kb-why.json" ] || echo '{}' > "$HANDOFF/kb-why.json"
+          echo "WHY=$HANDOFF/kb-why.json" >> "$GITHUB_ENV"
+          echo "KB_SOURCES=$HANDOFF/kb-sources.jsonl" >> "$GITHUB_ENV"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          if [ -f "$HANDOFF/kb.bundle" ]; then
+            git fetch -q "$HANDOFF/kb.bundle" HEAD
+            git switch -qc "$BRANCH" FETCH_HEAD
+          else
+            git switch -qc "$BRANCH"
+          fi
+          git log --oneline "${BASE:-HEAD}..HEAD"
+      - name: Mint the App's token for the public repository
+        id: token
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         with:
           client-id: ${{ vars.CI_APP_CLIENT_ID }}
@@ -436,17 +510,28 @@ jobs:
           permission-contents: write
           permission-issues: write
           permission-pull-requests: write
+      - name: Labels
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          gh label create kb-watch --color 5319e7 --description "KB refresh job, a source changed" --force
+          gh label create kb-refused --color b60205 --description "KB refresh job: the gates refused it, a person decides" --force
+      - name: The issues the run kept (sweep, size budget)
+        if: hashFiles(format('{0}/handoff/kb-issues.jsonl', runner.temp)) != ''
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: uv run --frozen python tools/kb/web.py --replay-issues "$HANDOFF/kb-issues.jsonl"
       - name: Land (merge when the gates passed)
         id: land
+        if: needs.run.result == 'success'
         env:
-          GH_TOKEN: ${{ steps.token-land.outputs.token }}
-          BASE: ${{ steps.base.outputs.sha }}
-          TITLE: ${{ steps.pr.outputs.title }}
-          KINDS: ${{ steps.watch.outputs.kinds }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TITLE: ${{ needs.run.outputs.title }}
+          KINDS: ${{ needs.run.outputs.kinds }}
         run: >-
           uv run --frozen python tools/kb/land.py --mode "$MODE" --branch "$BRANCH"
-          --base "$BASE" --title "$TITLE" --body-file "$RUNNER_TEMP/pr-body.md"
-          --gates "$RUNNER_TEMP/gates.json" --gates-md "$RUNNER_TEMP/gates.md"
+          --base "$BASE" --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
+          --gates "$HANDOFF/gates.json" --gates-md "$HANDOFF/gates.md"
           --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
 
       # Last, whatever happened: a kind main still doesn't know keeps one
@@ -455,20 +540,19 @@ jobs:
       - name: Issues
         if: always() && inputs.mode == 'watch'
         env:
-          GH_TOKEN: ${{ steps.token-land.outputs.token }}
-          BASE: ${{ steps.base.outputs.sha }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
           set -eu
           state="$RUNNER_TEMP/watch-state.json"
-          [ -s "$state" ] || git show "$BASE:data/kb/watch.json" > "$state"
+          [ -s "$state" ] || git show "${BASE:-HEAD}:data/kb/watch.json" > "$state"
           uv run --frozen python tools/kb/watch.py --github --state "$state" --why "$WHY"
       - name: The run failed before landing
-        if: failure() && inputs.mode != 'watch'
+        if: needs.run.result == 'failure' && inputs.mode != 'watch'
         env:
-          GH_TOKEN: ${{ steps.token-land.outputs.token }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
         run: uv run --frozen python tools/kb/land.py --failed --mode "$MODE" --branch "$BRANCH"
       - name: Red when the model pass failed
-        if: steps.refresh.outcome == 'failure'
+        if: needs.run.outputs.refresh == 'failure'
         run: |
           echo "::error::The model pass failed; the rest landed, and the official issue says so."
           exit 1

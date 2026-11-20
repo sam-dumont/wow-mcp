@@ -147,8 +147,8 @@ CLIENTS: tuple[Client, ...] = (
     Client("Copilot CLI",
            ("In the CLI, /mcp add, pick HTTP and paste the URL.", "Log in when your browser opens."),
            "{url}",
-           "Not checked end to end yet: the exact path Copilot CLI's login comes back on. If it's refused, say so "
-           "to whoever runs this site.", checked=False),
+           "Not checked end to end yet: the exact path Copilot CLI's login comes back on. If it's refused, tell "
+           "the owner.", checked=False),
     Client("Cursor",
            ("Add this to ~/.cursor/mcp.json (or .cursor/mcp.json in a project).",
             "Cursor shows a Login button next to the server: click it and log in."),
@@ -176,8 +176,8 @@ CLIENTS: tuple[Client, ...] = (
     Client("Windsurf (Devin)",
            ("Add this to mcp_config.json.", "Log in when your browser opens."),
            '{"mcpServers": {"wow": {"serverUrl": "{url}"}}}',
-           "Not checked yet: where Windsurf sends your browser back after the login. If it's refused, say so to "
-           "whoever runs this site.", checked=False),
+           "Not checked yet: where Windsurf sends your browser back after the login. If it's refused, tell "
+           "the owner.", checked=False),
 )
 
 # ---------------------------------------------------------------- MCP: asks and groups
@@ -460,7 +460,7 @@ def _client(c: Client, url: str) -> str:
 
 OTHER = ("<h3>An app that isn't listed</h3><p>Add the address as a remote MCP server (Streamable HTTP) with OAuth. "
          "An app on your computer opens your browser to log in and gets its access back through a loopback "
-         "redirect to your own computer. Refused at login: ask whoever sent you the link to add it.</p>")
+         "redirect to your own computer. Refused at login: ask the owner to add it.</p>")
 
 
 def _mcp(url: str, base: str, st: dict, links: str) -> str:

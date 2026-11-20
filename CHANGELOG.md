@@ -14,6 +14,12 @@ land here behind the same checks. The shipper now orders release
 candidates: `0.7.0-rc.1` updates a 0.6 install, and a candidate sorts below
 its final.
 
+**The installers download a pinned uv.** When a friend's machine has no uv,
+the install command fetches uv 0.13.9 from its GitHub release and checks the
+SHA-256 before unpacking it, instead of piping astral.sh's installer into a
+shell. The proxy docs now lead with `PROXY_SECRET_FILE`: trusting a subnet
+also trusts every other container on it.
+
 **kb_topics names every document.** A lane's statements folded in from
 another lane, or written by a model pass, carry no research document; the
 lane's `documents` no longer lists them as a nameless `""` entry (the 0.7.0
@@ -69,6 +75,7 @@ works for every race the game has both models of. The files are the ones
 your shipper sends (it updates itself); until they've come, the toggle keeps
 Battle.net's picture and says why in one line. The public and friends'
 sites carry each character's files, nothing more.
+
 **/start's addon list reads true.** The summary counts the rows ("4 sending
 · 1 installed, not sending yet · 2 optional to add"), an optional addon you
 haven't installed says "optional, not installed" instead of a red cross,
@@ -104,10 +111,10 @@ fills the talent history: WoWSims Exporter saves your build each time a
 talent changes, at every level, and the shipper sends one event per change
 (never the other players the addon keeps in its file). With it, the talents
 end with every change since you installed it; without it, Battle.net's last
-3 weeks and the one step that unlocks the rest. A talent the addon can't
+3 weeks and the one step that fills in the rest. A talent the addon can't
 save is named under the history, not dropped. The MCP's `talent_changes`
 gives the same. Help, /start, the installers' check and the docs now show
-one addon list, each with what it unlocks and its one step; the shipper's
+one addon list, each with what it adds and its one step; the shipper's
 `--talents-check` counts what it would read from the addon's file, counts
 only.
 
@@ -166,7 +173,7 @@ comes from](docs/explanation/data-sources.md)).
 scores for the spec you chose (the site's `WEIGHTS`, Polestar's Stat
 weights, then ForeverLevelingBiS's or GearQuestForever's pick) and falls
 back on the tree with the most talent points only when none of them says
-anything. A Shadow priest leveling with most points in Discipline gets
+anything. A Shadow priest levelling with most points in Discipline gets
 Shadow weights. This is the 2026-11-18 rule again: the change above had put
 the talents before the addon's pick.
 
@@ -223,7 +230,7 @@ builds in the lane; a spec without one shows "no target yet").
 **This week on Forever.** The weekly KB pass now also writes a news digest:
 one line per item in our own words, with its category, day, source and who
 it concerns, and the events it announces (with the day only when the source
-names it, else "announced, no date"). The full view's Home has a "This week
+names it, else "announced, no date"). The full view's Overview has a "This week
 on Forever" panel (your characters' news first, earlier weeks a click away),
 the meta box a "Coming up" list, and "What to change" the prep for an event
 less than four weeks away (attunement quests, resistance, consumables:
@@ -376,7 +383,7 @@ with `AUTH=open` stops the server at start: put a login on it first
 unchanged. The 421 page now says to set a login too.
 
 **The 3D model draws when the Character tab opens.** With 3D remembered
-from an earlier visit, the full view (which opens on Home) started the
+from an earlier visit, the full view (which opens on the Overview) started the
 model in the hidden Character tab, where the frame had no size. Wowhead's
 viewer refused a 0/0 aspect ratio and the page said "Couldn't draw the
 model: undefined." twice. The frame now waits until the tab is shown, and
