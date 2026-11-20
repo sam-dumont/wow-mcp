@@ -645,15 +645,18 @@ def dungeon_quests(knowledge, side: str | None, runs: dict) -> dict[str, dict]:
 
     def how(qid: int) -> dict:
         """Where a prerequisite quest starts: its NPC or object, or the item
-        that starts it and the creatures that drop that item."""
+        that starts it, with the creatures that drop that item ("drops") and
+        the objects in the world that hold it ("found": a journal on the
+        ground, often named like the item, so it can't read as dropping
+        from itself)."""
         starts = _quest_who(docs.get(qid, ""), "Starts")
-        drops = []
+        drops, found = [], []
         for w in starts:
             if w["kind"] == "item":
                 m = re.search(r"Sources: (.*?)(?:\. [A-Z][a-z]+:|$)", item_docs.get(w["id"], ""))
-                found = re.findall(r"(NPC|object) (\d+) ([^;]+?) \d+(?:\.\d+)?%", m.group(1)) if m else []
-                drops += [{"kind": k.lower(), "id": int(i), "name": n.strip()} for k, i, n in found]
-        return {"starts": starts, "drops": drops}
+                for k, i, n in re.findall(r"(NPC|object) (\d+) ([^;]+?) \d+(?:\.\d+)?%", m.group(1)) if m else []:
+                    (drops if k == "NPC" else found).append({"kind": k.lower(), "id": int(i), "name": n.strip()})
+        return {"starts": starts, "drops": drops, "found": found}
     out: dict[str, dict] = {}
     for aid, qs in want.items():
         rows, other = [], 0

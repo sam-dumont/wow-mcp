@@ -294,7 +294,7 @@ def copy_static(app: ui.App, b: Bundle, stats: dict | None = None) -> None:
 FILES = {
     "public": ("config", "chars", "char", "timeline", "snapshot", "model3d", "items"),
     "zogzog": ("config", "chars", "market", "prices", "char", "journal", "gear", "overview", "timeline", "loot",
-               "dungeons", "snapshot", "model3d", "items", "analysis"),
+               "dungeons", "snapshot", "model3d", "items", "analysis", "talents"),
 }
 
 
@@ -464,6 +464,13 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
         put("timeline", data_path("timeline", name), lambda: tl)
         put("loot", data_path("loot", name), lambda: app.loot(name))
         put("dungeons", data_path("dungeons", name), lambda: app.dungeons(name))
+        if full:
+            # The talent changes, when they come from the player's own
+            # WoWSims Exporter saves: Battle.net's readings stay live (its
+            # 30-day cap: never a bundle), and the page leaves the section out.
+            th = app.talent_history(name)
+            if th.get("source") == "addon":
+                put("talents", data_path("talents", name), lambda: th)
         # Every character gets the file (the page asks for it); those with a
         # kept analysis get their lines.
         sh = ((shared or {}).get("chars") or {}).get(name) or {"available": False}

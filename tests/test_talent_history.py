@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 import pytest
 
@@ -136,14 +137,19 @@ def test_every_missing_source_says_one_honest_thing():
     assert h["available"] and h["changes"] == [] and h["since"] == "2026-11-18" and h["why"] is None
 
 
-def test_no_bundle_carries_it():
-    """Blizzard's 30 days: the history is the live full view's own answer
-    (/api/talents), never in a tier's shape, so no static bundle has it."""
-    blob = json.dumps({**redact.PUBLIC, **redact.ZOGZOG}, default=str)
-    assert "changes" not in blob and "talent_history" not in blob
+def test_no_bundle_carries_battle_nets_readings():
+    """Blizzard's 30 days: Battle.net's talent readings are the live full
+    view's own answer (/api/talents), never in a bundle. The sealed bundle
+    may carry the changes only when they come from the player's own WoWSims
+    Exporter saves (wowstats/publish.py checks the source); the public one
+    never has them."""
+    assert "changes" not in json.dumps(redact.PUBLIC, default=str) and "talents" not in redact.PUBLIC
+    assert "talents" in redact.ZOGZOG and "talent_history" not in json.dumps(redact.ZOGZOG, default=str)
     d = {"char": "X", "header": {}, "talent_history": {"changes": [{"date": "2026-11-01"}]}}
     for tier in (redact.public, redact.zogzog):
         assert "talent_history" not in json.dumps(tier("char", d))
+    src = (Path(__file__).resolve().parents[1] / "wowstats" / "publish.py").read_text(encoding="utf-8")
+    assert 'th.get("source") == "addon"' in src  # the only way into a bundle
 
 
 def test_the_exporter_reads_the_build_daily_and_pushes_it_every_minute():

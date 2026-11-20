@@ -4,15 +4,22 @@ product's own publisher, as plain files for a static host.
     uv run --frozen --extra publish python site/scripts/demo.py <VictoriaLogs URL> <out dir> [YYYY-MM-DD]
 
 Run by site/scripts/build-demo.sh, which starts an empty, throwaway
-VictoriaLogs first. Steps:
+VictoriaLogs and VictoriaMetrics and the picture renderer first, and passes
+them as VM_URL, RENDER_URL and RENDER_TOKEN_FILE. Steps:
 
 1. tools/fixtures/generate.py's demo profile (build_demo): the events,
-   shifted so the last evening is the given day (default: yesterday, UTC);
+   shifted so the last session is on the given day (default: yesterday, UTC);
 2. into VictoriaLogs through wowstats.ingest's screening, as /ingest would;
-3. wowstats.publish, as `wow-stats publish --force` (item cards and icons
-   from wago.tools; no game files, so "View in 3D" keeps the outline and
-   says why);
-4. <out>/ the public bundle, <out>/zogzog/ the sealed one, <out>/friends/
+3. the Battle.net exporter's series for the same character (bnet_series:
+   profile, look, equipment, talents, the Legacy achievement) into
+   VictoriaMetrics, as vm-wow holds them;
+4. the game files: tools/fixtures/golden3d.py's made-up gnome and items, in
+   the formats the shipper sends (WDC5 tables, M2, skins, BLP), as the
+   person's store (MODEL3D_ASSETS_DIR);
+5. wowstats.publish, as `wow-stats publish --force`: item cards and icons
+   from wago.tools, the 3D view from the store, each level's picture from
+   the renderer;
+6. <out>/ the public bundle, <out>/zogzog/ the sealed one, <out>/friends/
    a page that opens it with the demo's key.
 
 The demo's key is no secret: anyone may open the demo's friends' page, so it
@@ -22,6 +29,7 @@ is derived from a fixed string, never generated or stored.
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import json
 import os
@@ -39,8 +47,9 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "tools" / "fixtures"))
 
 import generate  # noqa: E402
+import golden3d  # noqa: E402
 
-from wowstats import ingest, publish  # noqa: E402
+from wowstats import armory, ingest, pictures, publish, ui  # noqa: E402
 
 DEMO_KEY = base64.urlsafe_b64encode(hashlib.sha256(b"wow-stats public demo").digest()).rstrip(b"=").decode()
 
@@ -67,6 +76,66 @@ def send(vl: str, rows: list[dict]) -> int:
     raise SystemExit(f"demo: VictoriaLogs holds {got} of {len(lines)} events after a minute")
 
 
+def send_metrics(vm: str, series: list[dict], probe: str = "wow_character_talent_rank") -> int:
+    """The exporter's series into VictoriaMetrics (/api/v1/import, a JSON
+    line per series), then wait until a query sees the newest."""
+    body = "".join(json.dumps(s, separators=(",", ":")) + "\n" for s in series).encode()
+    req = urllib.request.Request(f"{vm}/api/v1/import", data=body, method="POST")
+    with urllib.request.urlopen(req, timeout=120) as r:  # noqa: S310 - the local store this script was given
+        r.read()
+    q = urllib.parse.urlencode({"query": f"count(last_over_time({probe}[1d]))"})
+    for _ in range(60):
+        # A forced flush: VictoriaMetrics makes rows searchable within seconds.
+        with contextlib.suppress(OSError):
+            urllib.request.urlopen(f"{vm}/internal/force_flush", timeout=10).read()  # noqa: S310
+        with urllib.request.urlopen(f"{vm}/api/v1/query?{q}", timeout=30) as r:  # noqa: S310
+            res = json.loads(r.read())["data"]["result"]
+        if res and int(float(res[0]["value"][1])) > 0:
+            return sum(len(s["values"]) for s in series)
+        time.sleep(1)
+    raise SystemExit("demo: VictoriaMetrics shows none of the Battle.net series after a minute")
+
+
+def png_of(webp: bytes) -> bytes:
+    """The renderer's WebP as a PNG with its alpha (the armory's renders
+    are PNG or JPEG), through Chromium: the project has no image library."""
+    from playwright.sync_api import sync_playwright
+
+    src = "data:image/webp;base64," + base64.b64encode(webp).decode()
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        try:
+            page = browser.new_page()
+            page.set_content(f'<body style="margin:0;background:transparent"><img id="i" src="{src}"></body>')
+            page.wait_for_function("() => document.getElementById('i').complete")
+            return page.locator("#i").screenshot(type="png", omit_background=True)
+        finally:
+            browser.close()
+
+
+def armory_render(env: dict, vm: str) -> bool:
+    """The demo character's armory render. A real install downloads
+    Battle.net's (wowstats.armory, the exporter's wow_character_render);
+    the demo's is drawn by the product's renderer (wowstats.pictures) from
+    the golden files in the character's current look and outfit, and left
+    in the armory cache under the series' address, where armory.fetch reads
+    it first. Then the series, so the publisher's put_render finds it."""
+    base = {**env, "BIND": "127.0.0.1", "AUTH": "none", "MCP_PUBLIC_URL": "", "MCP_AUTH": "", "VIEW": "full"}
+    full = ui.App(base)
+    ans = publish.model_answer(full, generate.DEMO, None)
+    pics = pictures.Pictures(env, Path(env["MODEL3D_CACHE_DIR"]) / "stills")
+    webp = pics.get(ans, publish.store_reader(full))
+    if not isinstance(webp, bytes):
+        print(f"demo: no armory render: the renderer drew nothing ({webp or ans.get('why')})")
+        return False
+    url = generate.BNET_RENDER_URL
+    cache = armory.cache_dir(env)
+    cache.mkdir(parents=True, exist_ok=True)
+    (cache / (hashlib.sha256(url.encode()).hexdigest()[:32] + "." + armory.ext(url))).write_bytes(png_of(webp))
+    send_metrics(vm, generate.bnet_render_series(time.time()), "wow_character_render")
+    return True
+
+
 def friends_page(key: str) -> bytes:
     # The friends' link with the key in its fragment, which never reaches a server.
     return f"""<!doctype html>
@@ -81,16 +150,34 @@ def friends_page(key: str) -> bytes:
 def main(argv: list[str]) -> int:
     vl, out = argv[0], Path(argv[1])
     end = argv[2] if len(argv) > 2 else (datetime.now(UTC) - timedelta(days=1)).date().isoformat()
+    vm = os.environ.get("VM_URL", "").rstrip("/")
     rows = generate.build_demo(end)
     n = send(vl, rows)
-    print(f"demo: {n} events for {generate.DEMO}, last evening {end}")
+    print(f"demo: {n} events for {generate.DEMO}, last session {end}")
+    if vm:
+        n = send_metrics(vm, generate.bnet_series(rows, time.time()))
+        print(f"demo: {n} Battle.net samples")
+    else:
+        print("demo: no VM_URL, so no Battle.net profile, talents or look")
     with tempfile.TemporaryDirectory() as tmp:
         key_file = Path(tmp) / "zogzog.key"
         key_file.write_text(DEMO_KEY + "\n")
-        env = {**os.environ, "VL_URL": vl, "VL_ARCHIVE_URL": "", "VM_URL": "", "PUBLISH_DIR": f"{tmp}/site",
+        g = golden3d.write_store(Path(tmp) / "assets")
+        print(f"demo: {len(g['tables'])} tables and {len(g['files'])} game files (golden3d)")
+        env = {**os.environ, "VL_URL": vl, "VL_ARCHIVE_URL": "", "VM_URL": vm, "PUBLISH_DIR": f"{tmp}/site",
                "ZOGZOG_KEY_FILE": str(key_file), "PLAUSIBLE_DOMAIN": "", "ANALYSIS_SHARE_URL": "",
-               "HELP_KEY_FILE": "", "RENDER_URL": "", "PUBLISH_PUSH_URL": "", "USERS_URL": "",
-               "DEFAULT_CHAR": generate.DEMO}
+               "HELP_KEY_FILE": "", "PUBLISH_PUSH_URL": "", "USERS_URL": "", "DEFAULT_CHAR": generate.DEMO,
+               "MODEL3D": "on", "MODEL3D_CACHE_DIR": f"{tmp}/model3d", "MODEL3D_ASSETS_DIR": f"{tmp}/assets",
+               # Every level's picture in this one build: the publisher's
+               # budget is for a server that builds again in ten minutes.
+               "RENDER_URL": os.environ.get("RENDER_URL", ""), "RENDER_BUDGET_S": "900"}
+        # armory.fetch reads its cache from the process environment, not the
+        # publisher's env.
+        os.environ["MODEL3D_CACHE_DIR"] = env["MODEL3D_CACHE_DIR"]
+        if vm and env["RENDER_URL"]:
+            armory_render(env, vm)
+        else:
+            print("demo: no RENDER_URL, so no armory render or level pictures")
         res = publish.publish(env, force=True)
         if not res.get("built"):
             raise SystemExit(f"demo: the publisher built nothing: {res}")

@@ -250,7 +250,7 @@ LOOT_ITEM = _keys("item_id", "name", "quality", "count", "t", "zone")
 
 # The Dungeons panel (wowstats.plan.dungeonview): game data, his own runs
 # (no party), what he has of each dungeon's items, the gold its loot made.
-QREF = {**_keys("quest_id", "name", "state", "url", "any"), "starts": [WHO], "drops": [WHO]}
+QREF = {**_keys("quest_id", "name", "state", "url", "any"), "starts": [WHO], "drops": [WHO], "found": [WHO]}
 DUNGEON = {
     **_keys("area_id", "name", "min", "max", "state", "opens_at", "url", "zone_url", "value", "verdict", "why",
             "drops_shown", "missing_now", "obtained", "expected_gain_per_clear", "expected_gain_share_pct",
@@ -258,6 +258,8 @@ DUNGEON = {
     "drops": [{**_keys("item_id", "name", "quality", "item_level", "slot_name", "score", "gain", "gain_pct",
                        "fills_empty", "level", "now", "state", "where", "url", "value"),
                "drops": [_keys("boss", "npc_id", "chance_pct", "wing", "url")], "quests": [None], "fit": FIT}],
+    "kb_drops": [{**_keys("name", "boss", "armour", "item_id", "url", "fit", "confidence"), "roles": [None]}],
+    "kb_fit": None,
     "quests": [{**_keys("quest_id", "name", "level", "min_level", "xp", "money_copper", "route", "state", "complete",
                         "xp_now", "url", "reward_choices"),
                 "starts": [WHO], "ends": [WHO], "needs": [QREF], "blocked": None,
@@ -356,6 +358,14 @@ ZOGZOG: dict[str, dict] = {
     # .verify.shareable_action: actions with where, what blocks them and the
     # next step; no player, creature, time, date or where the character is
     # now) and the time per level. Pattern lines describe: never here.
+    # The talent changes from WoWSims Exporter's saves (views.talent_history,
+    # source "addon" only: publish never bundles Battle.net's).
+    "talents": {**_keys("char", "days", "available", "why", "source", "since"),
+                "changes": [{**_keys("date", "t"), "before": [_keys("tree", "points")],
+                             "after": [_keys("tree", "points")],
+                             "gained": [_keys("name", "spell", "from", "to")],
+                             "dropped": [_keys("name", "spell", "from", "to")]}],
+                "not_recorded": [None]},
     "analysis": {**_keys("available", "char"),
                  "nudges": [_keys("text", "where", "blocked_by", "next_step", "verdict", "at_level")],
                  "time_budget": [_keys("level", "online_s", "instance_s", "taxi_s", "dead_s", "afk_s", "planned_s")]},

@@ -79,7 +79,10 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: site/package-lock.json
-      - run: uv sync --frozen --extra publish --extra mcp
+      - run: uv sync --frozen --extra publish --extra mcp --extra render
+      # The renderer draws the demo's pictures in Chromium (wowstats.renderer),
+      # and the demo's guard test opens its pages in it.
+      - run: uv run --frozen --extra render playwright install --with-deps chromium
       # The project site's address: https://<owner>.github.io/<repo>/.
       - name: Site address
         run: |
@@ -89,9 +92,15 @@ jobs:
             echo "SITE_ORIGIN=https://$owner.github.io"
             echo "SITE_BASE=/${GITHUB_REPOSITORY#*/}"
           } >> "$GITHUB_ENV"
-      # VictoriaLogs in Docker, the item tables from wago.tools, the 3D
-      # viewer and models from Wowhead's CDN: all copied into the bundle.
+      # VictoriaLogs and VictoriaMetrics in Docker, the item tables from
+      # wago.tools, the made-up game files (tools/fixtures/golden3d.py) for
+      # the 3D view and the pictures: all copied into the bundle.
       - run: site/scripts/build-demo.sh
+      # Every section of the demo shows data: a fallback fails the build.
+      - run: uv run --frozen --extra render --group browser pytest -q -rs -m browser tests/test_demo_complete_browser.py
+        env:
+          WOW_DEMO_DIR: site/public/demo
+          WOW_DEMO_ENGINES: chromium
       - run: npm ci --prefix site
       - run: npm run build --prefix site
       - if: needs.visibility.outputs.public == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

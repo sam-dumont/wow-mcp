@@ -27,7 +27,7 @@
 
 <div class="feature">
 
-![The Next moves box of the demo priest: 3 talent points unspent, an off-hand upgrade from Scarlet Monastery Library, and City of Dalaran with the quests to pick up first and the drops worth having](../../docs/images/next-moves.webp)
+![The Next moves box of the demo priest: an off-hand upgrade from Scarlet Monastery Library, Razorfen Kraul with the quest to pick up first and the drops worth having, and the guide steps that ran long](../../docs/images/next-moves.webp)
 
 <div>
 <p class="eyebrow">Before you log in</p>
@@ -39,7 +39,7 @@
 
 <div class="feature flip">
 
-![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, City of Dalaran, the Auction House with a cheap hood on sale yesterday, and quests in Stranglethorn Vale](../../docs/images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../../docs/images/upgrades.webp)
 
 <div>
 <p class="eyebrow">Gear</p>
