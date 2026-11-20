@@ -42,7 +42,9 @@ def at_tag(path: str) -> bytes:
 
 def release(version: str, src: bytes = REAL) -> bytes:
     """This tree's shipper as a release commit makes it: its version, and
-    (test only) the test key pinned instead of the project's."""
+    (test only) the test key pinned instead of the project's. LF line ends,
+    as the server's image has it (a Windows checkout has CRLF)."""
+    src = src.replace(b"\r\n", b"\n")
     return re.sub(rb'(?m)^UPDATE_KEY = "[0-9a-f]{64}"$', f'UPDATE_KEY = "{TEST_KEY}"'.encode(),
                   with_version(src, version), count=1)
 
