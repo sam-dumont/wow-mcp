@@ -339,8 +339,9 @@ class App:
                 value = fn()
             except SourceError as e:
                 if hit:
-                    # The answer's kind only: its key can hold the 3D view's sex.
-                    return {**hit[1], "stale": True, "error": public_error(e, key.split(":", 1)[0])}
+                    # Nothing from the key in the log: it can hold the 3D
+                    # view's sex (CodeQL py/clear-text-logging, PR #8).
+                    return {**hit[1], "stale": True, "error": public_error(e, "a cached answer")}
                 raise
             value = {**value, "generated_at": iso(datetime.now(UTC))}
             self._cache[key] = (time.time(), value)
