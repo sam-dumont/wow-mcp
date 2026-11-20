@@ -120,7 +120,12 @@ def from_site(base: str, char: str, extension: str, host: str = "", key: bytes |
     body = _get(f"{base}/{rel}", timeout=10, host=host)
     if body or not key or not zogzog.strip("/"):
         return body
-    blob = _read(f"{base}/{zogzog.strip('/')}/{rel}.enc", timeout=10, host=host)
+    from wowstats.publish import sealed_name
+
+    zz = f"{base}/{zogzog.strip('/')}/"
+    # The keyed name since 0.7.0; a bundle the publisher hasn't rebuilt yet
+    # (it does at its first pass on a new version) still has the plain one.
+    blob = _read(zz + sealed_name(key, rel), timeout=10, host=host) or _read(f"{zz}{rel}.enc", timeout=10, host=host)
     if not blob:
         return None
     try:

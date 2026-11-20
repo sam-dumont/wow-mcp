@@ -60,6 +60,50 @@ SHA-256 before unpacking it, instead of piping astral.sh's installer into a
 shell. The proxy docs now lead with `PROXY_SECRET_FILE`: trusting a subnet
 also trusts every other container on it.
 
+**The shipper only takes signed updates.** Each release signs the shipper
+files (version plus every file's sha256) with an Ed25519 key that lives in
+a GitHub environment, and the shipper pins the public half. Before, the
+hashes came from the same server as the files, so whoever took over a
+server could run code on every friend's PC within 2 hours. Now the worst
+they get is holding people on their version. An update without a valid
+signature is refused: the shipper keeps its version, logs why, and the
+owner's overview shows "auto-update refused" on that row. Shippers from
+0.5.1 to 0.6.x don't check signatures yet, so they take 0.7.0 the old way
+and check everything after it. Building your own image with a changed
+shipper: sign it with your own key first (docs/self-host/upgrade.md,
+"Signing your own build"), or your players stay on their version.
+
+**/zogzog/ file names give nothing away.** A sealed file used to sit at
+`data/char/<Name>.json.enc`, so a 404 or a 200 told anyone whether a
+hidden character existed. Names are now an HMAC of the path under the
+link's key. The publisher rewrites the files on the new version and the
+links people already have keep working.
+
+**The knowledge base's text is marked as data for AI clients.** The KB
+refreshes and merges on its own, from web pages through a model, and the
+MCP hands that text to friends' AI clients. A new gate refuses any KB text
+shaped like an instruction to a model (tool-call markup, "ignore the
+previous instructions", a chat role at the start of a line), and every
+tool that answers with KB text says so in its description and in an
+`untrusted_reference_data` field at the top of the answer.
+
+**One odd addon file no longer stops the shipping.** A SavedVariables file
+nested 5,000 deep, or a Syndicator file with a string where a table goes,
+made the run fail before it shipped or checked for updates, so the fix
+could never arrive. Each addon is now read on its own: a file that can't be
+read costs its events for that run and one line in the log, and the run
+still ships what's spooled and checks for an update. A corrupt `state.json`
+is kept as `state.json.corrupt` and the run starts fresh.
+
+**Smaller fixes from the same review.** The shipper never follows a
+redirect when it ships or checks the server (a 302 used to carry the upload
+password to the other host, and its 200 marked the events sent). The
+installers write the WoW folder as a proper TOML string, so a folder like
+`D:\Jeux d'été\...` works on Windows and is no longer left out on a Mac.
+The 3D view's file reader holds every compressed block to its declared size
+(80 MB used to come out of a block that declared 16 bytes). And the Mac
+install line refuses anything but https, redirects included.
+
 **kb_topics names every document.** A lane's statements folded in from
 another lane, or written by a model pass, carry no research document; the
 lane's `documents` no longer lists them as a nameless `""` entry (the 0.7.0

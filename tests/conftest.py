@@ -16,6 +16,15 @@ ROOT = Path(__file__).resolve().parent.parent
 os.environ["NO_REAL_WOW"] = "1"
 
 
+@pytest.fixture(scope="session", autouse=True)
+def sealed_names():
+    """Every sealed /zogzog/ file's keyed name, kept with its path
+    (tests/sealed.py), so a test can open a bundle by path."""
+    from tests import sealed
+
+    sealed.record()
+
+
 @pytest.fixture(autouse=True)
 def wow_folder_is_a_fixture():
     yield

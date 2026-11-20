@@ -22,6 +22,7 @@ from pathlib import Path
 
 import pytest
 
+from tests import sealed
 from tests.mcp import fakes
 from wowstats import account, ingest, publish, tenancy, ui
 from wowstats import mcp as mcpmod
@@ -666,8 +667,7 @@ def test_bundles_are_per_person(server, env, tmp_path):
             continue
         body = p.read_bytes()
         if p.suffix == ".enc":
-            rel = p.relative_to(root / "zogzog").as_posix()[:-4]
-            body = publish.unseal(key, urllib.parse.quote(rel, safe="/-_.!~*'()"), body)
+            body = publish.unseal(key, sealed.path_of(p.relative_to(root / "zogzog").as_posix()), body)
         assert not leaks(body), (p, leaks(body))
         n += 1
     assert n > 10
@@ -1145,9 +1145,9 @@ def test_full_view_reads_each_persons_render_from_their_own_site(env, run_app, t
         fu = t.registry.get(FRIEND)
         key = tenancy.person_key(e, fu.account_id, fu.zogzog_gen, False)
         rel = f"data/render/{B_CHAR}.png"
-        zz = site_dir / "mira" / "b1" / "zogzog" / "data" / "render"
-        zz.mkdir(parents=True)
-        (zz / f"{B_CHAR}.png.enc").write_bytes(publish.seal(key, rel, png))
+        zz = site_dir / "mira" / "b1" / "zogzog"
+        (zz / "data").mkdir(parents=True)
+        (zz / publish.sealed_name(key, rel)).write_bytes(publish.seal(key, rel, png))
         (site_dir / "mira" / "current").symlink_to("b1")
 
         code, hdrs, body = r.get(f"/render/{A_CHAR}.png", headers=as_user(OWNER))
@@ -1158,8 +1158,13 @@ def test_full_view_reads_each_persons_render_from_their_own_site(env, run_app, t
         assert r.get(f"/render/{A_CHAR}.png", headers=h)[0] == 404
         assert r.get(f"/render/{B_CHAR}.png", headers=as_user(OWNER))[0] == 404
         # A wrong key opens nothing.
-        (zz / f"{B_CHAR}.png.enc").write_bytes(publish.seal(b"k" * 32, rel, png))
+        (zz / publish.sealed_name(key, rel)).write_bytes(publish.seal(b"k" * 32, rel, png))
         assert r.get(f"/render/{B_CHAR}.png", headers=h)[0] == 404
+        # A bundle from before 0.7.0 (the publisher not rebuilt yet): the plain name still opens.
+        (zz / publish.sealed_name(key, rel)).unlink()
+        (zz / "data" / "render").mkdir()
+        (zz / "data" / "render" / f"{B_CHAR}.png.enc").write_bytes(publish.seal(key, rel, png))
+        assert r.get(f"/render/{B_CHAR}.png", headers=h)[2] == png
     finally:
         srv.shutdown()
         srv.server_close()

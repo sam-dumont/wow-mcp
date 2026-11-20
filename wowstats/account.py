@@ -91,20 +91,48 @@ def shipper_file(name: str) -> bytes:
 # installers copy next to them.
 SHIPPER_FILES = ("wow_stats.py", "install-mac.sh", "wow-stats.plist", "install-windows.ps1",
                  "config.example.toml", "LICENSE")
+SIGNATURE_FILE = "update-signature.json"  # tools/release/shipper_sign.py; served inside the manifest only
 _SHIPPER_VERSION = re.compile(rb'(?m)^VERSION = "(\d+\.\d+\.\d+(?:-rc\.\d+)?)"$')  # X.Y.Z or X.Y.Z-rc.N
+
+
+def shipper_signature(version: str | None, files: dict) -> dict | None:
+    """The release's signature (shipper/update-signature.json, written by
+    tools/release/shipper_sign.py in release.yml), when its statement names
+    exactly the files this server serves. The shipper checks it with the key
+    it pins and refuses an update without it. A build from a tree between
+    releases, or a shipper file changed after signing, has none: logged once,
+    and the shippers keep their version (the update line still works)."""
+    try:
+        sig = json.loads(shipper_file(SIGNATURE_FILE))
+        rel = json.loads(sig["statement"])
+    except (FileNotFoundError, ValueError, KeyError, TypeError):
+        sys_log("shipper: no release signature in this build; installed shippers won't auto-update from it")
+        return None
+    want = {n: {"sha256": hashlib.sha256(b).hexdigest(), "size": len(b)} for n, b in files.items()}
+    if rel.get("version") != version or rel.get("files") != want:
+        sys_log("shipper: the release signature doesn't match the shipper files; installed shippers won't "
+                "auto-update from this build")
+        return None
+    return {"statement": sig["statement"], "signature": sig.get("signature")}
 
 
 @functools.cache
 def shipper_manifest() -> bytes:
     """GET /install/update/shipper: the version of the shipper this server
-    carries (the VERSION line of its wow_stats.py) and each file's sha256,
-    which the shipper checks before it replaces itself. The files don't
-    change while the server runs: built once."""
+    carries (the VERSION line of its wow_stats.py), each file's sha256, and
+    the release's signature over both (shipper_signature), which the shipper
+    checks before it replaces itself. Shippers before 0.7.0 read only
+    `version` and `files`. The files don't change while the server runs:
+    built once."""
     files = {n: shipper_file(n) for n in SHIPPER_FILES}
     m = _SHIPPER_VERSION.search(files["wow_stats.py"])
-    return json.dumps({"version": m.group(1).decode() if m else None,
-                       "files": {n: {"sha256": hashlib.sha256(b).hexdigest(), "size": len(b)}
-                                 for n, b in files.items()}}, separators=(",", ":")).encode()
+    version = m.group(1).decode() if m else None
+    out = {"version": version,
+           "files": {n: {"sha256": hashlib.sha256(b).hexdigest(), "size": len(b)} for n, b in files.items()}}
+    sig = shipper_signature(version, files)
+    if sig:
+        out["signature"] = sig
+    return json.dumps(out, separators=(",", ":")).encode()
 
 
 def handle_shipper(h, rest: str) -> None:
@@ -706,16 +734,24 @@ def set_settings(t: T.Tenancy, u: T.User, body: dict, chars: list[str]) -> T.Use
     return t.registry.update(u.sub, **upd)
 
 
+def curl(url: str) -> str:
+    """The Mac line's curl: https only, redirects included, when the server
+    is on https (client review 2026-11-20); a server on this computer (http
+    on 127.0.0.1, tenancy.check_public_url) keeps the plain line."""
+    tls = "--proto '=https' --proto-redir '=https' " if url.startswith("https://") else ""
+    return f"curl {tls}-fsSL {url} | bash"
+
+
 def install_commands(t: T.Tenancy, code: str) -> dict:
     url = f"{t.public_url}/install/{code}"
-    return {"windows": f"irm {url} | iex", "mac": f"curl -fsSL {url} | bash", "expires_in": T.CODE_TTL}
+    return {"windows": f"irm {url} | iex", "mac": curl(url), "expires_in": T.CODE_TTL}
 
 
 def update_commands(t: T.Tenancy) -> dict:
     """The same line for everyone, no code: it reads the install's own config
     and authenticates with its upload password (handle_update)."""
     url = f"{t.public_url}/install/update"
-    return {"windows": f"irm {url} | iex", "mac": f"curl -fsSL {url} | bash"}
+    return {"windows": f"irm {url} | iex", "mac": curl(url)}
 
 
 # ---------------------------------------------------------------- installers
@@ -740,6 +776,14 @@ UV_SHA256 = {
     "aarch64-pc-windows-msvc": "72eed595983a4d7d22d79f21065b0f4479cc7e5c7a89104bb410c8f47559a878",
 }
 UV_URL = "https://github.com/astral-sh/uv/releases/download/" + UV_VERSION + "/uv-{target}"
+
+# The config's wow_dir line, as a TOML basic string with \ and " escaped:
+# a folder like D:\Jeux d'été\... broke the Windows config (a literal
+# string can't hold the apostrophe), and the Mac installer left the line out,
+# so the shipper looked in the default folders (client review 2026-11-20, L2).
+# tests/test_shipper_robust.py runs the bash one and parses the result.
+MAC_WOW_DIR_LINE = r'''printf 'wow_dir = "%s"\n' "$(printf '%s' "$wow" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"'''
+WIN_WOW_DIR_LINE = r'''('wow_dir = "' + $wow.Replace('\', '\\').Replace('"', '\"') + '"' + "`n")'''
 
 
 def mac_installer(t: T.Tenancy, u: T.User, token: str | None) -> bytes:
@@ -812,7 +856,7 @@ if [ -f "$conf" ]; then cp -p "$conf" "$conf.bak-$(date +%Y%m%d%H%M%S)"; fi
 umask 077
 {{
   echo "# wow-stats for {u.slug}, written by the installer. Keep it private: it holds your password."
-  case "$wow" in *"'"*) ;; *) printf "wow_dir = '%s'\\n" "$wow" ;; esac
+  {MAC_WOW_DIR_LINE}
   cat <<'WOWSTATS_EOF'
 {ship}WOWSTATS_EOF
 }} > "$conf"
@@ -904,7 +948,7 @@ try {{
   if (Test-Path $conf) {{ Copy-Item $conf ($conf + '.bak-' + (Get-Date -Format 'yyyyMMddHHmmss')) }}
   $ship = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('{ship_b64}'))
   $text = "# wow-stats for {u.slug}, written by the installer. Keep it private: it holds your password.`n" +
-          "wow_dir = '" + $wow + "'`n" + $ship
+          {WIN_WOW_DIR_LINE} + $ship
   [IO.File]::WriteAllText($conf, $text, (New-Object Text.UTF8Encoding $false))
 
   $env:Path = (Join-Path $env:USERPROFILE '.local\\bin') + ';' + $env:Path

@@ -321,10 +321,10 @@ def _iso(t) -> str | None:
 S = T.schema
 PLAN_TOOLS: tuple[T.Tool, ...] = (
     T.Tool("plan_session", "Plan my next hours",
-           "A time-boxed plan for the next N hours (default 3): blocks, checkpoints, the level, XP and gold at "
+           "A plan for the next N hours (default 3): blocks, checkpoints, the level, XP and gold at "
            "the end, a town stop, where to log out, what to skip, a dungeon branch, the mount, from the character's "
-           "own pace. No Recorder events: a plan by level (estimated) and the line that unlocks the full one "
-           "(unlock). Constraints in plain words ('no dungeons', 'only 2h'). Kept for how_did_my_plan_go.",
+           "own pace. No Recorder events: a plan by level and the line that unlocks the full one. Constraints "
+           "in plain words ('no dungeons', 'only 2h'). Kept for how_did_my_plan_go.",
            S({"char": CHAR, "hours": {"type": "number", "minimum": 0.5, "maximum": 8,
                                  "description": "How long to plan for, in hours."},
               "constraints": {"type": "string", "maxLength": 300,

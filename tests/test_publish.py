@@ -2,6 +2,8 @@
 data, the full-content bundle holds only ciphertext, and the static server
 answers files and nothing else."""
 
+import hashlib
+import hmac
 import io
 import json
 import re
@@ -15,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from tests import sealed
 from tests.test_public_view import (
     SECRET_MONEY,
     SECRET_PLAYER,
@@ -56,7 +59,27 @@ def site(tmp_path, monkeypatch):
 
 
 def files(root):
-    return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+    """Every file under root; a sealed file under its path + .enc (the keyed
+    name it has on disk mapped back: tests/sealed.py)."""
+    return sealed.plain_names({p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()})
+
+
+def test_sealed_files_are_named_by_a_keyed_hash(site):
+    """On disk, /zogzog/'s data files say nothing of the characters: one
+    flat folder of HMAC names (security review 2026-11-20, finding 4), each
+    the HMAC-SHA256 of its path under a key derived from the link's key."""
+    _, _, key, cur = site
+    k = publish.unb64u(key)
+    on_disk = [p.relative_to(cur / "zogzog").as_posix() for p in (cur / "zogzog" / "data").rglob("*") if p.is_file()]
+    assert on_disk and all(re.fullmatch(r"data/[A-Za-z0-9_-]{43}\.enc", p) for p in on_disk), on_disk[:5]
+    names_key = hmac.new(k, b"wow-stats zogzog file names v1", hashlib.sha256).digest()
+    want = "data/" + publish.b64u(hmac.new(names_key, b"data/chars.json", hashlib.sha256).digest()) + ".enc"
+    assert publish.sealed_name(k, "data/chars.json") == want and want in on_disk
+    chars = json.loads(publish.unseal(k, "data/chars.json", (cur / "zogzog" / want).read_bytes()))["chars"]
+    for c in chars:
+        assert c["char"].split("-")[0] not in "".join(on_disk)
+    # Another key, other names: a name says nothing across links.
+    assert publish.sealed_name(b"\x01" * 32, "data/chars.json") != want
 
 
 def test_public_bundle_has_no_full_data(site):
@@ -413,7 +436,7 @@ def test_rebuilds_every_24_hours_whatever_happened(site):
 
 @pytest.fixture
 def server(site):
-    env, _, _, cur = site
+    env, _, key, cur = site
     s = static.Site({"SITE_DIR": str(cur.parent), "ZOGZOG_PATH": "/zogzog/"})
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), static.make_handler(s))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
@@ -427,6 +450,7 @@ def server(site):
         except urllib.error.HTTPError as e:
             return e.code, dict(e.headers), e.read()
 
+    get.key = key
     yield get
     httpd.shutdown()
 
@@ -436,7 +460,8 @@ def test_static_server_serves_files_and_nothing_else(server):
     assert code == 200 and "default-src 'none'" in headers["Content-Security-Policy"]
     assert "http" not in headers["Content-Security-Policy"] and headers["Referrer-Policy"] == "no-referrer"
     assert server("/zogzog/")[0] == 200
-    assert server("/zogzog/data/chars.json.enc")[0] == 200
+    assert server("/zogzog/" + publish.sealed_name(publish.unb64u(server.key), "data/chars.json"))[0] == 200
+    assert server("/zogzog/data/chars.json.enc")[0] == 404  # the name before 0.7.0: gone
     assert server("/zogzog/data/chars.json")[0] == 404
     for path in ("/api/char?name=x", "/api/config", "/mcp", "/full/", "/ingest", "/../state.json", "/%2e%2e/state.json",
                  "/data/people/x.json", "/.build-1/x", "/zogzog/../../zogzog.key"):

@@ -49,7 +49,8 @@ ON_WINDOWS_CI = pytest.mark.skipif(os.name != "nt" or os.environ.get("WOW_STATS_
 ROOT = Path(__file__).resolve().parent.parent
 ZOE = Path("C:/Users/Zoë Ü")
 BATTLENET_WOW = Path("C:/Program Files (x86)/World of Warcraft/_forever_")
-ZOE_WOW = Path("C:/Jeux Zoë/World of Warcraft/_forever_")
+# An apostrophe too: it once made the config unreadable (client review 2026-11-20, L2).
+ZOE_WOW = Path("C:/Jeux d'Zoë/World of Warcraft/_forever_")
 CHARS = {"aaaa": "Hero-Alpha", "bbbb": "Zoëlle-Beta"}  # an accented character folder too
 FIRST = [k for k in CHUNKS if k[0] in CHARS and k != ("bbbb", 2)]
 
@@ -332,7 +333,7 @@ def test_friend_installs_ships_updates_and_uninstalls(fresh_policy, lab, recorde
     line = install_line(lab, h)
     assert re.fullmatch(r"irm http://127\.0\.0\.1:\d+/install/\w+ \| iex", line), line
     if zoe:  # the help's way to name a WoW folder the search doesn't know
-        line = f"$env:WOW_STATS_WOW_DIR = '{wow}'; " + line
+        line = f"$env:WOW_STATS_WOW_DIR = '{str(wow).replace(chr(39), chr(39) * 2)}'; " + line
     wtf = tree_digest(wow / "WTF")
     toc = wow / "Interface" / "AddOns" / "Polestar_Recorder" / "Polestar_Recorder.toc"
     rc, out = ps(shell, recorder_release() + line, env)
@@ -391,7 +392,7 @@ def test_friend_installs_ships_updates_and_uninstalls(fresh_policy, lab, recorde
     # Reset: a new password, the install command again over the old install.
     line = install_line(lab, h, reset=True)
     if zoe:
-        line = f"$env:WOW_STATS_WOW_DIR = '{wow}'; " + line
+        line = f"$env:WOW_STATS_WOW_DIR = '{str(wow).replace(chr(39), chr(39) * 2)}'; " + line
     assert lab.t.registry.check_ingest(u.slug, password) is None
     rc, out = ps(shell, recorder_release() + line, env)
     assert rc == 0 and "wow-stats is installed." in out, out

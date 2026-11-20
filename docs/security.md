@@ -130,19 +130,17 @@ fields, capped.
 **S3, the shipper updates itself from the server.** At most every 2 hours
 the program on each player's computer fetches the server's manifest and, on
 a newer version, swaps itself in and reruns its installer, without asking.
-The manifest's hashes come from the same server, so they catch a truncated
-download, not a hostile server: whoever controls the server (a stolen deploy
-credential, a hole in the app, a hostile fork's operator) can run code on
-every player's computer within hours. The privacy page and `/start` say the
-program updates itself; players can set `auto_update = false`
-([shipper.md](shipper.md)). The plan, before friends outside the owner's
-circle install it:
-
-1. Each release signs the shipper manifest with an offline Ed25519 key; the
-   public key is pinned in `shipper/wow_stats.py`.
-2. The shipper installs an update only when the signature checks against
-   the pinned key, so the server can serve only code that was released.
-3. Key rotation ships as a signed update carrying the next key.
+Since 0.7.0 each release signs the shipper files (their sha256 and the
+version) with an Ed25519 key held in the `shipper-signing` environment, and
+the shipper pins the public half: it takes an update only when the signature
+checks out, and only the files it names, the installer it reruns included.
+A hostile server can now hold players back on their version, not run its
+own code on their computers. What stays: shippers from 0.5.1 to 0.6.x take
+their update to 0.7.0 on the server's hashes alone, and the first install
+and the update line on `/start` run what the server sends (you paste them
+yourself). Players can set `auto_update = false` ([shipper.md](shipper.md)).
+One key, no rotation: a lost or leaked key means a new key in a release and
+the update line once on every PC.
 
 ## Operator checklist
 

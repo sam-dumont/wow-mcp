@@ -201,8 +201,21 @@ A real run (`.github/workflows/release.yml`, its header has the detail):
    version already prepared.
 2. `ci.yml` runs in full.
 3. The release commit: the version in `pyproject.toml`, `wowstats/__init__.py`,
-   `shipper/wow_stats.py`, `uv.lock` and the bug template, and CHANGELOG.md's
-   "Unreleased" under `## X.Y.Z (date)`. It goes through a pull request,
+   `shipper/wow_stats.py`, `uv.lock` and the bug template, CHANGELOG.md's
+   "Unreleased" under `## X.Y.Z (date)`, and the shipper's signature in
+   `shipper/update-signature.json`. The `sign` job makes that one: it runs
+   `tools/release/shipper_sign.py sign` on the same tree with the release key,
+   the secret `SHIPPER_SIGNING_KEY` of the environment `shipper-signing`
+   (limited to `main`, read by that one step, never printed). Every installed
+   shipper checks it before it updates itself ([shipper.md](shipper.md#auto-update)),
+   and the build refuses to push an image whose signature doesn't match its
+   shipper files. The key's copy of record is a SOPS file in the owner's lab
+   repository (`57-wow/wow-mcp-release.enc.json`, `SHIPPER_SIGNING_KEY`); the
+   GitHub secret is set from it and can't be read back. Lose that copy and
+   every installed shipper stays on its version for good, short of the
+   update line on each PC. Never rotate the key without a transition: one
+   release signed with the old key that pins the new one. The commit goes
+   through a pull request,
    `Release X.Y.Z`, opened by the CI GitHub App so its checks run, and
    auto-merge squashes it when they pass. A red check stops the run: fix
    main, press again.

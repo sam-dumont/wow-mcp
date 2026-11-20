@@ -235,13 +235,17 @@ def publish(run: Run, work: Path) -> None:
     if p.returncode != 0:
         raise RuntimeError(f"publish exited {p.returncode}: {p.stderr[-2000:]}")
     cur = (site / "current").resolve()
+    named = _sealed_names(cur)
     files = []
     for f in sorted(cur.rglob("*")):
         if not f.is_file():
             continue
         rel = f.relative_to(cur).as_posix()
-        files.append(rel)
         bundle, _, inner = rel.partition("/")
+        if bundle == "zogzog" and inner in named:  # 0.7's keyed name: back to its path
+            inner = named[inner] + ".enc"
+            rel = "zogzog/" + inner
+        files.append(rel)
         data = f.read_bytes()
         if bundle == "zogzog" and inner.endswith(".enc"):
             inner = inner[:-4]
@@ -253,6 +257,21 @@ def publish(run: Run, work: Path) -> None:
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(data)
     write(run.out, "public/_files.json", files)
+
+
+def _sealed_names(cur: Path) -> dict[str, str]:
+    """{keyed name: path} for the zogzog bundle of 0.7 and later, whose
+    sealed files are named by an HMAC of their path (wowstats.publish
+    sealed_name): every path the public bundle has (the same layout) plus
+    the zogzog-only answers. Before 0.7 the names are the paths: {}."""
+    try:
+        from wowstats.publish import sealed_name
+    except ImportError:
+        return {}
+    pub = cur / "public"
+    paths = {f.relative_to(pub).as_posix() for f in (pub / "data").rglob("*") if f.is_file()}
+    paths |= {"data/config.json", "data/chars.json", "data/items.json", "data/market.json", "data/prices.json"}
+    return {sealed_name(ZZ_KEY, p): p for p in paths}
 
 
 def _unseal(rel: str, blob: bytes) -> bytes:

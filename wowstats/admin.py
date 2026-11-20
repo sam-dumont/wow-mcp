@@ -229,6 +229,14 @@ def addons_badge(rep: dict | None) -> dict:
     return {"state": "ok", "text": "addons OK"}
 
 
+def update_refused(rep: dict | None) -> str:
+    """The shipper's last auto-update refusal (its setup report's
+    `update_refused`, shipper/wow_stats.py check_update): a bad or missing
+    signature, an unreachable server. "" when its last check went through."""
+    why = str((rep or {}).get("update_refused") or "").strip()
+    return f"auto-update refused: {why[:160]}" if why else ""
+
+
 def person(t: T.Tenancy, u: T.User, listed: dict | None, sites: dict, now: float) -> dict:
     act = t.activity.get(u)
     upload, install = act.get("upload") or {}, act.get("install") or {}
@@ -251,6 +259,9 @@ def person(t: T.Tenancy, u: T.User, listed: dict | None, sites: dict, now: float
             row["addons"] = addons_badge(rep)
             if rep and vtuple(rep.get("shipper")):
                 row["version"] = rep["shipper"]
+            refused = update_refused(rep)
+            if refused:
+                row["stale"].append(refused)
         except Exception as e:  # noqa: BLE001 - one store down: that row says so
             row["error"] = f"store: {type(e).__name__}"
     last = _epoch(upload.get("at")) or newest
