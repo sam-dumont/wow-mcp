@@ -37,10 +37,12 @@ os.environ.setdefault("FASTMCP_CHECK_FOR_UPDATES", "off")
 
 import asyncio  # noqa: E402
 import base64  # noqa: E402
+import contextvars  # noqa: E402
 import hashlib  # noqa: E402
 import hmac  # noqa: E402
 import json  # noqa: E402
 import logging  # noqa: E402
+import re  # noqa: E402
 import secrets  # noqa: E402
 import sys  # noqa: E402
 import threading  # noqa: E402
@@ -49,7 +51,7 @@ from collections.abc import Callable  # noqa: E402
 from dataclasses import dataclass  # noqa: E402
 from pathlib import Path  # noqa: E402
 from typing import Any  # noqa: E402
-from urllib.parse import urlsplit  # noqa: E402
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit  # noqa: E402
 
 import anyio  # noqa: E402
 from fastmcp import FastMCP  # noqa: E402
@@ -62,7 +64,7 @@ from fastmcp.utilities.authorization import AuthContext  # noqa: E402
 from mcp.types import TextContent, ToolAnnotations  # noqa: E402
 from pydantic import PrivateAttr  # noqa: E402
 
-from . import prompts, tools, wowhead  # noqa: E402
+from . import consent, prompts, tools, wowhead  # noqa: E402
 
 log = logging.getLogger("wowstats.mcp")
 
@@ -109,6 +111,15 @@ DEFAULT_CIMD_HOSTS = ("claude.ai", "claude.com", "chatgpt.com", "opencode.ai", "
 ORG_CLAIM = "urn:zitadel:iam:user:resourceowner:id"
 ROLES_CLAIM = "urn:zitadel:iam:org:project:roles"
 ORG_SCOPE = "urn:zitadel:iam:user:resourceowner"
+# The Battle.net button on the consent page (wowstats.mcp.consent): ZITADEL's
+# reserved scopes for one org and one identity provider. With both, its login
+# skips its own pages and starts that provider at once, and puts a new
+# account in that org.
+BATTLENET_ORG_ENV, BATTLENET_IDP_ENV = "OIDC_BATTLENET_ORG_ID", "OIDC_BATTLENET_IDP_ID"
+_ZITADEL_ID = re.compile(r"^[0-9]{1,32}$")
+# Set while the consent form is submitted through the Battle.net button, for
+# the authorize URL built in that same call.
+_BATTLENET_LOGIN: contextvars.ContextVar[bool] = contextvars.ContextVar("wow_battlenet_login", default=False)
 
 # Request bodies: an MCP call is a few KB, the OAuth
 # endpoints take a form or a small JSON.
@@ -135,6 +146,19 @@ def emit(event: str, level: int = logging.INFO, **fields: object) -> None:
 
 def _csv(v: str | None) -> list[str]:
     return [s.strip() for s in (v or "").split(",") if s.strip()]
+
+
+def battlenet_scopes(env: dict) -> tuple[str, ...]:
+    """The two scopes the Battle.net button adds, from the config only;
+    none (no button) when both settings are empty."""
+    org = (env.get("OIDC_BATTLENET_ORG_ID") or "").strip()
+    idp = (env.get("OIDC_BATTLENET_IDP_ID") or "").strip()
+    if not org and not idp:
+        return ()
+    if not (_ZITADEL_ID.match(org) and _ZITADEL_ID.match(idp)):
+        raise SystemExit(f"{BATTLENET_ORG_ENV} and {BATTLENET_IDP_ENV} go together: both ZITADEL ids (digits), "
+                         "or both empty for no Battle.net button")
+    return (f"urn:zitadel:iam:org:id:{org}", f"urn:zitadel:iam:org:idp:id:{idp}")
 
 
 def _read_secret(path: str, what: str) -> bytes:
@@ -539,6 +563,7 @@ def auth_from_env(s: Settings, who: Who):
     scopes = env.get("OIDC_SCOPES", "").strip() or " ".join(
         ["openid", "offline_access"] + ([ORG_SCOPE] if allowed_orgs else []))
     redirects = _csv(env.get("MCP_REDIRECT_URIS")) or list(DEFAULT_REDIRECT_URIS)
+    bnet = battlenet_scopes(env)
     cimd_hosts = frozenset(h.lower() for h in _csv(env.get("MCP_CIMD_HOSTS"))) or frozenset(DEFAULT_CIMD_HOSTS)
 
     class Denied(TokenError):
@@ -601,6 +626,47 @@ def auth_from_env(s: Settings, who: Who):
                 raise Denied(why)
             emit("auth", result="ok", when=when, sub=sub)
             return {"org": str({**claims, **info}.get(gate.org_claim) or "")}
+
+        # ------------------------------------------------ the consent page
+
+        async def _show_consent_page(self, request):
+            response = await super()._show_consent_page(request)
+            if response.status_code != 200 or not response.body:
+                return response
+            page, ok = consent.restyle(response.body.decode("utf-8"), battlenet=bool(bnet))
+            if not ok:
+                emit("auth", logging.WARNING, result="consent_page_unchanged",
+                     why="FastMCP's consent markup changed: served as is, without the Battle.net button")
+                return response
+            response.body = page.encode("utf-8")
+            response.headers["content-length"] = str(len(response.body))
+            return response
+
+        async def _submit_consent(self, request):
+            # The Battle.net button posts the same form (txn_id, csrf_token,
+            # action=approve) with ?login=battlenet: FastMCP's checks run as
+            # for Allow; only the authorize URL it builds gets the two scopes.
+            if not (bnet and request.query_params.get(consent.LOGIN_PARAM) == consent.BATTLENET):
+                return await super()._submit_consent(request)
+            mark = _BATTLENET_LOGIN.set(True)
+            try:
+                response = await super()._submit_consent(request)
+            finally:
+                _BATTLENET_LOGIN.reset(mark)
+            if response.status_code in (302, 303):
+                emit("auth", result="battlenet_login")
+            return response
+
+        def _build_upstream_authorize_url(self, txn_id, transaction):
+            url = super()._build_upstream_authorize_url(txn_id, transaction)
+            if not (bnet and _BATTLENET_LOGIN.get()):
+                return url
+            parts = urlsplit(url)
+            query = [(k, " ".join([v, *bnet]) if k == "scope" else v)
+                     for k, v in parse_qsl(parts.query, keep_blank_values=True)]
+            return urlunsplit(parts._replace(query=urlencode(query)))
+
+        # ------------------------------------------------ tokens
 
         async def exchange_authorization_code(self, client, authorization_code):
             code = await self._code_store.get(key=authorization_code.code)

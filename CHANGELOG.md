@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+**MCP connector: sign in with Battle.net.** With `OIDC_BATTLENET_ORG_ID`
+and `OIDC_BATTLENET_IDP_ID` set (ZITADEL), the consent page a connector opens
+has a "Sign in with Battle.net" button: the same login, sent straight to
+Battle.net, so a friend needs no account session in that browser first.
+Unset, nothing changes. The consent page now wears wow-stats' colours, day
+and night.
+
 **3D view: lit like Blizzard's renders.** The light comes from the front,
 above and the right, where it came from the left almost level: a blade
 turned that way got no light and showed half as bright. The shine some

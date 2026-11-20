@@ -335,6 +335,7 @@ secret, refresh tokens, and the callback `https://<your host>/oauth/callback`.
 | `OIDC_REQUIRED_ROLE`, `OIDC_ALLOWED_ORGS` | | One person per install: a project role and the orgs allowed, from userinfo. Ignored with several people (the friends list decides) |
 | `OIDC_ORG_CLAIM`, `OIDC_ROLES_CLAIM` | ZITADEL's (`urn:zitadel:iam:...`) | The claim names that hold the org id and the roles: set your provider's |
 | `OIDC_SCOPES` | `openid offline_access` (+ the org scope with `OIDC_ALLOWED_ORGS`) | What the app asks the provider for |
+| `OIDC_BATTLENET_ORG_ID`, `OIDC_BATTLENET_IDP_ID` | | ZITADEL: a "Sign in with Battle.net" button on the consent page, for that org and identity provider. Both or neither |
 | `MCP_SIGNING_KEY_FILE` | random per start | 32+ random bytes; signs the tokens and encrypts the stored logins. Without it every restart logs every connector out |
 | `MCP_STATE_DIR` | | Client registrations and logins across restarts (encrypted, in `oauth/`) |
 | `MCP_REDIRECT_URIS`, `MCP_CIMD_HOSTS` | the client list above | Replace the lists |
