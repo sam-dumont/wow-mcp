@@ -525,11 +525,10 @@ def _os_cmds(os_: dict, personal: bool) -> list[str]:
             cmd = o["command"]
             if personal and "{code}" in cmd:
                 cmd = cmd.replace("{code}", "<your code>")
-                part += ["Your command is on your start page. It looks like this (the code is yours, single use):",
-                         ""]
+                part += ["Your own command is on your start page. It looks like this:", ""]
             part += [code(cmd, OS_LANG[key]), ""]
         if o.get("installs"):
-            part += [f"It installs: {text(o['installs'])}", ""]
+            part += ["<details>", "<summary>What it installs</summary>", "", text(o["installs"]), "", "</details>", ""]
         out += os_block(key, part)
     return out
 
@@ -539,7 +538,8 @@ def block_steps() -> str:
     out = clip(st.get("media"), "the whole setup, from the start page")
     for i, s in enumerate(st["steps"], 1):
         g = s.get("generic") or {}
-        out += [f"### {i}. {s['title']}", "", f"*{text(s['caption'])}*", ""]
+        # The caption is /start's subtitle; here the body says it already.
+        out += [f"### {i}. {s['title']}", ""]
         out += clip(s.get("media"), s["title"].lower())
         for p in g.get("body") or s.get("body", []):
             out += [text(p), ""]
@@ -564,10 +564,13 @@ def block_update() -> str:
     out = [f"- {text(u)}" for u in st["update"]]
     upd = next((s["update"] for s in st["steps"] if s.get("update")), {})
     if upd:
-        out += ["", *clip(st.get("update_media"), "an update"), "The update lines, no code needed:", ""]
+        # Only an install from before 0.5.1 needs it: folded.
+        out += ["", "<details>", "<summary>The update line, when your start page asks for it</summary>", "",
+                *clip(st.get("update_media"), "an update"), "No code needed:", ""]
         for key, label in (("windows", "Windows (PowerShell)"), ("mac", "Mac (Terminal)")):
             if key in upd:
                 out += os_block(key, [f"**{label}.**", "", code(upd[key], OS_LANG[key]), ""])
+        out += ["</details>", ""]
     return "\n".join(out).rstrip()
 
 
@@ -600,7 +603,9 @@ def block_trouble(part: str) -> str:
     for t in steps()["troubleshooting"]:
         if t.get("part", "install") != part:
             continue
-        out += [f"### {text(t['title'])}", "", text(t["body"]), "", f"**Fix:** {text(t['fix'])}", ""]
+        # The symptoms in sight, each fix one click away: a reader scans for theirs.
+        out += [f"### {text(t['title'])}", "", "<details>", "<summary>Why, and the fix</summary>", "",
+                text(t["body"]), "", f"**Fix:** {text(t['fix'])}", "", "</details>", ""]
     return "\n".join(out).rstrip()
 
 

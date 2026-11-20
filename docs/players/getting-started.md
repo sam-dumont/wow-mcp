@@ -4,11 +4,8 @@
 characters are on your own page, and it updates by itself a few minutes after you log out.
 
 A friend runs wow-stats and sent you a link. You need a few addons and one command on the
-computer you play on: about 5 minutes, no admin rights, nothing from this repository.
-
-The link opens your start page, `https://<their server>/start`: these same steps with your
-own install command in them, and a tick when each one works. Use it if you can; this page is
-for reading before you start.
+computer you play on: about 5 minutes, nothing from this repository. The link opens your start
+page, which has these same steps with your own command in them: use it if you can.
 
 ## What you need
 
@@ -16,14 +13,12 @@ for reading before you start.
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
 - WoW Forever on Windows 10 or 11, or macOS, logged in once (so its WTF folder exists).
-- Your wow-stats account: the owner sends you the link.
+- The link the owner sent you.
 - No admin rights: everything installs for your user only.
 
 <!-- /generated:player-needs -->
 
 ## The steps
-
-The examples use `https://wow.example.org`: your friend's server has its own address.
 
 <!-- generated:player-steps -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
@@ -32,43 +27,52 @@ The examples use `https://wow.example.org`: your friend's server has its own add
 
 ### 1. Log in
 
-*Log in with the account you were sent.*
-
-Your start page, https://wow.example.org/start, is the personal version of this page: your install command is there, and each step ticks when it works. Log in with the username and password you were sent. Your page's address is already set: the owner chose it when they made your account.
+Open https://wow.example.org/start, the link the owner sent you, and sign in the way they told you: the account they made for you, or Battle.net when the button is there.
 
 **It worked when:** Your start page opens with your install command ready.
 
-**If not:** "Access denied" or a login loop: the account has no wow-stats access yet. Send the owner the email you log in with.
+<details>
+<summary>Didn't work?</summary>
+
+"You're signed in, but the person who runs this site hasn't let you in yet": the owner hasn't added you yet. Tell them you signed in, then reload the page. A login loop: same message to the owner.
+
+</details>
 
 ### 2. Install the addons
 
-*Polestar is required. The install command (step 3) adds Polestar Recorder.*
+Easiest with the CurseForge app (https://www.curseforge.com/download/app), which lists WoW Forever as its own install. Polestar is required. Add Syndicator: it gives your page your own gear and bags (without it, Battle.net's copy). The others are optional: your start page says what each one adds.
 
-Easiest: the CurseForge app (https://www.curseforge.com/download/app) lists WoW Forever as its own WoW install; restart the app if Forever doesn't show up.
+**It worked when:** Character select, AddOns: Polestar, Polestar Recorder and Syndicator are ticked, and you typed `/psrec on` once in game (not needed with the Polestar Client).
 
-**It worked when:** Character select, AddOns: Polestar and Polestar Recorder are ticked. In game, `/psrec on` was typed once (not needed with the Polestar Client). Once data arrives, each addon turns green on your start page.
+<details>
+<summary>Didn't work?</summary>
 
-**If not:** Missing from the AddOns list: the folder is one level too deep (`Interface/AddOns/Polestar/Polestar/...`). Move it up so `Interface/AddOns/Polestar/Polestar.toc` exists, then restart WoW.
+Missing from the AddOns list: the folder is one level too deep (`Interface/AddOns/Polestar/Polestar/...`). Move it up so `Interface/AddOns/Polestar/Polestar.toc` exists, then restart WoW.
+
+</details>
 
 ### 3. Run the install command
 
-*One line in a terminal. No admin rights.*
-
 [Watch: run the install command (Mac)](../videos/media/install-mac-light.mp4)
 
-The command installs a small program that runs every 5 minutes, reads what WoW and your addons saved in your `WTF/` folder and sends what's new to your page. It also puts Polestar Recorder in WoW's AddOns folder (the official release, checked before it's copied), unless you have a newer one. It finds the WoW folder by itself, writes only under your user folder and to that AddOns folder, and never prints your password.
+It installs a small program that sends what WoW and your addons save to your page every 5 minutes, and adds Polestar Recorder (the official release, checked) unless you have a newer one. It writes only under your user folder and to WoW's AddOns folder.
 
 <div class="os" data-os="windows">
 
 **Windows (PowerShell).** Windows key, type PowerShell, Enter. Paste with a right click, press Enter.
 
-Your command is on your start page. It looks like this (the code is yours, single use):
+Your own command is on your start page. It looks like this:
 
 ```powershell
 irm https://wow.example.org/install/<your code> | iex
 ```
 
-It installs: `%LOCALAPPDATA%\wow-stats` and a scheduled task "wow-stats" (every 5 minutes, as you, no admin). Log: `%LOCALAPPDATA%\wow-stats\wow-stats.log`. Polestar Recorder in `_forever_\Interface\AddOns`.
+<details>
+<summary>What it installs</summary>
+
+`%LOCALAPPDATA%\wow-stats` and a scheduled task "wow-stats" (every 5 minutes, as you, no admin). Log: `%LOCALAPPDATA%\wow-stats\wow-stats.log`. Polestar Recorder in `_forever_\Interface\AddOns`.
+
+</details>
 
 </div>
 
@@ -76,55 +80,72 @@ It installs: `%LOCALAPPDATA%\wow-stats` and a scheduled task "wow-stats" (every 
 
 **Mac (Terminal).** Cmd+Space, type Terminal, Enter. Paste with Cmd+V, press Enter.
 
-Your command is on your start page. It looks like this (the code is yours, single use):
+Your own command is on your start page. It looks like this:
 
 ```sh
 curl --proto '=https' --proto-redir '=https' -fsSL https://wow.example.org/install/<your code> | bash
 ```
 
-It installs: `~/.local/share/wow-stats`, `~/.config/wow-stats/config.toml` and a launchd agent local.wow-stats (every 5 minutes). Log: `~/Library/Logs/wow-stats.log`. Polestar Recorder in `_forever_/Interface/AddOns`.
+<details>
+<summary>What it installs</summary>
+
+`~/.local/share/wow-stats`, `~/.config/wow-stats/config.toml` and a launchd agent local.wow-stats (every 5 minutes). Log: `~/Library/Logs/wow-stats.log`. Polestar Recorder in `_forever_/Interface/AddOns`.
+
+</details>
 
 </div>
 
-The command works once, for 15 minutes, and is only for the first install. Used or expired before you ran it: click "Get my install command" again. Updates later need no code: once installed, the update line shows in this step.
+It works once, within 15 minutes. Used or expired: click "Get my install command" again.
 
 **It worked when:** The output says "wow-stats is installed. WoW folder: ..." and that folder is your `_forever_` folder.
 
-**If not:** "WoW folder not found" or the wrong folder: see that troubleshooting entry. "This install code expired or was used already": get a new command and run it.
+<details>
+<summary>Didn't work?</summary>
+
+"WoW folder not found" or the wrong folder: see that troubleshooting entry. "This install code expired or was used already": get a new command and run it.
+
+</details>
 
 ### 4. Play 5 minutes
 
-*Play, then `/reload` or log out.*
+Play a few minutes, then `/reload` or log out: WoW saves the addons' files only then, and your page gets them within 5 minutes. The first time, that's everything your addons saved so far.
 
-Play a few minutes with the addons on. WoW writes the addons' files only on `/reload`, logout or character switch: do one, then wait up to 5 minutes.
+A crash or Alt+F4 loses what wasn't saved: `/reload` after a dungeon and before a break.
 
-The first run sends everything your addons saved so far, every character: a few seconds, a minute with a long combat log. After that, only what's new.
+**It worked when:** "Data arrived" ticks on your start page by itself.
 
-A game or computer crash, or Alt+F4, loses what every addon gathered since the last save. Type `/reload` after a dungeon, after an Auction House scan and before a break.
+<details>
+<summary>Didn't work?</summary>
 
-**It worked when:** "Data arrived" ticks on your start page by itself, and the program's log ends in a line like "ship: ... sent (N events)".
+Nothing after 10 minutes: first type `/psrec on` in WoW (the Recorder starts off without the Polestar Client), then `/reload`. Still nothing: see "My page is still empty after 10 minutes".
 
-**If not:** Nothing after 10 minutes: first type `/psrec on` in WoW (the Recorder starts off without the Polestar Client), then `/reload`. Still nothing: see "My page is still empty after 10 minutes".
+</details>
 
 ### 5. See your character
 
-*Your character, your climb and your gear.*
-
-Open https://wow.example.org: each character you played with the addons on is in the list at the top, with level, gear and time per level. Settings decides what's public; the public page is off until you switch it on.
+Open https://wow.example.org: your characters are in the list at the top. Battle.net's copy (their look, and your gear without Syndicator) comes within minutes, then every 2 hours, when the owner set it up. Your public page stays off until you switch it on in Settings.
 
 **It worked when:** Your character is in the list at the top of your page.
 
-**If not:** Data arrived but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, `/reload`, wait 5 minutes.
+<details>
+<summary>Didn't work?</summary>
+
+Data arrived but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, `/reload`, wait 5 minutes.
+
+</details>
 
 ### 6. Connect your AI
 
-*Add wow-stats as a connector once.*
-
-Your assistant reads your stats and plans the next session: what to do in 2 hours, which gear to chase, when a dungeon is worth it. It uses your own AI account; wow-stats never sees the conversation.
+Claude, ChatGPT or another assistant reads your stats and plans your next session, on your own AI account: wow-stats never sees the conversation.
 
 **It worked when:** Ask "With wow-stats, what's my character doing?": the answer names your character.
 
-**If not:** "Client Not Registered" or a disconnected connector: see that troubleshooting entry.
+<details>
+<summary>Didn't work?</summary>
+
+"Client Not Registered" or a disconnected connector: see that troubleshooting entry.
+
+</details>
 
 <!-- /generated:player-steps -->
 
@@ -135,13 +156,16 @@ What the program sends, and what it never touches: [What's shared, and with whom
 <!-- generated:player-update -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
-- Addons: the CurseForge app's Update all; by hand, delete the old folders, then unzip the new ones.
-- The program on your computer updates itself, within a few hours of a new version on the server. Installed before version 0.5.1? Run the update line for your OS once (your start page says so when it's needed); from then on it updates by itself. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.
-- Moving to another computer, or the password leaked: Reset my upload password on your start page. The old password stops at once; run the new install command it gives you.
+- Addons: Update all in the CurseForge app.
+- The program updates itself, Polestar Recorder too, within a few hours of a new version: nothing to reinstall. Only an install from before 0.5.1 needs the update line once, and your start page says so.
+- New computer or leaked upload password: Reset my upload password on your start page, then run the new install command.
+
+<details>
+<summary>The update line, when your start page asks for it</summary>
 
 [Watch: an update (Mac)](../videos/media/update-mac-light.mp4)
 
-The update lines, no code needed:
+No code needed:
 
 <div class="os" data-os="windows">
 
@@ -162,6 +186,8 @@ curl --proto '=https' --proto-redir '=https' -fsSL https://wow.example.org/insta
 ```
 
 </div>
+
+</details>
 
 <!-- /generated:player-update -->
 

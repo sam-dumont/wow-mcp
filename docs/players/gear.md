@@ -16,7 +16,8 @@ Every slot shows what you wear and its item level. Under it, in green:
 - **"something to wear"**: the slot is empty and anything would help.
 
 Hover or tap an item for its card. Under the slots: your average item level and your
-professions.
+professions. Items Forever added that no item data covers yet get their stats from your own
+game files, sent by the program on your computer.
 
 ## Points
 

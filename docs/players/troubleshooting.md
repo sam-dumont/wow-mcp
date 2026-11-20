@@ -12,33 +12,58 @@ sends them within 5 minutes. "Nothing yet" right after playing is normal.
 
 ### My page is still empty after 10 minutes
 
+<details>
+<summary>Why, and the fix</summary>
+
 WoW saves the addons' files only on `/reload` or logout, and the program that sends your data runs every 5 minutes.
 
 **Fix:** Type `/psrec on` in WoW (the Recorder starts off unless the Polestar Client installed it), then `/reload` and wait 5 minutes. Still nothing: read the last lines of the log (Mac `~/Library/Logs/wow-stats.log`, Windows `%LOCALAPPDATA%\wow-stats\wow-stats.log`). "HTTP 401": the password is stale, run a new install command from your start page. "unreachable": check your connection; nothing is lost, it all goes once you are back online.
 
+</details>
+
 ### My last session is missing
 
-WoW addons write their files only at logout, `/reload` or a clean quit. A crash of the game or the computer, or Alt+F4, loses everything since the last save, for every addon (Polestar, Auctionator...), not just this one. An addon can't save on a timer: a reload needs a key press.
+<details>
+<summary>Why, and the fix</summary>
+
+WoW addons write their files only at logout, `/reload` or a clean quit. A crash, or Alt+F4, loses everything every addon gathered since the last save. No addon can save on a timer.
 
 **Fix:** Type `/reload` after a dungeon, after an Auction House scan and before a break, or put `/reload` on a macro key. What the game never wrote can't be recovered.
 
+</details>
+
 ### "WoW folder not found" (or the wrong folder)
+
+<details>
+<summary>Why, and the fix</summary>
 
 The installer looks for a `_forever_` folder with `WTF/` in it where Battle.net puts WoW: `C:\Program Files (x86)\World of Warcraft\_forever_` on Windows (or the World of Warcraft folder Battle.net registered, on any drive), `/Applications/World of Warcraft/_forever_` on a Mac. `WTF/` only exists after one login.
 
-**Fix:** Log in to WoW Forever once, quit, then run a new install command. Not sure where WoW is: in the Battle.net app, pick World of Warcraft, click the cog next to Play, then Show in Explorer (Show in Finder on a Mac); the `_forever_` folder is in the World of Warcraft folder. WoW installed somewhere else: on a Mac, set the folder in the command, `curl -fsSL <your command's address> | WOW_STATS_WOW_DIR="/path/to/_forever_" bash`; on Windows, first run `$env:WOW_STATS_WOW_DIR = 'D:\Games\World of Warcraft\_forever_'` in the same PowerShell window, then the command.
+**Fix:** Log in to WoW Forever once, quit, then run a new install command. Not sure where WoW is: in the Battle.net app, pick World of Warcraft, click the cog next to Play, then Show in Explorer (Show in Finder on a Mac); the `_forever_` folder is in the World of Warcraft folder. WoW installed somewhere else: on a Mac, put `WOW_STATS_WOW_DIR="/path/to/_forever_"` before `bash` at the end of your command (`... | WOW_STATS_WOW_DIR="/path/to/_forever_" bash`); on Windows, first run `$env:WOW_STATS_WOW_DIR = 'D:\Games\World of Warcraft\_forever_'` in the same PowerShell window, then the command.
+
+</details>
 
 ### An antivirus blocked the installer
+
+<details>
+<summary>Why, and the fix</summary>
 
 Some antivirus tools block `irm | iex` and unknown scheduled tasks. The installer writes only under your user folder and to WoW's AddOns folder, and adds one task that runs every 5 minutes.
 
 **Fix:** Allow the script once from the antivirus's quarantine or history, then run a new install command. Can't allow it: send the owner a screenshot of the warning.
 
+</details>
+
 ### Nothing arrives since a reboot
+
+<details>
+<summary>Why, and the fix</summary>
 
 On Windows the task starts when you log in to Windows, not at boot. On a Mac the agent loads when you log in to macOS.
 
 **Fix:** Log in and wait 5 minutes. Still nothing: Windows, Task Scheduler, task wow-stats shows its last run and result; Mac, `launchctl print gui/$(id -u)/local.wow-stats` says whether it's loaded. Either way, a new install command from your start page replaces the job and keeps your archive.
+
+</details>
 
 <!-- /generated:player-trouble -->
 
@@ -64,6 +89,9 @@ Gear and look but no bags: that's Battle.net's copy, read every 2 hours. Syndica
 the page your own gear and bags.
 
 ## Check that the program sends your data
+
+<details>
+<summary>Read its log, or run it now</summary>
 
 <!-- generated:player-status -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
@@ -99,6 +127,8 @@ launchctl print gui/$(id -u)/local.wow-stats | grep -E 'state|last exit'
 </div>
 
 <!-- /generated:player-status -->
+
+</details>
 
 ## Problems with your AI
 

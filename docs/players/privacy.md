@@ -13,6 +13,8 @@ folder and sends what's new to your friend's server, with your own upload passwo
 - **About other players, only this:** the name (no realm) of a player you grouped with, saw
   nearby or targeted, with when and in which zone: what the People tab shows. In your combat
   log, anyone but you and the monsters is "another player".
+- **Also read, for item facts only:** the game's hotfix cache, for the items Forever added
+  that no item data has yet (name, slot, item level, stats of the ones the server asks for).
 - **Never sent:** your WoW or Battle.net password, your account name, anything outside the
   WoW folder.
 - **Kept on your computer:** a copy of everything it sent, in `WoWArchive` in your home folder.
