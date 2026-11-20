@@ -1229,10 +1229,14 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     extra = sorted(set(args) - allowed)
     if extra:
         raise ToolError(f"unknown argument(s): {', '.join(extra)}")
+    from wowstats import itemfacts
     from wowstats.stores import SourceError as ViewsSourceError
 
     try:
-        out = tool.fn(ctx, args)
+        # The person's item facts for what the planner reads deep down
+        # (wowstats.plan.kbloot): theirs, like everything else here.
+        with itemfacts.using(itemfacts.for_env(ctx.environ()).facts()):
+            out = tool.fn(ctx, args)
     except (SourceError, ViewsSourceError) as e:
         raise ToolError(stores_public_error(e, name)) from None
     if isinstance(out, dict) and not tool.writes and "missing" not in out:

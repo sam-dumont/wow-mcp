@@ -252,6 +252,11 @@ class Catalog:
         self.on = on
         self.cards: dict[int, dict] = {}
         self.enchants: dict[int, str] = {}
+        # Kept for the cards of items only a player's own client knows
+        # (wowstats.itemfacts): an icon's file id -> its name, and the
+        # subclass names (Cloth, Sword...).
+        self.icon_files: dict[int, str] = {}
+        self.subclasses: dict[tuple[int, int], str] = {}
         self.build = ""
         self.checked = 0.0
         self.lock = threading.Lock()
@@ -275,8 +280,9 @@ class Catalog:
     # The cache file's shape: a new one rebuilds the cards on the same build
     # (2: every Item row, not only ItemSparse's; 3: appearance icons, the
     # question mark; 4: the vendor's sell price, for the planner's loot value;
-    # 5: Era's names for the items Forever's tables don't name).
-    FORMAT = 5
+    # 5: Era's names for the items Forever's tables don't name; 6: the icon
+    # file names and subclass names, for wowstats.itemfacts).
+    FORMAT = 6
 
     def _load(self) -> None:
         if not self.on or (self.cards and time.time() - self.checked < DAY):
@@ -291,6 +297,8 @@ class Catalog:
                         raise ValueError("an older cache")
                     self.cards = {int(k): v for k, v in d["cards"].items()}
                     self.enchants = {int(k): v for k, v in d["enchants"].items()}
+                    self.icon_files = {int(k): v for k, v in d["icon_files"].items()}
+                    self.subclasses = {tuple(int(x) for x in k.split(":")): v for k, v in d["subclasses"].items()}
                     self.build, self.checked = d["build"], float(d["checked"])
                 if self.cards and time.time() - self.checked < DAY:
                     return
@@ -310,7 +318,10 @@ class Catalog:
                 with contextlib.suppress(OSError):
                     _write(self.file, json.dumps({"format": self.FORMAT, "build": self.build, "checked": self.checked,
                                                   "cards": {str(k): v for k, v in self.cards.items()},
-                                                  "enchants": {str(k): v for k, v in self.enchants.items()}},
+                                                  "enchants": {str(k): v for k, v in self.enchants.items()},
+                                                  "icon_files": {str(k): v for k, v in self.icon_files.items()},
+                                                  "subclasses": {f"{c}:{sc}": v
+                                                                 for (c, sc), v in self.subclasses.items()}},
                                                  separators=(",", ":"), ensure_ascii=False).encode())
 
     def _refresh(self, build: str, fetch, Upstream) -> None:  # noqa: N803 - the exception class passed in
@@ -355,6 +366,7 @@ class Catalog:
                  **(forever.data().get("items") or {})}
         cards = build_cards(_rows(table("ItemSparse")), item_rows, icons, sets, subs, polestar, app_icons, names)
         self.cards, self.enchants, self.build = cards, enchants, build
+        self.icon_files, self.subclasses = icons, {k: v for k, v in subs.items() if v}
 
     def _era_names(self, ids: set[str], fetch, Upstream) -> dict[str, str]:  # noqa: N803
         """The Classic Era client's item names for `ids` ({} when wago.tools

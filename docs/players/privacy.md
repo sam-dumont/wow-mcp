@@ -14,7 +14,9 @@ folder and sends what's new to your friend's server, with your own upload passwo
   nearby or targeted, with when and in which zone: what the People tab shows. In your combat
   log, anyone but you and the monsters is "another player".
 - **Also read, for item facts only:** the game's hotfix cache, for the items Forever added
-  that no item data has yet (name, slot, item level, stats of the ones the server asks for).
+  that no item data has yet: the ids of the weapons and armour in it, then name, slot, type,
+  quality, item level, required level, stats, speed, icon and sell price of the ones the server
+  asks for. `item_facts = false` in the config turns it off.
 - **Never sent:** your WoW or Battle.net password, your account name, anything outside the
   WoW folder.
 - **Kept on your computer:** a copy of everything it sent, in `WoWArchive` in your home folder.

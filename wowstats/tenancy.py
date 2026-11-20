@@ -522,6 +522,8 @@ class Tenancy:
         # The 3D view's game files the person's shipper sends: in their own
         # folder, so delete_tenant takes them too.
         e["MODEL3D_ASSETS_DIR"] = str(self.user_dir(u) / "assets")
+        # Their item facts (wowstats.itemfacts): theirs, gone with them too.
+        e["ITEM_FACTS_DIR"] = str(self.user_dir(u) / "items")
         if u.owner:
             e.setdefault("ANALYSIS_STATE_DIR", str(self.user_dir(u) / "analysis"))
             if not e["ANALYSIS_STATE_DIR"]:

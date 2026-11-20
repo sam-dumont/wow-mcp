@@ -644,6 +644,7 @@ def share_server(env: dict, tenancy=None):
     /profile-characters (every person's characters, "<account_id>\t<name>"
     per line) for the exporter, /hosts.json (each site's host) for the host's DNS automation, and
     /assets/<slug>/{build,table/<Name>,file/<id>} (that person's 3D files, wowstats.assets.RemoteStore)
+    and /items/<slug>/facts (that person's item facts, wowstats.itemfacts.RemoteFacts)
     for the publisher; the publisher POSTs its pass to /publisher.json (the owner's overview)."""
     port = (env.get("ANALYSIS_SHARE_PORT") or "").strip()
     if not port or (state_dir(env) is None and tenancy is None):
@@ -683,6 +684,14 @@ def share_server(env: dict, tenancy=None):
                 if person is None or not person.active:
                     return self.reply(404, b"")
                 return assets.share_route(self, Path(tenancy.env_for(person)["MODEL3D_ASSETS_DIR"]), m.group(2))
+            m = re.fullmatch(r"/items/([a-z0-9]{2,20})/facts", u.path) if tenancy is not None else None
+            if m:
+                from wowstats import itemfacts
+
+                person = tenancy.registry.by_slug(m.group(1))
+                if person is None or not person.active:
+                    return self.reply(404, b"")
+                return itemfacts.share_route(self, itemfacts.default_dir(tenancy.env_for(person)))
             if u.path == "/analysis.json":
                 body, ctype = json.dumps(analysis_of(qs.get("slug", [""])[0])).encode(), "application/json"
             elif tenancy is not None and u.path == "/users.json":

@@ -30,6 +30,11 @@ its SavedVariables (logout, /reload). Four steps, each safe to rerun:
    of this file and replace it once the release's signature checks out
    (check_update; `auto_update = false` pins it).
 
+After shipping, the 3D view's files (ship_assets) and the facts of the items
+the server's reference doesn't have yet, from the game's hotfix cache
+(ship_item_facts; `item_facts = false` turns it off): both only what the
+server asks for.
+
 Python standard library only (3.11+). Settings: config.toml, see
 config.example.toml (~/.config/wow-stats/ on macOS and Linux,
 %APPDATA%\\wow-stats\\ on Windows, or WOW_STATS_CONFIG).
@@ -4288,6 +4293,289 @@ def ship_assets(state: dict, now: float | None = None) -> str | None:
     return "sent" if sent else "nothing new"
 
 
+# ---------------------------------------------------------------- item facts from the game's hotfix cache
+
+# Forever's newest items (a dungeon added in a patch) reach the game client
+# as hotfixes, not in its files: the server sends them at login and the
+# client keeps them in _forever_/Cache/ADB/<locale>/DBCache.bin. No data
+# source we can use has them yet (wago.tools and forever-db read the files,
+# where those rows are encrypted), so the server would know a new dungeon's
+# drops by name only. This reads that one file, read-only, and sends the
+# facts of the weapons and armour the server says it lacks: id, name, slot,
+# class and subclass, quality, item level, required level, stat ids with
+# their allocations, speed, binding, icon file id, vendor price, which
+# classes may use it. Never the
+# whole cache, never another table's rows.
+#
+# Once per change of the file: the shipper sends [id, hash of its facts]
+# for every item in the cache (POST <base>/install/items/need), the server
+# answers the ids it wants (not in its reference, or stored with another
+# hash) and whether it needs the client's RandPropPoints table (the stat
+# budget per item level, which turns an allocation into a number: read from
+# the game's storage like the 3D view's tables). Same server, password and
+# rules as the 3D files; `item_facts = false` in the config turns it off.
+ITEMS_PATH = "/install/items"
+ITEMS_RETRY_S = 15 * 60          # after a failed try
+ITEMS_RECHECK_S = 24 * 3600      # unchanged cache: ask again once a day (the server may have lost its copy)
+DBCACHE_MAX = 64 * 1024 * 1024   # the real one is ~8 MB
+HOTFIX_ROW_MAX = 64 * 1024
+HOTFIX_ENTRIES_MAX = 2_000_000
+ITEMS_POST_MAX = 500
+HOTFIX_HEADER = {9: 44}          # DBCache.bin version -> header size (magic, version, build, 32-byte hash)
+HOTFIX_VALID = 1                 # a row's status: 1 valid, 2 removed, 3 invalid, 4 not public
+HOTFIX_QUERIED = 0x1000000       # push ids from here on: rows the client asked the server for
+HOTFIX_SPARSE, HOTFIX_ITEM = 0x919BE54E, 0x50238EC2  # ItemSparse, Item (WoWDBDefs' table hashes)
+# The rows as Forever 1.60 writes them (WoWDBDefs, ItemSparse layout
+# 6FCC3191 and Item 9A2A4834; the id is the row's record id). A row whose
+# length doesn't match is skipped; when most don't, the layout changed and
+# nothing is sent until this is updated.
+_SPARSE_STRINGS = ("Description_lang", "Display3_lang", "Display2_lang", "Display1_lang", "Display_lang")
+_SPARSE_FIELDS = (
+    ("ExpansionID", "i", 1), ("DmgVariance", "f", 1), ("LimitCategory", "i", 1), ("DurationInInventory", "I", 1),
+    ("QualityModifier", "f", 1), ("BagFamily", "I", 1), ("StartQuestID", "i", 1), ("LanguageID", "i", 1),
+    ("ItemRange", "f", 1), ("StatPercentageOfSocket", "f", 10), ("StatPercentEditor", "i", 10),
+    ("StatModifier_bonusStat", "i", 10), ("Stackable", "i", 1), ("MaxCount", "i", 1), ("MinReputation", "i", 1),
+    ("RequiredAbility", "I", 1), ("AllowableRace", "i", 2), ("SellPrice", "I", 1), ("BuyPrice", "I", 1),
+    ("VendorStackCount", "I", 1), ("PriceVariance", "f", 1), ("PriceRandomValue", "f", 1), ("Flags", "i", 5),
+    ("OppositeFactionItemID", "i", 1), ("ModifiedCraftingReagentItemID", "i", 1), ("ContentTuningID", "i", 1),
+    ("PlayerLevelToItemLevelCurveID", "i", 1), ("ItemLevelOffsetCurveID", "i", 1),
+    ("ItemLevelOffsetItemLevel", "i", 1), ("ItemSquishEraID", "i", 1), ("ItemNameDescriptionID", "H", 1),
+    ("RequiredTransmogHoliday", "H", 1), ("RequiredHoliday", "H", 1), ("Gem_properties", "H", 1),
+    ("Socket_match_enchantment_ID", "H", 1), ("TotemCategoryID", "H", 1), ("InstanceBound", "H", 1),
+    ("ZoneBound", "H", 2), ("ItemSet", "H", 1), ("LockID", "H", 1), ("PageID", "H", 1), ("ItemDelay", "H", 1),
+    ("MinFactionID", "H", 1), ("RequiredSkillRank", "H", 1), ("RequiredSkill", "H", 1), ("ItemLevel", "H", 1),
+    ("AllowableClass", "h", 1), ("ArtifactID", "B", 1), ("SpellWeight", "B", 1), ("SpellWeightCategory", "B", 1),
+    ("SocketType", "B", 3), ("SheatheType", "B", 1), ("Material", "B", 1), ("PageMaterialID", "B", 1),
+    ("Bonding", "B", 1), ("DamageType", "B", 1), ("ContainerSlots", "B", 1), ("RequiredPVPMedal", "B", 1),
+    ("RequiredPVPRank", "b", 1), ("RequiredLevel", "b", 1), ("InventoryType", "b", 1),
+    ("OverallQualityID", "b", 1), ("AmmunitionType", "B", 1))
+_ITEM_FIELDS = (
+    ("ClassID", "i", 1), ("SubclassID", "B", 1), ("Material", "B", 1), ("InventoryType", "b", 1),
+    ("SheatheType", "B", 1), ("ItemPetFoodID", "i", 1), ("Sound_override_subclassID", "b", 1),
+    ("IconFileDataID", "i", 1), ("ItemGroupSoundsID", "I", 1), ("ContentTuningID", "i", 1),
+    ("ModifiedCraftingReagentItemID", "i", 1), ("AmmunitionType", "B", 1), ("CraftingQualityID", "i", 1),
+    ("ItemSquishEraID", "i", 1), ("RecraftReagentCountPercentage", "f", 1), ("OrderSource", "B", 1))
+
+
+def _layout(fields) -> tuple[struct.Struct, list[tuple[str, int, int]]]:
+    """One struct for a run of fixed-size fields, and (name, first value, count) for each."""
+    fmt, names, at = "<", [], 0
+    for name, code, n in fields:
+        fmt += f"{n}{code}" if n > 1 else code
+        names.append((name, at, n))
+        at += n
+    return struct.Struct(fmt), names
+
+
+_SPARSE_TAIL, _SPARSE_NAMES = _layout(_SPARSE_FIELDS)
+_ITEM_ROW, _ITEM_NAMES = _layout(_ITEM_FIELDS)
+
+
+def _fields(values: tuple, names) -> dict:
+    return {name: values[at] if n == 1 else list(values[at:at + n]) for name, at, n in names}
+
+
+def _sparse_row(data: bytes) -> dict | None:
+    """One ItemSparse hotfix row, or None when it isn't the length the layout says."""
+    pos, row = 0, {}
+    for name in _SPARSE_STRINGS:
+        end = data.find(b"\0", pos)
+        if end < 0 or end - pos > 1024:
+            return None
+        row[name] = data[pos:end].decode("utf-8", "replace")
+        pos = end + 1
+    if len(data) - pos != _SPARSE_TAIL.size:
+        return None
+    row.update(_fields(_SPARSE_TAIL.unpack_from(data, pos), _SPARSE_NAMES))
+    return row
+
+
+def _item_row(data: bytes) -> dict | None:
+    if len(data) != _ITEM_ROW.size:
+        return None
+    return _fields(_ITEM_ROW.unpack_from(data, 0), _ITEM_NAMES)
+
+
+def facts_hash(f: dict) -> int:
+    """What the server compares to know an item's facts changed."""
+    return zlib.crc32(json.dumps(f, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode())
+
+
+def hotfix_items(data: bytes) -> tuple[dict[int, dict], str]:
+    """The weapons and armour in a DBCache.bin, as facts: ({item id: facts},
+    "" or why there are none). Never raises: a short, damaged or unknown
+    file gives what it could read up to the damage, or nothing."""
+    if len(data) < 8 or data[:4] != b"XFTH":
+        return {}, "not a hotfix cache"
+    version = struct.unpack_from("<I", data, 4)[0]
+    pos = HOTFIX_HEADER.get(version)
+    if pos is None:
+        return {}, f"hotfix cache version {version} isn't one this shipper reads"
+    newest: dict[tuple[int, int], tuple[tuple, int, int, int]] = {}  # (table, id) -> (rank, status, start, size)
+    n = 0
+    while pos + 32 <= len(data) and n < HOTFIX_ENTRIES_MAX:
+        if data[pos:pos + 4] != b"XFTH":
+            break
+        _region, push, _uniq, table, rid, size, status = struct.unpack_from("<iiIIIiB", data, pos + 4)
+        if size < 0 or size > HOTFIX_ROW_MAX or pos + 32 + size > len(data):
+            break
+        n += 1
+        if table in (HOTFIX_SPARSE, HOTFIX_ITEM):
+            # A hotfix the server pushed beats a row the client asked for
+            # (push = HOTFIX_QUERIED + the row's id: an item it met that its
+            # files lack); the newest push of each kind wins.
+            rank = (push < HOTFIX_QUERIED, push, n)
+            old = newest.get((table, rid))
+            if old is None or rank > old[0]:
+                newest[(table, rid)] = (rank, status, pos + 32, size)
+        pos += 32 + size
+    sparse: dict[int, dict] = {}
+    item: dict[int, dict] = {}
+    bad = good = 0
+    for (table, rid), (_rank, status, start, size) in newest.items():
+        if status != HOTFIX_VALID:
+            continue
+        row = (_sparse_row if table == HOTFIX_SPARSE else _item_row)(data[start:start + size])
+        if row is None:
+            bad += 1
+            continue
+        good += 1
+        (sparse if table == HOTFIX_SPARSE else item)[rid] = row
+    if bad > 20 and bad > good // 20:
+        return {}, f"{bad} of {bad + good} item rows don't match the layout this shipper knows (a new client?)"
+    out: dict[int, dict] = {}
+    for rid, s in sparse.items():
+        it = item.get(rid)
+        if it is None or it["ClassID"] not in (2, 4) or not 0 < rid < 10_000_000:
+            continue
+        name = s["Display_lang"].strip()
+        if not name:
+            continue
+        stats = [[sid, a] for sid, a in zip(s["StatModifier_bonusStat"], s["StatPercentEditor"], strict=True)
+                 if a and 0 <= sid < 256]
+        f = {"id": rid, "name": name[:120], "inv": s["InventoryType"], "class": it["ClassID"],
+             "sub": it["SubclassID"], "q": s["OverallQualityID"], "ilvl": s["ItemLevel"],
+             "req": max(0, s["RequiredLevel"]), "stats": stats, "speed": s["ItemDelay"], "bond": s["Bonding"],
+             "icon": max(0, it["IconFileDataID"]), "sell": s["SellPrice"], "unique": int(s["MaxCount"] == 1),
+             "allow": s["AllowableClass"]}
+        f["h"] = facts_hash(f)
+        out[rid] = f
+    return out, ""
+
+
+def item_facts_on() -> bool:
+    """On unless the config says `item_facts = false`."""
+    v = CONFIG.get("item_facts", True)
+    if isinstance(v, str):
+        return v.strip().lower() not in ("false", "off", "no", "0")
+    return bool(v)
+
+
+def dbcache_path(wow: Path, locale: str) -> Path:
+    """The client's hotfix cache for its text locale (enUS...)."""
+    return wow / "Cache" / "ADB" / locale / "DBCache.bin"
+
+
+def read_dbcache(path: Path) -> bytes | None:
+    """The file, or None when it's missing, unreadable or larger than DBCACHE_MAX."""
+    try:
+        with open(path, "rb") as f:
+            data = f.read(DBCACHE_MAX + 1)
+    except OSError:
+        return None
+    return data if len(data) <= DBCACHE_MAX else None
+
+
+def ship_item_facts(state: dict, now: float | None = None) -> str | None:
+    """The item facts (above): None when skipped, else what happened."""
+    if not item_facts_on():
+        return None
+    st = state.setdefault("item_facts", {})
+    now = time.time() if now is None else now
+    try:
+        casc = Casc(WOW.parent)
+    except CascError:
+        return None  # no readable install: the 3D files say why, once
+    path = dbcache_path(WOW, casc.locale_name)
+    try:
+        info = path.stat()
+    except OSError:
+        return None  # the client hasn't been logged in yet
+    sig = f"{casc.version}:{info.st_size}:{info.st_mtime_ns}"
+    try:
+        ago = now - float(st.get("tried", 0))
+    except (TypeError, ValueError):
+        ago = now
+    if 0 <= ago < (ITEMS_RECHECK_S if st.get("sig") == sig else ITEMS_RETRY_S):
+        return None
+    st["tried"] = now
+    try:
+        src = update_source()
+    except UpdateError as e:
+        log(f"item facts: {e}")
+        return "refused"
+    if src is None:
+        return None
+    base, auth = src
+    data = read_dbcache(path)
+    if data is None:
+        return None
+    items, why = hotfix_items(data)
+    if why:
+        if st.get("error") != why:
+            log(f"item facts: {why}")
+        st["error"] = why
+        st["sig"] = sig  # the same file says the same: no retry before it changes
+        return "unreadable"
+    st.pop("error", None)
+    q = urllib.parse.urlencode({"build": casc.version})
+    body = json.dumps({"items": [[i, f["h"]] for i, f in sorted(items.items())]}).encode()
+    code, ans = _assets_call(f"{base}{ITEMS_PATH}/need?{q}", {**auth, "Content-Type": "application/json"}, body)
+    if code == 404:  # a server without item facts
+        st["sig"] = sig
+        return "no server"
+    if code != 200:
+        if code:
+            log(f"item facts: the server answered HTTP {code}")
+        return "no server"
+    try:
+        need = json.loads(ans)
+        want = [int(i) for i in need.get("want") or [] if int(i) in items]
+        tables = {str(k): int(v) for k, v in (need.get("tables") or {}).items()
+                  if re.fullmatch(r"[A-Za-z]{1,40}", str(k))}
+        per_post = max(1, min(ITEMS_POST_MAX, int(need.get("max_items") or ITEMS_POST_MAX)))
+    except (ValueError, TypeError, AttributeError):
+        return "no server"
+    if tables:
+        try:
+            got, by_name, _ = casc_files(casc, [], tables, follow=False)
+        except CascError as e:
+            log(f"item facts: can't read the game's files ({e})")
+            got, by_name = {}, {}
+        for name in tables:
+            blob = got.get(by_name.get(name, -1))
+            if blob is None:
+                continue
+            headers = {**auth, "X-Content-SHA256": hashlib.sha256(blob).hexdigest()}
+            code, _ = _assets_call(f"{base}{ITEMS_PATH}/table/{name}?{q}", headers, blob)
+            if code != 200:
+                log(f"item facts: the server refused the {name} table (HTTP {code})")
+                return "refused"
+    sent = 0
+    for k in range(0, len(want), per_post):
+        part = want[k:k + per_post]
+        chunk = json.dumps({"items": [items[i] for i in part]}, ensure_ascii=False).encode()
+        code, _ = _assets_call(f"{base}{ITEMS_PATH}/facts?{q}", {**auth, "Content-Type": "application/json"}, chunk)
+        if code != 200:
+            log(f"item facts: {sent} of {len(want)} sent, then HTTP {code}; the rest next run")
+            return "refused"
+        sent += len(part)
+    st["sig"] = sig
+    if sent:
+        log(f"item facts: {sent} item(s) the server didn't have, from the game's hotfix cache")
+    return "sent" if sent else "nothing new"
+
+
 def main() -> int:
     global DRY
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -4427,6 +4715,10 @@ def main() -> int:
             ship_assets(state)
         except Exception as e:  # noqa: BLE001 - the 3D files never stop the shipping
             log(f"3d files: {type(e).__name__}: {e}")
+        try:
+            ship_item_facts(state)
+        except Exception as e:  # noqa: BLE001 - the item facts never stop the shipping
+            log(f"item facts: {type(e).__name__}: {e}")
         try:
             check_update(state)
         except Exception as e:  # noqa: BLE001 - an update bug never stops the shipping

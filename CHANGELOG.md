@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+**New dungeon loot gets its stats from your own game.** Forever's new
+items (The Drowned City's) aren't in the item reference yet. The shipper
+now reads the game's hotfix cache, sends the server the facts of the items
+it lacks (name, slot, item level, stats, never anything else), and the
+dungeon page shows their item level and stats and checks them against your
+spec, like any other drop. Their tooltips fill in too. The reference wins
+for any item it has. `item_facts = false` in the shipper's config turns it
+off (docs/shipper.md, "Item facts").
+
 **MCP connector: sign in with Battle.net.** With `OIDC_BATTLENET_ORG_ID`
 and `OIDC_BATTLENET_IDP_ID` set (ZITADEL), the consent page a connector opens
 has a "Sign in with Battle.net" button: the same login, sent straight to
