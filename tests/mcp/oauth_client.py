@@ -31,6 +31,7 @@ class Login:
         self.client_id = ""
         self.verifier = ""
         self.tokens: dict = {}
+        self.consent_page = ""
 
     def close(self):
         self.http.close()
@@ -44,9 +45,10 @@ class Login:
             self.client_id = r.json()["client_id"]
         return r
 
-    def authorize(self, redirect: str | None = None) -> httpx2.Response:
+    def authorize(self, redirect: str | None = None, consent_query: str = "") -> httpx2.Response:
         """Up to the client's redirect: the final 302 (code or error) or the
-        response where the flow stopped."""
+        response where the flow stopped. `consent_query` goes on the consent
+        form's POST (the Battle.net button posts to /consent?login=battlenet)."""
         self.verifier = secrets.token_urlsafe(48)
         challenge = base64.urlsafe_b64encode(hashlib.sha256(self.verifier.encode()).digest()).rstrip(b"=").decode()
         q = {"response_type": "code", "client_id": self.client_id, "redirect_uri": redirect or self.redirect,
@@ -56,7 +58,9 @@ class Login:
         for _ in range(10):
             if r.status_code == 200 and "csrf_token" in r.text:  # FastMCP's consent page
                 fields = dict(re.findall(r'name="(txn_id|csrf_token)" value="([^"]*)"', r.text))
-                r = self.http.post(f"{self.base}/consent", data={**fields, "submit": "true", "action": "approve"})
+                self.consent_page = r.text
+                r = self.http.post(f"{self.base}/consent{consent_query}",
+                                   data={**fields, "submit": "true", "action": "approve"})
                 continue
             if r.status_code in (302, 303, 307):
                 loc = r.headers["location"]
