@@ -820,8 +820,13 @@ class FakeCatalog:
 @pytest.fixture
 def site_items(tmp_path, monkeypatch):
     from wowstats import itemcard
+    from wowstats.plan import facts
 
     monkeypatch.setattr(itemcard, "shared", lambda: FakeCatalog())
+    # The Dungeons panel reads through its own Store (facts.store_for), which
+    # would query vl.invalid: alone, with no earlier test's answer cached,
+    # the fixture failed (an xdist worker can run it first).
+    monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
 
     def store(vl, archive="", vm="", *a, **k):
         s = PoisonStore()
