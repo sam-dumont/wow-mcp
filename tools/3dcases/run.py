@@ -209,9 +209,9 @@ def evaluate(inst: Install, renderer, spec: dict, refs: dict[str, bytes], out_di
         if got["recipe"] is None:
             r.update(grade="fail", reasons=[got.get("why") or "no model"])
             continue
-        if model == "sd" and not got["classic"]:
-            r.update(grade="skipped", reasons=["no Classic model for this race in the client tables"])
-            continue
+        # A race with no Classic model (the Skyborne): Blizzard's Classic render is its Updated
+        # model, so ours is too (the assembly falls back to it), with a note.
+        updated_for_classic = model == "sd" and not got["classic"]
         recipe = got["recipe"]
         absent = inst.read(got["needs"])
         essential = {recipe["model"]} | {x["model"] for x in recipe["attachments"] + recipe["collections"]}
@@ -247,6 +247,8 @@ def evaluate(inst: Install, renderer, spec: dict, refs: dict[str, bytes], out_di
             if hidden:
                 names = ", ".join(checks.SLOT_NAMES.get(x, str(x)) for x in sorted(hidden))
                 reasons.append(("pass", f"hidden in the game: {names}"))
+            if updated_for_classic:
+                reasons.append(("pass", "no Classic model for this race: the Updated one, as the game draws it"))
             if absent:
                 reasons.append(("warn", f"{len(absent)} texture file(s) not on this disk"))
             r.update(grade=checks.grade(reasons), reasons=[f"{lvl}: {why}" for lvl, why in reasons],
