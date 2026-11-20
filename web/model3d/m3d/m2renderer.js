@@ -984,8 +984,11 @@
 			if (bone_count)
 				ubo.ubo.upload_range(ubo.offsets[0], bone_count * 16 * 4);
 
-			// light direction in view space
-			const lx = 3, ly = -0.7, lz = -2;
+			// light direction in view space: from the front, above and the picture's right, as Blizzard's
+			// character renders light them (tools/3dcases, 2026-11-20: weapons 58 -> 22 colour distance,
+			// the body's regions 16 -> 8). wow.export's light came from the left, almost level, and left a
+			// blade turned that way with the ambient alone, half as bright.
+			const lx = -2, ly = -1, lz = -2;
 			const light_view_x = view_matrix[0] * lx + view_matrix[4] * ly + view_matrix[8] * lz;
 			const light_view_y = view_matrix[1] * lx + view_matrix[5] * ly + view_matrix[9] * lz;
 			const light_view_z = view_matrix[2] * lx + view_matrix[6] * ly + view_matrix[10] * lz;
