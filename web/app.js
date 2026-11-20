@@ -2543,7 +2543,7 @@ function renderPrices(p, err) {
   };
   search.addEventListener('input', show);
   fill(el, h('details', { class: 'm ahbox' },
-    h('summary', {}, `Your Auctionator scans: ${fmtNum(p.total)} items, last scan ${day(p.last_scan + 'T12:00:00')}`),
+    h('summary', {}, h('span', { class: 'ahsum', text: `Your Auctionator scans: ${fmtNum(p.total)} items, last scan ${day(p.last_scan + 'T12:00:00')}` })),
     search, list));
   show();
 }

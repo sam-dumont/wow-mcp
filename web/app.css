@@ -338,6 +338,9 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 .ahbox summary { cursor: pointer; display: flex; gap: 6px 16px; flex-wrap: wrap; align-items: baseline; list-style: none; }
 .ahbox summary::-webkit-details-marker { display: none; }
 .ahbox summary::before { content: "+"; color: var(--gold); width: 1em; }
+/* One line with its marker on a phone: as a bare text the summary's line
+   wrapped whole under the "+". */
+.ahbox summary > .ahsum { flex: 1 1 12em; min-width: 0; }
 .ahbox[open] summary::before { content: "\2212"; }
 .ahpeek { display: flex; gap: 6px 16px; flex-wrap: wrap; color: var(--ink); }
 .ahbox[open] .ahpeek { display: none; }
