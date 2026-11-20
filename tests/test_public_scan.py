@@ -91,6 +91,7 @@ UPSTREAMS = {
     "gamerant.com", "iggm.com", "tentonhammer.com", "forg.gg", "zygorguides.com", "overgear.com",
     "devtrackers.gg", "boostroom.com", "wowforevertalents.com", "wowisclassic.com", "pcgames.de", "engadget.com",
     "mobalytics.gg", "kotaku.com", "dotesports.com", "reddit.com", "ezg.com", "seemeta.com", "efficient.games",
+    "judgehype.com",  # corroboration only (data/kb/sources.json)
     # Gear tables the fit model is checked against (tests/data/gearfit-refs.json:
     # item IDs, ranks and the page each came from).
     "wowforeverbislist.com", "noobtoboss.com",

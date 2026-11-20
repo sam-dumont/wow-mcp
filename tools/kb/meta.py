@@ -105,6 +105,12 @@ If it contradicts an existing statement, set `contradicts` to that statement's i
 short sentence); otherwise both are "". `expires` (YYYY-MM-DD) is the last day the statement holds when the \
 item gives it one: a limited-time event or offer, a known issue with an announced fix day, something said to \
 hold "this week" (two weeks after the item's day); "" for a lasting rule. \
+A tier list or ranking (specs for raids or dungeons, classes, dungeons, raids) is \
+the site's judgment: one statement per class it ranks, naming each spec's tier and role, with `class`, `aspect` \
+"standing" and `spec` "" when it covers the whole class, `topic` "class-meta"; a ranking of the dungeons or the \
+raids themselves goes under `topic` "dungeons" or "raids-endgame"; say whose ranking it is and when it predates \
+the content opening. Forever's raids and dungeons are not Classic's: never call one missing or out of era from \
+what Classic had, only from what the item or the known statements say. \
 Skip what the knowledge base already says, server status, events, \
 store items, opinions, community drama, and anything the item only hints at. confidence: "high" when the item \
 states it plainly, "medium" when it needs reading between two of its lines, "low" for a guide's advice that is \

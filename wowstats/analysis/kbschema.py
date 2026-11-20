@@ -23,6 +23,17 @@ aggregate: two sources or more, or `single_source` set with low confidence
 says why one isn't; tests/test_kb_schema.py checks the shipped files and the
 refresh job's gates (tools/kb/gates.py) every change.
 
+Two ways a citation counts for less than a source:
+
+- A domain flagged `corroboration_only` in sources.json (JudgeHype: it
+  mostly relays others in French; owner, 2026-11-20) may be cited next to
+  another source, never as a record's `source_url`, and it never counts
+  toward the two-source rule or the confidence cap.
+- `relays` ({cited domain: domain it relays}) says one cited site only
+  passes on another's work (JudgeHype's raid tier list is Wowhead's,
+  translated): the two are one origin, and a record resting on one origin
+  this way is `single_source` at low confidence unless another site backs it.
+
 The loader (wowstats.analysis.kb) leaves out a record that fails, and says
 so; tests/test_kb_schema.py fails the build on any; the refresh job
 (tools/kb/refresh.py) refuses a model's proposal that fails.
@@ -70,13 +81,30 @@ def urls(rec: dict) -> list[str]:
     return keep
 
 
+def corroboration_only(d: str, allow: dict) -> bool:
+    return bool((allow.get(d) or {}).get("corroboration_only"))
+
+
+def counted(rec: dict, allow: dict) -> list[str]:
+    """The URLs that count as sources: every cited one but a corroboration-only domain's."""
+    return [u for u in urls(rec) if not corroboration_only(domain(u), allow)]
+
+
+def origins(rec: dict, allow: dict | None = None) -> set[str]:
+    """The distinct sites a record rests on: its counted domains, a domain it
+    `relays` counted as the site it relays."""
+    relays = rec.get("relays") if isinstance(rec.get("relays"), dict) else {}
+    us = counted(rec, allow) if allow is not None else urls(rec)
+    return {relays.get(domain(u), domain(u)) for u in us}
+
+
 def cap(conf: str, allowed: str) -> str:
     """The lower of two confidences."""
     return CONFIDENCE[min(CONFIDENCE.index(conf), CONFIDENCE.index(allowed))]
 
 
 def best_cap(rec: dict, allow: dict) -> str | None:
-    caps = [allow[domain(u)]["max_confidence"] for u in urls(rec) if domain(u) in allow]
+    caps = [allow[domain(u)]["max_confidence"] for u in counted(rec, allow) if domain(u) in allow]
     return max(caps, key=CONFIDENCE.index) if caps else None
 
 
@@ -102,6 +130,16 @@ def check(rec: dict, allow: dict, strict_type: bool = True) -> list[str]:
             errs.append(f"source_type {rec['source_type']!r} is not one of {', '.join(sorted(types))}")
     if rec.get("expires") and not DAY.match(str(rec["expires"])):
         errs.append(f"expires {rec['expires']!r} is not YYYY-MM-DD")
+    if rec.get("source_url") and corroboration_only(domain(rec["source_url"]), allow):
+        errs.append(f"{domain(rec['source_url'])} only corroborates: cite it next to a source, not as source_url")
+    if "relays" in rec:
+        rel = rec["relays"]
+        cited = {domain(u) for u in urls(rec)}
+        if not (isinstance(rel, dict) and rel and all(k in cited and v in allow for k, v in rel.items())):
+            errs.append(f"relays {rel!r} is not {{cited domain: allow-listed domain}}")
+        elif (len(origins(rec, allow)) < 2 and not (rec.get("single_source") and rec.get("confidence") == "low")
+              and not any((allow.get(domain(u)) or {}).get("type") == "official" for u in urls(rec))):
+            errs.append("its sources relay one another, so it rests on one origin: single_source at low confidence")
     for k in ("superseded_by", "supersedes"):
         if k in rec and not (isinstance(rec[k], str) and rec[k].strip()):
             errs.append(f"{k} is not a statement id")
@@ -178,12 +216,14 @@ def multi_source(rec: dict, allow: dict) -> str:
     """Why a list item or a build breaks the multi-source rule ("" when it
     holds): two distinct sources, or `single_source` with low confidence, or
     an official page."""
-    us = urls(rec)
+    us = counted(rec, allow)
     if any((allow.get(domain(u)) or {}).get("type") == "official" for u in us):
         return ""
     if rec.get("single_source"):
         return "" if rec.get("confidence") == "low" else "single_source but its confidence isn't low"
-    return "" if len(us) >= 2 else "a list item or build with one source and no single_source"
+    if len(us) >= 2 and rec.get("relays") and len(origins(rec, allow)) < 2:
+        return "its sources are one origin (one relays the other) and no single_source"
+    return "" if len(us) >= 2 else "a list item or build with one source (corroboration excluded) and no single_source"
 
 
 def is_list_or_build(rec: dict, key: str) -> bool:

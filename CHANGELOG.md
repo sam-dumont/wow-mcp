@@ -9,6 +9,17 @@ Battle.net, so a friend needs no account session in that browser first.
 Unset, nothing changes. The consent page now wears wow-stats' colours, day
 and night.
 
+**KB: JudgeHype as corroboration only.** JudgeHype (French) may be cited
+next to another source but never counts as one, and the refresh doesn't
+read it: of its 17 newest Forever items, 10 relayed sources we already
+read. Its raid tier list is Wowhead's, so the new raid-tier line per class
+rests on Wowhead alone, at low confidence, with the Holy Paladin
+disagreement recorded.
+
+**KB: the main article, not the first.** Page text now comes from the
+`<article>` with the most text, so a sidebar teaser no longer stands in
+for the page.
+
 **3D view: lit like Blizzard's renders.** The light comes from the front,
 above and the right, where it came from the left almost level: a blade
 turned that way got no light and showed half as bright. The shine some

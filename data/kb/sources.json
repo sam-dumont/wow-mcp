@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "about": "The source domains a KB statement may cite (wowstats.analysis.kbschema). A statement whose every source is off this list is refused; a domain's max_confidence caps the confidence a statement resting on it alone may claim. Booster and SEO sites are listed so their claims stay visible, capped at low (the research lanes' own rule). Add a domain here, with its type, before citing it.",
+  "about": "The source domains a KB statement may cite (wowstats.analysis.kbschema). A statement whose every source is off this list is refused; a domain's max_confidence caps the confidence a statement resting on it alone may claim. Booster and SEO sites are listed so their claims stay visible, capped at low (the research lanes' own rule). Add a domain here, with its type, before citing it. A `corroboration_only` domain (JudgeHype: French, mostly relaying others; owner, 2026-11-20) is never read by the refresh and may only be cited next to another source: it never counts as one.",
   "types": ["official", "datamined", "guide", "press", "community", "commercial"],
   "domains": {
     "news.blizzard.com": {"type": "official", "max_confidence": "high"},
@@ -42,6 +42,7 @@
     "gamerant.com": {"type": "press", "max_confidence": "medium"},
     "dotesports.com": {"type": "press", "max_confidence": "medium"},
     "www.gfinityesports.com": {"type": "press", "max_confidence": "medium"},
+    "wowforever.judgehype.com": {"type": "press", "max_confidence": "medium", "corroboration_only": true},
 
     "warcraft.wiki.gg": {"type": "community", "max_confidence": "high"},
     "www.reddit.com": {"type": "community", "max_confidence": "medium"},
