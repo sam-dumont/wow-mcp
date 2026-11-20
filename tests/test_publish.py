@@ -25,8 +25,7 @@ from tests.test_public_view import (
     SECRETS,
     PoisonStore,
 )
-from wowstats import model3d as m3d
-from wowstats import publish, static, ui
+from wowstats import bar, publish, static, ui
 from wowstats.redact import ZOGZOG_MOVE_KINDS
 
 pytest.importorskip("cryptography")
@@ -190,20 +189,19 @@ def keys(prefix, names):
     return {f"{prefix}{n}" for n in names}
 
 
-# The card's spec, talents and Legacy points (owner, 2026-11-18): the frame,
-# points per tree, one stop per /simx export, the Legacy floor. Nothing else
-# of the export (its gear, stats, buffs) and nothing of the other sheets.
+# The card's spec, talents and Legacy points (owner, 2026-11-18): the frame
+# and points per tree (Battle.net's), the Legacy floor. Nothing of the
+# sheets.
 TREE = ("tree", "points")
 TALENT_KEYS = {
     "spec", "talents", "legacy", *keys("spec.", ("name", "source", "split", "points", "scored_for")),
     *keys("spec.points[].", TREE), *keys("spec.scored_for.", ("key", "label", "source")),
-    *keys("talents.", ("available", "source", "at", "level", "spec", "why", "unmatched", "history_why", "points",
-                       "sections", "history", "cross_check")),
+    *keys("talents.", ("available", "source", "at", "level", "spec", "why", "unmatched", "points",
+                       "sections")),
     *keys("talents.points[].", TREE), *keys("talents.sections[].", ("name", "points", "nodes", "edges")),
     *keys("talents.sections[].nodes[].", ("col", "row", "name", "icon", "rank", "max", "desc")),
     *keys("talents.sections[].edges[].", ("fc", "fr", "tc", "tr")),
-    *keys("talents.history[].", ("level", "date", "spec", "points")), *keys("talents.history[].points[].", TREE),
-    *keys("legacy.", ("available", "derived_min", "total", "spent", "why", "earned")),
+    *keys("legacy.", ("available", "earned_points", "total", "spent", "why", "earned")),
 }
 # "Your class at level N" (owner, 2026-11-19): what to train and where (the
 # capitals of the character's side), the next talent points, habits. From the
@@ -233,7 +231,7 @@ ALLOWED = {
              "gear.item_level", "gear.items", "gear.professions", *keys("gear.items[].", ITEM),
              "gear.armory_item_level", "gear.armory_item_level_source", "gear.render", "gear.render.asset",
              "gear.render.refreshed", "gear.render.ext",
-             *keys("gear.professions[].", ("skill_id", "name", "rank", "max_rank")), *TALENT_KEYS,
+             *keys("gear.professions[].", ("skill_id", "name", "rank", "max_rank", "max_rank_from")), *TALENT_KEYS,
              *CLASS_GUIDE_KEYS},
     "timeline": {"char", "generated_at", "levels"},
     # A past level's gear says exact (a sheet) or likely (the replay), and
@@ -242,17 +240,15 @@ ALLOWED = {
                  "gear_reconstructed", *keys("gear.items[].", (*ITEM, "certainty", "source")),
                  "gear.items[].source.kind", "picture", "picture.ext", "picture.pending"},
     "items": {"items", *keys("items[].", CARD)},
-    "model3d": {"race", "sex", "sex_known", "class", "stand_in", "level", "why", "source", "model", "appearance",
-                "items", "missing", "model.chr_model", "model.gender", "model.options", "model.options[].optionId",
-                "model.options[].choiceId", "appearance.source", "appearance.refreshed",
-                # The same look on the original model (the Classic switch), and the default models.
-                "model_sd", "model_sd.chr_model", "model_sd.gender", "model_sd.options",
-                "model_sd.options[].optionId", "model_sd.options[].choiceId", "model_sd.no_classic", "models",
+    # The recipe is file ids and numbers only (redact.M3D_RECIPE); its
+    # inside is checked by shape, not listed key by key here.
+    "model3d": {"race", "sex", "sex_known", "class", "level", "why", "appearance", "items", "missing",
+                "appearance.source", "appearance.refreshed", "recipe", "recipe_sd", "no_classic", "models",
                 *keys("items[].", M3D_ITEM), *keys("missing[].", M3D_ITEM)},
 }
 # Besides data/: the page itself, its script, style, fonts and the 3D viewer.
-PAGE_FILES = re.compile(r"^(index\.html|app\.(js|css)|items\.js|stats\.js|fonts/[\w-]+\.woff2|model3d/[^/]+|"
-                        r"model3d/zam/.+|help/(index\.html|help\.(js|css)|content\.enc|media/[^/]+\.enc))$")
+PAGE_FILES = re.compile(r"^(index\.html|app\.(js|css)|base\.css|theme\.js|favicon\.svg|items\.js|stats\.js|fonts/[\w-]+\.woff2|model3d/[^/]+|"
+                        r"model3d/file/\d{1,10}|help/(index\.html|help\.(js|css)|content\.enc|media/[^/]+\.enc))$")
 # Icons the publisher fetched for the page: items' (wowstats.itemcard) and
 # talents' (wowstats.talents.icon_path), JPEGs named by the game's icon file.
 ICON_FILES = re.compile(r"^data/icon/(small|medium|large)/[a-z0-9_-]+\.jpg$")
@@ -286,6 +282,17 @@ def key_paths(v, prefix=""):
             yield from key_paths(x, prefix[:-1] + "[]." if prefix else "[].")
 
 
+def leaves(v):
+    if isinstance(v, dict):
+        for x in v.values():
+            yield from leaves(x)
+    elif isinstance(v, list):
+        for x in v:
+            yield from leaves(x)
+    elif v is not None:
+        yield v
+
+
 def assert_public_allowlist(pub: dict) -> set:
     """Every file of the public bundle is the page or an allowed answer, and
     every key in every answer is on ALLOWED. Returns the answers seen."""
@@ -299,7 +306,13 @@ def assert_public_allowlist(pub: dict) -> set:
         assert not path.startswith("data/icon/"), f"{path}: not an icon the page has"
         what = path.split("/")[1].removesuffix(".json")
         assert what in ALLOWED, f"{path}: the public site has no {what} answer"
-        extra = set(key_paths(json.loads(body))) - ALLOWED[what]
+        d = json.loads(body)
+        extra = set(key_paths(d)) - ALLOWED[what]
+        if what == "model3d":
+            # A recipe holds numbers and true/false only: no name can hide in it.
+            for r in (d.get("recipe"), d.get("recipe_sd")):
+                assert not any(isinstance(x, str) for x in leaves(r)), f"{path}: text in a recipe"
+            extra = {k for k in extra if not k.startswith(("recipe.", "recipe_sd."))}
         assert not extra, f"{path}: {sorted(extra)} not on the public allow-list"
         seen.add(what)
     return seen
@@ -431,7 +444,8 @@ def test_static_server_serves_files_and_nothing_else(server):
     for method in ("POST", "PUT", "DELETE"):
         assert server("/", method)[0] == 405
     code, headers, _ = server("/model3d/view")
-    assert code == 200 and "wasm-unsafe-eval" in headers["Content-Security-Policy"]
+    csp = headers["Content-Security-Policy"]
+    assert code == 200 and "sandbox allow-scripts" in csp and "eval" not in csp
 
 
 def test_the_key_never_reaches_the_server(server, capsys):
@@ -628,9 +642,8 @@ def check_loads(cur, own):
 
 
 def test_builds_without_any_3d_file(tmp_path, monkeypatch):
-    """3D on, but no model file came back (upstreams out of reach here; on a
-    fresh install, an empty store). The build used to die copying a
-    model3d/zam folder that didn't exist, so the site stayed empty."""
+    """3D on, but no game file came from the shipper yet (a fresh install):
+    the site builds, the answers say why, no file is copied."""
 
     def store(vl, archive="", vm="", *a, **k):
         s = PoisonStore()
@@ -638,14 +651,46 @@ def test_builds_without_any_3d_file(tmp_path, monkeypatch):
         return s
 
     monkeypatch.setattr(ui, "Store", store)
-    dead = "http://127.0.0.1:9/"
     env = {"VL_URL": "http://vl.invalid", "MODEL3D": "on", "MODEL3D_CACHE_DIR": str(tmp_path / "cache"),
-           "MODEL3D_ZAM_URL": dead, "MODEL3D_WAGO_URL": dead,
+           "MODEL3D_ASSETS_DIR": str(tmp_path / "assets"),
            "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
     with redirect_stdout(io.StringIO()):
         res = publish.publish(env)
     assert res["built"] and res["files_3d"] == 0
+    pub = files(tmp_path / "site" / "current" / "public")
+    ans = json.loads(pub[publish.data_path("model3d", "Hero-Test")])
+    assert ans["recipe"] is None and "haven't come" in ans["why"]
     assert (tmp_path / "site" / "current" / "zogzog").is_dir()
+
+
+class LookStore(PoisonStore):
+    """Battle.net's look and sex for the character; the market poisoned."""
+
+    def vm_query(self, q):
+        if "wow_character_customization" in q:
+            return [{"metric": {"option_id": "87"}, "value": [1, "1261"]}]
+        if "wow_character_profile_refreshed" in q:
+            return [{"metric": {}, "value": [1, "1795413600"]}]
+        if "wow_character_profile{" in q:
+            return [{"metric": {"gender": "female", "race_id": "7"}, "value": [1, "32"]}]
+        return super().vm_query(q)  # the market: SECRET_TOKEN everywhere
+
+
+def look_world(tmp_path, monkeypatch, fill=True):
+    from tests import model3d_world as w
+
+    def store(vl, archive="", vm="", *a, **k):
+        s = LookStore()
+        s.vm_url = vm
+        return s
+
+    monkeypatch.setattr(ui, "Store", store)
+    w.patch_tables(monkeypatch)
+    if fill:
+        w.fill(tmp_path / "assets")
+    return {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "on",
+            "MODEL3D_CACHE_DIR": str(tmp_path / "cache"), "MODEL3D_ASSETS_DIR": str(tmp_path / "assets"),
+            "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
 
 
 def test_public_bundle_has_the_battle_net_look_but_no_market(tmp_path, monkeypatch):
@@ -654,64 +699,65 @@ def test_public_bundle_has_the_battle_net_look_but_no_market(tmp_path, monkeypat
     token, auction house) never is. Both are API data, so both stay under
     the 30-day rule: the bundle is rebuilt daily and the look is read with
     last_over_time(...[2d]) from a store that keeps 23 days."""
-    from tests.test_model3d import Upstream
+    from tests import model3d_world as w
 
-    class LookStore(PoisonStore):
-        def vm_query(self, q):
-            if "wow_character_customization" in q:
-                return [{"metric": {"option_id": "1"}, "value": [1, "12"]}]
-            if "wow_character_profile_refreshed" in q:
-                return [{"metric": {}, "value": [1, "1795413600"]}]
-            if "wow_character_profile{" in q:
-                return [{"metric": {"gender": "male", "race_id": "7"}, "value": [1, "32"]}]
-            return super().vm_query(q)  # the market: SECRET_TOKEN everywhere
-
-    def store(vl, archive="", vm="", *a, **k):
-        s = LookStore()
-        s.vm_url = vm
-        return s
-
-    monkeypatch.setattr(ui, "Store", store)
-    up = Upstream()
-    try:
-        env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "on",
-               **up.env(tmp_path), "PUBLISH_DIR": str(tmp_path / "site"),
-               "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
-        with redirect_stdout(io.StringIO()):
-            assert publish.publish(env)["built"]
-    finally:
-        up.srv.shutdown()
-        up.srv.server_close()
+    env = look_world(tmp_path, monkeypatch)
+    out = io.StringIO()
+    with redirect_stdout(out):
+        assert publish.publish(env)["built"]
     pub = files(tmp_path / "site" / "current" / "public")
     ans = json.loads(pub[publish.data_path("model3d", "Hero-Test")])
-    assert {"optionId": 1, "choiceId": 12} in ans["model"]["options"], "Battle.net's choice, not the default 11"
-    assert ans["appearance"]["source"] == "battle.net"
+    assert ans["recipe"]["model"] == w.FX.CHAR_M2 and ans["appearance"]["source"] == "battle.net"
+    assert ans["recipe"]["textures"] == {"6": w.FX.TEX_PURPLE}, "Battle.net's hair (choice 1261), not the default"
     for path, body in pub.items():
         for s in (SECRET_PRICE, SECRET_TOKEN):
             assert s.encode() not in body, f"{path} leaks market data ({s})"
     assert "model3d" in assert_public_allowlist(pub)
-    # The 3D files sit under the relay's revision (model3d.ZAM_REV), where
-    # view.js reads them; nothing under the old unversioned path.
-    zam = [p for p in pub if p.startswith("model3d/zam/")]
-    assert zam and all(p.startswith(f"model3d/zam/{m3d.ZAM_REV}/") for p in zam), zam
+    # The files: what the character's recipes need, from the person's store,
+    # nothing else, byte for byte; the same set in /zogzog/.
+    got = {int(p.rsplit("/", 1)[1]) for p in pub if p.startswith("model3d/file/")}
+    want = set()
+    for r in (ans["recipe"], ans["recipe_sd"]):
+        want |= w.assets.closure(w.character3d.needs(r), w.files().get)[0].keys() if r else set()
+    store = w.assets.Store(tmp_path / "assets")
+    want = {f for f in want if store.read(f) is not None}
+    assert got and got <= want and w.FX.CHAR_M2 in got, (got, want)
+    for f in got:
+        assert pub[f"model3d/file/{f}"] == store.read(f)
     zz = files(tmp_path / "site" / "current" / "zogzog")
-    assert {p for p in zz if p.startswith("model3d/zam/")} == set(zam)
+    assert {p for p in zz if p.startswith("model3d/file/")} == {f"model3d/file/{f}" for f in got}
+    assert "3D files for Hero-Test in public:" in out.getvalue()
+
+
+def test_a_bundle_carries_only_its_characters_files(tmp_path, monkeypatch):
+    """A file the person's store holds that no recipe names (another
+    character's, a texture the shipper sent for an old look) stays out."""
+    from tests import model3d_world as w
+
+    env = look_world(tmp_path, monkeypatch)
+    stray = tmp_path / "assets" / "files" / "777777.blp"
+    stray.write_bytes(b"BLP2" + bytes(60))
+    with redirect_stdout(io.StringIO()):
+        assert publish.publish(env)["built"]
+    for bundle in ("public", "zogzog"):
+        names = {p for p in files(tmp_path / "site" / "current" / bundle) if p.startswith("model3d/file/")}
+        assert "model3d/file/777777" not in names and f"model3d/file/{w.FX.CHAR_M2}" in names
 
 
 def test_static_3d_cache_rules_and_missing_file_log(tmp_path, capsys):
-    """Served from a bundle: a meta revalidates, a FileDataID file keeps a
-    day, and a 404 under /model3d/ says so in the log."""
-    root = tmp_path / "b1" / "public" / "model3d" / "zam" / m3d.ZAM_REV
-    for rel, body in (("meta/character/13.json", b"{}"), ("m2/900914.m2", b"MD21"),
-                      ("textures/916430.webp", b"RIFF")):
-        (root / rel).parent.mkdir(parents=True, exist_ok=True)
-        (root / rel).write_bytes(body)
+    """Served from a bundle: a game file by id keeps a day (an id's content
+    never changes), the frame's page revalidates, and a 404 under /model3d/
+    says so in the log."""
+    root = tmp_path / "b1" / "public" / "model3d"
+    (root / "file").mkdir(parents=True)
+    (root / "file" / "100001").write_bytes(b"MD21")
+    (root / "view.html").write_text("<!doctype html>")
     (tmp_path / "b1" / "public" / "index.html").write_text("<!doctype html>")
     (tmp_path / "current").symlink_to("b1")
     s = static.Site({"SITE_DIR": str(tmp_path), "ZOGZOG_PATH": ""})
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), static.make_handler(s))
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
-    base = f"http://127.0.0.1:{httpd.server_address[1]}/model3d/zam/{m3d.ZAM_REV}/"
+    base = f"http://127.0.0.1:{httpd.server_address[1]}/model3d/"
 
     def get(rel):
         try:
@@ -721,12 +767,11 @@ def test_static_3d_cache_rules_and_missing_file_log(tmp_path, capsys):
             return e.code, None
 
     try:
-        assert get("meta/character/13.json") == (200, "no-cache")
-        assert get("m2/900914.m2") == (200, "public, max-age=86400")
-        assert get("textures/916430.webp") == (200, "public, max-age=86400")
+        assert get("file/100001") == (200, "public, max-age=86400")
+        assert get("view")[0] == 200 and get("view")[1] == "no-cache"
         capsys.readouterr()
-        assert get("m2/119159.m2")[0] == 404
-        assert f"missing 3D file: /model3d/zam/{m3d.ZAM_REV}/m2/119159.m2" in capsys.readouterr().out
+        assert get("file/119159")[0] == 404
+        assert "missing 3D file: /model3d/file/119159" in capsys.readouterr().out
     finally:
         httpd.shutdown()
 
@@ -1215,7 +1260,7 @@ def test_a_person_without_characters_gets_the_empty_page(tmp_path, monkeypatch, 
            "PUBLISH_DIR": str(site_dir / "newbie"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key")}
     with redirect_stdout(io.StringIO()):
         res = publish.publish(env, public=public_on, slug="newbie")
-    assert res["built"] and res["chars"] == 0 and res["public_files"] == 4
+    assert res["built"] and res["chars"] == 0 and res["public_files"] == 1 + len(bar.FILES)  # the page, base.css, theme.js, fonts
     httpd, get = multi_get(site_dir)
     try:
         code, headers, body = get("/", "newbie-wow.m.example")
@@ -1223,7 +1268,7 @@ def test_a_person_without_characters_gets_the_empty_page(tmp_path, monkeypatch, 
         assert code == 200 and headers["Content-Type"].startswith("text/html")
         assert "No character yet" in page and "/reload" in page and "<script" not in page
         assert "newbie" not in page.lower()
-        for rel in ("notice.css", "fonts/cinzel.woff2", "fonts/alegreya-sans-400.woff2"):
+        for rel in ("base.css", "theme.js", "fonts/cinzel.woff2", "fonts/alegreya-sans-400.woff2"):
             assert get("/" + rel, "newbie-wow.m.example")[0] == 200, rel
         # Nothing else of the page's: no data, no app.
         for path in ("/data/config.json", "/app.js", "/data/chars.json"):
@@ -1233,8 +1278,8 @@ def test_a_person_without_characters_gets_the_empty_page(tmp_path, monkeypatch, 
             code, headers, body = get("/", host)
             assert code == 404 and b"Nothing here" in body and headers["Content-Type"].startswith("text/html")
             assert b"No character yet" not in body
-            assert get("/_notice/notice.css", host)[0] == 200
-        for path in ("/_notice/../state.json", "/_notice/app.js", "/_notice/fonts/alegreya.woff2"):
+            assert get("/_notice/base.css", host)[0] == 200
+        for path in ("/_notice/../state.json", "/_notice/app.js", "/_notice/theme.js", "/_notice/notice.css"):
             assert get(path, "nobody-wow.m.example")[0] == 404, path
 
         # The first character arrives: the next build is the normal one.

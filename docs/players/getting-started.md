@@ -30,6 +30,8 @@ sent you.
 <!-- generated:player-steps -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
+[Watch: the whole setup, from the start page](../videos/media/onboarding-light.mp4)
+
 ### 1. Log in
 
 *Log in with the account you were sent.*
@@ -54,7 +56,11 @@ Easiest: the CurseForge app (https://www.curseforge.com/download/app) lists WoW 
 
 *One line in a terminal. No admin rights.*
 
+[Watch: run the install command (Mac)](../videos/media/install-mac-light.mp4)
+
 The command installs the shipper: a small Python script (uv fetches Python if needed) that runs every 5 minutes, reads your `WTF/` folder and sends new events to your page. It also puts Polestar Recorder in WoW's AddOns folder (its official release, checked), unless you have a newer one. It finds the WoW folder itself, writes only under your user folder and to that AddOns folder, and never prints your password.
+
+<div class="os" data-os="windows">
 
 **Windows (PowerShell).** Windows key, type PowerShell, Enter. Paste with a right click, press Enter.
 
@@ -66,6 +72,10 @@ irm https://wow.example.org/install/<your code> | iex
 
 It installs: `%LOCALAPPDATA%\wow-stats` and a scheduled task "wow-stats" (every 5 minutes, as you, no admin). Log: `%LOCALAPPDATA%\wow-stats\wow-stats.log.` Polestar Recorder in `_forever_\Interface\AddOns.`
 
+</div>
+
+<div class="os" data-os="mac">
+
 **Mac (Terminal).** Cmd+Space, type Terminal, Enter. Paste with Cmd+V, press Enter.
 
 Your command is on your start page. It looks like this (the code is yours, single use):
@@ -75,6 +85,8 @@ curl -fsSL https://wow.example.org/install/<your code> | bash
 ```
 
 It installs: `~/.local/share/wow-stats`, `~/.config/wow-stats/config.toml` and a launchd agent local.wow-stats (every 5 minutes). Log: `~/Library/Logs/wow-stats.log.` Polestar Recorder in `_forever_/Interface/AddOns.`
+
+</div>
 
 The command works once, for 15 minutes, and is only for the first install. Used or expired before you ran it: click "Get my install command" again. Updates later need no code: once installed, the update line shows in this step.
 
@@ -152,7 +164,11 @@ What your friend's server shows to whom: [What's shared, and with whom](privacy.
 - The shipper updates itself, within a few hours of a new version on the server. Installed before version 0.5.1? Run the update line for your OS once (your start page says so when it's needed); from then on it updates by itself. No code, no login: it reads your install's config and keeps it, upload password included. It updates Polestar Recorder too, unless yours is newer.
 - Moving to another computer, or the password leaked: Reset my upload password on your start page. The old password stops at once; run the new install command it gives you.
 
+[Watch: an update (Mac)](../videos/media/update-mac-light.mp4)
+
 The update lines, no code needed:
+
+<div class="os" data-os="windows">
 
 **Windows (PowerShell).**
 
@@ -160,11 +176,17 @@ The update lines, no code needed:
 irm https://wow.example.org/install/update | iex
 ```
 
+</div>
+
+<div class="os" data-os="mac">
+
 **Mac (Terminal).**
 
 ```sh
 curl -fsSL https://wow.example.org/install/update | bash
 ```
+
+</div>
 
 <!-- /generated:player-update -->
 
@@ -173,9 +195,13 @@ curl -fsSL https://wow.example.org/install/update | bash
 <!-- generated:player-uninstall -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
+[Watch: an uninstall (Mac)](../videos/media/uninstall-mac-light.mp4)
+
 Run the line for your OS. It stops the job and removes the program and your config. Your addons stay, Polestar Recorder included: remove them in CurseForge, or delete their folders in `_forever_/Interface/AddOns.`
 
 Your archive (WoWArchive in your home folder) stays: delete it yourself if you don't want the history. To delete your data on the site, ask the owner to take you off the friends list: it goes within minutes.
+
+<div class="os" data-os="windows">
 
 **Windows (PowerShell).**
 
@@ -183,11 +209,17 @@ Your archive (WoWArchive in your home folder) stays: delete it yourself if you d
 schtasks /Delete /TN wow-stats /F; Remove-Item -Recurse -Force "$env:LOCALAPPDATA\wow-stats", "$env:APPDATA\wow-stats"
 ```
 
+</div>
+
+<div class="os" data-os="mac">
+
 **Mac (Terminal).**
 
 ```sh
 launchctl bootout gui/$(id -u)/local.wow-stats; rm -f ~/Library/LaunchAgents/local.wow-stats.plist; rm -rf ~/.local/share/wow-stats ~/.config/wow-stats
 ```
+
+</div>
 
 <!-- /generated:player-uninstall -->
 

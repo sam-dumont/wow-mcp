@@ -4,8 +4,8 @@ Four things, for every character (owner, 2026-11-18, after v0.2.0 showed
 "way too much data"):
 
 1. the character card: the 3D model in its gear, name, level, race and
-   class, item level, equipment, professions; its spec, talents (the frame,
-   points per tree, one stop per /simx export) and Legacy points; and its
+   class, item level, equipment, professions; its spec, talents (the frame
+   and points per tree, from Battle.net) and Legacy points; and its
    class at that level (owner, 2026-11-19: the trainer spells to buy and
    the class trainers of its side, the next talent points, habits: built
    from the card's own class, race, side, level and talents);
@@ -38,29 +38,39 @@ ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "quality", "it
 # player. A bundle holds the cards of the items its own answers name.
 CARD = {**{k: None for k in ("id", "n", "q", "i", "b", "u", "s", "t", "ar", "sp", "dps", "rl", "il", "set", "de")},
         "w": [None], "g": [None]}
-PROFESSION = {k: None for k in ("skill_id", "name", "rank", "max_rank")}
+PROFESSION = {k: None for k in ("skill_id", "name", "rank", "max_rank", "max_rank_from")}
 # A past level's item: from a sheet ("exact") or the gear replay ("likely",
 # wowstats.history). Public: how it was got, not where or from whom.
 SNAP_ITEM = {**ITEM, "certainty": None, "source": {"kind": None}}
-M3D_ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "inventory_type", "display_id", "why")}
+M3D_ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "why")}
+# The 3D view's recipe (wowstats.character3d, v1): file ids, geoset ids and
+# numbers only, game data with nothing of the player's but how they look.
+M3D_GEOSETS = {"set": {}, "groups": {}}
+M3D_RECIPE = {
+    "v": None, "model": None, "geosets": M3D_GEOSETS, "animation": None, "textures": {},
+    "materials": [{"type": None, "width": None, "height": None,
+                   "layers": [{k: None for k in ("file", "target", "x", "y", "w", "h", "blend")}]}],
+    "skinned": [{"model": None, "textures": {}, "geosets": M3D_GEOSETS}],
+    "attachments": [{"slot": None, "attach": None, "model": None, "textures": {}, "scale": None,
+                     "visuals": [{"model": None, "attach": None}]}],
+    "collections": [{"slot": None, "model": None, "textures": {}, "geosets": M3D_GEOSETS}],
+}
 # The card's talents (wowstats.talents): the frame the game draws, filled in
-# with the last /simx export, and one stop per export.
+# from Battle.net's API.
 TREE_POINTS = {"tree": None, "points": None}
 TALENTS = {
-    **{k: None for k in ("available", "source", "at", "level", "spec", "why", "unmatched", "history_why",
-                                 "cross_check")},
+    **{k: None for k in ("available", "source", "at", "level", "spec", "why", "unmatched")},
     "points": [TREE_POINTS],
     "sections": [{"name": None, "points": None,
                   "nodes": [{k: None for k in ("col", "row", "name", "icon", "rank", "max", "desc")}],
                   # The prerequisite arrows, cell to cell (talents.py, TraitEdge).
                   "edges": [{k: None for k in ("fc", "fr", "tc", "tr")}]}],
-    "history": [{"level": None, "date": None, "spec": None, "points": [TREE_POINTS]}],
 }
 # What the gear is scored for, without its sanity_check (the full view's
 # planning note).
 SPEC_CARD = {"name": None, "source": None, "split": None, "points": [TREE_POINTS],
              "scored_for": {"key": None, "label": None, "source": None}}
-LEGACY = {**{k: None for k in ("available", "derived_min", "total", "spent", "why")}, "earned": [None]}
+LEGACY = {**{k: None for k in ("available", "earned_points", "total", "spent", "why")}, "earned": [None]}
 # "Your class at level N" (wowstats.classguide): what to train now and next,
 # the class trainers in the capitals of the character's side (race capital
 # first, never by distance), the next talent points, a habit or two. Built
@@ -76,6 +86,15 @@ CLASS_GUIDE = {
     "habits": [None],
     "respec": {k: None for k in ("level", "action")},
 }
+
+# "State of the meta" (wowstats.classmeta.paragraph): the knowledge base's
+# words for the class and spec, and when they were last checked. Built from
+# the class, spec and level only: no data of the player's. /zogzog/ only
+# (owner, 2026-11-20); the full description and the adherence are the live
+# full view's (/api/meta). `soon`: one line when an event that concerns the
+# class at its level starts within two weeks (wowstats.news.soon_line; owner,
+# 2026-11-20), from the class, spec and level too.
+META_PARAGRAPH = {k: None for k in ("class", "spec", "text", "as_of", "stale", "soon")}
 
 PUBLIC: dict[str, dict] = {
     # What the page may turn on: nothing beyond the four parts above.
@@ -109,16 +128,14 @@ PUBLIC: dict[str, dict] = {
                  "picture": {"ext": None, "pending": None}},
     # The cards of the items the answers above name (their tooltips).
     "items": {"items": [CARD]},
-    # The 3D viewer's answer (wowstats.model3d): the model, its look (from
-    # Battle.net, Narcissus or the race's default) and the gear it wears.
+    # The 3D viewer's answer (wowstats.model3d): the recipes to draw (the
+    # updated model, and the original one for the page's Classic toggle),
+    # the look's source and the gear it wears.
     "model3d": {
-        "race": None, "sex": None, "sex_known": None, "class": None, "stand_in": None, "level": None,
-        "why": None, "source": None, "models": None,
-        "model": {"chr_model": None, "gender": None, "options": [{"optionId": None, "choiceId": None}]},
-        # The same character on its original model (Classic, the page's toggle).
-        "model_sd": {"chr_model": None, "gender": None, "options": [{"optionId": None, "choiceId": None}],
-                     # The options with no original version (the page's note under Classic).
-                     "no_classic": [None]},
+        "race": None, "sex": None, "sex_known": None, "class": None, "level": None, "why": None, "models": None,
+        "recipe": M3D_RECIPE, "recipe_sd": M3D_RECIPE,
+        # The options with no original version (the page's note under Classic).
+        "no_classic": [None],
         "appearance": {"source": None, "refreshed": None},
         "items": [M3D_ITEM], "missing": [M3D_ITEM],
     },
@@ -190,7 +207,8 @@ MOVE = {**_keys("text", "link", "cite", "kind", "title", "detail", "action", "bl
                   "trainers": [TRAINER]},
         "deaths": {**_keys("n", "above", "crowd", "come_back_at"), "levels": [None]}, "gain": GAIN,
         "vs_guide": VS_GUIDE}
-HEADER_Z = _keys("char", "name", "full_name", "race", "class", "faction", "guild", "spec", "title", "sex", "level",
+HEADER_Z = _keys("char", "name", "full_name", "race", "class", "faction", "guild", "guild_known", "spec", "title",
+                 "sex", "level",
                  "xp",
                  "xp_max", "rested_xp", "time_in_level_s", "played_s", "played_total_s", "played_total_from",
                  "played_total_at", "first_partial", "first_level", "avg_level_s", "avg_levels", "xp_per_hour",
@@ -208,12 +226,18 @@ AH = {**_keys("available", "scan_day", "scan_days_ago", "on_sale", "upgrades_on_
 # side-by-side comparison.
 ADVICE_ITEM = {**_keys("item_id", "name", "quality", "item_level", "req_level", "score", "known", "random_suffix"),
                "stats": {}}
+# Who an item is built for and how it fits the spec (wowstats.gearfit):
+# game data and the character's spec, nothing about his place or people.
+FIT = {**_keys("for_you", "label", "built_for", "wasted_pct", "tip", "factor"), "notes": [None],
+       "wasted_stats": [None], "armor": _keys("item", "best"),
+       "alternative": {**_keys("item_id", "name", "quality", "gain", "level", "now", "slot_name", "label"),
+                       "sources": [SOURCE]}}
 # No "here" (in the zone the character is in now).
 UPGRADE = {**ADVICE_ITEM, **_keys("level", "slot", "slot_name", "gain", "gain_pct", "gain_share_pct",
-                                  "fills_empty", "now", "vs_unknown", "setup_score"), "sources": [SOURCE],
-           "gates": [_keys("kind", "profession", "need", "have")]}
+                                  "fills_empty", "now", "vs_unknown", "setup_score", "value"), "sources": [SOURCE],
+           "gates": [_keys("kind", "profession", "need", "have")], "fit": FIT}
 UPGRADE_PAIR = {**UPGRADE, "with": {**UPGRADE, "kind": None}}
-SPEC = {**_keys("key", "label", "source", "adjusted", "why"), "choices": [_keys("key", "label")]}
+SPEC = {**_keys("key", "label", "source", "adjusted", "why", "role"), "choices": [_keys("key", "label")]}
 GEAR_SHEET = {**_keys("at", "item_level", "guild", "spec", "class", "race", "faction", "sex", "armory_item_level",
                       "armory_item_level_source"),
               "render": _keys("asset", "refreshed", "ext"),
@@ -230,8 +254,8 @@ DUNGEON = {
             "drops_shown", "missing_now", "obtained", "expected_gain_per_clear", "expected_gain_share_pct",
             "chance_one_per_clear_pct"),
     "drops": [{**_keys("item_id", "name", "quality", "item_level", "slot_name", "score", "gain", "gain_pct",
-                       "fills_empty", "level", "now", "state", "where", "url"),
-               "drops": [_keys("boss", "npc_id", "chance_pct", "wing", "url")], "quests": [None]}],
+                       "fills_empty", "level", "now", "state", "where", "url", "value"),
+               "drops": [_keys("boss", "npc_id", "chance_pct", "wing", "url")], "quests": [None], "fit": FIT}],
     "quests": [{**_keys("quest_id", "name", "level", "min_level", "xp", "money_copper", "route", "state", "complete",
                         "xp_now", "url", "reward_choices"),
                 "starts": [WHO], "ends": [WHO], "needs": [QREF], "blocked": None,
@@ -272,6 +296,7 @@ ZOGZOG: dict[str, dict] = {
                     "recent": [_keys("from_zone", "to_zone", "secs", "t")]},
         "gear": GEAR_SHEET,
         "spec": SPEC_CARD, "talents": TALENTS, "legacy": LEGACY, "class_guide": CLASS_GUIDE,
+        "meta": META_PARAGRAPH,
     },
     "journal": {**_keys("char", "gap_s", "generated_at"), "sessions": [{
         **_keys("start", "end", "played_s", "level_start", "level_end", "levels_gained", "xp", "gold_delta_copper"),

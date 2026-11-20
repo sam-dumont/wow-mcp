@@ -146,7 +146,10 @@ class Scorer:
 
     def weights(self, level: int) -> dict | None:
         if level not in self._w:
-            self._w[level] = gm.weights_for(self.ref, self.cls, self.key, level)[0]
+            from wowstats import gearfit
+
+            self._w[level] = gearfit.model_weights(self.ref, gm.weights_for(self.ref, self.cls, self.key, level)[0],
+                                                   self.cls, self.key, level)
         return self._w[level]
 
     def score(self, item_id: int | None, level: int, slot: int) -> float:

@@ -6,6 +6,8 @@ import { BASE, ORIGIN, REPO_URL } from "./scripts/site.mjs";
 // Written by scripts/prepare.mjs from its SECTIONS list (the one place that
 // orders the site): run prepare first (`npm run build` and `dev` do).
 const sidebar = JSON.parse(fs.readFileSync(new URL("./sidebar.json", import.meta.url), "utf8"));
+// The version the docs describe (header and footer): the kit's own.
+const version = fs.readFileSync(new URL("../pyproject.toml", import.meta.url), "utf8").match(/^version = "([^"]+)"/m)[1];
 
 // A project site on GitHub Pages lives under the repository's name
 // (https://<owner>.github.io/<repo>/): every link Starlight writes carries
@@ -15,6 +17,7 @@ export default defineConfig({
   base: BASE,
   output: "static",
   trailingSlash: "always",
+  vite: { define: { __WOW_VERSION__: JSON.stringify(version) } },
   integrations: [
     starlight({
       title: "wow-stats",
@@ -29,6 +32,10 @@ export default defineConfig({
       pagination: true,
       tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 3 },
       customCss: ["./src/custom.css"],
+      components: {
+        Footer: "./src/components/Footer.astro",
+        SocialIcons: "./src/components/SocialIcons.astro",
+      },
       head: [
         // The pages as Markdown, for an assistant (scripts/prepare.mjs).
         { tag: "link", attrs: { rel: "alternate", type: "text/plain", href: `${BASE}llms.txt`, title: "For AI assistants" } },

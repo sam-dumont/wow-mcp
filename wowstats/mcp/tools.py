@@ -7,22 +7,23 @@ short `dur` where a person reads them. Every list is capped (`limit`).
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import os
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from .. import ahsource, quests
+from .. import ahsource, gearfit, quests
 from .. import gear as gearmod
 from ..rates import per_hour
+from ..stores import SESSION_BUCKETS, split_sessions
 from . import route
 from .store import SourceError, Store, iso, lq, parse_t, parse_when
 
-SESSION_GAP = timedelta(minutes=20)
-BUCKET = timedelta(minutes=5)
 GROUPED = {"grouped", "dungeon"}
 # Recorder kinds whose `level` is the player's (docs/contract.md, shipper KINDS).
 PLAYER_LEVEL_KINDS = frozenset({"level", "session"})
@@ -213,12 +214,30 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     if top is r and r.get("kind") == "level":
         xp = 0
     done = [lv for lv in levels if not lv["partial"]]
+    estimated = []
+    if level is None and levels:
+        # Polestar's splits alone: the level after the last one finished,
+        # or the one in progress, with its XP so far.
+        level = max(lv["level"] + (0 if lv["partial"] else 1) for lv in levels)
+        xp = next((lv["xp"] for lv in levels if lv["level"] == level and lv["partial"]), None)
+        estimated.append("level")
     pace = done[-3:]
     pace_s = sum(lv["seconds"] for lv in pace)
     xph = per_hour(sum(lv["xp"] for lv in pace), pace_s)
     current = next((lv for lv in levels if lv["level"] == level and lv["partial"]), None)
     eta = int((xp_max - xp) / xph * 3600) if xph and xp_max and xp is not None and xp_max > xp else None
     kq = {x.get("kind"): int(num(x.get("n"))) for x in counts}
+    first = st.logs(f"{rec(char)} | sort by (_time) | limit 1 | fields _time", limit=1) if kq else []
+    since = parse_t(first[0]["_time"]) if first else None
+    if levels and (not kq or (since and any(parse_t(lv["at"]) < since for lv in levels))):
+        # No Recorder, or switched on after some levels: the kills and
+        # quests Polestar counts in each split cover the whole history
+        # (the Recorder's own counts would only start at its switch-on).
+        for k, field in (("kill", "kills"), ("turnin", "quests")):
+            got = [lv[field] for lv in levels if lv.get(field) is not None]
+            if got and sum(got) >= kq.get(k, 0):
+                kq[k] = int(sum(got))
+                estimated.append(field if field == "kills" else "quests_turned_in")
     money = opt_num(s.get("money_copper")) if s.get("money_copper") not in (None, "") else opt_num(
         r.get("money_copper"))
     return {
@@ -231,8 +250,27 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
         "avg_last_5_levels": dur(sum(lv["seconds"] for lv in done[-5:]) / len(done[-5:])) if done else None,
         "xp_per_hour_last_3_levels": xph, "eta_next_level": dur(eta),
         "kills": kq.get("kill"), "quests_turned_in": kq.get("turnin"), "deaths": n_deaths,
+        **summary_talents(ctx, char),
         "other_characters": sorted({c["char"] for c in chars if c.get("char") and c["char"] != char}),
+        # From Polestar's level splits rather than the Recorder or the sheet.
+        **({"from_level_splits": estimated} if estimated else {}),
     }
+
+
+def summary_talents(ctx: Ctx, char: str) -> dict:
+    """The talents as Battle.net last read them (its daily read, live from
+    vm-wow): the tree with the most points, the split in the game's tab
+    order and when it was read; or why there are none."""
+    cls = who(ctx, char).get("class")
+    if not cls:
+        sheet = ctx.store.logs(f'feed:="wow-gear" {cf(char)} | fields _time, class | sort by (_time desc) '
+                               f"| limit 1", limit=1)
+        cls = (sheet or [{}])[0].get("class")
+    tal, why = current_talents(ctx, char, cls)
+    if not tal:
+        return {"talents": None, "talents_why": why}
+    return {"talents": {"spec": tal.get("spec"), "points": tal.get("points"), "as_of": tal.get("at"),
+                        "source": tal.get("source")}, "talents_why": None}
 
 
 def t_levels(ctx: Ctx, args: dict) -> dict:
@@ -259,26 +297,47 @@ def t_levels(ctx: Ctx, args: dict) -> dict:
 
 
 def _activity_sessions(rows: list[dict]) -> list[tuple[datetime, datetime]]:
-    times = sorted(parse_t(r.get("_time")) for r in rows if int(num(r.get("n"))) > 0)
-    out: list[list[datetime]] = []
-    for t in times:
-        if out and t - out[-1][1] <= SESSION_GAP:
-            out[-1][1] = t
-        else:
-            out.append([t, t])
-    return [(a, b + BUCKET) for a, b in out]
+    """The journal's and the semantic layer's sessions (stores.split_sessions)."""
+    return [(datetime.fromtimestamp(a, tz=UTC), datetime.fromtimestamp(b, tz=UTC)) for a, b in split_sessions(rows)]
+
+
+EARLY_NOTE = ("Entries with `estimated` are logouts without the Recorder: the time played estimated from the "
+              "level splits; zones, quests and deaths need the Recorder. Say so once.")
+
+
+def _early_sessions(st, char: str, start, end, until: float | None) -> list[dict]:
+    from wowstats import journal
+
+    snaps = dedupe(st.logs(f'feed:="wow-character" {cf(char)} -kind:=played | fields _time, money_copper, '
+                           f"level, xp, source_id", start, end))
+    if until is not None and not any(parse_t(r.get("_time")).timestamp() < until for r in snaps):
+        return []
+    levels = st.logs(f'feed:="wow-level" {cf(char)} | fields _time, level, seconds, xp, partial')
+    runs = dedupe(st.logs(f'feed:="wow-dungeon" {cf(char)} | fields _time, name, level, seconds, xp, source_id',
+                          start, end))
+    return [{"logout": r["end"], "played_about": dur(r["played_s"]), "level_start": r["level_start"],
+             "level_end": r["level_end"], "dings": r["dings"], "gold_change": gold(r["gold_delta_copper"]),
+             "dungeons": r["dungeons"], "estimated": True}
+            for r in journal.by_logout(snaps, levels, runs, until=until)]
 
 
 def t_sessions(ctx: Ctx, args: dict) -> dict:
-    """The journal: play sessions (20 minutes without any event ends one),
+    """The journal: play sessions (330 s without a Recorder record ends one),
     newest first, each with what happened in it."""
     char = resolve_char(ctx, args)
     start, end = time_range(args, 14)
     limit = limit_arg(args, 10, 50)
     st = ctx.store
-    buckets = st.logs(f"{cf(char)} | stats by (_time:5m) count() as n", start, end)
+    buckets = st.logs(f"{rec(char)} {SESSION_BUCKETS}", start, end)
     sessions = _activity_sessions(buckets)[-limit:]
+    # Before the Recorder's first record (or without it): the logout
+    # sheets, the time played from the level splits (journal.by_logout).
+    rec_first = st.logs(f"{rec(char)} | sort by (_time) | limit 1 | fields _time", limit=1)
+    early = _early_sessions(st, char, start, end, parse_t(rec_first[0]["_time"]).timestamp() if rec_first else None)
     if not sessions:
+        if early:
+            return {"char": char, "estimated": True, "sessions": early[:limit], "note": EARLY_NOTE,
+                    "unlock": "Switch on Polestar's Recorder (/psrec on, then /reload)."}
         return {"char": char, "sessions": [], "note": "no events in that range"}
     lo, hi = sessions[0][0], sessions[-1][1]
     ev = dedupe(st.logs(f"{rec(char)} kind:in(zone, step, skip, kill, turnin, accept, xp, level, death, taxi, land, "
@@ -290,7 +349,7 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
     met = st.logs(f'feed:="wow-player" {cf(char)} player:* | fields _time, player, context', lo, hi)
     out = []
     for a, b in reversed(sessions):
-        inside = [e for e in ev if a <= parse_t(e.get("_time")) < b]
+        inside = [e for e in ev if a <= parse_t(e.get("_time")) <= b]
         kinds: dict[str, int] = {}
         zones: dict[str, int] = {}
         # The player's own level only: a ding (`level`) and the chunk's
@@ -324,7 +383,10 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
                          if a <= parse_t(d.get("_time")) < b],
             "grouped_with": grouped[:8],
         })
-    return {"char": char, "sessions": out, "gap_rule": "20 min without events ends a session"}
+    # Older first-hand sessions fill the limit before the estimated logouts.
+    early = early[:max(0, limit - len(out))]
+    return {"char": char, "sessions": out + early, "gap_rule": "20 min without events ends a session",
+            **({"note": EARLY_NOTE, "tracking_from": rec_first[0]["_time"]} if early else {})}
 
 
 def t_zones(ctx: Ctx, args: dict) -> dict:
@@ -585,7 +647,7 @@ def t_route_reference(ctx: Ctx, args: dict) -> dict:
         return {"available": False, "why": ref.why,
                 "instead": "compare against the player's own previous levels (levels, guide_steps)"}
     profile = {}
-    if not all(args.get(k) for k in ("faction", "race", "class")):
+    if not all(args.get(k) for k in ("faction", "class")):
         try:
             profile = who(ctx, resolve_char(ctx, args))
         except (ToolError, SourceError):
@@ -651,6 +713,16 @@ def _gear_item(u: dict | None) -> dict | None:
         out["where_wowhead"] = links  # one per `where` entry, null where the source has no page
     if u.get("with"):
         out["together_with"] = _with_text(u["with"])
+    f = u.get("fit")
+    if f:
+        alt = f.get("alternative")
+        out["fit"] = {"for_you": f["for_you"], "says": gearfit.text(f), "built_for": f.get("built_for"),
+                      "wasted_stats_pct": f.get("wasted_pct") or None, "wasted_stats": f.get("wasted_stats") or None,
+                      "lower_armor": f.get("armor"), "group_loot_tip": f.get("tip"), "kb": f.get("kb") or None,
+                      "on_spec_alternative": None if not alt else {
+                          "item": alt.get("name"), "item_id": alt.get("item_id"), "gain_points": alt.get("gain"),
+                          "level": alt.get("level"), "where": [_src_text(s) for s in alt.get("sources") or []]}}
+        out["rank_points"] = u.get("value")
     ah = next((s for s in u.get("sources") or [] if s.get("kind") == "ah"), None)
     if ah:
         out["auction_house"] = {
@@ -666,10 +738,20 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     char = resolve_char(ctx, args)
     st = ctx.store
     rows = st.logs(f'feed:="wow-gear" {cf(char)} | {gearmod.Q_SHEET}', limit=1)
+    snap = st.logs(f'feed:="wow-character" {cf(char)} -kind:=played | fields _time, level, zone, money_copper, '
+                   f"class, race, faction | sort by (_time desc) | limit 1", limit=1)
+    worn = gearmod.armory_worn(st, char)
+    worn_from = "sheet"
     if not rows:
-        raise ToolError(f"no character sheet for {char} yet (Syndicator saves it at logout)")
-    snap = st.logs(f'feed:="wow-character" {cf(char)} -kind:=played | fields _time, level, zone, money_copper '
-                   f"| sort by (_time desc) | limit 1", limit=1)
+        # No Syndicator sheet: Battle.net's equipment, else every slot open
+        # (the best items for the level), said so with what unlocks the rest.
+        if not (snap and snap[0].get("class")):
+            # Not even the class (only level splits arrived): nothing to
+            # score items for. Say so with what unlocks it, never an error.
+            return {"char": char, "answer": None, "why": "no character sheet yet: the class isn't known",
+                    "unlock": "Log in once with Polestar on, then log out. " + gearmod.SHEET_UNLOCK}
+        row, worn_from = gearmod.no_sheet(snap[0], worn)
+        rows = [row]
     last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, level, zone "
                    f"| sort by (_time desc) | limit 1", limit=1)
     held = st.logs(gearmod.Q_HELD.format(cf=cf(char)), limit=1)
@@ -680,7 +762,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     top = s if parse_t(s.get("_time")) >= parse_t(r.get("_time")) else r
     level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
     sheet = gearmod.sheet(rows[0])
-    sheet["worn_stats"] = gearmod.armory_worn(st, char)
+    sheet["worn_stats"] = worn
     try:
         market = ahsource.gather(lambda q, _k, _o: st.logs(q), cf=cf(char), rec=rec(char),
                                  faction=sheet.get("faction"), money=opt_num(s.get("money_copper")))
@@ -700,6 +782,12 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     ups = sorted(a["upgrades"], key=lambda u: (not gearmod.is_held(u), not u["here"]))[:lim]
     sp = a["spec"]
     return {
+        **({} if worn_from == "sheet" else {
+            **gearmod.unknown_worn(worn_from),
+            "note": "What the character wears isn't known (no Syndicator sheet): " + (
+                "the worn items are Battle.net's." if worn_from else
+                "every slot counts as empty, so these are the best items for the level, not gains over the "
+                "worn ones; gain_points then means the item's whole score.") + " Say so, and give `unlock`."}),
         "char": char, "level": a["level"], "zone": a["zone"], "class": a["class"],
         "spec": sp["label"], "spec_from": sp.get("why"), "gear_score": a.get("gear_score"),
         "weights_adjusted_by_player": sp["adjusted"] or None,
@@ -719,7 +807,21 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
             (u for u in a["upgrades"] if gearmod.on_sale(u) and u.get("now")),
             key=lambda u: -(next(s for s in u["sources"] if s["kind"] == "ah").get("gain_per_gold") or 0))[:5]],
         "auction_house": _ah_summary(a.get("ah")),
-        "how": "Polestar's own scoring and weights (its addon's Gear.lua, ported). gain_points is the score gain, "
+        "role": sp.get("role") or "unknown: ask the player to pick a spec in settings",
+        "how": "Polestar's own scoring and weights (its addon's Gear.lua, ported), with the stats the class can't "
+               "use at zero (healing power for classes with no heals, Spirit and Intellect for warriors and "
+               "rogues, attack power for mages, priests and warlocks) and the ones the class uses but this spec "
+               "doesn't (a shadow priest's healing power) at a partial weight until the spec's 31-point talent "
+               "(level 40 at the earliest). fit on each item: for_you is yes, any, spec (built for another spec "
+               "of the class: fine while levelling, don't roll Need against who it's made for) or class (made "
+               "for another class); who it is built for, the share of its stats wasted on "
+               "it, a lower armour type, the group-loot tip (who usually gets first pick) and the best upgrade "
+               "for the same slot built for this spec (on_spec_alternative). Use it to answer 'should I roll "
+               "on this?': an upgrade is an upgrade, but say when it is built for someone else and name the "
+               "alternative. kb lists the knowledge-base statements behind the label (kb_rule / kb_search). "
+               "The list is ranked by rank_points: the gain, 10% less for an item built for another spec of the "
+               "class, 25% less for one made for another class, and 15% less again when only a group drops it "
+               "and others roll first. gain_points is the score gain, "
                "gain_share_of_gear_pct its share of everything worn (lead with these); gain_pct_over_replaced "
                "misleads against a weak item. Weapons are whole setups: a one-hander always comes with the off "
                "hand it is worn with (together_with), and the item to go and get leads the row (the other "
@@ -767,18 +869,49 @@ UNTIL = {"type": "string", "description": "End of the range, same forms as since
 _VIEWS: dict = {}
 
 
+def bnet_vm_url(ctx: Ctx) -> str:
+    """vm-wow for Battle.net's current profile readings (talents, sex,
+    guild, Legacy achievements), or "" when they may not reach the model.
+    Owner, 2026-11-20: the MCP reads the current talents from vm-wow, the
+    same store and 23 days as the dashboard, read live and never copied.
+    On a multi-user install the person's "Battle.net data to my AI" switch
+    decides (ctx.bnet, as for `market`); on a single-user install the
+    operator who set VM_URL is the person."""
+    if not ctx.store.vm_url:
+        return ""
+    return ctx.store.vm_url if (ctx.env is None or ctx.bnet) else ""
+
+
 def _views(ctx: Ctx):
     """The web server's Views over the same VictoriaLogs: next_moves,
     sanity_check and people share their rules with the Overview page
-    (wowstats.insights), so the coach and the page never disagree."""
+    (wowstats.insights), so the coach and the page never disagree. Its
+    Battle.net reads are the profile series only (bnet_vm_url): no market."""
     from wowstats import stores, views
 
     s = ctx.store
-    key = (s.vl_url, s.vl_archive_url, s.logs_filter, s.hot_days, s.account_id)
+    bnet = bnet_vm_url(ctx)
+    key = (s.vl_url, s.vl_archive_url, s.logs_filter, s.hot_days, s.account_id, bnet)
     if key not in _VIEWS:
-        st = stores.Store(s.vl_url, s.vl_archive_url, "", s.logs_filter, s.hot_days, account_id=s.account_id)
+        st = stores.Store(s.vl_url, s.vl_archive_url, "", s.logs_filter, s.hot_days, profile_vm_url=bnet,
+                          account_id=s.account_id)
         _VIEWS[key] = views.Views(st, views.Settings(view="full"))
     return _VIEWS[key]
+
+
+BNET_OFF = ("Battle.net data to my AI is off in this person's settings: the talents stay on the page, not "
+            "in the chat.")
+
+
+def current_talents(ctx: Ctx, char: str, cls) -> tuple[dict | None, str | None]:
+    """Battle.net's talents now (wowstats.talents.from_battlenet), read live
+    from vm-wow, never kept: (the talents answer, None), or (None, why)."""
+    from wowstats import talents
+
+    if not bnet_vm_url(ctx):
+        return None, (BNET_OFF if ctx.store.vm_url else talents.NO_TALENTS)
+    tal, _ = talents.from_battlenet(talents.shared().get(), cls, _views(ctx).bnet_talents(char))
+    return (tal, None) if tal.get("available") else (None, tal.get("why") or talents.NO_TALENTS)
 
 
 def _overview(ctx: Ctx, args: dict) -> tuple[str, dict]:
@@ -895,7 +1028,7 @@ TOOLS: tuple[Tool, ...] = (
                  "to_level": {"type": "integer", "minimum": 1, "maximum": 80,
                               "description": "Last level to include."}}), t_levels),
     Tool("sessions", "Session journal",
-         "Play sessions, newest first (20 minutes without events ends one): duration, levels, XP, quests, kills, "
+         "Play sessions, newest first (330 s without a Recorder record ends one): duration, levels, XP, quests, kills, "
          "deaths, main zones, guide steps, flights, dungeons and who the player grouped with.",
          schema({"char": CHAR, "since": SINCE, "until": UNTIL, "limit": lim(10, 50)}), t_sessions),
     Tool("zones", "Time per zone",
@@ -943,16 +1076,15 @@ TOOLS: tuple[Tool, ...] = (
          "runs with group size, bosses, wipes and deaths. No addon saves who was in a group: says so.",
          schema({"char": CHAR, "limit": lim(20, 100)}), t_people),
     Tool("route_reference", "Route reference",
-         "Polestar's planned route clock: expected time per level (for the character's race and class), per guide "
-         "and per guide step. Guide ids as the recorder writes them, e.g. forever/alliance/05-duskwood; steps "
-         "count from 1. A planner's model of a quick player, not /played.",
+         "Polestar's planned route clock: expected time per level (for the character's class, the median over "
+         "its side's starting races), per guide and per guide step. Guide ids as the recorder writes them, "
+         "e.g. forever/alliance/05-duskwood; steps count from 1. A planner's model of a quick player, not /played.",
          schema({"char": CHAR, "level": {"type": "integer", "minimum": 1, "maximum": 80,
                                   "description": "A level: the route's expected time for it."},
                  "guide": {"type": "string", "description": "A guide id, or part of one."},
                  "step": {"type": "integer", "minimum": 1, "description": "A step of that guide (from 1)."},
                  "faction": {"type": "string", "enum": ["Alliance", "Horde"],
                              "description": "Look up this faction's route instead of the character's."},
-                 "race": {"type": "string", "description": "Look up this race's route instead of the character's."},
                  "class": {"type": "string",
                            "description": "Look up this class's route instead of the character's."}}),
          t_route_reference),
@@ -990,6 +1122,75 @@ def mcp_tools(ctx: Ctx) -> tuple[Tool, ...]:
     return TOOLS + ((MARKET,) if ctx.bnet and ctx.store.vm_url else ())
 
 
+# The tools that answer from the knowledge base: each answer is a slice
+# (by query, class, spec, level, lane, week), and never more than KB_CHARS
+# characters of JSON (about 6,000 tokens), whatever the KB grows to. Past
+# it, fit() cuts lists, the side lists (TRIM_FIRST) before the answer's
+# own, and says what it cut. Citations and contradictions (TRIM_LAST) go
+# last of all: a statement's source ids and what the sources disagree on
+# stay visible as long as anything else can be cut.
+KB_TOOLS = frozenset({"kb_search", "kb_get", "kb_lookup", "kb_rule", "kb_topics", "class_guide", "class_meta",
+                      "news"})
+KB_CHARS = 24_000
+TRIM_FIRST = ("open_questions", "coming_up", "upcoming", "known", "weeks")
+TRIM_LAST = ("contradictions", "conflicts", "levelling_ids")
+KB_TEXT = 1_200  # one string, once the lists are as short as they go
+
+
+def _size(v) -> int:
+    return len(json.dumps(v, ensure_ascii=False, default=str))
+
+
+def _lists(v, path: str = ""):
+    """(path, list) for every list in an answer, outermost first."""
+    if isinstance(v, dict):
+        for k, x in v.items():
+            yield from _lists(x, f"{path}.{k}" if path else str(k))
+    elif isinstance(v, list):
+        yield path, v
+        for i, x in enumerate(v):
+            yield from _lists(x, f"{path}[{i}]")
+
+
+def fit(out: dict, cap: int = KB_CHARS) -> dict:
+    """The answer under `cap` characters: the list that weighs most loses
+    its last quarter until it fits (never below one entry), side lists
+    (what's coming, open questions...) first, citations and contradictions
+    (TRIM_LAST) only once nothing else is left to cut; then long strings
+    are cut. `trimmed` says what went, and how to ask for less."""
+    if _size(out) <= cap:
+        return out
+    out = copy.deepcopy(out)
+    cut: dict[str, int] = {}
+    note = {"cut": cut, "max_chars": cap,
+            "note": "The answer was cut to stay small: ask for a narrower slice (a class, spec, level, lane, week "
+                    "or query, a lower limit) for what was left out."}
+    out["trimmed"] = note
+    while _size(out) > cap:
+        lists = [(p, x) for p, x in _lists(out) if len(x) > 1 and not p.startswith("trimmed")]
+        if not lists:
+            break
+        def name(p: str) -> str:
+            return re.sub(r"\[\d+\]", "", p).rsplit(".", 1)[-1]
+
+        side = [(p, x) for p, x in lists if name(p) in TRIM_FIRST]
+        rest = [(p, x) for p, x in lists if name(p) not in TRIM_LAST]
+        lists = side or rest or lists
+        path, big = max(lists, key=lambda px: _size(px[1]))
+        keep = max(1, len(big) - max(1, len(big) // 4))
+        cut[path] = cut.get(path, 0) + len(big) - keep
+        del big[keep:]
+
+    def clip(v):
+        if isinstance(v, dict):
+            return {k: clip(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [clip(x) for x in v]
+        return v[:KB_TEXT] + " [cut]" if isinstance(v, str) and len(v) > KB_TEXT else v
+
+    return clip(out) if _size(out) > cap else out
+
+
 def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TOOLS) -> dict:
     """Run a tool of `registry` (default: the MCP's TOOLS, which never hold
     `market`); an unknown name is a KeyError."""
@@ -1013,6 +1214,8 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
         gap = missing_for(ctx, tool, args, out)
         if gap is not None:
             out = {**out, "missing": gap}
+    if name in KB_TOOLS and isinstance(out, dict):
+        out = fit(out)
     return out
 
 

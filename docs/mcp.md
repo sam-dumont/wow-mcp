@@ -48,7 +48,10 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `kb_search` | The knowledge base, full text, each hit with its source URL, type, confidence and scope (`forever` or `classic_fallback`); `scope` filters |
 | `kb_rule` | One static rule (`riding.apprentice`, `rested.accrual`...) with its value, source and `last_verified`, plus any other lane's differing version under `conflicts`, or "unknown" |
 | `kb_topics` | The research catalogue by lane (game rules, dungeons, levelling, economy and professions, PvP, raids): counts and the day each was checked; with `lane`, its documents, contradictions (with sources) and open questions |
-| `class_guide` | How to level the character's class at its level (or `class` and `level`): the levelling spec, the talent picks for this bracket and the next (from the character's own talents when an export holds them), the trainer spells to buy now and next with the class trainers in the capitals of its side, stat priority, solo play, dungeon role, class quests, mistakes and the respec moment; every statement with its source, date, confidence and scope, and the contradictions between sources (the KB's `classes` lane) |
+| `class_guide` | How to level the character's class at its level (or `class` and `level`): the levelling spec, the talent picks for this bracket and the next (from the character's current talents on Battle.net when the MCP may read them, see below), the trainer spells to buy now and next with the class trainers in the capitals of its side, stat priority, solo play, dungeon role, class quests, mistakes and the respec moment; every statement with its source, date, confidence and scope, and the contradictions between sources (the KB's `classes` lane) |
+| `class_meta` | The state of the meta for the character's class and spec (or `class`, `spec`, `level`): how each spec stands, the build, stat priority, gear, enchants by slot, consumables, professions and what changed lately, every statement with its source, date and confidence (the KB's `class-meta` lane and the weekly meta pass); for the character, how close it is: a 0-100 score from its talents, gear and enchants, and the top gaps with where to fix each and what is coming that concerns it, with the prep it needs (see "How close am I to the meta" in the player's guide) |
+| `talent_changes` | The character's talent changes: every one from WoWSims Exporter's saves (`source`) when the player has it, else the last 3 weeks of Battle.net's daily read. The day, the points per tree before and after, the talents gained or dropped with their ranks; `not_recorded` names talents the addon can't save. Newest first; `changes` is null with a `why` when there's neither (see below) |
+| `news` | What's new on Forever: this week's digest from the weekly KB pass (or everything `since` a day, or an earlier `week`), one line per item in our words with its category, day, source and who it concerns (classes, levels, roles), the character's first (or filtered by `class`, `level`, `role`); the events to come with their announced day, or "announced, no date"; and `community`, what players are saying on the forums and r/wowforever (opinions, never facts; `category=community` for those alone) |
 | `play_analysis` | The character's kept analysis: findings with their SQL, nudges with feasibility, the shared lines, the last run and recheck |
 | `analyse` | The `analyse` prompt as a tool (ChatGPT has no prompts): the procedure and where the run stands |
 | `analysis_brief` | The play analysis' brief in sections sized for a 32k context: `start`, `schema`, `profile` and `kb` (paged, 12,000 characters a page), `survey`, `lane`, `followups`, `coverage`, `synthesis` |
@@ -247,7 +250,8 @@ list what they checked and what the saved data can't support yet:
   hostile creature that targeted you within 10 s, and the units and combat
   records before it give the fight's length and the attackers); guide steps
   over 3x their planned time; steps skipped or passed over; upgrades you
-  could wear now; a profession capped at its trainer tier; unspent talent points (once VulcanSimBench saved the talents);
+  could wear now; a profession capped at its trainer tier; unspent talent points (from Battle.net's current talents,
+  when the MCP may read them: see below);
   levels much slower than your own.
 - Not possible yet: bags full and vendor trash (the shipper sends which
   items the bags hold, not how full they are or what each sells for), flights not taken (no list of known flight paths),
@@ -389,6 +393,16 @@ hand-made `{"levels": {"12": 2400}, "guides": {...}}`), `off` turns the
 comparison off and the `coach` prompt compares you with your own past levels instead.
 
 ## Battle.net data reaches the MCP only when you turn it on
+
+Your character's current talents come from Battle.net (owner, 2026-11-20):
+`character_summary` gives the spec, the points per tree and when Battle.net
+read them, `talent_changes` what changed over the last 3 weeks (every change with WoWSims Exporter), and
+`class_guide`, `class_meta` and `sanity_check` work from them. The MCP reads them live from vm-wow, the store the dashboard reads
+(23 days), and keeps nothing. On a multi-user install the same "Battle.net
+data to my AI" setting as below decides; without it `talents` is null and
+`talents_why` says so. A one-person install has no such setting: the
+person who set `VM_URL` gets their talents. No Battle.net client: no
+talents, and the class guide follows the class path.
 
 The WoW Token price and the ruleset status come from Blizzard's API (the
 project reads no Auction House API: auction prices are your own Auctionator

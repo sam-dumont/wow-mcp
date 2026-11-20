@@ -3,7 +3,7 @@
 **For:** players with data on a wow-stats page (their own server or a friend's). **At the
 end:** you know what each tab shows and what to do with it.
 
-![The Overview tab of the demo character Nibbet: the pace line, four numbers, the next moves and time per level](../images/overview-light.webp)
+![The Overview tab of the demo character Nibbet: the pace line, four numbers, the next moves and time per level](../images/overview.webp)
 
 <!-- generated:player-page -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
@@ -21,6 +21,8 @@ The tabs at a glance:
 
 *Open it before you log in.*
 
+[Watch: overview](../videos/media/tour-light.mp4)
+
 The first tab. The line at the top says where you stand against Polestar's route and how much play the next level needs. Below it, the four numbers and your next moves.
 
 Do the first next move. When something blocks it (your level, your gold), the move says what, and how far you are.
@@ -36,7 +38,7 @@ Do the first next move. When something blocks it (your level, your gold), the mo
 
 *Your gear, your climb, everything recorded.*
 
-The second tab. At the top, the character sheet: gear and item level, professions, talents. Hover or tap an item for its card; the Wowhead link opens its page.
+The second tab. At the top, the character sheet: gear and item level, professions, talents and how they changed (every change with WoWSims Exporter, else the last 3 weeks). Hover or tap an item for its card; the Wowhead link opens its page.
 
 Under the sheet, a bar of sections. Each one jumps to its part of the page.
 
@@ -82,6 +84,8 @@ The picker at the top left switches character. Every character you played with t
 
 *The whole story, for the friends you pick.*
 
+[Watch: your zogzog link](../videos/media/private-light.mp4)
+
 Settings has your zogzog link: your page for friends, with the journal, the gear advice, prices and deaths per zone. Anyone with the link can open it, so send it only to the people you want there. It never shows other players or where your character is right now.
 
 It catches up within about 10 minutes of a play session.
@@ -97,6 +101,8 @@ The owner adds its address once, usually within a day. Settings says "live" when
 ## Settings
 
 *What others see, your upload password, and leaving.*
+
+[Watch: settings](../videos/media/settings-light.mp4)
 
 Settings is in the menu at the top right of your page. Your own page always shows everything: these only change what others see.
 

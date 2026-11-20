@@ -10,8 +10,12 @@
   font: 14px var(--sans); color: var(--ink); background: var(--sunk); border: 1px solid var(--rule);
   border-radius: 4px; padding: 2px 6px;
 }
-.m3dcredit { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
-.m3dcredit a { color: var(--gold-hi); }
+/* No 3D model to draw (the answer's why): one line above the toggle, on
+   the picture. The stage is dark in both themes. */
+.stage > .m3dwhy {
+  position: absolute; z-index: 1; left: 12px; right: 12px; bottom: 54px; margin: 0; text-align: center;
+  color: #D8C49C; font: 14px/1.35 var(--sans); text-shadow: 0 1px 2px #000;
+}
 /* Updated or Classic models (modelsSwitch), like the game's option. */
 .m3dmodels { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
 .m3dmodel {

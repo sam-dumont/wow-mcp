@@ -519,6 +519,9 @@ class Tenancy:
         for k in ("MCP_PUBLIC_URL", "MCP_AUTH", "INGEST_PASSWORD", "INGEST_PASSWORD_FILE", "ANALYSIS_SHARE_PORT"):
             e[k] = ""
         e["VL_ACCOUNT_ID"] = str(u.account_id)
+        # The 3D view's game files the person's shipper sends: in their own
+        # folder, so delete_tenant takes them too.
+        e["MODEL3D_ASSETS_DIR"] = str(self.user_dir(u) / "assets")
         if u.owner:
             e.setdefault("ANALYSIS_STATE_DIR", str(self.user_dir(u) / "analysis"))
             if not e["ANALYSIS_STATE_DIR"]:

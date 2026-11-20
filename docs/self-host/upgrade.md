@@ -46,7 +46,7 @@ docker compose up -d
 
 ## The shipper
 
-It follows the server: at most every 6 hours it asks the server it ships to for its version,
+It follows the server: at most every 2 hours it asks the server it ships to for its version,
 and takes the new one when it's newer ([Auto-update](../shipper.md#auto-update)). A shipper
 from before 0.5.1 can't do that yet: run the installer again once
 (`shipper/install-mac.sh`, or

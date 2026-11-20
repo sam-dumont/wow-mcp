@@ -58,16 +58,16 @@ class LookupTest(unittest.TestCase):
     def setUp(self):
         self.ref = bundled()
 
-    def test_level_for_race_and_class_then_side_then_both(self):
-        own = self.ref.level(28, "Alliance", "Gnome", "PRIEST")
-        self.assertEqual(own["basis"], "route for Gnome Priest")
-        route_run = next(r for r in self.ref.routes if (r["race"], r["class"]) == ("Gnome", "PRIEST"))
-        at = dict(route_run["dings"])
-        self.assertEqual(own["expected_s"], at[29] - at[28])
+    def test_level_for_class_then_side_then_both(self):
+        # One definition with the semantic layer's planned_s: the class's
+        # median over the side's starting races, whatever the race.
+        own = self.ref.level(28, "Alliance", "PRIEST")
+        self.assertEqual(own["expected_s"], self.ref.levels["Alliance"]["28"]["by_class"]["PRIEST"])
+        self.assertEqual(own["basis"], "Alliance Priest, median over the starting races")
         side = self.ref.level(28, "Alliance")
         self.assertEqual(side["expected_s"], self.ref.levels["Alliance"]["28"]["seconds"])
         self.assertIn("median", side["basis"])
-        cls = self.ref.level(28, "alliance", None, "priest")
+        cls = self.ref.level(28, "alliance", "priest")
         self.assertIn("Priest", cls["basis"])
         self.assertIsNotNone(self.ref.level(28))
         self.assertIsNone(self.ref.level(70))
@@ -84,7 +84,7 @@ class LookupTest(unittest.TestCase):
         out = self.ref.compare([{"level": 28, "seconds": 15028, "partial": False},
                                 {"level": 29, "seconds": 600, "partial": True}],
                                {"faction": "Alliance", "race": "Gnome", "class": "PRIEST"})
-        exp = self.ref.level(28, "Alliance", "Gnome", "PRIEST")["expected_s"]
+        exp = self.ref.level(28, "Alliance", "PRIEST")["expected_s"]
         self.assertEqual(out[0]["route_s"], exp)
         self.assertEqual(out[0]["vs_route"], f"{15028 / exp:.1f}x")
         self.assertNotIn("vs_route", out[1])  # the current level isn't finished
@@ -120,15 +120,15 @@ class ToolsTest(unittest.TestCase):
     def test_levels_carry_the_route(self):
         out = self.call("levels", char=fakes.CHAR)
         lv28 = next(lv for lv in out["levels"] if lv["level"] == 28)
-        exp = bundled().level(28, "Alliance", "Gnome", "PRIEST")
+        exp = bundled().level(28, "Alliance", "PRIEST")
         self.assertEqual(lv28["route_s"], exp["expected_s"])
         self.assertTrue(lv28["vs_route"].endswith("x"))
         self.assertIn("route_note", out)
 
-    def test_route_reference_uses_the_characters_race_and_class(self):
+    def test_route_reference_uses_the_characters_side_and_class(self):
         out = self.call("route_reference", char=fakes.CHAR, level=28)
-        self.assertEqual(out["for"], {"faction": "Alliance", "race": "Gnome", "class": "PRIEST"})
-        self.assertEqual(out["level"]["basis"], "route for Gnome Priest")
+        self.assertEqual(out["for"], {"faction": "Alliance", "class": "PRIEST"})
+        self.assertEqual(out["level"]["basis"], "Alliance Priest, median over the starting races")
         g = self.call("route_reference", char=fakes.CHAR, guide=HILLSBRAD, step=7)
         self.assertEqual(g["guide"]["guide"], HILLSBRAD)
         self.assertGreater(g["guide"]["step"]["expected_s"], 0)

@@ -13,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
+from tests import model3d_world as w
 from tests.test_public_view import PoisonStore
 from wowstats import pictures, publish, renderer, ui
 
@@ -21,66 +22,39 @@ pytest.importorskip("cryptography")
 # The smallest file that passes for WebP here: RIFF, a size, WEBP, a chunk.
 WEBP = b"RIFF\x1a\x00\x00\x00WEBPVP8L\x0d\x00\x00\x00/\x00\x00\x00\x10\x07\x10\x11\x11\x88\x88\xfe\x07\x00"
 
-GOOD = {"model": {"chr_model": 13, "gender": 0, "options": [{"optionId": 81, "choiceId": 1186}]},
-        "items": [[5, 9871], [7, 222]]}
+GOOD = {"recipe": w.SCENE["recipe"]}
 
 
-def test_renderer_takes_a_drawing_and_nothing_else():
-    got = renderer.parse(json.dumps({**GOOD, "name": "Hero-Test", "level": 12,
-                                     "model": {**GOOD["model"], "char": "Hero"}}).encode())
-    assert got == GOOD, "unlisted fields are dropped, not passed on"
-    for bad in ({"model": {**GOOD["model"], "chr_model": 999}, "items": []},  # not a playable model
-                {"model": {**GOOD["model"], "chr_model": "13"}, "items": []},
-                {"model": {**GOOD["model"], "gender": 2}, "items": []},
-                {**GOOD, "items": [[2, 5]]},  # a neck: never drawn
-                {**GOOD, "items": [[5, 1]] * 21},
-                {**GOOD, "items": [[5, True]]},
-                {"model": GOOD["model"]}):
+def test_renderer_takes_a_recipe_and_nothing_else():
+    got = renderer.parse(json.dumps({**GOOD, "name": "Hero-Test", "level": 12, "absent": [5, 7]}).encode())
+    assert got == {"recipe": w.SCENE["recipe"], "absent": {5, 7}}, "unlisted fields are dropped, not passed on"
+    r = w.SCENE["recipe"]
+    for bad in ({"recipe": {**r, "model": "100001"}}, {"recipe": {**r, "model": -1}},
+                {"recipe": {**r, "materials": [{"type": 1, "width": 99999, "height": 1, "layers": []}]}},
+                {"recipe": {**r, "attachments": [{"slot": 16}] * 40}},
+                {"recipe": {**r, "textures": {"x": 1}}},
+                {"recipe": {**r, "model": True}},
+                {**GOOD, "absent": ["a"]}, {}):
         with pytest.raises(renderer.BadRequest):
             renderer.parse(json.dumps(bad).encode())
     with pytest.raises(renderer.BadRequest):
         renderer.parse(b"not json")
-    # A Skyborne arrives as its stand-in, the Blood Elf (model3d.STAND_INS).
-    assert renderer.parse(json.dumps({**GOOD, "model": {**GOOD["model"], "chr_model": 19}}).encode())
-    with pytest.raises(renderer.BadRequest):
-        renderer.parse(json.dumps({**GOOD, "model": {**GOOD["model"], "chr_model": 218}}).encode())
+    # Extra keys inside the recipe are dropped too: the page gets a recipe it built itself.
+    assert "name" not in renderer.parse(json.dumps({"recipe": {**r, "name": "Hero"}}).encode())["recipe"]
 
 
-def test_request_is_cut_from_the_3d_answer():
-    ans = {"race": "Gnome", "sex": "male", "class": "PRIEST", "level": 12,
-           "model": {"chr_model": 13, "gender": 0, "options": [{"optionId": 81, "choiceId": 1186}]},
-           "appearance": {"source": "battle.net", "refreshed": "2026-11-18"},
-           "items": [{"slot": 5, "slot_name": "Chest", "item_id": 6098, "name": "Neophyte's Robe",
-                      "inventory_type": 20, "display_id": 12647}],
+def test_request_is_the_answers_recipe():
+    ans = {"race": "Gnome", "sex": "male", "class": "PRIEST", "level": 12, "recipe": w.SCENE["recipe"],
+           "recipe_sd": None, "appearance": {"source": "battle.net", "refreshed": "2026-11-18"},
+           "items": [{"slot": 5, "slot_name": "Chest", "item_id": 6098, "name": "Neophyte's Robe"}],
            "missing": [{"slot": 1, "item_id": 7, "name": "x", "why": "y"}]}
     req = pictures.request(ans)
-    assert req == {"model": {"chr_model": 13, "gender": 0, "options": [{"optionId": 81, "choiceId": 1186}]},
-                   "items": [[20, 12647]]}
-    assert renderer.parse(json.dumps(req).encode()) == req
-    assert pictures.request({"model": None, "why": "no race"}) is None
-
-
-def test_a_weapon_wowhead_lacks_travels_with_its_meta():
-    """A meta Wowhead doesn't have (a weapon or armor Forever added) goes
-    with the request: the renderer doesn't read Forever's tables to make it.
-    Only for an item the drawing has; a stranger is refused."""
-    ans = {"model": GOOD["model"], "items": [{"slot": 16, "inventory_type": 17, "display_id": 752138},
-                                             {"slot": 5, "inventory_type": 20, "display_id": 12647}]}
-    meta = {"Textures": {"2": 147522}, "ModelFiles": {"16577": [{"FileDataId": 147517, "Gender": 2}]}}
-    req = pictures.request(ans, {752138: meta})
-    assert req["metas"] == {"752138": meta}
-    assert pictures.key(req) != pictures.key(pictures.request(ans)), "the weapon is a new picture"
-    assert pictures.request(ans, {}) == pictures.request(ans), "no stand-in: the same key as before"
-    got = renderer.parse(json.dumps(req).encode())
-    assert json.loads(got["metas"]["752138"]) == meta
-    # Armor Forever added travels the same way (model3d.armor_meta).
-    assert set(renderer.parse(json.dumps({**req, "metas": {"12647": meta}}).encode())["metas"]) == {"12647"}
-    for bad in ({"1": meta}, {"752138": [1]}, ["752138"]):
-        with pytest.raises(renderer.BadRequest):
-            renderer.parse(json.dumps({**req, "metas": bad}).encode())
-    # Same look and gear, same key; a different item, another picture.
+    assert req == {"recipe": w.SCENE["recipe"]}
+    assert renderer.parse(json.dumps(req).encode())["recipe"] == req["recipe"]
+    assert pictures.request({"recipe": None, "why": "no race"}) is None
+    # Same recipe, same key; another one, another picture.
     assert pictures.key(req) == pictures.key(json.loads(json.dumps(req)))
-    assert pictures.key(req) != pictures.key({**req, "items": [[20, 12648]]})
+    assert pictures.key(req) != pictures.key({"recipe": {**req["recipe"], "animation": 4}})
 
 
 TOKEN = "t" * 43
@@ -120,18 +94,17 @@ class FakeRenderer:
 
 @pytest.fixture
 def world(tmp_path, monkeypatch):
-    """The 3D upstreams of tests/test_model3d and the poisoned store, with
-    a look from Battle.net: every level with gear has a model to draw."""
-    from tests.test_model3d import Upstream
-
+    """The made-up 3D world (tests/model3d_world.py) in the person's store
+    and the poisoned event store, with a look from Battle.net: every level
+    with gear has a recipe to draw."""
     class LookStore(PoisonStore):
         def vm_query(self, q):
             if "wow_character_customization" in q:
-                return [{"metric": {"option_id": "1"}, "value": [1, "12"]}]
+                return [{"metric": {"option_id": "85"}, "value": [1, "1236"]}]
             if "wow_character_profile_refreshed" in q:
                 return [{"metric": {}, "value": [1, "1795413600"]}]
             if "wow_character_profile{" in q:
-                return [{"metric": {"gender": "male", "race_id": "7"}, "value": [1, "32"]}]
+                return [{"metric": {"gender": "female", "race_id": "7"}, "value": [1, "32"]}]
             return super().vm_query(q)
 
     def store(vl, archive="", vm="", *a, **k):
@@ -143,14 +116,14 @@ def world(tmp_path, monkeypatch):
     from wowstats.plan import facts
 
     monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
-    up = Upstream()
-    env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "on", **up.env(tmp_path),
+    w.patch_tables(monkeypatch)
+    w.fill(tmp_path / "assets")
+    env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "on",
+           "MODEL3D_CACHE_DIR": str(tmp_path / "cache"), "MODEL3D_ASSETS_DIR": str(tmp_path / "assets"),
            "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_KEY_FILE": str(tmp_path / "zogzog.key"),
            "RENDER_TOKEN_FILE": str(tmp_path / "render.token")}
     (tmp_path / "render.token").write_text(TOKEN)
     yield env, tmp_path
-    up.srv.shutdown()
-    up.srv.server_close()
 
 
 def run(env, force=False):
@@ -189,7 +162,7 @@ def test_both_bundles_carry_each_levels_picture(world):
 
     for body in r.asked:
         req = json.loads(body)
-        assert set(req) == {"model", "items"} and set(req["model"]) == {"chr_model", "gender", "options"}
+        assert set(req) == {"recipe", "absent"}
         for s in ("Hero", "Test", *SECRETS):
             assert s.encode() not in body, (s, body)
     # One picture per look and gear: drawn once for both bundles.

@@ -86,7 +86,7 @@ def receiver():
 
 
 def make_wow(root: Path, addons=("Polestar", "Polestar_Recorder", "Questie", "Syndicator", "Auctionator",
-                                  "CharacterExport-Forever", "Narcissus", "VulcanSimBench"),
+                                 "WowSimsExporter"),
              recorder: bool | None = True, played: bool = True) -> Path:
     wow = root / "World of Warcraft" / "_forever_"
     acct = wow / "WTF" / "Account" / "123456789#1"
@@ -159,12 +159,11 @@ def test_everything_in_place_is_all_ticks(tmp_path, receiver):
     assert receiver.got == [b""]  # the ping: an empty, authenticated send
     # one line per addon (Questie and Altoholic share one), the folder, the
     # switch, saved data, server, and the background program on macOS
-    assert len(body) == 1 + 2 + 1 + 1 + 5 + 1 + 1 + int(AGENT)
+    assert len(body) == 1 + 2 + 1 + 1 + 3 + 1 + 1 + int(AGENT)
 
 
 def test_two_optional_addons_missing_are_crosses_not_a_failure(tmp_path, receiver):
-    wow = make_wow(tmp_path, addons=("Polestar", "Polestar_Recorder", "Syndicator", "Auctionator",
-                                     "CharacterExport-Forever", "Narcissus", "VulcanSimBench"))
+    wow = make_wow(tmp_path, addons=("Polestar", "Polestar_Recorder", "Syndicator", "Auctionator", "WowSimsExporter"))
     rc, out = preflight(tmp_path, config(tmp_path / "c.toml", wow, receiver.url))
     assert rc == 0, out
     assert line(out, "Questie or Altoholic") == (
@@ -334,8 +333,7 @@ def test_the_mac_installer_ends_with_the_checklist(tmp_path, receiver):
     fake launchctl, the Recorder comes from a local fake release."""
     home = tmp_path / "home"
     home.mkdir()
-    wow = make_wow(tmp_path, addons=("Polestar", "Polestar_Recorder", "Syndicator", "Auctionator",
-                                     "CharacterExport-Forever", "VulcanSimBench"))
+    wow = make_wow(tmp_path, addons=("Polestar", "Polestar_Recorder", "Syndicator", "Auctionator", "WowSimsExporter"))
     (home / ".config" / "wow-stats").mkdir(parents=True)
     conf = config(home / ".config" / "wow-stats" / "config.toml", wow, receiver.url)
     fake = fake_launchctl(tmp_path / "bin", True)
@@ -353,9 +351,8 @@ def test_the_mac_installer_ends_with_the_checklist(tmp_path, receiver):
     assert r.returncode == 0, r.stdout + r.stderr
     assert r.stdout.startswith("Checking your setup:\n"), r.stdout  # nothing before it
     assert line(r.stdout, "Questie or Altoholic").startswith(NO)
-    assert line(r.stdout, "Narcissus").startswith(NO)
     assert line(r.stdout, "Background").startswith(OK)
-    assert sum(ln.strip().startswith(NO) for ln in r.stdout.splitlines()) == 2, r.stdout
+    assert sum(ln.strip().startswith(NO) for ln in r.stdout.splitlines()) == 1, r.stdout
     calls = (tmp_path / "bin" / "calls").read_text()
     assert "bootstrap" in calls and "kickstart" in calls
     assert (home / "Library" / "LaunchAgents" / "local.wow-stats.plist").is_file()
@@ -374,8 +371,7 @@ def test_the_one_line_mac_install_as_a_friend_sees_it(tmp_path, server):
     cmd = json.loads(body)["mac"]
     home = tmp_path / "home"
     home.mkdir()
-    wow = make_wow(tmp_path, addons=("Polestar", "Polestar_Recorder", "Syndicator", "Auctionator",
-                                     "CharacterExport-Forever", "VulcanSimBench"))
+    wow = make_wow(tmp_path, addons=("Polestar", "Polestar_Recorder", "Syndicator", "Auctionator", "WowSimsExporter"))
     fake = fake_launchctl(tmp_path / "bin", True)
     penv = {k: v for k, v in os.environ.items() if not k.startswith("WOW_STATS")}
     for k, c in (("UV_CACHE_DIR", ["uv", "cache", "dir"]), ("UV_PYTHON_INSTALL_DIR", ["uv", "python", "dir"])):
@@ -391,10 +387,20 @@ def test_the_one_line_mac_install_as_a_friend_sees_it(tmp_path, server):
     assert line(out, "Server") == f"{OK} Server: connected as mira"
     assert [ln.strip() for ln in out.splitlines() if ln.strip().startswith(NO)] == [
         f"{NO} Questie or Altoholic (optional): without one, quests you did before installing stay unknown. "
-        "Get Questie: https://www.curseforge.com/wow/addons/questie",
-        f"{NO} Narcissus (optional) adds your character's look in 3D before Battle.net knows it. "
-        "Get it: https://www.curseforge.com/wow/addons/narcissus"]
+        "Get Questie: https://www.curseforge.com/wow/addons/questie"]
     assert "password" not in out.lower()
     sample = os.environ.get("PREFLIGHT_SAMPLE")
     if sample:  # the PR's sample: the terminal, as a friend sees it
         Path(sample).write_text(f"$ {cmd}\n{out}")
+
+
+def test_a_recorder_never_run_is_reported_unknown_not_dropped(shipper, tmp_path, monkeypatch):
+    """Installed by the installer, the game not played since: no account saved
+    the switch. None would be dropped by emit and read as an old shipper's
+    report (a friend's /start said only "installed", 2026-11-20)."""
+    wow = make_wow(tmp_path, addons=("Polestar", "Polestar_Recorder"), recorder=None)
+    monkeypatch.setattr(shipper, "WOW", wow)
+    lines: list[str] = []
+    monkeypatch.setattr("builtins.print", lambda s, *a, **k: lines.append(s))
+    shipper.setup_event({}, shipper.Out(dry=True), force=True)
+    assert json.loads(lines[0])["recorder_on"] == "unknown"

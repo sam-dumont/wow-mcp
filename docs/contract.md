@@ -38,7 +38,7 @@ itself.
 - `_time`: RFC 3339 UTC with milliseconds, `2026-11-17T15:14:03.120Z`: the
   event's own time, not when it was sent.
 - `feed`: `wow-recorder`, `wow-level`, `wow-dungeon`, `wow-character`,
-  `wow-gear`, `wow-bags`, `wow-quests`, `wow-player`, `wow-prices` or `wow-combatlog`.
+  `wow-gear`, `wow-bags`, `wow-quests`, `wow-player`, `wow-prices`, `wow-talents` or `wow-combatlog`.
 - `char`: `Name-Surname` as in the WTF folder, `Testchar-Demo`. Polestar's
   account data writes `Testchar Demo` (a space): the UI treats both as one
   character.
@@ -93,15 +93,15 @@ real, the played time is short.
 **`wow-character`** (account `PolestarDB.alts.chars`): a snapshot saved at
 logout: `level`, `xp`, `xp_max`, `money_copper`, `zone`, `race`, `class`,
 `faction`, `realm`, `bind`, `resting`; `_time` is the snapshot's time.
-Plus `looks` when Narcissus's barber shop saved one (below).
+Shippers before 2026-11-20 could add `looks` (Narcissus): still stored,
+read by nothing (below).
 
 Characters Polestar doesn't track get one too, so every character of the
 account shows up: one event each time what is known about it changes
 (`source_id` carries a hash of the fields). They come from the character's
 WTF folder (`<realm>/<char>/`, written at each login, even with every addon
 off) and Syndicator (`SYNDICATOR_DATA.Characters[...].details` and `money`):
-`realm` (the folder's name), `race`, `class`, `sex` (`male`/`female`,
-Syndicator's `UnitSex`), `faction`, `guild`, `money_copper`, and `source`,
+`realm` (the folder's name), `race`, `class`, `faction`, `money_copper`, and `source`,
 the files that know it (`folder`, `syndicator`, comma-separated). `_time` is
 the newest file in the character's folder. A backfill of archived versions
 leaves these to the current tree: an old version's file times are the
@@ -143,10 +143,12 @@ the newer time.
   Polestar_ItemDB (`Forever.lua` over `Items.lua`; null when the item isn't
   there).
 - `item_level`: the average over the equipped items, shirt and tabard left out.
-- `professions`: `skill_id`, `name`, `rank`, `max_rank`. Ranks from
-  `PolestarDB.alts.chars[...].profs` (saved at logout), names and caps from
-  the character's `CharacterExport-Forever.lua` (`professionCache`); the
-  higher rank wins when both have one.
+- `professions`: `skill_id`, `name`, `rank`, from
+  `PolestarDB.alts.chars[...].profs` (saved at logout). No cap: the server
+  takes it from the Recorder's `skill` records (`max_rank`), else from the
+  trainer tiers (wowstats/profcaps.py). Shippers before 2026-11-20 also sent
+  `max_rank` and `max_rank_at` from CharacterExport-Forever: still stored,
+  read by nothing.
 - `wanted`: the upgrades the player tracks in GearQuestForever (the
   character's `GearQuestForeverCharDB.hunts` with status `tracked`):
   `item_id`, `name`, `item_level`, `req_level`, `slot_name`, `level`.
@@ -161,16 +163,14 @@ the newer time.
   showing, in percent (`settings.gear.minUpgrade`). All three are account
   wide in Polestar and sent with each of its characters; gear advice
   (docs/gear-reference.md) reads them.
-- `talents`: points per talent tree, `[{tree, points}]` in tree order, from
-  Vulcan SimBench's last export (`VulcanSimBenchCharDB.last` in the
-  character's SavedVariables, written by `/simx`; Adler-32 checked). Only
-  the points and tree names: the rest of that string (stats, gear) is never
-  sent. Missing until the player runs `/simx` once.
+- No talents. They come from Battle.net's API only (the exporter's
+  `/specializations`, below). Shippers before 2026-11-20 sent `talents`,
+  `talent_ranks`, `talent_nodes`, `talents_level` and `talents_date` from
+  Vulcan SimBench's `/simx` export: still stored, read by nothing.
 - `spec` (ForeverLevelingBiS, else GearQuestForever's pick) and `spec_from`, the addon it came from
-  (`ForeverLevelingBiS` or `GearQuestForever`), `guild` (from
-  Syndicator, without the realm), `class`, `race`, `faction`, `sex`
-  (`male`/`female` from Syndicator's `details.sex`, for the 3D view; the full
-  view only).
+  (`ForeverLevelingBiS` or `GearQuestForever`), `class`, `race`, `faction`.
+  No `sex` or `guild` since 2026-11-20: both come from Battle.net's profile
+  (the exporter). Older events still carry them; nothing reads them.
 - `recipes`: the recipes the character knows, per profession, from
   Altoholic's `DataStore_Crafts.lua` (account SavedVariables), as a list of
   `{profession, known: [recipe spell IDs], seen}` (`seen`: how many recipes
@@ -185,6 +185,18 @@ the newer time.
 Never sent in `wow-gear`: the money Syndicator keeps next to the gear (it
 goes in `wow-character`, for characters Polestar doesn't track), bag and
 bank contents (`wow-bags`, below).
+
+**`wow-talents`** (the build, optional): one event each time a character's
+build or level changes in the account's `WowSimsExporter.lua` (WoWSims
+Exporter: `WSEDB.profiles.*.savedCharacters`, which keeps each character's
+latest save only; never `WSEDB.global`, whose `inspectHistory` and
+`groupSync` hold other players). `talents` is the addon's string (one digit
+per talent in the sim's order, `-` between the three trees, trailing zeros
+dropped, `"0"` for none), with `level`, `class`, `spec` and
+`addon_version`; `source` is `wowsims`, `_time` the save's own time. A save
+the shipper can't match to one character of the account is skipped, never
+guessed. The server reads the string with the addon's talent table
+(`data/wowsims-talents.json`) into the character page's talent history.
 
 **`wow-bags`** (what the character holds): one event each time the set of
 item IDs in its bags or its bank changes, from the account's `Syndicator.lua`
@@ -226,22 +238,13 @@ wowstats.quests joins them with the Recorder's hand-ins, the game's
 quests it needed were done), into the one "done" set the Dungeons panel, the
 plan, the gear advice and the MCP use. No page shows the lists.
 
-**Appearance.** Battle.net's profile API has it for every character it knows
-(the exporter, below); the shipper only adds a fallback for the others:
-`looks` on `wow-character`, a JSON list `[{"optionId": 80, "choiceId":
-1174}, ...]`, the newest look saved in Narcissus's barber shop
-(`Narcissus_Barbershop`, account `NarciBarberShopDB.PlayerData[<player
-id>].SavedLooks[<race id>][male|female]`, or `SharedSavedLooks` when the
-character uses the shared profile; druid and worgen alternate forms are
-left out). The player id is the end of the character's GUID
-(`Player-<realm id>-<player id>`), read from the profession links that
-CharacterExport-Forever saves in the character's own SavedVariables
-(`|Htrade:Player-...`). Syndicator and Polestar save no GUID of the
-character itself (Syndicator's item links name the crafter, who can be
-anyone). Without CharacterExport-Forever, the name Narcissus saves
-(`playerName`) is used when only one of the account's characters has it.
-The ids are the game's, the same Wowhead's viewer takes. A look that doesn't
-fit the model (a race change) falls back to the default per option.
+**Appearance.** From Battle.net's profile API only (the exporter, below),
+for every character it knows; any other character gets its race's default
+look. The shipper sends none. The ids are the game's
+(ChrCustomizationOption and ChrCustomizationChoice), the ones the 3D view's
+recipe reads. A look that doesn't fit the model (a race change) falls back
+to the default per option. Shippers before 2026-11-20 could send `looks`
+on `wow-character` (Narcissus's barber shop): still stored, read by nothing.
 
 **`wow-player`**: one event per sighting of another player, from every source
 that names one (Polestar's probe list, Recorder records, dungeon rosters,
@@ -312,8 +315,9 @@ counts for nothing else.
   from the route reference when the guide is in it.
 - Gear and professions panel: the newest `wow-gear` event. The public view
   shows it too (no gold in it).
-- Journal: one entry per play session. A session ends after 20 minutes
-  without any Recorder record, or at a `login` record. Each entry has start,
+- Journal: one entry per play session. A session ends after more than
+  330 s without a Recorder record (`stores.split_sessions`, also the Overview's, the MCP's
+  `sessions` and the semantic layer's). Each entry has start,
   end, played time, levels gained, XP, zones (time clipped to the session),
   quests handed in with names, deaths per zone and dungeons. The full view
   adds the players met and the gold change (the logout snapshot after the

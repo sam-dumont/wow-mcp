@@ -61,6 +61,15 @@ def test_each_missing_source_one_line_with_its_fix():
     }
 
 
+def test_a_recorder_never_switched_on_gets_the_same_fix_as_off():
+    # Installed by the installer, never run in game: the report says "unknown"
+    # (a shipper before 0.7.0 left recorder_on out). Not "log in and wait".
+    for on in ("unknown", None):
+        rep = {"addons": {"polestar": "1", "recorder": "1"}, "recorder_on": on}
+        q = store({HERO: ["wow-level", "wow-dungeon", "wow-gear", "wow-character"]}, setup=rep)
+        assert lines(q)["play"] == "Missing: play sessions, zones, deaths and loot. Type /psrec on once in game, then /reload."
+
+
 def test_no_polestar_no_level_times_or_gear_advice():
     rep = {"addons": {"recorder": "1", "syndicator": "1"}, "recorder_on": True}
     q = store({HERO: ["wow-recorder", "wow-bags", "wow-gear"]}, {HERO: ["altoholic"]}, rep, account=["wow-prices"])

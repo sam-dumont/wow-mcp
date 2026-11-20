@@ -61,7 +61,6 @@ class Workspace:
         from wowstats.plan.facts import store_for
 
         from . import TABLES, kb, prep, tables_of, upgrades_for
-        from .sql import ReadOnly
 
         st = store_for(env, store)
         self.store = st
@@ -72,8 +71,18 @@ class Workspace:
         self.kb = kb.shared(env)
         self.db = prep.build(rows, self.char, route.reference(), map_sizes=self.kb.meta.get("ui_map"),
                              upgrades=upgrades_for(rows, self.char, env))
-        self.ro = ReadOnly(self.db, tables=TABLES)
-        self.judge = ReadOnly(self.db)
+        # play_sql, the judge and the semantic layer read a locked-down DuckDB
+        # copy (wowstats.analysis.duck); the plan and the synthesis's checks
+        # keep reading the SQLite build (self.db).
+        from . import semantic
+        from .duck import ReadOnlyDuck, mirror
+
+        self.duck = mirror(self.db, TABLES)
+        semantic.prepare(self.duck)
+        self.ro = ReadOnlyDuck(self.duck, tables=TABLES)
+        self.judge = ReadOnlyDuck(self.duck, tables=TABLES)
+        self.metrics = ReadOnlyDuck(self.duck, tables=None)
+        self._layer = None
         self.tables, self.ncols = tables_of(self.db)
         self.at = time.time()
         self._text: dict[str, str] = {}
@@ -85,6 +94,15 @@ class Workspace:
             self._text[name] = {"schema": lambda: prep.schema_text(self.db), "profile": lambda: prep.profile(self.db),
                                 "kb": self.kb.contents}[name]()
         return self._text[name]
+
+    def layer(self):
+        """The semantic layer compiled against this copy (once, on first use)."""
+        from . import semantic
+
+        with _LOCK:
+            if self._layer is None:
+                self._layer = semantic.Layer(self.duck)
+            return self._layer
 
     def kb_has(self, i: str) -> bool:
         return not self.kb.get([i])[0].get("missing")
@@ -368,7 +386,7 @@ def _store_finding(env: dict, w: Workspace, run: dict, got: dict) -> bool:
     kept[got["key"]]["score"] = score(kept[got["key"]])
     save_state(env, w.char, {**state, "schema": SCHEMA, "char": w.char, "findings": kept, "updated": now,
                              "goals": run.get("goals") or state.get("goals") or ""})
-    run["verified"][got["key"]] = {k: got[k] for k in ("key", "title", "text", "sql", "row", "kb")}
+    run["verified"][got["key"]] = {k: got.get(k) for k in ("key", "title", "text", "sql", "row", "kb", "metric_query")}
     if new and got["key"] not in run["new_keys"]:
         run["new_keys"].append(got["key"])
     return new
@@ -380,15 +398,54 @@ def _judge(w: Workspace, finding) -> tuple[dict | None, str, list[str]]:
     if not isinstance(finding, dict):
         return None, "a finding is an object (analysis_brief section `lane` has its shape)", []
     cited = [str(c) for c in finding.get("kb") or [] if isinstance(c, str)]
-    got, why = verify.check(finding, w.judge, kb_ids=w.kb_has)
+    # A metric query reads the layer's views (sem_*), which play_sql can't.
+    runner = w.metrics if finding.get("metric_query") else w.judge
+    got, why = verify.check(finding, runner, kb_ids=w.kb_has)
     unknown = [c for c in cited if got is not None and c not in got["kb"]]
     return got, why, unknown
+
+
+def _with_metric_query(w: Workspace, finding):
+    """A finding whose evidence is a query_metric call: compiled here, so the
+    judge re-runs the same SQL with the same bound values, and the recheck
+    keeps both."""
+    from .sql import QueryError
+
+    if not isinstance(finding, dict) or not finding.get("metric_query"):
+        return finding, None
+    if str(finding.get("sql") or "").strip():
+        return None, "give sql or metric_query, not both: the judge re-runs one piece of evidence"
+    try:
+        c = w.layer().compile(finding["metric_query"])
+    except QueryError as e:
+        return None, f"metric_query: {e}"
+    return {**finding, "sql": c["sql"], "sql_params": c["params"], "metric_query": c["query"]}, None
+
+
+def metric(env: dict, char: str, query: dict, store=None) -> dict:
+    """query_metric: the semantic layer's answer, with its SQL and definitions."""
+    from . import semantic
+    from .sql import QueryError, as_text
+
+    w = workspace(env, char, store)
+    try:
+        got = semantic.run(w.layer(), w.metrics, query)
+    except QueryError as e:
+        return {"error": str(e)}
+    out = {"char": w.char, "result": as_text(got["columns"], [tuple(r) for r in got["rows"]], got["more"], SQL_CHARS),
+           "rows": len(got["rows"]), "more": got["more"], "query": got["query"], "definitions": got["definitions"],
+           "sql": got["sql"], "params": got["params"],
+           "evidence": "propose_finding takes this call as evidence: finding.metric_query = query"}
+    return out
 
 
 def propose(env: dict, char: str, finding: dict, store=None) -> dict:
     """Judge one finding and store it in the character's analysis, or
     refuse it with the reason."""
     w = workspace(env, char, store)
+    finding, why_mq = _with_metric_query(w, finding)
+    if why_mq:
+        return {"stored": False, "why": why_mq, "do": "fix it and propose it once more, or move on"}
     with _LOCK:
         got, why, unknown = _judge(w, finding)
         run = current(env, w.char)

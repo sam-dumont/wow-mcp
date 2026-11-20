@@ -12,9 +12,9 @@ after the game saves them, and turns them into pages you can act on.
 ## The four pieces
 
 **The addons.** [Polestar](https://github.com/fitzforge/polestar) and its Recorder do most of
-the work: route steps, levels, sessions, zones, deaths. Syndicator adds your bags, Auctionator
-your auction house scans, Questie or Altoholic the quests you did before. wow-stats ships no
-addon of its own. The full list: [Addons it reads](../reference/addons.md).
+the work: route steps, levels, sessions, zones, deaths. The optional ones each add one part
+(bags, auction scans, older quests, talent history). wow-stats ships no addon of its own.
+The full list, with what each one adds: [Addons it reads](../reference/addons.md).
 
 **SavedVariables.** That's where addons keep their data: plain text files in the game's `WTF`
 folder. WoW writes them only when you `/reload`, log out or switch character. A crash or

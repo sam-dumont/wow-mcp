@@ -6,7 +6,7 @@ top of your page and you know which move to do first.
 The Overview is the first tab, the one to open before you log in. It answers two questions:
 how fast am I going, and what should I do tonight.
 
-![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's time, the next level in 2h 27m of play, 90% of guide steps in order, no rested XP, then the next moves and time per level](../images/overview-light.webp)
+![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's time, the next level in 2h 27m of play, 90% of guide steps in order, no rested XP, then the next moves and time per level](../images/overview.webp)
 
 *Nibbet, the made-up priest of the [live demo](../../site/pages/demo.md).*
 

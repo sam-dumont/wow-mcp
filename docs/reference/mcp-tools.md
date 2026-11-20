@@ -16,7 +16,7 @@ Time, XP and gold per level, against the route.
 |---|---|---|---|
 | `character_summary` | Where the character stands now: level, XP, zone, gold, time in this level, recent pace (XP/hour over the last 3 levels), ETA to the next level, totals (kills, quests, deaths), and the other characters on record. | none | reads |
 | `levels` | Time, XP, quests and kills per level from Polestar's XP splits, with median, fastest and slowest. The current level is marked partial. | `from_level`: First level to include.; `to_level`: Last level to include. | reads |
-| `route_reference` | Polestar's planned route clock: expected time per level (for the character's race and class), per guide and per guide step. Guide ids as the recorder writes them, e.g. forever/alliance/05-duskwood; steps count from 1. A planner's model of a quick player, not /played. | `level`: A level: the route's expected time for it.; `guide`: A guide id, or part of one.; `step`: A step of that guide (from 1).; `faction`: Look up this faction's route instead of the character's.; `race`: Look up this race's route instead of the character's.; `class`: Look up this class's route instead of the character's. | reads |
+| `route_reference` | Polestar's planned route clock: expected time per level (for the character's class, the median over its side's starting races), per guide and per guide step. Guide ids as the recorder writes them, e.g. forever/alliance/05-duskwood; steps count from 1. A planner's model of a quick player, not /played. | `level`: A level: the route's expected time for it.; `guide`: A guide id, or part of one.; `step`: A step of that guide (from 1).; `faction`: Look up this faction's route instead of the character's.; `class`: Look up this class's route instead of the character's. | reads |
 
 ## Sessions and zones
 
@@ -24,7 +24,7 @@ Each session, and time, XP and deaths per zone.
 
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
-| `sessions` | Play sessions, newest first (20 minutes without events ends one): duration, levels, XP, quests, kills, deaths, main zones, guide steps, flights, dungeons and who the player grouped with. | `since`: Start of the range: 7d, 36h, 2w, or an ISO date (UTC).; `until`: End of the range, same forms as since. Default: now.; `limit`: Max rows (default 10). | reads |
+| `sessions` | Play sessions, newest first (330 s without a Recorder record ends one): duration, levels, XP, quests, kills, deaths, main zones, guide steps, flights, dungeons and who the player grouped with. | `since`: Start of the range: 7d, 36h, 2w, or an ISO date (UTC).; `until`: End of the range, same forms as since. Default: now.; `limit`: Max rows (default 10). | reads |
 | `zones` | Time spent per zone with XP, XP/hour, kills, quests and deaths there, longest first. | `since`: Start of the range: 7d, 36h, 2w, or an ISO date (UTC).; `until`: End of the range, same forms as since. Default: now.; `limit`: Max rows (default 15). | reads |
 
 ## Guide steps
@@ -61,6 +61,14 @@ What you wear and every way to an upgrade.
 | `gear` | Gear advice from Polestar's own scoring: per slot what is worn, the best item the character can get at its level and the next one within 3 levels, with the gain in percent and where to get it (quest and zone, dungeon and boss, craft and profession); then the upgrades in order of gain, those in the current zone flagged. Scored for the spec Polestar uses unless `spec` names another. | `spec`: A spec of the class, e.g. shadow, holy.; `limit`: Max rows (default 10). | reads |
 | `gear_options` | Per slot, every way to an upgrade with its cost: quest (on the route or not), dungeon drop (trip time at the drop chance), world drop (luck, plus the player's own AH price), craft, and any other source kind the gear data names. | `limit`: Max rows (default 8). | reads |
 
+## Talents
+
+How your talents changed, day by day.
+
+| Tool | What it answers | Arguments | Kind |
+|---|---|---|---|
+| `talent_changes` | How the character's talents changed: every change when the player has WoWSims Exporter, else the last 3 weeks of Battle.net's daily read. Each: the day, the points per tree before and after, the talents gained or dropped (rank before and after). Newest first. | none | reads |
+
 ## Gold
 
 Your auction prices, and the next riding tier.
@@ -76,7 +84,7 @@ Session plans at your pace, and how they went.
 
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
-| `plan_session` | A time-boxed plan for the next N hours (default 3): blocks (start, length, what, why), checkpoints, the expected level, XP and gold at the end, a town stop, where to log out, what to skip, a dungeon branch, the mount. Numbers from the character's own measured pace only. Constraints in plain words ('no dungeons', 'only 2h', 'level tailoring'). Kept for how_did_my_plan_go. | `hours`: How long to plan for, in hours.; `constraints`: Limits in plain words: 'no dungeons', 'only 2h', 'level tailoring'.; `context`: What the session is for. Default: levelling until the route's last level, then max-level PvE. Only levelling is planned so far. | writes, can replace what's kept |
+| `plan_session` | A time-boxed plan for the next N hours (default 3): blocks, checkpoints, the level, XP and gold at the end, a town stop, where to log out, what to skip, a dungeon branch, the mount, from the character's own pace. No Recorder events: a plan by level (estimated) and the line that unlocks the full one (unlock). Constraints in plain words ('no dungeons', 'only 2h'). Kept for how_did_my_plan_go. | `hours`: How long to plan for, in hours.; `constraints`: Limits in plain words: 'no dungeons', 'only 2h', 'level tailoring'.; `context`: What the session is for. Default: levelling until the route's last level, then max-level PvE. Only levelling is planned so far. | writes, can replace what's kept |
 | `check_plan` | Checks a write-up of the latest plan: lists every number in the text that none of the plan's facts holds, and every sentence that breaks the player's own constraints from plan_session (an activity they ruled out, such as 'no dungeons', or more time than they gave), naming the constraint. Call it before showing a plan you wrote. | `text` (required): Your write-up of the latest plan. | reads |
 | `how_did_my_plan_go` | The latest plan against what happened: each checkpoint's planned and actual online time, the end level, and the calibration it feeds into the next plans. | none | reads |
 | `next_step` | The first 45 minutes of a plan: the block(s), why, a town stop if it falls there, the two quests most worth dropping. | none | reads |
@@ -93,8 +101,10 @@ Findings about how you play, re-checked before they're kept.
 | `whats_new` | The play analysis' findings new in the last days, those confirmed again, those dropped, and the nudges. | `days`: How many days back. | reads |
 | `sanity_check` | Answers 'is there anything stupid I'm doing?': death clusters by zone, creature and level gap (the likely killer, from Polestar_Recorder), guide steps far over plan, steps passed over, upgrades not picked up, a capped profession, unspent talent points, slow levels. Each finding names its data; also lists the checks the data can't support yet. | none | reads |
 | `analysis_brief` | The play analysis' brief, in sections sized for small contexts: start (procedure, goals, finding rules, where the run stands), schema, profile and kb (paged), survey, lane, followups, coverage, synthesis. The first call opens a run; `restart` starts a new one. | `section`: Which part of the brief: start, then the schema, profile and kb pages, then the instructions for the pass the run is on.; `page`: Which page of that section (12,000 characters a page).; `goals`: The player's own words for what they want from the game; kept for the next runs.; `restart`: Drop the open run and start a new one. | writes, can replace what's kept |
-| `play_sql` | One read-only SQLite SELECT (WITH allowed) on the character's analysis database (analysis_brief section schema describes it). Paged: page_size rows (default 40, at most 60) as tab-separated text, `more` when there are further pages; long cells and pages are cut. | `query` (required): One read-only SQLite SELECT (WITH allowed); analysis_brief describes the tables.; `page`: Which page of the result.; `page_size`: Rows per page (default 40). | writes |
-| `propose_finding` | Hand one finding to the judge: it re-runs the SQL, checks every number (placeholders, expect, holds), the action and the knowledge base ids, then stores it in the character's analysis or says why not. A finding with `action: null` is kept as an observation, shown apart. | `finding` (required): key, title, claim, sql, expect, relevance, action ({do, where, blocked_by, next_step} or null), and optionally holds, effect, sample, kb; `sql`: The SQL behind the finding, re-run by the judge. | writes, can replace what's kept |
+| `play_sql` | One read-only DuckDB SELECT (WITH allowed) on the character's analysis database (analysis_brief section schema). DuckDB, not SQLite: 7/2 = 3.5 (// for whole numbers), strftime(time, fmt), COUNT(*) FILTER (WHERE ...); no files, ATTACH or repeat/lpad/printf/replace. Paged: page_size rows (default 40, at most 60), `more` when there's more. Named metrics: list_metrics, query_metric. | `query` (required): One read-only DuckDB SELECT (WITH allowed); analysis_brief describes the tables.; `page`: Which page of the result.; `page_size`: Rows per page (default 40). | writes |
+| `list_metrics` | The semantic layer's catalogue: every named metric with its kind (simple, ratio, derived), unit, one-line definition and caveats, the dimensions it can be grouped and filtered by, and the time grains. Four metrics count time at a level four ways: played_s (Polestar's split), online_s (the Recorder's timeline), active_s (online, AFK off) and calendar_s (ding to ding, offline included). | none | reads |
+| `query_metric` | Named metrics (list_metrics) grouped by dimensions, filtered, cut by a time grain: the server compiles the question from the declared model and runs it read-only on the character's data. Returns the rows, the SQL with its bound parameters (values never go into the SQL) and each metric's definition and caveats. propose_finding takes the same call as evidence (metric_query). | `metrics` (required): Metric names from list_metrics, e.g. ["played_s", "online_s"].; `group_by`: Dimension names, e.g. ["level"] or ["zone"].; `where`: Conditions [{dimension, op, value}]: op is =, !=, <, <=, >, >=, in, not in (with values: [...]), is null, is not null.; `grain`: Group by time at this grain (local time).; `since`: From this date, YYYY-MM-DD (local time).; `until`: Through this date, YYYY-MM-DD (local time).; `order_by`: Output names; prefix with - for descending, e.g. ["-deaths"].; `limit`: Rows at most (default 50). | reads |
+| `propose_finding` | Hand one finding to the judge: it re-runs the SQL (or the finding's metric_query, a query_metric call), checks every number (placeholders, expect, holds), the action and the knowledge base ids, then stores it in the character's analysis or says why not. A finding with `action: null` is kept as an observation, shown apart. | `finding` (required): key, title, claim, sql, expect, relevance, action ({do, where, blocked_by, next_step} or null), and optionally holds, effect, sample, kb; `sql`: The SQL behind the finding, re-run by the judge.; `metric_query`: Instead of sql: the query_metric arguments behind the finding (metrics, group_by, where, grain...); the judge compiles and re-runs it, and the finding's placeholders name its output columns. | writes, can replace what's kept |
 | `analysis_submit` | Hand in what a pass produced: pass survey ({questions}), lane ({lane, answers, ask_next}), pick ({picks}) or synthesis ({keep, findings, nudges, patterns, clashes, driver}; add early: true to finish before the lanes are done). The server checks it and answers with the next step. | `pass` (required): The pass this answer is for (analysis_progress says which is next).; `answer` (required): The pass's answer, in the shape analysis_brief gives. | writes, can replace what's kept |
 | `analysis_progress` | Where the character's analysis run stands (pass, lanes open and done, queries, tables touched and untouched, findings proposed, verified, refused with why), the next step, the last finished run and the last nightly recheck. Call it first to continue in a new chat. | none | reads |
 
@@ -109,7 +119,7 @@ Players your game showed you.
 
 ## Game rules
 
-Game facts: quests, items, NPCs, zones, rules, and how to level your class.
+Game facts: quests, items, NPCs, zones, rules, how to level your class and its meta.
 
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
@@ -117,8 +127,17 @@ Game facts: quests, items, NPCs, zones, rules, and how to level your class.
 | `kb_get` | Full knowledge base documents by id (kind:id, e.g. npc:1234, quest:56, note:xp-sources), up to 10, each with its source. | `ids` (required): Up to 10 kind:id strings, e.g. npc:1234, quest:56. | writes |
 | `kb_lookup` | Names for up to 100 ids at once (kind:id: spell, item, quest, npc, zone...); null when the knowledge base doesn't have it. | `ids` (required): Up to 100 kind:id strings, e.g. npc:1234, quest:56. | writes |
 | `kb_rule` | One static rule the code uses (e.g. riding.apprentice, rested.accrual), with its value, source and last_verified; `conflicts` holds any other lane's differing version. Lists the known names when the name is unknown. | `name`: The rule's name, e.g. riding.apprentice. Unknown: the answer lists the names. | reads |
-| `kb_topics` | The research catalogue by lane (game rules, dungeons, levelling, economy and professions, PvP, raids): statements, rules, contradictions and open questions, each lane as of the day it was checked. With a lane: its documents, its contradictions with their sources, its open questions. | `lane`: A research lane's name (without it: the list of lanes), e.g. dungeons.; `limit`: Max rows (default 40). | reads |
+| `kb_topics` | The research catalogue by lane (game rules, dungeons, levelling, economy and professions, PvP, raids): statements, rules, contradictions and open questions, each lane as of the day it was checked. With a lane: its documents, its contradictions with their sources, its open questions. | `lane`: A research lane's name (without it: the list of lanes), e.g. dungeons.; `limit`: Max rows (default 15). | reads |
 | `class_guide` | How to level the character's class at its level on Forever: spec and talent picks for this bracket and the next, trainer spells to buy now and next and where, stats, solo play, dungeon role, class quests, mistakes, the respec moment. Each statement sourced (date, confidence, scope); contradictions listed. `class` and `level` ask about another. | `class`: A class to ask about instead of the character's, e.g. mage.; `level`: The level to ask about. Default: the character's. | reads |
+| `class_meta` | How close am I to the meta? The Forever meta for the character's class and spec (specs, build, stats, gear, enchants, consumables, professions, recent changes; sourced and dated) and a 0-100 score with its parts and the top gaps, each with where to fix it. `class` asks about another class, without the score. | `class`: A class to ask about instead of the character's.; `spec`: A spec (talent tree) to ask about, e.g. Fury. Default: the character's, else the levelling one.; `level`: Another class's level to ask about. | reads |
+
+## News
+
+What's new on Forever this week, and what is coming.
+
+| Tool | What it answers | Arguments | Kind |
+|---|---|---|---|
+| `news` | What's new on Forever: this week's news digest (patches, hotfixes, class changes, openings, phases, known issues), or everything since a day, what concerns the character first; what is coming, with its announced day or 'announced, no date'; and what players are saying (community: opinions). Sourced and dated. `class`, `level`, `role` filter instead; `category` keeps one. | `since`: Everything said since this day (YYYY-MM-DD) instead of one week.; `week`: An earlier week's digest, by its day (from `weeks`).; `class`: Only what concerns this class (and everyone).; `level`: Only what concerns this level (and everyone).; `role`: Only what concerns this role (and everyone).; `category`: Only this category. community: what players are saying (forums, r/wowforever), opinions, never facts. | reads |
 
 ## Battle.net market data (off by default)
 

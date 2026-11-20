@@ -21,7 +21,7 @@ def _t(h: int, m: int = 0) -> str:
 # One session, 19:00-19:45, of a level 9 hunter who dings 10 in it. Kills of
 # a level 3 boar and a level 14 elite, a quest of level 7: none of those is
 # the player's level.
-H_BUCKETS = [{"_time": _t(19, m), "n": "20"} for m in range(0, 45, 5)]
+H_BUCKETS = [{"_time": _t(19, m), "n": "20", "t0": _t(19, m), "t1": _t(19, m)} for m in range(0, 45, 5)]
 H_EVENTS = [
     {"_time": _t(19, 0), "kind": "session", "level": 9, "class": "HUNTER", "source_id": "rec:9:1:1"},
     {"_time": _t(19, 5), "kind": "kill", "level": 3, "zone": "Dun Morogh", "source_id": "rec:9:1:2"},
@@ -55,7 +55,7 @@ LOGS = [
     ("kind:in(xp, level, zone) | fields", []),
     ("kind:in(kill, turnin) | uniq", H_COUNTS),
     ('feed:="wow-level"', H_LEVELS),
-    ("stats by (_time:5m)", H_BUCKETS),
+    ("min(_time) as t0", H_BUCKETS),
     ("kind:in(zone, step, skip, kill", H_EVENTS),
     ('feed:="wow-dungeon"', H_DUNGEONS),
     ("fields _time, player, context", []),

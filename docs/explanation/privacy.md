@@ -15,13 +15,20 @@ the computer you play on:
 - **Auctionator**: your own auction house scans, one price per item and day.
 - **The combat log** (`Logs/WoWCombatLog*.txt`), when you turn it on in game.
 - **Syndicator** and the `WTF` character folders: every character of the account with its
-  race, class, sex, guild, gold and the gear it wears.
+  race, class, gold and the gear it wears. Sex and guild come from Battle.net, when you set it
+  up.
 - **Altoholic**, **Questie**: your `/played` from level 1, the quests finished before Polestar.
+- **WoWSims Exporter**: your own characters' talent builds, each time one changes. Never the
+  other players it keeps in its file (the people you inspected or grouped with).
 - **Polestar Client's `sent.jsonl`**, read only: the Recorder chunks it uploaded in the last 8
   days.
+- **The game's own files** for the 3D view, read only from the install's `Data/` storage: a
+  few client tables and the models and textures your characters wear. Game data, nothing
+  about you; they go to your own server only and stay in your folder there
+  ([The 3D view's files](../shipper.md#the-3d-views-files)).
 
-Never collected: your Battle.net account id or account folder name, or anything outside the
-`_forever_` folder. Every addon: [Addons](../reference/addons.md). Every event and field:
+Never collected: your Battle.net account id or account folder name, or anything else outside
+the `_forever_` folder. Every addon: [Addons](../reference/addons.md). Every event and field:
 [The event contract](../contract.md).
 
 ## Three tiers
@@ -41,7 +48,7 @@ apart.
 |---|---|---|---|---|
 | Which sections the page turns on | `config` | yes | yes | yes |
 | The character list | `chars` | yes | yes | yes: names and levels |
-| The character card and the climb: level, race, class, item level, equipment, professions, talents, your class at this level, played time per level against Polestar's route, dungeons cleared | `char` | yes | yes, plus gold, guild, zones, guide steps, flights and deaths as counts per zone and level | yes: the card, the climb, and which dungeon, when, at what level. No zones, gold or guild |
+| The character card and the climb: level, race, class, item level, equipment, professions, talents, your class at this level, played time per level against Polestar's route, dungeons cleared | `char` | yes | yes, plus gold, guild, zones, guide steps, flights and deaths as counts per zone and level, and a short state of the meta for your class and spec (plus one line when an event for your class and level is under two weeks away) | yes: the card, the climb, and which dungeon, when, at what level. No zones, gold or guild |
 | The level slider and timeline | `timeline` | yes | yes, deaths without their killer | the level stops only |
 | A past level: its gear and picture | `snapshot` | yes | yes, plus time, zones and where each item came from | its gear and picture |
 | Item tooltips | `items` | yes | yes | yes |
@@ -55,6 +62,8 @@ apart.
 | WoW Token, realm status (Battle.net, with the exporter) | `market` | yes | yes | no |
 | Your own Auctionator prices | `prices` | yes | yes | no |
 | Other players: the People view, groups, who you crossed | `people` | yes | no | no |
+| Your class's meta in full and how close you are to it | `meta` | yes | no | no |
+| This week on Forever: the news digest, what concerns your characters first, and what players are saying (forum and r/wowforever threads: titles, links, counts, our own line; no names) | `news` | yes | no | no |
 <!-- /privacy-table -->
 
 Never on either static site: where the character is right now (zone, last seen, the guide step

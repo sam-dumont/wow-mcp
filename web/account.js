@@ -161,8 +161,11 @@
         (chars.length ? ", for " + charsLine(chars) + "." : ".");
     }
     var a = st.addons || {};
-    var off = st.setup && st.setup.recorder_on === false;
-    var fix = a.recorder === false || off ? [(off ? "Polestar Recorder is off" : "Polestar Recorder sends nothing") + ": in WoW, type ", el("kbd", { text: "/psrec on" }),
+    // Installed and not on: off, or never switched on (null: the switch was never saved).
+    var off = !!(st.setup && st.setup.addons && "recorder" in st.setup.addons && st.setup.recorder_on !== true);
+    var fix = a.recorder === false || off ? [(off ? (st.setup.recorder_on === false ? "Polestar Recorder is off"
+                                                   : "Polestar Recorder is installed but not switched on yet")
+                                                : "Polestar Recorder sends nothing") + ": in WoW, type ", el("kbd", { text: "/psrec on" }),
                                       ", then ", el("kbd", { text: "/reload" }), "."] :
       a.polestar === false ? ["Polestar sends nothing: tick it in AddOns at character select, then ",
                               el("kbd", { text: "/reload" }), "."] : null;
@@ -265,6 +268,7 @@
           a.required ? " (needed)" : "",
           el("span", { cls: "inst", hidden: "" }),
           el("span", { cls: "what", text: a.what }),
+          a.step ? el("span", { cls: "step1", text: a.step }) : "",
           el("span", { cls: "note", hidden: "" })]));
       });
       gaps = el("ul", { cls: "gaps", hidden: "" });
@@ -274,21 +278,41 @@
       box.appendChild(note);
     }
     var on = st && st.events > 0, n = 0, rep = st && st.setup, have = rep && rep.addons;
+    // The summary counts the rows below (owner, 2026-11-20): sending, a
+    // needed one not sending, an optional one installed but quiet, an
+    // optional one to add. Never one "missing" for both kinds.
+    var need = 0, quiet = 0, opt = 0, byId = {};
+    ME.addons.forEach(function (a) { byId[a.id] = a; });
     ul.querySelectorAll("li[data-addon]").forEach(function (li) {
-      var id = li.getAttribute("data-addon"), known = st && st.addons && id in st.addons, seen = known && st.addons[id];
+      var id = li.getAttribute("data-addon"), a = byId[id] || {}, known = st && st.addons && id in st.addons,
+          seen = known && st.addons[id];
+      var there = !!have && Object.prototype.hasOwnProperty.call(have, id);
       if (seen) n += 1;
+      else if (on && known) {
+        if (a.required) need += 1;
+        else if (there) quiet += 1;
+        else opt += 1;
+      }
       li.className = on && known ? (seen ? "seen" : "unseen") : "";
-      var inst = li.querySelector(".inst"), there = !!have && Object.prototype.hasOwnProperty.call(have, id);
+      var inst = li.querySelector(".inst");
       inst.hidden = !have;
-      inst.className = "inst " + (there ? "yes" : "no");
-      inst.textContent = !have ? "" : there ? "✓ " + (have[id] || "installed") : "✗ not installed";
+      // An optional addon not installed is a choice, not an error.
+      inst.className = "inst " + (there ? "yes" : a.required ? "no" : "opt");
+      inst.textContent = !have ? "" : there ? "✓ " + (have[id] || "installed") : a.required ? "✗ not installed" : "optional, not installed";
       li.querySelector(".what").hidden = there;
-      var rec = li.querySelector(".note"), off = id === "recorder" && there && rep.recorder_on === false;
-      rec.hidden = !(id === "recorder" && there && typeof rep.recorder_on === "boolean");
+      // The one step left: none once its data arrives; once installed, only
+      // what comes after installing (the Recorder's switch has its own line).
+      var step = li.querySelector(".step1");
+      if (step) {
+        step.hidden = !!seen || (there && id === "recorder");
+        step.textContent = there && a.then ? a.then : a.step || "";
+      }
+      var rec = li.querySelector(".note"), off = id === "recorder" && there && rep.recorder_on !== true;
+      rec.hidden = !(id === "recorder" && there);
       rec.className = "note " + (off ? "no" : "yes");
       rec.textContent = "";
       if (!rec.hidden) {
-        (off ? ["Recording is off: in WoW, type ", el("kbd", { text: "/psrec on" }), ", then ", el("kbd", { text: "/reload" }), "."]
+        (off ? [(rep.recorder_on === false ? "Recording is off" : "Installed, not switched on yet") + ": in WoW, type ", el("kbd", { text: "/psrec on" }), ", then ", el("kbd", { text: "/reload" }), "."]
              : ["Recording is on."]).forEach(function (x) { rec.appendChild(typeof x === "string" ? document.createTextNode(x) : x); });
       }
     });
@@ -306,8 +330,11 @@
       "Install them in the CurseForge app (the install command adds Polestar Recorder), then tick them in AddOns at character select, once per character.";
     var sum = fill("addons-sum");
     if (sum) {
-      sum.textContent = on ? "Your addons: " + n + " sending" + (miss.length ? ", " + miss.length + " missing" : "")
-        : "The addons";
+      var parts = [n + " sending"];
+      if (need) parts.push(need + " needed, not sending");
+      if (quiet) parts.push(quiet + " installed, not sending yet");
+      if (opt) parts.push(opt + " optional to add");
+      sum.textContent = on ? "Your addons: " + parts.join(" · ") : "The addons";
     }
   }
 

@@ -131,7 +131,7 @@ most:
   gets a 403, and `ALLOWED_HOSTS` with `AUTH=open` stops the server at start.
 - **Pass the `Host` header through**, and add your full view's name to `ALLOWED_HOSTS`. A
   proxy that rewrites `Host` to `ui:8080` gets a 421.
-- **`/ingest`, `/install/update/shipper*`, `/healthz` and the MCP paths skip your page
+- **`/ingest`, `/install/update/shipper*`, `/install/assets/*`, `/healthz` and the MCP paths skip your page
   login.** They have their own. A login in front of `/ingest` blocks the shipper; one in
   front of `/install/update/shipper` stops its auto-update; one in front of the MCP paths
   blocks every AI client.

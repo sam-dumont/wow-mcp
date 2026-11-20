@@ -45,9 +45,8 @@ CHECKED_ADDONS = {
     "auctionator": "https://www.curseforge.com/wow/addons/auctionator",
     "altoholic": "https://www.curseforge.com/wow/addons/altoholic",
     "questie": "https://www.curseforge.com/wow/addons/questie",
-    "characterexport": "https://www.curseforge.com/wow/addons/characterexport",
-    "narcissus": "https://www.curseforge.com/wow/addons/narcissus",
-    "simbench": "https://www.curseforge.com/wow/addons/vulcan-simbench",
+    # Checked 2026-11-20 in WebKit (page title "WoWSims Exporter"), project 590920.
+    "wowsims": "https://www.curseforge.com/wow/addons/wowsims-exporter",
 }
 # Every other https link the page code and the manual write (Ask links get
 # the prompt appended; the 3D viewer's credit is Wowhead's home page).

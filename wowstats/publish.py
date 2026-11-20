@@ -11,9 +11,10 @@ Two bundles from one pass over the stores, written side by side:
             (/zogzog/#<key>), which browsers never send to a server.
 
 No Ask links, MCP, LogsQL box or write endpoint in either: those live only on
-the dynamic full view behind its login. The 3D files (Wowhead's viewer,
-models and textures, public game assets) are fetched once through the
-relay's allow-list and cache (wowstats.model3d) and copied in, in clear.
+the dynamic full view behind its login. The 3D view's files (models and
+textures the person's own shipper sent: wowstats.assets) are copied in, in
+clear, under model3d/file/<id>: only those the bundle's characters' recipes
+need, and only from that person's own store.
 
 Rebuilt when new events arrived (the newest event's time moved), when the
 Battle.net data in vm-wow changed (the exporter refreshes each profile,
@@ -47,6 +48,7 @@ from the renderer: wowstats.pictures; empty: past levels show the 3D model).
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import io
 import json
@@ -63,8 +65,23 @@ import urllib.request
 from datetime import UTC, datetime
 from pathlib import Path
 
-from wowstats import __version__, armory, forever, itemcard, names, notice, pictures, redact, talents, ui
+from wowstats import (
+    __version__,
+    armory,
+    bar,
+    character3d,
+    forever,
+    itemcard,
+    names,
+    notice,
+    pictures,
+    redact,
+    talents,
+    ui,
+)
+from wowstats import assets as m3d_assets
 from wowstats import model3d as m3d
+from wowstats.upstream import Upstream
 
 MAX_AGE_S = 86400
 KEEP = 2  # builds kept besides current, for a request in flight during the swap
@@ -236,6 +253,8 @@ def page(app: ui.App, sealed: bool, stats: dict | None = None, path: str = "/") 
         html = FULL_BLOCK.sub("", html)
     else:
         html = DEBUG.sub("", ASK.sub("", html))
+    # Home is the bundle's own page; no link to anything behind the login.
+    html = bar.fill(html, "./")
     if stats is not None:
         html = html.replace("</head>", ui.stats_tags(stats, "stats.js", path) + "</head>", 1)
     attrs = 'data-static="1"' + (' data-sealed="1"' if sealed else "")
@@ -246,8 +265,7 @@ def copy_static(app: ui.App, b: Bundle, stats: dict | None = None) -> None:
     web = app.static
     for name in ("app.js", "app.css", "items.js") + (("stats.js",) if stats is not None else ()):
         b.put(name, (web / name).read_bytes())
-    for rel in ui.FONTS.values():
-        b.put(rel, (web / rel).read_bytes())
+    bar.write(b, web)
     for name in m3d.OWN:
         b.put(f"model3d/{name}", (web / "model3d" / name).read_bytes())
     b.put("model3d/view.html", m3d.view_page(web / "model3d"))
@@ -358,10 +376,12 @@ def check_names(b: Bundle, tier: str) -> None:
             + ", ".join(map(str, items)))
 
 
-def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_files: set[str],
+def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_files: dict[str, set[int]],
                stats: dict | None = None, path: str = "/", shared: dict | None = None,
                canonical: str = "", pics: pictures.Pictures | None = None) -> None:
-    """Every answer the page asks for, saved where api() looks for it."""
+    """Every answer the page asks for, saved where api() looks for it.
+    `m3d_files` gets each character's 3D file ids (its recipes' needs), for
+    copy_3d."""
     sealed = b.key is not None
     tier = "public" if app.view == "public" else "zogzog"
     files = FILES[tier]
@@ -432,17 +452,18 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
         # kept analysis get their lines.
         sh = ((shared or {}).get("chars") or {}).get(name) or {"available": False}
         put("analysis", data_path("analysis", name), lambda: sh)
+        mine = m3d_files.setdefault(name, set())
         if full_app.model3d is not None:
             ans = model_answer(full_app, name, None)
             put("model3d", data_path("model3d", name), lambda: ans)
-            m3d_files |= m3d.viewer_files(full_app.model3d.relay, ans)
+            mine |= character3d.needs(ans.get("recipe")) | character3d.needs(ans.get("recipe_sd"))
         for lv in tl.get("levels") or []:
             sn = app.snapshot(name, lv)
             if full_app.model3d is not None and sn.get("gear"):
                 ans = model_answer(full_app, name, lv)
                 put("model3d", data_path("model3d", name, lv), lambda: ans)
-                m3d_files |= m3d.viewer_files(full_app.model3d.relay, ans)
-                sn = {**sn, **put_picture(b, pics, name, lv, ans, full_app.model3d.stand_ins(ans))}
+                mine |= character3d.needs(ans.get("recipe")) | character3d.needs(ans.get("recipe_sd"))
+                sn = {**sn, **put_picture(b, pics, name, lv, ans, store_reader(full_app))}
             put("snapshot", data_path("snapshot", name, lv), lambda: sn)
     if "items" in files:
         put_items(b, tier)
@@ -450,12 +471,12 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
 
 
 def put_picture(b: Bundle, pics: pictures.Pictures | None, name: str, level: int, ans: dict,
-                metas: dict | None = None) -> dict:
+                read=None) -> dict:
     """The level's picture (wowstats.pictures) at data/picture/<char>/<level>.webp,
     sealed in /zogzog/, and what the snapshot's answer says of it: drawn,
     pending, or nothing (no renderer, or nothing to draw: the page keeps the
     3D model)."""
-    got = pics.get(ans, metas) if pics is not None else None
+    got = pics.get(ans, read) if pics is not None else None
     if got is None:
         return {}
     if got == "pending":
@@ -480,13 +501,13 @@ def put_render(b: Bundle, app: ui.App, name: str) -> bool:
 
 
 def copy_icons(b: Bundle, names: set[str], size: str = "medium") -> int:
-    """The talent frame's icons, fetched once here (wow.zamimg.com, like the
-    3D files) so a visitor's browser never calls an outside site."""
+    """The talent frame's icons, fetched once here (Wowhead's icon host)
+    so a visitor's browser never calls an outside site."""
     n = 0
     for name in sorted(names):
         try:
             body = talents.icon_bytes(name, size)
-        except m3d.Upstream as e:
+        except Upstream as e:
             log(f"icon {name}: {e}")
             continue
         if body:
@@ -496,25 +517,50 @@ def copy_icons(b: Bundle, names: set[str], size: str = "medium") -> int:
 
 
 def model_answer(full_app: ui.App, name: str, level: int | None) -> dict:
-    try:
-        return full_app.model3d.for_char(full_app, name, level)
-    except m3d.Upstream as e:
-        return {"model": None, "items": [], "missing": [], "why": f"the 3D files didn't come: {e}"}
+    return full_app.model3d.for_char(full_app, name, level)
 
 
-def copy_3d(full_app: ui.App, b: Bundle, files: set[str]) -> int:
-    n = 0
-    for rel in sorted(files):
-        if not m3d.RELAY.match(rel):
+def store_reader(full_app: ui.App):
+    """file id -> its bytes from the person's own store, or None."""
+    store = full_app.model3d.store if full_app.model3d is not None else None
+    return store.read if store is not None else (lambda fdid: None)
+
+
+def copy_3d(full_app: ui.App, b: Bundle, per_char: dict[str, set[int]], last: Path | None = None) -> int:
+    """The files the bundle's characters' recipes need (and what their
+    models name: wowstats.assets.closure) at model3d/file/<id>, from the
+    person's own store; the last build's copy of a file when it has one (a
+    file id's content never changes). Logs each character's size. Returns
+    the number of files."""
+    read_store = store_reader(full_app)
+    olds = [last / part / "model3d" / "file" for part in ("public", "zogzog")] if last else []
+
+    def read(fdid: int) -> bytes | None:
+        for d in olds:
+            p = d / str(int(fdid))
+            if p.is_file():
+                with contextlib.suppress(OSError):
+                    return p.read_bytes()
+        return read_store(fdid)
+
+    seen: dict[int, bytes | None] = {}
+
+    def once(fdid: int) -> bytes | None:
+        if fdid not in seen:
+            seen[fdid] = read(fdid)
+        return seen[fdid]
+
+    put: set[int] = set()
+    for name, ids in sorted(per_char.items()):
+        if not ids:
             continue
-        try:
-            body = full_app.model3d.relay.get(rel)
-        except m3d.Upstream:
-            body = None
-        if body is not None:
-            b.put(f"model3d/zam/{m3d.ZAM_REV}/{rel}", body)
-            n += 1
-    return n
+        have, missing = m3d_assets.closure(ids, once)
+        log(f"3D files for {name} in {b.root.name}: {len(have)} files, {sum(have.values()) / 1e6:.1f} MB"
+            + (f", {len(missing)} not on the server yet" if missing else ""))
+        for fdid in sorted(set(have) - put):
+            b.put(f"model3d/file/{fdid}", once(fdid))
+            put.add(fdid)
+    return len(put)
 
 
 # ------------------------------------------------------------------ push
@@ -677,7 +723,7 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
     build = out / f".build-{n}"
     try:
         chars = safe_chars(full_app.views.chars())
-        files: set[str] = set()
+        last = (out / "current").resolve() if (out / "current").exists() else None
         # The public page off: no public/ in the build (the static server answers
         # 404 there), the 3D files gathered in a scratch folder for zogzog.
         # No character at all yet (a new account): the short empty page, public
@@ -685,12 +731,16 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
         # instead of "Not found". It names nobody; the build that brings the
         # first character (new events) replaces it.
         empty = not chars
+        n3d = 0
         pub = Bundle(build / ("public" if public or empty else ".scratch"))
         if empty:
             notice.write_empty(pub)
         elif public:
-            build_view(pub_app, full_app, pub, [c for c in chars if c["char"] not in hide_public], files, stats, "/",
-                       canonical=canonical, pics=pics)
+            pub_files: dict[str, set[int]] = {}
+            build_view(pub_app, full_app, pub, [c for c in chars if c["char"] not in hide_public], pub_files, stats,
+                       "/", canonical=canonical, pics=pics)
+            if full_app.model3d is not None:
+                n3d += copy_3d(full_app, pub, pub_files, last)
         if help_key is not None and public:
             from wowstats.mcp import helppage
 
@@ -698,16 +748,11 @@ def publish(env: dict | None = None, force: bool = False, *, zz_key: bytes | Non
         zz = None
         if zz_key is not None:
             zz = Bundle(build / "zogzog", zz_key)
-            build_view(full_app, full_app, zz, [c for c in chars if c["char"] not in hide_zogzog], files, stats,
+            zz_files: dict[str, set[int]] = {}
+            build_view(full_app, full_app, zz, [c for c in chars if c["char"] not in hide_zogzog], zz_files, stats,
                        "/" + zz_path.strip("/") + "/", shared, canonical=canonical, pics=pics)
-        n3d = 0
-        if full_app.model3d is not None:
-            n3d = copy_3d(full_app, pub, files)
-            zam = pub.root / "model3d" / "zam"
-            # No 3D file yet (an empty store on a fresh install, or no gear seen):
-            # nothing to copy, and the build goes on.
-            if zz is not None and zam.is_dir():
-                shutil.copytree(zam, build / "zogzog" / "model3d" / "zam", dirs_exist_ok=True)
+            if full_app.model3d is not None:
+                n3d += copy_3d(full_app, zz, zz_files, last)
         shutil.rmtree(build / ".scratch", ignore_errors=True)
         (build / "BUILT").write_text(json.dumps({"at": datetime.now(UTC).isoformat(), "newest": newest}))
         final = out / f"b{n}"
@@ -836,6 +881,11 @@ def user_env(env: dict, u: dict) -> dict:
     e = {**env, "PUBLISH_DIR": str(out / slug), "VL_ACCOUNT_ID": str(int(u["account_id"]))}
     if u.get("models") in ("hd", "sd"):  # the 3D view's default models, their setting
         e["MODEL3D_MODELS"] = u["models"]
+    # Their 3D files (tables, models, textures) from the full view's share
+    # port, next to the users list: the publisher has no disk of theirs.
+    users = urllib.parse.urlsplit((env.get("USERS_URL") or "").strip())
+    if users.scheme in ("http", "https") and users.netloc:
+        e["MODEL3D_ASSETS_URL"] = f"{users.scheme}://{users.netloc}/assets/{slug}/"
     share = (env.get("ANALYSIS_SHARE_URL") or "").strip()
     if share:
         e["ANALYSIS_SHARE_URL"] = share + ("&" if "?" in share else "?") + urllib.parse.urlencode({"slug": slug})

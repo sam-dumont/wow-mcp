@@ -1,7 +1,7 @@
 """Item names and qualities for the loot history.
 
 Loot records carry item ids only. Forever's own ItemSparse table (wago.tools,
-the `wowf` product, as wowstats.model3d reads Item for the 3D view) names
+the `wowf` product, as wowstats.character3d reads Item for the 3D view) names
 the items Forever changed and gives their quality; kept on disk, checked for a newer build
 once a day at most. Without it (no network, wago.tools down, WOW_ITEMS=off),
 Polestar's gear data names what it knows (wowstats.gear), then forever-db
@@ -66,7 +66,8 @@ class Items:
                     self.build, self.checked = d["build"], float(d["checked"])
                 if self.table and time.time() - self.checked < DAY:
                     return
-            from wowstats.model3d import Upstream, _write, fetch
+            from wowstats.upstream import Upstream, fetch
+            from wowstats.upstream import write_file as _write
 
             try:
                 latest = json.loads(fetch(f"{self.wago}/api/builds/{urllib.parse.quote(self.product)}/latest")
@@ -104,7 +105,7 @@ def shared() -> Items:
                 cache.mkdir(parents=True, exist_ok=True)
             except OSError:
                 cache = None
-            from wowstats.model3d import PRODUCT, WAGO_URL
+            from wowstats.upstream import PRODUCT, WAGO_URL
 
             _shared = Items(env.get("MODEL3D_WAGO_URL", WAGO_URL), env.get("MODEL3D_PRODUCT", PRODUCT), cache,
                             on=env.get("WOW_ITEMS", "on").strip().lower() not in ("off", "0", "false", "no"))

@@ -146,6 +146,8 @@ ev(state[0], "wow-character", CHAR, f"{CHAR} 22", f"character:{CHAR}:a",
 
 FIRST_LEVEL = 22
 dings: list[datetime] = []  # when each level ended, for the session records below
+# Per level: its start and the quests handed in (time, id), for the accept records below.
+quest_log: list[tuple[int, datetime, list[tuple[datetime, int]]]] = []
 for level in range(FIRST_LEVEL, 33):
     secs, kills, quests = splits.get(level, (5400, 74, 5))  # 32: still going
     start_t = state[0]
@@ -178,13 +180,17 @@ for level in range(FIRST_LEVEL, 33):
         nid = rnd.randint(600, 4600)
         rec(tt, "kill", "kill", npc_id=nid, zone=zl[0] if tt < zt else zl[1], level=level + nid % 4 - 2,
             classification="e" if nid % 9 == 0 else "n")
+    handed: list[tuple[datetime, int]] = []
     for i in range(quests):
         tt, _ = advance(state, int(secs * (i + 0.5) / max(quests, 1)))
         reward = rnd.randint(1400, 3900)
         qid = rnd.randint(200, 1200)
+        paid = rnd.randint(800, 4200)  # drawn in the same order as before: the rest of the demo is unchanged
         rec(tt, "turnin", "turnin", quest_id=qid, quest_name=f"Demo quest {qid}", xp_reward=reward,
-            zone=zl[0] if tt < zt else zl[1])
-        money += rnd.randint(800, 4200)
+            money_copper=paid, zone=zl[0] if tt < zt else zl[1])
+        money += paid
+        handed.append((tt, qid))
+    quest_log.append((level, start_t, handed))
     # deaths
     for _ in range(deaths_at.get(level, 0)):
         tt, _ = advance(state, int(secs * rnd.uniform(0.1, 0.9)))
@@ -238,6 +244,28 @@ for level in range(FIRST_LEVEL, 33):
 for a, _ in sessions:
     ev(a, "wow-recorder", CHAR, "session", f"rec:login:{int(a.timestamp())}", kind="session", login=True,
        level=FIRST_LEVEL + sum(d <= a for d in dings))
+
+# Quest accepts, so the analysis can pair them with the hand-ins: each quest
+# is picked up when the one two before it is handed in (the level's start
+# for the first two), so two or three are open at once. Level 22's first
+# two were accepted before tracking began (no accept: untimed). One quest
+# abandoned at 27, one still open at 32. Placed on existing record times
+# and drawn without rnd: the rest of the demo stays as it was.
+for level, start_t, handed in quest_log:
+    for i, (_, qid) in enumerate(handed):
+        if level == FIRST_LEVEL and i < 2:
+            continue
+        at = handed[i - 2][0] if i >= 2 else start_t
+        ev(at, "wow-recorder", CHAR, "accept", f"rec:accept:{level}:{i}", kind="accept", quest_id=qid,
+           quest_name=f"Demo quest {qid}", zone=zones_by_level[level][0])
+    if level == 27 and handed:
+        ev(start_t, "wow-recorder", CHAR, "accept", "rec:accept:27:x", kind="accept", quest_id=1999,
+           quest_name="Demo quest 1999", zone=zones_by_level[level][0])
+        ev(handed[-1][0], "wow-recorder", CHAR, "abandon", "rec:abandon:27:x", kind="abandon", quest_id=1999,
+           quest_name="Demo quest 1999", zone=zones_by_level[level][1])
+    if level == 32:
+        ev(start_t, "wow-recorder", CHAR, "accept", "rec:accept:32:x", kind="accept", quest_id=1998,
+           quest_name="Demo quest 1998", zone=zones_by_level[level][0])
 
 # Other players across the sessions.
 for i, (a, b) in enumerate(sessions):
@@ -294,6 +322,17 @@ gear(g_t, "Testsky-Demo", [
     (5, "Chest", 2585, "Gray Woolen Robe"), (16, "Main hand", 880, "Staff of Horrors"),
     (18, "Ranged", 5069, "Fire Wand")],
     race="Skyborne", **{"class": "PRIEST"}, faction="Alliance")
+
+# Combat: each kill's fight from the record before it to the kill, both on
+# existing record times (the online time and the sessions stay as they were).
+recs = sorted((e for e in events if e["feed"] == "wow-recorder" and e["char"] == CHAR), key=lambda e: e["_time"])
+for prev, e in zip(recs, recs[1:], strict=False):
+    if e.get("kind") == "kill" and prev["_time"] < e["_time"]:
+        k = e["source_id"].split(":", 1)[1]
+        events.append({"_time": prev["_time"], "feed": "wow-recorder", "char": CHAR, "_msg": "combat on",
+                       "source_id": f"rec:combat1:{k}", "kind": "combat", "on": True, "demo": True})
+        events.append({"_time": e["_time"], "feed": "wow-recorder", "char": CHAR, "_msg": "combat off",
+                       "source_id": f"rec:combat0:{k}", "kind": "combat", "on": False, "demo": True})
 
 body = "\n".join(json.dumps(e) for e in events).encode()
 if "--out" in sys.argv:

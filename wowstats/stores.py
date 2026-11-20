@@ -90,6 +90,49 @@ def truthy(v) -> bool:
     return str(v).lower() in ("true", "1", "yes")
 
 
+# A play session ends when the Recorder writes nothing for more than this. It
+# writes a record at least every 5 minutes while the game runs (its chunk
+# header), so 330 s of silence means the game was closed or the client hung.
+# One definition: the journal, the Overview and timeline, and the semantic
+# layer's sessions (wowstats.analysis.prep).
+SESSION_GAP_S = 330
+# What split_sessions reads: the Recorder's records per minute, with the first
+# and last record's time in each minute, so a gap is measured to the second.
+SESSION_BUCKETS = "| stats by (_time:1m) count() as n, min(_time) as t0, max(_time) as t1"
+SESSION_BUCKET_OPS = {"n": "sum", "t0": "mintime", "t1": "maxtime"}
+
+
+def split_sessions(rows: list[dict], gap: float = SESSION_GAP_S) -> list[tuple[float, float]]:
+    """(start, end) unix seconds of each session, from SESSION_BUCKETS rows:
+    a silence over `gap` between two records ends one."""
+    spans = sorted((parse_t(r.get("t0")).timestamp(), parse_t(r.get("t1")).timestamp()) for r in rows
+                   if num(r.get("n")) > 0 and parse_t(r.get("t0")).year > 1 and parse_t(r.get("t1")).year > 1)
+    out: list[tuple[float, float]] = []
+    for a, b in spans:
+        if out and a - out[-1][1] <= gap:
+            out[-1] = (out[-1][0], max(out[-1][1], b))
+        else:
+            out.append((a, b))
+    return out
+
+
+def pick_splits(rows: list[dict]) -> dict[int, dict]:
+    """Polestar's level split per level, from its wow-level events: a
+    finished split beats a partial one, otherwise the newest wins. One rule
+    for the pages and the analysis' `levels` table (the semantic layer)."""
+    best: dict[int, dict] = {}
+    for r in dedupe(rows):
+        lvl = opt_num(r.get("level"))
+        if lvl is None:
+            continue
+        cur = best.get(lvl)
+        partial, cur_partial = truthy(r.get("partial")), cur is not None and truthy(cur.get("partial"))
+        if cur is None or (cur_partial and not partial) or (
+                cur_partial == partial and parse_t(r.get("_time")) >= parse_t(cur.get("_time"))):
+            best[lvl] = r
+    return best
+
+
 def dedupe(rows: list[dict]) -> list[dict]:
     """One row per source_id, the newest (then the highest rev): a timeout
     after the store wrote makes the shipper send lines twice, and a growing
@@ -366,7 +409,7 @@ class Store:
     PROFILE_SERIES = ("wow_character_profile", "wow_character_customization", "wow_character_equipped",
                       "wow_character_profile_refreshed_timestamp_seconds", "wow_character_profile_found",
                       "wow_character_item_level", "wow_character_render", "wow_character_equipped_stat",
-                      "wow_character_talent_points", "wow_character_talent_rank")
+                      "wow_character_talent_points", "wow_character_talent_rank", "wow_character_achievement")
 
 
     def profile_sel(self, name: str = "") -> str:
@@ -459,6 +502,121 @@ class Store:
                        key=lambda x: x["spell"])
         return {"trees": [{"tree": t["tree"], "points": t["points"]} for t in trees], "ranks": ranks,
                 "refreshed": iso(datetime.fromtimestamp(float(when[0]["value"][1]), UTC)) if when else None}
+
+    def profile_range(self, q: str, start: datetime, end: datetime, step: str) -> list[dict]:
+        """vm-wow over time (query_range) for the character profile series."""
+        body = json.loads(http_get(f"{self.profile_vm_url}/api/v1/query_range",
+                                   {"query": q, "start": str(int(start.timestamp())),
+                                    "end": str(int(end.timestamp())), "step": step}))
+        return body.get("data", {}).get("result", [])
+
+    # The talent history's window: vm-wow keeps 23 days (Blizzard's 30-day
+    # cap, less VictoriaMetrics' merge delay), so 3 weeks are always whole.
+    TALENT_HISTORY_DAYS = 21
+
+    def talent_readings(self, name: str, days: int = TALENT_HISTORY_DAYS,
+                        now: datetime | None = None) -> list[dict]:
+        """The talents as vm-wow held them over the last `days`, one reading
+        per UTC day (the day's last), oldest first: [{"t", "trees": [{tree,
+        points, order}], "ranks": {key: {spell, name, rank}}}]. Read live from
+        the exporter's own series and never kept (owner, 2026-11-20): the
+        exporter reads /specializations once a day and pushes the build every
+        minute, so the series themselves are the history.
+
+        Sampled hourly over a 3-minute window (the push is every minute): a
+        respec's dropped talents leave their series at once, so a sample is
+        the build at that moment. One taken while a read lands can hold both
+        builds; a day's reading is its last sample whose ranks add up to its
+        points (Classic: every point is one rank), else its last sample. An
+        hour with nothing (the exporter or vm-wow down) is no reading, never
+        an empty build."""
+        if not self.profile_vm_url:
+            return []
+        end = now or datetime.now(UTC)
+        start = end - timedelta(days=days)
+        sel = self.profile_sel(name)
+        pts = self.profile_range(f"last_over_time(wow_character_talent_points{sel}[3m])", start, end, "1h")
+        if not pts:
+            return []
+        rks = self.profile_range(f"last_over_time(wow_character_talent_rank{sel}[3m])", start, end, "1h")
+        at: dict[int, dict] = {}
+        for r in pts:
+            m = r.get("metric") or {}
+            if not m.get("tree"):
+                continue
+            for ts, v in r.get("values") or []:
+                s = at.setdefault(int(float(ts)), {"trees": {}, "ranks": {}})
+                s["trees"][m["tree"]] = {"tree": m["tree"], "points": int(float(v)),
+                                         "order": int(m.get("order") or 0)}
+        for r in rks:
+            m = r.get("metric") or {}
+            spell = str(m.get("spell_id") or "")
+            if not spell.isdigit():
+                continue
+            # By the talent's name: a classic talent's ranks are different
+            # spells, so a rank gained can change the series' spell id.
+            key = (m.get("talent") or "").strip().lower() or spell
+            for ts, v in r.get("values") or []:
+                s = at.get(int(float(ts)))
+                if s is None:
+                    continue  # no points then: not a whole read
+                rank = int(float(v))
+                if rank > s["ranks"].get(key, {}).get("rank", 0):
+                    s["ranks"][key] = {"spell": int(spell), "name": m.get("talent") or None, "rank": rank}
+        last: dict[str, tuple[int, dict, bool]] = {}
+        for ts in sorted(at):
+            s = at[ts]
+            day = datetime.fromtimestamp(ts, UTC).strftime("%Y-%m-%d")
+            whole = sum(t["points"] for t in s["trees"].values()) == sum(x["rank"] for x in s["ranks"].values())
+            have = last.get(day)
+            if have is None or whole or not have[2]:
+                last[day] = (ts, s, whole)
+        return [{"t": iso(datetime.fromtimestamp(ts, UTC)),
+                 "trees": sorted(s["trees"].values(), key=lambda t: t["order"]), "ranks": s["ranks"]}
+                for _, (ts, s, _w) in sorted(last.items())]
+
+    def character_profile(self, name: str) -> dict | None:
+        """Sex and guild as Battle.net's profile gives them (owner,
+        2026-11-20: the API, not an addon), from the exporter's gauges in
+        vm-wow (23 days, refreshed daily): {"sex": "male"|"female"|None,
+        "guild": name or None, "guild_known": whether Battle.net said (a
+        name, or no guild), "refreshed"}, or None when vm-wow holds no
+        profile for the character (no Battle.net client, or the API doesn't
+        know it): the page then says neither. A profile series from an
+        exporter older than `in_guild` leaves the guild unknown."""
+        if not self.profile_vm_url:
+            return None
+        sel = self.profile_sel(name)
+        prof = self.profile_query(f"last_over_time(wow_character_profile{sel}[2d])")
+        if not prof:
+            return None
+        m = max(prof, key=lambda r: float((r.get("value") or [0, 0])[1])).get("metric") or {}
+        when = self.profile_query(f"last_over_time(wow_character_profile_refreshed_timestamp_seconds{sel}[2d])")
+        sex = m.get("gender") if m.get("gender") in ("male", "female") else None
+        guild = m.get("guild") or None
+        return {"sex": sex, "guild": guild, "guild_known": bool(guild) or m.get("in_guild") == "false",
+                "refreshed": iso(datetime.fromtimestamp(float(when[0]["value"][1]), UTC)) if when else None}
+
+    def account_achievements(self) -> dict[int, str] | None:
+        """Every achievement any of this person's characters completed, as
+        Battle.net's /achievements gives them (the exporter's gauges in
+        vm-wow, 23 days): {achievement id: when}, the earliest of the
+        characters'. None without vm-wow, or when the exporter never read
+        /achievements for the account (no wow_character_achievements_read:
+        an older exporter, or the API failed): Legacy points then read
+        "unknown", never 0. {} only when Battle.net answered with none."""
+        if not self.profile_vm_url:
+            return None
+        sel = self.profile_sel()
+        if not self.profile_query(f"last_over_time(wow_character_achievements_read{sel}[2d])"):
+            return None
+        out: dict[int, float] = {}
+        for r in self.profile_query(f"last_over_time(wow_character_achievement{sel}[2d])"):
+            aid = str((r.get("metric") or {}).get("achievement_id") or "")
+            if aid.isdigit():
+                t = float(r["value"][1])
+                out[int(aid)] = min(out.get(int(aid), t), t)
+        return {k: iso(datetime.fromtimestamp(v, UTC)) for k, v in out.items()}
 
     def character_look(self, name: str) -> dict | None:
         """The look Battle.net's profile API gives for a character, from the

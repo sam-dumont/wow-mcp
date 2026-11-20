@@ -22,7 +22,12 @@ publish = ["cryptography>=46"]
 # transport.
 # Without it the full view runs without /mcp. FASTMCP_CHECK_FOR_UPDATES=off is
 # set by the server itself: no call home.
-mcp = ["fastmcp==4.1.8", "cryptography>=46"]
+# DuckDB runs the analysis' queries (play_sql, the judge, query_metric) on a
+# locked-down in-memory copy of the prep (wowstats/analysis/duck.py), and the
+# Boring Semantic Layer (MIT, on ibis and sqlglot) compiles the metric
+# catalogue (wowstats/analysis/semantic.yaml) to DuckDB SQL. Only compiled:
+# no ibis backend, so no pandas or pyarrow (docs/reference/semantic-layer.md).
+mcp = ["fastmcp==4.1.8", "cryptography>=46", "duckdb==2.0.0", "boring-semantic-layer==0.3.19"]
 # `wow-stats render` (wowstats.renderer): a past level's picture, drawn by the
 # 3D view's own viewer in a headless Chromium. Its own image target
 # (Dockerfile `renderer`), never in the main image. Pinned like the browser
@@ -79,9 +84,15 @@ packages = ["wowstats"]
 # The class trainers, what they teach per level and Forever's talent names (Polestar GPL-3.0, client tables:
 # tools/class_reference/export.py), read by wowstats/classguide.py.
 "data/class-reference.json" = "wowstats/data/class-reference.json"
-# How Forever dresses each armor display, for the 3D view's armor Wowhead lacks (client tables as facts, via
-# wago.tools: docs/model3d-reference.md), read by wowstats/model3d.py.
-"data/model3d-reference.json.gz" = "wowstats/data/model3d-reference.json.gz"
+# WoWDBDefs' definitions of the client tables the 3D view reads, trimmed to Forever's builds (CC BY-SA 4.0,
+# THIRD_PARTY.md: tools/model3d_dbd.py), read by wowstats/db2.py.
+"data/dbd" = "wowstats/data/dbd"
+# WoWSims Exporter's talent order per class (MIT, THIRD_PARTY.md: tools/wowsims_talents.py), read by
+# wowstats/wowsims.py to read the addon's saved talent string.
+"data/wowsims-talents.json" = "wowstats/data/wowsims-talents.json"
+# The geosets each Battle.net look choice shows, for the options Forever's tables lack (client tables as facts,
+# THIRD_PARTY.md: tools/battlenet_look/export.py), read by wowstats/character3d.py.
+"data/battlenet-look.json" = "wowstats/data/battlenet-look.json"
 # Several people (wowstats.account): the welcome manual (also the videos' captions) and the shipper the
 # one-line installer carries.
 "docs/videos/steps.json" = "wowstats/data/start-steps.json"

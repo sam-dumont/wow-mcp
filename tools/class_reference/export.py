@@ -26,7 +26,7 @@ Two sources, read as they ship:
 
 Nothing here comes from a website's text. The same inputs give the same bytes:
 
-    git clone --depth 1 --branch v0.4.1 https://github.com/fitzforge/polestar /tmp/polestar
+    git clone --depth 1 --branch v0.4.1.1 https://github.com/fitzforge/polestar /tmp/polestar
     uv run python tools/class_reference/export.py --polestar /tmp/polestar
 """
 
@@ -85,7 +85,7 @@ def spells(lua: str) -> dict[str, dict[str, list[dict]]]:
 
 
 def wago_rows(table: str, build: str) -> list[dict]:
-    from wowstats.model3d import WAGO_URL, fetch
+    from wowstats.upstream import WAGO_URL, fetch
 
     body = fetch(f"{WAGO_URL}/db2/{table}/csv?build={urllib.parse.quote(build)}", timeout=180)
     if not body:

@@ -4,7 +4,8 @@
 
 For Kubernetes or any setup other than `deploy/compose`. One image,
 `ghcr.io/<owner>/wow-mcp:<version>` (the names are set in
-`.github/workflows/release.yml`; or build it: `docker build .`), and these
+`.github/workflows/release.yml`; or build it: `docker login dhi.io` once
+with a free Docker Hub account, then `docker build .`), and these
 commands. While the package is private, the cluster pulls it with a token
 that has `read:packages` (an `imagePullSecrets` entry; docs/development.md,
 "Using a released image").
@@ -29,7 +30,9 @@ the MCP (docs/mcp.md). (The changelog's 0.4.0 entry lists what it removed, the `
 - Works with a read-only root filesystem. Only `/tmp` needs to be writable
   (an `emptyDir`); `HOME=/tmp`. Nothing is written at runtime: bytecode is
   compiled into the image.
-- Python standard library only, no shell needed at runtime. Drop all
+- Built on Docker's hardened Python image (Debian 13, glibc): no shell and
+  no system package manager in it, so `docker exec ... sh` finds nothing;
+  use `docker exec ... python -c ...` or `wow-stats ...`. Drop all
   capabilities, `allowPrivilegeEscalation: false`.
 - Logs go to stdout: one line per request (method, path, status) for the UI,
   status codes and counts for the exporter. Never prices or secrets.
@@ -83,12 +86,12 @@ needed, so a long history comes back whole rather than cut.
 | `MCP_STATE_DIR` | memory only | client registrations and logins, encrypted, in `<dir>/oauth/` |
 | `MCP_REDIRECT_URIS`, `MCP_CIMD_HOSTS` | the built-in client lists (docs/mcp.md) | replace the lists of allowed redirects and of hosts whose client documents (CIMD) are fetched |
 | `MCP_ALLOWED_ORIGINS` | empty | extra browser origins allowed on `/mcp` |
-| `MODEL3D` | `on` | the "View in 3D" toggle on the paperdoll (full view, and the static sites `publish` builds); `off` removes it and its routes, and nothing is fetched from Wowhead's model host |
+| `MODEL3D` | `on` | the "View in 3D" toggle on the paperdoll (full view, and the static sites `publish` builds); drawn from the game files the person's shipper sends, nothing downloaded; `off` removes it and its routes, and the shipper stops sending them |
 | `WOW_ITEMS` | `on` | item names, icons and tooltip cards from Forever's tables on wago.tools (`ui` and `publish`); `off`: none of it is fetched, the pages show what the events carry. `MODEL3D=off` with `WOW_ITEMS=off` is the small preset: no upstream downloads at all, a cold cache and no internet still publish |
 | `RENDER_FROM` | empty | where this pod gets the armory's render of a character (`/render/<char>.<ext>`): empty, from Blizzard (`render.worldofwarcraft.com`); else the static site's address (a pod with no route to Blizzard). With several people the request names the person's own site (their host, as the static server maps it) and reads their public bundle, else their sealed `/zogzog/` copy, opened with their key, so a page that isn't public still shows its picture |
-| `MODEL3D_CACHE_DIR`, `MODEL3D_CACHE_MB` | `<tmp>/wow-stats-model3d`, `512` | where the display-id table and Wowhead's model files are kept, and how much of the latter |
-| `MODEL3D_VIEWER_SHA256` | the build reviewed on 2026-11-19 | the only build of Wowhead's viewer the relay serves (`ui`, `render`). When Wowhead ships another, the log says "Wowhead's viewer changed", the last good copy keeps working, and a fresh cache shows no 3D until someone reads the new script and sets its hash here |
-| `MODEL3D_ZAM_URL`, `MODEL3D_WAGO_URL`, `MODEL3D_PRODUCT` | `https://wow.zamimg.com/modelviewer/`, `https://wago.tools`, `wowf` | the two upstreams (tests point them at a local server) |
+| `MODEL3D_ASSETS_DIR`, `MODEL3D_ASSETS_MB` | `<MODEL3D_CACHE_DIR>/assets`, `512` | where the game files each person's shipper sends for the 3D view are kept (with several people: `users/<id>/assets`, removed with the person), and how much one person's may take |
+| `MODEL3D_CACHE_DIR` | `<tmp>/wow-stats-model3d` | where the downloaded game tables and icons are kept |
+| `MODEL3D_WAGO_URL`, `MODEL3D_PRODUCT` | `https://wago.tools`, `wowf` | Forever's game tables for items, talents and the KB (tests point it at a local server) |
 | `ROUTE_REFERENCE_FILE` | the bundled Polestar route | another route times file, or `off` |
 | `STATIC_DIR` | the packaged `web/` | serve the page from another folder (development) |
 
@@ -258,20 +261,19 @@ to that port without the proxy's login.
 
 | Route | Public | Full |
 |---|---|---|
-| `/`, `/app.js`, `/app.css` | yes (full-only sections stripped server side) | yes |
+| `/`, `/app.js`, `/app.css`, `/base.css`, `/theme.js` | yes (full-only sections stripped server side) | yes |
 | `/api/config`, `/api/chars`, `/api/char`, `/api/journal` | allow-listed fields | everything |
 | `/api/market`, `/api/prices`, `/api/logsql` | 404 | yes |
 | `/mcp`, `/authorize`, `/token`, `/register`, `/revoke`, `/consent`, `/oauth/callback`, `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource` (and `/mcp` under it) | none | on `MCP_PORT` (8090) when `MCP_PUBLIC_URL` is set, never on this port: route them there without the page login |
 | `/api/coach` | 404 | 404 (removed in 0.4.0) |
-| `/model3d/*`, `/api/model3d` | 404 | the 3D view, while `MODEL3D` is on: its page (`/model3d/view`, own CSP), scripts, and the relay to Wowhead's files (`/model3d/zam/*`) |
+| `/model3d/*`, `/api/model3d` | 404 | the 3D view, while `MODEL3D` is on: its page (`/model3d/view`, own CSP), scripts, and the person's own game files by id (`/model3d/file/<id>`, `private` caching) |
 | `FULL_DOOR_PATH` (`/full/`, `/full`) | 404 | 302 to `/` (the login door: the proxy in front sends people through its login there; empty turns it off, for a full view on its own host) |
 | `/render/<char>.<ext>` | 200 | the armory's full-body render (Battle.net), when the exporter has one |
 | `/api/items`, `/icons/<size>/<name>.jpg` | items only | the tooltips' item cards; the icons in the full view (fetched from `wow.zamimg.com` once, cached by name) |
 | `POST /ingest` | when `INGEST_PASSWORD` is set | same |
 
 The full view makes outbound requests from the server only:
-`wow.zamimg.com` (Wowhead's viewer script and model files once someone
-toggles 3D, and the item icons, cached on disk), `wago.tools` (Forever's
+`wow.zamimg.com` (the item icons, cached on disk), `wago.tools` (Forever's
 item tables: display ids, the tooltips' cards, enchant names; checked once
 a day), and `render.worldofwarcraft.com` for the armory render unless
 `RENDER_FROM` is set. The browser only talks to this server. A public server
@@ -339,9 +341,9 @@ through VictoriaLogs:
 2. The exporter's VictoriaMetrics stores them 23 days, force-merged daily.
 3. The full view reads the last value (`last_over_time(...[2d])`) when it
    draws the 3D model, and every view reads the talents the same way for the
-   character card (never stored anywhere else: the kept talent history is
-   the player's own `/simx` exports); Narcissus's save (from VictoriaLogs, the player's own
-   file) is used only when Battle.net has none.
+   character card (never stored anywhere else, so there is no talent
+   history). A character Battle.net doesn't know gets its race's default
+   look and no talents: no add-on stands in (since 2026-11-20).
 4. The public site's static bundle (`wow-stats publish`) gets the look the
    same way when it is built. The bundle is rebuilt at least once a day and
    the old one replaced, so no copy outlives the 30 days. The bundle holds the
@@ -364,8 +366,10 @@ callable, whatever the env, except for a person who turned on "Battle.net
 data to my AI" in their settings on a multi-user install (their own data to
 their own assistant, owner ruling 2026-11-18;
 `tests/route/test_market_gating.py`). A chat keeps a tool's answer longer
-than Blizzard's 30 days (§2.18), so that switch is the person's call and
-stays off by default. The analysis' tables (`wowstats.analysis.TABLES`) are
+than Blizzard's 30 days (§2.18), so that switch is the person's call. The
+character's current talents (owner, 2026-11-20) follow the same switch on
+a multi-user install; on a one-person install the MCP reads them when
+`VM_URL` is set. Either way they're read live from vm-wow, never copied. The analysis' tables (`wowstats.analysis.TABLES`) are
 all built from the player's own game files in VictoriaLogs; `gear`,
 `talents`, `gear_sheets` there come from the shipper, not the profile API.
 A test fails when a prep table isn't in that list, so a new source can't
@@ -390,7 +394,7 @@ host through the login, and redirect the old paths (`/full/`, `/sesame/`,
 `/mcp`, `/oauth2/`) on the public host to the new one, permanently. One host
 with `/full/` still works for a standalone install (docs/install.md).
 
-`publish` is the only part that talks to VictoriaLogs, the exporter's VictoriaMetrics, Wowhead's file
+`publish` is the only part that talks to VictoriaLogs, the exporter's VictoriaMetrics, Wowhead's icon
 host (`wow.zamimg.com`), wago.tools and Blizzard's render host
 (`render.worldofwarcraft.com`). Every 10 minutes (`PUBLISH_INTERVAL`)
 it rebuilds when the newest event's time moved (after each play session: the
@@ -398,8 +402,10 @@ shipper sends at logout and `/reload`), when the exporter's Battle.net data chan
 (the profile, the look, the equipment: a hash of their last readings), or when
 the build is a day old. Each build holds every answer its page asks for, as
 files under `data/`, each cut down to its tier's allow-list in
-`wowstats/redact.py` (`PUBLIC`, `ZOGZOG`), plus every 3D file those answers
-name, fetched through the 3D relay's allow-list.
+`wowstats/redact.py` (`PUBLIC`, `ZOGZOG`), plus, under `model3d/file/<id>`,
+the game files each character's 3D recipes need, from that person's own
+files (`MODEL3D_ASSETS_DIR`; with several people, the full view's share
+port, `/assets/<slug>/`). The log gives each character's count and size.
 
 `/zogzog/`'s data files are AES-256-GCM, one random 96-bit nonce each, the
 file's path as associated data, under the 256-bit key in `ZOGZOG_KEY_FILE`.
@@ -454,7 +460,8 @@ on disk for requests in flight.
 
 Its own image, `ghcr.io/<owner>/wow-mcp-render:<version>` (the
 Dockerfile's `renderer` target: Debian, Playwright's headless Chromium, no
-fonts), because it runs Wowhead's viewer in Chromium without a sandbox.
+fonts), because Chromium runs there without its own sandbox (no user
+namespaces in an unprivileged container).
 `POST /render` needs `Authorization: Bearer <token>`: the file in
 `RENDER_TOKEN_FILE` (32+ characters), or, when that's unset, a token the
 renderer makes on its first start in `RENDER_CACHE_DIR/render.token` (0600;
@@ -462,13 +469,14 @@ the log names the path, never the value). Hand the same file to the
 publisher as its `RENDER_TOKEN_FILE`. Anything else that reaches the port
 gets a 401, whatever the network around it allows.
 Give it nothing else: no other Secret, `automountServiceAccountToken: false`, no route
-to the stores or the other pods; in from the publisher only, out to
-`wow.zamimg.com` (443) and DNS only. It runs as uid 10001 with a read-only
-root filesystem and `/tmp` writable (Chromium's profile and Wowhead's files:
-`RENDER_CACHE_DIR`, `RENDER_CACHE_MB` 256). One render at a time, about 4 s at
-one core; measured peak 850 MB with its cache, so a 1.5 GiB limit. The
-publisher sends race and sex (the model id), the look and the items' display
-ids, never a name (docs/architecture.md, "A past level's picture").
+to the stores or the other pods; in from the publisher only, no way out at
+all (it needs no DNS either). It runs as uid 10001 with a read-only
+root filesystem and `/tmp` writable (Chromium's profile and the game files
+the publisher sent: `RENDER_CACHE_DIR`, `RENDER_CACHE_MB` 256). One render at
+a time, about 4 s at one core; measured peak 850 MB with its cache, so a
+1.5 GiB limit. The publisher sends a recipe (file ids, never a name), and
+the files it lacks when it answers 428 (`POST /file/<id>`, the same token,
+`X-Content-SHA256`) (docs/architecture.md, "A past level's picture").
 
 ### Visitor counts (Plausible)
 

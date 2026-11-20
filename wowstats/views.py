@@ -14,11 +14,14 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from wowstats import ahsource, classguide, forever, insights, journal, quests, talents
+from wowstats import ahsource, classguide, classmeta, forever, insights, journal, profcaps, quests, talents
 from wowstats import gear as gearmod
+from wowstats.analysis import pages
 from wowstats.rates import per_hour
 from wowstats.stores import (
     HISTORY_START,
+    SESSION_BUCKET_OPS,
+    SESSION_BUCKETS,
     SourceError,
     Store,
     dedupe,
@@ -29,6 +32,7 @@ from wowstats.stores import (
     num,
     opt_num,
     parse_t,
+    pick_splits,
     truthy,
 )
 
@@ -90,11 +94,6 @@ class Views:
         # most, as every level's snapshot reads it.
         self._recon: dict[str, tuple[float, object]] = {}
         self._snap_in: dict[str, tuple[float, tuple]] = {}
-        # The account-wide roster (every character's class, level and
-        # professions, for the legacy talents): not one character's, so not
-        # in the event cache; one read per FRESH_S however many answers ask.
-        self._roster: tuple[float, tuple] | None = None
-        self._roster_lock = threading.Lock()
         # The account's Auctionator scans: /api/prices and the advice's
         # Auction House source read them once (price_rows).
         self._prices: tuple[float, list] | None = None
@@ -102,12 +101,10 @@ class Views:
 
     def expire(self) -> None:
         """Forget what the views kept a minute (the replay, the snapshots'
-        inputs, the roster, the prices) and make the event cache ask again:
+        inputs, the prices) and make the event cache ask again:
         the next answers are worked out from the stores as they are now."""
         self._recon.clear()
         self._snap_in.clear()
-        with self._roster_lock:
-            self._roster = None
         with self._prices_lock:
             self._prices = None
         if getattr(self.store, "use_cache", False):
@@ -164,22 +161,6 @@ class Views:
         out.sort(key=lambda r: (r["char"] != dc, -parse_t(r["last_seen"]).timestamp()))
         return out
 
-    def roster(self) -> tuple[list[dict], list[dict]]:
-        """(every character's class and level, every sheet's professions),
-        read once per eventcache.FRESH_S for every answer that wants it."""
-        from wowstats.eventcache import FRESH_S
-
-        with self._roster_lock:
-            if self._roster and time.monotonic() - self._roster[0] < FRESH_S:
-                return self._roster[1]
-            st = self.stream
-            out = (self.vl(f'{st} feed:="wow-character" -kind:=played -demo:=true | stats by (char, class) '
-                           f"max(level) as level", ("char", "class"), {"level": "max"}),
-                   self.vl(f'{st} feed:="wow-gear" -demo:=true | fields _time, char, professions '
-                           f"| sort by (_time desc) | limit 500"))
-            self._roster = (time.monotonic(), out)
-            return out
-
     def price_rows(self) -> list[dict]:
         """The player's own Auctionator scans (wow-prices), one row per item,
         auction house (realm, faction) and scan day over price_days, at least
@@ -219,7 +200,7 @@ class Views:
             "levels": sub(vl, f'{st} feed:="wow-level" {cf} | fields _time, level, seconds, xp, quests, '
                               f"kills, partial, source_id"),
             "snap": sub(vl, f'{st} feed:="wow-character" {cf} -kind:=played | fields _time, level, xp, xp_max, '
-                            f"money_copper, zone, race, class, faction, realm, resting, sex, guild, source "
+                            f"money_copper, zone, race, class, faction, realm, resting, source "
                             f"| sort by (_time desc) | limit 1"),
             "xp": sub(vl, f"{rec} kind:in(xp, level) | fields _time, kind, level, xp, xp_max, rested_xp, zone "
                           f"| sort by (_time desc) | limit 1"),
@@ -228,16 +209,10 @@ class Views:
             "played": sub(vl, f'{st} feed:="wow-character" {cf} kind:=played | fields _time, played_total_s, '
                               f"played_level_s, level | sort by (_time desc) | limit 50"),
             "gear": sub(vl, f'{st} feed:="wow-gear" {cf} | fields _time, items, item_level, professions, wanted, '
-                            f"guild, spec, spec_from, polestar_spec, class, race, faction, sex "
+                            f"spec, spec_from, polestar_spec, class, race, faction "
                             f"| sort by (_time desc) | limit 1"),
-            # Talents (wowstats.talents): every sheet that carried a /simx
-            # export; each distinct export is one stop of the history.
-            "talents": sub(vl, f'{st} feed:="wow-gear" {cf} (talent_ranks:* or talent_nodes:*) | fields _time, '
-                               f"talent_ranks, talent_nodes, talents_level, talents_date | sort by (_time desc) "
-                               f"| limit 500"),
-            # Legacy points are account-wide: every character's class, level
-            # and professions (wowstats.talents.legacy).
-            "roster": sub(self.roster),
+            # The Recorder's skill records: each profession's cap (wowstats.profcaps).
+            "skills": sub(vl, f"{rec} kind:=skill | fields _time, skill_id, rank, max_rank"),
             "zones": sub(vl, f"{rec} kind:=zone duration_s:* | uniq by (source_id, zone, duration_s) "
                              f"| stats by (zone) sum(duration_s) as secs, count() as visits",
                          ("zone",), {"secs": "sum", "visits": "sum"}),
@@ -255,11 +230,23 @@ class Views:
                                f"uniq_values(race) limit 3 as races, uniq_values(zone) limit 12 as zones",
                            ("player",), {"last_seen": "maxtime", "level": "max", "classes": "union",
                                          "races": "union", "zones": "union"}),
+            # What the semantic layer's models read for this page (wowstats.analysis.pages).
+            "layer": sub(vl, f"{st} {cf} {pages.ROWS_QUERY}"),
         }
         res = {k: f.result() for k, f in jobs.items()}
         levels = build_levels(res["levels"])
+        dungeons = build_dungeons(dedupe(res["dungeons"]))
+        death_rows = dedupe(res["deaths"])
+        deaths = build_deaths(death_rows)  # sorts death_rows newest first
+        # The numbers come from the semantic layer, one definition with the
+        # MCP's query_metric; the rows above keep the facts around them.
+        layer = pages.numbers(char, res["layer"])
+        if layer is not None:
+            pages.apply_rows(levels, dungeons, layer)
+            pages.apply_deaths(deaths, layer, death_rows)
         gear = build_gear(newest(res["gear"]))
         if gear:
+            gear["professions"] = profcaps.fill(gear["professions"], profcaps.newest_skills(res["skills"]))
             try:  # vm-wow down or absent: the item level computed, the silhouette
                 arm = self.store.character_armory(char)
             except Exception:  # noqa: BLE001
@@ -273,15 +260,13 @@ class Views:
             since = climb[-1]["t"]
             buckets = vl(f"{rec} _time:>{since} | stats by (_time:10s) count() as n", ("_time",), {"n": "sum"})
             current_s = recorder_played([b.get("_time") for b in buckets])
-        header = build_header(char, levels, res, gear, current_s)
+        header = build_header(char, levels, res, gear, current_s, pages.header(layer) if layer else None)
         header.update(played_total(res["played"], levels, header))
+        header.update(self.bnet_profile(char))
         cat = talents.shared().get()
-        try:  # Battle.net's talents (vm-wow); down or absent: the local exports alone
-            bnet = self.store.character_talents(char)
-        except Exception:  # noqa: BLE001
-            bnet = None
+        bnet = self.bnet_talents(char)
         cls = header.get("class") or (gear or {}).get("class")
-        tal, spec = talents.from_rows(cat, res["talents"], cls, bnet)
+        tal, spec = talents.from_battlenet(cat, cls, bnet)
         spec["scored_for"] = self.scored_for(char, newest(res["gear"]), header, cat, tal)
         if spec.get("name"):
             header["spec"] = spec["name"]  # the hero line says what the talents are
@@ -295,17 +280,21 @@ class Views:
                               "visits": int(num(r.get("visits")))}
                              for r in res["zones"] if r.get("zone")), key=lambda r: -r["secs"]),
             "steps": build_steps(dedupe(res["steps"]), self.route_ref()),
-            "dungeons": build_dungeons(dedupe(res["dungeons"])),
-            "deaths": build_deaths(dedupe(res["deaths"])),
+            "dungeons": dungeons,
+            "deaths": deaths,
             "players": build_players(char, res["players"], res["player_days"]),
             "flights": build_flights(dedupe(res["flights"])),
             "gear": gear,
             "spec": spec,
             "talents": tal,
-            "legacy": talents.legacy(cat, talents.roster_rows(*res["roster"])),
+            "legacy": talents.legacy(cat, self.bnet_achievements()),
             # "Your class at level N" (wowstats.classguide): from the class,
             # race, side, level and talents only, never where the character is.
             "class_guide": classguide.block(header, tal),
+            # "State of the meta" for the class and spec (wowstats.classmeta):
+            # the knowledge base's words, from the class, spec and level only.
+            "meta": classmeta.paragraph(header.get("class") or (gear or {}).get("class"),
+                                        spec.get("name") or header.get("spec"), header.get("level")),
         }
 
     # ------------------------------------------------------------ gear advice
@@ -319,6 +308,7 @@ class Views:
             return None
         ref = gearmod.reference()
         sheet = gearmod.sheet(row, header)
+        sheet["talents"] = (tal.get("points") or None) if tal.get("available") else None
         w = gearmod.scored_for(ref, sheet.get("class"), sheet, self.settings.weights.get(char))
         if not w:
             return None
@@ -330,6 +320,101 @@ class Views:
         w["sanity_check"] = gearmod.capstone_check(ref, sheet.get("class"), w["key"], header.get("level"), pts,
                                                    cap.get(tree) if tree else None)
         return w
+
+    def bnet_talents(self, char: str) -> dict | None:
+        """Battle.net's talents (stores.character_talents, from vm-wow), the
+        only source of talents since 2026-11-20. None when vm-wow is down,
+        absent, or the API doesn't know the character."""
+        try:
+            return self.store.character_talents(char)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def addon_talents(self, char: str, cls) -> list[dict]:
+        """The builds WoWSims Exporter saved (the shipper's wow-talents
+        events: the player's own client data, kept like any other event),
+        oldest first, as talents.history() reads them; one per change, an
+        unreadable string left out (wowstats.wowsims)."""
+        from wowstats import wowsims
+
+        rows = self.q(f'feed:="wow-talents" {self.char_filter(char)} | fields _time, talents, level, class '
+                      f"| sort by (_time) | limit 5000")
+        cat = talents.shared().get()
+        out: list[dict] = []
+        for r in sorted(rows, key=lambda r: parse_t(r.get("_time"))):
+            got = wowsims.decode(cat, cls or r.get("class"), r.get("talents"))  # the addon saves the class too
+            if got is None or (out and {k: out[-1][k] for k in ("trees", "ranks")} == got):
+                continue
+            out.append({"t": r.get("_time"), **got})
+        return out
+
+    def talent_history(self, char: str, cls) -> dict:
+        """How the talents changed (owner, 2026-11-20). From WoWSims
+        Exporter's saves when the player has it (every change, kept like any
+        event: "source": "addon", days None), else Battle.net's daily reads
+        of the last 3 weeks, read live from vm-wow on every call and kept
+        nowhere else (Blizzard's 30-day cap: never a log store, a file, a
+        bundle or a cache). {"available", "why", "source", "days", "since",
+        "changes": talents.history(), "not_recorded"}; why is "no_client"
+        (no vm-wow on this site), "no_battlenet" (no reading in the window)
+        or "unreachable" (vm-wow didn't answer). not_recorded: talents
+        Battle.net shows learned that the addon can't record (the sim
+        doesn't model them), so a gap is said, never hidden."""
+        from wowstats import wowsims
+
+        days = getattr(self.store, "TALENT_HISTORY_DAYS", 21)
+        out = {"char": char, "days": days, "available": False, "why": "no_battlenet", "source": None, "since": None,
+               "changes": [], "not_recorded": []}
+        cat = talents.shared().get()
+        try:
+            mine = self.addon_talents(char, cls)
+        except Exception:  # noqa: BLE001 - the logs store down: Battle.net's, as without the addon
+            mine = []
+        if mine:
+            gaps = wowsims.missing_from(cat, cls, self.bnet_talents(char))
+            return {**out, "available": True, "why": None, "source": "addon", "days": None,
+                    "since": str(mine[0]["t"])[:10], "changes": talents.history(cat, cls, mine), "not_recorded": gaps}
+        # The one step to the full history (degraded mode): the addon, as steps.json names it.
+        from wowstats import missing
+
+        a = missing.addons().get("wowsims") or {}
+        out["addon"] = {"name": a.get("name"), "url": a.get("url")} if a else None
+        if not getattr(self.store, "profile_vm_url", ""):
+            return {**out, "why": "no_client"}
+        try:
+            readings = self.store.talent_readings(char, days)
+        except Exception:  # noqa: BLE001
+            return {**out, "why": "unreachable"}
+        if not readings:
+            return out
+        return {**out, "available": True, "why": None, "source": "battlenet", "since": str(readings[0]["t"])[:10],
+                "changes": talents.history(cat, cls, readings)}
+
+    def bnet_profile(self, char: str) -> dict:
+        """Sex and guild from Battle.net's profile (owner, 2026-11-20: the
+        API, not an addon): {"sex", "guild", "guild_known"}; None and False
+        (unknown) when vm-wow is down, absent, or the API doesn't know the
+        character. guild None with guild_known True: no guild."""
+        try:
+            p = self.store.character_profile(char) or {}
+        except Exception:  # noqa: BLE001
+            p = {}
+        return {"sex": p.get("sex"), "guild": p.get("guild"), "guild_known": bool(p.get("guild_known"))}
+
+    def bnet_achievements(self) -> dict | None:
+        """The account's completed achievements on Battle.net (the Legacy
+        points); None when vm-wow is down or absent."""
+        try:
+            return self.store.account_achievements()
+        except Exception:  # noqa: BLE001
+            return None
+
+    def talent_points(self, char: str, cls) -> list[dict] | None:
+        """Points per tree under the frame's own names, in the game's tab
+        order (Battle.net says "Shadow Magic" and lists it second), for the
+        gear advice's spec detection. None without Battle.net's talents."""
+        tal, _ = talents.from_battlenet(talents.shared().get(), cls, self.bnet_talents(char))
+        return (tal.get("points") or None) if tal.get("available") else None
 
     def gear(self, char: str, spec: str | None = None) -> dict:
         """Gear advice (wowstats.gear): per slot what is worn, the best item
@@ -361,10 +446,17 @@ class Views:
         row = newest(res["gear"])
         header = build_header(char, [], res)
         base = {"char": char, "name": header["name"], "polestar": header["polestar"]}
+        worn = gearmod.armory_worn(self.store, char)
+        worn_from = "sheet"
         if not row:
-            return {**base, "available": False, "why": "no character sheet yet"}
+            # No Syndicator sheet: Battle.net's equipment, else every slot
+            # open (the best items for the level), said to be an estimate.
+            if not header.get("class"):
+                return {**base, "available": False, "why": "no character sheet yet"}
+            row, worn_from = gearmod.no_sheet(header, worn)
         sheet = gearmod.sheet(row, header)
-        sheet["worn_stats"] = gearmod.armory_worn(self.store, char)
+        sheet["talents"] = self.talent_points(char, sheet.get("class"))  # spec detection: Battle.net only
+        sheet["worn_stats"] = worn
         done = set(quests.completed([*res["done"], *res["snapshots"], *res["held"], {**row, "feed": "wow-gear"}]))
         try:
             market = ahsource.market({k: f.result() for k, f in ah.items()}, faction=sheet.get("faction"),
@@ -377,7 +469,20 @@ class Views:
                                     held=gearmod.newest_bags(res["held"]), market=market)
         except gearmod.GearError as e:
             return {**base, "available": False, "why": str(e)}
-        return {**base, "available": True, "at": row.get("_time"), "talents": sheet.get("talents"), **advice}
+        return {**base, "available": True, "at": row.get("_time"), "talents": sheet.get("talents"), **advice,
+                **({} if worn_from == "sheet" else gearmod.unknown_worn(worn_from))}
+
+    def meta(self, char: str, data: dict | None = None, advice: dict | None = None, cite: bool = False) -> dict:
+        """The class's meta for this character and how close it is to it
+        (wowstats.classmeta): the character page's answer and the gear
+        advice, as the page has them."""
+        data = data if data is not None else self.char(char)
+        if advice is None:
+            try:
+                advice = self.gear(char)
+            except Exception:  # noqa: BLE001 - no gear advice: the other parts still count
+                advice = None
+        return classmeta.answer(data, advice, cite=cite)
 
     # ------------------------------------------------------------ insights
 
@@ -402,7 +507,7 @@ class Views:
         who = self.who(data)
         out = {}
         for lv in data.get("levels") or []:
-            r = ref.level(lv["level"], who.get("faction"), who.get("race"), who.get("class"))
+            r = ref.level(lv["level"], who.get("faction"), who.get("class"))
             if r and r.get("expected_s"):
                 out[lv["level"]] = r["expected_s"]
         return out, ref.source
@@ -453,10 +558,9 @@ class Views:
         profs = gear.get("professions") or []
         talents = (advice or {}).get("talents") if advice else None
         ov["next_moves"] = insights.next_moves(hd.get("level"), advice, hd, ov["on_track"], ov["guide"], profs,
-                                               x["skills"], sheet_at=gear.get("at"))
+                                               x["skills"])
         ov["sanity_check"] = insights.sanity_check(hd.get("level"), x["deaths"], ov["guide"], ov["on_track"],
-                                                   advice, profs, x["skills"], talents, gear.get("items"), hd,
-                                                   sheet_at=gear.get("at"))
+                                                   advice, profs, x["skills"], talents, gear.get("items"), hd)
         ov["moves"] = insights.overview_moves(ov["next_moves"], ov["sanity_check"])
         ov["deaths_detail"] = x["deaths"][::-1][:15]
         ov["clusters"] = insights.death_clusters(x["deaths"])
@@ -469,11 +573,11 @@ class Views:
 
     def gear_history(self, char: str) -> list[dict]:
         rows = self.q(f'feed:="wow-gear" {self.char_filter(char)} | fields _time, items, item_level, professions, '
-                      f"spec, class, race, faction, sex, talents, source_id")
+                      f"spec, class, race, faction, source_id")
         out = []
         for r in sorted(dedupe(rows), key=lambda r: parse_t(r.get("_time"))):
             g = build_gear(r) or {}
-            out.append({**g, "_time": r.get("_time"), "talents": r.get("talents")})
+            out.append({**g, "_time": r.get("_time")})
         return out
 
     def timeline(self, char: str) -> dict:
@@ -485,7 +589,13 @@ class Views:
         return {"char": char, "events": ev, "kinds": list(insights.TIMELINE_KINDS), "levels": levels,
                 "gear_history_since": gh[0]["_time"] if gh else None}
 
-    def snapshot_inputs(self, char: str) -> tuple[dict, dict, list[dict], list[dict]]:
+    def skill_records(self, char: str) -> list[dict]:
+        """The Recorder's skill records (rank and cap, each time the skill
+        list changed): the professions' caps (wowstats.profcaps)."""
+        rec = f'{self.stream} feed:="wow-recorder" {self.char_filter(char)}'
+        return self.vl(f"{rec} kind:=skill | fields _time, skill_id, rank, max_rank")
+
+    def snapshot_inputs(self, char: str) -> tuple[dict, dict, list[dict], list[dict], list[dict]]:
         """What every level's snapshot reads and no level changes: the
         character's data, its level windows, its deaths (each with a fight
         lookup) and its gear history; cached a minute, like reconstruction.
@@ -498,13 +608,13 @@ class Views:
             return hit[1]
         data = self.char(char)
         ds = list(insights.deaths(self.q, self.char_filter(char), data.get("levels") or []))
-        out = (data, insights.windows(data), ds, self.gear_history(char))
+        out = (data, insights.windows(data), ds, self.gear_history(char), self.skill_records(char))
         self._snap_in[char] = (time.time(), out)
         return out
 
     def snapshot(self, char: str, level: int) -> dict:
         """The character as it was at `level` (the level slider)."""
-        data, wins, ds, gh = self.snapshot_inputs(char)
+        data, wins, ds, gh, skills = self.snapshot_inputs(char)
         if level not in wins:
             return {"char": char, "level": level, "available": False,
                     "why": "no record of that level (the recording started later)"}
@@ -514,6 +624,12 @@ class Views:
         snap.update(char=char, available=True, levels=sorted(wins))
         if g:
             snap["gear"] = {k: g.get(k) for k in ("items", "item_level", "professions")}
+            # The caps as they were at the end of that level: the Recorder's
+            # records up to then, else the trainer tier (the same rule as
+            # the page's current caps).
+            end = wins[level][1] or datetime.now(UTC)
+            snap["gear"]["professions"] = profcaps.fill(snap["gear"]["professions"] or [],
+                                                        profcaps.newest_skills(skills, until=end.timestamp()))
             snap["gear"]["items"] = [{**i, "certainty": "exact"} for i in snap["gear"]["items"] or []]
             snap["bis"] = self._bis_at(char, level, g, data)
         else:
@@ -682,26 +798,29 @@ class Views:
         sub = self.pool.submit
         vl = self.vl
         jobs = {
-            # Activity per minute: the session boundaries (gaps > 20 min).
-            "minutes": sub(vl, f"{rec} | stats by (_time:1m) count() as n", ("_time",), {"n": "sum"}),
+            # Activity per minute: the session boundaries (stores.split_sessions).
+            "minutes": sub(vl, f"{rec} {SESSION_BUCKETS}", ("_time",), SESSION_BUCKET_OPS),
             "xp": sub(vl, f"{rec} kind:=xp xp_gained:* | uniq by (_time, source_id, xp_gained) "
                           f"| stats by (_time:1m) sum(xp_gained) as xp", ("_time",), {"xp": "sum"}),
             "events": sub(vl, f"{rec} kind:in(session, level, zone, turnin, death) "
                               f"| fields _time, kind, login, level, zone, duration_s, quest_id, quest_name, "
                               f"source_id"),
-            "logins": sub(vl, f"{rec} login:=true | fields _time, source_id"),
             "dungeons": sub(vl, f'{st} feed:="wow-dungeon" {cf} | fields _time, name, level, seconds, xp, '
                                 f"source_id"),
             "players": sub(vl, f'{st} feed:="wow-player" {cf} player:* | fields _time, player, context, '
                                f"source_id"),
             "snaps": sub(vl, f'{st} feed:="wow-character" {cf} -kind:=played | fields _time, money_copper, level, '
-                             f"source_id"),
+                             f"xp, source_id"),
         }
         res = {k: f.result() for k, f in jobs.items()}
         sessions = journal.build(
-            minutes=res["minutes"], xp=res["xp"], events=dedupe(res["events"]), logins=dedupe(res["logins"]),
+            minutes=res["minutes"], xp=res["xp"], events=dedupe(res["events"]),
             dungeons=dedupe(res["dungeons"]), players=dedupe(res["players"]), snaps=dedupe(res["snaps"]),
             own=char)
+        # Before the Recorder's first record (or without it): one entry per
+        # logout sheet, the time played from the level splits (estimated).
+        levels = self.vl(f'{st} feed:="wow-level" {cf} | fields _time, level, seconds, xp, partial')
+        sessions = journal.with_history(sessions, dedupe(res["snaps"]), levels, dedupe(res["dungeons"]))
         quests = [q for s in sessions for q in s["quests"]]
         missing = {q["quest_id"] for q in quests if not q.get("name") and not forever.quest(q.get("quest_id"))}
         forever.name_quests(quests, self.quest_titles(cf, missing))
@@ -766,24 +885,16 @@ class Views:
 
 
 def build_levels(rows: list[dict]) -> list[dict]:
-    by_level: dict[int, dict] = {}
-    for r in dedupe(rows):
-        lvl = opt_num(r.get("level"))
-        if lvl is None:
-            continue
-        cur = by_level.get(lvl)
-        partial = truthy(r.get("partial"))
-        # A finished split beats a partial one; otherwise the newest wins.
-        if cur is None or (cur["partial"] and not partial) or (
-                cur["partial"] == partial and parse_t(r.get("_time")) >= parse_t(cur["at"])):
-            secs = num(r.get("seconds"))
-            xp = num(r.get("xp"))
-            by_level[lvl] = {
-                "level": lvl, "seconds": int(secs), "xp": int(xp), "quests": opt_num(r.get("quests")),
-                "kills": opt_num(r.get("kills")), "partial": partial, "at": r.get("_time"),
-                "xp_per_hour": per_hour(xp, secs),
-            }
-    return [by_level[k] for k in sorted(by_level)]
+    """The level splits as the MCP's level tools list them (stores.pick_splits
+    picks one per level). The pages take the same numbers from the semantic
+    layer (wowstats.analysis.pages)."""
+    out = []
+    for lvl, r in sorted(pick_splits(rows).items()):
+        secs, xp = num(r.get("seconds")), num(r.get("xp"))
+        out.append({"level": lvl, "seconds": int(secs), "xp": int(xp), "quests": opt_num(r.get("quests")),
+                    "kills": opt_num(r.get("kills")), "partial": truthy(r.get("partial")), "at": r.get("_time"),
+                    "xp_per_hour": per_hour(xp, secs)})
+    return out
 
 
 # Polestar_Recorder rolls its chunk every 300 s while the game is running
@@ -805,7 +916,10 @@ def recorder_played(times: list) -> int | None:
 
 
 def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = None,
-                 current_s: int | None = None) -> dict:
+                 current_s: int | None = None, layer: dict | None = None) -> dict:
+    """The hero line. `layer`: the semantic layer's numbers for it
+    (wowstats.analysis.pages.header), used as they are; without the layer
+    installed, the same sums worked out here."""
     snap, xp = newest(res["snap"]), newest(res["xp"])
     # The newest of the account snapshot and the recorder wins for each value.
     top = snap if parse_t(snap.get("_time")) >= parse_t(xp.get("_time")) else xp
@@ -829,8 +943,16 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
     done = [lv for lv in levels if not lv["partial"]]
     recent = done[-5:]
     pace = done[-3:]
-    pace_secs = sum(lv["seconds"] for lv in pace)
-    xph = per_hour(sum(lv["xp"] for lv in pace), pace_secs) if pace else None
+    if layer is not None:
+        xph = layer["xp_per_hour"]
+        avg_s, avg_n = layer["avg_level_s"], layer["avg_levels"]
+        splits_s, kills, n_quests = layer["splits_played_s"], layer["kills"], layer["quests"]
+    else:
+        xph = per_hour(sum(lv["xp"] for lv in pace), sum(lv["seconds"] for lv in pace)) if pace else None
+        avg_s = int(sum(lv["seconds"] for lv in recent) / len(recent)) if recent else None
+        avg_n = len(recent)
+        splits_s = sum(lv["seconds"] for lv in levels)
+        kills, n_quests = split_total(levels, "kills"), split_total(levels, "quests")
     # Polestar writes a split when a level ends, so the level being played has
     # none yet; `partial` means the recording started partway into that level.
     current = next((lv for lv in levels if lv["level"] == level), None)
@@ -844,10 +966,12 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
         "race": snap.get("race") or gear.get("race"),
         "class": cls.title() if isinstance(cls, str) else None,
         "faction": snap.get("faction") or gear.get("faction"),
-        "guild": gear.get("guild") or snap.get("guild") or None,
+        # Battle.net's (Views.bnet_profile sets them): unknown until then.
+        "guild": None,
+        "guild_known": False,
         "spec": gear.get("spec"),
         # Full view only (redact.HEADER leaves it out); for the 3D model.
-        "sex": gear.get("sex") or (snap.get("sex") if snap.get("sex") in ("male", "female") else None),
+        "sex": None,
         # Which addons know this character: the page says what fills the
         # sections that stay empty (a character Polestar doesn't track).
         "sources": [x for x in str(snap.get("source") or "").split(",") if x],
@@ -865,20 +989,20 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
         "seen": max(snap.get("_time") or "", xp.get("_time") or "", key=lambda s: parse_t(s)) or None,
         "time_in_level_s": current["seconds"] if current else current_s,
         # Played since tracking began: the splits, plus the level in play.
-        "played_s": (sum(lv["seconds"] for lv in levels) + (0 if current else current_s or 0)) if levels else None,
+        "played_s": ((splits_s or 0) + (0 if current else current_s or 0)) if levels else None,
         # The first tracked level started before tracking did: its split (and
         # so played_s) misses the part before.
         "first_partial": bool(levels and levels[0]["partial"]),
         "first_level": levels[0]["level"] if levels else None,
-        "avg_level_s": int(sum(lv["seconds"] for lv in recent) / len(recent)) if recent else None,
-        "avg_levels": len(recent),
+        "avg_level_s": avg_s,
+        "avg_levels": avg_n,
         "xp_per_hour": xph,
         "eta_s": eta,
         # Totals come from the level splits, like played_s: the Recorder only
         # saw what happened while it was on (it missed most of 22-32), so its
         # kill and turn-in records are the detail, never the count.
-        "kills": split_total(levels, "kills"),
-        "quests": split_total(levels, "quests"),
+        "kills": kills,
+        "quests": n_quests,
     }
 
 
@@ -964,19 +1088,17 @@ def build_gear(row: dict) -> dict | None:
 
     for i in items:
         i["enchant"] = itemcard.shared().enchant(i["enchant_id"]) if i.get("enchant_id") else None
-    # max_rank_at: when the cap was read (shippers after 0.5.0); the game shows
-    # it only in the profession window, so it can lag a trainer visit.
-    profs = [clean(p, ("skill_id", "rank", "max_rank"), ("name", "max_rank_at"))
+    # The rank only: the cap an old sheet carries came from CharacterExport-
+    # Forever (dropped 2026-11-20); Views.char sets it (wowstats.profcaps).
+    profs = [clean(p, ("skill_id", "rank"), ("name",))
              for p in jlist(row.get("professions")) if isinstance(p, dict)]
     wanted = [clean(w, ("item_id", "item_level", "req_level", "level"), ("slot_name", "name"))
               for w in jlist(row.get("wanted")) if isinstance(w, dict)]
     return {"at": row.get("_time"), "items": sorted(items, key=lambda i: i["slot"] or 0),
             "item_level": opt_num(row.get("item_level")), "professions": profs, "wanted": wanted,
-            "guild": row.get("guild") or None, "spec": row.get("spec") or None,
+            "spec": row.get("spec") or None,
             "class": row.get("class") or None, "race": row.get("race") or None,
-            "faction": row.get("faction") or None,
-            # For the 3D model (full view only: redact.GEAR leaves it out).
-            "sex": row.get("sex") if row.get("sex") in ("male", "female") else None}
+            "faction": row.get("faction") or None}
 
 
 # The armory's item level: every slot but the shirt and tabard, an empty

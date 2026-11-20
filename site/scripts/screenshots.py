@@ -6,8 +6,10 @@ by tools/fixtures/generate.py --demo), never from a real player's data.
 
 The address is the built site (site/dist) served the way GitHub Pages does
 (`model3d/view` answers `model3d/view.html`): `astro preview` doesn't, and
-View in 3D stays blank there. Writes docs/images/*.webp (small, light theme;
-the Overview also dark) and docs/images/social.png (the link preview).
+View in 3D stays blank there. Writes docs/images/<name>.webp (light theme)
+and <name>-dark.webp (dark) for every shot, and docs/images/social.png (the
+link preview). The site shows the one for the reader's theme
+(site/scripts/prepare.mjs); GitHub shows the light one.
 Commit the images; the dates on them are the demo's and age, which is fine.
 """
 
@@ -69,42 +71,41 @@ def main(base: str) -> None:
         # PW_CHROMIUM: a Chromium already on disk, when Playwright wants another build.
         browser = p.chromium.launch(executable_path=os.environ.get("PW_CHROMIUM") or None)
         for scheme in ("light", "dark"):
+            suffix = "" if scheme == "light" else "-dark"
             page = browser.new_page(viewport={"width": WIDTH, "height": 820}, color_scheme=scheme)
             page.goto(base + "demo/friends/")
             page.wait_for_url("**/zogzog/**")
             settle(page)
-            page.screenshot(path=shot(f"overview-{scheme}"))
-            if scheme == "dark":
-                page.close()
-                continue
-            # The link preview: 1200x630, the Overview's top.
-            page.set_viewport_size({"width": 1200, "height": 630})
-            settle(page)
-            page.screenshot(path=tmp / "social.png")
-            page.set_viewport_size({"width": WIDTH, "height": 820})
-            section(page, page.get_by_role("region", name="Next moves"), shot("next-moves"), 760)
+            page.screenshot(path=shot(f"overview{suffix}"))
+            if scheme == "light":
+                # The link preview: 1200x630, the Overview's top.
+                page.set_viewport_size({"width": 1200, "height": 630})
+                settle(page)
+                page.screenshot(path=tmp / "social.png")
+                page.set_viewport_size({"width": WIDTH, "height": 820})
+            section(page, page.get_by_role("region", name="Next moves"), shot(f"next-moves{suffix}"), 760)
             tab(page, "Character")
-            section(page, "#gear", shot("gear"), 900)
+            section(page, "#gear", shot(f"gear{suffix}"), 900)
             page.locator(".adv-h", has_text="Upgrades").first.scroll_into_view_if_needed()
             settle(page)
             top = page.locator(".adv-h", has_text="Upgrades").first.bounding_box()
             gear = page.locator("#gear").first.bounding_box()
             y = top["y"] - 16 + page.evaluate("scrollY")
             clip = {"x": gear["x"], "y": y, "width": gear["width"], "height": 900}
-            page.screenshot(path=shot("upgrades"), clip=clip, full_page=True)
-            section(page, "#dungeons", shot("dungeons"), 1150)
-            section(page, "#levels", shot("climb"), 760)
+            page.screenshot(path=shot(f"upgrades{suffix}"), clip=clip, full_page=True)
+            section(page, "#dungeons", shot(f"dungeons{suffix}"), 1150)
+            section(page, "#levels", shot(f"climb{suffix}"), 760)
             page.locator("#gear").get_by_role("button", name="View in 3D").first.click()
             page.wait_for_timeout(5000)
-            page.screenshot(path=shot("model3d"))
+            page.screenshot(path=shot(f"model3d{suffix}"))
             page.keyboard.press("Escape")
             tab(page, "Timeline")
             page.set_viewport_size({"width": WIDTH, "height": 1040})  # the model under the gear list
             page.wait_for_timeout(4000)
-            page.screenshot(path=shot("timeline"))
+            page.screenshot(path=shot(f"timeline{suffix}"))
             page.set_viewport_size({"width": WIDTH, "height": 820})
             tab(page, "Journal")
-            page.screenshot(path=shot("journal"))
+            page.screenshot(path=shot(f"journal{suffix}"))
             page.close()
         browser.close()
 

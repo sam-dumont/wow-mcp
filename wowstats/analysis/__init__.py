@@ -77,8 +77,8 @@ SCHEMA = 1
 TABLES = {
     "records": "game", "positions": "game", "loot_items": "game", "xp": "game", "timeline": "game",
     "spans": "game", "sessions": "game", "levels": "game", "route_steps": "game", "dungeon_runs": "game",
-    "dungeon_trips": "game",
-    "gear": "game", "gear_sheets": "game", "professions": "game", "talents": "game", "snapshots": "game",
+    "dungeon_trips": "game", "quests": "game", "gold_moves": "game",
+    "gear": "game", "gear_sheets": "game", "professions": "game", "snapshots": "game",
     "upgrade_candidates": "game", "agg_session": "game",
     "agg_level": "game", "agg_zone": "game", "agg_hour": "game", "dictionary": "doc", "record_kinds": "doc",
     "meta": "doc",
@@ -227,13 +227,21 @@ def keep(kept: dict, got: dict, now: str) -> bool:
     return old is None
 
 
-def recheck(kept: dict, ro, now: str, info: dict) -> None:
+def recheck(kept: dict, ro, now: str, info: dict, duck=None) -> None:
     """Every kept finding on today's data, in place: one that holds gains
-    weight, one that doesn't fades and goes under MIN_WEIGHT."""
+    weight, one that doesn't fades and goes under MIN_WEIGHT. A finding
+    judged on DuckDB (play_sql and query_metric since 0.7) re-runs there
+    (`duck()` gives that runner, None when DuckDB isn't installed: the
+    finding waits, unchanged); one kept before runs on SQLite, its dialect."""
     from . import verify
 
     for key, f in list(kept.items()):
-        upd, why = verify.recheck(f, ro)
+        runner = ro
+        if f.get("engine") == "duckdb":
+            runner = duck() if duck is not None else None
+            if runner is None:
+                continue
+        upd, why = verify.recheck(f, runner)
         if upd is None:
             f["misses"] = int(f.get("misses", 0)) + 1
             f["weight"] = round(float(f.get("weight", 1.0)) * 0.5, 4)
@@ -329,6 +337,24 @@ def store_of(env: dict):
                  account_id=env_account(env))  # the person's tenant (wowstats.tenancy)
 
 
+def _duck_runner(db):
+    """The DuckDB runner for the recheck, built on first use (None without DuckDB)."""
+    made: list = []
+
+    def get():
+        from . import duck, semantic
+
+        if not duck.available():
+            return None
+        if not made:
+            con = duck.mirror(db, TABLES)
+            semantic.prepare(con)
+            made.append(duck.ReadOnlyDuck(con))
+        return made[0]
+
+    return get
+
+
 def run(env: dict | None = None, char: str | None = None, rows: list[dict] | None = None,
         players: set[str] | None = None, knowledge=None) -> dict:
     """The nightly recheck of one character: prep, re-run every kept
@@ -359,7 +385,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     state = load_state(env, char)
     kept: dict[str, dict] = dict(state.get("findings") or {})
     info = {"at": now, "kind": "recheck", "char": char, "confirmed": 0, "faded": 0, "dropped": []}
-    recheck(kept, ReadOnly(db), now, info)
+    recheck(kept, ReadOnly(db), now, info, duck=_duck_runner(db))
     info["seconds_total"] = round(time.time() - t0, 1)
     out = finish(env, char, state, kept, state.get("nudges") or [], state.get("patterns") or [], db, knowledge,
                  players, info, now)
@@ -568,8 +594,9 @@ def share_server(env: dict, tenancy=None):
     /analysis.json?slug=<slug> (that person's lines), /users.json (who has a
     site and what is on: no hashes, no keys) for the publisher,
     /profile-characters (every person's characters, "<account_id>\t<name>"
-    per line) for the exporter, and /hosts.json (each site's host) for the host's DNS automation;
-    the publisher POSTs its pass to /publisher.json (the owner's overview)."""
+    per line) for the exporter, /hosts.json (each site's host) for the host's DNS automation, and
+    /assets/<slug>/{build,table/<Name>,file/<id>} (that person's 3D files, wowstats.assets.RemoteStore)
+    for the publisher; the publisher POSTs its pass to /publisher.json (the owner's overview)."""
     port = (env.get("ANALYSIS_SHARE_PORT") or "").strip()
     if not port or (state_dir(env) is None and tenancy is None):
         return None
@@ -600,6 +627,14 @@ def share_server(env: dict, tenancy=None):
                 return
             u = urlsplit(self.path)
             qs = parse_qs(u.query)
+            m = re.fullmatch(r"/assets/([a-z0-9]{2,20})/(.{1,60})", u.path) if tenancy is not None else None
+            if m:
+                from wowstats import assets
+
+                person = tenancy.registry.by_slug(m.group(1))
+                if person is None or not person.active:
+                    return self.reply(404, b"")
+                return assets.share_route(self, Path(tenancy.env_for(person)["MODEL3D_ASSETS_DIR"]), m.group(2))
             if u.path == "/analysis.json":
                 body, ctype = json.dumps(analysis_of(qs.get("slug", [""])[0])).encode(), "application/json"
             elif tenancy is not None and u.path == "/users.json":
@@ -613,6 +648,14 @@ def share_server(env: dict, tenancy=None):
                 self.send_error(404)
                 return
             self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def reply(self, code: int, body: bytes, ctype: str = "application/octet-stream") -> None:
+            self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")

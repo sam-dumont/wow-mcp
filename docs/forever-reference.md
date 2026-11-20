@@ -59,5 +59,5 @@ sits on its continent's map (Blackrock Spire) is found through `Map.AreaTableID`
     uv run python tools/forever_reference/export.py --polestar <polestar checkout>
 
 Stdlib only, the same bytes on every run. `.github/workflows/route-reference.yml`
-reruns it on each change and on a new `POLESTAR_TAG`, and fails when the
+reruns it on each change and on a new `tools/polestar-tag`, and fails when the
 committed file differs.

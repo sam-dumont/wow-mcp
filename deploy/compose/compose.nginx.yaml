@@ -7,7 +7,7 @@
 # login (BASIC_AUTH_USER, BASIC_AUTH_PASSWORD): nothing starts without them.
 services:
   nginx:
-    image: docker.io/library/nginx:1.31.0-alpine@sha256:2f07d83bf561b506400dc183b1b2003803e39efbd22451f848adaba14d28c7c7
+    image: docker.io/library/nginx:1.31.7-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d
     restart: unless-stopped
     depends_on: [ui, site]
     environment:

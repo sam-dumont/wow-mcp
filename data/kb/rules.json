@@ -87,7 +87,7 @@
       "last_verified": "2026-11-18"
     },
     "quest_xp.share_by_levels_over": {
-      "statement": "At a hand-in Forever pays a quest's full XP up to 5 levels over it, 80% at 6, 60% at 7 and half from 8 levels over on (players' recorded hand-ins).",
+      "statement": "At a hand-in Forever pays a quest's full XP up to 5 levels over it, then 80% at 6 over, 60% at 7 over and 50% from 8 over (players' recorded hand-ins).",
       "value": {
         "full_up_to": 5,
         "6": 0.8,

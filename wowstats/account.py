@@ -33,7 +33,7 @@ from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
 
-from wowstats import __version__, missing, source_tag_url
+from wowstats import __version__, bar, missing, source_tag_url
 from wowstats import tenancy as T
 
 _HERE = Path(__file__).resolve().parent
@@ -135,39 +135,32 @@ PAGE = """<!doctype html>
 <meta name="robots" content="noindex, nofollow">
 <meta name="color-scheme" content="dark light">
 <title>{title}</title>
-<link rel="stylesheet" href="{css}">
-{script}
+{head}
 </head>
 <body class="{cls}">
-<header class="acc-top">
-  <a class="brand" href="/">wow-stats</a>
-  <nav>{nav}</nav>
-</header>
-<main class="acc">
+{bar}
+<main class="doc">
 {body}
 </main>
 </body>
 </html>
 """
 
-
-# The top nav of every logged-in page: these, the character page (ui's
-# acc-links, without My page and Privacy) and the help page
-# (wowstats.mcp.helppage.full_page).
-NAV = (("/", "My page"), ("/start", "Start"), ("/settings", "Settings"), ("/help/", "Help"), ("/privacy", "Privacy"))
+# The bar's links before the login (the privacy note opened logged out):
+# the way in, and the note itself.
+LOGGED_OUT = (("/", "Log in"), ("/privacy", "Privacy"))
 
 
-def nav_links(current: str = "", skip: tuple[str, ...] = ()) -> str:
-    """The nav's links; the page you're on is marked (aria-current)."""
-    return "".join(f'<a href="{h}"' + (' aria-current="page"' if h == current else "") + f">{t}</a>"
-                   for h, t in NAV if h not in skip)
-
-
-def page(title: str, body: str, cls: str = "", script: bool = True, nav: bool = True,
-         css: str = "/account.css", current: str = "") -> bytes:
-    links = nav_links(current) if nav else '<a href="/privacy">Privacy</a>'
-    return PAGE.format(title=escape(title), body=body, cls=cls, nav=links, css=css,
-                       script='<script src="/account.js" defer></script>' if script else "").encode()
+def page(title: str, body: str, cls: str = "", script: bool = True, links: str | None = None,
+         assets: str = "/", current: str = "") -> bytes:
+    """A one-column page in the shared look (wowstats.bar). `links`: the
+    bar's links, the reader's pages by default. `assets`: where base.css,
+    account.css and theme.js come from, /privacy/ for the pages a login
+    can't open yet."""
+    head = bar.head(assets, f"{assets}account.css", icon=bar.ICON) + (
+        '<script src="/account.js" defer></script>' if script else "")
+    nav = bar.links(current) if links is None else links
+    return PAGE.format(title=escape(title), head=head, cls=cls, bar=bar.header("/", nav), body=body).encode()
 
 
 MEDIA_TYPES = {".mp4": "video/mp4", ".webm": "video/webm", ".png": "image/png", ".webp": "image/webp",
@@ -259,10 +252,11 @@ def manual_page(base: str = "") -> bytes:
     parts.append("</section>")
     parts.append('<section class="step"><h2>Addons</h2><ul class="addons">' + "".join(
         f'<li><strong>{escape(a["name"])}</strong>{" (required)" if a["required"] else ""}: '
-        f'{escape(a["what"])}' + (f'<br><span class="url">{escape(a["url"])}</span>' if a.get("url") else "")
+        f'{escape(a["what"])}.' + (f' {escape(a["step"])}' if a.get("step") else "")
+        + (f'<br><span class="url">{escape(a["url"])}</span>' if a.get("url") else "")
         + "</li>" for a in addons())
         + "</ul></section>")
-    return page(s["title"], "\n".join(parts), "print", script=False, nav=False)
+    return page(s["title"], "\n".join(parts), "print", script=False)
 
 
 def _t(s: str) -> str:
@@ -555,8 +549,8 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
                  "Log lines about you stay until the logs expire: ask the owner how long.")
     body = (PRIVACY.replace("@VISITS@", visits).replace("@BACKUPS@", backups)
             .replace("@LOGS_GONE@", logs_gone).replace("@LOGS@", logs))
-    return page("Privacy", body, "privacy", script=False, nav=logged_in, css="/privacy/account.css",
-                current="/privacy")
+    return page("Privacy", body, "privacy", script=False, assets="/privacy/", current="/privacy",
+                links=None if logged_in else bar.links("/privacy", LOGGED_OUT))
 
 
 def refused_page(why: str) -> bytes:
@@ -565,7 +559,8 @@ def refused_page(why: str) -> bytes:
     refused person can't load anything else."""
     body = (f'<h1>No access yet</h1><p class="lead">{escape(why)}</p>'
             '<p>Wrong account? <a href="/oauth2/logout">Log out</a> and sign in with another one.</p>')
-    return page("No access yet", body, "refused", script=False, nav=False, css="/privacy/account.css")
+    return page("No access yet", body, "refused", script=False, assets="/privacy/",
+                links=bar.links(items=(("/privacy", "Privacy"),)))
 
 
 def not_found_page() -> bytes:
@@ -573,23 +568,18 @@ def not_found_page() -> bytes:
     from the login-free /privacy/ assets: some 404s come before the login
     (a stale /install/ link opened in a browser)."""
     body = ('<h1>Nothing here</h1><p class="lead">This address doesn\'t lead to a page. It may be an old link.</p>'
-            '<p class="nf-links"><a class="btn" href="/">My page</a><a href="/start">Start</a>'
-            '<a href="/help/">Help</a></p>')
-    return page("Not found", body, "notfound", script=False, css="/privacy/account.css")
-
-
-PRIVACY_FONTS = ("cinzel.woff2", "alegreya-sans-400.woff2", "alegreya-sans-700.woff2")
+            '<p><a class="btn" href="/">My page</a></p>')
+    return page("Not found", body, "notfound", script=False, assets="/privacy/")
 
 
 def privacy_asset(static: Path, name: str) -> tuple[bytes, str] | None:
-    """/privacy/<name>: the stylesheet (its fonts pointed at /privacy/fonts/)
-    and those fonts; None for anything else."""
-    if name == "account.css":
-        css = (static / "account.css").read_text(encoding="utf-8").replace('url("/fonts/', 'url("/privacy/fonts/')
-        return css.encode(), "text/css; charset=utf-8"
-    if name.startswith("fonts/") and name[6:] in PRIVACY_FONTS:
-        return (static / "fonts" / name[6:]).read_bytes(), "font/woff2"
-    return None
+    """/privacy/<name>: what the pages before the login load (bar.FILES and
+    account.css); None for anything else."""
+    if name != "account.css" and name not in bar.FILES:
+        return None
+    ctype = {".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".svg": "image/svg+xml"}.get(
+        Path(name).suffix, "font/woff2")
+    return (static / name).read_bytes(), ctype
 
 
 # ---------------------------------------------------------------- status checks
@@ -1155,7 +1145,7 @@ def route(h, t: T.Tenancy, u: T.User, app, path: str) -> bool:
     if path == "/api/me/status" and get:
         h.json(200, STATUS.of(app, u.sub))
         return True
-    if path in ("/admin", "/admin/", "/admin.css", "/api/admin/overview") and get:
+    if path in ("/admin", "/admin/", "/api/admin/overview") and get:
         from wowstats import admin  # the owner's overview: 404 for anyone else
 
         admin.route(h, t, u, app, path)

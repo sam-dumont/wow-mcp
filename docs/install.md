@@ -95,9 +95,9 @@ In `.env`, set `INGEST_PASSWORD` to a password of 12 characters or more:
 the shipper uses it to send your events. Two optional lines while you're
 there:
 
-- `MODEL3D=off` and `WOW_ITEMS=off`, the **small preset**: no 3D view, and
-  no item names, icons or tooltip cards fetched from wago.tools and
-  Wowhead's file host. For a server with no internet access, or a small
+- `MODEL3D=off` and `WOW_ITEMS=off`, the **small preset**: no 3D view (the
+  shipper stops sending game files), and no item names, icons or tooltip
+  cards fetched from wago.tools and Wowhead's file host. For a server with no internet access, or a small
   one. Both default to `on`.
 - `VL_MAX_DISK=20GiB` (any size): a ceiling for your game events, see
   [Disk space](#disk-space). Empty (the default): no ceiling.
@@ -111,7 +111,8 @@ docker compose up -d --build
 ```
 
 The first time it builds the wow-stats image from the kit (a minute or
-two) and pulls VictoriaLogs. Then open <http://127.0.0.1:8080>: an empty
+two) and pulls VictoriaLogs. The build's base comes from Docker's hardened
+images: run `docker login dhi.io` once before, with a free Docker Hub account. Then open <http://127.0.0.1:8080>: an empty
 page until the shipper sends something.
 
 Want to see a filled page first? Load the demo's five made-up characters
@@ -333,7 +334,7 @@ friends; log in, then `/reload` or log out. On a Mac run
 
 **Battle.net says 404 for a character.** The profile API doesn't know new
 or low-level characters yet. It shows up later by itself; until then the
-3D view uses the Narcissus look or the race's default.
+3D view uses the race's default look, and the card has no talents.
 
 **Nothing arrives.** Read the shipper's log, the last lines say what each
 step did:
@@ -353,11 +354,10 @@ server keeps 100 years, so delete that line, move the files back into the
 spool and run the shipper (Mac: `mv ~/WoWArchive/too-old/* ~/WoWArchive/spool/`;
 Windows: `Move-Item $env:USERPROFILE\WoWArchive\too-old\* $env:USERPROFILE\WoWArchive\spool\`).
 
-**The look is wrong.** Battle.net's look comes first (the exporter,
-refreshed once a day; the full view says which source it used). No
-Battle.net look: visit a barber with Narcissus on and save the look there,
-with CharacterExport-Forever on so it lands on the right character, then
-log out.
+**The look is wrong.** The look comes from Battle.net only (the exporter,
+refreshed once a day). Changed it at a barber? Wait for the next daily read.
+No Battle.net client on your server, or a character it doesn't know yet:
+the race's default look.
 
 **`/played` before Polestar is unknown.** The page counts played time from
 Polestar's level splits, which start the day Polestar did: "played since

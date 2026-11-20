@@ -130,7 +130,11 @@ def profile_env(profile: Path | None) -> dict:
            if not k.upper().startswith(("UV_", "VIRTUAL_ENV", "PYTHON", "PSEXECUTIONPOLICY", "WOW_STATS"))
            # A window opened from the Start menu: its own module path, not the
            # PowerShell 7 one this test runs under (5.1 can't load 7's modules).
-           and k.upper() != "PSMODULEPATH"}
+           and k.upper() != "PSMODULEPATH"
+           # The installers find WoW where a PC keeps it (Program Files, C:\Jeux ...):
+           # this test runs only on the throwaway Windows CI runner (ON_WINDOWS_CI),
+           # whose fake installs it made itself, so the fixtures-only guard is off here.
+           and k.upper() != "NO_REAL_WOW"}
     keep = []
     for p in env.get("PATH", "").split(os.pathsep):
         exes = ("uv.exe", "python.exe", "python3.exe") + (("git.exe",) if profile is not None else ())

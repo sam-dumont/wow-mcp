@@ -197,16 +197,27 @@ class GearToolTest(unittest.TestCase):
         self.assertTrue(out["weapon_setups"])
         self.assertTrue({x["setup"] for x in out["weapon_setups"]} <= {"two-hander", "main hand + off hand"})
         self.assertTrue(out["weights_from"]["label"])
+        # Every upgrade says who it's built for, the same label as the page
+        # (wowstats.gearfit), and the list is ranked on rank_points.
+        self.assertEqual(out["role"], "caster")
+        for u in ups:
+            self.assertIn(u["fit"]["for_you"], ("yes", "any", "spec", "class"), u)
+            self.assertTrue(u["fit"]["says"], u)
+            self.assertLessEqual(u["rank_points"], u["gain_points"] + 0.01)
         holy = tools.call(self.ctx, "gear", {"char": fakes.CHAR, "spec": "holy", "limit": 3})
         self.assertEqual(holy["spec"], "Holy (healer)")
         self.assertIn("you picked it on this page", holy["spec_from"])
         self.assertLessEqual(len(holy["next_upgrades"]), 3)
 
-    def test_gear_needs_a_sheet(self):
+    def test_gear_without_a_sheet_says_so(self):
+        # No Syndicator sheet: an answer, never an error (degraded mode,
+        # tests/test_degraded.py): the best for the level when the class is
+        # known, else why and what unlocks it.
         fake = fakes.FakeStores(logs=[r for r in fakes.LOGS if r[1] is not fakes.GEAR])
         try:
-            with self.assertRaisesRegex(tools.ToolError, "no character sheet"):
-                tools.call(tools.Ctx(store=Store(vl_url=fake.url)), "gear", {"char": fakes.CHAR})
+            out = tools.call(tools.Ctx(store=Store(vl_url=fake.url)), "gear", {"char": fakes.CHAR})
+            self.assertIn("Syndicator", out["unlock"])
+            self.assertTrue(out.get("estimated") or "no character sheet" in out.get("why", ""))
         finally:
             fake.close()
 

@@ -137,9 +137,30 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
     visit = class_train_level(rows)
     if visit is not None:
         inp["trainer"] = {**inp["trainer"], "last_level": visit, "from": "Polestar's classTrainVisit"}
+    inp["recorder"] = recorder_state(store, rows)
     inp["calibration"] = plan_store.calibration(env, char, inp["progress"])
     inp["plan_reviews"] = plan_store.reviews(env, char, inp["progress"])[-3:]
     return inp
+
+
+def recorder_state(store, rows: list[dict]) -> str | None:
+    """'on' when the Recorder's events arrive; else what the shipper's setup
+    report says ('off': installed, switch not on; 'missing': not installed);
+    None when there is no report (an older shipper)."""
+    from wowstats import missing
+
+    if any(r.get("feed") == "wow-recorder" for r in rows):
+        return "on"
+    try:
+        rep = missing.setup(lambda q: store.vl(f"{store.stream} {q}"))
+    except Exception:  # noqa: BLE001 - the report only words the advice; the plan stands without it
+        return None
+    if rep is None:
+        return None
+    if "recorder" not in (rep.get("addons") or {}):
+        return "missing"
+    # Present means its events arrived: switched on but silent is "waiting".
+    return "waiting" if rep.get("recorder_on") else "off"
 
 
 # ---------------------------------------------------------------- extract
@@ -406,6 +427,17 @@ def progress(db) -> list[dict]:
             i += 1
         out.append({"t": t, "level": round(level + (xp or 0) / xp_max, 3) if xp_max else float(level),
                     "online_s": round(on)})
+    if out:
+        return out
+    # No Recorder: the logout snapshots, the played time between them from
+    # the level splits (played_between), so a plan by level is reviewed too.
+    snaps = q(db, "SELECT t, level, xp, xp_max FROM snapshots WHERE level IS NOT NULL ORDER BY t")
+    for t, level, xp, xp_max in snaps:
+        on = played_between(db, (snaps[0][1], snaps[0][2]), (level, xp)) or 0.0
+        if out and on < out[-1]["online_s"]:
+            continue  # a snapshot that went back (another source's older sheet): skip it
+        out.append({"t": t, "level": round(level + (xp or 0) / xp_max, 3) if xp_max else float(level),
+                    "online_s": round(on), "estimated": True})
     return out
 
 
@@ -414,16 +446,31 @@ def gold_rate(db, days: float = 14, now: float | None = None) -> dict:
     newest one minus the oldest one in the window, over the online time
     between (everything earned less everything spent)."""
     now = now or time.time()
-    rows = q(db, "SELECT t, money_copper, online_s_since_prev FROM snapshots WHERE t >= ? ORDER BY t",
+    rows = q(db, "SELECT t, money_copper, online_s_since_prev, level, xp FROM snapshots WHERE t >= ? ORDER BY t",
              now - days * 86400)
     if len(rows) < 2:
         return {"n": len(rows), "copper_per_hour": None}
     online = sum(r[2] or 0 for r in rows[1:])
+    estimated = False
+    if online <= 0:
+        # No Recorder timeline: the played time between the two snapshots
+        # from Polestar's level splits (seconds per XP of each level crossed).
+        online = played_between(db, (rows[0][3], rows[0][4]), (rows[-1][3], rows[-1][4])) or 0
+        estimated = online > 0
     net = rows[-1][1] - rows[0][1]
     changes = sum(1 for a, b in zip(rows, rows[1:], strict=False) if a[1] != b[1])
     return {"n": len(rows), "changes": changes, "net_copper": net, "online_s": round(online),
             "copper_per_hour": round(net / online * 3600) if online > 0 else None,
-            "from_t": rows[0][0], "to_t": rows[-1][0]}
+            "from_t": rows[0][0], "to_t": rows[-1][0], **({"estimated": True} if estimated else {})}
+
+
+def played_between(db, a: tuple, b: tuple) -> float | None:
+    """wowstats.journal.played_between over the prep database's levels."""
+    from wowstats import journal
+
+    rows = [{"level": lv, "seconds": sec, "xp": xp, "partial": bool(part)}
+            for lv, sec, xp, part in q(db, "SELECT level, played_s, xp, partial FROM levels")]
+    return journal.played_between(rows, a, b)
 
 
 def trips(db) -> list[dict]:
@@ -675,9 +722,16 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     x = db.execute("SELECT t, level, xp, xp_max, rested_xp, zone FROM xp ORDER BY t DESC LIMIT 1").fetchone()
     snap = db.execute("SELECT t, level, xp, xp_max, money_copper, zone, bind, resting FROM snapshots ORDER BY t DESC "
                       "LIMIT 1").fetchone()
+    levels = [dict(zip(("level", "played_s", "xp", "planned_s", "partial"), r, strict=True)) for r in
+              q(db, "SELECT level, played_s, xp, planned_s, partial FROM levels ORDER BY level")]
     level = max(_i(x[1], 0) if x else 0, _i(snap[1], 0) if snap else 0,
                 one(db, "SELECT MAX(level) FROM records") or 0)
-    xp_now = x[2] if x and x[1] == level else (snap[2] if snap and snap[1] == level else 0)
+    if not level:
+        # Polestar's level splits alone (no sheet, no Recorder): the level
+        # after the last one finished, or the one still in progress.
+        level = max((lv["level"] + (0 if lv["partial"] else 1) for lv in levels if lv["level"]), default=0)
+    in_split = next((lv["xp"] for lv in levels if lv["level"] == level and lv["partial"]), 0)
+    xp_now = x[2] if x and x[1] == level else (snap[2] if snap and snap[1] == level else in_split or 0)
     xp_max = x[3] if x and x[1] == level else (snap[3] if snap and snap[1] == level else None)
     last_t = one(db, "SELECT MAX(t) FROM records") or now
     # Rested XP left at the last record, plus what logging out added since
@@ -692,8 +746,6 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         rested_now = min(rested_then + gain, (xp_max or 0) * v["cap_levels"])
     else:
         rested_now = rested_then  # no sourced accrual rule: only what the game last said
-    levels = [dict(zip(("level", "played_s", "xp", "planned_s", "partial"), r, strict=True)) for r in
-              q(db, "SELECT level, played_s, xp, planned_s, partial FROM levels ORDER BY level")]
     xp_table = {lv["level"]: lv["xp"] for lv in levels if lv["xp"]}
     if xp_max:
         xp_table[level] = xp_max

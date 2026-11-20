@@ -15,7 +15,7 @@ import pytest
 
 from wowstats import pictures, renderer
 
-BODY = json.dumps({"model": {"chr_model": 999, "gender": 0, "options": []}, "items": []}).encode()
+BODY = json.dumps({"recipe": {"v": 1}}).encode()  # past the door, a recipe it refuses
 
 
 class NoChromium:
@@ -85,7 +85,7 @@ def test_the_publisher_sends_the_token(tmp_path, monkeypatch):
     monkeypatch.setattr(urllib.request, "urlopen", fake)
     p = pictures.Pictures({"RENDER_URL": "http://render.invalid", "RENDER_TOKEN_FILE": str(tf)}, tmp_path / "out",
                           log=lambda *a: None)
-    p._ask({"model": {}, "items": []})
+    p._ask({"recipe": {}}, lambda fdid: None)
     assert seen == ["Bearer " + "t" * 43]
 
 

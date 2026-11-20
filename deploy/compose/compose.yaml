@@ -49,8 +49,9 @@ services:
       - -retention.maxDiskSpaceUsageBytes=${VL_MAX_DISK:-0}
     volumes: [vl-data:/data]
     restart: unless-stopped
-    # No published port: only ui talks to it. To look inside, run
-    #   docker compose exec ui wget -qO- 'http://victorialogs:9428/select/logsql/query?query=*&limit=5'
+    # No published port: only ui talks to it. To look inside (the ui image has
+    # no shell, no wget: Python's urllib), run
+    #   docker compose exec ui python -c "import urllib.request as u; print(u.urlopen('http://victorialogs:9428/select/logsql/query?query=*&limit=5').read().decode())"
     # or use the "Query the events" box at the bottom of the full view.
 
   ui:
@@ -95,10 +96,11 @@ services:
       MCP_SIGNING_KEY_FILE: ${MCP_SIGNING_KEY_FILE:-}
       # Name-Surname:spec pairs: what each character's gear is scored for (docs/deploy.md).
       WEIGHTS: ${WEIGHTS:-}
-      # What the page fetches from outside: the 3D character (MODEL3D) and
-      # Wago's game tables: items, talents, the KB's spells (WOW_ITEMS). Both on
-      # by default; the small preset (.env.example) turns both off: no
-      # downloads at all, works offline and with a cold cache.
+      # The 3D character (MODEL3D: drawn from the game files your shipper
+      # sends, nothing downloaded) and what the page fetches from outside:
+      # Wago's game tables for items, talents, the KB's spells (WOW_ITEMS).
+      # Both on by default; the small preset (.env.example) turns both off:
+      # no downloads at all, works offline and with a cold cache.
       MODEL3D: ${MODEL3D:-on}
       WOW_ITEMS: ${WOW_ITEMS:-on}
       # Your timezone (IANA name) for the analysis' hours and weekdays; empty: Europe/Brussels.
@@ -146,6 +148,9 @@ services:
       ZOGZOG_KEY_FILE: /data/zogzog.key
       ZOGZOG_LINK_BASE: ${SITE_URL:-http://127.0.0.1:8081}
       MODEL3D_CACHE_DIR: /data/model3d-cache
+      # The game files your shipper sent the ui, for the 3D answers and
+      # the files the sites carry (read-only, on the ui's volume).
+      MODEL3D_ASSETS_DIR: /ui-state/model3d-cache/assets
       # Optional, docs/deploy.md "Visitor counts": your Plausible site's
       # domain. The static pages then load /js/script.js and post to
       # /api/event on their own address: route those two paths to your
@@ -156,7 +161,7 @@ services:
       ANALYSIS_SHARE_TOKEN_FILE: /ui-state/share-token
     volumes:
       - site-data:/data
-      # Read-only, for the share token alone.
+      # Read-only: the share token and the 3D files.
       - ui-state:/ui-state:ro
 
   site:

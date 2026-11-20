@@ -71,9 +71,13 @@ it.
 <!-- generated:player-status -->
 <!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
 
+[Watch: reading the log and running it by hand (Mac)](../videos/media/status-mac-light.mp4)
+
 Read the end of its log: each run writes what it did. A good run ends in a line like "ship: ... sent (120 events)"; a run with nothing new to send writes almost nothing.
 
 Don't want to wait 5 minutes? Run it now with the second line: it prints nothing and writes the log.
+
+<div class="os" data-os="windows">
 
 **Windows (PowerShell).** The log, then a run by hand. The third line shows the task's last and next run.
 
@@ -83,6 +87,10 @@ uv run --script "$env:LOCALAPPDATA\wow-stats\wow_stats.py"
 Get-ScheduledTask -TaskName wow-stats | Get-ScheduledTaskInfo
 ```
 
+</div>
+
+<div class="os" data-os="mac">
+
 **Mac (Terminal).** The log, then a run by hand. The third line says whether the background job is loaded ("state = running" or "not running" between runs are both fine).
 
 ```sh
@@ -90,6 +98,8 @@ tail -n 20 ~/Library/Logs/wow-stats.log
 uv run --script ~/.local/share/wow-stats/wow_stats.py
 launchctl print gui/$(id -u)/local.wow-stats | grep -E 'state|last exit'
 ```
+
+</div>
 
 <!-- /generated:player-status -->
 

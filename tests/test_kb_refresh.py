@@ -144,6 +144,52 @@ def test_a_polestar_release_opens_its_own_issue(state):
     assert [i["title"] for i in gh.issues.values()] == [watch.TITLES["polestar"]]
 
 
+def test_a_change_the_run_couldnt_land_says_why(state, monkeypatch):
+    """Issues are only for what the job didn't land: the reason a step gave,
+    or the run's link when it stopped before its PR."""
+    known_hash(state, PAGE.encode())
+    monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
+    monkeypatch.setenv("GITHUB_RUN_ID", "42")
+    fetch, gh = recorded(state, page=PAGE.encode(), polestar="v0.5.0", build="1.60.2.71234")
+    out = watch.run(state, fetch, gh, github=True, why={"polestar": "The gates refused PR #9: tests failed."})
+    bodies = {i["title"]: i["body"] for i in gh.issues.values()}
+    assert "## Why it isn't merged\nThe gates refused PR #9: tests failed." in bodies[watch.TITLES["polestar"]]
+    assert "https://github.com/o/r/actions/runs/42" in bodies[watch.TITLES["client-build"]]
+    assert out["kinds"] == ["client-build", "polestar"] and out["polestar_tag"] == "v0.5.0"
+
+
+@pytest.mark.parametrize("tag, kept", [("v0.4.1.1", "v0.4.1.1"), ("v1.2", "v1.2"), ("v1.2; rm -rf /", ""),
+                                       ("main", ""), ("v1.2\nx", "")])
+def test_only_a_plain_release_tag_reaches_the_bump(state, tag, kept):
+    known_hash(state, PAGE.encode())
+    state["polestar"]["known"] = "v0.0.1"  # never the shipped value: a bump moves it (#153)
+    fetch, gh = recorded(state, page=PAGE.encode(), polestar=tag)
+    assert watch.run(state, fetch, gh, github=False)["polestar_tag"] == kept
+
+
+def test_accept_refuses_a_kind_it_could_not_read(state, tmp_path, monkeypatch):
+    """2026-11-20: the exports step had no token, the release read as None and
+    the accept kept the old tag without a word; now it says so and fails."""
+    path = tmp_path / "watch.json"
+    path.write_text(json.dumps(state))
+    monkeypatch.setattr(watch, "current", lambda s, f, g: {"client-build": {"build": None}, "official": {},
+                                                           "polestar": {"release": None}, "addons": {}})
+    assert watch.main(["--state", str(path), "--accept", "polestar"]) == 3
+    assert json.loads(path.read_text())["polestar"]["known"] == state["polestar"]["known"]
+    assert watch.main(["--state", str(path), "--accept", "polestar", "--release", "v0.4.9"]) == 0
+    assert json.loads(path.read_text())["polestar"]["known"] == "v0.4.9"
+    assert watch.main(["--state", str(path), "--accept", "polestar", "--release", "v1; x"]) == 3
+
+
+def test_accept_only_the_pages_the_model_read(state):
+    now = {"client-build": {"build": None}, "official": {p["key"]: f"new-{p['key']}" for p in state["official"]},
+           "polestar": {"release": None}, "addons": {}}
+    got = watch.accept(json.loads(json.dumps(state)), now, ["official"], only=["hotfixes"])
+    assert {p["key"]: p["known"] for p in got["official"]}["hotfixes"] == "new-hotfixes"
+    assert [p["known"] for p in got["official"] if p["key"] != "hotfixes"] == [
+        p["known"] for p in state["official"] if p["key"] != "hotfixes"]
+
+
 # ---------------------------------------------------------------- the model pass
 
 

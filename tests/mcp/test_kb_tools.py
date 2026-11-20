@@ -24,6 +24,16 @@ def test_kb_topics_lists_the_lanes_and_one_lane_in_full(ctx):
     assert tools.call(ctx, "kb_topics", {"lane": "nope"})["known"]
 
 
+def test_kb_topics_documents_are_named(ctx):
+    """Statements without a research document (folded from another lane, or
+    from a model pass) never show as a nameless "" document (A/B, 0.7.0-rc1)."""
+    lanes = tools.call(ctx, "kb_topics", {})["lanes"]
+    for lane in lanes:
+        docs = tools.call(ctx, "kb_topics", {"lane": lane}).get("documents") or {}
+        assert all(k for k in docs), lane
+    assert tools.call(ctx, "kb_topics", {"lane": "dungeons"})["documents"]
+
+
 def test_kb_rule_names_its_conflicts(ctx):
     r = tools.call(ctx, "kb_rule", {"name": "rested.cap"})["rule"]
     assert r["last_verified"] and r["source_url"].startswith("https://")

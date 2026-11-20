@@ -1,0 +1,221 @@
+/* What every page shares (web/, wowstats/bar.py): the fonts, the two
+   palettes, the type scale, the bar at the top of each page and the
+   one-column layout of the short pages (start, settings, privacy, help,
+   admin, the 404s, the empty public page). Each page adds its own sheet on
+   top: app.css (the character pages), account.css, help.css. Font URLs are
+   relative, so the same file works at /, under /privacy/, /_notice/ and in
+   the static bundles. Fonts are OFL and served by this server (web/fonts,
+   licences next to them). The theme: Auto follows the system, Day and
+   Night (theme.js, data-theme on <html>) override it. */
+
+@font-face { font-family: "Cinzel"; src: url("fonts/cinzel.woff2") format("woff2"); font-weight: 400 900; font-display: swap; }
+@font-face { font-family: "Alegreya"; src: url("fonts/alegreya.woff2") format("woff2"); font-weight: 400 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Alegreya"; src: url("fonts/alegreya-italic.woff2") format("woff2"); font-weight: 400 900; font-style: italic; font-display: swap; }
+@font-face { font-family: "Alegreya Sans"; src: url("fonts/alegreya-sans-400.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Alegreya Sans"; src: url("fonts/alegreya-sans-500.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Alegreya Sans"; src: url("fonts/alegreya-sans-700.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+
+/* One palette a surface, never a mix: the night palette is the page at
+   night and the character plate in both themes; the day palette is the page
+   by day and the journal's parchment in both. A box drawn on a surface (the
+   comparison under the doll, a list) takes every colour from that surface,
+   its background as well as its text: the plate once kept the day page's
+   --panel under its own night ink, and the comparison under the doll read
+   cream on parchment (2026-11-19). */
+:root, .plate {
+  --display: "Cinzel", "Trajan Pro", "Times New Roman", serif;
+  --serif: "Alegreya", "Iowan Old Style", Palatino, Georgia, serif;
+  --sans: "Alegreya Sans", "Gill Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* type scale and spacing: the bar and the one-column pages */
+  --fs-small: 14px; --fs-body: 16px; --fs-read: 17px; --fs-lead: 19px; --fs-h2: 20px; --fs-h1: 28px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  --wide: 1160px; --read: 46rem;
+
+  /* night: the page */
+  --page: #16110C;
+  --panel: #251B13;
+  --raised: #31241A;
+  --sunk: #120D09;
+  --rule: #4A3826;
+  --frame: #6B5032;
+  --gold: #C99A3B;
+  --gold-hi: #F0CF7A;
+  --gold-lo: #7A5A22;
+  --ink: #EFE4CA;
+  --muted: #B09C7A;
+  --quest: #E3B73E;
+  --kill: #C8553F;
+  --death: #D9604A;
+  --good: #7DC160;
+  --bar: linear-gradient(180deg, #D9AE4E, #9C7426);
+  --focus: #F0CF7A;
+  --bad: var(--death);
+  --grain-a: .5;
+  /* WoW's quality colours are made for a dark tooltip: by day they go
+     darker, keeping their hue (the share of the colour mixed with black). */
+  --qmix: 100%;
+
+  /* the character plate: the same in both themes */
+  --plate: #221911;
+  --plate-ink: #F2E8CF;
+  --plate-muted: #B8A27C;
+
+  /* the journal's parchment, a little dimmed at night */
+  --parch: #D8C49A;
+  --parch-edge: #A8895A;
+  --parch-ink: #2E2012;
+  --parch-muted: #58442A;
+
+  /* XP: purple, blue while rested (as in the game) */
+  --xp: #9A35B4;
+  --xp-hi: #C268DA;
+  --rest: #2366D1;
+  --rest-hi: #5B94F0;
+
+  /* item quality */
+  --q0: #9D9D9D; --q1: #FFFFFF; --q2: #1EFF00; --q3: #2F86F2; --q4: #A335EE; --q5: #FF8000;
+
+  /* Procedural noise tiles. stitchTiles only lines up the noise with the edges of
+     the filter region, so the region is pinned to the tile (x/y 0, 100%): the
+     default -10%/120% region left a seam every tile width. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='p' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .09' numOctaves='3' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .24 0 0 0 0 .1 0 0 0 .28 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E");
+  --c-tl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cg%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M2 28V10.5C2 5.8 5.8 2 10.5 2H28' stroke-width='1.4'/%3E%3Cpath d='M6 28V12Q6 6 12 6H28' stroke-width='.8' opacity='.55'/%3E%3Cpath d='M10.5 18c0-4.4 3.1-7.5 7.5-7.5' stroke-width='1'/%3E%3C/g%3E%3Ccircle cx='6' cy='6' r='1.9'/%3E%3C/g%3E%3C/svg%3E");
+  --c-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cg transform='matrix(-1 0 0 1 30 0)'%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M2 28V10.5C2 5.8 5.8 2 10.5 2H28' stroke-width='1.4'/%3E%3Cpath d='M6 28V12Q6 6 12 6H28' stroke-width='.8' opacity='.55'/%3E%3Cpath d='M10.5 18c0-4.4 3.1-7.5 7.5-7.5' stroke-width='1'/%3E%3C/g%3E%3Ccircle cx='6' cy='6' r='1.9'/%3E%3C/g%3E%3C/svg%3E");
+  --c-bl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cg transform='matrix(1 0 0 -1 0 30)'%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M2 28V10.5C2 5.8 5.8 2 10.5 2H28' stroke-width='1.4'/%3E%3Cpath d='M6 28V12Q6 6 12 6H28' stroke-width='.8' opacity='.55'/%3E%3Cpath d='M10.5 18c0-4.4 3.1-7.5 7.5-7.5' stroke-width='1'/%3E%3C/g%3E%3Ccircle cx='6' cy='6' r='1.9'/%3E%3C/g%3E%3C/svg%3E");
+  --c-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cg transform='matrix(-1 0 0 -1 30 30)'%3E%3Cg fill='none' stroke='%23000'%3E%3Cpath d='M2 28V10.5C2 5.8 5.8 2 10.5 2H28' stroke-width='1.4'/%3E%3Cpath d='M6 28V12Q6 6 12 6H28' stroke-width='.8' opacity='.55'/%3E%3Cpath d='M10.5 18c0-4.4 3.1-7.5 7.5-7.5' stroke-width='1'/%3E%3C/g%3E%3Ccircle cx='6' cy='6' r='1.9'/%3E%3C/g%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --page: #E6D5AE;
+    --panel: #F1E4C4;
+    --raised: #EADAB4;
+    --sunk: #DCC89C;
+    --rule: #C9AF7C;
+    --frame: #A9874F;
+    --gold: #704D0F;
+    --gold-hi: #6E4A0B;
+    --gold-lo: #B8975A;
+    --ink: #2C1F12;
+    --muted: #675032;
+    --quest: #9A6A00;
+    --kill: #A23B26;
+    --death: #A8331F;
+    --good: #3B7A22;
+    --bar: linear-gradient(180deg, #B58A35, #8A5F12);
+    --focus: #8A5F12;
+    --grain-a: .35;
+    --qmix: 35%;
+    --parch: #EFE0BC;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"], .jentry {
+  --page: #E6D5AE;
+  --panel: #F1E4C4;
+  --raised: #EADAB4;
+  --sunk: #DCC89C;
+  --rule: #C9AF7C;
+  --frame: #A9874F;
+  --gold: #704D0F;
+  --gold-hi: #6E4A0B;
+  --gold-lo: #B8975A;
+  --ink: #2C1F12;
+  --muted: #675032;
+  --quest: #9A6A00;
+  --kill: #A23B26;
+  --death: #A8331F;
+  --good: #3B7A22;
+  --bar: linear-gradient(180deg, #B58A35, #8A5F12);
+  --focus: #8A5F12;
+  --grain-a: .35;
+  --qmix: 35%;
+  --parch: #EFE0BC;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; scroll-padding-top: 64px; }
+body {
+  margin: 0;
+  background-color: var(--page);
+  background-image: var(--grain), radial-gradient(ellipse 120% 900px at 50% -200px, rgba(201, 154, 59, .10), transparent 70%);
+  background-repeat: repeat, no-repeat;
+  color: var(--ink);
+  font: 16px/1.5 var(--sans);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ------------------------------------------------------------ the bar
+
+   One header on every page: the crest and name (home), the person's pages,
+   the theme switch; the character pages add their character and tabs on a
+   second row. Phones: home and theme, then the pages on a row of their own. */
+
+.bar {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center;
+  grid-template-areas: "home nav theme"; gap: var(--sp-3) var(--sp-4);
+  padding: var(--sp-3) max(var(--sp-4), calc((100% - var(--wide)) / 2 + var(--sp-4)));
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); margin-bottom: var(--sp-3);
+}
+.bar:has(.tabs) { grid-template-areas: "home nav theme" "char tabs tabs"; }
+/* The public page and /zogzog/ have no pages to list: one row where it fits. */
+@media (min-width: 901px) {
+  .bar:has(.tabs):not(:has(.bar-nav)) { grid-template-columns: auto auto minmax(0, 1fr) auto;
+                                         grid-template-areas: "home char tabs theme"; }
+}
+.bar-home {
+  grid-area: home; display: inline-flex; align-items: center; gap: var(--sp-2);
+  font: 700 18px/1 var(--display); letter-spacing: .04em; color: var(--gold-hi); text-decoration: none;
+}
+.bar-home:hover { color: var(--ink); }
+.bar-crest { width: 26px; height: 26px; flex: none; }
+.bar-crest .shield { fill: var(--panel); stroke: var(--gold); stroke-width: 2; }
+.bar-crest .mark { fill: none; stroke: var(--gold-hi); stroke-width: 2.5; }
+.bar-nav { grid-area: nav; justify-self: end; display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); }
+.bar-nav a { font: 600 15px/1.2 var(--sans); color: var(--muted); text-decoration: none; padding: 6px 0; }
+.bar-nav a:hover { color: var(--ink); }
+.bar-nav a[aria-current] { color: var(--gold-hi); box-shadow: inset 0 -2px var(--gold); }
+.bar .switcher { grid-area: char; min-width: 0; }
+.bar .tabs { grid-area: tabs; justify-self: end; min-width: 0; }
+.theme {
+  grid-area: theme; font: 500 var(--fs-small) var(--sans); color: var(--muted); background: none;
+  border: 1px solid var(--rule); border-radius: 4px; padding: 7px 11px; cursor: pointer; white-space: nowrap;
+}
+.theme:hover { color: var(--ink); border-color: var(--frame); }
+
+@media (max-width: 600px) {
+  .bar { grid-template-areas: "home . theme" "nav nav nav"; gap: var(--sp-2) var(--sp-3); padding-block: var(--sp-2); }
+  .bar:not(:has(.bar-nav)) { grid-template-areas: "home . theme"; }
+  .bar:has(.tabs) { grid-template-areas: "home char theme" "nav nav nav" "tabs tabs tabs"; }
+  .bar:has(.tabs):not(:has(.bar-nav)) { grid-template-areas: "home char theme" "tabs tabs tabs"; }
+  /* The character's name takes the room; the crest alone says home. */
+  .bar:has(.tabs) .bar-home span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .bar-nav { justify-self: stretch; justify-content: space-between; border-top: 1px solid color-mix(in srgb, var(--rule) 60%, transparent); }
+  .bar .tabs { justify-self: stretch; }
+}
+@media print { .bar { display: none; } }
+
+/* ------------------------------------------------------------ one-column pages */
+
+.doc { max-width: var(--read); margin: 0 auto; padding: var(--sp-5) var(--sp-4) 64px; font-size: var(--fs-read); line-height: 1.55; }
+.doc a { color: var(--gold-hi); }
+.doc h1 { font: 700 var(--fs-h1)/1.2 var(--display); color: var(--gold-hi); margin: var(--sp-2) 0 var(--sp-3); }
+.doc h2 { font: 700 var(--fs-h2)/1.3 var(--display); color: var(--gold-hi); margin: 0 0 10px;
+          display: flex; align-items: center; gap: 10px; }
+.doc h3 { font-size: var(--fs-read); margin: 18px 0 var(--sp-1); }
+.lead { font-size: var(--fs-lead); color: var(--muted); }
+.doc code { font: .9em/1.4 var(--mono); }
+.muted { color: var(--muted); }
+.btn { display: inline-block; font: 700 var(--fs-read) var(--sans); padding: 10px 20px; border-radius: 8px;
+       background: var(--gold); color: var(--page); text-decoration: none; }
+.doc a.btn { color: var(--page); }
+.btn:hover { background: var(--gold-hi); }

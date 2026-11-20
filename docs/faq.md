@@ -14,10 +14,23 @@ CurseForge.
 
 ### Which addons do I need?
 
-[Polestar](https://github.com/fitzforge/polestar) is the one that matters: levels, route
-steps and the gear scoring come from it. Polestar Recorder adds sessions, zones, deaths and
-loot. Syndicator (bags), Auctionator (prices) and Questie or Altoholic (older quests) each
-fill one more part of the page. [Addons it reads](reference/addons.md).
+Polestar is the one that matters: levels, route steps and the gear scoring come from it.
+Each optional one fills one more part of the page; a missing one leaves that part empty.
+
+<!-- generated:addon-list -->
+<!-- From docs/videos/steps.json: edit it there, then run tools/manual/generate.py. -->
+
+- **[Polestar](https://www.curseforge.com/wow/addons/polestar)** (required): level splits, quests, deaths, dungeons, the gear advice. Install it, then tick it in AddOns at character select.
+- **[Polestar Recorder](https://github.com/fitzforge/polestar/releases/latest)** (required): your play sessions, zone by zone. The install command adds it: type `/psrec on` once in game.
+- **[Syndicator](https://www.curseforge.com/wow/addons/syndicator)** (optional): gear and gold on every character. Install it, then log in once with each character.
+- **[Auctionator](https://www.curseforge.com/wow/addons/auctionator)** (optional): prices from your own auction house scans. Install it, then scan the auction house once.
+- **[Altoholic](https://www.curseforge.com/wow/addons/altoholic)** (optional): your full /played from level 1, the quests you finished before Polestar, and the recipes you know. Install it, then log in once with each character.
+- **[Questie](https://www.curseforge.com/wow/addons/questie)** (optional): the quests you finished before Polestar (Altoholic does it too: one of the two is enough). Install it, then log in once with each character.
+- **[WoWSims Exporter](https://www.curseforge.com/wow/addons/wowsims-exporter)** (optional): every talent change, for your full talent history (without it: the last 3 weeks). Install it, then tick it in the AddOns list at character select: it starts switched off.
+
+<!-- /generated:addon-list -->
+
+More on each: [Addons it reads](reference/addons.md).
 
 ### Does it work on retail or Classic Era?
 

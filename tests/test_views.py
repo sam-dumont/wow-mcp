@@ -38,13 +38,14 @@ def test_header_totals_come_from_the_splits():
 
 
 def test_header_for_a_character_only_syndicator_knows():
-    """No Polestar: race, class, sex, guild and gold from the roster
-    snapshot; the page knows to say Polestar doesn't track it."""
+    """No Polestar: race, class and gold from the roster snapshot; the page
+    knows to say Polestar doesn't track it. Sex and guild are Battle.net's
+    (2026-11-20, Views.bnet_profile): an old snapshot's are not read."""
     snap = {"_time": "2026-11-12T21:00:00Z", "race": "Night Elf", "class": "HUNTER", "sex": "female",
             "guild": "Moss Order", "money_copper": "31337", "faction": "Alliance", "source": "syndicator"}
     hd = views.build_header("Sylwen-Moon", [], {"snap": [snap], "xp": []}, None)
     assert (hd["race"], hd["class"], hd["sex"], hd["guild"], hd["money_copper"]) == (
-        "Night Elf", "Hunter", "female", "Moss Order", 31337)
+        "Night Elf", "Hunter", None, None, 31337)
     assert hd["polestar"] is False and hd["sources"] == ["syndicator"] and hd["level"] is None
     folder = views.build_header("Testhunter-Fixture", [], {"snap": [{"_time": "2026-11-08T16:46:59Z",
                                                                 "source": "folder"}], "xp": []}, None)

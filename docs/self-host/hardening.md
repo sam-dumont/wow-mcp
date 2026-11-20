@@ -47,10 +47,10 @@ locked down already, and the few things that are on you.
 5. **Never route the internal ports**: the static server's upload port, the full view's share
    port, the renderer, the exporter's `/metrics`
    ([HTTP endpoints, never route these](../reference/http-endpoints.md#never-route-these-from-outside)).
-6. **Give the renderer nothing.** If you run it: no secrets, no route to your stores, out to
-   `wow.zamimg.com` only. It runs a third-party script in Chromium without a sandbox.
+6. **Give the renderer nothing.** If you run it: no secrets, no route to your stores, no way
+   out at all. It runs Chromium without its own sandbox.
 7. **On Kubernetes**, add network policies: the static pod has no route out at all, the
-   publisher reaches the stores and the static pod's upload port, the renderer only Wowhead
+   publisher reaches the stores and the static pod's upload port, the renderer nothing out
    ([Deploy without compose](../deploy.md)).
 8. **Update.** Read the [changelog](../../CHANGELOG.md) and [upgrade](upgrade.md) when a
    release comes out.

@@ -43,11 +43,13 @@ In claude.ai the `+` menu has ready-made prompts (`plan`, `now`, `gear`, `dungeo
 - **Deaths**: where, at what level, what killed you.
 - **Dungeons**: your runs, and which ones are worth it now.
 - **Gear**: what you wear and every way to an upgrade.
+- **Talents**: how your talents changed, day by day.
 - **Gold**: your auction prices, and the next riding tier.
 - **Plans**: session plans at your pace, and how they went.
 - **Analysis**: findings about how you play, re-checked before they're kept.
 - **People**: players your game showed you.
-- **Game rules**: game facts: quests, items, NPCs, zones, rules, and how to level your class.
+- **Game rules**: game facts: quests, items, NPCs, zones, rules, how to level your class and its meta.
+- **News**: what's new on Forever this week, and what is coming.
 
 <!-- /generated:ai-groups -->
 

@@ -87,6 +87,11 @@ def test_one_line_per_section_with_the_fix(live, pw, engine, width):
     try:
         wait_count(pg, "#prices p.missing", 1)
         wait_count(pg, "#advice p.missing", 1)  # inside the gear panel, drawn after it
+        # The gear panel redraws #advice once more as its data lands and the
+        # line comes back right after (see below): read once every section
+        # holds its line, not in between (failed about 1 run in 8 on main).
+        pg.wait_for_function("""() => ['levels', 'dungeons', 'gear', 'advice', 'prices'].every(
+          (id) => document.querySelector(`#${id} p.missing`))""", timeout=15000)
         got = lines(pg)
         assert got["levels"] == ["Missing: level times, dungeon runs and gear advice. Add Polestar."]
         assert got["dungeons"] == got["levels"]  # the first kind that names the section, once

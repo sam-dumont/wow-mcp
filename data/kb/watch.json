@@ -1,6 +1,6 @@
 {
-  "about": "What the knowledge base was last checked against (tools/kb/watch.py). A value here that no longer matches today's opens one issue per kind (label kb-watch). Update it with `uv run python tools/kb/watch.py --accept <kind>` in the PR that brings the KB up to date.",
-  "checked": "2026-11-19",
+  "about": "What the knowledge base was last checked against (tools/kb/watch.py). A value here that no longer matches today's opens one issue per kind (label kb-watch). The refresh job moves it in the PR that brings the KB up to date (`tools/kb/watch.py --accept <kind>`); an addon's `contract` is what tools/kb/bump.py checks is unchanged before taking a release.",
+  "checked": "2026-11-20",
   "client_build": {
     "url": "https://wago.tools/api/builds/wowf/latest",
     "page": "https://wago.tools/builds",
@@ -11,14 +11,14 @@
       "key": "hotfixes",
       "kind": "page",
       "url": "https://worldofwarcraft.blizzard.com/en-us/news/24315281",
-      "known": "8e3be8b08364d7c3d5247c06c314c7bcf43e722e8fa4d8afaaf2d1326b8a88bf"
+      "known": "45c23ae5dd69282d06b09da5f0aaf1cfce67b0a95ee56060e393a4fbbcd70377"
     },
     {
       "key": "hotfixes-forum",
       "kind": "discourse",
       "url": "https://us.forums.blizzard.com/en/wow/t/2403040.json",
       "page": "https://us.forums.blizzard.com/en/wow/t/2403040",
-      "known": "10 posts, last 2026-11-18T03:24:08.117Z"
+      "known": "11 posts, last 2026-11-20T04:00:55.888Z"
     },
     {
       "key": "beta-development-notes",
@@ -37,18 +37,21 @@
   ],
   "polestar": {
     "repo": "fitzforge/polestar",
-    "known": "v0.4.1"
+    "known": "v0.4.1.1"
   },
   "addons": [
     {
       "name": "Questie",
       "repo": "Questie/Questie",
-      "known": "bundle/v12.11.0+v1.1.3"
-    },
-    {
-      "name": "Narcissus",
-      "repo": "Peterodox/Narcissus",
-      "known": "v1.8.7-c"
+      "known": "bundle/v12.11.1+v1.1.3",
+      "contract": {
+        "toc": "Questie_Forever.toc",
+        "files": {
+          "Modules/Quest/QuestieQuest.lua": [
+            "Questie.db.char.complete = "
+          ]
+        }
+      }
     },
     {
       "name": "Syndicator",
@@ -61,19 +64,14 @@
       "why": "CurseForge only: its API needs a key"
     },
     {
-      "name": "Vulcan SimBench",
-      "repo": null,
-      "why": "Wago Addons only: its API needs a key"
-    },
-    {
-      "name": "CharacterExport-Forever",
-      "repo": null,
-      "why": "CurseForge only: its API needs a key"
-    },
-    {
       "name": "Altoholic",
       "repo": null,
       "why": "CurseForge only (the Forever file): its API needs a key"
+    },
+    {
+      "name": "WoWSims Exporter",
+      "repo": "wowsims/exporter",
+      "known": "v3.2.11"
     },
     {
       "name": "DungeonMaster",
@@ -95,20 +93,12 @@
       },
       {
         "key": "blizzard-tracker",
-        "kind": "discourse-group",
-        "url": "https://us.forums.blizzard.com/en/wow/groups/blizzard-tracker/posts.json",
-        "post": "https://us.forums.blizzard.com/en/wow/posts/{id}.json",
-        "base": "https://us.forums.blizzard.com/en/wow",
-        "categories": [
-          346,
-          347,
-          348,
-          349,
-          352
-        ],
+        "kind": "blue-tracker",
+        "url": "https://www.wowhead.com/forever/blue-tracker?rss",
+        "forum": "https://us.forums.blizzard.com/en/wow",
         "source_type": "official",
         "max_confidence": "high",
-        "known": 30961910
+        "known": 1794972249
       }
     ],
     "guides": [
@@ -462,6 +452,117 @@
       {
         "key": "wt-pre-launch-class-changes-bug-fixes",
         "url": "https://www.warcrafttavern.com/forever/news/wow-forever-pre-launch-class-changes-bug-fixes/"
+      },
+      {
+        "key": "fdb-professions-best",
+        "url": "https://foreverdb.net/professions/best"
+      },
+      {
+        "key": "kami-tier-list-wow-forever",
+        "url": "https://kami-labs.fr/en/tier-list-wow-forever/"
+      },
+      {
+        "key": "kami-which-class",
+        "url": "https://kami-labs.fr/en/wow-forever/quelle-classe-choisir-wow-forever/"
+      },
+      {
+        "key": "wowgg-meta-forever",
+        "url": "https://wow.gg/meta/forever"
+      },
+      {
+        "key": "wt-arms-warrior",
+        "url": "https://www.warcrafttavern.com/forever/guides/arms-warrior/",
+        "class": "Warrior"
+      },
+      {
+        "key": "wt-assassination-rogue",
+        "url": "https://www.warcrafttavern.com/forever/guides/assassination-rogue/",
+        "class": "Rogue"
+      },
+      {
+        "key": "wt-balance-druid",
+        "url": "https://www.warcrafttavern.com/forever/guides/balance-druid/",
+        "class": "Druid"
+      },
+      {
+        "key": "wt-beast-mastery-hunter",
+        "url": "https://www.warcrafttavern.com/forever/guides/beast-mastery-hunter/",
+        "class": "Hunter"
+      },
+      {
+        "key": "wt-combat-rogue",
+        "url": "https://www.warcrafttavern.com/forever/guides/combat-rogue/",
+        "class": "Rogue"
+      },
+      {
+        "key": "wt-demonology-warlock",
+        "url": "https://www.warcrafttavern.com/forever/guides/demonology-warlock/",
+        "class": "Warlock"
+      },
+      {
+        "key": "wt-destruction-warlock",
+        "url": "https://www.warcrafttavern.com/forever/guides/destruction-warlock/",
+        "class": "Warlock"
+      },
+      {
+        "key": "wt-discipline-priest",
+        "url": "https://www.warcrafttavern.com/forever/guides/discipline-priest/",
+        "class": "Priest"
+      },
+      {
+        "key": "wt-enhancement-shaman",
+        "url": "https://www.warcrafttavern.com/forever/guides/enhancement-shaman/",
+        "class": "Shaman"
+      },
+      {
+        "key": "wt-feral-druid",
+        "url": "https://www.warcrafttavern.com/forever/guides/feral-druid/",
+        "class": "Druid"
+      },
+      {
+        "key": "wt-frost-mage",
+        "url": "https://www.warcrafttavern.com/forever/guides/frost-mage/",
+        "class": "Mage"
+      },
+      {
+        "key": "wt-fury-warrior",
+        "url": "https://www.warcrafttavern.com/forever/guides/fury-warrior/",
+        "class": "Warrior"
+      },
+      {
+        "key": "wt-holy-paladin",
+        "url": "https://www.warcrafttavern.com/forever/guides/holy-paladin/",
+        "class": "Paladin"
+      },
+      {
+        "key": "wt-holy-priest",
+        "url": "https://www.warcrafttavern.com/forever/guides/holy-priest/",
+        "class": "Priest"
+      },
+      {
+        "key": "wt-poisons",
+        "url": "https://www.warcrafttavern.com/forever/guides/poisons/",
+        "class": "Rogue"
+      },
+      {
+        "key": "wt-protection-paladin",
+        "url": "https://www.warcrafttavern.com/forever/guides/protection-paladin/",
+        "class": "Paladin"
+      },
+      {
+        "key": "wt-protection-warrior",
+        "url": "https://www.warcrafttavern.com/forever/guides/protection-warrior/",
+        "class": "Warrior"
+      },
+      {
+        "key": "wt-shadow-priest",
+        "url": "https://www.warcrafttavern.com/forever/guides/shadow-priest/",
+        "class": "Priest"
+      },
+      {
+        "key": "wt-subtlety-rogue",
+        "url": "https://www.warcrafttavern.com/forever/guides/subtlety-rogue/",
+        "class": "Rogue"
       }
     ]
   }

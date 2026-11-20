@@ -75,10 +75,12 @@ def test_drops_obtained_or_missing_with_boss_and_chance(priest):
             for src in d["drops"]:
                 assert src["npc_id"] is None or src["url"].endswith(f"npc={src['npc_id']}")
         missing = [d for d in b["drops"] if d["state"] == "missing"]
-        # The missing ones lead, the ones he can wear now first, by gain.
+        # The missing ones lead, the ones he can wear now first, by the gain
+        # weighed by who the item is built for (wowstats/gearfit.py).
         assert b["drops"][:len(missing)] == missing
-        now = [d["gain"] for d in missing if d["now"]]
+        now = [d["value"] for d in missing if d["now"]]
         assert now == sorted(now, reverse=True)
+        assert all(d["value"] <= d["gain"] + 0.01 and d["fit"]["label"] for d in missing)
     bfd = by_name(V.build(priest))["Blackfathom Deeps"]
     # The scepter he wears is a BFD quest reward: obtained, worn.
     assert any(d["state"] == "obtained" and d["where"] == "worn" for d in bfd["drops"])

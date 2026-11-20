@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 import re
 
-from wowstats import forever
+from wowstats import forever, gearfit
 from wowstats import gear as gearmod
 from wowstats.rates import per_hour
 
@@ -138,10 +138,20 @@ def pace(inp: dict) -> dict:
         out[k]["xp_per_hour"] = round(sum(h["xp"] for h in hs) / a * 3600) if a > 600 else None
     cal = inp.get("calibration") or {}
     out["calibration"] = {"factor": cal.get("factor") or 1.0, "n": cal.get("n") or 0}
-    lv = [x for x in inp.get("levels") or [] if x.get("played_s") and x.get("planned_s") and not x.get("partial")
-          and x["level"] < inp["level"]][-5:]
+    # His last 5 finished levels against the route's clock: the Recorder's
+    # planned time where it ran, the route reference's for the same level,
+    # side and class before it (switched on later): one time per level,
+    # so a level the two both cover counts once.
+    lv = [{**x, "planned_s": x.get("planned_s") or route_seconds(inp, x["level"]), "rec": bool(x.get("planned_s"))}
+          for x in inp.get("levels") or [] if x.get("played_s") and not x.get("partial") and x["level"] < inp["level"]]
+    lv = [x for x in lv if x["planned_s"]][-5:]
+    rec = sum(x["rec"] for x in lv)
+    basis = ("the Recorder's route times" if lv and rec == len(lv) else
+             "your level times against Polestar's" if not rec else
+             "your level times against Polestar's, the Recorder's where it ran")
     out["level_factor"] = {"factor": round(sum(x["played_s"] for x in lv) / sum(x["planned_s"] for x in lv), 2)
-                           if lv else None, "n": len(lv), "levels": [x["level"] for x in lv]}
+                           if lv else None, "n": len(lv), "levels": [x["level"] for x in lv],
+                           "from": basis if lv else None}
     lvx = [x for x in inp.get("levels") or [] if x.get("played_s") and x.get("xp") and not x.get("partial")
            and x["level"] < inp["level"]][-5:]
     out["xp_per_hour"] = {"value": round(sum(x["xp"] for x in lvx) / sum(x["played_s"] for x in lvx) * 3600)
@@ -154,6 +164,48 @@ def pace(inp: dict) -> dict:
     planned = (inp.get("route_levels") or {}).get(str(inp["level"]))
     out["route_xp_per_hour"] = (round(xp_need(inp, inp["level"])[0] / planned * 3600) if planned else None)
     return out
+
+
+def route_level(inp: dict, level: int) -> dict | None:
+    """Polestar's route at `level` for this side, race and class (its time
+    and its guide); None without a side: both sides' guides differ."""
+    from wowstats.mcp import route
+
+    who = inp.get("who") or {}
+    if not who.get("faction"):
+        return None
+    return route.reference().level(level, who.get("faction"), who.get("class"))
+
+
+def route_seconds(inp: dict, level: int) -> float | None:
+    return (route_level(inp, level) or {}).get("expected_s")
+
+
+def level_guide(inp: dict, level: int) -> str | None:
+    """The title of Polestar's guide the route plays at `level`."""
+    from wowstats.mcp import route
+
+    g = (route_level(inp, level) or {}).get("guide")
+    return ((route.reference().guides or {}).get(g) or {}).get("title") if g else None
+
+
+# The one line that turns the estimate into a step-by-step plan.
+UNLOCK = "Switch on Polestar's Recorder (/psrec on, then /reload) for a step-by-step plan."
+UNLOCK_ADD = "Add Polestar's Recorder, then switch it on (/psrec on, then /reload) for a step-by-step plan."
+
+
+# The Recorder's events arrive, but no guide step yet (just switched on):
+# the step plan starts with the first step it sees.
+UNLOCK_STEP = ("Open Polestar's guide and play a step with the Recorder on, then /reload: the step-by-step plan "
+               "starts there.")
+# Switched on in the setup report, nothing arrived yet.
+UNLOCK_WAIT = ("Polestar's Recorder is on but nothing arrived yet: play a few minutes, then /reload, for a "
+               "step-by-step plan.")
+
+
+def unlock(inp: dict) -> str:
+    """The one line under a plan by level, by what has arrived (facts.recorder_state)."""
+    return {"missing": UNLOCK_ADD, "on": UNLOCK_STEP, "waiting": UNLOCK_WAIT}.get(inp.get("recorder") or "", UNLOCK)
 
 
 def step_s(p: dict, kind: str, planned: float) -> float:
@@ -243,7 +295,8 @@ def dungeon_items(inp: dict) -> dict[str, dict]:
                 continue
             d = out.setdefault(inst, {"name": inst, "levels": s.get("levels"), "drops": [], "quests": []})
             row = {"item": u.get("name"), "item_id": u.get("item_id"), "slot": u.get("slot_name"),
-                   "gain": round(u.get("gain") or 0, 1), "req_level": u.get("level"), "now": bool(u.get("now"))}
+                   "gain": round(u.get("value", u.get("gain")) or 0, 1), "req_level": u.get("level"),
+                   "now": bool(u.get("now"))}
             if s["kind"] == "drop":
                 d["drops"].append({**row, "boss": s.get("boss") or "trash", "chance": s.get("chance_pct")})
             elif s["kind"] == "quest":
@@ -542,7 +595,10 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict) -> list[dic
         for s in u.get("sources") or []:
             row = {"item": u.get("name"), "item_id": u.get("item_id"), "gain": round(u.get("gain") or 0, 1),
                    "req_level": u.get("level"), "now": bool(u.get("now")),
-                   "available": "now" if u.get("now") else f"at {u.get('level')}"}
+                   "available": "now" if u.get("now") else f"at {u.get('level')}",
+                   # The ranking's value and who it's built for (wowstats.gearfit).
+                   "value": round(u.get("value", u.get("gain")) or 0, 1),
+                   "fit": gearfit.text(u.get("fit"))}
             if with_text(u):
                 row["worn_with"] = with_text(u)
             if s["kind"] in ("bags", "bank") and not partner_to_get(u):
@@ -585,7 +641,7 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict) -> list[dic
         def key(r):
             luck = r["kind"] == "world drop"
             hours = (r.get("cost_s") or 0) / 3600
-            per_h = r["gain"] / hours if hours else r["gain"] * (3 if r["kind"] in ("quest", "craft") else 1)
+            per_h = r["value"] / hours if hours else r["value"] * (3 if r["kind"] in ("quest", "craft") else 1)
             return (not r["now"], r["kind"] not in ("bags", "bank"), luck, -per_h)
 
         rows.sort(key=key)
@@ -597,7 +653,7 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict) -> list[dic
             seen.add(k)
             keep.append(r)
         out.append({"slot": slot, "options": keep[:4]})
-    out.sort(key=lambda s: -max((o["gain"] for o in s["options"] if o["now"]), default=0))
+    out.sort(key=lambda s: -max((o["value"] for o in s["options"] if o["now"]), default=0))
     _ = level
     return out
 
@@ -628,15 +684,20 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
         raise ValueError(f"context is one of {', '.join(CONTEXTS)}")
     if context != "levelling":
         return unsupported(inp, context)
-    if not inp.get("route_ahead"):
+    # Without the Recorder there is no step to plan from: the plan goes by
+    # level instead, from his level times (or the route's clock), and says
+    # it is an estimate and what unlocks the step-by-step one.
+    by_level = not inp.get("route_ahead")
+    p = pace(inp)
+    if by_level and not p["xp_per_hour"]["value"] and not inp.get("route_levels"):
         out = unsupported(inp, context)
-        out["message"] = ("No plan: wow-stats hasn't seen this character follow a Polestar levelling guide yet "
-                          "(its recorder events are missing), so there's no route or pace to plan from.")
+        out["message"] = ("Not enough to plan from yet: finish one level with Polestar on, then log out. "
+                          + unlock(inp))
+        out["unlock"] = unlock(inp)
         return out
     cons = parse_constraints(constraints)
     hours = float(cons.get("hours") or hours or DEFAULT_HOURS)
     hours = max(0.5, min(hours, 8.0))
-    p = pace(inp)
     level, xp = inp["level"], float(inp["xp"])
     need0, _ = xp_need(inp, level)
     budget = hours * 3600
@@ -732,7 +793,10 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
                             "your profession guide steps"}] if per_h else []),
                       {"profession": prof, "skill_ups": round(per_h * dur / 3600) if per_h else None})
 
-    for g in groups:
+    if by_level:
+        level_blocks(inp, p, play, add_block, lambda: (t, lv, x), route_mode)
+
+    for g in [] if by_level else groups:
         if t >= play - 60:
             break
         left = play - t
@@ -767,7 +831,8 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
     gold_end = (inp.get("gold_copper") or 0) + (gold_rate or 0) * used / 3600
     town = town_stop(inp, p, blocks, mount, cons)
     checkpoints = [{"after": b["id"], "at_s": b["start_s"] + b["dur_s"], "level": b["level_to"],
-                    "step": (f"{b.get('guide', '').split('/')[-1]} step {b['step_to']}" if b.get("step_to") else None)}
+                    "step": (f"{b.get('guide', '').split('/')[-1]} step {b['step_to']}" if b.get("step_to") else None),
+                    **({"ding": True} if b.get("ding") else {})}
                    for b in blocks]
     end = {"level": round(lfloat(inp, lv, x), 2), "level_int": lv, "xp": round(x), "route_clock": route_mode,
            "xp_gained": None if route_mode else round(sum(b["xp"] + b["rested_bonus"] for b in blocks)),
@@ -776,6 +841,10 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
     est = {
         "schema": 1, "char": inp["who"].get("char"), "made_t": inp["now_t"], "hours": hours, "constraints": cons,
         "context": context, "supported": True,
+        # by_level: estimated from level times, no route step known;
+        # `unlock` is what makes it the step-by-step plan.
+        "mode": "by_level" if by_level else "route", "estimated": by_level,
+        "unlock": unlock(inp) if by_level else None,
         "start": {"level": round(lfloat(inp, level, xp), 2), "level_int": level, "xp": round(xp), "xp_max": need0,
                   "xp_pct": round(xp / need0 * 100) if need0 else None, "rested_xp": round(inp.get("rested_xp") or 0),
                   "rested_estimated": bool(inp.get("offline_s")), "gold_copper": inp.get("gold_copper"),
@@ -793,6 +862,49 @@ def estimate(inp: dict, hours: float | None = None, constraints: str = "", conte
     }
     est["facts"] = facts(est)
     return est
+
+
+def level_blocks(inp: dict, p: dict, play: float, add_block, now, route_mode: bool) -> None:
+    """The session by level, for a character with no route step known: one
+    block per level, at his XP an hour (his recent levels) or the route's
+    clock for that level; each ends at a level-up (a checkpoint) or at the
+    end of the session, and names Polestar's guide for that level when the
+    side is known. The pace's reasons go on the first block only."""
+    lf = p["level_factor"]
+    xph = rate(p, "questing")
+    first = True
+    for _ in range(60):  # a session of at most 8 hours: never more than a few levels
+        t, lv, x = now()
+        left = play - t
+        if left <= 60:
+            return
+        need = xp_need(inp, lv)[0]
+        r = route_seconds(inp, lv)
+        if not route_mode and xph > 0:
+            to_ding = max(0.0, need - x) / xph * 3600
+        elif r:
+            to_ding = r * max(0.0, 1 - x / max(1, need)) * (p["calibration"]["factor"] or 1.0)
+        else:
+            return
+        ding = to_ding <= left
+        dur = to_ding if ding else left
+        guide = level_guide(inp, lv)
+        title = (f"Level {lv} to {lv + 1}" if ding else f"Level {lv}") + (
+            f": Polestar's {guide} guide" if guide else ": quests at your level")
+        why = []
+        if first:
+            # The text says where each number is from: no separate source.
+            why.append({"text": f"your last {p['xp_per_hour']['n']} levels: about {fint(xph)} XP an hour, "
+                                "breaks included", "from": ""} if not route_mode else
+                       {"text": f"Polestar's time for level {lv}: {fdur(r)}", "from": ""})
+            if lf.get("factor") and lf.get("from") == "your level times against Polestar's":
+                why.append({"text": f"your levels take {lf['factor']}x Polestar's time", "from": ""})
+        # The ding takes exactly what the level needs (floats never leave a
+        # level a hair short of it).
+        gain = max(0.0, need - x) + 1e-6 if ding else dur / 3600 * xph
+        if not add_block("questing", title, dur, gain, why, {"level_guide": guide, "ding": ding}):
+            return
+        first = False
 
 
 def town_stop(inp: dict, p: dict, blocks: list[dict], mount: dict, cons: dict | None = None) -> dict | None:
@@ -926,8 +1038,10 @@ def logout(inp: dict, blocks: list[dict]) -> dict:
         if end is not None else None
     if town_last:
         where, how = last["title"], "you end in town"
-    elif not bind or on_route or not ahead:
-        where, how = (f"the inn at {bind}" if bind else "an inn"), "hearth there (your hearthstone's bind)"
+    elif not bind:
+        where, how = "an inn or a city", "a rest area: the most rested XP while you're away"
+    elif on_route or not ahead:
+        where, how = f"the inn at {bind}", "hearth there (your hearthstone's bind)"
     else:
         where = (f"the next town on your route: step {town['step']} ({town['title']})" if town
                  else "an inn or a city on your route")
@@ -945,8 +1059,9 @@ def gear_now(inp: dict) -> list[dict]:
             continue
         srcs = u.get("sources") or []
         rows.append({"item": u.get("name"), "slot": u.get("slot_name"), "gain": round(u.get("gain") or 0, 1),
-                     "where": src_text(srcs[0]) if srcs else None, "worn_with": with_text(u)})
-    rows.sort(key=lambda r: -r["gain"])
+                     "where": src_text(srcs[0]) if srcs else None, "worn_with": with_text(u),
+                     "fit": gearfit.text(u.get("fit")), "value": round(u.get("value", u.get("gain")) or 0, 1)})
+    rows.sort(key=lambda r: -r["value"])
     return rows[:5]
 
 
@@ -1033,7 +1148,12 @@ def facts(e: dict) -> dict[str, str]:
             f[f"{i}.steps"] = (f"{b['step_from']}-{b['step_to']}" if b["step_from"] != b["step_to"]
                                else str(b["step_from"]))
         for j, w in enumerate(b.get("why") or [], 1):
-            f[f"{i}.why{j}"] = f"{w['text']} ({w['from']})"
+            f[f"{i}.why{j}"] = f"{w['text']} ({w['from']})" if w.get("from") else w["text"]
+    for j, c in enumerate([c for c in e["checkpoints"] if c.get("ding")], 1):
+        f[f"cp{j}.at"] = "+" + fdur(c["at_s"])
+        f[f"cp{j}.level"] = str(int(round(c["level"])))
+    if e.get("unlock"):
+        f["unlock"] = e["unlock"]
     f["end.level"] = flevel(end["level"])
     if end["xp_gained"] is not None:
         f["end.xp"] = fint(end["xp_gained"])

@@ -1,34 +1,60 @@
-# The knowledge base's refresh job (docs/kb.md). Three modes, all on demand:
+# The knowledge base's refresh job (docs/kb.md, "The refresh job"). It runs
+# in the private CI mirror, sam-dumont/wow-mcp-ci (mirror.yml), never in the
+# public repository: the job's `if:` carries the mirror's repository id.
+# Everything it writes (the branch, the PR, the issues) goes to the public
+# repository, KB_REPO below, through the CI GitHub App's token (variable
+# CI_APP_CLIENT_ID, secret CI_APP_PRIVATE_KEY in the mirror): a PR the App
+# opens runs the public repository's checks like any other. Every
+# mode ends in one PR that merges on its own when the gates pass (owner,
+# 2026-11-20: "the goal is automated refreshes"); an issue (label kb-watch)
+# is only for what the gates or a check refused, and says why.
 #
-# - watch (daily): deterministic watchers on the client build, Blizzard's
-#   official hotfix and patch-note pages, the Polestar release and the install
-#   docs' addons. One issue per change kind (label kb-watch): opened, edited,
-#   closed when back to what data/kb/watch.json knows. When an official page
-#   changed, the model pass reads it and opens a PR of proposed statements
-#   (data/kb/research/refresh-<date>.json): never merged on its own.
+# - watch (daily): deterministic watchers (tools/kb/watch.py) on the client
+#   build, Blizzard's official hotfix and patch-note pages, the Polestar
+#   release and the install docs' addons. Each change kind is handled here:
+#   * polestar: tools/kb/bump.py checks the new tag (its saved tables and
+#     licence files unchanged), moves tools/polestar-tag, and the exports
+#     (docs/route-reference.md and its siblings) rerun at the new tag;
+#   * addons: bump.py checks each release still saves what the shipper reads;
+#   * client-build: the class reference rerun against the new build;
+#   * official: the model pass (tools/kb/refresh.py) proposes statements
+#     from the changed pages, the lifecycle folds them into their lanes.
+#   What went through is accepted into data/kb/watch.json; a kind a check
+#   refused stays out of the PR and keeps its issue, with the reason.
 # - refresh: the model pass alone, on the pages named in `pages`.
 # - sweep (monthly): every cited URL fetched once (no model); gone and changed
-#   sources and stale statements go to one issue, the new sweep.json to a PR.
-# - meta (weekly): what people write about Forever (Wowhead's Forever news
-#   feed, Blizzard's blue posts from the forums' JSON, the guide pages the KB
-#   cites, class guides included), only what is new since data/kb/watch.json's
-#   `meta`. The model pass proposes statements and contradictions in a PR
-#   (data/kb/research/meta-<date>.json), never merged on its own. Nothing new:
-#   no model call, no PR.
+#   sources and stale statements go to one issue, the new sweep.json to the PR.
+# - meta (weekly): what people write about Forever, new since watch.json's
+#   `meta` (tools/kb/meta.py), the Community corner (tools/kb/community.py),
+#   then the lifecycle (tools/kb/lifecycle.py: fold, expire, merge,
+#   re-verify, digests).
+#
+# The gates (tools/kb/gates.py): kbschema, the licence checks (no copied run
+# of 12 words against the text the pass read, quotes of 15 words at most, a
+# citation on every record), the multi-source rule for lists and builds, the
+# size budget, a cap on how many statements one run removes, and ruff plus
+# the whole test suite (the MCP's 24,000-character cap among them), here,
+# before the PR; the public repository's required checks run again on it.
+# tools/kb/land.py rebases on a main that moved (and gates again), opens the
+# PR and merges it (`gh pr merge --auto --squash`, once the checks pass), or leaves it open with
+# label kb-refused. While that PR is open, the next run of the mode adds
+# nothing: a person merges or closes it first.
 #
 # Manual only: no `schedule:`, since GitHub's cron runs hours late or not at
-# all. An owner who wants it on time dispatches it from their own scheduler
-# (docs/kb.md, "Running the refresh job in your own repository").
+# all. The owner's scheduler dispatches it on time (watch daily, meta Mondays,
+# sweep on the 2nd); a fork dispatches it from its own scheduler (docs/kb.md).
 #
 # The model pass has no API key: GitHub's OIDC token is exchanged for a
 # short-lived Anthropic token (Workload Identity Federation), and the
-# federation rule only accepts workflow_dispatch runs of this repo on main.
+# federation rule only accepts workflow_dispatch runs of the mirror on main
+# (subject repo:sam-dumont@6107797/wow-mcp-ci@1465633168:ref:refs/heads/main:
+# GitHub issues immutable subjects here).
 # Without the ANTHROPIC_* repository variables (a fork, say) the model passes
-# skip with a notice and the run stays green; watch and sweep need none of it.
-# It runs here, in GitHub Actions, never on the server or in the image (the
-# server runs no LLM). Pages are untrusted data: their text is hashed or handed to
-# the model as data, and the model's answer only becomes a JSON file that
-# the schema (wowstats/analysis/kbschema.py) checks before a person reviews it.
+# skip with a notice and their change kind keeps its issue; watch and sweep
+# need none of it. It runs here, never on the server or in the image (the
+# server runs no LLM). Pages and release data are untrusted: their text is
+# hashed or handed to the model as data, the model's answer only becomes
+# JSON the gates check, and no release note is read at all.
 name: kb-refresh
 on:
   workflow_dispatch:
@@ -43,10 +69,10 @@ on:
         type: string
         default: ""
 
+# GITHUB_TOKEN only reads the mirror; writes go to the public repository
+# with the App's token.
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
   id-token: write
 
 concurrency:
@@ -55,16 +81,24 @@ concurrency:
 
 jobs:
   run:
-    if: github.ref == 'refs/heads/main'
+    if: github.repository_id == '1465633168' && (github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # The gates run the whole suite (about 5 minutes), once more if main
+    # moved during the run; a Polestar bump adds a 450 MB clone and the exports.
+    timeout-minutes: 75
     # GH_TOKEN (contents, issues and PR write) is given to the steps that
     # call GitHub and to no other: never to the model passes, which handle
-    # outside text. The checkout keeps no credentials either; the PR step
-    # signs its push with gh.
+    # outside text, nor to the gates, which run the tests. The checkout keeps
+    # no credentials either; land.py signs its push with gh.
     env:
       # The model pass's spend cap per run, in USD (tools/kb/refresh.py).
       KB_REFRESH_MAX_USD: "3"
+      MODE: ${{ inputs.mode }}
+      BRANCH: kb-${{ inputs.mode }}
+      # Where the branch, the PR and the issues go: gh reads GH_REPO, the
+      # tools KB_REPO.
+      KB_REPO: sam-dumont/wow-mcp
+      GH_REPO: sam-dumont/wow-mcp
     steps:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
         with:
@@ -72,28 +106,161 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # land.py rebases on a main that moved during the run.
+          fetch-depth: 0
+      # The mirror's main is the public main, force-pushed; land.py fetches,
+      # rebases and pushes against the public repository itself.
+      - name: Fetch from and push to the public repository
+        run: git remote set-url origin "https://github.com/$KB_REPO.git"
+      # One hour each: a second one before landing, for runs that take longer.
+      - name: Mint the App's token for the public repository
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: sam-dumont
+          repositories: wow-mcp
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-      # The kb group: anthropic and its dependencies from uv.lock, by hash.
-      - run: uv sync --frozen --group kb
-      - name: The issue label
+      # The kb group (anthropic, by hash from uv.lock), and what the test
+      # suite needs, as CI's test job installs it.
+      - run: uv sync --frozen --group kb --extra publish --extra mcp
+      - name: Labels
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh label create kb-watch --color 5319e7 --description "KB refresh job, a source changed" --force
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          gh label create kb-watch --color 5319e7 --description "KB refresh job, a source changed" --force
+          gh label create kb-refused --color b60205 --description "KB refresh job: the gates refused it, a person decides" --force
+      - name: Where the run starts
+        id: base
+        run: |
+          set -eu
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          # The texts the model passes read, for the gates' licence check.
+          echo "KB_SOURCES=$RUNNER_TEMP/kb-sources.jsonl" >> "$GITHUB_ENV"
+          # {kind: why it isn't landed}, for the watch issues.
+          echo "WHY=$RUNNER_TEMP/kb-why.json" >> "$GITHUB_ENV"
+          echo '{}' > "$RUNNER_TEMP/kb-why.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+      - name: An earlier run's PR still open?
+        id: open
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: uv run --frozen python tools/kb/land.py --check-open --branch "$BRANCH"
 
       - name: Watch
         id: watch
         if: inputs.mode == 'watch'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run --frozen python tools/kb/watch.py --github
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: uv run --frozen python tools/kb/watch.py
+      - name: Nothing new while the last PR is open
+        if: inputs.mode == 'watch' && steps.open.outputs.pr != ''
+        env:
+          KINDS: ${{ steps.watch.outputs.kinds }}
+          PR: ${{ steps.open.outputs.pr }}
+        run: |
+          set -eu
+          why="PR #$PR from an earlier run is still open (label kb-refused): merge it or close it, and the next run lands this change."
+          for k in $KINDS; do jq --arg k "$k" --arg w "$why" '.[$k] = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"; done
 
+      # --- Polestar: check, move the tag, rerun the exports, accept.
+      - name: Polestar release, checked
+        id: polestar
+        if: inputs.mode == 'watch' && steps.open.outputs.pr == '' && steps.watch.outputs.polestar_tag != ''
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TAG: ${{ steps.watch.outputs.polestar_tag }}
+        run: |
+          if uv run --frozen python tools/kb/bump.py polestar "$TAG" --why "$WHY"; then
+            echo "ok=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=0" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.polestar.outputs.ok == '1'
+        with:
+          # route-reference.yml's: Math.hypot and friends may round differently elsewhere.
+          node-version: 24.5.0
+      - name: Polestar at tools/polestar-tag
+        if: steps.polestar.outputs.ok == '1' || (inputs.mode == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'client-build'))
+        run: |
+          set -eu
+          sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends lua5.4
+          git clone -q --depth 1 --branch "$(tr -d '[:space:]' < tools/polestar-tag)" \
+            https://github.com/fitzforge/polestar "$RUNNER_TEMP/polestar"
+          # tests/test_gear_parity.py runs in the gates with it.
+          echo "POLESTAR_CHECKOUT=$RUNNER_TEMP/polestar" >> "$GITHUB_ENV"
+          echo "LUA=lua5.4" >> "$GITHUB_ENV"
+      - name: Polestar exports and accept
+        if: steps.polestar.outputs.ok == '1'
+        env:
+          TAG: ${{ steps.watch.outputs.polestar_tag }}
+        # The exports run Polestar's own planner and Lua (its code, at the
+        # new tag): without the job's OIDC and runtime tokens in reach.
+        run: |
+          set -u
+          ps="$RUNNER_TEMP/polestar"
+          was=$(jq -r .polestar.known data/kb/watch.json)
+          x() { env -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_URL -u ACTIONS_RUNTIME_TOKEN "$@"; }
+          if x node tools/route_reference/export.mjs --polestar "$ps" --lua lua5.4 \
+            && x node tools/gear_reference/export.mjs --polestar "$ps" --lua lua5.4 \
+            && uv run --frozen python tools/forever_reference/export.py --polestar "$ps" \
+            && uv run --frozen python tools/kb/export.py --polestar "$ps" \
+            && uv run --frozen python tools/class_reference/export.py --polestar "$ps" \
+            && uv run --frozen python tools/trainers/export.py --polestar "$ps"; then
+            if uv run --frozen python tools/kb/bump.py regen --old "$was" --new "$TAG" --why "$WHY" \
+              && uv run --frozen python tools/kb/watch.py --accept polestar --release "$TAG"; then
+              git add -A && git commit -qm "Polestar $TAG: the tag, the exports and the test data"
+            else
+              git reset -q --hard HEAD && git clean -qfd
+            fi
+          else
+            git reset -q --hard HEAD && git clean -qfd
+            jq --arg w "The exports failed at $TAG (this run's step \"Polestar exports and accept\"): nothing of the release is in the PR." \
+              '.polestar = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
+          fi
+
+      # --- Addons: check what the shipper reads, accept.
+      - name: Addon releases, checked and accepted
+        if: inputs.mode == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'addons')
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -eu
+          if uv run --frozen python tools/kb/bump.py addons --why "$WHY"; then
+            uv run --frozen python tools/kb/watch.py --accept addons
+            git add -A && git commit -qm "Addon releases: what the shipper reads is unchanged"
+          fi
+
+      # --- Client build: the class reference against the new build, accept.
+      - name: Client build
+        if: inputs.mode == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'client-build')
+        run: |
+          set -u
+          if uv run --frozen python tools/class_reference/export.py --polestar "$RUNNER_TEMP/polestar" \
+            && uv run --frozen python tools/kb/bump.py regen --as client-build --why "$WHY" \
+            && uv run --frozen python tools/kb/watch.py --accept client-build; then
+            git add -A && git commit -qm "Client build: the class reference rerun"
+          else
+            git reset -q --hard HEAD && git clean -qfd
+            # bump.py regen wrote its own reason; this one only when it didn't.
+            jq --arg w "The class reference export failed against the new build (this run's step \"Client build\")." \
+              '."client-build" //= $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
+          fi
+
+      # --- The model passes.
       - name: Pages for the model pass
         id: pages
-        if: inputs.mode == 'watch' || inputs.mode == 'refresh'
+        if: (inputs.mode == 'watch' || inputs.mode == 'refresh') && steps.open.outputs.pr == ''
         env:
           CHANGED: ${{ steps.watch.outputs.changed_official }}
           ASKED: ${{ inputs.pages }}
-          MODE: ${{ inputs.mode }}
         run: |
           set -eu
           if [ "$MODE" = refresh ]; then keys="$ASKED"; else keys=$(echo "${CHANGED:-[]}" | jq -r '.[]' | xargs); fi
@@ -101,23 +268,29 @@ jobs:
 
       - name: Meta, what's new (no model)
         id: collect
-        if: inputs.mode == 'meta'
+        if: inputs.mode == 'meta' && steps.open.outputs.pr == ''
         run: uv run --frozen python tools/kb/meta.py collect --items "$RUNNER_TEMP/meta-items.json"
 
       - name: No model pass here (the ANTHROPIC_* variables aren't set)
         if: vars.ANTHROPIC_FEDERATION_RULE_ID == '' && (steps.pages.outputs.keys != '' || steps.collect.outputs.new > 0)
-        run: echo '::notice::Model pass skipped, set the ANTHROPIC_* repository variables to run it (docs/kb.md).'
+        run: |
+          echo '::notice::Model pass skipped, set the ANTHROPIC_* repository variables to run it (docs/kb.md).'
+          jq --arg w "The model pass isn't set up (the ANTHROPIC_* repository variables, docs/kb.md): nothing read the changed pages." \
+            '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
       - name: GitHub OIDC token for Anthropic
-        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (steps.pages.outputs.keys != '' || steps.collect.outputs.new > 0)
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (steps.pages.outputs.keys != '' || (inputs.mode == 'meta' && steps.open.outputs.pr == ''))
         run: |
           token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.anthropic.com" | jq -r .value)
           echo "::add-mask::$token"
           umask 077
           printf '%s' "$token" > "$RUNNER_TEMP/anthropic-oidc"
-      - name: Model pass (proposals only)
+      # A failure here doesn't stop the other kinds: their PR still lands,
+      # `official` keeps its issue with the reason, and the run ends red.
+      - name: Model pass
         id: refresh
         if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.pages.outputs.keys != ''
+        continue-on-error: true
         env:
           KEYS: ${{ steps.pages.outputs.keys }}
           ANTHROPIC_IDENTITY_TOKEN_FILE: ${{ runner.temp }}/anthropic-oidc
@@ -128,7 +301,38 @@ jobs:
         run: |
           # shellcheck disable=SC2086 # one word per key
           uv run --frozen python tools/kb/refresh.py $KEYS
-      - name: Meta model pass (proposals only)
+      - name: The model pass failed
+        if: steps.refresh.outcome == 'failure'
+        run: |
+          git reset -q --hard HEAD && git clean -qfd
+          jq --arg w "The model pass failed (this run's step \"Model pass\": the token exchange, the API or its answer); nothing from the pages is in the PR." \
+            '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
+      # The pages the pass read are accepted (none past a cost-cap stop); its
+      # file folds into the lanes at once (no re-verify, no model), as the
+      # tree must be what the weekly lifecycle would make of it.
+      - name: Fold and accept what the model pass read
+        if: steps.refresh.outcome == 'success'
+        env:
+          READ: ${{ steps.refresh.outputs.read }}
+          KEYS: ${{ steps.pages.outputs.keys }}
+        run: |
+          set -eu
+          uv run --frozen python tools/kb/lifecycle.py --no-fetch --summary "$RUNNER_TEMP/refresh-summary.md"
+          if [ -n "$READ" ]; then
+            # shellcheck disable=SC2086 # one word per key
+            uv run --frozen python tools/kb/watch.py --accept official --only $READ
+          fi
+          git add -A
+          git diff --cached --quiet || git commit -qm "Official pages: statements from the model pass"
+          unread=""
+          for k in $KEYS; do
+            case " $READ " in *" $k "*) ;; *) unread="$unread $k" ;; esac
+          done
+          if [ -n "$unread" ]; then
+            jq --arg w "The model pass stopped before reading:$unread (its cost cap, KB_REFRESH_MAX_USD); the next run reads them." \
+              '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
+          fi
+      - name: Meta model pass
         id: meta
         if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.collect.outputs.new > 0
         env:
@@ -140,49 +344,131 @@ jobs:
         run: >-
           uv run --frozen python tools/kb/meta.py propose
           --items "$RUNNER_TEMP/meta-items.json" --summary "$RUNNER_TEMP/meta-summary.md"
+      # Forum titles only, no Reddit, without the ANTHROPIC_* variables.
+      - name: Community, what players are saying
+        id: community
+        if: inputs.mode == 'meta' && steps.open.outputs.pr == ''
+        env:
+          COMMUNITY_MAX_USD: "1"
+          ANTHROPIC_IDENTITY_TOKEN_FILE: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID != '' && format('{0}/anthropic-oidc', runner.temp) || '' }}
+          ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+        run: uv run --frozen python tools/kb/community.py --summary "$RUNNER_TEMP/meta-summary.md"
+      # After the community step, so its weeks are trimmed too. Runs without
+      # the ANTHROPIC_* variables: stale statements are then only checked for
+      # gone sources, the rest listed in the PR.
+      - name: Lifecycle (fold, expire, merge, re-verify, digests)
+        id: lifecycle
+        if: inputs.mode == 'meta' && steps.open.outputs.pr == ''
+        env:
+          KB_LIFECYCLE_MAX_USD: "1"
+          ANTHROPIC_IDENTITY_TOKEN_FILE: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID != '' && format('{0}/anthropic-oidc', runner.temp) || '' }}
+          ANTHROPIC_FEDERATION_RULE_ID: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID }}
+          ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
+          ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
+          ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
+        run: uv run --frozen python tools/kb/lifecycle.py --summary "$RUNNER_TEMP/meta-summary.md"
       - name: Remove the token and the collected text
         if: always()
         run: rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/meta-items.json"
 
       - name: Sweep
-        if: inputs.mode == 'sweep'
+        if: inputs.mode == 'sweep' && steps.open.outputs.pr == ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
         run: uv run --frozen python tools/kb/sweep.py --github
 
-      - name: Schema check of what goes into the PR
-        if: steps.refresh.outputs.statements > 0 || inputs.mode == 'sweep' || steps.meta.outputs.read > 0
-        run: uv run --frozen pytest -q tests/test_kb_schema.py
-
-      - name: Open the PR (never auto-merged)
-        if: steps.refresh.outputs.statements > 0 || inputs.mode == 'sweep' || steps.meta.outputs.read > 0
+      - name: Size budget issue
+        if: inputs.mode == 'meta'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          MODE: ${{ inputs.mode }}
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: uv run --frozen python tools/kb/lifecycle.py --budget-issue
+
+      # --- One PR, gated.
+      - name: Commit and describe
+        id: pr
+        env:
+          BASE: ${{ steps.base.outputs.sha }}
           SPENT: ${{ steps.refresh.outputs.spent_usd }}
-          META_STATEMENTS: ${{ steps.meta.outputs.statements }}
         run: |
           set -eu
+          git add -A
+          git diff --cached --quiet || git commit -qm "kb-refresh $MODE"
           day=$(date -u +%F)
-          kind=$([ "$MODE" = sweep ] || [ "$MODE" = meta ] && echo "$MODE" || echo refresh)
-          branch="kb-$kind-$day"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
-          git switch -c "$branch"
-          git add data/kb
-          if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
-          if [ "$kind" = meta ]; then
-            title="KB meta $day: ${META_STATEMENTS:-0} statements proposed from news, blue posts and guides"
-            body=$(cat "$RUNNER_TEMP/meta-summary.md")
-          elif [ "$kind" = sweep ]; then
-            title="KB sweep $day: cited sources"
-            body="The monthly sweep's record of every cited URL (data/kb/sweep.json), so next month compares with this one. What to look at is in the open kb-watch sweep issue."
-          else
-            title="KB refresh $day: statements proposed from the changed official pages"
-            body="Proposed by tools/kb/refresh.py (model pass, \$${SPENT} of a \$${KB_REFRESH_MAX_USD} cap) from the official pages the watcher saw change. Every statement cites its page; check each against it before merging. A statement with \`supersedes\` replaces that one. Refused proposals are listed as open questions in the file. Once merged, record the pages' new state: \`uv run python tools/kb/watch.py --accept official\`."
-          fi
-          git commit -m "$title"
-          gh auth setup-git  # the push's credentials, from this step's GH_TOKEN only
-          git push -f origin "HEAD:refs/heads/$branch"
-          gh pr create --base main --head "$branch" --title "$title" --body "$body" --label kb-watch \
-            || gh pr edit "$branch" --title "$title" --body "$body"
+          body="$RUNNER_TEMP/pr-body.md"
+          case "$MODE" in
+            meta)
+              title="KB meta $day: news, blue posts and guides, and the lifecycle"
+              cat "$RUNNER_TEMP/meta-summary.md" > "$body" 2>/dev/null || echo "The weekly meta pass." > "$body" ;;
+            sweep)
+              title="KB sweep $day: cited sources"
+              echo "The monthly sweep's record of every cited URL (data/kb/sweep.json), so next month compares with this one. What to look at is in the open kb-watch sweep issue." > "$body" ;;
+            *)
+              title="KB $MODE $day: $(git log --reverse --format=%s "$BASE..HEAD" | paste -sd ';' - | cut -c1-180)"
+              {
+                echo "What the refresh job landed, from what tools/kb/watch.py saw change:"
+                git log --reverse --format='- %s' "$BASE..HEAD"
+                echo
+                echo "Official statements come from tools/kb/refresh.py (model pass, \$${SPENT:-0} of a \$${KB_REFRESH_MAX_USD} cap); each cites its page."
+                cat "$RUNNER_TEMP/refresh-summary.md" 2>/dev/null || true
+              } > "$body" ;;
+          esac
+          echo "title=$title" >> "$GITHUB_OUTPUT"
+      # No token here: the gates run the test suite. A refusal is the
+      # verdict in gates.json, not a red step.
+      - name: Gates
+        env:
+          BASE: ${{ steps.base.outputs.sha }}
+        run: >-
+          uv run --frozen python tools/kb/gates.py --base "$BASE"
+          --out "$RUNNER_TEMP/gates.json" --markdown "$RUNNER_TEMP/gates.md" || true
+      - name: Mint a fresh token for landing
+        id: token-land
+        if: always()
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: sam-dumont
+          repositories: wow-mcp
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+      - name: Land (merge when the gates passed)
+        id: land
+        env:
+          GH_TOKEN: ${{ steps.token-land.outputs.token }}
+          BASE: ${{ steps.base.outputs.sha }}
+          TITLE: ${{ steps.pr.outputs.title }}
+          KINDS: ${{ steps.watch.outputs.kinds }}
+        run: >-
+          uv run --frozen python tools/kb/land.py --mode "$MODE" --branch "$BRANCH"
+          --base "$BASE" --title "$TITLE" --body-file "$RUNNER_TEMP/pr-body.md"
+          --gates "$RUNNER_TEMP/gates.json" --gates-md "$RUNNER_TEMP/gates.md"
+          --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
+
+      # Last, whatever happened: a kind main still doesn't know keeps one
+      # issue that says why (a step's reason, or this run's link when it
+      # stopped early); a kind main now knows closes its issue.
+      - name: Issues
+        if: always() && inputs.mode == 'watch'
+        env:
+          GH_TOKEN: ${{ steps.token-land.outputs.token }}
+          BASE: ${{ steps.base.outputs.sha }}
+        run: |
+          set -eu
+          state="$RUNNER_TEMP/watch-state.json"
+          [ -s "$state" ] || git show "$BASE:data/kb/watch.json" > "$state"
+          uv run --frozen python tools/kb/watch.py --github --state "$state" --why "$WHY"
+      - name: The run failed before landing
+        if: failure() && inputs.mode != 'watch'
+        env:
+          GH_TOKEN: ${{ steps.token-land.outputs.token }}
+        run: uv run --frozen python tools/kb/land.py --failed --mode "$MODE" --branch "$BRANCH"
+      - name: Red when the model pass failed
+        if: steps.refresh.outcome == 'failure'
+        run: |
+          echo "::error::The model pass failed; the rest landed, and the official issue says so."
+          exit 1

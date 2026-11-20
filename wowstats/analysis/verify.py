@@ -169,8 +169,9 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     if not KEY_RE.match(key):
         return None, f"bad key {key!r}"
     sql_text = str(f.get("sql") or "")
+    params = f.get("sql_params") if isinstance(f.get("sql_params"), dict) else None
     try:
-        row = ro.first_row(sql_text)
+        row = ro.first_row(sql_text, params)
     except QueryError as e:
         return None, f"{key}: query failed on re-run: {e}"
     for part in ("title", "claim"):
@@ -214,7 +215,10 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
         "key": key, "title": render(str(f.get("title") or key), row)[:120],
         "text": render(str(f.get("claim") or ""), row)[:1200],
         "title_template": str(f.get("title") or key)[:200], "claim_template": str(f.get("claim") or "")[:1500],
-        "sql": sql_text[:6000], "expect": {k: row[k] for k in exp}, "holds": cond or None,
+        # A metric query's SQL is the compiler's, kept whole so the recheck runs it as judged.
+        "sql": sql_text if params else sql_text[:6000], "sql_params": params,
+        "metric_query": f.get("metric_query") if params is not None else None,
+        "engine": getattr(ro, "engine", "sqlite"), "expect": {k: row[k] for k in exp}, "holds": cond or None,
         "kb": cites[:12], "effect_col": f.get("effect") if isinstance(f.get("effect"), str) else None,
         "sample_col": f.get("sample") if isinstance(f.get("sample"), str) else None,
         "relevance": max(1, min(3, int(f.get("relevance") or 1))) if str(f.get("relevance") or "1").isdigit() else 1,
@@ -231,7 +235,7 @@ def recheck(stored: dict, ro: ReadOnly) -> tuple[dict | None, str]:
     true; the text is rendered again from today's numbers (no `expect`:
     the numbers are allowed to move)."""
     try:
-        row = ro.first_row(stored["sql"])
+        row = ro.first_row(stored["sql"], stored.get("sql_params"))
     except QueryError as e:
         return None, f"query failed: {e}"
     if stored.get("holds"):

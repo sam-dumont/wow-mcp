@@ -48,6 +48,8 @@ class QueryError(Exception):
 
 
 class ReadOnly:
+    engine = "sqlite"
+
     def __init__(self, db: sqlite3.Connection, seconds: float = QUERY_SECONDS, tables=None):
         self.db, self.seconds = db, seconds
         # Tables a query may read (None: any). A read of any other is refused.
@@ -128,7 +130,9 @@ class ReadOnly:
             if row[1] == "OpenRead" and row[4] == 0 and roots.get(row[3], "sqlite_master") not in self.tables:
                 raise sqlite3.DatabaseError("not authorized")
 
-    def first_row(self, sql: str) -> dict:
+    def first_row(self, sql: str, params: dict | None = None) -> dict:
+        if params:  # a semantic-layer finding: DuckDB's placeholders (duck.ReadOnlyDuck)
+            raise QueryError("this finding runs on DuckDB")
         cols, rows, _ = self.run(sql, 1)
         if not rows:
             raise QueryError("no rows")

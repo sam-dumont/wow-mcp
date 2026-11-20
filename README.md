@@ -13,7 +13,7 @@ wants to keep.
 It runs on your computer or a small box at home. Nothing goes anywhere else unless you set it
 up that way.
 
-![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's route time, the next level in 2h 27m of play, 90% of guide steps in order, his next moves, and time per level against the route](docs/images/overview-light.webp)
+![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's route time, the next level in 2h 27m of play, 90% of guide steps in order, his next moves, and time per level against the route](docs/images/overview.webp)
 
 **[Live demo](https://sam-dumont.github.io/wow-mcp/demo/)**: Nibbet-Gearholt, an invented Gnome
 priest, no install (online once the repository is public).
@@ -32,8 +32,9 @@ Then, for your AI: **[Connect your AI](docs/ai/connect.md)**. Everything else is
 
 ## The demo in two commands
 
-With [Docker](https://docs.docker.com/get-docker/) running, from the top of a copy of this
-repository (Mac, Linux, or Git Bash on Windows):
+With [Docker](https://docs.docker.com/get-docker/) running and logged in to Docker's hardened
+images once (`docker login dhi.io`, a free Docker Hub account), from the top of a copy of
+this repository (Mac, Linux, or Git Bash on Windows):
 
 ```sh
 cd deploy/compose && export INGEST_PASSWORD=demo-password-only

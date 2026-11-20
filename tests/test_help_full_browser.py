@@ -59,7 +59,7 @@ def test_help_on_the_full_view(site, pw, engine):
             r = pg.goto(f"{site}/help")  # the nav's link, or a typed address
             assert r.status == 200 and pg.url.endswith("/help/")
             pg.wait_for_selector(".ask")
-            assert pg.locator(".hsite a[aria-current=page]").inner_text() == "Help"
+            assert pg.locator(".bar-nav a[aria-current=page]").inner_text() == "Help"
             assert pg.locator("#hnav").is_visible()
             assert pg.evaluate(OVER) <= 0, (engine, width)
             assert pg.evaluate(WIDE) == [], (engine, width)
@@ -114,14 +114,45 @@ def test_not_found_is_a_page_with_the_way_back(site, pw, engine):
             r = pg.goto(f"{site}/no-such-page")
             assert r.status == 404
             assert pg.locator("h1").inner_text() == "Nothing here"
+            assert pg.locator("main a.btn[href='/']").inner_text() == "My page"
             for name, href in (("My page", "/"), ("Start", "/start"), ("Help", "/help/")):
-                assert pg.locator(f".nf-links a[href='{href}']").inner_text() == name
-            assert pg.locator(".acc-top nav a[href='/help/']").is_visible()
+                assert pg.locator(f".bar-nav a[href='{href}']").inner_text() == name
+            assert pg.locator(".bar-nav a[href='/help/']").is_visible()
             assert pg.evaluate(OVER) <= 0
             # Styled: the page's own fonts and colours loaded.
             assert "Cinzel" in pg.locator("h1").evaluate("(e) => getComputedStyle(e).fontFamily")
             shoot(pg, f"notfound-{engine}-{width}-{scheme}")
-            pg.locator(".nf-links a[href='/help/']").click()
+            pg.locator(".bar-nav a[href='/help/']").click()
             pg.wait_for_selector(".ask")
             c.close()
+    b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_the_addon_list_on_help(site, pw, engine):
+    """The optional addons, one step each, WoWSims Exporter among them: the
+    same list as /start and the docs (tests/test_addon_lists.py)."""
+    from wowstats import account
+
+    b = browser(pw, engine)
+    for width, scheme in ((390, "light"), (390, "dark"), (1920, "light"), (1920, "dark")):
+        c = context(b, width, scheme)
+        pg = c.new_page()
+        errors = []
+        pg.on("pageerror", lambda e: errors.append(str(e)))
+        pg.goto(f"{site}/help/")
+        pg.wait_for_selector("#q-addons")
+        pg.locator("#q-addons details.hopt summary").click()
+        opt = [a for a in account.addons() if not a["required"]]
+        items = pg.locator("#q-addons details.hopt li")
+        assert items.count() == len(opt)
+        for a, li in zip(opt, items.all(), strict=True):
+            assert li.inner_text() == f"{a['name']} {a['what']}. {a['step']}"
+        assert pg.evaluate(OVER) <= 0 and not errors
+        out = os.environ.get("WOW_SHOTS")
+        if out:
+            Path(out).mkdir(parents=True, exist_ok=True)
+            pg.locator("#q-addons").scroll_into_view_if_needed()
+            pg.locator("#q-addons").screenshot(path=f"{out}/help-addons-{engine}-{width}-{scheme}.png")
+        c.close()
     b.close()

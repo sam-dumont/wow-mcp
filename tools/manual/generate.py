@@ -328,7 +328,7 @@ def addons_page() -> str:
         for a in d["addons"]:
             data_by_addon.setdefault(a, []).append(d["what"])
     rows = [[f"[{a['name']}]({a['url']})", "required" if a["required"] else "optional", a["what"],
-             f"`{a['dir']}`", ", ".join(data_by_addon.get(a["id"], [])) or "no section of its own"]
+             a.get("step") or "", f"`{a['dir']}`", ", ".join(data_by_addon.get(a["id"], [])) or "no section of its own"]
             for a in st["addons"]]
     routes = st.get("addon_routes", {})
     out = [
@@ -343,7 +343,8 @@ def addons_page() -> str:
         "in your `_forever_` folder, when you `/reload` or log out. A missing optional addon leaves its "
         "part of the page empty; nothing breaks.",
         "",
-        table(["Addon", "Needed", "What it gives your page", "Folder in `Interface/AddOns`", "Fills"], rows),
+        table(["Addon", "Needed", "What it gives your page", "The one step", "Folder in `Interface/AddOns`", "Fills"],
+              rows),
         "",
     ]
     for key in ("app", "manual"):
@@ -375,13 +376,15 @@ ENDPOINTS = [
     ("The full view: `wow-stats ui`, port 8080 (`PORT`)",
      "Your own page. Route it through your login, except the rows that say otherwise.",
      [
-         (["/", "/app.js", "/app.css", "/items.js", "/fonts/*"], "login", "the page and its files"),
+         (["/", "/app.js", "/app.css", "/base.css", "/theme.js", "/items.js", "/fonts/*"], "login",
+          "the page and its files"),
          (["/api/config", "/api/chars", "/api/char", "/api/journal", "/api/overview", "/api/timeline",
-           "/api/snapshot", "/api/people", "/api/loot", "/api/dungeons", "/api/gear", "/api/analysis",
-           "/api/items", "/api/plan", "/api/market", "/api/prices", "/api/logsql", "/api/*"], "login",
+           "/api/snapshot", "/api/people", "/api/loot", "/api/dungeons", "/api/meta", "/api/news", "/api/gear",
+           "/api/analysis", "/api/items", "/api/plan", "/api/market", "/api/prices", "/api/logsql", "/api/*"], "login",
           "the page's JSON answers (`/api/plan` also takes a POST)"),
-         (["/model3d/*", "/api/model3d", "/render/<char>.<ext>", "/icons/<size>/<name>.jpg"], "login",
-          "the 3D view, the armory picture, the item icons"),
+         (["/model3d/*", "/model3d/file/<id>", "/api/model3d", "/render/<char>.<ext>",
+           "/icons/<size>/<name>.jpg"], "login",
+          "the 3D view (its frame, and the game files your shipper sent, by id), the armory picture, the item icons"),
          (["/full/"], "login", "`FULL_DOOR_PATH`: a redirect to `/`, through your login. Empty: off"),
          (["/healthz"], "public", "health check: `200 ok`, no login. Fine to route; probes need no credentials"),
          (["/ingest"], "public", "`POST` from the shipper, with its own password (`INGEST_PASSWORD`). "
@@ -393,14 +396,14 @@ ENDPOINTS = [
          (["/start", "/start/print", "/start/media/*", "/settings", "/account.js", "/account.css", "/api/me",
            "/api/me/status", "/api/me/install-code", "/api/me/settings", "/api/me/*",
            "/api/admin/hosts"], "login", "the start page, settings, and each person's own answers"),
-         (["/admin", "/admin.css", "/api/admin/overview"], "login",
+         (["/admin", "/api/admin/overview"], "login",
           "the owner's overview ([Admin overview](../self-host/admin.md)); 404 for anyone else"),
          (["/help", "/help/", "/help/help.js", "/help/help.css"], "login",
           "the manual for friends: install steps, the page tour, connecting their AI"),
          (["/install/<code>", "/privacy", "/privacy/*"], "public",
           "the install command (the single-use code is the credential) and the privacy page: no login"),
      ]),
-    ("The shipper's auto-update: inside `wow-stats ui`, same port",
+    ("The shipper's auto-update and the 3D view's files: inside `wow-stats ui`, same port",
      "With one person or several. Route it like `/ingest`, **without** your page login: the shipper "
      "sends its upload password.",
      [
@@ -408,6 +411,13 @@ ENDPOINTS = [
           "`GET`, upload password: the shipper's version and each file's sha256, as JSON"),
          (["/install/update/shipper/<name>"], "public",
           "`GET`, upload password: one of the shipper's files (`wow_stats.py`, the installers)"),
+         (["/install/assets/need"], "public",
+          "`GET`, upload password, while `MODEL3D` is on: the game files the 3D view still wants from that "
+          "person's shipper (client tables by file id, then models and textures), as JSON"),
+         (["/install/assets/table/<Name>", "/install/assets/file/<id>"], "public",
+          "`POST`, upload password and `/ingest`'s daily budget: one client table, or one model, skin, "
+          "skeleton, animation or texture the server asked for (`X-Content-SHA256`), 16 MB at most, "
+          "kept in that person's own folder"),
      ]),
     ("The MCP endpoint: inside `wow-stats ui`, port 8090 (`MCP_PORT`)",
      "Only when `MCP_PUBLIC_URL` is set. Route these to 8090 **without** your page login: "
@@ -432,9 +442,12 @@ ENDPOINTS = [
      ]),
     ("Never route these from outside", "Internal listeners. Keep them on a private network.", [
         (["/bundle", "/bundles"], "never", "the static server's upload port (`UPLOAD_PORT`)"),
-        (["/analysis.json", "/users.json", "/hosts.json", "/profile-characters", "/publisher.json"], "never",
-         "the full view's share port (`ANALYSIS_SHARE_PORT`); the publisher POSTs its pass to `/publisher.json`"),
-        (["/render", "/model3d/view", "/healthz"], "never", "the renderer, port 8083"),
+        (["/analysis.json", "/users.json", "/hosts.json", "/profile-characters", "/publisher.json",
+          "/assets/<slug>/*"], "never",
+         "the full view's share port (`ANALYSIS_SHARE_PORT`); the publisher POSTs its pass to `/publisher.json` "
+         "and reads each person's 3D files from `/assets/<slug>/`"),
+        (["/render", "/file/<id>", "/model3d/view", "/healthz"], "never",
+         "the renderer, port 8083: the publisher POSTs a recipe to `/render` and the files it lacks to `/file/<id>`"),
         (["/metrics", "/healthz"], "never",
          "the exporter, port 9464 (`LISTEN_PORT`): its own health only, never Blizzard's data"),
         (["/select/*", "/insert/*"], "never", "VictoriaLogs, port 9428: your events, readable without a login"),
@@ -467,6 +480,27 @@ def endpoints_page() -> str:
 # ---------------------------------------------------------------- blocks from steps.json and the help page
 
 OS_LANG = {"mac": "sh", "windows": "powershell"}
+MEDIA = ROOT / "docs" / "videos" / "media"
+
+
+def clip(name: str | None, label: str) -> list[str]:
+    """A step's clip (steps.json `media`, "x.mp4" for x-light.mp4 and
+    x-dark.mp4) as a paragraph that is only a link: GitHub opens the file,
+    the docs site plays it in the reader's theme (site/scripts/prepare.mjs).
+    Every block page sits one folder under docs/."""
+    if not name:
+        return []
+    stem = name.removesuffix(".mp4")
+    if not (MEDIA / f"{stem}-light.mp4").exists():
+        raise SystemExit(f"steps.json names {name}, but there's no docs/videos/media/{stem}-light.mp4")
+    mac = " (Mac)" if stem.endswith("-mac") else ""
+    return [f"[Watch: {label}{mac}](../videos/media/{stem}-light.mp4)", ""]
+
+
+def os_block(key: str, lines: list[str]) -> list[str]:
+    """One OS's part, in a div the docs site turns into Windows | Mac tabs
+    (src/components/Footer.astro); GitHub shows both, one after the other."""
+    return [f'<div class="os" data-os="{key}">', "", *lines, "</div>", ""]
 
 
 def _os_cmds(os_: dict, personal: bool) -> list[str]:
@@ -475,25 +509,28 @@ def _os_cmds(os_: dict, personal: bool) -> list[str]:
         o = os_.get(key)
         if not o:
             continue
-        out += [f"**{o['label']}.** {text(o.get('how', ''))}".rstrip(), ""]
+        part = []
+        part += [f"**{o['label']}.** {text(o.get('how', ''))}".rstrip(), ""]
         if o.get("command"):
             cmd = o["command"]
             if personal and "{code}" in cmd:
                 cmd = cmd.replace("{code}", "<your code>")
-                out += ["Your command is on your start page. It looks like this (the code is yours, single use):",
-                        ""]
-            out += [code(cmd, OS_LANG[key]), ""]
+                part += ["Your command is on your start page. It looks like this (the code is yours, single use):",
+                         ""]
+            part += [code(cmd, OS_LANG[key]), ""]
         if o.get("installs"):
-            out += [f"It installs: {text(o['installs'])}", ""]
+            part += [f"It installs: {text(o['installs'])}", ""]
+        out += os_block(key, part)
     return out
 
 
 def block_steps() -> str:
     st = steps()
-    out = []
+    out = clip(st.get("media"), "the whole setup, from the start page")
     for i, s in enumerate(st["steps"], 1):
         g = s.get("generic") or {}
         out += [f"### {i}. {s['title']}", "", f"*{text(s['caption'])}*", ""]
+        out += clip(s.get("media"), s["title"].lower())
         for p in g.get("body") or s.get("body", []):
             out += [text(p), ""]
         if s.get("os"):
@@ -514,16 +551,17 @@ def block_update() -> str:
     out = [f"- {text(u)}" for u in st["update"]]
     upd = next((s["update"] for s in st["steps"] if s.get("update")), {})
     if upd:
-        out += ["", "The update lines, no code needed:", ""]
+        out += ["", *clip(st.get("update_media"), "an update"), "The update lines, no code needed:", ""]
         for key, label in (("windows", "Windows (PowerShell)"), ("mac", "Mac (Terminal)")):
             if key in upd:
-                out += [f"**{label}.**", "", code(upd[key], OS_LANG[key]), ""]
+                out += os_block(key, [f"**{label}.**", "", code(upd[key], OS_LANG[key]), ""])
     return "\n".join(out).rstrip()
 
 
 def block_uninstall() -> str:
     u = steps()["uninstall"]
-    out = [text(p) + "\n" for p in u["body"]]
+    out = clip(u.get("media"), "an uninstall")
+    out += [text(p) + "\n" for p in u["body"]]
     out += _os_cmds(u["os"], personal=False)
     return "\n".join(out).rstrip()
 
@@ -538,7 +576,8 @@ def block_shipper() -> str:
 
 def block_status() -> str:
     s = steps()["guide"]["status"]
-    out = [text(p) + "\n" for p in s["body"]]
+    out = clip(s.get("media"), "reading the log and running it by hand")
+    out += [text(p) + "\n" for p in s["body"]]
     out += _os_cmds(s["os"], personal=False)
     return "\n".join(out).rstrip()
 
@@ -567,12 +606,20 @@ def block_page() -> str:
         out += [f"## {sec['title']}", ""]
         if sec.get("caption"):
             out += [f"*{text(sec['caption'])}*", ""]
+        out += clip(sec.get("media"), sec["title"].lower())
         out += [text(p) + "\n" for p in sec.get("body", [])]
         for label, d in sec.get("points", []):
             out += [f"- **{label}**: {text(d)}"]
         if sec.get("points"):
             out += [""]
     return "\n".join(out).rstrip()
+
+
+def block_addons() -> str:
+    """Every addon, what it unlocks and its one step: the same list as /start,
+    /help/ and the addons page (tests/test_addon_lists.py)."""
+    return "\n".join(f"- **[{a['name']}]({a['url']})** ({'required' if a['required'] else 'optional'}): "
+                     f"{text(a['what'])}. {text(a.get('step') or '')}".rstrip() for a in steps()["addons"])
 
 
 def block_clients() -> str:
@@ -605,7 +652,42 @@ def block_groups() -> str:
     return "\n".join(f"- **{g}**: {d}." for g, d, _ in helppage.GROUPS)
 
 
+def block_semantic() -> str:
+    """The metric catalogue, from wowstats/analysis/semantic.yaml."""
+    from wowstats.analysis import semantic
+
+    cat = semantic.catalogue()
+
+    def cell(t) -> str:
+        return str(t or "").replace("|", "\\|").replace("\n", " ")
+
+    out = []
+    for model in semantic.spec():
+        ms = [m for m in cat["metrics"] if m["model"] == model]
+        out += [f"### {model}", "", cell(semantic.spec()[model].get("description")), "",
+                "| Metric | Kind | Unit | Definition | Caveats |", "|---|---|---|---|---|"]
+        out += [f"| `{m['name']}` | {m['kind']} | {cell(m['unit'])} | {cell(m['description'])} | "
+                f"{cell(m['caveats'])} |" for m in ms]
+        out += ["", "Group or filter by: " + ", ".join(f"`{d}`" for d in ms[0]["group_by"]) + ".", ""]
+    cross = [m for m in cat["metrics"] if m["model"] == "cross"]
+    if cross:
+        out += ["### Across two models", "",
+                "Each model aggregates on its own to the question's group_by, the results join on those "
+                "columns, then the expression runs on the joined row: no fan-out. They group and filter by the "
+                "dimensions their models share.", "",
+                "| Metric | Kind | Unit | Expression | Definition | Caveats | Group or filter by |",
+                "|---|---|---|---|---|---|---|"]
+        out += [f"| `{m['name']}` | {m['kind']} | {cell(m['unit'])} | `{cell(m['expr'])}` | {cell(m['description'])} "
+                f"| {cell(m['caveats'])} | {', '.join(f'`{d}`' for d in m['group_by'])} |" for m in cross]
+        out += [""]
+    out += ["### Dimensions", "", "| Dimension | Models | Definition |", "|---|---|---|"]
+    out += [f"| `{d['name']}` | {', '.join(d['models'])} | {cell(d['description'])}"
+            + (f" Grains: {', '.join(d['grains'])}." if d.get("grains") else "") + " |" for d in cat["dimensions"]]
+    return "\n".join(out)
+
+
 BLOCKS = {
+    "semantic-catalogue": block_semantic,
     "player-needs": block_needs,
     "player-steps": block_steps,
     "player-update": block_update,
@@ -615,12 +697,14 @@ BLOCKS = {
     "player-trouble": lambda: block_trouble("install"),
     "player-missing": block_missing,
     "player-page": block_page,
+    "addon-list": block_addons,
     "ai-clients": block_clients,
     "ai-asks": block_asks,
     "ai-groups": block_groups,
     "ai-trouble": lambda: block_trouble("mcp"),
 }
 BLOCK_SOURCE = {k: "docs/videos/steps.json" for k in BLOCKS}
+BLOCK_SOURCE["semantic-catalogue"] = "wowstats/analysis/semantic.yaml"
 BLOCK_SOURCE.update({"ai-clients": "wowstats/mcp/helppage.py (CLIENTS)", "ai-asks": "wowstats/mcp/helppage.py (ASKS)",
                      "ai-groups": "wowstats/mcp/helppage.py (GROUPS)"})
 BLOCK_RE = re.compile(r"(<!-- generated:([a-z-]+) -->\n)(.*?)(<!-- /generated:\2 -->)", re.S)

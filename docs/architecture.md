@@ -34,7 +34,7 @@ venv with the `wowstats` package and those two extras.
 | `wowstats/stores.py` | Reads from VictoriaLogs (LogsQL) and VictoriaMetrics (PromQL), plus the helpers that merge and dedupe rows (newest `_time` per `source_id`, then highest `rev`). Every VictoriaLogs request goes through one gate (`VL_GATE`). |
 | `wowstats/eventcache.py`, `wowstats/logsql.py` | One character's events kept in the process and refreshed by the hour that changed; the views' LogsQL answered over them ("Caching" below). |
 | `wowstats/views.py` | Builds each JSON answer from the stores: characters, header, climb, levels, zones, guide steps, dungeons, deaths, players, flights, prices, market. Treats `Name Surname` and `Name-Surname` as one character. |
-| `wowstats/journal.py` | Splits the play history into sessions (20 minutes without a Recorder record, or the shipper's `login` marker) and builds one journal entry per session. |
+| `wowstats/journal.py` | Splits the play history into sessions (more than 330 s without a Recorder record, the semantic layer's rule: `stores.split_sessions`) and builds one journal entry per session. |
 | `wowstats/redact.py` | The public and `/zogzog/` tiers: allow lists of what may leave the server. |
 | `wowstats/items.py` | Item names and qualities for the loot history (Forever's ItemSparse via wago.tools). |
 | `wowstats/exporter.py` | The Battle.net exporter. |
@@ -47,11 +47,12 @@ venv with the `wowstats` package and those two extras.
 | `data/route-reference.json` | Polestar's route clock (GPL-3.0), packaged as `wowstats/data/`. `docs/route-reference.md`; remade by `tools/route_reference/`. |
 | `data/gear-reference.json` | Polestar's gear data: items, sources, quests, stat weights (GPL-3.0 with MIT parts, `THIRD_PARTY.md`), packaged as `wowstats/data/`. `docs/gear-reference.md`; remade by `tools/gear_reference/`, which also holds `parity.lua`, Polestar's own scoring run under Lua for the tests. |
 | `data/forever-reference.json` | Forever's quest and item names, quest levels and zones, and which zones are dungeons with their level range (forever-db, GPL-3.0; Forever's client tables), packaged as `wowstats/data/`. `docs/forever-reference.md`; remade by `tools/forever_reference/`. |
-| `data/model3d-reference.json.gz` | How Forever dresses each armor display (Forever's client tables via wago.tools), for the 3D view's armor Wowhead lacks, packaged as `wowstats/data/`. `docs/model3d-reference.md`; remade by `tools/model3d_reference/`. |
+| `data/battlenet-look.json` | The geosets each Battle.net look choice shows, for the options Forever's own tables don't have (a gnome's Beard and Mustache are one "Facial Hair" in Forever): numbers only, from the current game's client tables (as facts), remade by `tools/battlenet_look/export.py`; read by `wowstats/character3d.py`. |
 | `data/trainers-reference.json` | Who trains each profession rank and riding on Forever, where (zone and map coordinates), the level a rank needs and the price the guides give, with whose price it is (Polestar's shipped profession guides and riding reminder, GPL-3.0), packaged as `wowstats/data/`. Read by `wowstats/trainers.py` for the Overview's profession and riding moves; remade by `tools/trainers/export.py`. A rank with no trainer in it (Artisan Enchanting, the secondary skills past Journeyman) shows "trainer location not in our data". |
 | `data/class-reference.json`, `wowstats/classguide.py` | The class guide: per class the class trainers (capitals and starting towns, with side and map coordinates), what they teach at each level (rank, cost, the races a spell is for) and Forever's talent names and arrows (Polestar's `ClassTrainers.lua` and `ClassSpells.lua`, GPL-3.0, and Forever's client tables), remade by `tools/class_reference/export.py`; with the KB's `classes` lane (`data/kb/research/classes.json`: sourced statements per class and topic, one talent path per class), the character page's "your class at level N" block and the MCP's `class_guide`. |
+| `data/kb/research/class-meta.json`, `wowstats/classmeta.py` | The state of the meta per class and spec (the KB's `class-meta` lane plus the weekly meta pass's class statements): the card's short paragraph (`char.meta`, also on `/zogzog/`), and on the full view `/api/meta`: the full description and the character's adherence (talents against the class path, gear against Polestar's best-at-level, enchants), with its gaps as moves; the MCP's `class_meta`. |
 | `wowstats/gear.py` | Gear advice: Polestar's scoring (`Gear.lua`, `Weights.lua`, `Adjust.lua`) ported, per character, spec and level; behind `/api/gear` (both views) and the MCP `gear` tool. |
-| `web/` | The page: `index.html`, `app.js`, `app.css`, no build step, no third-party code. Fonts are vendored in `web/fonts` (Cinzel, Alegreya, Alegreya Sans: SIL Open Font License, the licence files next to them) and served by the UI itself, so the CSP stays `font-src 'self'`. The crest, slot glyphs and frames are drawn in `app.js` and `app.css`: no game art. Packaged inside the wheel as `wowstats/web`. |
+| `web/` | The pages: `index.html`, `app.js`, `app.css`, and `base.css` + `theme.js`, which every page loads (fonts, palettes, the header from `wowstats/bar.py`, the theme switch); no build step, no third-party code. Fonts are vendored in `web/fonts` (Cinzel, Alegreya, Alegreya Sans: SIL Open Font License, the licence files next to them) and served by the UI itself, so the CSP stays `font-src 'self'`. The crest, slot glyphs and frames are drawn in `app.js` and `app.css`: no game art. Packaged inside the wheel as `wowstats/web`. |
 | `deploy/compose/` | The standalone kit. |
 | `dev/seed.py` | Made-up data (`demo: true`, Testchar/Testalt) for working on the page. |
 
@@ -90,77 +91,81 @@ then fails on any of those bytes in any public answer, for GET and POST.
 The paperdoll's middle has a "View in 3D" toggle (`web/model3d/model3d.js`,
 cut from the live public page with its `<!--model3d-->` markers); it swaps
 the still (the armory's render, `wowstats/armory.py`, or a silhouette) for
-the model in place, and back. Nothing of Wowhead's loads before the toggle.
-Then:
+the model in place, and back. Everything it draws comes from the player's
+own game files: nothing is fetched from anyone else.
 
-- A frame opens on `/model3d/view`, a page of its own. Wowhead's viewer
-  (`ZamModelViewer`, the one behind wowhead.com's dressing room) is a
-  WebAssembly build that needs `'unsafe-eval' 'wasm-unsafe-eval'` and `blob:`
-  images: only that page gets them (`model3d.VIEW_POLICY`). The main page
-  keeps its CSP plus `frame-src 'self'`. jQuery 3.7.1, which the viewer is
-  built on, is vendored in `web/model3d/`.
-- The viewer is someone else's script, so the frame is a box: `sandbox=
-  "allow-scripts"` with no `allow-same-origin` (an opaque origin: no
-  cookies, storage, /api/* or the page around it) and `connect-src 'none'`.
-  It asks the page for every file over postMessage, and the page fetches
-  only what the relay's allow list names (`RELAY` in `model3d.js`, the same
-  list as `wowstats/model3d.py`) and the answer to draw (in /zogzog/,
-  opened with the key there: the key never reaches the frame). Its own CSS
-  and script are inlined and allowed by hash (`model3d.view_page`): a
-  sandboxed frame's requests carry no cookies, so behind a login they would
-  get the login page. Only one reviewed build of the viewer is relayed
-  (`VIEWER_SHA256`, `MODEL3D_VIEWER_SHA256` to accept a new one): a changed
-  script is refused and the last good copy kept.
-- `/api/model3d` turns the character's gear into what the viewer takes:
-  the race and sex's model id (ChrModel: the classic eight plus Forever's
-  Skyborne, shown on the Blood Elf body Wowhead has, which shares its
-  skeleton), and each item's inventory type and display id. Display ids come
-  from Forever's own client tables on wago.tools (Item,
-  ItemModifiedAppearance, ItemAppearance), so any item works. Neck, rings,
-  trinkets, ammo, quivers, relics and wands aren't drawn, like in game. When
-  a ranged weapon and a melee one want the same hand, a hunter holds the
-  ranged one. Armor Forever added, which Wowhead's data lacks, is dressed
-  from Forever's own tables, shipped in `data/model3d-reference.json.gz`
-  ([Model reference](model3d-reference.md)); a weapon it added borrows the
-  meta of another display of its model. Items still left out are listed
-  under the model with the reason, each as its icon.
+- **The files.** The shipper sends what the server asks for
+  (`/install/assets/need`): Forever's client tables, then each model,
+  skin, skeleton, animation and texture the character's recipes name, by
+  file id, into that person's own folder (`wowstats/assets.py`,
+  `MODEL3D_ASSETS_DIR`, `users/<id>/assets` with several people). What it
+  asks for (`Assets.wanted`) is the union of every recipe's files over the
+  person's characters, now, at each past level and in every outfit of the
+  history (each gear sheet sent, each point the Recorder's replay put an
+  item on), both models, both sexes when the sex isn't known, each outfit
+  once; worked out again every 10 minutes. The shipper sends only what the
+  store lacks, so each file goes once.
+- **The answer.** `/api/model3d` (`wowstats/model3d.py`) reads the person's
+  tables (`character3d.load_tables`) and assembles a recipe
+  (`character3d.assemble`): the race and sex's model (ChrRaces and
+  ChrModel: the classic eight and Forever's Skyborne, its own model), the
+  saved look from Battle.net (`find_look`; a choice Forever's tables
+  lack becomes the Forever choice showing the same geosets,
+  `data/battlenet-look.json`), each drawn item's models,
+  textures and geosets, the enchant's glow. Neck, rings, trinkets, ammo,
+  quivers, relics and wands aren't drawn, like in game; a hunter holds the
+  ranged weapon. Items left out are listed under the model with the
+  reason, each as its icon. No tables yet, or the model's file not here
+  yet: no recipe, and `why` says so in one line on the still.
+- **The frame.** `/model3d/view` is a page of its own: our viewer
+  (`web/model3d/m3d/`, a port of wow.export's renderer to plain WebGL) and
+  `view.js`, inlined and allowed by hash (`model3d.view_page`). It needs no
+  eval and no WebAssembly. It is still a box: `sandbox="allow-scripts"`
+  with no `allow-same-origin` (an opaque origin: no cookies, storage,
+  /api/* or the page around it) and `connect-src 'none'`. It asks the page
+  for each file over postMessage, and the page fetches only
+  `model3d/file/<id>` (the person's own store, behind the same login, or
+  the bundle's copy) and the answer to draw (in /zogzog/, opened with the
+  key there: the key never reaches the frame).
 - **Updated or Classic.** A switch under the model draws the original
-  models (Wowhead's classic data, `sd/meta/character/*` through the relay)
-  or the updated ones, like the game's Character Models option. The look is
-  matched option by option (`model3d.classic_look`), so the face and hair
-  are approximate there. The visitor's pick is kept in the browser; without
-  one the page opens on the person's Settings choice (`models`, or
-  `MODEL3D_MODELS` with one person), else Updated. The past levels'
-  pictures are drawn Updated.
-- `wow.zamimg.com` answers 403 to any page that isn't Wowhead's, so the
-  server fetches the viewer and the model files (`/model3d/zam/*`, an allow
-  list of paths) and keeps them on disk.
-- Sex comes from Syndicator. When it isn't saved, the page offers a
-  male/female pick for that character, kept in the browser only.
+  models (`recipe_sd`, when the race has one in the files) or the updated
+  ones (`recipe`), like the game's Character Models option. The game only
+  saves the updated look, so the original one takes the nearest choice of
+  each option, and the choices it lacks are named (`no_classic`). The
+  visitor's pick is kept in the browser; without one the page opens on the
+  person's Settings choice (`models`, or `MODEL3D_MODELS` with one person),
+  else Updated. The past levels' pictures are drawn Updated.
+- **The sites.** The publisher puts each character's answers in the bundles
+  (sealed in /zogzog/) and, under `model3d/file/<id>`, only the files that
+  character's recipes need, from that person's store; the log says how
+  many and how big for each character.
+- Sex comes from Battle.net's profile (the exporter). Without it, the page
+  offers a male/female pick for that character, kept in the browser only.
 
 ### A past level's picture (built 2026-11-19, owner's call)
 
 Battle.net renders today's gear only, so each past level's picture is drawn
 here, with the same viewer as the 3D view, in a headless Chromium. Not in the
 publisher: that pod holds every zogzog key (the owner's and the master key
-the friends' derive from), and Chromium runs Wowhead's script without its
-sandbox (an unprivileged container has no user namespaces for it). Third-party
-code there is the one thing the publisher/static split exists to keep out.
-So the drawing has a process, an image and a pod of its own:
+the friends' derive from), and Chromium runs without its own sandbox there
+(an unprivileged container has no user namespaces for it). The drawing has
+a process, an image and a pod of its own:
 
 - **`wow-stats render`** (`wowstats/renderer.py`, the image's `renderer`
-  target, image `wow-mcp-render`): `POST /render` takes the
-  model id (race and sex), the look's option and choice ids and each drawn
-  item's inventory type and display id, and answers a 720x960 WebP with the
-  character on a clear background. It holds nothing: no key, no store, no
-  Secret, no service-account token, no character name. Chromium loads the 3D
-  view's own page (`view.html?render=1`) from a server on 127.0.0.1 inside
-  the process, with the relay's allow-list of Wowhead paths behind it; any
-  other request it tries is refused before it leaves (`page.route`). One
-  render at a time. Out: `wow.zamimg.com` and DNS, nothing else. In: the
-  publisher only.
-- **The publisher** (`wowstats/pictures.py`, `RENDER_URL`) cuts that request
-  from the level's 3D answer and keeps the picture under
+  target, image `wow-mcp-render`): `POST /render` takes a
+  recipe (file ids, geosets, texture layers: `renderer.parse_recipe` checks
+  every field and its size) and answers a 720x960 WebP with the character
+  on a clear background. When it lacks files, it answers 428 with their ids;
+  the publisher sends each from the person's store (`POST /file/<id>`, the
+  token, `X-Content-SHA256`, 16 MB at most, game files only) and asks
+  again. It keeps them by id within `RENDER_CACHE_MB`. It holds nothing
+  else: no key, no store, no Secret, no service-account token, no character
+  name. Chromium loads the 3D view's own page (`view.html?render=1`) from a
+  server on 127.0.0.1 inside the process; any other request it tries is
+  refused before it leaves (`page.route`). One render at a time. Out:
+  nothing. In: the publisher only.
+- **The publisher** (`wowstats/pictures.py`, `RENDER_URL`) sends the
+  level's 3D answer's recipe and keeps the picture under
   `PUBLISH_DIR/pictures/<sha256 of the request>.webp`. A level is drawn once,
   and two levels in the same gear and look share one picture. Both bundles
   get `data/picture/<char>/<level>.webp` (sealed in `/zogzog/`), and the
@@ -214,20 +219,22 @@ then shows the Ask Claude and Ask ChatGPT links.
 
 **No model runs on the server** (owner, 2026-11-18): not for the analysis,
 not for plans, not for anyone. The user's own client does the reasoning;
-the server prepares data and judges. Blizzard API data (the market strip:
-token price, ruleset status) reaches a model only
-through the MCP's `market` tool, and only for a person who turned on
-"Battle.net data to my AI" in their settings (their own data to their own
-assistant, owner ruling 2026-11-18); otherwise it is neither listed nor
-callable. `tests/route/test_market_gating.py` holds that line, and the
+the server prepares data and judges. Blizzard API data reaches a model
+through two doors only: the MCP's `market` tool (token price, ruleset
+status), and the character's current talents in `character_summary`,
+`class_guide`, `class_meta` and `sanity_check` (owner, 2026-11-20: read live
+from vm-wow, kept nowhere). On a multi-user install both follow the
+person's "Battle.net data to my AI" setting (their own data to their own
+assistant, owner ruling 2026-11-18); a one-person install never serves
+`market` and gives the talents to the operator who set `VM_URL`. `tests/route/test_market_gating.py` holds that line, and the
 analysis' allowlist (`wowstats/analysis/TABLES`) has no Battle.net source.
 
 ## Data retention
 
 A character's look comes from Battle.net's profile API through the exporter
 and its VictoriaMetrics, never from VictoriaLogs (`docs/deploy.md`, "Appearance and the
-30-day rule"); Narcissus's barber shop saves, the player's own file, are the
-fallback and do go through VictoriaLogs.
+30-day rule"), and so do the talents. No add-on stands in for either since
+2026-11-20: a character the API doesn't know gets its race's default look.
 
 | Store | Holds | Retention |
 |---|---|---|

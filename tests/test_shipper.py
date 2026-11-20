@@ -1,11 +1,14 @@
 import json
 import os
 import struct
+import subprocess
+import sys
 import time
-import zlib
 from pathlib import Path
 
 import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def cbor(v) -> bytes:
@@ -211,8 +214,11 @@ def test_recorder_quest_names_and_login(shipper, wow):
 
 def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     """wow-gear: equipped items from Syndicator (index = slot + 1), item
-    levels from Polestar_ItemDB, skills from Polestar and CharacterExport,
-    tracked upgrades from GearQuestForever; sent again only when it changes."""
+    levels from Polestar_ItemDB, skill ranks from Polestar, tracked upgrades
+    from GearQuestForever; sent again only when it changes. The files of the
+    add-ons dropped on 2026-11-20 (CharacterExport-Forever, Vulcan SimBench)
+    are left on disk and read by nobody: talents come from Battle.net, caps
+    from the Recorder."""
     monkeypatch.setattr(shipper, "ITEMDB", {})
     db = wow / "Interface" / "AddOns" / "Polestar_ItemDB"
     db.mkdir(parents=True)
@@ -257,10 +263,7 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
         '["gen:priest:12998:Shoulder:25:shadow:Alliance"] = {\n["status"] = "tracked",\n},\n'
         '["gen:priest:1317:MainHand:13:shadow:Alliance"] = {\n["status"] = "completed",\n},\n},\n'
         '["specPick"] = {\n["PRIEST"] = "shadow",\n},\n}\n')
-    # Vulcan SimBench's last /simx export: the talent points per tree.
-    body = "FSX1:v=1.2.2;cls=PRIEST;lvl=32;tal=5-0-18;tn=Discipline,Holy,Shadow;g=1:2:3"
-    sim = f"{body}#{zlib.adler32(body.encode()):08x}"
-    (cdir / "VulcanSimBench.lua").write_text(f'VulcanSimBenchCharDB = {{\n["last"] = "{sim}",\n}}\n')
+    (cdir / "VulcanSimBench.lua").write_text('VulcanSimBenchCharDB = {\n["last"] = "FSX1:tal=5-0-18#00000000",\n}\n')
     got = []
     out = shipper.Out(dry=True)
     out.emit = got.append
@@ -268,9 +271,8 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     shipper.extract_gear(acct, shipper.roster(acct), state, out)
     assert len(got) == 1
     g = got[0]
-    assert g["talents"] == [{"tree": "Discipline", "points": 5}, {"tree": "Holy", "points": 0},
-                            {"tree": "Shadow", "points": 18}]
-    assert "g=1:2:3" not in json.dumps(got)  # nothing else from the export string
+    for gone in ("talents", "talent_ranks", "talent_nodes", "talents_level", "talents_date"):
+        assert gone not in g
     assert g["feed"] == "wow-gear" and g["char"] == "Hero-Test" and g["_time"] == shipper.iso(1794928683)
     assert [(i["slot"], i["slot_name"], i["name"], i["item_level"], i["quality"]) for i in g["items"]] == [
         (3, "Shoulder", "Faerie Mantle", 32, 2), (4, "Shirt", "Neophyte's Shirt", 1, 1),
@@ -279,13 +281,15 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     # field (the shirt) is none, a link without one (the staff) unknown.
     assert [i["enchant_id"] for i in g["items"]] == [66, 0, None]
     assert g["item_level"] == 29.5  # the shirt doesn't count
+    # Polestar's ranks only: CharacterExport's 120/225 is not read.
     assert g["professions"] == [
-        {"skill_id": 185, "name": "Cooking", "rank": 130, "max_rank": 225,
-         "max_rank_at": shipper.iso(1794858386)},  # when the profession window last showed the cap
-        {"skill_id": 197, "name": "Tailoring", "rank": 119, "max_rank": None}]
+        {"skill_id": 185, "name": "Cooking", "rank": 130},
+        {"skill_id": 197, "name": "Tailoring", "rank": 119}]
     assert g["wanted"] == [{"item_id": 12998, "name": "Magician's Mantle", "item_level": None, "req_level": None,
                             "slot_name": "Shoulder", "level": 25}]
-    assert (g["guild"], g["spec"], g["class"]) == ("Moss Order", "Shadow", "PRIEST")
+    assert (g["spec"], g["class"]) == ("Shadow", "PRIEST")
+    # Sex and guild are Battle.net's (owner, 2026-11-20): never sent.
+    assert "guild" not in g and "sex" not in g
     # Polestar's gear settings for this class only, the edits as a list
     # (VictoriaLogs would flatten a nested object).
     assert (g["polestar_spec"], g["min_upgrade"]) == ("holy", 3)
@@ -293,11 +297,6 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
                                 {"spec": "shadow", "stat": "sta", "x": 1.5}]
     assert "987654" not in json.dumps(got)  # never the gold
 
-    # A string whose checksum doesn't match (a damaged file) gives no talents.
-    bad = sim[:-1] + ("1" if sim[-1] == "0" else "0")
-    (cdir / "VulcanSimBench.lua").write_text(f'VulcanSimBenchCharDB = {{\n["last"] = "{bad}",\n}}\n')
-    assert shipper.simbench_talents(cdir) is None
-    (cdir / "VulcanSimBench.lua").write_text(f'VulcanSimBenchCharDB = {{\n["last"] = "{sim}",\n}}\n')
 
     got.clear()
     shipper.extract_gear(acct, shipper.roster(acct), state, out)
@@ -380,8 +379,9 @@ def test_roster_every_character(shipper, tmp_path):
     by = {e["char"]: e for e in got}
     assert set(by) == {"Testhunter-Fixture", "Sylwen-Moon"}  # Hero-Test: Polestar's snapshots
     s = by["Sylwen-Moon"]
-    assert (s["feed"], s["race"], s["class"], s["sex"], s["guild"], s["money_copper"], s["source"]) == (
-        "wow-character", "Night Elf", "HUNTER", "female", "Moss Order", 4242, "syndicator")
+    assert (s["feed"], s["race"], s["class"], s["money_copper"], s["source"]) == (
+        "wow-character", "Night Elf", "HUNTER", 4242, "syndicator")
+    assert "sex" not in s and "guild" not in s
     g = by["Testhunter-Fixture"]
     assert g["source"] == "folder" and g["realm"] == "93" and g["_time"] == shipper.iso(1794100000)
     assert g.get("race") is None and g.get("level") is None
@@ -389,42 +389,27 @@ def test_roster_every_character(shipper, tmp_path):
     shipper.extract_roster(chars, state, out)
     assert got == []  # sent again only when it changes
     shipper.extract_gear(acct, chars, state, out)
-    assert [(e["char"], e["sex"], e["items"][0]["item_id"]) for e in got] == [("Sylwen-Moon", "female", 5820)]
+    assert [(e["char"], e["items"][0]["item_id"]) for e in got] == [("Sylwen-Moon", 5820)]
+    assert "sex" not in got[0] and "guild" not in got[0]
 
 
-def test_narcissus_looks(shipper, tmp_path):
-    """The newest look saved in Narcissus's barber shop, found through the
-    character's own GUID (its profession links in CharacterExport-Forever),
-    else through the name Narcissus saved when only one character has it."""
+def test_no_narcissus_look(shipper, tmp_path):
+    """Narcissus was dropped on 2026-11-20: the look comes from Battle.net's
+    API only. A barber shop save left on disk sends nothing."""
     acct = tmp_path / "acct"
     sv = acct / "SavedVariables"
     sv.mkdir(parents=True)
-    own = acct / "93" / "Testpriest-Fixture" / "SavedVariables"
-    own.mkdir(parents=True)
-    (own / "CharacterExport-Forever.lua").write_text(
-        'CharacterExportForeverDBChar = {\n["tradeSkillLink"] = "|cffffd000|Htrade:Player-5600-0A1B2C3D:3413:185|h[Cooking]|h|r",\n}\n')
-    (acct / "93" / "Testhunter-Fixture").mkdir(parents=True)
-    (acct / "93" / "Testhunter-Fixture" / "AddOns.txt").write_text("x")
+    (acct / "93" / "Testpriest-Fixture" / "SavedVariables").mkdir(parents=True)
     (sv / "Narcissus_Barbershop.lua").write_text(
-        'NarciBarberShopDB = {\n["PlayerData"] = {\n'
-        '["0A1B2C3D"] = {\n["playerName"] = "Testpriest",\n["SavedLooks"] = {\n[7] = {\n["male"] = {\n'
-        '{\n["name"] = "New Look #2",\n["timeCreated"] = 1795000000,\n["data"] = {\n{\n80,\n1174,\n},\n{\n82,\n1210,\n},\n},\n},\n'
-        '{\n["name"] = "New Look #1",\n["timeCreated"] = 1794000000,\n["data"] = {\n{\n80,\n17734,\n},\n},\n},\n'
-        '},\n},\n["alternateForm"] = {\n["male"] = {\n{\n["timeCreated"] = 1796000000,\n["data"] = {\n{\n1,\n2,\n},\n},\n},\n},\n},\n'
-        '},\n},\n'
-        '["FFFF"] = {\n["playerName"] = "Someone",\n["SavedLooks"] = {\n},\n},\n},\n}\n')
-    chars = shipper.roster(acct)
-    looks = shipper.narcissus_looks(acct, chars)
-    assert looks == {"Testpriest-Fixture": [{"optionId": 80, "choiceId": 1174}, {"optionId": 82, "choiceId": 1210}]}
-    chars["Testpriest-Fixture"]["looks"] = looks["Testpriest-Fixture"]
+        'NarciBarberShopDB = {\n["PlayerData"] = {\n["0A1B2C3D"] = {\n["playerName"] = "Testpriest",\n'
+        '["SavedLooks"] = {\n[7] = {\n["male"] = {\n{\n["timeCreated"] = 1795000000,\n'
+        '["data"] = {\n{\n80,\n1174,\n},\n},\n},\n},\n},\n},\n},\n},\n}\n')
     got = []
     out = shipper.Out(dry=True)
     out.emit = got.append
-    shipper.extract_roster(chars, {}, out)
-    ev = {e["char"]: e for e in got}
-    assert json.loads(ev["Testpriest-Fixture"]["looks"])[0] == {"optionId": 80, "choiceId": 1174}
-    assert "looks" not in ev["Testhunter-Fixture"]
-    assert shipper.narcissus_looks(tmp_path / "none", chars) == {}
+    shipper.extract_roster(shipper.roster(acct), {}, out)
+    assert got and all("looks" not in e for e in got)
+    assert not hasattr(shipper, "narcissus_looks")
 
 
 # DataStore's two files as the client writes them, in the shape Thaoky's
@@ -552,3 +537,169 @@ def test_altoholic_real_forever_saves(shipper, tmp_path, capsys):
     specs = shipper._by_id(tal["DataStore_Talents_Specializations"])
     assert [names[v >> 5] for _, v in sorted(specs.items())] == ["Priest", "Hunter"]
     assert "DataStore_Talents" not in json.dumps(shipper.gear_of(acct, acct / "x", "Testpriest-Fixture") or {})
+
+
+def test_mac_decomposed_folder_names_still_ship_levels_and_dungeons(shipper, tmp_path):
+    """The Mac client's character folders can come back decomposed (NFD: "E"
+    + a combining accent). The levels and dungeons took the raw folder name,
+    which valid_char refuses: a friend's first upload had his character and
+    nothing else (2026-11-20). Files as the client writes them: CRLF."""
+    import unicodedata
+
+    wtf = tmp_path / "WTF"
+    acct = wtf / "Account" / "123456789#1"
+    folder = unicodedata.normalize("NFD", "Éloïse-Dûrand")
+    cdir = acct / "Pyrewood Village" / folder / "SavedVariables"
+    cdir.mkdir(parents=True)
+    (acct / "SavedVariables").mkdir()
+
+    def crlf(t: str) -> bytes:
+        return t.replace("\n", "\r\n").encode()
+
+    (acct / "SavedVariables" / "Polestar.lua").write_bytes(crlf(
+        'PolestarDB = {\n["alts"] = {\n["chars"] = {\n["Éloïse Dûrand-Pyrewood Village"] = {\n'
+        '["name"] = "Éloïse Dûrand",\n["seen"] = 1795600000,\n["level"] = 33,\n},\n},\n},\n}\n'))
+    splits = "".join(f'[{lv}] = {{\n["seconds"] = 1800,\n["quests"] = 5,\n["kills"] = 20,\n'
+                     f'["at"] = {1794000000 + lv * 20000},\n}},\n' for lv in range(1, 33))
+    (cdir / "Polestar.lua").write_bytes(crlf(
+        'PolestarCharDB = {\n["qol"] = {\n["xp"] = {\n["splits"] = {\n' + splits + '},\n},\n},\n'
+        '["instanceRuns"] = {\n{\n["id"] = 389,\n["name"] = "Ragefire Chasm",\n["kind"] = "party",\n'
+        '["entered"] = 1794500000,\n["left"] = 1794502400,\n["time"] = 2400,\n["level"] = 15,\n}, -- [1]\n},\n}\n'))
+    got = []
+    out = shipper.Out(dry=True)
+    out.emit = lambda ev, emit=out.emit: (got.append(ev), emit(ev))
+    import contextlib
+    import io
+
+    with contextlib.redirect_stdout(io.StringIO()):
+        shipper.extract_tree(wtf, {}, out)
+    assert out.skipped == 0
+    assert out.counts == {"wow-character": 1, "wow-level": 32, "wow-dungeon": 1}
+    assert {e["char"] for e in got} == {"Éloïse-Dûrand"}  # one character, composed (NFC)
+    assert shipper.our_characters(wtf)[0] == {"Éloïse-Dûrand"}
+
+
+def wse_lua(entries: list[dict], inspect_name: str = "Otherplayer") -> str:
+    """A WowSimsExporter.lua shaped as the client writes it (AceDB, v3.2.11 on
+    Forever, 2026-11-20): global (other players' data the shipper must never
+    send), profileKeys, profiles.<profile>.savedCharacters[i] = {timestamp,
+    dateString, data = JSON string}; `name` only when the entry has one."""
+    def lua_str(s: str) -> str:
+        return '"' + s.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
+
+    items = []
+    for i, e in enumerate(entries, 1):
+        name = f'\t\t\t\t\t["name"] = {lua_str(e["name"])},\n' if e.get("name") else ""
+        items.append(f'\t\t\t\t[{i}] = {{\n\t\t\t\t\t["timestamp"] = {e["timestamp"]},\n'
+                     f'\t\t\t\t\t["dateString"] = "2026-11-20 11:42:07",\n{name}'
+                     f'\t\t\t\t\t["data"] = {lua_str(json.dumps(e["data"]))},\n\t\t\t\t}},\n')
+    return ("\nWSEDB = {\n"
+            '\t["global"] = {\n\t\t["inspectHistory"] = {\n\t\t\t{\n'
+            f'\t\t\t\t["name"] = "{inspect_name}",\n\t\t\t\t["talents"] = "5555",\n\t\t\t}},\n\t\t}},\n'
+            f'\t\t["groupSync"] = {{\n\t\t\t["{inspect_name}"] = {{ ["level"] = 30 }},\n\t\t}},\n'
+            '\t\t["tutorialSeen"] = true,\n\t},\n'
+            '\t["profileKeys"] = {\n\t\t["Testpriest - Forever"] = "Default",\n\t},\n'
+            '\t["profiles"] = {\n\t\t["Default"] = {\n\t\t\t["showAutoSaveMessages"] = true,\n'
+            '\t\t\t["savedCharacters"] = {\n' + "".join(items) + "\t\t\t},\n\t\t},\n\t},\n}\n")
+
+
+def wse_data(talents: str, level: int, cls: str = "priest", **kw) -> dict:
+    """The `data` JSON as ExportStructures/Character.lua fills it (v3.2.11 keys)."""
+    return {"class": cls, "flavor": "forever", "id": "Player-1-0A2B3C4D", "level": level, "race": "Gnome",
+            "spec": "holy_disc", "talents": talents, "unit": "player", "version": "3.2.11",
+            "professions": [{"name": "Tailoring", "level": 120}],
+            "gear": {"items": [None, {"id": 6096}] + [None] * 15}, **kw}
+
+
+def test_wowsims_talents_on_change(shipper, tmp_path, capsys):
+    """WoWSims Exporter keeps only each character's latest save: one
+    wow-talents event per change of build or level, nothing for an unchanged
+    file, never the other players in its `global` table."""
+    acct = tmp_path / "WTF" / "Account" / "ACCT"
+    sv = acct / "SavedVariables"
+    sv.mkdir(parents=True)
+    roster = {"Testpriest-Fixture": {"class": "PRIEST"}, "Testhunter-Fixture": {"class": "HUNTER"}}
+    out, state = shipper.Out(dry=True), {}
+    shipper.extract_talents(acct, roster, state, out)  # no addon: nothing, no error
+    assert capsys.readouterr().out == ""
+
+    def save(talents, level, ts):
+        (sv / "WowSimsExporter.lua").write_text(wse_lua([
+            # Newer addons write the character's own "Firstname Surname"...
+            {"timestamp": ts, "name": "Testpriest-Forever", "data": wse_data(talents, level, name="Testpriest Fixture")},
+            # ...older ones only the entry's UnitName-realm: one hunter called Testhunter.
+            {"timestamp": 1795000000, "name": "Testhunter-Forever", "data": wse_data("05", 12, cls="hunter")},
+            # A name no character of this account has: skipped, never guessed.
+            {"timestamp": 1795000000, "name": "Nobody-Forever", "data": wse_data("5", 11)},
+        ]))
+
+    save("02500420103--00502", 33, 1795000000)
+    shipper.extract_talents(acct, roster, state, out)
+    shipper.extract_talents(acct, roster, state, out)  # unchanged file: nothing more
+    save("02500420103--00502", 33, 1795003600)  # saved again, same build (a gear change): nothing
+    shipper.extract_talents(acct, roster, state, out)
+    save("02500420103--00503", 34, 1795090000)  # a level and a point
+    shipper.extract_talents(acct, roster, state, out)
+    printed = capsys.readouterr().out
+    evs = [json.loads(x) for x in printed.splitlines() if x.startswith("{")]
+    assert sorted((e["char"], e["talents"], e["level"]) for e in evs) == [
+        ("Testhunter-Fixture", "05", 12), ("Testpriest-Fixture", "02500420103--00502", 33),
+        ("Testpriest-Fixture", "02500420103--00503", 34)]
+    e = evs[-1]
+    assert e["feed"] == "wow-talents" and e["source"] == "wowsims" and e["addon_version"] == "3.2.11"
+    assert len({x["source_id"] for x in evs}) == 3
+    # The client's .bak (the save before) is read every run, never sent again.
+    (sv / "WowSimsExporter.lua.bak").write_text(wse_lua([
+        {"timestamp": 1795000000, "name": "Testpriest-Forever",
+         "data": wse_data("02500420103--00502", 33, name="Testpriest Fixture")}]))
+    shipper.extract_talents(acct, roster, state, out)
+    shipper.extract_talents(acct, roster, state, out)
+    assert not [x for x in capsys.readouterr().out.splitlines() if x.startswith("{")]
+    # Only the saved characters: no other player, no inspect or group data, no gear.
+    assert "Otherplayer" not in printed and "5555" not in printed and "6096" not in printed
+
+
+def test_wowsims_ambiguous_first_name_is_skipped(shipper, tmp_path, capsys):
+    acct = tmp_path / "WTF" / "Account" / "ACCT"
+    (acct / "SavedVariables").mkdir(parents=True)
+    (acct / "SavedVariables" / "WowSimsExporter.lua").write_text(wse_lua([
+        {"timestamp": 1795000000, "name": "Twin-Forever", "data": wse_data("5", 11)}]))
+    roster = {"Twin-Fixture": {"class": "PRIEST"}, "Twin-Otherhall": {"class": "PRIEST"}}
+    shipper.extract_talents(acct, roster, {}, shipper.Out(dry=True))
+    assert not [x for x in capsys.readouterr().out.splitlines() if x.startswith("{")]
+
+
+def test_wowsims_talents_check_counts_only(shipper, tmp_path):
+    acct = tmp_path / "WTF" / "Account" / "ACCT"
+    (acct / "SavedVariables").mkdir(parents=True)
+    (acct / "SavedVariables" / "WowSimsExporter.lua").write_text(wse_lua([
+        {"timestamp": 1795000000, "name": "Testpriest-Forever", "data": wse_data("5", 11)},
+        {"timestamp": 1795000000, "name": "Nobody-Forever", "data": wse_data("5", 11)}]))
+    got = shipper.wowsims_counts(acct, {"Testpriest-Fixture": {"class": "PRIEST"}})
+    assert got == {"file": 1, "profiles": 1, "entries": 2, "readable": 2, "with a full name": 0, "matched": 1,
+                   "not matched": 1, "characters on this account": 1}
+    assert all(isinstance(v, int) for v in got.values())  # counts only: no name, no build
+
+
+def test_never_the_real_wow_folder(shipper, tmp_path):
+    """2026-11-20: an agent's check read the owner's own WoW folder by default.
+    Under the tests (NO_REAL_WOW=1) the default is a temp path, configure()
+    refuses anything else, and --talents-check needs a person at a terminal."""
+    assert shipper.SANDBOX and all(shipper.in_temp(c) for c in shipper.WOW_CANDIDATES)
+    # Outside every temp directory, and nothing there: the guards refuse before any read.
+    outside = Path.home() / "wow-stats-test-no-such-folder" / "_forever_"
+    assert not outside.exists() and not shipper.in_temp(outside)
+    real = tmp_path / "c.toml"
+    real.write_text(f'wow_dir = "{outside.as_posix()}"\n')
+
+    def run(env, *args):
+        return subprocess.run([sys.executable, str(ROOT / "shipper" / "wow_stats.py"), *args], env=env,
+                              capture_output=True, text=True, stdin=subprocess.DEVNULL, timeout=60)
+
+    # Under the tests: refused, whatever the command.
+    r = run({**os.environ, "WOW_STATS_CONFIG": str(real)}, "--dry-run")
+    assert r.returncode != 0 and "NO_REAL_WOW=1: refusing the WoW folder" in r.stderr and r.stdout == ""
+    # Outside the tests, --talents-check still needs a person at a terminal.
+    env = {k: v for k, v in os.environ.items() if k != "NO_REAL_WOW"}
+    r = run({**env, "WOW_STATS_CONFIG": str(real)}, "--talents-check")
+    assert r.returncode == 2 and "run it yourself, in a terminal" in r.stderr and r.stdout == ""

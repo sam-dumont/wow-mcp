@@ -191,11 +191,20 @@ def test_horde_character(hunter):
     numbers_from_facts(e)
 
 
-def test_no_route_or_max_level_say_so(hunter):
+def test_no_route_plans_by_level_and_max_level_says_so(hunter):
+    # No route step known (the Recorder off): a plan by level on the route's
+    # clock, said to be an estimate, with the line that unlocks the full one.
     inp = copy.deepcopy(hunter)
     inp["route_ahead"] = []
     e = E.estimate(inp, 3)
-    assert not e["supported"] and "Polestar levelling guide" in e["message"]
+    assert e["supported"] and e["estimated"] and e["mode"] == "by_level"
+    assert e["blocks"] and e["end"]["level"] > e["start"]["level"]
+    assert "/psrec on" in e["unlock"] and e["unlock"] in numbers_from_facts(e)
+    # Nothing to plan from at all (no level measured, no route clock): one
+    # line on what to do, never an empty plan.
+    inp["route_levels"] = {}
+    e = E.estimate(inp, 3)
+    assert not e["supported"] and "finish one level" in e["message"] and "/psrec on" in e["message"]
     top = copy.deepcopy(hunter)
     top["level"] = 60
     top["route_levels"] = {"58": 1, "59": 1}

@@ -22,9 +22,12 @@ The demo doesn't use it, but nothing starts without it. No internet on this mach
 small one? Also set `MODEL3D=off` and `WOW_ITEMS=off` (no 3D view, no item icons; the
 pages still work).
 
-Then start the page. The first time builds the image from your copy, a minute or two:
+Then start the page. The first time builds the image from your copy, a minute or two. The
+build pulls its base from Docker's hardened images, which need a free
+[Docker Hub](https://hub.docker.com/signup) account: log in once with `docker login dhi.io`.
 
 ```sh
+docker login dhi.io
 docker compose up -d --build ui
 ```
 

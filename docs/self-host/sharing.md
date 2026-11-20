@@ -64,10 +64,10 @@ No key file, no help page.
 ## Pictures of past levels (optional)
 
 The public and sealed sites show each past level's gear. With the renderer, they also show
-what the character looked like at that level, drawn with Wowhead's 3D viewer in a headless
+what the character looked like at that level, drawn with the 3D view's own viewer in a headless
 Chromium. It's its own image (`wow-mcp-render`, or `docker build --target renderer .`), runs
 one picture at a time (about 4 seconds each) and peaks at about 850 MB of memory. Give it no
-secrets and no route to your stores; it only needs to reach `wow.zamimg.com`. Point
+secrets, no route to your stores and no way out: the publisher sends it the game files. Point
 `RENDER_URL` on `publish` at it. Without it, past levels show the 3D model instead.
 [Deploy without compose, past levels' pictures](../deploy.md#past-levels-pictures-wow-stats-render)
 has the hardening.

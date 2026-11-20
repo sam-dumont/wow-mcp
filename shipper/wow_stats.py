@@ -26,7 +26,7 @@ its SavedVariables (logout, /reload). Four steps, each safe to rerun:
    wow-stats ingest endpoint of the compose kit, or any receiver that takes
    the same NDJSON. Sent files go to sent/ gzipped. No [ship] url or no
    network: log it and stop, the spool waits.
-4. update: at most every 6 hours, ask the same server for a newer version
+4. update: at most every 2 hours, ask the same server for a newer version
    of this file and replace it (check_update; `auto_update = false` pins it).
 
 Python standard library only (3.11+). Settings: config.toml, see
@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import bisect
 import csv
 import gzip
 import hashlib
@@ -81,6 +82,25 @@ WOW_CANDIDATES = [
     Path(r"C:\Program Files (x86)\World of Warcraft\_forever_"),
     Path(r"C:\Program Files\World of Warcraft\_forever_"),
 ]
+# NO_REAL_WOW=1 (the test suite, an agent): only a WoW folder under a temp
+# directory, never the player's real install, not even read-only or by
+# default (2026-11-20: an agent's check ran on the owner's own files).
+SANDBOX = os.environ.get("NO_REAL_WOW") == "1"
+if SANDBOX:
+    WOW_CANDIDATES = [Path(tempfile.gettempdir()) / "wow-stats-no-real-wow" / "_forever_"]
+
+
+def temp_roots() -> list[Path]:
+    return [Path(p).resolve() for p in {tempfile.gettempdir(), "/tmp", "/private/tmp"} if Path(p).exists()]
+
+
+def in_temp(p: Path) -> bool:
+    """A fixture's folder: under a temp directory."""
+    try:
+        r = Path(p).expanduser().resolve()
+    except OSError:
+        return False
+    return any(r == t or t in r.parents for t in temp_roots())
 
 
 def config_path() -> Path:
@@ -136,6 +156,8 @@ def configure() -> None:
     SPOOL, SENT, REJECTED = ARCHIVE / "spool", ARCHIVE / "sent", ARCHIVE / "rejected"
     TOO_OLD = ARCHIVE / "too-old"
     LOG = path(CONFIG.get("log_file", default_log()))
+    if SANDBOX and not in_temp(WOW):
+        raise SystemExit(f"NO_REAL_WOW=1: refusing the WoW folder {WOW} (not under a temp directory)")
 
 
 DRY = False  # --dry-run: the log goes to stderr only
@@ -464,8 +486,11 @@ def iso(epoch: float) -> str:
 
 
 def char_of(display: str) -> str:
-    """'Testpriest Fixture' -> 'Testpriest-Fixture', the form of the client's character folders."""
-    return display.strip().replace(" ", "-")
+    """'Testpriest Fixture' -> 'Testpriest-Fixture', the form of the client's character folders.
+    NFC: the Mac client's folder names come back decomposed ("E" + a combining
+    accent), which valid_char refuses and which differs from the name the
+    addons save; a friend's levels and dungeons were all skipped (2026-11-20)."""
+    return unicodedata.normalize("NFC", display.strip()).replace(" ", "-")
 
 
 def player_of(raw: str) -> tuple[str, str | None]:
@@ -938,9 +963,7 @@ def where_at(sessions: list[dict], char_ids: dict, map_names: dict, t: float):
 # Polestar (account and character SavedVariables)
 # ---------------------------------------------------------------------------
 
-def extract_polestar(acct: Path, char_dirs: list[Path], sessions, char_ids, state, out: Out,
-                     looks: dict | None = None) -> str | None:
-    looks = looks or {}
+def extract_polestar(acct: Path, char_dirs: list[Path], sessions, char_ids, state, out: Out) -> str | None:
     seen_keys = set(state.setdefault("emitted", []))
     new_keys: list[str] = []
 
@@ -971,8 +994,7 @@ def extract_polestar(acct: Path, char_dirs: list[Path], sessions, char_ids, stat
                       "level": c.get("level"), "xp": c.get("xp"), "xp_max": c.get("xpMax"),
                       "money_copper": c.get("money"), "zone": c.get("zone"), "class": c.get("class"),
                       "race": c.get("race"), "faction": c.get("faction"), "realm": c.get("realm"),
-                      "bind": c.get("bind"), "resting": c.get("resting"),
-                      **({"looks": json.dumps(looks[char], separators=(",", ":"))} if char in looks else {})})
+                      "bind": c.get("bind"), "resting": c.get("resting")})
         # Players Polestar's version probe asked: same faction, targeted or moused
         # over out of combat, outside groups, guilds, instances and rest areas;
         # one per player a week, at most 10 a session (Polestar/Core/Update.lua).
@@ -992,7 +1014,7 @@ def extract_polestar(acct: Path, char_dirs: list[Path], sessions, char_ids, stat
                       "zone": zone, "map_id": map_id})
 
     for cdir in char_dirs:
-        char = cdir.parent.name
+        char = char_of(cdir.parent.name)
         for db in read_sv_versions(cdir / "Polestar.lua"):
             cdb = db.get("PolestarCharDB") or {}
             splits = (((cdb.get("qol") or {}).get("xp") or {}).get("splits")) or {}
@@ -1029,8 +1051,10 @@ def extract_polestar(acct: Path, char_dirs: list[Path], sessions, char_ids, stat
 
 
 # ---------------------------------------------------------------------------
-# Gear and professions: Syndicator (equipped items), CharacterExport-Forever
-# and Polestar (professions), GearQuestForever (tracked upgrades)
+# Gear and professions: Syndicator (equipped items), Polestar (profession
+# ranks; their caps come from the Recorder's skill records, server side),
+# GearQuestForever (tracked upgrades). Talents and the look come from
+# Battle.net's API only (the exporter), never from a local file.
 # ---------------------------------------------------------------------------
 
 # Syndicator's `equipped` is a Lua array from inventory slot 0 (ammo): its
@@ -1039,7 +1063,6 @@ SLOTS = {1: "Head", 2: "Neck", 3: "Shoulder", 4: "Shirt", 5: "Chest", 6: "Waist"
          9: "Wrist", 10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back",
          16: "Main hand", 17: "Off hand", 18: "Ranged", 19: "Tabard"}
 NO_ITEM_LEVEL = {4, 19}  # shirt and tabard: cosmetic, left out of the average
-SEXES = {2: "male", 3: "female"}  # UnitSex(), as Syndicator saves it; 1 is "unknown"
 PROFESSIONS = {129: "First Aid", 164: "Blacksmithing", 165: "Leatherworking", 171: "Alchemy", 182: "Herbalism",
                185: "Cooking", 186: "Mining", 197: "Tailoring", 202: "Engineering", 333: "Enchanting",
                356: "Fishing", 393: "Skinning"}
@@ -1097,64 +1120,9 @@ def _first(*dbs: dict | None):
     return next((d for d in dbs if isinstance(d, dict)), None)
 
 
-def _adler32(b: bytes) -> str:
-    return f"{zlib.adler32(b):08x}"
-
-
-def simbench_export(cdir: Path) -> dict[str, str] | None:
-    """The fields of Vulcan SimBench's last export (VulcanSimBenchCharDB.last,
-    written by /simx: "FSX1:k=v;...#<adler32>", its Format.lua), or None when
-    there is none or its checksum doesn't match (a cut or damaged string)."""
-    sb = _first(*read_sv_versions(cdir / "VulcanSimBench.lua")) or {}
-    last = (sb.get("VulcanSimBenchCharDB") or {}).get("last")
-    if not isinstance(last, str):
-        return None
-    m = re.search(r"(FSX\d+:[^#]*)#([0-9a-fA-F]{8})", last)
-    if not m or _adler32(m.group(1).encode()) != m.group(2).lower():
-        return None
-    return dict(kv.split("=", 1) for kv in m.group(1).split(":", 1)[1].split(";") if "=" in kv)
-
-
-def simbench_talents(cdir: Path) -> list[dict] | None:
-    """Talent points per tree from SimBench's last export (`tal`, `tn`). The
-    game saves no talents anywhere else; Polestar's own Automatic picks the
-    tree with the most points (Gear.lua DetectSpec), and so does the server
-    with these. [{"tree": "Shadow", "points": 21}, ...] in tree order. Forever's
-    client can't give them (its talents are trait nodes: simbench_ranks)."""
-    fields = simbench_export(cdir) or {}
-    points = [int(p) if p.isdigit() else None for p in fields.get("tal", "").split("-")] if fields.get("tal") else []
-    names = fields.get("tn", "").replace("+", " ").split(",") if fields.get("tn") else []
-    if not points:
-        return None
-    return [{"tree": names[i] if i < len(names) and names[i] else None, "points": pt} for i, pt in enumerate(points)]
-
-
-def simbench_ranks(cdir: Path) -> dict | None:
-    """Forever's talents from SimBench's last export: each learned talent as
-    its spell ID and rank (`ts`, "spellID:rank,..."), how many talent nodes
-    the add-on read (`tsn`; with no `ts`, none spent), and the level and local
-    date of the export (`lvl`, `d`). The server lays them out on the class's
-    trait tree (wowstats.talents). None when the export has neither."""
-    f = simbench_export(cdir) or {}
-    if "ts" not in f and "tsn" not in f:
-        return None
-    ranks = []
-    for part in f.get("ts", "").split(","):
-        sp, _, rk = part.partition(":")
-        if sp.isdigit() and rk.isdigit() and int(rk) > 0:
-            ranks.append({"spell": int(sp), "rank": int(rk)})
-    nodes = f.get("tsn", "")
-    lvl = f.get("lvl", "")
-    day = f.get("d", "")
-    return {"ranks": ranks, "nodes": int(nodes) if nodes.isdigit() else None,
-            "level": int(lvl) if lvl.isdigit() else None,
-            "date": day if re.fullmatch(r"\d{4}-\d{2}-\d{2}", day) else None}
-
-
 def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
     """The character sheet for one character, from the account's and the
     character's SavedVariables. None when no addon knows its gear or skills."""
-    first = char.split("-", 1)[0]
     synd = next(iter(read_sv_versions(acct / "SavedVariables" / "Syndicator.lua")), None) or {}
     sheet = None
     for c in (((synd.get("SYNDICATOR_DATA") or {}).get("Characters")) or {}).values():
@@ -1185,28 +1153,7 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
         if isinstance(c, dict) and char_of(c.get("name") or str(key).split("-")[0]) == char:
             for sid, rank in (c.get("profs") or {}).items():
                 if isinstance(sid, int) and isinstance(rank, (int, float)):
-                    profs[sid] = {"skill_id": sid, "name": PROFESSIONS.get(sid), "rank": int(rank), "max_rank": None}
-    export = next(iter(read_sv_versions(cdir / "CharacterExport-Forever.lua")), None) or {}
-    for realm in ((export.get("CharacterExportForeverDBChar") or {}).get("professionCache") or {}).values():
-        for who, cache in (realm or {}).items():
-            if who != first or not isinstance(cache, dict):
-                continue
-            for p in cache.values():
-                sid = p.get("professionID") if isinstance(p, dict) else None
-                if not isinstance(sid, int):
-                    continue
-                cur = profs.setdefault(sid, {"skill_id": sid, "name": None, "rank": None, "max_rank": None})
-                cur["name"] = cur["name"] or p.get("name")
-                if isinstance(p.get("rank"), int):  # skills only go up: the higher reading is the newer
-                    cur["rank"] = max(cur["rank"] or 0, p["rank"])
-                if isinstance(p.get("maxRank"), int):
-                    cur["max_rank"] = p["maxRank"]
-                    # The export reads the cap only while the profession
-                    # window is open (TRADE_SKILL_*): a rank trained since
-                    # shows up only after the window is opened again. The
-                    # server hedges a "train the next rank" move on this.
-                    if isinstance(p.get("lastUpdated"), (int, float)) and p["lastUpdated"] > 0:
-                        cur["max_rank_at"] = iso(p["lastUpdated"])
+                    profs[sid] = {"skill_id": sid, "name": PROFESSIONS.get(sid), "rank": int(rank)}
     professions = sorted((p for p in profs.values() if p["name"]), key=lambda p: (-(p["rank"] or 0), p["name"]))
 
     cls = det.get("className")
@@ -1220,8 +1167,6 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
     if not spec and isinstance(cls, str):
         spec = ((gq.get("specPick") or {}).get(cls))
         spec_from = "GearQuestForever" if spec else None
-    talents = simbench_talents(cdir)
-    ranks = simbench_ranks(cdir) or {}
     # Upgrades the player chose to hunt in GearQuestForever:
     # "gen:<class>:<item id>:<slot>:<level>:<spec>:<faction>" -> status.
     wanted = []
@@ -1258,21 +1203,15 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
     # classTrainVisit, set when a class trainer's window opens).
     pcdb = next(iter(read_sv_versions(cdir / "Polestar.lua")), None) or {}
     visit = (pcdb.get("PolestarCharDB") or {}).get("classTrainVisit")
-    guild = det.get("guild")
     rated = [i["item_level"] for i in items if i["slot"] not in NO_ITEM_LEVEL and i["item_level"]]
     return {"items": items, "professions": professions, "wanted": wanted,
             "item_level": round(sum(rated) / len(rated), 1) if rated else None,
-            "guild": str(guild).rsplit("-", 1)[0] if guild else None,
             "spec": spec.title() if isinstance(spec, str) else None,
             "spec_from": spec_from if isinstance(spec, str) else None,
             "polestar_spec": pspec if isinstance(pspec, str) else None, "gear_adjust": adjust,
-            "talents": talents,
-            # Forever's talents (spell ID and rank), the export's level and date.
-            "talent_ranks": ranks.get("ranks"), "talent_nodes": ranks.get("nodes"),
-            "talents_level": ranks.get("level"), "talents_date": ranks.get("date"),
             "min_upgrade": min_upgrade,
+            # Sex and guild come from Battle.net's profile (owner, 2026-11-20).
             "class": cls, "race": det.get("race"), "faction": det.get("faction"),
-            "sex": SEXES.get(det.get("sex")),
             **({"recipes": recipes} if recipes else {}),
             **({"class_train_level": int(visit)} if isinstance(visit, (int, float)) and visit > 0 else {})}
 
@@ -1316,8 +1255,9 @@ def roster(acct: Path) -> dict[str, dict]:
     """Every character of one account folder: its WTF folder
     (<realm>/<char>/, written at each login), Polestar's alts list and
     Syndicator's characters. Auctionator keeps nothing per character.
-    char -> what is known: realm, race, class, sex, faction, guild, money,
-    level, last seen, and which sources know it."""
+    char -> what is known: realm, race, class, faction, money, level, last
+    seen, and which sources know it. Sex and guild are Battle.net's (owner,
+    2026-11-20), not read here."""
     chars: dict[str, dict] = {}
 
     def put(char: str, source: str, **kv) -> None:
@@ -1346,89 +1286,10 @@ def roster(acct: Path) -> dict[str, dict]:
         det = (c or {}).get("details") if isinstance(c, dict) else None
         if not isinstance(det, dict) or not det.get("character"):
             continue
-        guild = det.get("guild")
         put(char_of(str(det["character"])), "syndicator", race=det.get("race"),
-            **{"class": det.get("className")}, sex=SEXES.get(det.get("sex")), faction=det.get("faction"),
-            guild=str(guild).rsplit("-", 1)[0] if guild else None,
+            **{"class": det.get("className")}, faction=det.get("faction"),
             money_copper=c.get("money") if isinstance(c.get("money"), int) else None)
     return chars
-
-
-# ---------------------------------------------------------------------------
-# Narcissus's barber shop (account SavedVariables/Narcissus_Barbershop.lua)
-# ---------------------------------------------------------------------------
-
-# The character's own GUID: its profession links carry it (`|Htrade:Player-
-# <realm id>-<player id>:...`), and CharacterExport-Forever saves them in the
-# character's own SavedVariables. Narcissus keys its saves by that player id.
-OWN_GUID = re.compile(rb"\|Htrade:Player-\d+-([0-9A-Fa-f]+):")
-
-
-def own_player_id(cdir: Path) -> str | None:
-    try:
-        m = OWN_GUID.search((cdir / "CharacterExport-Forever.lua").read_bytes())
-    except OSError:
-        return None
-    return m.group(1).decode().upper() if m else None
-
-
-def _seq(v) -> list:
-    """A Lua array as the reader gives it ({"1": a, "2": b}) as a list."""
-    if isinstance(v, list):
-        return v
-    if not isinstance(v, dict):
-        return []
-    return [v[k] for k in sorted(v, key=lambda k: int(k) if str(k).isdigit() else 1 << 30)]
-
-
-def narcissus_looks(acct: Path, chars: dict[str, dict]) -> dict[str, list[dict]]:
-    """char -> the newest look saved in Narcissus's barber shop for it, as
-    [{optionId, choiceId}] (the game's ids, Wowhead's too). Saves are
-    NarciBarberShopDB.PlayerData[<player id>].SavedLooks[<race id>][male|
-    female] = newest first {name, data = {{optionID, choiceID}...},
-    timeCreated} (Narcissus_Barbershop/Code/Barbershop.lua); a character set
-    to the shared profile uses SharedSavedLooks. The player id comes from
-    the character's GUID (own_player_id); without it, the name Narcissus
-    saved, when only one of our characters has it."""
-    db = next(iter(read_sv_versions(acct / "SavedVariables" / "Narcissus_Barbershop.lua")), None) or {}
-    narci = db.get("NarciBarberShopDB") or {}
-    players = narci.get("PlayerData") or {}
-    if not isinstance(players, dict) or not players:
-        return {}
-    by_first: dict[str, list[str]] = {}
-    for char in chars:
-        by_first.setdefault(char.split("-")[0].lower(), []).append(char)
-    out: dict[str, list[dict]] = {}
-    for char, c in chars.items():
-        folder = c.get("folder")
-        pid = own_player_id(folder / "SavedVariables") if folder else None
-        pdata = players.get(pid) if pid else None
-        if pdata is None:
-            hits = [v for v in players.values() if isinstance(v, dict)
-                    and str(v.get("playerName") or "").lower() == char.split("-")[0].lower()]
-            if len(hits) == 1 and len(by_first.get(char.split("-")[0].lower(), [])) == 1:
-                pdata = hits[0]
-        if not isinstance(pdata, dict):
-            continue
-        saved = narci.get("SharedSavedLooks") if pdata.get("usePublicProfile") else pdata.get("SavedLooks")
-        best = None
-        for race_key, by_sex in (saved or {}).items():
-            if race_key == "alternateForm" or not isinstance(by_sex, dict):
-                continue  # a druid form or the worgen's other shape, not the character
-            for sex, looks in by_sex.items():
-                if c.get("sex") and sex != c["sex"]:
-                    continue
-                for look in _seq(looks):
-                    if isinstance(look, dict) and isinstance(look.get("timeCreated"), (int, float)) and (
-                            best is None or look["timeCreated"] > best["timeCreated"]):
-                        best = look
-        if best:
-            pairs = [_seq(x) for x in _seq(best.get("data"))]
-            looks = [{"optionId": int(x[0]), "choiceId": int(x[1])} for x in pairs
-                     if len(x) >= 2 and all(isinstance(n, (int, float)) for n in x[:2])]
-            if looks:
-                out[char] = looks
-    return out
 
 
 def extract_roster(chars: dict[str, dict], state: dict, out: Out) -> None:
@@ -1440,11 +1301,9 @@ def extract_roster(chars: dict[str, dict], state: dict, out: Out) -> None:
     for char, c in sorted(chars.items()):
         if "polestar" in c["sources"]:
             continue
-        ev = {"realm": c.get("realm"), "race": c.get("race"), "class": c.get("class"), "sex": c.get("sex"),
-              "faction": c.get("faction"), "guild": c.get("guild"), "money_copper": c.get("money_copper"),
+        ev = {"realm": c.get("realm"), "race": c.get("race"), "class": c.get("class"),
+              "faction": c.get("faction"), "money_copper": c.get("money_copper"),
               "level": c.get("level"), "source": ",".join(sorted(c["sources"]))}
-        if c.get("looks"):
-            ev["looks"] = json.dumps(c["looks"], separators=(",", ":"))
         digest = hashlib.sha1(json.dumps(ev, sort_keys=True).encode()).hexdigest()[:12]
         if sent.get(char) == digest:
             continue
@@ -1540,9 +1399,8 @@ def altoholic_played(acct: Path, only: set[str] | None = None) -> list[dict]:
 # keeps the whole set (C_QuestLog.GetAllCompletedQuestIDs); two addons the
 # kit already lists save it at every login. Polestar saves nothing of it:
 # its completed set lives in memory only (Quests/QuestDB.lua
-# client.CompletedSet, Polestar v0.4.1). Syndicator, Auctionator,
-# CharacterExport-Forever (only into its clipboard export), Narcissus and
-# VulcanSimBench save no quests either. wowstats.quests joins these sets
+# client.CompletedSet, Polestar v0.4.1). Syndicator and Auctionator save
+# no quests either. wowstats.quests joins these sets
 # with the Recorder's hand-ins and what the quest chains imply.
 #
 # Questie (12.11.0 as installed): QuestieQuest:Initialize and every quest
@@ -1688,10 +1546,125 @@ def extract_quests(acct: Path, chars: dict[str, dict], state: dict, out: Out) ->
 #   (characterIdTables; DataStore.lua:71-75 assigns the id), as for Characters_Info.
 # On Forever 1.60.1 the spec it reads is the class itself ("Priest",
 # "Hunter" in the account's own file, 2026-11-18): C_SpecializationInfo
-# knows one spec named after the class with no points (VulcanSimBench
-# Collect.lua:696-698). So Altoholic gives no talents and no real spec here,
-# and the shipper doesn't read DataStore_Talents: the card's talents come
-# from Battle.net (the exporter) and /simx.
+# knows one spec named after the class with no points. So Altoholic gives
+# no talents and no real spec here, and the shipper doesn't read
+# DataStore_Talents: the card's talents come from Battle.net (the exporter).
+
+
+# ---------------------------------------------------------------------------
+# WoWSims Exporter (optional): talents, account SavedVariables
+# ---------------------------------------------------------------------------
+
+# Read from wowsims/exporter's source (MIT, 2026-11-14) and the shape of a
+# real file (v3.2.11, Forever, 2026-11-20):
+# - WowSimsExporter.lua: "## SavedVariables: WSEDB", an AceDB: WSEDB =
+#   {global, profileKeys, profiles = {<profile> = {savedCharacters = {[i] =
+#   entry}}}}. `global` holds other players' data (inspectHistory, groupSync):
+#   never read, only profiles.*.savedCharacters.
+# - SavedDataManager.lua SaveCharacterData: one entry per character, the
+#   latest save only ({name = UnitName-GetRealmName, data = JSON string,
+#   timestamp, dateString}); auto-save is on by default, 1 s after a talent
+#   change, at every level on Forever (Flavors/Forever/Flavor.lua).
+# - ExportStructures/Character.lua: data = {class, level, spec, talents,
+#   version, ...}; newer versions add name ("Firstname Surname") and realm.
+#   talents is the sim's string, one digit per talent, "-" between trees
+#   (Flavors/Forever/Talents.lua; the server reads it, wowstats.wowsims).
+# The file holds no history: each change is one wow-talents event.
+WSE_TALENTS = re.compile(r"^[0-9]{0,40}(-[0-9]{0,40}){0,2}$")
+
+
+def wowsims_saves(acct: Path) -> list[dict]:
+    """Every saved build in the account's WowSimsExporter.lua (and its .bak):
+    [{entry_name, name, timestamp, talents, level, class, spec, version}],
+    from profiles.*.savedCharacters only."""
+    return [x for db in read_sv_versions(acct / "SavedVariables" / "WowSimsExporter.lua") for x in wse_saves_of(db)]
+
+
+def wse_saves_of(db: dict) -> list[dict]:
+    """One version of the file: its profiles.*.savedCharacters, read."""
+    out = []
+    profiles = (db.get("WSEDB") or {}).get("profiles") if isinstance(db.get("WSEDB"), dict) else None
+    for prof in (profiles.values() if isinstance(profiles, dict) else []):
+        saved = prof.get("savedCharacters") if isinstance(prof, dict) else None
+        for e in (saved.values() if isinstance(saved, dict) else saved or []):
+            if not isinstance(e, dict) or not isinstance(e.get("data"), str):
+                continue
+            try:
+                d = json.loads(e["data"])
+            except ValueError:
+                continue
+            if not isinstance(d, dict) or not isinstance(d.get("talents"), str) \
+                    or not WSE_TALENTS.match(d["talents"]) or not isinstance(e.get("timestamp"), (int, float)):
+                continue
+            out.append({"entry_name": e.get("name") if isinstance(e.get("name"), str) else None,
+                        "name": d.get("name") if isinstance(d.get("name"), str) else None,
+                        "timestamp": float(e["timestamp"]), "talents": d["talents"],
+                        "level": d.get("level") if isinstance(d.get("level"), int) else None,
+                        "class": d.get("class") if isinstance(d.get("class"), str) else None,
+                        "spec": d.get("spec") if isinstance(d.get("spec"), str) else None,
+                        "version": d.get("version") if isinstance(d.get("version"), str) else None})
+    return out
+
+
+def wowsims_counts(acct: Path, chars: dict[str, dict]) -> dict[str, int]:
+    """--talents-check: what the shipper would do with the account's file, as
+    counts only (no name, no build): entries in profiles.*.savedCharacters,
+    the ones it can read, the ones it matches to one character."""
+    db = next(iter(read_sv_versions(acct / "SavedVariables" / "WowSimsExporter.lua")), None) or {}
+    w = db.get("WSEDB") if isinstance(db.get("WSEDB"), dict) else {}
+    profiles = w.get("profiles") if isinstance(w.get("profiles"), dict) else {}
+    entries = sum(len(p["savedCharacters"]) for p in profiles.values()
+                  if isinstance(p, dict) and isinstance(p.get("savedCharacters"), (dict, list)))
+    newest = wse_saves_of(db)  # the file only, not the client's .bak copy
+    matched = sum(wowsims_char(s, chars) is not None for s in newest)
+    return {"file": int(bool(db)), "profiles": len(profiles), "entries": entries, "readable": len(newest),
+            "with a full name": sum(bool(s["name"]) for s in newest), "matched": matched,
+            "not matched": len(newest) - matched, "characters on this account": len(chars)}
+
+
+def wowsims_char(save: dict, chars: dict[str, dict]) -> str | None:
+    """The roster character a save is: its "Firstname Surname" when the addon
+    wrote one, else the entry's "Firstname-Realm" when exactly one character
+    of the account has that first name and class. None otherwise (never a
+    guess)."""
+    if save["name"]:
+        c = char_of(save["name"])
+        return c if c in chars else None
+    first = (save["entry_name"] or "").split("-")[0].strip()
+    if not first:
+        return None
+    hits = [c for c, v in chars.items() if c.split("-")[0] == first
+            and (not save["class"] or not v.get("class") or str(v["class"]).lower() == save["class"])]
+    return hits[0] if len(hits) == 1 else None
+
+
+def extract_talents(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> None:
+    """A wow-talents event each time a character's saved build (talents and
+    level) changes: an unchanged file sends nothing."""
+    sent = state.setdefault("talents", {})
+    unmatched = 0
+    for sv in sorted(wowsims_saves(acct), key=lambda s: s["timestamp"]):
+        char = wowsims_char(sv, chars)
+        if char is None:
+            unmatched += 1
+            continue
+        digest = hashlib.sha1(json.dumps([sv["talents"], sv["level"]]).encode()).hexdigest()[:12]
+        last = sent.get(char) or {"d": None, "t": 0}
+        # Never back in time: the client's .bak (the save before the current
+        # one) is read every run, sent once at most.
+        if sv["timestamp"] <= last["t"]:
+            continue
+        sent[char] = {"d": digest, "t": sv["timestamp"]}
+        if last["d"] == digest:  # saved again, same build (a gear change)
+            continue
+        out.emit({"_time": iso(sv["timestamp"]), "feed": "wow-talents", "char": char, "source": "wowsims",
+                  "source_id": f"talents:{char}:{digest}:{int(sv['timestamp'])}",
+                  "_msg": f"{char}: talents {sv['talents'] or '(none)'}"
+                          + (f" at level {sv['level']}" if sv["level"] else "") + " (WowSims)",
+                  "talents": sv["talents"] or "0", "level": sv["level"], "class": sv["class"], "spec": sv["spec"],
+                  "addon_version": sv["version"]})
+    if unmatched:
+        log(f"talents: {unmatched} WowSims saves matched no character of this account")
 
 
 def extract_played(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> None:
@@ -1736,7 +1709,7 @@ def extract_gear(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> N
         seen[char] = digest
         at = logout.get(char)
         if at is None:
-            files = [acct / "SavedVariables" / "Syndicator.lua", cdir / "CharacterExport-Forever.lua"]
+            files = [acct / "SavedVariables" / "Syndicator.lua", cdir / "Polestar.lua"]
             at = max((f.stat().st_mtime for f in files if f.exists()), default=time.time())
         profs = ", ".join(f"{p['name']} {p['rank']}" for p in g["professions"])
         out.emit({"_time": iso(at), "feed": "wow-gear", "char": char, "source_id": f"gear:{char}:{digest}",
@@ -2052,16 +2025,13 @@ def extract_tree(wtf: Path, state: dict, out: Out, live: bool = True) -> list[di
             for db in read_sv_versions(d / "Polestar_Recorder.lua"):
                 cid = (db.get("PolestarRecorderCharDB") or {}).get("id")
                 if isinstance(cid, str):
-                    char_ids[cid] = d.parent.name
+                    char_ids[cid] = char_of(d.parent.name)
         chunks, map_types = load_chunks([acct / "SavedVariables"])
         merge_chunks(chunks, client_chunks_of(acct))
         sessions = sessions_of(chunks)
         extract_recorder(sessions, map_types, char_ids, state, out)
         chars = roster(acct)
-        looks = narcissus_looks(acct, chars)
-        for char, look in looks.items():
-            chars[char]["looks"] = look
-        latest = extract_polestar(acct, cdirs, sessions, char_ids, state, out, looks)
+        latest = extract_polestar(acct, cdirs, sessions, char_ids, state, out)
         if not live:
             chars = {k: c for k, c in chars.items() if "polestar" in c["sources"]}
         extract_roster(chars, state, out)
@@ -2069,7 +2039,8 @@ def extract_tree(wtf: Path, state: dict, out: Out, live: bool = True) -> list[di
         extract_inventory(acct, chars, state, out)
         extract_played(acct, chars, state, out)
         extract_quests(acct, chars, state, out)
-        extract_auctionator(acct, latest or (cdirs[-1].parent.name if cdirs else None), state, out)
+        extract_talents(acct, chars, state, out)
+        extract_auctionator(acct, latest or (char_of(cdirs[-1].parent.name) if cdirs else None), state, out)
         all_sessions += sessions
     return all_sessions
 
@@ -2078,10 +2049,10 @@ def our_characters(wtf: Path) -> tuple[set[str], str | None]:
     chars, latest = set(), (None, 0.0)
     for acct in accounts(wtf):
         for d in char_sv_dirs(acct):
-            chars.add(d.parent.name)
+            chars.add(char_of(d.parent.name))
             t = d.stat().st_mtime
             if t > latest[1]:
-                latest = (d.parent.name, t)
+                latest = (char_of(d.parent.name), t)
     return chars, latest[0]
 
 
@@ -2187,9 +2158,10 @@ def backfill(state: dict, out: Out) -> None:
         log("backfill: no archive yet" if archive_on() else "backfill: no archive (wtf_archive = false)")
         return
     keep = re.compile(r"^Account/[^/]+/(SavedVariables/(Polestar|Polestar_Recorder|Auctionator|Syndicator"
-                      r"|ForeverLevelingBiS|Narcissus_Barbershop|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests|Questie)\.lua(\.bak)?"
-                      r"|[^/]+/[^/]+/SavedVariables/(Polestar|Polestar_Recorder|CharacterExport-Forever"
-                      r"|GearQuestForever|VulcanSimBench)\.lua(\.bak)?)$")
+                      r"|ForeverLevelingBiS|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests|Questie"
+                      r"|WowSimsExporter)\.lua(\.bak)?"
+                      r"|[^/]+/[^/]+/SavedVariables/(Polestar|Polestar_Recorder"
+                      r"|GearQuestForever)\.lua(\.bak)?)$")
     commits = git("rev-list", "--reverse", "HEAD").stdout.split()
     for c in commits:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2556,13 +2528,9 @@ ADDONS = [
     {"id": "questie", "name": "Questie", "dir": "Questie", "required": False,
      "url": "https://www.curseforge.com/wow/addons/questie",
      "what": "the quests you finished before Polestar (Altoholic does it too: one of the two is enough)"},
-    {"id": "characterexport", "name": "CharacterExport-Forever", "dir": "CharacterExport-Forever", "required": False,
-     "url": "https://www.curseforge.com/wow/addons/characterexport", "what": "profession caps"},
-    {"id": "narcissus", "name": "Narcissus", "dir": "Narcissus", "required": False,
-     "url": "https://www.curseforge.com/wow/addons/narcissus",
-     "what": "your character's look in 3D before Battle.net knows it"},
-    {"id": "simbench", "name": "Vulcan SimBench", "dir": "VulcanSimBench", "required": False,
-     "url": "https://www.curseforge.com/wow/addons/vulcan-simbench", "what": "a history of your talents"},
+    {"id": "wowsims", "name": "WoWSims Exporter", "dir": "WowSimsExporter", "required": False,
+     "url": "https://www.curseforge.com/wow/addons/wowsims-exporter",
+     "what": "every talent change, for your full talent history (without it: the last 3 weeks)"},
 ]
 EITHER = [{"id": "quests", "addons": ["questie", "altoholic"], "what": "quests you did before installing"}]
 SETUP_FEED = "wow-setup"
@@ -2636,7 +2604,10 @@ def setup_report(wow: Path) -> dict:
     saved data, and per character the installed addons it doesn't load. No
     folder or path; the character names are the ones every event carries."""
     have = installed_addons(wow)
-    return {"addons": have, "recorder_on": recorder_on(wow), "saved_chars": saved_chars(wow),
+    on = recorder_on(wow)
+    # "unknown", not None: emit drops None, and the pages read a missing field
+    # as an older shipper's report rather than "never switched on".
+    return {"addons": have, "recorder_on": "unknown" if on is None else on, "saved_chars": saved_chars(wow),
             "off": addons_off(wow, have), "shipper": VERSION}
 
 
@@ -2767,9 +2738,946 @@ def preflight() -> int:
     return HARD if hard else 0
 
 
+# ---------------------------------------------------------------------------
+# The 3D view's files, read from this computer's own WoW install (CASC)
+# ---------------------------------------------------------------------------
+#
+# The 3D view draws each character from the game's own files: its models
+# (.m2, .skin, .skel, .anim), textures (.blp) and a few client tables (.db2).
+# They come from the player's own installed client, read here, and go only to
+# the player's own server (docs/model3d.md): nothing comes from a third-party
+# site. Read-only: nothing in the WoW folder is ever written, and only the
+# files the server asks for are read (plus what those models name: their
+# first skin, their textures, their skeleton and its parent, the standing
+# animation and the closed hands; never the other 1,500 animations of a
+# character model).
+#
+# The storage format is CASC. This reader follows wow.export's
+# (github.com/Kruithne/wow.export, MIT: casc/casc-source-local.js,
+# casc-source.js, blte-reader.js): .build.info names the build, its config
+# names the encoding and root files, the local indexes (Data/data/*.idx) say
+# where each file sits in the data.NNN archives, and every file is BLTE
+# (raw or zlib blocks). Encrypted files and files the install hasn't
+# downloaded are reported missing: nothing is fetched from Blizzard's CDN.
+# Each file's content key is its MD5, checked before it is used.
+
+CASC_PRODUCT = "wowf"  # WoW Forever in .build.info
+CASC_LOCALES = {"enUS": 0x2, "koKR": 0x4, "frFR": 0x10, "deDE": 0x20, "zhCN": 0x40, "esES": 0x80,
+                "zhTW": 0x100, "enGB": 0x200, "esMX": 0x1000, "ruRU": 0x2000, "ptBR": 0x4000,
+                "itIT": 0x8000, "ptPT": 0x10000}
+CASC_LOW_VIOLENCE = 0x80
+CASC_NO_NAME_HASH = 0x10000000
+CASC_WINDOWS, CASC_MACOS, CASC_DO_NOT_LOAD = 0x8, 0x10, 0x100
+CASC_ROOT_MAGIC = 0x4D465354  # "TSFM"
+CASC_MAX_FILE = 64 * 1024 * 1024  # no model, texture or table of one character is near this
+# The storage's own tables (encoding, root) are far larger: a full client's
+# encoding table passed 64 MB on the owner's first proof run (2026-11-20).
+CASC_MAX_SYSTEM = 1024 * 1024 * 1024
+# The standing animation (AnimationData id 0): the idle the 3D view plays.
+CASC_STAND = 0
+# HandsClosed: the 3D view plays it on a hand that holds a weapon.
+CASC_HANDS_CLOSED = 15
+# What a file is, by its first four bytes.
+CASC_KINDS = {b"MD21": "m2", b"SKIN": "skin", b"SKL1": "skel", b"AFM2": "anim", b"AFSA": "anim",
+              b"AFSB": "anim", b"BLP2": "blp", b"WDC3": "db2", b"WDC4": "db2", b"WDC5": "db2"}
+
+
+class CascError(Exception):
+    """The install can't be read at all (no build info, no config)."""
+
+
+class CascMissing(Exception):
+    """One file can't be had from this install (not stored, encrypted)."""
+
+
+def _rot32(x: int, k: int) -> int:
+    return ((x << k) | (x >> (32 - k))) & 0xFFFFFFFF
+
+
+def jenkins96(path: str) -> int:
+    """The root's name hash of a game path: Bob Jenkins' lookup3 hashlittle2
+    of the path in capitals with backslashes, as (c << 32) | b."""
+    c, b = hashlittle2(path.upper().replace("/", "\\").encode())
+    return (c << 32) | b
+
+
+def hashlittle2(k: bytes) -> tuple[int, int]:
+    """lookup3's hashlittle2 with both seeds 0: (c, b)."""
+    m = 0xFFFFFFFF
+    n = len(k)
+    a = b = c = (0xDEADBEEF + n) & m
+    o = 0
+    while n > 12:
+        a = (a + int.from_bytes(k[o:o + 4], "little")) & m
+        b = (b + int.from_bytes(k[o + 4:o + 8], "little")) & m
+        c = (c + int.from_bytes(k[o + 8:o + 12], "little")) & m
+        a = (a - c) & m; a ^= _rot32(c, 4); c = (c + b) & m  # noqa: E702 - lookup3's mix, line for line
+        b = (b - a) & m; b ^= _rot32(a, 6); a = (a + c) & m  # noqa: E702
+        c = (c - b) & m; c ^= _rot32(b, 8); b = (b + a) & m  # noqa: E702
+        a = (a - c) & m; a ^= _rot32(c, 16); c = (c + b) & m  # noqa: E702
+        b = (b - a) & m; b ^= _rot32(a, 19); a = (a + c) & m  # noqa: E702
+        c = (c - b) & m; c ^= _rot32(b, 4); b = (b + a) & m  # noqa: E702
+        n -= 12
+        o += 12
+    if n == 0:
+        return c, b
+    tail = k[o:o + n] + bytes(12 - n)
+    a = (a + int.from_bytes(tail[0:4], "little")) & m
+    b = (b + int.from_bytes(tail[4:8], "little")) & m
+    c = (c + int.from_bytes(tail[8:12], "little")) & m
+    c ^= b; c = (c - _rot32(b, 14)) & m  # noqa: E702 - lookup3's final, line for line
+    a ^= c; a = (a - _rot32(c, 11)) & m  # noqa: E702
+    b ^= a; b = (b - _rot32(a, 25)) & m  # noqa: E702
+    c ^= b; c = (c - _rot32(b, 16)) & m  # noqa: E702
+    a ^= c; a = (a - _rot32(c, 4)) & m  # noqa: E702
+    b ^= a; b = (b - _rot32(a, 14)) & m  # noqa: E702
+    c ^= b; c = (c - _rot32(b, 24)) & m  # noqa: E702
+    return c, b
+
+
+def db2_path(table: str) -> str:
+    return f"DBFilesClient/{table}.db2"
+
+
+class Blte:
+    """One BLTE-encoded file, its blocks decoded as they are read."""
+
+    def __init__(self, data: bytes, blank_encrypted: bool = False):
+        # Client tables keep their hidden rows in encrypted blocks inside an
+        # otherwise plain file (no key here): with `blank_encrypted` those
+        # blocks read as zeros, as wow.export does, and the table reader
+        # skips their sections. `blanked` says it happened.
+        self.blank_encrypted, self.blanked = blank_encrypted, False
+        if data[:4] != b"BLTE":
+            raise CascMissing("not a BLTE file")
+        header = struct.unpack_from(">I", data, 4)[0]
+        self.data = data
+        self.blocks: list[tuple[int, int, int, bytes]] = []  # (raw offset, raw size, decoded size, md5)
+        if header == 0:
+            self.blocks.append((8, len(data) - 8, -1, b""))
+        else:
+            if data[8] != 0x0F:
+                raise CascMissing("unknown BLTE table")
+            n = int.from_bytes(data[9:12], "big")
+            if not n or header != 12 + 24 * n:
+                raise CascMissing("bad BLTE header")
+            pos = header
+            for i in range(n):
+                comp, dec = struct.unpack_from(">II", data, 12 + 24 * i)
+                self.blocks.append((pos, comp, dec, data[20 + 24 * i:36 + 24 * i]))
+                pos += comp
+            if pos > len(data):
+                raise CascMissing("BLTE file cut short")
+        self.cache: dict[int, bytes] = {}
+        self.starts: list[int] = []
+        at = 0
+        for _, _, dec, _ in self.blocks:
+            self.starts.append(at)
+            at += max(dec, 0)
+        self.size = at if all(b[2] >= 0 for b in self.blocks) else -1
+
+    def block(self, i: int) -> bytes:
+        if i not in self.cache:
+            off, comp, dec, md5 = self.blocks[i]
+            raw = self.data[off:off + comp]
+            if md5 and md5 != bytes(16) and hashlib.md5(raw).digest() != md5:
+                raise CascMissing("a BLTE block doesn't match its checksum")
+            if raw[:1] == b"E" and self.blank_encrypted and dec >= 0:
+                self.blanked = True
+                self.cache[i] = bytes(dec)
+            else:
+                self.cache[i] = _blte_block(raw)
+        return self.cache[i]
+
+    def md5(self) -> bytes:
+        """The decoded file's MD5 (its content key), block by block, none
+        of them kept: the encoding table is 140 MB decoded."""
+        h = hashlib.md5()
+        if self.size < 0:
+            h.update(self.block(0))
+            return h.digest()
+        for i in range(len(self.blocks)):
+            had = i in self.cache
+            h.update(self.block(i))
+            if not had:
+                del self.cache[i]
+        return h.digest()
+
+    def read(self, start: int = 0, length: int | None = None) -> bytes:
+        """Decoded bytes [start, start + length), only the blocks they touch."""
+        if self.size < 0:  # one block of unknown size: decode it whole
+            whole = self.block(0)
+            return whole[start:] if length is None else whole[start:start + length]
+        end = self.size if length is None else min(self.size, start + length)
+        out = []
+        for i, s in enumerate(self.starts):
+            e = s + self.blocks[i][2]
+            if e <= start or s >= end:
+                continue
+            b = self.block(i)
+            out.append(b[max(start - s, 0):end - s])
+        return b"".join(out)
+
+
+def _blte_block(raw: bytes) -> bytes:
+    mode = raw[:1]
+    if mode == b"N":
+        return raw[1:]
+    if mode == b"Z":
+        d = zlib.decompressobj()
+        out = d.decompress(raw[1:], CASC_MAX_SYSTEM + 1)
+        if len(out) > CASC_MAX_SYSTEM or d.unconsumed_tail:
+            raise CascMissing("a BLTE block is too large")
+        return out
+    if mode == b"F":
+        return Blte(raw[1:]).read()
+    if mode == b"E":
+        raise CascMissing("encrypted")
+    raise CascMissing(f"BLTE mode {mode!r} isn't supported")
+
+
+def _config(text: str) -> dict[str, str]:
+    out = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            out[k.strip()] = v.strip()
+    return out
+
+
+class Casc:
+    """The game's storage in one WoW install, read-only. `root` is the folder
+    holding `.build.info` (the one above `_forever_`)."""
+
+    def __init__(self, root: Path, product: str = CASC_PRODUCT):
+        self.root = Path(root)
+        self.data_dir = self.root / "Data"
+        try:
+            info = (self.root / ".build.info").read_text(encoding="utf-8", errors="replace")
+        except OSError as e:
+            raise CascError(f"no .build.info in {self.root} ({e.strerror or e})") from None
+        lines = [ln for ln in info.splitlines() if ln.strip()]
+        if not lines:
+            raise CascError(".build.info is empty")
+        cols = [h.split("!")[0] for h in lines[0].split("|")]
+        rows = [dict(zip(cols, ln.split("|"), strict=False)) for ln in lines[1:]]
+        rows = [r for r in rows if r.get("Product") == product]
+        if not rows:
+            raise CascError(f"this install has no {product} build")
+        row = next((r for r in rows if r.get("Active") == "1"), rows[0])
+        self.product = product
+        self.build_key = (row.get("Build Key") or "").strip().lower()
+        self.version = (row.get("Version") or "").strip()
+        m = re.search(r"\b([a-z]{2}[A-Z]{2}) text\?", row.get("Tags") or "")
+        self.locale_name = m.group(1) if m and m.group(1) in CASC_LOCALES else "enUS"
+        self.locale = CASC_LOCALES[self.locale_name]
+        if not re.fullmatch(r"[0-9a-f]{32}", self.build_key):
+            raise CascError("no build key in .build.info")
+        self.config = _config(self._config_file(self.build_key))
+        self.blanked: set[bytes] = set()
+        self._idx: dict[int, bytes] | None = None
+        self._idx_seen: tuple = ()
+        self._enc: tuple | None = None
+        self._root: bytes | None = None
+        # file id -> every root entry for it: (locale flags, content flags,
+        # content key), in the root's order (content_keys fills it).
+        self.variants: dict[int, list[tuple[int, int, bytes]]] = {}
+
+    # -- files on disk
+
+    def _config_file(self, key: str) -> str:
+        p = self.data_dir / "config" / key[:2] / key[2:4] / key
+        try:
+            return p.read_text(encoding="utf-8", errors="replace")
+        except OSError as e:
+            raise CascError(f"no build config {key} ({e.strerror or e})") from None
+
+    def _index_files(self) -> dict[int, list[tuple[int, Path]]]:
+        """bucket -> its .idx files, newest version first."""
+        out: dict[int, list[tuple[int, Path]]] = {}
+        try:
+            names = list((self.data_dir / "data").glob("*.idx"))
+        except OSError:
+            names = []
+        for p in names:
+            m = re.fullmatch(r"([0-9a-fA-F]{2})([0-9a-fA-F]{8})\.idx", p.name)
+            if m:
+                out.setdefault(int(m.group(1), 16), []).append((int(m.group(2), 16), p))
+        for v in out.values():
+            v.sort(reverse=True)
+        return out
+
+    @staticmethod
+    def _index_header(raw: bytes) -> dict:
+        """One .idx's header: after (header size, hash), version u16,
+        bucket u8, extra u8, then the byte counts of an entry's size,
+        position and key, the bits of the position that are the offset (the
+        rest is the archive number), the segment size u64; the entries
+        start at the next 16-byte boundary after (length u32, hash u32)."""
+        hsize = struct.unpack_from("<I", raw, 0)[0]
+        ver, bucket, extra, slen, olen, klen, bits, seg = struct.unpack_from("<HBBBBBBQ", raw, 8)
+        at = (8 + hsize + 0x0F) & ~0x0F
+        n = struct.unpack_from("<I", raw, at)[0]
+        return {"header_size": hsize, "version": ver, "bucket": bucket, "extra": extra, "size_len": slen,
+                "pos_len": olen, "key_len": klen, "offset_bits": bits, "segment": seg, "start": at + 8,
+                "length": n}
+
+    @classmethod
+    def _index_entries(cls, raw: bytes) -> tuple[bytes, tuple[int, int, int, int]]:
+        """(the entries, (key bytes, position bytes, size bytes, offset
+        bits)): 9, 5, 4 and 30 in every client seen so far."""
+        h = cls._index_header(raw)
+        shape = (h["key_len"], h["pos_len"], h["size_len"], h["offset_bits"])
+        if not (1 <= shape[0] <= 16 and 1 <= shape[1] <= 8 and 1 <= shape[2] <= 8 and 1 <= shape[3] < 8 * shape[1]):
+            shape = (9, 5, 4, 30)
+        esz = shape[0] + shape[1] + shape[2]
+        n = h["length"]
+        return raw[h["start"]:h["start"] + n - n % esz], shape
+
+    def _indexes(self) -> dict[int, list[tuple[bytes, tuple[int, int, int, int]]]]:
+        """bucket -> the entries of each of its .idx, newest first: an
+        entry the newest one lacks is looked up in the older ones."""
+        if self._idx is None:
+            self._idx = {}
+            self._idx_seen = self._index_stamp()
+            for bucket, files in self._index_files().items():
+                self._idx[bucket] = [self._index_entries(p.read_bytes()) for _, p in files]
+            if not self._idx:
+                raise CascError("no local indexes in Data/data")
+        return self._idx
+
+    def _index_stamp(self) -> tuple:
+        out = []
+        for files in self._index_files().values():
+            for _, p in files:
+                try:
+                    st = p.stat()
+                except OSError:
+                    continue
+                out.append((p.name, st.st_size, st.st_mtime_ns))
+        return tuple(sorted(out))
+
+    def _reindex(self) -> bool:
+        """Read the indexes again if the launcher or the game rewrote them
+        since they were read (the game writes the files it downloads while
+        it runs): True when they changed."""
+        if self._idx is None or self._index_stamp() == self._idx_seen:
+            return False
+        self._idx = None
+        return True
+
+    @staticmethod
+    def _bucket(key9: bytes) -> int:
+        x = 0
+        for byte in key9:
+            x ^= byte
+        return (x & 0x0F) ^ (x >> 4)
+
+    def _locations(self, ekey: bytes) -> list[tuple[int, int, int]]:
+        """Every (archive, offset, size) the local indexes give an encoding
+        key, the likeliest first: its bucket's newest .idx, the older ones,
+        then the other buckets. A key can have several entries (duplicates
+        in one .idx, one per version), and only what is at each one says
+        which is current, so `_raw` tries them all."""
+        k = ekey[:9]
+        idx = self._indexes()
+        first = self._bucket(k)
+        out: list[tuple[int, int, int]] = []
+        for bucket in [first] + [b for b in idx if b != first]:
+            for ent, shape in idx.get(bucket, ()):
+                for e in self._find(ent, ekey[:shape[0]], shape):
+                    at = self._entry(e, shape)
+                    if at not in out:
+                        out.append(at)
+        return out
+
+    def _locate(self, ekey: bytes) -> tuple[int, int, int] | None:
+        """The likeliest (archive, offset, size) of an encoding key."""
+        at = self._locations(ekey)
+        return at[0] if at else None
+
+    @staticmethod
+    def _find(ent: bytes, k: bytes, shape: tuple[int, int, int, int]) -> list[bytes]:
+        """Every entry for key `k` (the entries are sorted by key, and the
+        same key can come more than once)."""
+        klen = shape[0]
+        esz = klen + shape[1] + shape[2]
+        lo, hi = 0, len(ent) // esz
+        while lo < hi:  # the first entry not below k
+            mid = (lo + hi) // 2
+            if ent[mid * esz:mid * esz + klen] < k:
+                lo = mid + 1
+            else:
+                hi = mid
+        out = []
+        while lo < len(ent) // esz and ent[lo * esz:lo * esz + klen] == k:
+            out.append(ent[lo * esz:lo * esz + esz])
+            lo += 1
+        return out
+
+    @staticmethod
+    def _entry(e: bytes, shape: tuple[int, int, int, int] = (9, 5, 4, 30)) -> tuple[int, int, int]:
+        """(archive, offset, size): the position big-endian, the archive in
+        its top bits and the offset in its low `offset bits`; the size
+        little-endian (it counts the archive's 30-byte header)."""
+        klen, olen, slen, bits = shape
+        pos = int.from_bytes(e[klen:klen + olen], "big")
+        size = int.from_bytes(e[klen + olen:klen + olen + slen], "little")
+        return pos >> bits, pos & ((1 << bits) - 1), size
+
+    def _raw(self, ekey: bytes, limit: int = CASC_MAX_FILE, accept=None):
+        """One encoded file: the first of its index entries that holds a
+        BLTE file `accept` takes (it decodes and checks the content key,
+        raising CascMissing to refuse; without it, the first BLTE file),
+        after reading the indexes again once if none does and they changed
+        on disk meanwhile. Returns what `accept` returns, else the bytes."""
+        errs: list[CascMissing] = []
+        for _ in range(2):
+            errs = []
+            for archive, offset, size in self._locations(ekey):
+                try:
+                    data = self._raw_at(ekey, archive, offset, size, limit)
+                    return accept(data) if accept else data
+                except CascMissing as e:
+                    errs.append(e)
+            if not self._reindex():
+                break
+        # The most telling reason: a decoded file that isn't its content
+        # key says more than a stale entry next to it.
+        errs.sort(key=lambda e: "stale" in str(e) or "not stored" in str(e))
+        raise errs[0] if errs else CascMissing("not stored on this computer")
+
+    def _raw_at(self, ekey: bytes, archive: int, offset: int, size: int, limit: int) -> bytes:
+        if size <= 30:
+            raise CascMissing(f"bad size in the index ({size} bytes)")
+        if size > limit + 30:
+            raise CascMissing(f"too large ({size} bytes, the limit is {limit})")
+        p = self.data_dir / "data" / f"data.{archive:03d}"
+        try:
+            with p.open("rb") as f:
+                f.seek(offset)
+                raw = f.read(size)
+        except OSError as e:
+            raise CascMissing(f"can't read {p.name} ({e.strerror or e})") from None
+        # Most entries start with a 30-byte header, then the BLTE file; some
+        # point at the BLTE file itself (the owner's install, 2026-11-20:
+        # every file the game downloaded on demand had two entries, one
+        # with a header whose size field was 0, one 30 bytes on with no
+        # header). Neither the header's key bytes nor its size field can be
+        # trusted (wow.export skips the header unread). An entry with no
+        # BLTE file at either place is stale: its space was reused (the
+        # owner's third proof run: 9 of them). What proves a file is its
+        # block checksums and its content key, checked once decoded.
+        if raw[30:34] == b"BLTE":
+            data = raw[30:]
+        elif raw[:4] == b"BLTE":
+            data = raw
+        else:
+            raise CascMissing("not stored on this computer (its index entry is stale)")
+        if len(raw) != size or not data.strip(b"\0"):
+            raise CascMissing("empty in the archive")
+        return data
+
+    # -- encoding: content key -> encoding key
+
+    def _encoding(self):
+        if self._enc is None:
+            keys = (self.config.get("encoding") or "").split()
+            if len(keys) < 2:
+                raise CascError("the build config names no encoding file")
+            def checked(data: bytes) -> Blte:
+                b = Blte(data)
+                if b.md5() != bytes.fromhex(keys[0]):
+                    raise CascMissing("the encoding table doesn't match its content key (the launcher may be updating)")
+                return b
+            try:
+                blte = self._raw(bytes.fromhex(keys[1]), CASC_MAX_SYSTEM, checked)
+            except CascMissing as e:
+                if "content key" in str(e):
+                    raise CascError(str(e)) from None
+                raise
+            head = blte.read(0, 22)
+            if head[:2] != b"EN":
+                raise CascError("bad encoding file")
+            ck, ek = head[3], head[4]
+            page = struct.unpack_from(">H", head, 5)[0] * 1024
+            pages = struct.unpack_from(">I", head, 9)[0]
+            espec = struct.unpack_from(">I", head, 18)[0]
+            index = blte.read(22 + espec, pages * (ck + 16))
+            firsts = [index[i * (ck + 16):i * (ck + 16) + ck] for i in range(pages)]
+            self._enc = (blte, ck, ek, page, 22 + espec + pages * (ck + 16), firsts, {})
+        return self._enc
+
+    def ekey(self, ckey: bytes) -> bytes:
+        blte, ck, ek, page, start, firsts, cache = self._encoding()
+        i = bisect.bisect_right(firsts, ckey) - 1
+        if i < 0:
+            raise CascMissing("not in the encoding table")
+        if i not in cache:
+            raw = blte.read(start + i * page, page)
+            entries, pos = {}, 0
+            while pos + 6 + ck <= len(raw):
+                count = raw[pos]
+                if not count:
+                    break
+                key = raw[pos + 6:pos + 6 + ck]
+                entries[key] = [raw[pos + 6 + ck + j * ek:pos + 6 + ck + (j + 1) * ek] for j in range(count)]
+                pos += 6 + ck + count * ek
+            cache[i] = entries
+        hit = cache[i].get(ckey)
+        if not hit:
+            raise CascMissing("not in the encoding table")
+        return hit[0]
+
+    def ekeys(self, ckey: bytes) -> list[bytes]:
+        """Every encoding of a content key (most have one; the install may
+        hold any of them)."""
+        self.ekey(ckey)
+        blte, ck, ek, page, start, firsts, cache = self._encoding()
+        return list(cache[bisect.bisect_right(firsts, ckey) - 1][ckey])
+
+    # -- root: file id or name -> content key
+
+    def content_keys(self, fdids: set[int], names: set[str] = frozenset()) -> tuple[dict[int, bytes], dict[str, int]]:
+        """(file id -> content key, name -> file id) for the ones this build
+        has, in this install's locale (or for every locale), never the
+        low-violence copies."""
+        ck = (self.config.get("root") or "").split()
+        if not ck:
+            raise CascError("the build config names no root file")
+        if self._root is None:
+            err = CascMissing("not stored on this computer")
+            for ek in self.ekeys(bytes.fromhex(ck[0])):
+                def checked(data: bytes) -> bytes:
+                    out = Blte(data).read()
+                    if hashlib.md5(out).digest() != bytes.fromhex(ck[0]):
+                        raise CascMissing("the root file doesn't match its content key (the launcher may be updating)")
+                    return out
+                try:
+                    self._root = self._raw(ek, CASC_MAX_SYSTEM, checked)
+                    break
+                except CascMissing as e:
+                    err = e
+            else:
+                raise err
+        root = self._root
+        hashes = {jenkins96(n): n for n in names}
+        found: dict[int, bytes] = {}
+        named: dict[str, int] = {}
+        want = set(fdids)
+        pos = 0
+        modern = len(root) >= 4 and struct.unpack_from("<I", root, 0)[0] == CASC_ROOT_MAGIC
+        version, nameless = 0, False
+        if modern:
+            hsize, version = struct.unpack_from("<II", root, 4)
+            if hsize == 0x18:
+                total, nnamed = struct.unpack_from("<II", root, 12)
+            else:
+                total, nnamed, hsize, version = hsize, version, 12, 0
+            if version not in (0, 1, 2):
+                raise CascError(f"unknown root version {version}")
+            nameless = total != nnamed
+            pos = hsize
+        while pos + 12 <= len(root):
+            n = struct.unpack_from("<I", root, pos)[0]
+            if modern and version == 2:
+                loc, c1, c2 = struct.unpack_from("<III", root, pos + 4)
+                content = c1 | c2 | (root[pos + 16] << 17)
+                pos += 17
+            else:
+                content, loc = struct.unpack_from("<II", root, pos + 4)
+                pos += 12
+            deltas = struct.unpack_from(f"<{n}i", root, pos)
+            pos += 4 * n
+            ids, cur = [], 0
+            for d in deltas:
+                cur += d
+                ids.append(cur)
+                cur += 1
+            use = bool(loc & self.locale) and not content & CASC_LOW_VIOLENCE
+            if modern:
+                keys_at = pos
+                pos += 16 * n
+                hashed = not (nameless and content & CASC_NO_NAME_HASH)
+                hash_at = pos
+                if hashed:
+                    pos += 8 * n
+                for i, f in enumerate(ids):
+                    if f in want:
+                        self._variant(f, loc, content, root[keys_at + 16 * i:keys_at + 16 * i + 16])
+                if not use:
+                    continue
+                for i, f in enumerate(ids):
+                    if f in want and f not in found:
+                        found[f] = root[keys_at + 16 * i:keys_at + 16 * i + 16]
+                if hashed and hashes:
+                    block = struct.unpack_from(f"<{n}Q", root, hash_at)
+                    for i, h in enumerate(block):
+                        name = hashes.get(h)
+                        if name and name not in named:
+                            named[name] = ids[i]
+                            found.setdefault(ids[i], root[keys_at + 16 * i:keys_at + 16 * i + 16])
+                            self._variant(ids[i], loc, content, root[keys_at + 16 * i:keys_at + 16 * i + 16])
+            else:  # the pre-8.2 layout: (content key, name hash) pairs
+                at = pos
+                pos += 24 * n
+                for i, f in enumerate(ids):
+                    if f in want:
+                        self._variant(f, loc, content, root[at + 24 * i:at + 24 * i + 16])
+                if not use:
+                    continue
+                for i, f in enumerate(ids):
+                    rec = root[at + 24 * i:at + 24 * i + 24]
+                    if f in want and f not in found:
+                        found[f] = rec[:16]
+                    name = hashes.get(struct.unpack_from("<Q", rec, 16)[0]) if hashes else None
+                    if name and name not in named:
+                        named[name] = f
+                        found.setdefault(f, rec[:16])
+                        self._variant(f, loc, content, rec[:16])
+        for f in want - set(found):
+            if self.options(f):  # only another locale's copy
+                found[f] = self.options(f)[0]
+        return found, named
+
+    def _variant(self, fid: int, loc: int, content: int, ckey: bytes) -> None:
+        v = self.variants.setdefault(fid, [])
+        if (loc, content, ckey) not in v:
+            v.append((loc, content, ckey))
+
+    def options(self, fid: int) -> list[bytes]:
+        """The content keys worth trying for a file id, best first: this
+        locale's, this platform's (then either platform's, then the other
+        one's), never a low-violence copy, another locale's only when this
+        locale has none. A file can have several root entries, and only
+        one of them may be on this computer."""
+        plat = CASC_MACOS if sys.platform == "darwin" else CASC_WINDOWS
+        def rank(v):
+            loc, content, _ = v
+            both = CASC_WINDOWS | CASC_MACOS
+            return (0 if loc & self.locale else 1,
+                    0 if content & plat else 1 if not content & both else 2,
+                    1 if content & CASC_DO_NOT_LOAD else 0)
+        out: list[bytes] = []
+        usable = [v for v in self.variants.get(fid, ()) if not v[1] & CASC_LOW_VIOLENCE]
+        mine = [v for v in usable if v[0] & self.locale]
+        for v in sorted(mine or usable, key=rank):  # another locale's only when this one has none
+            if v[2] not in out:
+                out.append(v[2])
+        return out
+
+    def read_file(self, fid: int, table: bool = False) -> tuple[bytes, bytes]:
+        """(content, its content key): the first of the file id's root
+        entries, and of each one's encodings, this computer has."""
+        errs: list[CascMissing] = []
+        for ck in self.options(fid):
+            try:
+                return self.read(ck, table), ck
+            except CascMissing as e:
+                errs.append(e)
+        raise errs[0] if errs else CascMissing("not in this build")
+
+    def read(self, ckey: bytes, table: bool = False) -> bytes:
+        """One file's content, checked against its content key. `table`: a
+        client table, whose encrypted blocks read as zeros (Blte); its
+        plain blocks are still checked one by one, and `self.blanked`
+        collects the content keys that came out partial."""
+        def checked(raw: bytes) -> bytes:
+            blte = Blte(raw, blank_encrypted=table)
+            data = blte.read()
+            if len(data) > CASC_MAX_FILE:
+                raise CascMissing("too large")
+            if blte.blanked:
+                self.blanked.add(ckey)
+            elif hashlib.md5(data).digest() != ckey:
+                raise CascMissing("doesn't match its content key (the launcher may be updating)")
+            return data
+        err = CascMissing("not stored on this computer")
+        for ek in self.ekeys(ckey):
+            try:
+                return self._raw(ek, CASC_MAX_FILE, checked)
+            except CascMissing as e:
+                err = e
+        raise err
+
+
+def model_refs(data: bytes) -> set[int]:
+    """The files a model (.m2) or skeleton (.skel) names that the 3D view
+    draws with it: the first skin, its textures, its skeleton or parent
+    skeleton, its standing animation and its closed hands (a held weapon)."""
+    out: set[int] = set()
+    pos = 0
+    while pos + 8 <= len(data):
+        tag, n = data[pos:pos + 4], struct.unpack_from("<I", data, pos + 4)[0]
+        body = data[pos + 8:pos + 8 + n]
+        if tag == b"SFID" and len(body) >= 4:
+            out.add(struct.unpack_from("<I", body, 0)[0])  # the most detailed skin
+        elif tag in (b"TXID", b"SKID"):
+            out.update(struct.unpack_from(f"<{len(body) // 4}I", body))
+        elif tag == b"AFID":
+            for k in range(0, len(body) - 7, 8):
+                anim, _sub, fid = struct.unpack_from("<HHI", body, k)
+                if anim in (CASC_STAND, CASC_HANDS_CLOSED):
+                    out.add(fid)
+        elif tag == b"SKPD" and len(body) >= 12:
+            out.add(struct.unpack_from("<I", body, 8)[0])  # the parent skeleton
+        pos += 8 + n
+    out.discard(0)
+    return out
+
+
+def casc_files(casc: Casc, fdids, tables=(), follow: bool = True, max_files: int = 4000,
+               max_bytes: int = 512 * 1024 * 1024) -> tuple[dict[int, bytes], dict[str, int], dict[int | str, str]]:
+    """Read `fdids` and the client tables `tables` from the install, plus,
+    with `follow`, what each model and skeleton names (model_refs). Tables
+    are names (ChrModel...) or a mapping name -> file id: Forever's root
+    has no names, so only the file id finds them there (the server sends
+    it). (file id -> bytes, table -> its file id, what is missing -> why;
+    a table with encrypted rows is read with them blank and listed there
+    too.)"""
+    ids = dict(tables) if isinstance(tables, dict) else {}
+    names = {db2_path(t): t for t in tables if not ids.get(t)}
+    want = {int(f) for f in fdids if int(f) > 0} | {int(f) for f in ids.values() if f}
+    keys, named = casc.content_keys(want, set(names))
+    got: dict[int, bytes] = {}
+    missing: dict[int | str, str] = {}
+    by_table = {names[n]: f for n, f in named.items()}
+    by_table.update({t: int(f) for t, f in ids.items() if f and int(f) in keys})
+    for t in tables:
+        if t not in by_table:
+            missing[t] = "not in this build"
+    table_ids = set(by_table.values())
+    level = sorted(want | set(by_table.values()))
+    seen = set(level)
+    total = 0
+    while level:  # one pass over the root per level of references
+        more: set[int] = set()
+        for fid in level:
+            if len(got) >= max_files or total >= max_bytes:
+                missing[fid] = "over the run's limit"
+                continue
+            if keys.get(fid) is None:
+                missing[fid] = "not in this build"
+                continue
+            try:
+                data, key = casc.read_file(fid, table=fid in table_ids)
+            except CascMissing as e:
+                missing[fid] = str(e)
+                continue
+            got[fid] = data
+            if key in casc.blanked:
+                missing[fid] = "partly encrypted: those rows left blank"
+            total += len(data)
+            if follow and data[:4] in (b"MD21", b"SKL1"):
+                more |= model_refs(data) - seen
+        seen |= more
+        if more:
+            keys.update(casc.content_keys(more)[0])
+        level = sorted(more)
+    return got, by_table, missing
+
+
+def casc_kind(data: bytes) -> str:
+    return CASC_KINDS.get(data[:4], "bin")
+
+
+def casc_extract(root: Path, out: Path, fdids, tables, follow: bool = True) -> dict:
+    """--casc-extract: the files to a folder, one per file id
+    (<id>.<kind>, tables as <Name>.db2), and manifest.json. Read-only on the
+    install. For a check by hand; the shipper's own run uploads instead."""
+    casc = Casc(root)
+    got, by_table, missing = casc_files(casc, fdids, tables, follow)
+    out.mkdir(parents=True, exist_ok=True)
+    table_of = {f: t for t, f in by_table.items()}
+    files = {}
+    for fid, data in sorted(got.items()):
+        kind = casc_kind(data)
+        name = f"{table_of[fid]}.db2" if fid in table_of else f"{fid}.{kind}"
+        (out / name).write_bytes(data)
+        files[str(fid)] = {"name": name, "kind": kind, "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+    manifest = {"product": casc.product, "version": casc.version, "build_key": casc.build_key,
+                "locale": casc.locale_name, "tables": by_table, "files": files,
+                "missing": {str(k): v for k, v in sorted(missing.items(), key=lambda kv: str(kv[0]))}}
+    (out / "manifest.json").write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    return manifest
+
+
+def casc_diagnose(root: Path, fdids=()) -> list[str]:
+    """--casc-diagnose: the storage's structure, never a file's contents:
+    the local indexes per bucket and their headers, the archives' sizes, and
+    where the encoding table is (its key's first 9 bytes, the entries that
+    name it in every index version, what the archive header there says)."""
+    out: list[str] = []
+    try:
+        casc = Casc(root)
+    except CascError as e:
+        return [f"install: {e}"]
+    out.append(f"install: {casc.product} {casc.version}, locale {casc.locale_name}, platform {sys.platform}")
+    out += _diagnose_folders(casc)
+    files = casc._index_files()
+    out.append(f"indexes: {sum(len(v) for v in files.values())} .idx files in {len(files)} buckets")
+    for bucket in sorted(files):
+        vers = [v for v, _ in files[bucket]]
+        try:
+            raw = files[bucket][0][1].read_bytes()
+            h = casc._index_header(raw)
+            ent, shape = casc._index_entries(raw)
+            esz = shape[0] + shape[1] + shape[2]
+            keys = [ent[i:i + shape[0]] for i in range(0, len(ent), esz)]
+            out.append(
+                f"  bucket {bucket:02x}: versions {', '.join(f'{v:08x}' for v in vers)}; newest: header {h['header_size']}"
+                f" v{h['version']} bucket {h['bucket']:02x} extra {h['extra']} size/pos/key bytes {h['size_len']}/"
+                f"{h['pos_len']}/{h['key_len']} offset bits {h['offset_bits']} segment {h['segment']};"
+                f" {h['length']} entry bytes ({h['length'] % esz} left over), {len(keys)} entries,"
+                f" {'sorted' if keys == sorted(keys) else 'NOT sorted'}, file {len(raw)} bytes")
+        except (OSError, struct.error) as e:
+            out.append(f"  bucket {bucket:02x}: versions {vers}; unreadable ({e})")
+    data = sorted((casc.data_dir / "data").glob("data.[0-9][0-9][0-9]"))
+    out.append(f"archives: {len(data)} data.NNN files, largest {max((p.stat().st_size for p in data), default=0)} bytes")
+    keys = (casc.config.get("encoding") or "").split()
+    out.append(f"build config: encoding has {len(keys)} keys, encoding-size {casc.config.get('encoding-size') or '?'}")
+    if len(keys) < 2:
+        return out
+    out += _diagnose_key(casc, files, "encoding", bytes.fromhex(keys[1]))
+    try:
+        for ek in casc.ekeys(bytes.fromhex((casc.config.get("root") or "").split()[0])):
+            out += _diagnose_key(casc, files, "root", ek)
+    except (CascError, CascMissing, struct.error, ValueError, IndexError) as e:
+        out.append(f"root key: {type(e).__name__}: {e}")
+    for what, step in (("encoding table", lambda: casc._encoding()), ("root", lambda: casc.content_keys(set()))):
+        try:
+            step()
+            out.append(f"{what}: reads")
+        except (CascError, CascMissing, struct.error, ValueError, IndexError) as e:
+            out.append(f"{what}: {type(e).__name__}: {e}")
+    try:
+        keys, _ = casc.content_keys({int(f) for f in fdids})
+    except (CascError, CascMissing) as e:
+        return [*out, f"file ids: {e}"]
+    for fid in sorted({int(f) for f in fdids}):
+        variants = casc.variants.get(fid, [])
+        if not variants:
+            out.append(f"file {fid}: not in the root")
+            continue
+        out.append(f"file {fid}: {len(variants)} root entries, {len(casc.options(fid))} worth trying")
+        for n, (loc, content, ck) in enumerate(variants):
+            tag = f"file {fid} root {n + 1}/{len(variants)} locale 0x{loc:08x} flags 0x{content:08x}"
+            try:
+                eks = casc.ekeys(ck)
+            except CascMissing as e:
+                out.append(f"{tag}: {e}")
+                continue
+            for m, ek in enumerate(eks):
+                out.append(f"{tag} encoding {m + 1}/{len(eks)}: {_diagnose_entry(casc, ek)}")
+    return out
+
+
+def _diagnose_folders(casc: Casc) -> list[str]:
+    """What the storage folder holds, by folder: file counts, sizes, kinds
+    and the newest change (a client that keeps what it downloads somewhere
+    else shows there). Names Blizzard gives its folders only."""
+    out = []
+    base = casc.data_dir
+    try:
+        dirs = sorted(p for p in base.iterdir() if p.is_dir())
+    except OSError as e:
+        return [f"storage folder: unreadable ({e.strerror or e})"]
+    for d in dirs:
+        n = size = newest = 0
+        kinds: dict[str, int] = {}
+        try:
+            for p in d.rglob("*"):
+                if p.is_file():
+                    st = p.stat()
+                    n += 1
+                    size += st.st_size
+                    newest = max(newest, st.st_mtime)
+                    k = "data.NNN" if re.fullmatch(r"data\.\d{3}", p.name) else p.suffix.lower() or "(none)"
+                    kinds[k] = kinds.get(k, 0) + 1
+        except OSError:
+            pass
+        when = time.strftime("%Y-%m-%d %H:%M", time.gmtime(newest)) if newest else "-"
+        top = ", ".join(f"{k} {v}" for k, v in sorted(kinds.items(), key=lambda kv: -kv[1])[:6])
+        out.append(f"folder Data/{d.name}: {n} files, {size} bytes, newest change {when} UTC; {top}")
+    return out
+
+
+def _diagnose_key(casc: Casc, files: dict, what: str, ek: bytes) -> list[str]:
+    """Every entry naming one key in every index version, and what the
+    archive header there says."""
+    out = [f"{what} key (first 9 bytes) {ek[:9].hex()}, bucket {casc._bucket(ek[:9]):02x}"]
+    for bucket in sorted(files):
+        for ver, p in files[bucket]:
+            try:
+                ent, shape = casc._index_entries(p.read_bytes())
+            except (OSError, struct.error):
+                continue
+            for e in casc._find(ent, ek[:shape[0]], shape):
+                archive, offset, size = casc._entry(e, shape)
+                d = casc.data_dir / "data" / f"data.{archive:03d}"
+                dsize = d.stat().st_size if d.is_file() else -1
+                line = (f"  in bucket {bucket:02x} version {ver:08x}: position bytes"
+                        f" {e[shape[0]:shape[0] + shape[1]].hex()} size bytes {e[shape[0] + shape[1]:].hex()}"
+                        f" -> archive {archive} offset {offset} size {size}; data.{archive:03d} is {dsize} bytes,"
+                        f" {'fits' if 0 <= offset + size <= dsize else 'DOES NOT FIT'}")
+                if 0 <= offset + 30 <= dsize:
+                    with d.open("rb") as f:
+                        f.seek(offset)
+                        head = f.read(34)
+                    hsz = struct.unpack_from("<I", head, 16)[0] if len(head) >= 20 else -1
+                    line += (f"; archive header: key {'matches' if head[:16] == ek[::-1] else 'differs'} (reversed),"
+                             f" size field {hsz} ({'matches' if hsz == size else 'differs'}),"
+                             f" BLTE after it: {'yes' if head[30:34] == b'BLTE' else 'no'}")
+                out.append(line)
+    if len(out) == 1:
+        out.append("  in no index")
+    return out
+
+
+def _diagnose_entry(casc: Casc, ek: bytes) -> str:
+    """Where one encoded file sits and what its headers say, no contents:
+    every entry the indexes have for it."""
+    places = casc._locations(ek)
+    if not places:
+        return "in no index"
+    lines = [_diagnose_place(casc, ek, *at) for at in places]
+    return lines[0] if len(lines) == 1 else f"{len(lines)} entries: " + " | ".join(lines)
+
+
+def _diagnose_place(casc: Casc, ek: bytes, archive: int, offset: int, size: int) -> str:
+    d = casc.data_dir / "data" / f"data.{archive:03d}"
+    dsize = d.stat().st_size if d.is_file() else -1
+    line = f"archive {archive} offset {offset} size {size}, {'fits' if 0 <= offset + size <= dsize else 'DOES NOT FIT'}"
+    if not 30 < size <= CASC_MAX_FILE + 30 or offset + size > dsize:
+        return line
+    with d.open("rb") as f:
+        f.seek(offset)
+        raw = f.read(size)
+    hsz = struct.unpack_from("<I", raw, 16)[0]
+    body = raw[30:]
+    if body[:4] != b"BLTE" and raw[:4] == b"BLTE":  # an entry with no header
+        body = raw
+        line += "; no header, BLTE at the entry"
+    line += (f"; header key {'matches' if raw[:16] == ek[::-1] else 'differs'}, size field"
+             f" {'matches' if hsz == size else f'differs ({hsz})'}; body: {body[:4] == b'BLTE' and 'BLTE' or 'not BLTE'},"
+             f" {100 * body.count(0) // max(len(body), 1)}% zero bytes")
+    if body[:4] == b"BLTE":
+        try:
+            b = Blte(body)
+            modes: dict[str, int] = {}
+            for off, _comp, _dec, _md5 in b.blocks:
+                m = body[off:off + 1].decode("latin-1")
+                modes[m] = modes.get(m, 0) + 1
+            line += ", blocks " + " ".join(f"{k}x{v}" for k, v in sorted(modes.items()))
+        except CascMissing as e:
+            line += f", {e}"
+    return line
+
+
 # ---------------------------------------------------------------- auto-update
 
-# Once every 6 hours at most, after the run's own work: the shipper asks the
+# Once every 2 hours at most, after the run's own work: the shipper asks the
 # server it ships to for the current version (GET <base>/install/update/shipper,
 # with the upload password) and, when it is newer, takes the file from the same
 # server, checks its sha256 and that it compiles, then replaces itself (the old
@@ -2777,7 +3685,7 @@ def preflight() -> int:
 # Same trust as the update command, no wider: the same server, the same
 # password, HTTPS (or this computer). Never a downgrade; any failure keeps the
 # running version and logs one line. `auto_update = false` in the config pins it.
-UPDATE_EVERY_S = 6 * 3600
+UPDATE_EVERY_S = 2 * 3600  # owner, 2026-11-20: every 2 hours for now (was 6)
 UPDATE_PATH = "/install/update/shipper"
 UPDATE_MAX_BYTES = 8 * 1024 * 1024
 # The files that define the background program, per platform: when the
@@ -2792,8 +3700,13 @@ class UpdateError(Exception):
 
 
 def version_tuple(v) -> tuple[int, ...] | None:
-    m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)", str(v or "").strip())
-    return tuple(int(x) for x in m.groups()) if m else None
+    """X.Y.Z or a release candidate X.Y.Z-rc.N, which sorts below X.Y.Z.
+    Shippers before 0.7.0 only read X.Y.Z: they wait for the final."""
+    m = re.fullmatch(r"(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?", str(v or "").strip())
+    if not m:
+        return None
+    a, b, c, rc = m.groups()
+    return (int(a), int(b), int(c), 0, int(rc)) if rc else (int(a), int(b), int(c), 1, 0)
 
 
 def auto_update_on() -> bool:
@@ -2976,6 +3889,145 @@ def check_update(state: dict, now: float | None = None) -> str | None:
     return "updated"
 
 
+# ---------------------------------------------------------------- the 3D view's files: sending
+
+# Sending them: after the events, at most every ASSETS_EVERY_S, the shipper
+# asks its server what it still wants (GET <base>/install/assets/need, with
+# the upload password) and sends those files from the install, one POST
+# each: the client tables first, then the files the characters need with
+# what their models name. At most ASSETS_RUN_BYTES a run; the rest goes at
+# the next one. `model3d_files = false` in the config turns it off (the 3D
+# view then shows Battle.net's picture). Same trust as the auto-update: the
+# same server and password, HTTPS (or this computer), no redirects.
+ASSETS_PATH = "/install/assets"
+ASSETS_EVERY_S = 15 * 60
+ASSETS_RUN_BYTES = 96 * 1024 * 1024
+ASSETS_ROUNDS = 6  # model, skin and skeleton, parent skeleton, animations, and spare
+
+
+def assets_on() -> bool:
+    """On unless the config says `model3d_files = false`."""
+    v = CONFIG.get("model3d_files", True)
+    if isinstance(v, str):
+        return v.strip().lower() not in ("false", "off", "no", "0")
+    return bool(v)
+
+
+def _assets_call(url: str, headers: dict, body: bytes | None = None) -> tuple[int, bytes]:
+    """(status, body) of one GET (no body) or POST; 0 when unreachable."""
+    req = urllib.request.Request(url, data=body, method="POST" if body is not None else "GET",
+                                 headers={**headers, "User-Agent": f"wow-stats-shipper/{VERSION}"})
+    try:
+        with urllib.request.build_opener(_NoRedirect).open(req, timeout=120) as r:
+            return r.status, r.read(1024 * 1024)
+    except urllib.error.HTTPError as e:
+        return e.code, e.read(4096)
+    except (urllib.error.URLError, TimeoutError, OSError):
+        return 0, b""
+
+
+def ship_assets(state: dict, now: float | None = None) -> str | None:
+    """The 3D view's files (above): None when skipped, else what happened."""
+    if not assets_on():
+        return None
+    st = state.setdefault("assets", {})
+    now = time.time() if now is None else now
+    try:
+        last = float(st.get("checked", 0))
+    except (TypeError, ValueError):
+        last = 0.0
+    if not st.get("more") and 0 <= now - last < ASSETS_EVERY_S:
+        return None
+    st["checked"] = now
+    try:
+        src = update_source()
+    except UpdateError as e:
+        log(f"3d files: {e}")
+        return "refused"
+    if src is None:
+        return None
+    base, auth = src
+    try:
+        casc = Casc(WOW.parent)
+    except CascError as e:
+        if st.get("error") != str(e):  # once, not every run
+            log(f"3d files: can't read the game's files ({e})")
+        st["error"] = str(e)
+        return "no install"
+    st.pop("error", None)
+    q = urllib.parse.urlencode({"build": casc.version})
+
+    def need() -> dict | None:
+        code, body = _assets_call(f"{base}{ASSETS_PATH}/need?{q}", auth)
+        if code != 200:
+            if code not in (0, 404):  # 404: a server without the 3D files
+                log(f"3d files: the server answered HTTP {code}")
+            return None
+        try:
+            d = json.loads(body)
+        except ValueError:
+            return None
+        return d if isinstance(d, dict) else None
+
+    n = need()
+    if n is None:
+        return "no server"
+    sent, size, refused = 0, 0, 0
+    limit = int(n.get("max_file") or 0) or 16 * 1024 * 1024
+    tables = {str(k): int(v) for k, v in (n.get("tables") or {}).items() if re.fullmatch(r"[A-Za-z]{1,40}", str(k))}
+    try:
+        if tables:
+            got, by_name, _ = casc_files(casc, [], tables, follow=False)
+            for name in tables:
+                data = got.get(by_name.get(name, -1))
+                if data is None or len(data) > limit:
+                    continue
+                code, _ = _assets_call(f"{base}{ASSETS_PATH}/table/{name}?{q}", auth, data)
+                if code == 200:
+                    sent, size = sent + 1, size + len(data)
+                else:
+                    refused += 1
+            n = need() or {}
+        # The server names what it still wants, the files its stored models
+        # name included, so a model's skin, skeleton and animation come in
+        # the rounds after it and nothing it already has is sent again.
+        more = False
+        for _ in range(ASSETS_ROUNDS):
+            files = [int(f) for f in n.get("files") or [] if str(f).isdigit()]
+            if not files or more:
+                break
+            got, _, missing = casc_files(casc, files, follow=False, max_bytes=max(1, ASSETS_RUN_BYTES - size))
+            if "over the run's limit" in missing.values():
+                more = True
+            before = sent
+            for fid, data in got.items():
+                if len(data) > limit:
+                    continue
+                if size + len(data) > ASSETS_RUN_BYTES:
+                    more = True
+                    break
+                headers = {**auth, "X-Content-SHA256": hashlib.sha256(data).hexdigest()}
+                code, _ = _assets_call(f"{base}{ASSETS_PATH}/file/{fid}", headers, data)
+                if code == 200:
+                    sent, size = sent + 1, size + len(data)
+                elif code in (0, 429, 507):  # unreachable, today's budget, the server's room: next run
+                    more = code != 507
+                    break
+                else:
+                    refused += 1
+            if sent == before:
+                break
+            n = need() or {}
+        st["more"] = more
+    except CascError as e:
+        log(f"3d files: can't read the game's files ({e})")
+        return "no install"
+    if sent or refused:
+        log(f"3d files: {sent} sent ({size // 1024} KB)" + (f", {refused} refused" if refused else "")
+            + ("; more next run" if st.get("more") else ""))
+    return "sent" if sent else "nothing new"
+
+
 def main() -> int:
     global DRY
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
@@ -2983,15 +4035,59 @@ def main() -> int:
     ap.add_argument("--no-ship", action="store_true", help="archive and extract only")
     ap.add_argument("--backfill", action="store_true", help="re-extract every archived version too")
     ap.add_argument("--print-wow-dir", action="store_true", help="print the WoW folder in use (for the installers)")
+    ap.add_argument("--talents-check", action="store_true",
+                    help="WoWSims Exporter: count its saves and how many match a character, read-only, counts only")
     ap.add_argument("--install-recorder", action="store_true",
                     help="put the pinned Polestar Recorder in the AddOns folder (for the installers)")
     ap.add_argument("--preflight", action="store_true",
                     help="check the setup and print a checklist (the installers' last step)")
+    ap.add_argument("--casc-extract", metavar="FOLDER",
+                    help="copy the 3D view's files named by --fdids and --tables from the WoW install to FOLDER "
+                         "(read-only on the install; a check by hand)")
+    ap.add_argument("--casc-diagnose", action="store_true",
+                    help="print how the WoW install's storage is laid out (indexes, archives; no file contents)")
+    ap.add_argument("--fdids", default="", help="with --casc-extract: file ids, comma-separated, or @file")
+    ap.add_argument("--tables", default="", help="with --casc-extract: client tables (ChrModel or ChrModel=3384313,...), "
+                                                 "comma-separated, or @file")
+    ap.add_argument("--wow-root", default="", help="with --casc-extract: the folder holding .build.info "
+                                                   "(default: the one above the configured _forever_)")
     a = ap.parse_args()
-    DRY = a.dry_run or a.print_wow_dir or a.preflight
+    DRY = a.dry_run or a.print_wow_dir or a.talents_check or a.preflight or bool(a.casc_extract) or a.casc_diagnose
     configure()
+    if a.casc_diagnose:
+        ids = Path(a.fdids[1:]).expanduser().read_text(encoding="utf-8") if a.fdids.startswith("@") else a.fdids
+        for line in casc_diagnose(Path(a.wow_root).expanduser() if a.wow_root else WOW.parent,
+                                  [int(x) for x in re.split(r"[\s,]+", ids) if x]):
+            print(line)
+        return 0
+    if a.casc_extract:
+        root = Path(a.wow_root).expanduser() if a.wow_root else WOW.parent
+        try:
+            def listed(v: str) -> list[str]:  # "a,b" or "@file" holding the same
+                v = Path(v[1:]).expanduser().read_text(encoding="utf-8") if v.startswith("@") else v
+                return [x for x in re.split(r"[\s,]+", v) if x]
+
+            fdids = [int(x) for x in listed(a.fdids)]
+            # Name, or Name=file id (Forever's root has no names: only the id finds a table there).
+            tables = {t.split("=", 1)[0]: int(t.split("=", 1)[1]) if "=" in t else 0 for t in listed(a.tables)}
+            man = casc_extract(root, Path(a.casc_extract).expanduser(), fdids, tables)
+        except (CascError, ValueError, OSError) as e:
+            log(f"casc: {e}")
+            return 1
+        log(f"casc: {len(man['files'])} files ({sum(f['size'] for f in man['files'].values())} bytes) "
+            f"from {man['product']} {man['version']} to {a.casc_extract}; {len(man['missing'])} missing")
+        return 0
     if a.print_wow_dir:
         print(WOW)
+        return 0
+    if a.talents_check:
+        # The player's own check, typed in their terminal: never run unattended
+        # (a script, an agent) against a real install.
+        if not in_temp(WOW) and not (sys.stdin is not None and sys.stdin.isatty()):
+            print(f"--talents-check reads your WoW folder ({WOW}): run it yourself, in a terminal.", file=sys.stderr)
+            return 2
+        for i, acct in enumerate(accounts(WOW / "WTF"), 1):
+            print(f"account {i}: " + ", ".join(f"{v} {k}" for k, v in wowsims_counts(acct, roster(acct)).items()))
         return 0
     if a.preflight:
         return preflight()
@@ -3063,6 +4159,10 @@ def main() -> int:
         log(f"extract: {spooled.name}:", out.summary())
     if not a.no_ship:
         ship()
+        try:
+            ship_assets(state)
+        except Exception as e:  # noqa: BLE001 - the 3D files never stop the shipping
+            log(f"3d files: {type(e).__name__}: {e}")
         try:
             check_update(state)
         except Exception as e:  # noqa: BLE001 - an update bug never stops the shipping

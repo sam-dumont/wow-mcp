@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import html
 import json
+import os
 import re
 import subprocess
 import time
@@ -57,6 +58,39 @@ def digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def remember(url: str, text: str) -> None:
+    """Keep the text a model pass read for `url` (one JSON line in the file
+    KB_SOURCES names, a temp path in the workflow), so the gates
+    (tools/kb/gates.py) check the KB's new wording against the very text it
+    came from. No KB_SOURCES: nothing kept."""
+    path = os.environ.get("KB_SOURCES")
+    if path and url and text:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"url": url, "text": text}, ensure_ascii=False) + "\n")
+
+
+def remembered(path: str | None) -> dict[str, str]:
+    """{url: every text read for it, joined} from a KB_SOURCES file."""
+    out: dict[str, str] = {}
+    if not path or not os.path.exists(path):
+        return out
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            try:
+                r = json.loads(line)
+            except ValueError:
+                continue
+            out[r["url"]] = (out.get(r["url"], "") + "\n\n" + r["text"]).strip()
+    return out
+
+
+def repo() -> str | None:
+    """The repository the job's branch, PRs and issues go to: KB_REPO when the
+    job runs in the CI mirror (.github/workflows/kb-refresh.yaml), else the
+    one it runs in."""
+    return os.environ.get("KB_REPO") or os.environ.get("GITHUB_REPOSITORY")
+
+
 class GitHub:
     """The few calls the tools make, through the gh CLI (GH_TOKEN in the
     environment). One issue per change kind, found by its marker."""
@@ -92,14 +126,15 @@ class GitHub:
             return None
 
 
-def keep_issue(gh, kind: str, label: str, title: str, body: str | None) -> str:
+def keep_issue(gh, kind: str, label: str, title: str, body: str | None,
+               closing: str = "Back to what the KB knows (data/kb/watch.json): nothing to review.") -> str:
     """Open, edit or close the one issue of a change kind: body None means
     nothing changed (close it if open). Returns what it did."""
     marker = f"<!-- kb-watch:{kind} -->"
     existing = gh.find_issue(marker, label)
     if body is None:
         if existing:
-            gh.close_issue(existing, "Back to what the KB knows (data/kb/watch.json): nothing to review.")
+            gh.close_issue(existing, closing)
             return "closed"
         return "none"
     body = f"{marker}\n{body}"

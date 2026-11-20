@@ -14,9 +14,14 @@ from tests.test_publish import TALENT_KEYS
 from wowstats import redact, talents, ui
 
 TABLES = json.loads((Path(__file__).parent / "data" / "wowf-talents-1.60.1.70959.json").read_text())
-# A Mage's /simx export (VulcanSimBench `ts`): Improved Frostbolt 5/5,
-# Arctic Reach 2/2, Cold Snap 1/1, Arcane Subtlety 2/2.
+# A Mage's talents as spell ID and rank: Improved Frostbolt 5/5, Arctic
+# Reach 2/2, Cold Snap 1/1, Arcane Subtlety 2/2.
 RANKS = {"11070": 5, "16757": 2, "12472": 1, "11210": 2}
+# The same as stores.character_talents gives Battle.net's /specializations.
+MAGE_BNET = {"trees": [{"tree": "Arcane", "points": 2}, {"tree": "Fire", "points": 0},
+                       {"tree": "Frost", "points": 8}],
+             "ranks": [{"spell": int(k), "rank": v, "name": None} for k, v in RANKS.items()],
+             "refreshed": "2026-11-18T06:00:00Z"}
 
 
 @pytest.fixture(scope="module")
@@ -48,54 +53,46 @@ def test_mage_frame_is_three_columns_on_the_games_grid(cat):
 
 
 def test_answer_names_the_spec_by_most_points(cat):
-    a = talents.answer(cat, "MAGE", RANKS, "VulcanSimBench /simx", "2026-11-18", 32)
+    a = talents.answer(cat, "MAGE", RANKS, "Battle.net", "2026-11-18", 32)
     assert a["available"] and a["spec"] == "Frost" and a["level"] == 32
     assert a["points"] == [{"tree": "Arcane", "points": 2}, {"tree": "Fire", "points": 0},
                            {"tree": "Frost", "points": 8}]
 
 
-def test_no_export_says_which_addon_fills_it(cat):
+def test_no_talents_says_they_come_from_battlenet(cat):
     a = talents.answer(cat, "HUNTER", {}, None, None)
-    assert not a["available"] and "/simx" in a["why"] and a["sections"] == []
+    assert not a["available"] and "Battle.net" in a["why"] and a["sections"] == []
+    assert "simx" not in a["why"].lower()
 
 
-def test_history_is_one_stop_per_distinct_export(cat):
-    rows = [
-        {"_time": "2026-11-10T10:00:00Z", "talent_ranks": json.dumps([{"spell": 11070, "rank": 2}]),
-         "talent_nodes": "52", "talents_level": "12", "talents_date": "2026-11-10"},
-        # The same export on the next sheet: not a new stop.
-        {"_time": "2026-11-11T10:00:00Z", "talent_ranks": json.dumps([{"spell": 11070, "rank": 2}]),
-         "talent_nodes": "52", "talents_level": "12", "talents_date": "2026-11-10"},
-        {"_time": "2026-11-18T10:00:00Z", "talent_ranks": json.dumps([{"spell": k, "rank": v} for k, v in RANKS.items()]),
-         "talent_nodes": "52", "talents_level": "19", "talents_date": "2026-11-18"},
-        {"_time": "2026-11-09T10:00:00Z"},  # a sheet with no export
-    ]
-    a, spec = talents.from_rows(cat, rows, "MAGE")
-    assert [(h["level"], h["spec"]) for h in a["history"]] == [(12, "Frost"), (19, "Frost")]
-    assert a["level"] == 19 and a["at"] == "2026-11-18" and a["source"] == "VulcanSimBench /simx"
-    assert (spec["name"], spec["source"], spec["split"]) == ("Frost", "VulcanSimBench /simx", "2/0/8")
-    assert "30 days" in a["history_why"]
+def test_talents_come_from_battlenet_only(cat):
+    """Since 2026-11-20 (Vulcan SimBench dropped): Battle.net's reading or
+    nothing, and no history (its readings can't be kept)."""
+    a, spec = talents.from_battlenet(cat, "MAGE", MAGE_BNET)
+    assert a["available"] and a["source"] == "Battle.net" and a["at"] == "2026-11-18T06:00:00Z"
+    assert (spec["name"], spec["source"], spec["split"]) == ("Frost", "Battle.net", "2/0/8")
+    assert "history" not in a and "cross_check" not in a
     # No talents anywhere: no spec on the card (a gear pick is not a talent).
-    a, spec = talents.from_rows(cat, [], "MAGE")
-    assert not a["available"] and a["history"] == []
+    a, spec = talents.from_battlenet(cat, "MAGE", None)
+    assert not a["available"]
     assert spec["name"] is None and spec["split"] is None
 
 
-def test_legacy_points_are_a_floor_from_levels_and_skills(cat):
-    roster = talents.roster_rows(
-        [{"char": "Testpriest-Fixture", "class": "PRIEST", "level": "47"},
-         {"char": "Testhunter-Fixture", "class": "Hunter", "level": "12"}],
-        [{"char": "Testpriest-Fixture", "_time": "2026-11-18T10:00:00Z",
-          "professions": json.dumps([{"name": "Tailoring", "rank": 160}, {"name": "Cooking", "rank": 90}])},
-         {"char": "Testpriest-Fixture", "_time": "2026-11-01T10:00:00Z",
-          "professions": json.dumps([{"name": "Tailoring", "rank": 300}])}])  # older: not used
-    lg = talents.legacy(cat, roster)
-    assert lg["earned"] == ["Reach Level 25 for the first time on a Priest",
-                            "Reach Level 45 for the first time on a Priest",
-                            "Reach 150 skill in Tailoring"]
-    assert lg["derived_min"] == 3 and lg["total"] == 65 and lg["spent"] is None
-    assert "DataStore_Achievements" in lg["why"]
-    assert talents.legacy(None, roster)["available"] is False
+def test_legacy_points_come_from_battlenets_achievements(cat):
+    """Each Legacy challenge is an achievement, listed twice in the client
+    under two ids: either one counts (owner, 2026-11-20: the API, not a
+    guess from levels and skills)."""
+    lg = talents.legacy(cat, {61499: "2026-11-01T10:00:00Z", 63970: "2026-11-10T10:00:00Z", 1: "x"})
+    assert lg["available"] and lg["earned"] == ["Reach Level 25 for the first time on a Warrior",
+                                                "Reach Level 45 for the first time on a Warrior"]
+    assert lg["earned_points"] == 2 and lg["total"] == 65 and lg["spent"] is None
+    assert "Battle.net" in lg["why"]
+    # Battle.net read the account, nothing earned yet: 0, not unknown.
+    assert talents.legacy(cat, {})["earned_points"] == 0
+    # No Battle.net: unknown, never a floor.
+    none = talents.legacy(cat, None)
+    assert not none["available"] and none["earned_points"] is None and "Unknown" in none["why"]
+    assert talents.legacy(None, {61499: "x"})["available"] is False
 
 
 def test_describe_drops_what_only_the_client_knows():
@@ -105,32 +102,27 @@ def test_describe_drops_what_only_the_client_knows():
     assert talents.describe("By $/1000;S1 sec.", [-100.0], 3) == "By 0.3 sec."
 
 
-def test_shipper_reads_forever_talents(shipper, tmp_path):
-    import zlib
-
-    body = "FSX1:v=1.3.0;b=1.60.1.70959;d=2026-11-18;cls=MAGE;lvl=19;ts=11070:5,12472:1,99:0;tsn=52;g=1:2:3"
-    sim = f"{body}#{zlib.adler32(body.encode()):08x}"
-    (tmp_path / "VulcanSimBench.lua").write_text(f'VulcanSimBenchCharDB = {{\n["last"] = "{sim}",\n}}\n')
-    got = shipper.simbench_ranks(tmp_path)
-    assert got == {"ranks": [{"spell": 11070, "rank": 5}, {"spell": 12472, "rank": 1}], "nodes": 52,
-                   "level": 19, "date": "2026-11-18"}
-    assert shipper.simbench_talents(tmp_path) is None  # Forever has no `tal`
-    (tmp_path / "VulcanSimBench.lua").write_text("VulcanSimBenchCharDB = {\n}\n")  # Testhunter: never ran /simx
-    assert shipper.simbench_ranks(tmp_path) is None
+def test_shipper_reads_no_simbench(shipper):
+    """Vulcan SimBench was dropped on 2026-11-20: the shipper has no reader for it."""
+    assert not any(hasattr(shipper, n) for n in ("simbench_export", "simbench_talents", "simbench_ranks"))
 
 
 # ------------------------------------------------------------ the public card
 
 
 class TalentStore(PoisonStore):
-    """The poison store, its wow-gear rows carrying a /simx export with a
-    secret tucked into a rank."""
+    """The poison store, a Mage whose talents Battle.net gives, a secret
+    tucked into a rank's name; its old wow-gear rows still carry a /simx
+    export (stored before 2026-11-20), which nothing reads any more."""
 
     def vl(self, query, keys=(), ops=None, limit=0):
         rows = super().vl(query, keys, ops, limit)
-        ranks = [{"spell": int(k), "rank": v, "player": SECRET_PLAYER} for k, v in RANKS.items()]
-        return [{**r, "class": "MAGE", "talent_ranks": json.dumps(ranks), "talent_nodes": "52",
+        old = [{"spell": 12345, "rank": 3}]
+        return [{**r, "class": "MAGE", "talent_ranks": json.dumps(old), "talent_nodes": "52",
                  "talents_level": "19", "talents_date": "2026-11-18"} for r in rows]
+
+    def character_talents(self, name):
+        return {**MAGE_BNET, "ranks": [{**x, "name": SECRET_PLAYER} for x in MAGE_BNET["ranks"]]}
 
 
 @pytest.fixture
@@ -195,19 +187,26 @@ def test_public_bundle_has_talents_and_their_icons(loaded, tmp_path, monkeypatch
     test_zogzog_bundle_holds_only_its_allowlist(site)
 
 
-def test_hunter_without_an_export_gets_the_empty_card(monkeypatch, loaded):
-    """A character that never ran /simx: the card says so, no frame."""
+def test_character_battlenet_doesnt_know_gets_the_empty_card(monkeypatch, loaded):
+    """No Battle.net reading (a site without the API client, or a character
+    the API doesn't know): the card says so, no frame, even with an old
+    /simx export stored."""
 
     class NoTalents(PoisonStore):
         def vl(self, query, keys=(), ops=None, limit=0):
-            return [] if "talent_ranks" in query else super().vl(query, keys, ops, limit)
+            return [{**r, "talent_ranks": json.dumps([{"spell": 11070, "rank": 5}])}
+                    for r in super().vl(query, keys, ops, limit)]
 
     app = ui.App({"VIEW": "public", "BIND": "127.0.0.1",
                   "MCP_PUBLIC_URL": ""}, store=NoTalents())
     d = app.char(CHAR)
     assert d["talents"]["available"] is False and d["talents"]["sections"] == []
-    assert "/simx" in d["talents"]["why"]
-    assert d["legacy"]["available"] is True and "DataStore_Achievements" in d["legacy"]["why"]
+    assert "Battle.net" in d["talents"]["why"]
+    # Sex, guild and Legacy points are Battle.net's too (2026-11-20): unknown.
+    assert d["legacy"]["available"] is False and d["legacy"]["earned_points"] is None
+    assert "Unknown" in d["legacy"]["why"]
+    full = ui.App({"VIEW": "full", "BIND": "127.0.0.1", "MCP_PUBLIC_URL": ""}, store=NoTalents()).char(CHAR)
+    assert (full["header"]["guild"], full["header"]["sex"]) == (None, None)
 
 
 # ------------------------------------------------------------ Battle.net, the spec line and the gear weights
@@ -228,19 +227,14 @@ PRIEST_BNET = {
     "refreshed": "2026-11-18T06:00:00Z"}
 
 
-def test_battlenet_talents_come_first_and_name_the_spec_by_points(cat):
-    simx = [{"_time": "2026-11-12T10:00:00Z", "talent_ranks": json.dumps([{"spell": 15270, "rank": 5}]),
-             "talent_nodes": "60", "talents_level": "28", "talents_date": "2026-11-12"}]
-    a, spec = talents.from_rows(cat, simx, "PRIEST", PRIEST_BNET)
+def test_battlenet_talents_name_the_spec_by_points(cat):
+    a, spec = talents.from_battlenet(cat, "PRIEST", PRIEST_BNET)
     assert a["source"] == "Battle.net" and a["at"] == "2026-11-18T06:00:00Z" and a["unmatched"] == 0
     assert [(p["tree"], p["points"]) for p in a["points"]] == [("Discipline", 16), ("Holy", 0), ("Shadow", 7)]
     assert (spec["name"], spec["source"], spec["split"]) == ("Discipline", "Battle.net", "16/0/7")
-    assert a["cross_check"] == "The last /simx (2026-11-12) differs on 7 talents"
-    # The history is the /simx exports alone: Battle.net's readings aren't kept.
-    assert [h["level"] for h in a["history"]] == [28]
-    # Battle.net down or not knowing him yet: the last /simx.
-    a, spec = talents.from_rows(cat, simx, "PRIEST", None)
-    assert a["source"] == "VulcanSimBench /simx" and (spec["name"], spec["split"]) == ("Shadow", "0/0/5")
+    # Battle.net down or not knowing him yet: no talents, no spec.
+    a, spec = talents.from_battlenet(cat, "PRIEST", None)
+    assert not a["available"] and spec["name"] is None
     assert talents.capstone(cat, "Priest")["Shadow"] == "Shadowform"
 
 
@@ -254,6 +248,12 @@ class PriestStore(PoisonStore):
     def character_talents(self, name):
         return PRIEST_BNET
 
+    def character_profile(self, name):
+        return {"sex": "female", "guild": "Test Guild", "refreshed": "2026-11-18T06:00:00Z"}
+
+    def account_achievements(self):
+        return {61499: "2026-11-01T10:00:00Z"}
+
 
 def priest_app(**env):
     return ui.App({"VIEW": "full", "BIND": "127.0.0.1", "MCP_PUBLIC_URL": "",
@@ -262,18 +262,27 @@ def priest_app(**env):
 
 def test_card_shows_the_talents_and_what_the_gear_is_scored_for(loaded):
     """Two notions (owner, 2026-11-18): the talents as they are, "Discipline
-    16/0/7", and the gear weights, the player's choice: Shadow, from the
-    add-on pick, untouched by the point count."""
+    16/0/7" from Battle.net, and what the gear is scored for. The player's
+    choice comes first (restored 2026-11-20): this priest picked Shadow in
+    a gear addon, so the gear is scored for Shadow whatever the points say."""
     d = priest_app().char(CHAR)
     assert d["header"]["level"] == 32
     assert (d["spec"]["name"], d["spec"]["split"]) == ("Discipline", "16/0/7")
     assert d["header"]["spec"] == "Discipline"
+    # Sex, guild and Legacy points from Battle.net (2026-11-20), never an addon.
+    assert (d["header"]["sex"], d["header"]["guild"]) == ("female", "Test Guild")
+    assert (d["legacy"]["earned_points"], d["legacy"]["earned"]) == (
+        1, ["Reach Level 25 for the first time on a Warrior"])
     w = d["spec"]["scored_for"]
     assert (w["key"], w["label"], w["source"]) == ("shadow", "Shadow", "your pick")
     # Full view: 7 in Shadow, 8 more points by 40, 31 needed for Shadowform.
     assert w["sanity_check"].startswith("Shadowform at 40 = full respec into Shadow: 7 points there now")
-    # The advice keeps Shadow weights too.
-    assert priest_app().gear(CHAR, None)["spec"]["key"] == "shadow"
+    a = priest_app().gear(CHAR, None)["spec"]
+    assert (a["key"], a["source"]) == ("shadow", "picked")
+    # WEIGHTS still wins over the pick, and the points stay a hint.
+    holy = priest_app(WEIGHTS="Hero-Test:holy")
+    assert holy.char(CHAR)["spec"]["scored_for"]["key"] == "holy"
+    assert holy.gear(CHAR, None)["spec"]["key"] == "holy"
     # Public and /zogzog/: the line, not the planning note.
     for tier in ("public", "zogzog"):
         out = redact.TIERS[tier]("char", d)
@@ -346,7 +355,7 @@ PRIEST_PLACES = {
 
 
 def test_the_priests_talents_sit_where_the_game_draws_them(cat):
-    a, spec = talents.from_rows(cat, [], "PRIEST", PRIEST_BNET)
+    a, spec = talents.from_battlenet(cat, "PRIEST", PRIEST_BNET)
     got = {n["name"]: (s["name"], n["col"], n["row"], n["rank"], n["max"])
            for s in a["sections"] for n in s["nodes"] if n["rank"]}
     assert got == PRIEST_PLACES
@@ -372,3 +381,49 @@ def test_the_priests_talents_sit_where_the_game_draws_them(cat):
     # Every talent has its icon, Devouring Contagion's "Spell_Shadow_DevouringPlague..blp" too.
     assert [n["name"] for s in a["sections"] for n in s["nodes"] if not n["icon"]] == []
     assert node(a, "Devouring Contagion")[1]["icon"] == "spell_shadow_devouringplague"
+
+
+# ------------------------------------------------------------ the MCP reads them too
+
+
+def _bnet_metrics(bnet: dict) -> list:
+    """vm-wow's answer for Battle.net's talents, as tests.mcp.fakes serves it."""
+    from tests.mcp import fakes
+
+    who = {"character": fakes.CHAR, "account_id": "0"}
+    return [
+        ("wow_character_talent_points", [fakes._vec({**who, "tree": t["tree"], "order": str(i)}, t["points"])
+                                         for i, t in enumerate(bnet["trees"])]),
+        ("wow_character_talent_rank", [fakes._vec({**who, "spell_id": str(r["spell"]), "talent": r["name"]},
+                                                  r["rank"]) for r in bnet["ranks"]]),
+        ("wow_character_profile_refreshed_timestamp_seconds", [fakes._vec(who, 1763445600)]),
+        *fakes.METRICS]
+
+
+def test_mcp_reads_the_current_talents_from_battlenet(loaded):
+    """Owner, 2026-11-20: the MCP's character and class tools read Battle.net's
+    talents now, live from vm-wow (the dashboard's store and 23 days), never
+    kept. On a multi-user install the person's "Battle.net data to my AI"
+    switch decides, as for `market`."""
+    from tests.mcp import fakes
+    from wowstats.mcp import classtools, tools
+    from wowstats.mcp.store import Store
+
+    fake = fakes.FakeStores(metrics=_bnet_metrics(PRIEST_BNET))
+    try:
+        ctx = tools.Ctx(store=Store(vl_url=fake.url, vm_url=fake.url))
+        out = tools.call(ctx, "character_summary", {"char": fakes.CHAR})
+        assert out["talents"]["spec"] == "Discipline" and out["talents"]["source"] == "Battle.net"
+        assert [t["points"] for t in out["talents"]["points"]] == [16, 0, 7]
+        assert out["talents"]["as_of"].startswith("2025-11-18") and out["talents_why"] is None
+        assert classtools._who(ctx, fakes.CHAR)["talents"]["spec"] == "Discipline"
+        # The person turned the switch off (a multi-user install): no talents in the chat.
+        off = tools.Ctx(store=Store(vl_url=fake.url, vm_url=fake.url), env={}, bnet=False)
+        out = tools.call(off, "character_summary", {"char": fakes.CHAR})
+        assert out["talents"] is None and "Battle.net data to my AI" in out["talents_why"]
+        assert classtools._who(off, fakes.CHAR)["talents"] is None
+        # No vm-wow at all: none, and the reason the page gives.
+        bare = tools.Ctx(store=Store(vl_url=fake.url))
+        assert tools.call(bare, "character_summary", {"char": fakes.CHAR})["talents_why"] == talents.NO_TALENTS
+    finally:
+        fake.close()

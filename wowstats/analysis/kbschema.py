@@ -10,6 +10,19 @@ statement or a contradiction (research files' `statements` and
 the best of its sources' `max_confidence`: a booster site alone never makes a
 statement more than low.
 
+Two optional fields give a statement a lifetime (tools/kb/lifecycle.py, the
+weekly job): `expires` (YYYY-MM-DD, the last day it holds; it leaves the
+tree a week later) and `superseded_by` (the id of the statement that
+replaces it; it leaves the tree once that one is there). A statement naming
+another in `supersedes` does the same from the other side.
+
+Lists and builds (a class-meta statement whose `aspect` is enchants,
+consumables or stats; a level-60 build; a class's levelling path) are an
+aggregate: two sources or more, or `single_source` set with low confidence
+(owner, 2026-11-20). An official Blizzard page counts alone. multi_source()
+says why one isn't; tests/test_kb_schema.py checks the shipped files and the
+refresh job's gates (tools/kb/gates.py) every change.
+
 The loader (wowstats.analysis.kb) leaves out a record that fails, and says
 so; tests/test_kb_schema.py fails the build on any; the refresh job
 (tools/kb/refresh.py) refuses a model's proposal that fails.
@@ -26,6 +39,10 @@ FIELDS = ("source_url", "source_type", "date", "confidence", "scope", "last_veri
 SCOPES = ("forever", "classic_fallback")
 CONFIDENCE = ("low", "medium", "high")
 DAY = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Days a statement stays past its `expires` before the weekly job drops it.
+GRACE_DAYS = 7
+# A class-meta statement with one of these aspects is a list item (docs/kb.md, "Sources and licensing").
+LIST_ASPECTS = ("enchants", "consumables", "stats")
 
 
 def load_allow(path: Path | None = None) -> dict:
@@ -83,6 +100,11 @@ def check(rec: dict, allow: dict, strict_type: bool = True) -> list[str]:
         types = {v["type"] for v in allow.values()}
         if rec["source_type"] not in types:
             errs.append(f"source_type {rec['source_type']!r} is not one of {', '.join(sorted(types))}")
+    if rec.get("expires") and not DAY.match(str(rec["expires"])):
+        errs.append(f"expires {rec['expires']!r} is not YYYY-MM-DD")
+    for k in ("superseded_by", "supersedes"):
+        if k in rec and not (isinstance(rec[k], str) and rec[k].strip()):
+            errs.append(f"{k} is not a statement id")
     top = best_cap(rec, allow)
     if top and rec.get("confidence") in CONFIDENCE and CONFIDENCE.index(rec["confidence"]) > CONFIDENCE.index(top):
         errs.append(f"confidence {rec['confidence']} is above what its sources allow ({top})")
@@ -101,7 +123,70 @@ def check_file(doc: dict, allow: dict, strict_type: bool = True) -> list[str]:
             out += [f"{where}: {e}" for e in (check(r, allow) if isinstance(r, dict) else ["not an object"])]
             if isinstance(r, dict) and not (r.get("text") or "").strip():
                 out.append(f"{where}: no text")
+    # The weekly digests (wowstats.news; `digest` in a pass's own file,
+    # `digests` in data/kb/news.json): each line sourced like a statement;
+    # an event's day, when it has one, a real day.
+    weeks = ([doc.get("digest")] + list(doc.get("digests") or [])) if isinstance(doc, dict) else []
+    items = [it for w in weeks if isinstance(w, dict) for it in w.get("items") or []]
+    for i, it in enumerate(items):
+        where = f"digest {it.get('id') or i}" if isinstance(it, dict) else f"digest {i}"
+        if not isinstance(it, dict):
+            out.append(f"{where}: not an object")
+            continue
+        out += [f"{where}: {e}" for e in check(it, allow)]
+        if not (it.get("text") or "").strip():
+            out.append(f"{where}: no text")
+        ev = it.get("event") or {}
+        if ev and (not ev.get("key") or not ev.get("name")):
+            out.append(f"{where}: an event needs a key and a name")
+        if ev.get("starts") and not DAY.match(str(ev["starts"])):
+            out.append(f"{where}: starts {ev['starts']!r} is not YYYY-MM-DD")
+    # A sourced role build (class-meta: a tank or healer spec's level-60 talents).
+    for i, b in enumerate((doc.get("builds") or []) if isinstance(doc, dict) else []):
+        where = f"build {i}"
+        out += [f"{where}: {e}" for e in (check(b, allow) if isinstance(b, dict) else ["not an object"])]
     for i, q in enumerate(doc.get("open_questions") or []):
         if not isinstance(q, dict) or not (q.get("text") or "").strip():
             out.append(f"open question {i}: no text")
     return out
+
+
+def expired(rec: dict, today) -> bool:
+    """Past its `expires` by more than GRACE_DAYS: the loader leaves it out
+    and the weekly job (tools/kb/lifecycle.py) drops it."""
+    from datetime import date, timedelta
+
+    v = str(rec.get("expires") or "")
+    if not DAY.match(v):
+        return False
+    try:
+        return date.fromisoformat(v) + timedelta(days=GRACE_DAYS) < today
+    except ValueError:
+        return False
+
+
+def retired_ids(statements: list[dict], today) -> set:
+    """The ids the loader leaves out until the weekly job removes them: named
+    by another's `supersedes`, naming a present replacement in
+    `superseded_by`, or expired."""
+    ids = {r.get("id") for r in statements}
+    gone = {r["supersedes"] for r in statements if r.get("supersedes")}
+    return gone | {r.get("id") for r in statements if (r.get("superseded_by") in ids) or expired(r, today)}
+
+
+def multi_source(rec: dict, allow: dict) -> str:
+    """Why a list item or a build breaks the multi-source rule ("" when it
+    holds): two distinct sources, or `single_source` with low confidence, or
+    an official page."""
+    us = urls(rec)
+    if any((allow.get(domain(u)) or {}).get("type") == "official" for u in us):
+        return ""
+    if rec.get("single_source"):
+        return "" if rec.get("confidence") == "low" else "single_source but its confidence isn't low"
+    return "" if len(us) >= 2 else "a list item or build with one source and no single_source"
+
+
+def is_list_or_build(rec: dict, key: str) -> bool:
+    """Whether the multi-source rule applies: `key` is the record's list in
+    its file (statements, builds, paths)."""
+    return key in ("builds", "paths") or (key == "statements" and rec.get("aspect") in LIST_ASPECTS)

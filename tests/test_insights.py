@@ -60,13 +60,13 @@ def test_death_clusters():
 
 def test_profession_capped_at_its_tier():
     """Where to train, for the character's side, what it needs and costs,
-    from Polestar's guides: never invented."""
+    from Polestar's guides: never invented. The cap is the Recorder's skill
+    record (the game's skill list when it changed)."""
     hd = {"faction": "Alliance", "race": "Gnome"}
-    at = "2026-01-02T10:00:00.000Z"
-    c = insights.profession_claims(32, [{"skill_id": 333, "name": "Enchanting", "rank": 150, "max_rank": 150,
-                                         "max_rank_at": at},
-                                        {"skill_id": 197, "name": "Tailoring", "rank": 119, "max_rank": 150}], {}, hd,
-                                   sheet_at=at)
+    skills = {333: {"rank": 150, "max_rank": 150, "t": "2026-01-02T10:00:00.000Z"},
+              197: {"rank": 119, "max_rank": 150, "t": "2026-01-02T10:00:00.000Z"}}
+    c = insights.profession_claims(32, [{"skill_id": 333, "name": "Enchanting", "rank": 150},
+                                        {"skill_id": 197, "name": "Tailoring", "rank": 119}], skills, hd)
     assert len(c) == 1 and c[0]["link"] == "#gear" and c[0]["title"] == "Train Expert Enchanting"
     assert c[0]["action"] is None and not c[0]["skill"]["may_be_stale"]
     assert c[0]["text"] == ("Capped at 150: skill-ups are wasted until you train Expert Enchanting. Kitta Firewind, "
@@ -77,44 +77,66 @@ def test_profession_capped_at_its_tier():
     assert [t["name"] for t in sk["trainers"]] == ["Kitta Firewind"]  # Hgarth is the Horde's
     assert sk["trainers"][0]["url"] == "https://www.wowhead.com/forever/npc=11072"
     assert sk["trainers"][0]["zone"]["url"] == "https://www.wowhead.com/forever/zone=12"
-    horde = insights.profession_claims(32, [{"skill_id": 333, "rank": 150, "max_rank": 150}], {}, {"faction": "Horde"})
+    horde = insights.profession_claims(32, [{"skill_id": 333, "rank": 150}], skills, {"faction": "Horde"})
     assert [t["name"] for t in horde[0]["skill"]["trainers"]] == ["Hgarth"]
 
 
-def test_profession_cap_read_before_the_character_last_played_says_how_to_refresh():
-    """The cap comes from the profession window, read only while it's open:
-    a rank trained after that (or in a session the game never saved) stays
-    unseen. The move still says where to train, and how to refresh it."""
-    p = {"skill_id": 164, "name": "Blacksmithing", "rank": 150, "max_rank": 150,
+def test_profession_cap_from_the_tiers_hedges():
+    """No Recorder record of the skill: the cap is the trainer tier over the
+    rank, a floor (at 150 the character may have trained Expert already), so
+    the move says "if" and how the real cap shows up. An old sheet's cap
+    (CharacterExport-Forever's, dropped 2026-11-20) is not read."""
+    p = {"skill_id": 164, "name": "Blacksmithing", "rank": 148, "max_rank": 300,
          "max_rank_at": "2026-01-02T10:00:00.000Z"}
-    c = insights.profession_claims(30, [p], {}, {"faction": "Horde"}, sheet_at="2026-01-02T14:00:00.000Z")
+    c = insights.profession_claims(30, [p], {}, {"faction": "Horde"})
     assert c[0]["title"] == "Train Expert Blacksmithing" and c[0]["skill"]["may_be_stale"]
-    assert c[0]["text"].startswith("Capped at 150 when your Blacksmithing window was last open: ")
-    assert c[0]["action"] == ("Trained Expert already? Open your Blacksmithing window, then type /reload: the cap is "
-                              "read from that window.")
+    assert c[0]["skill"]["max_rank"] == 150
+    assert c[0]["text"].startswith("Blacksmithing 148/150 if you haven't trained Expert yet: skill-ups stop at 150 "
+                                   "until you do. ")
+    assert c[0]["action"] == "Trained Expert already? The cap shows once Polestar Recorder sees your next " \
+                             "Blacksmithing skill-up."
     assert c[0]["text"].endswith(c[0]["action"])
-    # An older shipper sends no read time: unknown age is not a fresh reading.
-    old = insights.profession_claims(30, [{**p, "max_rank_at": None}], {}, {"faction": "Horde"})
-    assert old[0]["skill"]["may_be_stale"]
-    # Saved within a minute of the reading: the same reading, no hedge.
-    fresh = insights.profession_claims(30, [p], {}, {"faction": "Horde"}, sheet_at="2026-01-02T10:00:30.000Z")
-    assert fresh[0]["action"] is None
+    assert "CharacterExport" not in c[0]["cite"]
 
 
-def test_profession_newer_recorder_cap_wins_over_the_window_cache():
-    """The Recorder's skill record is the game's skill list when it changed:
-    newer than the window's reading, its cap wins (trained: no move); older,
-    the window's stands."""
-    p = {"skill_id": 197, "name": "Tailoring", "rank": 150, "max_rank": 150, "max_rank_at": "2026-01-02T10:00:00.000Z"}
-    newer = {197: {"rank": 151, "max_rank": 225, "t": "2026-01-02T11:00:00.000Z"}}
-    assert insights.profession_claims(30, [p], newer, {"faction": "Alliance"}) == []
-    older = {197: {"rank": 140, "max_rank": 225, "t": "2026-01-01T09:00:00.000Z"}}
-    c = insights.profession_claims(30, [p], older, {"faction": "Alliance"}, sheet_at="2026-01-02T10:00:00.000Z")
-    assert c[0]["title"] == "Train Expert Tailoring" and c[0]["skill"]["rank"] == 150
-    # The Recorder's later record of the same cap moves the reading's time.
-    same = {197: {"rank": 150, "max_rank": 150, "t": "2026-01-02T13:59:40.000Z"}}
-    c = insights.profession_claims(30, [p], same, {"faction": "Alliance"}, sheet_at="2026-01-02T14:00:00.000Z")
-    assert not c[0]["skill"]["may_be_stale"]
+def test_profession_recorder_cap_wins_unless_the_rank_passed_it():
+    """The Recorder's cap stands while it covers the rank; a rank above it
+    (trained while the Recorder was off) falls back to the tiers."""
+    p = {"skill_id": 197, "name": "Tailoring", "rank": 150}
+    trained = {197: {"rank": 151, "max_rank": 225, "t": "2026-01-02T11:00:00.000Z"}}
+    assert insights.profession_claims(30, [p], trained, {"faction": "Alliance"}) == []
+    behind = {197: {"rank": 140, "max_rank": 150, "t": "2026-01-01T09:00:00.000Z"}}
+    c = insights.profession_claims(30, [p], behind, {"faction": "Alliance"})
+    assert c[0]["title"] == "Train Expert Tailoring" and not c[0]["skill"]["may_be_stale"]
+    passed = {197: {"rank": 140, "max_rank": 150, "t": "2026-01-01T09:00:00.000Z"}}
+    assert insights.profession_claims(30, [{**p, "rank": 160}], passed, {"faction": "Alliance"}) == []
+
+
+def test_profcaps_fill_says_where_each_cap_comes_from():
+    from wowstats import profcaps
+
+    profs = [{"skill_id": 185, "name": "Cooking", "rank": 130, "max_rank": 225, "max_rank_at": "x"},
+             {"skill_id": 197, "name": "Tailoring", "rank": 119}]
+    got = profcaps.fill(profs, profcaps.newest_skills([
+        {"_time": "2026-01-01T10:00:00Z", "skill_id": "197", "rank": "100", "max_rank": "150"},
+        {"_time": "2026-01-02T10:00:00Z", "skill_id": "197", "rank": "119", "max_rank": "225"}]))
+    assert got == [{"skill_id": 185, "name": "Cooking", "rank": 130, "max_rank": 150, "max_rank_from": "tiers"},
+                   {"skill_id": 197, "name": "Tailoring", "rank": 119, "max_rank": 225, "max_rank_from": "recorder"}]
+
+
+def test_profcaps_as_they_were_at_a_level():
+    """A level's snapshot reads the caps the Recorder had seen by then, not
+    today's (the sheet no longer carries them since CharacterExport went)."""
+    from wowstats import profcaps
+    from wowstats.stores import parse_t
+
+    rows = [{"_time": "2026-01-01T10:00:00Z", "skill_id": "197", "rank": "100", "max_rank": "150"},
+            {"_time": "2026-01-03T10:00:00Z", "skill_id": "197", "rank": "151", "max_rank": "225"}]
+    then = profcaps.newest_skills(rows, until=parse_t("2026-01-02T00:00:00Z").timestamp())
+    assert then[197]["max_rank"] == 150 and profcaps.newest_skills(rows)[197]["max_rank"] == 225
+    got = profcaps.fill([{"skill_id": 197, "name": "Tailoring", "rank": 119}], then)
+    assert got[0]["max_rank"] == 150 and got[0]["max_rank_from"] == "recorder"
+    assert profcaps.newest_skills(rows, until=0) == {}
 
 
 def test_profession_without_a_trainer_in_the_data_says_so():

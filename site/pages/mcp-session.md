@@ -932,7 +932,7 @@ The server answers:
  "findings": [
   {
    "point": "3 talent points unspent: spend them in the talent pane (N), anywhere.",
-   "from": "VulcanSimBench's saved talents",
+   "from": "Battle.net's talents (its daily profile read)",
    "page_section": "#talents"
   },
   {

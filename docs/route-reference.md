@@ -39,15 +39,17 @@ anything:
 It takes under 3 seconds and gives the same file byte for byte on every run. To redo it after a Polestar release:
 
 ```sh
-git clone --depth 1 --branch v0.4.1 https://github.com/fitzforge/polestar /tmp/polestar
+git clone --depth 1 --branch v0.4.1.1 https://github.com/fitzforge/polestar /tmp/polestar
 node tools/route_reference/export.mjs --polestar /tmp/polestar
 ```
 
 Node 24 and Lua 5.1 or newer (`--lua lua5.4` to pick one). CI
 (`.github/workflows/route-reference.yml`) reruns it on every change to the
 export or the file, with the tag set in that workflow, and fails when the
-result differs from the committed file. It never commits: bump `POLESTAR_TAG`,
-rerun the export, commit both.
+result differs from the committed file. It never commits: the tag lives in
+`tools/polestar-tag`, and the refresh job (docs/kb.md, "The refresh job")
+moves it, reruns every Polestar export and merges the PR when a release
+passes its checks. By hand: change the file, rerun the exports, commit.
 
 ## What the file holds
 

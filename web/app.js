@@ -563,7 +563,8 @@ function renderGear(d) {
     fill_(box, h('h2', { class: 'rule-title', text: 'Equipment' }),
       h('p', { class: 'empty' }, h('strong', { text: 'No equipment saved yet.' }), ' ',
         'Turn Syndicator on in AddOns, log in with ' + d.header.name + ', then /reload.'));
-    if (state.data && state.data.header.polestar === false) box.append(h('div', { id: 'advice', class: 'advice' }));
+    // The advice still comes: Battle.net's worn items, or the best for the level.
+    if (!PUBLIC) box.append(h('div', { id: 'advice', class: 'advice', 'aria-live': 'polite' }));
     gearDrawn(null);
     return;
   }
@@ -625,9 +626,8 @@ function renderGear(d) {
 // ------------------------------------------------------------ talents and Legacy points
 
 // The card's talents (wowstats/talents.py): Forever's talent frame for the
-// class, filled in with the last /simx export (VulcanSimBench), the spec
-// and points per tree, one stop per export, and the Legacy points the log
-// proves. Icons come through window.wowIcon when the page has it; a public
+// class, filled in from Battle.net's API (its daily read), the spec and
+// points per tree, and the Legacy points the log proves. Icons come through window.wowIcon when the page has it; a public
 // bundle also holds them at data/icon/<size>/<name>.jpg.
 
 async function talentIcon(name) {
@@ -730,24 +730,12 @@ function talentArrows(sec, cols, rows) {
   return svg;
 }
 
-const pointsLine = (pts) => (pts || []).map((p) => `${p.tree || '?'} ${p.points ?? '?'}`).join(' / ');
-
-function talentsAt(level) {
-  // The /simx stop at or before a past level, for the level snapshots.
-  const t = state.data && state.data.talents;
-  if (!t || !(t.history || []).length) return null;
-  const stops = t.history.filter((x) => x.level !== null && x.level <= level);
-  const at = stops[stops.length - 1];
-  if (!at) return h('p', { class: 'sub', text: `Talents: no /simx export at or before level ${level}.` });
-  return h('p', {}, h('b', { text: 'Talents: ' }),
-    `${at.spec ? at.spec + ', ' : ''}${pointsLine(at.points)}`);
-}
-
 function legacyBlock(lg) {
   if (!lg) return null;
-  const head = lg.available && lg.derived_min !== null
-    ? [h('b', { text: `At least ${lg.derived_min}` }), ` of ${lg.total} Legacy points`]
-    : [h('b', { text: 'Legacy points: not saved' })];
+  // From Battle.net's achievements; without its daily read the count is unknown.
+  const head = lg.available && lg.earned_points !== null
+    ? [h('b', { text: `${lg.earned_points}` }), ` of ${lg.total} Legacy points earned`]
+    : [h('b', { text: 'Legacy points: unknown' }), ' until Battle.net reads this account.'];
   return h('div', { class: 'legacy' },
     h('h3', { text: 'Legacy' }),
     h('p', {}, ...head));
@@ -773,12 +761,12 @@ function renderTalents(d) {
     h('span', {}, 'Talents: ', h('b', { class: 'tspecname', text: spec ? `${spec} ${sp.split || ''}`.trim() : 'not known yet',
       title: (sp.points || []).map((x) => `${x.tree} ${x.points}`).join(', ') })),
     w ? h('span', {}, 'Gear scored for: ', h('b', { text: w.label })) : null);
-  const notes = [t.cross_check, w && w.sanity_check].filter(Boolean)
+  const notes = [w && w.sanity_check].filter(Boolean)
     .map((x) => h('p', { class: 'sub tnote', text: x }));
   const kids = [h('h2', { class: 'rule-title', text: 'Talents' }), head, ...notes];
   if (!t.available) {
-    kids.push(h('p', { class: 'empty' }, h('strong', { text: 'No talents saved yet.' }),
-      ' Type /simx in game with Vulcan SimBench on, then /reload.'));
+    kids.push(h('p', { class: 'empty' }, h('strong', { text: 'No talents yet.' }),
+      ' They come from Battle.net once a day, after it first sees this character.'));
   } else {
     kids.push(h('div', { class: 'tframe' }, (t.sections || []).map((sec) => {
       // The game's frame: 4 columns by 7 tiers, always (a phone shrinks the
@@ -793,14 +781,73 @@ function renderTalents(d) {
         grid);
     })));
   }
-  if ((t.history || []).length > 1 || t.available) {
-    kids.push(h('div', { class: 'thistory' }, h('h3', { text: 'Build by level' }),
-      (t.history || []).length ? h('ol', {}, t.history.map((x) => h('li', {},
-        h('b', { text: x.level ? `Level ${x.level}` : 'Level ?' }), ` ${x.spec ? x.spec + ': ' : ''}${pointsLine(x.points)}`)))
-        : null));
+  // The last 3 weeks' changes (where "Build by level" was): the live full
+  // view only, fetched on its own (/api/talents), never in a bundle.
+  if (!PUBLIC && !STATIC) {
+    const keep = state.thist && state.thist.name === d.char ? state.thist.node : null;
+    kids.push(keep || h('div', { class: 'thistory', 'aria-busy': 'true' }, h('h3', { text: THIST_TITLE })));
   }
   kids.push(legacyBlock(d.legacy));
   fill(box, ...kids);
+}
+
+// Battle.net's daily reads, kept 3 weeks (wowstats/views.py talent_history):
+// the day, the points per tree that moved, the talents gained or dropped.
+const THIST_TITLE = 'Talent changes over the last 3 weeks';
+const THIST_WHY = {
+  no_battlenet: 'No talent changes yet: they show once Battle.net has read this character on two days.',
+  no_client: 'Talent changes need Battle.net: add a Battle.net API client to this site.',
+  unreachable: 'Talent changes can\u2019t be read right now. Reload the page in a minute.',
+};
+function talentRow(x) {
+  const n = x.name || `talent ${x.spell}`;
+  const name = x.spell ? wh('spell', x.spell, n) : n;
+  const rank = x.from && x.to ? ` ${x.from}\u2192${x.to}` : ` rank ${x.to || x.from}`;
+  return h('span', { class: 'tch' }, name, h('span', { class: 'sub', text: rank }));
+}
+function talentChange(c) {
+  const before = Object.fromEntries((c.before || []).map((t) => [t.tree, t.points]));
+  const moved = (c.after || []).filter((t) => (before[t.tree] || 0) !== t.points)
+    .map((t) => `${t.tree} ${before[t.tree] || 0} \u2192 ${t.points}`);
+  for (const t of c.before || []) {
+    if (!(c.after || []).some((a) => a.tree === t.tree) && t.points) moved.push(`${t.tree} ${t.points} \u2192 0`);
+  }
+  const list = (label, xs) => xs.length
+    ? h('p', { class: 'tchl' }, h('span', { class: 'tchk', text: label }), ...xs.flatMap((x, i) => [i ? ', ' : null, talentRow(x)]))
+    : null;
+  return h('li', {},
+    h('p', { class: 'tchd' }, h('b', { text: metaDate(c.date) }), moved.length ? ` ${moved.join(' \u00b7 ')}` : ' Same points per tree'),
+    list('Gained ', c.gained || []), list('Dropped ', c.dropped || []));
+}
+function renderTalentHistory(name, t) {
+  // WoWSims Exporter's saves: every change; else Battle.net's 3 weeks, and the one step to the full history.
+  const full = t && t.source === 'addon';
+  const node = h('div', { class: 'thistory' }, h('h3', { text: full ? 'Talent changes' : THIST_TITLE }));
+  const addon = !full && t && t.addon && t.addon.name;
+  const hint = addon ? h('p', { class: 'sub thint' }, 'Every change, not only 3 weeks: add ',
+    t.addon.url ? h('a', { href: t.addon.url, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer', text: t.addon.name }) : t.addon.name,
+    ', then tick it in AddOns at character select.') : null;
+  const gaps = full && (t.not_recorded || []).length
+    ? h('p', { class: 'sub thint', text: `Not saved by WoWSims Exporter: ${t.not_recorded.join(', ')}.` }) : null;
+  if (!t || !t.available) {
+    node.append(h('p', { class: 'empty', text: THIST_WHY[(t && t.why) || 'unreachable'] || THIST_WHY.unreachable }));
+  } else if (!(t.changes || []).length) {
+    // Read for less than the whole window: say since when.
+    const recent = t.since && (full || (Date.now() - Date.parse(t.since + 'T00:00:00Z')) < (t.days - 1) * 86400e3);
+    node.append(h('p', { class: 'empty', text: recent ? `No talent change since ${metaDate(t.since)}.` : 'No talent change in the last 3 weeks.' }));
+  } else {
+    node.append(h('ol', { class: 'tchanges' }, t.changes.map(talentChange)));
+  }
+  if (gaps) node.append(gaps);
+  if (hint) node.append(hint);
+  state.thist = { name, node };
+  const old = $('#talents .thistory');
+  if (old && name === state.char) old.replaceWith(node);
+}
+async function loadTalentHistory(name) {
+  let t = null;
+  try { t = await getJSON(api('talents', { name })); } catch (e) { t = { available: false, why: 'unreachable' }; }
+  if (name === state.char) renderTalentHistory(name, t);
 }
 
 // ------------------------------------------------------------ class guide
@@ -852,6 +899,112 @@ function renderClassGuide(d) {
   fill(box, h('h2', { class: 'rule-title', text: `${titleCase(g.class)} at level ${g.level}` }),
     h('div', { class: 'cggrid' },
       train.length || where ? h('div', { class: 'cgcol' }, ...train, where) : null, tal, habits));
+}
+
+// ------------------------------------------------------------ state of the meta
+
+// The class's meta (wowstats/classmeta.py): a short paragraph on the card
+// (/zogzog/ and the full view), and on the live full view the score, the
+// gaps as moves (what, where, what blocks it, next step) and the meta in
+// full behind one toggle. Numbers and actions only: the sources stay in the
+// data and the MCP's class_meta.
+// en-GB like the page's other dates, so every browser shows "20 Nov".
+const metaDayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+function metaDate(d) {
+  if (!d) return '';
+  const t = new Date(d + 'T12:00:00Z');
+  return isNaN(t) ? d : metaDayFmt.format(t);
+}
+function metaBox() {
+  let box = $('#meta');
+  if (!box) {
+    const after = $('#classguide') || $('#talents') || $('#gear');
+    if (!after) return null;
+    box = h('section', { id: 'meta', class: 'plate metabox', 'aria-label': 'State of the meta' });
+    after.after(box);
+  }
+  return box;
+}
+function metaHead(m) {
+  const who = [m.class, m.spec].filter(Boolean).join(', ');
+  return h('h2', { class: 'rule-title' }, `State of the meta${who ? ': ' + who : ''}`,
+    m.as_of ? h('span', { class: 'metawhen' + (m.stale ? ' stale' : ''),
+      text: m.stale ? `as of ${metaDate(m.as_of)}, may be out of date` : `as of ${metaDate(m.as_of)}` }) : null);
+}
+function renderMeta(d) {
+  const m = d.meta;
+  const box = m ? metaBox() : $('#meta');
+  if (!box) return;
+  if (!m) { box.hidden = true; return; }
+  box.hidden = false;
+  // The full view's answer draws over this one once it is in.
+  if (box.dataset.full === state.char) return;
+  fill(box, metaHead(m), h('p', { class: 'metatext', text: m.text }),
+    m.soon ? h('p', { class: 'metasoon', text: m.soon }) : null);
+}
+const META_PART = { talents: 'Talents', gear: 'Gear', enchants: 'Enchants' };
+function metaPart(p) {
+  const pct = p.score == null ? null : Math.round(p.score * 100);
+  const sub = p.key === 'talents' && p.target === 'none' ? `no target yet for ${p.spec} at 60`
+    : p.key === 'talents' && p.known ? `${p.have} of ${p.of} points in the ${p.spec}${p.target === 'role' ? ` ${p.role}` : ''} build`
+    : p.key === 'gear' ? `${fmtNum(Math.round(p.worn))} of ${fmtNum(Math.round(p.best))} points the best gear now gives`
+    : p.key === 'enchants' ? `${p.have} of ${p.of} slots` : 'not known yet';
+  // The page's CSP has no inline styles: the bar's width goes through the CSSOM.
+  const fillEl = h('span', {});
+  fillEl.style.width = `${pct ?? 0}%`;
+  return h('li', { class: 'metapart' },
+    h('span', { class: 'mpname', text: META_PART[p.key] || p.key }),
+    h('span', { class: 'mpbar', role: 'img', 'aria-label': pct == null ? 'not measured' : `${pct}%` }, fillEl),
+    h('span', { class: 'mppct', text: pct == null ? '–' : `${pct}%` }),
+    h('span', { class: 'mpsub', text: sub }));
+}
+function metaList(head, rows, render) {
+  if (!rows || !rows.length) return null;
+  return h('div', { class: 'metacol' }, h('h3', { text: head }), h('ul', { class: 'metalist' }, rows.map(render)));
+}
+const metaLine = (x) => h('li', {}, x.title ? h('b', { text: x.title + '. ' }) : null, x.text,
+  x.url ? [' ', whRef({ url: x.url, name: 'Wowhead' })] : null);
+function renderMetaFull(a) {
+  const box = metaBox();
+  if (!box || !a || !a.available || !a.meta) return;
+  const m = a.meta;
+  const ad = a.adherence;
+  box.hidden = false;
+  box.dataset.full = state.char;
+  const score = ad && ad.available ? h('div', { class: 'metascore' },
+    h('div', { class: 'msnum' }, h('b', { text: String(ad.score) }), h('span', { text: '/100' })),
+    h('div', { class: 'mslabel' }, h('b', { text: ad.label }),
+      ad.spec ? h('span', { class: 'sub', text: `against the ${ad.spec} meta at level ${ad.level}` }) : null),
+    h('ul', { class: 'metaparts' }, ad.parts.map(metaPart))) : null;
+  // Getting ready for an event that is near (advice, not in the score) comes
+  // first: it has a day.
+  const todo = [...((ad && ad.prep) || []), ...((ad && ad.gaps) || [])];
+  const gaps = todo.length ? h('div', { class: 'metagaps' }, h('h3', { text: 'What to change' }),
+    capped(todo.map((g) => moveEl(g, null)), 3, (n) => `${n} more`, 'moves')) : null;
+  const coming = (m.coming_up || []).filter((e) => e.concerns_you !== false).slice(0, 3);
+  const soon = coming.length ? h('div', { class: 'metacoming' }, h('h3', { text: 'Coming up' }),
+    h('ul', { class: 'metalist' }, coming.map((e) => h('li', {},
+      h('b', { text: `${cap(e.when)}: ` }), e.name, e.in_days != null ? h('span', { class: 'sub', text: ` (in ${e.in_days} day${e.in_days === 1 ? '' : 's'})` }) : null,
+      e.changes ? h('span', { class: 'mcline', text: e.changes }) : null,
+      ...(e.for_you || []).map((t) => h('span', { class: 'mcline you', text: t })))))) : null;
+  const standing = metaList('How each spec stands', m.standing, (x) => h('li', {}, x.spec ? h('b', { text: x.spec + ': ' }) : null, x.text));
+  const tg = m.build && m.build.target;
+  const build = tg ? metaList(`The build at 60 (${tg.spec} ${tg.role})`, [tg.none ? { text: 'No target yet: not scored.' } : { title: tg.split, text: tg.note || '' }], metaLine)
+    : m.build && (m.build.notes || []).length ? metaList(`The build${m.build.spec ? ` (${m.build.spec})` : ''}`, m.build.notes, metaLine) : null;
+  const enchants = metaList('Enchants', m.enchants, (x) => h('li', {}, h('b', { text: `${x.slot || 'Any'}: ` }),
+    x.url ? whRef({ url: x.url, name: x.enchant || x.title || 'enchant' }) : (x.enchant || x.title || ''), x.text ? h('span', { class: 'sub', text: ` ${x.text}` }) : null));
+  const shifts = metaList('What changed lately', m.shifts, (x) => h('li', {}, x.date ? h('b', { text: `${metaDate(x.date)}: ` }) : null, x.text));
+  const more = [standing, build, metaList('Stats', m.stats, metaLine), metaList('Gear', m.gear, metaLine), enchants,
+    metaList('Consumables', m.consumables, metaLine), metaList('Professions', m.professions, metaLine), shifts].filter(Boolean);
+  const full = more.length ? h('details', { class: 'metamore' }, h('summary', { text: 'The meta in full' }),
+    h('div', { class: 'metagrid' }, more)) : null;
+  fill(box, metaHead(m), m.summary ? h('p', { class: 'metatext', text: m.summary }) : null, soon, score, gaps, full);
+}
+async function loadMeta(name) {
+  try {
+    const a = await getJSON(api('meta', { name }));
+    if (name === state.char) renderMetaFull(a);
+  } catch (e) { /* the paragraph stays */ }
 }
 
 // ------------------------------------------------------------ gear advice
@@ -1018,7 +1171,7 @@ function choose(a) {
   }
   const out = new Map();
   for (const [k, list] of by) {
-    list.sort((x, y) => (feasible(y, a.level).now - feasible(x, a.level).now) || (y.gain - x.gain));
+    list.sort((x, y) => (feasible(y, a.level).now - feasible(x, a.level).now) || (rankOf(y) - rankOf(x)));
     const best = list[0];
     const sig = (u) => {
       const s = primarySource(u) || {};
@@ -1111,6 +1264,10 @@ function compareEl(u, a, alts, onPick) {
       h('span', { class: 'pill' + (f.now ? ' now' : ''), text: f.now ? 'Now' : f.text, title: f.title }),
       h('button', { type: 'button', class: 'cmpclose', 'aria-label': 'Close the comparison', text: '×' })),
     h('div', { class: 'cmpsides' }, side('You wear', wornNames, 'Nothing in this slot.'), side('Best replacement', cand, '')),
+    fitEl(u.fit),
+    u.fit && u.fit.alternative ? h('p', { class: 'fitalt' }, 'Built for your spec instead: ',
+      h('b', { text: u.fit.alternative.name }), ` ${pts(u.fit.alternative.gain)}`,
+      u.fit.alternative.sources && u.fit.alternative.sources[0] ? [', ', sourceEl(u.fit.alternative.sources[0], a.level)] : null) : null,
     statTable(worn.items, cand, a.weights || {}),
     keepsOther ? h('p', { class: 'cmpcalc sub', text: 'You keep the other hand as it is.' }) : null,
     h('div', { class: 'cmpwhere' }, h('h4', { text: 'Where to get it' }),
@@ -1201,10 +1358,13 @@ function renderAdvice(a) {
       b.addEventListener('click', () => { state.adviceView = k; renderAdvice(state.advice); });
       return b;
     }));
+  // No character sheet (wowstats/gear.py unknown_worn): the best items for
+  // the level (estimated), or Battle.net's worn items; one line, one action.
+  const guess = a.estimated ? `Best for your level (estimated: what you wear isn’t known). ${a.unlock}` : null;
   const head = h('div', { class: 'adv-head' },
-    h('div', { class: 'nuhead' }, h('h3', { class: 'adv-h', text: 'Upgrades' }), toggle),
+    h('div', { class: 'nuhead' }, h('h3', { class: 'adv-h', text: a.estimated ? 'Gear for your level' : 'Upgrades' }), toggle),
     h('label', { class: 'specpick' }, h('span', { text: 'Scored for' }), sel),
-    h('p', { class: 'sub', text: 'Click an item to compare it with what you wear.' }));
+    h('p', { class: 'sub', text: guess || 'Click an item to compare it with what you wear.' }));
   const smalls = allUps(a).filter((u) => small(u, a));
   const shown = new Set();
   for (const p of picks.values()) [p.best, ...p.alts].forEach((u) => shown.add(u));
@@ -1227,11 +1387,22 @@ function renderAdvice(a) {
       compactList(a, smalls)) : null);
 }
 
+// Who the item is built for (wowstats/gearfit.py, owner 2026-11-20: an
+// upgrade is an upgrade, but say when it's made for someone else). One line:
+// the label, what it costs you (lower armour, wasted stats), who rolls first.
+const rankOf = (u) => u.value ?? u.gain;
+function fitEl(f) {
+  if (!f || !f.label) return null;
+  const rest = [...(f.notes || []), f.tip].filter(Boolean);
+  return h('p', { class: 'fit ' + f.for_you }, h('span', { class: 'fitlabel', text: f.label }),
+    rest.length ? ` · ${rest.join(' · ')}` : '');
+}
+
 function candRow(u, a, extra) {
   const li = h('li', { class: 'cand', 'data-slot': slotKey(u), 'data-up': `${u.slot}-${u.item_id}` });
   const partner = u.with && u.with.item_id ? h('span', { class: 'sub', text: ` with ${u.with.name} (${u.with.slot_name.toLowerCase()})` }) : null;
   li.append(
-    h('div', { class: 'candmain' }, itemChip(u), partner),
+    h('div', { class: 'candmain' }, itemChip(u), partner, fitEl(u.fit)),
     h('div', { class: 'candmeta' }, h('span', { class: 'slotname', text: slotKey(u) === 'Weapons' ? 'Weapons' : u.slot_name }),
       h('b', { class: 'gain', text: pts(u.gain) }), feasEl(u, a.level), extra || null));
   li.querySelector('.candmain .itm').addEventListener('click', (e) => {
@@ -1256,16 +1427,22 @@ function byWhere(a, list) {
   }
   for (const g of groups.values()) {
     if (g.kind === 'dungeon' || g.kind === 'world') {
-      const bySlot = {};
-      for (const { u, s } of g.items) (bySlot[slotKey(u)] = bySlot[slotKey(u)] || []).push([u.gain, (s.chance_pct || 0) / 100]);
-      g.value = Object.values(bySlot).reduce((acc, xs) => {
-        let left = 1, e = 0;
-        for (const [gain, p] of xs.sort((x, y) => y[0] - x[0])) { e += gain * p * left; left *= 1 - p; }
-        return acc + e;
-      }, 0);
+      const per = (pick) => {
+        const bySlot = {};
+        for (const { u, s } of g.items) (bySlot[slotKey(u)] = bySlot[slotKey(u)] || []).push([pick(u), (s.chance_pct || 0) / 100]);
+        return Object.values(bySlot).reduce((acc, xs) => {
+          let left = 1, e = 0;
+          for (const [gain, p] of xs.sort((x, y) => y[0] - x[0])) { e += gain * p * left; left *= 1 - p; }
+          return acc + e;
+        }, 0);
+      };
+      g.value = per((u) => u.gain);
+      g.rank = per(rankOf);
       g.label = `${pts(g.value)} expected per clear`;
     } else {
-      g.value = g.items.filter(({ u }) => feasible(u, a.level).now).reduce((x, { u }) => x + u.gain, 0);
+      const open = g.items.filter(({ u }) => feasible(u, a.level).now);
+      g.value = open.reduce((x, { u }) => x + u.gain, 0);
+      g.rank = open.reduce((x, { u }) => x + rankOf(u), 0);
       g.label = g.value ? `${pts(g.value)} if you take every one you can now` : 'none open yet';
     }
   }
@@ -1276,7 +1453,9 @@ function byWhere(a, list) {
     const cost = now.reduce((x, { u }) => x + ahOf(u).price_copper, 0);
     g.label = now.length ? `${pts(g.value)} for ${priceText(cost)} in all` : 'none you can wear yet';
   }
-  const ranked = [...groups.values()].sort((x, y) => (y.kind === 'held') - (x.kind === 'held') || y.value - x.value);
+  // Ranked on the fit-weighted gain: a dungeon of someone else's drops
+  // comes after one of yours (gearfit.py), the label stays the plain gain.
+  const ranked = [...groups.values()].sort((x, y) => (y.kind === 'held') - (x.kind === 'held') || y.rank - x.rank);
   return h('ol', { class: 'srcgroups' }, ranked.map((g) => h('li', { class: 'srcgroup' },
     h('div', { class: 'sghead' }, h('h4', {}, g.title),
       g.levels && g.levels.length === 2 ? h('span', { class: 'sub', text: `levels ${g.levels[0]}-${g.levels[1]}` }) : null,
@@ -1290,7 +1469,7 @@ function groupRows(g, a) {
   const row = ({ u, s }) => candRow(u, a, s ? sourceEl(s, a.level, ahOf(u)) : null);
   // The Auction House: the most gain for the gold first.
   const per = ({ u }) => (ahOf(u) || {}).gain_per_gold || 0;
-  const items = g.items.sort((x, y) => (g.kind === 'ah' ? per(y) - per(x) : 0) || y.u.gain - x.u.gain);
+  const items = g.items.sort((x, y) => (g.kind === 'ah' ? per(y) - per(x) : 0) || rankOf(y.u) - rankOf(x.u));
   const rest = items.slice(3);
   return [h('ul', { class: 'cands' }, items.slice(0, 3).map(row)),
     rest.length ? h('details', { class: 'upmore grpmore' }, h('summary', { text: `${rest.length} more from ${g.title}` }),
@@ -1330,7 +1509,7 @@ function bySlot(a, picks) {
 }
 
 function compactList(a, list) {
-  return h('ul', { class: 'cands compact' }, list.sort((x, y) => y.gain - x.gain).map((u) => {
+  return h('ul', { class: 'cands compact' }, list.sort((x, y) => rankOf(y) - rankOf(x)).map((u) => {
     const s = primarySource(u);
     return candRow(u, a, s ? sourceEl(s, a.level, ahOf(u)) : null);
   }));
@@ -1761,7 +1940,7 @@ function dropSource(it, dungeon, quests) {
 
 function dropRow(it, dungeon, quests) {
   return h('li', { class: 'dgdrop ' + it.state },
-    h('div', { class: 'dgitem' }, itemChip(it), whMark(it.url, it.name)),
+    h('div', { class: 'dgitem' }, itemChip(it), whMark(it.url, it.name), it.state === 'missing' ? fitEl(it.fit) : null),
     h('div', { class: 'dgmeta' },
       it.state === 'missing'
         ? h('span', { class: 'gain', title: `+${(it.gain ?? 0).toFixed(1)} points of Polestar’s score over what you wear` },
@@ -2311,17 +2490,25 @@ function renderJournal(j, err) {
     return;
   }
   const total = ss.reduce((a, b) => a + b.played_s, 0);
-  lede.textContent = `${ss.length} session${ss.length === 1 ? '' : 's'}, ${dur(total)} in all. A session ends when the recorder goes quiet for ${Math.round(j.gap_s / 60)} minutes or you log in again.`;
+  // Without the Recorder: one entry per logout, the time played estimated
+  // from the level times (wowstats/journal.py by_logout).
+  // Switched on later: the Recorder's sessions, then the logouts before
+  // its first record, with one marker between.
+  const recd = ss.filter((x) => !x.estimated).length;
+  lede.textContent = recd === 0
+    ? `${ss.length} logout${ss.length === 1 ? '' : 's'}, about ${dur(total)} played (estimated from your level times).`
+    : `${recd} session${recd === 1 ? '' : 's'}${recd < ss.length ? ` and ${ss.length - recd} earlier logout${ss.length - recd === 1 ? '' : 's'}` : ''}, ${dur(total)} in all. A session ends when the recorder goes quiet for more than ${j.gap_s} seconds.`;
+  const cut = recd && recd < ss.length ? ss.findIndex((x) => x.estimated) : -1;
   fill(list, ss.map((s) => {
     const lv = s.level_start !== null && s.level_end !== null && s.level_end !== s.level_start
       ? `level ${s.level_start} to ${s.level_end}` : (s.level_end !== null ? `level ${s.level_end}` : '');
     const facts = [
       h('div', {}, h('dt', { text: 'Played' }), h('dd', { text: dur(s.played_s) })),
       h('div', {}, h('dt', { text: 'Levels' }), h('dd', { text: s.levels_gained ? `+${s.levels_gained}` : '0' })),
-      h('div', {}, h('dt', { text: 'XP' }), h('dd', { text: fmtK(s.xp) })),
-      h('div', {}, h('dt', { text: 'Quests' }), h('dd', { text: s.quests.length })),
-      h('div', {}, h('dt', { text: 'Deaths' }), h('dd', { text: s.deaths.total })),
-    ];
+      s.xp === null ? null : h('div', {}, h('dt', { text: 'XP' }), h('dd', { text: fmtK(s.xp) })),
+      s.estimated ? null : h('div', {}, h('dt', { text: 'Quests' }), h('dd', { text: s.quests.length })),
+      s.estimated ? null : h('div', {}, h('dt', { text: 'Deaths' }), h('dd', { text: s.deaths.total })),
+    ].filter(Boolean);
     // No logout snapshot around this day: no Gold line rather than a "?".
     if (s.gold_delta_copper !== undefined && s.gold_delta_copper !== null) {
       const g = s.gold_delta_copper;
@@ -2368,12 +2555,15 @@ function renderJournal(j, err) {
       h('details', {},
         h('summary', {},
           h('span', { class: 'jday', text: dayFmt.format(start) }),
-          h('span', { class: 'jtime', text: `${timeFmt.format(start)} to ${timeFmt.format(toDate(s.end))}` }),
+          h('span', { class: 'jtime', text: s.played_s ? `${timeFmt.format(start)} to ${timeFmt.format(toDate(s.end))}` : `logout ${timeFmt.format(toDate(s.end))}` }),
           h('span', { class: 'jlv', text: lv }),
           h('span', { class: 'jzone', text: s.zones.length ? s.zones[0].zone : '' })),
         h('dl', { class: 'sum' }, facts),
         parts));
   }));
+  if (cut > 0) {
+    list.children[cut].before(h('li', { class: 'jmark', text: `Recorder on since ${dayFmt.format(toDate(ss[cut - 1].start))}. Before: times estimated from your level times.` }));
+  }
   const first = list.querySelector('details');
   if (first) first.open = true;
 }
@@ -2574,7 +2764,7 @@ const MOVE_KIND = {
   riding: ['Riding', 'See the gear'],
   deaths_zone: ['Deaths', 'See deaths'], deaths_creature: ['Deaths', 'See deaths'], deaths_level_gap: ['Deaths', 'See deaths'],
   slow_steps: ['Guide', 'See guide steps'], talents: ['Talents', 'See talents'], enchant: ['Enchants', 'See the gear'],
-  slow_level: ['Pace', 'See the climb'],
+  slow_level: ['Pace', 'See the climb'], prep: ['Prepare', 'See what’s coming'],
 };
 function sourceLine(src) {
   if (!src) return null;
@@ -2653,10 +2843,25 @@ function moveEl(mv, nowZone) {
     why = [mv.detail ? h('span', { text: mv.detail }) : null, mv.action ? h('span', { class: 'mact', text: mv.action }) : null];
   } else if (mv.kind === 'enchant') {
     what = h('span', { class: 'mtitle', text: mv.title });
-    why = [h('span', { class: 'mitems' }, (mv.items || []).map(itemWithLink))];
+    // The meta's enchant for each bare slot (wowstats/classmeta.py), when it names one.
+    const ens = (mv.enchants || []).filter((e) => e.name);
+    why = [h('span', { class: 'mitems' }, (mv.items || []).map(itemWithLink)),
+      ens.length ? h('span', {}, ...ens.flatMap((e, i) => [i ? '; ' : '', `${e.slot}: `, e.url ? whRef(e) : e.name])) : null,
+      mv.action ? h('span', { class: 'mact', text: mv.action }) : null];
+  } else if (mv.kind === 'prep') {
+    // Before an event (wowstats/news.py): what, where (the first quest),
+    // what blocks it, the next step.
+    what = h('span', { class: 'mtitle', text: mv.title });
+    why = [mv.quest ? h('span', {}, 'Starts with ', whRef({ url: mv.quest.url, name: mv.quest.name }), mv.quest.zone ? ` in ${mv.quest.zone}` : '') : (mv.where ? h('span', { text: mv.where }) : null),
+      mv.detail ? h('span', { class: 'sub', text: mv.detail }) : null,
+      mv.blocker ? h('span', { class: 'mblock', text: `Needs ${mv.blocker}.` }) : null,
+      mv.action ? h('span', { class: 'mact', text: mv.action }) : null];
   } else {
     what = h('span', { class: 'mtitle', text: mv.title || mv.text });
-    why = [mv.detail ? h('span', { text: mv.detail }) : (mv.title && mv.text !== mv.title ? h('span', { text: mv.text }) : null),
+    const tl = (mv.talents || []).filter((t) => t.name);
+    why = [mv.detail ? h('span', { text: mv.detail }) : (mv.title && mv.text && mv.text !== mv.title ? h('span', { text: mv.text }) : null),
+      tl.length ? h('span', {}, ...tl.flatMap((t, i) => [i ? ', ' : '', t.url ? whRef(t) : t.name])) : null,
+      (mv.trainers || []).length ? trainersEl(mv.trainers, nowZone) : null,
       mv.action ? h('span', { class: 'mact', text: mv.action }) : null];
   }
   const a = h('a', { class: 'mgo', href: mv.link, text: go });
@@ -2778,8 +2983,78 @@ function renderOverview(ov, err, an) {
     h('section', { class: 'block ovpace', 'aria-label': 'Time per level' },
       h('h2', { text: 'Time per level' }),
       recent.length ? paceHost : h('p', { class: 'empty', text: 'Finish a level with Polestar on: its time shows here next to the route’s.' }))));
+  const newsHost = h('section', { class: 'block ovnews', id: 'news', 'aria-label': 'This week on Forever', hidden: true });
+  if (!PUBLIC && !STATIC) kids.push(newsHost);
   fill(el, ...kids);
   if (recent.length) drawPace(paceHost, recent);
+  if (!PUBLIC && !STATIC) loadNews(newsHost, null);
+}
+
+// ------------------------------------------------------------ this week on Forever
+
+// The weekly digest (wowstats/news.py): one line per piece of news in our
+// words, what concerns your characters first; the earlier weeks a click
+// away. Dates and actions only: the sources stay in the data and the MCP.
+const NEWS_CAT = { opening: 'Opening', phase: 'Phase', event: 'Event', patch: 'Patch', hotfix: 'Hotfix', class: 'Class',
+  meta: 'Meta', 'known-issue': 'Known issue', pvp: 'PvP', economy: 'Economy', announcement: 'Coming' };
+async function loadNews(host, week) {
+  const name = state.char;
+  try {
+    const n = await getJSON(api('news', { name, week }));
+    if (name === state.char) renderNews(host, n);
+  } catch (e) { host.hidden = true; }
+}
+function newsLine(it) {
+  // Something to do: a dated event that concerns you (its prep is in the
+  // meta box), or a change to your class. An undated announcement has none.
+  const dated = it.event && it.event.starts;
+  const go = it.for_you && (dated || it.category === 'class' || it.category === 'meta')
+    ? h('a', { class: 'mgo', href: '#meta', text: dated ? 'See what to prepare' : 'See the meta' }) : null;
+  if (go) go.addEventListener('click', (ev) => { ev.preventDefault(); goTo('#meta'); });
+  const when = it.event ? (it.event.starts ? `on ${metaDate(it.event.starts)}` : it.event.window ? `${it.event.window}, no date yet` : 'announced, no date') : null;
+  return h('li', { class: 'move nwitem' + (it.for_you ? ' you' : '') },
+    h('span', { class: 'mk', text: NEWS_CAT[it.category] || 'News' }),
+    h('div', { class: 'mbody' },
+      h('div', { class: 'mwhat' }, h('span', { class: 'mtitle', text: it.title }), it.for_you ? h('span', { class: 'pill', text: 'for you' }) : null),
+      h('div', { class: 'mwhy' }, h('span', { text: it.text }), when ? h('span', { class: 'mact', text: cap(when) + '.' }) : null,
+        it.date ? h('span', { class: 'sub', text: metaDate(it.date) }) : null)),
+    go);
+}
+// What players are saying (wowstats/news.py community): the week's busiest
+// forum and r/wowforever threads, our one line each, a link to the thread.
+// Opinions, set apart from the news and never shown as fact.
+function communityLine(it) {
+  const n = it.replies ? `${it.replies} ${it.replies === 1 ? 'reply' : 'replies'}` : null;
+  return h('li', { class: 'move nwsaid' + (it.for_you ? ' you' : '') },
+    h('span', { class: 'mk', text: 'Players' }),
+    h('div', { class: 'mbody' },
+      h('div', { class: 'mwhat' }, h('a', { class: 'mtitle', href: it.url, target: '_blank', rel: 'noopener noreferrer', text: it.title }),
+        it.for_you ? h('span', { class: 'pill', text: 'your class' }) : null),
+      h('div', { class: 'mwhy' }, it.text ? h('span', { text: it.text }) : null,
+        h('span', { class: 'sub', text: [it.where, n, it.date ? metaDate(it.date) : null].filter(Boolean).join(' · ') }))));
+}
+function renderCommunity(list) {
+  if (!(list || []).length) return null;
+  return h('div', { class: 'nwcommunity' },
+    h('h3', {}, 'What players are saying', h('span', { class: 'metawhen', text: ' opinions, not facts' })),
+    h('ul', { class: 'moves' }, ...list.map(communityLine)));
+}
+function renderNews(host, n) {
+  if (!n || !n.available || !((n.items || []).length || (n.community || []).length)) { host.hidden = true; return; }
+  host.hidden = false;
+  const others = (n.weeks || []).filter((w) => w.week !== n.week);
+  const nav = others.length ? h('p', { class: 'nwweeks' }, 'Earlier weeks: ', ...others.slice(0, 8).flatMap((w, i) => {
+    const b = h('button', { type: 'button', class: 'linkish', text: `week to ${metaDate(w.week)}` });
+    b.addEventListener('click', () => loadNews(host, w.week));
+    return [i ? ', ' : '', b];
+  })) : null;
+  const latest = (n.weeks || [])[0];
+  const back = latest && n.week !== latest.week ? h('button', { type: 'button', class: 'linkish', text: 'Back to this week' }) : null;
+  if (back) back.addEventListener('click', () => loadNews(host, null));
+  fill(host, h('h2', {}, n.week === (latest || {}).week ? 'This week on Forever' : `Forever, week to ${metaDate(n.week)}`,
+    n.week ? h('span', { class: 'metawhen', text: ` week to ${metaDate(n.week)}` }) : null),
+  (n.items || []).length ? capped(n.items.map(newsLine), 5, (k) => `${k} more`, 'moves') : null,
+  renderCommunity(n.community), nav, back);
 }
 
 // ------------------------------------------------------------ timeline and back in time
@@ -2924,7 +3199,7 @@ function renderSnapshot(sn, out) {
     if ((sn.looted_gear || []).length) kids.push(h('ul', { class: 'looted chips' }, sn.looted_gear.map((g) => h('li', {}, itemChip(g)))));
   }
   fill(info, ...kids);
-  fill(tail, talentsAt(sn.level));
+  fill(tail);
 }
 
 // ------------------------------------------------------------ ask your assistant and debug (full view)
@@ -3198,7 +3473,7 @@ function renderAll(d) {
   renderHero(d);
   // A section the page doesn't have (the public one has four) isn't drawn.
   const where = { renderZones: '#zones', renderGuide: '#guide', renderDeaths: '#deaths', renderPeople: '#people', renderFlights: '#flights' };
-  for (const fn of [renderGear, renderTalents, renderClassGuide, renderLevels, renderZones, renderGuide, renderDungeons, renderDeaths, renderPeople, renderFlights]) {
+  for (const fn of [renderGear, renderTalents, renderClassGuide, renderMeta, renderLevels, renderZones, renderGuide, renderDungeons, renderDeaths, renderPeople, renderFlights]) {
     if (where[fn.name] && !$(where[fn.name])) continue;
     try { fn(d); } catch (e) { console.error(fn.name, e); }
   }
@@ -3234,6 +3509,8 @@ async function loadChar(name, quiet) {
     if (feat('loot')) more.push(loadLoot(name));
     if (!PUBLIC) more.push(loadAnalysis(name));
     if (!PUBLIC) more.push(loadDungeons(name));
+    if (!PUBLIC && !STATIC) more.push(loadMeta(name));
+    if (!PUBLIC && !STATIC) more.push(loadTalentHistory(name));
     if (!PUBLIC && feat('plan')) more.push(loadPlan(name));
     if (!PUBLIC) setAsk(name);
     if (state.tab === 'journal') more.push(loadJournal(quiet));
@@ -3295,7 +3572,6 @@ async function renderNoChars() {
 }
 
 async function start() {
-  initTheme();
   if (SEALED) {
     // No key, or not this bundle's: the same empty page either way.
     try { state.config = await getJSON(api('config')); } catch (e) { locked(); return; }
@@ -3309,6 +3585,13 @@ async function start() {
   if (!PUBLIC && feat('plan')) initPlan();
   initDebug();
   for (const k of Object.keys(TABS)) $('#tab-' + k).addEventListener('click', () => setTab(k));
+  // The bar's home link (wowstats/bar.py): the first tab, without leaving
+  // the page. On /zogzog/ following ./ would drop the key in the fragment.
+  $('.bar-home').addEventListener('click', (ev) => {
+    ev.preventDefault();
+    setTab(HOME);
+    window.scrollTo({ top: 0 });
+  });
   let chars;
   try {
     chars = (await getJSON(api('chars'))).chars;
@@ -3353,27 +3636,6 @@ async function start() {
       if (paceRedraw && state.tab === 'home') paceRedraw();
     }, 150);
   });
-}
-
-// ------------------------------------------------------------ theme
-
-const THEMES = ['system', 'light', 'dark'];
-function initTheme() {
-  let t = 'system';
-  try { t = localStorage.getItem('wow-theme') || 'system'; } catch (e) { /* private mode */ }
-  applyTheme(THEMES.includes(t) ? t : 'system');
-  $('#theme').addEventListener('click', () => {
-    const cur = document.documentElement.dataset.theme || 'system';
-    const next = THEMES[(THEMES.indexOf(cur) + 1) % THEMES.length];
-    applyTheme(next);
-    try { localStorage.setItem('wow-theme', next); } catch (e) { /* private mode */ }
-  });
-}
-function applyTheme(t) {
-  if (t === 'system') delete document.documentElement.dataset.theme;
-  else document.documentElement.dataset.theme = t;
-  $('#theme').textContent = { system: 'Auto', light: 'Day', dark: 'Night' }[t];
-  $('#theme').setAttribute('aria-label', `Colour theme: ${{ system: 'auto', light: 'day', dark: 'night' }[t]}. Switch`);
 }
 
 start();
