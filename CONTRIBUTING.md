@@ -11,7 +11,7 @@ version:
 2. **Before a pull request**, run what covers your change:
    ```sh
    uv run ruff check .
-   uv run pytest -q -rs
+   make test-changed   # only the tests your diff can break
    uv run python tools/fixtures/generate.py --check
    ```
    Touching `data/`, `pyproject.toml` or the `Dockerfile`? Build both images
