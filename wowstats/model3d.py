@@ -321,8 +321,7 @@ class Model3D:
         out.pop("why")
         tables = self.tables()
         if tables is None:
-            out["why"] = ("the game files haven't come from your computer yet: the shipper sends them on its "
-                          "next run")
+            out["why"] = "the shipper sends the game files from your computer on its next run"
             return out
         rid = character3d.race_id(tables, x["race"])
         if rid is None:
@@ -337,8 +336,7 @@ class Model3D:
             out["why"] = hd.get("why") or "no model"
             return out
         if have is not None and hd["recipe"]["model"] not in have:
-            out["why"] = ("this model's files haven't come from your computer yet: the shipper sends them on "
-                          "its next run")
+            out["why"] = "the shipper sends this model's files from your computer on its next run"
             return out
         out["recipe"] = hd["recipe"]
         if sd["classic"] and sd["recipe"] and (have is None or sd["recipe"]["model"] in have):

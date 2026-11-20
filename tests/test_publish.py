@@ -659,7 +659,7 @@ def test_builds_without_any_3d_file(tmp_path, monkeypatch):
     assert res["built"] and res["files_3d"] == 0
     pub = files(tmp_path / "site" / "current" / "public")
     ans = json.loads(pub[publish.data_path("model3d", "Hero-Test")])
-    assert ans["recipe"] is None and "haven't come" in ans["why"]
+    assert ans["recipe"] is None and ans["why"] == "the shipper sends the game files from your computer on its next run"
     assert (tmp_path / "site" / "current" / "zogzog").is_dir()
 
 

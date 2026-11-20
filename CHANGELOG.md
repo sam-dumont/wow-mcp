@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+**3D view: lit like Blizzard's renders.** The light comes from the front,
+above and the right, where it came from the left almost level: a blade
+turned that way got no light and showed half as bright. The shine some
+materials add on top is drawn too.
+
+**3D view: a weapon in each hand, pauldrons on the right shoulder.** An
+off-hand weapon is drawn in the left hand (it was refused as "in that
+hand"), and a hunter holds their melee weapons like everyone else, the bow
+or gun only when a hand is free, as Blizzard's own renders show them. A
+one-sided pauldron sits on the shoulder it was made for, and a Skyborne's
+Classic look is their Updated model (it was a goblin).
+
+**No 3D model yet, said once and in the middle.** With nothing to draw,
+"View in 3D" is off from the start and the line above it says why in one
+sentence; on a phone that line stays between the two icon columns.
+
+**tools/3dcases: the 3D view checked against Blizzard's renders.** Real
+characters from public Battle.net profiles, drawn from your own install and
+graded pass, warn or fail against the official Updated and Classic renders,
+with a contact sheet per case. The repository keeps anonymous specs only;
+names and renders stay on your disk, 30 days at most (tools/3dcases/README.md).
+
 **Releases are one button, and this repository is the only one.**
 Development moved here from the private repository it was exported from.
 Actions > release > Run workflow picks the next version (`rc` for a
