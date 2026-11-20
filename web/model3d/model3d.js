@@ -20,6 +20,7 @@
 
 (() => {
   const st = { char: null, gear: null, open: false, shown: null, run: 0 };
+  let ids = 0;  // the why lines' ids and the toggles' answers (askFirst)
   const STATIC = document.documentElement.dataset.static === '1';
   // The picture or 3D, as last chosen: kept per site (the live view, the
   // public bundle, /zogzog/) across levels, tabs and reloads.
@@ -106,10 +107,28 @@
     let p = stage.querySelector('.m3dwhy');
     if (!text) { if (p) p.remove(); return; }
     if (!p) {
-      p = h('p', { class: 'm3dwhy' });
+      p = h('p', { class: 'm3dwhy', id: 'm3dwhy-' + (++ids) });
       stage.append(p);
     }
     p.textContent = `No 3D model yet: ${text}.`;
+    return p;
+  }
+
+  // Before any click: with nothing to draw, the toggle is off and says why
+  // (the line above it), rather than a button that opens nothing.
+  function askFirst(stage, btn, src) {
+    const at = src();
+    if (!at || !at.name) return;
+    const ask = ++ids;
+    btn.dataset.ask = String(ask);
+    answerOf(at.name, at.level).then((d) => (d && d.recipe ? '' : (d && d.why) || 'nothing to draw'),
+      (e) => String(e.message || e)).then((why) => {
+      if (btn.dataset.ask !== String(ask) || stage.querySelector('.m3dframe')) return;
+      const line = whyLine(stage, why);
+      btn.disabled = Boolean(why);
+      if (line) btn.setAttribute('aria-describedby', line.id);
+      else btn.removeAttribute('aria-describedby');
+    });
   }
 
   // One stage: the still, or the model on the toggle. `src` gives the
@@ -144,9 +163,11 @@
       try { d = await answerOf(at.name, at.level); } catch (e) { d = { why: String(e.message || e) }; }
       if (stage.querySelector('.m3dframe')) return;  // a second click while asking
       if (!d || !d.recipe) {
-        whyLine(stage, (d && d.why) || 'nothing to draw');
+        const line = whyLine(stage, (d && d.why) || 'nothing to draw');
         if (still) still.hidden = false;
         set(false);
+        btn.disabled = true;
+        btn.setAttribute('aria-describedby', line.id);
         return;
       }
       whyLine(stage, '');
@@ -156,6 +177,8 @@
       if (onOpen) onOpen();
     };
     set(Boolean(stage.querySelector('.m3dframe')));
+    btn.disabled = false;
+    if (!stage.querySelector('.m3dframe')) askFirst(stage, btn, src);
     return btn;
   }
 

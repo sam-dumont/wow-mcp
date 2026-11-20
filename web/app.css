@@ -205,6 +205,7 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 }
 .m3dtoggle:hover, .m3dtoggle[aria-pressed="true"] { border-color: var(--gold); }
 .m3dtoggle:focus-visible { outline: 2px solid var(--gold-hi); outline-offset: 2px; }
+.m3dtoggle:disabled { cursor: not-allowed; opacity: .55; border-color: var(--gold-lo); }
 .snapstage { min-height: 360px; margin: 10px 0; max-width: 420px; }
 /* A past level whose picture isn't drawn yet (app.js levelStill): the
    silhouette, and a line above the toggle. The stage is dark in both themes. */
@@ -1051,6 +1052,9 @@ a.whsmall { font: 500 12.5px/1 var(--sans); color: var(--muted); }
   .still .render { object-fit: cover; object-position: 50% 20%; }
   .still .figure { width: 40%; }
   .m3dtoggle { bottom: 8px; padding: 5px 10px; }
+  /* The stage runs under the icon columns here: lines on it keep to the
+     middle (56px icons + 6px gap + a margin each side). */
+  .doll > .stage > .m3dwhy { left: 68px; right: 68px; bottom: 46px; font-size: 13px; overflow-wrap: anywhere; }
   .dollfoot { grid-template-columns: minmax(0, 1fr); }
   .ilvl { text-align: left; }
 }
