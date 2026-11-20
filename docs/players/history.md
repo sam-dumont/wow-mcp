@@ -49,7 +49,7 @@ your race and says so under the model.
 
 ## Journal
 
-![The Journal: one entry for the morning of Thu 19 Nov, 09:40 to 10:02, level 34 in Arathi Highlands, with played time, XP, quests, deaths, gold, zones and the quest handed in, then the evenings before it](../images/journal.webp)
+![The Journal: one entry for the morning of Thu 19 Nov, 09:40 to 10:05, level 34 in Arathi Highlands, with played time, XP, quests, deaths, gold, zones and the quest handed in, then the evenings before it](../images/journal.webp)
 
 One entry per play session. A session ends when the Recorder goes quiet for more than 5 and a half
 minutes (it writes at least every 5 while the game runs): a /reload or a quick relog stays in

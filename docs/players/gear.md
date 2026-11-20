@@ -31,7 +31,7 @@ points in; pick another to see the upgrades for a respec.
 
 ## The upgrades list
 
-![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops and the expected points per clear, quests in Stranglethorn Vale and Stormwind City, the Excavation Site in the Wetlands, and the Auction House](../images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops and the expected points per clear, the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../images/upgrades.webp)
 
 Two ways to read it, switched at the top:
 

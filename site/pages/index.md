@@ -39,7 +39,7 @@
 
 <div class="feature flip">
 
-![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, quests in Stranglethorn Vale and Stormwind City, the Excavation Site in the Wetlands, and the Auction House](../../docs/images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../../docs/images/upgrades.webp)
 
 <div>
 <p class="eyebrow">Gear</p>

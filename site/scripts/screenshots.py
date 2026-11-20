@@ -49,6 +49,15 @@ def section(page, where, path: Path, height: int | None = None) -> None:
     box = el.bounding_box()
     y = box["y"] + page.evaluate("scrollY")  # the clip is in page coordinates with full_page
     clip = {"x": box["x"], "y": y, "width": box["width"], "height": min(box["height"], height or box["height"])}
+    full_page_clip(page, path, clip)
+
+
+def full_page_clip(page, path: Path, clip: dict) -> None:
+    """A clip of the whole page taken from the top: scrolled, a sticky bar
+    (the climb's Levels/Zones/... tabs) is drawn where the window was,
+    over the chart."""
+    page.evaluate("window.scrollTo(0, 0)")
+    page.wait_for_timeout(200)
     page.screenshot(path=path, clip=clip, full_page=True)
 
 
@@ -92,11 +101,14 @@ def main(base: str) -> None:
             gear = page.locator("#gear").first.bounding_box()
             y = top["y"] - 16 + page.evaluate("scrollY")
             clip = {"x": gear["x"], "y": y, "width": gear["width"], "height": 900}
-            page.screenshot(path=shot(f"upgrades{suffix}"), clip=clip, full_page=True)
+            full_page_clip(page, shot(f"upgrades{suffix}"), clip)
             section(page, "#dungeons", shot(f"dungeons{suffix}"), 1150)
             section(page, "#levels", shot(f"climb{suffix}"), 760)
             page.locator("#gear").get_by_role("button", name="View in 3D").first.click()
             page.wait_for_timeout(5000)
+            # The model whole, its head too: the gear panel's top at the window's.
+            page.evaluate("document.querySelector('#gear').scrollIntoView({block: 'start'})")
+            page.wait_for_timeout(1000)
             page.screenshot(path=shot(f"model3d{suffix}"))
             page.keyboard.press("Escape")
             tab(page, "Timeline")
