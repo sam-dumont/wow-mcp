@@ -119,7 +119,10 @@ class Running:
         opener = urllib.request.build_opener(NoRedirect)
         req = urllib.request.Request(self.base + path, headers=headers or {}, method=method, data=data)
         try:
-            with opener.open(req, timeout=10) as r:
+            # Generous: a route works for real here (the planner's first
+            # gather, references read cold), and CI runs 4 workers on 4 slow
+            # cores; 10 s timed out once there (#11). A hung server still fails.
+            with opener.open(req, timeout=60) as r:
                 return r.status, dict(r.headers), r.read()
         except urllib.error.HTTPError as e:
             return e.code, dict(e.headers), e.read()
