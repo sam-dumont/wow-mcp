@@ -356,6 +356,14 @@ ZOGZOG: dict[str, dict] = {
     # .verify.shareable_action: actions with where, what blocks them and the
     # next step; no player, creature, time, date or where the character is
     # now) and the time per level. Pattern lines describe: never here.
+    # The talent changes from WoWSims Exporter's saves (views.talent_history,
+    # source "addon" only: publish never bundles Battle.net's).
+    "talents": {**_keys("char", "days", "available", "why", "source", "since"),
+                "changes": [{**_keys("date", "t"), "before": [_keys("tree", "points")],
+                             "after": [_keys("tree", "points")],
+                             "gained": [_keys("name", "spell", "from", "to")],
+                             "dropped": [_keys("name", "spell", "from", "to")]}],
+                "not_recorded": [None]},
     "analysis": {**_keys("available", "char"),
                  "nudges": [_keys("text", "where", "blocked_by", "next_step", "verdict", "at_level")],
                  "time_budget": [_keys("level", "online_s", "instance_s", "taxi_s", "dead_s", "afk_s", "planned_s")]},

@@ -46,7 +46,9 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import functools
 import gzip
+import hashlib
 import io
 import json
 import random
@@ -865,8 +867,8 @@ def gear_sheet(p: Player) -> None:
     base = {2: 273457, 3: 4315, 5: 6264, 6: 7000, 9: 273808, 11: 6463, 12: 1156, 13: 273298, 15: 4311}
     worn = {**base, **p.worn}
     slot_names = {1: "Head", 2: "Neck", 3: "Shoulder", 4: "Shirt", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet",
-                  9: "Wrist", 10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 15: "Back", 16: "Main hand",
-                  17: "Off hand", 18: "Ranged"}
+                  9: "Wrist", 10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back",
+                  16: "Main hand", 17: "Off hand", 18: "Ranged", 19: "Tabard"}
     for slot in sorted(worn):
         iid = worn[slot]
         info = ref.item(iid) or {}
@@ -1091,8 +1093,8 @@ AH_STOCK = [2589, 2592, 4306, 4338, 2453, 3355, 3356, 3357, 3818, 3820, 3821, 78
 
 
 def sessions_demo(p: Player, end_marks: dict) -> None:
-    """Four more evenings after the fixtures' fifteen: Hillsbrad, City of
-    Dalaran and Razorfen Kraul at 33, Arathi to 34."""
+    """Five more sessions after the fixtures' fifteen: Hillsbrad, City of
+    Dalaran and Razorfen Kraul at 33, Arathi to 34, a morning at the inn."""
     rnd, q = p.rnd, p.g.quests
 
     # 16. Tue 20 Oct: Southshore and the Hillsbrad fields. One death.
@@ -1153,8 +1155,7 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
     p.go("Alterac Mountains", "Dalaran")
     p.rec("group", raid=False, size=0, zone=p.zone)
     p.step("forever/alliance/30-40/05-arathi-highlands", 65, "auto")
-    p.turnin(q[92457], reward=279838)
-    p.worn[17] = 279838
+    p.turnin(q[92457], reward=279838)  # into the bags: the staff takes both hands
     p.step("forever/alliance/30-40/05-arathi-highlands", 66, "auto")
     p.turnin(q[92458])
     p.gear_sheet()
@@ -1193,6 +1194,9 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
         if b == 4428:
             p.rec("loot", items="6685:1;2816:1", npc_id=b, npc_kind="c", **p.here())
             p.worn[3] = 6685
+            # The scepter frees the off hand for Dalaran's rod: the staff goes.
+            p.worn[16] = 2816
+            p.worn[17] = 279838
     p.rec("complete", quest_id=1144, quest_name=q[1144]["name"], zone=p.zone)
     p.turnin(q[1144], reward=6750)
     p.worn[12] = 6750
@@ -1227,6 +1231,22 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
     p.profession(COOKING, 5)
     p.gear_sheet()
     p.logout()
+
+    # 20. Sat 24 Oct, morning: a night at Refuge Pointe's inn banked rested
+    # XP; a hand-in, tailoring and the mailbox, no fighting (quest XP leaves
+    # rested alone), so it is still there at logout.
+    p.rested += 5800
+    p.login(local(2026, 10, 24, 10, 40), "Arathi Highlands", "Refuge Pointe")
+    p.town()
+    p.accept(q[663])  # Land Ho!: a word to the pirates' lookout, and back
+    p.wait(300, moving=True)
+    p.turnin(q[663])
+    p.profession(TAILORING, 9)
+    p.wait(420, moving=False)  # the mailbox, the bank
+    p.profession(ENCHANTING, 4)
+    p.wait(480, moving=False)
+    p.gear_sheet()
+    p.logout()
     end_marks["end"] = p.t
 
 
@@ -1245,16 +1265,180 @@ def ah_scans(p: Player, days: list[float], upgrade: int, price: int) -> None:
                     realm=DEMO_REALM, faction="Alliance", source_id=f"price:{DEMO_REALM}:{item}:{day.isoformat()}")
 
 
+class DemoPlayer(Player):
+    """The demo's player: the shipper sends a character sheet whenever the
+    outfit or a profession rank changed since the last one (its digest),
+    at the next run after a logout, so the gear history has every outfit."""
+
+    def gear_sheet(self) -> None:
+        key = (tuple(sorted(self.worn.items())), tuple((s, r) for s, (r, _c) in sorted(self.skills.items())))
+        if key == getattr(self, "_sheet", None):
+            return
+        self._sheet = key
+        gear_sheet(self)
+
+    def logout(self) -> None:
+        super().logout()
+        self.t -= 1
+        self.gear_sheet()
+        self.t += 1
+
+
+# The demo character's talents, one point per entry, in the order he took
+# them: Discipline while levelling with a group, then a respec into Shadow
+# when he reached RESPEC_LEVEL. (WoWSims tree, talent name, max rank.)
+DISC_ORDER = [("Wand Specialization", 2), ("Twin Disciplines", 3), ("Mental Strength", 5), ("Inner Focus", 1),
+              ("Meditation", 3), ("Martyrdom", 1), ("Improved Power Word: Shield", 3), ("Mental Agility", 2)]
+SHADOW_ORDER = [("Spirit Tap", 5), ("Shadow Focus", 3), ("Improved Shadow Word: Pain", 2), ("Improved Mind Blast", 3),
+                ("Mind Flay", 1), ("Improved Mind Flay", 2), ("Vampiric Embrace", 1), ("Shadow Weaving", 3),
+                ("Dark Inspiration", 3), ("Shadow Reach", 2), ("Blackout", 2)]
+RESPEC_LEVEL = 30
+# Battle.net's names for the three trees, in its order.
+BNET_TREES = ("Discipline", "Shadow Magic", "Holy")
+GUILD = "Cogs of Dawnwatch"  # made up, like the realm
+LEGACY_PRIEST_25 = 62000  # Legacy challenge: a Priest reaching 25 (the KB's TraitCurrencySource)
+
+
+@functools.cache
+def priest_talents() -> dict[str, dict]:
+    """Talent name -> {tree (0-2), digit (its place in WoWSims' string),
+    spell, definition}: data/wowsims-talents.json's Priest trees, named
+    from the talent catalog the tests keep (tests/data/wowf-talents-*.json)."""
+    w = json.loads((ROOT / "data" / "wowsims-talents.json").read_text())["classes"]["PRIEST"]
+    cat = json.loads(next((ROOT / "tests" / "data").glob("wowf-talents-*.json")).read_text())
+    names = {r["ID"]: r["Name_lang"] for r in cat["SpellName"]}
+    defs = {int(r["ID"]): r["SpellID"] for r in cat["TraitDefinition"]}
+    out = {}
+    for tree, ids in enumerate(w):
+        for digit, d in enumerate(ids):
+            spell = defs.get(d)
+            if spell and names.get(spell):
+                out[names[spell]] = {"tree": tree, "digit": digit, "spell": int(spell), "definition": d}
+    return out
+
+
+def talent_build(level: int, shadow: bool) -> dict[str, int]:
+    """Talent name -> rank for a level's points (level - 9)."""
+    points = max(0, level - 9)
+    out: dict[str, int] = {}
+    for name, n in SHADOW_ORDER if shadow else DISC_ORDER:
+        for _ in range(n):
+            if points <= 0:
+                return out
+            out[name] = out.get(name, 0) + 1
+            points -= 1
+    return out
+
+
+def wowsims_string(build: dict[str, int]) -> str:
+    """The build as WoWSims Exporter saves it: a digit per talent, "-"
+    between the trees, trailing zeros dropped."""
+    info = priest_talents()
+    trees = [[0] * 20 for _ in range(3)]
+    for name, rank in build.items():
+        t = info[name]
+        trees[t["tree"]][t["digit"]] = rank
+    return "-".join("".join(map(str, tr)).rstrip("0") for tr in trees).rstrip("-")
+
+
+def level_at(rows: list[dict], t: float, first: int = 22) -> int:
+    """The character's level at `t`: one past the newest level it finished."""
+    done = [int(r["level"]) for r in rows if r["feed"] == "wow-level" and _epoch(r["_time"]) <= t]
+    return max(done) + 1 if done else first
+
+
+def respec_time(rows: list[dict]) -> float:
+    """When he reached RESPEC_LEVEL (finished the level before it)."""
+    return min(_epoch(r["_time"]) for r in rows if r["feed"] == "wow-level" and int(r["level"]) == RESPEC_LEVEL - 1)
+
+
+def _epoch(t: str) -> float:
+    return datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp()
+
+
+def wowsims_events(p: Player) -> None:
+    """WoWSims Exporter's saves, as the shipper sends them (wow-talents):
+    one when the recording starts, one at each level (a new point spent),
+    and the respec."""
+    rows = sorted(p.out, key=lambda r: r["_time"])
+    first = min(_epoch(r["_time"]) for r in rows if r["feed"] == "wow-recorder")
+    respec = respec_time(rows)
+    times = [first + 60] + [_epoch(r["_time"]) + 30 for r in rows if r["feed"] == "wow-level"]
+    last = None
+    for t in sorted(times):
+        lv = level_at(rows, t)
+        text = wowsims_string(talent_build(lv, t >= respec))
+        if text == last:
+            continue
+        last = text
+        p.t = t
+        digest = hashlib.sha1(json.dumps([text, lv]).encode()).hexdigest()[:12]
+        p.other("wow-talents", source="wowsims", source_id=f"talents:{p.char}:{digest}:{int(t)}",
+                _msg=f"{p.char}: talents {text} at level {lv} (WowSims)", talents=text, level=lv,
+                **{"class": "PRIEST"}, spec="Shadow" if t >= respec else "Discipline", addon_version="1.2.3")
+
+
+def shipper_shapes(rows: list[dict]) -> list[dict]:
+    """What the shipper adds that the fixtures' events leave out
+    (shipper/wow_stats.py): a source_id on every event (the pages count and
+    dedupe by it), and each zone record's time in the zone, up to the next
+    zone record or the end of the session (a gap over 330 s)."""
+    out = [dict(r) for r in rows]
+    rec = [r for r in out if r["feed"] == "wow-recorder"]
+    ts = [_epoch(r["_time"]) for r in rec]
+    # Each record's session end (a gap over 330 s ends one): walk back from the last.
+    ends = list(ts)
+    stop = ts[-1] if ts else 0
+    for k in range(len(ts) - 1, -1, -1):
+        if k + 1 < len(ts) and ts[k + 1] - ts[k] > 330:
+            stop = ts[k]
+        ends[k] = stop
+    nxt = None
+    for k in range(len(rec) - 1, -1, -1):
+        r = rec[k]
+        if r.get("kind") == "zone":
+            until = ends[k] if nxt is None or ts[nxt] > ends[k] else ts[nxt]
+            r["duration_s"] = sval(round(max(0.0, until - ts[k]), 1))
+            nxt = k
+    seq = idx = 0
+    for r in rec:
+        if r.get("kind") == "session":
+            seq, idx = seq + 1, 0
+        idx += 1
+        r.setdefault("source_id", f"rec:1:{seq}:{idx}")
+    for r in out:
+        if "source_id" in r:
+            continue
+        f, c, t = r["feed"], r.get("char"), _epoch(r["_time"])
+        if f == "wow-character":
+            r["source_id"] = f"character:{c}:{int(t)}"
+        elif f == "wow-level":
+            r["source_id"] = f"level:{c}:{r['level']}"
+        elif f == "wow-dungeon":
+            r["source_id"] = f"dungeon:{c}:{int(t)}"
+        elif f == "wow-gear":
+            digest = hashlib.sha1(json.dumps([r.get("items"), r.get("professions")]).encode()).hexdigest()[:12]
+            r["source_id"] = f"gear:{c}:{digest}"
+        elif f == "wow-setup":
+            digest = hashlib.sha256(r.get("addons", "").encode()).hexdigest()[:16]
+            r["source_id"] = f"setup:{digest}:{int(t)}"
+    return out
+
+
 def build_demo(end_day: str | None = None) -> list[dict]:
     """The demo character's events, shifted by whole days so its last
-    evening is `end_day` (YYYY-MM-DD; default: as generated)."""
+    session is on `end_day` (YYYY-MM-DD; default: as generated)."""
     from datetime import date
 
     rnd = random.Random(SEED)
     game = Game()
-    p = Player(game, rnd, DEMO, cls="PRIEST", race="Gnome", faction="Alliance", sex=3, level=22, xp=15555,
-               money=21000, bind="Auberdine")
+    # Male (the Recorder's UnitSex 2), as his Battle.net profile says (bnet_series).
+    p = DemoPlayer(game, rnd, DEMO, cls="PRIEST", race="Gnome", faction="Alliance", sex=2, level=22, xp=15555,
+                   money=21000, bind="Auberdine")
     p.worn[16] = 1312
+    # Every slot filled: his own Azure Silk Hood (the Shadow Hood on the
+    # auction house beats it), a shirt, the guild's tabard, a second trinket.
+    p.worn.update({1: 7048, 4: 2576, 14: 2919, 19: 5976})
     p.fresh_steps = True  # draws nothing from the seed: the same evenings as the fixtures'
     marks = sessions_priest(p)
     sessions_demo(p, marks)
@@ -1265,6 +1449,7 @@ def build_demo(end_day: str | None = None) -> list[dict]:
     # The upgrade on sale: Shadow-scored, bound when equipped, for the
     # empty head slot.
     ah_scans(p, [end - 86400, end], upgrade=AH_UPGRADE, price=AH_PRICE)
+    wowsims_events(p)
     # Questie's list: the hand-ins, and a made-up past before the recording.
     done = sorted(set(p.done) | {qid for qid, x in sorted(game.quests.items())
                                  if x["side"] in ("Alliance", "both") and 1 <= x["level"] <= 20
@@ -1273,16 +1458,107 @@ def build_demo(end_day: str | None = None) -> list[dict]:
     p.other("wow-quests", kind="completed", source="questie", quest_ids=done, n=len(done),
             source_id=f"quests:{DEMO}:questie")
     # The shipper's setup report: every addon but Syndicator, so the pages
-    # show one "Missing:" line (the bags), as a friend's would.
+    # show one "Missing:" line (the bags), as a friend's would: the demo's
+    # one example of a degraded source, said so on its page.
     p.other("wow-setup", addons={"polestar": "0.4.1", "recorder": "0.4.1", "auctionator": "11.0.5",
-                                 "questie": "11.18.0", "altoholic": "11.1.0"}, recorder_on=True, saved_chars=1)
+                                 "questie": "11.18.0", "altoholic": "11.1.0", "wowsims": "1.2.3"},
+            recorder_on=True, saved_chars=1)
     p.out[-1].pop("char", None)
-    rows = sorted(p.out, key=lambda r: r["_time"])
+    rows = shipper_shapes(sorted(p.out, key=lambda r: r["_time"]))
     if end_day:
         last = datetime.fromtimestamp(end, TZ).date()
         shift = (date.fromisoformat(end_day) - last).days * 86400
         rows = [shifted(r, shift) for r in rows]
     return rows
+
+
+# ---------------------------------------------------------------- Battle.net
+
+# Battle.net's slot types (the exporter's `slot` label) by inventory slot.
+BNET_SLOTS = {1: "head", 2: "neck", 3: "shoulder", 4: "shirt", 5: "chest", 6: "waist", 7: "legs", 8: "feet",
+              9: "wrist", 10: "hands", 11: "finger_1", 12: "finger_2", 13: "trinket_1", 14: "trinket_2", 15: "back",
+              16: "main_hand", 17: "off_hand", 18: "ranged", 19: "tabard"}
+BNET_READ_HOUR = 6  # the exporter's daily read, UTC
+BNET_STEP = 120     # seconds between pushes (the exporter pushes every minute)
+
+
+def bnet_series(rows: list[dict], now: float, days: int = 21) -> list[dict]:
+    """The Battle.net exporter's series for the demo character
+    (wowstats.exporter.poll_profile), as VictoriaMetrics' /api/v1/import
+    takes them: the profile, the look (golden3d's options), the equipment,
+    the item level, the talents and the Legacy achievement, each read once
+    a day at BNET_READ_HOUR and pushed every BNET_STEP seconds, over the
+    last `days` (the talent history reads them back). `rows`: build_demo's,
+    already shifted."""
+    import golden3d
+
+    who = {"character": DEMO, "account_id": "0"}
+    respec = respec_time(rows)
+    info = priest_talents()
+    gear = sorted((r for r in rows if r["feed"] == "wow-gear"), key=lambda r: r["_time"])
+    ding25 = min(_epoch(r["_time"]) for r in rows if r["feed"] == "wow-level" and int(r["level"]) == 24)
+    t0 = int((now - days * 86400) // BNET_STEP * BNET_STEP)
+    stamps = list(range(t0, int(now), BNET_STEP))
+    day = 86400
+    read = {t: (t - BNET_READ_HOUR * 3600) // day * day + BNET_READ_HOUR * 3600 for t in stamps}
+    series: dict[tuple, dict] = {}
+
+    def put(name: str, labels: dict, t: int, value: float) -> None:
+        key = (name, tuple(sorted(labels.items())))
+        s = series.setdefault(key, {"metric": {"__name__": name, **labels}, "values": [], "timestamps": []})
+        s["values"].append(value)
+        s["timestamps"].append(t * 1000)
+
+    look = golden3d.build()["look"]
+    recent = now - 3 * day  # the profile's series: last_over_time(...[2d]) needs the last two days
+    for t in stamps:
+        r = read[t]
+        lv = level_at(rows, r)
+        build = talent_build(lv, r >= respec)
+        spent = {name: 0 for name in BNET_TREES}
+        for name, rank in build.items():
+            spent[BNET_TREES[(0, 2, 1)[info[name]["tree"]]]] += rank
+        for k, tree in enumerate(BNET_TREES):
+            put("wow_character_talent_points", {**who, "tree": tree, "order": str(k)}, t, spent[tree])
+        for name, rank in build.items():
+            put("wow_character_talent_rank", {**who, "spell_id": str(info[name]["spell"]), "talent": name}, t, rank)
+        if t < recent:
+            continue
+        put("wow_character_profile", {**who, "race_id": "7", "gender": "male", "in_guild": "true",
+                                      "guild": GUILD}, t, lv)
+        put("wow_character_profile_found", who, t, 1)
+        put("wow_character_profile_refreshed_timestamp_seconds", who, t, r)
+        for o in look:
+            put("wow_character_customization", {**who, "option_id": str(o["optionId"])}, t, o["choiceId"])
+        sheet = [g for g in gear if _epoch(g["_time"]) <= r]
+        items = json.loads(sheet[-1]["items"]) if sheet else []
+        for it in items:
+            put("wow_character_equipped", {**who, "slot": BNET_SLOTS[int(it["slot"])]}, t, int(it["item_id"]))
+        ilvls = [int(it["item_level"]) for it in items if it.get("item_level")]
+        # Blizzard's equipped item level counts an empty slot as 0 (16 slots).
+        put("wow_character_item_level", {**who, "kind": "equipped"}, t, sum(ilvls) // 16)
+        put("wow_character_item_level", {**who, "kind": "average"}, t, sum(ilvls) // 16)
+        put("wow_character_achievements_read", who, t, 1)
+        put("wow_character_achievement", {**who, "achievement_id": str(LEGACY_PRIEST_25)}, t, int(ding25))
+    return [s for _k, s in sorted(series.items())]
+
+
+# The armory render's address in the exporter's series. Made up: the demo's
+# still is drawn from golden3d's files and waits in the armory cache under
+# this address (site/scripts/demo.py), so nothing ever asks Blizzard for it.
+BNET_RENDER_URL = "https://render.worldofwarcraft.com/classic-eu/character/demo/34/nibbet-main-raw.png"
+
+
+def bnet_render_series(now: float, days: int = 3) -> list[dict]:
+    """wow_character_render for the demo character: the exporter's series
+    for the armory's full-body render (asset main-raw), read daily."""
+    t0 = int((now - days * 86400) // BNET_STEP * BNET_STEP)
+    stamps = list(range(t0, int(now), BNET_STEP))
+    day = 86400
+    reads = [(t - BNET_READ_HOUR * 3600) // day * day + BNET_READ_HOUR * 3600 for t in stamps]
+    return [{"metric": {"__name__": "wow_character_render", "character": DEMO, "account_id": "0",
+                        "asset": "main-raw", "url": BNET_RENDER_URL},
+             "values": reads, "timestamps": [t * 1000 for t in stamps]}]
 
 
 def shifted(r: dict, secs: int) -> dict:

@@ -22,6 +22,7 @@ from __future__ import annotations
 import gzip
 import io
 import ipaddress
+import json
 import os
 import re
 import subprocess
@@ -213,15 +214,19 @@ def test_no_private_shapes():
     assert not hits, f"{len(hits)} private-looking value(s):\n" + "\n".join(hits[:200])
 
 
-def denylist() -> list[str]:
+def denylist(logins: bool = False) -> list[str]:
+    """The denylist's entries. `login:<name>` lines are logins (the owner's
+    own, a friend's): too short to look for everywhere (a first name is in
+    item and NPC names), so they are looked for only where a screenshot's
+    people come from (test_screenshots_show_invented_people)."""
     if not DENYLIST.is_file():
         pytest.skip(f"no denylist at {DENYLIST} (kept out of git on purpose)")
     out = []
     for raw in DENYLIST.read_text(encoding="utf-8").splitlines():
         s = raw.split("#", 1)[0].strip()
-        if s:
-            out.append(s)
-    return out
+        if s and s.lower().startswith("login:") == logins:
+            out.append(s.split(":", 1)[1].strip() if logins else s)
+    return [s for s in out if s]
 
 
 def test_nothing_on_the_denylist():
@@ -237,6 +242,80 @@ def test_nothing_on_the_denylist():
             if p.search(line):
                 hits.append(f"{name}:{i}: denylist entry {n}")  # never the entry itself
     assert not hits, f"{len(hits)} denylisted value(s):\n" + "\n".join(hits[:200])
+
+
+# --------------------------------------------------------------- screenshots
+
+# Every image the docs show and what makes it: made-up data only (the demo
+# character, the demo lab's invented people), never a real install. A new
+# image goes in with its producer; an image nobody can remake fails.
+SHOTS = ("overview", "next-moves", "gear", "upgrades", "dungeons", "climb", "model3d", "timeline", "journal")
+IMAGES = {
+    **{f"{n}{d}.webp": "site/scripts/screenshots.py" for n in SHOTS for d in ("", "-dark")},
+    "social.png": "site/scripts/screenshots.py",
+    "admin.webp": "demo/browser/admin_shot.py",
+    # By hand, from the local demo's made-up Testchar (docs/self-host/demo.md).
+    "local-demo.webp": "dev/seed.py",
+    # Drawn by hand: no data in it.
+    "how-it-works.svg": "docs/images/how-it-works.svg",
+}
+# The people the demo lab's pages show (demo/stack/up.sh, demo/lab): the
+# owner, two friends and their logins at the stand-in identity provider.
+INVENTED_PEOPLE = {"owner", "frostbolt", "moonfire", "demo-owner", "demo-owners", "demo-friend-dark",
+                   "demo-friend-light", "demo-friends"}
+LAB = ("demo/stack/up.sh", "demo/stack/env.sh", "demo/lab", "demo/browser/admin_shot.py")
+IMAGE_REF = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)")
+
+
+def test_every_screenshot_has_a_producer():
+    images = sorted(p.name for p in (ROOT / "docs" / "images").iterdir() if p.is_file())
+    assert [n for n in images if n not in IMAGES] == [], "an image without a producer: add it to IMAGES"
+    for name, src in IMAGES.items():
+        assert (ROOT / src).is_file(), (name, src)
+        if src.endswith(".py") and src != "dev/seed.py":  # a script takes it: it names it
+            stem = name.rsplit(".", 1)[0].removesuffix("-dark")
+            assert stem in (ROOT / src).read_text(encoding="utf-8"), (name, src)
+
+
+def lab_people() -> set[str]:
+    """Every identity the demo lab sets: the owner's sub and slug, the
+    friends list, the identity proxies' sub:org pairs."""
+    text = "\n".join((ROOT / f).read_text(encoding="utf-8") for f in LAB)
+    out = set(re.findall(r"WOW_OWNER_(?:SUB|SLUG)=([\w.-]+)", text))
+    for m in re.finditer(r"echo '(\{[^']*\})' > \"\$state/friends\.json\"", text):
+        for sub, name in json.loads(m.group(1)).items():
+            out |= {sub, name}
+    for m in re.finditer(r'"\$\w+:([\w.-]+):([\w.-]+)"', text):
+        out |= {m.group(1), m.group(2)}
+    out |= set(re.findall(r"Standin\(user='([\w.-]+)', org='([\w.-]+)'", text)[0]) if "Standin(" in text else set()
+    return out
+
+
+def test_demo_lab_people_are_invented():
+    people = lab_people()
+    assert {"owner", "frostbolt", "moonfire"} <= people  # the parse still finds them
+    assert people <= INVENTED_PEOPLE, sorted(people - INVENTED_PEOPLE)
+
+
+def test_screenshots_show_invented_people():
+    """No real login (the denylist's `login:` lines) in what a screenshot is
+    made from (the demo lab's files, the screenshot scripts) or in any
+    image's alt text in the docs."""
+    logins = denylist(logins=True)
+    if not logins:
+        pytest.skip("no login: lines in the denylist")
+    pats = [re.compile(r"(?<![A-Za-z0-9])" + re.escape(e) + r"(?![A-Za-z0-9])", re.I) for e in logins]
+    hits = []
+    for rel in sorted(set(LAB) | {v for v in IMAGES.values() if v.endswith(".py")}):
+        for i, line in enumerate((ROOT / rel).read_text(encoding="utf-8").splitlines(), 1):
+            hits += [f"{rel}:{i}: login {n}" for n, p in enumerate(pats, 1) if p.search(RELEASE_IDS.sub("", line))]
+    for name, text in texts():
+        if not name.endswith(".md"):
+            continue
+        for i, line in enumerate(text.splitlines(), 1):
+            for m in IMAGE_REF.finditer(line):
+                hits += [f"{name}:{i}: login {n} in alt text" for n, p in enumerate(pats, 1) if p.search(m.group(1))]
+    assert not hits, "\n".join(hits)
 
 
 # --------------------------------------------------------------- the checks' own tests

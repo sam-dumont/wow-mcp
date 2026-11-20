@@ -8,7 +8,7 @@ items. The assistant's own reply isn't here: that part depends on your
 model, the answers don't.
 
 [Ask your assistant](../../docs/mcp.md) explains how to connect yours. The
-server has 35 tools: `analyse`, `analysis_brief`, `analysis_progress`, `analysis_submit`, `character_summary`, `check_plan`, `class_guide`, `deaths`, `dungeon_options`, `dungeons`, `gear`, `gear_options`, `guide_steps`, `how_did_my_plan_go`, `kb_get`, `kb_lookup`, `kb_rule`, `kb_search`, `kb_topics`, `levels`, `mount_goal`, `next_moves`, `next_step`, `people`, `plan_session`, `play_analysis`, `play_sql`, `players`, `prices`, `propose_finding`, `route_reference`, `sanity_check`, `sessions`, `whats_new`, `zones`.
+server has 40 tools: `analyse`, `analysis_brief`, `analysis_progress`, `analysis_submit`, `character_summary`, `check_plan`, `class_guide`, `class_meta`, `deaths`, `dungeon_options`, `dungeons`, `gear`, `gear_options`, `guide_steps`, `how_did_my_plan_go`, `kb_get`, `kb_lookup`, `kb_rule`, `kb_search`, `kb_topics`, `levels`, `list_metrics`, `mount_goal`, `news`, `next_moves`, `next_step`, `people`, `plan_session`, `play_analysis`, `play_sql`, `players`, `prices`, `propose_finding`, `query_metric`, `route_reference`, `sanity_check`, `sessions`, `talent_changes`, `whats_new`, `zones`.
 
 <!-- Written by site/scripts/mcp_session.py: rerun it, don't edit by hand. -->
 
@@ -28,21 +28,41 @@ The assistant calls `character_summary`:
  "char": "Nibbet-Gearholt",
  "title": null,
  "level": 34,
- "xp": 34598,
+ "xp": 35288,
  "xp_max": 62800,
- "xp_pct": 55.1,
+ "xp_pct": 56.2,
  "zone": "Arathi Highlands",
- "last_seen": "2026-11-18T19:19:50.5Z",
- "gold": "19g 90s 67c",
- "money_copper": 199067,
+ "last_seen": "2026-11-19T09:02:17.4Z",
+ "gold": "19g 92s 30c",
+ "money_copper": 199230,
  "time_in_level": null,
  "played_tracked": "1d12h",
  "avg_last_5_levels": "3h50m",
  "xp_per_hour_last_3_levels": 11509,
- "eta_next_level": "2h27m",
+ "eta_next_level": "2h23m",
  "kills": 1645,
- "quests_turned_in": 113,
+ "quests_turned_in": 117,
  "deaths": 12,
+ "talents": {
+  "spec": "Shadow",
+  "points": [
+   {
+    "tree": "Discipline",
+    "points": 0
+   },
+   {
+    "tree": "Holy",
+    "points": 0
+   },
+   {
+    "tree": "Shadow",
+    "points": 25
+   }
+  ],
+  "as_of": "2026-11-20T06:00:00Z",
+  "source": "Battle.net"
+ },
+ "talents_why": null,
  "other_characters": [],
  "missing": [
   {
@@ -74,25 +94,25 @@ The assistant calls `next_moves`:
  "question": "Besides following Polestar, what should I do now?",
  "answer": [
   {
-   "point": "Pick up Orb of the Forgotten Seer (+41.7 points, 18% of your gear): drops from Bloodmage Thalnos in Scarlet Monastery: Library.",
+   "point": "Pick up Orb of the Forgotten Seer (+36.4 points, 13% of your gear, worn with Hypnotic Blade (main hand: drops from Arcanist Doan in Scarlet Monastery: Library)): drops from Bloodmage Thalnos in Scarlet Monastery: Library.",
    "from": "gear advice (Polestar's scoring)",
    "page_section": "#up-17"
   },
   {
-   "point": "Pick up Illusionary Rod (+35.4 points, 15% of your gear): drops from Arcanist Doan in Scarlet Monastery: Library.",
+   "point": "Pick up Swinetusk Shank (+28.6 points, 10% of your gear, worn with Orb of the Forgotten Seer (off hand: drops from Bloodmage Thalnos in Scarlet Monastery: Library)): drops from Agathelos the Raging in Razorfen Kraul.",
    "from": "gear advice (Polestar's scoring)",
    "page_section": "#up-16"
   },
   {
-   "point": "Pick up Embalmed Shroud (+24.8 points, 11% of your gear): drops from Fallen Champion in Scarlet Monastery: Library.",
+   "point": "Pick up Electromagnetic Gigaflux Reactivator (+20.9 points, 8% of your gear): drops from Mekgineer Thermaplugg in Gnomeregan.",
    "from": "gear advice (Polestar's scoring)",
    "page_section": "#up-1"
   },
-  "... 4 more"
+  "... 5 more"
  ],
  "on_track": [
   {
-   "point": "The last 5 levels (levels 29-33) took 19h 14m; Polestar's route plans 8h 50m for them (2.2×).",
+   "point": "The last 5 levels (levels 29-33) took 19h 14m; Polestar's route plans 8h 48m for them (2.2×).",
    "from": "wow-level splits vs data/route-reference.json",
    "page_section": "#levels"
   },
@@ -102,7 +122,7 @@ The assistant calls `next_moves`:
    "page_section": "#levels"
   },
   {
-   "point": "Level 35 in about 2h 27m of play at your recent pace (11,509 XP an hour).",
+   "point": "Level 35 in about 2h 23m of play at your recent pace (11,509 XP an hour).",
    "from": "XP left / XP an hour, last 3 levels",
    "page_section": "#levels"
   },
@@ -156,13 +176,13 @@ The assistant calls `dungeon_options`:
    "max": 35,
    "fits_now": true,
    "opens_at": null,
-   "expected_gain_per_clear": 39.9,
+   "expected_gain_per_clear": 33.1,
    "top_items": [
     {
      "item": "Ponderous Orb",
      "item_id": 273052,
      "slot": "Off hand",
-     "gain": 40.5,
+     "gain": 34.3,
      "req_level": 30,
      "now": true,
      "boss": "Shade of the Archmage",
@@ -173,7 +193,7 @@ The assistant calls `dungeon_options`:
      "item": "Tendonscraper Dagger",
      "item_id": 273053,
      "slot": "Main hand",
-     "gain": 26.7,
+     "gain": 18.9,
      "req_level": 28,
      "now": true,
      "boss": "Lyn the Ignored",
@@ -181,15 +201,15 @@ The assistant calls `dungeon_options`:
      "wowhead": "https://www.wowhead.com/forever/item=273053"
     },
     {
-     "item": "Spine of the Devourer",
-     "item_id": 273040,
-     "slot": "Main hand",
-     "gain": 17.9,
-     "req_level": 28,
+     "item": "Runemender's Seal",
+     "item_id": 273031,
+     "slot": "Finger",
+     "gain": 13.1,
+     "req_level": 27,
      "now": true,
-     "boss": "Mana Devourer",
-     "chance": 30.4,
-     "wowhead": "https://www.wowhead.com/forever/item=273040"
+     "boss": "Arcane Anomaly",
+     "chance": 31.6,
+     "wowhead": "https://www.wowhead.com/forever/item=273031"
     },
     "... 1 more"
    ],
@@ -210,7 +230,7 @@ The assistant calls `dungeon_options`:
      "item": "Vine Pruner's Cloak",
      "item_id": 279835,
      "slot": "Back",
-     "gain": 2.9,
+     "gain": 4.3,
      "req_level": 24,
      "now": true,
      "quest": "A Green Sample",
@@ -296,7 +316,7 @@ The assistant calls `dungeon_options`:
    },
    "value": {
     "xp_per_hour": 46791,
-    "gear_per_hour": 73.2,
+    "gear_per_hour": 60.7,
     "vs_questing_xp_per_hour": 13776
    },
    "redo": {
@@ -329,7 +349,7 @@ The assistant calls `dungeon_options`:
      "note": "inside time only; the walk out and back in to reset isn't measured",
      "xp_per_hour": 12295,
      "gold_copper_per_hour": 52075,
-     "gear_per_hour": 73.2,
+     "gear_per_hour": 60.7,
      "runs_for_mount": 29,
      "time_for_mount_s": 56898
     },
@@ -337,7 +357,7 @@ The assistant calls `dungeon_options`:
      "item": "Ponderous Orb",
      "item_id": 273052,
      "slot": "Off hand",
-     "gain": 40.5,
+     "gain": 34.3,
      "req_level": 30,
      "now": true,
      "boss": "Shade of the Archmage",
@@ -383,13 +403,13 @@ The assistant calls `dungeon_options`:
    "max": 38,
    "fits_now": true,
    "opens_at": null,
-   "expected_gain_per_clear": 21.4,
+   "expected_gain_per_clear": 19.6,
    "top_items": [
     {
      "item": "Swinetusk Shank",
      "item_id": 6691,
      "slot": "Main hand",
-     "gain": 35.1,
+     "gain": 28.6,
      "req_level": 30,
      "now": true,
      "boss": "Agathelos the Raging",
@@ -400,7 +420,7 @@ The assistant calls `dungeon_options`:
      "item": "Wind Spirit Staff",
      "item_id": 6689,
      "slot": "Main hand",
-     "gain": 15.8,
+     "gain": 14.4,
      "req_level": 27,
      "now": true,
      "boss": "Earthcaller Halmgar",
@@ -425,7 +445,7 @@ The assistant calls `dungeon_options`:
      "item": "Berylline Pads",
      "item_id": 4197,
      "slot": "Shoulder",
-     "gain": 3.4,
+     "gain": 3.7,
      "req_level": 29,
      "now": true,
      "quest": "The Crone of the Kraul",
@@ -508,7 +528,7 @@ The assistant calls `dungeon_options`:
    },
    "value": {
     "xp_per_hour": 32116,
-    "gear_per_hour": 42.0,
+    "gear_per_hour": 38.5,
     "vs_questing_xp_per_hour": 13776
    },
    "redo": {
@@ -541,7 +561,7 @@ The assistant calls `dungeon_options`:
      "note": "inside time only; the walk out and back in to reset isn't measured",
      "xp_per_hour": 12966,
      "gold_copper_per_hour": 45431,
-     "gear_per_hour": 42.0,
+     "gear_per_hour": 38.5,
      "runs_for_mount": 35,
      "time_for_mount_s": 64155
     },
@@ -549,7 +569,7 @@ The assistant calls `dungeon_options`:
      "item": "Swinetusk Shank",
      "item_id": 6691,
      "slot": "Main hand",
-     "gain": 35.1,
+     "gain": 28.6,
      "req_level": 30,
      "now": true,
      "boss": "Agathelos the Raging",
@@ -595,13 +615,13 @@ The assistant calls `dungeon_options`:
    "max": 38,
    "fits_now": true,
    "opens_at": null,
-   "expected_gain_per_clear": 24.1,
+   "expected_gain_per_clear": 23.3,
    "top_items": [
     {
      "item": "Acidic Walkers",
      "item_id": 9454,
      "slot": "Feet",
-     "gain": 12.5,
+     "gain": 11.0,
      "req_level": 27,
      "now": true,
      "boss": "Viscous Fallout",
@@ -612,7 +632,7 @@ The assistant calls `dungeon_options`:
      "item": "Royal Diplomatic Scepter",
      "item_id": 9457,
      "slot": "Main hand",
-     "gain": 22.6,
+     "gain": 26.6,
      "req_level": 30,
      "now": true,
      "boss": "Dark Iron Ambassador",
@@ -634,22 +654,10 @@ The assistant calls `dungeon_options`:
    ],
    "quest_rewards": [
     {
-     "item": "Repairman's Cape",
-     "item_id": 9605,
-     "slot": "Back",
-     "gain": 3.2,
-     "req_level": 25,
-     "now": true,
-     "quest": "Data Rescue",
-     "quest_id": 2930,
-     "wowhead": "https://www.wowhead.com/forever/item=9605",
-     "quest_wowhead": "https://www.wowhead.com/forever/quest=2930"
-    },
-    {
      "item": "Civinad Robes",
      "item_id": 9623,
      "slot": "Chest",
-     "gain": 2.8,
+     "gain": 7.9,
      "req_level": 25,
      "now": true,
      "quest": "The Grand Betrayal",
@@ -658,10 +666,22 @@ The assistant calls `dungeon_options`:
      "quest_wowhead": "https://www.wowhead.com/forever/quest=2929"
     },
     {
+     "item": "Repairman's Cape",
+     "item_id": 9605,
+     "slot": "Back",
+     "gain": 5.0,
+     "req_level": 25,
+     "now": true,
+     "quest": "Data Rescue",
+     "quest_id": 2930,
+     "wowhead": "https://www.wowhead.com/forever/item=9605",
+     "quest_wowhead": "https://www.wowhead.com/forever/quest=2930"
+    },
+    {
      "item": "Shilly Mitts",
      "item_id": 9609,
      "slot": "Hands",
-     "gain": 1.5,
+     "gain": 2.1,
      "req_level": 20,
      "now": true,
      "quest": "Gyrodrillmatic Excavationators",
@@ -759,7 +779,7 @@ The assistant calls `dungeon_options`:
    },
    "value": {
     "xp_per_hour": null,
-    "gear_per_hour": 34.6,
+    "gear_per_hour": 33.4,
     "vs_questing_xp_per_hour": 13776
    },
    "redo": null,
@@ -833,24 +853,26 @@ The assistant calls `plan_session`:
  "char": "Nibbet-Gearholt",
  "context": "levelling",
  "supported": true,
+ "estimated": false,
+ "unlock": null,
  "brief": "Write this plan up for the player from `facts` only: every number exactly as a fact gives it (never compute or round one), the blocks in order (time window, what, why with its source), then checkpoints, the town stop, what to skip or drop, the optional dungeon branch, the mount and where to log out; leave out a section with no facts. Short, for a phone: headings, bullets, no table wider than three ...",
  "facts": {
   "hours": "2h00",
-  "start.level": "34.5",
-  "start.xp_pct": "55%",
-  "start.rested": "2,003",
-  "start.gold": "19g 90s",
+  "start.level": "34.6",
+  "start.xp_pct": "56%",
+  "start.rested": "8,984",
+  "start.gold": "19g 92s",
   "play": "2h00",
   "stops": "0 min",
   "stops.share": "0%",
   "stops.n": "9",
-  "buffer": "15 min",
+  "buffer": "16 min",
   "pos.shown_step": "45",
   "pos.furthest_step": "66",
   "pos.anchor_step": "66",
-  "pace.questing": "2.21x",
+  "pace.questing": "2.18x",
   "pace.questing.n": "252",
-  "...": "199 more keys"
+  "...": "198 more keys"
  },
  "blocks": [
   {
@@ -885,7 +907,8 @@ The assistant calls `plan_session`:
  "constraints": {
   "text": ""
  },
- "note": "markdown is the estimator's own text; write it up per brief, from facts only. Game rules and facts here come from the knowledge base with their source and the day it was checked (kb_search, kb_rule, kb_topics): say 'rule as of <last_verified>, <source>', call a classic_fallback a fallback, and say 'unknown' where there is none."
+ "coming_up": [],
+ "note": "markdown is the estimator's own text; write it up per brief, from facts only. Game rules and facts here come from the knowledge base with their source and the day it was checked (kb_search, kb_rule, kb_topics): say 'rule as of <last_verified>, <source>', call a classic_fallback a fallback, and say 'unknown' where there is none. coming_up: Forever events within 4 weeks that concern the character (n ..."
 }
 ```
 
@@ -894,38 +917,38 @@ The assistant calls `plan_session`:
 Its `markdown` field, the draft the assistant starts from:
 
 > **Your next 2h00**
-> Level 34.5 now, about 34.9 at the end (20,697 XP, 2,003 of it rested). 2h00 of play, 0 min kept for unplanned stops (0% of your recent sessions).
+> Level 34.6 now, about 34.9 at the end (22,820 XP, 4,298 of it rested). 2h00 of play, 0 min kept for unplanned stops (0% of your recent sessions).
 >
 > **Blocks**
 > - **start to +33 min** · Arathi Highlands, Alterac Mountains & Swamp of Sorrows: steps 66 to 71 (Image of Archmage Modera to Ironforge) → level 34.7
->   - Polestar plans 14 min; at your pace about 33 min (the route reference times your pace per kind of step: questing 2.21x (your steps, 252 steps), town 2.44x (your steps, 38 steps))
->   - Town stop here: class trainer: last visit at level 27, you will be 34; craft Shadow Circlet: +17.7 points, you can make it now; craft Pristine Circlet: +13.6 points, you can make it now; auction house: sell the cloth and trade goods you loot (mount savings)
+>   - Polestar plans 14 min; at your pace about 33 min (the route reference times your pace per kind of step: questing 2.18x (your steps, 252 steps), town 2.44x (your steps, 38 steps))
+>   - Town stop here: class trainer: last visit at level 27, you will be 34; auction house: sell the cloth and trade goods you loot (mount savings)
 > - **+33 min to +46 min** · Arathi Highlands, Alterac Mountains & Swamp of Sorrows: steps 72 to 75 (Fly to Thelsamar to Prospector Ironband) → level 34.7
->   - Polestar plans 7 min; at your pace about 13 min (the route reference times your pace per kind of step: questing 2.21x (your steps, 252 steps), travel 1.43x (your steps, 18 steps), town 2.44x (your steps, 38 steps))
-> - **+46 min to +1h32** · Desolace: steps 1 to 6 (Fly to Menethil Harbor to Kodo Graveyard) → level 34.8
->   - Polestar plans 21 min; at your pace about 46 min (the route reference times your pace per kind of step: questing 2.21x (your steps, 252 steps), travel 1.43x (your steps, 18 steps), town 2.44x (your steps, 38 steps))
-> - **+1h32 to +1h45** · Desolace: steps 7 to 11 (Hornizz Brimbuzzle to Mannoroc Coven) → level 34.9
->   - Polestar plans 6 min; at your pace about 13 min (the route reference times your pace per kind of step: questing 2.21x (your steps, 252 steps))
+>   - Polestar plans 7 min; at your pace about 13 min (the route reference times your pace per kind of step: questing 2.18x (your steps, 252 steps), travel 1.43x (your steps, 18 steps), town 2.44x (your steps, 38 steps))
+> - **+46 min to +1h32** · Desolace: steps 1 to 6 (Fly to Menethil Harbor to Kodo Graveyard) → level 34.9
+>   - Polestar plans 21 min; at your pace about 46 min (the route reference times your pace per kind of step: questing 2.18x (your steps, 252 steps), travel 1.43x (your steps, 18 steps), town 2.44x (your steps, 38 steps))
+> - **+1h32 to +1h44** · Desolace: steps 7 to 11 (Hornizz Brimbuzzle to Mannoroc Coven) → level 34.9
+>   - Polestar plans 6 min; at your pace about 13 min (the route reference times your pace per kind of step: questing 2.18x (your steps, 252 steps))
 >
 > **Skip or drop**
 > - Supplies to Auberdine (Ashenvale): 1,450 XP now, about 6 min of your XP rate; pays 50% of its XP at your level
 > - step 45 (Faldir's Cove), about 6 min: Polestar shows it because a quest from there is still open; you are past it
 > - step 46 (Phizzlethorpe), about 9 min: Polestar shows it because a quest from there is still open; you are past it
 > - step 12 (The Valley of Bones), about 31 min: a long step at your pace
-> - step 25 (Duskwood), about 41 min: a long step at your pace
-> - step 36 (Jungle Stalkers), about 26 min: a long step at your pace
+> - step 25 (Duskwood), about 40 min: a long step at your pace
+> - step 36 (Jungle Stalkers), about 25 min: a long step at your pace
 >
 > **If you get a group**
-> - City of Dalaran: 33 min for the whole trip, about 25,501 XP (46,791 XP/h), gear +39.9 points expected (your 1 run(s) there).
+> - City of Dalaran: 33 min for the whole trip, about 25,501 XP (46,791 XP/h), gear +33.1 points expected (your 1 run(s) there).
 >
 > **Mount**
-> - Riding at 40: 100g needed, 80g 09s to go at 48s/h net: about 165h08 of play (level 59.5)
+> - Riding at 40: 100g needed, 80g 07s to go at 47s/h net: about 167h50 of play (level 59.8)
 > - loop The Stockade from the door: about 6g 25s/h (≈ 35 runs for the next mount) (your 1 run(s) there: loot at vendor price)
-> - sell the cloth and trade goods you loot on the AH: about 5g 40s/h (your loot over the last 14 days at your own Auctionator scan prices)
+> - sell the cloth and trade goods you loot on the AH: about 5g 32s/h (your loot over the last 14 days at your own Auctionator scan prices)
 > - loop City of Dalaran from the door: about 5g 20s/h (≈ 29 runs for the next mount) (your 1 run(s) there: loot at vendor price)
 >
 > **Log out**
-> - the inn at Refuge Pointe: about 3,140 rested XP per 8 hours offline
+> - the next town on your route: step 24 (Nijel's Point) (your hearthstone is set to Refuge Pointe, off the route ahead: hearthing there means travelling back next session; log out in a rest area on the route, or set your hearth there): about 3,140 rested XP per 8 hours offline
 
 ## Am I doing anything stupid?
 
@@ -944,12 +967,7 @@ The assistant calls `sanity_check`:
  "question": "Is there anything stupid I'm doing?",
  "findings": [
   {
-   "point": "3 talent points unspent: spend them in the talent pane (N), anywhere.",
-   "from": "Battle.net's talents (its daily profile read)",
-   "page_section": "#talents"
-  },
-  {
-   "point": "You could wear Orb of the Forgotten Seer now: +41.7 points, 18% of your gear (drops from Bloodmage Thalnos in Scarlet Monastery: Library).",
+   "point": "You could wear Orb of the Forgotten Seer now: +36.4 points, 13% of your gear (drops from Bloodmage Thalnos in Scarlet Monastery: Library).",
    "from": "gear advice",
    "page_section": "#up-17"
   },
@@ -958,7 +976,12 @@ The assistant calls `sanity_check`:
    "from": "death records + the fight before each",
    "page_section": "#deaths"
   },
-  "... 2 more"
+  {
+   "point": "10 steps took over 3× their planned time, 6h 25m more than planned. The worst: step 18 (Direforge Hill) of Wetlands & Hillsbrad Foothills, 1h 30m against 1m.",
+   "from": "step durations vs the route's per-step plan",
+   "page_section": "#guide"
+  },
+  "... 1 more"
  ],
  "death_clusters": [
   {

@@ -90,7 +90,10 @@ def answer(res) -> object:
 async def record(vl: str) -> str:
     with tempfile.TemporaryDirectory() as state:
         env = {k: v for k, v in os.environ.items() if not k.startswith(("MCP_", "OIDC_", "WOW_STATE"))}
-        env |= {"VL_URL": vl, "VM_URL": "", "ANALYSIS_STATE_DIR": state, "FASTMCP_CHECK_FOR_UPDATES": "off",
+        # VM_URL: the demo's Battle.net series (build-demo.sh), so the
+        # answers carry his talents and look as the pages do.
+        env |= {"VL_URL": vl, "VM_URL": os.environ.get("VM_URL", ""), "ANALYSIS_STATE_DIR": state,
+                "FASTMCP_CHECK_FOR_UPDATES": "off",
                 "DEFAULT_CHAR": DEMO}
         t = StdioTransport(command=sys.executable, args=["-m", "wowstats", "mcp-stdio"], env=env, cwd=str(ROOT))
         async with Client(t) as c:

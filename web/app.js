@@ -798,9 +798,10 @@ function renderTalents(d) {
         grid);
     })));
   }
-  // The last 3 weeks' changes (where "Build by level" was): the live full
-  // view only, fetched on its own (/api/talents), never in a bundle.
-  if (!PUBLIC && !STATIC) {
+  // The changes (where "Build by level" was), fetched on its own
+  // (/api/talents): the live full view, and a sealed bundle when they come
+  // from WoWSims Exporter's saves (Battle.net's are never in a bundle).
+  if (!PUBLIC) {
     const keep = state.thist && state.thist.name === d.char ? state.thist.node : null;
     kids.push(keep || h('div', { class: 'thistory', 'aria-busy': 'true' }, h('h3', { text: THIST_TITLE })));
   }
@@ -864,6 +865,15 @@ function renderTalentHistory(name, t) {
 async function loadTalentHistory(name) {
   let t = null;
   try { t = await getJSON(api('talents', { name })); } catch (e) { t = { available: false, why: 'unreachable' }; }
+  if (STATIC && !(t && t.available)) {
+    // A bundle holds the changes only from WoWSims Exporter's saves
+    // (wowstats/publish.py): without them the section stays out.
+    const node = h('div', { class: 'thistory', hidden: '' });
+    state.thist = { name, node };
+    const old = $('#talents .thistory');
+    if (old && name === state.char) old.replaceWith(node);
+    return;
+  }
   if (name === state.char) renderTalentHistory(name, t);
 }
 
@@ -3527,7 +3537,7 @@ async function loadChar(name, quiet) {
     if (!PUBLIC) more.push(loadAnalysis(name));
     if (!PUBLIC) more.push(loadDungeons(name));
     if (!PUBLIC && !STATIC) more.push(loadMeta(name));
-    if (!PUBLIC && !STATIC) more.push(loadTalentHistory(name));
+    if (!PUBLIC) more.push(loadTalentHistory(name));
     if (!PUBLIC && feat('plan')) more.push(loadPlan(name));
     if (!PUBLIC) setAsk(name);
     if (state.tab === 'journal') more.push(loadJournal(quiet));

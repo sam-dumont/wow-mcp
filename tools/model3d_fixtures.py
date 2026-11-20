@@ -375,10 +375,11 @@ def chunk(cid: bytes, payload: bytes) -> bytes:
 
 def m2(*, verts, textures: list[tuple[int, int]], bounds, bones=None, sequences=None, attachments=None,
        flags: int = 0, skin_id: int, skel_id: int | None = None, afid=None, ribbons=None, particles=None,
-       blend: int = 0) -> bytes:
+       blend: int = 0, material_flags: int = UNLIT_TWO_SIDED) -> bytes:
     """A chunked M2. textures: (type, TXID file id); bones: callables
     d -> bytes (bone()); sequences: sequence() bytes; attachments: (id, bone,
-    position)."""
+    position); material_flags: the one material's (unlit and two-sided for
+    the pixel tests, whose colours must come out exact)."""
     bones = bones or []
     sequences = sequences or []
     attachments = attachments or []
@@ -409,7 +410,7 @@ def m2(*, verts, textures: list[tuple[int, int]], bounds, bones=None, sequences=
                 + d.arr(0, b"")                                              # texture weights
                 + d.arr(0, b"")                                              # texture transforms
                 + d.arr(0, b"")                                              # replaceable texture lookup
-                + d.arr(1, struct.pack("<HH", UNLIT_TWO_SIDED, blend))       # materials
+                + d.arr(1, struct.pack("<HH", material_flags, blend))        # materials
                 + d.arr(0, b"")                                              # bone combos
                 + d.arr(len(textures), struct.pack(f"<{len(textures)}H", *range(len(textures))))
                 + d.arr(0, b"")                                              # texture coord combos

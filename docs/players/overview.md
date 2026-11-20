@@ -6,14 +6,14 @@ top of your page and you know which move to do first.
 The Overview is the first tab, the one to open before you log in. It says how fast you're
 going and what to do tonight.
 
-![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's time, the next level in 2h 27m of play, 90% of guide steps in order, no rested XP, then the next moves and time per level](../images/overview.webp)
+![The Overview of the demo character Nibbet, level 34: behind the route at 2.2 times Polestar's time, the next level in 2h 23m of play, 91% of guide steps in order, 0.09 levels of rested XP, then the next moves and time per level](../images/overview.webp)
 
 *Nibbet, the made-up priest of the [live demo](../../site/pages/demo.md).*
 
 ## The line at the top
 
 One sentence: where you stand against Polestar's route and how far the next level is. "Behind
-the route: the last 5 levels took 2.0× Polestar's route time, and level 35 is about 2h 27m of
+the route: the last 5 levels took 2.2× Polestar's route time, and level 35 is about 2h 23m of
 play away." Ahead, on track or behind, in plain words.
 
 ## The four numbers
@@ -27,7 +27,7 @@ play away." Ahead, on track or behind, in plain words.
 
 ## Next moves
 
-![The Next moves box: 3 talent points unspent, an off-hand upgrade from Scarlet Monastery Library, and City of Dalaran with the quests to pick up first and the drops worth having](../images/next-moves.webp)
+![The Next moves box: an off-hand upgrade from Scarlet Monastery Library, Razorfen Kraul with the quest to pick up first and the drops worth having, and the guide steps that ran long](../images/next-moves.webp)
 
 Up to 3 things to do now, the most useful first. Each one says what, where and what blocks it:
 

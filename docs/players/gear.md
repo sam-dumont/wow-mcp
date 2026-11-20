@@ -7,11 +7,11 @@ Everything here is in the Character tab: your gear at the top, the upgrades unde
 
 ## Your gear
 
-![The Equipment panel of the demo priest: every slot with its item and item level, a green "+12.4 at hand" under the slots with an upgrade available, View in 3D in the middle, item level 28.6 and professions below](../images/gear.webp)
+![The Equipment panel of the demo priest: his picture in the middle with View in 3D under it, every slot with its item and item level, a green "+14.5 at hand" under the slots with an upgrade available, item level 29.1 and professions below](../images/gear.webp)
 
 Every slot shows what you wear and its item level. Under it, in green:
 
-- **"+12.4 at hand"**: there's an upgrade you can get now, worth 12.4 points for that slot.
+- **"+14.5 at hand"**: there's an upgrade you can get now, worth 14.5 points for that slot.
   Click the item to compare the two.
 - **"something to wear"**: the slot is empty and anything would help.
 
@@ -31,7 +31,7 @@ points in; pick another to see the upgrades for a respec.
 
 ## The upgrades list
 
-![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops and the expected points per clear, City of Dalaran, the Auction House with a cheap hood on sale yesterday, and quests in Stranglethorn Vale](../images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops and the expected points per clear, quests in Stranglethorn Vale and Stormwind City, the Excavation Site in the Wetlands, and the Auction House](../images/upgrades.webp)
 
 Two ways to read it, switched at the top:
 

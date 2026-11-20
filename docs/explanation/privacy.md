@@ -63,6 +63,7 @@ apart.
 | The Overview's next moves | `overview` | yes | items, dungeons, professions and zones; no creatures | no |
 | The Dungeons panel | `dungeons` | yes | yes, without the party | no |
 | Loot history | `loot` | yes | yes | no |
+| Talent changes, the last 3 weeks | `talents` | yes | only from your WoWSims Exporter saves; Battle.net's readings never leave the server (its 30-day rule) | no |
 | The play analysis' nudges | `analysis` | yes | screened nudges and time per level | no |
 | WoW Token, realm status (Battle.net, with the exporter) | `market` | yes | yes | no |
 | Your own Auctionator prices | `prices` | yes | yes | no |

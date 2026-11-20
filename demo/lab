@@ -5,6 +5,7 @@
 #   demo/lab friend dark|light   # a friend (named by the friends list) installs in a throwaway HOME, sends the decoy evenings
 #   demo/lab publish             # build the sites: http://<name>-wow.localhost:19477/, and the help page
 #                                # at http://help.localhost:19477/help/#<key in $LAB_STATE/help.key>
+#   demo/lab admin-shot          # docs/images/admin.webp: the admin overview as the lab's owner sees it
 #   demo/lab down                # stop a lab left running
 #
 # The friends' full views: http://localhost:19472 (dark) and :19473 (light).
@@ -30,6 +31,15 @@ case "$cmd" in
   publish)
     source "$here/stack/env.sh"
     publish_sites && tail -5 "$state/publish.log"
+    ;;
+  admin-shot)
+    # The owner's own identity proxy, for the length of the shot.
+    source "$here/stack/env.sh"
+    uv run --no-project python "$here/stack/idproxy.py" $APP "$OWNER_PROXY:demo-owner:demo-owners" >"$state/owner-proxy.log" 2>&1 &
+    proxy=$!
+    trap 'kill $proxy 2>/dev/null || true' EXIT
+    for _ in $(seq 1 30); do curl -sf "127.0.0.1:$OWNER_PROXY/api/me" >/dev/null && break; sleep 1; done
+    (cd "$repo" && uv run --frozen --extra render python demo/browser/admin_shot.py "http://localhost:$OWNER_PROXY")
     ;;
   down)
     if [[ -f "$state/pids" ]]; then xargs kill <"$state/pids" 2>/dev/null || true; fi
