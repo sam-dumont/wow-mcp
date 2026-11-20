@@ -1,6 +1,6 @@
 [project]
 name = "wow-stats"
-version = "0.7.0-rc.1"
+version = "0.7.0-rc.2"
 description = "A WoW Forever leveling log: the shipper's events in a web page, with a public view for friends"
 license = "GPL-3.0-only"
 license-files = ["LICENSE"]

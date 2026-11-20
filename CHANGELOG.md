@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0-rc.2 (2026-11-20)
+
 ### Fixed
 
 - The dungeon page's research-note drops (The Drowned City's) were empty in the container image: the lane file was looked up from the checkout's layout, not the installed one. CI now checks the installed layout inside the image.
