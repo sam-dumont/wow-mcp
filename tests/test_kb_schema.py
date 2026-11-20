@@ -117,3 +117,58 @@ def test_a_booster_backed_by_an_official_source_may_be_high(allow):
            "source_type": "commercial", "date": "2026-11", "confidence": "high", "scope": "forever",
            "last_verified": "2026-11-18"}
     assert kbschema.check(rec, allow) == []
+
+
+
+# JudgeHype (owner, 2026-11-20): it mostly relays others in French, so it
+# only corroborates.
+JH = "https://wowforever.judgehype.com/article/tier-list-dps-tank-et-soigneurs-raids-wow-forever/"
+WH = "https://www.wowhead.com/forever/guide/classes/tier-lists/dps-pve-rankings"
+KAMI = "https://kami-labs.fr/en/tier-list-wow-forever/"
+
+
+def rec_(**kw) -> dict:
+    return {"text": "x", "source_url": WH, "source_type": "guide", "date": "2026-11-19", "confidence": "low",
+            "scope": "forever", "last_verified": "2026-11-20"} | kw
+
+
+def test_judgehype_only_corroborates(allow):
+    assert allow["wowforever.judgehype.com"]["corroboration_only"] is True
+    # Next to another source: fine.
+    assert kbschema.check(rec_(sources=[WH, JH]), allow) == []
+    # Never the source_url, never alone.
+    assert any("only corroborates" in e for e in kbschema.check(rec_(source_url=JH, source_type="press"), allow))
+    # It never counts toward the two-source rule...
+    assert kbschema.counted(rec_(sources=[WH, JH]), allow) == [WH]
+    assert "one source" in kbschema.multi_source(rec_(sources=[WH, JH], aspect="stats", confidence="medium"),
+                                                         allow)
+    # ...nor toward the confidence cap: a booster plus JudgeHype stays at the booster's low.
+    booster = rec_(source_url="https://conquestcapped.com/x", sources=[JH], source_type="commercial",
+                   confidence="medium")
+    assert any("above what its sources allow (low)" in e for e in kbschema.check(booster, allow))
+
+
+def test_a_relay_and_what_it_relays_are_one_origin(allow):
+    relays = {"wowforever.judgehype.com": "www.wowhead.com"}
+    r = rec_(sources=[WH, JH], relays=relays, confidence="medium")
+    assert kbschema.origins(r, allow) == {"www.wowhead.com"}
+    assert any("one origin" in e for e in kbschema.check(r, allow))
+    assert kbschema.check({**r, "single_source": True, "confidence": "low"}, allow) == []
+    # Another site backing it makes two origins again.
+    third = {**r, "sources": [WH, JH, KAMI]}
+    assert len(kbschema.origins(third, allow)) == 2 and kbschema.check(third, allow) == []
+    assert any("relays" in e for e in kbschema.check({**r, "relays": {"example.org": "www.wowhead.com"}}, allow))
+
+
+def test_the_raid_tier_statements_rest_on_wowhead_alone():
+    # The JudgeHype seeding pass (2026-11-20): one standing per class from
+    # Wowhead's lists, JudgeHype's French copy cited beside them. No other
+    # site's list was read for them: one origin, capped at low.
+    allow = kbschema.load_allow(DATA / "sources.json")
+    doc = json.loads((DATA / "research" / "class-meta.json").read_text())
+    tiers = [s for s in doc["statements"] if s["id"].endswith(":raid-tier")]
+    assert len(tiers) == 9 and len({s["class"] for s in tiers}) == 9
+    for s in tiers:
+        assert kbschema.domain(s["source_url"]) == "www.wowhead.com" and JH in s["sources"]
+        assert kbschema.origins(s, allow) == {"www.wowhead.com"}
+        assert (s["single_source"], s["confidence"], s["levels"], s["aspect"]) == (True, "low", [60, 60], "standing")

@@ -98,6 +98,15 @@ def test_text_of_keeps_the_article_only():
     assert t.startswith("WoW: Forever Hotfixes Fixed") and "menu" not in t
 
 
+def test_text_of_takes_the_main_article_not_the_first():
+    # A saved page that opens with teaser <article>s in a sidebar (JudgeHype's
+    # guide pages did: the first <article> was a neighbour's headline).
+    page = (Path(__file__).parent / "fixtures" / "kb" / "sidebar-article.html").read_bytes()
+    t = web.text_of(page)
+    assert t.startswith("Main guide title") and "second paragraph" in t
+    assert "headline" not in t and "Premium" not in t
+
+
 def test_a_no_op_opens_nothing(state):
     known_hash(state, PAGE.encode())
     fetch, gh = recorded(state, page=PAGE.encode())

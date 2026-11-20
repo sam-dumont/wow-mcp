@@ -87,7 +87,10 @@ TOPIC_WORDS = (("dungeon", "dungeons"), ("instance", "dungeons"), ("raid", "raid
                ("econom", "economy-professions"), ("profession", "economy-professions"),
                ("gold", "economy-professions"), ("auction", "economy-professions"), ("craft", "economy-professions"),
                ("level", "levelling"), ("quest", "levelling"), ("zone", "levelling"), ("mount", "levelling"),
-               ("riding", "levelling"), ("bag", "levelling"))
+               ("riding", "levelling"), ("bag", "levelling"),
+               # A spec or class ranking with no class named (a raid or
+               # dungeon ranking matched above already).
+               ("tier list", "class-meta"), ("class meta", "class-meta"))
 CLASS_LANE = "class-meta"
 CATCH_ALL = "game-rules"
 # Merge: a statement's subject, and how alike two texts must be.

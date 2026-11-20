@@ -94,6 +94,8 @@ For your AI assistant. Off until `MCP_PUBLIC_URL` is set. [Connect your AI](../a
 | `MCP_STATE_DIR` | ui | path | empty: memory only | `/data/mcp` | Keeps client registrations and logins (encrypted) across restarts. |
 | `OIDC_ALLOWED_ORGS` | ui | comma list | empty | `28437001` | One-person install: the organisation ids allowed, read from `OIDC_ORG_CLAIM`. |
 | `OIDC_ALLOWED_SUBS` | ui, compose | comma list | empty | `3f2c9a10-...` | The account ids (`sub` claim) allowed in. Required on a one-person install. |
+| `OIDC_BATTLENET_IDP_ID` | ui | ZITADEL identity provider id (digits) | empty: no Battle.net button | `28437002` | ZITADEL only, with `OIDC_BATTLENET_ORG_ID`: the Battle.net identity provider that button starts at once. A new account lands in that org. |
+| `OIDC_BATTLENET_ORG_ID` | ui | ZITADEL org id (digits) | empty: no Battle.net button | `28437001` | ZITADEL only, with `OIDC_BATTLENET_IDP_ID`: the org a "Sign in with Battle.net" button on the MCP consent page asks for. Both or neither. |
 | `OIDC_CLIENT_ID` | ui, compose | text | empty | `wow-mcp` | The app's client id at your identity provider. |
 | `OIDC_CLIENT_SECRET` | ui | secret | empty | use the `_FILE` form | The client secret itself, when `OIDC_CLIENT_SECRET_FILE` isn't set. Prefer the file. |
 | `OIDC_CLIENT_SECRET_FILE` | ui, compose | path | `/run/wow-secrets/oidc_client_secret` in the compose kit | `/run/wow-secrets/oidc_client_secret` | A file holding the app's client secret. |
