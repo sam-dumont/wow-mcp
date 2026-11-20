@@ -36,7 +36,8 @@ page, `https://wow-full.example.org/start`.
 | A master key | `ZOGZOG_MASTER_KEY_FILE` (32 random bytes, base64url) | Each person's sealed-link key comes from it |
 | Friends' sites | `SITE_DOMAIN` (sites at `<name>-wow.<domain>`) | Install commands and links |
 | The publisher and static server, per person | `USERS_URL` and `ANALYSIS_SHARE_URL` on `publish`, `ANALYSIS_SHARE_PORT` on `ui`, `SITE_DOMAIN` on `static` | One site per person |
-| The share port's token | `ANALYSIS_SHARE_TOKEN_FILE`: `ui` makes it (0600) on first start; give the same file to `publish` and the exporter, and nothing else | Every request to the share port needs it; it listens on `127.0.0.1` unless `ANALYSIS_SHARE_BIND` says otherwise |
+| The share port's token | `ANALYSIS_SHARE_TOKEN_FILE`: `ui` makes it (0600) on first start; give the same file to `publish`, the exporter and `ui-public` if you run it, and nothing else | Every request to the share port needs it; it listens on `127.0.0.1` unless `ANALYSIS_SHARE_BIND` says otherwise |
+| The live public view, if you run it | `USERS_URL` and `ANALYSIS_SHARE_TOKEN_FILE` on `ui-public` too | It then follows your Settings like your static site does: public page off is a 404, hidden characters aren't there. Without them it shows every character in your store |
 | An upload ceiling | `INGEST_DAILY_MB` (512 per person and day) | A friend's broken shipper can't fill your disk |
 
 The full view refuses to start with `WOW_STATE_DIR` unless `VIEW=full`, `AUTH=proxy`, the

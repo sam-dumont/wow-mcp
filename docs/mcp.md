@@ -55,7 +55,7 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `play_analysis` | The character's kept analysis: findings with their SQL, nudges with feasibility, the shared lines, the last run and recheck |
 | `analyse` | The `analyse` prompt as a tool (ChatGPT has no prompts): the procedure and where the run stands |
 | `analysis_brief` | The play analysis' brief in sections sized for a 32k context: `start`, `schema`, `profile` and `kb` (paged, 12,000 characters a page), `survey`, `lane`, `followups`, `coverage`, `synthesis` |
-| `play_sql` | One read-only SELECT on that database, paged (40 rows by default, 60 at most, 1,000 deep, 6,000 characters a page) |
+| `play_sql` | One read-only SELECT on that database, paged (40 rows by default, 60 at most, 1,000 deep, 6,000 characters a page). It runs in a child process with 512 MB over the data and the query's timeout: a query past either fails alone, with a plain error, and the server carries on |
 | `propose_finding` | The judge: re-runs the finding's SQL, checks every number, `expect`, `holds` and KB ids, then stores it for the character or refuses it with the reason |
 | `analysis_submit` | Hands in a pass (`survey`, `lane`, `pick`, `synthesis`); the server checks it and answers with the next step |
 | `analysis_progress` | Where the run stands (pass, lanes, queries, tables untouched, proposed, verified, refused with why), the next step, the last run and the nightly recheck |
@@ -174,8 +174,11 @@ placeholders over the first row of its SQL; the judge refuses any number
 above 100 typed by hand, a re-run that disagrees with `expect`, a `holds`
 that fails, and lists KB ids it doesn't know.
 
-State is per character, in `ANALYSIS_STATE_DIR/chars/<character>/`
-(`analysis.json` for what is kept, `drive.json` for the open run), so
+State is per character, in `ANALYSIS_STATE_DIR/chars/<character>.<hash>/`
+(the name in lower case, letters outside a-z as `_`, then 10 hex characters
+of the full name's hash, so two names that differ only by an accent never
+share a folder; `analysis.json` for what is kept, `drive.json` for the open
+run), so
 `analysis_progress` lets "continue" pick up in a new chat. The full view
 reads it; `/zogzog/` gets the screened nudges only. Each night
 (`ANALYSIS_HOUR`, 4, so from 04:00 local time, `WOW_TIMEZONE`, by default) a deterministic recheck re-runs every

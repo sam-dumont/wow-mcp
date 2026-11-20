@@ -42,6 +42,31 @@ Upgrading: lines stored before this keep what 0.6 sent. The event contract
 lists the LogsQL filters that find them (docs/contract.md, "Stored before
 0.7.0"); read what they select before deleting anything.
 
+**Six fixes from the server's security review.** Nothing removed, every
+SQL function still there.
+
+- `play_sql`, the judge and the recheck run their DuckDB queries in a child
+  process capped at 512 MB over its loaded data. DuckDB's own
+  `memory_limit` doesn't count a single value: `x || x || ...` over a
+  `string_agg` took 2.3 GB with the limit at 256 MB, and 64 of them killed
+  the whole server. Now only that query fails, with "aggregate or narrow
+  it", and the next one gets a fresh child.
+- The live public view (`ui-public`) follows Settings when you give it
+  `USERS_URL` and the share token: public page off answers 404 everywhere,
+  and a character you hid from the public page isn't there. Before, it
+  showed everyone.
+- `/ingest` answers 400 to JSON nested a few thousand levels deep, instead
+  of a 500.
+- A store error no longer hands its VictoriaLogs address and error text to
+  the page, the shipper or the AI: they get "the data store didn't answer"
+  with a request id, and the server's log has the detail under that id.
+- Outbound downloads (wago.tools, the icon host, Blizzard's render host,
+  `RENDER_FROM`) follow a redirect only to the same host, or to another
+  allowed render address. Anywhere else is an error.
+- Each character's analysis folder is its name plus a short hash, so Ærin
+  and Érin of one realm no longer share one. An existing folder moves to
+  its new name the first time the character comes up.
+
 **Releases are one button, and this repository is the only one.**
 Development moved here from the private repository it was exported from.
 Actions > release > Run workflow picks the next version (`rc` for a

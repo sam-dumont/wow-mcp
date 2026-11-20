@@ -52,6 +52,7 @@ ANALYSIS_SHARE_PORT, and the KB's MODEL3D_CACHE_DIR / KB_GAME_TABLES.
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import json
 import math
 import os
@@ -61,6 +62,7 @@ import sys
 import tempfile
 import threading
 import time
+import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -99,12 +101,48 @@ def state_dir(env: dict) -> Path | None:
     return Path(d) if d else None
 
 
+def _norm(char: str) -> str:
+    """The name as the analysis compares it: spaces as hyphens, lower case,
+    one Unicode form (an É typed two ways is the same É)."""
+    return unicodedata.normalize("NFC", char.strip().replace(" ", "-")).lower()
+
+
+def _legacy_key(char: str) -> str:
+    """The folder name before 0.7: every other letter became `_`, so Ærin and
+    Érin of one realm shared a folder."""
+    return re.sub(r"[^a-z0-9-]", "_", char.strip().replace(" ", "-").lower())
+
+
+def char_key(char: str) -> str:
+    """A character's folder name: readable, plus a short hash of the full
+    name so two names that fold to the same letters never share one."""
+    n = _norm(char)
+    slug = re.sub(r"_+", "_", re.sub(r"[^a-z0-9-]", "_", n))[:48]
+    return f"{slug}.{hashlib.sha256(n.encode()).hexdigest()[:10]}"
+
+
+_MOVE_LOCK = threading.Lock()
+
+
 def char_dir(env: dict, char: str) -> Path | None:
-    """One directory per character under the state dir."""
+    """One directory per character under the state dir. A folder from before
+    0.7 moves to the new name the first time the character comes up, when
+    it is this character's: its analysis names it, or the name had nothing
+    to fold (2026-11-20 server review, info 5)."""
     d = state_dir(env)
     if d is None or not char:
         return None
-    return d / "chars" / re.sub(r"[^a-z0-9-]", "_", char.strip().replace(" ", "-").lower())
+    new = d / "chars" / char_key(char)
+    with _MOVE_LOCK:
+        old = d / "chars" / _legacy_key(char)
+        if not new.exists() and old.is_dir():
+            named = str(_read(old / STATE_FILE).get("char") or "")
+            folded = _legacy_key(char) != _norm(char)
+            if (_norm(named) == _norm(char)) if named else not folded:
+                with contextlib.suppress(OSError):
+                    old.rename(new)
+                    log(f"moved {old.name}/ to {new.name}/")
+    return new
 
 
 def _read(p: Path) -> dict:
@@ -342,14 +380,14 @@ def _duck_runner(db):
     made: list = []
 
     def get():
-        from . import duck, semantic
+        from . import duck, duckproc, semantic
 
         if not duck.available():
             return None
         if not made:
-            con = duck.mirror(db, TABLES)
+            con = duck.mirror(db, TABLES, rows=False)
             semantic.prepare(con)
-            made.append(duck.ReadOnlyDuck(con))
+            made.append(duck.ReadOnlyDuck(con, worker=duckproc.Worker(db, TABLES)))
         return made[0]
 
     return get

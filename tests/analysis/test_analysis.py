@@ -618,3 +618,51 @@ def test_play_sql_keeps_every_digit():
 
     text = as_text(["s", "f", "tiny", "big"], [(13734.0, 2667.25, 0.00012, 1234567.0)], False)
     assert text.splitlines()[1] == "13734\t2667.25\t0.00012\t1234567"
+
+
+# ---------------------------------------------------------------- the character's folder (review info 5)
+
+
+def test_names_that_fold_alike_keep_their_own_analysis(tmp_path):
+    """Ærin and Érin of one realm both folded to `_rin-…` before 0.7 and
+    shared one analysis; now each has its own folder."""
+    from wowstats.analysis import SCHEMA
+
+    env = {"ANALYSIS_STATE_DIR": str(tmp_path)}
+    a, e = "Ærin-Firemaw", "Érin-Firemaw"
+    assert analysis.char_dir(env, a) != analysis.char_dir(env, e)
+    assert analysis.char_dir(env, a) == analysis.char_dir(env, "ærin firemaw")  # one name, one folder
+    # An É typed as E + combining accent is the same character.
+    assert analysis.char_dir(env, "Érin-Firemaw") == analysis.char_dir(env, e)
+    analysis.save_state(env, a, {"schema": SCHEMA, "char": a, "findings": {"x": {}}})
+    analysis.save_state(env, e, {"schema": SCHEMA, "char": e, "findings": {}})
+    assert analysis.load_state(env, a)["findings"] == {"x": {}}
+    assert analysis.load_state(env, e)["char"] == e
+    assert analysis.characters(env) == sorted([a, e])
+
+
+def test_a_folder_from_before_moves_to_its_new_name(tmp_path):
+    """A pre-0.7 folder moves when its analysis names the character, or when
+    the name had nothing to fold; a folded folder another character's
+    analysis names stays put."""
+    from wowstats.analysis import SCHEMA, STATE_FILE
+
+    env = {"ANALYSIS_STATE_DIR": str(tmp_path)}
+    chars = tmp_path / "chars"
+
+    def old(folder: str, char: str | None, run: bool = False):
+        (chars / folder).mkdir(parents=True)
+        if char:
+            (chars / folder / STATE_FILE).write_text(json.dumps({"schema": SCHEMA, "char": char, "findings": {}}))
+        if run:
+            (chars / folder / "drive.json").write_text('{"id": "r1"}')
+
+    old("grimble-firemaw", None, run=True)  # a run only, nothing to fold: it's this character's
+    old("_rin-firemaw", "Ærin-Firemaw")
+    assert analysis.load_state(env, "Érin-Firemaw") == {}  # not Érin's: stays
+    assert (chars / "_rin-firemaw").is_dir()
+    assert analysis.load_state(env, "Ærin-Firemaw")["char"] == "Ærin-Firemaw"
+    assert not (chars / "_rin-firemaw").exists()
+    d = analysis.char_dir(env, "Grimble-Firemaw")
+    assert (d / "drive.json").is_file() and not (chars / "grimble-firemaw").exists()
+    assert d.name.startswith("grimble-firemaw.")

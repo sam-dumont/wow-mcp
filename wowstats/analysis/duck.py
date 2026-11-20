@@ -22,7 +22,10 @@ And the connection is locked down at creation: no file or network access
 (`enable_external_access`), no extension install or autoload, no Python
 replacement scans, no spilling to disk, a memory limit, and the configuration
 locked so a query can't change it. A query stops after QUERY_SECONDS
-(`interrupt` from a timer).
+(`interrupt` from a timer). DuckDB's memory limit doesn't count one value a
+scalar function builds (`x || x || ...` on a string_agg went past 8 GB), so
+play_sql, the judge and the recheck run their queries in a child process with
+a memory cap (`worker`, wowstats.analysis.duckproc).
 
 Dialect, for the tool descriptions: `/` divides as decimals (7/2 = 3.5, `//`
 is integer division), strftime takes the time first
@@ -90,9 +93,11 @@ def _finite(v):
     return None if isinstance(v, float) and not math.isfinite(v) else v
 
 
-def mirror(db: sqlite3.Connection, tables=None):
+def mirror(db: sqlite3.Connection, tables=None, rows: bool = True):
     """An in-memory DuckDB with the prep's tables (all of them, or `tables`),
-    same names, columns and order, locked down."""
+    same names, columns and order, locked down. `rows=False`: the tables
+    empty, for a parent whose queries run in a child (wowstats.analysis.duckproc)
+    and which only checks and compiles them."""
     import duckdb
 
     con = duckdb.connect(":memory:", config=_config())
@@ -102,6 +107,8 @@ def mirror(db: sqlite3.Connection, tables=None):
             continue
         cols = [(c[1], _column_type(db, t, c[1], c[2])) for c in db.execute(f'PRAGMA table_info("{t}")')]
         con.execute(f'CREATE TABLE "{t}" (' + ", ".join(f'"{c}" {ty}' for c, ty in cols) + ")")
+        if not rows:
+            continue
         sel = ", ".join(f"CAST(j->>{i} AS {ty})" for i, (_, ty) in enumerate(cols))
         ins = f'INSERT INTO "{t}" SELECT {sel} FROM (SELECT unnest(CAST(? AS JSON[])) AS j)'
         cur = db.execute(f'SELECT * FROM "{t}" ORDER BY rowid' if _has_rowid(db, t) else f'SELECT * FROM "{t}"')
@@ -214,8 +221,8 @@ class ReadOnlyDuck:
 
     engine = ENGINE
 
-    def __init__(self, con, seconds: float = QUERY_SECONDS, tables=None):
-        self.con, self.seconds = con, seconds
+    def __init__(self, con, seconds: float = QUERY_SECONDS, tables=None, worker=None):
+        self.con, self.seconds, self.worker = con, seconds, worker
         self.tables = None if tables is None else frozenset(tables)
         self.lock = threading.Lock()
         self.touched: set[tuple[str, str]] = set()
@@ -243,6 +250,9 @@ class ReadOnlyDuck:
             for t in read:
                 self.touched.update((t, c) for c in self.columns(t) if c in words)
                 self.touched.add((t, ""))
+            if self.worker is not None:  # a child process with a memory cap runs it (wowstats.analysis.duckproc)
+                cur.close()
+                return self.worker.run(q, max_rows, params, self.tables)
             timer = threading.Timer(self.seconds, cur.interrupt)
             timer.start()
             try:

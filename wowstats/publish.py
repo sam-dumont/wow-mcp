@@ -82,6 +82,7 @@ from wowstats import (
 )
 from wowstats import assets as m3d_assets
 from wowstats import model3d as m3d
+from wowstats.sitesettings import PageSettings, fetch_users
 from wowstats.upstream import Upstream
 
 MAX_AGE_S = 86400
@@ -871,19 +872,6 @@ def link(env: dict | None = None) -> int:
     return 0
 
 
-def fetch_users(env: dict) -> list[dict]:
-    """The people with a site, from the full view's share port (USERS_URL):
-    wowstats.tenancy.Tenancy.users_json. No hashes or keys come over it."""
-    from wowstats import guard
-
-    with guard.share_open(env["USERS_URL"], env) as r:
-        data = json.loads(r.read(4_000_000))
-    users = data.get("users") if isinstance(data, dict) else None
-    if not isinstance(users, list):
-        raise PublishError("USERS_URL: no users list")
-    return users
-
-
 def user_env(env: dict, u: dict) -> dict:
     """One person's settings for a publish run: their tenant and store, their
     own folder, their analysis lines."""
@@ -946,9 +934,9 @@ def publish_all(env: dict | None = None, force: bool = False) -> list[dict]:
             # makes) ZOGZOG_KEY_FILE as before.
             key = None if u.get("store") == "owner" and not int(u.get("zogzog_gen") or 0) else user_key(env, u)
             keep.add(slug)
-            r = publish(e, force, zz_key=key, public=bool(u.get("public_on")),
-                        hide_public=frozenset(u.get("hidden_public") or ()),
-                        hide_zogzog=frozenset(u.get("hidden_zogzog") or ()), slug=slug,
+            s = PageSettings.of(u)  # the live public view reads them the same way (wowstats.sitesettings)
+            r = publish(e, force, zz_key=key, public=s.public, hide_public=s.hide_public,
+                        hide_zogzog=s.hide_zogzog, slug=slug,
                         canonical=f"https://{u['canonical']}" if u.get("canonical") else "")
             res.append({"slug": slug, **r})
         except Exception as e:  # noqa: BLE001 - one person's store down doesn't stop the others

@@ -169,7 +169,7 @@ Off until `WOW_STATE_DIR` is set. [Add friends](../self-host/friends.md).
 | `PUBLISH_REPORT_URL` | publish | URL | `USERS_URL`'s folder, `/publisher.json` | `http://ui:8091/publisher.json` | Where the publisher reports each pass, for the owner's overview (`/admin`). |
 | `SITE_ALIASES` | static | comma list of `host=slug` | empty | `wow.example.org=alex` | Extra hosts and whose site each one serves. |
 | `SITE_DOMAIN` | ui, static | domain | empty | `example.org` | Friends' sites live at `<slug>-wow.<domain>`. |
-| `USERS_URL` | publish | URL | empty: one site | `http://ui:8091/users.json` | The full view's share port: build one site per person. |
+| `USERS_URL` | publish, ui | URL | empty: one site | `http://ui:8091/users.json` | The full view's share port: build one site per person. On the live public view (`VIEW=public`, the `ui-public` service), with `ANALYSIS_SHARE_TOKEN_FILE`: follow the owner's Settings (public page off answers 404, hidden characters aren't there; read every 30 s, and off until the first answer). Without it that view shows every character. |
 | `WOW_FRIENDS_FILE` | ui, users | path to JSON `{"<sub>": "<slug>"}` | empty: the owner only | `/run/wow/friends.json` | Who gets in besides the owner. Watched while the server runs: a change applies within about 10 seconds, without a restart (mount its folder, not the file alone). A person who leaves the list is offboarded at once. |
 | `WOW_OWNER_ALIASES` | ui, users | comma list of hosts | empty | `wow.example.org` | Hosts that belong to the owner too. |
 | `WOW_OWNER_SLUG` | ui, users | 2 to 20 of a-z, 0-9 | `sam`: set your own | `alex` | The owner's site name. Refusal pages name the owner by it. |

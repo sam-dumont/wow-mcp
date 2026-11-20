@@ -151,7 +151,10 @@ def test_a_store_down_keeps_the_last_answers_marked_stale(full, run_app):
     store.down = True
     assert app.prebuilt.check() is None
     d = body_of(srv, f"/api/char?name={CHAR}")
-    assert d["stale"] is True and "unreachable" in d["error"] and d["header"]
+    # The reader gets a request id, never the store's own text (review info 2);
+    # the owner's overview keeps the detail.
+    assert d["stale"] is True and "request" in d["error"] and "unreachable" not in d["error"] and d["header"]
+    assert "unreachable" in app.prebuilt.error
     store.down = False
     app.prebuilt.check()
     assert "stale" not in body_of(srv, f"/api/char?name={CHAR}")

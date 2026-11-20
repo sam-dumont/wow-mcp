@@ -11,6 +11,8 @@ import bisect
 import hashlib
 import json
 import os
+import secrets
+import sys
 import threading
 import time
 import urllib.error
@@ -35,6 +37,16 @@ HOUR = 3600
 
 class SourceError(Exception):
     pass
+
+
+def public_error(e: BaseException, where: str = "") -> str:
+    """What a page, the shipper or an AI client is told when a store fails:
+    no host name, no store message (2026-11-20 server review, info 2: the
+    VictoriaLogs host and its error text reached all three). The detail goes
+    to this server's log under the same request id."""
+    rid = secrets.token_hex(4)
+    print(f"store error [{rid}]{f' on {where}' if where else ''}: {e}", file=sys.stderr, flush=True)
+    return f"the data store didn't answer; try again in a minute (request {rid} in the server's log)"
 
 
 def iso(t: datetime) -> str:

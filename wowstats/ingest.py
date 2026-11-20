@@ -107,7 +107,7 @@ def parse(body: bytes, now: datetime | None = None) -> tuple[list[bytes], int]:
             continue
         try:
             ev = screen(otherplayers.allowed(json.loads(raw)), now)  # security review H1
-        except ValueError:
+        except (ValueError, RecursionError):  # RecursionError: JSON nested too deep (a 500 before, review info 1)
             ev = None
         if ev is None:
             bad += 1

@@ -21,6 +21,7 @@ from .. import ahsource, gearfit, quests
 from .. import gear as gearmod
 from ..rates import per_hour
 from ..stores import SESSION_BUCKETS, split_sessions
+from ..stores import public_error as stores_public_error
 from . import route
 from .store import SourceError, Store, iso, lq, parse_t, parse_when
 
@@ -630,7 +631,7 @@ def t_market(ctx: Ctx, args: dict) -> dict:
         week = st.metrics('last_over_time(wow_token_price_gold{game="retail"}[3h] offset 7d)')
         realms = st.metrics("last_over_time(wow_realm_up[15m])")
     except SourceError as e:
-        raise ToolError(str(e)) from None
+        raise ToolError(stores_public_error(e, "wow_token")) from None
     tok = round(float(token[0]["value"][1])) if token else None
     prev = round(float(week[0]["value"][1])) if week else None
     rulesets = [{"name": r["metric"].get("realm") or f"ruleset {r['metric'].get('ruleset_id', '?')}",
@@ -1225,7 +1226,7 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     try:
         out = tool.fn(ctx, args)
     except (SourceError, ViewsSourceError) as e:
-        raise ToolError(f"the store didn't answer: {e}") from None
+        raise ToolError(stores_public_error(e, name)) from None
     if isinstance(out, dict) and not tool.writes and "missing" not in out:
         gap = missing_for(ctx, tool, args, out)
         if gap is not None:
