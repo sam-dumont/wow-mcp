@@ -160,7 +160,7 @@ The page and the `gear` tool say which one won, in words: "Scored for Shadow
 because you picked Shadow in ForeverLevelingBiS." The shipper sends which
 addon the pick came from (`spec_from`).
 
-After a respec the talents catch up at Battle.net's next daily read.
+After a respec the talents catch up at Battle.net's next read, within 2 hours.
 
 The character card keeps two things apart: the talents
 as the game has them, named by points ("Discipline 16/0/7", from Battle.net

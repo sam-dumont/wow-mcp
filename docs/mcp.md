@@ -50,12 +50,12 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `kb_topics` | The research catalogue by lane (game rules, dungeons, levelling, economy and professions, PvP, raids): counts and the day each was checked; with `lane`, its documents, contradictions (with sources) and open questions |
 | `class_guide` | How to level the character's class at its level (or `class` and `level`): the levelling spec, the talent picks for this bracket and the next (from the character's current talents on Battle.net when the MCP may read them, see below), the trainer spells to buy now and next with the class trainers in the capitals of its side, stat priority, solo play, dungeon role, class quests, mistakes and the respec moment; every statement with its source, date, confidence and scope, and the contradictions between sources (the KB's `classes` lane) |
 | `class_meta` | The state of the meta for the character's class and spec (or `class`, `spec`, `level`): how each spec stands, the build, stat priority, gear, enchants by slot, consumables, professions and what changed lately, every statement with its source, date and confidence (the KB's `class-meta` lane and the weekly meta pass); for the character, how close it is: a 0-100 score from its talents, gear and enchants, and the top gaps with where to fix each and what is coming that concerns it, with the prep it needs (see "How close am I to the meta" in the player's guide) |
-| `talent_changes` | The character's talent changes: every one from WoWSims Exporter's saves (`source`) when the player has it, else the last 3 weeks of Battle.net's daily read. The day, the points per tree before and after, the talents gained or dropped with their ranks; `not_recorded` names talents the addon can't save. Newest first; `changes` is null with a `why` when there's neither (see below) |
+| `talent_changes` | The character's talent changes: every one from WoWSims Exporter's saves (`source`) when the player has it, else the last 3 weeks of Battle.net's reads. The day, the points per tree before and after, the talents gained or dropped with their ranks; `not_recorded` names talents the addon can't save. Newest first; `changes` is null with a `why` when there's neither (see below) |
 | `news` | What's new on Forever: this week's digest from the weekly KB pass (or everything `since` a day, or an earlier `week`), one line per item in our words with its category, day, source and who it concerns (classes, levels, roles), the character's first (or filtered by `class`, `level`, `role`); the events to come with their announced day, or "announced, no date"; and `community`, what players are saying on the forums and r/wowforever (opinions, never facts; `category=community` for those alone) |
 | `play_analysis` | The character's kept analysis: findings with their SQL, nudges with feasibility, the shared lines, the last run and recheck |
 | `analyse` | The `analyse` prompt as a tool (ChatGPT has no prompts): the procedure and where the run stands |
 | `analysis_brief` | The play analysis' brief in sections sized for a 32k context: `start`, `schema`, `profile` and `kb` (paged, 12,000 characters a page), `survey`, `lane`, `followups`, `coverage`, `synthesis` |
-| `play_sql` | One read-only SELECT on that database, paged (40 rows by default, 60 at most, 1,000 deep, 6,000 characters a page) |
+| `play_sql` | One read-only SELECT on that database, paged (40 rows by default, 60 at most, 1,000 deep, 6,000 characters a page). It runs in a child process with 512 MB over the data and the query's timeout: a query past either fails alone, with a plain error, and the server carries on |
 | `propose_finding` | The judge: re-runs the finding's SQL, checks every number, `expect`, `holds` and KB ids, then stores it for the character or refuses it with the reason |
 | `analysis_submit` | Hands in a pass (`survey`, `lane`, `pick`, `synthesis`); the server checks it and answers with the next step |
 | `analysis_progress` | Where the run stands (pass, lanes, queries, tables untouched, proposed, verified, refused with why), the next step, the last run and the nightly recheck |
@@ -174,8 +174,11 @@ placeholders over the first row of its SQL; the judge refuses any number
 above 100 typed by hand, a re-run that disagrees with `expect`, a `holds`
 that fails, and lists KB ids it doesn't know.
 
-State is per character, in `ANALYSIS_STATE_DIR/chars/<character>/`
-(`analysis.json` for what is kept, `drive.json` for the open run), so
+State is per character, in `ANALYSIS_STATE_DIR/chars/<character>.<hash>/`
+(the name in lower case, letters outside a-z as `_`, then 10 hex characters
+of the full name's hash, so two names that differ only by an accent never
+share a folder; `analysis.json` for what is kept, `drive.json` for the open
+run), so
 `analysis_progress` lets "continue" pick up in a new chat. The full view
 reads it; `/zogzog/` gets the screened nudges only. Each night
 (`ANALYSIS_HOUR`, 4, so from 04:00 local time, `WOW_TIMEZONE`, by default) a deterministic recheck re-runs every

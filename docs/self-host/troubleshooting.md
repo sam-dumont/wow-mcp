@@ -76,6 +76,8 @@ uv run --script ~/.local/share/wow-stats/wow_stats.py --preflight
 | `This server has no login (AUTH=open) and this request came through a proxy.` (403) | A reverse proxy in front of a page with no login. Set `UI_AUTH=basic` or `proxy` first |
 | 400 on every page behind the proxy | The proxy sends the identity header twice, or as a list. It has to replace it on every request. [Add friends](friends.md#what-a-shared-install-needs) |
 | A friend sees "No access yet" | They signed in, but they aren't on the friends list yet. [The friends list](friends.md#the-friends-list) |
+| `the data store didn't answer; try again in a minute (request 1a2b3c4d in the server's log)` (502, on the page, in the shipper's log or from the AI) | VictoriaLogs didn't answer. The page never shows its address or its error; the server's log does, on the line with the same request id: `docker compose logs ui \| grep 1a2b3c4d` |
+| `the query needs more memory than a query may use` (from `play_sql`) | That one query built a value past 512 MB, so its process stopped. The server carries on; ask your AI to aggregate or narrow the query |
 
 ## Nothing arrives
 

@@ -61,12 +61,17 @@ def cache_dir(env=None) -> Path:
 
 
 def _read(url: str, timeout: int = 30, host: str = "") -> bytes | None:
+    """The body at `url`. A redirect is followed only to an allowed render
+    address (Blizzard's) or, for RENDER_FROM's static site, to that same
+    site (2026-11-20 server review, info 4: urllib followed it anywhere)."""
+    from wowstats.upstream import same_origin, urlopen
+
     headers = {"User-Agent": "wow-stats"}
     if host:
         headers["Host"] = host
     req = urllib.request.Request(url, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with urlopen(req, timeout, allowed if allowed(url) else same_origin(url)) as r:
             body = r.read(MAX_BYTES + 1)
     except (OSError, ValueError):
         return None

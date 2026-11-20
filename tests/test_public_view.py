@@ -158,7 +158,9 @@ def test_public_config_and_payload_shape(run_app):
     assert d["dungeons"] and all(set(r) == {"name", "level", "t"} for r in d["dungeons"])
     # Gear and professions are public (no gold in them); tracked upgrades aren't.
     g = d["gear"]
-    assert set(g) == {"item_level", "armory_item_level", "armory_item_level_source", "render", "items", "professions"}
+    assert set(g) == {"item_level", "armory_item_level", "armory_item_level_source", "render", "items", "professions",
+                      "items_from", "items_note"}
+    assert g["items_from"] is None and g["items_note"] is None  # Syndicator's items: Battle.net isn't asked
     # No vm-wow here: the armory's count is ours, no render.
     assert g["armory_item_level_source"] == "computed" and g["render"] is None
     assert g["items"][0]["name"] == "Faerie Mantle" and g["items"][0]["quality"] == 2
@@ -257,3 +259,118 @@ def test_bad_mcp_settings_stop_the_server():
     with pytest.raises(ui.ConfigError, match="passphrase login went"):
         ui.App({"VIEW": "full", "BIND": "127.0.0.1", "MCP_PUBLIC_URL": "http://127.0.0.1:8090/mcp",
                 "MCP_LOGIN": "password"}, store=PoisonStore())
+
+
+# ------------------------------------------------------------- Settings on the live public view (review LOW-2)
+
+HIDDEN = "Hidden-Test"
+
+
+class TwoCharStore(PoisonStore):
+    """Hero-Test and Hidden-Test, both with events."""
+
+    def vl(self, query, keys=(), ops=None, limit=0):
+        rows = super().vl(query, keys, ops, limit)
+        return rows + [{**r, "char": HIDDEN} for r in rows]
+
+
+@pytest.fixture
+def users_port(tmp_path):
+    """The full view's share port, as far as /users.json goes: the token
+    asked on every request, the settings line the test sets."""
+    import http.server
+    import threading
+
+    token = "t" * 40
+    (tmp_path / "share-token").write_text(token)
+    line = {"slug": "owner", "account_id": 0, "status": "active", "public_on": True,
+            "hidden_public": [HIDDEN], "hidden_zogzog": []}
+    state = {"line": line, "up": True}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            if not state["up"]:
+                self.send_response(500)
+                self.end_headers()
+                return
+            if self.headers.get("Authorization") != f"Bearer {token}" or self.path != "/users.json":
+                self.send_response(401)
+                self.end_headers()
+                return
+            body = json.dumps({"users": [state["line"]]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    env = {"USERS_URL": f"http://127.0.0.1:{srv.server_address[1]}/users.json",
+           "ANALYSIS_SHARE_TOKEN_FILE": str(tmp_path / "share-token")}
+    yield state, env
+    srv.shutdown()
+    srv.server_close()
+
+
+def public_with_settings(env) -> ui.App:
+    app = ui.App({"VIEW": "public", "BIND": "127.0.0.1", **env}, store=TwoCharStore())
+    app.page_settings.refresh_s = 0  # every request reads the settings again
+    return app
+
+
+def test_live_public_view_hides_what_settings_hide(run_app, users_port):
+    """A character hidden from the public page in Settings doesn't exist on
+    the live public view either: not listed, its answers 404, not in the
+    link preview. The other one still shows."""
+    state, env = users_port
+    srv = run_app(public_with_settings({**env, "DEFAULT_CHAR": HIDDEN}))
+    code, _, body = srv.get("/api/chars")
+    assert code == 200 and [c["char"] for c in json.loads(body)["chars"]] == [CHAR]
+    for path in (f"/api/char?name={HIDDEN}", f"/api/timeline?name={HIDDEN}",
+                 f"/api/snapshot?name={HIDDEN}&level=5", f"/render/{HIDDEN}.png"):
+        assert srv.get(path)[0] == 404, path
+    assert srv.get(f"/api/char?name={CHAR}")[0] == 200
+    page = srv.get("/")[2].decode()
+    assert HIDDEN not in page and "Hidden" not in page
+    # Shown again once Settings stop hiding it.
+    state["line"] = {**state["line"], "hidden_public": []}
+    assert sorted(c["char"] for c in json.loads(srv.get("/api/chars")[2])["chars"]) == sorted([CHAR, HIDDEN])
+
+
+def test_live_public_view_off_answers_like_the_static_site(run_app, users_port):
+    """Public page off: every path is a 404, as the static server answers
+    for a site built with it off; /healthz still says the process is up."""
+    state, env = users_port
+    state["line"] = {**state["line"], "public_on": False}
+    srv = run_app(public_with_settings(env))
+    for path in ("/", "/api/chars", f"/api/char?name={CHAR}", "/api/config", "/app.js"):
+        code, _, body = srv.get(path)
+        assert code == 404 and CHAR.encode() not in body, path
+    assert srv.get("/healthz")[0] == 200
+    state["line"] = {**state["line"], "public_on": True}
+    assert srv.get("/api/chars")[0] == 200
+
+
+def test_live_public_view_fails_closed_without_settings(run_app, users_port):
+    """The share port down before the first answer: page off, not every
+    character shown; a person missing from the list: off too."""
+    state, env = users_port
+    state["up"] = False
+    srv = run_app(public_with_settings(env))
+    assert srv.get("/api/chars")[0] == 404
+    state["up"] = True
+    assert srv.get("/api/chars")[0] == 200
+    state["up"] = False  # down after an answer: the last settings stay
+    assert [c["char"] for c in json.loads(srv.get("/api/chars")[2])["chars"]] == [CHAR]
+    state["up"] = True
+    state["line"] = {**state["line"], "account_id": 7}
+    assert srv.get("/api/chars")[0] == 404
+
+
+def test_live_public_view_without_users_url_shows_everyone(run_app):
+    """One person, no Settings: as before."""
+    srv = run_app(ui.App({"VIEW": "public", "BIND": "127.0.0.1"}, store=TwoCharStore()))
+    assert sorted(c["char"] for c in json.loads(srv.get("/api/chars")[2])["chars"]) == sorted([CHAR, HIDDEN])

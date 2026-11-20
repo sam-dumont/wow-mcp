@@ -169,7 +169,7 @@ Off until `WOW_STATE_DIR` is set. [Add friends](../self-host/friends.md).
 | `PUBLISH_REPORT_URL` | publish | URL | `USERS_URL`'s folder, `/publisher.json` | `http://ui:8091/publisher.json` | Where the publisher reports each pass, for the owner's overview (`/admin`). |
 | `SITE_ALIASES` | static | comma list of `host=slug` | empty | `wow.example.org=alex` | Extra hosts and whose site each one serves. |
 | `SITE_DOMAIN` | ui, static | domain | empty | `example.org` | Friends' sites live at `<slug>-wow.<domain>`. |
-| `USERS_URL` | publish | URL | empty: one site | `http://ui:8091/users.json` | The full view's share port: build one site per person. |
+| `USERS_URL` | publish, ui | URL | empty: one site | `http://ui:8091/users.json` | The full view's share port: build one site per person. On the live public view (`VIEW=public`, the `ui-public` service), with `ANALYSIS_SHARE_TOKEN_FILE`: follow the owner's Settings (public page off answers 404, hidden characters aren't there; read every 30 s, and off until the first answer). Without it that view shows every character. |
 | `WOW_FRIENDS_FILE` | ui, users | path to JSON `{"<sub>": "<slug>"}` | empty: the owner only | `/run/wow/friends.json` | Who gets in besides the owner. Watched while the server runs: a change applies within about 10 seconds, without a restart (mount its folder, not the file alone). A person who leaves the list is offboarded at once. |
 | `WOW_OWNER_ALIASES` | ui, users | comma list of hosts | empty | `wow.example.org` | Hosts that belong to the owner too. |
 | `WOW_OWNER_SLUG` | ui, users | 2 to 20 of a-z, 0-9 | `sam`: set your own | `alex` | The owner's site name. Refusal pages name the owner by it. |
@@ -192,8 +192,8 @@ Optional. Needs your own API client. [Battle.net data](../self-host/battlenet.md
 | `BNET_TOKEN_NAMESPACES` | exporter | comma list | derived from the region | `dynamic-eu` | The namespaces read for the WoW Token price. |
 | `HTTP_TIMEOUT` | exporter | seconds | `60` | `60` | Timeout of one API call. |
 | `LISTEN_PORT` | exporter | port | `9464` | `9464` | The exporter's own port: `/healthz` and its own health metrics on `/metrics`, never Blizzard's data. |
-| `PROFILE_CHARACTERS` | exporter, compose | comma list of `Name-Surname` | empty | `Testchar-Demo,Testalt-Demo` | Your characters, as their WTF folders name them: their look, level, gear and talents are read once a day. |
-| `PROFILE_INTERVAL` | exporter | seconds | `86400` | `86400` | Seconds between profile reads. |
+| `PROFILE_CHARACTERS` | exporter, compose | comma list of `Name-Surname` | empty | `Testchar-Demo,Testalt-Demo` | Your characters, as their WTF folders name them: their look, level, gear and talents are read every 2 hours. |
+| `PROFILE_INTERVAL` | exporter | seconds | `7200` | `7200` | Seconds between profile reads, on the clock (7200: 00:00, 02:00... UTC, whenever the exporter started). A character the list names for the first time is read within 5 minutes anyway, once. |
 | `REALM_INTERVAL` | exporter | seconds | `300` | `300` | Seconds between ruleset status reads. |
 | `TOKEN_INTERVAL` | exporter | seconds | `1200` | `1200` | Seconds between WoW Token reads. |
 | `VM_MERGE_INTERVAL` | exporter | seconds | `86400` | `86400` | Seconds between force-merges. |

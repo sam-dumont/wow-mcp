@@ -490,7 +490,7 @@ realm or game id; your combat log names only you and the monsters.</li>
 asked a plan to work around (up to 300 characters), and the findings the analysis kept about your play.</li>
 <li>Your login's id (a number from the login service) and your page's name, set by the owner. No email address, no
 password: the login service keeps those.</li>
-<li>Battle.net data about your characters (their look, item level, talents), fetched once a day from
+<li>Battle.net data about your characters (their look, item level, gear, talents), fetched every 2 hours from
 Blizzard's public API, for your own characters only: a character name someone else here also sends
 gets none, unless it is the owner's. It is deleted after 30 days at most, as Blizzard's API terms
 require.</li>

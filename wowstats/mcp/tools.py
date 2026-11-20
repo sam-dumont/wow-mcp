@@ -21,6 +21,7 @@ from .. import ahsource, gearfit, quests
 from .. import gear as gearmod
 from ..rates import per_hour
 from ..stores import SESSION_BUCKETS, split_sessions
+from ..stores import public_error as stores_public_error
 from . import route
 from .store import SourceError, Store, iso, lq, parse_t, parse_when
 
@@ -630,7 +631,7 @@ def t_market(ctx: Ctx, args: dict) -> dict:
         week = st.metrics('last_over_time(wow_token_price_gold{game="retail"}[3h] offset 7d)')
         realms = st.metrics("last_over_time(wow_realm_up[15m])")
     except SourceError as e:
-        raise ToolError(str(e)) from None
+        raise ToolError(stores_public_error(e, "wow_token")) from None
     tok = round(float(token[0]["value"][1])) if token else None
     prev = round(float(week[0]["value"][1])) if week else None
     rulesets = [{"name": r["metric"].get("realm") or f"ruleset {r['metric'].get('ruleset_id', '?')}",
@@ -742,15 +743,23 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                    f"class, race, faction | sort by (_time desc) | limit 1", limit=1)
     worn = gearmod.armory_worn(st, char)
     worn_from = "sheet"
-    if not rows:
-        # No Syndicator sheet: Battle.net's equipment, else every slot open
+    if not gearmod.sheet_has_items(rows[0] if rows else None):
+        # No items from Syndicator (no gear event, or one with the
+        # professions only): Battle.net's equipment, else every slot open
         # (the best items for the level), said so with what unlocks the rest.
-        if not (snap and snap[0].get("class")):
+        # The class, race and faction: the addons', else Battle.net's.
+        try:
+            prof = st.character_profile(char) or {}
+        except Exception:  # noqa: BLE001 - vm-wow down: the addons' alone
+            prof = {}
+        known = {k: (snap[0] if snap else {}).get(k) or (rows[0] if rows else {}).get(k) or prof.get(k)
+                 for k in ("class", "race", "faction")}
+        if not known["class"]:
             # Not even the class (only level splits arrived): nothing to
             # score items for. Say so with what unlocks it, never an error.
             return {"char": char, "answer": None, "why": "no character sheet yet: the class isn't known",
                     "unlock": "Log in once with Polestar on, then log out. " + gearmod.SHEET_UNLOCK}
-        row, worn_from = gearmod.no_sheet(snap[0], worn)
+        row, worn_from = gearmod.no_sheet({**(snap[0] if snap else {}), **known}, worn, rows[0] if rows else None)
         rows = [row]
     last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, level, zone "
                    f"| sort by (_time desc) | limit 1", limit=1)
@@ -1225,7 +1234,7 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     try:
         out = tool.fn(ctx, args)
     except (SourceError, ViewsSourceError) as e:
-        raise ToolError(f"the store didn't answer: {e}") from None
+        raise ToolError(stores_public_error(e, name)) from None
     if isinstance(out, dict) and not tool.writes and "missing" not in out:
         gap = missing_for(ctx, tool, args, out)
         if gap is not None:

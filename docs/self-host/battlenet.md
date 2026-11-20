@@ -11,7 +11,11 @@ API: auction prices come only from your own Auctionator scans. The exporter adds
 - the WoW Token price and the Forever ruleset's status, in your full view and on the sealed
   friends' site;
 - your characters' look, sex, level, guild, gear, talents and completed achievements (the
-  Legacy points) from the Profile API once a day, for the 3D view and the character card
+  Legacy points) from the Profile API every 2 hours on the clock (`PROFILE_INTERVAL`; a
+  character seen for the first time within about 5 minutes, so a new friend doesn't wait), for
+  the 3D view and the character card, and for what the addons didn't send: the worn items
+  without Syndicator, the class, race and faction without Polestar. The addons' data wins
+  where there is some
   (this part may show on the public site too; the guild only on the sealed one).
 
 ## Blizzard's rules, and what the kit does about them

@@ -489,3 +489,29 @@ def test_cross_model_expressions_are_arithmetic_on_metrics(expr):
     owner = {m["name"]: m["model"] for m in semantic.catalogue()["metrics"] if m["model"] != "cross"}
     with pytest.raises(ValueError):
         semantic._cross_terms("x", expr, owner)
+
+
+# ---------------------------------------------------------------- the query process (wowstats.analysis.duckproc)
+
+
+def test_the_query_process_answers_like_in_process(demo):
+    """play_sql, the judge and the metrics through the child give the same
+    rows, cut and refusals as the in-process runner; a slow query stops."""
+    from wowstats.analysis import duckproc
+
+    w = duckproc.Worker(demo["db"], TABLES, seconds=0.5)
+    try:
+        play = duck.ReadOnlyDuck(demo["con"], tables=TABLES, worker=w)
+        q = "SELECT level, played_s, zone FROM levels l LEFT JOIN (SELECT 1 AS zone) z ON true ORDER BY level"
+        assert play.run(q, 5) == demo["play"].run(q, 5)
+        assert play.first_row("SELECT 7/2 AS d, NULL AS n, 'é' AS t") == {"d": 3.5, "n": None, "t": "é"}
+        with pytest.raises(QueryError, match="not allowed"):
+            play.run("SELECT * FROM read_csv('/etc/passwd')")
+        metrics = duck.ReadOnlyDuck(demo["con"], worker=w)
+        got = semantic.run(demo["layer"], metrics, {"metrics": ["played_s"], "group_by": ["level"]})
+        assert got == ask(demo, metrics=["played_s"], group_by=["level"])
+        with pytest.raises(QueryError, match="stopped after"):
+            play.run("SELECT COUNT(*) FROM range(100000000000)")
+        assert play.run("SELECT 1 AS one")[1] == [(1,)]  # the next query still answers
+    finally:
+        w.close()

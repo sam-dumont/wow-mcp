@@ -73,15 +73,20 @@ class Workspace:
                              upgrades=upgrades_for(rows, self.char, env))
         # play_sql, the judge and the semantic layer read a locked-down DuckDB
         # copy (wowstats.analysis.duck); the plan and the synthesis's checks
-        # keep reading the SQLite build (self.db).
+        # keep reading the SQLite build (self.db). The copy with the rows sits
+        # in a child process with a memory cap (wowstats.analysis.duckproc),
+        # so a query that builds a huge value takes down only that child; this
+        # process keeps the empty tables to check and compile queries.
         from . import semantic
         from .duck import ReadOnlyDuck, mirror
+        from .duckproc import Worker
 
-        self.duck = mirror(self.db, TABLES)
+        self.duck = mirror(self.db, TABLES, rows=False)
         semantic.prepare(self.duck)
-        self.ro = ReadOnlyDuck(self.duck, tables=TABLES)
-        self.judge = ReadOnlyDuck(self.duck, tables=TABLES)
-        self.metrics = ReadOnlyDuck(self.duck, tables=None)
+        self.worker = Worker(self.db, TABLES)
+        self.ro = ReadOnlyDuck(self.duck, tables=TABLES, worker=self.worker)
+        self.judge = ReadOnlyDuck(self.duck, tables=TABLES, worker=self.worker)
+        self.metrics = ReadOnlyDuck(self.duck, tables=None, worker=self.worker)
         self._layer = None
         self.tables, self.ncols = tables_of(self.db)
         self.at = time.time()

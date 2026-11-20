@@ -99,6 +99,56 @@ def test_ingest_refuses(run_app, fake_vl):
     assert off.get("/ingest", method="POST", data=b"{}")[0] == 404
 
 
+def test_ingest_deeply_nested_json_is_a_400(run_app, fake_vl):
+    """Review info 1: JSON nested past Python's recursion limit raised
+    RecursionError, which the catch-all turned into a 500."""
+    from wowstats import ingest
+
+    assert ingest.parse(b"[" * 200_000) == ([], 1)
+    assert ingest.parse(b'{"a":' * 100_000 + b"1" + b"}" * 100_000) == ([], 1)
+    srv = run_app(ui.App({"BIND": "127.0.0.1", "VL_URL": fake_vl, "INGEST_PASSWORD": PW}))
+    good = {"Authorization": ui._basic("wow", PW).decode()}
+    code, _, body = srv.get("/ingest", headers=good, method="POST", data=b"[" * 200_000 + b"\n")
+    assert code == 400 and b"not wow-stats events" in body
+    assert FakeVL.got == []
+
+
+def test_store_errors_say_a_request_id_not_the_host(run_app, capsys):
+    """Review info 2: a 502 on /api/* and on /ingest carried the
+    VictoriaLogs host and its error text. Now a generic line with a request
+    id; the detail is in the server's log under that id."""
+    import re
+
+    down = "http://127.0.0.1:9"  # nothing listens there
+    srv = run_app(ui.App({"BIND": "127.0.0.1", "VL_URL": down, "INGEST_PASSWORD": PW}))
+    good = {"Authorization": ui._basic("wow", PW).decode()}
+    event = json.dumps({"_time": "2026-11-17T15:14:03.120Z", "feed": "wow-level", "char": "A-B", "_msg": "x"})
+    for path, method, data in (("/api/chars", "GET", None), ("/ingest", "POST", event.encode() + b"\n")):
+        code, _, body = srv.get(path, headers=good, method=method, data=data)
+        err = json.loads(body)["error"]
+        assert code == 502 and "127.0.0.1" not in err and "refused" not in err.lower(), err
+        rid = re.search(r"request ([0-9a-f]{8})", err).group(1)
+        log = capsys.readouterr().err
+        assert f"[{rid}]" in log and "127.0.0.1" in log
+
+
+def test_mcp_store_errors_say_a_request_id_not_the_host(capsys):
+    from wowstats.mcp import tools
+    from wowstats.mcp.store import SourceError
+
+    class Down:
+        vl_url, vl_archive_url, logs_filter, hot_days, account_id = "http://vl.internal", "", "feed:wow-*", 89, 0
+        vm_url = ""
+
+        def logs(self, *a, **k):
+            raise SourceError("503 from vl.internal: backend overloaded")
+
+    with pytest.raises(tools.ToolError) as e:
+        tools.call(tools.Ctx(store=Down(), default_char="A-B"), "sessions", {"char": "A-B"})
+    assert "vl.internal" not in str(e.value) and "overloaded" not in str(e.value) and "request" in str(e.value)
+    assert "vl.internal" in capsys.readouterr().err
+
+
 def test_an_empty_roster_is_not_kept(monkeypatch):
     """The demo: the page opened before the seed must not show no one for
     CACHE_TTL once the events are in (2026-11-19, the first GET / cached [])."""

@@ -302,9 +302,9 @@ serves its own health there.
 | `BNET_REGION`, `BNET_LOCALE` | `eu`, `en_GB` | |
 | `BNET_FOREVER_NAMESPACE`, `BNET_TOKEN_NAMESPACES` | derived from the region | |
 | `BNET_API_URL`, `BNET_OAUTH_URL` | Blizzard's | |
-| `PROFILE_CHARACTERS` | empty | comma list of `Name-Surname` (the WTF folder names): profile, appearance and equipment once a day |
+| `PROFILE_CHARACTERS` | empty | comma list of `Name-Surname` (the WTF folder names): profile, appearance and equipment every 2 hours |
 | `BNET_PROFILE_NAMESPACE` | `profile-forever-<region>` | |
-| `TOKEN_INTERVAL`, `REALM_INTERVAL`, `PROFILE_INTERVAL` | `1200`, `300`, `86400` | seconds between API polls |
+| `TOKEN_INTERVAL`, `REALM_INTERVAL`, `PROFILE_INTERVAL` | `1200`, `300`, `7200` | seconds between API polls; the profile pass runs on the clock (every 2 hours: 00:00, 02:00... UTC), and a character listed for the first time is read within about 5 minutes |
 | `HTTP_TIMEOUT` | `60` | |
 | `VM_PUSH_URL` | empty (nothing stored) | `.../api/v1/import/prometheus`. It may already carry `extra_label=...` query args: the exporter appends its own with `&`, never replaces them |
 | `VM_PUSH_EXTRA_LABELS` | empty | comma list of `name=value` added as `extra_label` |
@@ -327,10 +327,10 @@ seen yet answers 404). Everything it returns is Blizzard API data, kept 30
 days at most (§2.18), so the look travels like the market data and never
 through VictoriaLogs:
 
-1. The exporter reads each character of `PROFILE_CHARACTERS` once a day and
+1. The exporter reads each character of `PROFILE_CHARACTERS` every 2 hours and
    keeps the answer in memory: `wow_character_customization{character,
    option_id}` = choice id, `wow_character_profile{character, race_id,
-   gender}` = level, `wow_character_equipped{character, slot}` = item id,
+   gender, class_id, faction}` = level, `wow_character_equipped{character, slot}` = item id,
    `wow_character_equipped_stat{character, slot, stat}` = that item's stat
    (a random suffix's are in no item table),
    `wow_character_profile_refreshed_timestamp_seconds`,

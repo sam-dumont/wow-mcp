@@ -156,7 +156,9 @@ class ToolsTest(unittest.TestCase):
         ctx = tools.Ctx(store=Store(vl_url="http://127.0.0.1:9", timeout=2))
         with self.assertRaises(tools.ToolError) as e:
             tools.call(ctx, "levels", {"char": "X-Y"})
-        self.assertIn("127.0.0.1", str(e.exception))
+        # A request id, never the store's address (2026-11-20 server review, info 2)
+        self.assertNotIn("127.0.0.1", str(e.exception))
+        self.assertIn("request", str(e.exception))
 
     def test_parse_when(self):
         now = datetime(2026, 11, 18, 12, tzinfo=UTC)
