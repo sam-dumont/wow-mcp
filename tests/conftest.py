@@ -44,34 +44,49 @@ def no_item_tables(monkeypatch):
     monkeypatch.setattr(talents, "_icons", {})
 
 
-@pytest.fixture(autouse=True)
-def close_browsers_a_test_opened():
-    """A browser a test launches is closed when the test ends, failed or not.
-    The browser tests launch one per test and close it on their last line,
-    which an assertion before it skips: a run with many failures left 71
-    Chromium and dozens of WebKit processes open on the owner's Mac
-    (2026-11-20). Module-scoped browsers are launched before this and are
-    left to their own fixture."""
+class _SharedBrowser:
+    """What a test's `launch()` returns: the module's one real browser, whose
+    close() does nothing (the module's teardown closes it). Launching a
+    Chromium per test was most of the browser suites' time (2026-11-20)."""
+
+    def __init__(self, real):
+        self._real = real
+
+    def close(self):
+        pass
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+@pytest.fixture(autouse=True, scope="module")
+def one_browser_per_module():
+    """Tests launch browsers as they like (one per test, closed on their last
+    line, which an assertion before it skips: 71 Chromium and dozens of WebKit
+    left open on the owner's Mac, 2026-11-20). Behind it, each Playwright
+    instance (one per module) launches each engine once, and every module
+    closes what it opened, failed tests included."""
     try:
         from playwright.sync_api import BrowserType
     except ImportError:
         yield
         return
-    opened = []
+    opened: dict = {}
     launch = BrowserType.launch
 
-    def tracked(self, *a, **k):
-        b = launch(self, *a, **k)
-        opened.append(b)
-        return b
+    def shared(self, *a, **k):
+        key = (id(self), repr(a), repr(sorted(k.items())))
+        if key not in opened:
+            opened[key] = launch(self, *a, **k)
+        return _SharedBrowser(opened[key])
 
-    BrowserType.launch = tracked
+    BrowserType.launch = shared
     try:
         yield
     finally:
         BrowserType.launch = launch
-        for b in opened:
-            with contextlib.suppress(Exception):  # already closed, or its driver is gone
+        for b in opened.values():
+            with contextlib.suppress(Exception):  # its driver may already be stopped
                 b.close()
 
 
@@ -126,3 +141,20 @@ def run_app():
     yield start
     for r in started:
         r.close()
+
+
+# Need docker compose, a Polestar checkout or Windows: CI's jobs and the release run them.
+CI_ONLY = {"test_compose.py", "test_windows_e2e.py", "test_gear_parity.py"}
+
+
+def pytest_collection_modifyitems(items):
+    """Every test in a *browser* file carries the `browser` marker, so the
+    default run (pyproject's `-m "not browser and not ci_only"`) is the fast
+    suite and `-m browser` the heavy one (tools/test_changed.py picks between
+    them from the diff)."""
+    for item in items:
+        name = Path(str(item.fspath)).name
+        if "browser" in name:
+            item.add_marker(pytest.mark.browser)
+        if name in CI_ONLY:
+            item.add_marker(pytest.mark.ci_only)

@@ -18,11 +18,32 @@ The `browser` group and the two browsers are for the browser tests
 (`tests/test_browser.py`, `tests/test_advice_browser.py`). Without them those
 tests skip; CI doesn't install them, so run them locally before a release.
 
+## What to run before pushing
+
+```sh
+make test-changed           # only the tests your diff can break
+```
+
+`tools/test_changed.py` diffs against the merge-base with `origin/main` and maps
+each changed path to test files (the `RULES` table at its top): the knowledge
+base runs the KB tests, `shipper/` the shipper tests, `wowstats/<module>.py` the
+module's tests and every test importing it, `web/` and the page code the browser
+tests. A path no rule knows, or `conftest.py`, `pyproject.toml` and `uv.lock`,
+runs the whole non-browser suite. `--list` shows the selection without running it.
+
+Browser tests (files named `*browser*`, marked `browser`) are the slow part and
+run only when a rule selects them (`pyproject.toml` keeps them out of a plain
+`pytest` too). Run the whole browser suite once before a release:
+`make test-browser`. The whole fast suite, in parallel: `make test`. Tests marked
+`ci_only` (docker compose, the Polestar comparison, Windows) run in CI and at
+release: `-m ci_only`. Tests run in parallel with pytest-xdist, so none may lean
+on another or on a fixed port or path: servers bind port 0, state lives in `tmp_path`.
+
 ## The checks
 
 ```sh
 uv run ruff check .
-uv run pytest -q -rs        # about 950 tests, a few minutes; -rs lists what skipped
+make test                   # the fast suite on half the cores; no browsers, nothing CI-only
 docker login dhi.io         # once: the main image's base needs a free Docker Hub account
 docker build -t wow-stats:dev .
 docker build --target renderer -t wow-stats-render:dev .

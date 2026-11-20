@@ -41,7 +41,9 @@ jobs:
       # this job's minutes, and hung for 30 minutes once.
       - run: uv sync --frozen --extra publish --extra mcp
       - run: uv run ruff check .
-      - run: uv run pytest -q -rs
+      # Everything but the browser suites, on every core; docker compose and
+      # Polestar tests (ci_only) are in, they skip without their tool.
+      - run: uv run pytest -q -rs -n auto -m "not browser"
       # The fixtures are made by tools/fixtures/generate.py: a change to it, or
       # to the code that derives them, without a rerun fails here.
       - run: uv run python tools/fixtures/generate.py --check
@@ -108,7 +110,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --frozen --extra publish --extra mcp
-      - run: uv run pytest -v -rs tests/test_windows_e2e.py
+      - run: uv run pytest -v -rs -m ci_only tests/test_windows_e2e.py
         env:
           WOW_STATS_WINDOWS_E2E: "1"
       # The README's PowerShell demo line pipes dev/seed.py into Python

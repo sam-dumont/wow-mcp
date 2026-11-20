@@ -40,6 +40,7 @@ wow-stats = "wowstats.cli:main"
 [dependency-groups]
 dev = [
     "pytest>=8.3",
+    "pytest-xdist>=3.6",
     "ruff>=0.6",
 ]
 # tests/test_browser.py: the static sites in Chromium. Pinned: each
@@ -126,3 +127,12 @@ ignore = ["SIM108", "B023"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The default run is the fast one: no browsers (the slow part, run once before a
+# release: `make test-browser`) and nothing CI-only. A later `-m` on the command
+# line replaces this. Parallelism is the Makefile's `-n`, so a debugger can still
+# run one process.
+addopts = "-m 'not browser and not ci_only'"
+markers = [
+    "browser: drives Chromium/WebKit through Playwright (files named *browser*; tests/conftest.py)",
+    "ci_only: needs docker compose, a Polestar checkout or Windows; CI and releases run it (tests/conftest.py)",
+]
