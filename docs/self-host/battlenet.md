@@ -63,7 +63,9 @@ From `deploy/compose`:
    On Windows, put any 30 random letters in `secrets\vm_merge_key`.
 2. In `.env`: uncomment `VM_URL=http://victoriametrics:8428`, set `BNET_REGION` (`eu` or
    `us`), and your characters as their WTF folders name them:
-   `PROFILE_CHARACTERS=Testchar-Demo,Testalt-Demo`.
+   `PROFILE_CHARACTERS=Testchar-Demo,Testalt-Demo`. With friends on the install, the exporter
+   also takes `PROFILE_CHARACTERS_URL=http://ui:8091/profile-characters` and the share port's
+   token: every friend's characters then get read too, under their own account.
 3. Start it:
 
    ```sh

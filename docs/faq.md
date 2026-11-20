@@ -74,6 +74,12 @@ scan. The page says which one is missing and how to fix it in a "Missing:" line.
 Addons are switched on per character. At character select, AddOns, tick Polestar and Polestar
 Recorder for that one, log in, `/reload`, wait 5 minutes.
 
+### Do I have to update or reinstall anything?
+
+Only your addons (Update all in the CurseForge app). The program on your computer updates itself
+within a few hours of a new version on the server, Polestar Recorder with it.
+[Updates](players/getting-started.md#updates).
+
 ### What does "2.0×" mean on the Overview?
 
 Your last 5 levels took twice as long as Polestar's route time for them. 1.0× is the route's

@@ -21,12 +21,12 @@ From the top of your copy:
 
 ```sh
 git fetch --tags
-git checkout v0.5.0
+git checkout v0.7.0
 cd deploy/compose
 docker compose up -d --build
 ```
 
-Use the version you want instead of `v0.5.0`. With a release's source zip instead of `git`:
+Use the version you want instead of `v0.7.0`. With a release's source zip instead of `git`:
 unpack the new zip next to the old one, copy `deploy/compose/.env` and `deploy/compose/secrets/`
 across, and run the last two lines from the new copy. The volumes are found by name, so the
 data follows.
@@ -44,15 +44,38 @@ docker compose pull ui publish site
 docker compose up -d
 ```
 
+## From 0.6.x to 0.7.0
+
+Nothing to change for a one-person install: back up, check out `v0.7.0`, `docker compose up -d
+--build`. Then, depending on what you run:
+
+- **Your players' shippers** take 0.7.0 by themselves within 6 hours of your server moving
+  to it, no reinstall, and check the signature of every update after it (below). A 0.6
+  shipper can't read a release candidate's version: it waits for the final. One still on an
+  older version 7 hours later gets the update command on its start page, and shows in the
+  [admin overview](admin.md).
+- **Battle.net** (`PROFILE_INTERVAL`): the exporter now reads every 2 hours on the clock
+  instead of once a day. If you set `PROFILE_INTERVAL` yourself, it now also picks the clock
+  slots: 86400 runs at 00:00 UTC.
+- **The live public view** (`ui-public`) with several people: give it `USERS_URL` and
+  `ANALYSIS_SHARE_TOKEN_FILE`, or it keeps showing every character in your store
+  ([Add friends](friends.md)).
+- **Other players' data**: 0.7.0 shippers send other players as "another player", and
+  `/ingest` cuts 0.6 shippers' events the same way. What was stored before keeps what 0.6
+  sent. [The event contract](../contract.md), "Stored before 0.7.0", has the LogsQL filters
+  that find it, if you want it gone: read what they select before deleting anything.
+
+The full list: the [changelog](../../CHANGELOG.md).
+
 ## The shipper
 
 It follows the server: at most every 2 hours it asks the server it ships to for its version,
-and takes the new one when it's newer ([Auto-update](../shipper.md#auto-update)). A shipper
-from before 0.5.1 can't do that yet: run the installer again once
+and takes the new one when it's newer and signed ([Auto-update](../shipper.md#auto-update)).
+A shipper from before 0.5.1 can't do that yet: run the installer again once
 (`shipper/install-mac.sh`, or
 `powershell -ExecutionPolicy Bypass -File .\shipper\install-windows.ps1` from the new
 copy; players on a friend's server run the update line from their start page,
-[Update](../players/getting-started.md#update)). It keeps your config and archive.
+[Updates](../players/getting-started.md#updates)). It keeps your config and archive.
 0.6.x updates itself within 6 hours of the server moving to 0.7.0: no reinstall.
 
 To pin the shipper to the version it has, put `auto_update = false` at the top of its

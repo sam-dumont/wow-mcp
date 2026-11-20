@@ -43,21 +43,21 @@ Set it up:
 
 - [Run it on a server](self-host/production.md): the order to set things up.
 - [Reverse proxy and HTTPS](self-host/reverse-proxy.md): Caddy, Traefik or nginx.
-- [The login for your AI](self-host/oidc.md): any OIDC provider, Keycloak as the example.
 - [Share your page](self-host/sharing.md): the public site, the sealed friends' site, the
   pictures of past levels.
+- [The login for your AI](self-host/oidc.md): any OIDC provider, Keycloak as the example.
 - [Add friends](self-host/friends.md): several players on one server.
+- [Battle.net data](self-host/battlenet.md): your own API client and the 30-day rule.
+- [Admin overview](self-host/admin.md): who uses the install, when, and whether its parts answer.
 - [How I run it](self-host/how-i-run-it.md): my own install as a worked example, with friends
   signing in through Battle.net.
-- [Admin overview](self-host/admin.md): who uses the install, when, and whether its parts answer.
-- [Battle.net data](self-host/battlenet.md): your own API client and the 30-day rule.
 - [Without Docker Compose](deploy.md): Kubernetes or plain containers.
 
 Keep it running:
 
 - [When it stops](self-host/troubleshooting.md): error messages and their fixes.
 - [Back up and restore](self-host/backup.md).
-- [Upgrade](self-host/upgrade.md).
+- [Upgrade](self-host/upgrade.md): between versions, 0.6 to 0.7.0 included.
 - [Monitor it](self-host/monitoring.md).
 - [Harden it](self-host/hardening.md).
 - [Uninstall](self-host/uninstall.md).

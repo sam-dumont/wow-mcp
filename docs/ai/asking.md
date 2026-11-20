@@ -17,22 +17,16 @@ Plain questions work. Name wow-stats in the first one so the assistant picks the
 
 <!-- /generated:ai-asks -->
 
-More that work on any character:
-
-- "Which level took longest, and how much of it was in a dungeon?"
-- "Why was level 24 so slow?"
-- "What's my next step for the next 40 minutes?"
-- "How much gold do I need for riding, and how long at my rate?"
-- "Is there anything I keep doing wrong?" (deaths in the same place, steps far over plan,
-  upgrades not taken, unspent talent points)
-- "How did my last plan go?"
-- "Analyse how I play." (a long, step-by-step analysis: see below)
-
-In claude.ai the `+` menu has ready-made prompts (`plan`, `now`, `gear`, `dungeon`, `check`,
-`mount`, `analyse`...); in Claude Code they're slash commands. The full list, with every tool:
+More: "Why was level 24 so slow?", "How much gold do I need for riding, and how long at my
+rate?", "Is there anything I keep doing wrong?", "How did my last plan go?", "Analyse how I
+play." In claude.ai the `+` menu has ready-made prompts (`plan`, `now`, `gear`, `dungeon`...);
+in Claude Code they're slash commands. Every tool and prompt:
 [MCP tools and prompts](../reference/mcp-tools.md).
 
 ## What the assistant can see
+
+<details>
+<summary>What it reads, by subject</summary>
 
 <!-- generated:ai-groups -->
 <!-- From wowstats/mcp/helppage.py (GROUPS): edit it there, then run tools/manual/generate.py. -->
@@ -53,24 +47,24 @@ In claude.ai the `+` menu has ready-made prompts (`plan`, `now`, `gear`, `dungeo
 
 <!-- /generated:ai-groups -->
 
-All of it comes from your own game files: your addons' saves and your combat log. The
-assistant sees your characters only, and on a shared server only yours.
+</details>
 
-What it doesn't get:
-
-- **Battle.net data** (WoW Token, your look from the armory) stays off unless
-  you turn on "Battle.net data to my AI" in your Settings, on a shared server. Blizzard's
-  terms keep that data 30 days at most, and a chat keeps what a tool answered for as long as
-  the chat exists, so that's your call. Your own Auctionator scans aren't Battle.net data: the
-  assistant always has those.
-- **Anything you didn't record.** No addon saves who was in your group or what your bags are
-  worth to a vendor, so the tools say "not known" instead of guessing.
-
+Your own characters only, from your own game files. **Battle.net data** (the WoW Token, your
+look, talents) stays off unless you turn on "Battle.net data to my AI" in Settings: Blizzard's
+terms keep it 30 days at most, and a chat keeps a tool's answer as long as the chat exists, so
+that's your call. Anything no addon records, the tools call "not known" instead of guessing.
 Whatever the assistant reads, your AI provider receives: it's in your chat.
 
 ## How numbers get checked
 
-The assistant writes the answers. The server checks them. Two tools do it:
+The assistant writes the answers; the server checks them. A finding it keeps came out of your
+data through a query the server ran itself. Anything else is the assistant's own reading: ask
+"show me the query".
+
+<details>
+<summary>How the check works, with an example</summary>
+
+Two tools do it:
 
 - **`play_sql`** runs one read-only `SELECT` on a database of your play, built from your
   events: levels, sessions, the timeline of where you were at what level, deaths, loot, gear.
@@ -83,11 +77,7 @@ The assistant writes the answers. The server checks them. Two tools do it:
 Kept findings are re-run every night on fresh data: one that still holds gains weight, one
 that stops holding fades and goes after three nights.
 
-So when the assistant quotes a kept finding, the number came out of your data through a query
-the server ran. When it says something without a finding behind it, it's the assistant's own
-reading: ask "show me the query" and it can run one.
-
-### An example on the demo
+**An example on the demo.**
 
 On the demo data (see [Try the demo](../self-host/demo.md)), ask "Which level took
 longest, and how much of it was in a dungeon?" about `Testchar-Demo`. The assistant runs a
@@ -108,11 +98,17 @@ Monastery: Library. The `dungeons` tool gives the run itself as 2,650 seconds (4
 segment's state until the next record. Ask the assistant to show its query and the rows it
 got: the numbers above are what the demo returns.
 
+</details>
+
 ## The long analysis
 
 "Analyse how I play" (the `analyse` prompt) runs a step-by-step analysis you drive from the
-chat. The server hands the assistant a neutral brief (the tables, a profile of each, your
-goals), and the assistant asks its own questions:
+chat: the assistant asks its own questions about your play and the server checks every
+answer. It takes a while; on a small model, say "continue" when it stops (a new chat picks it
+up). What comes out lands on your page, and the screened parts on your zogzog link.
+
+<details>
+<summary>The five rounds</summary>
 
 1. **Survey:** 25 to 40 open questions about your play.
 2. **Lanes:** the questions in groups of three, each answered with queries; findings go to the
@@ -121,8 +117,6 @@ goals), and the assistant asks its own questions:
 4. **Coverage:** any table nothing has read yet gets its own look.
 5. **Synthesis:** the kept findings against each other; clashes get a deciding query.
 
-It takes a while and many tool calls. On a small model, say "continue" when it stops: the
-server keeps where the run stands, so a new chat picks it up. What comes out lands on your
-page (the full view), and the screened parts on your zogzog link.
+</details>
 
 How it works inside: [MCP and the play analysis](../mcp.md).

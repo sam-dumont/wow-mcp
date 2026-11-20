@@ -3,12 +3,22 @@
 **For:** players with a wow-stats page. **At the end:** you know which dungeon to run at your
 level, what to do before you go, and what to expect from one run.
 
-The Dungeons section is in the Character tab. Every dungeon around your level gets a card. The
-one worth running now is also on the Overview, as the Dungeon move.
+The Dungeons section is in the Character tab: a card for every dungeon around your level. The
+one worth running now is also the Overview's Dungeon move.
 
 ![Two dungeon cards from the demo: Razorfen Kraul and City of Dalaran, each with a "Worth a run" line, the quests to pick up, the quest rewards and drops you could use, and what a trip is worth](../images/dungeons.webp)
 
-## Reading a card, top to bottom
+## What to do with it
+
+1. Start with the dungeon of the Overview's Dungeon move. Comparing two cards yourself: take
+   the one with more upgrades you'd wear and the higher "faster than your questing".
+2. Do its **Next** line first: the quests picked up before you go add their XP and rewards
+   to the same run.
+3. Back from a run, `/reload`: the run, its loot and its time land on the card within
+   5 minutes.
+
+<details>
+<summary>A card, top to bottom</summary>
 
 **The header**: the dungeon, its level range, a link to Wowhead's dungeon guide, and how many
 times you ran it ("ran it 1×").
@@ -49,17 +59,7 @@ prices).
 
 **Your runs**: when you ran it, at what level, for how long.
 
-## What to do with it
-
-1. Start with the dungeon of the Overview's Dungeon move. Comparing two cards yourself: take
-   the one with more upgrades you'd wear and the higher "faster than your questing".
-2. Do its **Next** line first: the quests picked up before you go add their XP and rewards
-   to the same run.
-3. Back from a run, `/reload`: the run, its loot and its time land on the card within
-   5 minutes.
-
-Polestar's own dungeon list says when it puts a dungeon in your route too ("On Polestar's list
-for level 34 too").
+</details>
 
 ## Next
 

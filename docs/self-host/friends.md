@@ -39,6 +39,7 @@ page, `https://wow-full.example.org/start`.
 | The share port's token | `ANALYSIS_SHARE_TOKEN_FILE`: `ui` makes it (0600) on first start; give the same file to `publish`, the exporter and `ui-public` if you run it, and nothing else | Every request to the share port needs it; it listens on `127.0.0.1` unless `ANALYSIS_SHARE_BIND` says otherwise |
 | The live public view, if you run it | `USERS_URL` and `ANALYSIS_SHARE_TOKEN_FILE` on `ui-public` too | It then follows your Settings like your static site does: public page off is a 404, hidden characters aren't there. Without them it shows every character in your store |
 | An upload ceiling | `INGEST_DAILY_MB` (512 per person and day) | A friend's broken shipper can't fill your disk |
+| Battle.net for friends (optional) | `PROFILE_CHARACTERS_URL` on the exporter (`http://ui:8091/profile-characters`) and the share port's token | Every friend's characters get Battle.net's copy every 2 hours, under their own account ([Battle.net data](battlenet.md)) |
 
 The full view refuses to start with `WOW_STATE_DIR` unless `VIEW=full`, `AUTH=proxy`, the
 proxy's trust and the MCP login are set. Caddy, nginx and Traefik recipes for the login proxy,

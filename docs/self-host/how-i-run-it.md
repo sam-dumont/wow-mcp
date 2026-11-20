@@ -4,9 +4,9 @@
 how my install lets friends sign in with their Battle.net account, and what each piece costs.
 
 Nobody needs an identity provider and a webhook to share WoW levelling stats with a few
-friends. I had them already (it's my homelab), so here's how they fit. You don't need any of it: the kit runs
-with basic auth, or behind any login proxy that sets the user's `sub`
-([Add friends](friends.md)). The part worth copying is the sign-in: friends click
+friends. I had them already (it's my homelab, and yes, it's overkill), so here's how they fit.
+You don't need any of it: the kit runs with basic auth, or behind any login proxy that sets the
+user's `sub` ([Add friends](friends.md)). The part worth copying is the sign-in: friends click
 **Battle.net**, and nobody gets in until I say so.
 
 ## What runs where
@@ -73,8 +73,15 @@ resource "zitadel_idp_oauth" "battlenet" {
 }
 ```
 
-It's an instance-level provider, so the button shows on the login's first page. The friends
-org has domain discovery on: a new account lands in the org whose domain ends its username.
+The button shows on wow-stats' way in only, not on my other sites' logins. ZITADEL has no
+per-app list of providers, so the Battle.net provider is allowed in the friends org's login
+policy only, and my proxy shows a small sign-in page of its own, with one button, to anyone
+on wow-stats without a session. The button links to ZITADEL's
+authorize URL with two reserved scopes: the friends org (`urn:zitadel:iam:org:id:<id>`) and
+the provider (`urn:zitadel:iam:org:idp:id:<id>`). ZITADEL then skips its own pages, goes
+straight to Battle.net, and a new account lands in the friends org. The AI's consent page
+gets the same button from `OIDC_BATTLENET_ORG_ID` and `OIDC_BATTLENET_IDP_ID`
+([Set up the login for your AI](oidc.md#a-battlenet-button-zitadel)).
 
 ## The webhook fills in the blanks
 
@@ -153,19 +160,6 @@ them to their page.
 The same webhook also gets ZITADEL's **events**: a user added, renamed, deactivated,
 reactivated, removed, locked or unlocked, and any grant change.
 
-```hcl
-resource "zitadel_action_execution_event" "users" {
-  for_each   = toset(["user.human.added", "user.username.changed", "user.deactivated",
-                      "user.reactivated", "user.removed", "user.locked", "user.unlocked"])
-  event      = each.value
-  target_ids = [zitadel_action_target.hook.id]
-}
-
-resource "zitadel_action_execution_event" "grants" {
-  group      = "user.grant"
-  target_ids = [zitadel_action_target.hook.id]
-}
-```
 
 It keeps the friends org's events only and waits for things to calm down: 30 seconds after the
 last one, it asks GitHub (through a GitHub App, with a one-hour token limited to starting
@@ -183,22 +177,10 @@ deletes their data on the spot.
 
 ## Linking an account that already exists
 
-My own account has a passkey. I wanted Battle.net on the same account (same user id, so the
-same `sub` everywhere), not a second one. A Battle.net identity can be linked to one account
-only, and the first click already linked it to a new pending account. So a small script moves
-the link, through ZITADEL's v2 user API:
-
-1. Check the pending account is exactly what a Battle.net click makes (friends org, the
-   `.invalid` email, the Battle.net link as its only way in, no grant, no metadata) and the
-   existing one has no Battle.net link yet.
-2. `DELETE /v2/users/<pending>/links/<idp>/<battlenet-sub>`.
-3. `POST /v2/users/<existing>/links` with the same link (put back on the pending one if this
-   fails).
-4. `DELETE /v2/users/<pending>`. That's a `user.removed` event, so the next deploy drops it
-   from the pending list.
-
-From then on the passkey and Battle.net both sign in to the same account. It runs as a dry run
-by default and prints ids and states only.
+My own account had a passkey before Battle.net, and the first Battle.net click made a second,
+pending account. A small script moves the Battle.net link from the pending account to mine
+through ZITADEL's v2 user API (checks first, a dry run by default), then deletes the pending
+one: one account, one `sub`, both ways in.
 
 ## What it costs
 

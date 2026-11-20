@@ -84,12 +84,12 @@ const SECTIONS = [
     { group: "Set it up", pages: [
       { src: "docs/self-host/production.md", label: "Run it on a server" },
       { src: "docs/self-host/reverse-proxy.md", label: "Reverse proxy and HTTPS" },
-      { src: "docs/self-host/oidc.md", label: "The login for your AI" },
       { src: "docs/self-host/sharing.md", label: "Share your page" },
+      { src: "docs/self-host/oidc.md", label: "The login for your AI" },
       { src: "docs/self-host/friends.md", label: "Add friends" },
-      { src: "docs/self-host/how-i-run-it.md", label: "How I run it" },
-      { src: "docs/self-host/admin.md", label: "Admin overview" },
       { src: "docs/self-host/battlenet.md", label: "Battle.net data" },
+      { src: "docs/self-host/admin.md", label: "Admin overview" },
+      { src: "docs/self-host/how-i-run-it.md", label: "How I run it" },
       { src: "docs/deploy.md", label: "Without Docker Compose" },
     ] },
     { group: "Keep it running", pages: [

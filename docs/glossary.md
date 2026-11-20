@@ -28,7 +28,7 @@ installed. The `WTF` and `Interface/AddOns` folders the docs talk about are in i
 **The little program, the shipper.** What the install command puts on the computer you play
 on. Every 5 minutes it reads what changed in `WTF`, sends it to your server with your upload
 password, and keeps a copy in `WoWArchive` in your home folder.
-[What it does](players/getting-started.md#what-the-program-on-your-computer-does).
+[What it does](players/privacy.md#what-leaves-your-computer).
 
 **Start page.** `/start` on your friend's server: your personal install command, and a tick
 for each step once it works.

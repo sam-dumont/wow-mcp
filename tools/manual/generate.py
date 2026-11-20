@@ -525,11 +525,10 @@ def _os_cmds(os_: dict, personal: bool) -> list[str]:
             cmd = o["command"]
             if personal and "{code}" in cmd:
                 cmd = cmd.replace("{code}", "<your code>")
-                part += ["Your command is on your start page. It looks like this (the code is yours, single use):",
-                         ""]
+                part += ["Your own command is on your start page. It looks like this:", ""]
             part += [code(cmd, OS_LANG[key]), ""]
         if o.get("installs"):
-            part += [f"It installs: {text(o['installs'])}", ""]
+            part += ["<details>", "<summary>What it installs</summary>", "", text(o["installs"]), "", "</details>", ""]
         out += os_block(key, part)
     return out
 
@@ -539,7 +538,8 @@ def block_steps() -> str:
     out = clip(st.get("media"), "the whole setup, from the start page")
     for i, s in enumerate(st["steps"], 1):
         g = s.get("generic") or {}
-        out += [f"### {i}. {s['title']}", "", f"*{text(s['caption'])}*", ""]
+        # The caption is /start's subtitle; here the body says it already.
+        out += [f"### {i}. {s['title']}", ""]
         out += clip(s.get("media"), s["title"].lower())
         for p in g.get("body") or s.get("body", []):
             out += [text(p), ""]
@@ -547,8 +547,11 @@ def block_steps() -> str:
             out += _os_cmds(s["os"], personal=True)
         if s.get("code_note"):
             out += [text(s["code_note"]), ""]
+        # What to do when it didn't work stays folded: one action per step
+        # in sight, the fix a click away.
         out += [f"**It worked when:** {text(g.get('check') or s['check'])}", "",
-                f"**If not:** {text(g.get('if_not') or s['if_not'])}", ""]
+                "<details>", "<summary>Didn't work?</summary>", "",
+                text(g.get('if_not') or s['if_not']), "", "</details>", ""]
     return "\n".join(out)
 
 
@@ -561,10 +564,13 @@ def block_update() -> str:
     out = [f"- {text(u)}" for u in st["update"]]
     upd = next((s["update"] for s in st["steps"] if s.get("update")), {})
     if upd:
-        out += ["", *clip(st.get("update_media"), "an update"), "The update lines, no code needed:", ""]
+        # Only a shipper that didn't update itself needs it: folded.
+        out += ["", "<details>", "<summary>The update line, when your start page asks for it</summary>", "",
+                *clip(st.get("update_media"), "an update"), "No code needed:", ""]
         for key, label in (("windows", "Windows (PowerShell)"), ("mac", "Mac (Terminal)")):
             if key in upd:
                 out += os_block(key, [f"**{label}.**", "", code(upd[key], OS_LANG[key]), ""])
+        out += ["</details>", ""]
     return "\n".join(out).rstrip()
 
 
@@ -597,7 +603,9 @@ def block_trouble(part: str) -> str:
     for t in steps()["troubleshooting"]:
         if t.get("part", "install") != part:
             continue
-        out += [f"### {text(t['title'])}", "", text(t["body"]), "", f"**Fix:** {text(t['fix'])}", ""]
+        # The symptoms in sight, each fix one click away: a reader scans for theirs.
+        out += [f"### {text(t['title'])}", "", "<details>", "<summary>Why, and the fix</summary>", "",
+                text(t["body"]), "", f"**Fix:** {text(t['fix'])}", "", "</details>", ""]
     return "\n".join(out).rstrip()
 
 
@@ -608,11 +616,18 @@ def block_missing() -> str:
     return table(["Missing from your page", "Comes from", "Fix"], rows)
 
 
+# The guide's sections the manual gives a page of their own (docs/players/):
+# "Your page at a glance" links those instead of saying it all twice.
+OWN_PAGE = frozenset({"overview", "character", "dungeons", "plan", "timeline"})
+
+
 def block_page() -> str:
     g = steps()["guide"]
     out = [text(p) + "\n" for p in g["what"]["body"]]
     out += ["The tabs at a glance:", ""] + [f"- **{t}**: {text(d)}" for t, d in g["tabs"]] + [""]
     for sec in g["page"]:
+        if sec["id"] in OWN_PAGE:
+            continue
         out += [f"## {sec['title']}", ""]
         if sec.get("caption"):
             out += [f"*{text(sec['caption'])}*", ""]
@@ -637,8 +652,15 @@ def block_clients() -> str:
 
     url = BASE + "/mcp"
     out = []
-    for c in helppage.CLIENTS:
-        out += [f"### {c.name}", ""]
+    # The first client (Claude) in full, the others folded under their name:
+    # a reader looks for one client, not thirteen.
+    for i, c in enumerate(helppage.CLIENTS):
+        if i == 1:
+            out += ["### Other clients", ""]
+        if i:
+            out += ["<details>", f"<summary>{c.name}</summary>", ""]
+        else:
+            out += [f"### {c.name}", ""]
         out += [f"{i}. {text(s)}" for i, s in enumerate(c.steps, 1)] + [""]
         if c.snippet:
             snip = c.snippet.replace("{url}", url)
@@ -647,6 +669,8 @@ def block_clients() -> str:
         if c.note:
             out += [f"> {text(c.note)}", ""]
         out += [f"**It worked when:** {text(c.check or helppage.CHECK)}", ""]
+        if i:
+            out += ["</details>", ""]
     return "\n".join(out).rstrip()
 
 

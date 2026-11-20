@@ -57,6 +57,11 @@ RULES: list[tuple[str, list[str]]] = [
     (r"^data/", [FULL]),
     (r"^tools/fixtures/", [FULL]),
     (r"^tools/", ["tests/test_audit_deps.py", "tests/test_release.py", "tests/test_workflow_guard.py"]),
+    # The install steps are app data too: /start, /help/ and the shipper's
+    # preflight read them (a docs-only rule missed test_tenancy, PR #14).
+    (r"^docs/videos/steps\.json$", ["tests/test_tenancy.py", "tests/test_addon_lists.py", "tests/test_missing.py",
+                                     "tests/test_preflight.py", "tests/test_links.py", "tests/test_manual.py",
+                                     "tests/test_start_browser.py"]),
     # Docs and repo text: the tests that read them.
     (r"^(docs/|[^/]+\.md$)", ["tests/test_links.py", "tests/test_public_scan.py", "tests/test_license.py",
                               "tests/test_manual.py", "tests/test_privacy_table.py", "tests/test_release.py"]),
