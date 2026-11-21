@@ -8,9 +8,14 @@ connector in claude.ai (web, desktop, phone), Claude Code, ChatGPT or any
 MCP client, and the model calls the tools below itself, in your own account.
 Nothing to pay beyond your plan.
 
-**No model runs on the server.** The server prepares the
-data, holds the analysis' state and judges every number; the reasoning is
-your client's. The character page's **Ask Claude** and **Ask ChatGPT** links
+**The reasoning is your client's.** The server prepares the
+data, holds the analysis' state and judges every number: a kept finding is
+one whose numbers match its saved query on a re-run, and the query is kept
+with it for you to read. That checks the numbers, not the reading. The one
+exception is opt-in: a host who configures an AI provider has the server
+run the analysis itself after `ANALYSIS_STALE_PLAYED_HOURS` of play without
+a refresh ([Server-side analysis](self-host/server-analysis.md)); no MCP
+call starts one. The character page's **Ask Claude** and **Ask ChatGPT** links
 open a new chat (`https://claude.ai/new?q=`, `https://chatgpt.com/?prompt=`: ChatGPT's `?q=` would send it at once) with
 one instruction typed in, "Using the wow connector, run the analyse prompt
 for <character>.", and nothing else: no data in the link, nothing sent
@@ -425,7 +430,7 @@ the MCP neither lists nor runs it, whatever the env. A person on a
 multi-user install can turn on "Battle.net data to my AI" in Settings
 (their own data to their own assistant); then
 their MCP lists `market`, and only theirs. A one-person install has no
-such setting and never serves it. No model runs on the server, so without
-that setting Battle.net data reaches no model at all; the full view's
+such setting and never serves it. The server's own analysis has no
+Battle.net source, so without that setting Battle.net data reaches no model at all; the full view's
 market strip shows it to you only. `prices`, your own Auctionator scans,
 is game data, not API data: the MCP always has it.

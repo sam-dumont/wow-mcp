@@ -23,6 +23,10 @@
 
 - A server analysis run that didn't finish put back the character's files from its start, erasing anything the player's own AI had written to the same character meanwhile (a finding it proposed, its run's progress). The server run now watches who else writes that character's analysis while it runs; it rolls back only when nobody did, and otherwise leaves the files alone and ends its reason with "not rolled back".
 
+### Fixed
+
+- The README, the landing page, the FAQ, the architecture and MCP pages said no model runs on the server and your own assistant does all the thinking. Since 0.7.0 a host can also have the server run the play analysis itself, with an AI provider they configure, once a character has `ANALYSIS_STALE_PLAYED_HOURS` (10) of play since its last refresh. Those summaries now say who processes what and when, like the privacy pages; the in-app Privacy page gives the host's hours and says your AI never starts a server run. Kept findings are described as checked against their saved query (which you can read), not as proven. Also: the data sources table had "quests done" from Questie or Altoholic only, with no API (the Recorder, rewards held and quest chains count too, and Battle.net has the list but isn't read), and the security notes still had S6 open (the repository is public with a ruleset on main).
+
 ## 0.7.0-rc.5 (2026-11-21)
 
 ### Added

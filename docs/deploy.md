@@ -24,7 +24,8 @@ that has `read:packages` (an `imagePullSecrets` entry; docs/development.md,
 
 One image for every command, with no third-party binary and no model: the
 play analysis and the plans are written by the user's own assistant over
-the MCP (docs/mcp.md). (The changelog's 0.4.0 entry lists what it removed, the `wow-stats-agent` image among it.)
+the MCP (docs/mcp.md), or, for the analysis only, by the AI provider the
+host configured, through its API (docs/self-host/server-analysis.md). (The changelog's 0.4.0 entry lists what it removed, the `wow-stats-agent` image among it.)
 
 - Runs as uid/gid 10001, `ENTRYPOINT ["wow-stats"]`.
 - Works with a read-only root filesystem. Only `/tmp` needs to be writable
@@ -362,7 +363,8 @@ through VictoriaLogs:
 
 ### Battle.net data and models
 
-No model runs on the server. The MCP's `market` tool (the WoW
+No Battle.net data reaches the server's own analysis (its tables have no
+Battle.net source). The MCP's `market` tool (the WoW
 Token price and ruleset status from Blizzard's API) is neither listed nor
 callable, whatever the env, except for a person who turned on "Battle.net
 data to my AI" in their settings on a multi-user install (their own data to

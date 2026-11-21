@@ -45,8 +45,11 @@ ever shows other players, what killed you, or where your character is right now.
 
 **Your AI.** The server speaks MCP, the protocol Claude, ChatGPT and a dozen other assistants
 use to call outside tools. Your assistant asks for your data and does the thinking in your own
-account: no model runs on the server, and wow-stats never sees the conversation. When the
-assistant quotes a number, the server re-runs the query behind it.
+account, and wow-stats never sees the conversation. A finding the assistant keeps is checked
+against its saved query (the server re-runs it and compares the numbers), and you can ask to
+see that query. A host can also turn on the server's own analysis, with an AI provider they
+configure, after 10 hours of play without a refresh: [Server-side
+analysis](../self-host/server-analysis.md).
 [Connect your AI](../ai/connect.md).
 
 **Battle.net data, optional.** With your own Battle.net API client, the server also fetches

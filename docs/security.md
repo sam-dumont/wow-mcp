@@ -65,7 +65,7 @@ operator-trust items.
 | S2 `play_sql` could hold about 0.5 GB through the sorter | a value is capped at 64 KB, so the sorter spills to disk |
 | S4 a host proxy in front of `AUTH=open` exposed the full view | with `AUTH=open` the full view answers 403 to any request carrying proxy headers (`X-Forwarded-*`, `Forwarded`, `Via`, `X-Real-IP`), refuses to start with a non-empty `ALLOWED_HOSTS`, and the 421 page says to set a login. `ALLOW_OPEN=1` and the public view are exempt |
 | S5 a friend could grow the shared process's memory | `/api/model3d` takes only a known `sex`, `/api/plan` only a known character; the per-key lock maps are refcounted or striped |
-| S6 repository rulesets while private | not available on a private free repository: merge commits are off until the switch, then the rulesets |
+| S6 repository rulesets while private | the repository is public and `main` has a ruleset: pull requests only (squash or rebase, linear history), the CI checks required and up to date (tests, Windows, image, audit, CodeQL, dependency review), no force push or deletion |
 | S7 privacy page statements | the page says the /zogzog/ link exists for everyone (it opens for whoever has it), that the app's log names a character in a few lines, and that the program updates itself without asking |
 
 **Left open: a friend can still make the exporter read names nobody here
