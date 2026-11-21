@@ -9,7 +9,7 @@ the assistant writes. `query_metric` asks for **named metrics**: `played_s` by `
 `dungeon_s` by `zone` per week. The server writes the SQL from one model file,
 [`wowstats/analysis/semantic.yaml`](../../wowstats/analysis/semantic.yaml), and sends back the
 rows, the SQL it ran and each metric's definition and caveats. 66 metrics (3 of them across
-two models), 25 dimensions, three time grains (day, week, month).
+two models), 26 dimensions, three time grains (day, week, month).
 
 The character page reads the same file: its time per level, XP an hour, kill and quest totals,
 dungeon runs and deaths come out of the layer when the page's answers are built (see
@@ -39,7 +39,7 @@ exactly these GROUP BYs, and the dialect the layer compiles to.
 The layer itself is [Boring Semantic Layer](https://github.com/boringdata/boring-semantic-layer)
 (MIT): measures, dimensions, time grains and ratios in a YAML file, compiled to SQL through ibis
 and sqlglot. Only the compiler runs here (no ibis backend, so no pandas or pyarrow in the image).
-The others I looked at, on 2026-11-20:
+The others I looked at:
 
 - **dbt MetricFlow** (Apache-2.0): the reference design, but 0.214 caps Python at
   3.14 and the image runs 3.15. It also wants a dbt manifest and a time spine table.
@@ -70,7 +70,9 @@ flowchart LR
 - **Several models, no fan-out.** Metrics from different tables (`online_s` from the timeline,
   `played_s` from the level splits, `kills` from the records) are each aggregated on their own
   table, then joined on the `group_by` columns. A level's 11,240 s is never counted once per
-  timeline row.
+  timeline row. With three models or more, each one joins on the keys of every model before
+  it, so a level the first model lacks still lines up with the third instead of splitting
+  into two rows.
 - **Locked down.** DuckDB runs with no file or network access, no extensions, a 256 MB memory
   limit and a 5 s timeout. A query that reads `read_csv`, `read_parquet`, a URL or `ATTACH`
   is refused, and so is one calling `repeat`, `lpad` or a scalar `range` (DuckDB's memory limit
@@ -211,9 +213,9 @@ and mail in, less repairs, purchases, training, flights and mail out, all togeth
 inside one level. On the demo the rest is the flights: -86 copper at 22, -116 at 24.
 
 [Accountant Classic](https://www.curseforge.com/wow/addons/accountant-classic) (GPL-2.0, lists
-Forever, updated 2026-11-12) saves money in and out per source (training, taxi, trade, auction
+Forever) saves money in and out per source (training, taxi, trade, auction
 house, merchants, repairs, mail, quests, loot) per session, day, week, month and total, in
-`Accountant_ClassicSaveData`. It isn't read: whether to add it is the owner's call. It counts by
+`Accountant_ClassicSaveData`. The kit doesn't read it. It counts by
 calendar window, not by level, so even with it a level's repairs would come from the totals at
 each logout.
 
@@ -277,6 +279,15 @@ counts those numbers itself, the same way.
 `finding.metric_query`, and the finding's `{placeholders}` name its output columns. The judge
 compiles it, re-runs it and compares every number in `expect`. The kept finding stores the
 compiled SQL and its parameters, and the nightly recheck re-runs exactly that.
+
+The evidence has to read the play history. A SQL that selects a constant (`SELECT 3 AS n`) or
+only the documentation tables re-runs to the same number every time and says nothing about the
+data, so the judge refuses it and points to `query_metric`. A query that reads a table can still
+compute the wrong thing: the re-run can't catch that.
+
+A `query_metric` call counts in the analysis run like a `play_sql` query: it adds to the run's
+query count, and the tables under the metrics it read count as read, so the coverage round
+doesn't send a lane back to a table the metrics already covered.
 
 ## play_sql speaks DuckDB now
 

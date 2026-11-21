@@ -120,6 +120,9 @@ your own server, the one in `[ship]`, with the same upload password as
   hands);
 - it sends them one by one, at most 96 MB a run, within the same daily
   budget as your events. A file the server already has is never sent again.
+  One file can be 48 MB at most (the server's limit, given in its answer to
+  `need`; Forever's HD character models are 17 to 28 MB): a bigger one is
+  skipped and the log says how many were.
 
 Only what your game has on disk can go: the launcher downloads some files
 only when the game needs them, so a look you never saw in game (the Classic

@@ -27,7 +27,7 @@
 
 <div class="feature">
 
-![The Next moves box of the demo priest: an off-hand upgrade from Scarlet Monastery Library, Razorfen Kraul with the quest to pick up first and the drops worth having, and the guide steps that ran long](../../docs/images/next-moves.webp)
+![The Next moves box of the demo priest: Gnomeregan with the quests to pick up first, the quest rewards and drops you could use, each with its badge and a line like "70% → 91% on your chest", then an upgrade from Razorfen Kraul](../../docs/images/next-moves.webp)
 
 <div>
 <p class="eyebrow">Before you log in</p>
@@ -39,19 +39,19 @@
 
 <div class="feature flip">
 
-![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../../docs/images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, each with its badge and its slot's share before and after (17% → 100%), the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../../docs/images/upgrades.webp)
 
 <div>
 <p class="eyebrow">Gear</p>
 <h3>Every slot, its next upgrade, and where it drops</h3>
-<p>The best item you can wear now and within 3 levels, the points it adds, and where to get it: a boss, a quest, or the auction house at yesterday's price. If it's already in your bags, the page tells you to equip it.</p>
+<p>The best item you can wear now and within 3 levels, what it does to the slot ("70% → 91% on your chest": its share of the best item for that slot, before and after), and where to get it: a boss, a quest, or the auction house at yesterday's price. If it's already in your bags, the page tells you to equip it.</p>
 <p><a href="../../docs/players/gear.md">Gear and upgrades →</a></p>
 </div>
 </div>
 
 <div class="feature">
 
-![Two dungeon cards from the demo: Razorfen Kraul and City of Dalaran, each with a worth-a-run line, the quests to pick up, the drops you could use, and what a trip is worth](../../docs/images/dungeons.webp)
+![Two dungeon cards from the demo: Razorfen Kraul and City of Dalaran, each with a worth-a-run line, the quests to pick up, the drops you could use with their badges, and what a trip is worth](../../docs/images/dungeons.webp)
 
 <div>
 <p class="eyebrow">Dungeons</p>
@@ -63,7 +63,7 @@
 
 Also on your page: **a plan for tonight**, 1 to 6 hours of guide steps with checkpoints and
 where to log out ([Plan your next hours](../../docs/players/plan.md)), and **your history**:
-every level, one journal entry per evening, your look at each level in 3D
+every level, one journal entry per session, your look at each level
 ([Climb, timeline, journal](../../docs/players/history.md)).
 
 <div class="need">
@@ -93,8 +93,9 @@ every level, one journal entry per evening, your look at each level in 3D
   friend) run, and nowhere else unless that server's host turns on the analysis below. Friends
   see what you choose to share.
 - **Your own AI does the thinking**, in your own account. A host can also have the server
-  analyse your play with an AI provider they pick, after 10 hours of play without a refresh
-  (their setting): off by default, and the app's Privacy page says whether it's on.
+  analyse your play with an AI provider they pick, once a character has 10 hours of play since
+  its last refresh (their setting). Off until they set it up; the app's Privacy page says
+  whether it's on.
 
 [What's shared →](../../docs/players/privacy.md)
 

@@ -2,6 +2,80 @@
 
 ## Unreleased
 
+What 0.7.0 brings over 0.6.1, in short. Every change is below, one
+release candidate at a time.
+
+**For players**
+
+- Gear says how far each slot is from its best in slot (BiS): a badge on
+  every item icon, orange for BiS, purple from 85%, blue from 50%, and
+  "70% → 91% on your chest" on every upgrade, dungeon drop and quest
+  reward. The upgrades come slot furthest from BiS first.
+- The paperdoll's picture is a still of your own 3D model, drawn by the
+  server's renderer. Blizzard's armory renders are gone: they could show
+  another player's character.
+- "View in 3D" draws your character from your own game files: a weapon in
+  each hand, pauldrons on the right shoulder, eyes with their colour.
+- A quest you finished counts as done everywhere, even with the Recorder
+  off: the whole gear and bags history, every Questie or Altoholic save,
+  the rewards you hold, and what Battle.net says you wear.
+- New dungeon loot (The Drowned City's) gets its stats from your own
+  game's cache.
+- Talent tooltips show the game's numbers: the one for your rank, and
+  the ones another spell holds (Spirit Tap's Spirit and its 15 sec).
+- Battle.net fills what your addons don't send, every 2 hours.
+- Other players' names, realms and game ids stay on your PC unless a page
+  uses them.
+
+**For your AI**
+
+- `dashboard_refresh` refreshes "How you play" with your own AI, for the
+  character whose analysis is the oldest. It never starts a run on the
+  server and costs the host nothing.
+- The connector's login asks which account to use and, when the host set
+  it up, can send you straight to Battle.net.
+- Named metrics (`list_metrics`, `query_metric`) and `play_sql` on DuckDB.
+  A finding's query must read your play history: a constant is refused.
+
+**For hosts**
+
+- The server can run the play analysis itself, for friends who never ask
+  their own AI: Anthropic, OpenAI or any OpenAI-compatible endpoint,
+  through workload identity federation or a key file, with a monthly cap.
+  It runs for a character once it has 10 hours of play since its last
+  refresh (`ANALYSIS_STALE_PLAYED_HOURS`), and on nothing else.
+- `WOW_OWNER_SUB` takes a list of accounts. A friend listed without a name
+  gets one from their BattleTag.
+- One-button releases, signed shipper updates, the image on Docker's
+  hardened Python. After 0.7.0, a knowledge base refresh goes out as a
+  patch release by itself.
+
+### Upgrading from 0.6.x
+
+- 0.6 shippers update themselves within 6 hours of the server moving to
+  0.7.0. Nothing to reinstall.
+- Pictures need the renderer now: `RENDER_URL` on the publisher and
+  `RENDER_FROM` on the full view (docs/reference/environment.md). Without
+  them the paperdoll shows the silhouette and the 3D toggle.
+- `PROFILE_INTERVAL` defaults to 7200 (it was 86400) and picks clock slots.
+- `ui-public` with several people takes `USERS_URL` and
+  `ANALYSIS_SHARE_TOKEN_FILE` to follow Settings.
+- Lines stored before 0.7.0 keep what 0.6 sent about other players:
+  docs/contract.md, "Stored before 0.7.0", lists the filters that find
+  them.
+- Building from source needs `docker login dhi.io` once (a free Docker Hub
+  account). The released images pull as before.
+- The server's own analysis stays off until you configure a provider;
+  `ANALYSIS_AUTO=off` keeps it off with one.
+
+### Docs
+
+- Every page checked against 0.7.0's behaviour: the server's own analysis
+  and what it sends where, `dashboard_refresh` on your own AI, the BiS
+  badges, the picture, owner aliases, BattleTag names, quest completion,
+  the connector's account picker, the knowledge base's patch releases.
+  Screenshots retaken on the demo character.
+
 ### Fixed
 
 - A ring or trinket line could start from the other worn ring's share: the paperdoll read 40% and 34% for the two rings, and every ring upgrade said "40% → …" though it replaces the 34% one. The doll measured the stronger worn ring against the best item left and the weaker against the next, so the weaker could read the higher share. The best item left now goes to the slot it replaces (an empty one, else the weaker worn), the stronger against the next, so the weaker always reads the lower share and every line starts from it. The stronger ring or trinket can read a higher share than before, and only the best ring left reads 100% going into the slot it replaces (the second of the best two reads its share of the best).
@@ -21,6 +95,8 @@
 - The Dungeons panel and the Overview's quest rewards read about a third of the paperdoll's BiS share ("12% → 18% on your chest" next to a doll at 39%). The planner took the character's level from the newest Recorder event with a `level`, and a kill's level is the creature's: a level-33 character who last killed a level-55 guard got BiS from 20 levels up. Only a ding, a session record or Polestar's sheet set the level now. The planner also scores from the paperdoll's own inputs (Battle.net's talents and worn stats, the auction house) instead of its own copy, so each worn slot has one BiS share and every item line on the Overview and the Dungeons panel starts from the badge the doll shows (the MCP's `next_moves`, `next_step`, `gear_options` and `dungeon_options` too).
 - A talent whose number grows with its rank showed it as 0: Spirit Tap 5/5 read "Gives you a 0% chance to increase your Spirit". Forever keeps those numbers in a per-rank curve (wago.tools' `TraitDefinitionEffectPoints` and `CurvePoint`), and the spell itself says 0. The talent frame now reads the curve for every talent that has one, in every class and the Legacy trees: Spirit Tap says 20% at 1/5 and 100% at 5/5, and a talent not learned yet shows rank 1's numbers. The cached talent catalog is rebuilt once.
 - Talent tooltips no longer show "?" for a number that lives in another spell, a duration, the stacks or a formula. Spirit Tap read "increase your Spirit by ?% for ?"; it now reads "by 100% for 15 sec", and Improved Scorch "by 3% and lasts 30 sec, stacking up to 5 times". The catalog reads the spells a description names (`$15271s1`) from the same wago.tools tables, plus SpellDuration, SpellAuraOptions and SpellRadius, and works out `${$s1/-1000}`-style formulas. A number only the game client knows (your spell power, your level) is left out with the words that carried it: "Shields up to ? damage" reads "Shields damage". "Your next 1 spells" says "spell". The cached catalog is rebuilt once more.
+- The nginx kit refused the 3D view's HD character models (17 to 28 MB) with a 413: it capped the whole full-view host at 8 MiB. `/install/assets/` now takes up to 48 MiB, the server's own limit; `/ingest` and the rest keep 8 MiB.
+- The compose kit's `exporter` passes `PROFILE_CHARACTERS_URL` from `.env` and reads the share token from `ui-state` (read-only), so friends' characters get Battle.net's copy without a `compose.override.yaml`.
 
 ## 0.7.0-rc.6 (2026-11-21)
 

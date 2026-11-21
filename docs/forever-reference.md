@@ -9,13 +9,12 @@ are dungeons and their level range. `wowstats/forever.py` reads it.
 ## Why it exists
 
 The shipper names a quest from the data addons on the player's PC and from
-the Recorder's own `text` records of the same run. Records shipped before it
-learned that (2026-11-18), or from a run that never saw the quest's text,
-carry only `quest_id`. They are never sent again (records dedupe on
-`source_id`), so the 0.2.3 journal printed "quest 631", "quest 98245" and so
-on, and nothing logged it.
+the Recorder's own `text` records of the same run. A record from a run that
+never saw the quest's text, or sent by an older shipper, carries only
+`quest_id`, and it is never sent again (records dedupe on `source_id`).
+Without this file the journal would print "quest 631".
 
-Now the server names them, in this order:
+The server names a quest in this order:
 
 1. the name the record carries,
 2. forever-db's title (every quest Forever has, its own 98xxx ones too),

@@ -200,7 +200,7 @@ def test_without_the_addon_the_one_step_to_every_change(site, pw, engine):
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
 @pytest.mark.parametrize(("mode", "line"), [
     ("same", "No talent change since"),
-    ("none", "once Battle.net has read this character on two days"),
+    ("none", "once Battle.net has read this character."),
     ("down", "can’t be read right now"),
 ])
 def test_every_missing_source_says_one_line(site, pw, engine, mode, line):

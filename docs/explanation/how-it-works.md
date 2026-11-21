@@ -24,12 +24,13 @@ having: `/reload` after a dungeon, an auction house scan, or before a break.
 **The shipper.** A small program on the computer you play on. Every 5 minutes it reads what
 changed in `WTF` (and the combat log, if you turned it on), turns it into events and sends them
 to your server with your own upload password. It keeps a copy of everything it sent in a
-`WoWArchive` folder in your home folder. It never reads your WoW or Battle.net password, and
+`WoWArchive` folder in your home folder. Other players you met leave your computer as a name,
+when, where and how you met them, nothing more. It never reads your WoW or Battle.net password, and
 nothing outside the WoW folder. [What it sends](../players/privacy.md#what-leaves-your-computer).
 
 **The server.** One `docker compose up` on a small box: 2 vCPU and 2 GiB of RAM run it for
 one player, and a year of one player's events takes a few MiB. It keeps the events
-and works out everything else from them, every time you open a page: pace, upgrades,
+and works out everything else from them each time new ones arrive: pace, upgrades,
 dungeons, plans. Someone you know can run it for you, and then you skip this part.
 
 ## What you get out of it
@@ -47,14 +48,16 @@ ever shows other players, what killed you, or where your character is right now.
 use to call outside tools. Your assistant asks for your data and does the thinking in your own
 account, and wow-stats never sees the conversation. A finding the assistant keeps is checked
 against its saved query (the server re-runs it and compares the numbers), and you can ask to
-see that query. A host can also turn on the server's own analysis, with an AI provider they
-configure, after 10 hours of play without a refresh: [Server-side
-analysis](../self-host/server-analysis.md).
+see that query. A host can also have the server run that analysis itself, with an AI
+provider they pay for, once a character has 10 hours of play since its last refresh (the
+host can pick another number). Your AI never starts one of those runs:
+[Server-side analysis](../self-host/server-analysis.md).
 [Connect your AI](../ai/connect.md).
 
-**Battle.net data, optional.** With your own Battle.net API client, the server also fetches
-your character's look (for the 3D view) and the WoW Token price; never the auction house, whose
-prices come from your own Auctionator scans. Blizzard's terms cap that data at 30 days, so it lives in its own store with a 23-day
+**Battle.net data, optional.** With your own Battle.net API client, the server also fetches,
+every 2 hours, your character's look, talents and worn gear (the 3D view and your character's picture use
+the look; the rest fills what the addons didn't send) and the WoW Token price; never
+the auction house, whose prices come from your own Auctionator scans. Blizzard's terms cap that data at 30 days, so it lives in its own store with a 23-day
 retention. [Battle.net data](../self-host/battlenet.md).
 
 ## Where to go next

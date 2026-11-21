@@ -8,6 +8,10 @@ From zero to your climb in a web page, on Windows or a Mac. Count an hour the fi
 most of it waiting for downloads. If you tried [the demo](self-host/demo.md), it's the same
 server, without the made-up characters.
 
+It's a hobby project, for hobbyists hosting a few friends: GPL-3.0, no warranty, no support
+promise. It's also overkill for a levelling stats page (an OAuth server, a hardened image and a
+3D renderer for one character's climb), so expect a few more moving parts than the job needs.
+
 > Every step below was run on a Mac (Apple silicon) from a clean home folder. On Windows the
 > shipper's install is tested on every change; the Docker steps follow Docker's and
 > Microsoft's own instructions but weren't run on a fresh Windows machine.
@@ -146,7 +150,7 @@ so the key never reaches the server, a log or a proxy. No key or a wrong
 one shows "Nothing here."
 
 Print the friends' link with `docker compose run --rm publish zogzog-key link`. Making a new
-link, switching the sealed site off, the help page and pictures of past levels:
+link, switching the sealed site off, the help page and the pictures:
 [Share your page](self-host/sharing.md).
 
 Everything here listens on `127.0.0.1` only, so nobody else on your network reaches it.
@@ -165,7 +169,7 @@ phone or the internet, with HTTPS and a login:
 Your game events are kept 100 years (`-retentionPeriod=100y` in
 `compose.yaml`), so nothing ages out by date. They compress well: 55 copies
 of the demo's week, 100,705 events, took 6.5 MiB (VictoriaLogs v1.54.0,
-the volume's size right after a flush; measured 2026-11-19). They live in
+the volume's size right after a flush). They live in
 the Docker volume `wow-stats_vl-data`; `docker system df -v` shows its size.
 
 To cap it, set `VL_MAX_DISK` in `.env` (`20GiB`, `500MiB`...) and run

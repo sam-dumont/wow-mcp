@@ -2,6 +2,10 @@
 
 **For:** contributors and curious self-hosters. **At the end:** you know the parts, how an event travels from the game to the page, and how the public view is kept apart.
 
+Yes, this is absolute overkill for a WoW stats page. There are two databases,
+an OAuth server and a headless Chromium whose only job is drawing your
+character, all to say how fast you levelled.
+
 ```
  the PC you play on            server (one image, two commands)
  ┌──────────────────┐          ┌──────────────────────────────────────────┐
@@ -14,9 +18,14 @@
                                │                                          │
                                │ wow-stats exporter (:9464)               │
                                │   Battle.net API ──push──► VictoriaMetrics│
-                               │   (23-day retention, daily force-merge)  │
+                               │   (every 2 h, 23 days, daily force-merge)│
                                └──────────────────────────────────────────┘
 ```
+
+Two optional parts sit beside it. The renderer (`wow-stats render`, its own
+image) draws the paperdoll's pictures when the publisher asks. An AI provider
+the host configures runs the play analysis on the server, on a timer
+("The MCP seam" below). Without either, every page still works.
 
 Everything at runtime is the Python standard library, but two extras: the
 `publish` seal (pyca/cryptography) and the MCP endpoint (FastMCP, `mcp`).
@@ -27,7 +36,7 @@ venv with the `wowstats` package and those two extras.
 
 | Path | What |
 |---|---|
-| `shipper/wow_stats.py` | The player's script (a uv inline script, stdlib only): archive, extract, ship. Its own installers for macOS (launchd) and Windows (Task Scheduler). `docs/contract.md` lists what it sends, `docs/shipper.md` how it runs. |
+| `shipper/wow_stats.py` | The player's script (a uv inline script, stdlib only): archive, extract, ship. It cuts other players down to a name, when, where and how you met them before anything leaves the PC, and reads the game's hotfix cache for the item facts the server asks for. Its own installers for macOS (launchd) and Windows (Task Scheduler). `docs/contract.md` lists what it sends, `docs/shipper.md` how it runs. |
 | `wowstats/cli.py` | `wow-stats ui` and `wow-stats exporter`. |
 | `wowstats/ui.py` | The HTTP server: config checks, logins, routing, the in-memory cache, `/ingest`. |
 | `wowstats/prebuilt.py` | The page's answers, built in the background once per new data and served as they are ("Caching" below). |
@@ -37,12 +46,16 @@ venv with the `wowstats` package and those two extras.
 | `wowstats/journal.py` | Splits the play history into sessions (more than 330 s without a Recorder record, the semantic layer's rule: `stores.split_sessions`) and builds one journal entry per session. |
 | `wowstats/redact.py` | The public and `/zogzog/` tiers: allow lists of what may leave the server. |
 | `wowstats/items.py` | Item names and qualities for the loot history (Forever's ItemSparse via wago.tools). |
-| `wowstats/exporter.py` | The Battle.net exporter. |
+| `wowstats/itemfacts.py` | Item facts (name, slot, item level, stats) the shipper reads from the player's own client for items our reference data lacks yet; kept per person, the reference always wins. |
+| `wowstats/otherplayers.py` | The same cut of other players' data as the shipper, applied at `/ingest` to what an older shipper still sends. |
+| `wowstats/quests.py` | Which quests a character has done: the whole history (Recorder, quest addons, every gear and bags sheet) plus what Battle.net says it wears, read live and never kept. One answer for every page and tool. |
+| `wowstats/exporter.py` | The Battle.net exporter: every character every 2 hours (`PROFILE_INTERVAL`). |
+| `wowstats/armory.py`, `wowstats/pictures.py`, `wowstats/renderer.py` | The paperdoll's picture and each past level's: our renderer's still of the 3D model ("Pictures" below). |
 | `wowstats/mcp/` | The tools and prompts, and the MCP endpoint on FastMCP (`server.py`: `/mcp` and the OIDC proxy that logs claude.ai, ChatGPT and Claude Code in through your identity provider, on `MCP_PORT`). `docs/mcp.md`. |
 | `wowstats/plan/` | Session plans: `facts.py` gathers game data (never the Battle.net store), `estimate.py` computes every number, `store.py` keeps plans and compares them with what happened, `write.py` the checks on a client's write-up, `http.py` the full view's plan box. No model. |
 | `wowstats/plan/dungeonview.py`, `wowstats/links.py` | The Dungeons panel of the full view and `/zogzog/`: one block per dungeon in reach (drops for the character's weights, obtained or missing; quests; what a trip is worth; a verdict on the whole value), from the planner's inputs, with Forever links to Wowhead. |
 | `wowstats/plan/dungeongain.py` | One more run of a dungeon: XP at the character's level now (its own runs there, kill XP carried by the KB's `xp.kill_formula` over the creatures it killed; else the quests alone), the time (its runs, else the KB's clear time plus its own travel), the share of the level, XP per hour against its own questing, the quests to pick up. One estimate for the Overview's dungeon move, the Dungeons panel and the MCP's `dungeon_options`. |
-| `wowstats/analysis/drive.py` | The play analysis, driven over MCP by the user's own model (or the server's, `auto.py`, when the host configured one): the brief in pages, read-only SQL, the judge (`verify.check`), the pass state machine (survey, lanes, follow-ups, coverage, synthesis) with the clash and feasibility checks. `passes.py` holds the instructions; `__init__.py` the per-character state, the nightly recheck and the shared page's lines. |
+| `wowstats/analysis/drive.py`, `auto.py`, `providers.py` | The play analysis, driven over MCP by the user's own model, or by the server's (`auto.py`, on its timer, through `providers.py`: Anthropic, OpenAI or any OpenAI-compatible endpoint) when the host configured one: the brief in pages, read-only SQL, the judge (`verify.check`), the pass state machine (survey, lanes, follow-ups, coverage, synthesis) with the clash and feasibility checks. `passes.py` holds the instructions; `__init__.py` the per-character state, the nightly recheck and the shared page's lines. |
 | `wowstats/mcp/plantools.py`, `analysistools.py`, `helppage.py` | The plan, KB and analysis tools on the MCP; the sealed `/help/` page built from the registry. |
 | `data/route-reference.json` | Polestar's route clock (GPL-3.0), packaged as `wowstats/data/`. `docs/route-reference.md`; remade by `tools/route_reference/`. |
 | `data/gear-reference.json` | Polestar's gear data: items, sources, quests, stat weights (GPL-3.0 with MIT parts, `THIRD_PARTY.md`), packaged as `wowstats/data/`. `docs/gear-reference.md`; remade by `tools/gear_reference/`, which also holds `parity.lua`, Polestar's own scoring run under Lua for the tests. |
@@ -74,9 +87,9 @@ The public view is enforced in the server, in three places:
    `/api/logsql`, `/model3d/*`, `/api/model3d` and the login door
    (`FULL_DOOR_PATH`, `/full/`) answer 404, a public server starts no MCP
    endpoint (no `MCP_PORT` listener), and it gets no `VM_URL` at all, even if one is set. (The static public
-   site does carry the character's look from Battle.net in its 3D view:
-   `wow-stats publish` builds it from the full view, owner's call of
-   2026-11-18. Market data stays out of it; `tests/test_publish.py`.)
+   site does carry the character's look from Battle.net in its 3D view and
+   picture: `wow-stats publish` builds it from the full view. Market data
+   stays out of it; `tests/test_publish.py`.)
 3. **The page has no full-only markup.** `index.html` wraps those sections in
    `<!--full-->...<!--/full-->`, which the server strips before sending.
    `/api/config` tells the page which features exist and it renders what is
@@ -142,12 +155,13 @@ own game files: nothing is fetched from anyone else.
 - Sex comes from Battle.net's profile (the exporter). Without it, the page
   offers a male/female pick for that character, kept in the browser only.
 
-### A past level's picture (built 2026-11-19, owner's call)
+### Pictures
 
-Battle.net renders today's gear only, so each past level's picture is drawn
-here, with the same viewer as the 3D view, in a headless Chromium. Not in the
-publisher: that pod holds every zogzog key (the owner's and the master key
-the friends' derive from), and Chromium runs without its own sandbox there
+Every picture on the paperdoll is drawn here: the character as it is now and
+each past level, with the same viewer as the 3D view, in a headless Chromium.
+Nothing comes from Blizzard's render host. Not in the
+publisher: that pod holds every zogzog key (the owner's, and
+`ZOGZOG_MASTER_KEY_FILE` that the friends' keys derive from), and Chromium runs without its own sandbox there
 (an unprivileged container has no user namespaces for it). The drawing has
 a process, an image and a pod of its own:
 
@@ -165,16 +179,18 @@ a process, an image and a pod of its own:
   refused before it leaves (`page.route`). One render at a time. Out:
   nothing. In: the publisher only.
 - **The publisher** (`wowstats/pictures.py`, `RENDER_URL`) sends the
-  level's 3D answer's recipe and keeps the picture under
+  3D answer's recipe (now, or a past level) and keeps the picture under
   `PUBLISH_DIR/pictures/<sha256 of the request>.webp`. A level is drawn once,
   and two levels in the same gear and look share one picture. Both bundles
   get `data/picture/<char>/<level>.webp` (sealed in `/zogzog/`), and the
-  snapshot's answer says `picture: {ext}` or `{pending}`.
+  snapshot's answer says `picture: {ext}` or `{pending}`. Today's still goes
+  to `data/render/<char>.webp` (`wowstats/armory.py`), drawn again when the
+  gear or look changes.
 - **Cost.** About 4 s and 4.5 CPU-seconds a picture at one core (SwiftShader,
-  measured on 2026-11-19 in the image), 700-850 MB at the peak, 30 KB a
+  measured in the image), 700-850 MB at the peak, 30 KB a
   file. A build spends at most `RENDER_BUDGET_S` (60) drawing; the rest stay
-  pending and the page shows the silhouette with "Picture on its way" and the
-  3D toggle. The next pass builds again while pictures are pending (at once
+  pending and the page shows the silhouette with "Picture on its way. View
+  it in 3D meanwhile." and the 3D toggle. The next pass builds again while pictures are pending (at once
   if the last build drew one, 15 minutes later if it drew none). A level-32
   character is drawn in a few passes, then never again unless its gear or
   look changes.
@@ -182,8 +198,10 @@ a process, an image and a pod of its own:
   picture is drawn again once it is 25 days old, and one the last build
   didn't use is deleted.
 
-The live full view still shows a past level as the 3D model: the pictures
-live with the publisher. `RENDER_URL` empty does the same in the bundles.
+The live full view has no renderer. It shows a past level as the 3D model,
+and today's still from the static site (`RENDER_FROM`, served at
+`/render/<char>.webp`, WebP only). `RENDER_URL` empty: no pictures in the
+bundles either, and the page keeps the silhouette and the 3D toggle.
 
 ## The MCP seam
 
@@ -218,34 +236,37 @@ stores through `wowstats.mcp.store`, built from the same `VL_URL`,
 then shows the Ask Claude and Ask ChatGPT links.
 
 **The user's own client does the reasoning**: for plans, always; for the
-play analysis, unless the host configured a provider. Then the full view
-also runs the analysis itself (`wowstats/analysis/auto.py`, playing the MCP
+play analysis, whenever the user asks (`analyse`, `dashboard_refresh`), at no
+cost to the host. When the host configured a provider, the full view also
+runs the analysis itself (`wowstats/analysis/auto.py`, playing the MCP
 client with the same tools and judge) for a character with
-`ANALYSIS_STALE_PLAYED_HOURS` (10) of play since its last refresh, inside a
-monthly budget. Only that timer starts a server run: no MCP call does, and
-plans never call a model. See [Server-side analysis](self-host/server-analysis.md).
+`ANALYSIS_STALE_PLAYED_HOURS` (10 by default) of play since its last
+refresh, inside a monthly budget; `ANALYSIS_AUTO=off` keeps the provider
+configured and the timer off. Only that timer starts a server run: no MCP
+call does, and plans never call a model. See [Server-side analysis](self-host/server-analysis.md).
 The server prepares data and judges: a kept finding is one whose numbers match
 its saved query on a re-run, not one proven right. Blizzard API data reaches a model
-through two doors only: the MCP's `market` tool (token price, ruleset
-status), and the character's current talents in `character_summary`,
-`class_guide`, `class_meta` and `sanity_check` (read live
-from vm-wow, kept nowhere). On a multi-user install both follow the
+through three doors only: the MCP's `market` tool (token price, ruleset
+status), the character's current talents in `character_summary`,
+`class_guide`, `class_meta` and `sanity_check`, and what the character
+wears now, as quests it proves done (`gear`, `next_moves`, the planner).
+All three are read live from vm-wow and kept nowhere. On a multi-user install all three follow the
 person's "Battle.net data to my AI" setting (their own data to their own
 assistant); a one-person install never serves
-`market` and gives the talents to the owner, who set `VM_URL`. `tests/route/test_market_gating.py` holds that line, and the
+`market` and gives the rest to the owner, who set `VM_URL`. `tests/route/test_market_gating.py` holds that line, and the
 analysis' allowlist (`wowstats/analysis/TABLES`) has no Battle.net source.
 
 ## Data retention
 
 A character's look comes from Battle.net's profile API through the exporter
 and its VictoriaMetrics, never from VictoriaLogs (`docs/deploy.md`, "Appearance and the
-30-day rule"), and so do the talents. No add-on stands in for either since
-2026-11-20: a character the API doesn't know gets its race's default look.
+30-day rule"), and so do the talents. No add-on stands in for either: a
+character the API doesn't know gets its race's default look.
 
 | Store | Holds | Retention |
 |---|---|---|
 | VictoriaLogs | the shipper's events (the player's own game files) | as long as the player wants (compose: 100 years) |
-| VictoriaMetrics | the exporter's Battle.net data, characters' looks included | 23 days, daily force-merge, never copied (§2.18) |
+| VictoriaMetrics | the exporter's Battle.net data, characters' looks included | 23 days, daily force-merge, never copied (Blizzard's API terms allow 30) |
 | shipper archive | git history of WTF, sent files | on the player's PC, until they delete it |
 
 ## Caching
@@ -297,8 +318,7 @@ the planner, the MCP, the publisher), goes through one gate of
 read again in hourly-planned pages, never by halving the range from 2004
 (which re-read the same full page about ten times).
 
-What that bought (2026-11-18, one full-view load of a character with 23k
-events, against a copy of a real store in VictoriaLogs v1.54.0 with 1 GiB): 130
+What that bought (one full-view load of a character with 23k events, against a copy of a real store in VictoriaLogs v1.54.0 with 1 GiB): 130
 LogsQL queries and a 650-700 MiB peak in VictoriaLogs before, 15 queries and
 no rise over its idle memory after; the cache holds those 23k events in
 about 17 MiB of the UI's memory.

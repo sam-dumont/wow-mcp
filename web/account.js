@@ -482,8 +482,8 @@
     box.appendChild(toggle("Public page on", "Anyone with the address sees your characters' card, climb and dungeons, " +
       "with when you cleared each one and your time per level. Nothing else: no gold, no other players, no position." + (ME.site && ME.public_on ? " " + ME.site + (live ? " (" + live + ")" : "") : ""),
       ME.public_on, function (v) { save({ public_on: v }); }));
-    box.appendChild(toggle("Battle.net data to my AI", "Your characters' Battle.net data (look, item level, talents) " +
-      "and the auction house data reach the AI assistant you connect.", ME.bnet_to_model,
+    box.appendChild(toggle("Battle.net data to my AI", "Your characters' Battle.net data (talents, worn gear, guild) " +
+      "and the WoW Token price reach the AI assistant you connect.", ME.bnet_to_model,
       function (v) { save({ bnet_to_model: v }); }));
     box.appendChild(toggle("Classic character models", "The 3D view opens on the original models, like the game's " +
       "Standard Definition option, instead of the updated ones. Anyone can still switch in the view. The face and " +

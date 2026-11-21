@@ -399,7 +399,9 @@ ENDPOINTS = [
          (["/full/"], "login", "`FULL_DOOR_PATH`: a redirect to `/`, through your login. Empty: off"),
          (["/healthz"], "public", "health check: `200 ok`, no login. Fine to route; probes need no credentials"),
          (["/ingest"], "public", "`POST` from the shipper, with its own password (`INGEST_PASSWORD`). "
-          "Route it **without** your page login, or the shipper can't get through"),
+          "Route it **without** your page login, or the shipper can't get through. 8 MB a post. A 502 means "
+          "VictoriaLogs refused the lines or couldn't be reached: nothing counts against the daily budget, and "
+          "the shipper sends them again later"),
      ]),
     ("Extra full-view paths with several people (`WOW_STATE_DIR`)",
      "Only on a shared install. Same port.",
@@ -437,7 +439,7 @@ ENDPOINTS = [
     ("The MCP endpoint: inside `wow-stats ui`, port 8090 (`MCP_PORT`)",
      "Only when `MCP_PUBLIC_URL` is set. Route these to 8090 **without** your page login: "
      "the MCP's own tokens protect them. Let cookies through on `/authorize`, `/consent` and "
-     "`/oauth/callback`, or every login stops at the Approve button.",
+     "`/oauth/callback`, or every login stops at the Allow Access button.",
      [
          (["/mcp"], "public", "the MCP endpoint (OAuth bearer token)"),
          (["/authorize", "/consent", "/oauth/callback"], "public", "the login pages your browser opens"),

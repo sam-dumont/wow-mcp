@@ -688,7 +688,7 @@ def legacy(cat: dict | None, achievements: dict | None) -> dict:
     earned = [s for s in sources if got & set(s.get("achievements") or [s.get("achievement")])]
     return {"available": True, "earned_points": sum(s["amount"] for s in earned),
             "earned": [s["requirement"] for s in earned], "total": total, "spent": None,
-            "why": "From Battle.net's achievements, as its daily read last saw them: each Legacy challenge is "
+            "why": "From Battle.net's achievements, as its last read saw them: each Legacy challenge is "
                    "one. What was spent in the Legacy trees isn't in the API."}
 
 
@@ -711,8 +711,8 @@ def icon_names(*answers) -> set[str]:
     return out
 
 
-NO_TALENTS = ("No talents known yet. They come from Battle.net's daily profile read, once it knows the "
-              "character (a site without a Battle.net API client has none).")
+NO_TALENTS = ("No talents known yet. They come from Battle.net's profile read, every 2 hours, once it knows "
+              "the character (a site without a Battle.net API client has none).")
 
 
 def match_ranks(cat: dict | None, cls, readings) -> dict[str, int]:
