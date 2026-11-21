@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- A ring or trinket line could start from the other worn ring's share: the paperdoll read 40% and 34% for the two rings, and every ring upgrade said "40% → …" though it replaces the 34% one. The doll measured the stronger worn ring against the best item left and the weaker against the next, so the weaker could read the higher share. The best item left now goes to the slot it replaces (an empty one, else the weaker worn), the stronger against the next, so the weaker always reads the lower share and every line starts from it. The stronger ring or trinket can read a higher share than before.
+- A ring or trinket line could start from the other worn ring's share: the paperdoll read 40% and 34% for the two rings, and every ring upgrade said "40% → …" though it replaces the 34% one. The doll measured the stronger worn ring against the best item left and the weaker against the next, so the weaker could read the higher share. The best item left now goes to the slot it replaces (an empty one, else the weaker worn), the stronger against the next, so the weaker always reads the lower share and every line starts from it. The stronger ring or trinket can read a higher share than before, and only the best ring left reads 100% going into the slot it replaces (the second of the best two reads its share of the best).
 
 ## 0.7.0-rc.7 (2026-11-21)
 
