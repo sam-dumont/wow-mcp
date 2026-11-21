@@ -17,7 +17,7 @@ on one core).
 |---|---|---|
 | 1 | Server lost, PC kept: `--replay` gives back the same events and the same prepared facts. | `test_restore.py::test_replay_restores_the_same_events_and_facts` |
 | 2 | `sent/` lost too: `--reextract` dates every event as the live run did, none approximate (no `at_basis`). | `test_restore.py::test_reextract_keeps_every_observation_time` |
-| 3 | One batch, eight batches, batches out of order or a seventh of the rows a day late: the same prepared facts and metric answers. The shipper gives the same events whichever runs read which Recorder chunks. | `test_arrival.py::test_arrival_schedule_changes_no_answer`, `test_arrival.py::test_any_chunk_schedule_gives_the_same_facts` |
+| 3 | One batch, eight batches, batches out of order or a seventh of the rows a day late: the same prepared facts and metric answers. The shipper gives the same events whichever runs read which Recorder chunks, and a zone's or a flight's time doesn't depend on them (a flight that takes off in one chunk and lands in the next). | `test_arrival.py::test_arrival_schedule_changes_no_answer`, `test_arrival.py::test_any_chunk_schedule_gives_the_same_facts` |
 | 4 | A batch sent twice changes no total. | `test_arrival.py::test_a_resent_batch_changes_no_total` |
 | 5 | Records on the same millisecond keep the Recorder's own order (chunk, then index, as numbers: 10 after 9). | `test_arrival.py::test_equal_times_keep_the_recorders_order` |
 | 6 | Every ratio in `semantic.yaml` reads its numerator and its denominator over the same rows, its `eligibility`. Checked for every ratio, with rows added that only one side would count. | `test_paired.py::test_both_sides_read_the_eligible_rows` |
@@ -61,3 +61,7 @@ Fixed in the same change as the tests:
   couldn't read them.
 - The MCP's `sessions` capped its list at 10 without saying so, and described the old
   20-minute session rule.
+- A flight's time was the shipper's: it set `duration_s` on the take-off only when the land
+  record came in the same run, so a flight across a chunk roll read in two runs had none in the
+  analysis. The server now takes it from the stored land record (`stores.taxi_time`), for the
+  page's flights and the analysis' records alike (`PREP_VERSION` 3).

@@ -26,7 +26,17 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from wowstats import profcaps
 from wowstats import quests as questsmod
-from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits, record_order, truthy, zone_time
+from wowstats.stores import (
+    SESSION_GAP_S,
+    VL_PAGE,
+    dedupe,
+    parse_t,
+    pick_splits,
+    record_order,
+    taxi_time,
+    truthy,
+    zone_time,
+)
 
 # What the tables mean. Bump it in the same change as anything that makes a
 # query give another answer on the same events: a table, column or unit, a
@@ -35,7 +45,9 @@ from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits
 # being rechecked (wowstats.analysis.manifest). A pure refactor keeps it.
 # 2: a zone record's time from the records' own times (stores.zone_time), not
 # the shipper's duration_s; same-time records by chunk and index as numbers.
-PREP_VERSION = 2
+# 3: a taxi record's time from its land record (stores.taxi_time), not the
+# shipper's duration_s, which a flight across two shipper runs lacked.
+PREP_VERSION = 3
 
 
 def _zone() -> tuple[str, ZoneInfo]:
@@ -482,6 +494,10 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
         b[1] = r["_t"]
     zone_secs = {(z.get("source_id"), z.get("_time")): z["secs"]
                  for z in zone_time([r for r in rec if r.get("kind") == "zone"], [tuple(b) for b in bounds.values()])}
+    # A taxi record's time: from its land record (stores.taxi_time, the
+    # page's flights), never the shipper's duration_s, which it set only when
+    # the land record came in the same run.
+    taxi_secs = {(f.get("source_id"), f.get("_time")): f["secs"] for f in taxi_time(rec)}
 
     # Dungeon runs (Polestar's instanceRuns).
     runs = []
@@ -569,7 +585,8 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
                     continue
                 else:
                     extra[f] = v
-            secs = zone_secs.get((r.get("source_id"), r.get("_time"))) if k == "zone" else (
+            secs = zone_secs.get((r.get("source_id"), r.get("_time"))) if k == "zone" else \
+                taxi_secs.get((r.get("source_id"), r.get("_time"))) if k == "taxi" else (
                 _flt(r.get("duration_s")) if r.get("duration_s") not in (None, "") else _flt(r.get("seconds")))
             lt = _local(t)
             rec_rows.append((i, t, _iso(t), lt.isoformat(timespec="seconds"), lt.hour, lt.strftime("%a"), s_id, lv,

@@ -113,11 +113,13 @@ sends nothing new until the shipper learns it. Shippers before 0.7.0 sent
 the rest in `args`; `/ingest` drops it.
 
 - `duration_s`, computed by the shipper: on `step` (since the previous
-  step), on `taxi` (until `land`), and on `zone` for servers before 0.7.0
-  only. A zone's time depends on records the shipper may not have read yet,
-  so the server works it out from the stored zone records instead: to the
-  next zone record of the session, else the session's last record
-  (`wowstats/stores.py` `zone_time`).
+  step), and on `zone` and `taxi` for servers before 0.7.0 only. A zone's
+  and a flight's time depend on records the shipper may not have read yet,
+  so the server works them out from the stored records instead: a zone to
+  the next zone record of the session, else the session's last record
+  (`wowstats/stores.py` `zone_time`); a flight to the first `land` before
+  the next `taxi`, the land's own `seconds` when it has them
+  (`taxi_time`).
 - `quest_name` on `accept`, `turnin`, `complete`, `abandon` and `fail`: from
   LibForeverData's quest table (`Interface/AddOns/LibForeverData/Data/Quests.lua`),
   else Polestar_QuestDB's, else the quest title the Recorder saw in a `text`
