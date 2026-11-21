@@ -6,8 +6,9 @@ throwaway HOME. Prints no credential.
 
     uv run --no-project python demo/stack/seed_friend.py <config.toml> [first|all]
 
-first: the last evening (yesterday) and the addons report, so the start page
-turns green with the character on it (data older than 3 days reads as quiet);
+first: the evenings since the last level-up (the last one yesterday) and the
+addons report, so the start page turns green with the character on it (data
+older than 3 days reads as quiet);
 all: the evenings before it, the auction house scans and the quest list (the
 tour). The two parts never overlap: each event is sent once.
 """
@@ -33,9 +34,13 @@ with tempfile.TemporaryDirectory() as d:
                     "--demo", str(out), "--end-day", yesterday], check=True, cwd=REPO, stdout=subprocess.DEVNULL)
     events = [json.loads(x) for x in out.read_text(encoding="utf-8").splitlines() if x.strip()]
 
-# The addons report has no character: it goes with the first part.
+# The addons report has no character: it goes with the first part. The first
+# part starts at the last level-up, so Polestar's data (wow-level) is in it:
+# since 0.7.0 the start page says "Polestar sends nothing" without it.
 last = max(e["_time"][:10] for e in events if e.get("char") and e.get("feed") != "wow-prices")
-first = [e["_time"][:10] == last or e.get("feed") == "wow-setup" for e in events]
+ding = max((e["_time"][:10] for e in events if e.get("feed") == "wow-level"), default=last)
+cut = min(last, ding)
+first = [e["_time"][:10] >= cut or e.get("feed") == "wow-setup" for e in events]
 events = [e for e, f in zip(events, first, strict=True) if f == (part == "first")]
 
 with open(conf, "rb") as f:

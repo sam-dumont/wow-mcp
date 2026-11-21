@@ -72,7 +72,8 @@ PY
 # The shipper reads the WoW folder its config names, and only that one: never
 # run it in a take whose config doesn't point into this lab.
 guard() {
-  grep -q "^wow_dir = '$state/" "$1" || { echo "the take's config has no lab wow_dir: $1" >&2; exit 1; }
+  # The installer writes TOML basic strings (double quotes) since 0.7.0; 0.6.x wrote single.
+  grep -Eq "^wow_dir = [\"']$state/" "$1" || { echo "the take's config has no lab wow_dir: $1" >&2; exit 1; }
 }
 
 browser() {  # browser <scene> <mode> [ENV=value ...]: one Playwright take
@@ -108,6 +109,11 @@ SH
   [[ -s "$state/install-url" ]] || { echo "the wizard gave no install command (see above)" >&2; exit 1; }
   tape install-mac "$mode" "@INSTALL_URL@=$(cat "$state/install-url")"
   guard "$conf"
+  # The background program's first run, as a friend's comes within 5 minutes
+  # (launchd is a shim here): the shipper's own setup report, with its version.
+  # Without it the start page reads the decoy's older report and asks for the
+  # update command (0.7.0's update_once).
+  bash -c "source '$state/shell.sh' >/dev/null && uv run --script ~/.local/share/wow-stats/wow_stats.py" >/dev/null 2>&1
   uv run --no-project python "$here/stack/seed_friend.py" "$conf" first
   wait "$wiz"
 
