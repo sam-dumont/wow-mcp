@@ -537,20 +537,56 @@ class Store:
         acct = f"account_id={json.dumps(str(self.account_id))}"
         return f"{{character={json.dumps(name)},{acct}}}" if name else f"{{{acct}}}"
 
-    def snapshots(self, name: str = "", query=None) -> dict[tuple, str]:
-        """{(account_id, character): snapshot} of the exporter's newest read
-        of each character (wowstats.exporter.SNAPSHOT: the marker whose value
-        is the latest). The readers' 2-day window rides out an exporter
+    def snapshot_info(self, name: str = "", query=None) -> dict[tuple, tuple[str, bool]]:
+        """{(account_id, character): (snapshot, fallback)}: the exporter's
+        newest complete read of each character (wowstats.exporter.SNAPSHOT,
+        the marker whose value is the latest, among the snapshots that carry
+        a refreshed time). The readers' 2-day window rides out an exporter
         restart, but it also keeps a series the exporter dropped (a talent
-        gone in a respec, an emptied slot) for 2 days: `latest` keeps the
-        newest snapshot's series only (review 3)."""
-        best: dict[tuple, tuple[float, str]] = {}
-        for r in (query or self.profile_query)(f"last_over_time(wow_character_snapshot{self.profile_sel(name)}[2d])"):
+        gone in a respec, an emptied slot) for 2 days: `latest` keeps one
+        snapshot's series only (review 3).
+
+        Complete: the exporter writes the refreshed time only once every
+        part has answered since it started. After a restart, a first read
+        that fails half way makes a newer snapshot with some parts and no
+        refreshed time; reading it would show no Battle.net data at all
+        until the next full read. The last complete one (still in the
+        window, older than 30 days never: bnet_read_at) is read instead,
+        `fallback` True so the answer says how old it is. No complete one at
+        all: the newest, as before (bnet_read_at is then None)."""
+        query = query or self.profile_query
+        sel = self.profile_sel(name)
+        marks: dict[tuple, list[tuple[float, str]]] = {}
+        for r in query(f"last_over_time(wow_character_snapshot{sel}[2d])"):
             m = r.get("metric") or {}
-            k, v = (m.get("account_id"), m.get("character")), float((r.get("value") or [0, 0])[1])
-            if m.get("snapshot") and (k not in best or v > best[k][0]):
-                best[k] = (v, m["snapshot"])
-        return {k: sid for k, (_v, sid) in best.items()}
+            if m.get("snapshot"):
+                marks.setdefault((m.get("account_id"), m.get("character")), []).append(
+                    (float((r.get("value") or [0, 0])[1]), m["snapshot"]))
+        if not marks:
+            return {}
+        done = {((m := r.get("metric") or {}).get("account_id"), m.get("character"), m.get("snapshot"))
+                for r in query(f"last_over_time(wow_character_profile_refreshed_timestamp_seconds{sel}[2d])")}
+        out = {}
+        for k, cands in marks.items():
+            newest = max(cands)
+            whole = [c for c in cands if (*k, c[1]) in done]
+            pick = max(whole) if whole else newest
+            out[k] = (pick[1], pick != newest)
+        return out
+
+    def snapshots(self, name: str = "", query=None) -> dict[tuple, str]:
+        """{(account_id, character): snapshot} to read (snapshot_info)."""
+        return {k: sid for k, (sid, _f) in self.snapshot_info(name, query).items()}
+
+    def bnet_state(self, name: str) -> dict | None:
+        """{as_of: the read shown (epoch s), fallback: True when a newer
+        read is incomplete and the last complete one is shown} or None when
+        there is no Battle.net read to show (bnet_read_at)."""
+        at = self.bnet_read_at(name)
+        if at is None:
+            return None
+        info = self.snapshot_info(name)
+        return {"as_of": at, "fallback": any(f for (_a, c), (_s, f) in info.items() if c == name)}
 
     @staticmethod
     def latest(rows: list[dict], snaps: dict[tuple, str]) -> list[dict]:

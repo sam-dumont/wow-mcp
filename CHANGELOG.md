@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- After an exporter restart, a first Battle.net read that failed half way (a 503 on the equipment) left the character with no Battle.net data at all until the next full read, 2 hours later: no gear, no talents, no look. The pages now keep the last complete read (still inside vm-wow's 2-day window) and say how old it is. Nothing new is stored.
+
 ## 0.7.0-rc.8 (2026-11-21)
 
 What 0.7.0 brings over 0.6.1, in short. Every change is below, one

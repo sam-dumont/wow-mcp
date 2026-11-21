@@ -176,3 +176,57 @@ def test_a_reader_still_finds_the_last_read_while_the_exporter_is_down(world, mo
     world.clock[0] += 86400  # nothing pushed for a day
     assert set(world.reader.character_equipment(CHAR)) == {"main_hand", "back"}
     assert world.reader.character_talents(CHAR)["trees"][0]["points"] == 16
+
+
+def test_after_an_exporter_restart_a_half_read_falls_back_to_the_last_complete_one(world, monkeypatch):
+    """An exporter restart empties its memory. If the first read after it
+    fails half way (a 503 on /equipment), the new snapshot holds only the
+    parts that answered and no refreshed time: the readers keep the last
+    complete snapshot (still in vm-wow's 2-day window), flagged with its
+    age, instead of showing no Battle.net data at all."""
+    monkeypatch.setattr(exporter, "api_get", fake_api(ALL, []))
+    t0 = world.clock[0]
+    exporter.poll_profile()
+    world.run(120)
+
+    exporter.data.clear()  # the restart
+    exporter.snapshots.clear()
+
+    def flaky(path, namespace, endpoint, reduce=None):
+        if path.endswith("/equipment"):
+            raise exporter.ApiError(503, endpoint)
+        return ALL.get(path)
+
+    monkeypatch.setattr(exporter, "api_get", flaky)
+    assert exporter.run_task("profile") is False
+    world.run(5)
+    r = world.reader
+    assert r.bnet_read_at(CHAR) == t0
+    assert set(r.character_equipment(CHAR)) == {"main_hand", "back"}
+    assert r.character_talents(CHAR)["trees"][0]["points"] == 16
+    assert r.character_profile(CHAR) is not None
+    st = r.bnet_state(CHAR)
+    assert st == {"as_of": t0, "fallback": True}
+
+    # The next complete read is the one shown again, no longer a fallback.
+    monkeypatch.setattr(exporter, "api_get", fake_api(ALL, []))
+    t1 = world.clock[0]
+    exporter.poll_profile()
+    world.run(1)
+    assert r.bnet_read_at(CHAR) == t1
+    assert r.bnet_state(CHAR) == {"as_of": t1, "fallback": False}
+
+
+def test_a_first_read_that_never_completed_shows_nothing(world, monkeypatch):
+    """No complete snapshot at all (the very first read failed half way):
+    nothing to fall back to, so no Battle.net data, as before."""
+    def flaky(path, namespace, endpoint, reduce=None):
+        if path.endswith("/equipment"):
+            raise exporter.ApiError(503, endpoint)
+        return ALL.get(path)
+
+    monkeypatch.setattr(exporter, "api_get", flaky)
+    exporter.run_task("profile")
+    world.run(5)
+    assert world.reader.bnet_read_at(CHAR) is None
+    assert world.reader.bnet_state(CHAR) is None
