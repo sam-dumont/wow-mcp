@@ -1,8 +1,8 @@
 import React from 'react';
-import {Composition, continueRender, delayRender, Series} from 'remotion';
+import {AbsoluteFill, Composition, continueRender, delayRender, Series} from 'remotion';
 import footage from './footage.json';
 import {Cue, Footage, H, Title, W} from './parts';
-import {loadFonts, Mode} from './theme';
+import {loadFonts, Mode, palette} from './theme';
 
 // footage.json: each recording's length in seconds and each browser take's
 // marks (the second each beat starts), written by scripts/render.mjs from
@@ -55,8 +55,9 @@ const tour = (mode: Mode): Scene[] => {
 		cut(mode, 'tour', Math.max(0, m.overview - 0.4), m.end, [
 			{at: 0, text: 'Overview: your pace against the route, and the next level'},
 			{at: m.moves, text: 'Next moves: what to do now, where, and what blocks it'},
-			{at: m.character, text: 'Character: your gear, professions and talents'},
-			{at: m.upgrades, text: 'Upgrades per slot, and where each one drops'},
+			{at: m.moves + 2.8, text: 'Each item says how close it takes the slot to its best, before and after'},
+			{at: m.character, text: 'Character: your gear, and how close each slot is to its BiS'},
+			{at: m.upgrades, text: 'Upgrades: where each one drops, slots furthest from their best first'},
 			{at: m.dungeons, text: 'Dungeons: the drops you would wear, and your runs'},
 			{at: m.plan, text: 'Plan your next hours: pick 1 to 6, click Plan it'},
 			{at: m.planned, text: 'The plan follows your guide at your own pace'},
@@ -99,14 +100,18 @@ const Video: React.FC<{mode: Mode; video: string}> = ({mode, video}) => {
 	React.useEffect(() => {
 		loadFonts().then(() => continueRender(handle));
 	}, [handle]);
+	// The scenes fade in and out over the theme's background: over nothing,
+	// each cut flashed one black frame, plain to see in the light theme.
 	return (
-		<Series>
-			{scenes(mode).map((sc, i) => (
-				<Series.Sequence key={i} durationInFrames={sc.frames}>
-					{sc.el}
-				</Series.Sequence>
-			))}
-		</Series>
+		<AbsoluteFill style={{background: palette[mode].bg}}>
+			<Series>
+				{scenes(mode).map((sc, i) => (
+					<Series.Sequence key={i} durationInFrames={sc.frames}>
+						{sc.el}
+					</Series.Sequence>
+				))}
+			</Series>
+		</AbsoluteFill>
 	);
 };
 

@@ -29,7 +29,9 @@ with Take("tour") as t:
     t.pause(4.0)
     t.scroll_to("#gear", 20)
     t.pause(1.5)
-    upgrades = page.locator("text=Upgrades").first
+    # The Upgrades heading itself: "text=Upgrades" is a case-insensitive
+    # substring and matched "Drops 2 upgrades..." on the hidden Overview.
+    upgrades = page.locator("#advice h3.adv-h:text-is('Upgrades')").first
     if upgrades.count():
         t.scroll_y(page.evaluate("(e) => e.getBoundingClientRect().top + scrollY - 80", upgrades.element_handle()))
     t.mark("upgrades")
