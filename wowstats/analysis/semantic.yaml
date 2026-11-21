@@ -22,6 +22,24 @@
 # and `caveats` (what the number does not say). semantic.py reads them for
 # list_metrics, and tests/analysis/test_semantic.py checks that every name
 # resolves. Metric names are unique across models.
+#
+# Five more keys turn caveats into rules the compiler enforces (review 4,
+# 2026-11-21: vs_route read the level in play's plan against no played time,
+# and one snapshot gave a money change of 0):
+# - `aggregation`: sum, ratio_of_sums, latest or endpoint_difference.
+# - `time_meaning`: what `time` is for this metric: interval_start,
+#   level_completion, snapshot_observation, quest_closure or event (a list,
+#   one per model, for a cross-model metric).
+# - `evidence_basis`: observed, reconstructed (cut or paired from records),
+#   allocated (shared out), inferred (a residual) or estimated (a model).
+# - `eligibility` {where, means}: every metric read from two sides has one.
+#   The compiler restricts each measure the metric reads to the rows `where`
+#   holds (a copy of the measure: planned_s asked on its own is untouched).
+#   A cross-model metric gives one `where` per model.
+# - `min_evidence` {count, at_least, means}: every endpoint difference has
+#   one. Below at_least observations the value is NULL, and the answer
+#   carries the count in `<name>_evidence` (0: no observation, unavailable).
+# tests/analysis/test_semantic_evidence.py fails a metric that lacks them.
 # docs/reference/semantic-layer.md has the catalogue, generated from this file.
 #
 # One top-level key is ours, not a model: `cross_model_metrics`, ratios and
@@ -48,51 +66,67 @@ levels:
     split_levels:
       expr: _.played_s.count()
       description: "Levels with a Polestar split (a time played)."
-      metadata: {kind: simple, unit: levels, caveats: "The level in play has no split yet; a partial split counts."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: levels,
+                 caveats: "The level in play has no split yet; a partial split counts."}
     played_s:
       expr: _.played_s.sum()
       description: "Time at a level, way 1: Polestar's own split, the game's /played seconds spent in the level."
-      metadata: {kind: simple, unit: seconds,
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: seconds,
                  caveats: "Counts from the moment tracking started: a level marked partial began before it. Offline time is not in it."}
     calendar_s:
       expr: _.calendar_s.sum()
       description: "Time at a level, way 4: wall-clock seconds from the previous ding to this one, offline time included."
-      metadata: {kind: simple, unit: seconds,
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: reconstructed, unit: seconds,
                  caveats: "NULL for the first tracked level and the level in play. A week off between two dings counts in full."}
     level_xp:
       expr: _.xp.sum()
       description: "XP the level took (Polestar split)."
-      metadata: {kind: simple, unit: xp, caveats: "From the split: missing for a level the split never closed."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: xp,
+                 caveats: "From the split: missing for a level the split never closed."}
     split_quests:
       expr: _.quests.sum()
       description: "Quests handed in during the level, as Polestar's split counts them."
-      metadata: {kind: simple, unit: quests, caveats: "The split's own count; records.turnin can differ for a partial level."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: quests,
+                 caveats: "The split's own count; records.turnin can differ for a partial level."}
     split_kills:
       expr: _.kills.sum()
       description: "Kills during the level, as Polestar's split counts them."
-      metadata: {kind: simple, unit: kills, caveats: "The split's own count; records.kill can differ for a partial level."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: kills,
+                 caveats: "The split's own count; records.kill can differ for a partial level."}
     planned_s:
       expr: _.planned_s.coalesce(_.planned_median_s).sum()
       description: "The route planner's seconds for the level: for this class, or the median over classes when the class isn't known."
-      metadata: {kind: simple, unit: seconds,
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: estimated, unit: seconds,
                  caveats: "A model of a quick player who knows the route, uncalibrated. NULL when the route reference has no time for the level."}
   calculated_measures:
     xp_per_hour:
       expr: _.level_xp / (_.played_s / 3600)
       description: "XP per played hour in the level: level_xp over played_s."
-      metadata: {kind: ratio, unit: xp/hour, caveats: "Played time from the split, so idle time in the game counts against it."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: level_completion, evidence_basis: observed, unit: xp/hour,
+                 caveats: "Played time from the split, so idle time in the game counts against it.",
+                 eligibility: {where: "(_.played_s > 0) & _.xp.notnull()",
+                   means: "A level with a split: played time above 0 and its XP known."}}
     vs_route:
       expr: _.played_s / _.planned_s
       description: "Played time over the route planner's time: 1.0 is on plan, 2.0 twice as long."
-      metadata: {kind: ratio, unit: ratio, caveats: "As uncalibrated as planned_s; NULL without a planned time."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: level_completion, evidence_basis: estimated, unit: ratio,
+                 caveats: "As uncalibrated as planned_s. Reads whole splits with a planned time only (eligibility): planned_s on its own is the total target, every level with a plan. NULL when no level qualifies.",
+                 eligibility: {where: "(_.played_s > 0) & (_.partial == 0) & (_.planned_s.coalesce(_.planned_median_s) > 0)",
+                   means: "A whole split (partial = 0, played time above 0) with a planned time. The level in play has no split and a partial split began partway through the level, so both stay out of both sides; planned_s on its own still counts them."}}
     avg_level_s:
       expr: _.played_s / _.split_levels
       description: "Average played seconds a level: played_s over split_levels (the page's \"a level, over the last 5\")."
-      metadata: {kind: ratio, unit: seconds, caveats: "Filter partial = 0 for whole levels: a partial split is short."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: level_completion, evidence_basis: observed, unit: seconds,
+                 caveats: "Filter partial = 0 for whole levels: a partial split is short.",
+                 eligibility: {where: "_.played_s.notnull()",
+                   means: "A level with a split (the level in play has none)."}}
     over_route_s:
       expr: _.played_s - _.planned_s
       description: "Seconds played beyond the route planner's time (negative: faster)."
-      metadata: {kind: derived, unit: seconds, caveats: "As uncalibrated as planned_s; NULL without a planned time."}
+      metadata: {kind: derived, aggregation: sum, time_meaning: level_completion, evidence_basis: estimated, unit: seconds,
+                 caveats: "As uncalibrated as planned_s. Reads whole splits with a planned time only (eligibility): planned_s on its own is the total target, every level with a plan. NULL when no level qualifies.",
+                 eligibility: {where: "(_.played_s > 0) & (_.partial == 0) & (_.planned_s.coalesce(_.planned_median_s) > 0)",
+                   means: "A whole split (partial = 0, played time above 0) with a planned time. The level in play has no split and a partial split began partway through the level, so both stay out of both sides; planned_s on its own still counts them."}}
 
 timeline:
   table: sem_timeline
@@ -116,46 +150,60 @@ timeline:
     online_s:
       expr: _.dur_s.sum()
       description: "Time at a level, way 2: online seconds the Recorder saw, every interval between two records of a login span."
-      metadata: {kind: simple, unit: seconds,
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
                  caveats: "A silence over 330 s ends a span, so a crash or a long loading screen can drop a few minutes."}
     active_s:
       expr: _.dur_s.sum(where=_.afk == 0).fill_null(0)
       description: "Time at a level, way 3: online seconds with the AFK flag off."
-      metadata: {kind: simple, unit: seconds,
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
                  caveats: "The game sets AFK after 5 idle minutes: those 5 minutes still count as active."}
     afk_s:
       expr: _.dur_s.sum(where=_.afk == 1).fill_null(0)
       description: "Online seconds with the AFK flag on."
-      metadata: {kind: simple, unit: seconds, caveats: "Starts 5 minutes into the idle time (the game's own flag)."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Starts 5 minutes into the idle time (the game's own flag)."}
     dungeon_s:
       expr: _.dur_s.sum(where=_.instance.notnull()).fill_null(0)
       description: "Online seconds inside a dungeon run."
-      metadata: {kind: simple, unit: seconds, caveats: "Inside the instance only: the walk there and the hand-ins are outside (see trip_s)."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Inside the instance only: the walk there and the hand-ins are outside (see trip_s)."}
     combat_s:
       expr: _.dur_s.sum(where=_.combat == 1).fill_null(0)
       description: "Online seconds in combat."
-      metadata: {kind: simple, unit: seconds, caveats: "From the combat records' on/off pairs."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "From the combat records' on/off pairs."}
     dead_s:
       expr: _.dur_s.sum(where=_.dead == 1).fill_null(0)
       description: "Online seconds from a death to the revive (ghost run, spirit healer)."
-      metadata: {kind: simple, unit: seconds, caveats: "Death to revive only; the walk back after a spirit healer is alive time."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Death to revive only; the walk back after a spirit healer is alive time."}
     taxi_s:
       expr: _.dur_s.sum(where=_.taxi == 1).fill_null(0)
       description: "Online seconds on a flight path."
-      metadata: {kind: simple, unit: seconds, caveats: "Flight paths only; boats and zeppelins are ride time, not in it."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Flight paths only; boats and zeppelins are ride time, not in it."}
   calculated_measures:
     dungeon_share:
       expr: _.dungeon_s / _.online_s
       description: "Share of online time spent inside dungeons: dungeon_s over online_s."
-      metadata: {kind: ratio, unit: share, caveats: "0 to 1. NULL when online_s is 0."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: reconstructed, unit: share,
+                 caveats: "0 to 1. NULL when online_s is 0.",
+                 eligibility: {where: "_.dur_s.notnull()",
+                   means: "Every interval: both sides cut the same online time."}}
     afk_share:
       expr: _.afk_s / _.online_s
       description: "Share of online time with the AFK flag on: afk_s over online_s."
-      metadata: {kind: ratio, unit: share, caveats: "0 to 1."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: reconstructed, unit: share,
+                 caveats: "0 to 1.",
+                 eligibility: {where: "_.dur_s.notnull()",
+                   means: "Every interval: both sides cut the same online time."}}
     combat_share:
       expr: _.combat_s / _.online_s
       description: "Share of online time in combat: combat_s over online_s."
-      metadata: {kind: ratio, unit: share, caveats: "0 to 1."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: reconstructed, unit: share,
+                 caveats: "0 to 1.",
+                 eligibility: {where: "_.dur_s.notnull()",
+                   means: "Every interval: both sides cut the same online time."}}
 
 records:
   table: sem_records
@@ -174,44 +222,58 @@ records:
     kills:
       expr: _.rec_id.count(where=_.kind == 'kill')
       description: "Creatures the player or pet killed (kill records)."
-      metadata: {kind: simple, unit: kills, caveats: "Includes kills tapped by another player (records.extra has tapped)."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: kills,
+                 caveats: "Includes kills tapped by another player (records.extra has tapped)."}
     deaths:
       expr: _.rec_id.count(where=_.kind == 'death')
       description: "Deaths (death records)."
-      metadata: {kind: simple, unit: deaths, caveats: "The zone is where the player died, not where the corpse run ended."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: deaths,
+                 caveats: "The zone is where the player died, not where the corpse run ended."}
     quests_done:
       expr: _.rec_id.count(where=_.kind == 'turnin')
       description: "Quests handed in (turnin records)."
-      metadata: {kind: simple, unit: quests, caveats: "A quest handed in twice (repeatable) counts twice."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: quests,
+                 caveats: "A quest handed in twice (repeatable) counts twice."}
     quests_accepted:
       expr: _.rec_id.count(where=_.kind == 'accept')
       description: "Quests accepted (accept records)."
-      metadata: {kind: simple, unit: quests, caveats: "Re-accepting after an abandon counts again."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: quests,
+                 caveats: "Re-accepting after an abandon counts again."}
     quests_abandoned:
       expr: _.rec_id.count(where=_.kind == 'abandon')
       description: "Quests abandoned (abandon records)."
-      metadata: {kind: simple, unit: quests, caveats: "Only what the player abandoned; a failed quest is a fail record."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: quests,
+                 caveats: "Only what the player abandoned; a failed quest is a fail record."}
     kill_xp:
       expr: _.xp_reward.sum(where=_.kind == 'kill').fill_null(0)
       description: "XP from kills (kill records' xp_reward)."
-      metadata: {kind: simple, unit: xp, caveats: "Rested bonus included, as the game reports it."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: xp,
+                 caveats: "Rested bonus included, as the game reports it."}
     quest_xp:
       expr: _.xp_reward.sum(where=_.kind == 'turnin').fill_null(0)
       description: "XP from quest hand-ins (turnin records' xp_reward)."
-      metadata: {kind: simple, unit: xp, caveats: "Discovery XP is apart (explore records)."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: xp,
+                 caveats: "Discovery XP is apart (explore records)."}
     quest_money_copper:
       expr: _.money_copper.sum(where=_.kind == 'turnin').fill_null(0)
       description: "Money quest hand-ins paid, copper."
-      metadata: {kind: simple, unit: copper, caveats: "Quest rewards only; loot, sales and costs are not in it (see gold_delta_copper)."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: copper,
+                 caveats: "Quest rewards only; loot, sales and costs are not in it (see gold_delta_copper)."}
   calculated_measures:
     quest_xp_share:
       expr: _.quest_xp / (_.quest_xp + _.kill_xp)
       description: "Share of kill and quest XP that came from quests: quest_xp over quest_xp + kill_xp."
-      metadata: {kind: derived, unit: share, caveats: "Leaves out discovery XP and dungeon bonus XP."}
+      metadata: {kind: derived, aggregation: ratio_of_sums, time_meaning: event, evidence_basis: observed, unit: share,
+                 caveats: "Leaves out discovery XP and dungeon bonus XP.",
+                 eligibility: {where: "(_.kind == 'kill') | (_.kind == 'turnin')",
+                   means: "Kill and turnin records: the top is a part of the bottom."}}
     deaths_per_100_kills:
       expr: _.deaths * 100 / _.kills
       description: "Deaths per 100 kills."
-      metadata: {kind: ratio, unit: deaths/100 kills, caveats: "NULL without kills; a death to a fall or drowning counts too."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: event, evidence_basis: observed, unit: deaths/100 kills,
+                 caveats: "NULL without kills; a death to a fall or drowning counts too.",
+                 eligibility: {where: "_.rec_id.notnull()",
+                   means: "Every record of the group: deaths and kills are counted on the same records."}}
 
 sessions:
   table: sem_sessions
@@ -229,24 +291,33 @@ sessions:
     session_count:
       expr: _.session_id.count()
       description: "Login spans."
-      metadata: {kind: simple, unit: sessions, caveats: "A /reload doesn't split a span; a crash longer than 330 s does."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: sessions,
+                 caveats: "A /reload doesn't split a span; a crash longer than 330 s does."}
     session_s:
       expr: _.duration_s.sum()
       description: "Seconds from a span's first record to its last."
-      metadata: {kind: simple, unit: seconds, caveats: "Close to online_s for the same spans, without the timeline's cut."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Close to online_s for the same spans, without the timeline's cut."}
     session_xp:
       expr: _.xp_gained.sum()
       description: "XP gained during the spans (xp records)."
-      metadata: {kind: simple, unit: xp, caveats: "From the XP bar every 5 minutes: a span shorter than that can show 0."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: xp,
+                 caveats: "From the XP bar every 5 minutes: a span shorter than that can show 0."}
   calculated_measures:
     avg_session_s:
       expr: _.session_s / _.session_count
       description: "Average span length: session_s over session_count."
-      metadata: {kind: ratio, unit: seconds, caveats: "One long evening moves it a lot on few sessions."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "One long evening moves it a lot on few sessions.",
+                 eligibility: {where: "_.duration_s.notnull()",
+                   means: "A span with a duration."}}
     xp_per_session_hour:
       expr: _.session_xp / (_.session_s / 3600)
       description: "XP per hour of login span: session_xp over session_s."
-      metadata: {kind: ratio, unit: xp/hour, caveats: "AFK time inside a span counts against it."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: reconstructed, unit: xp/hour,
+                 caveats: "AFK time inside a span counts against it.",
+                 eligibility: {where: "_.duration_s.notnull() & _.xp_gained.notnull()",
+                   means: "A span with a duration and an XP reading."}}
 
 dungeon_runs:
   table: sem_dungeon_runs
@@ -263,20 +334,26 @@ dungeon_runs:
     run_count:
       expr: _.start_t.count()
       description: "Dungeon runs."
-      metadata: {kind: simple, unit: runs, caveats: "A wipe and re-entry can show as two runs."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: runs,
+                 caveats: "A wipe and re-entry can show as two runs."}
     run_s:
       expr: _.seconds.sum()
       description: "Seconds inside the instance, as Polestar times the run (the `dungeons` tool's number)."
-      metadata: {kind: simple, unit: seconds, caveats: "Inside only. The trip around it: trip_s."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: seconds,
+                 caveats: "Inside only. The trip around it: trip_s."}
     run_xp:
       expr: _.xp.sum()
       description: "XP gained inside the instance."
-      metadata: {kind: simple, unit: xp, caveats: "Kills inside; the quests handed in after are trip XP (trip_xp)."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: xp,
+                 caveats: "Kills inside; the quests handed in after are trip XP (trip_xp)."}
   calculated_measures:
     run_xp_per_hour:
       expr: _.run_xp / (_.run_s / 3600)
       description: "XP per hour inside: run_xp over run_s (the `dungeons` tool's xp_per_hour)."
-      metadata: {kind: ratio, unit: xp/hour, caveats: "Leaves out the quest XP the run unlocks."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: observed, unit: xp/hour,
+                 caveats: "Leaves out the quest XP the run unlocks.",
+                 eligibility: {where: "(_.seconds > 0) & _.xp.notnull()",
+                   means: "A run with a time above 0 and its XP known."}}
 
 dungeon_trips:
   table: sem_dungeon_trips
@@ -293,32 +370,43 @@ dungeon_trips:
     trip_count:
       expr: _.trip_id.count()
       description: "Dungeon trips."
-      metadata: {kind: simple, unit: trips, caveats: "One per run; bracket says whether guide steps widened it."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: trips,
+                 caveats: "One per run; bracket says whether guide steps widened it."}
     trip_s:
       expr: _.online_s.sum()
       description: "Online seconds from the trip's start to its end: pickup, travel, inside, travel back, hand-in."
-      metadata: {kind: simple, unit: seconds, caveats: "Online time only: logging out mid-trip doesn't count."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Online time only: logging out mid-trip doesn't count."}
     trip_inside_s:
       expr: _.inside_s.sum()
       description: "Online seconds inside the instance during the trip."
-      metadata: {kind: simple, unit: seconds, caveats: "Online time, so it can differ from run_s by a few seconds."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Online time, so it can differ from run_s by a few seconds."}
     trip_travel_s:
       expr: _.travel_to_s.sum() + _.travel_back_s.sum()
       description: "Online seconds getting to the instance and back to the first hand-in."
-      metadata: {kind: simple, unit: seconds, caveats: "Needs guide steps for the edges: an `instance` bracket trip has 0."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Needs guide steps for the edges: an `instance` bracket trip has 0."}
     trip_xp:
       expr: _.xp_inside.sum() + _.xp_quests.sum()
       description: "XP inside the instance plus XP from the trip's quests handed in during the trip."
-      metadata: {kind: simple, unit: xp, caveats: "A trip quest handed in a day later is not in it."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: xp,
+                 caveats: "A trip quest handed in a day later is not in it."}
   calculated_measures:
     trip_xp_per_hour:
       expr: _.trip_xp / (_.trip_s / 3600)
       description: "XP per online hour of the whole trip: trip_xp over trip_s."
-      metadata: {kind: ratio, unit: xp/hour, caveats: "The number to compare with questing XP/hour; run_xp_per_hour flatters dungeons."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: reconstructed, unit: xp/hour,
+                 caveats: "The number to compare with questing XP/hour; run_xp_per_hour flatters dungeons.",
+                 eligibility: {where: "_.online_s > 0",
+                   means: "A trip with online time."}}
     trip_inside_share:
       expr: _.trip_inside_s / _.trip_s
       description: "Share of the trip spent inside the instance."
-      metadata: {kind: ratio, unit: share, caveats: "0 to 1."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: reconstructed, unit: share,
+                 caveats: "0 to 1.",
+                 eligibility: {where: "_.online_s > 0",
+                   means: "A trip with online time."}}
 
 snapshots:
   table: sem_snapshots
@@ -334,12 +422,15 @@ snapshots:
     snapshot_count:
       expr: _.t.count()
       description: "Snapshots (logouts and reloads)."
-      metadata: {kind: simple, unit: snapshots, caveats: "Only what the shipper read: a crash leaves none."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: snapshots,
+                 caveats: "Only what the shipper read: a crash leaves none."}
     gold_delta_copper:
-      expr: _.money_copper.argmax(_.t) - _.money_copper.argmin(_.t)
+      expr: _.money_copper.argmax(_.t, where=_.money_copper.notnull()) - _.money_copper.argmin(_.t, where=_.money_copper.notnull())
       description: "Money on the group's last snapshot minus money on its first, copper."
-      metadata: {kind: derived, unit: copper,
-                 caveats: "Not additive: a week's delta is not the sum of its days (the change between days is in neither). Needs two snapshots in the group."}
+      metadata: {kind: derived, aggregation: endpoint_difference, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                 caveats: "Not additive: a week's delta is not the sum of its days (the change between days is in neither). NULL with fewer than two snapshots with money at different times in the group: gold_delta_copper_evidence beside it counts them (0: no snapshot, 1: one, not enough).",
+                 min_evidence: {count: "_.t.nunique(where=_.money_copper.notnull())", at_least: 2,
+                   means: "two snapshots with money, taken at different times"}}
 
 quests:
   table: sem_quests
@@ -360,46 +451,58 @@ quests:
     quest_count:
       expr: _.quest_row.count()
       description: "Quests (one per accept, or per hand-in with no accept seen)."
-      metadata: {kind: simple, unit: quests, caveats: "A repeatable quest counts once per accept."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: reconstructed, unit: quests,
+                 caveats: "A repeatable quest counts once per accept."}
     quest_s:
       expr: _.quest_s.sum()
       description: "Time on quests: every online second while a quest was in the log, shared equally among the quests open in that second."
-      metadata: {kind: simple, unit: seconds,
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: allocated, unit: seconds,
                  caveats: "Additive: the quests' times sum to the online time with a quest open, nothing counted twice. It can't tell which quest the player worked on, so a quest that sits in the log takes its share of the others' time. NULL for untimed quests."}
     quest_open_s:
       expr: _.open_online_s.sum()
       description: "Online seconds while the quest was in the log, in full for each open quest."
-      metadata: {kind: simple, unit: seconds, caveats: "Not additive across quests: ten open quests each count the same evening. Use quest_s for time spent."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Not additive across quests: ten open quests each count the same evening. Use quest_s for time spent."}
     quest_wall_s:
       expr: _.wall_s.sum()
       description: "Calendar seconds from accept to hand-in or abandon."
-      metadata: {kind: simple, unit: seconds, caveats: "Counts the nights and days off in between: never a time spent."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Counts the nights and days off in between: never a time spent."}
     quest_reward_xp:
       expr: _.xp.sum()
       description: "XP the hand-ins paid (untimed quests included)."
-      metadata: {kind: simple, unit: xp, caveats: "Same hand-ins as quest_xp in records, grouped by quest."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: observed, unit: xp,
+                 caveats: "Same hand-ins as quest_xp in records, grouped by quest."}
     quest_reward_copper:
       expr: _.money_copper.sum()
       description: "Money the hand-ins paid, copper."
-      metadata: {kind: simple, unit: copper, caveats: "Quest rewards only."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: observed, unit: copper,
+                 caveats: "Quest rewards only."}
     done_quest_xp:
       expr: _.xp.sum(where=_.status == 'done')
       description: "XP of the done quests (accept and hand-in both seen)."
-      metadata: {kind: simple, unit: xp, caveats: "Leaves out untimed quests, whose time is unknown. NULL without a done quest."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: observed, unit: xp,
+                 caveats: "Leaves out untimed quests, whose time is unknown. NULL without a done quest."}
     done_quest_s:
       expr: _.quest_s.sum(where=_.status == 'done')
       description: "quest_s of the done quests."
-      metadata: {kind: simple, unit: seconds, caveats: "Abandoned and open quests' time is in quest_s, not here. NULL without a done quest."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: allocated, unit: seconds,
+                 caveats: "Abandoned and open quests' time is in quest_s, not here. NULL without a done quest."}
   calculated_measures:
     quest_xp_per_min:
       expr: _.done_quest_xp / (_.done_quest_s / 60)
       description: "XP per minute on quests: done_quest_xp over done_quest_s."
-      metadata: {kind: ratio, unit: xp/minute,
-                 caveats: "Done quests only. Time is the shared quest_s, so a quick quest done while ten sat in the log looks quicker than it was, and one carried for days looks slower. Kill XP on the way is not in it."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: quest_closure, evidence_basis: allocated, unit: xp/minute,
+                 caveats: "Done quests only. Time is the shared quest_s, so a quick quest done while ten sat in the log looks quicker than it was, and one carried for days looks slower. Kill XP on the way is not in it.",
+                 eligibility: {where: "_.quest_s.notnull() & _.xp.notnull()",
+                   means: "A done quest with its shared time and its XP known."}}
     quests_open_avg:
       expr: _.quest_open_s / _.quest_s
       description: "How many quests were in the log on average while these were: quest_open_s over quest_s."
-      metadata: {kind: ratio, unit: quests, caveats: "1 means one quest at a time; read it next to quest_s."}
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: quest_closure, evidence_basis: allocated, unit: quests,
+                 caveats: "1 means one quest at a time; read it next to quest_s.",
+                 eligibility: {where: "_.quest_s.notnull() & _.open_online_s.notnull()",
+                   means: "A quest with both times (untimed quests have neither)."}}
 
 gold_moves:
   table: sem_gold_moves
@@ -415,35 +518,44 @@ gold_moves:
     gold_moves:
       expr: _.t0.count()
       description: "Moves between two snapshots."
-      metadata: {kind: simple, unit: moves, caveats: "A crash leaves no snapshot: the next move spans both sessions."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: reconstructed, unit: moves,
+                 caveats: "A crash leaves no snapshot: the next move spans both sessions."}
     gold_moved_copper:
       expr: _.delta_copper.sum()
       description: "How much the purse moved, copper: the sum of each move's change."
-      metadata: {kind: simple, unit: copper,
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: reconstructed, unit: copper,
                  caveats: "Additive, unlike gold_delta_copper: a week is the sum of its moves. A move counts in the level and day of its first snapshot."}
     gold_quest_copper:
       expr: _.quest_copper.sum()
       description: "Money hand-ins paid inside the moves, copper."
-      metadata: {kind: simple, unit: copper, caveats: "Quest rewards the Recorder saw; one handed in with the Recorder off is unexplained."}
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                 caveats: "Quest rewards the Recorder saw; one handed in with the Recorder off is unexplained."}
     unexplained_gold_delta:
       expr: _.other_copper.sum()
       description: "The purse's change no record explains, copper: gold_moved_copper minus gold_quest_copper."
-      metadata: {kind: simple, unit: copper,
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: inferred, unit: copper,
                  caveats: "Loot coin, vendor and auction sales and mail in, less repairs, vendor purchases, training, flights, auction deposits and mail out, all together. No addon the kit reads saves spending (the Recorder has quest money only; Auctionator saves prices, not sales), so this is never repairs. A move counts in the level of its first snapshot: filter dings = 0 for moves inside one level."}
 
 cross_model_metrics:
   kills_per_combat_hour:
     expr: kills / (combat_s / 3600)
     description: "Kills per hour in combat: kills (records) over combat_s (timeline)."
-    metadata: {kind: ratio, unit: kills/hour,
-               caveats: "Combat time includes fights that ended in no kill (fleeing, dying, a tapped mob). NULL without combat time."}
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [event, interval_start], evidence_basis: reconstructed, unit: kills/hour,
+               caveats: "Combat time includes fights that ended in no kill (fleeing, dying, a tapped mob). NULL without combat time.",
+               eligibility: {where: {records: "_.session_id.notnull()", timeline: "_.session_id.notnull()"},
+                 means: "Inside a login span the Recorder saw, on both sides."}}
   deaths_per_online_hour:
     expr: deaths / (online_s / 3600)
     description: "Deaths per online hour: deaths (records) over online_s (timeline)."
-    metadata: {kind: ratio, unit: deaths/hour, caveats: "Online time includes AFK; filter or compare with active_s."}
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [event, interval_start], evidence_basis: reconstructed, unit: deaths/hour,
+               caveats: "Online time includes AFK; filter or compare with active_s.",
+               eligibility: {where: {records: "_.session_id.notnull()", timeline: "_.session_id.notnull()"},
+                 means: "Inside a login span the Recorder saw, on both sides."}}
   quest_xp_per_played_hour:
     expr: quest_xp / (played_s / 3600)
     description: "XP from quest hand-ins per played hour in the level: quest_xp (records) over played_s (levels)."
     dimensions: [level, character, class]
-    metadata: {kind: ratio, unit: xp/hour,
-               caveats: "Levels only share level, character, class and time with records: group by one of those. A partial level's split is short."}
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [event, level_completion], evidence_basis: observed, unit: xp/hour,
+               caveats: "Levels only share level, character, class and time with records: group by one of those. Whole splits only, on both sides.",
+               eligibility: {where: {records: "_.level_whole == 1", levels: "(_.played_s > 0) & (_.partial == 0)"},
+                 means: "Levels with a whole split: the quest XP of those levels over their played time. The level in play and a partial split stay out of both sides."}}

@@ -706,13 +706,24 @@ def block_semantic() -> str:
     def cell(t) -> str:
         return str(t or "").replace("|", "\\|").replace("\n", " ")
 
+    def rules(m) -> str:
+        """The fields the compiler reads, in words: aggregation, time, basis,
+        then the rows a two-sided metric reads or the evidence it needs."""
+        tm = m["time_meaning"]
+        out = [f"{m['aggregation']}; time: {', '.join(tm) if isinstance(tm, list) else tm}; {m['evidence_basis']}."]
+        if m.get("eligibility"):
+            out.append(f"Rows: {m['eligibility']['means']}")
+        if m.get("min_evidence"):
+            out.append(f"Needs {m['min_evidence']['means']} (else NULL; `{m['name']}_evidence` counts them).")
+        return cell(" ".join(out))
+
     out = []
     for model in semantic.spec():
         ms = [m for m in cat["metrics"] if m["model"] == model]
         out += [f"### {model}", "", cell(semantic.spec()[model].get("description")), "",
-                "| Metric | Kind | Unit | Definition | Caveats |", "|---|---|---|---|---|"]
+                "| Metric | Kind | Unit | Definition | Caveats | Read as |", "|---|---|---|---|---|---|"]
         out += [f"| `{m['name']}` | {m['kind']} | {cell(m['unit'])} | {cell(m['description'])} | "
-                f"{cell(m['caveats'])} |" for m in ms]
+                f"{cell(m['caveats'])} | {rules(m)} |" for m in ms]
         out += ["", "Group or filter by: " + ", ".join(f"`{d}`" for d in ms[0]["group_by"]) + ".", ""]
     cross = [m for m in cat["metrics"] if m["model"] == "cross"]
     if cross:
@@ -720,10 +731,10 @@ def block_semantic() -> str:
                 "Each model aggregates on its own to the question's group_by, the results join on those "
                 "columns, then the expression runs on the joined row: no fan-out. They group and filter by the "
                 "dimensions their models share.", "",
-                "| Metric | Kind | Unit | Expression | Definition | Caveats | Group or filter by |",
-                "|---|---|---|---|---|---|---|"]
+                "| Metric | Kind | Unit | Expression | Definition | Caveats | Read as | Group or filter by |",
+                "|---|---|---|---|---|---|---|---|"]
         out += [f"| `{m['name']}` | {m['kind']} | {cell(m['unit'])} | `{cell(m['expr'])}` | {cell(m['description'])} "
-                f"| {cell(m['caveats'])} | {', '.join(f'`{d}`' for d in m['group_by'])} |" for m in cross]
+                f"| {cell(m['caveats'])} | {rules(m)} | {', '.join(f'`{d}`' for d in m['group_by'])} |" for m in cross]
         out += [""]
     out += ["### Dimensions", "", "| Dimension | Models | Definition |", "|---|---|---|"]
     out += [f"| `{d['name']}` | {', '.join(d['models'])} | {cell(d['description'])}"
