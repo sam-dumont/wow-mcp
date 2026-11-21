@@ -405,12 +405,12 @@ def note_kb(env: dict, char: str) -> None:
 
 
 def _store_finding(env: dict, w: Workspace, run: dict, got: dict) -> bool:
-    from . import SCHEMA, keep, load_state, save_state, score
+    from . import SCHEMA, data_mark, keep, load_state, save_state, score
 
     now = _now()
     state = load_state(env, w.char)
     kept = dict(state.get("findings") or {})
-    new = keep(kept, got, now)
+    new = keep(kept, got, now, data_mark(w.db))
     kept[got["key"]]["score"] = score(kept[got["key"]])
     save_state(env, w.char, {**state, "schema": SCHEMA, "char": w.char, "findings": kept, "updated": now,
                              "goals": run.get("goals") or state.get("goals") or ""})
