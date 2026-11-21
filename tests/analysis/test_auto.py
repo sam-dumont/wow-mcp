@@ -3,7 +3,8 @@ MCP client through a provider adapter, on a fake client for each provider,
 no network. One scripted model drives a whole run through either adapter;
 the findings it leaves are the same. The per-character played-time timer, the
 money and token caps, tenant isolation, "not configured" and a model
-without tool calling."""
+without tool calling. The timer is the only way in: `dashboard_refresh`
+hands the analysis to the caller's own model and never reaches a provider."""
 
 from __future__ import annotations
 
@@ -224,14 +225,21 @@ class FakeOpenAI:
         return NS(choices=[NS(message=msg, finish_reason=reason)], usage=usage, model=model)
 
 
-def service(env: dict, client, played=0.0, chars=(CHAR,)) -> auto.Service:
-    """Every character has `played` seconds on its timer, whatever its last refresh."""
+def service(env: dict, client, played=10 * H, chars=(CHAR,)) -> auto.Service:
+    """Every character has `played` seconds on its timer, whatever its last
+    refresh: due by default, so run_job runs."""
     return auto.Service(env, client=client, played=lambda e, char, since, store=None: played,
                         chars=lambda e, store=None: list(chars))
 
 
 def refreshed(env: dict, char: str = CHAR) -> dict | None:
     return analysis.last_refresh(load_state(env, char))
+
+
+def forget_last_try(env: dict) -> None:
+    """Takes the timer's wait after a run that stopped (RETRY_S) out of a
+    test that runs again straight away."""
+    (auto.person_dir(env) / auto.LAST_FILE).unlink(missing_ok=True)
 
 
 def kept(env: dict) -> dict:
@@ -248,9 +256,9 @@ def test_the_same_script_records_the_same_findings_through_both_adapters(lab):
                  ANALYSIS_BASE_URL=OLLAMA)
     sa, so = Script(), Script()
     ant, oai = FakeAnthropic(sa), FakeOpenAI(so)
-    ra = service(ea, ant).run_job("player", ea, lab.ctx(ea))
+    ra = service(ea, ant).run_job(ea, lab.ctx(ea))
     drive._WS.clear()
-    ro = service(eo, oai).run_job("player", eo, lab.ctx(eo))
+    ro = service(eo, oai).run_job(eo, lab.ctx(eo))
     assert [r["status"] for r in ra["runs"]] == ["done"] == [r["status"] for r in ro["runs"]], (ra, ro)
     assert kept(ea) == kept(eo) and sorted(kept(ea)) == ["sessions-online", "xp-by-level"]
     run_a, run_o = load_state(ea, CHAR)["runs"][-1], load_state(eo, CHAR)["runs"][-1]
@@ -277,7 +285,7 @@ def test_the_same_script_records_the_same_findings_through_both_adapters(lab):
 def test_money_is_counted_from_usage(lab):
     e = lab.env("a")
     s = service(e, FakeAnthropic(Script()))
-    r = s.run_job("player", e, lab.ctx(e))["runs"][0]
+    r = s.run_job(e, lab.ctx(e))["runs"][0]
     per_call = auto.anthropic_cost("claude-opus-5-5", USAGE)
     assert per_call == pytest.approx((2000 * 4 + 300 * 20 + 500 * 5 + 8000 * 0.2) / 1e6)
     assert r["usd"] == pytest.approx(per_call * r["calls"], rel=1e-3)
@@ -289,7 +297,7 @@ def test_money_is_counted_from_usage(lab):
 def test_openai_without_prices_counts_tokens_only(lab):
     e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="m", ANALYSIS_MONTHLY_BUDGET="0")
     s = service(e, FakeOpenAI(Script()))
-    r = s.run_job("player", e, lab.ctx(e))["runs"][0]
+    r = s.run_job(e, lab.ctx(e))["runs"][0]
     # No prices: no money cap (a 0 budget would refuse everything), the cost unknown.
     assert r["status"] == "done" and r["usd"] is None
     b = auto.budget(e, s.spend)
@@ -307,7 +315,7 @@ def test_openai_without_prices_counts_tokens_only(lab):
 def test_a_token_cap_stops_a_run(lab, monkeypatch):
     monkeypatch.setattr(auto, "RUN_GUESS_TOKENS", 1000)
     e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="m", ANALYSIS_MONTHLY_TOKENS="60000")
-    r = service(e, FakeOpenAI(Script())).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, FakeOpenAI(Script())).run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and "token cap" in r["why"] and r["calls"] < 10
 
 
@@ -318,11 +326,11 @@ def test_nine_hours_59_of_play_is_not_due_ten_is(lab):
     e = lab.env("a")
     script = Script()
     s = service(e, FakeAnthropic(script), played=9 * H + 59 * 60)
-    out = s.run_job("auto", e, lab.ctx(e))
+    out = s.run_job(e, lab.ctx(e))
     assert not out["started"] and script.calls == 0
     assert out["skipped"] == f"not due: {CHAR}: 9 h 59 of play on record, never refreshed, due at 10 h 00"
     s = service(e, FakeAnthropic(script), played=10 * H)
-    out = s.run_job("auto", e, lab.ctx(e))
+    out = s.run_job(e, lab.ctx(e))
     assert out["started"] and out["runs"][0]["status"] == "done"
     m = refreshed(e)
     assert m["by"] == "server" and m["via"] == "auto"
@@ -333,24 +341,11 @@ def test_the_rebuild_hook_never_blocks_and_never_doubles(lab, monkeypatch):
     s = service(e, FakeAnthropic(Script()), played=10 * H)
     queued = []
     monkeypatch.setattr(s, "_enqueue", queued.append)
-    assert s.on_rebuild(e) is None and queued == [s.key(e)] and s._queued[s.key(e)][0] == "auto"
+    assert s.on_rebuild(e) is None and queued == [s.key(e)] and s._queued[s.key(e)] == (e, None)
     assert s.on_rebuild(e) == "busy"  # its check hasn't run yet
     s._queued.clear()
     assert s.on_rebuild(e) == "checked recently"
     assert service(lab.env("a", ANALYSIS_AUTO="off"), None).on_rebuild(e) == "off"
-
-
-def test_a_players_call_always_runs_and_resets_the_timer(lab):
-    e = lab.env("a")
-    s = service(e, FakeAnthropic(Script()), played=2 * H)  # far from due
-    out = s.refresh(lab.ctx(e), wait=True)
-    assert out["started"] and out["runs"][0]["status"] == "done" and not out["timer"]["due"]
-    assert out["budget"]["currency"] == "USD" and out["budget"]["left"] <= 50
-    m = refreshed(e)
-    assert m["by"] == "player" and m["via"] == "dashboard_refresh"
-    # The timer starts over: the next rebuild check finds nothing due.
-    s2 = service(e, FakeAnthropic(Script()), played=0.0)
-    assert "not due" in s2.run_job("auto", e, lab.ctx(e))["skipped"]
 
 
 def test_a_full_analysis_from_the_players_own_client_resets_the_timer(lab):
@@ -366,9 +361,9 @@ def test_a_full_analysis_from_the_players_own_client_resets_the_timer(lab):
 def test_the_last_try_waits_before_the_timer_tries_again(lab):
     e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="tiny", ANALYSIS_BASE_URL=OLLAMA)
     s = service(e, FakeOpenAI(Script(), refuse_tools=True), played=12 * H)
-    out = s.run_job("auto", e, lab.ctx(e))
+    out = s.run_job(e, lab.ctx(e))
     assert out["runs"][0]["status"] == "stopped"
-    again = s.run_job("auto", e, lab.ctx(e))
+    again = s.run_job(e, lab.ctx(e))
     assert not again["started"] and "stopped recently" in again["skipped"]
 
 
@@ -417,7 +412,7 @@ def test_a_never_refreshed_alt_with_10_minutes_played_isnt_due(lab):
     e, ctx = played(lab, "a", {ALT: [(T0, 10 * 60)]})
     script = Script()
     s = auto.Service(e, client=FakeAnthropic(script))
-    out = s.run_job("auto", e, ctx)
+    out = s.run_job(e, ctx)
     assert not out["started"] and script.calls == 0
     assert out["skipped"] == f"not due: {ALT}: 0 h 10 of play on record, never refreshed, due at 10 h 00"
     (alt,) = s.timer(e, ctx.store)["chars"]
@@ -432,7 +427,7 @@ def test_a_never_refreshed_main_with_40_hours_played_is_due_and_runs_alone(lab):
     assert tm["due"] and [(c["char"], c["played_since"], c["due"]) for c in tm["chars"]] == [
         (ALT, "0 h 10", False), (CHAR, "40 h 00", True)]  # the latest played first
     assert tm["chars"][1]["said"] == f"{CHAR}: 40 h 00 of play on record, never refreshed, due at 10 h 00"
-    out = s.run_job("auto", e, ctx)
+    out = s.run_job(e, ctx)
     assert [(r["char"], r["status"]) for r in out["runs"]] == [(CHAR, "done")]
     assert refreshed(e)["by"] == "server" and refreshed(e, ALT) is None
 
@@ -441,27 +436,16 @@ def test_after_a_refresh_the_timer_counts_from_that_refresh(lab):
     play = {CHAR: [(T0 + d * 86400, 10 * H) for d in range(4)]}
     e, ctx = played(lab, "a", play)
     s = auto.Service(e, client=FakeAnthropic(Script()))
-    assert s.run_job("auto", e, ctx)["runs"][0]["status"] == "done"
+    assert s.run_job(e, ctx)["runs"][0]["status"] == "done"
     at = auto._epoch(refreshed(e)["at"])
     # 40 h before the refresh, none since: not due, however much came before.
     (c,) = s.timer(e, ctx.store)["chars"]
     assert c["played_since"] == "0 h 00" and c["last_refresh"]["at"] == refreshed(e)["at"] and not c["due"]
     assert "since its last refresh" in c["said"]
     play[CHAR].append((at + 3600, 9 * H + 59 * 60))
-    assert "not due: " + f"{CHAR}: 9 h 59 of play since its last refresh" in s.run_job("auto", e, ctx)["skipped"]
+    assert "not due: " + f"{CHAR}: 9 h 59 of play since its last refresh" in s.run_job(e, ctx)["skipped"]
     play[CHAR].append((at + 86400, 60))
     assert s.timer(e, ctx.store)["chars"][0]["due"]
-
-
-def test_a_players_call_runs_a_never_refreshed_alt_whatever_its_play(lab):
-    e, ctx = played(lab, "a", {ALT: [(T0, 10 * 60)]})
-    s = auto.Service(e, client=FakeAnthropic(Script()))
-    out = s.refresh(ctx, wait=True)
-    assert [(r["char"], r["status"]) for r in out["runs"]] == [(ALT, "done")]
-    (before,) = out["timer"]["chars"]  # what the player is told: its play against the threshold
-    assert before["said"] == f"{ALT}: 0 h 10 of play on record, never refreshed, due at 10 h 00"
-    assert out["timer"]["refresh_after"] == "10 h 00" and not out["timer"]["due"]
-    assert refreshed(e, ALT)["via"] == "dashboard_refresh"
 
 
 # ---------------------------------------------------------------- money
@@ -472,12 +456,12 @@ def test_no_run_starts_past_the_budget(lab):
     script = Script()
     s = service(e, FakeAnthropic(script), played=20 * H)
     s.spend.add(0.9, {"input": 1})
-    out = s.refresh(lab.ctx(e), wait=True)
-    assert not out["started"] and script.calls == 0
-    assert out["skipped"] == "a run would likely cross the budget: about $0.50 a run, $0.10 of $1.00 left this month"
-    assert "would likely cross" in s.run_job("auto", e, lab.ctx(e))["runs"][0]["why"]
+    r = s.run_job(e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "skipped" and script.calls == 0
+    assert r["why"] == "a run would likely cross the budget: about $0.50 a run, $0.10 of $1.00 left this month"
     s.spend.add(0.2, {"input": 1})  # over the cap: said as spent
-    assert s.refresh(lab.ctx(e), wait=True)["skipped"].startswith("budget spent: $1.10 of $1.00")
+    forget_last_try(e)
+    assert s.run_job(e, lab.ctx(e))["runs"][0]["why"].startswith("budget spent: $1.10 of $1.00")
 
 
 def test_a_first_run_on_an_openai_compatible_model_is_guessed_at_its_own_prices(lab):
@@ -492,12 +476,13 @@ def test_a_first_run_on_an_openai_compatible_model_is_guessed_at_its_own_prices(
     assert guess == pytest.approx(6 * (0.03 * 1.4 + 0.96 * 0.26 + 0.01 * 4.4), rel=1e-3)  # about $2.01
     # Under the guess: refused before any call, said as an estimate.
     script = Script()
-    r = service(low, FakeOpenAI(script)).run_job("player", low, lab.ctx(low))["runs"][0]
+    r = service(low, FakeOpenAI(script)).run_job(low, lab.ctx(low))["runs"][0]
     assert r["why"] == "a run would likely cross the budget: about $2.01 a run, $2.00 of $2.00 left this month"
     assert script.calls == 0
+    forget_last_try(low)
     # Over it, the run goes; the next guess is this install's own average.
     e = {**low, "ANALYSIS_MONTHLY_BUDGET": "3"}
-    r = service(e, FakeOpenAI(Script())).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, FakeOpenAI(Script())).run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "done", r
     assert auto.Spend(auto.spend_path(e)).run_estimate("glm-5.3", guess)[0] == pytest.approx(r["usd"], abs=1e-3)
     # Unpriced: no money guess, so no money cap.
@@ -510,7 +495,7 @@ def test_a_run_stops_before_the_call_that_would_cross_the_budget(lab, monkeypatc
     e = lab.env("a", ANALYSIS_MONTHLY_BUDGET="0.1")
     big = {"input": 10000, "output": 1000, "cache_read": 0, "cache_write": 0}  # $0.06 a call on Opus 5.5
     s = service(e, FakeAnthropic(Script(usage=big)))
-    r = s.run_job("player", e, lab.ctx(e))["runs"][0]
+    r = s.run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and r["why"].startswith("budget spent") and r["calls"] == 1
     assert s.spend.spent() <= 0.1
 
@@ -522,7 +507,7 @@ def test_a_run_reads_and_writes_only_its_own_tenant(lab):
     ea, eb = lab.env("a"), lab.env("b")
     # A model that asks for someone else's character: the server forces the run's own.
     s = service(ea, FakeAnthropic(Script(brain("Someoneelse-Realm"))))
-    r = s.run_job("player", ea, lab.ctx(ea))["runs"][0]
+    r = s.run_job(ea, lab.ctx(ea))["runs"][0]
     assert r["status"] == "done"
     assert {str(a) for a, _ in lab.asked} == {lab.acct("a")} and {c for _, c in lab.asked} == {CHAR}
     assert (lab.root / "a").exists() and not (lab.root / "b").exists()
@@ -539,7 +524,7 @@ def test_only_the_analysis_tools_run(lab):
             answers.append((yield name, args))
 
     fake = FakeAnthropic(Script(sneaky()))
-    service(e, fake).run_job("player", e, lab.ctx(e))
+    service(e, fake).run_job(e, lab.ctx(e))
     results = {b["tool_use_id"]: b for r in fake.requests for m in r["messages"]
                if m["role"] == "user" and isinstance(m["content"], list) for b in m["content"]}.values()
     assert len(results) == 3 and all(r.get("is_error") and "isn't available" in r["content"] for r in results)
@@ -549,8 +534,8 @@ def test_only_the_analysis_tools_run(lab):
 def test_not_configured_means_off(lab, monkeypatch):
     e = {k: v for k, v in lab.env("a").items() if k != "ANALYSIS_API_KEY_FILE"}
     s = service(e, None)
-    out = s.refresh(lab.ctx(e))
-    assert not out["started"] and out["skipped"].startswith("analysis not configured") and not out["configured"]
+    out = s.status(lab.ctx(e))
+    assert out["off"].startswith("analysis not configured") and not out["configured"] and not out["automatic"]
     assert s.on_rebuild(e) == "off"
     assert not auto.configured(lab.env("o", ANALYSIS_PROVIDER="openai"))  # openai needs a model
     assert auto.configured(lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="m", ANALYSIS_API_KEY_FILE=""))
@@ -569,12 +554,13 @@ def test_not_configured_means_off(lab, monkeypatch):
 def test_a_model_without_tool_calling_fails_the_run_plainly(lab):
     e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="tiny", ANALYSIS_BASE_URL=OLLAMA)
     s = service(e, FakeOpenAI(Script(), refuse_tools=True))
-    r = s.run_job("player", e, lab.ctx(e))["runs"][0]
+    r = s.run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and r["why"].startswith("tool calling is required")
     assert s.last_try(e)["why"].startswith("tool calling is required")
+    forget_last_try(e)
     # A model that answers in words instead of calling a tool: the same.
     words = Script(iter(()))
-    r = service(e, FakeOpenAI(words)).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, FakeOpenAI(words)).run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and "without calling a tool" in r["why"]
 
 
@@ -592,7 +578,7 @@ def test_openai_itself_runs_through_responses_and_keeps_its_reasoning(lab):
                 ANALYSIS_PRICE_OUTPUT_PER_MTOK="0.5", ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK="0.01")
     script = Script()
     oai = FakeOpenAI(script)
-    r = service(e, oai).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, oai).run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "done", r
     assert sorted(kept(e)) == ["sessions-online", "xp-by-level"] and set(script.seen_tools) == set(auto.ALLOWED)
     first, last = oai.requests[0], oai.requests[-1]
@@ -615,37 +601,110 @@ def test_an_api_error_is_reported_as_itself_not_as_a_tool_refusal(lab):
     e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="gpt-6-luna", ANALYSIS_BASE_URL=OLLAMA)
     route = ("Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions. "
              "To use function tools, use /v1/responses or set reasoning_effort to 'none'.")
-    r = service(e, FakeOpenAI(Script(), error=api_error(400, route))).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, FakeOpenAI(Script(), error=api_error(400, route))).run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and not r["why"].startswith("tool calling is required")
     assert r["why"].startswith("the AI provider answered 400: Function tools with reasoning_effort") and \
         "use /v1/responses" in r["why"]
+    forget_last_try(e)
     quota = api_error(429, "Insufficient balance or no resource package. Please recharge.")
-    r = service(e, FakeOpenAI(Script(), error=quota)).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, FakeOpenAI(Script(), error=quota)).run_job(e, lab.ctx(e))["runs"][0]
     assert "quota" in r["why"] and "Insufficient balance" in r["why"]
     # A real refusal still is one, with what the endpoint said.
+    forget_last_try(e)
     no = api_error(400, "registry.ollama.ai/library/tiny does not support tools")
-    r = service(e, FakeOpenAI(Script(), error=no)).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, FakeOpenAI(Script(), error=no)).run_job(e, lab.ctx(e))["runs"][0]
     assert r["why"].startswith("tool calling is required") and "does not support tools" in r["why"]
     # Nothing key-shaped from an error message reaches the run's record.
     # Built at run time from a filler, so no key-shaped literal sits in the source.
     fake = "sk" + "-" + "Z" * 40
+    forget_last_try(e)
     leak = api_error(400, f"Incorrect API key provided: {fake}.")
-    r = service(e, FakeOpenAI(Script(), error=leak)).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, FakeOpenAI(Script(), error=leak)).run_job(e, lab.ctx(e))["runs"][0]
     assert "ZZZZZZZZ" not in r["why"] and "[masked]" in r["why"]
 
 
-def test_the_mcp_tool_runs_for_the_caller_only(lab, monkeypatch):
-    ea = lab.env("a")
-    s = service(ea, FakeAnthropic(Script()))
-    seen = []
-    monkeypatch.setattr(s, "_enqueue", seen.append)
+class NoProvider:
+    """A provider client that fails the test the moment anything touches it."""
+
+    def __getattr__(self, name):
+        raise AssertionError(f"dashboard_refresh reached the AI provider ({name})")
+
+
+def test_dashboard_refresh_never_calls_a_provider_and_hands_the_client_the_brief(lab, monkeypatch):
+    """The owner's own AI called dashboard_refresh and the server's run spent
+    the host's OpenAI money (2026-11-21). It now starts the client-side flow:
+    the caller's model runs `analyse`'s procedure, nothing runs on the server."""
+    from wowstats.mcp import prompts
+
+    e = lab.env("a", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="gpt-6.1-sol", ANALYSIS_PRICE_INPUT_PER_MTOK="1",
+                ANALYSIS_PRICE_OUTPUT_PER_MTOK="2")
+    s = service(e, NoProvider(), played=40 * H)  # due: the old tool would have run the server's model
     monkeypatch.setattr(auto, "_SERVICE", s)
-    out = tools.call(lab.ctx(ea), "dashboard_refresh", {})
-    job = s._queued[seen[0]]
-    assert out["started"] and job[1]["ANALYSIS_STATE_DIR"] == ea["ANALYSIS_STATE_DIR"]
-    assert str(job[2].store.account_id) == lab.acct("a")
-    with pytest.raises(tools.ToolError):
-        tools.call(lab.ctx(ea), "dashboard_refresh", {"char": "Someoneelse-Realm"})
+
+    def no_run(*a, **kw):
+        raise AssertionError("dashboard_refresh started a server run")
+
+    monkeypatch.setattr(s, "_enqueue", no_run)
+    monkeypatch.setattr(s, "run_job", no_run)
+    monkeypatch.setattr(auto, "Runner", no_run)
+    out = tools.call(lab.ctx(e), "dashboard_refresh", {})
+    assert out["runs_on"] == "client" and out["server_cost"].startswith("none")
+    # The brief's entry: the same procedure as `analyse`, for the most out-of-date character.
+    assert out["char"] == CHAR and out["instructions"] == prompts.analyse_text(CHAR, "")
+    assert out == {**out, **tools.call(lab.ctx(e), "analyse", {"char": CHAR})}
+    assert "analysis_brief" in out["do"] and "analysis_submit" in out["do"] and "resets" in out["do"]
+    # The server's own refreshes, labelled as the automatic ones only.
+    auto_part = out["server_automatic_refresh"]
+    assert auto_part["scope"].startswith("the server's automatic refreshes only") and auto_part["automatic"]
+    assert auto_part["budget"]["scope"] == "install" and auto_part["yours"]["scope"] == "you"
+    assert auto_part["timer"]["chars"][0]["due"] and "state" not in auto_part
+    assert s.spend.this_month().get("runs", 0) == 0 and s.last_try(e) == {}
+    # Nothing to set: it reads only, and reaches nothing outside the server.
+    spec = tools.BY_NAME["dashboard_refresh"]
+    assert not spec.writes and not spec.open_world
+    assert "costs the server nothing" in spec.description and "on the client" in spec.description
+    # `char` picks another character of the caller's; still the caller's own store.
+    assert tools.call(lab.ctx(e), "dashboard_refresh", {"char": "Other-Fixture"})["char"] == "Other-Fixture"
+
+
+def test_dashboard_refresh_picks_the_most_out_of_date_character_first(lab, monkeypatch):
+    main = [(T0 + d * 86400, 10 * H) for d in range(2)]
+    e, ctx = played(lab, "a", {ALT: [(T0 + 5 * 86400, 10 * 60)], CHAR: main})
+    s = auto.Service(e, client=NoProvider())
+    monkeypatch.setattr(auto, "_SERVICE", s)
+    out = tools.call(ctx, "dashboard_refresh", {})
+    assert out["char"] == CHAR and out["then"] == [ALT]
+    said = [c["said"] for c in out["server_automatic_refresh"]["timer"]["chars"]]
+    assert said == [f"{ALT}: 0 h 10 of play on record, never refreshed, due at 10 h 00",
+                    f"{CHAR}: 20 h 00 of play on record, never refreshed, due at 10 h 00"]
+
+
+def client_run(ctx: tools.Ctx, char: str = CHAR) -> dict:
+    """A whole run as the caller's own model drives it, through the MCP tools."""
+    g = brain(char)
+    step, out = next(g), None
+    while True:
+        out = tools.call(ctx, *step)
+        try:
+            step = g.send(out)
+        except StopIteration:
+            return out
+
+
+def test_analysis_submit_from_the_client_resets_the_callers_timer(lab, monkeypatch):
+    """The client's accepted synthesis is a refresh: the character's timer
+    starts over, so the server's automatic run has nothing to do."""
+    e, ctx = played(lab, "a", {CHAR: [(T0 + d * 86400, 10 * H) for d in range(3)]})
+    s = auto.Service(e, client=NoProvider())
+    monkeypatch.setattr(auto, "_SERVICE", s)
+    start = tools.call(ctx, "dashboard_refresh", {})
+    assert start["server_automatic_refresh"]["timer"]["chars"][0]["due"]
+    assert client_run(ctx)["next"]["pass"] == "done"
+    m = refreshed(e)
+    assert m["by"] == "player" and m["via"] == "client" and load_state(e, CHAR)["runs"][-1]["kind"] == "client"
+    (c,) = s.timer(e, ctx.store)["chars"]
+    assert not c["due"] and c["played_since"] == "0 h 00" and c["last_refresh"] == m
+    assert "not due" in s.run_job(e, ctx)["skipped"]  # and the timer's run spends nothing
 
 
 def jwt(aud) -> str:
@@ -699,8 +758,8 @@ def test_a_wrong_token_fails_the_run_plainly(lab):
     tok.write_text(jwt("https://cluster.internal"))
     e = lab.env("a", ANALYSIS_WIF_TOKEN_FILE=str(tok), ANALYSIS_WIF_RULE_ID="fdrl_x",
                 ANALYSIS_WIF_ORGANIZATION_ID="org")
-    s = auto.Service(e, played=lambda e, char, since, store=None: 0.0, chars=lambda e, store=None: [CHAR])
-    r = s.run_job("player", e, lab.ctx(e))["runs"][0]
+    s = auto.Service(e, played=lambda e, char, since, store=None: 10 * H, chars=lambda e, store=None: [CHAR])
+    r = s.run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and "audience is https://cluster.internal" in r["why"]
     assert "audience" in s.last_try(e)["why"]
 
@@ -711,7 +770,7 @@ def test_the_api_key_never_leaves_the_key_file(lab, capsys):
     client = cfg.make_client()
     assert client.api_key == "not-a-real-key"
     s = service(e, FakeAnthropic(Script()))
-    s.run_job("player", e, lab.ctx(e))
+    s.run_job(e, lab.ctx(e))
     out = capsys.readouterr()
     assert "not-a-real-key" not in out.out + out.err
     assert "not-a-real-key" not in json.dumps(auto.budget(e, s.spend))
@@ -846,7 +905,7 @@ def test_a_model_that_asks_to_continue_is_nudged_and_finishes(lab, kind):
     # Twice in a row after the first lane (the most it gets), once after the third.
     script = Script(asks_to_continue({1: 2, 3: 1}))
     client = fake(kind, script)
-    r = service(e, client).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, client).run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "done" and r["why"] == "" and r["nudges"] == 3, r
     assert r["conversations"] == 1  # nudged in the same conversation, not restarted
     assert sorted(kept(e)) == ["sessions-online", "xp-by-level"]
@@ -862,20 +921,21 @@ def test_a_model_that_never_finishes_is_incomplete_and_the_old_text_stays(lab, k
     e = lab.env("a", **ADAPTER_ENVS[kind])
     # No analysis yet: an incomplete run leaves none, not its partial findings.
     q = Script(quits_after_a_lane())
-    r = service(e, fake(kind, q)).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, fake(kind, q)).run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "incomplete" and r["nudges"] == auto.NUDGES, r
     assert r["why"] == ('the model ended its turn without analysis_submit(pass="synthesis") after 2 nudges '
                         "(at the lane pass L2)")
     assert kept(e) == {} and set(files(e).values()) == {None}
     # A finished run publishes; the next run starts clean, not on gone findings.
     drive._WS.clear()
-    assert service(e, fake(kind, Script())).run_job("player", e, lab.ctx(e))["runs"][0]["status"] == "done"
+    forget_last_try(e)
+    assert service(e, fake(kind, Script())).run_job(e, lab.ctx(e))["runs"][0]["status"] == "done"
     before, shown = files(e), analysis.answer(e, CHAR, "full")
     assert before["kept"] and before["run"] and before["legacy"] is None
     # Then one that never finishes: what the player sees stays byte for byte.
     q = Script(quits_after_a_lane())
     s = service(e, fake(kind, q))
-    r = s.run_job("player", e, lab.ctx(e))["runs"][0]
+    r = s.run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "incomplete" and q.calls > 2 and r["nudges"] == 2
     assert files(e) == before and analysis.answer(e, CHAR, "full") == shown
     last = s.last_try(e)
@@ -884,16 +944,16 @@ def test_a_model_that_never_finishes_is_incomplete_and_the_old_text_stays(lab, k
 
     assert admin.last_try_line(last).startswith("server analysis incomplete: the model ended its turn without")
     # The timer waits before trying again, as after any run that didn't finish.
-    again = service(e, fake(kind, Script()), played=12 * H).run_job("auto", e, lab.ctx(e))
+    again = service(e, fake(kind, Script()), played=12 * H).run_job(e, lab.ctx(e))
     assert not again["started"] and "stopped recently" in again["skipped"]
 
 
 def test_a_stopped_run_keeps_the_old_text_too(lab, monkeypatch):
     e = lab.env("a")
-    assert service(e, FakeAnthropic(Script())).run_job("player", e, lab.ctx(e))["runs"][0]["status"] == "done"
+    assert service(e, FakeAnthropic(Script())).run_job(e, lab.ctx(e))["runs"][0]["status"] == "done"
     before = files(e)
     monkeypatch.setattr(auto, "MAX_CALLS", 8)  # past the first lane's findings
-    r = service(e, FakeAnthropic(Script())).run_job("player", e, lab.ctx(e))["runs"][0]
+    r = service(e, FakeAnthropic(Script())).run_job(e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and r["why"] == "stopped after 8 calls"
     assert files(e) == before
 
@@ -903,7 +963,7 @@ def test_the_unattended_wording_is_in_the_server_prompt_only(lab):
 
     e = lab.env("a")
     ant = FakeAnthropic(Script())
-    service(e, ant).run_job("player", e, lab.ctx(e))
+    service(e, ant).run_job(e, lab.ctx(e))
     req = ant.requests[0]
     assert "unattended" in req["system"] and "no one will reply" in req["system"]
     assert "never ask to continue" in req["system"].lower()
@@ -912,7 +972,7 @@ def test_the_unattended_wording_is_in_the_server_prompt_only(lab):
         eo = lab.env("o", **ADAPTER_ENVS[kind])
         oai = FakeOpenAI(Script())
         drive._WS.clear()
-        service(eo, oai).run_job("player", eo, lab.ctx(eo))
+        service(eo, oai).run_job(eo, lab.ctx(eo))
         first = oai.requests[0]
         system = first.get("instructions") or first["messages"][0]["content"]
         user = (first.get("input") or first.get("messages"))[-1]["content"]
@@ -927,49 +987,44 @@ def test_the_unattended_wording_is_in_the_server_prompt_only(lab):
 # ---------------------------------------------------------------- queued vs running, per person
 
 
-def test_a_job_waiting_behind_another_tenant_is_queued_not_running(lab, monkeypatch):
-    """One worker: a's refresh runs, b's waits. b hears "queued behind
-    another refresh (position 1)", never "already running"; only a does."""
+def test_an_automatic_refresh_waiting_behind_another_is_queued_not_running(lab, monkeypatch):
+    """One worker: a's automatic refresh runs, b's waits. dashboard_refresh
+    tells b "queued behind another refresh (position 1)", never "running"."""
     ea, eb, ec = lab.env("a"), lab.env("b"), lab.env("c")
     s = service(ea, FakeAnthropic(Script()))
     put = []
     monkeypatch.setattr(s, "_enqueue", put.append)  # the worker is played by hand below
-    a = s.refresh(lab.ctx(ea))
-    assert a["started"] and a["state"] == "running" and a["running_for_you"]
     ka, kb = s.key(ea), s.key(eb)
+    assert s.on_rebuild(ea) is None and s.on_rebuild(eb) is None and s.on_rebuild(ec) is None
     job_a = s._next(ka)  # the worker takes a's job
-    assert job_a[0] == "player" and ka in s._running
-    b = s.refresh(lab.ctx(eb))
-    assert b["started"] and b["state"] == "queued" and not b["running_for_you"]
-    assert b["position"] == 1 and "queued behind another refresh (position 1)" in b["note"]
-    assert "already running" not in json.dumps(b)
-    c = s.refresh(lab.ctx(ec))
-    assert c["position"] == 2 and "queued behind 2 other refreshes (position 2)" in c["note"]
-    again = s.refresh(lab.ctx(ea))
-    assert not again["started"] and again["skipped"] == "no new refresh: a refresh is already running for you"
-    # a finishes; b's job is next and runs as the player's own.
+    assert ka in s._running
+    a = s.status(lab.ctx(ea))
+    assert a["state"] == "running" and a["said"] == "the server's automatic refresh is running for you now"
+    b = s.status(lab.ctx(eb))
+    assert b["state"] == "queued" and b["position"] == 1
+    assert "queued behind another refresh (position 1)" in b["said"] and "running" not in json.dumps(b["said"])
+    assert "queued behind 2 other refreshes (position 2)" in s.status(lab.ctx(ec))["said"]
+    # The client is told to let the server's run end before starting its own.
+    monkeypatch.setattr(auto, "_SERVICE", s)
+    assert tools.call(lab.ctx(ea), "dashboard_refresh", {})["do"].startswith(
+        "The server's automatic refresh is running for you now: let it end")
+    # a finishes; b's job is next.
     assert s._run_job(ka, job_a)["runs"][0]["status"] == "done"
-    assert s.refresh(lab.ctx(eb))["position"] == 1 and s.refresh(lab.ctx(eb))["ahead"] == 0
-    assert s._next(kb)[0] == "player" and s.refresh(lab.ctx(eb))["state"] == "running"
+    assert s.status(lab.ctx(eb))["position"] == 1 and s.status(lab.ctx(eb))["ahead"] == 0
+    s._next(kb)
+    assert s.status(lab.ctx(eb))["state"] == "running" and "state" not in s.status(lab.ctx(ea))
     assert put == [ka, kb, s.key(ec)]
 
 
-def test_a_second_call_while_queued_adds_no_job(lab, monkeypatch):
-    ea, eb = lab.env("a"), lab.env("b")
-    s = service(ea, FakeAnthropic(Script()), played=10 * H)
-    put = []
-    monkeypatch.setattr(s, "_enqueue", put.append)
-    s.refresh(lab.ctx(ea))
-    s._next(s.key(ea))
-    # b's rebuild queued a timer check; b then calls: still one job, now theirs (it always runs).
-    assert s.on_rebuild(eb) is None and s._queued[s.key(eb)][0] == "auto"
-    for _ in range(3):
-        out = s.refresh(lab.ctx(eb))
-        assert not out["started"] and out["state"] == "queued" and out["position"] == 1
-        assert out["skipped"] == "no new refresh: your refresh is queued behind another refresh (position 1)"
-    assert list(s._queued) == [s.key(eb)] and s._queued[s.key(eb)][0] == "player"
-    assert put == [s.key(ea), s.key(eb)]
-    assert s.on_rebuild(eb) == "busy"
+def test_the_auto_timer_still_starts_server_runs(lab):
+    """The server's own runs stay, for players who don't refresh themselves:
+    the rebuild's timer check runs the due characters on the worker."""
+    e = lab.env("a")
+    s = service(e, FakeAnthropic(Script()), played=12 * H)
+    assert s.on_rebuild(e) is None
+    drain(s)
+    assert refreshed(e) == {**refreshed(e), "by": "server", "via": "auto"}
+    assert s.last_try(e)["status"] == "done" and s.spend.this_month()["runs"] == 1
 
 
 def drain(s: auto.Service, timeout: float = 60.0) -> None:
@@ -990,13 +1045,12 @@ def drain(s: auto.Service, timeout: float = 60.0) -> None:
 def test_the_budget_is_the_install_and_yours_is_your_own(lab, monkeypatch):
     ea, eb = lab.env("a"), lab.env("b")
     s = service(ea, FakeAnthropic(Script()))
-    ra = s.run_job("player", ea, lab.ctx(ea))["runs"][0]
+    ra = s.run_job(ea, lab.ctx(ea))["runs"][0]
     drive._WS.clear()
     s2 = service(eb, FakeAnthropic(Script()))
-    s2.run_job("player", eb, lab.ctx(eb))
-    s2.run_job("player", eb, lab.ctx(eb))  # nothing new to say still counts as a run
-    monkeypatch.setattr(s, "_enqueue", lambda k: None)
-    out = s.refresh(lab.ctx(ea))
+    s2.run_job(eb, lab.ctx(eb))
+    s2.run_job(eb, lab.ctx(eb))  # nothing new to say still counts as a run
+    out = s.status(lab.ctx(ea))
     b, mine = out["budget"], out["yours"]
     assert b["scope"] == "install" and "whole install" in b["said"] and b["runs"] == 3
     assert mine["scope"] == "you" and mine["said"] == "this month, your own runs only" and mine["runs"] == 1
@@ -1037,24 +1091,24 @@ def test_admin_labels_the_install_and_shows_each_persons_runs():
 
 def test_a_server_run_sets_last_refresh_and_last_try_for_its_player(lab, monkeypatch):
     """The page rebuild's timer runs the job on the worker; the player's
-    next dashboard_refresh sees both, and another player sees neither."""
+    next dashboard_refresh shows both, and another player's shows neither."""
     ea, eb = lab.env("a"), lab.env("b")
     s = service(ea, FakeAnthropic(Script()), played=11 * H)
     assert s.on_rebuild(ea) is None
     drain(s)
     m, lt = refreshed(ea), s.last_try(ea)
     assert m["by"] == "server" and m["via"] == "auto" and lt["by"] == "server" and lt["status"] == "done"
-    monkeypatch.setattr(s, "_enqueue", lambda k: None)
-    seen = s.refresh(lab.ctx(ea))
+    monkeypatch.setattr(auto, "_SERVICE", s)
+    seen = tools.call(lab.ctx(ea), "dashboard_refresh", {})["server_automatic_refresh"]
     assert seen["timer"]["last_refresh"]["by"] == "server" and seen["timer"]["last_refresh"]["at"] == m["at"]
     assert seen["timer"]["chars"][0]["last_refresh"] == m
     assert seen["last_try"]["status"] == "done" and seen["last_try"]["by"] == "server"
-    other = s.refresh(lab.ctx(eb))
+    other = tools.call(lab.ctx(eb), "dashboard_refresh", {})["server_automatic_refresh"]
     assert other["timer"]["last_refresh"] is None and other["last_try"] is None
 
 
 def test_the_run_log_names_the_character(lab, capsys):
     e = lab.env("a")
-    service(e, FakeAnthropic(Script())).run_job("player", e, lab.ctx(e))
+    service(e, FakeAnthropic(Script())).run_job(e, lab.ctx(e))
     lines = [json.loads(x) for x in capsys.readouterr().out.splitlines() if '"what": "run"' in x]
     assert lines and lines[-1]["char"] == CHAR and lines[-1]["tenant"] == lab.acct("a")

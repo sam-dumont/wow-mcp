@@ -43,7 +43,7 @@ your install.
 | Public page | whether they turned it on in Settings |
 | Last build | when the publisher last built their site: "ok", or the error line |
 | Addons | the shipper's setup report as one badge: "addons OK", "N missing" (of the two required addons), "Recorder off", or "no report" |
-| AI analysis | with server-side analysis on: each character's play since its analysis was last refreshed, against `ANALYSIS_STALE_PLAYED_HOURS` ("due" past it; "never refreshed" counts all its play), the due ones first, and the latest refresh, when and by whom: the server, or them (their own AI, or `dashboard_refresh`); their own server runs this month and what they cost |
+| AI analysis | with server-side analysis on: each character's play since its analysis was last refreshed, against `ANALYSIS_STALE_PLAYED_HOURS` ("due" past it; "never refreshed" counts all its play), the due ones first, and the latest refresh, when and by whom: the server, or them (their own AI); their own server runs this month and what they cost |
 
 The red flags:
 

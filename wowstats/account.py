@@ -582,7 +582,7 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
 
     # The server's own analysis (wowstats.analysis.auto): only when the host configured an AI provider.
     server_ai = ("This server also runs the play analysis itself, with the AI provider the host configured, after "
-                 "every few hours of play or when your AI asks for a refresh: what the analysis tools answer "
+                 "every few hours of play when your own AI hasn't refreshed it: what the analysis tools answer "
                  "about your characters (your events, the names of other players your game showed you included, "
                  "never Battle.net data) goes to that provider then." if auto.configured(env) else
                  "This server doesn't run the play analysis itself: the host hasn't configured an AI provider for "
