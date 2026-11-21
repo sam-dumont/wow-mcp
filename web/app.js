@@ -442,10 +442,18 @@ function slotRow(slot, item) {
     window.wowItem(item, { size: 'large', glyph: glyph(SLOT_GLYPH[slot]), cls: 'slotitm', sub: meta.join(', ') }));
 }
 
-// An item anywhere else (lists, advice, loot, snapshots): the 36 px icon
-// and its name, the same tooltip.
+// An item anywhere else (lists, advice, dungeons, moves, loot, snapshots):
+// the 36 px icon and its name, the same tooltip, and the item's BiS badge
+// (badgeFor) on the icon whenever its answer carries one.
 function itemChip(i, opts) {
-  return window.wowItem(i, { size: 'medium', ...(opts || {}) });
+  const chip = window.wowItem(i, { size: 'medium', ...(opts || {}) });
+  const b = badgeFor(i);
+  const frame = chip.querySelector('.ifr');
+  if (b && frame) {
+    frame.append(h('span', { class: 'ibis' + (b.tier ? ' t-' + b.tier : ''), text: b.short, 'aria-hidden': 'true' }));
+    chip.setAttribute('aria-label', `${chip.getAttribute('aria-label')}, ${b.label}`);
+  }
+  return chip;
 }
 
 // A plain standing figure for the middle of the paperdoll.
@@ -1192,7 +1200,6 @@ function bisCmp(x, y) {
   if (!a || !b) return (!a) - (!b);
   return a.from_pct - b.from_pct;
 }
-const bisText = (u) => (u.bis ? `${u.bis.from_pct}% → ${u.bis.to_pct}% of BiS` : null);
 const STANDING_TITLE = { 1: 'Best in slot at your level', 2: 'Second best for this slot at your level' };
 // The doll badge's colour by closeness to BiS, the Forever Leveling BiS
 // addon's legend (owner, 2026-11-21): legendary for BiS, epic from 85%, rare
@@ -1206,6 +1213,31 @@ function bisTier(st) {
   return null;
 }
 const BIS_LEGEND = [['bis', 'BiS'], ['epic', '85%+'], ['rare', '50%+']];
+
+// Every gear piece the page shows (owner, 2026-11-21): the doll's badge on
+// its icon, its share of the best its slot can hold at your level, and the
+// change from what you wear there in the same points, "+12% on your head"
+// (wowstats/gear.py bis_badge: rings and trinkets against the weaker worn,
+// weapons as a setup). No badge in the answer (nothing to measure against,
+// a lone one-hander): none, and the plain points.
+function badgeFor(i) {
+  if (!i || i.bis_pct === null || i.bis_pct === undefined) return null;
+  const top = i.bis_pct >= 100;
+  return { short: top ? 'BiS' : `${i.bis_pct}%`, label: top ? 'BiS' : `${i.bis_pct}% of BiS`,
+    tier: bisTier({ rank: top ? 1 : null, pct: i.bis_pct }) };
+}
+const hasDelta = (u) => Boolean(u) && u.delta_pct !== null && u.delta_pct !== undefined && badgeFor(u) !== null;
+// "+12%", or the points without a badge.
+function upShort(u) {
+  if (!hasDelta(u)) return pts(u.gain);
+  if (u.delta_pct === 0) return (u.gain || 0) > 0 ? '+<1%' : '±0%';
+  return `${u.delta_pct > 0 ? '+' : '−'}${Math.abs(u.delta_pct)}%`;
+}
+// "+12% on your head", or "Head, +4.3 points" without a badge.
+function upText(u) {
+  if (!hasDelta(u)) return `${u.slot_name || 'Gear'}, ${pts(u.gain)} points`;
+  return `${upShort(u)} on your ${(slotKey(u) || 'gear').toLowerCase()}`;
+}
 
 // The display rule (owner, 2026-11-18, "WAY TOO MUCH options"): per slot the
 // best, then at most 2 more that differ in a way that matters (a faster or
@@ -1320,15 +1352,14 @@ function compareEl(u, a, alts, onPick) {
       : h('p', { class: 'sub', text: empty }));
   const kids = [
     h('div', { class: 'cmphead' },
-      h('h3', {}, (u.slot === 16 || u.slot === 17) ? 'Weapons' : u.slot_name, ': ', h('span', { class: 'gainbig', text: pts(u.gain) }),
-        h('small', { text: u.gain_share_pct !== null && u.gain_share_pct !== undefined ? ` ${Math.round(u.gain_share_pct)}% of your gear` : '' }),
-        u.bis ? h('small', { class: 'bisgain', text: ` · ${bisText(u)}` }) : null),
+      h('h3', {}, (u.slot === 16 || u.slot === 17) ? 'Weapons' : u.slot_name, ': ', h('span', { class: 'gainbig', text: upShort(u) }),
+        hasDelta(u) ? h('small', { class: 'bisgain', text: ` to ${badgeFor(u).label}` }) : null),
       h('span', { class: 'pill' + (f.now ? ' now' : ''), text: f.now ? 'Now' : f.text, title: f.title }),
       h('button', { type: 'button', class: 'cmpclose', 'aria-label': 'Close the comparison', text: '×' })),
     h('div', { class: 'cmpsides' }, side('You wear', wornNames, 'Nothing in this slot.'), side('Best replacement', cand, '')),
     fitEl(u.fit),
     u.fit && u.fit.alternative ? h('p', { class: 'fitalt' }, 'Built for your spec instead: ',
-      h('b', { text: u.fit.alternative.name }), ` ${pts(u.fit.alternative.gain)}`,
+      h('b', { text: u.fit.alternative.name }), ` ${upShort(u.fit.alternative)}`,
       u.fit.alternative.sources && u.fit.alternative.sources[0] ? [', ', sourceEl(u.fit.alternative.sources[0], a.level)] : null) : null,
     statTable(worn.items, cand, a.weights || {}),
     keepsOther ? h('p', { class: 'cmpcalc sub', text: 'You keep the other hand as it is.' }) : null,
@@ -1342,7 +1373,7 @@ function compareEl(u, a, alts, onPick) {
         const s = primarySource(x);
         const b = h('button', { type: 'button', class: 'linkish', text: x.name });
         b.addEventListener('click', () => onPick(x));
-        return h('li', {}, b, ` ${pts(x.gain)}, `, feasible(x, a.level).text.toLowerCase(), s ? [', ', sourceEl(s, a.level, ahOf(x))] : null);
+        return h('li', {}, b, ` ${upShort(x)}, `, feasible(x, a.level).text.toLowerCase(), s ? [', ', sourceEl(s, a.level, ahOf(x))] : null);
       }))));
   }
   const box = h('section', { class: 'cmp', 'aria-label': `Compare ${u.name}`, tabindex: '-1' }, ...kids);
@@ -1406,7 +1437,7 @@ function renderAdvice(a) {
       li.title = STANDING_TITLE[st.rank] || `${st.pct}% of the best item for this slot at your level`;
     }
     const u = sl.best;
-    if (u) li.querySelector('.imeta').after(h('span', { class: 'iup', text: u.fills_empty ? '▲ something to wear' : `▲ ${pts(u.gain)} at hand`, title: 'Click to compare' }));
+    if (u) li.querySelector('.imeta').after(h('span', { class: 'iup', text: u.fills_empty ? '▲ something to wear' : `▲ ${upShort(u)} at hand`, title: 'Click to compare' }));
     // Beside the icon where there's room (the band on the icon says it on a phone).
     if (st && frame && !li.classList.contains('empty')) li.querySelector('.imeta').after(h('span', { class: 'ibis ibisline' + (st.rank === 1 ? ' top' : ''), text: st.label }));
     if (li.dataset.cmp) continue;
@@ -1467,7 +1498,7 @@ function renderAdvice(a) {
     none.length ? h('p', { class: 'sub nothing', text: `Nothing better for: ${[...new Set(none)].join(', ')}.` }) : null,
     more.length ? h('details', { class: 'upmore' }, h('summary', { text: `${more.length} more upgrade${more.length > 1 ? 's' : ''}` }),
       compactList(a, more)) : null,
-    smalls.length ? h('details', { class: 'upmore' }, h('summary', { text: `${smalls.length} small upgrade${smalls.length > 1 ? 's' : ''} (under 2% of your gear, or a rare drop)` }),
+    smalls.length ? h('details', { class: 'upmore' }, h('summary', { text: `${smalls.length} small upgrade${smalls.length > 1 ? 's' : ''} or rare drop${smalls.length > 1 ? 's' : ''}` }),
       compactList(a, smalls)) : null);
 }
 
@@ -1488,7 +1519,7 @@ function candRow(u, a, extra) {
   li.append(
     h('div', { class: 'candmain' }, itemChip(u), partner, fitEl(u.fit)),
     h('div', { class: 'candmeta' }, h('span', { class: 'slotname', text: slotKey(u) === 'Weapons' ? 'Weapons' : u.slot_name }),
-      h('b', { class: 'gain', text: pts(u.gain) }), u.bis ? h('span', { class: 'bisgain', text: bisText(u) }) : null,
+      h('b', { class: 'gain', text: upShort(u) }),
       feasEl(u, a.level), extra || null));
   li.querySelector('.candmain .itm').addEventListener('click', (e) => {
     e.preventDefault();
@@ -1578,7 +1609,7 @@ function bySlot(a, picks) {
       h('th', { text: k }),
       h('td', {}, worn.length ? worn.map((i) => itemChip(i, { label: false })) : h('span', { class: 'sub', text: 'empty' })),
       h('td', { class: 'best' }, itemChip(u)),
-      h('td', { class: 'gain' }, pts(u.gain), u.bis ? h('span', { class: 'bisgain', text: bisText(u) }) : null),
+      h('td', { class: 'gain' }, upShort(u)),
       h('td', {}, feasEl(u, a.level)),
       h('td', { class: 'srccell' }, s ? sourceEl(s, a.level, ahOf(u)) : ''));
     tr.querySelector('.best .itm').addEventListener('click', (e) => {
@@ -2031,8 +2062,8 @@ function dropRow(it, dungeon, quests) {
     h('div', { class: 'dgitem' }, itemChip(it), whMark(it.url, it.name), it.state === 'missing' ? fitEl(it.fit) : null),
     h('div', { class: 'dgmeta' },
       it.state === 'missing'
-        ? h('span', { class: 'gain', title: `+${(it.gain ?? 0).toFixed(1)} points of Polestar’s score over what you wear` },
-          h('b', { text: `+${(it.gain ?? 0).toFixed(1)}` }), it.fills_empty ? h('small', { text: 'empty slot' }) : null)
+        ? h('span', { class: 'gain', title: `${upText(it)}, over what you wear` },
+          h('b', { text: upShort(it) }), it.fills_empty ? h('small', { text: 'empty slot' }) : null)
         : h('span', { class: 'own', text: ownText(it) || 'yours' }),
       h('span', { class: 'pill', text: (it.slot_name || '').toLowerCase() + (it.now ? '' : `, level ${it.level}`) }),
       dropSource(it, dungeon, quests)));
@@ -2041,7 +2072,7 @@ function dropRow(it, dungeon, quests) {
 // An item he has: where, and when it beats what he wears, the step to take.
 function ownText(x) {
   const up = x.gain > 0 && HELD[x.where];
-  return up ? `${HELD[x.where].toLowerCase()}, +${x.gain.toFixed(1)}${x.now ? '' : ` at level ${x.level}`}` : WHERE[x.where] || '';
+  return up ? `${HELD[x.where].toLowerCase()}, ${upShort(x)}${x.now ? '' : ` at level ${x.level}`}` : WHERE[x.where] || '';
 }
 
 // A quest's reward is listed under the quests' rewards, not as a drop.
@@ -2100,8 +2131,8 @@ function rewardRow(r) {
   return h('li', { class: 'dgdrop missing' },
     h('div', { class: 'dgitem' }, itemChip(r), whMark(r.url, r.name)),
     h('div', { class: 'dgmeta' },
-      h('span', { class: 'gain', title: `+${(r.gain ?? 0).toFixed(1)} points of Polestar’s score over what you wear` },
-        h('b', { text: `+${(r.gain ?? 0).toFixed(1)}` }), r.fills_empty ? h('small', { text: 'empty slot' }) : null),
+      h('span', { class: 'gain', title: `${upText(r)}, over what you wear` },
+        h('b', { text: upShort(r) }), r.fills_empty ? h('small', { text: 'empty slot' }) : null),
       h('span', { class: 'pill', text: (r.slot_name || '').toLowerCase() + (r.now ? '' : `, level ${r.level}`) }),
       h('span', { class: 'src' }, 'from ', whLink(q.url, q.name || `quest ${q.quest_id}`),
         q.state === 'open' ? (q.complete ? ': complete, hand it in' : ': in your log')
@@ -2942,7 +2973,7 @@ function moveEl(mv, nowZone) {
   if (mv.kind === 'upgrade' && mv.item) {
     const it = mv.item;
     what = itemWithLink(it);
-    why = [h('span', { text: `${it.slot_name || 'Gear'}, +${(it.gain || 0).toFixed(1)} points (${Math.round(it.gain_share_pct || 0)}% of your gear)` + withText(it) }),
+    why = [h('span', { text: upText(it) + withText(it) }),
       sourceLine(mv.source)];
   } else if (mv.kind === 'dungeon' && mv.zone) {
     const its = mv.items || [];
@@ -2950,7 +2981,7 @@ function moveEl(mv, nowZone) {
     why = [vsGuide(mv.vs_guide, true), gainLine(mv.gain), gainQuests(mv.gain), moveRewards(mv.quest_rewards),
       h('span', { text: `Drops ${its.length} upgrade${its.length === 1 ? '' : 's'} you could wear now` + (mv.blocker ? ` (${mv.blocker}):` : ':') }),
       h('ul', { class: 'ditems' }, its.slice(0, 3).map((it) => h('li', {}, itemWithLink(it),
-        h('span', { class: 'sub', text: `${it.slot_name || 'Gear'}, +${(it.gain || 0).toFixed(1)} points (${Math.round(it.gain_share_pct || 0)}% of your gear)` + withText(it) })))),
+        h('span', { class: 'sub', text: upText(it) + withText(it) })))),
       its.length > 3 ? h('span', { class: 'sub', text: `and ${its.length - 3} more in the gear advice` }) : null,
       ];
   } else if ((mv.kind === 'profession' || mv.kind === 'riding') && mv.skill) {
@@ -3021,7 +3052,7 @@ function moveRewards(rw) {
   if (!rw || !rw.length) return null;
   return h('div', { class: 'mrewards' }, h('span', { text: 'Quest rewards you could use:' }),
     h('ul', { class: 'ditems' }, rw.slice(0, 3).map((r) => h('li', {}, itemWithLink(r),
-      h('span', { class: 'sub' }, `${r.slot_name || 'Gear'}, +${(r.gain || 0).toFixed(1)} points${r.now ? '' : ` at level ${r.level}`}, from `,
+      h('span', { class: 'sub' }, `${upText(r)}${r.now ? '' : ` at level ${r.level}`}, from `,
         whLink(r.quest.url, r.quest.name || `quest ${r.quest.quest_id}`))))),
     rw.length > 3 ? h('span', { class: 'sub', text: `and ${rw.length - 3} more in Dungeons` }) : null);
 }
@@ -3325,7 +3356,7 @@ function renderSnapshot(sn, out) {
   if (sn.gear) {
     kids.push(...snapGear(sn));
     if (sn.bis && sn.bis.upgrades && sn.bis.upgrades.length) {
-      kids.push(h('p', {}, h('b', { text: 'Best upgrades then: ' }), sn.bis.upgrades.slice(0, 3).map((u) => `${u.name} +${u.gain.toFixed(1)}`).join(', ')));
+      kids.push(h('p', {}, h('b', { text: 'Best upgrades then: ' }), sn.bis.upgrades.slice(0, 3).map((u) => `${u.name} ${upShort(u)}`).join(', ')));
     }
     if (window.wowPastLevel) window.wowPastLevel(holder, state.char, sn.level, sn.picture);
   } else {

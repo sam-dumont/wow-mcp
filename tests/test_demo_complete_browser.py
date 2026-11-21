@@ -234,3 +234,64 @@ def test_demo_has_no_gap(browser, base, which, width):
     ctx.close()
     assert not errors, errors
     assert not found, found
+
+
+BADGE = r"^(BiS|[1-9]?[0-9]%)$"
+TIERS = {"t-bis": (100, 100), "t-epic": (85, 99), "t-rare": (50, 84)}
+
+
+def badges(page, scope: str) -> list[dict]:
+    """The BiS badges on the item icons under `scope`: text, tier class and
+    colours (app.js itemChip)."""
+    return page.eval_on_selector_all(f"{scope} .itm .ifr .ibis", """els => els.map(e => {
+      const cs = getComputedStyle(e);
+      return { text: e.textContent, cls: e.className, bg: cs.backgroundColor, fg: cs.color,
+               label: e.closest('.itm').getAttribute('aria-label') };
+    })""")
+
+
+def check_badge(b: dict) -> None:
+    import re
+
+    assert re.match(BADGE, b["text"]), b
+    pct = 100 if b["text"] == "BiS" else int(b["text"].rstrip("%"))
+    tier = next((t for t in TIERS if t in b["cls"].split()), None)
+    want = next((t for t, (lo, hi) in TIERS.items() if lo <= pct <= hi), None)
+    assert tier == want, b  # the doll's colours: orange BiS, purple 85%+, blue 50%+, plain below
+    assert b["label"].endswith("BiS"), b  # said, not only shown
+
+
+@pytest.mark.parametrize("width", WIDTHS)
+def test_items_carry_the_bis_badge(browser, base, width):
+    """Owner, 2026-11-21: every item shown carries the paperdoll's BiS badge
+    (the same number and colours) and its change as "+n% on your <slot>",
+    never "points (n% of your gear)": the Overview's upgrade and dungeon
+    cards, and the Dungeons panel's drops."""
+    ctx = browser.new_context(viewport={"width": width, "height": 844 if width < 600 else 900})
+    page = ctx.new_page()
+    page.goto(base + "friends/")
+    page.wait_for_selector("#home .move")
+    page.wait_for_timeout(800)
+    for kind in ("upgrade", "dungeon"):
+        card = f"#home .move.k-{kind}"
+        got = badges(page, card)
+        assert got, f"no badge on a {kind} card"
+        for b in got:
+            check_badge(b)
+        text = page.locator(card).first.inner_text()
+        assert "% on your " in text and "of your gear" not in text, text
+    page.click("#tab-overview")
+    page.wait_for_selector(".dg .dgdrop")
+    page.wait_for_timeout(800)
+    drops = badges(page, ".dg .dgdrop")
+    assert drops
+    for b in drops:
+        check_badge(b)
+    # The same colour as the doll's badge of the same tier.
+    doll = {t: page.eval_on_selector_all(f"#gear .slot .ifr .ibis.{t}", "els => els.map(e => getComputedStyle(e)"
+                                         ".backgroundColor)") for t in TIERS}
+    for b in drops:
+        tier = next((t for t in TIERS if t in b["cls"].split()), None)
+        if tier and doll[tier]:
+            assert b["bg"] == doll[tier][0], (b, doll[tier])
+    ctx.close()

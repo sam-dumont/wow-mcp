@@ -23,6 +23,7 @@ import time
 from datetime import UTC, datetime
 
 from wowstats import quests, trainers
+from wowstats.gear import BADGE
 from wowstats.stores import parse_t
 
 LEVELING = re.compile(r"^forever/(alliance|horde)/")
@@ -120,7 +121,7 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
     loot: dict = {}
     with contextlib.suppress(gear.GearError):
         advice = gear.advise_rows(rows, analysis.weights_for(env, char))
-        loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char))
+        loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char), (advice or {}).get("bis_by_slot"))
     db = prep.build(rows, char, route.reference(), map_sizes=knowledge.meta.get("ui_map"),
                     upgrades=(advice or {}).get("upgrades_all") or [])
     try:
@@ -864,7 +865,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
                     "even_ding_t": ding_even},
         "trips": tr, "dungeons": sorted(dungeons, key=lambda d: (d["min"], d["name"])), "dungeon_runs_kb": runs,
         "upgrades": [{k: u.get(k) for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_share_pct",
-                                            "level", "now", "fills_empty", "sources", "ah_copper")} | (
+                                            "level", "now", "fills_empty", "sources", "ah_copper", *BADGE)} | (
             {"with_item_id": (u.get("with") or {}).get("item_id"), "with": _partner(u["with"])} if u.get("with")
             else {}) for u in ups],
         "gear_spec": ((advice or {}).get("spec") or {}).get("label"),

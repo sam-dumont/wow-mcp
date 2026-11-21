@@ -110,7 +110,7 @@ def test_the_overview_says_equip(stored):
     a = gear.advise(gear.reference(), HUNTER, level=8, held=gear.newest_bags(rows["Hunter-Fixture"]))
     moves = insights.next_moves(8, a, {}, {}, {}, [], {})["moves"]
     m = next(m for m in moves if m.get("item_id") == VEST)
-    assert m["text"].startswith("Equip Riverpaw Leather Vest from your bags (+")
+    assert m["text"].startswith("Equip Riverpaw Leather Vest from your bags (") and "% on your chest" in m["text"]
     assert m["source"]["kind"] == "bags" and m["source"]["blocker"] is None
 
 
