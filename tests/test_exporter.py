@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import pytest
@@ -55,6 +56,15 @@ GEAR = {"equipped_items": [{"slot": {"type": "MAIN_HAND"}, "item": {"id": 1317}}
                                       {"type": {"type": "SPIRIT", "name": "Spirit"}, "value": 3}]}]}
 
 
+def profile_lines(out: str) -> str:
+    """render_data without each character's `snapshot` label and marker
+    (test_bnet_freshness covers those): the series as the parts wrote them."""
+    assert all('snapshot="' in ln for ln in out.splitlines() if ln.startswith("wow_character_")
+               and not ln.startswith("wow_character_profile_found")), out
+    out = re.sub(r',snapshot="[0-9a-f]{12}"', "", out)
+    return "".join(ln + "\n" for ln in out.splitlines() if not ln.startswith("wow_character_snapshot{"))
+
+
 def fake_api(answers, calls):
     def api_get(path, namespace, endpoint, reduce=None):
         calls.append((path, namespace))
@@ -72,7 +82,7 @@ def test_profile_keys_forever_characters_without_realm(monkeypatch):
         {p: PRIEST, p + "/appearance": LOOK, p + "/equipment": GEAR}, calls))
     assert exporter.poll_profile() == "1 of 2 characters"
     assert ("/profile/wow/character/testhunter-fixture", "profile-forever-eu") in calls
-    out = exporter.render_data()
+    out = profile_lines(exporter.render_data())
     assert 'wow_character_customization{account_id="0",character="Testpriest-Fixture",option_id="80"} 1174.0' in out
     assert 'wow_character_customization{account_id="0",character="Testpriest-Fixture",option_id="82"} 1210.0' in out
     assert ('wow_character_profile{account_id="0",character="Testpriest-Fixture",class_id="",faction="",gender="male",'
@@ -88,7 +98,7 @@ def test_profile_keys_forever_characters_without_realm(monkeypatch):
     # Gone from the API: only "not found" stays, the look and gear go.
     monkeypatch.setattr(exporter, "api_get", fake_api({}, calls))
     exporter.poll_profile()
-    out = exporter.render_data()
+    out = profile_lines(exporter.render_data())
     assert "customization" not in out and "equipped" not in out
     assert 'wow_character_profile_found{account_id="0",character="Testpriest-Fixture"} 0.0' in out
 
@@ -110,7 +120,7 @@ def test_profile_reads_guild_and_achievements(monkeypatch):
         {p: {**PRIEST, "guild": {"name": "Test Guild", "id": 1}}, p + "/achievements": ach}, calls))
     exporter.poll_profile()
     assert (p + "/achievements", "profile-forever-eu") in calls
-    out = exporter.render_data()
+    out = profile_lines(exporter.render_data())
     assert ('wow_character_profile{account_id="0",character="Testpriest-Fixture",class_id="",faction="",gender="male",guild="Test Guild",'
             'in_guild="true",race_id="7"} 32.0') in out
     assert 'wow_character_achievements_read{account_id="0",character="Testpriest-Fixture"} 2' in out
@@ -165,7 +175,7 @@ def test_profile_reads_forever_talents(monkeypatch):
     monkeypatch.setattr(exporter, "api_get", fake_api({p: PRIEST, p + "/specializations": PRIEST_SPECS}, calls))
     exporter.poll_profile()
     assert (p + "/specializations", "profile-forever-eu") in calls
-    out = exporter.render_data()
+    out = profile_lines(exporter.render_data())
     assert 'wow_character_talent_points{account_id="0",character="Testpriest-Fixture",order="0",tree="Discipline"} 16.0' in out
     assert 'wow_character_talent_points{account_id="0",character="Testpriest-Fixture",order="1",tree="Shadow Magic"} 7.0' in out
     assert 'wow_character_talent_points{account_id="0",character="Testpriest-Fixture",order="2",tree="Holy"} 0.0' in out
@@ -197,7 +207,7 @@ def test_profile_keeps_the_armory_item_level_and_never_asks_for_renders(monkeypa
         {p: {**PRIEST, "equipped_item_level": 23, "average_item_level": 24}, p + "/appearance": LOOK,
          p + "/character-media": MEDIA}, calls))
     exporter.poll_profile()
-    out = exporter.render_data()
+    out = profile_lines(exporter.render_data())
     assert 'wow_character_item_level{account_id="0",character="Testpriest-Fixture",kind="equipped"} 23' in out
     assert 'wow_character_item_level{account_id="0",character="Testpriest-Fixture",kind="average"} 24' in out
     assert not [c for c in calls if c[0].endswith("/character-media")]
@@ -247,7 +257,7 @@ def test_profile_list_is_per_account_capped_and_first_claim_wins(monkeypatch):
     p = "/profile/wow/character/testpriest-fixture"
     monkeypatch.setattr(exporter, "api_get", fake_api({p: PRIEST, p + "/appearance": LOOK}, calls))
     exporter.poll_profile()
-    out = exporter.render_data()
+    out = profile_lines(exporter.render_data())
     assert 'wow_character_profile{account_id="1",character="Testpriest-Fixture",' in out
     assert 'account_id="0",character="Testpriest-Fixture"' not in out
 
@@ -304,7 +314,7 @@ def test_a_new_character_is_read_within_minutes_not_tomorrow(monkeypatch):
     assert exporter.poll_new() == "1 of 1 new characters"
     assert {c[0] for c in calls} >= {p, p + "/equipment"}
     assert "/profile/wow/character/testhunter-fixture" not in {c[0] for c in calls}  # read this morning
-    out = exporter.render_data()
+    out = profile_lines(exporter.render_data())
     assert 'wow_character_equipped{account_id="3",character="Testpriest-Fixture",slot="main_hand"} 1317.0' in out
     # Five minutes later: nobody new, no call to Battle.net at all.
     calls.clear()

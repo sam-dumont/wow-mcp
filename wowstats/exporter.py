@@ -49,6 +49,7 @@ VM_MERGE_KEY_FILE, VM_MERGE_URL (default: VM_PUSH_URL's host,
 
 import base64
 import gzip
+import hashlib
 import json
 import os
 import re
@@ -344,7 +345,30 @@ PROFILE_SERIES = ("wow_character_profile", "wow_character_customization", "wow_c
                   "wow_character_achievement",
                   # How many it completed, written only when /achievements
                   # answered: without it the Legacy count is unknown, not 0.
-                  "wow_character_achievements_read")
+                  "wow_character_achievements_read",
+                  # When each part (PARTS) last answered (review 3: a 503 on
+                  # /equipment once left the whole character marked fresh).
+                  "wow_character_part_refreshed_timestamp_seconds")
+
+# What each Battle.net call writes. A part replaces its own series only when
+# its call answered; a failed call keeps what the part had, with its own
+# time, and the character's refreshed series is the oldest part's time.
+PARTS = {"profile": ("wow_character_profile", "wow_character_item_level"),
+         "appearance": ("wow_character_customization",),
+         "equipment": ("wow_character_equipped", "wow_character_equipped_stat"),
+         "specializations": ("wow_character_talent_points", "wow_character_talent_rank"),
+         "achievements": ("wow_character_achievement", "wow_character_achievements_read")}
+PART_TS = "wow_character_part_refreshed_timestamp_seconds"
+REFRESHED = "wow_character_profile_refreshed_timestamp_seconds"
+# Which of a character's series the exporter holds now, as one label on each
+# (`snapshot`, a hash of the series' names and labels) and one marker series
+# per character (SNAPSHOT, its value when that set became current). The
+# readers keep the newest marker's set only: a talent dropped in a respec or
+# an emptied slot is gone at once, not after their 2-day window (review 3).
+SNAPSHOT = "wow_character_snapshot"
+snapshots: dict[tuple, tuple[str, float]] = {}  # (account_id, character) -> (snapshot, since)
+
+
 def talent_readings(body) -> tuple[list[dict], dict[int, tuple[int, str]]]:
     """The active talent group of a /specializations answer: its trees
     [{tree, points}] in the order given and {spell id: (rank, talent name)}.
@@ -401,6 +425,45 @@ def forget_old(now=None):
                 del series[k]
 
 
+def whose(key: tuple) -> tuple:
+    """(account_id, character) of a series' labels tuple."""
+    lab = dict(key)
+    return lab.get("account_id"), lab.get("character")
+
+
+def commit(who: dict, part: str, rows: list[tuple[str, dict, float]]) -> None:
+    """One part's answer: its series become `rows` (the ones it no longer
+    has go), and the part's time is now."""
+    me = (who["account_id"], who["character"])
+    seen = {(n, tuple(sorted(lab.items()))) for n, lab, _v in rows}
+    for n, lab, v in rows:
+        put(n, lab, v, "profile")
+    put(PART_TS, {**who, "part": part}, time.time(), "profile")
+    with lock:
+        for n in PARTS[part]:
+            series = data.get(n, {})
+            for k in [k for k in series if whose(k) == me and (n, k) not in seen]:
+                del series[k]
+
+
+def as_of(who: dict) -> None:
+    """The character's refreshed series: the oldest part's last answer, once
+    every part has answered at least once (since the exporter started)."""
+    me = (who["account_id"], who["character"])
+    with lock:
+        at = {dict(k).get("part"): v[0] for k, v in data.get(PART_TS, {}).items() if whose(k) == me}
+    if set(at) >= set(PARTS):
+        put(REFRESHED, who, min(at[p] for p in PARTS), "profile")
+
+
+def forget_character(me: tuple, keep_found: bool = True) -> None:
+    with lock:
+        for n in PROFILE_SERIES if keep_found else (*PROFILE_SERIES, "wow_character_profile_found"):
+            series = data.get(n, {})
+            for k in [k for k in series if whose(k) == me]:
+                del series[k]
+
+
 NAME_RE = re.compile(r"^[^\x00-\x1f\"\\/]{1,64}$")
 
 
@@ -435,17 +498,19 @@ def profile_chars() -> list[tuple[str, str]]:
     return out
 
 
-def read_character(acct: str, name: str, keep: dict) -> bool:
+def read_character(acct: str, name: str) -> bool:
     """One character's profile, appearance, equipment, talents and
-    achievements into `data`, the series' keys added to `keep`. The look is
-    option/choice ids, the ones the 3D view's recipe reads (character3d).
-    False: Battle.net doesn't know it (yet)."""
+    achievements into `data`, one part at a time (commit): an ApiError
+    leaves the parts not read yet as they were, with their own time. The
+    look is option/choice ids, the ones the 3D view's recipe reads
+    (character3d). False: Battle.net doesn't know it (yet)."""
     who = {"character": name, "account_id": acct}  # on every series: whose character it is
     path = f"/profile/wow/character/{char_slug(name)}"
     prof = api_get(path, PROFILE_NS, "profile")
     put("wow_character_profile_found", who, 1 if prof else 0, "profile")
     if not prof:
-        return False  # not on Battle.net yet: the next pass drops its other series
+        forget_character((acct, name))  # not on Battle.net (yet): only "not found" stays
+        return False
     look = api_get(f"{path}/appearance", PROFILE_NS, "profile_appearance") or {}
     race = (prof.get("race") or look.get("playable_race") or {}).get("id")
     gender = ((prof.get("gender") or look.get("gender") or {}).get("type") or "").lower()
@@ -461,77 +526,74 @@ def read_character(acct: str, name: str, keep: dict) -> bool:
     side = ((prof.get("faction") or {}).get("type") or "").lower() if isinstance(prof.get("faction"), dict) else ""
     labels = {**who, "race_id": str(race or ""), "gender": gender, "in_guild": str(in_guild).lower(),
               "class_id": str(cls or ""), "faction": side, **({"guild": str(guild)} if in_guild else {})}
-    put("wow_character_profile", labels, prof.get("level") or 0, "profile")
-    keep["wow_character_profile"].add(tuple(sorted(labels.items())))
-    # When Blizzard's answer was read: the page says how old the look is,
-    # and the series is pushed every minute whatever its age.
-    put("wow_character_profile_refreshed_timestamp_seconds", who, time.time(), "profile")
-    keep["wow_character_profile_refreshed_timestamp_seconds"].add(tuple(sorted(who.items())))
-    for c in look.get("customizations") or []:
-        opt, choice = (c.get("option") or {}).get("id"), (c.get("choice") or {}).get("id")
-        if opt and choice:
-            labels = {**who, "option_id": str(opt)}
-            put("wow_character_customization", labels, choice, "profile")
-            keep["wow_character_customization"].add(tuple(sorted(labels.items())))
+    rows = [("wow_character_profile", labels, prof.get("level") or 0)]
     # The armory's item level: Blizzard's own count (every slot, an
     # empty one 0), which the page shows next to its own average.
     for kind in ("equipped", "average"):
         v = prof.get(f"{kind}_item_level")
         if isinstance(v, (int, float)):
-            labels = {**who, "kind": kind}
-            put("wow_character_item_level", labels, v, "profile")
-            keep["wow_character_item_level"].add(tuple(sorted(labels.items())))
+            rows.append(("wow_character_item_level", {**who, "kind": kind}, v))
+    commit(who, "profile", rows)
+    rows = []
+    for c in look.get("customizations") or []:
+        opt, choice = (c.get("option") or {}).get("id"), (c.get("choice") or {}).get("id")
+        if opt and choice:
+            labels = {**who, "option_id": str(opt)}
+            rows.append(("wow_character_customization", labels, choice))
+    commit(who, "appearance", rows)
     # No /character-media: Blizzard serves its renders on paths shared by
     # character id across the Classic games, and one showed a stranger in
     # the owner's place (2026-11-21). The page's picture is our own render
     # of the 3D model (wowstats.armory).
     gear = api_get(f"{path}/equipment", PROFILE_NS, "profile_equipment") or {}
+    rows = []
     for it in gear.get("equipped_items") or []:
         slot, item = (it.get("slot") or {}).get("type"), (it.get("item") or {}).get("id")
         if slot and item:
             labels = {**who, "slot": slot.lower()}
-            put("wow_character_equipped", labels, item, "profile")
-            keep["wow_character_equipped"].add(tuple(sorted(labels.items())))
+            rows.append(("wow_character_equipped", labels, item))
             for st in it.get("stats") or []:
                 kind, v = ((st or {}).get("type") or {}).get("type"), (st or {}).get("value")
                 if kind and isinstance(v, (int, float)) and not st.get("is_negated"):
                     sl = {**labels, "stat": str(kind)}
-                    put("wow_character_equipped_stat", sl, v, "profile")
-                    keep["wow_character_equipped_stat"].add(tuple(sorted(sl.items())))
+                    rows.append(("wow_character_equipped_stat", sl, v))
+    commit(who, "equipment", rows)
     # Talents for the card, the spec and the meta score: the only source
     # (the game saves none; Altoholic keeps only the class name).
     trees, ranks = talent_readings(api_get(f"{path}/specializations", PROFILE_NS, "profile_specializations"))
+    rows = []
     for i, t in enumerate(trees):
         labels = {**who, "tree": t["tree"], "order": str(i)}
-        put("wow_character_talent_points", labels, t["points"], "profile")
-        keep["wow_character_talent_points"].add(tuple(sorted(labels.items())))
+        rows.append(("wow_character_talent_points", labels, t["points"]))
     for sp, (rk, tname) in ranks.items():
         labels = {**who, "spell_id": str(sp), "talent": tname}
-        put("wow_character_talent_rank", labels, rk, "profile")
-        keep["wow_character_talent_rank"].add(tuple(sorted(labels.items())))
+        rows.append(("wow_character_talent_rank", labels, rk))
+    commit(who, "specializations", rows)
     # Completed achievements: the Legacy points (owner, 2026-11-20).
     body = api_get(f"{path}/achievements", PROFILE_NS, "profile_achievements")
     got = completed_achievements(body)
-    if isinstance(body, dict):
-        put("wow_character_achievements_read", who, len(got), "profile")
-        keep["wow_character_achievements_read"].add(tuple(sorted(who.items())))
+    rows = [("wow_character_achievements_read", who, len(got))] if isinstance(body, dict) else []
     for aid, at in got.items():
         labels = {**who, "achievement_id": str(aid)}
-        put("wow_character_achievement", labels, at, "profile")
-        keep["wow_character_achievement"].add(tuple(sorted(labels.items())))
+        rows.append(("wow_character_achievement", labels, at))
+    commit(who, "achievements", rows)
+    # When Blizzard's answers were read: the page says how old the look is,
+    # and the series is pushed every minute whatever its age.
+    as_of(who)
     return True
 
 
 def poll_profile():
     """Every listed character, every PROFILE_INTERVAL on the clock; what the
     run didn't see goes, and anything not refreshed for 30 days."""
-    keep = {n: set() for n in PROFILE_SERIES}
     chars = profile_chars()
-    found = sum(read_character(acct, name, keep) for acct, name in chars)
-    for n, k in keep.items():
-        drop(n, "profile", k)
-    drop("wow_character_profile_found", "profile",
-         {(("account_id", a), ("character", c)) for a, c in chars})
+    found = sum(read_character(acct, name) for acct, name in chars)
+    # A character no longer listed goes whole.
+    with lock:
+        gone = {whose(k) for n in (*PROFILE_SERIES, "wow_character_profile_found")
+                for k in data.get(n, {})} - set(chars)
+    for me in gone:
+        forget_character(me, keep_found=False)
     forget_old()
     return f"{found} of {len(chars)} characters"
 
@@ -550,8 +612,7 @@ def poll_new():
     waits for the next pass), one call at a time like the passes; the
     passes and the 30-day rule are unchanged."""
     chars = [(a, n) for a, n in profile_chars() if never_read(a, n)]
-    keep = {n: set() for n in PROFILE_SERIES}
-    found = sum(read_character(acct, name, keep) for acct, name in chars)
+    found = sum(read_character(acct, name) for acct, name in chars)
     return f"{found} of {len(chars)} new characters"
 
 
@@ -581,17 +642,45 @@ def render_health():
     return "".join(out)
 
 
+def snapshot_ids() -> dict[tuple, str]:
+    """{(account_id, character): snapshot} for every character with profile
+    series: a hash of the names and labels it holds now (not the values, so
+    a refresh that changes nothing but numbers keeps the label and vm-wow's
+    series). A character whose set changed gets a new `since`. Under lock."""
+    sets: dict[tuple, list] = {}
+    for n in PROFILE_SERIES:
+        for k in data.get(n, {}):
+            sets.setdefault(whose(k), []).append((n, k))
+    out = {}
+    for me, keys in sets.items():
+        sid = hashlib.sha256(json.dumps(sorted(keys)).encode()).hexdigest()[:12]
+        if snapshots.get(me, ("", 0.0))[0] != sid:
+            snapshots[me] = (sid, time.time())
+        out[me] = sid
+    for me in [m for m in snapshots if m not in sets]:
+        del snapshots[me]
+    return out
+
+
 def render_data(now=None):
     """Game data still fresh: a value is pushed for up to 3 polling intervals
     after its last successful read, then dropped, so a dead API shows as a
-    gap instead of a flat line."""
+    gap instead of a flat line. A character's profile series carry their
+    `snapshot`, and its SNAPSHOT marker is pushed whatever their age."""
     now = now or time.time()
     out = []
+    profile = set(PROFILE_SERIES)
     with lock:
+        sids = snapshot_ids()
         for name in sorted(data):
             for labels, (value, ts, task) in sorted(data[name].items()):
                 if now - ts <= 3 * INTERVALS[task]:
+                    if name in profile and whose(labels) in sids:
+                        labels = tuple(sorted((*labels, ("snapshot", sids[whose(labels)]))))
                     out.append(fmt(name, labels, value))
+        for (acct, char), sid in sorted(sids.items()):
+            out.append(fmt(SNAPSHOT, (("account_id", acct), ("character", char), ("snapshot", sid)),
+                           snapshots[(acct, char)][1]))
     return "".join(out)
 
 

@@ -67,6 +67,10 @@ release candidate at a time.
   account). The released images pull as before.
 - The server's own analysis stays off until you configure a provider;
   `ANALYSIS_AUTO=off` keeps it off with one.
+- The exporter's profile series carry a new `snapshot` label, plus
+  `wow_character_snapshot` and `wow_character_part_refreshed_timestamp_seconds`.
+  Your own queries on vm-wow see each series twice for 2 days after the
+  upgrade (with and without the label); the pages pick the newest.
 
 ### Docs
 
@@ -78,6 +82,7 @@ release candidate at a time.
 
 ### Fixed
 
+- A Battle.net refresh that failed half way (a 503 on the equipment) marked the whole character fresh while its gear was hours old. Each call now keeps its own time and the character reads "as of" the oldest. A talent dropped in a respec or a slot emptied also lingered on the pages for up to 2 days; they now go with the next refresh.
 - A ring or trinket line could start from the other worn ring's share: the paperdoll read 40% and 34% for the two rings, and every ring upgrade said "40% → …" though it replaces the 34% one. The doll measured the stronger worn ring against the best item left and the weaker against the next, so the weaker could read the higher share. The best item left now goes to the slot it replaces (an empty one, else the weaker worn), the stronger against the next, so the weaker always reads the lower share and every line starts from it. The stronger ring or trinket can read a higher share than before, and only the best ring left reads 100% going into the slot it replaces (the second of the best two reads its share of the best).
 - Your AI scored the gear for the spec your add-ons pick even when the host set `WEIGHTS` for that character: `gear_options`, `dungeon_options` and `next_step` could say Shadow while the page said Discipline, and whichever asked first decided what the other got for two minutes. The MCP now reads the same settings as the page, and the planner keeps one answer per spec.
 
