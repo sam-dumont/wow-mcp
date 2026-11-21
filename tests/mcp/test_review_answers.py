@@ -44,7 +44,9 @@ H_LEVELS = [
     {"_time": _t(19, 20), "level": 9, "seconds": 11, "xp": 1500, "partial": False, "source_id": f"level:{HUNTER}:9"},
 ]
 H_SNAP = [{"_time": _t(19, 40), "level": 10, "xp": 100, "xp_max": 7600, "money_copper": 1234, "zone": "Dun Morogh"}]
-H_ZONE_TIME = [{"zone": "Dun Morogh", "secs": "7", "visits": "1"}]
+# A zone record 7 s before the session's last record (19:40): 7 s there
+# (stores.zone_time).
+H_ZONES = [{"_time": "2026-11-18T19:39:53.000Z", "kind": "zone", "zone": "Dun Morogh", "source_id": "rec:9:1:9"}]
 H_ZONE_ACT = [{"zone": "Dun Morogh", "kind": "xp", "n": "1", "xp": "1000"}]
 H_DUNGEONS = [{"_time": _t(18, 30), "name": "The Deadmines", "level": 18, "seconds": 7, "xp": 1000,
                "source_id": f"dungeon:{HUNTER}:1"}]
@@ -59,7 +61,7 @@ LOGS = [
     ("kind:in(zone, step, skip, kill", H_EVENTS),
     ('feed:="wow-dungeon"', H_DUNGEONS),
     ("fields _time, player, context", []),
-    ("kind:=zone duration_s:*", H_ZONE_TIME),
+    ("kind:=zone | fields", H_ZONES),
     ("kind:in(xp, kill, turnin, death) | uniq", H_ZONE_ACT),
     ("kind:=death", H_DEATHS),
 ]

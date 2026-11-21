@@ -109,9 +109,12 @@ spec is dropped, and a kind the shipper doesn't know goes with its time and
 sends nothing new until the shipper learns it. Shippers before 0.7.0 sent
 the rest in `args`; `/ingest` drops it.
 
-- `duration_s`, computed by the shipper so the UI only adds up: on `zone`
-  (until the next zone change or the end of the chunk), on `step` (since the
-  previous step), on `taxi` (until `land`).
+- `duration_s`, computed by the shipper: on `step` (since the previous
+  step), on `taxi` (until `land`), and on `zone` for servers before 0.7.0
+  only. A zone's time depends on records the shipper may not have read yet,
+  so the server works it out from the stored zone records instead: to the
+  next zone record of the session, else the session's last record
+  (`wowstats/stores.py` `zone_time`).
 - `quest_name` on `accept`, `turnin`, `complete`, `abandon` and `fail`: from
   LibForeverData's quest table (`Interface/AddOns/LibForeverData/Data/Quests.lua`),
   else Polestar_QuestDB's, else the quest title the Recorder saw in a `text`

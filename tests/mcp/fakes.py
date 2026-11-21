@@ -72,8 +72,10 @@ EVENTS = [
 STEPS = [e for e in EVENTS if e["kind"] in ("step", "skip")] + [
     {"_time": _t(17, 21, 10), "kind": "skip", "guide": "Barrens 12-15", "step": 7, "zone": "The Barrens",
      "source_id": "rec:1:2:9"}]
-ZONE_TIME = [{"zone": "The Barrens", "secs": "5400", "visits": "2"}, {"zone": "Durotar", "secs": "1800",
-                                                                       "visits": "1"}]
+# The zone records: the server works their time out from these and the
+# sessions (stores.zone_time): Durotar 19:02 to the session's end at 20:25
+# (4980 s), The Barrens 20:03 to 21:35 (5520 s).
+ZONE_RECS = [e for e in EVENTS if e["kind"] == "zone"]
 ZONE_ACT = [{"zone": "Durotar", "kind": "xp", "n": "2", "xp": "970"}, {"zone": "Durotar", "kind": "kill", "n": "1"},
             {"zone": "Durotar", "kind": "death", "n": "1"}, {"zone": "The Barrens", "kind": "xp", "n": "1",
                                                               "xp": "900"}]
@@ -129,7 +131,7 @@ LOGS = [
     ("stats by (player, context, _time:1d)", PLAYER_DAYS),
     ("stats by (player) max(_time)", PLAYER_INFO),
     ("fields _time, player, context", MET),
-    ("kind:=zone duration_s:*", ZONE_TIME),
+    ("kind:=zone | fields", ZONE_RECS),
     ("kind:in(xp, kill, turnin, death) | uniq", ZONE_ACT),
     ("kind:in(step, skip)", STEPS),
     ("kind:=death", DEATHS),

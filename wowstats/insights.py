@@ -23,7 +23,18 @@ from . import forever, profcaps, trainers
 from . import gear as gearmod
 from .analysis import kb
 from .links import dungeon_url, wowhead_url
-from .stores import SESSION_BUCKETS, iso, lq, num, opt_num, parse_t, split_sessions
+from .stores import (
+    SESSION_BUCKETS,
+    ZONE_RECORDS,
+    iso,
+    lq,
+    num,
+    opt_num,
+    parse_t,
+    split_sessions,
+    zone_time,
+    zone_totals,
+)
 
 Q = Callable[[str], list[dict]]
 
@@ -1146,9 +1157,10 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
         rng = f"_time:[{iso(t0)}, {iso(t1) if t1 else iso(datetime.now(t0.tzinfo))}]"
         stats = q(f"{rec(cf)} kind:in(turnin, kill, loot) {rng} | stats by (kind) count_uniq(source_id) as n")
         out["counts"] = {r.get("kind"): int(num(r.get("n"))) for r in stats}
-        zrows = q(f"{rec(cf)} kind:=zone duration_s:* {rng} | stats by (zone) sum(duration_s) as secs")
-        out["zones"] = sorted(({"zone": r["zone"], "secs": int(num(r.get("secs")))} for r in zrows if r.get("zone")),
-                              key=lambda z: -z["secs"])[:6]
+        # Time per zone inside the level (stores.zone_time: the records' own times).
+        visits = zone_time(q(f"{rec(cf)} {rng} {ZONE_RECORDS}"),
+                           split_sessions(q(f"{rec(cf)} {rng} {SESSION_BUCKETS}")))
+        out["zones"] = [{"zone": z["zone"], "secs": z["secs"]} for z in zone_totals(visits)][:6]
         if out["gear_partial"]:
             loot = q(f"{rec(cf)} kind:in(loot, turnin) {rng} | fields _time, items, item")
             got = set()

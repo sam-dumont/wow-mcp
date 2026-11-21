@@ -20,7 +20,7 @@ from datetime import UTC, datetime, timedelta
 from .. import ahsource, gearfit
 from .. import gear as gearmod
 from ..rates import per_hour
-from ..stores import PLAYER_LEVEL_KINDS, SESSION_BUCKETS, split_sessions
+from ..stores import PLAYER_LEVEL_KINDS, SESSION_BUCKETS, ZONE_RECORDS, split_sessions, zone_time, zone_totals
 from ..stores import public_error as stores_public_error
 from . import route
 from .store import SourceError, Store, iso, lq, parse_t, parse_when
@@ -350,11 +350,13 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
     lo, hi = sessions[0][0], sessions[-1][1]
     ev = dedupe(st.logs(f"{rec(char)} kind:in(zone, step, skip, kill, turnin, accept, xp, level, death, taxi, land, "
                         f"session) "
-                        f"| fields _time, kind, zone, level, xp_gained, duration_s, guide, step, quest_id, source_id",
+                        f"| fields _time, kind, zone, level, xp_gained, guide, step, quest_id, source_id",
                         lo, hi))
     runs = dedupe(st.logs(f'feed:="wow-dungeon" {cf(char)} | fields _time, name, level, seconds, xp, source_id',
                           lo, hi))
     met = st.logs(f'feed:="wow-player" {cf(char)} player:* | fields _time, player, context', lo, hi)
+    # Time per zone from the records' own times (stores.zone_time).
+    visits = zone_time([e for e in ev if e.get("kind") == "zone"], split_sessions(buckets))
     out = []
     for a, b in reversed(sessions):
         inside = [e for e in ev if a <= parse_t(e.get("_time")) <= b]
@@ -372,8 +374,8 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
         lv_to = max([opt_num(e["level"]) for e in own] + ([lv_from] if lv_from is not None else []), default=None)
         for e in inside:
             kinds[e.get("kind")] = kinds.get(e.get("kind"), 0) + 1
-            if e.get("kind") == "zone" and e.get("zone"):
-                zones[e["zone"]] = zones.get(e["zone"], 0) + int(num(e.get("duration_s")))
+        for z in zone_totals([v for v in visits if a <= parse_t(v.get("_time")) <= b]):
+            zones[z["zone"]] = z["secs"]
         steps = [e for e in inside if e.get("kind") == "step"]
         guides = sorted({e.get("guide") for e in steps if e.get("guide")})
         grouped = sorted({m.get("player") for m in met if a <= parse_t(m.get("_time")) < b
@@ -402,8 +404,9 @@ def t_zones(ctx: Ctx, args: dict) -> dict:
     start, end = time_range(args, None)
     limit = limit_arg(args, 15)
     st = ctx.store
-    time_rows = st.logs(f"{rec(char)} kind:=zone duration_s:* | uniq by (source_id, zone, duration_s) "
-                        f"| stats by (zone) sum(duration_s) as secs, count() as visits", start, end)
+    # Time per zone from the records' own times (stores.zone_time).
+    time_rows = zone_totals(zone_time(st.logs(f"{rec(char)} {ZONE_RECORDS}", start, end),
+                                      split_sessions(st.logs(f"{rec(char)} {SESSION_BUCKETS}", start, end))))
     act = st.logs(f"{rec(char)} kind:in(xp, kill, turnin, death) | uniq by (source_id, zone, kind, xp_gained) "
                   f"| stats by (zone, kind) count() as n, sum(xp_gained) as xp", start, end)
     zones: dict[str, dict] = {}

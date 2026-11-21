@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from wowstats.stores import SESSION_GAP_S, num, opt_num, parse_t, split_sessions
+from wowstats.stores import SESSION_GAP_S, num, opt_num, parse_t, split_sessions, zone_time
 
 GAP_S = SESSION_GAP_S
 BUCKET_S = 60  # the XP query's buckets (Views.journal: stats by (_time:1m))
@@ -72,18 +72,18 @@ def build(minutes: list[dict], xp: list[dict], events: list[dict], dungeons: lis
             s["levels"].append({"level": lvl, "t": r.get("_time")})
             if s["level_start"] is None:
                 s["level_start"] = lvl - 1
-        elif kind == "zone" and r.get("zone"):
-            # A zone's time runs to the next zone change or the end of the
-            # chunk group: clip it to this session.
-            secs = min(num(r.get("duration_s")), max(0.0, s["end"] - t))
-            z = s["zones"].setdefault(r["zone"], 0.0)
-            s["zones"][r["zone"]] = z + secs
         elif kind == "turnin":
             s["quests"].append({"quest_id": opt_num(r.get("quest_id")), "name": r.get("quest_name") or None,
                                 "zone": r.get("zone") or None, "t": r.get("_time")})
         elif kind == "death":
             zone = r.get("zone") or "Unknown"
             s["deaths"][zone] = s["deaths"].get(zone, 0) + 1
+    # A zone's time runs to the next zone record or the session's end
+    # (stores.zone_time: from the records' times, not the shipper's field).
+    for r in zone_time([e for e in events if e.get("kind") == "zone"], spans):
+        s = find(_ts(r.get("_time")))
+        if s and r.get("zone"):
+            s["zones"][r["zone"]] = s["zones"].get(r["zone"], 0.0) + r["secs"]
     for r in dungeons:
         s = find(_ts(r.get("_time")))
         if s:
