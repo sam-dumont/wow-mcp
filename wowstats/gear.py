@@ -1555,18 +1555,20 @@ def bis_gain(st: dict | None, r: dict) -> dict | None:
     return {"from_pct": st["pct"], "to_pct": max(b["bis_pct"], st["pct"])}
 
 
-BADGE = ("bis_pct", "delta_pct")
-NO_BADGE = {"bis_pct": None, "delta_pct": None}
+BADGE = ("bis_pct", "bis_pct_worn", "delta_pct")
+NO_BADGE = {"bis_pct": None, "bis_pct_worn": None, "delta_pct": None}
 
 
 def bis_badge(st: dict | None, r: dict) -> dict:
     """The badge every item carries wherever it is shown (owner, 2026-11-21):
     `bis_pct`, the item's score as a share of the best its slot can hold at
-    this level (the paperdoll's number: 100 is BiS), and `delta_pct`, that
-    share minus the worn item's, in the same points ("+12%"). Rings and
+    this level (the paperdoll's number: 100 is BiS); `bis_pct_worn`, the
+    same share for what is worn there now (None for an empty slot); and
+    `delta_pct`, the difference. The page says "70% → 91% on your chest"
+    (gain_words), never "+21%", which read as 21% more stats. Rings and
     trinkets measure in the slot compare() picks, the weaker of the two
     worn (Gear.lua). st: the slot's standing (standings(); `pct` and
-    `target`), r: the item's compare result. Both None without a BiS to
+    `target`), r: the item's compare result. All None without a BiS to
     measure against (no candidate, a random-suffix item worn, a lone
     one-hander): no badge, never a guess."""
     if not st or not st.get("target"):
@@ -1575,24 +1577,27 @@ def bis_badge(st: dict | None, r: dict) -> dict:
     if new is None:
         return dict(NO_BADGE)
     pct = _share(new, st["target"])
-    return {"bis_pct": pct, "delta_pct": pct - st["pct"]}
+    worn = None if r.get("empty") else st["pct"]
+    return {"bis_pct": pct, "bis_pct_worn": worn, "delta_pct": pct - (worn or 0)}
 
 
 def badge_of(u: dict | None) -> dict:
-    """The two badge fields of a row, for the answers that copy a few keys."""
+    """The badge fields of a row, for the answers that copy a few keys."""
     return {k: (u or {}).get(k) for k in BADGE}
 
 
 def gain_words(u: dict) -> str:
-    """An item's gain in the page's words (web/app.js gainText): "+12% on
-    your head" against BiS, "BiS" or "62% of BiS" in front; the points when
-    it has no badge ("+4.3 points"). Weapons are one setup: "your weapons"."""
-    if u.get("bis_pct") is None or u.get("delta_pct") is None:
+    """An item's gain in the page's words (web/app.js upText): the slot's
+    BiS share from what's worn to this item, "70% → 91% on your chest",
+    "empty → 91% on your chest" when nothing is worn there. Weapons are one
+    setup: "on your weapons". The points when it has no badge ("+4.3
+    points")."""
+    if u.get("bis_pct") is None:
         return f"+{u.get('gain') or 0:.1f} points"
     name = u.get("slot_name") or "gear"
     slot = "weapons" if name in ("Main hand", "Off hand") else name.lower()
-    head = "BiS" if u["bis_pct"] >= 100 else f"{u['bis_pct']}% of BiS"
-    return f"{head}, {u['delta_pct']:+d}% on your {slot}" if u["delta_pct"] else head
+    worn = u.get("bis_pct_worn")
+    return f"{'empty' if worn is None else f'{worn}%'} → {u['bis_pct']}% on your {slot}"
 
 
 def bis_by_slot(stand: dict[int, dict | None]) -> dict[str, dict]:

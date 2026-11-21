@@ -722,9 +722,10 @@ def _gear_item(u: dict | None) -> dict | None:
            "where": [_src_text(s) for s in u.get("sources") or []]}
     if u.get("bis_pct") is not None:
         # The page's badge (gear.bis_badge): this item's share of the best
-        # the slot can hold now (100 = BiS), and the change from the worn
-        # one in the same points. Absent when there's no BiS to measure.
+        # the slot can hold now (100 = BiS), the worn one's (null: the slot
+        # is empty) and the difference. Absent when there's no BiS to measure.
         out["bis_pct"] = u["bis_pct"]
+        out["bis_pct_worn"] = u.get("bis_pct_worn")
         out["delta_pct"] = u["delta_pct"]
     links = [_src_link(s) for s in u.get("sources") or []]
     if any(links):
@@ -1097,8 +1098,8 @@ TOOLS: tuple[Tool, ...] = (
     Tool("gear", "Gear upgrades",
          "Gear advice from Polestar's scoring: per slot what is worn and where it stands (BiS, 2nd, or a percent "
          "of BiS), the best item at its level and the next within 3 levels, with the gain and where to get it; "
-         "then the upgrades: held or in the current zone first, then the slot furthest from BiS first, with "
-         "bis_pct and delta_pct (the page's badge). Scored for Polestar's spec unless `spec` names another.",
+         "then the upgrades, held or in the current zone first, then the slot furthest from BiS. Say each as "
+         "bis_pct_worn → bis_pct (null worn: empty slot). Polestar's spec unless `spec` names another.",
          schema({"char": CHAR, "spec": {"type": "string", "description": "A spec of the class, e.g. shadow, holy."},
                  "limit": lim(10, 40)}), t_gear),
     Tool("next_moves", "What to do now",

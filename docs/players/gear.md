@@ -30,8 +30,9 @@ in points until the item data has them.
 Upgrades are counted in Polestar's points, one score per item for your class and talents, so
 a ring and a helmet compare. The page says them against the slot's best: every item, here, on
 the Overview and in the Dungeons panel, has the badge from the paperdoll on its icon (its share
-of BiS, same colours) and "+18% on your head", how much closer to BiS it takes that slot. A
-3% step is a nice-to-have, an 18% one is worth a trip. An item with nothing to measure it
+of BiS, same colours) and "70% → 88% on your head": that slot's share of BiS with what you wear
+now, then with this item ("empty → 88%" when nothing is there). A 3-point step is a nice-to-have,
+an 18-point one is worth a trip. An item with nothing to measure it
 against keeps its points. **Scored for**, at the top, picks the spec
 ("Automatic" follows your talents); pick another to see the upgrades for a respec.
 
