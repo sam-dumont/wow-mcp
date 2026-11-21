@@ -3,13 +3,13 @@
 .github/workflows/release.yml calls this; docs/development.md, "Releasing",
 says which button to press. Three commands, all local and offline:
 
-  plan  --channel stable|rc --bump auto|patch|minor|major
+  plan  --channel stable|rc --bump auto|patch|minor|major [--kb-note TEXT]
         Reads pyproject.toml, CHANGELOG.md's "Unreleased" section and the
         repository's v* tags, and prints `key=value` lines (GITHUB_OUTPUT
         format): mode, version, tag, prerelease. Refuses with a message on
         stderr and exit 1 when there is nothing to release or the inputs
         don't fit the tree.
-  apply VERSION [--date YYYY-MM-DD]
+  apply VERSION [--date YYYY-MM-DD] [--kb-note TEXT]
         Writes VERSION everywhere the tree carries it and moves "Unreleased"
         under "## VERSION (date)".
   notes VERSION
@@ -26,6 +26,11 @@ Versions are X.Y.Z or X.Y.Z-rc.N (a release candidate, a GitHub prerelease).
 `bump` picks the next X.Y.Z from the current version (auto means patch);
 while a candidate series is open, channel rc cuts the next candidate and
 channel stable promotes it, and bump must stay auto.
+
+--kb-note: the knowledge base refresh's line (tools/release/kb.py note, for
+a run kb-release.yml started), added under "### Knowledge base" in the
+release's section. It counts as an entry, so a refresh alone makes a
+release; it never turns a `tag` run into a new version.
 """
 
 from __future__ import annotations
@@ -80,6 +85,10 @@ class Version:
         """The normalized form packaging tools write (uv.lock): 0.7.0rc1."""
         core = f"{self.major}.{self.minor}.{self.patch}"
         return core if self.rc is None else f"{core}rc{self.rc}"
+
+    def order(self) -> tuple:
+        """Sort key: a candidate sorts below its final (0.7.0-rc.4 < 0.7.0)."""
+        return (self.major, self.minor, self.patch, self.rc is None, self.rc or 0)
 
     def __str__(self) -> str:
         core = f"{self.major}.{self.minor}.{self.patch}"
@@ -137,15 +146,16 @@ def git_tags(root: Path) -> set[str]:
 # ----------------------------------------------------------------- deciding
 
 
-def decide(*, current: Version, pending: str, tags: set[str], channel: str, bump: str) -> Plan:
+def decide(*, current: Version, pending: str, tags: set[str], channel: str, bump: str, kb_note: str = "") -> Plan:
     if channel not in ("stable", "rc"):
         raise Refused(f"channel is stable or rc, not {channel!r}")
     if bump not in ("auto", "patch", "minor", "major"):
         raise Refused(f"bump is auto, patch, minor or major, not {bump!r}")
-    has_entries = bool(pending.strip())
+    written = bool(pending.strip())
+    has_entries = written or bool(kb_note.strip())
     tagged = f"v{current}" in tags
 
-    if not tagged and not has_entries:
+    if not tagged and not written:
         # A release commit is on main without its tag: finish that release.
         if (channel == "rc") != (current.rc is not None):
             raise Refused(f"main carries {current}, untagged, ready to release; run channel="
@@ -170,9 +180,9 @@ def decide(*, current: Version, pending: str, tags: set[str], channel: str, bump
     return Plan("prepare", core.candidate(1) if channel == "rc" else core)
 
 
-def plan(root: Path, channel: str, bump: str) -> Plan:
+def plan(root: Path, channel: str, bump: str, kb_note: str = "") -> Plan:
     return decide(current=current_version(root), pending=unreleased(root), tags=git_tags(root),
-                  channel=channel, bump=bump)
+                  channel=channel, bump=bump, kb_note=kb_note)
 
 
 # ----------------------------------------------------------------- applying
@@ -189,7 +199,7 @@ TARGETS = (
 )
 
 
-def apply(root: Path, version: Version, date: dt.date) -> list[str]:
+def apply(root: Path, version: Version, date: dt.date, kb_note: str = "") -> list[str]:
     changed = []
     for rel, pattern, form in TARGETS:
         path = root / rel
@@ -208,6 +218,8 @@ def apply(root: Path, version: Version, date: dt.date) -> list[str]:
     for name, start, end in sections(text):
         if name == "Unreleased":
             entries = text[start:end].strip()
+            if kb_note.strip():  # one line, whatever it was given
+                entries = f"{entries}\n\n### Knowledge base\n\n- {' '.join(kb_note.split())}".strip()
             if not entries and version.rc is None:
                 # A final that promotes its last candidate as it is (decide() allows it).
                 entries = "No changes since the last release candidate."
@@ -246,18 +258,20 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("plan")
     p.add_argument("--channel", default="stable")
     p.add_argument("--bump", default="auto")
+    p.add_argument("--kb-note", default="")
     a = sub.add_parser("apply")
     a.add_argument("version")
     a.add_argument("--date", type=dt.date.fromisoformat, default=dt.datetime.now(dt.UTC).date())
+    a.add_argument("--kb-note", default="")
     n = sub.add_parser("notes")
     n.add_argument("version")
     ap.add_argument("--root", type=Path, default=ROOT)
     args = ap.parse_args(argv)
     try:
         if args.cmd == "plan":
-            print("\n".join(plan(args.root, args.channel, args.bump).lines()))
+            print("\n".join(plan(args.root, args.channel, args.bump, args.kb_note).lines()))
         elif args.cmd == "apply":
-            print("\n".join(apply(args.root, Version.parse(args.version), args.date)))
+            print("\n".join(apply(args.root, Version.parse(args.version), args.date, args.kb_note)))
         else:
             sys.stdout.write(notes(args.root, Version.parse(args.version)))
     except Refused as e:

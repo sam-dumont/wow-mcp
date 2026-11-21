@@ -1,0 +1,130 @@
+# A knowledge base refresh merged on main goes out as a stable patch release
+# by itself (owner, 2026-11-21): the KB is baked into the image (Dockerfile,
+# `COPY data/kb`), and the people who run it (Renovate, Dependabot) only move
+# on a new version. X.Y.Z+1, never a `-kb.<date>` prerelease (it sorts below
+# the release) nor `+build` metadata (ignored, and not a Docker tag).
+#
+# Why a push trigger: the refresh job (kb-refresh.yaml, in the CI mirror)
+# opens its PR with the CI App's token and turns auto-merge on; the merge
+# lands later, when the public checks pass, long after that job ended. The
+# App's merge is a push that starts workflows (only GITHUB_TOKEN's don't), so
+# this runs on it. `paths` keeps it off most pushes; the guard step keeps it
+# to a kb-refresh merge (tools/release/kb.py guard: a merged PR from branch
+# kb-<mode> of this repository, opened by a bot, labelled kb-watch). A
+# person's PR that touches data/kb releases nothing.
+#
+# It then presses the release button (release.yml, channel stable, bump
+# patch, kb on, not a dry run) and waits for that run: one release pipeline,
+# with all its gates (the tests, both image builds, the shipper's signature,
+# attestations, the repository guard). GITHUB_TOKEN may dispatch a workflow
+# (the one event it starts). No release while a candidate series is open (a
+# v*-rc tag newer than the last final, or a candidate on main): the KB rides
+# the next candidate or the final, and the summary says so.
+#
+# Bursts: one run at a time (group kb-release, never cancelled; GitHub keeps
+# one waiting run, the newest). A waiting run decides on main as it is when it
+# starts, after the previous release is tagged, so a merge that run already
+# released makes nothing twice (tools/release/kb.py check). A merge that
+# lands while a release runs fails that release's "main moved" check; the
+# waiting run then releases both.
+name: kb-release
+
+on:
+  push:
+    branches: [main]
+    paths: ["data/kb/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kb-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.repository_id == '1464458020'
+    runs-on: ubuntu-24.04
+    # The release run: its tests (~20 min), the release PR's checks (~20),
+    # the images (~10).
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      actions: write # dispatch release.yml, watch its run
+      pull-requests: read # which merged PR a commit came from
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: A knowledge base refresh merge?
+        id: guard
+        run: |
+          set -euo pipefail
+          out=$(uv run --no-project python tools/release/kb.py guard "$GITHUB_SHA")
+          echo "$out" >> "$GITHUB_OUTPUT"
+          if [ "$(sed -n 's/^kb=//p' <<<"$out")" != 1 ]; then
+            echo "Not a kb-refresh merge (\`${GITHUB_SHA:0:12}\`): no release." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      # On main as it is now, not as it was at this push: a run that waited
+      # behind a release sees its tag.
+      - name: Release it?
+        id: check
+        if: steps.guard.outputs.kb == '1'
+        env:
+          PR: ${{ steps.guard.outputs.pr }}
+          MODE: ${{ steps.guard.outputs.mode }}
+        run: |
+          set -euo pipefail
+          git fetch -q --force --tags origin "+refs/heads/main:refs/remotes/origin/main"
+          git checkout -q --detach origin/main
+          out=$(uv run --no-project python tools/release/kb.py check)
+          echo "$out" >> "$GITHUB_OUTPUT"
+          echo "main=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          {
+            echo "### kb-refresh merge: #$PR ($MODE)"
+            echo
+            if [ "$(sed -n 's/^release=//p' <<<"$out")" = true ]; then
+              echo "Releasing v$(sed -n 's/^version=//p' <<<"$out") from \`$(git rev-parse --short=12 HEAD)\`."
+              echo
+              echo "> $(sed -n 's/^note=//p' <<<"$out")"
+            else
+              echo "No release: $(sed -n 's/^reason=//p' <<<"$out")"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Press the release button and wait for it
+        if: steps.check.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.check.outputs.version }}
+          MAIN: ${{ steps.check.outputs.main }}
+        run: |
+          set -euo pipefail
+          since=$(date -u -d '-30 seconds' +%Y-%m-%dT%H:%M:%SZ)
+          gh workflow run release.yml --ref main \
+            -f channel=stable -f bump=patch -f dry_run=false -f kb=true
+          # The dispatch returns no run id: the first release run dispatched
+          # on main after this one asked.
+          id=""
+          for _ in $(seq 30); do
+            sleep 10
+            id=$(gh run list --workflow release.yml --event workflow_dispatch --branch main --limit 20 \
+              --json databaseId,createdAt \
+              --jq "[.[] | select(.createdAt >= \"$since\")] | sort_by(.createdAt) | .[0].databaseId // empty")
+            [ -z "$id" ] || break
+          done
+          [ -n "$id" ] || { echo "::error::release.yml didn't start"; exit 1; }
+          run="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$id"
+          echo "Release run for v$VERSION (main \`${MAIN:0:12}\`): $run" >> "$GITHUB_STEP_SUMMARY"
+          if gh run watch "$id" --exit-status --interval 60 >/dev/null; then
+            echo "Released v$VERSION." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::error::The release run failed: $run"
+            exit 1
+          fi

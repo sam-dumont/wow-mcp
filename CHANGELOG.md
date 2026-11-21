@@ -26,6 +26,7 @@
 
 ### Changed
 
+- A knowledge base refresh merged on main now goes out by itself as a stable patch release (X.Y.Z+1), so Renovate and Dependabot pick up the KB baked into the image. Its notes say "Knowledge base refresh" and what moved (a Polestar tag, the lanes). Nothing goes out while a release candidate series is open: the KB rides the next candidate or the final (`.github/workflows/kb-release.yml`, docs/development.md "Knowledge base releases").
 - Gear: the BiS badge on each worn item's icon is coloured by how close it is, like the Forever Leveling BiS addon: orange for BiS, purple from 85%, blue from 50%, the plain dark band below. A legend under the paperdoll says so. The badge keeps its text ("BiS", "84%"), and the item's border still shows its quality.
 - The paperdoll's picture is our own still of the character's 3D model (the same race, look and gear as "View in 3D"), drawn by the renderer (`RENDER_URL`) when the publisher builds, in the public site and /zogzog/ (`data/render/<char>.webp`), and in the full view through `RENDER_FROM`. It is kept per person, character and look, so new gear draws it again. No still yet (the renderer down or busy): "Picture on its way. View it in 3D meanwhile."; no renderer: the silhouette and the 3D toggle. The 3D view's caption says "Look as of <date>." instead of "Look from Battle.net".
 

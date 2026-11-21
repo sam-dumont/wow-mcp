@@ -29,6 +29,14 @@
 #    prerelease and never "Latest". GITHUB_TOKEN writes both; a tag it
 #    pushes starts no workflow, so nothing builds twice.
 #
+# kb: kb-release.yml presses the button by itself (channel stable, bump
+# patch, kb on) when a knowledge base refresh merges on main and no candidate
+# series is open. Then plan adds the refresh's line to the notes
+# (tools/release/kb.py note: "Knowledge base refresh (#PR mode): what moved",
+# built from the repository, never from a PR's or a page's text), and every
+# job's `release apply` writes it under "### Knowledge base". The rest is
+# this run as it is: tests, signature, release PR, images, tag.
+#
 # dry_run does 1, 2 and 4 against a registry on the runner: the plan, the
 # notes and the image tags are in the run summary, nothing is committed,
 # pushed, tagged or published. Its images are built from the commit the run
@@ -73,6 +81,10 @@ on:
         description: "Dry run: plan, notes, tests and image builds; nothing pushed, tagged or published"
         type: boolean
         default: true
+      kb:
+        description: "Add the knowledge base refresh line to the notes (kb-release.yml sets it)"
+        type: boolean
+        default: false
   pull_request:
     paths:
       - Dockerfile
@@ -103,7 +115,12 @@ jobs:
     if: github.repository_id == '1464458020'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      # kb: which merged PRs were the refresh job's (tools/release/kb.py).
+      pull-requests: read
     outputs:
+      kb-note: ${{ steps.v.outputs.kb-note }}
       mode: ${{ steps.v.outputs.mode }}
       version: ${{ steps.v.outputs.version }}
       tag: ${{ steps.v.outputs.tag }}
@@ -127,6 +144,8 @@ jobs:
         env:
           CHANNEL: ${{ inputs.channel }}
           BUMP: ${{ inputs.bump }}
+          KB: ${{ inputs.kb }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
@@ -139,16 +158,20 @@ jobs:
             exit 1
           fi
           release() { uv run --no-project python tools/release/release.py "$@"; }
-          plan=$(release plan --channel "$CHANNEL" --bump "$BUMP")
+          note=""
+          [ "$KB" != true ] || note=$(uv run --no-project python tools/release/kb.py note)
+          echo "kb-note=$note" >> "$GITHUB_OUTPUT"
+          plan=$(release plan --channel "$CHANNEL" --bump "$BUMP" --kb-note "$note")
           echo "$plan" >> "$GITHUB_OUTPUT"
           mode=$(sed -n 's/^mode=//p' <<<"$plan")
           version=$(sed -n 's/^version=//p' <<<"$plan")
           # The release commit, applied here only to show it (prepare makes it).
-          [ "$mode" = tag ] || release apply "$version" >/dev/null
+          [ "$mode" = tag ] || release apply "$version" --kb-note "$note" >/dev/null
           release notes "$version" > "$RUNNER_TEMP/notes.md"
           {
             if [ "$PUSH" = true ]; then echo "### Releasing v$version"; else echo "### Dry run: would release v$version"; fi
             echo
+            [ "$KB" != true ] || echo "Started by kb-release.yml: a knowledge base refresh merged on main."
             echo "Channel \`$CHANNEL\`, bump \`$BUMP\`, from $(sed -n 's/^version = "\(.*\)"/\1/p' <<<"$(git show HEAD:pyproject.toml)") at \`${GITHUB_SHA:0:12}\`."
             if [ "$mode" = tag ]; then
               echo "main already carries $version, untagged: tag it as it is."
@@ -201,6 +224,7 @@ jobs:
       signature: ${{ steps.sign.outputs.signature }}
     env:
       VERSION: ${{ needs.plan.outputs.version }}
+      KB_NOTE: ${{ needs.plan.outputs.kb-note }}
     steps:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
         with:
@@ -210,7 +234,7 @@ jobs:
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - name: The release commit's tree
-        run: uv run --no-project python tools/release/release.py apply "$VERSION" >/dev/null
+        run: uv run --no-project python tools/release/release.py apply "$VERSION" --kb-note "$KB_NOTE" >/dev/null
       - name: Sign the shipper files
         id: sign
         env:
@@ -241,6 +265,7 @@ jobs:
       sha: ${{ steps.pr.outputs.sha }}
     env:
       VERSION: ${{ needs.plan.outputs.version }}
+      KB_NOTE: ${{ needs.plan.outputs.kb-note }}
     steps:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
         with:
@@ -269,7 +294,7 @@ jobs:
           [ "$(git ls-remote origin refs/heads/main | cut -f1)" = "$GITHUB_SHA" ] \
             || { echo "::error::main moved since this run started: run it again."; exit 1; }
           release() { uv run --no-project python tools/release/release.py "$@"; }
-          release apply "$VERSION"
+          release apply "$VERSION" --kb-note "$KB_NOTE"
           base64 -d <<<"$SIGNATURE" > shipper/update-signature.json
           uv run --no-project python tools/release/shipper_sign.py verify
           branch="release/v$VERSION"
