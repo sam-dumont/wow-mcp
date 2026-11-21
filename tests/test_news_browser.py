@@ -97,6 +97,9 @@ def open_live(pw, engine, base, width=1280):
     pg.goto(f"{base}/?char={CHAR}&tab=overview")
     wait_count(pg, "#advice .cand")
     wait_count(pg, "#advice details.upmore")
+    # The first load done, the dungeon cards' item icons (/api/items) too: a
+    # late batch once landed after the test's api.clear() and read as a poll.
+    pg.wait_for_load_state("networkidle")
     return b, pg, bump, api
 
 

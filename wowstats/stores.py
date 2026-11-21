@@ -33,6 +33,10 @@ HISTORY_START = datetime(2004, 11, 23, tzinfo=UTC)
 # asks (the page's parallel calls, the planner, the MCP, the publisher).
 VL_GATE = threading.BoundedSemaphore(max(1, int(os.environ.get("VL_CONCURRENCY", "2") or 2)))
 HOUR = 3600
+# Recorder kinds whose `level` is the player's (docs/contract.md, shipper
+# KINDS): a ding and a chunk's session record. A kill's, a unit's or a
+# rare's `level` is the creature's, an accept's or turn-in's the quest's.
+PLAYER_LEVEL_KINDS = frozenset({"level", "session"})
 
 
 class SourceError(Exception):

@@ -2006,13 +2006,18 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
 def newest_sheet(rows: list[dict], battlenet=None) -> tuple[dict, int, str | None, set] | None:
     """(sheet, level, zone, quests done: wowstats.quests) from one character's stored
     events (wowstats.analysis.prep.query), or None without a sheet or a level."""
-    from wowstats.stores import parse_t
+    from wowstats.stores import PLAYER_LEVEL_KINDS, parse_t
 
     def newest(pred):
         return max((r for r in rows if pred(r)), key=lambda r: parse_t(r.get("_time")), default=None)
 
     g = newest(lambda r: r.get("feed") == "wow-gear")
-    lv = newest(lambda r: r.get("feed") in ("wow-recorder", "wow-character") and _num(r.get("level")))
+    # The character's own level: Polestar's sheet, a ding or a session
+    # record. Any Recorder event's `level` once put the advice at a guard's
+    # 55 for a level-33 character (a kill's is the creature's): BiS from 20
+    # levels up, every badge on the Dungeons panel a third of the doll's.
+    lv = newest(lambda r: _num(r.get("level")) and (r.get("feed") == "wow-character" or (
+        r.get("feed") == "wow-recorder" and r.get("kind") in PLAYER_LEVEL_KINDS)))
     if g is None or lv is None:
         return None
     zone = newest(lambda r: r.get("feed") in ("wow-recorder", "wow-character") and r.get("zone"))

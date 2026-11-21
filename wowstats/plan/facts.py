@@ -102,12 +102,17 @@ def prices(store, days: int = 30) -> dict[int, dict]:
     return best
 
 
-def gather(env: dict, char: str | None = None, now: float | None = None, store=None, battlenet=None) -> dict:
+def gather(env: dict, char: str | None = None, now: float | None = None, store=None, battlenet=None,
+           gear_inputs=None) -> dict:
     """Read the stores and the KB; return extract()'s inputs. `battlenet`:
     the item ids Battle.net says the character wears now, read live by the
     caller (this store never reads vm-wow): they add the quests their
     rewards prove (wowstats.quests.with_battlenet) to the advice, the
-    quests done and the open quests, never to the analysis' database."""
+    quests done and the open quests, never to the analysis' database.
+    `gear_inputs`: the doll's (wowstats.views.Views.gear_inputs), when the
+    caller has them: the advice and the dungeons' loot are scored from
+    exactly what the doll is, so each slot has one BiS share everywhere
+    (owner, 2026-11-21). Without them, the stored events alone."""
     from wowstats import analysis
     from wowstats.analysis import kb, prep
     from wowstats.mcp import route
@@ -124,9 +129,18 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
     from wowstats import gear
 
     loot: dict = {}
+    gi = gear_inputs if gear_inputs and gear_inputs.get("available") else None
     with contextlib.suppress(gear.GearError):
-        advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet)
-        loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char), (advice or {}).get("bis_by_slot"))
+        if gi is not None:
+            from wowstats.views import gear_args
+
+            advice = gear.advise(gear.reference(), gi["sheet"], every=True, **gear_args(gi))
+            loot = gear.instance_loot(gear.reference(), gi["sheet"], level=gi["level"], weights=gi["weights"],
+                                      bis=advice.get("bis_by_slot"))
+        else:
+            advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet)
+            loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char),
+                                           (advice or {}).get("bis_by_slot"))
     db = prep.build(rows, char, route.reference(), map_sizes=knowledge.meta.get("ui_map"),
                     upgrades=(advice or {}).get("upgrades_all") or [])
     try:

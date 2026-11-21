@@ -137,10 +137,12 @@ def _basic(user: str, pw: str) -> bytes:
     return b"Basic " + base64.b64encode(f"{user}:{pw}".encode())
 
 
-def plan_status(char: str, store, env: dict | None = None, battlenet: list[int] | None = None) -> dict:
+def plan_status(char: str, store, env: dict | None = None, battlenet: list[int] | None = None,
+                gear_inputs=None) -> dict:
     from wowstats import plan
 
-    return plan.status(dict(os.environ if env is None else env), char or None, store, battlenet=battlenet)
+    return plan.status(dict(os.environ if env is None else env), char or None, store, battlenet=battlenet,
+                       gear_inputs=gear_inputs)
 
 
 def parse_weights(raw: str) -> dict[str, str]:
@@ -506,7 +508,9 @@ class App:
             from wowstats.plan import dungeonview
 
             try:
-                inp = plan.inputs(self.env, name, self.store, battlenet=self.bnet_worn(name))
+                # Scored from the doll's own inputs: one BiS share per slot.
+                inp = plan.inputs(self.env, name, self.store, battlenet=self.bnet_worn(name),
+                                  gear_inputs=lambda: self.views.gear_inputs(name))
             except LookupError as e:
                 return {"char": name, "available": False, "why": str(e)}
             return {**dungeonview.build(inp), "available": True}
@@ -578,7 +582,8 @@ class App:
 
         def build() -> dict:
             try:
-                return plan_status(name, self.store, self.env, battlenet=self.bnet_worn(name))
+                return plan_status(name, self.store, self.env, battlenet=self.bnet_worn(name),
+                                   gear_inputs=lambda: self.views.gear_inputs(name))
             except LookupError as e:
                 return {"available": False, "why": str(e)}
 
