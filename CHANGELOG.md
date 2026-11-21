@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0-rc.8 (2026-11-21)
+
 What 0.7.0 brings over 0.6.1, in short. Every change is below, one
 release candidate at a time.
 
