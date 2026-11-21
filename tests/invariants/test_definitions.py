@@ -48,6 +48,10 @@ def change(tmp_path, monkeypatch):
             if c == "prep":
                 monkeypatch.setattr(prep, "PREP_VERSION", prep.PREP_VERSION + 1)
                 why.append(f"prep version {prep.PREP_VERSION - 1} -> {prep.PREP_VERSION}")
+            elif c == "settings":
+                # Another timezone: a finding's hours and days mean other hours.
+                why.append(f"timezone {prep.TZ_NAME} -> Pacific/Auckland")
+                monkeypatch.setattr(prep, "TZ_NAME", "Pacific/Auckland")
             elif c == "semantic":
                 edited = tmp_path / "semantic.yaml"
                 edited.write_text(semantic.MODEL_FILE.read_text().replace('description: "', 'description: "(x) ', 1))
@@ -76,7 +80,8 @@ def _why_matches(got: list[str], want: list[str]) -> bool:
             and all(any(g.startswith(p) and g.endswith("-> v9.9.9") for g in rest) for p in prefixes))
 
 
-@pytest.mark.parametrize("which", [(), *((c,) for c in CHANGES), *_pairs(4)], ids=lambda w: "+".join(w) or "none")
+@pytest.mark.parametrize("which", [(), *((c,) for c in CHANGES), ("settings",), ("settings", "prep"), *_pairs(4)],
+                         ids=lambda w: "+".join(w) or "none")
 def test_a_finding_rechecks_as_before_only_while_its_definitions_hold(driven, rows, knowledge, change, which):
     env, drive = driven
     drive.brief(env, CHAR)

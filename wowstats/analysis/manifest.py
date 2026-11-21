@@ -99,9 +99,10 @@ def build(db, rows: list, knowledge=None, route_ref=None, now: datetime | None =
 
 def changed(judged: dict | None, now: dict) -> list[str]:
     """What moved between the build a finding was judged under and today's,
-    in words; [] when it rechecks as before. Only the definitions count: the
-    input, settings and times are kept for the record, since the recheck's
-    whole job is to run on new input."""
+    in words; [] when it rechecks as before. The definitions and the
+    settings that change what a query means (the timezone its hours and days
+    are in, the session and trip gaps) count; the input and the times are
+    kept for the record, since the recheck's whole job is to run on new input."""
     if not judged:
         return ["judged before builds kept a manifest"]
     out = []
@@ -110,6 +111,8 @@ def changed(judged: dict | None, now: dict) -> list[str]:
     if judged.get("semantic_hash") != now["semantic_hash"]:
         out.append("the semantic model changed")
     old, new = judged.get("reference") or {}, now["reference"]
+    out += [f"{k} {old.get(k)} -> {new.get(k)}" for k in sorted(set(old) | set(new)) if old.get(k) != new.get(k)]
+    old, new = judged.get("settings") or {}, now.get("settings") or {}
     out += [f"{k} {old.get(k)} -> {new.get(k)}" for k in sorted(set(old) | set(new)) if old.get(k) != new.get(k)]
     return out
 
