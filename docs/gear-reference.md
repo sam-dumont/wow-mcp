@@ -139,10 +139,12 @@ this level; a worn item is BiS, 2nd (one item above it) or its percent of
 BiS's score. On the paperdoll that badge takes ForeverLevelingBiS's colours:
 orange for BiS, purple from 85%, blue from 50%, plain below. Rings and trinkets count the best two different items, and the
 hands count whole setups. None for a random-suffix item scored on a guess, a
-slot with nothing to compare, or no sheet at all. Every item the page and the MCP show carries the same measure (`bis_pct`
-and `delta_pct`, `wowstats/gear.py` `bis_badge`): its own share of the
-slot's BiS, as a badge on its icon, and the change from the worn item in
-the same points ("+24% on your waist"). Rings and trinkets measure in the
+slot with nothing to compare, or no sheet at all. Every item the page and the MCP show carries the same measure (`bis_pct`,
+`bis_pct_worn` and `delta_pct`, `wowstats/gear.py` `bis_badge`): its own
+share of the slot's BiS, as a badge on its icon, and the worn item's share
+then its own ("70% → 94% on your waist", "empty → 94%" for an empty slot;
+`gain_words` on the server, `upText` on the page). A bare "+24%" read as
+24% more stats, so the page never says it; `delta_pct` is the difference. Rings and trinkets measure in the
 slot the item would take, the weaker of the two worn; a two-hander or a
 setup the advice pairs counts whole, a one-hander scored alone (a dungeon
 drop the advice doesn't list) has none. Upgrades are ordered by it:

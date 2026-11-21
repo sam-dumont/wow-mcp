@@ -34,6 +34,7 @@ import contextlib
 import functools
 import http.server
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -251,8 +252,6 @@ def badges(page, scope: str) -> list[dict]:
 
 
 def check_badge(b: dict) -> None:
-    import re
-
     assert re.match(BADGE, b["text"]), b
     pct = 100 if b["text"] == "BiS" else int(b["text"].rstrip("%"))
     tier = next((t for t in TIERS if t in b["cls"].split()), None)
@@ -264,9 +263,11 @@ def check_badge(b: dict) -> None:
 @pytest.mark.parametrize("width", WIDTHS)
 def test_items_carry_the_bis_badge(browser, base, width):
     """Owner, 2026-11-21: every item shown carries the paperdoll's BiS badge
-    (the same number and colours) and its change as "+n% on your <slot>",
-    never "points (n% of your gear)": the Overview's upgrade and dungeon
-    cards, and the Dungeons panel's drops."""
+    (the same number and colours) and its change as the slot's BiS share
+    from what's worn to the item, "70% → 91% on your chest" (owner,
+    2026-11-21: "+21%" read as 21% more stats), never "points (n% of your
+    gear)": the Overview's upgrade and dungeon cards, and the Dungeons
+    panel's drops."""
     ctx = browser.new_context(viewport={"width": width, "height": 844 if width < 600 else 900})
     page = ctx.new_page()
     page.goto(base + "friends/")
@@ -279,7 +280,8 @@ def test_items_carry_the_bis_badge(browser, base, width):
         for b in got:
             check_badge(b)
         text = page.locator(card).first.inner_text()
-        assert "% on your " in text and "of your gear" not in text, text
+        assert re.search(r"(empty|\d+%) → \d+% on your ", text) and "of your gear" not in text, text
+        assert not re.search(r"[+−]\d+% on your ", text), text
     page.click("#tab-overview")
     page.wait_for_selector(".dg .dgdrop")
     page.wait_for_timeout(800)
@@ -287,6 +289,13 @@ def test_items_carry_the_bis_badge(browser, base, width):
     assert drops
     for b in drops:
         check_badge(b)
+    # A missing drop's gain: from the worn share to the item's, the badge's number.
+    gains = page.eval_on_selector_all(".dg .dgdrop.missing:has(.ifr .ibis)", """els => els.map(e => [
+      e.querySelector('.dgmeta .gain b').textContent, e.querySelector('.ifr .ibis').textContent])""")
+    assert gains
+    for text, badge in gains:
+        m = re.match(r"^(empty|\d+%) → (\d+)%$", text)
+        assert m and int(m.group(2)) == (100 if badge == "BiS" else int(badge.rstrip("%"))), (text, badge)
     # The same colour as the doll's badge of the same tier.
     doll = {t: page.eval_on_selector_all(f"#gear .slot .ifr .ibis.{t}", "els => els.map(e => getComputedStyle(e)"
                                          ".backgroundColor)") for t in TIERS}

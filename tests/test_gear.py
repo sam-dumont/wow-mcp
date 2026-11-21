@@ -567,22 +567,23 @@ def test_badge_bis_item_is_100_and_the_delta_is_against_the_worn_one():
     worn = _worn({1: 10.0})
     st = _standings(worn, {1: _now((1, 20.0), (2, 15.0))})  # BiS 20: the worn 10 is 50%
     assert st[1]["pct"] == 50
-    assert _badge(worn, st, 1, _item(1, 20)) == {"bis_pct": 100, "delta_pct": 50}
-    assert _badge(worn, st, 2, _item(1, 15)) == {"bis_pct": 75, "delta_pct": 25}
+    assert _badge(worn, st, 1, _item(1, 20)) == {"bis_pct": 100, "bis_pct_worn": 50, "delta_pct": 50}
+    assert _badge(worn, st, 2, _item(1, 15)) == {"bis_pct": 75, "bis_pct_worn": 50, "delta_pct": 25}
     # Above BiS (one that opens in a few levels): still BiS, never over 100.
-    assert _badge(worn, st, 3, _item(1, 30)) == {"bis_pct": 100, "delta_pct": 50}
+    assert _badge(worn, st, 3, _item(1, 30)) == {"bis_pct": 100, "bis_pct_worn": 50, "delta_pct": 50}
     # Weaker than the worn one: its own share, a negative change.
-    assert _badge(worn, st, 4, _item(1, 6)) == {"bis_pct": 30, "delta_pct": -20}
+    assert _badge(worn, st, 4, _item(1, 6)) == {"bis_pct": 30, "bis_pct_worn": 50, "delta_pct": -20}
     # Never "100%" for something just short of BiS.
     assert _badge(worn, st, 5, _item(1, 19.95))["bis_pct"] == 99
     # The worn item itself: its standing, no change.
-    assert _badge(worn, st, 101, _item(1, 10)) == {"bis_pct": 50, "delta_pct": 0}
+    assert _badge(worn, st, 101, _item(1, 10)) == {"bis_pct": 50, "bis_pct_worn": 50, "delta_pct": 0}
 
 
 def test_badge_empty_slot_starts_from_zero():
     worn = _worn({1: 10.0})
     st = _standings(worn, {3: _now((1, 8.0))})
-    assert _badge(worn, st, 1, _item(3, 8)) == {"bis_pct": 100, "delta_pct": 100}
+    # Nothing worn: no worn share ("empty → 100%"), the change from zero.
+    assert _badge(worn, st, 1, _item(3, 8)) == {"bis_pct": 100, "bis_pct_worn": None, "delta_pct": 100}
 
 
 @pytest.mark.parametrize("pair", [(11, 12), (13, 14)])
@@ -597,8 +598,8 @@ def test_badge_rings_and_trinkets_against_the_weaker_worn(pair):
     # A new piece replaces the weaker worn one (Gear.lua compare) and is
     # measured in that slot, from its 33%.
     assert gear.compare(_item(inv, 8), 2, worn, SP, None, False)["slot"] == b
-    assert _badge(worn, st, 2, _item(inv, 8)) == {"bis_pct": 67, "delta_pct": 34}
-    assert _badge(worn, st, 1, _item(inv, 12)) == {"bis_pct": 100, "delta_pct": 67}
+    assert _badge(worn, st, 2, _item(inv, 8)) == {"bis_pct": 67, "bis_pct_worn": 33, "delta_pct": 34}
+    assert _badge(worn, st, 1, _item(inv, 12)) == {"bis_pct": 100, "bis_pct_worn": 33, "delta_pct": 67}
 
 
 def test_badge_none_rather_than_a_guess():
@@ -610,7 +611,7 @@ def test_badge_none_rather_than_a_guess():
     # A one-hander alone isn't a weapon setup: nothing to set against the hands' BiS.
     hands = {"pct": 50, "target": 20.0}
     assert gear.bis_badge(hands, {"slot": 16, "new": 9.0}) == gear.NO_BADGE
-    assert gear.bis_badge(hands, {"slot": 16, "new": 9.0, "setup_score": 15.0}) == {"bis_pct": 75, "delta_pct": 25}
+    assert gear.bis_badge(hands, {"slot": 16, "new": 9.0, "setup_score": 15.0}) == {"bis_pct": 75, "bis_pct_worn": 50, "delta_pct": 25}
     assert gear.gain_words({**gear.NO_BADGE, "gain": 4.3, "slot_name": "Chest"}) == "+4.3 points"
 
 
@@ -623,6 +624,7 @@ def test_badge_on_every_advice_row_and_the_dungeon_loot(ref):
     assert rows
     for u in rows:
         assert u["bis_pct"] == u["bis"]["to_pct"] and u["delta_pct"] == u["bis"]["to_pct"] - u["bis"]["from_pct"]
+        assert u["bis_pct_worn"] == (None if u["fills_empty"] else u["bis"]["from_pct"])
         assert 0 < u["bis_pct"] <= 100
     # The random-suffix guesses and the rows with no BiS carry none.
     assert all(u["bis_pct"] is None for u in a["upgrades"] if u["vs_unknown"] or not u["bis"])
@@ -632,7 +634,7 @@ def test_badge_on_every_advice_row_and_the_dungeon_loot(ref):
     both = [r for rows in loot.values() for r in rows if r["item_id"] in by_id and not r["equipped"]]
     assert both
     for r in both:
-        assert (r["bis_pct"], r["delta_pct"]) == (by_id[r["item_id"]]["bis_pct"], by_id[r["item_id"]]["delta_pct"])
+        assert gear.badge_of(r) == gear.badge_of(by_id[r["item_id"]])
     # Without the advice's BiS, the loot has no badge (never a guess).
     bare = gear.instance_loot(ref, sheet(), level=32)
     assert all(r["bis_pct"] is None for rows in bare.values() for r in rows)
@@ -641,3 +643,55 @@ def test_badge_on_every_advice_row_and_the_dungeon_loot(ref):
     for r in (r for rows in loot.values() for r in rows if r["equipped"] and r["slot"] not in (16, 17)):
         if stand.get(r["slot"]) and r["bis_pct"] is not None:
             assert r["delta_pct"] == 0
+
+
+# --- the wording (owner, 2026-11-21): "70% → 91% on your chest" ---------------
+#
+# The slot's BiS share for what's worn, then with the item. "+21% on your
+# chest" read as 21% more stats. gain_words is the server's one helper; the
+# page's (web/app.js upText) is checked under node in test_bis_words_node.
+
+
+def test_words_from_worn_to_this_item():
+    worn = _worn({5: 14.0})
+    st = _standings(worn, {5: _now((1, 20.0))})  # BiS 20: the worn 14 is 70%
+    r = gear.compare(_item(5, 18.2), 7, worn, SP, None, False)
+    u = {**gear.bis_badge(st[5], r), "slot_name": "Chest", "gain": 4.2}
+    assert gear.gain_words(u) == "70% → 91% on your chest"
+    assert gear.gain_words({**u, "bis_pct": 100, "delta_pct": 30}) == "70% → 100% on your chest"
+
+
+def test_words_empty_slot():
+    worn = _worn({1: 10.0})
+    st = _standings(worn, {5: _now((1, 20.0))})
+    r = gear.compare(_item(5, 18.2), 7, worn, SP, None, False)
+    assert r["empty"]
+    assert gear.gain_words({**gear.bis_badge(st[5], r), "slot_name": "Chest"}) == "empty → 91% on your chest"
+
+
+def test_words_ring_pair_from_the_weaker_worn():
+    worn = _worn({11: 10.0, 12: 4.0})
+    st = _standings(worn, {11: _now((1, 12.0), (2, 8.0)), 12: _now((1, 12.0), (2, 8.0))})
+    r = gear.compare(_item(11, 8), 2, worn, SP, None, False)
+    assert r["slot"] == 12  # the weaker of the two
+    assert gear.gain_words({**gear.bis_badge(st[12], r), "slot_name": "Finger"}) == "33% → 67% on your finger"
+    # A free ring slot is the one it fills.
+    one = _worn({11: 10.0})
+    st1 = _standings(one, {11: _now((1, 12.0), (2, 8.0)), 12: _now((1, 12.0), (2, 8.0))})
+    r1 = gear.compare(_item(11, 8), 2, one, SP, None, False)
+    assert r1["empty"]
+    assert gear.gain_words({**gear.bis_badge(st1[r1["slot"]], r1), "slot_name": "Finger"}).startswith("empty → ")
+
+
+def test_words_weapon_setup():
+    hands = {"pct": 50, "target": 20.0}
+    u = {**gear.bis_badge(hands, {"slot": 16, "new": 9.0, "setup_score": 15.0, "empty": False}),
+         "slot_name": "Main hand"}
+    assert gear.gain_words(u) == "50% → 75% on your weapons"
+    off = {**gear.bis_badge({"pct": 0, "target": 20.0}, {"slot": 17, "new": 9.0, "setup_score": 18.2, "empty": True}),
+           "slot_name": "Off hand"}
+    assert gear.gain_words(off) == "empty → 91% on your weapons"
+
+
+def test_words_without_a_badge_are_the_points():
+    assert gear.gain_words({**gear.NO_BADGE, "gain": 4.3, "slot_name": "Chest"}) == "+4.3 points"

@@ -1216,26 +1216,27 @@ const BIS_LEGEND = [['bis', 'BiS'], ['epic', '85%+'], ['rare', '50%+']];
 
 // Every gear piece the page shows (owner, 2026-11-21): the doll's badge on
 // its icon, its share of the best its slot can hold at your level, and the
-// change from what you wear there in the same points, "+12% on your head"
-// (wowstats/gear.py bis_badge: rings and trinkets against the weaker worn,
-// weapons as a setup). No badge in the answer (nothing to measure against,
-// a lone one-hander): none, and the plain points.
+// slot's share from what you wear there to this item, "70% → 91% on your
+// chest" (owner, 2026-11-21: "+21%" read as 21% more stats). wowstats/gear.py
+// bis_badge measures rings and trinkets against the weaker worn, weapons as
+// a setup; gain_words says it the same way on the server. No badge in the
+// answer (nothing to measure against, a lone one-hander): none, and the
+// plain points.
 function badgeFor(i) {
   if (!i || i.bis_pct === null || i.bis_pct === undefined) return null;
   const top = i.bis_pct >= 100;
   return { short: top ? 'BiS' : `${i.bis_pct}%`, label: top ? 'BiS' : `${i.bis_pct}% of BiS`,
     tier: bisTier({ rank: top ? 1 : null, pct: i.bis_pct }) };
 }
-const hasDelta = (u) => Boolean(u) && u.delta_pct !== null && u.delta_pct !== undefined && badgeFor(u) !== null;
-// "+12%", or the points without a badge.
+// "70% → 91%", "empty → 91%" (nothing worn there), or the points without a badge.
 function upShort(u) {
-  if (!hasDelta(u)) return pts(u.gain);
-  if (u.delta_pct === 0) return (u.gain || 0) > 0 ? '+<1%' : '±0%';
-  return `${u.delta_pct > 0 ? '+' : '−'}${Math.abs(u.delta_pct)}%`;
+  if (!badgeFor(u)) return pts(u.gain);
+  const worn = u.bis_pct_worn === null || u.bis_pct_worn === undefined ? 'empty' : `${u.bis_pct_worn}%`;
+  return `${worn} → ${u.bis_pct}%`;
 }
-// "+12% on your head", or "Head, +4.3 points" without a badge.
+// "70% → 91% on your chest", or "Chest, +4.3 points" without a badge.
 function upText(u) {
-  if (!hasDelta(u)) return `${u.slot_name || 'Gear'}, ${pts(u.gain)} points`;
+  if (!badgeFor(u)) return `${u.slot_name || 'Gear'}, ${pts(u.gain)} points`;
   return `${upShort(u)} on your ${(slotKey(u) || 'gear').toLowerCase()}`;
 }
 
@@ -1353,7 +1354,7 @@ function compareEl(u, a, alts, onPick) {
   const kids = [
     h('div', { class: 'cmphead' },
       h('h3', {}, (u.slot === 16 || u.slot === 17) ? 'Weapons' : u.slot_name, ': ', h('span', { class: 'gainbig', text: upShort(u) }),
-        hasDelta(u) ? h('small', { class: 'bisgain', text: ` to ${badgeFor(u).label}` }) : null),
+        badgeFor(u) ? h('small', { class: 'bisgain', text: ' of BiS' }) : null),
       h('span', { class: 'pill' + (f.now ? ' now' : ''), text: f.now ? 'Now' : f.text, title: f.title }),
       h('button', { type: 'button', class: 'cmpclose', 'aria-label': 'Close the comparison', text: '×' })),
     h('div', { class: 'cmpsides' }, side('You wear', wornNames, 'Nothing in this slot.'), side('Best replacement', cand, '')),
@@ -2062,8 +2063,8 @@ function dropRow(it, dungeon, quests) {
     h('div', { class: 'dgitem' }, itemChip(it), whMark(it.url, it.name), it.state === 'missing' ? fitEl(it.fit) : null),
     h('div', { class: 'dgmeta' },
       it.state === 'missing'
-        ? h('span', { class: 'gain', title: `${upText(it)}, over what you wear` },
-          h('b', { text: upShort(it) }), it.fills_empty ? h('small', { text: 'empty slot' }) : null)
+        ? h('span', { class: 'gain', title: upText(it) },
+          h('b', { text: upShort(it) }), it.fills_empty && !badgeFor(it) ? h('small', { text: 'empty slot' }) : null)
         : h('span', { class: 'own', text: ownText(it) || 'yours' }),
       h('span', { class: 'pill', text: (it.slot_name || '').toLowerCase() + (it.now ? '' : `, level ${it.level}`) }),
       dropSource(it, dungeon, quests)));
@@ -2131,8 +2132,8 @@ function rewardRow(r) {
   return h('li', { class: 'dgdrop missing' },
     h('div', { class: 'dgitem' }, itemChip(r), whMark(r.url, r.name)),
     h('div', { class: 'dgmeta' },
-      h('span', { class: 'gain', title: `${upText(r)}, over what you wear` },
-        h('b', { text: upShort(r) }), r.fills_empty ? h('small', { text: 'empty slot' }) : null),
+      h('span', { class: 'gain', title: upText(r) },
+        h('b', { text: upShort(r) }), r.fills_empty && !badgeFor(r) ? h('small', { text: 'empty slot' }) : null),
       h('span', { class: 'pill', text: (r.slot_name || '').toLowerCase() + (r.now ? '' : `, level ${r.level}`) }),
       h('span', { class: 'src' }, 'from ', whLink(q.url, q.name || `quest ${q.quest_id}`),
         q.state === 'open' ? (q.complete ? ': complete, hand it in' : ': in your log')
@@ -3356,7 +3357,7 @@ function renderSnapshot(sn, out) {
   if (sn.gear) {
     kids.push(...snapGear(sn));
     if (sn.bis && sn.bis.upgrades && sn.bis.upgrades.length) {
-      kids.push(h('p', {}, h('b', { text: 'Best upgrades then: ' }), sn.bis.upgrades.slice(0, 3).map((u) => `${u.name} ${upShort(u)}`).join(', ')));
+      kids.push(h('p', {}, h('b', { text: 'Best upgrades then: ' }), sn.bis.upgrades.slice(0, 3).map((u) => `${u.name} (${upShort(u)})`).join(', ')));
     }
     if (window.wowPastLevel) window.wowPastLevel(holder, state.char, sn.level, sn.picture);
   } else {

@@ -90,8 +90,8 @@ pace. [Overview and next moves](players/overview.md).
 
 Polestar's gear score for your class and spec, the number that compares a helmet with a ring.
 The page turns them into the slot's BiS: the badge on an item's icon is its share of the best
-item for that slot at your level, and "+12% on your head" is how much closer to it the item takes
-you than what you wear. An item with nothing to measure against keeps its points ("+4.3 points").
+item for that slot at your level, and "70% → 91% on your head" is that share for what you wear
+now, then with the item ("empty → 91%" when nothing is there). An item with nothing to measure against keeps its points ("+4.3 points").
 [Gear and upgrades](players/gear.md).
 
 ## Your AI
