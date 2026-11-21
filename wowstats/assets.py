@@ -23,7 +23,8 @@ Routes, with the upload password like /ingest (any Host, no page login):
        one model, skin, skeleton, animation or texture this server asked
        for (or that a model it has names), with X-Content-SHA256.
 
-Limits: one file at most MAX_FILE bytes (a character model is 2-9 MB), the
+Limits: one file at most MAX_FILE bytes (Forever's HD character models are
+17-28 MB with their animations), the
 person's daily upload budget shared with /ingest (INGEST_DAILY_MB), and
 MODEL3D_ASSETS_MB in all per person (512); a file whose first bytes aren't
 the kind it claims is refused. A file id already stored is never stored
@@ -51,7 +52,9 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
-MAX_FILE = 16 * 1024 * 1024
+# 16 MB until rc.2 on the lab: the server asked for four HD character
+# models of 17-28 MB that it then refused, so the 3D view never had one.
+MAX_FILE = 48 * 1024 * 1024
 DEFAULT_MB = 512
 BUILD = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,7}$")
 # What a file is, by its first four bytes: the kinds the 3D view reads.

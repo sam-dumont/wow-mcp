@@ -39,7 +39,7 @@ With one person or several. Route it like `/ingest`, **without** your page login
 | `/install/update/shipper` | no login | `GET`, upload password: the shipper's version and each file's sha256, as JSON |
 | `/install/update/shipper/<name>` | no login | `GET`, upload password: one of the shipper's files (`wow_stats.py`, the installers) |
 | `/install/assets/need` | no login | `GET`, upload password, while `MODEL3D` is on: the game files the 3D view still wants from that person's shipper (client tables by file id, then models and textures), as JSON |
-| `/install/assets/table/<Name>`, `/install/assets/file/<id>` | no login | `POST`, upload password and `/ingest`'s daily budget: one client table, or one model, skin, skeleton, animation or texture the server asked for (`X-Content-SHA256`), 16 MB at most, kept in that person's own folder |
+| `/install/assets/table/<Name>`, `/install/assets/file/<id>` | no login | `POST`, upload password and `/ingest`'s daily budget: one client table, or one model, skin, skeleton, animation or texture the server asked for (`X-Content-SHA256`), 48 MB at most, kept in that person's own folder |
 | `/install/items/need`, `/install/items/facts`, `/install/items/table/<Name>` | no login | `POST`, upload password (`facts` and `table` within `/ingest`'s daily budget): which items from the game's hotfix cache the server lacks, then their facts (JSON, 500 items a post) and the client's item-level budget table (`X-Content-SHA256`), kept in that person's own folder |
 
 ## The MCP endpoint: inside `wow-stats ui`, port 8090 (`MCP_PORT`)

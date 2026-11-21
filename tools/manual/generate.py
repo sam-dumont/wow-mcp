@@ -426,7 +426,7 @@ ENDPOINTS = [
           "person's shipper (client tables by file id, then models and textures), as JSON"),
          (["/install/assets/table/<Name>", "/install/assets/file/<id>"], "public",
           "`POST`, upload password and `/ingest`'s daily budget: one client table, or one model, skin, "
-          "skeleton, animation or texture the server asked for (`X-Content-SHA256`), 16 MB at most, "
+          "skeleton, animation or texture the server asked for (`X-Content-SHA256`), 48 MB at most, "
           "kept in that person's own folder"),
          (["/install/items/need", "/install/items/facts", "/install/items/table/<Name>"], "public",
           "`POST`, upload password (`facts` and `table` within `/ingest`'s daily budget): which items from the "
