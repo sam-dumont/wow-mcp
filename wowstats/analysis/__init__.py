@@ -54,6 +54,7 @@ ANALYSIS_SHARE_PORT, and the KB's MODEL3D_CACHE_DIR / KB_GAME_TABLES.
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import hashlib
 import json
 import math
@@ -65,6 +66,7 @@ import tempfile
 import threading
 import time
 import unicodedata
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -157,6 +159,51 @@ def char_dir(env: dict, char: str) -> Path | None:
     return new
 
 
+# Who writes a character's analysis files (analysis.json, drive.json): a
+# server run's token while it runs (wowstats.analysis.auto), None for anyone
+# else (the player's own MCP session, the nightly recheck). A server run that
+# doesn't finish puts the files back only when nobody else wrote them since it
+# started: the external review of 0.7.0-rc.5 found the rollback overwrote the
+# player's own session on the same character.
+WRITER: contextvars.ContextVar[str | None] = contextvars.ContextVar("analysis_writer", default=None)
+_WATCH: dict[str, dict[str, list[str]]] = {}  # character folder -> {run token: who else wrote}
+_WATCH_LOCK = threading.Lock()
+
+
+def note_write(folder: Path) -> None:
+    """A write to a character's analysis files, against every server run
+    watching that folder other than the writer's own."""
+    me = WRITER.get()
+    with _WATCH_LOCK:
+        for token, others in (_WATCH.get(str(folder)) or {}).items():
+            if token != me:
+                others.append(me or "another session")
+
+
+@contextlib.contextmanager
+def guard(env: dict, char: str):
+    """For a server run on one character: its writes carry its own token, and
+    the list it yields fills with every other writer of the character's files
+    while it runs. Empty at the end: nobody else wrote, a rollback is safe."""
+    d = char_dir(env, char)
+    token = uuid.uuid4().hex
+    others: list[str] = []
+    key = str(d) if d is not None else None
+    if key is not None:
+        with _WATCH_LOCK:
+            _WATCH.setdefault(key, {})[token] = others
+    mark = WRITER.set(token)
+    try:
+        yield others
+    finally:
+        WRITER.reset(mark)
+        if key is not None:
+            with _WATCH_LOCK:
+                _WATCH[key].pop(token, None)
+                if not _WATCH[key]:
+                    del _WATCH[key]
+
+
 def _read(p: Path) -> dict:
     with contextlib.suppress(OSError, ValueError):
         s = json.loads(p.read_text(encoding="utf-8"))
@@ -191,6 +238,7 @@ def save_state(env: dict, char: str, state: dict) -> None:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=1)
     os.replace(tmp, d / STATE_FILE)
+    note_write(d)
     old = state_dir(env) / STATE_FILE
     if old.exists() and str(_read(old).get("char") or "").lower() == char.replace(" ", "-").lower():
         old.unlink(missing_ok=True)

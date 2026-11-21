@@ -62,7 +62,9 @@ words without it ("say continue in a new chat") is told nobody will reply
 and to finish, NUDGES times in a row at most; then the run is "incomplete".
 A run that isn't done (incomplete, or stopped by a cap or an error) puts the
 character's analysis and run state back as they were: the player keeps the
-last finished analysis, never a partial one.
+last finished analysis, never a partial one. Unless someone else wrote them
+while it ran (the player's own MCP session, a recheck: analysis.guard): then
+nothing is put back, so their work stays, and the run's `why` says so.
 """
 
 from __future__ import annotations
@@ -715,26 +717,34 @@ class Runner:
                 f"run with {FINAL_STEP}.{step}")
 
     def run(self) -> dict:
-        from . import drive
+        from . import drive, guard
 
         token = drive.DRIVER.set({"kind": "server", "driver": f"{self.cfg.provider}:{self.cfg.model}",
                                   "by": "server", "via": "auto"})
-        kept = self.snapshot()
         status, why = "stopped", ""
-        try:
-            status = self.drive()
-        except Incomplete as e:
-            status, why = "incomplete", str(e)
-        except Stop as e:
-            why = str(e)
-        except providers.ToolsRefused as e:
-            why = f"tool calling is required: {e}. Pick a model and endpoint with tool calling."
-        except Exception as e:  # noqa: BLE001 - the API or a bug: said plainly, the log keeps it
-            why = api_error(e)
-        finally:
-            drive.DRIVER.reset(token)
-        if status != "done":
-            self.restore(kept)
+        with guard(self.ctx.environ(), self.char) as others:
+            kept = self.snapshot()
+            try:
+                status = self.drive()
+            except Incomplete as e:
+                status, why = "incomplete", str(e)
+            except Stop as e:
+                why = str(e)
+            except providers.ToolsRefused as e:
+                why = f"tool calling is required: {e}. Pick a model and endpoint with tool calling."
+            except Exception as e:  # noqa: BLE001 - the API or a bug: said plainly, the log keeps it
+                why = api_error(e)
+            finally:
+                drive.DRIVER.reset(token)
+            if status != "done":
+                # Under the drive lock, so no write lands between the check and the restore.
+                with drive._LOCK:
+                    if others:
+                        why = (f"{why}; not rolled back: {others[0]} wrote this character's analysis meanwhile, "
+                               "and putting the old files back would erase that").lstrip("; ")
+                        log(what="rollback skipped", char=self.char, writers=len(others))
+                    else:
+                        self.restore(kept)
         return self.result(status, why)
 
     def drive(self) -> str:
@@ -816,8 +826,10 @@ class Runner:
         findings were stored as the judge verified them, without the
         synthesis that keeps, drops and merges them. The run's own state goes
         back too, so the next run starts clean instead of resuming on findings
-        that are gone. A recheck that ran meanwhile is undone with it; the
-        next one redoes it."""
+        that are gone. Only when nobody else wrote the files since the run
+        started (analysis.guard): the player's own session or a recheck
+        meanwhile keeps what it wrote, and the run's partial findings stay
+        with it."""
         for p, data in kept.items():
             try:
                 if data is None:
