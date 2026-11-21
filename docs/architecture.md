@@ -90,7 +90,7 @@ then fails on any of those bytes in any public answer, for GET and POST.
 
 The paperdoll's middle has a "View in 3D" toggle (`web/model3d/model3d.js`,
 cut from the live public page with its `<!--model3d-->` markers); it swaps
-the still (the armory's render, `wowstats/armory.py`, or a silhouette) for
+the still (our renderer's picture of the same model, `wowstats/armory.py`, or a silhouette) for
 the model in place, and back. Everything it draws comes from the player's
 own game files: nothing is fetched from anyone else.
 

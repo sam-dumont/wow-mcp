@@ -456,9 +456,9 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
         put("prices", data_path("prices"), app.views.prices)
     for c in chars:
         name = c["char"]
-        put("char", data_path("char", name), lambda: {**app.char(name), "sources": app.store.sources()})
-        if "char" in files:
-            put_render(b, app, name)
+        still = put_still(b, full_app, pics, name) if "char" in files else None
+        put("char", data_path("char", name), lambda: with_still({**app.char(name), "sources": app.store.sources()},
+                                                               still))
         if "char" in files:
             copy_icons(b, talents.icon_names(app.char(name)))
         put("journal", data_path("journal", name), lambda: app.journal(name))
@@ -512,19 +512,34 @@ def put_picture(b: Bundle, pics: pictures.Pictures | None, name: str, level: int
     return {"picture": {"ext": pictures.EXT}}
 
 
-def put_render(b: Bundle, app: ui.App, name: str) -> bool:
-    """The armory's full-body render (wowstats.armory) at
-    data/render/<char>.<ext>, sealed in /zogzog/. Battle.net data: gone
-    from vm-wow 30 days after its last refresh, so from the next build too."""
-    r = app.store.character_armory(name).get("render")
-    if not r:
-        return False
-    body = armory.fetch(r["url"])
-    if not body or armory.kind(body) != armory.ext(r["url"]):
-        log(f"render for {name}: not downloaded")
-        return False
-    b.put(f"data/render/{url_part(name)}.{armory.ext(r['url'])}", body)
-    return True
+def put_still(b: Bundle, full_app: ui.App, pics: pictures.Pictures | None, name: str) -> dict | None:
+    """The paperdoll's picture: our renderer's still of the 3D model as the
+    character is now (its race, look and gear: the 3D view's own answer),
+    at data/render/<char>.webp, sealed in /zogzog/. Never Blizzard's render
+    (wowstats.armory). Kept per tenant, character and recipe, so new gear or
+    a new look draws it again. Returns the answer's gear.render: {"ext"},
+    {"pending": True} (the page says it's on its way), or None (no renderer,
+    nothing to draw: the page keeps the 3D toggle)."""
+    if pics is None or not pics.on or full_app.model3d is None:
+        return None
+    ans = model_answer(full_app, name, None)
+    scope = f"{getattr(full_app.store, 'account_id', 0)}\t{name}"
+    got = pics.get(ans, store_reader(full_app), scope=scope)
+    if got is None:
+        return None
+    if got == "pending":
+        return {"pending": True}
+    if armory.kind(got) != armory.EXT:
+        return None
+    b.put(armory.rel(name), got)
+    return {"ext": armory.EXT}
+
+
+def with_still(d: dict, still: dict | None) -> dict:
+    """The char answer with the bundle's own word on the picture."""
+    if isinstance(d.get("gear"), dict):
+        return {**d, "gear": {**d["gear"], "render": still}}
+    return d
 
 
 def copy_icons(b: Bundle, names: set[str], size: str = "medium") -> int:

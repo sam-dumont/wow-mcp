@@ -167,8 +167,9 @@ def test_both_bundles_carry_each_levels_picture(world):
             assert s.encode() not in body, (s, body)
     # One picture per look and gear: drawn once for both bundles.
     assert len(r.asked) == len({json.dumps(json.loads(b), sort_keys=True) for b in r.asked}) == res["pictures"]["drawn"]
-    kept = list((tmp / "site" / "pictures").glob("*.webp"))
-    assert len(kept) == res["pictures"]["drawn"]
+    kept = {f.stem for f in (tmp / "site" / "pictures").glob("*.webp")}
+    # Each drawing once, plus the still's own name when it looks like a level.
+    assert res["pictures"]["drawn"] <= len(kept) <= res["pictures"]["drawn"] + 1
     # The next build asks nothing: every picture is kept.
     r2 = FakeRenderer()
     try:
@@ -244,3 +245,63 @@ def test_no_renderer_no_picture_field(world):
     res, _ = run(env)
     assert "pictures" not in res
     assert all(v.get("picture") is None for v in snapshots(tmp / "site" / "current" / "public").values())
+    # No still either: the paperdoll keeps the silhouette and its 3D toggle.
+    assert char_answer(tmp / "site" / "current" / "public")["gear"]["render"] is None
+
+
+def char_answer(root, key=None):
+    """The bundle's char answer for the poisoned store's character."""
+    from tests.test_public_view import CHAR
+
+    rel = f"data/char/{CHAR}.json"
+    if key is None:
+        return json.loads((root / rel).read_text())
+    return json.loads(publish.unseal(key, rel, (root / publish.sealed_name(key, rel)).read_bytes()))
+
+
+def test_the_paperdoll_still_is_ours_in_both_bundles(world):
+    """The paperdoll's picture is our renderer's still of the 3D model as
+    the character is now (owner, 2026-11-21: never Blizzard's render, which
+    once showed a stranger). Both bundles carry it, the char answer says so,
+    and it is kept per tenant, character and look."""
+    from tests.test_public_view import CHAR
+
+    env, tmp = world
+    r = FakeRenderer()
+    try:
+        res, _ = run({**env, "RENDER_URL": r.url})
+    finally:
+        r.close()
+    cur = tmp / "site" / "current"
+    rel = f"data/render/{CHAR}.webp"
+    assert (cur / "public" / rel).read_bytes() == WEBP
+    assert (char_answer(cur / "public")["gear"]["render"] or {}).get("ext") == "webp"
+    key = publish.read_key(env["ZOGZOG_KEY_FILE"])
+    assert publish.unseal(key, rel, (cur / "zogzog" / publish.sealed_name(key, rel)).read_bytes()) == WEBP
+    assert (char_answer(cur / "zogzog", key)["gear"]["render"] or {}).get("ext") == "webp"
+    assert not list(cur.rglob("*.png")), "no Blizzard render, nor any image we didn't draw"
+    # Kept under its tenant and character: the scoped name is on disk.
+    full = ui.App({**env, "VIEW": "full", "BIND": "127.0.0.1", "AUTH": "none"})
+    req = pictures.request(publish.model_answer(full, CHAR, None))
+    scope = f"{getattr(full.store, 'account_id', 0)}\t{CHAR}"
+    assert (tmp / "site" / "pictures" / f"{pictures.key(req, scope)}.webp").read_bytes() == WEBP
+
+
+def test_the_still_says_pending_while_the_renderer_is_down(world):
+    env, tmp = world
+    res, _ = run({**env, "RENDER_URL": "http://127.0.0.1:9"})
+    cur = tmp / "site" / "current"
+    assert (char_answer(cur / "public")["gear"]["render"] or {}).get("pending") is True
+    assert not list((cur / "public" / "data").glob("render/*"))
+
+
+def test_a_still_belongs_to_one_tenant_and_character():
+    """Same look, another person or character: another name, so nobody's
+    still is ever served for someone else's; the same drawing is copied,
+    not drawn again (Pictures.get)."""
+    req = {"recipe": w.SCENE["recipe"]}
+    names = {pictures.key(req), pictures.key(req, "0\tHero-Test"), pictures.key(req, "1\tHero-Test"),
+             pictures.key(req, "0\tOther-Test")}
+    assert len(names) == 4
+    assert pictures.key(req, "0\tHero-Test") != pictures.key({"recipe": {**req["recipe"], "animation": 4}},
+                                                               "0\tHero-Test")

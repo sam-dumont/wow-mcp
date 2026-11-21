@@ -1,4 +1,5 @@
-"""A past level's picture, for the static bundles: drawn by the renderer
+"""A past level's picture, and the paperdoll's still of the character as it
+is now (wowstats.armory), for the static bundles: drawn by the renderer
 (`wow-stats render`, wowstats.renderer) at RENDER_URL and kept by what was
 drawn. RENDER_URL empty: no pictures, and a past level shows its 3D model.
 
@@ -51,8 +52,12 @@ def request(answer: dict | None) -> dict | None:
     return {"recipe": recipe} if isinstance(recipe, dict) and recipe.get("model") else None
 
 
-def key(req: dict) -> str:
-    return hashlib.sha256(json.dumps([renderer.REV, req], sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+def key(req: dict, scope: str = "") -> str:
+    """The picture's name: the renderer's revision and the recipe (the race,
+    look and gear), plus `scope` when the picture belongs to one character
+    (the paperdoll's still: tenant and character, wowstats.publish.put_still)."""
+    parts = [renderer.REV, req, scope] if scope else [renderer.REV, req]
+    return hashlib.sha256(json.dumps(parts, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
 class Pictures:
@@ -72,24 +77,37 @@ class Pictures:
         self.down = False  # the renderer failed this run: no more asks
         self.used: set[str] = set()
         self.pending: set[str] = set()
+        self._this_run: dict[str, bytes] = {}  # recipe key -> drawn in this run
 
-    def get(self, answer: dict | None, read: Callable[[int], bytes | None] | None = None) -> bytes | None | str:
+    def get(self, answer: dict | None, read: Callable[[int], bytes | None] | None = None,
+            scope: str = "") -> bytes | None | str:
         """The picture's bytes, "pending" (not drawn yet, or the renderer
         down), or None (off, or nothing to draw). `read`: file id -> its
-        bytes from the person's store, for the renderer's 428s."""
+        bytes from the person's store, for the renderer's 428s. `scope`:
+        see key()."""
         if not self.on:
             return None
         req = request(answer)
         if req is None:
             return None
-        k = key(req)
+        k, same = key(req, scope), key(req)
         self.used.add(k)
         f = self.dir / f"{k}.{EXT}"
-        try:
-            if time.time() - f.stat().st_mtime < MAX_AGE_S:
-                return f.read_bytes()
-        except OSError:
-            pass
+        # The same drawing kept under another name (a level's picture, the
+        # still of the same look): copied, not drawn again.
+        for src in dict.fromkeys((f, self.dir / f"{same}.{EXT}")):
+            try:
+                at = src.stat().st_mtime
+                if time.time() - at < MAX_AGE_S:
+                    body = src.read_bytes()
+                    if src != f:
+                        self._keep(f, body, at)  # its age too: MAX_AGE_S counts from the drawing
+                    return body
+            except OSError:
+                pass
+        if same in self._this_run:
+            self._keep(f, self._this_run[same])
+            return self._this_run[same]
         if self.down or self.spent >= self.budget:
             self.pending.add(k)
             return "pending"
@@ -99,13 +117,19 @@ class Pictures:
         if body is None:
             self.pending.add(k)
             return "pending"
-        self.dir.mkdir(parents=True, exist_ok=True)
-        tmp = f.with_suffix(".part")
-        tmp.write_bytes(body)
-        os.replace(tmp, f)
+        self._keep(f, body)
+        self._this_run[same] = body
         self.drawn += 1
         self.pending.discard(k)
         return body
+
+    def _keep(self, f: Path, body: bytes, at: float | None = None) -> None:
+        self.dir.mkdir(parents=True, exist_ok=True)
+        tmp = f.with_suffix(".part")
+        tmp.write_bytes(body)
+        if at is not None:
+            os.utime(tmp, (at, at))
+        os.replace(tmp, f)
 
     def _post(self, path: str, body: bytes, headers: dict) -> tuple[int, bytes]:
         r = urllib.request.Request(self.url + path, data=body, method="POST",

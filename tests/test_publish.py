@@ -908,18 +908,16 @@ def test_static_page_loads_items_js(site):
         assert html.index("items.js") < html.index('"app.js"')
 
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"render" * 10
 RENDER_URL = "https://render.worldofwarcraft.com/classic-eu/character/x/1/2-main-raw.png"
 
 
 def publish_with(tmp_path, monkeypatch, armory_answer):
-    """A publish whose vm-wow holds `armory_answer`'s render and item level,
-    read through the real Store.character_armory over HTTP: the public App's
-    store has no vm_url (no market), so a test that replaced the method
-    would miss what 0.2.2 shipped (no render in the public bundle)."""
+    """A publish whose vm-wow holds `armory_answer`'s item level, and the
+    render address an older exporter wrote (`render`), read through the real
+    Store.character_armory over HTTP."""
     from datetime import datetime
 
-    from wowstats import armory, stores
+    from wowstats import stores
 
     def series(q):
         r, il = armory_answer.get("render"), armory_answer.get("item_level")
@@ -934,7 +932,7 @@ def publish_with(tmp_path, monkeypatch, armory_answer):
 
     def http_get(url, params=None, *a, **k):
         if url.startswith("http://vm.invalid/"):
-            vm_asked.append(url)
+            vm_asked.append((params or {}).get("query", ""))
             return json.dumps({"data": {"result": series((params or {}).get("query", ""))}}).encode()
         raise AssertionError(f"unexpected request {url}")
 
@@ -945,7 +943,6 @@ def publish_with(tmp_path, monkeypatch, armory_answer):
         s._http_profile = True  # the real reader, over the faked HTTP
         return s
 
-    asked = []
     monkeypatch.setattr(stores, "http_get", http_get)
     monkeypatch.setattr(ui, "Store", store)
     # The Dungeons panel reads the planner's inputs from a store of its own:
@@ -953,56 +950,41 @@ def publish_with(tmp_path, monkeypatch, armory_answer):
     from wowstats.plan import facts
 
     monkeypatch.setattr(facts, "store_for", lambda env, like=None: like)
-    monkeypatch.setattr(armory, "_get", lambda url, timeout=30: asked.append(url) or PNG)
     env = {"VL_URL": "http://vl.invalid", "VM_URL": "http://vm.invalid", "MODEL3D": "off",
            "PUBLISH_DIR": str(tmp_path / "site"), "ZOGZOG_KEY_FILE": str(tmp_path / "zz.key"),
            "MODEL3D_CACHE_DIR": str(tmp_path / "cache")}
-    monkeypatch.setenv("MODEL3D_CACHE_DIR", str(tmp_path / "cache"))
     out = io.StringIO()
     with redirect_stdout(out):
         publish.publish(env)
     key = Path(env["ZOGZOG_KEY_FILE"]).read_text().strip()  # never printed
-    assert armory_answer.get("render") is None or vm_asked, "vm-wow was never asked"
-    return key, tmp_path / "site" / "current", asked
+    assert vm_asked, "vm-wow was never asked"
+    return key, tmp_path / "site" / "current", vm_asked
 
 
-def test_bundles_carry_the_armory_render(tmp_path, monkeypatch):
+def test_bundles_never_carry_blizzards_render(tmp_path, monkeypatch):
+    """Blizzard's renders sit on paths shared by character id across the
+    Classic games: on 2026-11-21 one showed a stranger in the owner's place.
+    vm-wow still holding an older exporter's render address changes nothing:
+    it isn't read, nothing is downloaded, no PNG or address in a bundle, and
+    the old cache of downloads goes."""
     from tests.test_public_view import CHAR
 
-    key, cur, asked = publish_with(tmp_path, monkeypatch, {"item_level": 23.0, "render": {
+    old = tmp_path / "cache" / "render"
+    old.mkdir(parents=True)
+    (old / "0123.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"stranger")
+    key, cur, vm_asked = publish_with(tmp_path, monkeypatch, {"item_level": 23.0, "render": {
         "url": RENDER_URL, "asset": "main-raw", "refreshed": "2026-11-18T10:00:00Z"}})
-    assert asked == [RENDER_URL], "downloaded once, then from the cache"
+    assert not old.exists()
+    assert not [q for q in vm_asked if "wow_character_render" in q]
     pub = files(cur / "public")
-    assert pub[f"data/render/{CHAR}.png"] == PNG
+    assert not any(p.startswith("data/render/") for p in pub)
     g = json.loads(pub[f"data/char/{CHAR}.json"] if f"data/char/{CHAR}.json" in pub
                    else next(v for k, v in pub.items() if k.startswith("data/char")))["gear"]
     assert g["armory_item_level"] == 23 and g["armory_item_level_source"] == "battle.net"
-    assert g["render"] == {"asset": "main-raw", "refreshed": "2026-11-18T10:00:00Z", "ext": "png"}
-    assert RENDER_URL not in json.dumps({k: v.decode("latin-1") for k, v in pub.items()})
-    zz = files(cur / "zogzog")
-    assert f"data/render/{CHAR}.png" not in zz
-    assert opened(key, zz)[f"data/render/{CHAR}.png"] == PNG
-    # The public page draws it: the answer names it, the paperdoll's script
-    # builds data/render/<char>.<ext> from that (renderSrc in app.js).
-    assert "data/render/" in pub["app.js"].decode()
-
-
-def test_no_render_once_battle_net_data_is_gone(tmp_path, monkeypatch):
-    _, cur, asked = publish_with(tmp_path, monkeypatch, {"item_level": None, "render": None})
-    assert not asked and not any(p.startswith("data/render/") for p in files(cur / "public"))
-
-
-def test_render_fetch_refuses_other_hosts_and_expires(tmp_path, monkeypatch):
-    from wowstats import armory
-
-    monkeypatch.setattr(armory, "_get", lambda url, timeout=30: PNG)
-    assert armory.fetch("https://evil.example/a.png", tmp_path) is None
-    assert armory.fetch(RENDER_URL, tmp_path) == PNG
-    (f,) = list(tmp_path.iterdir())
-    monkeypatch.setattr(armory, "_get", lambda url, timeout=30: None)
-    assert armory.fetch(RENDER_URL, tmp_path) == PNG  # cached
-    assert armory.fetch(RENDER_URL, tmp_path, now=f.stat().st_mtime + 31 * 86400) is None
-    assert not f.exists()
+    # No renderer here: no picture, the page keeps the 3D toggle.
+    assert g["render"] is None
+    assert b"render.worldofwarcraft" not in b"".join(pub.values())
+    assert not any(p.startswith("data/render/") for p in opened(key, files(cur / "zogzog")))
 
 
 def test_og_tags_carry_the_title_line(site):

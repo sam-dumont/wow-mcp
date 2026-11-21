@@ -34,7 +34,7 @@ in its saves: the page names it under the history instead of leaving it out.
 ## Without a Battle.net client
 
 A self-hosted site without the exporter (see [Battle.net client](../self-host/battlenet.md))
-has no talents, no talent-based spec hint for the gear advice, no armory render, no sex, no
+has no talents, no talent-based spec hint for the gear advice, no sex, no
 guild and no Legacy points (the page says "unknown"), and every 3D model wears its race's
 default look (the 3D view lets you pick male or female). Everything else works from the
 addons.
@@ -50,7 +50,7 @@ nobody here has called it on Forever yet.
 |---|---|---|---|
 | Talents, spec hint by points | API (`/specializations`) | yes, live | - |
 | The 3D look | API (`/appearance`) | yes, live | - |
-| Armory render, armory item level | API (`/character-media`, profile) | yes, live | - |
+| Armory item level | API (profile) | yes, live | - |
 | Worn items | Syndicator; without its items (not installed, or a gear event with the professions only), the API's whole set; API for random-suffix stats | yes, live (`/equipment`) | history: gear per level, after 30 days |
 | Item level (our average) | Syndicator + Polestar_ItemDB | yes, live (profile) | history |
 | Level, class, race, faction | Polestar, Syndicator; each one they didn't send, the API's | yes, live (profile) | history: the level curve |

@@ -60,13 +60,3 @@ def test_render_from_follows_redirects_on_its_own_site_only(two_hosts):
     assert armory._read(f"{home}/same") == b"\x89PNG\r\n\x1a\nhere"
     assert armory._read(f"{home}/off") is None
     assert other_hits == []
-
-
-def test_render_hosts_follow_redirects_to_render_hosts_only():
-    """Blizzard's render host: a redirect to another allowed render address
-    is fine, anywhere else isn't."""
-    ok = upstream._Redirects(armory.allowed)
-    assert ok.allow("https://render.worldofwarcraft.com/eu/character/x-main.png")
-    assert not ok.allow("https://evil.example/x.png")
-    assert not ok.allow("http://render.worldofwarcraft.com/eu/x.png")
-    assert not ok.allow("http://metadata.invalid/latest/meta-data/")

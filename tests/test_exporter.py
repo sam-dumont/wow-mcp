@@ -181,41 +181,28 @@ def test_profile_reads_forever_talents(monkeypatch):
 
 
 MEDIA = {"assets": [
-    {"key": "avatar", "value": "https://render.worldofwarcraft.com/classic-eu/character/x/1/2-avatar.jpg"},
     {"key": "main-raw", "value": "https://render.worldofwarcraft.com/classic-eu/character/x/1/2-main-raw.png"}]}
 
 
-def test_profile_keeps_the_armory_item_level_and_render(monkeypatch):
+def test_profile_keeps_the_armory_item_level_and_never_asks_for_renders(monkeypatch):
+    """Blizzard's renders sit on paths shared by character id across the
+    Classic games: one showed a stranger in the owner's place (2026-11-21).
+    The exporter never asks /character-media, so no render address is kept."""
     exporter.configure({"BNET_CLIENT_ID_FILE": "/x", "BNET_CLIENT_SECRET_FILE": "/y",
                         "PROFILE_CHARACTERS": "Testpriest-Fixture"})
     exporter.data.clear()
     p = "/profile/wow/character/testpriest-fixture"
+    calls = []
     monkeypatch.setattr(exporter, "api_get", fake_api(
         {p: {**PRIEST, "equipped_item_level": 23, "average_item_level": 24}, p + "/appearance": LOOK,
-         p + "/character-media": MEDIA}, []))
+         p + "/character-media": MEDIA}, calls))
     exporter.poll_profile()
     out = exporter.render_data()
     assert 'wow_character_item_level{account_id="0",character="Testpriest-Fixture",kind="equipped"} 23' in out
     assert 'wow_character_item_level{account_id="0",character="Testpriest-Fixture",kind="average"} 24' in out
-    assert ('wow_character_render{account_id="0",asset="main-raw",character="Testpriest-Fixture",'
-            'url="https://render.worldofwarcraft.com/classic-eu/character/x/1/2-main-raw.png"}') in out
-    # Thirty days on, the render's address goes with the rest.
-    exporter.forget_old(now=exporter.time.time() + 31 * 86400)
-    assert "wow_character_render" not in exporter.render_data(now=exporter.time.time())
-
-
-@pytest.mark.parametrize("media, want", [
-    (MEDIA, "main-raw"),
-    ({"assets": [{"key": "main", "value": "https://render.worldofwarcraft.com/a/b-main.jpg"}]}, "main"),
-    ({"assets": [{"key": "main-raw", "value": "http://render.worldofwarcraft.com/a.png"}]}, None),
-    ({"assets": [{"key": "main-raw", "value": "https://evil.example/a.png"}]}, None),
-    ({"assets": [{"key": "main-raw", "value": "https://u@render.worldofwarcraft.com/a.png"}]}, None),
-    ({"assets": [{"key": "avatar", "value": "https://render.worldofwarcraft.com/a.jpg"}]}, None),
-    (None, None),
-])
-def test_render_url(media, want):
-    got = exporter.render_url(media)
-    assert (got[0] if got else None) == want
+    assert not [c for c in calls if c[0].endswith("/character-media")]
+    assert "render.worldofwarcraft.com" not in out and "wow_character_render" not in out
+    assert "wow_character_render" not in exporter.PROFILE_SERIES
 
 
 class _Answer:

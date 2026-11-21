@@ -1548,24 +1548,6 @@ def bnet_series(rows: list[dict], now: float, days: int = 21) -> list[dict]:
     return [s for _k, s in sorted(series.items())]
 
 
-# The armory render's address in the exporter's series. Made up: the demo's
-# still is drawn from golden3d's files and waits in the armory cache under
-# this address (site/scripts/demo.py), so nothing ever asks Blizzard for it.
-BNET_RENDER_URL = "https://render.worldofwarcraft.com/classic-eu/character/demo/34/nibbet-main-raw.png"
-
-
-def bnet_render_series(now: float, days: int = 3) -> list[dict]:
-    """wow_character_render for the demo character: the exporter's series
-    for the armory's full-body render (asset main-raw), read daily."""
-    t0 = int((now - days * 86400) // BNET_STEP * BNET_STEP)
-    stamps = list(range(t0, int(now), BNET_STEP))
-    day = 86400
-    reads = [(t - BNET_READ_HOUR * 3600) // day * day + BNET_READ_HOUR * 3600 for t in stamps]
-    return [{"metric": {"__name__": "wow_character_render", "character": DEMO, "account_id": "0",
-                        "asset": "main-raw", "url": BNET_RENDER_URL},
-             "values": reads, "timestamps": [t * 1000 for t in stamps]}]
-
-
 def shifted(r: dict, secs: int) -> dict:
     """One event moved by `secs` (whole days): its time, and the fields that
     hold a time or a day."""

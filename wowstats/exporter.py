@@ -86,10 +86,10 @@ PROFILE_CHARS_URL = ""
 PER_ACCOUNT = 12
 # "new": how often the character list is checked for a character never read (poll_new).
 # "profile": every character, on the clock (owner, 2026-11-20: every 2 hours).
-# Budget: 6 calls a character a pass (profile, appearance, character-media,
-# equipment, specializations, achievements), one at a time, so 3 an hour per
+# Budget: 5 calls a character a pass (profile, appearance, equipment,
+# specializations, achievements), one at a time, so 2.5 an hour per
 # character against Blizzard's 36,000 an hour and 100 a second per client:
-# the owner plus 10 friends at PER_ACCOUNT is ~130 characters, ~390 calls an
+# the owner plus 10 friends at PER_ACCOUNT is ~130 characters, ~325 calls an
 # hour, about 1% of the quota, and most answers are 304s.
 INTERVALS = {"token": 1200, "realm": 300, "profile": 7200, "new": 300}
 # Tasks that run on the clock (multiples of their interval since the epoch,
@@ -334,7 +334,6 @@ def char_slug(name: str) -> str:
 
 PROFILE_SERIES = ("wow_character_profile", "wow_character_customization", "wow_character_equipped",
                   "wow_character_profile_refreshed_timestamp_seconds", "wow_character_item_level",
-                  "wow_character_render",
                   # Each worn item's stats, as the armory shows them: a random
                   # suffix's ("of the Owl") are in no item table (gear advice).
                   "wow_character_equipped_stat",
@@ -346,28 +345,6 @@ PROFILE_SERIES = ("wow_character_profile", "wow_character_customization", "wow_c
                   # How many it completed, written only when /achievements
                   # answered: without it the Legacy count is unknown, not 0.
                   "wow_character_achievements_read")
-# Where /character-media's renders may come from: the armory's own image
-# host. The publisher downloads the image from there (its only egress for
-# it); any other address is ignored.
-RENDER_HOSTS = ("render.worldofwarcraft.com",)
-# The full-body image, transparent first (the armory's "main-raw").
-RENDER_ASSETS = ("main-raw", "main")
-
-
-def render_url(media: dict | None) -> tuple[str, str] | None:
-    """The full-body render in a /character-media answer: (asset, url), or
-    None. Only https on RENDER_HOSTS."""
-    assets = {a.get("key"): a.get("value") for a in (media or {}).get("assets") or [] if isinstance(a, dict)}
-    for key in RENDER_ASSETS:
-        url = assets.get(key)
-        if isinstance(url, str):
-            u = urllib.parse.urlsplit(url)
-            if u.scheme == "https" and u.hostname in RENDER_HOSTS and not u.username and u.port is None:
-                return key, url
-    return None
-
-
-
 def talent_readings(body) -> tuple[list[dict], dict[int, tuple[int, str]]]:
     """The active talent group of a /specializations answer: its trees
     [{tree, points}] in the order given and {spell id: (rank, talent name)}.
@@ -504,14 +481,10 @@ def read_character(acct: str, name: str, keep: dict) -> bool:
             labels = {**who, "kind": kind}
             put("wow_character_item_level", labels, v, "profile")
             keep["wow_character_item_level"].add(tuple(sorted(labels.items())))
-    # The armory's full-body render: its address, which the publisher
-    # downloads into the static bundles (gone with the series after 30
-    # days, like everything of Battle.net's).
-    got = render_url(api_get(f"{path}/character-media", PROFILE_NS, "profile_media"))
-    if got:
-        labels = {**who, "asset": got[0], "url": got[1]}
-        put("wow_character_render", labels, time.time(), "profile")
-        keep["wow_character_render"].add(tuple(sorted(labels.items())))
+    # No /character-media: Blizzard serves its renders on paths shared by
+    # character id across the Classic games, and one showed a stranger in
+    # the owner's place (2026-11-21). The page's picture is our own render
+    # of the 3D model (wowstats.armory).
     gear = api_get(f"{path}/equipment", PROFILE_NS, "profile_equipment") or {}
     for it in gear.get("equipped_items") or []:
         slot, item = (it.get("slot") or {}).get("type"), (it.get("item") or {}).get("id")

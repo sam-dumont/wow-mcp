@@ -304,11 +304,9 @@ class Store:
         self.account_id = int(account_id)
         self.vl_archive_url = vl_archive_url.rstrip("/")
         self.vm_url = vm_url.rstrip("/")
-        # Battle.net's character profile only (the armory render and item
-        # level, the talents): the owner allowed it in public (2026-11-18),
-        # so the public view reads these from vm-wow and nothing else (no
-        # market). 0.2.2 read the render through vm_url, empty in the public
-        # view: the public bundle had no render and showed the silhouette.
+        # Battle.net's character profile only (the look, the item level,
+        # the talents): the owner allowed it in public (2026-11-18), so the
+        # public view reads these from vm-wow and nothing else (no market).
         self.profile_vm_url = (vm_url if profile_vm_url is None else profile_vm_url).rstrip("/")
         self.stream = logs_filter
         self.hot_days = hot_days
@@ -430,7 +428,7 @@ class Store:
     # and the found flag): everything of Battle.net's the static sites carry.
     PROFILE_SERIES = ("wow_character_profile", "wow_character_customization", "wow_character_equipped",
                       "wow_character_profile_refreshed_timestamp_seconds", "wow_character_profile_found",
-                      "wow_character_item_level", "wow_character_render", "wow_character_equipped_stat",
+                      "wow_character_item_level", "wow_character_equipped_stat",
                       "wow_character_talent_points", "wow_character_talent_rank", "wow_character_achievement")
 
 
@@ -473,22 +471,14 @@ class Store:
     def character_armory(self, name: str) -> dict:
         """What else the armory shows, from the exporter's gauges (gone with
         the rest of Battle.net's after 30 days): {"item_level": Blizzard's
-        equipped item level or None, "render": {"url", "asset", "refreshed"}
-        or None}. Empty without vm-wow."""
-        out: dict = {"item_level": None, "render": None}
+        equipped item level or None}. Empty without vm-wow. No render: the
+        page's picture is our own (wowstats.armory)."""
+        out: dict = {"item_level": None}
         if not self.profile_vm_url:
             return out
-        sel = self.profile_sel(name)
-        for r in self.profile_query(f"last_over_time(wow_character_item_level{sel}[2d])"):
+        for r in self.profile_query(f"last_over_time(wow_character_item_level{self.profile_sel(name)}[2d])"):
             if (r.get("metric") or {}).get("kind") == "equipped":
                 out["item_level"] = float(r["value"][1])
-        rows = self.profile_query(f"last_over_time(wow_character_render{sel}[2d])")
-        if rows:
-            r = max(rows, key=lambda r: float(r["value"][1]))
-            m = r.get("metric") or {}
-            if m.get("url"):
-                out["render"] = {"url": m["url"], "asset": m.get("asset"),
-                                 "refreshed": iso(datetime.fromtimestamp(float(r["value"][1]), UTC))}
         return out
 
     def character_equipment(self, name: str) -> dict:

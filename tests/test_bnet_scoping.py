@@ -71,7 +71,10 @@ def test_each_friend_reads_only_their_own_copy_of_a_shared_name():
     one, two = FakeVM(1), FakeVM(2)
     assert one.character_armory(SHARED)["item_level"] == 21.0
     assert two.character_armory(SHARED)["item_level"] == 22.0
-    assert "/1-main-raw" in one.character_armory(SHARED)["render"]["url"]
+    # vm-wow may still hold an older exporter's render addresses (until its
+    # retention drops them): never read, the picture is our own still.
+    assert one.character_armory(SHARED) == {"item_level": 21.0}
+    assert not [q for q in one.queries if "wow_character_render" in q]
     assert one.character_look(SHARED)["options"] == [{"optionId": 80, "choiceId": 1101}]
     assert two.character_look(SHARED)["options"] == [{"optionId": 80, "choiceId": 1202}]
     assert one.character_equipment(SHARED)["head"]["item_id"] == 1001
@@ -90,7 +93,7 @@ def test_each_friend_reads_only_their_own_copy_of_a_shared_name():
 
 def test_a_friend_naming_the_owners_character_reads_nothing():
     friend = FakeVM(1)
-    assert friend.character_armory("Ownerchar-Fixture") == {"item_level": None, "render": None}
+    assert friend.character_armory("Ownerchar-Fixture") == {"item_level": None}
     assert friend.character_look("Ownerchar-Fixture") is None
     assert friend.character_talents("Ownerchar-Fixture") is None
     assert friend.character_equipment("Ownerchar-Fixture") == {}

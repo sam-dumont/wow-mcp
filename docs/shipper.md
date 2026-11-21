@@ -129,8 +129,8 @@ out yet) go blank.
 
 Nothing goes anywhere but your server. With several people, your files stay
 in your own folder there and go with your account. `model3d_files = false`
-in the config turns it off; the 3D view then keeps Battle.net's picture and
-says why.
+in the config turns it off; the paperdoll then keeps its silhouette and
+the 3D view says why.
 
 ## Item facts
 
