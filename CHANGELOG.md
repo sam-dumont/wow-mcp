@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0-rc.3 (2026-11-21)
+
 ### Added
 
 - Gear: each worn item says where it stands against the best you can wear at your level for that slot: BiS, 2nd, or its percent of BiS (on the icon, so a phone shows it too). Nothing when there's no item to compare it with. Each upgrade says it in the same terms, "62% → 100% of BiS", and the upgrades are ordered by it: the slot furthest from BiS first, then the item that closes most of the gap. The same order and numbers in the Overview's gear moves and the MCP `gear` tool (`worn_standing`, `share_of_bis_pct`).
