@@ -412,6 +412,9 @@ def test_a_shipper_that_stayed_behind_gets_the_update_command(site, pw, engine, 
     except Exception as e:  # noqa: BLE001
         pytest.skip(f"no {engine}: {e}")
     monkeypatch.setattr(account, "STARTED", 0)
+    # A release candidate is never offered by hand (update_by_hand), and main
+    # carries one between releases: serve a final version, whatever the repo's.
+    monkeypatch.setattr(account, "shipper_manifest", lambda: json.dumps({"version": "0.7.0"}).encode())
     account.STATUS._c.clear()
     try:
         c, pg, errors = open_start(b, site, "ok", 390)
