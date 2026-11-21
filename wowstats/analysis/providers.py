@@ -11,16 +11,21 @@ official SDK, imported only when that provider is the configured one.
   anthropic  Anthropic's SDK (`analysis` extra): streaming, adaptive
              thinking, prompt caching, a task budget, server-side refusal
              fallbacks (the claude-api skill's defaults).
-  openai     OpenAI's SDK (`analysis-openai` extra) on any OpenAI-compatible
-             Chat Completions endpoint: OpenAI, OpenRouter, Ollama, vLLM,
-             LM Studio. Tool calling is required: an endpoint or model that
-             refuses tools fails the run with ToolsRefused, never a quieter
-             run without them.
+  openai     OpenAI's SDK (`analysis-openai` extra). OpenAI itself (no
+             ANALYSIS_BASE_URL) through the Responses API: its reasoning
+             models refuse function tools on Chat Completions ("Function tools
+             with reasoning_effort are not supported ... use /v1/responses",
+             gpt-6 and later, 2026-11-21). Any other OpenAI-compatible
+             endpoint (OpenRouter, Ollama, vLLM, LM Studio) through Chat
+             Completions, the API they all speak. Tool calling is required: an
+             endpoint or model that refuses tools fails the run with
+             ToolsRefused, never a quieter run without them.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 
 # Anthropic: the run's request shape (claude-api skill, Opus 5.5 defaults).
@@ -115,7 +120,36 @@ class Anthropic:
 # ---------------------------------------------------------------- OpenAI-compatible
 
 
-TOOL_WORDS = ("tool", "function")
+# How an endpoint says the model has no tool calling at all (Ollama: "...
+# does not support tools"). Not any 4xx that names tools: OpenAI's "Function
+# tools with reasoning_effort are not supported for gpt-6-luna in
+# /v1/chat/completions" names a wrong route, and reading every 400 with "tool"
+# in it as a refusal hid that behind "refused tool calling" (2026-11-21).
+NO_TOOLS = re.compile(r"(does not|doesn't|do not|don't|cannot|can't) (support|use) "
+                      r"(function calling|tool calling|tool use|tools|functions)"
+                      r"|(tools|tool calling|tool use|function calling) (is|are) not (supported|available)", re.I)
+# Anything key-shaped in an error message is masked before it's shown or logged.
+SECRETISH = re.compile(r"sk-[^\s'\"]+|[A-Za-z0-9_\-]{32,}")
+
+
+def said(e: Exception) -> str:
+    """What the endpoint said, one line: the error body's message (never
+    headers or the request), key-shaped strings masked, 300 characters."""
+    body = getattr(e, "body", None)
+    msg = ""
+    if isinstance(body, dict):
+        err = body.get("error", body)
+        msg = str(err.get("message") or "") if isinstance(err, dict) else str(err or "")
+    msg = msg or str(getattr(e, "message", "") or e)
+    msg = re.sub(r"^Error code: \d+ - ", "", msg)
+    return SECRETISH.sub("[masked]", " ".join(msg.split()))[:300]
+
+
+def refused_tools(e: Exception, model: str) -> None:
+    """Raise ToolsRefused when the endpoint said the model has no tools; any
+    other error goes on as itself, so the run reports what was really said."""
+    if getattr(e, "status_code", None) in (400, 404, 422) and NO_TOOLS.search(said(e)):
+        raise ToolsRefused(f"the endpoint refused tool calling for {model} ({said(e)})") from None
 
 
 class OpenAI:
@@ -135,11 +169,7 @@ class OpenAI:
         try:
             r = self.client.chat.completions.create(model=self.model, messages=self.messages, tools=self.tools)
         except Exception as e:
-            # A 400 that names tools or functions: the model or endpoint has
-            # no tool calling (Ollama: "does not support tools").
-            if getattr(e, "status_code", None) in (400, 404, 422) and any(
-                    w in str(getattr(e, "message", "") or e).lower() for w in TOOL_WORDS):
-                raise ToolsRefused(f"the endpoint refused tool calling for {self.model}") from None
+            refused_tools(e, self.model)
             raise
         ch = r.choices[0]
         m = ch.message
@@ -177,4 +207,71 @@ class OpenAI:
             self.messages.append({"role": "tool", "tool_call_id": i, "content": ("Error: " + text) if err else text})
 
 
-ADAPTERS = {"anthropic": Anthropic, "openai": OpenAI}
+class OpenAIResponses:
+    """OpenAI's own API through Responses, stateless: store=False, and each
+    turn's output items (reasoning included, encrypted) go back as input, so
+    the model keeps its reasoning across tool calls without OpenAI keeping
+    the conversation."""
+
+    name = "openai"
+
+    def __init__(self, client, model: str, system: str, tools: list[dict]):
+        self.client, self.model, self.system = client, model, system
+        self.tools = [{"type": "function", "name": t["name"], "description": t["description"],
+                       "parameters": t["input_schema"], "strict": False} for t in tools]
+        self.input: list = []
+
+    def start(self, text: str) -> None:
+        self.input = [{"role": "user", "content": text}]
+
+    def send(self) -> Turn:
+        try:
+            r = self.client.responses.create(model=self.model, instructions=self.system, input=self.input,
+                                             tools=self.tools, store=False,
+                                             include=["reasoning.encrypted_content"])
+        except Exception as e:
+            refused_tools(e, self.model)
+            raise
+        items = list(getattr(r, "output", None) or [])
+        calls, texts, refused = [], [], False
+        for it in items:
+            kind = getattr(it, "type", "")
+            if kind == "function_call":
+                try:
+                    args = json.loads(it.arguments or "{}")
+                except ValueError:
+                    args = None
+                calls.append(Call(it.call_id, it.name, args if isinstance(args, dict) else None,
+                                  "" if isinstance(args, dict) else "the arguments weren't a JSON object"))
+            elif kind == "message":
+                for c in getattr(it, "content", None) or []:
+                    if getattr(c, "type", "") == "output_text":
+                        texts.append(c.text)
+                    elif getattr(c, "type", "") == "refusal":
+                        refused = True
+            # Back as they came: the next request carries the reasoning and the calls.
+            self.input.append(it.model_dump(mode="json", exclude_none=True) if hasattr(it, "model_dump") else it)
+        why = getattr(getattr(r, "incomplete_details", None), "reason", None)
+        if calls:
+            stop = "tools"
+        elif refused or why == "content_filter":
+            stop = "refusal"
+        elif why == "max_output_tokens":
+            stop = "length"
+        else:
+            stop = "end"
+        u = getattr(r, "usage", None)
+        prompt = int(getattr(u, "input_tokens", 0) or 0) if u else 0
+        details = getattr(u, "input_tokens_details", None) if u else None
+        cached = int(getattr(details, "cached_tokens", 0) or 0) if details else 0
+        usage = {"input": max(0, prompt - cached), "output": int(getattr(u, "output_tokens", 0) or 0) if u else 0,
+                 "cache_read": cached, "cache_write": 0}
+        return Turn("".join(texts), calls, usage, stop, str(getattr(r, "model", "") or self.model), r)
+
+    def results(self, results: list[tuple[str, str, bool]]) -> None:
+        for i, text, err in results:
+            self.input.append({"type": "function_call_output", "call_id": i,
+                               "output": ("Error: " + text) if err else text})
+
+
+ADAPTERS = {"anthropic": Anthropic, "openai": OpenAI, "openai-responses": OpenAIResponses}
