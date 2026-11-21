@@ -42,7 +42,7 @@ venv with the `wowstats` package and those two extras.
 | `wowstats/plan/` | Session plans: `facts.py` gathers game data (never the Battle.net store), `estimate.py` computes every number, `store.py` keeps plans and compares them with what happened, `write.py` the checks on a client's write-up, `http.py` the full view's plan box. No model. |
 | `wowstats/plan/dungeonview.py`, `wowstats/links.py` | The Dungeons panel of the full view and `/zogzog/`: one block per dungeon in reach (drops for the character's weights, obtained or missing; quests; what a trip is worth; a verdict on the whole value), from the planner's inputs, with Forever links to Wowhead. |
 | `wowstats/plan/dungeongain.py` | One more run of a dungeon: XP at the character's level now (its own runs there, kill XP carried by the KB's `xp.kill_formula` over the creatures it killed; else the quests alone), the time (its runs, else the KB's clear time plus its own travel), the share of the level, XP per hour against its own questing, the quests to pick up. One estimate for the Overview's dungeon move, the Dungeons panel and the MCP's `dungeon_options`. |
-| `wowstats/analysis/drive.py` | The play analysis, driven by the user's own model over MCP: the brief in pages, read-only SQL, the judge (`verify.check`), the pass state machine (survey, lanes, follow-ups, coverage, synthesis) with the clash and feasibility checks. `passes.py` holds the instructions; `__init__.py` the per-character state, the nightly recheck and the shared page's lines. |
+| `wowstats/analysis/drive.py` | The play analysis, driven over MCP by the user's own model (or the server's, `auto.py`, when the host configured one): the brief in pages, read-only SQL, the judge (`verify.check`), the pass state machine (survey, lanes, follow-ups, coverage, synthesis) with the clash and feasibility checks. `passes.py` holds the instructions; `__init__.py` the per-character state, the nightly recheck and the shared page's lines. |
 | `wowstats/mcp/plantools.py`, `analysistools.py`, `helppage.py` | The plan, KB and analysis tools on the MCP; the sealed `/help/` page built from the registry. |
 | `data/route-reference.json` | Polestar's route clock (GPL-3.0), packaged as `wowstats/data/`. `docs/route-reference.md`; remade by `tools/route_reference/`. |
 | `data/gear-reference.json` | Polestar's gear data: items, sources, quests, stat weights (GPL-3.0 with MIT parts, `THIRD_PARTY.md`), packaged as `wowstats/data/`. `docs/gear-reference.md`; remade by `tools/gear_reference/`, which also holds `parity.lua`, Polestar's own scoring run under Lua for the tests. |
@@ -217,9 +217,15 @@ stores through `wowstats.mcp.store`, built from the same `VL_URL`,
 `/api/config` reports `"mcp": true` when it is on, and the character page
 then shows the Ask Claude and Ask ChatGPT links.
 
-**No model runs on the server**: not for the analysis,
-not for plans, not for anyone. The user's own client does the reasoning;
-the server prepares data and judges. Blizzard API data reaches a model
+**The user's own client does the reasoning**: for plans, always; for the
+play analysis, unless the host configured a provider. Then the full view
+also runs the analysis itself (`wowstats/analysis/auto.py`, playing the MCP
+client with the same tools and judge) for a character with
+`ANALYSIS_STALE_PLAYED_HOURS` (10) of play since its last refresh, inside a
+monthly budget. Only that timer starts a server run: no MCP call does, and
+plans never call a model. See [Server-side analysis](self-host/server-analysis.md).
+The server prepares data and judges: a kept finding is one whose numbers match
+its saved query on a re-run, not one proven right. Blizzard API data reaches a model
 through two doors only: the MCP's `market` tool (token price, ruleset
 status), and the character's current talents in `character_summary`,
 `class_guide`, `class_meta` and `sanity_check` (read live

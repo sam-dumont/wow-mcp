@@ -90,8 +90,11 @@ every level, one journal entry per evening, your look at each level in 3D
 - **No touching the game.** It reads the files WoW and your addons already save, after they
   save them. No addon of its own, no memory reading.
 - **No sending your data elsewhere.** It goes from your computer to the server you (or a
-  friend) run, and nowhere else. Friends see what you choose to share.
-- **No AI on the server.** Your own assistant does the thinking, in your own account.
+  friend) run, and nowhere else unless that server's host turns on the analysis below. Friends
+  see what you choose to share.
+- **Your own AI does the thinking**, in your own account. A host can also have the server
+  analyse your play with an AI provider they pick, after 10 hours of play without a refresh
+  (their setting): off by default, and the app's Privacy page says whether it's on.
 
 [What's shared →](../../docs/players/privacy.md)
 

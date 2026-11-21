@@ -40,7 +40,8 @@ Forever's. Other versions aren't supported.
 ### What does it cost?
 
 Nothing. It's open source (GPL-3.0). If you run the server yourself, it fits on a small box
-you already have: 2 vCPU and 2 GiB of RAM. The AI part uses your own assistant's plan.
+you already have: 2 vCPU and 2 GiB of RAM. The AI part uses your own assistant's plan, unless
+you turn on the server's own analysis: then you pay its provider, inside a monthly budget you set.
 
 ### Who sees my data?
 
@@ -102,8 +103,9 @@ Codex, Cursor, VS Code, Gemini CLI, Zed and more. [Connect your AI](ai/connect.m
 
 ### Does wow-stats see my conversations?
 
-No. Your assistant calls the server for data and does the thinking in your own account. No
-model runs on the server.
+No. Your assistant calls the server for data and does the thinking in your own account. If
+the host turned on the server's own analysis, the server talks to their AI provider in its own
+conversation, not yours: [What's shared](players/privacy.md).
 
 ### "Client Not Registered" in Claude
 

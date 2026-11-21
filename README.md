@@ -68,8 +68,15 @@ PowerShell, a port already taken, or the sites for friends: [Try the demo](docs/
   sealed copy with a key in the link; anyone gets a public copy cut to an allow list. Neither
   ever shows other players, what killed you, or where you are now.
   [Privacy tiers](docs/explanation/privacy.md).
-- **No model on the server.** Your assistant does the thinking, in your own account; the
-  server hands it data and checks its numbers. [Ask about your character](docs/ai/asking.md).
+- **Your assistant does the thinking**, in your own account. The server hands it data, and
+  keeps a finding only once its numbers match the query behind it, which you can inspect
+  (matching its query doesn't make the reading right). [Ask about your character](docs/ai/asking.md).
+- **Unless the host turns on the server's own analysis.** Off by default. With an AI provider
+  the host configures (Anthropic, OpenAI or any OpenAI-compatible endpoint), the server runs the
+  play analysis itself for a character with 10 hours of play (the host's setting) since its
+  last refresh. What the analysis reads about that character goes to that provider then, never
+  Battle.net data. [What's shared](docs/players/privacy.md),
+  [Server-side analysis](docs/self-host/server-analysis.md).
 - **Known addons only.** It reads [Polestar](https://github.com/fitzforge/polestar) and other
   well-known addons; it never asks you to install one of its own. [Addons](docs/reference/addons.md).
 - **Small.** One player fits in 2 vCPU and 2 GiB of RAM; a year of events takes a few MiB.

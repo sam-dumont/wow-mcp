@@ -57,9 +57,11 @@ Whatever the assistant reads, your AI provider receives: it's in your chat.
 
 ## How numbers get checked
 
-The assistant writes the answers; the server checks them. A finding it keeps came out of your
-data through a query the server ran itself. Anything else is the assistant's own reading: ask
-"show me the query".
+The assistant writes the answers; the server checks the numbers. A finding it keeps is checked
+against its saved query: the server ran that query on your data itself and got the same
+numbers. You can read the query (ask "show me the query"): a query that counts the wrong thing
+still passes, so the check is on the numbers, not on the reading. Anything else is the
+assistant's own reading.
 
 <details>
 <summary>How the check works, with an example</summary>
