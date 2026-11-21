@@ -102,6 +102,10 @@ release candidate at a time.
 - One logout snapshot gave a money change of 0. `gold_delta_copper` is now empty below two snapshots with money at different times, and a `gold_delta_copper_evidence` column says how many there were (0: none, 1: not enough).
 - `query_metric` with a `limit` said `more: false` when there were more rows. The query now asks for one row past the limit.
 - Each metric in `list_metrics` says how it adds up (`aggregation`), what its time is (`time_meaning`), where the number comes from (`evidence_basis`), and, when they apply, the rows both sides read (`eligibility`) and the observations it needs (`min_evidence`). The last two are enforced, not just printed.
+- Time per zone no longer depends on how the shipper happened to read a session. It set a zone's time from the chunks it had seen so far and never sent the record again, so a zone read mid-session kept 5 s where the whole session gave 306 s. The server now works the time out from the stored records (to the next zone record, else the end of the session) for the zone table, the journal, the level snapshots, the MCP's `zones` and `sessions` and the analysis' `spans`. Nothing to rebuild: the old records read right as they are.
+- Two Recorder records at the same second follow each other by chunk and record number, not as text: record 10 sorted before record 2, and the earlier of two zone records took the later one's time in the analysis and the zone tables.
+- Findings judged before these two fixes show as "to revalidate" (`PREP_VERSION` 2) until the next analysis judges them again: the analysis' zone spans and the order of same-time records changed under them. Findings kept by 0.6 (no manifest) are carried over once as above, on the new prep.
+- After a query ran out of memory, the next one could fail with the same "more memory than a query may use" error on a two-row answer: the query process that hit the cap answered, then crashed on a later query (4 runs in 20 on x86 Linux). A process that ran out of memory now answers that query and is replaced before the next one.
 
 ## 0.7.0-rc.7 (2026-11-21)
 

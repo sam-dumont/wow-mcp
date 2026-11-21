@@ -81,7 +81,8 @@ class ToolsTest(unittest.TestCase):
         out = self.call("zones", char=fakes.CHAR)
         self.assertEqual(out["zones"][0]["zone"], "The Barrens")
         d = out["zones"][1]
-        self.assertEqual((d["zone"], d["xp"], d["deaths"], d["xp_per_hour"]), ("Durotar", 970, 1, 1940))
+        # 970 XP over 4980 s in Durotar (fakes.ZONE_RECS): 701.2 an hour.
+        self.assertEqual((d["zone"], d["xp"], d["deaths"], d["xp_per_hour"]), ("Durotar", 970, 1, 701))
 
     def test_guide_steps(self):
         out = self.call("guide_steps", char=fakes.CHAR, guide="barrens")

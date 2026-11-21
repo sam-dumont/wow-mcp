@@ -22,6 +22,7 @@ from wowstats.stores import (
     HISTORY_START,
     SESSION_BUCKET_OPS,
     SESSION_BUCKETS,
+    ZONE_RECORDS,
     SourceError,
     Store,
     dedupe,
@@ -33,7 +34,10 @@ from wowstats.stores import (
     opt_num,
     parse_t,
     pick_splits,
+    split_sessions,
     truthy,
+    zone_time,
+    zone_totals,
 )
 
 GROUPED = {"grouped", "dungeon"}
@@ -247,9 +251,9 @@ class Views:
                             f"| sort by (_time desc) | limit 1"),
             # The Recorder's skill records: each profession's cap (wowstats.profcaps).
             "skills": sub(vl, f"{rec} kind:=skill | fields _time, skill_id, rank, max_rank"),
-            "zones": sub(vl, f"{rec} kind:=zone duration_s:* | uniq by (source_id, zone, duration_s) "
-                             f"| stats by (zone) sum(duration_s) as secs, count() as visits",
-                         ("zone",), {"secs": "sum", "visits": "sum"}),
+            # Time per zone from the records' own times (stores.zone_time).
+            "zones": sub(vl, f"{rec} {ZONE_RECORDS}"),
+            "minutes": sub(vl, f"{rec} {SESSION_BUCKETS}", ("_time",), SESSION_BUCKET_OPS),
             "steps": sub(vl, f"{rec} kind:in(step, skip) | fields _time, kind, guide, step, reason, duration_s, "
                              f"zone, source_id"),
             "dungeons": sub(vl, f'{st} feed:="wow-dungeon" {cf} | fields _time, name, dungeon_id, level, '
@@ -315,9 +319,7 @@ class Views:
             "header": header,
             "levels": levels,
             "climb": climb,
-            "zones": sorted(({"zone": r.get("zone"), "secs": int(num(r.get("secs"))),
-                              "visits": int(num(r.get("visits")))}
-                             for r in res["zones"] if r.get("zone")), key=lambda r: -r["secs"]),
+            "zones": zone_totals(zone_time(res["zones"], split_sessions(res["minutes"]))),
             "steps": build_steps(dedupe(res["steps"]), self.route_ref()),
             "dungeons": dungeons,
             "deaths": deaths,
@@ -879,7 +881,7 @@ class Views:
             "xp": sub(vl, f"{rec} kind:=xp xp_gained:* | uniq by (_time, source_id, xp_gained) "
                           f"| stats by (_time:1m) sum(xp_gained) as xp", ("_time",), {"xp": "sum"}),
             "events": sub(vl, f"{rec} kind:in(session, level, zone, turnin, death) "
-                              f"| fields _time, kind, login, level, zone, duration_s, quest_id, quest_name, "
+                              f"| fields _time, kind, login, level, zone, quest_id, quest_name, "
                               f"source_id"),
             "dungeons": sub(vl, f'{st} feed:="wow-dungeon" {cf} | fields _time, name, level, seconds, xp, '
                                 f"source_id"),

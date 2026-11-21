@@ -158,6 +158,63 @@ def split_sessions(rows: list[dict], gap: float = SESSION_GAP_S) -> list[tuple[f
     return out
 
 
+def record_order(r: dict) -> tuple:
+    """How records with the same _time follow each other: a Recorder record
+    (rec:<char id>:<chunk>:<index>) by its chunk sequence, then its index,
+    as numbers; any other id as text. Sorted as text, rec:aa:1:10 came
+    before rec:aa:1:2 and the earlier of two zone records at one time took
+    the time of the later (second review of review 3)."""
+    sid = r.get("source_id") or ""
+    if sid.startswith("rec:"):
+        cid, seq, idx = (sid[4:].rsplit(":", 2) + ["", ""])[:3]
+        if seq.isdigit() and idx.isdigit():
+            return ("rec:" + cid, int(seq), int(idx))
+    return (sid, -1, -1)
+
+
+# The zone records zone_time reads, after the Recorder's feed and character.
+ZONE_RECORDS = "kind:=zone | fields _time, zone, subzone, source_id, rev"
+
+
+def zone_time(zones: list[dict], spans: list[tuple[float, float]]) -> list[dict]:
+    """Each zone record once (dedupe), oldest first, with `secs`: from it to
+    the next zone record of its session, else to that session's last record.
+    `spans` are split_sessions' (start, end); a record outside them gets 0.
+
+    Worked out here from the records' own times, never from the shipper's
+    duration_s: the shipper set that from the chunks it had read so far and
+    never sent the record again, so a session read in two goes kept the
+    first go's 5 s where one read gave 306 s (external review 3). Nothing of
+    it is stored: an old store with the short values reads right as it is."""
+    rows = sorted(({**r, "_t": parse_t(r.get("_time")).timestamp()} for r in dedupe(zones)),
+                  key=lambda r: (r["_t"], *record_order(r)))
+    spans = sorted(spans)
+    out, j = [], 0
+    for i, r in enumerate(rows):
+        t = r.pop("_t")
+        while j < len(spans) and spans[j][1] < t:
+            j += 1
+        if j == len(spans) or spans[j][0] > t:
+            r["secs"] = 0.0
+        else:
+            end = spans[j][1]
+            nxt = rows[i + 1]["_t"] if i + 1 < len(rows) else end
+            r["secs"] = round(max(0.0, min(nxt, end) - t), 1)
+        out.append(r)
+    return out
+
+
+def zone_totals(visits: list[dict]) -> list[dict]:
+    """zone_time's rows summed per zone, the most time first: {zone, secs, visits}."""
+    by: dict[str, dict] = {}
+    for r in visits:
+        if r.get("zone"):
+            d = by.setdefault(r["zone"], {"zone": r["zone"], "secs": 0.0, "visits": 0})
+            d["secs"] += r["secs"]
+            d["visits"] += 1
+    return sorted(({**d, "secs": int(d["secs"])} for d in by.values()), key=lambda d: -d["secs"])
+
+
 def pick_splits(rows: list[dict]) -> dict[int, dict]:
     """Polestar's level split per level, from its wow-level events: a
     finished split beats a partial one, otherwise the newest wins. One rule

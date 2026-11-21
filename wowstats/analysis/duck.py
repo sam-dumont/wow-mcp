@@ -46,6 +46,8 @@ import uuid
 
 from .sql import MAX_ROWS, MAX_SQL, NOT_ALLOWED, QueryError, first_word
 
+TOO_BIG = "the query needs more memory than a query may use: aggregate or narrow it"
+
 QUERY_SECONDS = 5.0
 MEMORY_LIMIT = "256MB"
 CHUNK = 20000
@@ -271,7 +273,7 @@ class ReadOnlyDuck:
                 elif name == "PermissionException":
                     msg = NOT_ALLOWED
                 elif name == "OutOfMemoryException":
-                    msg = "the query needs more memory than a query may use: aggregate or narrow it"
+                    msg = TOO_BIG
                 else:
                     msg = _short(e)
                 raise QueryError(msg) from None

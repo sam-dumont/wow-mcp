@@ -26,14 +26,16 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from wowstats import profcaps
 from wowstats import quests as questsmod
-from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits, truthy
+from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits, record_order, truthy, zone_time
 
 # What the tables mean. Bump it in the same change as anything that makes a
 # query give another answer on the same events: a table, column or unit, a
 # gap or interval, the order rows are read in, a dedupe rule. A finding
 # judged under another PREP_VERSION is shown "to revalidate" instead of
 # being rechecked (wowstats.analysis.manifest). A pure refactor keeps it.
-PREP_VERSION = 1
+# 2: a zone record's time from the records' own times (stores.zone_time), not
+# the shipper's duration_s; same-time records by chunk and index as numbers.
+PREP_VERSION = 2
 
 
 def _zone() -> tuple[str, ZoneInfo]:
@@ -152,8 +154,8 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "on_flag": "1 on / 0 off for combat, afk, ride, escort",
         "guide": "Polestar guide id (step records)", "step": "guide step number (step records)",
         "reason": "why the step changed (step records)",
-        "seconds": "a duration the record carries: rest (aura length), land (flight), step and zone "
-                   "(seconds since the previous one of that kind)",
+        "seconds": "a duration: rest (aura length), land (flight), step (seconds since the previous step), "
+                   "zone (seconds to the next zone record of the session, else to the session's last record)",
         "count": "craft: items made", "extra": "the record's other fields, JSON (use json_extract)",
         "dungeon_trip_id": "dungeon_trips.trip_id when the record falls inside a trip, else NULL"}),
     "positions": ("Position records: the Recorder writes one after the player moves 25 yd (2 s apart at most "
@@ -196,7 +198,7 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "opened_by": "kind of the record that starts the interval"}),
     "spans": ("Things the records give a start and an end for (on/off pairs and durations), as observed.", {
         "kind": "afk, combat, ride, escort, dead (death to revive), taxi (taxi to land), rest (eat/drink aura), "
-                "instance (a dungeon run), zone (a zone record and its duration_s)",
+                "instance (a dungeon run), zone (a zone record to the next one or the session's end)",
         "t0": "start, unix seconds", "t1": "end, unix seconds", "dur_s": "t1 - t0",
         "session_id": "login span of t0", "detail": "what (instance name, rest kind, zone|subzone, quest id)"}),
     "xp": ("The xp records: the XP bar every 5 minutes and at each ding.", {
@@ -434,7 +436,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     rows = [r for r in dedupe(rows) if norm(r.get("char", "")) == char]
     for r in rows:
         r["_t"] = parse_t(r.get("_time")).timestamp()
-    rows.sort(key=lambda r: (r["_t"], r.get("source_id") or ""))
+    rows.sort(key=lambda r: (r["_t"], *record_order(r)))
     rec = [r for r in rows if r.get("feed") == "wow-recorder"]
     db = sqlite3.connect(":memory:", check_same_thread=False)
     db.execute("PRAGMA foreign_keys=OFF")
@@ -470,6 +472,16 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
             sid += 1
         sess_of.append(sid)
         prev = r["_t"]
+
+    # A zone record's time: to the next zone record of its session, else the
+    # session's last record (stores.zone_time, the pages' rule), never the
+    # shipper's duration_s, which depended on how the chunks arrived.
+    bounds: dict[int, list[float]] = {}
+    for r, s_id in zip(rec, sess_of, strict=True):
+        b = bounds.setdefault(s_id, [r["_t"], r["_t"]])
+        b[1] = r["_t"]
+    zone_secs = {(z.get("source_id"), z.get("_time")): z["secs"]
+                 for z in zone_time([r for r in rec if r.get("kind") == "zone"], [tuple(b) for b in bounds.values()])}
 
     # Dungeon runs (Polestar's instanceRuns).
     runs = []
@@ -522,7 +534,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
             st["zone"] = r.get("zone")
         if k == "zone":
             st["subzone"] = r.get("subzone") or None
-            d = _flt(r.get("duration_s"))
+            d = zone_secs.get((r.get("source_id"), r.get("_time")))
             if d:
                 span_rows.append(("zone", t, t + d, d, s_id, f"{r.get('zone') or ''}|{r.get('subzone') or ''}"))
         m = _int(r.get("map_id"))
@@ -557,7 +569,8 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
                     continue
                 else:
                     extra[f] = v
-            secs = _flt(r.get("duration_s")) if r.get("duration_s") not in (None, "") else _flt(r.get("seconds"))
+            secs = zone_secs.get((r.get("source_id"), r.get("_time"))) if k == "zone" else (
+                _flt(r.get("duration_s")) if r.get("duration_s") not in (None, "") else _flt(r.get("seconds")))
             lt = _local(t)
             rec_rows.append((i, t, _iso(t), lt.isoformat(timespec="seconds"), lt.hour, lt.strftime("%a"), s_id, lv,
                              k, cols["zone"] or st["zone"], st["subzone"], cols["map_id"], cols["x"], cols["y"],
