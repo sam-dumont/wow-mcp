@@ -59,7 +59,8 @@ TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=u
          ".enc": "application/octet-stream"}
 NOT_FOUND = notice.not_found_page()
 BUILD = re.compile(r"^b\d{1,12}$")
-SLUG = re.compile(r"^[a-z0-9]{2,20}$")
+# wowstats.tenancy.SLUG_RE: a derived slug is <name>-<hash>.
+SLUG = re.compile(r"^(?=.{2,24}$)[a-z0-9]+(?:-[a-z0-9]+)?$")
 MAX_UPLOAD = 512 * 1024 * 1024
 KEEP = 2
 
@@ -88,7 +89,7 @@ class Site:
                 raise SystemExit(f"SITE_ALIASES: {pair!r} is not host=slug")
             self.aliases[host.strip().lower()] = slug.strip()
         self.multi = bool(self.domain)
-        self.host_re = re.compile(rf"^([a-z0-9]{{2,20}})-wow\.{re.escape(self.domain)}$") if self.multi else None
+        self.host_re = re.compile(rf"^([a-z0-9-]+)-wow\.{re.escape(self.domain)}$") if self.multi else None
 
     def slug_of(self, host: str) -> str | None:
         """The site a Host header names (its port dropped); None: not ours."""
@@ -96,7 +97,7 @@ class Site:
         if h in self.aliases:
             return self.aliases[h]
         m = self.host_re.match(h) if self.host_re else None
-        return m.group(1) if m else None
+        return m.group(1) if m and SLUG.match(m.group(1)) else None
 
     def root_of(self, slug: str = "") -> Path:
         if not self.multi:

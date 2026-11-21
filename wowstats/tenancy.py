@@ -15,11 +15,18 @@ owner is tenant 0 on VL_URL, as before; friends are tenants 1..n on
 FRIENDS_VL_URL, a store of their own that can delete (wowstats.tenancy.delete).
 
 Who gets in (identify, the web view and the MCP alike): the owner's sub, or
-a sub on WOW_FRIENDS_FILE ({"<sub>": "<slug>"}, rendered by the host from
-its identity provider's friends group). Nothing else: no org, role or name claim is
-read here, so a proxy that drops a header can't lock anyone out or let
-anyone in (2026-11-19: the org header arrived empty and refused everyone).
-Without the file, only the owner. The file is watched while the server
+a sub on WOW_FRIENDS_FILE ({"<sub>": "<slug>"}, {"<sub>": ""} or ["<sub>"],
+rendered by the host from its identity provider's friends group). Nothing
+else: no org, role or name claim decides who gets in, so a proxy that drops
+a header can't lock anyone out or let anyone in (2026-11-19: the org header
+arrived empty and refused everyone). Without the file, only the owner.
+
+A listed person without a slug gets one at their first web login, derived
+from their BattleTag (PROXY_BATTLETAG_HEADER, the login proxy's copy of the
+claim): the name part, then a keyed hash of the whole tag (derived_slugs).
+The tag is read at that moment only and never kept; the slug is. An explicit
+slug in the list wins, a slug already given never changes, and no BattleTag
+leaves the person in without an address until the list names them. The file is watched while the server
 runs (FriendsWatch: its content checked every WATCH_S, a full pass every
 FRIENDS_RECONCILE_S anyway), so a changed list applies without a restart:
 a listed person gets a tenant with that slug before their first login (or
@@ -35,8 +42,11 @@ Environment (docs/deploy.md, "Friends"):
   WOW_STATE_DIR        the registry and each person's state (users/<account>/)
   WOW_OWNER_SUB        the owner's `sub`: tenant 0 on VL_URL
   WOW_OWNER_SLUG       the owner's slug (its site name); WOW_OWNER_ALIASES: more hosts for it
-  WOW_FRIENDS_FILE     who may use it besides the owner, {"<sub>": "<slug>"},
-                       watched for changes; FRIENDS_RECONCILE_S (120) a full pass
+  WOW_FRIENDS_FILE     who may use it besides the owner, {"<sub>": "<slug>" or ""}
+                       or ["<sub>"], watched for changes; FRIENDS_RECONCILE_S (120)
+                       a full pass
+  PROXY_BATTLETAG_HEADER  the login's BattleTag claim, for a friend's first slug
+                       (unset: slugs come from the list only)
   FRIENDS_VL_URL       the friends' VictoriaLogs; FRIENDS_VL_DELETE_KEY_FILE its
                        -deleteAuthKey
   ZOGZOG_MASTER_KEY_FILE  32 random bytes, base64url: friends' zogzog keys
@@ -50,6 +60,7 @@ Environment (docs/deploy.md, "Friends"):
 from __future__ import annotations
 
 import base64
+import contextlib
 import hashlib
 import hmac
 import json
@@ -59,6 +70,7 @@ import secrets
 import shutil
 import threading
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -66,7 +78,10 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
-SLUG_RE = re.compile(r"^[a-z0-9]{2,20}$")
+# 2 to 24 of a-z and 0-9, with at most one inner hyphen: a derived slug is
+# <name>-<hash> (derived_slugs), a hand-picked one is usually one word.
+SLUG_RE = re.compile(r"^(?=.{2,24}$)[a-z0-9]+(?:-[a-z0-9]+)?$")
+SLUG_RULE = "2 to 24 lowercase letters and digits, with at most one hyphen inside"
 # Names a slug can't take: hosts and paths of the install, and words that
 # would read as the site's own.
 RESERVED = frozenset({"full", "www", "api", "admin", "root", "static", "mcp", "oauth", "install", "start", "help",
@@ -267,7 +282,7 @@ class Registry:
     def set_slug(self, sub: str, slug: str) -> User:
         slug = (slug or "").strip().lower()
         if not SLUG_RE.match(slug):
-            raise TenancyError("2 to 20 characters, lowercase letters and digits only")
+            raise TenancyError(SLUG_RULE)
         if slug in self.reserved:  # the owner's own names: someone has it
             raise TenancyError(f"'{slug}' is taken")
         if slug in RESERVED:
@@ -394,6 +409,69 @@ def check_public_url(url: str) -> None:
                          "plain http only on 127.0.0.1 or localhost")
 
 
+# ---------------------------------------------------------------- slugs from a BattleTag
+
+# Name#1234. Battle.net names are 3 to 12 characters in any script; the
+# discriminator is digits.
+BATTLETAG_RE = re.compile(r"^([^#\s][^#]{0,63})#(\d{3,10})$")
+SLUG_NAME_MAX = 12
+SLUG_HASH_LENS = (4, 6, 8)
+
+
+def battletag_of(raw: str | None) -> str:
+    """The BattleTag in a header value, "" when it isn't one (a display name
+    from a password login, nothing at all). Python reads header bytes as
+    Latin-1; the proxy writes UTF-8 (Pétrel#4821), so read them back."""
+    v = (raw or "").strip()
+    with contextlib.suppress(UnicodeEncodeError, UnicodeDecodeError):
+        v = v.encode("latin-1").decode("utf-8")
+    v = unicodedata.normalize("NFC", v)
+    return v if BATTLETAG_RE.match(v) else ""
+
+
+def derived_slugs(battletag: str, key: bytes) -> list[str]:
+    """The slugs a BattleTag may get, first choice first: the name part in
+    a-z0-9 (accents stripped, 12 at most, "player" when nothing is left),
+    a hyphen, then 4, 6 or 8 hex of an HMAC of the whole tag. Never the
+    #1234: with it anyone could add the person as a Battle.net friend. The
+    key (slug_key) keeps the hash from being worked out from a known tag.
+    The same tag and key always give the same list. [] for no BattleTag."""
+    tag = battletag_of(battletag)
+    if not tag:
+        return []
+    name = tag.partition("#")[0]
+    name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode().lower()
+    name = re.sub(r"[^a-z0-9]", "", name)[:SLUG_NAME_MAX] or "player"
+    digest = hmac.new(key, b"wow-stats slug|" + tag.encode(), hashlib.sha256).hexdigest()
+    return [f"{name}-{digest[:n]}" for n in SLUG_HASH_LENS]
+
+
+def slug_key(state: Path) -> bytes:
+    """WOW_STATE_DIR/slug-key: 32 random bytes made on first start (0600),
+    the key of derived_slugs. Its own key, not one of the others: the share
+    token goes to the publisher and the exporter, and the zogzog master is
+    optional. Losing it changes only the slugs given after: a given slug is
+    in users.json and never changes."""
+    path = state / "slug-key"
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(b64u(secrets.token_bytes(32)) + "\n")
+        try:
+            os.link(tmp, path)  # never replaces a key another process just made
+        except FileExistsError:
+            pass
+        finally:
+            with contextlib.suppress(OSError):
+                tmp.unlink()
+    key = unb64u(path.read_text().strip())
+    if len(key) < 32:
+        raise SystemExit(f"{path}: not a key (32 random bytes, base64url); delete it to make a new one")
+    return key
+
+
 def site_host(slug: str, domain: str) -> str:
     return f"{slug}-wow.{domain}" if domain else ""
 
@@ -425,7 +503,7 @@ class Tenancy:
             raise SystemExit("WOW_STATE_DIR needs WOW_OWNER_SUB (the owner's sub: tenant 0)")
         self.owner_slug = env.get("WOW_OWNER_SLUG", "").strip().lower()
         if self.owner_slug and not SLUG_RE.match(self.owner_slug):
-            raise SystemExit(f"WOW_OWNER_SLUG={self.owner_slug!r}: 2 to 20 lowercase letters and digits")
+            raise SystemExit(f"WOW_OWNER_SLUG={self.owner_slug!r}: {SLUG_RULE}")
         self.owner_aliases = [a.lower() for a in _csv(env.get("WOW_OWNER_ALIASES", ""))]
         self.friends_vl = env.get("FRIENDS_VL_URL", "").strip().rstrip("/")
         self.friends_file = env.get("WOW_FRIENDS_FILE", "").strip()
@@ -437,6 +515,8 @@ class Tenancy:
         check_public_url(self.public_url)
         self.domain = env.get("SITE_DOMAIN", "").strip().lower().strip(".")
         self.user_header = env.get("PROXY_USER_HEADER", "X-Forwarded-User")
+        self.battletag_header = (env.get("PROXY_BATTLETAG_HEADER") or "").strip()
+        self.slug_key = slug_key(self.state)
         from wowstats.ingest import Budget
 
         self.ingest_budget = Budget(env.get("INGEST_DAILY_MB"))
@@ -454,10 +534,12 @@ class Tenancy:
 
     # ------------------------------------------------------------ who
 
-    def identify(self, sub: str) -> Who:
+    def identify(self, sub: str, battletag: str = "") -> Who:
         """The person behind a login (module docstring: the owner's sub, or a
         listed one). A listed person reconcile() hasn't reached yet is
-        provisioned here. Ids only: a name or email is never trusted."""
+        provisioned here, and one without a slug gets theirs: the list's, or
+        one derived from `battletag` (read now, never kept). Ids decide who
+        gets in: a name, email or BattleTag never does."""
         sub = (sub or "").strip()
         if not sub or len(sub) > 200:
             return Who(None, 401, "not logged in")
@@ -475,8 +557,8 @@ class Tenancy:
                                   "you, then reload this page.")
         if not self.friends_vl:
             return Who(None, 403, f"This install doesn't take friends yet. Ask {RUNS_IT}.")
-        if u is None:
-            u = provision_or_flag(self, sub, listed[sub]) or self.registry.get(sub)
+        if u is None or (not u.slug and u.active):
+            u = provision_or_flag(self, sub, (listed or {}).get(sub, ""), battletag) or self.registry.get(sub)
         if not u.active:
             return Who(None, 403, f"This account is switched off. Ask {RUNS_IT} to turn it back on.")
         return Who(u)
@@ -496,7 +578,11 @@ class Tenancy:
         sub, problem = guard.identity(headers, self.user_header)
         if problem:
             return Who(None, 400, problem)
-        return self.identify(sub)
+        tag = ""
+        if self.battletag_header:
+            raw, problem = guard.identity(headers, self.battletag_header)
+            tag = "" if problem else raw  # sent twice: no name from it, the login still works
+        return self.identify(sub, tag)
 
     def mcp_user(self, sub: str) -> User | None:
         """Every /mcp call and refresh: the person still exists and is on."""
@@ -711,39 +797,74 @@ def log_event(action: str, **fields) -> None:
 
 
 def read_friends(path: str) -> dict[str, str] | None:
-    """WOW_FRIENDS_FILE: {"<sub>": "<slug>"}. A valid {} is a list with
-    nobody on it: everyone listed before leaves (the old rule read it as a
-    failed render and kept the last friend active; outside review,
-    2026-11-19). None when the file is missing, unreadable, not JSON, not an
-    object or has a bad entry, and then reconcile() changes nothing: a list
-    that failed to render must never read as "everyone left"."""
+    """WOW_FRIENDS_FILE as {sub: slug}, the slug "" when the list leaves it
+    to the login (derived_slugs). The file is {"<sub>": "<slug>"}, the same
+    with "" or null for some, or ["<sub>", ...]. A valid {} or [] is a list
+    with nobody on it: everyone listed before leaves (the old rule read it as
+    a failed render and kept the last friend active; outside review,
+    2026-11-19). None when the file is missing, unreadable, not JSON, of
+    another shape or has a bad entry, and then reconcile() changes nothing:
+    a list that failed to render must never read as "everyone left"."""
     try:
         data = json.loads(Path(path).read_text())
     except (OSError, ValueError):
         return None
+    if isinstance(data, list):
+        if not all(isinstance(k, str) and k.strip() for k in data):
+            return None
+        return dict.fromkeys(data, "")
     if not isinstance(data, dict):
         return None
-    if not all(isinstance(k, str) and k.strip() and isinstance(v, str) and SLUG_RE.match(v) for k, v in data.items()):
+    data = {k: "" if v is None else v for k, v in data.items()}
+    if not all(isinstance(k, str) and k.strip() and isinstance(v, str) and (v == "" or SLUG_RE.match(v))
+               for k, v in data.items()):
         return None
     return data
 
 
-def provision(t: Tenancy, sub: str, slug: str) -> User:
-    """A listed person's tenant, with the slug the list gives them."""
-    t.registry.ensure(sub)
-    u = t.registry.set_slug(sub, slug)
-    log_event("provisioned", slug=slug, account_id=u.account_id)
-    return u
+class Unnamed(TenancyError):
+    """A listed person with no slug in the list and no BattleTag to derive
+    one from."""
+
+
+def provision(t: Tenancy, sub: str, slug: str, battletag: str = "") -> User:
+    """A listed person's tenant, with the slug the list gives them or, when
+    it gives none, the first free one of derived_slugs. A slug they already
+    have is kept, whatever either says."""
+    u = t.registry.ensure(sub)
+    if u.slug:
+        return u
+    if slug:
+        u = t.registry.set_slug(sub, slug)
+        log_event("provisioned", slug=slug, account_id=u.account_id)
+        return u
+    choices = derived_slugs(battletag, t.slug_key)
+    if not choices:
+        raise Unnamed("no slug in the friends list and no BattleTag at the login")
+    for c in choices:
+        try:
+            u = t.registry.set_slug(sub, c)
+        except TenancyError:
+            now = t.registry.get(sub)
+            if now is not None and now.slug:  # another request named them first
+                return now
+            continue  # taken or reserved: a longer hash
+        log_event("provisioned", slug=c, account_id=u.account_id, source="battletag")
+        return u
+    raise TenancyError(f"'{choices[-1]}' is taken")
 
 
 def name_conflict(t: Tenancy, u: User, listed: dict[str, str] | None) -> dict | None:
     """Why a listed person has no address: their listed name is "taken"
     (someone has it, the owner's own names included) or "reserved" (the
-    app's words). None when they have one, or the name is free and the next
-    pass gives it to them."""
+    app's words), or the list gives none and their login brought no
+    BattleTag ("no name", slug ""). None when they have one, or the name is
+    free and the next pass gives it to them."""
     if u.slug or u.owner or not listed or u.sub not in listed:
         return None
     slug = listed[u.sub]
+    if not slug:
+        return {"slug": "", "why": "no name"}
     if slug in t.registry.reserved or t.registry.by_slug(slug) is not None:
         return {"slug": slug, "why": "taken"}
     if slug in RESERVED:
@@ -751,18 +872,19 @@ def name_conflict(t: Tenancy, u: User, listed: dict[str, str] | None) -> dict | 
     return None
 
 
-def provision_or_flag(t: Tenancy, sub: str, slug: str) -> User | None:
-    """provision(), or None when the listed name is taken or reserved. The
-    person is in without an address, and /start tells them the owner has a
-    name to fix: friends never pick their own (the owner's rule, 2026-11-19),
-    so a clash is a mistake in his list, logged once per name."""
+def provision_or_flag(t: Tenancy, sub: str, slug: str, battletag: str = "") -> User | None:
+    """provision(), or None when the listed name is taken or reserved, or
+    there is no name at all (no slug listed, no BattleTag). The person is in
+    without an address, and /start tells them the owner has a name to fix:
+    friends never pick their own (the owner's rule, 2026-11-19), so it is
+    his list to fix, logged once per name."""
     try:
-        u = provision(t, sub, slug)
+        u = provision(t, sub, slug, battletag)
     except TenancyError as e:
         if t.name_conflicts.get(sub) != slug:
             t.name_conflicts[sub] = slug
-            log_event("name_conflict", slug=slug, why=str(e),
-                      fix="give this person another name in the friends list")
+            log_event("name_conflict", slug=slug or None, why=str(e),
+                      fix="give this person a name in the friends list")
         return None
     t.name_conflicts.pop(sub, None)
     return u
@@ -770,7 +892,8 @@ def provision_or_flag(t: Tenancy, sub: str, slug: str) -> User | None:
 
 def reconcile(t: Tenancy) -> dict:
     """Make the registry match the friends list: provision who is listed
-    (with their slug), offboard who left it. The owner is never in play."""
+    with a slug, offboard who left it. Someone listed without one waits for
+    their first login (identify). The owner is never in play."""
     listed = read_friends(t.friends_file) if t.friends_file else None
     if listed is None:
         if not t.list_unusable:  # once, not every pass
@@ -784,9 +907,11 @@ def reconcile(t: Tenancy) -> dict:
     for sub, slug in listed.items():
         u = t.registry.get(sub)
         if u is not None and u.slug:
-            if u.slug != slug:
+            if slug and u.slug != slug:
                 log_event("slug_kept", slug=u.slug, listed_slug=slug, account_id=u.account_id)
             continue
+        if not slug:
+            continue  # named from their BattleTag at their first login (identify)
         if provision_or_flag(t, sub, slug) is None:
             out["errors"].append(slug)
         else:
@@ -889,7 +1014,8 @@ def cli(argv: list[str]) -> int:
     if a.action == "list":
         listed = read_friends(t.friends_file) if t.friends_file else None
         for u in t.registry.users():
-            clash = (name_conflict(t, u, listed) or {}).get("slug")
+            c = name_conflict(t, u, listed)
+            clash = (c["slug"] or c["why"]) if c else None  # the name to fix, or "no name"
             print(json.dumps({"slug": u.slug or None, "name_conflict": clash, "account_id": u.account_id,
                               "owner": u.owner, "org": u.org,
                               "status": u.status, "public_on": u.public_on, "created": u.created,

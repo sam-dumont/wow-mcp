@@ -242,7 +242,7 @@ def test_new_friend_gets_the_command_first(site, pw, engine):
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
 def test_a_name_clash_is_the_owners_fix_not_the_friends(site, pw, engine):
     # Friends never pick their page name (the owner sets it, 2026-11-19): a
-    # listed name that is taken leaves nothing to type, only whose fix it is.
+    # listed name that is taken (or none at all) leaves nothing to type, only whose fix it is.
     try:
         b = getattr(pw, engine).launch()
     except Exception as e:  # noqa: BLE001
@@ -256,7 +256,7 @@ def test_a_name_clash_is_the_owners_fix_not_the_friends(site, pw, engine):
     hero = pg.locator(".hero[data-in=name]")
     # Whose fix, without a name: the owner's slug ("sam") is no display name.
     assert hero.locator("h1").inner_text() == "Your page needs a fix"
-    assert "the person who runs this site has to change it" in " ".join(hero.inner_text().split())
+    assert "the person who runs this site has to give it a name" in " ".join(hero.inner_text().split())
     assert "Nothing to do on your side" in hero.inner_text() and "Sam" not in hero.inner_text()
     assert pg.locator("input:visible, .hero-cmd:visible").count() == 0
     assert pg.evaluate(SEEN_WORDS) <= WORDS and pg.evaluate(OVER) <= 0

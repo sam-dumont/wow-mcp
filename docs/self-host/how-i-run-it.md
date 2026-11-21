@@ -147,10 +147,13 @@ error. The app lets in my own
 
 To approve someone, in the ZITADEL console:
 
-1. Set their username to the name their page will have (2 to 20 lowercase letters and
-   digits). The app never renames a page once it exists, so this comes first.
-2. Add the metadata `access` = `friends`.
-3. Apply my ZITADEL Terraform: it turns that metadata into a grant on the wow-stats project.
+1. Add the metadata `access` = `friends`.
+2. Apply my ZITADEL Terraform: it turns that metadata into a grant on the wow-stats project.
+
+I don't pick their page's name any more. The friends list leaves it empty for Battle.net
+accounts, and their next login names the page from their BattleTag, without the `#1234`
+([Names from the BattleTag](friends.md#names-from-the-battletag)). My proxy forwards the
+`name` claim, which ZITADEL fills from the display name the hook set.
 
 They keep their session. Once the list catches up, a reload of the "No access yet" page takes
 them to their page.
@@ -165,7 +168,8 @@ It keeps the friends org's events only and waits for things to calm down: 30 sec
 last one, it asks GitHub (through a GitHub App, with a one-hour token limited to starting
 workflows on one repository) to run the deploy of the wow-stats module. The workflow and its
 input are fixed in the hook; nothing in a request chooses them. The deploy reads the users
-holding the role and writes `friends.json` (ZITADEL user id to page name) into a ConfigMap.
+holding the role and writes `friends.json` (ZITADEL user id to page name, empty for a Battle.net
+account) into a ConfigMap.
 
 The app rereads the list within about 10 seconds of the file changing, without a restart
 ([The friends list](friends.md#the-friends-list)). Kubernetes takes about a minute to update a
@@ -196,7 +200,8 @@ one: one account, one `sub`, both ways in.
   accounts that are already linked.
 - **Almost nothing from Battle.net is kept.** The BattleTag is the account's display name in
   ZITADEL, the email is the `.invalid` placeholder, and profiles never update
-  (`is_auto_update = false`). wow-stats keys everything on the `sub`, and the page name is the one I picked.
+  (`is_auto_update = false`). wow-stats keys everything on the `sub`. The page name comes from the
+  BattleTag's name and a keyed hash, read once at the first login and never kept.
 
 What a friend's data looks like from my side, and what they can delete:
 [What's shared, and with whom](../players/privacy.md).
