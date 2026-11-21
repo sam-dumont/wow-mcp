@@ -666,3 +666,49 @@ def test_a_folder_from_before_moves_to_its_new_name(tmp_path):
     d = analysis.char_dir(env, "Grimble-Firemaw")
     assert (d / "drive.json").is_file() and not (chars / "grimble-firemaw").exists()
     assert d.name.startswith("grimble-firemaw.")
+
+
+def test_a_nudge_with_placeholders_is_rendered_again_at_the_new_level():
+    kept = {"lvl-gap": {"row": {"level": 32, "behind": 4}}}
+    nudge = {"text": "You are {behind} levels behind level {level}", "findings": ["lvl-gap"], "verdict": "now"}
+    dropped: list = []
+    out = analysis.bind([nudge], kept, 32, dropped, "nudge")
+    assert out[0]["text"] == "You are 4 levels behind level 32"
+    kept["lvl-gap"]["row"] = {"level": 33, "behind": 5}
+    out = analysis.bind(out, kept, 33, dropped, "nudge")
+    assert out[0]["text"] == "You are 5 levels behind level 33" and not dropped
+    assert "written_level" not in out[0]
+
+
+def test_a_typed_level_goes_once_the_character_is_past_it():
+    dropped: list = []
+    n = {"text": "Well behind level 32 for this zone", "findings": [], "verdict": "now"}
+    out = analysis.bind([n], {}, 32, dropped, "nudge")
+    assert out and out[0]["written_level"] == 32
+    assert analysis.bind(out, {}, 32, dropped, "nudge")  # same level: stays
+    assert analysis.bind(out, {}, 33, dropped, "nudge") == []
+    assert "written at level 32" in dropped[0]
+    # a line that quotes nothing is timeless
+    t = {"text": "Turn in the Stockade quest", "findings": []}
+    assert analysis.bind(analysis.bind([t], {}, 32, [], "nudge"), {}, 40, [], "nudge")
+
+
+def test_a_nudge_whose_placeholder_lost_its_value_goes():
+    dropped: list = []
+    n = {"text": "Do it at {level}", "findings": ["gone"]}
+    assert analysis.bind([n], {}, 33, dropped, "nudge") == [] and dropped
+
+
+def test_an_at_level_nudge_becomes_now_when_reached():
+    n = {"text": "Go", "findings": [], "verdict": "at_level", "at_level": 33}
+    assert analysis.bind([n], {}, 33, [], "nudge")[0]["verdict"] == "now"
+
+
+def test_a_legacy_run_without_kind_counts_as_the_client_run(tmp_path):
+    env = {"ANALYSIS_STATE_DIR": str(tmp_path)}
+    state = {"schema": analysis.SCHEMA, "char": "Testchar", "findings": {}, "runs": [
+        {"at": "2026-11-18T10:00:00+00:00", "new": 3, "confirmed": 0, "faded": 0},
+        {"at": "2026-11-19T04:00:00+00:00", "kind": "recheck", "confirmed": 3, "faded": 0}]}
+    analysis.save_state(env, "Testchar", state)
+    got = analysis.answer(env, "Testchar")
+    assert got["last_analysis"] and got["last_analysis"]["new"] == 3

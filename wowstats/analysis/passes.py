@@ -117,7 +117,9 @@ SYNTH_SCHEMA = {"type": "object", "properties": {
     "keep": {"type": "array", "items": {"type": "string"}},
     "findings": {"type": "array", "items": FINDING, "maxItems": 10},
     "nudges": {"type": "array", "items": {"type": "object", "properties": {
-        "text": {"type": "string", "description": "what to do"},
+        "text": {"type": "string",
+                 "description": "what to do; values that change as the character plays are {column} "
+                                "placeholders from a cited finding's row"},
         "gist": {"type": "string"},
         "where": {"type": "string"}, "blocked_by": {"type": "string"},
         "next_step": {"type": "string", "description": "the first thing to do, where"},
@@ -197,7 +199,11 @@ a finding; a nudge built on it points at what fits the player now (the same kind
 or is not written. A nudge that names one option (a place, an instance, an item, a route) is checked against \
 the others of the same kind the data holds: if one of them is strictly better on what the nudge argues (more \
 upgrades for the player, more XP per hour, less time, in range now), name that one instead, or say why not. \
-A nudge's text follows the finding rules for numbers: one above 100 typed by hand drops the nudge. The \
+A nudge's text follows the finding rules for numbers: one above 100 typed by hand drops the nudge. \
+Anything in a nudge or pattern that changes as the character plays (a level, a count, a percentage, a \
+duration) is a `{column}` placeholder naming a column that a cited finding's query returns, never typed: \
+the server fills it from the finding's row and renders it again every night. A line that types the level it \
+was written at ("well behind level 32") is dropped once the character is past it. The \
 server's answer lists every finding, nudge and pattern it dropped, with why.
 
 Hand it in with analysis_submit(pass="synthesis", answer={...}). The server re-runs every reconciling query \

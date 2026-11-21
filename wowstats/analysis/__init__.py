@@ -307,6 +307,49 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None) -> None:
         info["confirmed"] += 1
 
 
+LINE_PARTS = ("text", "gist", "where", "blocked_by", "next_step")
+
+
+def bind(lines: list[dict], kept: dict, level: int | None, dropped: list, what: str) -> list[dict]:
+    """Nudges and patterns say things about numbers (a level, a count): a
+    stored line must not go stale between runs. The client writes them with
+    `{column}` placeholders, filled from the re-run row of the findings the
+    line cites; the template is kept (`tpl`) and rendered again at every run.
+    A line without placeholders that names the level it was written at
+    ("well behind level 32") goes once the character is past it. Lines that
+    quote nothing stay as they are."""
+    from . import verify
+
+    out = []
+    for line in lines:
+        tpl = line.get("tpl") or {p: str(line[p]) for p in LINE_PARTS if line.get(p)}
+        row: dict = {}
+        for k in line.get("findings") or []:
+            for col, v in ((kept.get(k) or {}).get("row") or {}).items():
+                row.setdefault(col, v)
+        gone = ""
+        if any(verify.PLACEHOLDER.search(t) for t in tpl.values()):
+            if any(m.group(1) not in row for t in tpl.values() for m in verify.PLACEHOLDER.finditer(t)):
+                gone = "a placeholder has no value in the findings it cites"
+            else:
+                line["tpl"] = tpl
+                line.update({p: verify.render(t, row) for p, t in tpl.items()})
+        else:
+            written = line.get("written_level")
+            if written is None:
+                line["written_level"] = level
+            elif level is not None and level > written and any(
+                    re.search(rf"(?<![\w.]){written}(?![\w.])", t) for t in tpl.values()):
+                gone = f"it was written at level {written}"
+        if line.get("verdict") == "at_level" and level is not None and (line.get("at_level") or 0) <= level:
+            line["verdict"], line["at_level"] = "now", None
+        if gone:
+            dropped.append(f"{what} \"{str(line.get('text') or '')[:60]}\": {gone}")
+        else:
+            out.append(line)
+    return out
+
+
 def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns: list, db, knowledge,
            players: set[str], info: dict, now: str) -> dict:
     """Screen, rank and save: shared by the nightly recheck and a driver's
@@ -342,7 +385,7 @@ def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns
             lines.remove(line)
     for n in nudges:
         for part in ("text", "gist"):
-            if verify.literal_numbers(n.get(part, "")):
+            if verify.literal_numbers((n.get("tpl") or {}).get(part) or n.get(part, "")):
                 if part == "text":
                     dropped.append(f"nudge \"{n['text'][:60]}\": a number above 100 typed into its text")
                 n[part] = ""
@@ -435,7 +478,11 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     info = {"at": now, "kind": "recheck", "char": char, "confirmed": 0, "faded": 0, "dropped": []}
     recheck(kept, ReadOnly(db), now, info, duck=_duck_runner(db))
     info["seconds_total"] = round(time.time() - t0, 1)
-    out = finish(env, char, state, kept, state.get("nudges") or [], state.get("patterns") or [], db, knowledge,
+    level = current_level(db)
+    nudges = bind([n for n in state.get("nudges") or [] if isinstance(n, dict)], kept, level, info["dropped"], "nudge")
+    patterns = bind([p for p in state.get("patterns") or [] if isinstance(p, dict)], kept, level, info["dropped"],
+                    "pattern")
+    out = finish(env, char, state, kept, nudges, patterns, db, knowledge,
                  players, info, now)
     print(json.dumps({"event": "analysis_recheck", "component": "wow", "findings": len(out["findings"]),
                       **{k: info[k] for k in ("confirmed", "faded", "seconds_total")},
@@ -545,7 +592,10 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
                            and verify.shareable_action(n, set())[0]][:4],
                 "time_budget": [{k: r.get(k) for k in ("level", "online_s", "instance_s", "taxi_s", "dead_s",
                                                        "afk_s", "planned_s")} for r in s.get("time_budget") or []]}
-    explored = next((r for r in reversed(runs) if r.get("kind") == "client"), None)
+    # Runs kept before `kind` existed carry none: a run that found something new and
+    # isn't a recheck is a client run.
+    explored = next((r for r in reversed(runs) if r.get("kind") == "client"
+                     or (r.get("new") is not None and r.get("kind") not in ("recheck",))), None)
     return {"available": True, "char": s.get("char"), "updated": s.get("updated"),
             "newest_event": s.get("newest_event"),
             "findings": [{k: f.get(k) for k in ("key", "title", "text", "action", "observation", "sql", "kb", "row",
