@@ -10,7 +10,7 @@ Python package are `wow-stats`; the images are `wow-mcp` and `wow-mcp-render`.
 Python goes through [uv](https://docs.astral.sh/uv/) only.
 
 ```sh
-uv sync --frozen --extra publish --extra mcp --group browser
+uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai --group browser
 uv run playwright install chromium webkit
 ```
 
