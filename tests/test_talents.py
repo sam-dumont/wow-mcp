@@ -427,3 +427,22 @@ def test_mcp_reads_the_current_talents_from_battlenet(loaded):
         assert tools.call(bare, "character_summary", {"char": fakes.CHAR})["talents_why"] == talents.NO_TALENTS
     finally:
         fake.close()
+
+
+def test_a_talents_numbers_follow_its_rank_curve(cat):
+    """Forever's trait talents keep the per-rank number in a curve
+    (TraitDefinitionEffectPoints -> CurvePoint), not in the spell's effect:
+    Spirit Tap's $m1 is 0 in SpellEffect and 20, 40 ... 100 by rank. 0.7.0-rc.6
+    showed "0% chance" at 5/5 (owner, 2026-11-21)."""
+    def desc(rank):
+        return node(talents.frame(cat, "Priest", {"15270": rank}), "Spirit Tap")[1]["desc"]
+
+    assert desc(5).startswith("Gives you a 100% chance"), desc(5)
+    assert desc(3).startswith("Gives you a 60% chance"), desc(3)
+    # Not learned: rank 1's number, as the game's tooltip shows.
+    assert desc(0).startswith("Gives you a 20% chance"), desc(0)
+    # No learned talent of the fixture's frames reads a curve's talent as 0.
+    for cls, ranks in (("Priest", {b["spell"]: b["rank"] for b in PRIEST_BNET["ranks"]}), ("Mage", RANKS)):
+        f = talents.frame(cat, cls, {str(k): v for k, v in ranks.items()})
+        zero = [n["name"] for s in f["sections"] for n in s["nodes"] if n["rank"] and re.search(r"\b0%", n["desc"])]
+        assert not zero, (cls, zero)
