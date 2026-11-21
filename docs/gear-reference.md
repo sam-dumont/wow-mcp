@@ -149,7 +149,9 @@ share of the slot's BiS, as a badge on its icon, and the worn item's share
 then its own ("70% → 94% on your waist", "empty → 94%" for an empty slot;
 `gain_words` on the server, `upText` on the page). A bare "+24%" read as
 24% more stats, so the page never says it; `delta_pct` is the difference. Rings and trinkets measure in the
-slot the item would take, the weaker of the two worn; a two-hander or a
+slot the item would take, the weaker of the two worn, so the line starts from that
+one's badge and only the best ring or trinket left reads 100% (the second of the
+best two reads its share of the best); a two-hander or a
 setup the advice pairs counts whole, a one-hander scored alone (a dungeon
 drop the advice doesn't list) has none. Upgrades are ordered by it:
 the slot furthest from BiS first; within a slot by points (the same start

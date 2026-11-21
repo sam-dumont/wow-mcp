@@ -11,8 +11,9 @@ Everything here is in the Character tab: your gear at the top, the upgrades unde
 
 The badge on each item's icon says how close it is to the best you can wear at your level for
 that slot: **BiS** (orange) is the best, then **2nd** or a share like **84%** (purple from 85%,
-blue from 50%, dark below). Rings and trinkets count the best two, both weapons count as one
-setup. No badge: nothing to measure against.
+blue from 50%, dark below). Rings and trinkets count the best two: a new one replaces the
+weaker, so its line starts from the weaker one's %. Both weapons count as one setup. No badge:
+nothing to measure against.
 
 "▲ 62% → 85% at hand", in green under a slot, means an upgrade you can get now takes that slot
 from 62% to 85%. Click the item to compare. "▲ something to wear": the slot is empty.
