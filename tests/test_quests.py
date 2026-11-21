@@ -505,3 +505,24 @@ def test_a_reward_battlenet_says_is_worn_proves_its_quest_everywhere(sash_on_bat
     picks["quests_done"] = sorted({*picks["quests_done"], *inp["quests_done"]})
     dal = next(b for b in dungeonview.build(picks)["dungeons"] if b["name"] == "City of Dalaran")
     assert next(q for q in dal["quests"] if q["quest_id"] == POWER_OVERWHELMING)["state"] == "done"
+
+
+def test_a_commit_dated_snapshot_reads_as_by_then():
+    """Review 4, B: a snapshot re-extracted from an archive without capture
+    times carries the commit's time with `at_basis: "commit"`: done by then,
+    never "on" that day as if the game said so at that moment."""
+    approx = {**snap("questie", [11], t="2026-11-20T08:00:00Z"), "at_basis": "commit"}
+    rows = [approx, snap("altoholic", [12], t="2026-11-17T07:20:00Z")]
+    cf = 'char:="Testpriest-Fixture"'
+    got = quests.explain(logsql.parse(quests.Q_SNAPSHOTS.format(cf=cf)).run(rows))
+    assert got[11]["why"] == "Questie lists it completed by 2026-11-20" and got[11]["t_by"] is True
+    assert got[12]["why"] == "Altoholic (DataStore_Quests) lists it completed on 2026-11-17"
+    assert got[12]["t_by"] is False
+    # An exact sighting earlier than the bound wins, and is exact.
+    got = quests.explain([approx, snap("questie", [11], t="2026-11-18T08:00:00Z")])
+    assert got[11]["t_by"] is False and got[11]["why"].endswith("on 2026-11-18")
+    # Seen by a time before the accept: not this time round. After it: as
+    # unknown as no time, so it settles like an untimed source does.
+    accepted = datetime(2026, 11, 21, tzinfo=UTC).timestamp()
+    assert not quests.settles_open(quests.explain([approx])[11], accepted)
+    assert quests.settles_open(quests.explain([approx])[11], accepted - 7 * 86400)

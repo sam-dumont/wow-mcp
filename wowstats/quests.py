@@ -69,13 +69,13 @@ Q_RECORDS = "kind:in(turnin, offer) | stats by (kind, quest_id, quests_done) cou
 # the newest 20 here missed a quest only the 25th-newest listed. The shipper
 # sends one per changed set (a few a play day); 1,000 of 800 ids each take
 # about 0.25 s in completed(), cached a minute by the Views.
-Q_SNAPSHOTS = 'feed:="wow-quests" {cf} kind:=completed | fields _time, feed, kind, source, quest_ids'
+Q_SNAPSHOTS = 'feed:="wow-quests" {cf} kind:=completed | fields _time, at_basis, feed, kind, source, quest_ids'
 # Every gear and bags sheet, not just the newest: a reward sold or replaced
 # since still proves the hand-in. The Gear page once read the newest alone
 # and offered Violet Sash from Power Overwhelming again once it was gone
 # (#33's case), while the planner, reading the whole history, had it done.
 # What the character owns now is wowstats.gear's Q_SHEET and Q_HELD.
-Q_SHEETS = 'feed:in("wow-gear", "wow-bags") {cf} | fields _time, feed, items, bags, bank'
+Q_SHEETS = 'feed:in("wow-gear", "wow-bags") {cf} | fields _time, at_basis, feed, items, bags, bank'
 
 
 def history(run, rec: str, cf: str) -> dict[int, str]:
@@ -166,21 +166,27 @@ _WHERE = {"gear": "worn", "bags": "in the bags", "bank": "in the bank"}
 
 def _found(rows: Iterable[dict], held: Iterable[int] | None,
            battlenet: Iterable[int] | None = None) -> dict[str, dict[int, dict]]:
-    """Per source (SOURCES but `inferred`), quest -> {why, t, last_t}: what
-    says it is done, and the first and last time it was seen saying so (unix
-    s; None when the record has no time, like a `held` list)."""
+    """Per source (SOURCES but `inferred`), quest -> {why, t, last_t, t_by}:
+    what says it is done, and the first and last time it was seen saying so
+    (unix s; None when the record has no time, like a `held` list). `t_by`:
+    `t` is an upper bound, not the moment. A snapshot the shipper rebuilt
+    from an archive without capture times carries `at_basis: "commit"`: its
+    `_time` is when the archive captured it, so the game saw it by then, at
+    the latest (docs/contract.md, "Times"). An upper bound still settles
+    "seen after the accept" the safe way: a time before the accept proves
+    it, one after leaves it as unknown as no time at all (settles_open)."""
     from wowstats.stores import parse_t
 
     ev: dict[str, dict[int, dict]] = {s: {} for s in SOURCES if s != "inferred"}
 
-    def add(src: str, q: int, why: str, t: float | None) -> None:
+    def add(src: str, q: int, why: str, t: float | None, by: bool = False) -> None:
         e = ev[src].get(q)
         if e is None:
-            ev[src][q] = {"why": why, "t": t, "last_t": t}
+            ev[src][q] = {"why": why, "t": t, "last_t": t, "t_by": by and t is not None}
             return
         if t is not None:
             if e["t"] is None or t < e["t"]:
-                e.update(why=why, t=t)
+                e.update(why=why, t=t, t_by=by)
             if e["last_t"] is None or t > e["last_t"]:
                 e["last_t"] = t
 
@@ -188,17 +194,18 @@ def _found(rows: Iterable[dict], held: Iterable[int] | None,
         d = parse_t(r.get("_time"))
         return d.timestamp() if d.year > 1 else None
 
-    def day(t: float | None) -> str:
+    def day(t: float | None, by: bool = False) -> str:
         from datetime import UTC, datetime
-        return f" on {datetime.fromtimestamp(t, UTC):%Y-%m-%d}" if t is not None else ""
+        return f" {'by' if by else 'on'} {datetime.fromtimestamp(t, UTC):%Y-%m-%d}" if t is not None else ""
 
-    def reward(item: int, where: str, t: float | None, src: str = "reward") -> None:
+    def reward(item: int, where: str, t: float | None, src: str = "reward", by: bool = False) -> None:
         if (q := reward_quest(item)) is not None:
             name = ((forever.data() or {}).get("items") or {}).get(str(item)) or f"item {item}"
-            add(src, q, f"{name} ({item}) {where}{day(t)}: a reward only this quest gives", t)
+            add(src, q, f"{name} ({item}) {where}{day(t, by)}: a reward only this quest gives", t, by)
 
     for r in rows:
         kind, feed, t = r.get("kind"), r.get("feed"), when(r)
+        by = r.get("at_basis") == "commit"
         if kind == "turnin":
             if (q := _int(r.get("quest_id"))) is not None:
                 add("turnin", q, "handed in (the Recorder saw it)", t)
@@ -210,9 +217,9 @@ def _found(rows: Iterable[dict], held: Iterable[int] | None,
             # Every snapshot, each a full set of up to ~1,000 ids: the reason is
             # worded once per snapshot, not per quest (review 2 of 0.7.0).
             who = "Questie" if r["source"] == "questie" else "Altoholic (DataStore_Quests)"
-            why = f"{who} lists it completed{day(t)}"
+            why = f"{who} lists it completed{day(t, by)}"
             for q in _ids(r.get("quest_ids")):
-                add(r["source"], q, why, t)
+                add(r["source"], q, why, t, by)
         elif held is None and feed == "wow-gear":
             # Every sheet, not just the newest: a reward sold or banked
             # since still proves the hand-in.
@@ -224,11 +231,11 @@ def _found(rows: Iterable[dict], held: Iterable[int] | None,
                     items = []
             for i in items or []:
                 if isinstance(i, dict) and (n := _int(i.get("item_id"))):
-                    reward(n, _WHERE["gear"], t)
+                    reward(n, _WHERE["gear"], t, by=by)
         elif held is None and feed == "wow-bags":
             for k in ("bags", "bank"):
                 for n in _ids(r.get(k)):
-                    reward(n, _WHERE[k], t)
+                    reward(n, _WHERE[k], t, by=by)
     for n in held or []:
         if (n := _int(n)) is not None:
             reward(n, "held (worn, bags or bank)", None)
@@ -252,7 +259,8 @@ def explain(rows: Iterable[dict], held: Iterable[int] | None = None,
             battlenet: Iterable[int] | None = None) -> dict[int, dict]:
     """completed() with the reason: quest -> {from: the first source (SOURCES
     order) that says so, why: the evidence in words, t / last_t: the first
-    and last time that source said so (unix s, None when unknown)}.
+    and last time that source said so (unix s, None when unknown), t_by:
+    True when `t` is only "by then" (an approximate capture time, _found)}.
     `battlenet`: the item ids Battle.net says it wears now (worn_ids)."""
     out: dict[int, dict] = {}
     for src, qs in _found(rows, held, battlenet).items():
@@ -261,7 +269,7 @@ def explain(rows: Iterable[dict], held: Iterable[int] | None = None,
                 out[q] = {"from": src, **qs[q]}
     for q in sorted(close(out)):
         out.setdefault(q, {"from": "inferred", "why": "a quest that needs it first is done (forever-db prerequisites)",
-                           "t": None, "last_t": None})
+                           "t": None, "last_t": None, "t_by": False})
     return out
 
 

@@ -142,6 +142,18 @@ QUIET_S = 5  # the client writes its files one after another: wait for 5 s of qu
 QUIET_MAX_WAIT_S = 120
 POST_MAX_BYTES = 4 * 1024 * 1024
 ADDONS_FILE = "_addons.tsv"  # in the archive repo, next to the WTF mirror
+# The capture manifest, in the archive repo next to the WTF mirror: each
+# commit carries the mtime (ns) every file it rebuilds had when it was
+# captured, the observation time the live run read. Git keeps no mtimes, so
+# without it a rebuilt file reads as written at rebuild time (review 4, B).
+CAPTURE_FILE = "_capture.json"
+# What a rebuild of an archived version reads (backfill, the capture manifest).
+ARCHIVED_SOURCES = re.compile(
+    r"^Account/[^/]+/(SavedVariables/(Polestar|Polestar_Recorder|Auctionator|Syndicator"
+    r"|ForeverLevelingBiS|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests|Questie"
+    r"|WowSimsExporter)\.lua(\.bak)?"
+    r"|[^/]+/[^/]+/SavedVariables/(Polestar|Polestar_Recorder"
+    r"|GearQuestForever)\.lua(\.bak)?)$")
 # No console window for git when Task Scheduler runs us with pythonw.
 NO_WINDOW = {"creationflags": 0x08000000} if WINDOWS else {}
 
@@ -489,6 +501,26 @@ def names(kind: str) -> dict[int, str]:
 # ---------------------------------------------------------------------------
 # Events
 # ---------------------------------------------------------------------------
+
+# Files rebuilt from an archived version that has no capture manifest (made
+# before it existed): their mtime is the commit's time, an approximate
+# capture time. observed() labels what is dated by one.
+APPROX: set[Path] = set()
+
+
+def observed(*files: Path) -> tuple[float | None, str | None]:
+    """The observation time of the newest of `files` that exist (its mtime:
+    when the game wrote it), and its basis: None when exact, "commit" when
+    that file was rebuilt from an archived version without a capture
+    manifest, so the time is the commit's, when the shipper captured it: an
+    upper bound ("seen by then"), never an exact time. (None, None) when
+    none exists. docs/contract.md, "Times"."""
+    got = [(f.stat().st_mtime, f) for f in files if f.exists()]
+    if not got:
+        return None, None
+    t, f = max(got)
+    return t, ("commit" if f in APPROX else None)
+
 
 def iso(epoch: float) -> str:
     dt = datetime.fromtimestamp(epoch, tz=UTC)
@@ -1538,12 +1570,13 @@ def extract_quests(acct: Path, chars: dict[str, dict], state: dict, out: Out) ->
     time the set of quests that source says are completed changes."""
     seen = state.setdefault("quests", {})
     snaps: list[tuple[str, str, dict]] = []
-    qf = acct / "SavedVariables" / "Questie.lua"
+    q_at, q_basis = observed(acct / "SavedVariables" / "Questie.lua")
     for char, ids in questie_completed(acct).items():
-        snaps.append((char, "questie", {"quest_ids": ids, "at": qf.stat().st_mtime if qf.exists() else None}))
-    df = acct / "SavedVariables" / "DataStore_Quests.lua"
+        snaps.append((char, "questie", {"quest_ids": ids, "at": q_at, "at_basis": q_basis}))
+    d_at, d_basis = observed(acct / "SavedVariables" / "DataStore_Quests.lua")
     for char, d in datastore_completed(acct).items():
-        snaps.append((char, "altoholic", {**d, "at": d["at"] or (df.stat().st_mtime if df.exists() else None)}))
+        # LastUpdate is in the file's content: exact, whatever the rebuild.
+        snaps.append((char, "altoholic", {**d, "at": d["at"] or d_at, "at_basis": None if d["at"] else d_basis}))
     for char, source, d in snaps:
         if char not in chars:
             continue
@@ -1557,7 +1590,7 @@ def extract_quests(acct: Path, chars: dict[str, dict], state: dict, out: Out) ->
         out.emit({"_time": iso(d["at"] or time.time()), "feed": "wow-quests", "kind": "completed", "char": char,
                   "source": source, "source_id": f"quests:{key}:{digest}",
                   "_msg": f"{char}: {len(ids)} quests completed ({source})", "quest_ids": ids, "n": len(ids),
-                  **extra})
+                  "at_basis": d.get("at_basis"), **extra})
 
 
 # Altoholic's DataStore_Talents (bundled in Altoholic_Forever, Thaoky,
@@ -1741,17 +1774,17 @@ def extract_gear(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> N
         if seen.get(char) == digest:
             continue
         seen[char] = digest
-        at = logout.get(char)
+        at, basis = logout.get(char), None  # the logout is in Polestar's content: exact
         if at is None:
-            files = [acct / "SavedVariables" / "Syndicator.lua", cdir / "Polestar.lua"]
-            at = max((f.stat().st_mtime for f in files if f.exists()), default=time.time())
+            at, basis = observed(acct / "SavedVariables" / "Syndicator.lua", cdir / "Polestar.lua")
+            at = time.time() if at is None else at
         profs = ", ".join(f"{p['name']} {p['rank']}" for p in g["professions"])
         # The id is the occurrence (content and capture time), not the content
         # alone: a sheet worn again later is a second record, and readers keep
         # the newest copy of an id (review 2026-11-21, C; old ids:
         # wowstats.stores.record_id). A resend of this line keeps it.
         out.emit({"_time": iso(at), "feed": "wow-gear", "char": char,
-                  "source_id": f"gear:{char}:{digest}:{int(at)}",
+                  "source_id": f"gear:{char}:{digest}:{int(at)}", "at_basis": basis,
                   "_msg": f"{char}: {len(g['items'])} items equipped"
                           + (f", item level {g['item_level']}" if g["item_level"] else "")
                           + (f"; {profs}" if profs else ""),
@@ -1796,9 +1829,10 @@ def extract_inventory(acct: Path, chars: dict[str, dict], state: dict, out: Out)
         if seen.get(char) == digest:
             continue
         seen[char] = digest
-        f = acct / "SavedVariables" / "Syndicator.lua"
-        at = f.stat().st_mtime if f.exists() else time.time()
+        at, basis = observed(acct / "SavedVariables" / "Syndicator.lua")
+        at = time.time() if at is None else at
         out.emit({"_time": iso(at), "feed": "wow-bags", "char": char, "source_id": f"bags:{char}:{digest}",
+                  "at_basis": basis,
                   "_msg": f"{char}: {len(inv['bags'])} items in the bags, {len(inv['bank'])} in the bank", **inv})
 
 
@@ -2237,18 +2271,72 @@ def archive() -> bool:
         shutil.copy2(p, dst)
     for p in REPO.rglob("*"):
         rel = p.relative_to(REPO)
-        if rel.parts[0] in (".git", CLIENT_KEEP) or str(rel) == ADDONS_FILE or not p.is_file():
+        if rel.parts[0] in (".git", CLIENT_KEEP) or str(rel) in (ADDONS_FILE, CAPTURE_FILE) or not p.is_file():
             continue
         if rel not in wanted:
             p.unlink()
     (REPO / ADDONS_FILE).write_text(addon_list(), encoding="utf-8")
+    write_capture(wanted)
     git("add", "-A")
-    if git("diff", "--cached", "--quiet", check=False).returncode == 0:
-        return False
     names = git("diff", "--cached", "--name-only").stdout.split()
+    if not [n for n in names if n != CAPTURE_FILE]:
+        # A file rewritten with the same content moves only its time: no
+        # commit for that (it stays staged and goes with the next real one,
+        # rewritten by then).
+        return False
     git("commit", "-q", "-m", f"WTF {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}: {len(names)} files")
     log(f"archive: committed {len(names)} changed files")
     return True
+
+
+def write_capture(wanted) -> None:
+    """The capture manifest (CAPTURE_FILE) for what the archive now holds:
+    each source a rebuild reads -> its mtime in ns, as the live run reads
+    it. Written before every commit, so each commit carries its own."""
+    times = {}
+    for rel in sorted(wanted):
+        name = Path(rel).as_posix()
+        if ARCHIVED_SOURCES.match(name):
+            with contextlib.suppress(OSError):
+                times[name] = (REPO / rel).stat().st_mtime_ns
+    (REPO / CAPTURE_FILE).write_text(json.dumps({"version": 1, "mtime_ns": times}, indent=0, sort_keys=True) + "\n",
+                                     encoding="utf-8")
+
+
+def _show(c: str, path: str) -> bytes | None:
+    r = subprocess.run(["git", "-C", str(REPO), "show", f"{c}:{path}"], capture_output=True, **NO_WINDOW)
+    return r.stdout if r.returncode == 0 else None
+
+
+def archived_versions():
+    """Each archived version, oldest first, rebuilt in a temp folder: yields
+    that folder's WTF tree. Each rebuilt file gets back the mtime it had
+    when it was captured (the commit's capture manifest), so the extractors
+    date it as the live run did. A commit without a manifest (an archive
+    from before it) dates its files at the commit's time and lists them in
+    APPROX: observed() labels those events `at_basis: "commit"`."""
+    for line in git("log", "--reverse", "--format=%H %ct", check=False).stdout.splitlines():  # none yet: nothing
+        c, ct = line.split()
+        try:
+            man = json.loads(_show(c, CAPTURE_FILE) or b"{}").get("mtime_ns") or {}
+        except ValueError:
+            man = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            for path in git("ls-tree", "-r", "--name-only", c).stdout.splitlines():
+                if ARCHIVED_SOURCES.match(path):
+                    dst = Path(tmp) / path
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    dst.write_bytes(_show(c, path) or b"")
+                    ns = man.get(path)
+                    if isinstance(ns, int) and not isinstance(ns, bool):
+                        os.utime(dst, ns=(ns, ns))
+                    else:
+                        os.utime(dst, (int(ct), int(ct)))
+                        APPROX.add(dst)
+            try:
+                yield Path(tmp)
+            finally:
+                APPROX.clear()
 
 
 def backfill(state: dict, out: Out) -> None:
@@ -2256,21 +2344,8 @@ def backfill(state: dict, out: Out) -> None:
     if not REPO.joinpath(".git").is_dir():
         log("backfill: no archive yet" if archive_on() else "backfill: no archive (wtf_archive = false)")
         return
-    keep = re.compile(r"^Account/[^/]+/(SavedVariables/(Polestar|Polestar_Recorder|Auctionator|Syndicator"
-                      r"|ForeverLevelingBiS|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests|Questie"
-                      r"|WowSimsExporter)\.lua(\.bak)?"
-                      r"|[^/]+/[^/]+/SavedVariables/(Polestar|Polestar_Recorder"
-                      r"|GearQuestForever)\.lua(\.bak)?)$")
-    commits = git("rev-list", "--reverse", "HEAD").stdout.split()
-    for c in commits:
-        with tempfile.TemporaryDirectory() as tmp:
-            for path in git("ls-tree", "-r", "--name-only", c).stdout.splitlines():
-                if keep.match(path):
-                    dst = Path(tmp) / path
-                    dst.parent.mkdir(parents=True, exist_ok=True)
-                    dst.write_bytes(subprocess.run(["git", "-C", str(REPO), "show", f"{c}:{path}"],
-                                                   check=True, capture_output=True, **NO_WINDOW).stdout)
-            extract_tree(Path(tmp), state, out, live=False)
+    for tree in archived_versions():
+        extract_tree(tree, state, out, live=False)
 
 
 # ---------------------------------------------------------------------------
