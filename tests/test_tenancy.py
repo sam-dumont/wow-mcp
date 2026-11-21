@@ -382,6 +382,7 @@ def test_every_mcp_tool_as_the_friend(server):
     server.t.app_for(u)
     ctx = server.t.ctx_for(u)
     assert ctx.store.account_id == u.account_id and ctx.bnet is True
+    assert ctx.who == u.slug == "mira"  # said when the account has no data (tools.resolve_char)
     ran = 0
     for tool in tools.mcp_tools(ctx):
         props = tool.input_schema["properties"]

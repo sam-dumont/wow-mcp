@@ -284,7 +284,8 @@ def analysis_row(t: T.Tenancy, u: T.User, row: dict) -> dict | None:
     if not svc.cfg.on:
         return None
     env = t.env_for(u)
-    out = {"played_since": None, "due": False, "at": None, "by": None, "last_try": svc.last_try(env) or None}
+    out = {"played_since": None, "due": False, "at": None, "by": None, "last_try": svc.last_try(env) or None,
+           "month": auto.mine(env, svc.spend)}
     try:
         tm = svc.timer(env, t.app_for(u).store)
         last = tm["last_refresh"] or {}
@@ -440,7 +441,12 @@ def _analysis_cell(a: dict | None, now: float) -> str:
     played = escape(str(a.get("played_since") or "0 h 00")) + " played since"
     last = (_when(a["at"], now) + (f" by {by}" if by else "")) if a.get("at") else '<span class="dim">never</span>'
     due = ' <span class="tag">due</span>' if a.get("due") else ""
-    return f"{played}{due}<br>last refresh {last}"
+    m = a.get("month") or {}
+    runs = ""
+    if m.get("runs"):
+        cost = f', ${m["spent"]:.2f}' if m.get("cost_known") and m.get("spent") is not None else ""
+        runs = f'<br><span class="dim">{m["runs"]} server run{"" if m["runs"] == 1 else "s"}{cost} this month</span>'
+    return f"{played}{due}<br>last refresh {last}{runs}"
 
 
 def page_body(o: dict) -> str:
@@ -467,7 +473,8 @@ def page_body(o: dict) -> str:
             txt, state = f'cost unknown, {an["tokens"]:,} tokens', ""
         if an.get("tokens_cap"):
             txt += f' <span class="dim">{an["tokens"]:,} of {an["tokens_cap"]:,} tokens</span>'
-        txt += f' <span class="dim">{an["runs"]} run{"" if an["runs"] == 1 else "s"}, {escape(an["month"])}</span>'
+        txt += (f' <span class="dim">{an["runs"]} run{"" if an["runs"] == 1 else "s"} this month '
+                f'({escape(an["month"])}), whole install</span>')
         tiles.append(_tile("AI analysis", txt, state))
     pings = "".join(
         f'<li class="{"good" if c["ok"] else "bad"}" title="{escape(c.get("error") or "")}">'

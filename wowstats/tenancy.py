@@ -656,7 +656,11 @@ class Tenancy:
                 app = self._apps.get(u.sub)
                 if app is not None:
                     ctx.title = app.title
-        ctx.bnet = bool(self.registry.get(u.sub).bnet_to_model) if self.registry.get(u.sub) else False
+        live = self.registry.get(u.sub)
+        ctx.bnet = bool(live.bnet_to_model) if live else False
+        # Read live too: a first login gives the slug after the context was made.
+        slug = (live.slug if live else "") or u.slug
+        ctx.who = slug or f"an account with no name yet (tenant {u.account_id})"
         return ctx
 
     def forget(self, sub: str) -> None:

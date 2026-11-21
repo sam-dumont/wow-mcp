@@ -258,3 +258,23 @@ class TitleTest(unittest.TestCase):
             self.assertEqual(asked, [fakes.CHAR])
         finally:
             fake.close()
+
+
+class EmptyAccountTest(unittest.TestCase):
+    """A session signed in as an account with no data says which account."""
+
+    class Empty:
+        def logs(self, query, start=None, end=None, limit=None):
+            return []
+
+    def test_the_message_names_who_is_signed_in(self):
+        ctx = tools.Ctx(store=self.Empty(), who="sample-slug")
+        with self.assertRaises(tools.ToolError) as e:
+            tools.resolve_char(ctx, {})
+        self.assertEqual(str(e.exception), "No character has any events yet for sample-slug. If that isn't you, "
+                                           "sign in again with the account that ships your data.")
+
+    def test_a_one_person_install_keeps_the_shipper_hint(self):
+        with self.assertRaises(tools.ToolError) as e:
+            tools.resolve_char(tools.Ctx(store=self.Empty()), {})
+        self.assertIn("is the shipper sending?", str(e.exception))

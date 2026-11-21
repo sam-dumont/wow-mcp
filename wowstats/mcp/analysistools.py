@@ -278,9 +278,9 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
            S({"char": CHAR}), _guard(t_analysis_progress)),
     T.Tool("dashboard_refresh", "Refresh my dashboard",
            "Have the server refresh your play analysis now (How you play) with its host's AI model, in the "
-           "background, for your own characters. Says the last refresh and who did it, your play since, what it "
-           "started or skipped and why (not configured, budget spent, already running), how the last try ended, "
-           "and the budget left. The server also does it itself after hours of play.",
+           "background, for your own characters. Says the last refresh, your play since, whether your refresh "
+           "runs or waits in the queue (and where), why one was skipped, how the last try ended, the whole "
+           "install's budget left and your own runs and cost this month.",
            S({}), _guard(t_dashboard_refresh), writes="replaces", open_world=True),
     T.Tool("kb_get", "Knowledge base documents",
            "Full knowledge base documents by id (kind:id, e.g. npc:1234, quest:56, note:xp-sources), up to 10, each "

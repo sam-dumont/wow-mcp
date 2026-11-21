@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Added
+
+- `dashboard_refresh` and /admin give each person's own server runs this month apart from the install's: the tool's `budget` is now marked `scope: "install"` ("this month, whole install"), and `yours` has the caller's own runs, cost and tokens (`scope: "you"`). /admin's AI analysis tile says "whole install", and each person's AI analysis cell adds their runs and cost this month. The spend file now records them per tenant number; runs from before this release aren't in anyone's share, and `yours` says how many.
+
+### Fixed
+
+- `dashboard_refresh` told a player whose refresh was waiting behind someone else's that "a refresh is already running for you". The server runs one refresh at a time: the answer now says `state: "running"` only when the caller's own job runs, else `state: "queued"` with its `position` ("queued behind another refresh (position 1)"). Calling again while queued adds no second job; a queued timer check becomes the player's own refresh, which runs whatever the timer says.
+- An account with no data said "no character has any events yet: is the shipper sending?" even when the session was signed in as the wrong account (a Battle.net sign-in that landed on another of the person's accounts). It now names who the session is signed in as: "No character has any events yet for <name>. If that isn't you, sign in again with the account that ships your data."
+- The server's run log line names the character (`char`).
+
 ## 0.7.0-rc.3 (2026-11-21)
 
 ### Added

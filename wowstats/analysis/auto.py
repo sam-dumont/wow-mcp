@@ -433,10 +433,19 @@ def month(t: float | None = None) -> str:
     return datetime.fromtimestamp(time.time() if t is None else t, UTC).strftime("%Y-%m")
 
 
+def tenant_key(env: dict) -> str:
+    """Whose run it is in the spend file: the person's VictoriaLogs tenant
+    (a number, never a name); "0" on a one-person install."""
+    v = str(env.get("VL_ACCOUNT_ID", "0") or "0").strip()
+    return v if v.isdigit() else "0"
+
+
 class Spend:
-    """The month's use on the state volume: {"months": {"2026-11": {usd,
-    unpriced_calls, calls, runs, tokens}}, "runs": {model: {n, usd,
-    tokens}}} (finished runs, for the next run's estimate)."""
+    """The month's use on the state volume, the whole install's: {"months":
+    {"2026-11": {usd, unpriced_calls, calls, runs, tokens, tenants: {"<tenant>":
+    {usd, calls, runs, tokens}}}}, "runs": {model: {n, usd, tokens}}} (finished
+    runs, for the next run's estimate). `tenants` splits the month per person
+    (tenant_key); records written before 0.7.0-rc.4 have no split."""
 
     def __init__(self, path: Path | None, clock=time.time):
         self.path, self.clock = path, clock
@@ -460,27 +469,43 @@ class Spend:
             m.setdefault(k, v)
         return m
 
-    def add(self, usd: float | None, toks: dict[str, int]) -> None:
+    @staticmethod
+    def _tenant(m: dict, tenant: str) -> dict:
+        t = m.setdefault("tenants", {}).setdefault(tenant, {})
+        for k, v in (("usd", 0.0), ("calls", 0), ("unpriced_calls", 0), ("runs", 0), ("tokens", 0)):
+            t.setdefault(k, v)
+        return t
+
+    def tenant_month(self, tenant: str) -> dict:
+        """One person's share of this month: {usd, calls, unpriced_calls, runs, tokens}."""
+        return dict((self.this_month().get("tenants") or {}).get(tenant) or {})
+
+    def add(self, usd: float | None, toks: dict[str, int], tenant: str = "0") -> None:
         if self.path is None:
             return
         with self._lock:
             d = self.read()
             m = self._month(d)
-            m["calls"] += 1
-            if usd is None:
-                m["unpriced_calls"] += 1
-            else:
-                m["usd"] = round(float(m["usd"]) + usd, 6)
+            t = self._tenant(m, tenant)
+            for x in (m, t):
+                x["calls"] += 1
+                if usd is None:
+                    x["unpriced_calls"] += 1
+                else:
+                    x["usd"] = round(float(x["usd"]) + usd, 6)
             for k, v in toks.items():
                 m["tokens"][k] = int(m["tokens"].get(k) or 0) + int(v)
+            t["tokens"] = int(t["tokens"]) + sum(int(v) for v in toks.values())
             _write_json(self.path, d)
 
-    def run_done(self, model: str, usd: float | None, toks: int, finished: bool) -> None:
+    def run_done(self, model: str, usd: float | None, toks: int, finished: bool, tenant: str = "0") -> None:
         if self.path is None:
             return
         with self._lock:
             d = self.read()
-            self._month(d)["runs"] += 1
+            m = self._month(d)
+            m["runs"] += 1
+            self._tenant(m, tenant)["runs"] += 1
             if finished:
                 r = d.setdefault("runs", {}).setdefault(model, {"n": 0, "usd": 0.0, "tokens": 0})
                 r["n"] = int(r["n"]) + 1
@@ -509,19 +534,46 @@ def over(cfg: Config, spend: Spend, usd: float, toks: int, run: bool = False) ->
     return ""
 
 
+# How the figures are said, next to them: budget()'s cover the whole install
+# (one spend file, one cap for everyone); mine() is the caller's own share. A
+# friend read the install's "runs: 2" as their own (2026-11-21).
+INSTALL_SAID = "this month, whole install: every person's runs count against one budget"
+MINE_SAID = "this month, your own runs only"
+
+
 def budget(env: dict, spend: Spend | None = None) -> dict:
-    """The month's use, for /admin and the MCP tool."""
+    """The month's use of the whole install (scope "install"), for /admin and
+    the MCP tool: every person's runs, one budget."""
     cfg = Config.from_env(env)
     s = spend or Spend(spend_path(env))
     m = s.this_month()
     used = float(m.get("usd") or 0.0)
-    out = {"provider": cfg.provider, "model": cfg.model, "auth": cfg.auth, "configured": cfg.on, "auto": cfg.auto,
-           "month": month(s.clock()), "runs": int(m.get("runs") or 0), "tokens": s.used_tokens(),
+    out = {"scope": "install", "said": INSTALL_SAID, "provider": cfg.provider, "model": cfg.model,
+           "auth": cfg.auth, "configured": cfg.on, "auto": cfg.auto, "month": month(s.clock()),
+           "runs": int(m.get("runs") or 0), "tokens": s.used_tokens(),
            "tokens_cap": cfg.tokens_cap, "currency": "USD", "cost_known": cfg.priced and not m.get("unpriced_calls"),
            "spent": round(used, 2) if cfg.priced else None, "cap": cfg.budget if cfg.priced else None,
            "left": round(max(0.0, cfg.budget - used), 2) if cfg.priced else None}
     if not cfg.on:
         out["why_off"] = cfg.why_off()
+    return out
+
+
+def mine(env: dict, spend: Spend | None = None) -> dict:
+    """The person's own share of this month (scope "you"): their runs, cost
+    and tokens, from the spend file's per-tenant split."""
+    cfg = Config.from_env(env)
+    s = spend or Spend(spend_path(env))
+    t = s.tenant_month(tenant_key(env))
+    m = s.this_month()
+    out = {"scope": "you", "said": MINE_SAID, "month": month(s.clock()), "runs": int(t.get("runs") or 0),
+           "tokens": int(t.get("tokens") or 0), "currency": "USD",
+           "cost_known": cfg.priced and not t.get("unpriced_calls"),
+           "spent": round(float(t.get("usd") or 0.0), 2) if cfg.priced else None}
+    split = sum(int(x.get("runs") or 0) for x in (m.get("tenants") or {}).values())
+    if int(m.get("runs") or 0) > split:
+        out["note"] = (f"{int(m.get('runs') or 0) - split} of the install's runs this month predate the per-person "
+                       "count and aren't in it")
     return out
 
 
@@ -613,6 +665,7 @@ class Runner:
 
         self.cfg, self.spend, self.ctx, self.char, self.by, self.T = cfg, spend, ctx, char, by, T
         self.played_s = played_s  # the play since the marker, measured by the job: the synthesis keeps it
+        self.tenant = tenant_key(ctx.environ())
         self.usd: float | None = 0.0 if cfg.priced else None
         self.tokens = 0
         self.calls, self.conversations, self.last_usd, self.last_tokens = 0, 0, 0.0, 0
@@ -631,7 +684,7 @@ class Runner:
         self.calls += 1
         usd = self.cfg.cost(turn.model, turn.usage)
         n = sum(turn.usage.values())
-        self.spend.add(usd, turn.usage)
+        self.spend.add(usd, turn.usage, self.tenant)
         self.tokens += n
         self.last_tokens = n
         if usd is not None:
@@ -832,7 +885,14 @@ def api_error(e: Exception) -> str:
 class Service:
     """One per process: the settings, the month's meter, and one worker
     thread that runs one player's refresh at a time (so the process never
-    holds two analyses' databases at once, and spends at one pace)."""
+    holds two analyses' databases at once, and spends at one pace).
+
+    Each player has at most one job, either waiting in the queue or running:
+    `_queued` (their key -> the job, in queue order) and `_running`. The
+    worker moves a job from one to the other. A player whose job waits behind
+    someone else's is told it's queued and where, never "already running"
+    (the lab's first live runs, 2026-11-21, said that to a player whose job
+    hadn't started)."""
 
     def __init__(self, env: dict, client=None, played=None, chars=None, clock=time.time):
         self.cfg = Config.from_env(env)
@@ -842,9 +902,10 @@ class Service:
         self.played = played or played_since
         self.chars = chars or (lambda e, since: played_chars(e, since))
         self._lock = threading.Lock()
-        self._busy: set[str] = set()
+        self._queued: dict[str, tuple] = {}  # key -> (kind, env, ctx), oldest first
+        self._running: set[str] = set()  # the worker's job, plus a caller's own `wait` run
         self._checked: dict[str, float] = {}
-        self._q: queue.Queue = queue.Queue()
+        self._q: queue.Queue = queue.Queue()  # the keys, in the order they were queued
         self._thread: threading.Thread | None = None
 
     @staticmethod
@@ -865,6 +926,27 @@ class Service:
                 "played_since_s": round(since), "played_since": hours(since),
                 "refresh_after": hours(self.cfg.stale_s), "due": since >= self.cfg.stale_s}
 
+    def state(self, k: str) -> dict | None:
+        """Where the player's own job stands: running, or queued at a
+        position (1: next to start) with `ahead` other refreshes before it
+        (the one running included), or None. Call with the lock held."""
+        if k in self._running:
+            return {"state": "running", "running_for_you": True}
+        if k in self._queued:
+            pos = list(self._queued).index(k) + 1
+            return {"state": "queued", "running_for_you": False, "position": pos,
+                    "ahead": pos - 1 + len(self._running - {k})}
+        return None
+
+    @staticmethod
+    def said(st: dict) -> str:
+        if st["state"] == "running":
+            return "a refresh is already running for you"
+        if st["ahead"] == 0:
+            return "your refresh is queued and starts next (position 1)"
+        other = "another refresh" if st["ahead"] == 1 else f"{st['ahead']} other refreshes"
+        return f"your refresh is queued behind {other} (position {st['position']})"
+
     def would_cross(self) -> str:
         usd, toks = self.spend.run_estimate(self.cfg.model, self.cfg.run_guess())
         return over(self.cfg, self.spend, usd, toks, run=True)
@@ -881,22 +963,26 @@ class Service:
         if not k:
             return "no state folder"
         with self._lock:
-            if k in self._busy:
+            if k in self._running or k in self._queued:
                 return "busy"
             if self.clock() - self._checked.get(k, 0.0) < REBUILD_CHECK_S:
                 return "checked recently"
             self._checked[k] = self.clock()
-            self._busy.add(k)
-        self._enqueue(("auto", dict(env), None))
+            self._queued[k] = ("auto", dict(env), None)
+        self._enqueue(k)
         return None
 
     def refresh(self, ctx, wait: bool = False) -> dict:
         """dashboard_refresh: the player's own call, on their own context.
         Runs whatever the timer says, budget permitting; in the background
-        unless `wait`. Says what was due, what runs, what was skipped and why,
-        the month's budget, and how the last try ended."""
+        unless `wait`. Says what was due, whether their refresh runs now or
+        waits in the queue (and where), what was skipped and why, the month's
+        budget (the whole install's) and their own share of it, and how the
+        last try ended. A call while their own job waits adds none: a waiting
+        timer check becomes their refresh, which always runs."""
         env = ctx.environ()
-        out = {"configured": self.cfg.on, "budget": budget(env, self.spend), "last_try": self.last_try(env) or None}
+        out = {"configured": self.cfg.on, "budget": budget(env, self.spend), "yours": mine(env, self.spend),
+               "last_try": self.last_try(env) or None}
         if not self.cfg.on:
             return {**out, "started": False, "skipped": self.cfg.why_off()}
         k = self.key(env)
@@ -906,20 +992,44 @@ class Service:
             out["timer"] = self.timer(env, ctx.store)
         except Exception:  # noqa: BLE001 - a footnote here: the player's call runs anyway
             out["timer"] = None
+        job = ("player", dict(env), ctx)
+        mine_now = self._already(k, job)
+        if mine_now is not None:
+            return {**out, **mine_now}
         why = self.would_cross()
         if why:
             return {**out, "started": False, "skipped": why}
         with self._lock:
-            if k in self._busy:
-                return {**out, "started": False, "skipped": "a refresh is already running for you"}
-            self._busy.add(k)
-        job = ("player", dict(env), ctx)
+            if self.state(k) is not None:  # queued meanwhile: the same answer as above
+                return {**out, **self._already_locked(k, job)}
+            if wait:
+                self._running.add(k)
+            else:
+                self._queued[k] = job
+                st = self.state(k)
         if wait:
-            return {**out, **self._run_job(*job)}
-        self._enqueue(job)
-        return {**out, "started": True, "note": "Runs in the background, a few minutes. play_analysis (or the "
-                                                "page's How you play) shows the result; call this again to see "
-                                                "how it ended (last_try)."}
+            return {**out, "state": "running", "running_for_you": True, **self._run_job(k, job)}
+        self._enqueue(k)
+        if st["ahead"]:
+            return {**out, **st, "started": True,
+                    "note": self.said(st).replace("your refresh is", "Your refresh is") + ": it starts when the "
+                    "ones ahead end, a few minutes each. Call this again to see where it stands; last_try says "
+                    "how it ended."}
+        return {**out, "state": "running", "running_for_you": True, "started": True,
+                "note": "Running for you in the background, a few minutes. play_analysis (or the page's How you "
+                        "play) shows the result; call this again to see how it ended (last_try)."}
+
+    def _already(self, k: str, job: tuple) -> dict | None:
+        with self._lock:
+            return self._already_locked(k, job) if self.state(k) is not None else None
+
+    def _already_locked(self, k: str, job: tuple) -> dict:
+        """The player's own job is queued or running: no second one. A
+        waiting timer check becomes their refresh, at the same place."""
+        st = self.state(k)
+        if st["state"] == "queued" and self._queued[k][0] == "auto":
+            self._queued[k] = job
+        return {**st, "started": False, "skipped": "no new refresh: " + self.said(st)}
 
     def last_try(self, env: dict) -> dict:
         d = person_dir(env)
@@ -927,28 +1037,38 @@ class Service:
 
     # -- the worker
 
-    def _enqueue(self, job) -> None:
+    def _enqueue(self, k: str) -> None:
         with self._lock:
             if self._thread is None or not self._thread.is_alive():
                 self._thread = threading.Thread(target=self._work, name="analysis-server", daemon=True)
                 self._thread.start()
-        self._q.put(job)
+        self._q.put(k)
+
+    def _next(self, k: str) -> tuple | None:
+        """The worker takes the player's job off the queue: it runs now."""
+        with self._lock:
+            job = self._queued.pop(k, None)
+            if job is not None:
+                self._running.add(k)
+            return job
 
     def _work(self) -> None:
         while True:
-            job = self._q.get()
+            k = self._q.get()
+            job = self._next(k)
+            if job is None:
+                continue
             try:
-                self._run_job(*job)
+                self._run_job(k, job)
             except Exception as e:  # noqa: BLE001 - one player's bug never stops the worker
                 log(what="job failed", error=repr(e)[:300])
 
-    def _run_job(self, kind: str, env: dict, ctx=None) -> dict:
-        k = self.key(env)
+    def _run_job(self, k: str, job: tuple) -> dict:
         try:
-            return self.run_job(kind, env, ctx)
+            return self.run_job(*job)
         finally:
             with self._lock:
-                self._busy.discard(k)
+                self._running.discard(k)
 
     def run_job(self, kind: str, env: dict, ctx=None) -> dict:
         """One player's refresh, now. "auto": only when the timer is due and
@@ -996,10 +1116,11 @@ class Service:
             r["seconds"] = round(time.monotonic() - t0)
             if r["status"] == "done":
                 played = 0.0  # the marker moved: the next character's synthesis adds nothing more
-            self.spend.run_done(self.cfg.model, r.get("usd"), r.get("tokens") or 0, r["status"] == "done")
+            self.spend.run_done(self.cfg.model, r.get("usd"), r.get("tokens") or 0, r["status"] == "done",
+                                tenant_key(ctx.environ()))
             results.append(r)
-            log(what="run", by=by, status=r["status"], why=r["why"], usd=r.get("usd"), tokens=r.get("tokens"),
-                calls=r.get("calls"), nudges=r.get("nudges"), seconds=r["seconds"],
+            log(what="run", by=by, char=char, status=r["status"], why=r["why"], usd=r.get("usd"),
+                tokens=r.get("tokens"), calls=r.get("calls"), nudges=r.get("nudges"), seconds=r["seconds"],
                 model=f"{self.cfg.provider}:{self.cfg.model}", tenant=str(getattr(ctx.store, "account_id", "")))
         # One character done is a refresh; else "incomplete" (the model quit
         # without the synthesis) is said apart from "stopped" (a cap, an error).
