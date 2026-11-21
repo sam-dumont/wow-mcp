@@ -928,11 +928,15 @@ def _views(ctx: Ctx):
 
     s = ctx.store
     bnet = bnet_vm_url(ctx)
-    key = (s.vl_url, s.vl_archive_url, s.logs_filter, s.hot_days, s.account_id, bnet)
+    # The page's own Settings (WEIGHTS above all): the MCP's gear answers
+    # score the same spec as the page's (review-3).
+    settings = views.settings_from_env(ctx.environ(), "full")
+    key = (s.vl_url, s.vl_archive_url, s.logs_filter, s.hot_days, s.account_id, bnet,
+           tuple(sorted(settings.weights.items())), settings.default_char, settings.price_days)
     if key not in _VIEWS:
         st = stores.Store(s.vl_url, s.vl_archive_url, "", s.logs_filter, s.hot_days, profile_vm_url=bnet,
                           account_id=s.account_id)
-        _VIEWS[key] = views.Views(st, views.Settings(view="full"))
+        _VIEWS[key] = views.Views(st, settings)
     return _VIEWS[key]
 
 

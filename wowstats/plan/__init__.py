@@ -43,11 +43,16 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
     `gear_inputs`: a callable returning the doll's gear inputs
     (wowstats.views.Views.gear_inputs), called only when the cache misses;
     in the key too, so an answer scored like the doll never reaches a caller
-    that didn't ask for it."""
+    that didn't ask for it. And the spec the gear is scored for (WEIGHTS):
+    the page and the MCP once shared an entry whichever of them filled it,
+    each with its own spec (review-3)."""
     from wowstats.stores import tenant_of
+    from wowstats.views import parse_weights
 
     bn = tuple(sorted(set(battlenet or ())))
-    key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower(), bn, gear_inputs is not None)
+    scoring = tuple(sorted(parse_weights(env.get("WEIGHTS") or "").items()))
+    key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower(), bn, gear_inputs is not None,
+           scoring)
     with _LOCK:
         lock = _KEY_LOCKS[hash(key) % len(_KEY_LOCKS)]
     with lock:

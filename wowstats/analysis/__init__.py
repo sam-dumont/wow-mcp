@@ -350,12 +350,10 @@ def other_players(store, stream: str, char: str) -> set[str]:
 
 def weights_for(env: dict, char: str) -> str | None:
     """The spec the player chose to score this character's gear for
-    (WEIGHTS, as the UI reads it: Name-Realm:spec,...)."""
-    for pair in (env.get("WEIGHTS") or "").split(","):
-        c, _, spec = pair.partition(":")
-        if c.strip().replace(" ", "-") == char and spec.strip():
-            return spec.strip().lower()
-    return None
+    (WEIGHTS, read by the page's own parser: Name-Realm:spec,...)."""
+    from wowstats.views import parse_weights
+
+    return parse_weights(env.get("WEIGHTS") or "").get(char)
 
 
 def upgrades_for(rows: list[dict], char: str, env: dict) -> list[dict]:

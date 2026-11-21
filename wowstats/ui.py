@@ -59,7 +59,7 @@ from pathlib import Path
 
 from wowstats import bar, guard, httpserve, insights, itemcard, itemfacts, model3d, prebuilt, redact
 from wowstats.stores import SourceError, Store, env_account, iso, parse_t, public_error, tenant_headers
-from wowstats.views import Settings, Views
+from wowstats.views import ConfigError, Views, parse_weights, settings_from_env  # noqa: F401 - parse_weights: ui.parse_weights
 
 # media-src: the manual's clips, from /start/media/ and, on the help page, as
 # blob: URLs of the clips it decrypts (wowstats.mcp.helppage).
@@ -112,10 +112,6 @@ def optional(name: str):
         raise
 
 
-class ConfigError(SystemExit):
-    pass
-
-
 class FullOnly(Exception):
     """An answer the public view doesn't have: the route answers 404."""
 
@@ -143,22 +139,6 @@ def plan_status(char: str, store, env: dict | None = None, battlenet: list[int] 
 
     return plan.status(dict(os.environ if env is None else env), char or None, store, battlenet=battlenet,
                        gear_inputs=gear_inputs)
-
-
-def parse_weights(raw: str) -> dict[str, str]:
-    """WEIGHTS=Testpriest-Fixture:shadow,Other-Name:holy -> {character: spec}:
-    the spec each character's gear is scored for, over what its add-ons say
-    (owner, 2026-11-18: the weights are the player's choice, the talents are
-    shown as they are)."""
-    out = {}
-    for pair in (p.strip() for p in raw.split(",")):
-        if not pair:
-            continue
-        char, sep, spec = pair.partition(":")
-        if not sep or not char.strip() or not spec.strip():
-            raise ConfigError(f"WEIGHTS: {pair!r} is not Character-Name:spec")
-        out[char.strip().replace(" ", "-")] = spec.strip().lower()
-    return out
 
 
 class App:
@@ -238,9 +218,7 @@ class App:
             env.get("LOGS_FILTER", "feed:wow-*"), int(env.get("VL_ARCHIVE_AFTER_DAYS", "89")),
             profile_vm_url=env.get("VM_URL", ""),  # the profile: allowed in public (stores.py)
             account_id=env_account(env))
-        self.settings = Settings(
-            view=view, default_char=env.get("DEFAULT_CHAR", ""),
-            price_days=int(env.get("PRICE_DAYS", "90")), weights=parse_weights(env.get("WEIGHTS", "")))
+        self.settings = settings_from_env(env, view)
         self.views = Views(self.store, self.settings)
         # The person's Settings (public page on or off, hidden characters) for
         # the live public view, from the full view's share port; None: one

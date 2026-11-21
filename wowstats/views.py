@@ -50,6 +50,36 @@ class Settings:
     extra: dict = field(default_factory=dict)
 
 
+class ConfigError(SystemExit):
+    """A setting the server can't start with (wowstats.ui stops on it)."""
+
+
+def parse_weights(raw: str) -> dict[str, str]:
+    """WEIGHTS=Testpriest-Fixture:shadow,Other-Name:holy -> {character: spec}:
+    the spec each character's gear is scored for, over what its add-ons say
+    (owner, 2026-11-18: the weights are the player's choice, the talents are
+    shown as they are)."""
+    out = {}
+    for pair in (p.strip() for p in raw.split(",")):
+        if not pair:
+            continue
+        char, sep, spec = pair.partition(":")
+        if not sep or not char.strip() or not spec.strip():
+            raise ConfigError(f"WEIGHTS: {pair!r} is not Character-Name:spec")
+        out[char.strip().replace(" ", "-")] = spec.strip().lower()
+    return out
+
+
+def settings_from_env(env: dict, view: str = "full") -> Settings:
+    """The one place Settings are read from the environment: the page
+    (wowstats.ui) and the MCP (wowstats.mcp.tools._views) both call it, so
+    both score the gear for the same WEIGHTS. Review-3: the MCP built a bare
+    Settings, its `weights` stayed empty, and its gear_options scored the
+    add-on's spec while the page scored the configured one."""
+    return Settings(view=view, default_char=env.get("DEFAULT_CHAR", ""),
+                    price_days=int(env.get("PRICE_DAYS", "90")), weights=parse_weights(env.get("WEIGHTS", "")))
+
+
 def norm_char(c: str) -> str:
     """The character-folder form: 'Testpriest Fixture' and 'Testpriest-Fixture' are one character."""
     return c.strip().replace(" ", "-")
