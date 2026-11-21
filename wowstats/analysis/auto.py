@@ -1005,8 +1005,15 @@ class Service:
             out["off"] = self.cfg.why_off()
         elif not self.cfg.auto:
             out["off"] = "ANALYSIS_AUTO is off: the server never refreshes on its own"
+        from wowstats.mcp.store import SourceError as McpSourceError
+        from wowstats.stores import SourceError, public_error
+
         try:
             out["timer"] = self.timer(env, ctx.store)
+        # A footnote the client's own run doesn't need, but said (invariants, property 7).
+        except (SourceError, McpSourceError) as e:
+            out["timer"] = None
+            out["timer_unread"] = public_error(e, "the automatic refresh timers")
         except Exception:  # noqa: BLE001 - a footnote: the client's own run doesn't need it
             out["timer"] = None
         k = self.key(env)

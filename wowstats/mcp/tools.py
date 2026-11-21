@@ -20,7 +20,15 @@ from datetime import UTC, datetime, timedelta
 from .. import ahsource, gearfit
 from .. import gear as gearmod
 from ..rates import per_hour
-from ..stores import PLAYER_LEVEL_KINDS, SESSION_BUCKETS, ZONE_RECORDS, split_sessions, zone_time, zone_totals
+from ..stores import (
+    PLAYER_LEVEL_KINDS,
+    SESSION_BUCKETS,
+    SESSION_GAP_S,
+    ZONE_RECORDS,
+    split_sessions,
+    zone_time,
+    zone_totals,
+)
 from ..stores import public_error as stores_public_error
 from . import route
 from .store import SourceError, Store, iso, lq, parse_t, parse_when
@@ -181,12 +189,17 @@ def build_levels(rows: list[dict]) -> list[dict]:
 
 def who(ctx: Ctx, char: str) -> dict:
     """Race, class and side from the recorder's latest session record, for
-    the route's clock ({} when there is none)."""
+    the route's clock ({} when there is none or the store doesn't answer)."""
     try:
-        rows = ctx.store.logs(f"{rec(char)} kind:=session | fields _time, race, class, faction "
-                              f"| sort by (_time desc) | limit 1", limit=1)
+        return who_read(ctx, char)
     except SourceError:
         return {}
+
+
+def who_read(ctx: Ctx, char: str) -> dict:
+    """who(), raising SourceError when the store doesn't answer."""
+    rows = ctx.store.logs(f"{rec(char)} kind:=session | fields _time, race, class, faction "
+                          f"| sort by (_time desc) | limit 1", limit=1)
     r = (rows or [{}])[0]
     return {k: r[k] for k in ("faction", "race", "class") if r.get(k)}
 
@@ -340,7 +353,8 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
     limit = limit_arg(args, 10, 50)
     st = ctx.store
     buckets = st.logs(f"{rec(char)} {SESSION_BUCKETS}", start, end)
-    sessions = _activity_sessions(buckets)[-limit:]
+    every = _activity_sessions(buckets)
+    sessions = every[-limit:]
     # Before the Recorder's first record (or without it): the logout
     # sheets, the time played from the level splits (journal.by_logout).
     rec_first = st.logs(f"{rec(char)} | sort by (_time) | limit 1 | fields _time", limit=1)
@@ -406,9 +420,12 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
                if (g := marks.get(round(a.timestamp()))) else {}),
         })
     # Older first-hand sessions fill the limit before the estimated logouts.
-    early = early[:max(0, limit - len(out))]
-    return {"char": char, "sessions": out + early, "gap_rule": "20 min without events ends a session",
-            **({"note": EARLY_NOTE, "tracking_from": rec_first[0]["_time"]} if early else {})}
+    kept = early[:max(0, limit - len(out))]
+    # A cut list says so (invariants, property 7), and the rule is the one
+    # split_sessions applies (it said 20 min, the pages and the analysis 330 s).
+    return {"char": char, "sessions": out + kept, "more": len(every) > limit or len(kept) < len(early),
+            "gap_rule": f"more than {int(SESSION_GAP_S)} s without a Recorder record ends a session",
+            **({"note": EARLY_NOTE, "tracking_from": rec_first[0]["_time"]} if kept else {})}
 
 
 def t_zones(ctx: Ctx, args: dict) -> dict:
@@ -673,13 +690,19 @@ def t_route_reference(ctx: Ctx, args: dict) -> dict:
     if not ref.available:
         return {"available": False, "why": ref.why,
                 "instead": "compare against the player's own previous levels (levels, guide_steps)"}
-    profile = {}
+    profile, unread = {}, None
     if not all(args.get(k) for k in ("faction", "class")):
         try:
-            profile = who(ctx, resolve_char(ctx, args))
-        except (ToolError, SourceError):
+            profile = who_read(ctx, resolve_char(ctx, args))
+        except ToolError:
             profile = {}
-    return ref.lookup({k: v for k, v in args.items() if k != "char"}, profile)
+        except SourceError as e:
+            # The route without the character's side and class, said so: it
+            # read as the character's own before (invariants, property 7).
+            unread = "the character's side and class couldn't be read, so this is every side's route: " + \
+                stores_public_error(e, "route_reference")
+    out = ref.lookup({k: v for k, v in args.items() if k != "char"}, profile)
+    return {**out, "profile_unread": unread} if unread else out
 
 
 def _src_text(s: dict) -> str:

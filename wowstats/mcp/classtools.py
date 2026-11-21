@@ -232,12 +232,15 @@ def t_talent_changes(ctx: T.Ctx, args: dict) -> dict:
     else:
         why = TALENT_WHY.get(h.get("why") or "") or TALENT_WHY["no_battlenet"]
     full = h.get("source") == "addon"
+    unread = h.get("addon_unread")
+    if unread:  # the add-on's saves may hold the full history: no "install it", and why
+        why = "The add-on's talent history couldn't be read: " + unread + (f" {why}" if why else "")
     return {"char": char, "days": h["days"], "source": "WoWSims Exporter" if full else (
                 "Battle.net" if h["available"] else None),
             "changes": h["changes"] if h["available"] else None, "why": why,
             "not_recorded": h.get("not_recorded") or [],
-            "full_history": None if full else "Install WoWSims Exporter and tick it in AddOns for every change, "
-                                               "not only the last 3 weeks.",
+            "full_history": None if full or unread else "Install WoWSims Exporter and tick it in AddOns for every "
+                                                        "change, not only the last 3 weeks.",
             "how": "Each change: the day, points per tree before and after, talents gained or dropped with their "
                    "rank before and after. Newest first. not_recorded: talents learned that the addon can't save."}
 

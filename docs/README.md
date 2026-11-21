@@ -86,6 +86,7 @@ Look it up:
 - [MCP and the play analysis](mcp.md): the tools, plans, analysis and login, inside.
 - [Privacy tiers](explanation/privacy.md): what's collected, and who sees what.
 - [Where the data comes from](explanation/data-sources.md): Blizzard's API first, an addon only when there's no other way.
+- [What the pipeline guarantees](guarantees.md): the promises from game file to answer, each with the test that proves it.
 - [Security notes](security.md): what an install has to get right, and the findings left open
   on purpose.
 

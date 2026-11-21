@@ -123,6 +123,9 @@ class Plain:
 def hist(store):
     v = views.Views.__new__(views.Views)
     v.store = store
+    # No WoWSims Exporter saves: these cases are Battle.net's alone (a stand-in
+    # with no logs store used to fall into talent_history's catch-all).
+    v.addon_talents = lambda char, cls: []
     return v.talent_history("Testpriest-Fixture", "PRIEST")
 
 

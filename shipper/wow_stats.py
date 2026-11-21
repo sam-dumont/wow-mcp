@@ -930,20 +930,36 @@ def extract_recorder(sessions: list[dict], map_types: dict, char_ids: dict, stat
     # chunk that only continues one (every chunk opens with a `session` record).
     last_end = state.setdefault("last_rec_t", {})
     run_end: dict[str, float] = {}
+    # What a chunk leaves to the next one of its session (the zone in effect,
+    # the last guide step's time), per character and chunk: the next chunk
+    # may come in a later run, once this one is acked and gone from the file.
+    # Without it a run that started mid-session sent its records with no zone
+    # and its first step timed from the chunk, not the step before
+    # (invariants, property 3: the same history in one run or several).
+    chunk_ctx = state.setdefault("rec_ctx", {})
 
     for s in sessions:
         cid = s["char_id"]
         char = char_ids.get(cid, f"charid-{cid}")
         recs = s["recs"]
-        zone_now = None
-        prev_step_t = s["start"]
-        before = run_end.get(cid)
-        if before is None and cid in last_end and last_end[cid] < s["start"]:
-            before = last_end[cid]
+        first = s["chunks"][0]
+        held = chunk_ctx.get(cid, {})
+        prev_seq = max((int(q) for q in held if int(q) < first["seq"]), default=None)
+        prev = held.get(str(prev_seq)) if prev_seq is not None else None
+        # The chunk before continues into this one by sessions_of's own rule.
+        carried = prev is not None and (first["epoch"] - prev["epoch"] <= 330 or first["epoch"] - prev["t"] <= 120)
+        zone_now = prev["zone"] if carried else None
+        prev_step_t = prev["step_t"] if carried else s["start"]
+        # The latest end before this session: one earlier in this run, or the
+        # last run's when it came before (a chunk sent before and seen again
+        # must not make a later session a login).
+        before = max((x for x in (run_end.get(cid), last_end.get(cid)) if x is not None and x < s["start"]),
+                     default=None)
         login_t = recs[0][1]["t"] if recs else None
-        if before is not None and login_t is not None and login_t - before <= LOGIN_GAP_S:
+        if carried or (before is not None and login_t is not None and login_t - before <= LOGIN_GAP_S):
             login_t = None  # a /reload or a chunk roll, not a login
         run_end[cid] = max(run_end.get(cid, 0), s["end"])
+        chunk_end = {c["seq"]: (c["recs"][-1]["idx"] if c["recs"] else 0) for c in s["chunks"]}
         for i, (seq, r) in enumerate(recs):
             kind = r["kind"]
             ev = parse_record(kind, r["fields"])
@@ -989,6 +1005,9 @@ def extract_recorder(sessions: list[dict], map_types: dict, char_ids: dict, stat
                     ev.setdefault("zone", map_names[str(ev["map_id"])])
                 elif zone_now:
                     ev.setdefault("zone", zone_now)
+            if r["idx"] == chunk_end[seq]:
+                c = next(c for c in s["chunks"] if c["seq"] == seq)
+                held[str(seq)] = {"epoch": c["epoch"], "t": r["t"], "zone": zone_now, "step_t": prev_step_t}
             key = f"{cid}:{seq}"
             if r["idx"] <= done.get(key, 0):
                 continue
@@ -1000,6 +1019,9 @@ def extract_recorder(sessions: list[dict], map_types: dict, char_ids: dict, stat
             key = f"{cid}:{c['seq']}"
             last_idx = c["recs"][-1]["idx"] if c["recs"] else 0
             done[key] = max(done.get(key, 0), last_idx)
+        if held:
+            # The newest few chunks are all a later run can continue from.
+            chunk_ctx[cid] = {q: held[q] for q in sorted(held, key=int)[-8:]}
     for cid, v in prev_xp.items():
         if cid not in last_xp or v[0] >= last_xp[cid][0]:
             last_xp[cid] = v

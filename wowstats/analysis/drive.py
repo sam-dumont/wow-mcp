@@ -388,7 +388,7 @@ def _untouched(w: Workspace, run: dict) -> list[str]:
 
 
 def sql(env: dict, char: str, query: str, page: int = 1, page_size: int = SQL_PAGE, store=None) -> dict:
-    from .sql import QueryError, as_text
+    from .sql import QueryError, as_text_cut
 
     w = workspace(env, char, store)
     size = max(1, min(int(page_size or SQL_PAGE), 60))
@@ -407,7 +407,8 @@ def sql(env: dict, char: str, query: str, page: int = 1, page_size: int = SQL_PA
     if err is not None:
         return {"error": err}
     got = rows[skip:]
-    out = {"result": as_text(cols, got, False, SQL_CHARS), "page": page, "rows": len(got), "more": bool(cut)}
+    text, short = as_text_cut(cols, got, False, SQL_CHARS)
+    out = {"result": text, "page": page, "rows": len(got), "more": bool(cut) or short}
     if cut:
         out["next"] = f"play_sql with page={page + 1} (or aggregate)"
     if run["pass"] == "lanes":
@@ -510,7 +511,7 @@ def _with_metric_query(w: Workspace, finding):
 def metric(env: dict, char: str, query: dict, store=None) -> dict:
     """query_metric: the semantic layer's answer, with its SQL and definitions."""
     from . import semantic
-    from .sql import QueryError, as_text
+    from .sql import QueryError, as_text_cut
 
     w = workspace(env, char, store)
     with _LOCK:
@@ -523,8 +524,9 @@ def metric(env: dict, char: str, query: dict, store=None) -> dict:
         _count_query(env, w, set(w.metrics.touched), (got or {}).get("sql") or "", err)
     if err is not None:
         return {"error": err}
-    out = {"char": w.char, "result": as_text(got["columns"], [tuple(r) for r in got["rows"]], got["more"], SQL_CHARS),
-           "rows": len(got["rows"]), "more": got["more"], "query": got["query"], "definitions": got["definitions"],
+    text, short = as_text_cut(got["columns"], [tuple(r) for r in got["rows"]], got["more"], SQL_CHARS)
+    out = {"char": w.char, "result": text, "rows": len(got["rows"]), "more": got["more"] or short,
+           "query": got["query"], "definitions": got["definitions"],
            "sql": got["sql"], "params": got["params"],
            "evidence": "propose_finding takes this call as evidence: finding.metric_query = query"}
     if got.get("evidence"):
