@@ -121,6 +121,7 @@ const SECTIONS = [
     { src: "docs/mcp.md", label: "MCP and the play analysis" },
     { src: "docs/explanation/privacy.md", slug: "privacy-tiers", label: "Privacy tiers" },
     { src: "docs/explanation/data-sources.md", slug: "data-sources", label: "Where the data comes from" },
+    { src: "docs/guarantees.md", label: "What the pipeline guarantees" },
     { src: "docs/security.md", label: "Security notes" },
   ] },
   { dir: "project", label: "Project", pages: [
