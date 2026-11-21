@@ -11,18 +11,22 @@ shaped like a client run's, with `kind: "server"`. The model sits behind a
 thin adapter per provider (wowstats.analysis.providers): Anthropic's API
 (the default) or any OpenAI-compatible endpoint (ANALYSIS_PROVIDER).
 
-When: one timer per player. Each player has one marker, "last refreshed"
-(MARKER_FILE in their ANALYSIS_STATE_DIR: the time, who, and the played
-time total at that moment). Played time is the app's own session
-definition (stores.split_sessions over the Recorder's records, the
-journal's sessions). Once ANALYSIS_STALE_PLAYED_HOURS of play (10) have
-added up since the marker, the page rebuild (wowstats.prebuilt) asks for a
-refresh of that player: one background run over the characters played
-since, never blocking the rebuild. The marker resets whenever the
-player's analysis is refreshed by anyone: this server's run, the player's
-own `dashboard_refresh` call (which always runs, budget permitting), or a
-full analysis from the player's own client (drive's synthesis calls
-`mark_refreshed`).
+When: one job per player, one timer per character. A character's timer
+is its play since its own last refresh: the last finished analysis on its
+record (analysis.last_refresh: a client's run or the server's, who and
+via what in the run). A character with none counts all its play on
+record, so an alt logged into once to reserve a name stays far from due
+(the lab's first server run, 2026-11-21, analysed every character with no
+refresh on record, that alt included, for nothing). Played time is the
+app's own session definition (stores.split_sessions over the Recorder's
+records, the journal's sessions). Once a character has
+ANALYSIS_STALE_PLAYED_HOURS of play (10) on its timer, the page rebuild
+(wowstats.prebuilt) asks for a refresh of that player: one background run
+over their due characters, never blocking the rebuild. A character's
+timer resets whenever its analysis is refreshed by anyone: this server's
+run, the player's own `dashboard_refresh` call (which always runs, budget
+permitting, whatever the timers say), or a full analysis from the
+player's own client.
 
 Money: each response's usage is counted (tokens always) and priced:
 Anthropic from PRICES (its pricing page), an OpenAI-compatible endpoint
@@ -94,7 +98,6 @@ MAX_CHARS = 3  # characters per run
 REBUILD_CHECK_S = 300  # the rebuild asks at most this often per player
 RETRY_S = 6 * 3600  # after a run that stopped, the timer waits this long before trying again
 
-MARKER_FILE = "refresh.json"
 LAST_FILE = "server-run.json"
 SPEND_FILE = "analysis-spend.json"
 
@@ -586,57 +589,33 @@ def person_dir(env: dict) -> Path | None:
     return state_dir(env)
 
 
-def marker(env: dict) -> dict:
-    d = person_dir(env)
-    return _read_json(d / MARKER_FILE) if d else {}
-
-
 def _store(env: dict):
     from wowstats.mcp.store import Store
 
     return Store.from_env(env)
 
 
-def played_since(env: dict, since: float | None, store=None) -> float:
-    """Seconds of play since `since` (None: on record), every character of
-    the player: the Recorder's records cut into sessions the app's way
+def played_since(env: dict, char: str, since: float | None, store=None) -> float:
+    """Seconds of the character's play since `since` (None: all of it on
+    record): its Recorder records cut into sessions the app's way
     (stores.split_sessions, a silence over SESSION_GAP_S ends one), the part
     of each after `since`."""
     from wowstats.stores import SESSION_BUCKETS, split_sessions
 
     st = store or _store(env)
     start = datetime.fromtimestamp(since, UTC) if since else None
-    rows = st.logs(f'feed:="wow-recorder" {SESSION_BUCKETS}', start)
+    cf = "char:in(" + ", ".join(json.dumps(n) for n in sorted({char, char.replace("-", " ")})) + ")"
+    rows = st.logs(f'feed:="wow-recorder" {cf} {SESSION_BUCKETS}', start)
     return float(sum(max(0.0, b - max(a, since or a)) for a, b in split_sessions(rows)))
 
 
-def played_chars(env: dict, since: float | None, store=None) -> list[str]:
-    """The characters with a Recorder record since `since`, the latest played first."""
+def played_chars(env: dict, store=None) -> list[str]:
+    """The player's characters with any Recorder record, the latest played first."""
     st = store or _store(env)
-    start = datetime.fromtimestamp(since, UTC) if since else None
-    rows = st.logs('feed:="wow-recorder" char:* | stats by (char) max(_time) as last', start)
+    rows = st.logs('feed:="wow-recorder" char:* | stats by (char) max(_time) as last')
     rows = [r for r in rows if r.get("char")]
-    return [str(r["char"]).replace(" ", "-") for r in sorted(rows, key=lambda r: str(r.get("last")), reverse=True)]
-
-
-def mark_refreshed(env: dict, by: str, via: str, played_s: float | None = None) -> dict | None:
-    """The player's analysis was refreshed now: the hours start again.
-    `played_s`: the play since the last marker when the caller measured it;
-    else measured here when the server's own analysis is on (the timer
-    matters only then), and left unknown otherwise."""
-    d = person_dir(env)
-    if d is None:
-        return None
-    old = marker(env)
-    if played_s is None and configured(env):
-        with contextlib.suppress(Exception):
-            played_s = played_since(env, _epoch(old.get("at")))
-    total = None
-    if played_s is not None and (not old or old.get("played_total_s") is not None):
-        total = round(float(old.get("played_total_s") or 0) + played_s)
-    m = {"at": now_iso(), "by": by, "via": via, "played_total_s": total}
-    _write_json(d / MARKER_FILE, m)
-    return m
+    names = [str(r["char"]).replace(" ", "-") for r in sorted(rows, key=lambda r: str(r.get("last")), reverse=True)]
+    return list(dict.fromkeys(names))
 
 
 def hours(s: float) -> str:
@@ -660,11 +639,10 @@ class Runner:
     """One character's analysis, the server playing the MCP client through
     a provider adapter (wowstats.analysis.providers)."""
 
-    def __init__(self, cfg: Config, client, spend: Spend, ctx, char: str, by: str, played_s: float | None = None):
+    def __init__(self, cfg: Config, client, spend: Spend, ctx, char: str, by: str):
         from wowstats.mcp import tools as T
 
         self.cfg, self.spend, self.ctx, self.char, self.by, self.T = cfg, spend, ctx, char, by, T
-        self.played_s = played_s  # the play since the marker, measured by the job: the synthesis keeps it
         self.tenant = tenant_key(ctx.environ())
         self.usd: float | None = 0.0 if cfg.priced else None
         self.tokens = 0
@@ -736,8 +714,7 @@ class Runner:
         from . import drive
 
         token = drive.DRIVER.set({"kind": "server", "driver": f"{self.cfg.provider}:{self.cfg.model}",
-                                  "by": self.by, "via": "auto" if self.by == "server" else "dashboard_refresh",
-                                  "played_s": self.played_s})
+                                  "by": self.by, "via": "auto" if self.by == "server" else "dashboard_refresh"})
         kept = self.snapshot()
         status, why = "stopped", ""
         try:
@@ -899,8 +876,8 @@ class Service:
         self.spend = Spend(spend_path(env), clock)
         self.clock = clock
         self._client = client
-        self.played = played or played_since
-        self.chars = chars or (lambda e, since: played_chars(e, since))
+        self.played = played or played_since  # (env, char, since, store) -> seconds
+        self.chars = chars or played_chars  # (env, store) -> names, the latest played first
         self._lock = threading.Lock()
         self._queued: dict[str, tuple] = {}  # key -> (kind, env, ctx), oldest first
         self._running: set[str] = set()  # the worker's job, plus a caller's own `wait` run
@@ -918,13 +895,29 @@ class Service:
             self._client = self.cfg.make_client()
         return self._client
 
+    def timers(self, env: dict, store=None) -> list[dict]:
+        """Each character's timer, the latest played first: its play since
+        its own last refresh, or all its play on record when it has none,
+        against ANALYSIS_STALE_PLAYED_HOURS."""
+        from . import last_refresh, load_state
+
+        out = []
+        for char in self.chars(env, store):
+            lr = last_refresh(load_state(env, char))
+            played = self.played(env, char, _epoch(lr.get("at")) if lr else None, store)
+            when = "since its last refresh" if lr else "on record, never refreshed"
+            out.append({"char": char, "last_refresh": lr, "played_since_s": round(played),
+                        "played_since": hours(played), "due": played >= self.cfg.stale_s,
+                        "said": f"{char}: {hours(played)} of play {when}, due at {hours(self.cfg.stale_s)}"})
+        return out
+
     def timer(self, env: dict, store=None) -> dict:
-        """Where the player's timer stands: the marker, the play since, due or not."""
-        m = marker(env)
-        since = self.played(env, _epoch(m.get("at")), store)
-        return {"last_refresh": {k: m.get(k) for k in ("at", "by", "via", "played_total_s")} if m else None,
-                "played_since_s": round(since), "played_since": hours(since),
-                "refresh_after": hours(self.cfg.stale_s), "due": since >= self.cfg.stale_s}
+        """Where the player's timers stand: each character's, due or not,
+        and the latest refresh of any of them (when, by whom)."""
+        chars = self.timers(env, store)
+        done = [t["last_refresh"] for t in chars if t["last_refresh"]]
+        return {"last_refresh": max(done, key=lambda r: _epoch(r.get("at")) or 0.0) if done else None,
+                "refresh_after": hours(self.cfg.stale_s), "due": any(t["due"] for t in chars), "chars": chars}
 
     def state(self, k: str) -> dict | None:
         """Where the player's own job stands: running, or queued at a
@@ -1071,29 +1064,34 @@ class Service:
                 self._running.discard(k)
 
     def run_job(self, kind: str, env: dict, ctx=None) -> dict:
-        """One player's refresh, now. "auto": only when the timer is due and
-        the last try didn't stop recently; "player": always. The characters
-        played since the marker (the latest played when none), one run each,
-        the caps checked before each."""
+        """One player's refresh, now. "auto": the characters whose timer is
+        due, once the last try didn't stop recently; "player": always, the
+        characters played since their own refresh (the due ones first), else
+        the latest played. One run each, MAX_CHARS at most, the caps checked
+        before each."""
         from wowstats.mcp import context
 
         ctx = replace(ctx if ctx is not None else context(env), bnet=False)
-        m = marker(env)
-        since = _epoch(m.get("at"))
         try:
-            played = self.played(env, since, ctx.store)
+            timers = self.timers(env, ctx.store)
         except Exception as e:  # noqa: BLE001 - the store down: the timer waits, a player's call goes on
             if kind == "auto":
                 return {"started": False, "skipped": f"couldn't read the play time: {type(e).__name__}"}
-            played = None
+            timers = []
         if kind == "auto":
-            if played < self.cfg.stale_s:
-                return {"started": False, "skipped": f"not due: {hours(played)} of play since the last refresh, "
-                                                     f"refreshes after {hours(self.cfg.stale_s)}"}
+            due = [t["char"] for t in timers if t["due"]]
+            if not due:
+                most = sorted(timers, key=lambda t: -t["played_since_s"])[:MAX_CHARS]
+                return {"started": False, "skipped": "not due: " + ("; ".join(t["said"] for t in most)
+                                                                    or "no play on record")}
             last = self.last_try(env)
             if last.get("status") != "done" and (self.clock() - (_epoch(last.get("at")) or 0)) < RETRY_S:
                 return {"started": False, "skipped": "the last try stopped recently: " + str(last.get("why") or "")}
-        chars = self.chars(env, since)[:MAX_CHARS]
+            chars = due
+        else:
+            played = sorted((t for t in timers if t["played_since_s"] > 0), key=lambda t: not t["due"])
+            chars = [t["char"] for t in played or timers[:1]]
+        chars = chars[:MAX_CHARS]
         if not chars:
             with contextlib.suppress(Exception):
                 from wowstats.mcp import tools as T
@@ -1110,12 +1108,10 @@ class Service:
                 continue
             t0 = time.monotonic()
             try:
-                r = Runner(self.cfg, self.client(), self.spend, ctx, char, by, played).run()
+                r = Runner(self.cfg, self.client(), self.spend, ctx, char, by).run()
             except Exception as e:  # noqa: BLE001 - no client (an unreadable key file): said, nothing spent
                 r = {"char": char, "status": "stopped", "why": api_error(e), "usd": None, "tokens": 0, "calls": 0}
             r["seconds"] = round(time.monotonic() - t0)
-            if r["status"] == "done":
-                played = 0.0  # the marker moved: the next character's synthesis adds nothing more
             self.spend.run_done(self.cfg.model, r.get("usd"), r.get("tokens") or 0, r["status"] == "done",
                                 tenant_key(ctx.environ()))
             results.append(r)
