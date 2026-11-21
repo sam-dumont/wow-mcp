@@ -2466,6 +2466,9 @@ function renderAnalysis(a) {
   }
   const run = a.last_analysis;
   if (!run) kids.push(h('p', { class: 'empty', text: 'No analysis yet: Ask Claude or ChatGPT above.' }));
+  // When and who (owner, 2026-11-21): the player's own model, or the
+  // server's (wowstats/analysis/auto.py, kind "server").
+  else if (run.at) kids.push(h('p', { class: 'sub asof', text: `As of ${day(run.at)}, by ${run.kind === 'server' || run.by === 'server' ? 'the server' : 'you'}.` }));
   if ((a.nudges || []).length) kids.push(h('h3', { text: 'What to do' }), nudgeList(a.nudges));
   const finding = (f) => h('li', {},
     h('div', { class: 'ftitle' }, f.title, f.confirmations ? h('span', { class: 'tag', text: `seen ${f.confirmations + 1}×` }) : null,

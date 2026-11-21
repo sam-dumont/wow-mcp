@@ -57,9 +57,10 @@ TABLES = ("TraitTree", "TraitNode", "TraitNodeXTraitNodeEntry", "TraitNodeEntry"
 # module is rebuilt, not reused (2: the grid from the commonest step, off-grid
 # nodes dropped, the prerequisite edges; 3: each Legacy challenge's
 # achievement ids, both client versions').
-FORMAT = 4
+FORMAT = 5  # 5: the per-rank numbers (TraitDefinitionEffectPoints curves)
 # Read in a second pass, only the rows the trees need (they're large).
-SPELL_TABLES = ("SpellName", "Spell", "SpellEffect", "SpellMisc", "ManifestInterfaceData")
+SPELL_TABLES = ("SpellName", "Spell", "SpellEffect", "SpellMisc", "ManifestInterfaceData",
+                "TraitDefinitionEffectPoints", "CurvePoint")
 
 
 def _i(v) -> int:
@@ -275,10 +276,40 @@ def needed_spells(cat: dict) -> set[str]:
     return s
 
 
-def add_spell_text(cat: dict, names: dict, descs: dict, effects: dict, icons: dict) -> None:
-    """Names, descriptions, effect values and icon names onto the catalog."""
+def add_spell_text(cat: dict, names: dict, descs: dict, effects: dict, icons: dict,
+                   curves: dict | None = None) -> None:
+    """Names, descriptions, effect values and icon names onto the catalog;
+    `curves`: each trait definition's per-rank numbers (rank_curves)."""
     cat["spells"] = {s: {"name": names.get(s), "desc": descs.get(s) or "", "values": effects.get(s) or [],
                          "icon": icons.get(s)} for s in sorted(needed_spells(cat), key=int)}
+    cat["curves"] = curves or {}
+
+
+def rank_curves(points: list[dict], curve_points: list[dict]) -> dict[str, dict[str, list]]:
+    """{TraitDefinitionID: {effect index: [[rank, value], ...]}}: a trait
+    talent whose number grows with its rank keeps it in a curve
+    (TraitDefinitionEffectPoints -> CurvePoint), not in its spell's effect,
+    which says 0 (Spirit Tap's chance: 20, 40 ... 100). Forever's 664 rows
+    are all OperationType 0, "set": the curve's value is the number."""
+    by_curve: dict[str, list] = {}
+    for r in curve_points:
+        by_curve.setdefault(r["CurveID"], []).append((_i(r.get("OrderIndex")), float(r["Pos_0"]), float(r["Pos_1"])))
+    out: dict[str, dict[str, list]] = {}
+    for r in points:
+        pts = sorted(by_curve.get(r["CurveID"]) or [])
+        if pts and _i(r.get("OperationType")) == 0:
+            out.setdefault(r["TraitDefinitionID"], {})[str(_i(r["EffectIndex"]))] = [[x, y] for _, x, y in pts]
+    return out
+
+
+def curve_at(pts: list, x: float) -> float:
+    """A curve's value at `x`: linear between its points, flat past its ends."""
+    if x <= pts[0][0]:
+        return pts[0][1]
+    for (x0, y0), (x1, y1) in zip(pts, pts[1:], strict=False):
+        if x <= x1:
+            return y0 + (y1 - y0) * (x - x0) / (x1 - x0) if x1 != x0 else y1
+    return pts[-1][1]
 
 
 def read_rows(body: bytes, keep=None):
@@ -368,7 +399,12 @@ def catalog_from(rows) -> dict:
     icon_names = {r["ID"]: r["FileName"].rsplit(".", 1)[0].rstrip(".").lower() for r in rows("ManifestInterfaceData")
                   if r["ID"] in files}
     icons = {s: icon_names.get(f) for s, f in fdids.items() if ICON.match(icon_names.get(f) or "")}
-    add_spell_text(cat, names, descs, effects, icons)
+    defs = {str(d) for tr in cat["trees"] for sec in tr["sections"] for nd in sec["nodes"]
+            for d in nd.get("defs") or []}
+    points = [r for r in rows("TraitDefinitionEffectPoints") if r.get("TraitDefinitionID") in defs]
+    want_curves = {r["CurveID"] for r in points}
+    curve_points = [r for r in rows("CurvePoint") if r.get("CurveID") in want_curves]
+    add_spell_text(cat, names, descs, effects, icons, rank_curves(points, curve_points))
     return cat
 
 
@@ -410,6 +446,7 @@ def frame(cat: dict | None, cls, ranks: dict[str, int], kind: str = "class") -> 
     if not trees:
         return None
     spells = cat.get("spells") or {}
+    curves = cat.get("curves") or {}
     used: set[str] = set()
     sections = []
     for tr in trees:
@@ -421,16 +458,23 @@ def frame(cat: dict | None, cls, ranks: dict[str, int], kind: str = "class") -> 
                 used.update(s for s in nd["spells"] if s in ranks)
                 pts += rank
                 # The tooltip: the classic talent's spell for this rank when
-                # it has one (its own numbers), else the trait's spell times
-                # the rank.
-                rs = nd["ranks"][min(max(rank, 1), len(nd["ranks"])) - 1] if nd["ranks"] else None
+                # it has one (its own numbers), else the trait's spell: its
+                # rank curve where it has one (Spirit Tap's chance), else
+                # its effect times the rank. Unlearned: rank 1's numbers.
+                at = max(rank, 1)
+                rs = nd["ranks"][min(at, len(nd["ranks"])) - 1] if nd["ranks"] else None
                 own = rs is not None and bool((spells.get(rs) or {}).get("desc"))
                 sp = spells[rs] if own else spells.get(nd["spells"][0]) or {}
-                times = 1 if own else max(rank, 1)
+                values = [v * (1 if own else at) for v in sp.get("values") or []]
+                if not own or rs == nd["spells"][0]:  # the trait's own spell (rank 1's is, often)
+                    for k, cv in (curves.get(str((nd.get("defs") or [None])[0])) or {}).items():
+                        if cv and int(k) < 3:
+                            values += [0.0] * (int(k) + 1 - len(values))
+                            values[int(k)] = curve_at(cv, at)
                 base = spells.get(nd["spells"][0]) or {}
                 nodes.append({"col": nd["col"], "row": nd["row"], "name": base.get("name") or sp.get("name"),
                               "icon": base.get("icon") or sp.get("icon"), "rank": rank, "max": nd["max"],
-                              "desc": describe(sp.get("desc") or "", sp.get("values") or [], times)})
+                              "desc": describe(sp.get("desc") or "", values)})
             sections.append({"name": sec["name"], "points": pts, "nodes": nodes, "edges": sec.get("edges") or []})
     return {"sections": sections, "unmatched": len(set(ranks) - used)}
 

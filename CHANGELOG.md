@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- "How you play" says when the analysis ran and who ran it, under its heading: "As of Thu 19 Nov, by the server." or "by you." when your own AI did.
+
 ### Changed
 
 - The Dungeons panel's drops and quest rewards say the Overview's item line, "59% → 100% on your wrist" (plus "at level 36" when it can't be worn yet), instead of a bold share, an "empty slot" note and a slot chip. A dungeon's "Gear a clear" says the chance a clear drops one of your upgrades ("17%: chance one of your 3 upgrades drops") instead of "+19.8", a points scale no item line uses any more. The Overview's place groups count upgrades the same way ("2 upgrades you can take now", "31% chance one of your 3 upgrades drops", "34% chance your upgrade drops", "2 upgrades for 4g 10s in all"), and the meta's gear bar says "of what the best gear for your level gives" instead of a count of points.
@@ -9,6 +13,7 @@
 ### Fixed
 
 - The Dungeons panel and the Overview's quest rewards read about a third of the paperdoll's BiS share ("12% → 18% on your chest" next to a doll at 39%). The planner took the character's level from the newest Recorder event with a `level`, and a kill's level is the creature's: a level-33 character who last killed a level-55 guard got BiS from 20 levels up. Only a ding, a session record or Polestar's sheet set the level now. The planner also scores from the paperdoll's own inputs (Battle.net's talents and worn stats, the auction house) instead of its own copy, so each worn slot has one BiS share and every item line on the Overview and the Dungeons panel starts from the badge the doll shows (the MCP's `next_moves`, `next_step`, `gear_options` and `dungeon_options` too).
+- A talent whose number grows with its rank showed it as 0: Spirit Tap 5/5 read "Gives you a 0% chance to increase your Spirit". Forever keeps those numbers in a per-rank curve (wago.tools' `TraitDefinitionEffectPoints` and `CurvePoint`), and the spell itself says 0. The talent frame now reads the curve for every talent that has one, in every class and the Legacy trees: Spirit Tap says 20% at 1/5 and 100% at 5/5, and a talent not learned yet shows rank 1's numbers. The cached talent catalog is rebuilt once. Numbers taken from another spell or a duration still show "?".
 
 ## 0.7.0-rc.6 (2026-11-21)
 
