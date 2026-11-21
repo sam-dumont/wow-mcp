@@ -25,8 +25,12 @@ from wowstats import itemcard, publish, static, ui
 
 # The frame's canvas, copied to a 2D canvas (the viewer keeps its drawing
 # buffer): how many of a grid of points the model covers, and in how many
-# colours.
-COVERED = """() => {
+# colours. data-state "drawn" means the scene is loaded, not painted: the
+# first frame comes on the next animation frame, so wait two first, like
+# renderer.py does before its screenshot (read too early under load, the
+# canvas was empty: 0 hits, 2026-11-21).
+COVERED = """async () => {
+  await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   const c = document.getElementById('stage');
   const k = document.createElement('canvas');
   k.width = c.width; k.height = c.height;
