@@ -994,6 +994,61 @@ def test_a_rollback_never_erases_the_players_own_session(lab):
     assert files(e) == before
 
 
+CHILD_WRITE = """
+import json, os, sys
+from wowstats import analysis
+env, char = json.loads(os.environ["CHILD_ENV"]), sys.argv[1]
+state = analysis.load_state(env, char)
+state["child_mark"] = "the recheck's own write"
+analysis.save_state(env, char, state)
+"""
+
+
+def fails_after_a_lane(meanwhile=lambda: None):
+    """`brain` until its first lane is handed in; then `meanwhile` runs and
+    the provider fails."""
+    inner = brain()
+    step = next(inner)
+    while True:
+        got = yield step
+        if step[0] == "analysis_submit" and step[1]["pass"] == "lane":
+            meanwhile()
+            raise api_error(503, "the provider is overloaded")
+        step = inner.send(got)
+
+
+def test_a_rollback_never_erases_another_processs_write(lab):
+    """Review 2 of 0.7.0: the nightly recheck runs in its own Python process
+    (analysis.start_schedule), so an in-memory watcher never saw its writes
+    and a failed server run put the old files back over them. The server's
+    run snapshots, a real child process writes through save_state, the
+    provider fails: the child's write stays and the reason says so."""
+    import os
+    import subprocess
+    import sys
+
+    e = lab.env("a")
+    assert service(e, FakeAnthropic(Script())).run_job(e, lab.ctx(e))["runs"][0]["status"] == "done"
+    drive._WS.clear()
+    forget_last_try(e)
+
+    def child():
+        p = subprocess.run([sys.executable, "-c", CHILD_WRITE, CHAR], env={**os.environ, "CHILD_ENV": json.dumps(e)},
+                           capture_output=True, text=True, timeout=120, check=False)
+        assert p.returncode == 0, p.stderr
+
+    r = service(e, FakeAnthropic(Script(fails_after_a_lane(child)))).run_job(e, lab.ctx(e))["runs"][0]
+    assert load_state(e, CHAR).get("child_mark") == "the recheck's own write"
+    assert r["status"] == "stopped" and "not rolled back" in r["why"], r
+    # Nobody else wrote: the same failure rolls back as before.
+    drive._WS.clear()
+    forget_last_try(e)
+    before = files(e)
+    r = service(e, FakeAnthropic(Script(fails_after_a_lane()))).run_job(e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "stopped" and "not rolled back" not in r["why"], r
+    assert files(e) == before
+
+
 def test_a_stopped_run_keeps_the_old_text_too(lab, monkeypatch):
     e = lab.env("a")
     assert service(e, FakeAnthropic(Script())).run_job(e, lab.ctx(e))["runs"][0]["status"] == "done"
