@@ -275,9 +275,12 @@
 				vertex_view.setFloat32(offset + 32, m2.uv[uv_idx], true);
 				vertex_view.setFloat32(offset + 36, m2.uv[uv_idx + 1], true);
 
-				// texcoord2 (y-flipped for opengl bottom-left origin)
+				// texcoord2 as stored, like texcoord: the textures are uploaded top row
+				// first. wow.export flipped it, unseen while its shader dropped the
+				// specular; an updated model's eye adds its second texture through it
+				// and came out white (tests/test_m3d_viewer_browser.py).
 				vertex_view.setFloat32(offset + 40, m2.uv2[uv_idx], true);
-				vertex_view.setFloat32(offset + 44, 1 - m2.uv2[uv_idx + 1], true);
+				vertex_view.setFloat32(offset + 44, m2.uv2[uv_idx + 1], true);
 			}
 
 			const index_data = new Uint16Array(skin.triangles.length);

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- The 3D view's Updated models had pale, washed-out eyes, the iris almost gone (a Gnome looked startled; Humans' eyes went white). The viewer read the model's second set of texture coordinates upside down, so the eye's shine layer added the bright half of the eye texture over the whole eye. It now reads them as stored, and the eyes have their colour back. Glowing eyes (Undead, Night Elves) are unchanged.
+
 ## 0.7.0-rc.4 (2026-11-21)
 
 ### Added
