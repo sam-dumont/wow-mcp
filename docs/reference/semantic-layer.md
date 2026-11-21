@@ -302,7 +302,10 @@ counts those numbers itself, the same way.
 `propose_finding` takes a `query_metric` call instead of SQL: put the call's arguments in
 `finding.metric_query`, and the finding's `{placeholders}` name its output columns. The judge
 compiles it, re-runs it and compares every number in `expect`. The kept finding stores the
-compiled SQL and its parameters, and the nightly recheck re-runs exactly that.
+compiled SQL and its parameters, and the nightly recheck re-runs exactly that, as long as
+`semantic.yaml` (as loaded) and its views haven't changed since. After a change, every kept
+finding is "to revalidate" until an analysis proposes it again (docs/mcp.md, "The play
+analysis").
 
 The evidence has to read the play history. A SQL that selects a constant (`SELECT 3 AS n`) or
 only the documentation tables re-runs to the same number every time and says nothing about the

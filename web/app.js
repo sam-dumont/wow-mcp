@@ -2471,7 +2471,11 @@ function renderAnalysis(a) {
   else if (run.at) kids.push(h('p', { class: 'sub asof', text: `As of ${day(run.at)}, by ${run.kind === 'server' || run.by === 'server' ? 'the server' : 'you'}.` }));
   if ((a.nudges || []).length) kids.push(h('h3', { text: 'What to do' }), nudgeList(a.nudges));
   const finding = (f) => h('li', {},
-    h('div', { class: 'ftitle' }, f.title, f.confirmations ? h('span', { class: 'tag', text: `seen ${f.confirmations + 1}×` }) : null,
+    h('div', { class: 'ftitle' }, f.title,
+      // Judged under other definitions (wowstats/analysis/manifest.py): not
+      // rechecked until an analysis proposes it again, so no "seen" count.
+      f.revalidate ? h('span', { class: 'tag', text: `to revalidate: ${(f.revalidate.why || []).join(', ')}` })
+        : f.confirmations ? h('span', { class: 'tag', text: `seen ${f.confirmations + 1}×` }) : null,
       f.doubtful ? h('span', { class: 'tag', text: 'doubtful: another finding disagrees' }) : null),
     f.action ? h('p', { class: 'fdo', text: f.action.do }) : null,
     f.action ? stepList(f.action) : null,

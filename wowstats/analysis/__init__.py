@@ -16,7 +16,11 @@
    one that doesn't hold fades and is dropped once its weight is under
    MIN_WEIGHT. One that holds is still applicable (`last_checked`); it is
    better supported (weight, `confirmations`) only when there is play the
-   last support didn't see (`data_mark`). No model.
+   last support didn't see (`data_mark`). No model. Only under the
+   definitions it was judged with: a finding whose build (its `manifest`,
+   wowstats.analysis.manifest) had another prep version, semantic model or
+   reference data is "to revalidate" instead, until an analysis proposes
+   it again.
 5. keep: findings, nudges and the shared page's pattern lines go to
    ANALYSIS_STATE_DIR/chars/<char>/analysis.json, ranked, one file per
    character.
@@ -426,16 +430,27 @@ def keep(kept: dict, got: dict, now: str, mark: str | None = None) -> bool:
     return old is None
 
 
-def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = None) -> None:
+def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = None,
+            build: dict | None = None, builds: dict | None = None) -> None:
     """Every kept finding on today's data, in place: one that holds is still
     applicable, and gains weight only when `mark` (data_mark) moved since
     its last support; one that doesn't fades and goes under MIN_WEIGHT. A finding
     judged on DuckDB (play_sql and query_metric since 0.7) re-runs there
     (`duck()` gives that runner, None when DuckDB isn't installed: the
-    finding waits, unchanged); one kept before runs on SQLite, its dialect."""
-    from . import verify
+    finding waits, unchanged); one kept before runs on SQLite, its dialect.
+
+    `build`: today's manifest, `builds` the kept ones by id. A finding judged
+    under other definitions (manifest.changed) isn't run: it is marked
+    `revalidate` (since when, why), counted apart, and keeps its weight."""
+    from . import manifest, verify
 
     for key, f in list(kept.items()):
+        if build is not None:
+            why_not = manifest.changed((builds or {}).get(f.get("manifest") or ""), build)
+            if why_not:
+                f["revalidate"] = {"since": (f.get("revalidate") or {}).get("since") or now, "why": why_not}
+                info["revalidate"] = info.get("revalidate", 0) + 1
+                continue
         runner = ro
         if f.get("engine") == "duckdb":
             runner = duck() if duck is not None else None
@@ -502,7 +517,7 @@ def bind(lines: list[dict], kept: dict, level: int | None, dropped: list, what: 
 
 
 def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns: list, db, knowledge,
-           players: set[str], info: dict, now: str) -> dict:
+           players: set[str], info: dict, now: str, build: dict | None = None) -> dict:
     """Screen, rank and save: shared by the nightly recheck and a driver's
     synthesis. A nudge or pattern stands only on findings still kept and not
     doubtful; a line with a number nobody re-ran goes; the shared page's
@@ -561,7 +576,10 @@ def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns
     kept = {f["key"]: f for f in ranked}
     newest = db.execute("SELECT value FROM meta WHERE key='last_record'").fetchone()[0]
     runs = (state.get("runs") or [])[-29:] + [info]
+    from . import manifest
+
     out = {**state, "schema": SCHEMA, "char": char, "updated": now, "newest_event": newest, "findings": kept,
+           "manifests": manifest.kept(state.get("manifests"), kept, build),
            "nudges": nudges, "patterns": patterns, "runs": runs,
            "kb": {"docs": len(knowledge), "kinds": knowledge.kinds(), "game_build": knowledge.meta.get("game_build"),
                   "polestar": (knowledge.meta.get("polestar") or {}).get("tag")},
@@ -605,7 +623,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     and the KB."""
     from wowstats.mcp import route
 
-    from . import kb, prep
+    from . import kb, manifest, prep
     from .sql import ReadOnly
 
     env = dict(os.environ if env is None else env)
@@ -621,23 +639,26 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     if players is None:
         players = other_players(store, store.stream, char)
     knowledge = knowledge if knowledge is not None else kb.shared(env)
-    db = prep.build(rows, char, route.reference(), map_sizes=knowledge.meta.get("ui_map"),
+    ref = route.reference()
+    db = prep.build(rows, char, ref, map_sizes=knowledge.meta.get("ui_map"),
                     upgrades=upgrades_for(rows, char, env))
+    build = manifest.build(db, rows, knowledge, ref)
     now = datetime.now(UTC).isoformat(timespec="seconds")
     state = load_state(env, char)
     kept: dict[str, dict] = dict(state.get("findings") or {})
-    info = {"at": now, "kind": "recheck", "char": char, "confirmed": 0, "still": 0, "faded": 0,
-            "dropped": []}
-    recheck(kept, ReadOnly(db), now, info, duck=_duck_runner(db), mark=data_mark(db))
+    info = {"at": now, "kind": "recheck", "char": char, "manifest": build["id"], "confirmed": 0, "still": 0,
+            "faded": 0, "revalidate": 0, "dropped": []}
+    recheck(kept, ReadOnly(db), now, info, duck=_duck_runner(db), mark=data_mark(db), build=build,
+            builds=state.get("manifests"))
     info["seconds_total"] = round(time.time() - t0, 1)
     level = current_level(db)
     nudges = bind([n for n in state.get("nudges") or [] if isinstance(n, dict)], kept, level, info["dropped"], "nudge")
     patterns = bind([p for p in state.get("patterns") or [] if isinstance(p, dict)], kept, level, info["dropped"],
                     "pattern")
     out = finish(env, char, state, kept, nudges, patterns, db, knowledge,
-                 players, info, now)
+                 players, info, now, build)
     print(json.dumps({"event": "analysis_recheck", "component": "wow", "findings": len(out["findings"]),
-                      **{k: info[k] for k in ("confirmed", "still", "faded", "seconds_total")},
+                      **{k: info[k] for k in ("confirmed", "still", "faded", "revalidate", "seconds_total")},
                       "dropped": len(info["dropped"])}, separators=(",", ":")), file=sys.stderr, flush=True)
     return out
 
@@ -717,7 +738,8 @@ def time_budget(db) -> list[dict]:
 # ---------------------------------------------------------------- answers
 
 RUN_KEYS = ("at", "kind", "by", "via", "driver", "passes", "coverage", "questions", "findings", "clashes",
-            "feasibility", "new", "confirmed", "faded", "dropped", "refused", "seconds_total")
+            "feasibility", "new", "confirmed", "faded", "revalidate", "manifest", "dropped", "refused",
+            "seconds_total")
 
 
 def explored(runs: list[dict]) -> dict | None:
@@ -769,14 +791,21 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
             "findings": [{k: f.get(k) for k in ("key", "title", "text", "action", "observation", "sql", "kb", "row",
                                                  "doubtful", "reconciles", "relevance", "effect",
                                                  "sample", "weight", "score", "confirmations", "first_seen",
-                                                 "last_confirmed", "misses")} for f in findings],
+                                                 "last_confirmed", "misses", "manifest", "revalidate")}
+                         for f in findings],
+            # Checked: rechecked under the definitions they were judged
+            # with. The rest wait for an analysis to judge them again.
+            "checked": sum(1 for f in findings if not f.get("revalidate")),
+            "to_revalidate": sum(1 for f in findings if f.get("revalidate")),
             "nudges": [{k: n.get(k) for k in ("text", "gist", "where", "blocked_by", "next_step", "findings",
                                               "shareable", "verdict", "at_level", "constraints")}
                        for n in nudges],
             "patterns": patterns, "time_budget": s.get("time_budget") or [],
             "last_run": {k: last.get(k) for k in RUN_KEYS},
             "last_analysis": {k: explored_run.get(k) for k in RUN_KEYS} if explored_run else None,
-            "runs": [{k: r.get(k) for k in ("at", "kind", "driver", "new", "confirmed", "faded", "seconds_total")}
+            "manifest": (s.get("manifests") or {}).get(last.get("manifest") or ""),
+            "runs": [{k: r.get(k) for k in ("at", "kind", "driver", "new", "confirmed", "faded", "revalidate",
+                                            "seconds_total")}
                      for r in runs[-14:]], "kb": s.get("kb")}
 
 
