@@ -1679,7 +1679,7 @@ function renderMarket(m, err) {
     return;
   }
   // Not set up, or nothing read yet: nothing to show and nothing the
-  // player can do about it here (README, "Battle.net client").
+  // player can do about it here (docs/self-host/battlenet.md).
   if (!m || !m.configured) { fill(el); return; }
   const kids = [];
   if (m.token) {

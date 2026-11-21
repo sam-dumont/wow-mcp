@@ -24,8 +24,8 @@ every fetch and run past 30 days.
 
 ## Run it
 
-You need a Battle.net API client (the same one the exporter uses, README
-"Battle.net client"): `BNET_CLIENT_ID_FILE` and `BNET_CLIENT_SECRET_FILE`,
+You need a Battle.net API client (the same one the exporter uses,
+[Battle.net data](../../docs/self-host/battlenet.md)): `BNET_CLIENT_ID_FILE` and `BNET_CLIENT_SECRET_FILE`,
 or `BNET_CREDS_CMD`, a command that prints `{"client_id", "client_secret"}`
 as JSON (for example `sops -d --output-type json <file>`). The credentials
 are read into memory, never printed or written.
