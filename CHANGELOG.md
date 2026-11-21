@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- `wow_stats.py --prefill`: sends the server the item facts and 3D files it still lacks right away (the background runs ask once a day for item facts), prints how many went and exits.
+
 ## 0.7.0-rc.2 (2026-11-20)
 
 ### Fixed

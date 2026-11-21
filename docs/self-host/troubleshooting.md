@@ -92,6 +92,8 @@ The shipper writes one line per run in its log: Mac `~/Library/Logs/wow-stats.lo
 | `ship: no [ship] url in <config>` | The config has no server address. [Fill in the config](../install.md#fill-in-the-config) |
 | `events older than the receiver's retention (N days) kept in .../too-old, not sent` | `retention_days` is set in the config's `[ship]`. [Install it for real, troubleshooting](../install.md#4-troubleshooting) |
 
+A new dungeon's loot without stats, or a 3D view still missing files: run the shipper once with `--prefill` (same command as `--preflight` above). It sends the [item facts and 3D files](../shipper.md#flags) the server still lacks now, instead of at the next daily check, and prints how many went.
+
 ## Friends
 
 Each change to the friends list is one log line with `"event"` in it:

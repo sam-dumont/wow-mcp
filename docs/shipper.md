@@ -258,6 +258,9 @@ usual install places), `archive_dir`, `wtf_archive` (default `true`),
   installing (the first run sends what is there); use it after an update
   that reads something new (quest names, Auctionator). Duplicates are
   harmless: every event has a `source_id`.
+- `--prefill`: sends the [3D view's files](#the-3d-views-files) and the [item facts](#item-facts)
+  the server still lacks, now (the background runs wait up to a day), prints how many
+  went and exits. Events stay with the background runs.
 - `--preflight`: the installers' last step, a checklist with one line per
   check (the WoW folder, Polestar, Polestar Recorder and its switch, Questie
   or Altoholic, each other optional addon, saved game data, the server with

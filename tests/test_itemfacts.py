@@ -372,6 +372,32 @@ def test_the_shipper_sends_only_what_the_server_lacks(one, shipper, tmp_path, mo
     assert shipper.ship_item_facts({}, now=0) is None
 
 
+def test_prefill_sends_now_and_says_what_went(one, shipper, tmp_path, monkeypatch, capsys):
+    root = casc_install(tmp_path, shipper,
+                        extra=lambda inst: inst.file(itemfacts.TABLES["RandPropPoints"], budget_table()))
+    cache = write_cache(shipper, root)
+    archive = tmp_path / "archive"
+    monkeypatch.setattr(shipper, "WOW", root / "_forever_")
+    monkeypatch.setattr(shipper, "LOG", tmp_path / "wow-stats.log")
+    monkeypatch.setattr(shipper, "DRY", False)
+    monkeypatch.setattr(shipper, "ARCHIVE", archive)
+    monkeypatch.setattr(shipper, "STATE", archive / "state.json")
+    monkeypatch.setattr(shipper, "CONFIG", {"ship": {"url": one.base + "/ingest", "user": "wow", "password": PW}})
+    assert shipper.prefill() == 0
+    out = capsys.readouterr().out
+    assert "item facts: 4 sent, 1 already on the server" in out and "3D files: " in out
+    # The fifth is the reference's. Right after, the background run would wait
+    # a day; the prefill asks again and sends only the changed item.
+    cache.write_bytes(dbcache(shipper, {**ITEMS, ROBE: {**ITEMS[ROBE], "ilvl": 44}}))
+    assert shipper.prefill() == 0
+    assert "item facts: 1 sent, 4 already on the server" in capsys.readouterr().out
+    assert one.app.item_facts.facts().get(ROBE)["ilvl"] == 44
+    # Not a wow-stats server: nothing sent, a reason.
+    monkeypatch.setattr(shipper, "CONFIG", {"ship": {"url": "https://example.invalid/receive", "user": "u"}})
+    assert shipper.prefill() == 2
+    assert "isn't a wow-stats server" in capsys.readouterr().out
+
+
 def test_a_server_without_item_facts(run_app, shipper, tmp_path, monkeypatch):
     srv = run_app(ui.App({"BIND": "127.0.0.1", "VIEW": "full", "AUTH": "none", "VL_URL": "http://vl.invalid",
                           "MCP_PUBLIC_URL": "", "MODEL3D_CACHE_DIR": str(tmp_path / "cache")}))  # no upload password

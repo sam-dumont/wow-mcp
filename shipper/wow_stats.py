@@ -4191,8 +4191,10 @@ def _assets_call(url: str, headers: dict, body: bytes | None = None) -> tuple[in
         return 0, b""
 
 
-def ship_assets(state: dict, now: float | None = None) -> str | None:
-    """The 3D view's files (above): None when skipped, else what happened."""
+def ship_assets(state: dict, now: float | None = None, force: bool = False,
+                tally: dict | None = None) -> str | None:
+    """The 3D view's files (above): None when skipped, else what happened.
+    force: now, whatever the last run's time (--prefill); tally gets the counts."""
     if not assets_on():
         return None
     st = state.setdefault("assets", {})
@@ -4201,7 +4203,7 @@ def ship_assets(state: dict, now: float | None = None) -> str | None:
         last = float(st.get("checked", 0))
     except (TypeError, ValueError):
         last = 0.0
-    if not st.get("more") and 0 <= now - last < ASSETS_EVERY_S:
+    if not force and not st.get("more") and 0 <= now - last < ASSETS_EVERY_S:
         return None
     st["checked"] = now
     try:
@@ -4287,6 +4289,11 @@ def ship_assets(state: dict, now: float | None = None) -> str | None:
     except CascError as e:
         log(f"3d files: can't read the game's files ({e})")
         return "no install"
+    finally:
+        if tally is not None:
+            tally["files"] = tally.get("files", 0) + sent
+            tally["bytes"] = tally.get("bytes", 0) + size
+            tally["files_refused"] = tally.get("files_refused", 0) + refused
     if sent or refused:
         log(f"3d files: {sent} sent ({size // 1024} KB)" + (f", {refused} refused" if refused else "")
             + ("; more next run" if st.get("more") else ""))
@@ -4486,8 +4493,10 @@ def read_dbcache(path: Path) -> bytes | None:
     return data if len(data) <= DBCACHE_MAX else None
 
 
-def ship_item_facts(state: dict, now: float | None = None) -> str | None:
-    """The item facts (above): None when skipped, else what happened."""
+def ship_item_facts(state: dict, now: float | None = None, force: bool = False,
+                    tally: dict | None = None) -> str | None:
+    """The item facts (above): None when skipped, else what happened.
+    force: now, whatever the last try's time (--prefill); tally gets the counts."""
     if not item_facts_on():
         return None
     st = state.setdefault("item_facts", {})
@@ -4506,7 +4515,7 @@ def ship_item_facts(state: dict, now: float | None = None) -> str | None:
         ago = now - float(st.get("tried", 0))
     except (TypeError, ValueError):
         ago = now
-    if 0 <= ago < (ITEMS_RECHECK_S if st.get("sig") == sig else ITEMS_RETRY_S):
+    if not force and 0 <= ago < (ITEMS_RECHECK_S if st.get("sig") == sig else ITEMS_RETRY_S):
         return None
     st["tried"] = now
     try:
@@ -4546,6 +4555,9 @@ def ship_item_facts(state: dict, now: float | None = None) -> str | None:
         per_post = max(1, min(ITEMS_POST_MAX, int(need.get("max_items") or ITEMS_POST_MAX)))
     except (ValueError, TypeError, AttributeError):
         return "no server"
+    if tally is not None:
+        tally["items_known"] = len(items) - len(want)
+        tally["items"] = 0
     if tables:
         try:
             got, by_name, _ = casc_files(casc, [], tables, follow=False)
@@ -4570,10 +4582,71 @@ def ship_item_facts(state: dict, now: float | None = None) -> str | None:
             log(f"item facts: {sent} of {len(want)} sent, then HTTP {code}; the rest next run")
             return "refused"
         sent += len(part)
+        if tally is not None:
+            tally["items"] = sent
     st["sig"] = sig
     if sent:
         log(f"item facts: {sent} item(s) the server didn't have, from the game's hotfix cache")
     return "sent" if sent else "nothing new"
+
+
+PREFILL_LOCK_WAIT_S = 300   # a background run holds the lock for a minute or two
+PREFILL_ROUNDS = 8           # 3D file runs (ASSETS_RUN_BYTES each) before it stops for today
+
+
+def prefill() -> int:
+    """--prefill: the item facts and 3D files the server still lacks, now,
+    in one pass, whatever the last run's time; then a summary and exit. The
+    same calls as every run (ship_item_facts, ship_assets): nothing else is
+    read or sent, events stay with the normal runs."""
+    try:
+        src = update_source()
+    except UpdateError as e:
+        print(f"Not sent: {e}.")
+        return 2
+    if src is None:
+        print(f"Not sent: [ship] url in {config_path()} isn't a wow-stats server's /ingest.")
+        return 2
+    ARCHIVE.mkdir(parents=True, exist_ok=True)
+    end = time.monotonic() + PREFILL_LOCK_WAIT_S
+    while (lock := take_lock(ARCHIVE / ".lock")) is None:
+        if time.monotonic() > end:
+            print("A background run is still going: try again in a few minutes.")
+            return 1
+        time.sleep(2)
+    try:
+        state = load_state()
+        tally: dict = {}
+        items = ship_item_facts(state, force=True, tally=tally)
+        files = None
+        for _ in range(PREFILL_ROUNDS):
+            files = ship_assets(state, force=True, tally=tally)
+            if files != "sent" or not state.get("assets", {}).get("more"):
+                break
+        save_state(state)
+    finally:
+        lock.close()
+    if items is None:
+        line = "item facts: off (item_facts = false)" if not item_facts_on() else \
+            "item facts: no hotfix cache yet (log in once in WoW)"
+    elif "items" in tally:
+        line = f"item facts: {tally['items']} sent, {tally['items_known']} already on the server"
+    else:
+        line = f"item facts: {items}"
+    print(line)
+    if files is None:
+        line = "3D files: off (model3d_files = false)"
+    elif files in ("sent", "nothing new"):
+        line = f"3D files: {tally.get('files', 0)} sent ({tally.get('bytes', 0) // 1024} KB)"
+        if tally.get("files_refused"):
+            line += f", {tally['files_refused']} refused"
+        line += "; more to send: run it again later" if state.get("assets", {}).get("more") \
+            else "; the server has every file it asked for"
+    else:
+        line = f"3D files: {files}"
+    print(line)
+    log("prefill: done")
+    return 0 if items not in ("refused", "no server") and files not in ("refused", "no server") else 1
 
 
 def main() -> int:
@@ -4589,6 +4662,8 @@ def main() -> int:
                     help="put the pinned Polestar Recorder in the AddOns folder (for the installers)")
     ap.add_argument("--preflight", action="store_true",
                     help="check the setup and print a checklist (the installers' last step)")
+    ap.add_argument("--prefill", action="store_true",
+                    help="send the server the item facts and 3D files it still lacks, now, and print what went")
     ap.add_argument("--casc-extract", metavar="FOLDER",
                     help="copy the 3D view's files named by --fdids and --tables from the WoW install to FOLDER "
                          "(read-only on the install; a check by hand)")
@@ -4639,6 +4714,8 @@ def main() -> int:
         return 0
     if a.preflight:
         return preflight()
+    if a.prefill:
+        return prefill()
     if a.install_recorder:
         try:
             # WOW_STATS_RECORDER_URL + WOW_STATS_RECORDER_SHA256: tests only (the Windows
