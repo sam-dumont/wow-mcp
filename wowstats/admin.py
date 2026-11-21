@@ -1,8 +1,8 @@
 """The owner's overview at /admin: who uses this install, when they last
 did, and whether its parts answer. Not what anyone plays.
 
-Only the owner (WOW_OWNER_SUB) gets it; anyone else gets the 404 every
-unknown address gets, so the page isn't advertised. It needs several people
+Only the owner (any of WOW_OWNER_SUB's logins) gets it; anyone else gets
+the 404 every unknown address gets, so the page isn't advertised. It needs several people
 (WOW_STATE_DIR): an install for one person has nobody else to look at.
 
 One row per person, the owner included: the slug, whether they're on the
@@ -330,7 +330,7 @@ def overview(t: T.Tenancy, fresh: bool = False) -> dict:
     now = time.time()
     report = read_report(t)
     sites = {s["slug"]: s for s in (report or {}).get("sites") or []}
-    listed = T.read_friends(t.friends_file) if t.friends_file else None
+    listed = t.listed()
     users = sorted(t.registry.users(), key=lambda u: (not u.owner, u.slug or "~", u.account_id))
     people = [person(t, u, listed, sites, now) for u in users]
     owner = t.registry.get(t.owner_sub)

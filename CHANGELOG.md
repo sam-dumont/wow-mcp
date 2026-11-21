@@ -14,6 +14,7 @@
 
 ### Added
 
+- `WOW_OWNER_SUB` takes a comma-separated list: an owner who signs in with two accounts (the usual one and one linked to Battle.net) is the owner with both, on the web, over MCP and on /admin, with one set of data and one analysis timer. A single sub works as before. A sub in both this list and the friends list is the owner's; the start log names it by its place in the list, and no data is made or deleted for it. A BattleTag header never gives the owner's other login a friend's name or tenant.
 - `dashboard_refresh` and /admin give each person's own server runs this month apart from the install's: the tool's `budget` is now marked `scope: "install"` ("this month, whole install"), and `yours` has the caller's own runs, cost and tokens (`scope: "you"`). /admin's AI analysis tile says "whole install", and each person's AI analysis cell adds their runs and cost this month. The spend file now records them per tenant number; runs from before this release aren't in anyone's share, and `yours` says how many.
 
 ### Fixed

@@ -1387,3 +1387,120 @@ def test_the_friends_file_shapes(tmp_path):
                           ({FRIEND: None}, {FRIEND: ""}), ({FRIEND: "frost-3f9a"}, {FRIEND: "frost-3f9a"})):
         f.write_text(json.dumps(content))
         assert tenancy.read_friends(str(f)) == want, content
+
+
+# ---------------------------------------------------------------- the owner's other logins (synthetic subs only)
+
+ALIAS = "owner-alias-9"
+
+
+@pytest.fixture
+def two_logins(env, run_app):
+    """The owner with two logins: WOW_OWNER_SUB as a comma-separated list,
+    the alias second (the record stays on the first)."""
+    e = {**env, "WOW_OWNER_SUB": f"{OWNER}, {ALIAS}"}
+    app = ui.App(e)
+    t = ui.tenancy_of(e, app)
+    r = run_app(app)
+    r.srv.RequestHandlerClass = ui.make_handler(app, t)
+    r.t, r.app, r.env = t, app, e
+    yield r
+
+
+def test_one_owner_sub_still_works(env):
+    t = tenancy.Tenancy(env)
+    assert t.owner_subs == (OWNER,) and t.owner_sub == OWNER
+    assert t.identify(OWNER).user.account_id == 0
+    assert t.identify(ALIAS).status == 403
+
+
+def test_every_owner_login_is_tenant_0_on_the_web(two_logins):
+    t = two_logins
+    for sub in (OWNER, ALIAS):
+        code, _, body = t.get("/api/me", headers=as_user(sub))
+        me = json.loads(body)
+        assert code == 200 and me["owner"] is True and me["slug"] == "sam", (sub, body)
+        code, _, body = t.get("/api/chars", headers=as_user(sub))
+        assert code == 200 and b"Testpriest" in body, sub
+        assert t.get("/api/admin/hosts", headers=as_user(sub))[0] == 200, sub
+    # One record, one App, one analysis state: the alias is the owner, not a second tenant.
+    assert t.t.registry.get(ALIAS) is None
+    assert [u.account_id for u in t.t.registry.users()] == [0]
+    assert list(t.t._apps) == [OWNER]
+    assert t.get("/api/me", headers=as_user("someone-else"))[0] == 403
+
+
+def test_every_owner_login_is_tenant_0_over_mcp(two_logins, tmp_path):
+    from tests.mcp import oauth_client, oidc_standin
+
+    t = two_logins.t
+    for sub in (OWNER, ALIAS):
+        u = t.resolve_tenant(sub)
+        assert u.owner and u.account_id == 0 and u.sub == OWNER, sub
+        assert t.mcp_user(sub).sub == OWNER
+    assert t.resolve_tenant("someone-else") is None and t.mcp_user("someone-else") is None
+    # The real login, as the alias: the code exchange admits it, the tools
+    # run on the owner's data and context (one dashboard_refresh timer).
+    with oidc_standin.Standin(user=ALIAS) as idp:
+        (tmp_path / "oidc").write_text(oidc_standin.CLIENT_SECRET)
+        (tmp_path / "sign").write_text("s" * 40)
+        port = oauth_client.free_port()
+        ep = mcpmod.endpoint({**two_logins.env, "MCP_AUTH": "oauth", "MCP_PUBLIC_URL": f"http://127.0.0.1:{port}/mcp",
+                              "MCP_PORT": str(port), "OIDC_ISSUER": idp.issuer,
+                              "OIDC_CLIENT_ID": oidc_standin.CLIENT_ID,
+                              "OIDC_CLIENT_SECRET_FILE": str(tmp_path / "oidc"),
+                              "MCP_SIGNING_KEY_FILE": str(tmp_path / "sign"),
+                              "MCP_STATE_DIR": str(tmp_path / "mcp-state")}, "127.0.0.1")
+        ep.attach_tenancy(t)
+        run = ep.start()
+        try:
+            for sub in (ALIAS, OWNER):
+                idp.user = sub
+                idp.users[sub] = {"org": "", "roles": [], "active": True}
+                lg = oauth_client.Login(f"http://127.0.0.1:{port}", run.url)
+                lg.login()
+                r = lg.rpc("tools/call", {"name": "character_summary", "arguments": {"char": A_CHAR}})
+                assert r.status_code == 200 and b"Testpriest" in r.content, (sub, r.text[:300])
+            idp.user = "someone-else"
+            idp.users["someone-else"] = {"org": "", "roles": [], "active": True}
+            other = oauth_client.Login(f"http://127.0.0.1:{port}", run.url)
+            other.register()
+            r = other.exchange(other.code_from(other.authorize()))
+            assert r.status_code in (400, 401) and r.json()["error"] == "invalid_grant", r.text
+        finally:
+            run.stop()
+    assert list(t._ctx) == [OWNER] and t.registry.get(ALIAS) is None
+
+
+def test_an_owner_login_on_the_friends_list_is_the_owner(env, capsys):
+    friends = Path(env["WOW_FRIENDS_FILE"])
+    friends.write_text(json.dumps({FRIEND: "mira", ALIAS: "alias"}))
+    # A friend's record from before the alias joined the owner's list: kept,
+    # never deleted, never used.
+    t0 = tenancy.Tenancy(env)
+    old = t0.identify(ALIAS).user
+    assert old.account_id >= 1 and not old.owner
+    capsys.readouterr()
+    t = tenancy.Tenancy({**env, "WOW_OWNER_SUB": f"{OWNER},{ALIAS}"})
+    out = capsys.readouterr().out
+    logged = [json.loads(x) for x in out.splitlines() if "owner_also_listed" in x]
+    assert [x["position"] for x in logged] == [2] and ALIAS not in out
+    u = t.identify(ALIAS).user
+    assert u.owner and u.account_id == 0 and u.sub == OWNER
+    assert t.mcp_user(ALIAS).account_id == 0
+    done = tenancy.reconcile(t)
+    assert done["removed"] == [] and "alias" not in done["provisioned"]
+    assert t.registry.get(ALIAS).account_id == old.account_id  # still there, untouched
+
+
+def test_a_battletag_never_names_or_provisions_an_owner_login(two_logins):
+    t = two_logins.t
+    t.battletag_header = TAG_HEADER
+    Path(t.friends_file).write_text(json.dumps([FRIEND, ALIAS]))
+    before = json.loads(Path(t.registry.path).read_text())["next_account"]
+    code, _, body = two_logins.get("/api/me", headers=as_bnet(ALIAS))
+    assert code == 200 and json.loads(body)["owner"] is True and json.loads(body)["slug"] == "sam", body
+    tenancy.reconcile(t)
+    assert t.registry.get(ALIAS) is None
+    data = json.loads(Path(t.registry.path).read_text())
+    assert data["next_account"] == before and [u.account_id for u in t.registry.users()] == [0]
