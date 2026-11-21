@@ -270,9 +270,26 @@ def record_id(r: dict) -> str:
     sid = r.get("source_id")
     if not sid:
         return json.dumps(r, sort_keys=True)
-    if sid.startswith("gear:") and sid.count(":") == 2:
+    if sid.startswith("gear:") and sid.count(":") == 2 or _content_id(sid):
         return f"{sid}:{r.get('_time')}"
     return sid
+
+
+def _content_id(sid: str) -> bool:
+    """A snapshot id made of its content alone, no time: the bags
+    (bags:<char>:<digest>), a quest set (quests:<char>:<source>:<digest>)
+    and the roster's sheet (character:<char>:<digest>; Polestar's own is
+    character:<char>:<logout epoch>). The same content seen again later (the
+    game rewrote the file at logout, a run after a lost state.json) came
+    under the same id, and the newest copy erased when it was first seen:
+    quest evidence then dated a reward from the later copy (evidence
+    property (a), tests/invariants/test_evidence.py). Keyed by `_time` too,
+    each observation stays; a resend of one line still has its time."""
+    if sid.startswith(("bags:", "quests:")):
+        return True
+    if sid.startswith("character:"):
+        return not sid.rpartition(":")[2].isdigit()
+    return False
 
 
 def dedupe(rows: list[dict]) -> list[dict]:
@@ -289,9 +306,56 @@ def dedupe(rows: list[dict]) -> list[dict]:
     return list(best.values())
 
 
+# Which snapshot (a gear sheet, the bags, a character sheet) is the one in
+# force, as LogsQL and as Python (snapshot_rank): one with an exact
+# observation time before one whose time is only an upper bound or the
+# run's clock (`at_basis`: its real time could be any time before, so it
+# can't be shown newer than an exact one), then the newest, then the id, so
+# two snapshots on one time give the same answer in either arrival order.
+# Evidence properties (b) and (c), tests/invariants/test_evidence.py.
+SNAPSHOT_SORT = "sort by (at_basis, _time desc, source_id desc)"
+# The newest few: a part the newest lacks comes from an older one (newest_with).
+SNAPSHOT_TAKE = 10
+
+
+def snapshot_rank(r: dict) -> tuple:
+    return (not r.get("at_basis"), parse_t(r.get("_time")), str(r.get("source_id") or ""))
+
+
 def newest(rows: list[dict]) -> dict:
-    """The latest row: the archive and the recent store each answer their own `limit 1`."""
-    return max(rows, key=lambda r: parse_t(r.get("_time")), default={})
+    """The row in force (snapshot_rank): the archive and the recent store
+    each answer their own `limit 1`."""
+    return max(rows, key=snapshot_rank, default={})
+
+
+def newest_with(rows: list[dict], parts: tuple[str, ...]) -> dict:
+    """newest(), with each of `parts` it doesn't carry taken from the newest
+    row that does: a snapshot that lacks one (Syndicator's bank cache lost,
+    a sheet without its money) doesn't erase it from an earlier complete
+    one (evidence property (d)). A part no row carries stays absent:
+    unknown, never empty (e)."""
+    ranked = sorted(rows, key=snapshot_rank, reverse=True)
+    if not ranked:
+        return {}
+    out = dict(ranked[0])
+    for p in parts:
+        if out.get(p) in (None, ""):
+            got = next((r[p] for r in ranked if r.get(p) not in (None, "")), None)
+            if got is not None:
+                out[p] = got
+    return out
+
+
+# The character sheet (wow-character, Polestar's logout sheet or the
+# roster's) the hero line and the MCP read, after the character filter.
+SHEET_QUERY = ("fields _time, at_basis, source_id, level, xp, xp_max, money_copper, zone, race, class, faction, "
+               f"realm, resting, source | {SNAPSHOT_SORT} | limit {SNAPSHOT_TAKE}")
+SHEET_PARTS = ("money_copper",)
+
+
+def pick_sheet(rows: list[dict]) -> dict:
+    """The character sheet in force; the money from the newest sheet that has it."""
+    return newest_with(rows, SHEET_PARTS)
 
 
 def merge_rows(rows: list[dict], keys: tuple, ops: dict) -> list[dict]:
@@ -893,3 +957,4 @@ class Store:
         if when:
             out["refreshed"] = iso(datetime.fromtimestamp(float(when[0]["value"][1]), UTC))
         return out
+

@@ -23,6 +23,9 @@ from wowstats.stores import (
     HISTORY_START,
     SESSION_BUCKET_OPS,
     SESSION_BUCKETS,
+    SHEET_QUERY,
+    SNAPSHOT_SORT,
+    SNAPSHOT_TAKE,
     ZONE_RECORDS,
     SourceError,
     Store,
@@ -34,6 +37,7 @@ from wowstats.stores import (
     num,
     opt_num,
     parse_t,
+    pick_sheet,
     pick_splits,
     public_error,
     split_sessions,
@@ -240,18 +244,16 @@ class Views:
         jobs = {
             "levels": sub(vl, f'{st} feed:="wow-level" {cf} | fields _time, level, seconds, xp, quests, '
                               f"kills, partial, source_id"),
-            "snap": sub(vl, f'{st} feed:="wow-character" {cf} -kind:=played | fields _time, level, xp, xp_max, '
-                            f"money_copper, zone, race, class, faction, realm, resting, source "
-                            f"| sort by (_time desc) | limit 1"),
+            "snap": sub(vl, f'{st} feed:="wow-character" {cf} -kind:=played | {SHEET_QUERY}'),
             "xp": sub(vl, f"{rec} kind:in(xp, level) | fields _time, kind, level, xp, xp_max, rested_xp, zone "
                           f"| sort by (_time desc) | limit 1"),
             "dings": sub(vl, f"{rec} kind:=level | fields _time, level, source_id"),
             # Altoholic's /played (optional): the shipper's kind=played events.
             "played": sub(vl, f'{st} feed:="wow-character" {cf} kind:=played | fields _time, played_total_s, '
                               f"played_level_s, level | sort by (_time desc) | limit 50"),
-            "gear": sub(vl, f'{st} feed:="wow-gear" {cf} | fields _time, items, item_level, professions, wanted, '
-                            f"spec, spec_from, polestar_spec, class, race, faction "
-                            f"| sort by (_time desc) | limit 1"),
+            "gear": sub(vl, f'{st} feed:="wow-gear" {cf} | fields _time, at_basis, source_id, items, item_level, '
+                            f"professions, wanted, spec, spec_from, polestar_spec, class, race, faction "
+                            f"| {SNAPSHOT_SORT} | limit {SNAPSHOT_TAKE}"),
             # The Recorder's skill records: each profession's cap (wowstats.profcaps).
             "skills": sub(vl, f"{rec} kind:=skill | fields _time, skill_id, rank, max_rank"),
             # Time per zone from the records' own times (stores.zone_time).
@@ -289,7 +291,7 @@ class Views:
             # Nothing of the Recorder, which is what counts deaths: unknown,
             # never 0 (the MCP's deaths says the same).
             deaths["total"] = None
-        gear = build_gear(newest(res["gear"]))
+        gear = build_gear(gearmod.pick_sheet(res["gear"]))
         if not (gear and gear["items"]):
             # Syndicator's items win; without them (no gear event, or one
             # with the professions only), Battle.net's whole set.
@@ -317,7 +319,7 @@ class Views:
         bnet = self.bnet_talents(char)
         cls = header.get("class") or (gear or {}).get("class")
         tal, spec = talents.from_battlenet(cat, cls, bnet)
-        spec["scored_for"] = self.scored_for(char, newest(res["gear"]), header, cat, tal)
+        spec["scored_for"] = self.scored_for(char, gearmod.pick_sheet(res["gear"]), header, cat, tal)
         if spec.get("name"):
             header["spec"] = spec["name"]  # the hero line says what the talents are
         header["title"] = card_title(header.get("class") or (gear or {}).get("class"), spec)
@@ -521,8 +523,7 @@ class Views:
         vl = self.vl
         jobs = {
             "gear": sub(vl, f'{st} feed:="wow-gear" {cf} | {gearmod.Q_SHEET}'),
-            "snap": sub(vl, f'{st} feed:="wow-character" {cf} -kind:=played | fields _time, level, zone, class, '
-                            f"race, faction, source, money_copper | sort by (_time desc) | limit 1"),
+            "snap": sub(vl, f'{st} feed:="wow-character" {cf} -kind:=played | {SHEET_QUERY}'),
             "xp": sub(vl, f"{rec} kind:in(xp, level, zone) | fields _time, kind, level, zone "
                           f"| sort by (_time desc) | limit 1"),
             # Quests already done (wowstats.quests): their rewards are gone.
@@ -536,7 +537,7 @@ class Views:
               for k, (q, keys, ops) in ahsource.queries(cf, f'feed:="wow-recorder" {cf}', items=False).items()}
         ah["items"] = sub(self.price_rows)
         res = {k: f.result() for k, f in jobs.items()}
-        row = newest(res["gear"])
+        row = gearmod.pick_sheet(res["gear"])
         header = build_header(char, [], res)
         fill_from_battlenet(header, self.bnet_profile(char))
         base = {"char": char, "name": header["name"], "polestar": header["polestar"]}
@@ -1021,7 +1022,7 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
     """The hero line. `layer`: the semantic layer's numbers for it
     (wowstats.analysis.pages.header), used as they are; without the layer
     installed, the same sums worked out here."""
-    snap, xp = newest(res["snap"]), newest(res["xp"])
+    snap, xp = pick_sheet(res["snap"]), newest(res["xp"])
     # The newest of the account snapshot and the recorder wins for each value.
     top = snap if parse_t(snap.get("_time")) >= parse_t(xp.get("_time")) else xp
     # The recorder's xp records name no level: without a snapshot, the

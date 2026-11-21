@@ -34,7 +34,7 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wowstats import ahsource, forever, quests
+from wowstats import ahsource, forever, quests, stores
 
 _HERE = Path(__file__).resolve()
 # An installed wheel carries it as wowstats/data/; a checkout has it at the root.
@@ -958,12 +958,26 @@ def sheet(row: dict, fallback: dict | None = None) -> dict:
 
 
 # The stored events the advice needs, as LogsQL pipes after a character filter.
-Q_SHEET = ("fields _time, items, professions, recipes, spec, spec_from, polestar_spec, gear_adjust, "
-           "min_upgrade, "
-           "class, race, faction | sort by (_time desc) | limit 1")
-# The newest bags and bank (wow-bags), for advise(held=...) through
-# wowstats.plan.facts.newest_bags.
-Q_HELD = 'feed:="wow-bags" {cf} | fields _time, feed, bags, bank | sort by (_time desc) | limit 1'
+# The sheets in force first (stores.SNAPSHOT_SORT), a few: pick_sheet takes
+# the items from an older one when the newest has none to say.
+Q_SHEET = ("fields _time, at_basis, source_id, items, professions, recipes, spec, spec_from, polestar_spec, "
+           "gear_adjust, min_upgrade, "
+           f"class, race, faction | {stores.SNAPSHOT_SORT} | limit {stores.SNAPSHOT_TAKE}")
+# The bags and bank (wow-bags) in force, for advise(held=...) through
+# newest_bags.
+Q_HELD = ('feed:="wow-bags" {cf} | fields _time, at_basis, source_id, feed, bags, bank '
+          f"| {stores.SNAPSHOT_SORT} | limit {stores.SNAPSHOT_TAKE}")
+# What a sheet or a bags event may lack and an older one still says: a
+# shipper from 0.7.0 leaves `items` out when Syndicator didn't know the
+# character on that run, and `bank` when Syndicator holds no bank (never
+# opened, or its cache lost). Older shippers sent [] for both.
+SHEET_PARTS = ("items",)
+BAGS_PARTS = ("bags", "bank")
+
+
+def pick_sheet(rows: list[dict]) -> dict | None:
+    """The gear sheet in force among wow-gear rows (stores.newest_with), None without one."""
+    return stores.newest_with(rows, SHEET_PARTS) or None
 
 
 # --- the advice --------------------------------------------------------------
@@ -1063,18 +1077,19 @@ def newest_bags(rows: list[dict]) -> dict | None:
     shipper never sent one (before 0.3.2, or no Syndicator)."""
     from wowstats.stores import parse_t
 
-    r = max((r for r in rows if r.get("feed") == "wow-bags"), key=lambda r: parse_t(r.get("_time")), default=None)
-    if r is None:
+    r = stores.newest_with([r for r in rows if r.get("feed") == "wow-bags"], BAGS_PARTS)
+    if not r:
         return None
     ids = {}
-    for k in ("bags", "bank"):
+    for k in BAGS_PARTS:
         v = r.get(k)
         if isinstance(v, str):
             try:
                 v = json.loads(v)
             except ValueError:
                 v = None
-        ids[k] = sorted({int(n) for x in v if isinstance(n := _num(x), int)}) if isinstance(v, list) else []
+        # Never read (no list): unknown, not empty (evidence property (e)).
+        ids[k] = sorted({int(n) for x in v if isinstance(n := _num(x), int)}) if isinstance(v, list) else None
     return {**ids, "t": parse_t(r.get("_time")).timestamp()}
 
 
@@ -2013,12 +2028,12 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
 def newest_sheet(rows: list[dict], battlenet=None) -> tuple[dict, int, str | None, set] | None:
     """(sheet, level, zone, quests done: wowstats.quests) from one character's stored
     events (wowstats.analysis.prep.query), or None without a sheet or a level."""
-    from wowstats.stores import PLAYER_LEVEL_KINDS, parse_t
+    from wowstats.stores import PLAYER_LEVEL_KINDS
 
     def newest(pred):
-        return max((r for r in rows if pred(r)), key=lambda r: parse_t(r.get("_time")), default=None)
+        return stores.newest([r for r in rows if pred(r)]) or None
 
-    g = newest(lambda r: r.get("feed") == "wow-gear")
+    g = pick_sheet([r for r in rows if r.get("feed") == "wow-gear"])
     # The character's own level: Polestar's sheet, a ding or a session
     # record. Any Recorder event's `level` once put the advice at a guard's
     # 55 for a level-33 character (a kill's is the creature's): BiS from 20
@@ -2041,3 +2056,4 @@ def instance_loot_rows(rows: list[dict], weights: str | None = None, bis: dict |
         return {}
     sh, level, _, _ = got
     return instance_loot(reference(), sh, level=level, weights=weights, bis=bis)
+

@@ -524,6 +524,14 @@ def observed(*files: Path) -> tuple[float | None, str | None]:
     return t, ("commit" if f in APPROX else None)
 
 
+def dated(at: float | None, basis: str | None = None) -> tuple[float, str | None]:
+    """A snapshot's (time, at_basis): its observation time, else the run's
+    own clock, marked `at_basis: "run"` so readers rank it below any
+    snapshot with a real observation time (docs/contract.md, "Times";
+    evidence property (b), tests/invariants/test_evidence.py)."""
+    return (at, basis) if at is not None else (time.time(), "run")
+
+
 def iso(epoch: float) -> str:
     dt = datetime.fromtimestamp(epoch, tz=UTC)
     return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond // 1000:03d}Z"
@@ -1296,7 +1304,10 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
     pcdb = next(iter(read_sv_versions(cdir / "Polestar.lua")), None) or {}
     visit = (pcdb.get("PolestarCharDB") or {}).get("classTrainVisit")
     rated = [i["item_level"] for i in items if i["slot"] not in NO_ITEM_LEVEL and i["item_level"]]
-    return {"items": items, "professions": professions, "wanted": wanted,
+    # Syndicator doesn't know the character: its equipment wasn't seen, so
+    # `items` goes out (unknown), not as an empty list that reads "wears
+    # nothing" and hides an earlier sheet's items (evidence property (d)).
+    return {"items": items if sheet is not None else None, "professions": professions, "wanted": wanted,
             "item_level": round(sum(rated) / len(rated), 1) if rated else None,
             "spec": spec.title() if isinstance(spec, str) else None,
             "spec_from": spec_from if isinstance(spec, str) else None,
@@ -1404,7 +1415,8 @@ def extract_roster(chars: dict[str, dict], state: dict, out: Out) -> None:
             continue
         sent[char] = digest
         what = " ".join(str(x).title() for x in (c.get("race"), c.get("class")) if x)
-        out.emit({"_time": iso(c["seen"] or time.time()), "feed": "wow-character", "char": char,
+        at, basis = dated(c["seen"] or None)
+        out.emit({"_time": iso(at), "feed": "wow-character", "char": char, "at_basis": basis,
                   "source_id": f"character:{char}:{digest}",
                   "_msg": f"{char}: {what or 'only its WTF folder'} ({ev['source']})", **ev})
 
@@ -1616,10 +1628,11 @@ def extract_quests(acct: Path, chars: dict[str, dict], state: dict, out: Out) ->
             continue
         seen[key] = digest
         extra = {k: d[k] for k in ("size", "unknown") if d.get(k) is not None}
-        out.emit({"_time": iso(d["at"] or time.time()), "feed": "wow-quests", "kind": "completed", "char": char,
+        at, basis = dated(d["at"] or None, d.get("at_basis"))
+        out.emit({"_time": iso(at), "feed": "wow-quests", "kind": "completed", "char": char,
                   "source": source, "source_id": f"quests:{key}:{digest}",
                   "_msg": f"{char}: {len(ids)} quests completed ({source})", "quest_ids": ids, "n": len(ids),
-                  "at_basis": d.get("at_basis"), **extra})
+                  "at_basis": basis, **extra})
 
 
 # Altoholic's DataStore_Talents (bundled in Altoholic_Forever, Thaoky,
@@ -1805,8 +1818,7 @@ def extract_gear(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> N
         seen[char] = digest
         at, basis = logout.get(char), None  # the logout is in Polestar's content: exact
         if at is None:
-            at, basis = observed(acct / "SavedVariables" / "Syndicator.lua", cdir / "Polestar.lua")
-            at = time.time() if at is None else at
+            at, basis = dated(*observed(acct / "SavedVariables" / "Syndicator.lua", cdir / "Polestar.lua"))
         profs = ", ".join(f"{p['name']} {p['rank']}" for p in g["professions"])
         # The id is the occurrence (content and capture time), not the content
         # alone: a sheet worn again later is a second record, and readers keep
@@ -1814,7 +1826,7 @@ def extract_gear(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> N
         # wowstats.stores.record_id). A resend of this line keeps it.
         out.emit({"_time": iso(at), "feed": "wow-gear", "char": char,
                   "source_id": f"gear:{char}:{digest}:{int(at)}", "at_basis": basis,
-                  "_msg": f"{char}: {len(g['items'])} items equipped"
+                  "_msg": f"{char}: {len(g.get('items') or [])} items equipped"
                           + (f", item level {g['item_level']}" if g["item_level"] else "")
                           + (f"; {profs}" if profs else ""),
                   **g})
@@ -1836,12 +1848,17 @@ def inventory_of(acct: Path, char: str) -> dict | None:
     """Which items the character holds in its bags and its bank, by ID only,
     from Syndicator (the bank as it was the last time the character opened
     it). None when Syndicator doesn't know the character or hasn't scanned
-    its bags yet (no containers); empty lists when it holds nothing."""
+    its bags yet (no containers); empty lists when it holds nothing. `bank`
+    None (left out of the event) when Syndicator holds no bank containers:
+    a bank never opened is unknown, and an empty list would read as "holds
+    nothing" and erase an earlier read (evidence properties (d), (e))."""
     synd = next(iter(read_sv_versions(acct / "SavedVariables" / "Syndicator.lua")), None) or {}
     for c in (((synd.get("SYNDICATOR_DATA") or {}).get("Characters")) or {}).values():
         det = (c or {}).get("details") or {}
         if isinstance(det, dict) and char_of(str(det.get("character") or "")) == char:
-            return {"bags": _item_ids(c.get("bags")), "bank": _item_ids(c.get("bank"))} if c.get("bags") else None
+            if not c.get("bags"):
+                return None
+            return {"bags": _item_ids(c.get("bags")), "bank": _item_ids(c.get("bank")) if c.get("bank") else None}
     return None
 
 
@@ -1858,11 +1875,12 @@ def extract_inventory(acct: Path, chars: dict[str, dict], state: dict, out: Out)
         if seen.get(char) == digest:
             continue
         seen[char] = digest
-        at, basis = observed(acct / "SavedVariables" / "Syndicator.lua")
-        at = time.time() if at is None else at
+        at, basis = dated(*observed(acct / "SavedVariables" / "Syndicator.lua"))
         out.emit({"_time": iso(at), "feed": "wow-bags", "char": char, "source_id": f"bags:{char}:{digest}",
                   "at_basis": basis,
-                  "_msg": f"{char}: {len(inv['bags'])} items in the bags, {len(inv['bank'])} in the bank", **inv})
+                  "_msg": f"{char}: {len(inv['bags'])} items in the bags, "
+                          + (f"{len(inv['bank'])} in the bank" if inv["bank"] is not None else "the bank not seen"),
+                  **inv})
 
 
 # ---------------------------------------------------------------------------
