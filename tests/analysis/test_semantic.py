@@ -6,6 +6,7 @@ The reference answer: Testchar-Demo's slowest level is 30, 11,240 s played
 
 from __future__ import annotations
 
+import itertools
 import json
 import subprocess
 import sys
@@ -107,6 +108,24 @@ def test_metrics_of_two_models_aggregate_apart_then_join(demo):
         assert (r["kills"] or 0) == kills.get(r["level"], 0)
     sql = ask(demo, metrics=["online_s", "played_s"], group_by=["level"])["sql"]
     assert "FULL OUTER JOIN" in sql and "sem_timeline" in sql and "sem_levels" in sql
+
+
+def test_the_order_of_the_models_never_changes_the_rows(demo):
+    """Three models with a sparse one (dungeon runs: a few levels only):
+    every order of the metrics gives the same rows, one per level. Joining
+    each model on the first one's keys split a level in two whenever the
+    first model had no row for it (review 2026-11-21, A)."""
+    names = ["run_s", "played_s", "online_s"]
+    want = None
+    for order in itertools.permutations(names):
+        got = table(ask(demo, metrics=list(order), group_by=["level"]))
+        levels = [r["level"] for r in got]
+        assert len(levels) == len(set(levels)), (order, levels)
+        rows = sorted(tuple(r[c] for c in ["level", *names]) for r in got)
+        want = want or rows
+        assert rows == want, order
+    runs = {r[0] for r in want if r[1] is not None}
+    assert 0 < len(runs) < len(want)  # the first model really is sparse
 
 
 def test_a_week_is_the_sum_of_its_days(demo):

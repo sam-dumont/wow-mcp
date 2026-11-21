@@ -280,9 +280,14 @@ class Layer:
         dims = q["group_by"]
         names = list(parts)
         ctes = ",\n".join(f'm{i} AS (\n{parts[m]}\n)' for i, m in enumerate(names))
+        def key(d: str, n: int) -> str:
+            """Dimension d of the row joined so far from m0..m(n-1): the first
+            model that has it. A sparse model (dungeon runs) leaves its own
+            column NULL on the others' rows."""
+            return f'COALESCE({", ".join(f"m{i}.{_q(d)}" for i in range(n))})' if n > 1 else f"m0.{_q(d)}"
+
         def col(d: str) -> str:
-            c = f'COALESCE({", ".join(f"m{i}.{_q(d)}" for i in range(len(names)))})' if len(names) > 1 \
-                else f"m0.{_q(d)}"
+            c = key(d, len(names))
             # A day, week or month comes out as its first day: 2026-11-09, not a midnight timestamp.
             return f"CAST({c} AS DATE) AS {_q(out(d))}" if d == "time" else f"{c} AS {_q(out(d))}"
 
@@ -298,7 +303,10 @@ class Layer:
                 sel.append(f"{base_col(m['name'])} AS {_q(m['name'])}")
         frm = "m0"
         for i in range(1, len(names)):
-            on = " AND ".join(f"m0.{_q(d)} IS NOT DISTINCT FROM m{i}.{_q(d)}" for d in dims) or "TRUE"
+            # On the keys of everything joined before, not m0's alone: a level
+            # m0 lacks would otherwise match nothing in m2 and split in two
+            # (review 2026-11-21, A).
+            on = " AND ".join(f"{key(d, i)} IS NOT DISTINCT FROM m{i}.{_q(d)}" for d in dims) or "TRUE"
             frm += f" FULL OUTER JOIN m{i} ON {on}"
         order = q["order_by"] or [(d, "asc") for d in dims]
         ob = ", ".join(f"{_q(out(n))} {d.upper()} NULLS LAST" for n, d in order)
