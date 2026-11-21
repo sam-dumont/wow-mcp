@@ -12,7 +12,7 @@ install command exist for. Set it up once you have [HTTPS](reverse-proxy.md) and
 ## What each friend gets
 
 - An account at your identity provider (you make it there), and a name for their page's address
-  (you pick it, in the friends list).
+  (you pick it in the friends list, or it comes from their BattleTag).
 - Their own start page with a personal install command, their own upload password, page,
   sealed `/zogzog/` link, public page (off until they switch it on) and AI connection.
 - Their own data, in their own tenant (a separate partition) of a VictoriaLogs for friends.
@@ -48,19 +48,23 @@ The extra paths to route: [HTTP endpoints](../reference/http-endpoints.md#extra-
 
 ## The friends list
 
-A JSON file mapping each friend's `sub` at your identity provider to the name you give them (2
-to 20 of a-z and 0-9), which becomes their page's address:
+A JSON file with each friend's `sub` at your identity provider, mapped to the name you give
+them (2 to 24 of a-z and 0-9, one hyphen inside at most), which becomes their page's address:
 
 ```json
-{"3f2c9a10-5b7e-4c1d-9a8f-2e6b4d0c7a11": "frostbolt", "8d1e4f27-0c3a-4b9e-b5d2-7f6a1c9e3b40": "moonfire"}
+{"3f2c9a10-5b7e-4c1d-9a8f-2e6b4d0c7a11": "frostbolt", "8d1e4f27-0c3a-4b9e-b5d2-7f6a1c9e3b40": ""}
 ```
+
+An empty name (`""` or `null`), or a plain list of subs (`["3f2c9a10-...", "8d1e4f27-..."]`),
+leaves the name to the login: see [Names from the BattleTag](#names-from-the-battletag).
 
 The full view reads it at start and watches it while it runs: a change applies within about
 10 seconds of the file changing, **without a restart**. Don't restart the server for a new
 friend; nobody gets logged out. The same pass runs every 2 minutes anyway
 (`FRIENDS_RECONCILE_S`), to retry anything that failed.
 
-- **A new entry** gets a tenant with that name before their first login.
+- **A new entry** gets a tenant with that name before their first login. One without a name
+  gets it at their first login.
 - **A removed entry** is switched off and offboarded on the spot: their events, settings,
   upload password and pages go. Their next login is refused.
 - **`{}`** means nobody: every friend is offboarded.
@@ -88,14 +92,15 @@ everyone.
 ### You pick each friend's name
 
 The name in the list is where a friend's page address comes from. Friends don't choose it, and
-the app reads no username, email or claim from the login to make one. Pick a handle
+the app reads no username or email from the login to make one (the BattleTag is the one
+exception, below). Pick a handle
 (`frostbolt`, not a real name) and tell them what it is when you send the invite. It can't
 change once it's set: their links would break. Changing it in the list later only logs
 `slug_kept`.
 
 | Your accounts live in | The `sub` (the key) | The name (the value) |
 |---|---|---|
-| ZITADEL | the user's ID, on the user's page in the console | their ZITADEL username: render the list from the users holding your project's role, with the username as the value. Make each friend's username 2 to 20 of a-z and 0-9 |
+| ZITADEL | the user's ID, on the user's page in the console | their ZITADEL username: render the list from the users holding your project's role, with the username as the value when it's a valid name and `""` otherwise (Battle.net accounts: [Names from the BattleTag](#names-from-the-battletag)) |
 | Keycloak | the user's ID (`kcadm.sh get users -r <realm> -q username=<name> --fields id`) | whatever you write, or the username if a script renders the list from the admin API |
 | authentik, Authelia or another OIDC provider | what the provider sends as `sub` for that user: it depends on the provider's subject setting, so read it off one login's ID token | whatever you write, or copied by a script from the provider's API |
 
@@ -105,6 +110,41 @@ A clash is your mistake to fix, not theirs: the app logs one `name_conflict` lin
 name and the reason, `/admin` and `wow-stats users list` show it as a name conflict, and that friend's
 start page says their address needs a fix from you, with nothing for them to do. Change the
 name in the list and the next pass gives it to them; their page carries on by itself.
+
+### Names from the BattleTag
+
+With a Battle.net login you don't have to pick names at all. Tell the app which header your
+login proxy puts the BattleTag in (`PROXY_BATTLETAG_HEADER`), leave the friend's name empty in
+the list, and their first login names their page: the BattleTag's name in a-z and 0-9 (accents
+dropped, 12 characters at most, `player` when nothing is left), a hyphen, then 4 hex characters
+of an HMAC of the whole BattleTag. `Pétrel#4821` becomes something like `petrel-3f9a`.
+
+- **Never the `#4821`.** With the number, anyone who reads the address can add your friend on
+  Battle.net. The hash comes from the whole tag, so two `Pétrel`s still get two names.
+- **The key** is `slug-key` in `WOW_STATE_DIR`, made on the first start (0600). Without it
+  nobody can work out a name from a BattleTag or confirm a guess. Back it up with the rest of
+  the folder; if it's lost, only names given after that change.
+- **Taken or reserved** (rare): the hash grows to 6, then 8 characters.
+- **Same tag, same name**, every time. Read at that one login, never stored: `users.json` keeps
+  the name only.
+- **A name in the list wins**, and a name already given never changes, whatever the list or the
+  BattleTag say later. Existing friends keep their addresses.
+- **No BattleTag** (a password login, no header set, a display name that isn't `Name#1234`): the
+  friend is in without an address, `/admin` shows "no name", and you give them one in the list.
+
+The proxy must set the header from the login and replace any copy the client sent, like the
+identity header. With ZITADEL, a Battle.net account's display name is its BattleTag when an
+Actions hook fills it ([How I run it](how-i-run-it.md#the-webhook-fills-in-the-blanks)): it
+arrives as the `name` claim with the `profile` scope. Traefik's traefikoidc plugin, for example:
+
+```yaml
+headers:
+  - name: X-Forwarded-BattleTag
+    value: "{{.Claims.name}}"
+```
+
+Only the web login names a page: the AI's login (the MCP) never sends the BattleTag, so a friend
+who connects their AI before opening their page gets their name at their first visit.
 
 ## Manage people
 

@@ -373,7 +373,7 @@ def _ai(ai: dict, base: str) -> str:
 def live_start_page(base: str = "") -> bytes:
     """/start: one hero per state (account.js shows one), the rest folded.
 
-    name    no address yet (the listed name clashed): whose fix it is.
+    name    no address yet (the listed name clashed, or none): whose fix it is.
     new     not installed: the install command is the hero, then the
             addon and the first play, one line each.
     wait    installed in the last 15 minutes, nothing yet: play.
@@ -405,13 +405,13 @@ def live_start_page(base: str = "") -> bytes:
 </ol>
 </section>"""
     # No address: the friends list gave this person a name that is taken or
-    # reserved. Friends never pick one (the owner sets it, 2026-11-19), so
-    # the page says whose fix it is and waits (the owner's own page: account.js).
+    # reserved, or none and their login brought no BattleTag to make one
+    # from. Friends never pick one (the owner sets it, 2026-11-19), so the
+    # page says whose fix it is and waits (the owner's own page: account.js).
     name = """<section class="hero" data-in="name" hidden>
 <h1 class="lamp wait" data-fill="name-head">Your page needs a fix</h1>
-<p class="lead" data-fill="name-lead">The name chosen for your page's address is already in use, and the person
-who runs this site has to change it. Nothing to do on your side: this page carries on by itself once it's
-fixed.</p>
+<p class="lead" data-fill="name-lead">Your page has no address yet, and the person who runs this site has to
+give it a name. Nothing to do on your side: this page carries on by itself once it's fixed.</p>
 </section>"""
     wait = """<section class="hero" data-in="wait" hidden>
 <h1 class="lamp wait">Installed. Now play</h1>
@@ -1291,7 +1291,7 @@ def route(h, t: T.Tenancy, u: T.User, app, path: str) -> bool:
             return True
         try:
             if path == "/api/me/install-code":
-                if not u.slug:  # the friends list gave a taken or reserved name
+                if not u.slug:  # a taken or reserved name, or none at all
                     raise T.TenancyError(f"your page's address needs a fix from {T.RUNS_IT} first")
                 if not t.public_url:
                     raise T.TenancyError("this install has no PUBLIC_URL: ask the owner")

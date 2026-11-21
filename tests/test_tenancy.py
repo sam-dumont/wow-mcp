@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import re
 import threading
 import urllib.parse
@@ -723,10 +724,12 @@ def test_screen_matches_the_vrl():
 def test_slug_rules(tmp_path):
     r = tenancy.Registry(tmp_path / "u.json")
     r.ensure("a")
-    for bad in ("a", "full", "x" * 21, "a-b", "a b", "été"):
+    for bad in ("a", "full", "x" * 25, "-ab", "ab-", "a--b", "a-b-c", "a b", "été"):
         with pytest.raises(tenancy.TenancyError):
             r.set_slug("a", bad)
     assert r.set_slug("a", "frost42").slug == "frost42"
+    r.ensure("c")
+    assert r.set_slug("c", "frost-3f9a").slug == "frost-3f9a"  # a derived slug's shape
     r.ensure("b")
     with pytest.raises(tenancy.TenancyError, match="taken"):
         r.set_slug("b", "frost42")
@@ -929,7 +932,8 @@ def test_a_friend_who_leaves_the_list_is_offboarded(listed, vl):
     assert t.registry.get(OWNER).owner and listed.get("/api/me", headers=as_user(OWNER))[0] == 200
 
 
-@pytest.mark.parametrize("content", [None, "", "not json", "[]", "null", '{"x": "Bad Slug"}', '{"x": 1}'])
+@pytest.mark.parametrize("content", [None, "", "not json", "null", '{"x": "Bad Slug"}', '{"x": 1}', "[1]",
+                                     '[""]', '"x"'])
 def test_an_unusable_list_changes_nothing(listed, vl, content):
     t = listed.t
     tenancy.reconcile(t)
@@ -943,7 +947,7 @@ def test_an_unusable_list_changes_nothing(listed, vl, content):
     assert all(u.active for u in t.registry.users())
 
 
-@pytest.mark.parametrize("content", ["{}", "{}\n", json.dumps({OWNER: "sam"})])
+@pytest.mark.parametrize("content", ["{}", "{}\n", "[]", json.dumps({OWNER: "sam"}), json.dumps([OWNER])])
 def test_an_empty_list_removes_the_last_friends(listed, vl, content):
     """A valid, parseable {} (Terraform with nobody left) means no friends:
     everyone listed before is offboarded. The old rule read it as a failed
@@ -1265,3 +1269,120 @@ def test_the_privacy_page_names_what_people_trust():
     page = account.privacy_page(False, {}).decode()
     assert "names of other players" in page and "AI provider" in page
     assert "runs what this server sends" in page
+
+
+# ---------------------------------------------------------------- slugs from a BattleTag (synthetic tags only)
+
+TAG, TAG_HEADER = "Pétrel#4821", "X-Forwarded-BattleTag"
+
+
+def as_bnet(sub, tag=TAG):
+    """The login proxy with the BattleTag claim forwarded: UTF-8 bytes on
+    the wire, as Traefik writes them (urllib sends str headers as Latin-1)."""
+    return {**as_user(sub), TAG_HEADER: tag.encode().decode("latin-1")}
+
+
+def test_a_derived_slug_is_the_name_and_a_keyed_hash():
+    key, other = b"k" * 32, b"o" * 32
+    first, six, eight = tenancy.derived_slugs(TAG, key)
+    assert re.fullmatch(r"petrel-[0-9a-f]{4}", first), first
+    assert six.startswith(first) and len(six) == len(first) + 2 and eight.startswith(six)
+    assert tenancy.derived_slugs(TAG, key) == [first, six, eight]  # stable
+    assert tenancy.derived_slugs(TAG, other)[0] != first  # the key is in it: not worked out from the tag
+    assert tenancy.derived_slugs("Pétrel#4822", key)[0] != first  # the whole tag, discriminator included
+    for tag in (TAG, "Zogzog#123456", "Ünïcödé#9999", "Тестов#4321", "Averyveryverylongname#11111"):
+        for s in tenancy.derived_slugs(tag, key):
+            assert tenancy.SLUG_RE.match(s) and tag.partition("#")[2] not in s, (tag, s)
+    assert tenancy.derived_slugs("Тестов#4321", key)[0].startswith("player-")
+    assert tenancy.derived_slugs("Averyveryverylongname#11111", key)[0].startswith("averyveryver-")
+    for not_a_tag in ("", "Sam Dumont", "sam@example.org", "Name#", "#1234", "Name#12ab", "Na#me#1234"):
+        assert tenancy.derived_slugs(not_a_tag, key) == [], not_a_tag
+
+
+def test_the_slug_key_is_made_once_and_kept(tmp_path):
+    k = tenancy.slug_key(tmp_path)
+    assert len(k) == 32 and tenancy.slug_key(tmp_path) == k
+    if os.name != "nt":
+        assert (tmp_path / "slug-key").stat().st_mode & 0o777 == 0o600
+
+
+@pytest.mark.parametrize("content", [[FRIEND], {FRIEND: ""}, {FRIEND: None}])
+def test_a_listed_friend_without_a_slug_is_named_from_their_battletag(server, vl, content):
+    t = server.t
+    t.battletag_header = TAG_HEADER
+    Path(t.friends_file).write_text(json.dumps(content))
+    assert tenancy.reconcile(t)["provisioned"] == [] and t.registry.get(FRIEND) is None  # waits for the login
+    code, _, body = server.get("/api/me", headers=as_bnet(FRIEND))
+    want = tenancy.derived_slugs(TAG, t.slug_key)[0]
+    assert code == 200 and json.loads(body)["slug"] == want, body
+    assert "4821" not in want
+    # Stored: the slug. Never the BattleTag, in any form.
+    state = b"".join(p.read_bytes() for p in Path(t.state).rglob("*") if p.is_file())
+    assert b"4821" not in state and "Pétrel".encode() not in state and b"Petrel" not in state
+    # Another tag later (a renamed account) changes nothing: the address stays.
+    assert json.loads(server.get("/api/me", headers=as_bnet(FRIEND, "Other#5555"))[2])["slug"] == want
+    assert tenancy.reconcile(t)["provisioned"] == [] and t.registry.get(FRIEND).slug == want
+    assert f"{want}-wow.m.example" in {h["host"] for h in t.host_list()}
+    from wowstats import static
+
+    assert static.Site({"SITE_DIR": str(t.state / "site"), "SITE_DOMAIN": "m.example"}).slug_of(
+        f"{want}-wow.m.example") == want
+
+
+def test_a_taken_or_reserved_derived_slug_gets_a_longer_hash(server, vl):
+    t = server.t
+    t.battletag_header = TAG_HEADER
+    first, six, eight = tenancy.derived_slugs(TAG, t.slug_key)
+    Path(t.friends_file).write_text(json.dumps({"friend-3": first, FRIEND: ""}))
+    tenancy.reconcile(t)
+    assert t.registry.get("friend-3").slug == first
+    t.registry.reserved = t.registry.reserved | {six}  # as the owner's alias would
+    assert json.loads(server.get("/api/me", headers=as_bnet(FRIEND))[2])["slug"] == eight
+
+
+def test_an_explicit_slug_in_the_list_wins(server, vl):
+    t = server.t
+    t.battletag_header = TAG_HEADER
+    assert json.loads(server.get("/api/me", headers=as_bnet(FRIEND))[2])["slug"] == "mira"
+
+
+def test_an_existing_slug_is_kept(server, vl, capsys):
+    t = server.t
+    tenancy.reconcile(t)
+    assert t.registry.get(FRIEND).slug == "mira"
+    t.battletag_header = TAG_HEADER
+    Path(t.friends_file).write_text(json.dumps([FRIEND, "friend-3"]))  # the host now leaves names to the login
+    out = tenancy.reconcile(t)
+    assert out["provisioned"] == [] and out["removed"] == []
+    assert json.loads(server.get("/api/me", headers=as_bnet(FRIEND))[2])["slug"] == "mira"
+    assert t.registry.get("friend-3").slug == "pip" and '"slug_kept"' not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("header,sent", [("", TAG), (TAG_HEADER, None), (TAG_HEADER, "Mira Lastname")])
+def test_no_battletag_keeps_todays_behaviour(server, vl, capsys, header, sent):
+    """No header configured (a self-hoster without Battle.net), none sent,
+    or a display name that isn't a BattleTag: in, without an address, until
+    the list names them."""
+    t = server.t
+    t.battletag_header = header
+    Path(t.friends_file).write_text(json.dumps({FRIEND: ""}))
+    h = as_user(FRIEND) if sent is None else as_bnet(FRIEND, sent)
+    for _ in range(2):
+        code, _, body = server.get("/api/me", headers=h)
+        assert code == 200 and json.loads(body)["slug"] == ""
+    assert tenancy.name_conflict(t, t.registry.get(FRIEND), {FRIEND: ""}) == {"slug": "", "why": "no name"}
+    assert capsys.readouterr().out.count('"action": "name_conflict"') == 1
+    code, _, body = server.get("/api/me/install-code", headers={**h, "Content-Type": "application/json"},
+                               method="POST", data=b"{}")
+    assert code == 400 and b"needs a fix" in body
+    Path(t.friends_file).write_text(json.dumps({FRIEND: "mira"}))
+    assert tenancy.reconcile(t)["provisioned"] == ["mira"]
+    assert json.loads(server.get("/api/me", headers=h)[2])["slug"] == "mira"
+
+
+def test_the_friends_file_shapes(tmp_path):
+    f = tmp_path / "f.json"
+    for content, want in (([FRIEND, "b"], {FRIEND: "", "b": ""}), ({FRIEND: "mira", "b": ""}, {FRIEND: "mira", "b": ""}),
+                          ({FRIEND: None}, {FRIEND: ""}), ({FRIEND: "frost-3f9a"}, {FRIEND: "frost-3f9a"})):
+        f.write_text(json.dumps(content))
+        assert tenancy.read_friends(str(f)) == want, content

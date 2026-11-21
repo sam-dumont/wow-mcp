@@ -382,7 +382,8 @@ def _row(p: dict, now: float, has_analysis: bool = False) -> str:
 
     clash = p.get("name_conflict")
     # A clash is the owner's fix (friends never pick a name): say which name, and why.
-    name = (f'name conflict: <code>{escape(clash["slug"])}</code> ({escape(clash["why"])})' if clash else
+    name = ("no name: none in the list, no BattleTag at sign-in" if clash and not clash["slug"] else
+            f'name conflict: <code>{escape(clash["slug"])}</code> ({escape(clash["why"])})' if clash else
             escape(p["slug"] or "(no name yet)")) + (' <span class="tag">owner</span>' if p["owner"] else "")
     flags = "".join(f'<span class="flag">{escape(f)}</span>' for f in p["stale"])
     if p["error"]:

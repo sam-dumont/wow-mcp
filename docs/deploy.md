@@ -536,7 +536,7 @@ the standard library has none). Everything else stays standard library.
 VictoriaLogs tenant (`AccountID`), state, ingest token and zogzog key. The
 owner stays tenant 0 on the original store.
 
-**The friends list.** With `WOW_FRIENDS_FILE` (`{"<sub>": "<slug>"}`, rendered by
+**The friends list.** With `WOW_FRIENDS_FILE` (`{"<sub>": "<slug>"}`, the slug possibly `""`, rendered by
 whatever manages your accounts, from a group in your identity provider for
 instance), the list alone decides who is
 a friend. The full view reads it at start and watches it while it runs
@@ -581,7 +581,7 @@ friends list is the lock either way.
 | `WOW_STATE_DIR` | the registry (`users.json`, 0600) and each person's state, on a volume |
 | `WOW_OWNER_SUB` | the owner's login id |
 | `WOW_OWNER_SLUG` (empty by default: set your own), `WOW_OWNER_ALIASES` | the owner's site name, and hosts that are theirs too (`wow.example.org`): all reserved for them. Pages never print it to friends: they say "the person who runs this site" |
-| `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}`, watched for changes (mount its folder, not the file); how often a full pass runs anyway. Unset: the owner only |
+| `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}` (a slug may be `""`, or a plain list of subs: named from `PROXY_BATTLETAG_HEADER` at the first login), watched for changes (mount its folder, not the file); how often a full pass runs anyway. Unset: the owner only |
 | `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends |
 | `FRIENDS_VL_DELETE_KEY_FILE` | its `-deleteAuthKey`, for `wow-stats users delete` |
 | `ZOGZOG_MASTER_KEY_FILE` | 32+ random bytes, base64url: each person's zogzog key is derived from it. The owner's `ZOGZOG_KEY_FILE` only seeds their first link: after "Make a new link" their key is derived too, so the full view and the publisher agree without sharing a file |
@@ -591,6 +591,7 @@ friends list is the lock either way.
 | `PRIVACY_LOG_DAYS` (empty) | how long your logs keep a request: the web server's access log in front of the app and the app's own log, whichever keeps longer. For the privacy page ("These lines are kept N days"). Empty: the page tells friends to ask you |
 | `PLAUSIBLE_DOMAIN` (on the full view too) | set it here as on the publisher: every full-view page counts, and the privacy page says what Plausible gets ("Visitor counts" above) |
 | `PROXY_USER_HEADER` | default `X-Forwarded-User`; believed only from the proxy (`PROXY_TRUSTED_CIDRS`, `PROXY_SECRET_FILE`: "Behind a reverse proxy") |
+| `PROXY_BATTLETAG_HEADER` | empty by default; the header the proxy puts the BattleTag in, to name a listed friend with no slug at their first login (`name-3f9a`, never the `#1234`: docs/self-host/friends.md, "Names from the BattleTag"). The proxy replaces any copy the client sent |
 | `DOH_URL` | a DNS-over-HTTPS resolver to tell whether a friend's host resolves yet (egress to it) |
 
 Routes added to the full view: `/start` (set up, then "is it working?"; the whole manual at `/start/print`),
