@@ -1166,20 +1166,14 @@ def armory_item_level(items: list[dict]) -> float | None:
 
 
 def add_armory(gear: dict, armory: dict) -> None:
-    """The armory's item level and, when Battle.net has one, that its
-    full-body render exists (the address stays server side: the publisher
-    downloads the image, the live view serves it at /render/<char>.jpg)."""
+    """The armory's item level. gear.render (the picture: our own still of
+    the 3D model, wowstats.armory) is filled where it exists: by the
+    publisher in a bundle, by the live view when it reads the static site."""
     bnet = armory.get("item_level")
     mine = armory_item_level(gear.get("items") or [])
     gear["armory_item_level"] = int(bnet) if bnet is not None else (int(mine) if mine is not None else None)
     gear["armory_item_level_source"] = "battle.net" if bnet is not None else "computed" if mine is not None else None
-    r = armory.get("render")
-    if r:
-        from wowstats import armory
-
-        r = {"asset": r.get("asset"), "refreshed": r.get("refreshed"), "ext": armory.ext(r["url"])} \
-            if armory.allowed(r.get("url") or "") else None
-    gear["render"] = r
+    gear["render"] = None
 
 
 def build_climb(levels: list[dict], dings: list[dict]) -> list[dict]:

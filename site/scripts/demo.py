@@ -18,7 +18,7 @@ them as VM_URL, RENDER_URL and RENDER_TOKEN_FILE. Steps:
    person's store (MODEL3D_ASSETS_DIR);
 5. wowstats.publish, as `wow-stats publish --force`: item cards and icons
    from wago.tools, the 3D view from the store, each level's picture from
-   the renderer;
+   the renderer, and the paperdoll's still too;
 6. <out>/ the public bundle, <out>/zogzog/ the sealed one, <out>/friends/
    a page that opens it with the demo's key.
 
@@ -49,7 +49,7 @@ sys.path.insert(0, str(ROOT / "tools" / "fixtures"))
 import generate  # noqa: E402
 import golden3d  # noqa: E402
 
-from wowstats import armory, ingest, pictures, publish, ui  # noqa: E402
+from wowstats import ingest, publish  # noqa: E402
 
 DEMO_KEY = base64.urlsafe_b64encode(hashlib.sha256(b"wow-stats public demo").digest()).rstrip(b"=").decode()
 
@@ -96,46 +96,6 @@ def send_metrics(vm: str, series: list[dict], probe: str = "wow_character_talent
     raise SystemExit("demo: VictoriaMetrics shows none of the Battle.net series after a minute")
 
 
-def png_of(webp: bytes) -> bytes:
-    """The renderer's WebP as a PNG with its alpha (the armory's renders
-    are PNG or JPEG), through Chromium: the project has no image library."""
-    from playwright.sync_api import sync_playwright
-
-    src = "data:image/webp;base64," + base64.b64encode(webp).decode()
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch()
-        try:
-            page = browser.new_page()
-            page.set_content(f'<body style="margin:0;background:transparent"><img id="i" src="{src}"></body>')
-            page.wait_for_function("() => document.getElementById('i').complete")
-            return page.locator("#i").screenshot(type="png", omit_background=True)
-        finally:
-            browser.close()
-
-
-def armory_render(env: dict, vm: str) -> bool:
-    """The demo character's armory render. A real install downloads
-    Battle.net's (wowstats.armory, the exporter's wow_character_render);
-    the demo's is drawn by the product's renderer (wowstats.pictures) from
-    the golden files in the character's current look and outfit, and left
-    in the armory cache under the series' address, where armory.fetch reads
-    it first. Then the series, so the publisher's put_render finds it."""
-    base = {**env, "BIND": "127.0.0.1", "AUTH": "none", "MCP_PUBLIC_URL": "", "MCP_AUTH": "", "VIEW": "full"}
-    full = ui.App(base)
-    ans = publish.model_answer(full, generate.DEMO, None)
-    pics = pictures.Pictures(env, Path(env["MODEL3D_CACHE_DIR"]) / "stills")
-    webp = pics.get(ans, publish.store_reader(full))
-    if not isinstance(webp, bytes):
-        print(f"demo: no armory render: the renderer drew nothing ({webp or ans.get('why')})")
-        return False
-    url = generate.BNET_RENDER_URL
-    cache = armory.cache_dir(env)
-    cache.mkdir(parents=True, exist_ok=True)
-    (cache / (hashlib.sha256(url.encode()).hexdigest()[:32] + "." + armory.ext(url))).write_bytes(png_of(webp))
-    send_metrics(vm, generate.bnet_render_series(time.time()), "wow_character_render")
-    return True
-
-
 def friends_page(key: str) -> bytes:
     # The friends' link with the key in its fragment, which never reaches a server.
     return f"""<!doctype html>
@@ -171,13 +131,8 @@ def main(argv: list[str]) -> int:
                # Every level's picture in this one build: the publisher's
                # budget is for a server that builds again in ten minutes.
                "RENDER_URL": os.environ.get("RENDER_URL", ""), "RENDER_BUDGET_S": "900"}
-        # armory.fetch reads its cache from the process environment, not the
-        # publisher's env.
-        os.environ["MODEL3D_CACHE_DIR"] = env["MODEL3D_CACHE_DIR"]
-        if vm and env["RENDER_URL"]:
-            armory_render(env, vm)
-        else:
-            print("demo: no RENDER_URL, so no armory render or level pictures")
+        if not env["RENDER_URL"]:
+            print("demo: no RENDER_URL, so no picture: the paperdoll and each level show the 3D toggle")
         res = publish.publish(env, force=True)
         if not res.get("built"):
             raise SystemExit(f"demo: the publisher built nothing: {res}")

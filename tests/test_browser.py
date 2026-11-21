@@ -43,27 +43,35 @@ def png(w=6, h=12) -> bytes:
             + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
 
 
-# Battle.net's main-raw render, as it really is: a 1600x1200 transparent
-# canvas, the character a 308x456 box in its lower middle (Testpriest's, live).
+# The paperdoll's still (wowstats.armory: our renderer's picture of the 3D
+# model) is framed on its own opaque box: a 1600x1200 transparent canvas
+# with the character a 308x456 box in its lower middle, as Battle.net's
+# renders were and as a still can be.
 BODY = (659, 519, 967, 975)
 
 
-def main_raw(w=1600, hgt=1200, box=BODY) -> bytes:
-    import struct
-    import zlib
+def still_webp(w=1600, hgt=1200, box=BODY) -> bytes:
+    """That still as a WebP with alpha, drawn by Chromium (the project has no
+    image library): synthetic, no game file."""
+    import base64
 
-    def chunk(t, d):
-        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
     x0, y0, x1, y1 = box
-    clear, body = b"\x00\x00\x00\x00", b"\x80\x40\x20\xff"
-    row_in = b"\x00" + clear * x0 + body * (x1 - x0) + clear * (w - x1)
-    row_out = b"\x00" + clear * w
-    raw = b"".join(row_in if y0 <= y < y1 else row_out for y in range(hgt))
-    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, hgt, 8, 6, 0, 0, 0))
-            + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
-
-
-RENDER_URL = "https://render.worldofwarcraft.com/classic-eu/character/x/1/2-main-raw.png"
+    with sync_api.sync_playwright() as p:
+        try:
+            b = p.chromium.launch()
+        except Exception as e:  # noqa: BLE001 - browsers not installed
+            pytest.skip(f"no Chromium: {e}")
+        try:
+            url = b.new_page().evaluate(
+                """([w, h, x0, y0, x1, y1]) => { const c = document.createElement('canvas');
+                   c.width = w; c.height = h; const g = c.getContext('2d');
+                   g.fillStyle = 'rgb(128,64,32)'; g.fillRect(x0, y0, x1 - x0, y1 - y0);
+                   return c.toDataURL('image/webp', 1); }""", [w, hgt, x0, y0, x1, y1])
+        finally:
+            b.close()
+    body = base64.b64decode(url.split(",", 1)[1])
+    assert armory.kind(body) == "webp", url[:40]
+    return body
 
 
 NO_ICON = 5820  # the client tables have no icon for it: the game's question mark
@@ -104,16 +112,23 @@ def served(tmp_path_factory):
         s._http_profile = True  # the real reader, over the faked HTTP
         return s
 
-    # vm-wow holds a render, read by the real Store.character_armory (the
-    # publisher's own path: 0.2.2's public bundle lost it there).
+    # vm-wow still holds an older exporter's Blizzard render address: never
+    # read, never downloaded (owner, 2026-11-21: the picture is ours only).
     def http_get(url, params=None, *a, **k):
         q = (params or {}).get("query", "")
-        rows = ([{"metric": {"asset": "main-raw", "url": RENDER_URL}, "value": [1763460000, "1763460000"]}]
-                if "wow_character_render" in q else [])
-        return json.dumps({"data": {"result": rows}}).encode()
+        assert "wow_character_render" not in q, q
+        return json.dumps({"data": {"result": []}}).encode()
 
     mp.setattr(stores, "http_get", http_get)
-    mp.setattr(armory, "_get", lambda url, timeout=30: main_raw() if url == RENDER_URL else None)
+    # The still as the publisher puts it (tests/test_pictures.py runs the
+    # real renderer path): a synthetic WebP in both bundles.
+    still = still_webp()
+
+    def put_still(b, full_app, pics, name):
+        b.put(armory.rel(name), still)
+        return {"ext": "webp"}
+
+    mp.setattr(publish, "put_still", put_still)
     mp.setattr(ui, "Store", store)
     mp.setattr(itemcard, "shared", lambda: Catalog())
     mp.setenv("WOW_ITEMS", "off")
@@ -313,19 +328,23 @@ def test_keyboard_opens_and_escape_closes(served, browser):
 
 
 @pytest.mark.parametrize("bundle", ["public", "zogzog"])
-def test_the_paperdoll_shows_the_armory_render(served, browser, bundle):
+def test_the_paperdoll_shows_our_still(served, browser, bundle):
     """The publisher's real output, in Chromium: the middle of the paperdoll
-    is the render vm-wow named, drawn (not the silhouette), in both
-    bundles; on /zogzog/ decrypted from the sealed copy."""
+    is our still of the 3D model, drawn (not the silhouette), in both
+    bundles; on /zogzog/ decrypted from the sealed copy. Nothing is asked
+    of Blizzard's render host."""
     base, key = served
     c, pg, seen, _ = page_with_plausible(browser, viewport={"width": 1280, "height": 900})
     pg.goto(f"{base}/{'' if bundle == 'public' else 'zogzog/'}#{key if bundle == 'zogzog' else ''}")
     wait_count(pg, ".slotitm")
     to_gear(pg)
     wait_count(pg, ".stage .still.has-render img.render", 1)
-    assert pg.locator(".stage .still.has-render img.render").evaluate("i => i.naturalWidth") > 0
+    img = pg.locator(".stage .still.has-render img.render")
+    assert img.evaluate("i => i.naturalWidth") > 0
+    assert img.get_attribute("alt").endswith("as the 3D view shows them")
     if bundle == "public":
-        assert any(u.endswith("/data/render/Hero-Test.png") for u in seen), seen
+        assert any(u.endswith("/data/render/Hero-Test.webp") for u in seen), seen
+    assert not [u for u in seen if "worldofwarcraft" in u or u.endswith(".png") and "/render/" in u], seen
     # One item level, and the line under it says what it is (2026-11-19: the
     # armory's "23" stood over "27.6 average of the items worn").
     ilvl = pg.locator(".dollfoot .ilvl")
@@ -504,12 +523,40 @@ def test_help_badges_are_one_line_tall(served, pw, engine, width):
     b.close()
 
 
+@pytest.mark.parametrize("case", ["pending", "missing"])
+def test_without_our_still_the_paperdoll_shows_no_image(served, browser, case):
+    """Our still not drawn yet (the renderer down or busy), or gone: the
+    silhouette and the way to the 3D view, never another picture."""
+    base, _ = served
+    c, pg, seen, _ = page_with_plausible(browser, viewport={"width": 1280, "height": 900})
+    if case == "pending":
+        def pending(route):
+            d = json.loads(route.fetch().text())
+            d["gear"]["render"] = {"ext": None, "pending": True}
+            route.fulfill(status=200, body=json.dumps(d), content_type="application/json")
+        c.route(re.compile(r".*/data/char/[^/]+\.json$"), pending)
+    else:
+        c.route(re.compile(r".*/data/render/.*"), lambda r: r.fulfill(status=404, body="not found"))
+    pg.goto(f"{base}/")
+    wait_count(pg, ".slotitm")
+    to_gear(pg)
+    wait_count(pg, ".stage .still .figure", 1)
+    if case == "pending":
+        wait_count(pg, ".stage .still.pending .stillnote", 1)
+        assert "View it in 3D" in pg.locator(".stage .stillnote").inner_text()
+        assert not [u for u in seen if "/data/render/" in u], seen
+    else:
+        pg.wait_for_timeout(500)
+    assert pg.locator(".stage img").count() == 0
+    c.close()
+
+
 @pytest.mark.parametrize("width", [390, 1440, 1920])
 @pytest.mark.parametrize("bundle", ["public", "zogzog"])
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
 def test_render_fills_the_stage_like_the_3d_model(served, pw, engine, bundle, width):
-    """0.3.0 drew the main-raw render's whole 1600x1200 canvas in the
-    portrait stage: the character ~17% of its height, at the bottom. Framed
+    """0.3.0 drew a render's whole 1600x1200 canvas in the portrait
+    stage: the character ~17% of its height, at the bottom. Framed
     on its own box it stands where the 3D model does (about half the stage,
     centred, feet above the toggle), never past one image pixel per CSS px."""
     base, key = served

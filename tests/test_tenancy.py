@@ -260,7 +260,7 @@ ROUTES = ["/", "/start", "/start/print", "/settings", "/api/config", "/api/chars
           urllib.parse.quote("char:Testpriest* or *"), "/api/admin/hosts"]
 PER_CHAR = ["/api/char?name={c}", "/api/journal?name={c}", "/api/overview?name={c}", "/api/timeline?name={c}",
             "/api/snapshot?name={c}&level=12", "/api/people?name={c}", "/api/loot?name={c}", "/api/gear?name={c}",
-            "/api/plan?char={c}", "/render/{c}.png"]
+            "/api/plan?char={c}", "/render/{c}.webp"]
 
 
 def test_friend_sees_only_their_own_data(server, vl):
@@ -1120,19 +1120,20 @@ def test_a_clip_answers_byte_ranges(rng, code, body, crange):
 
 
 def test_full_view_reads_each_persons_render_from_their_own_site(env, run_app, tmp_path):
-    """The full view has no route to Blizzard: /render/<char>.<ext> comes from
-    the static server (RENDER_FROM), which answers by Host. The owner's comes
+    """The full view has no renderer: /render/<char>.webp (the publisher's
+    still of the 3D model) comes from the static server (RENDER_FROM),
+    which answers by Host. The owner's comes
     from his public bundle (wow.m), a friend whose page isn't public from
     their sealed /zogzog/ copy. Before 2026-11-19 the request named no host:
     a 404 for everyone, and the paperdoll kept its silhouette."""
     pytest.importorskip("cryptography")
     from wowstats import static
 
-    png = b"\x89PNG\r\n\x1a\n" + b"x" * 64
+    png = b"RIFF\x00\x00\x00\x00WEBPVP8L" + b"x" * 64  # our still: a WebP
     site_dir = tmp_path / "site"
     own = site_dir / "sam" / "b1" / "public" / "data" / "render"
     own.mkdir(parents=True)
-    (own / f"{A_CHAR}.png").write_bytes(png)
+    (own / f"{A_CHAR}.webp").write_bytes(png)
     (site_dir / "sam" / "current").symlink_to("b1")
     s = static.Site({"SITE_DIR": str(site_dir), "ZOGZOG_PATH": "/zogzog/", "SITE_DOMAIN": "m.example",
                      "SITE_ALIASES": "wow.m.example=sam"})
@@ -1149,27 +1150,33 @@ def test_full_view_reads_each_persons_render_from_their_own_site(env, run_app, t
         # The friend's bundle: /zogzog/ only (their page is off), sealed with their key.
         fu = t.registry.get(FRIEND)
         key = tenancy.person_key(e, fu.account_id, fu.zogzog_gen, False)
-        rel = f"data/render/{B_CHAR}.png"
+        rel = f"data/render/{B_CHAR}.webp"
         zz = site_dir / "mira" / "b1" / "zogzog"
         (zz / "data").mkdir(parents=True)
         (zz / publish.sealed_name(key, rel)).write_bytes(publish.seal(key, rel, png))
         (site_dir / "mira" / "current").symlink_to("b1")
 
-        code, hdrs, body = r.get(f"/render/{A_CHAR}.png", headers=as_user(OWNER))
+        code, hdrs, body = r.get(f"/render/{A_CHAR}.webp", headers=as_user(OWNER))
         assert (code, body) == (200, png)
-        code, _, body = r.get(f"/render/{B_CHAR}.png", headers=h)
+        assert hdrs.get("Content-Type") == "image/webp"
+        # The live answer points the page at it (the page keeps the 3D
+        # toggle when the publisher hasn't drawn it yet).
+        g = json.loads(r.get(f"/api/char?name={A_CHAR}", headers=as_user(OWNER))[2]).get("gear")
+        assert g["render"] == {"ext": "webp"}
+        code, _, body = r.get(f"/render/{B_CHAR}.webp", headers=h)
         assert (code, body) == (200, png)
         # Nobody reads another person's picture, by name or by site.
-        assert r.get(f"/render/{A_CHAR}.png", headers=h)[0] == 404
-        assert r.get(f"/render/{B_CHAR}.png", headers=as_user(OWNER))[0] == 404
+        assert r.get(f"/render/{A_CHAR}.webp", headers=h)[0] == 404
+        assert r.get(f"/render/{B_CHAR}.webp", headers=as_user(OWNER))[0] == 404
         # A wrong key opens nothing.
         (zz / publish.sealed_name(key, rel)).write_bytes(publish.seal(b"k" * 32, rel, png))
-        assert r.get(f"/render/{B_CHAR}.png", headers=h)[0] == 404
-        # A bundle from before 0.7.0 (the publisher not rebuilt yet): the plain name still opens.
-        (zz / publish.sealed_name(key, rel)).unlink()
-        (zz / "data" / "render").mkdir()
-        (zz / "data" / "render" / f"{B_CHAR}.png.enc").write_bytes(publish.seal(key, rel, png))
-        assert r.get(f"/render/{B_CHAR}.png", headers=h)[2] == png
+        assert r.get(f"/render/{B_CHAR}.webp", headers=h)[0] == 404
+        # Only our still is served: a PNG left in a bundle (Blizzard's render,
+        # 0.7.0-rc.4 and older) or under a .webp name is not ours.
+        (zz / publish.sealed_name(key, rel)).write_bytes(publish.seal(key, rel, b"\x89PNG\r\n\x1a\n" + b"x" * 64))
+        assert r.get(f"/render/{B_CHAR}.webp", headers=h)[0] == 404
+        (own / f"{A_CHAR}.png").write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 64)
+        assert r.get(f"/render/{A_CHAR}.png", headers=as_user(OWNER))[0] == 404
     finally:
         srv.shutdown()
         srv.server_close()

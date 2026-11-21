@@ -477,15 +477,17 @@ async function bundleImage(rel, mime) {
   for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
   return `data:${mime};base64,` + btoa(bin);
 }
-// The armory's full-body render (wowstats/armory.py), Battle.net's image of
-// the character: /render/<char>.<ext> live, data/render/<char>.<ext> in a
-// bundle. The silhouette stays when there is none.
-function renderSrc(char, r) {
-  return bundleImage(`render/${encodeURIComponent(char)}.${r.ext}`, r.ext === 'png' ? 'image/png' : 'image/jpeg');
+// The character's picture (wowstats/armory.py): our renderer's still of the
+// same 3D model the toggle shows, /render/<char>.webp live,
+// data/render/<char>.webp in a bundle. Never Blizzard's armory render: it
+// once showed a stranger in the character's place. None, or not drawn yet:
+// the silhouette and the 3D toggle.
+function renderSrc(char) {
+  return bundleImage(`render/${encodeURIComponent(char)}.webp`, 'image/webp');
 }
-// Battle.net's main-raw render is a 1600x1200 landscape canvas with the
-// character in a 300x460 box in its middle: scaled to fit a portrait stage
-// it came out ~100 px tall at the bottom (0.3.0). So the character's own
+// The still is a landscape canvas with the character in a box in its
+// middle (as Battle.net's renders were, 0.3.0): scaled to fit a portrait
+// stage it came out ~100 px tall at the bottom. So the character's own
 // box (the opaque pixels, read once from a small copy on a canvas) is framed
 // like the 3D viewer frames its model: about half the stage high, centred,
 // feet a little above the toggle (app.css .still.framed), never past one
@@ -524,10 +526,15 @@ function frameRender(box, img) {
 }
 function still(char, g) {
   const box = h('div', { class: 'still' }, figure());
-  if (g && g.render && /^(png|jpg)$/.test(g.render.ext || '')) {
-    renderSrc(char, g.render).then((src) => {
+  const r = g && g.render;
+  const meanwhile = () => box.append(h('p', { class: 'stillnote', text: 'Picture on its way. View it in 3D meanwhile.' }));
+  if (r && r.pending) {
+    box.classList.add('pending');
+    meanwhile();
+  } else if (r && r.ext === 'webp') {
+    renderSrc(char).then((src) => {
       if (!src) return;
-      const img = h('img', { class: 'render', alt: `${char.replace(/-.*$/, '')}, as the armory shows them`, src, decoding: 'async' });
+      const img = h('img', { class: 'render', alt: `${char.replace(/-.*$/, '')}, as the 3D view shows them`, src, decoding: 'async' });
       img.addEventListener('load', () => { frameRender(box, img); box.replaceChildren(img); box.classList.add('has-render'); });
     }).catch(() => {});
   }
@@ -535,7 +542,7 @@ function still(char, g) {
 }
 
 // A past level's picture (wowstats/pictures.py): the bundle's
-// data/picture/<char>/<level>.webp, framed like the armory's render, drawn
+// data/picture/<char>/<level>.webp, framed like the paperdoll's still, drawn
 // into `box` (the stage's .still, kept from level to level: the 3D script's
 // wowPastLevel). Not drawn yet: the silhouette, and the 3D toggle under it.
 function levelStill(box, char, level, pic) {

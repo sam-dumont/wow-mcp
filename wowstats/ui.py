@@ -85,9 +85,9 @@ STATIC = {
 # The game's item icons (wowstats.itemcard), full view only: the pod that
 # fetches them is the one with a route to Wowhead's icon host.
 ICON_PATH = re.compile(r"^/icons/(large|medium)/([a-z0-9_\-]{1,96})\.jpg$")
-# The armory's render of a character (wowstats.armory), both views: it is
-# Battle.net's public image, like the public bundle's copy.
-RENDER_PATH = re.compile(r"^/render/([^/]{1,80})\.(png|jpg)$")
+# The character's picture (wowstats.armory): our own still of its 3D model,
+# read from the static site, which the publisher fills.
+RENDER_PATH = re.compile(r"^/render/([^/]{1,80})\.webp$")
 # /fonts/<name>.woff2: the pages' own fonts (bar.FONTS; OFL, vendored in
 # web/fonts): no font CDN, CSP font-src 'self'.
 FONTS = {"/" + rel: rel for rel in bar.FONTS}
@@ -167,9 +167,13 @@ class App:
         self.env = env
         self.bind = env.get("BIND", "127.0.0.1")
         self.port = int(env.get("PORT", "8080"))
-        # The armory render's source when this pod can't reach Blizzard: the
-        # static site, whose public bundle holds it (wowstats.armory).
+        # Where the character's picture comes from: the static site, whose
+        # bundles hold the publisher's still of the 3D model (wowstats.armory).
+        # Empty: no picture, the page shows the 3D toggle.
         self.render_from = env.get("RENDER_FROM", "").strip()
+        from wowstats import armory
+
+        armory.forget_blizzard_cache(env)  # 0.7.0-rc.4 and older: Blizzard's renders, never shown again
         # With several people: () -> (the person's site host, their /zogzog/
         # key), set by wowstats.tenancy and read at each request (a new link
         # changes the key).
@@ -417,25 +421,26 @@ class App:
             return False
         return name in {c["char"] for c in self.cached("chars", lambda: {"chars": self.views.chars()})["chars"]}
 
-    def render(self, name: str, ext: str) -> bytes | None:
-        """The armory's render of a known character (/render/<char>.<ext>)."""
+    def render(self, name: str) -> bytes | None:
+        """The picture of a known character (/render/<char>.webp): the
+        publisher's still of its 3D model, from the static site."""
         from wowstats import armory
 
-        if not self.known(name):
+        if not self.render_from or not self.known(name):
             return None
-        if self.render_from:
-            host, key = self.render_site() if self.render_site else ("", None)
-            body = armory.from_site(self.render_from, name, ext, host=host, key=key, zogzog=self.zogzog_path)
-        else:
-            r = self.store.character_armory(name).get("render")
-            body = armory.fetch(r["url"]) if r and armory.ext(r["url"]) == ext else None
-        return body if armory.kind(body) == ext else None
+        host, key = self.render_site() if self.render_site else ("", None)
+        return armory.from_site(self.render_from, name, host=host, key=key, zogzog=self.zogzog_path)
 
     # The public view answers char, timeline and snapshot only (redact.PUBLIC);
     # journal, overview, gear advice and people are full-view answers.
 
     def char(self, name: str) -> dict:
         d = self.cached(f"char:{name}", lambda: self.views.char(name))
+        if self.render_from and isinstance(d.get("gear"), dict):
+            # The live view can't know whether the publisher has drawn the
+            # still yet: the page asks /render/<char>.webp and keeps the
+            # silhouette and the 3D toggle when there is none.
+            d = {**d, "gear": {**d["gear"], "render": {"ext": "webp"}}}
         if self.view == "full":
             return d
         return redact.char(d, *self.views.route_levels(d))
@@ -997,11 +1002,11 @@ def make_handler(root: App, tenancy=None):
                 m = RENDER_PATH.match(path)
                 if m:
                     name = urllib.parse.unquote(m.group(1))
-                    body = app.render(name, m.group(2)) if CHAR_RE.match(name) else None
+                    body = app.render(name) if CHAR_RE.match(name) else None
                     if body is None:
                         return self.not_found()
-                    return self.send(200, body, f"image/{'png' if m.group(2) == 'png' else 'jpeg'}",
-                                     "private, max-age=3600")
+                    # A new still (new gear) shows within 5 minutes.
+                    return self.send(200, body, "image/webp", "private, max-age=300")
                 if path == "/api/chars":
                     return self.json(200, app.api_chars())
                 if path == "/api/news" and full:

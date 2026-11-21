@@ -62,7 +62,7 @@ needed, so a long history comes back whole rather than cut.
 | `VL_URL` | `http://victorialogs:9428` | VictoriaLogs holding the events |
 | `VL_ARCHIVE_URL`, `VL_ARCHIVE_AFTER_DAYS` | empty, `89` | optional second VictoriaLogs for days older than that; empty: one store holds everything |
 | `LOGS_FILTER` | `feed:wow-*` | LogsQL filter that selects the events (add your own labels here) |
-| `VM_URL` | empty | VictoriaMetrics the exporter pushes to. With `VIEW=public` only the character profile is read from it (the armory render, Battle.net's item level, the talents: the card shows them); no market or prices, which are never public. The publisher builds the public bundle through that same reader, so the render reaches `data/render/` there |
+| `VM_URL` | empty | VictoriaMetrics the exporter pushes to. With `VIEW=public` only the character profile is read from it (the look, Battle.net's item level, the talents: the card shows them); no market or prices, which are never public |
 | `DEFAULT_CHAR` | empty (latest seen) | `Name-Surname` |
 | `WEIGHTS` | empty | the spec each character's gear is scored for, over what its add-ons say: `Testchar-Demo:shadow,Name-Surname:holy` (a spec key or name of the class). The page's own selector still wins. The card shows it next to the talents, which stay as the game has them |
 | `PRICE_DAYS` | `90` | days of Auctionator scans in the prices panel |
@@ -88,7 +88,7 @@ needed, so a long history comes back whole rather than cut.
 | `MCP_ALLOWED_ORIGINS` | empty | extra browser origins allowed on `/mcp` |
 | `MODEL3D` | `on` | the "View in 3D" toggle on the paperdoll (full view, and the static sites `publish` builds); drawn from the game files the person's shipper sends, nothing downloaded; `off` removes it and its routes, and the shipper stops sending them |
 | `WOW_ITEMS` | `on` | item names, icons and tooltip cards from Forever's tables on wago.tools (`ui` and `publish`); `off`: none of it is fetched, the pages show what the events carry. `MODEL3D=off` with `WOW_ITEMS=off` is the small preset: no upstream downloads at all, a cold cache and no internet still publish |
-| `RENDER_FROM` | empty | where this pod gets the armory's render of a character (`/render/<char>.<ext>`): empty, from Blizzard (`render.worldofwarcraft.com`); else the static site's address (a pod with no route to Blizzard). With several people the request names the person's own site (their host, as the static server maps it) and reads their public bundle, else their sealed `/zogzog/` copy, opened with their key, so a page that isn't public still shows its picture |
+| `RENDER_FROM` | empty | where this pod gets a character's picture (`/render/<char>.webp`): the publisher's still of the 3D model, read from the static site at that address; empty, no picture (the 3D toggle). With several people the request names the person's own site (their host, as the static server maps it) and reads their public bundle, else their sealed `/zogzog/` copy, opened with their key, so a page that isn't public still shows its picture |
 | `MODEL3D_ASSETS_DIR`, `MODEL3D_ASSETS_MB` | `<MODEL3D_CACHE_DIR>/assets`, `512` | where the game files each person's shipper sends for the 3D view are kept (with several people: `users/<id>/assets`, removed with the person), and how much one person's may take |
 | `MODEL3D_CACHE_DIR` | `<tmp>/wow-stats-model3d` | where the downloaded game tables and icons are kept |
 | `MODEL3D_WAGO_URL`, `MODEL3D_PRODUCT` | `https://wago.tools`, `wowf` | Forever's game tables for items, talents and the KB (tests point it at a local server) |
@@ -277,8 +277,8 @@ to that port without the proxy's login.
 The full view makes outbound requests from the server only:
 `wow.zamimg.com` (the item icons, cached on disk), `wago.tools` (Forever's
 item tables: display ids, the tooltips' cards, enchant names; checked once
-a day), and `render.worldofwarcraft.com` for the armory render unless
-`RENDER_FROM` is set. The browser only talks to this server. A public server
+a day), and the static site (`RENDER_FROM`) for the picture. The browser
+only talks to this server. A public server
 makes none.
 
 A typical pair behind a login proxy:
@@ -350,15 +350,15 @@ through VictoriaLogs:
    same way when it is built. The bundle is rebuilt at least once a day and
    the old one replaced, so no copy outlives the 30 days. The bundle holds the
    option and choice ids.
-5. The armory's render and item level: the exporter also reads
-   `/character-media` (the full-body `main-raw`, else `main`; only an https
-   address on `render.worldofwarcraft.com` is kept) and the profile's
-   `equipped_item_level`: `wow_character_render{character, asset, url}` =
-   the time it was read, `wow_character_item_level{character, kind}`. The
-   publisher downloads the image into the bundles (`data/render/<char>.<ext>`,
-   sealed in `/zogzog/`), caching it on disk 30 days at most; once the series
-   is gone from VictoriaMetrics the next build has no render and the page shows the
-   silhouette.
+5. The armory's item level: the profile's `equipped_item_level`,
+   `wow_character_item_level{character, kind}`. No `/character-media`:
+   Blizzard serves its renders on paths shared by character id across the
+   Classic games, and one showed a stranger in a character's place
+   (2026-11-21). The paperdoll's picture is our renderer's still of the 3D
+   model instead (`RENDER_URL`): the publisher draws it from the same answer
+   as the 3D view, keeps it per tenant, character and look (a new item draws
+   it again, 25 days at most), and puts it in the bundles
+   (`data/render/<char>.webp`, sealed in `/zogzog/`).
 
 ### Battle.net data and models
 
@@ -397,8 +397,8 @@ host through the login, and redirect the old paths (`/full/`, `/sesame/`,
 with `/full/` still works for a standalone install (docs/install.md).
 
 `publish` is the only part that talks to VictoriaLogs, the exporter's VictoriaMetrics, Wowhead's icon
-host (`wow.zamimg.com`), wago.tools and Blizzard's render host
-(`render.worldofwarcraft.com`). Every 10 minutes (`PUBLISH_INTERVAL`)
+host (`wow.zamimg.com`), wago.tools and the renderer (`RENDER_URL`).
+Every 10 minutes (`PUBLISH_INTERVAL`)
 it rebuilds when the newest event's time moved (after each play session: the
 shipper sends at logout and `/reload`), when the exporter's Battle.net data changed
 (the profile, the look, the equipment: a hash of their last readings), or when
@@ -524,8 +524,9 @@ hover, tap or Enter. The cards come from Forever's tables on wago.tools
 `SpellItemEnchantment`) plus Polestar's item stats; the publisher writes
 the cards and icons of the items each bundle names (`data/items.json`,
 `data/icon/<size>/<name>.jpg`, sealed in `/zogzog/`). The middle of the
-paperdoll is the armory's render (above), or a silhouette; "View in 3D"
-swaps it for the 3D model in place.
+paperdoll is our renderer's still of the 3D model (above), or a
+silhouette while there is none; "View in 3D" swaps it for the model in
+place.
 
 `publish` needs the image's `publish` extra (pyca/cryptography, for AES-GCM:
 the standard library has none). Everything else stays standard library.

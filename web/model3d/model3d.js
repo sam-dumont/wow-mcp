@@ -2,7 +2,7 @@
 // anything under /model3d/, to the public view.
 //
 // Adds a "3D" toggle to the middle of the paperdoll, as the armory does:
-// the still (Battle.net's render, or the silhouette) swaps in place for a
+// the still (our picture of this same model, or the silhouette) swaps in place for a
 // frame on /model3d/view, the page that runs our viewer (view.js, m3d/)
 // under its own CSP, and back. When the answer has nothing to draw (the
 // player's game files haven't come yet), the still stays, with why in one
@@ -326,7 +326,7 @@
       status.textContent = `${[d.race, d.sex || 'male'].filter(Boolean).join(' ')}, ${n} item${n === 1 ? '' : 's'} shown. Drag to turn it.`;
       const look = d.appearance;
       const when = look && look.refreshed ? new Date(look.refreshed).toLocaleDateString() : '';
-      const lines = [h('p', { text: look ? `Look from Battle.net${when ? `, refreshed ${when}` : ''}.`
+      const lines = [h('p', { text: look ? (when ? `Look as of ${when}.` : '')
         : 'Default look: Battle.net doesn’t know this character yet.' })];
       if (!d.sex_known) {
         const pick = h('select', { 'aria-label': 'Shown as' },

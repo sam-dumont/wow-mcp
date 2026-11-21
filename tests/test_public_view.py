@@ -161,7 +161,7 @@ def test_public_config_and_payload_shape(run_app):
     assert set(g) == {"item_level", "armory_item_level", "armory_item_level_source", "render", "items", "professions",
                       "items_from", "items_note"}
     assert g["items_from"] is None and g["items_note"] is None  # Syndicator's items: Battle.net isn't asked
-    # No vm-wow here: the armory's count is ours, no render.
+    # No vm-wow here: the armory's count is ours; no static site, no picture.
     assert g["armory_item_level_source"] == "computed" and g["render"] is None
     assert g["items"][0]["name"] == "Faerie Mantle" and g["items"][0]["quality"] == 2
     # The cap: no Recorder skill record here, so the trainer tier over 130
@@ -330,7 +330,7 @@ def test_live_public_view_hides_what_settings_hide(run_app, users_port):
     code, _, body = srv.get("/api/chars")
     assert code == 200 and [c["char"] for c in json.loads(body)["chars"]] == [CHAR]
     for path in (f"/api/char?name={HIDDEN}", f"/api/timeline?name={HIDDEN}",
-                 f"/api/snapshot?name={HIDDEN}&level=5", f"/render/{HIDDEN}.png"):
+                 f"/api/snapshot?name={HIDDEN}&level=5", f"/render/{HIDDEN}.webp"):
         assert srv.get(path)[0] == 404, path
     assert srv.get(f"/api/char?name={CHAR}")[0] == 200
     page = srv.get("/")[2].decode()

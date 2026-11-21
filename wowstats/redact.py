@@ -117,7 +117,7 @@ PUBLIC: dict[str, dict] = {
         "gear": {"item_level": None, "armory_item_level": None, "armory_item_level_source": None,
                  # Battle.net's items when Syndicator sent none, and the line that says so.
                  "items_from": None, "items_note": None,
-                 "render": {"asset": None, "refreshed": None, "ext": None}, "items": [ITEM],
+                 "render": {"ext": None, "pending": None}, "items": [ITEM],
                  "professions": [PROFESSION]},
         "spec": SPEC_CARD, "talents": TALENTS, "legacy": LEGACY, "class_guide": CLASS_GUIDE,
     },
@@ -243,7 +243,7 @@ UPGRADE_PAIR = {**UPGRADE, "with": {**UPGRADE, "kind": None}}
 SPEC = {**_keys("key", "label", "source", "adjusted", "why", "role"), "choices": [_keys("key", "label")]}
 GEAR_SHEET = {**_keys("at", "item_level", "guild", "spec", "class", "race", "faction", "sex", "armory_item_level",
                       "armory_item_level_source", "items_from", "items_note"),
-              "render": _keys("asset", "refreshed", "ext"),
+              "render": _keys("ext", "pending"),
               "items": [ITEM], "professions": [PROFESSION],
               "wanted": [_keys("item_id", "name", "item_level", "req_level", "slot_name", "level")]}
 DEATH_COUNTS = {"total": None, "by_zone": [_keys("zone", "n")], "by_level": {}}

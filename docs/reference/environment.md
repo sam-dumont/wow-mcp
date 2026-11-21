@@ -30,7 +30,7 @@ The live full view, and the old live public view.
 | `PROXY_SECRET_HEADER` | ui | header name | `X-Proxy-Auth` | `X-Proxy-Auth` | The header that carries `PROXY_SECRET_FILE`'s secret. |
 | `PROXY_TRUSTED_CIDRS` | ui | addresses or CIDRs, comma separated | empty | `192.0.2.10/32` | With `AUTH=proxy`: the login proxy's addresses as this server sees them. Requests from elsewhere don't get their identity header read. This or `PROXY_SECRET_FILE` (or both) is required. |
 | `PUBLISHED_ON` | ui | address:port | empty | `127.0.0.1:8080` | Where the container's port is published on the host. A loopback address lets `AUTH=open` run inside the container. The compose kit sets it from `UI_PUBLISH` and `PUBLIC_PUBLISH`. |
-| `RENDER_FROM` | ui | URL | empty: from Blizzard's render host | `http://site:8080` | Where the full view gets a character's armory picture. Set it to the static site's address on a server with no route to Blizzard. |
+| `RENDER_FROM` | ui | URL | empty: no picture, the 3D toggle | `http://site:8080` | Where the full view gets a character's picture: the publisher's still of the 3D model, in the static site's bundles. Set it to the static site's address. |
 | `VIEW` | ui | `full` or `public` | `full` on a loopback `BIND`, else required | `public` | Which view this process serves. One process serves one view, so a routing mistake can't hand the full view to an outsider. |
 | `WEIGHTS` | ui, publish | comma list of `Name-Surname:spec` | empty: what the addons say | `Testchar-Demo:shadow` | The spec each character's gear is scored for. The page's own selector still wins. |
 | `WOW_TIMEZONE` | ui, publish | IANA timezone | `Europe/Brussels` | `America/New_York` | The player's timezone, for the hours and weekdays the analysis reads. |
