@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0-rc.7 (2026-11-21)
+
 ### Added
 
 - "How you play" says when the analysis ran and who ran it, under its heading: "As of Thu 19 Nov, by the server." or "by you." when your own AI did.
