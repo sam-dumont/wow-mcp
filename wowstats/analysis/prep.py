@@ -33,7 +33,9 @@ from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits
 # gap or interval, the order rows are read in, a dedupe rule. A finding
 # judged under another PREP_VERSION is shown "to revalidate" instead of
 # being rechecked (wowstats.analysis.manifest). A pure refactor keeps it.
-PREP_VERSION = 1
+# 2: a zone record's time from the records' own times (stores.zone_time), not
+# the shipper's duration_s; same-time records by chunk and index as numbers.
+PREP_VERSION = 2
 
 
 def _zone() -> tuple[str, ZoneInfo]:
