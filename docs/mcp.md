@@ -60,6 +60,7 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `analysis_submit` | Hands in a pass (`survey`, `lane`, `pick`, `synthesis`); the server checks it and answers with the next step |
 | `analysis_progress` | Where the run stands (pass, lanes, queries, tables untouched, proposed, verified, refused with why), the next step, the last run and the nightly recheck |
 | `kb_get`, `kb_lookup` | Knowledge base documents (up to 10) and names (up to 100) by id |
+| `dashboard_refresh` | Has the server run the play analysis itself, in the background, for the caller's own characters, with the AI provider its host configured ([Server-side analysis](self-host/server-analysis.md)). Returns the last refresh and who started it, the play since, what it started or skipped and why (not configured, budget spent, already running), how the last try ended, and the month's budget. Off when the host configured no provider |
 
 Every tool takes `char` (default: `DEFAULT_CHAR`, else the character seen
 last). Time ranges take `7d`, `36h`, `2w` or an ISO date. Rates per hour are
@@ -70,7 +71,9 @@ write the character's analysis run or plans. `play_sql`, `kb_search`,
 `kb_get` and `kb_lookup` only add to a run's coverage (with `char`, during a
 run); `analysis_brief` (a new run, `restart`, new goals), `propose_finding`
 (a finding under a kept key), `analysis_submit` and `plan_session` can
-replace what is kept, so they are marked destructive.
+replace what is kept, so they are marked destructive. `dashboard_refresh` is
+marked destructive and open-world: its run replaces the kept findings, and it
+sends the analysis tools' answers to the host's AI provider.
 
 Every object in an answer that carries a game id (`item_id`, `quest_id`,
 `npc_id`, `spell_id`, `object_id`, `zone_id`/`area_id`, `quest_ids`) also

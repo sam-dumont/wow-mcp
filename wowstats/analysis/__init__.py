@@ -592,9 +592,10 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
                            and verify.shareable_action(n, set())[0]][:4],
                 "time_budget": [{k: r.get(k) for k in ("level", "online_s", "instance_s", "taxi_s", "dead_s",
                                                        "afk_s", "planned_s")} for r in s.get("time_budget") or []]}
-    # Runs kept before `kind` existed carry none: a run that found something new and
-    # isn't a recheck is a client run.
-    explored = next((r for r in reversed(runs) if r.get("kind") == "client"
+    # A client's run or the server's own (wowstats.analysis.auto). Runs kept
+    # before `kind` existed carry none: one that found something new and isn't
+    # a recheck is a client run.
+    explored = next((r for r in reversed(runs) if r.get("kind") in ("client", "server")
                      or (r.get("new") is not None and r.get("kind") not in ("recheck",))), None)
     return {"available": True, "char": s.get("char"), "updated": s.get("updated"),
             "newest_event": s.get("newest_event"),

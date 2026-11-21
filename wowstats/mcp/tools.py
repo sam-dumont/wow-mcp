@@ -1025,6 +1025,9 @@ class Tool:
     input_schema: dict
     fn: Callable[[Ctx, dict], dict]
     writes: str = ""
+    # Reaches outside the server (dashboard_refresh: the AI provider the host
+    # configured), for the MCP's openWorldHint.
+    open_world: bool = False
 
     def __post_init__(self):
         if self.writes not in WRITES:

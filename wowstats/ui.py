@@ -1263,6 +1263,20 @@ def main() -> int:
         own_env = own.env if tenancy else env
         if analysis.start_schedule(own_env, lambda: _newest(own)) is not None:
             print("analysis: nightly recheck on, state in " + str(analysis.state_dir(own_env)), flush=True)
+        from wowstats.analysis import auto
+
+        # The server's own analysis (a model the host configured): each
+        # person's rebuild checks their played-time timer, the run goes on
+        # in the background (wowstats.analysis.auto).
+        cfg = auto.service().cfg
+        if cfg.on:
+            if cfg.auto:
+                prebuilt.ON_BUILD.append(
+                    lambda a: a.analysis_env.get("ANALYSIS_STATE_DIR") and auto.service().on_rebuild(a.env))
+            print(f"analysis: the server's own runs on {cfg.provider}:{cfg.model} ({cfg.auth}), "
+                  + (f"after {auto.hours(cfg.stale_s)} of play" if cfg.auto else "on dashboard_refresh only")
+                  + (f", budget ${cfg.budget:g} a month" if cfg.priced else ", cost unknown (no prices)")
+                  + (f", {cfg.tokens_cap:,} tokens a month" if cfg.tokens_cap else ""), flush=True)
         try:
             share = analysis.share_server(env, tenancy)
         except guard.GuardError as e:

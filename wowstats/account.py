@@ -533,6 +533,7 @@ and what your AI filled in for it: a character's name, a number of hours, your g
 conversation with your AI. What the tools answer goes back to your AI provider, the names of other players
 your game showed you included. Battle.net data goes to it only if "Battle.net data to my AI" is on in
 Settings.</p>
+<p>@SERVER_AI@</p>
 <h2>How long</h2>
 <p>As long as you're on the owner's friends list. When the owner removes you, everything stored goes within
 minutes: your events, your settings, your goals, plans and findings, your upload password, your pages.
@@ -577,7 +578,16 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
             "Ask the owner how long they keep these lines.")
     logs_gone = (f"Log lines about you expire {log_days} days after each visit." if log_days is not None else
                  "Log lines about you stay until the logs expire: ask the owner how long.")
-    body = (PRIVACY.replace("@VISITS@", visits).replace("@BACKUPS@", backups)
+    from wowstats.analysis import auto
+
+    # The server's own analysis (wowstats.analysis.auto): only when the host configured an AI provider.
+    server_ai = ("This server also runs the play analysis itself, with the AI provider the host configured, after "
+                 "every few hours of play or when your AI asks for a refresh: what the analysis tools answer "
+                 "about your characters (your events, the names of other players your game showed you included, "
+                 "never Battle.net data) goes to that provider then." if auto.configured(env) else
+                 "This server doesn't run the play analysis itself: the host hasn't configured an AI provider for "
+                 "it, so nothing goes to one from here.")
+    body = (PRIVACY.replace("@SERVER_AI@", server_ai).replace("@VISITS@", visits).replace("@BACKUPS@", backups)
             .replace("@LOGS_GONE@", logs_gone).replace("@LOGS@", logs))
     return page("Privacy", body, "privacy", script=False, assets="/privacy/", current="/privacy",
                 links=None if logged_in else bar.links("/privacy", LOGGED_OUT))

@@ -45,6 +45,11 @@ WAKE = threading.Event()
 # page" still said "No character yet" until the next CHECK_S pass.
 INGEST_WAKE_S = 3.0
 _soon: threading.Timer | None = None
+# Called with the App after each full rebuild (new data, a change, the daily
+# one): the server's own analysis checks the person's played-time timer
+# there (wowstats.analysis.auto, registered by ui.main). A hook must return
+# at once: the run itself goes to its own thread.
+ON_BUILD: list = []
 _soon_lock = threading.Lock()
 
 
@@ -138,6 +143,11 @@ class Prebuilt:
             if why != "market":
                 size = len(json.dumps(self.answers, separators=(",", ":"), default=str)) / 2**20
                 log(f"{why}: {len(self.answers)} answers, {size:.1f} MiB, in {self.seconds} s")
+                for hook in ON_BUILD:
+                    try:
+                        hook(self.app)
+                    except Exception as e:  # noqa: BLE001 - a hook's bug never fails the build
+                        log(f"after the build: {e!r}")
             return why
 
 

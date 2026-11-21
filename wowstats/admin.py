@@ -264,6 +264,7 @@ def person(t: T.Tenancy, u: T.User, listed: dict | None, sites: dict, now: float
                 row["stale"].append(refused)
         except Exception as e:  # noqa: BLE001 - one store down: that row says so
             row["error"] = f"store: {type(e).__name__}"
+    row["analysis"] = analysis_row(t, u, row) if u.active else None
     last = _epoch(upload.get("at")) or newest
     if row["chars"] and (last is None or now - last >= STALE_UPLOAD_S):
         days = int((now - last) // 86400) if last else None
@@ -271,6 +272,37 @@ def person(t: T.Tenancy, u: T.User, listed: dict | None, sites: dict, now: float
     if vtuple(row["version"]) and vtuple(row["version"]) < vtuple(__version__):
         row["stale"].append("shipper older than the server")
     return row
+
+
+def analysis_row(t: T.Tenancy, u: T.User, row: dict) -> dict | None:
+    """The person's timer for the server's own analysis
+    (wowstats.analysis.auto): their play since the last refresh, who did it,
+    and how the server's last try ended. None when the feature is off."""
+    from wowstats.analysis import auto
+
+    svc = auto.service()
+    if not svc.cfg.on:
+        return None
+    env = t.env_for(u)
+    out = {"played_since": None, "due": False, "at": None, "by": None, "last_try": svc.last_try(env) or None}
+    try:
+        tm = svc.timer(env, t.app_for(u).store)
+        last = tm["last_refresh"] or {}
+        out.update(played_since=tm["played_since"], due=tm["due"], at=last.get("at"), by=last.get("by"))
+    except Exception as e:  # noqa: BLE001 - one store down: that cell says so
+        out["error"] = type(e).__name__
+    lt = out["last_try"] or {}
+    if lt.get("status") == "stopped" and lt.get("why"):
+        row["stale"].append(f"server analysis stopped: {str(lt['why'])[:160]}")
+    return out
+
+
+def analysis_tile(env: dict) -> dict | None:
+    """The month's use of the server's own analysis, or None when it's off."""
+    from wowstats.analysis import auto
+
+    svc = auto.service()
+    return auto.budget(env, svc.spend) if svc.cfg.on else None
 
 
 # ---------------------------------------------------------------- the overview
@@ -299,7 +331,8 @@ def overview(t: T.Tenancy, fresh: bool = False) -> dict:
                           "late": now - float(report.get("at") or 0) > PUBLISHER_LATE_S}
                          if report else None),
            "exporter": exporter_last(t.app_for(owner)) if owner else None,
-           "disk": disk_use(t.state), "checks": checks(t.env, report), "people": people}
+           "disk": disk_use(t.state), "checks": checks(t.env, report), "people": people,
+           "analysis": analysis_tile(t.env)}
     with _lock:
         _cache["o"] = (now, out)
     return out
@@ -343,7 +376,7 @@ def _tile(label: str, value: str, state: str = "") -> str:
             f'<span class="v">{value}</span></div>')
 
 
-def _row(p: dict, now: float) -> str:
+def _row(p: dict, now: float, has_analysis: bool = False) -> str:
     def td(label: str, inner: str, cls: str = "") -> str:
         return f'<td data-label="{label}"' + (f' class="{cls}"' if cls else "") + f"><div>{inner}</div></td>"
 
@@ -383,7 +416,21 @@ def _row(p: dict, now: float) -> str:
             + td("Public page", "on" if p["public_on"] else '<span class="dim">off</span>')
             + td("Last build", build)
             + td("Addons", addons)
+            + (td("AI analysis", _analysis_cell(p["analysis"], now)) if "analysis" in p and has_analysis else "")
             + "</tr>")
+
+
+def _analysis_cell(a: dict | None, now: float) -> str:
+    """Play since the last refresh of the person's analysis, and who did it."""
+    if a is None:
+        return '<span class="dim">-</span>'
+    if a.get("error"):
+        return f'<span class="dim">store: {escape(a["error"])}</span>'
+    by = {"server": "the server", "player": "them"}.get(str(a.get("by") or ""), "")
+    played = escape(str(a.get("played_since") or "0 h 00")) + " played since"
+    last = (_when(a["at"], now) + (f" by {by}" if by else "")) if a.get("at") else '<span class="dim">never</span>'
+    due = ' <span class="tag">due</span>' if a.get("due") else ""
+    return f"{played}{due}<br>last refresh {last}"
 
 
 def page_body(o: dict) -> str:
@@ -401,12 +448,25 @@ def page_body(o: dict) -> str:
         late = now - o["exporter"] > EXPORTER_LATE_S
         tiles.append(_tile("Battle.net", _when(o["exporter"], now), "bad" if late else "good"))
     tiles.append(_tile("State folder", _size(disk["bytes"]) + ("+" if disk["capped"] else "")))
+    an = o.get("analysis")
+    if an is not None:
+        if an["cost_known"]:
+            txt, state = f'${an["spent"]:.2f} of ${an["cap"]:g}, ${an["left"]:.2f} left', (
+                "bad" if an["left"] <= 0 else "")
+        else:
+            txt, state = f'cost unknown, {an["tokens"]:,} tokens', ""
+        if an.get("tokens_cap"):
+            txt += f' <span class="dim">{an["tokens"]:,} of {an["tokens_cap"]:,} tokens</span>'
+        txt += f' <span class="dim">{an["runs"]} run{"" if an["runs"] == 1 else "s"}, {escape(an["month"])}</span>'
+        tiles.append(_tile("AI analysis", txt, state))
     pings = "".join(
         f'<li class="{"good" if c["ok"] else "bad"}" title="{escape(c.get("error") or "")}">'
         f'<span class="dot"></span>{escape(c["name"])}'
         f'<span class="dim">{" " + str(c["ms"]) + " ms" if "ms" in c else ""}'
         f'{" (publisher)" if c.get("via") else ""}</span></li>' for c in o["checks"])
-    rows = "".join(_row(p, now) for p in o["people"])
+    on = o.get("analysis") is not None
+    ai_th = "<th>AI analysis</th>" if on else ""
+    rows = "".join(_row(p, now, on) for p in o["people"])
     return f"""<div class="admin-head"><h1>Admin</h1>
 <a class="btn ghost" href="/admin">Reload</a></div>
 <p class="dim checked">Checked {ago(now, time.time())}. Times, counts and versions only.</p>
@@ -414,7 +474,7 @@ def page_body(o: dict) -> str:
 <ul class="pings" aria-label="Checks">{pings}</ul>
 <div class="table-wrap"><table class="people">
 <thead><tr><th>Person</th><th>On the list</th><th>Last visit</th><th>Last AI use</th><th>Last upload</th>
-<th>Characters</th><th>Public page</th><th>Last build</th><th>Addons</th></tr></thead>
+<th>Characters</th><th>Public page</th><th>Last build</th><th>Addons</th>{ai_th}</tr></thead>
 <tbody>{rows}</tbody></table></div>"""
 
 

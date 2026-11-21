@@ -34,6 +34,7 @@ folder and sends what's new to your friend's server, with your own upload passwo
 | Friends with your zogzog link | Your page minus the private parts: never other players, what killed you, or where you are now. |
 | Anyone, once you switch your public page on | Your characters' card, climb and dungeons. No gold, zones, journal or other players. Off until you turn it on. |
 | Your AI, once you connect it | Your own data, nothing from anyone else's page. Battle.net data only with "Battle.net data to my AI" on in Settings. |
+| The AI provider the host configured, only if they did | What the play analysis reads about your characters (your events and the players your game showed you, never Battle.net data), when the server refreshes your analysis itself: after every few hours of play, or when your AI asks. Off when the host hasn't configured one; the Privacy page in the app says which. |
 
 Your zogzog link works like a password. Sent to the wrong person: Settings, **Make a new
 link**; the old one stops at the next update. Hide a character from either page: Settings,

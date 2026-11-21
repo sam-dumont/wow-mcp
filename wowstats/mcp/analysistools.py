@@ -131,6 +131,15 @@ def t_analysis_progress(ctx: T.Ctx, args: dict) -> dict:
     return drive.progress(_env(ctx), _char(ctx, args), ctx.store)
 
 
+def t_dashboard_refresh(ctx: T.Ctx, args: dict) -> dict:
+    """The caller's own analysis, refreshed by the server's model
+    (wowstats.analysis.auto): always the caller's context, never anyone
+    else's; runs whatever their timer says, budget permitting."""
+    from wowstats.analysis import auto
+
+    return auto.service().refresh(ctx)
+
+
 def _ids(args: dict, cap: int) -> list[str]:
     ids = args.get("ids") or []
     if not isinstance(ids, list) or not ids:
@@ -267,6 +276,12 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
            "untouched, findings proposed, verified, refused with why), the next step, the last finished run and "
            "the last nightly recheck. Call it first to continue in a new chat.",
            S({"char": CHAR}), _guard(t_analysis_progress)),
+    T.Tool("dashboard_refresh", "Refresh my dashboard",
+           "Have the server refresh your play analysis now (How you play) with its host's AI model, in the "
+           "background, for your own characters. Says the last refresh and who did it, your play since, what it "
+           "started or skipped and why (not configured, budget spent, already running), how the last try ended, "
+           "and the budget left. The server also does it itself after hours of play.",
+           S({}), _guard(t_dashboard_refresh), writes="replaces", open_world=True),
     T.Tool("kb_get", "Knowledge base documents",
            "Full knowledge base documents by id (kind:id, e.g. npc:1234, quest:56, note:xp-sources), up to 10, each "
            "with its source.",

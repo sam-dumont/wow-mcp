@@ -58,7 +58,7 @@ COPY THIRD_PARTY.md ./THIRD_PARTY.md
 COPY shipper ./shipper
 COPY docs/videos/steps.json ./docs/videos/steps.json
 COPY docs/videos/media ./docs/videos/media
-RUN uv sync --frozen --no-dev --no-editable --extra publish --extra mcp && chmod -R a+rX,go-w /app/.venv \
+RUN uv sync --frozen --no-dev --no-editable --extra publish --extra mcp --extra analysis --extra analysis-openai && chmod -R a+rX,go-w /app/.venv \
     && mkdir -p /empty/data
 
 # The renderer (`wow-stats render`, wowstats/renderer.py): a past level's
