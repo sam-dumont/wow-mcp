@@ -79,6 +79,7 @@ release candidate at a time.
 ### Fixed
 
 - A ring or trinket line could start from the other worn ring's share: the paperdoll read 40% and 34% for the two rings, and every ring upgrade said "40% → …" though it replaces the 34% one. The doll measured the stronger worn ring against the best item left and the weaker against the next, so the weaker could read the higher share. The best item left now goes to the slot it replaces (an empty one, else the weaker worn), the stronger against the next, so the weaker always reads the lower share and every line starts from it. The stronger ring or trinket can read a higher share than before, and only the best ring left reads 100% going into the slot it replaces (the second of the best two reads its share of the best).
+- Your AI scored the gear for the spec your add-ons pick even when the host set `WEIGHTS` for that character: `gear_options`, `dungeon_options` and `next_step` could say Shadow while the page said Discipline, and whichever asked first decided what the other got for two minutes. The MCP now reads the same settings as the page, and the planner keeps one answer per spec.
 
 ## 0.7.0-rc.7 (2026-11-21)
 
