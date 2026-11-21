@@ -681,6 +681,9 @@ def legacy(cat: dict | None, achievements: dict | None) -> dict:
     the Legacy trees isn't in the API."""
     sources = (cat or {}).get("legacy_sources") or []
     total = sum(s["amount"] for s in sources) if sources else None
+    if sources and (achievements or {}).get("error"):  # views.bnet_achievements: vm-wow didn't answer
+        return {"available": False, "earned_points": None, "earned": [], "total": total, "spent": None,
+                "why": LEGACY_DOWN}
     if not sources or achievements is None:
         return {"available": False, "earned_points": None, "earned": [], "total": total, "spent": None,
                 "why": LEGACY_UNKNOWN if sources else "Forever's Legacy challenges aren't loaded yet."}
@@ -713,6 +716,10 @@ def icon_names(*answers) -> set[str]:
 
 NO_TALENTS = ("No talents known yet. They come from Battle.net's profile read, every 2 hours, once it knows "
               "the character (a site without a Battle.net API client has none).")
+# vm-wow didn't answer: an error, never "not read yet" (#92).
+BNET_DOWN = "Battle.net's store didn't answer: the talents can't be read right now. Try again in a minute."
+LEGACY_DOWN = ("Battle.net's store didn't answer: the Legacy points can't be counted right now. Try again in a "
+               "minute.")
 
 
 def match_ranks(cat: dict | None, cls, readings) -> dict[str, int]:
@@ -812,6 +819,9 @@ def from_battlenet(cat: dict | None, cls, bnet: dict | None = None) -> tuple[dic
     line is the tree with the most points and the split, "Discipline
     16/0/7", never relabelled by a gear setting: what the gear is scored for
     is its own line (gear.scored_for)."""
+    if (bnet or {}).get("error"):  # views.bnet_talents: vm-wow didn't answer
+        return ({**answer(cat, cls, {}, None, None), "why": BNET_DOWN},
+                {"name": None, "source": None, "split": None, "points": []})
     b_ranks = match_ranks(cat, cls, (bnet or {}).get("ranks"))
     b_trees = [t for t in (bnet or {}).get("trees") or [] if isinstance(t, dict) and t.get("tree")]
     if b_ranks or b_trees:

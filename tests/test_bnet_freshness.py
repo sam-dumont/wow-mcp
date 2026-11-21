@@ -230,3 +230,42 @@ def test_a_first_read_that_never_completed_shows_nothing(world, monkeypatch):
     world.run(5)
     assert world.reader.bnet_read_at(CHAR) is None
     assert world.reader.bnet_state(CHAR) is None
+
+
+def test_a_vm_wow_error_is_never_never_read(world, monkeypatch):
+    """vm-wow failing after a good read is an error or a stale state, never
+    "Battle.net hasn't read this character" (#92's matrix: the exporter
+    readers turned the error into the never-read answer). Coverage says
+    unavailable as of the last good read, the talents and the Legacy points
+    say the store didn't answer, and none of them asks to wait for a first read."""
+    from datetime import UTC, datetime
+
+    from wowstats import coverage, talents
+    from wowstats import views as V
+    from wowstats.stores import SourceError
+
+    monkeypatch.setattr(exporter, "api_get", fake_api(ALL, []))
+    t0 = world.clock[0]
+    exporter.poll_profile()
+    world.run(5)
+    r = world.reader
+    r.vm_url = r.profile_vm_url = "http://vm.invalid"
+    assert coverage.battlenet(coverage.bnet_of(r, CHAR))["state"] == "complete"
+    v = V.Views(r)
+    cat = talents.shared().get()
+    assert v.bnet_talents(CHAR)["trees"][0]["points"] == 16
+
+    def down(q):
+        raise SourceError("vm.invalid: 503")
+
+    monkeypatch.setattr(r, "vm_query", down)
+    monkeypatch.setattr(r, "profile_query", down)
+    cov = coverage.battlenet(coverage.bnet_of(r, CHAR))
+    assert cov["state"] in ("unavailable", "partial"), cov
+    assert cov.get("as_of") == datetime.fromtimestamp(t0, UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert cov.get("fix") != coverage.BNET_NEVER
+    tal = talents.from_battlenet(cat, "PRIEST", v.bnet_talents(CHAR))[0]
+    assert not tal["available"] and tal["why"] != talents.NO_TALENTS and "answer" in tal["why"], tal["why"]
+    leg = talents.legacy({"legacy_sources": [{"amount": 1, "requirement": "x", "achievements": [1]}]},
+                         v.bnet_achievements())
+    assert leg["why"] != talents.LEGACY_UNKNOWN and "answer" in leg["why"], leg["why"]
