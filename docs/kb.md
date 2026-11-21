@@ -204,6 +204,16 @@ opens or edits its PR with the gates' verdict, and:
   merged`). While it is open, the next run of that mode adds nothing (the
   issue says so): merge it or close it, and the next run starts again.
 
+Once merged, a refresh goes out as a stable patch release (X.Y.Z+1) by
+itself: the KB is baked into the image, and Renovate or Dependabot only see
+a new version. `.github/workflows/kb-release.yml` runs on the merge (a push
+by the CI App), checks it really is a kb-refresh PR, and presses the release
+button (`release.yml`, channel `stable`, bump `patch`); the notes say
+"Knowledge base refresh" and what moved (a Polestar tag, the lanes). While
+a release candidate series is open it releases nothing: the KB rides the
+next candidate or the final. docs/development.md, "Knowledge base releases",
+has the detail.
+
 A watch issue closes itself once `data/kb/watch.json` on main matches what
 the watcher sees. A run that stops early (a failed step) leaves the issue
 with the run's link; the model pass failing alone still lands the other

@@ -284,6 +284,36 @@ the same `channel` and `bump=auto`: it tags and publishes that version as
 it is. The same goes for a release PR made by hand
 (`uv run python tools/release/release.py apply X.Y.Z`, then a PR).
 
+### Knowledge base releases (automatic)
+
+The knowledge base is baked into the image, so a refresh only reaches the
+people running it with a new version. When a kb-refresh PR merges on main,
+`.github/workflows/kb-release.yml` presses the button by itself: `channel`
+`stable`, `bump` `patch`, a fourth input `kb` on, `dry_run` off. Same run,
+same gates (tests, signature, release PR, images, attestations, tag); it
+waits for that run and goes red when it fails.
+
+- Only the refresh job's merges count (`tools/release/kb.py guard`: branch
+  `kb-<mode>` of this repository, opened by a bot, label `kb-watch`). A
+  person's PR that touches `data/kb` rides the next release like any other.
+- **No release while a candidate series is open** (a `v*-rc.N` tag newer
+  than the last final, or a candidate on main). The KB rides the next
+  candidate or the final; the kb-release run's summary says so.
+- No release either on an untagged version on main (an interrupted run):
+  press the button as above, the KB goes with it.
+- The notes get a "Knowledge base" section, one line: `Knowledge base
+  refresh (#12 watch): Polestar v0.4.1.1 to v0.4.2; lanes levelling.`
+  `kb.py note` builds it from the repository (`data/kb/watch.json` before
+  and after, the changed lane files, a Polestar tag that is a plain
+  version), never from a PR's title or body or a page's text. Whatever else
+  sits under "Unreleased" goes out in the same patch release.
+- One kb-release run at a time, the newest waiting: a burst of merges makes
+  one release per run that finds something unreleased on main as it is when
+  it starts. A merge that lands while a release runs fails that run's "main
+  moved" check (red), and the waiting kb-release run releases both.
+- Each such release moves every shipper (they update to any higher
+  version), with unchanged shipper files.
+
 A pull request that changes the `Dockerfile`, `.dockerignore`,
 `release.yml` or `tools/release/` runs the builds as a dry run: both
 platforms build, merge in a registry on the runner and pass the same checks.
