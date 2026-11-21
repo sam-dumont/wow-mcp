@@ -14,17 +14,8 @@
 - An upload the store refused (VictoriaLogs down or answering an error) no longer counts as one: `/ingest` answers 502 as before, and now leaves the person's first-event mark, their last upload in /admin and the day's upload budget as they were. Those three are set only once the store has the lines.
 - A gear sheet worn again no longer erases its earlier occurrence: outfit A, then B, then A again showed B, A in the gear history, and a level played in the first A had no sheet. The shipper now names each sheet by its content and the time it was read (`gear:<char>:<hash>:<epoch>`), and the server keeps every occurrence; a resend of the same line still counts once. Sheets from older shippers (`gear:<char>:<hash>`) are told apart by their time, so the history already stored comes back whole without a shipper update.
 - The nightly recheck raised a kept finding's weight (and its "seen N×" tag) every night, even when no play had been added: three nights on the same data took a finding from 1.0 to 2.5. Still applicable and better supported are now apart: a finding that holds gets `last_checked`; its weight, `confirmations` and `last_confirmed` move only when the play history changed since its last support (`support_mark`). Proposing the same finding again on the same data adds nothing either. The recheck's log line and run record count `still` next to `confirmed`.
-
-### Fixed
-
 - `query_metric` didn't count in the analysis run's bookkeeping: no query counted, and a table read only through a metric stayed "untouched", so the coverage round asked about it again. `play_sql` and `query_metric` now share one bookkeeping: both count as queries, and a metric's semantic-layer view counts as the prep tables (and columns) under it.
-
-### Fixed
-
 - A server analysis run that didn't finish put back the character's files from its start, erasing anything the player's own AI had written to the same character meanwhile (a finding it proposed, its run's progress). The server run now watches who else writes that character's analysis while it runs; it rolls back only when nobody did, and otherwise leaves the files alone and ends its reason with "not rolled back".
-
-### Fixed
-
 - The README, the landing page, the FAQ, the architecture and MCP pages said no model runs on the server and your own assistant does all the thinking. Since 0.7.0 a host can also have the server run the play analysis itself, with an AI provider they configure, once a character has `ANALYSIS_STALE_PLAYED_HOURS` (10) of play since its last refresh. Those summaries now say who processes what and when, like the privacy pages; the in-app Privacy page gives the host's hours and says your AI never starts a server run. Kept findings are described as checked against their saved query (which you can read), not as proven. Also: the data sources table had "quests done" from Questie or Altoholic only, with no API (the Recorder, rewards held and quest chains count too, and Battle.net has the list but isn't read), and the security notes still had S6 open (the repository is public with a ruleset on main).
 
 ## 0.7.0-rc.5 (2026-11-21)
