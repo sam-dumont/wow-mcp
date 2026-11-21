@@ -73,6 +73,15 @@
   /* item quality */
   --q0: #9D9D9D; --q1: #FFFFFF; --q2: #1EFF00; --q3: #2F86F2; --q4: #A335EE; --q5: #FF8000;
 
+  /* closeness to BiS, the doll's badges (app.css .ifr .ibis): the game's
+     legendary, epic and rare, as the Forever Leveling BiS addon shows them.
+     The badge sits on the icon's dark frame on the night plate in both
+     themes, so one set serves both. The game's own shades pass AA with the
+     right ink (7.8, 4.9 and 4.8 to 1), so none is shifted. */
+  --bis-bis: #FF8000; --bis-bis-ink: #0E0A07;
+  --bis-epic: #A335EE; --bis-epic-ink: #FFFFFF;
+  --bis-rare: #0070DD; --bis-rare-ink: #FFFFFF;
+
   /* Procedural noise tiles. stitchTiles only lines up the noise with the edges of
      the filter region, so the region is pinned to the tile (x/y 0, 100%): the
      default -10%/120% region left a seam every tile width. */
