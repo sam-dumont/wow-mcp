@@ -10,11 +10,14 @@
 
 - The server's first analysis ran for every character with no refresh on record, including an alt logged into once to reserve its name ($0.32 for nothing in the lab). The timer is now each character's own: its play since its last refresh, or all its play on record when it has none, so that alt stays at 10 minutes of the 10 hours and a 40-hour main is due straight away. An automatic run takes only the due characters. `dashboard_refresh` still runs on demand whatever the play, and it and /admin list each character's play against `ANALYSIS_STALE_PLAYED_HOURS`, "never refreshed" included.
 
+### Added
+
+- `WOW_OWNER_SUB` takes a comma-separated list: an owner who signs in with two accounts (the usual one and one linked to Battle.net) is the owner with both, on the web, over MCP and on /admin, with one set of data and one analysis timer. A single sub works as before. A sub in both this list and the friends list is the owner's; the start log names it by its place in the list, and no data is made or deleted for it. A BattleTag header never gives the owner's other login a friend's name or tenant.
+
 ## 0.7.0-rc.4 (2026-11-21)
 
 ### Added
 
-- `WOW_OWNER_SUB` takes a comma-separated list: an owner who signs in with two accounts (the usual one and one linked to Battle.net) is the owner with both, on the web, over MCP and on /admin, with one set of data and one analysis timer. A single sub works as before. A sub in both this list and the friends list is the owner's; the start log names it by its place in the list, and no data is made or deleted for it. A BattleTag header never gives the owner's other login a friend's name or tenant.
 - `dashboard_refresh` and /admin give each person's own server runs this month apart from the install's: the tool's `budget` is now marked `scope: "install"` ("this month, whole install"), and `yours` has the caller's own runs, cost and tokens (`scope: "you"`). /admin's AI analysis tile says "whole install", and each person's AI analysis cell adds their runs and cost this month. The spend file now records them per tenant number; runs from before this release aren't in anyone's share, and `yours` says how many.
 
 ### Fixed
