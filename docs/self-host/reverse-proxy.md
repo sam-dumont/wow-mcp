@@ -93,8 +93,10 @@ nginx doesn't fetch certificates: bring one valid for both names (certbot, your 
    ```
 
 The routes are in [`deploy/compose/nginx/templates/wow.conf.template`](../../deploy/compose/nginx/templates/wow.conf.template);
-nginx fills in the two names at start. It answers nothing for a name it doesn't serve, and lets
-the shipper post up to 8 MiB at once, as the server does.
+nginx fills in the two names at start. It answers nothing for a name it doesn't serve, and
+caps a request at 8 MiB, `/ingest`'s own limit. The 3D view's files can reach 48 MB (an HD
+character model with its animations is 17 to 28 MB): with 3D on, raise `client_max_body_size`
+to `48m` in that file, or those models never arrive.
 
 ## 2. Check it
 
@@ -131,13 +133,13 @@ most:
   gets a 403, and `ALLOWED_HOSTS` with `AUTH=open` stops the server at start.
 - **Pass the `Host` header through**, and add your full view's name to `ALLOWED_HOSTS`. A
   proxy that rewrites `Host` to `ui:8080` gets a 421.
-- **`/ingest`, `/install/update/shipper*`, `/install/assets/*`, `/healthz` and the MCP paths skip your page
-  login.** They have their own. A login in front of `/ingest` blocks the shipper; one in
+- **`/ingest`, `/install/update/shipper*`, `/install/assets/*`, `/install/items/*`, `/healthz`
+  and the MCP paths skip your page login.** They have their own. A login in front of `/ingest` blocks the shipper; one in
   front of `/install/update/shipper` stops its auto-update; one in front of the MCP paths
   blocks every AI client.
 - **Let cookies through on `/authorize`, `/consent` and `/oauth/callback`.** The AI login ties
-  itself to your browser with a cookie; a proxy that drops it stops every login at the Approve
-  button with "Authorization session mismatch".
+  itself to your browser with a cookie; a proxy that drops it stops every login at the Allow
+  Access button with "Authorization session mismatch".
 - **Never route the share port** (8082 in the kit) or VictoriaLogs (9428).
 
 A login proxy instead of the page's password (oauth2-proxy, Authelia, authentik), which

@@ -101,7 +101,7 @@ real, the played time is short.
 **`wow-character`** (account `PolestarDB.alts.chars`): a snapshot saved at
 logout: `level`, `xp`, `xp_max`, `money_copper`, `zone`, `race`, `class`,
 `faction`, `realm`, `bind`, `resting`; `_time` is the snapshot's time.
-Shippers before 2026-11-20 could add `looks` (Narcissus): still stored,
+Shippers before 0.7.0 could add `looks` (Narcissus): still stored,
 read by nothing (below).
 
 Characters Polestar doesn't track get one too, so every character of the
@@ -131,8 +131,8 @@ comes from the entry's `name` ("First Last") else its key in
 `DataStore_CharacterIDs.Set` (`Default.<realm>.<name>`, any realm; never
 `List`, whose indexes shift when a character is deleted). Files: account `SavedVariables/DataStore.lua`
 and `DataStore_Characters.lua`; format read from Thaoky's source
-(github.com/Thaoky/DataStore and DataStore_Characters, 2026-10-14
-releases, the ones Altoholic_Forever depends on). Every other reader of
+(github.com/Thaoky/DataStore and DataStore_Characters, the releases
+Altoholic_Forever depends on). Every other reader of
 `wow-character` leaves these out (`-kind:=played`): they carry no gold,
 zone or race.
 
@@ -154,7 +154,7 @@ the newer time.
 - `professions`: `skill_id`, `name`, `rank`, from
   `PolestarDB.alts.chars[...].profs` (saved at logout). No cap: the server
   takes it from the Recorder's `skill` records (`max_rank`), else from the
-  trainer tiers (wowstats/profcaps.py). Shippers before 2026-11-20 also sent
+  trainer tiers (wowstats/profcaps.py). Shippers before 0.7.0 also sent
   `max_rank` and `max_rank_at` from CharacterExport-Forever: still stored,
   read by nothing.
 - `wanted`: the upgrades the player tracks in GearQuestForever (the
@@ -172,12 +172,12 @@ the newer time.
   wide in Polestar and sent with each of its characters; gear advice
   (docs/gear-reference.md) reads them.
 - No talents. They come from Battle.net's API only (the exporter's
-  `/specializations`, below). Shippers before 2026-11-20 sent `talents`,
+  `/specializations`, below). Shippers before 0.7.0 sent `talents`,
   `talent_ranks`, `talent_nodes`, `talents_level` and `talents_date` from
   Vulcan SimBench's `/simx` export: still stored, read by nothing.
 - `spec` (ForeverLevelingBiS, else GearQuestForever's pick) and `spec_from`, the addon it came from
   (`ForeverLevelingBiS` or `GearQuestForever`), `class`, `race`, `faction`.
-  No `sex` or `guild` since 2026-11-20: both come from Battle.net's profile
+  No `sex` or `guild` since 0.7.0: both come from Battle.net's profile
   (the exporter). Older events still carry them; nothing reads them.
 - `recipes`: the recipes the character knows, per profession, from
   Altoholic's `DataStore_Crafts.lua` (account SavedVariables), as a list of
@@ -242,8 +242,10 @@ these carry the ones done before Polestar. `quest_ids` is the sorted list,
 
 wowstats.quests joins them with the Recorder's hand-ins, the game's
 "already done" flags in `offer` records, the gear only one quest gives
-(held: worn, bags or bank, on any gear or bags snapshot) and the quest
-chains (a quest done means the quests it needed were done), into the one
+(held: worn, bags or bank, on any gear or bags snapshot), the gear
+Battle.net says the character wears now (read live, never stored, never in
+the analysis' database) and the quest chains (a quest done means the quests
+it needed were done), into the one
 "done" set the Dungeons panel, the plan, the gear advice and the MCP use. A
 quest the Recorder saw accepted and never handed in, that this set says is
 done, closes as "done (inferred)" with the reason (the analysis' `quests`
@@ -254,7 +256,7 @@ for every character it knows; any other character gets its race's default
 look. The shipper sends none. The ids are the game's
 (ChrCustomizationOption and ChrCustomizationChoice), the ones the 3D view's
 recipe reads. A look that doesn't fit the model (a race change) falls back
-to the default per option. Shippers before 2026-11-20 could send `looks`
+to the default per option. Shippers before 0.7.0 could send `looks`
 on `wow-character` (Narcissus's barber shop): still stored, read by nothing.
 
 **`wow-player`**: one event per sighting of another player, from Polestar's

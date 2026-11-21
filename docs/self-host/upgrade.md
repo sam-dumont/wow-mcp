@@ -54,6 +54,20 @@ Nothing to change for a one-person install: back up, check out `v0.7.0`, `docker
   shipper can't read a release candidate's version: it waits for the final. One still on an
   older version 7 hours later gets the update command on its start page, and shows in the
   [admin overview](admin.md).
+- **The character's picture** needs the renderer now: `RENDER_URL` on the publisher and
+  `RENDER_FROM` on the full view ([Share your page, pictures](sharing.md#pictures-optional)).
+  Blizzard's armory renders are gone: the exporter stops reading them, nothing downloads from
+  Blizzard's render host, and the old cache of those downloads (`MODEL3D_CACHE_DIR/render`) is
+  deleted at start. Without the renderer the paperdoll shows a silhouette and the 3D toggle.
+- **Building from source** needs `docker login dhi.io` once (a free Docker Hub account). The
+  released images pull as before.
+- **The server's own analysis** is new and stays off until you configure an AI provider
+  ([Server-side analysis](server-analysis.md)); `ANALYSIS_AUTO=off` keeps it off with one.
+- **Your AI's login** now shows your identity provider's account picker at **Allow Access**:
+  pick your own account ([Set up the login for your AI](oidc.md#3-check-it)).
+- **Optional, with friends**: `WOW_OWNER_SUB` takes a comma-separated list when you sign in
+  with more than one account, and a friend listed without a name can get one from their
+  BattleTag (`PROXY_BATTLETAG_HEADER`, [Add friends](friends.md#names-from-the-battletag)).
 - **Battle.net** (`PROFILE_INTERVAL`): the exporter now reads every 2 hours on the clock
   instead of once a day. If you set `PROFILE_INTERVAL` yourself, it now also picks the clock
   slots: 86400 runs at 00:00 UTC.

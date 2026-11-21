@@ -42,7 +42,7 @@ addons.
 ## Field by field
 
 "API" means the exporter's read of Blizzard's profile API, every 2 hours (a new character within
-about 10 minutes), kept 23 days. "Live" means
+about 5 minutes), kept 23 days. "Live" means
 the exporter calls it on Forever today; "listed" means the endpoint exists for Classic but
 nobody here has called it on Forever yet.
 
@@ -50,9 +50,11 @@ nobody here has called it on Forever yet.
 |---|---|---|---|
 | Talents, spec hint by points | API (`/specializations`) | yes, live | - |
 | The 3D look | API (`/appearance`) | yes, live | - |
+| The paperdoll's picture | our renderer, from your game files, the API's look and your gear (never Blizzard's render) | yes (`/character-media`), not read | its renders sit on paths shared by character id across the Classic games: one showed another player's character |
 | Armory item level | API (profile) | yes, live | - |
 | Worn items | Syndicator; without its items (not installed, or a gear event with the professions only), the API's whole set; API for random-suffix stats | yes, live (`/equipment`) | history: gear per level, after 30 days |
 | Item level (our average) | Syndicator + Polestar_ItemDB | yes, live (profile) | history |
+| Stats of items newer than our reference (a dungeon added in a patch) | the game's hotfix cache, read by the shipper | no | no API |
 | Level, class, race, faction | Polestar, Syndicator; each one they didn't send, the API's | yes, live (profile) | history: the level curve |
 | Sex | API (profile `gender`) | yes, live | - |
 | Guild | API (profile `guild`) | yes, listed | - |
@@ -62,7 +64,7 @@ nobody here has called it on Forever yet.
 | Profession ranks | Polestar | no | no API |
 | Profession caps | Polestar Recorder skill records, else trainer tiers | no | no API |
 | Recipes known | Altoholic | no | no API |
-| Quests done | Polestar Recorder (hand-ins, the game's "done" flags at quest givers); before Polestar, Questie or Altoholic, the rewards only one quest gives that you hold, and the quests a done one needed first | yes (`/quests/completed`, checked 2026-11-19), not read | the plans are kept past the API terms' 30 days, so the planner never reads Battle.net data |
+| Quests done | Polestar Recorder (hand-ins, the game's "done" flags at quest givers); Questie or Altoholic; a reward only one quest gives, worn or held on any gear or bags sheet ever sent; then what the API says you wear now (read live, never kept, only adds quests); and the quests a done one needed first | yes (`/quests/completed`), not read | the history is kept past the API terms' 30 days, so it holds only addon data |
 | `/played` since level 1 | Altoholic | no | no API |
 | Gold, bags, bank | Syndicator, Polestar | no | no API |
 | Spec pick, stat weights, tracked upgrades (the gear advice's spec: these first, the talents only as a hint) | Polestar, ForeverLevelingBiS, GearQuestForever | no (they're your settings) | no API |
@@ -73,7 +75,7 @@ nobody here has called it on Forever yet.
 | Talent changes, last 3 weeks (without WoWSims Exporter) | API (`/specializations`, each read in vm-wow) | yes, live | - |
 | Reputations | not used | yes, listed | - |
 
-The rule per kind (owner, 2026-11-20): when an addon sent it, the addon's value is used and
+The rule per kind: when an addon sent it, the addon's value is used and
 the API's isn't, even when the exporter read one. When no addon did, the API's fills it. An
 API value read 30 days ago or more is never shown, whatever a store still holds (Blizzard's
 terms), and it never goes into VictoriaLogs, the analysis folders or a backup. Worn items come
@@ -84,12 +86,14 @@ the addon's.
 ## The MCP
 
 Your AI assistant gets the same current talents and talent changes (`talent_changes`) as the page: WoWSims Exporter's
-saves when you have it, else the API's, which the MCP reads live from the same VictoriaMetrics (23 days) and keeps nothing. On a multi-user install the "Battle.net data
+saves when you have it, else the API's, which the MCP reads live from the same VictoriaMetrics (23 days) and keeps nothing.
+The quests done follow the same rule: the worn items the API reports count only when the
+switch below lets Battle.net data reach your AI. On a multi-user install the "Battle.net data
 to my AI" switch in Settings decides, like for the `market` tool. A one-person install has no
 such switch: whoever set `VM_URL` is the person.
 
 ## Not checked live yet
 
-Guild and achievements are "listed": the endpoints exist for Classic, the exporter reads them
-since 2026-11-20, and nobody has seen Forever's answer yet. If Forever's `/achievements` lists
+Guild and achievements are "listed": the endpoints exist for Classic, the exporter reads them,
+and nobody has seen Forever's answer yet. If Forever's `/achievements` lists
 nothing, the Legacy points read 0 of 65 until that's sorted out.

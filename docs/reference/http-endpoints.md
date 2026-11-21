@@ -17,7 +17,7 @@ Your own page. Route it through your login, except the rows that say otherwise.
 | `/model3d/*`, `/model3d/file/<id>`, `/api/model3d`, `/render/<char>.webp`, `/icons/<size>/<name>.jpg` | through your login | the 3D view (its frame, and the game files your shipper sent, by id), the character's picture (our still of the 3D model), the item icons |
 | `/full/` | through your login | `FULL_DOOR_PATH`: a redirect to `/`, through your login. Empty: off |
 | `/healthz` | no login | health check: `200 ok`, no login. Fine to route; probes need no credentials |
-| `/ingest` | no login | `POST` from the shipper, with its own password (`INGEST_PASSWORD`). Route it **without** your page login, or the shipper can't get through |
+| `/ingest` | no login | `POST` from the shipper, with its own password (`INGEST_PASSWORD`). Route it **without** your page login, or the shipper can't get through. 8 MB a post. A 502 means VictoriaLogs refused the lines or couldn't be reached: nothing counts against the daily budget, and the shipper sends them again later |
 
 ## Extra full-view paths with several people (`WOW_STATE_DIR`)
 
@@ -44,7 +44,7 @@ With one person or several. Route it like `/ingest`, **without** your page login
 
 ## The MCP endpoint: inside `wow-stats ui`, port 8090 (`MCP_PORT`)
 
-Only when `MCP_PUBLIC_URL` is set. Route these to 8090 **without** your page login: the MCP's own tokens protect them. Let cookies through on `/authorize`, `/consent` and `/oauth/callback`, or every login stops at the Approve button.
+Only when `MCP_PUBLIC_URL` is set. Route these to 8090 **without** your page login: the MCP's own tokens protect them. Let cookies through on `/authorize`, `/consent` and `/oauth/callback`, or every login stops at the Allow Access button.
 
 | Path | Route | What |
 |---|---|---|

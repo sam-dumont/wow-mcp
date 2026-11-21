@@ -16,8 +16,9 @@ You need:
 - **An assistant that takes custom connectors.** Every client below does; some plans limit
   them.
 - **Your login**: the assistant opens your browser once, for the same account as your page.
-  If your page signs you in with Battle.net, pick **Sign in with Battle.net** on that consent
-  page.
+  Press **Allow**, and the login page asks which account to use: pick the one your page uses.
+  If your page signs you in with Battle.net, press **Sign in with Battle.net** instead: it goes
+  straight to Battle.net.
 
 Running the server yourself: it needs a public HTTPS address and a login provider first,
 [Set up the login for your AI](../self-host/oidc.md).

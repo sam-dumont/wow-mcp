@@ -17,7 +17,7 @@ that has `read:packages` (an `imagePullSecrets` entry; docs/development.md,
 | `wow-stats publish [--loop] [--force]` | none | its log line per build | writes the static sites to `PUBLISH_DIR` (or pushes them, below) |
 | `wow-stats static` | 8080, upload on `UPLOAD_PORT` | `GET /healthz` | the files `publish` wrote, nothing else |
 | `wow-stats zogzog-key rotate` | none | | a new key for the sealed link, and a rebuild |
-| `wow-stats render` (image `wow-mcp-render`, `docker build --target renderer .`) | 8083 (`PORT`) | `GET /healthz`: 200 once Chromium runs | `POST /render`: a past level's picture, for `publish` only (below) |
+| `wow-stats render` (image `wow-mcp-render`, `docker build --target renderer .`) | 8083 (`PORT`) | `GET /healthz`: 200 once Chromium runs | `POST /render`: the paperdoll's picture and each past level's, for `publish` only (below) |
 | `wow-stats zogzog-key link` | none | | prints the sealed link (never logged) |
 
 ## The container
@@ -25,7 +25,7 @@ that has `read:packages` (an `imagePullSecrets` entry; docs/development.md,
 One image for every command, with no third-party binary and no model: the
 play analysis and the plans are written by the user's own assistant over
 the MCP (docs/mcp.md), or, for the analysis only, by the AI provider the
-host configured, through its API (docs/self-host/server-analysis.md). (The changelog's 0.4.0 entry lists what it removed, the `wow-stats-agent` image among it.)
+host configured, through its API (docs/self-host/server-analysis.md).
 
 - Runs as uid/gid 10001, `ENTRYPOINT ["wow-stats"]`.
 - Works with a read-only root filesystem. Only `/tmp` needs to be writable
@@ -74,15 +74,17 @@ needed, so a long history comes back whole rather than cut.
 | `ANALYSIS_STATE_DIR` | off | the play analysis' state (full view only): per character, the kept findings and the open run a client drives over the MCP, plus the plans. With `ANALYSIS_HOUR` (`4`, local time: the nightly recheck of kept findings, no model), `WOW_TIMEZONE` (the player's IANA timezone for hours and weekdays, `Europe/Brussels` when unset), `ANALYSIS_SHARE_PORT` (the /zogzog/ lines for the publisher, which reads `ANALYSIS_SHARE_URL`), `KB_GAME_TABLES`. How it works: docs/mcp.md, "The play analysis" |
 | `ANALYSIS_SHARE_TOKEN_FILE` | `<WOW_STATE_DIR or ANALYSIS_STATE_DIR>/share-token` | the share port's bearer token, 32+ characters, asked on every request. Made (0600) on the first start when the file is missing. The publisher and the exporter read the same file (a shared volume, or a secret mounted in all three) through the same variable |
 | `ANALYSIS_SHARE_BIND` | `BIND` | where the share port listens. Never route it from outside |
+| `ANALYSIS_PROVIDER`, `ANALYSIS_MODEL`, `ANALYSIS_API_KEY_FILE` or `ANALYSIS_WIF_*`, `ANALYSIS_MONTHLY_BUDGET`, `ANALYSIS_STALE_PLAYED_HOURS`, `ANALYSIS_AUTO`... | off until credentials are set | the server's own analysis (full view only): its provider, credentials, budget and timer. Every one: docs/self-host/server-analysis.md and docs/reference/environment.md |
 | `MCP_PUBLIC_URL` | off | the MCP endpoint (full view only, needs the image's `mcp` extra, which the image has): the https address clients use, ending in `/mcp`. Off until set |
 | `MCP_PORT` | `8090` | the MCP's own port, on `BIND`: FastMCP serves `/mcp` and the OAuth paths there, never on `PORT` ("Routes" below) |
 | `MCP_AUTH` | `oauth` | `none` only on a loopback `BIND` (a laptop) |
-| `MCP_LOGIN` | `oidc` | the only value; `password` refuses to start (the passphrase login is gone since 0.4.0) |
+| `MCP_LOGIN` | `oidc` | the only value; `password` refuses to start |
 | `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET_FILE` | required with `MCP_PUBLIC_URL` | the identity provider and its app (code flow, client secret, refresh tokens, callback `https://<host>/oauth/callback`) |
 | `OIDC_ALLOWED_SUBS` | required unless `WOW_STATE_DIR` | account ids allowed in, comma separated |
 | `OIDC_REQUIRED_ROLE`, `OIDC_ALLOWED_ORGS` | empty | one person per install: a project role and the org ids allowed (from the claims below). Ignored with `WOW_STATE_DIR`: the friends list decides |
 | `OIDC_ORG_CLAIM`, `OIDC_ROLES_CLAIM` | ZITADEL's (`urn:zitadel:iam:...`) | the claim names holding the org id and the roles: set your provider's |
-| `OIDC_SCOPES` | `openid offline_access` (+ the org scope with `OIDC_ALLOWED_ORGS`, one person per install) | what the app asks the provider for |
+| `OIDC_SCOPES` | `openid offline_access` (+ the org scope with `OIDC_ALLOWED_ORGS`, one person per install) | what the app asks the provider for. Every authorize request also sends `prompt=select_account`: the provider shows its account picker |
+| `OIDC_BATTLENET_ORG_ID`, `OIDC_BATTLENET_IDP_ID` | empty | ZITADEL only, both or neither: a "Sign in with Battle.net" button on the MCP consent page, straight to that provider in that org |
 | `MCP_SIGNING_KEY_FILE` | random per start | 32+ random bytes: signs the tokens and encrypts the stored logins. Without it every restart logs every client out |
 | `MCP_STATE_DIR` | memory only | client registrations and logins, encrypted, in `<dir>/oauth/` |
 | `MCP_REDIRECT_URIS`, `MCP_CIMD_HOSTS` | the built-in client lists (docs/mcp.md) | replace the lists of allowed redirects and of hosts whose client documents (CIMD) are fetched |
@@ -268,17 +270,17 @@ to that port without the proxy's login.
 | `/api/config`, `/api/chars`, `/api/char`, `/api/journal` | allow-listed fields | everything |
 | `/api/market`, `/api/prices`, `/api/logsql` | 404 | yes |
 | `/mcp`, `/authorize`, `/token`, `/register`, `/revoke`, `/consent`, `/oauth/callback`, `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource` (and `/mcp` under it) | none | on `MCP_PORT` (8090) when `MCP_PUBLIC_URL` is set, never on this port: route them there without the page login |
-| `/api/coach` | 404 | 404 (removed in 0.4.0) |
 | `/model3d/*`, `/api/model3d` | 404 | the 3D view, while `MODEL3D` is on: its page (`/model3d/view`, own CSP), scripts, and the person's own game files by id (`/model3d/file/<id>`, `private` caching) |
 | `FULL_DOOR_PATH` (`/full/`, `/full`) | 404 | 302 to `/` (the login door: the proxy in front sends people through its login there; empty turns it off, for a full view on its own host) |
-| `/render/<char>.<ext>` | 200 | the armory's full-body render (Battle.net), when the exporter has one |
+| `/render/<char>.webp` | with `RENDER_FROM` | same | the paperdoll's picture: the publisher's still of the 3D model, read from the static site; 404 until it's drawn (the page keeps the silhouette and the 3D toggle) |
 | `/api/items`, `/icons/<size>/<name>.jpg` | items only | the tooltips' item cards; the icons in the full view (fetched from `wow.zamimg.com` once, cached by name) |
 | `POST /ingest` | when `INGEST_PASSWORD` is set | same |
 
 The full view makes outbound requests from the server only:
 `wow.zamimg.com` (the item icons, cached on disk), `wago.tools` (Forever's
 item tables: display ids, the tooltips' cards, enchant names; checked once
-a day), and the static site (`RENDER_FROM`) for the picture. The browser
+a day), the static site (`RENDER_FROM`) for the picture, and, with the
+server's own analysis on, the AI provider's API. The browser
 only talks to this server. A public server
 makes none.
 
@@ -291,7 +293,7 @@ full pod:   VIEW=full   AUTH=proxy BIND=0.0.0.0 PUBLIC_URL=https://wow-full.exam
 
 ## `wow-stats exporter`
 
-Needs **your own** Battle.net API client (README, "Battle.net client"). Keeps
+Needs **your own** Battle.net API client ([Battle.net data](self-host/battlenet.md)). Keeps
 Blizzard's data in memory only and pushes it to a VictoriaMetrics with a
 retention under 30 days (§2.18 of the API terms). Never let a long-term
 scraper (Prometheus, vmagent) scrape its `/metrics` for game data: it only
@@ -323,8 +325,8 @@ the 23 days), no backups, no copies.
 
 Forever's profiles are on the Profile API without a realm:
 `/profile/wow/character/testchar-demo` in `profile-forever-eu`, with a
-client-credentials token (checked 2026-11-18; a character the API hasn't
-seen yet answers 404). Everything it returns is Blizzard API data, kept 30
+client-credentials token (a character the API hasn't seen yet answers
+404). Everything it returns is Blizzard API data, kept 30
 days at most (§2.18), so the look travels like the market data and never
 through VictoriaLogs:
 
@@ -346,7 +348,7 @@ through VictoriaLogs:
    draws the 3D model, and every view reads the talents the same way for the
    character card (never stored anywhere else, so there is no talent
    history). A character Battle.net doesn't know gets its race's default
-   look and no talents: no add-on stands in (since 2026-11-20).
+   look and no talents: no add-on stands in.
 4. The public site's static bundle (`wow-stats publish`) gets the look the
    same way when it is built. The bundle is rebuilt at least once a day and
    the old one replaced, so no copy outlives the 30 days. The bundle holds the
@@ -354,8 +356,8 @@ through VictoriaLogs:
 5. The armory's item level: the profile's `equipped_item_level`,
    `wow_character_item_level{character, kind}`. No `/character-media`:
    Blizzard serves its renders on paths shared by character id across the
-   Classic games, and one showed a stranger in a character's place
-   (2026-11-21). The paperdoll's picture is our renderer's still of the 3D
+   Classic games, and one showed a stranger in a character's place.
+   Nothing downloads from Blizzard's render host. The paperdoll's picture is our renderer's still of the 3D
    model instead (`RENDER_URL`): the publisher draws it from the same answer
    as the 3D view, keeps it per tenant, character and look (a new item draws
    it again, 25 days at most), and puts it in the bundles
@@ -456,11 +458,11 @@ on disk for requests in flight.
 | `FULL_DOOR_PATH` (ui) | `/full/` | the login door of the live full view; empty: off |
 | `PLAUSIBLE_DOMAIN` | empty | your Plausible site's domain: pageviews on the static sites and, set on the ui too, the full view (below); empty: no analytics at all |
 | `PLAUSIBLE_SCRIPT`, `PLAUSIBLE_API` | `/js/script.js`, `/api/event` | the script and event paths, on the site's own address |
-| `RENDER_URL` | empty: no pictures | the renderer (`wow-stats render`, below): each past level's picture |
+| `RENDER_URL` | empty: no pictures | the renderer (`wow-stats render`, below): the paperdoll's picture and each past level's |
 | `RENDER_TOKEN_FILE` | required with `RENDER_URL` | the renderer's token, the same file the renderer reads (below). Without it the publisher draws no pictures and says why in its log |
 | `RENDER_BUDGET_S`, `RENDER_TIMEOUT_S` | `60`, `120` | seconds a build spends drawing (the rest wait for the next pass), and per picture |
 
-### Past levels' pictures: `wow-stats render`
+### The pictures: `wow-stats render`
 
 Its own image, `ghcr.io/<owner>/wow-mcp-render:<version>` (the
 Dockerfile's `renderer` target: Debian, Playwright's headless Chromium, no
@@ -570,10 +572,8 @@ owner is any sub in `WOW_OWNER_SUB`, a friend is a sub on the list, and nobody e
 gets in, whatever their name, email, org or roles. The web view and the MCP
 use the same rule (`tenancy.Tenancy.identify`; the MCP's auth calls
 `resolve_tenant(sub)` at each login and refresh). Org and role belong to
-whatever renders the list. Until 0.4.0 the web view also needed the org id in
-`X-Forwarded-Org`; the proxy sent it empty and everyone was refused, so it
-is gone, with `WOW_OWNER_ORG`, `OIDC_ALLOWED_ORGS` and `PROXY_ORG_HEADER`
-in this mode. A refused login gets a short page: signed in but not let in
+whatever renders the list: no org header, and `OIDC_ALLOWED_ORGS` is
+ignored in this mode. A refused login gets a short page: signed in but not let in
 yet, ask the person who runs the site, then reload; and a log-out link
 (`/oauth2/logout`) to switch accounts. Your login provider may then let
 anyone through to that page (no role or group check of its own): the
@@ -582,7 +582,7 @@ friends list is the lock either way.
 | `wow-stats ui` | |
 |---|---|
 | `WOW_STATE_DIR` | the registry (`users.json`, 0600) and each person's state, on a volume |
-| `WOW_OWNER_SUB` | the owner's login id; comma-separated for an owner with several logins (one linked to Battle.net): each is the owner, one tenant, one set of data and settings. One also on the friends list stays the owner's: nothing is made or deleted for it, and the start log names it by its place in this list (`owner_also_listed`, `position`) |
+| `WOW_OWNER_SUB` | the owner's login id; comma-separated for an owner with several logins (one linked to Battle.net): each is the owner on the web, the MCP and /admin, with one tenant, one set of data and settings and one analysis timer per character. One also on the friends list stays the owner's: nothing is made or deleted for it, and the start log names it by its place in this list (`owner_also_listed`, `position`) |
 | `WOW_OWNER_SLUG` (empty by default: set your own), `WOW_OWNER_ALIASES` | the owner's site name, and hosts that are theirs too (`wow.example.org`): all reserved for them. Pages never print it to friends: they say "the person who runs this site" |
 | `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}` (a slug may be `""`, or a plain list of subs: named from `PROXY_BATTLETAG_HEADER` at the first login), watched for changes (mount its folder, not the file); how often a full pass runs anyway. Unset: the owner only |
 | `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends |

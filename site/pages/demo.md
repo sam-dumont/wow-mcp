@@ -24,8 +24,6 @@ The pages are plain files on GitHub Pages, so anything that needs the server is 
 - no login, no full view (other players, gold over time, the live timeline);
 - no MCP: [a recorded session](mcp-session.md) shows what an assistant gets from the same data.
 
-His portrait is a still of his 3D model, drawn by the site's own renderer, like every character's.
-
 The dates move: every build shifts his play so his last session is the day before. The auction house only lists what was on sale today or yesterday, so a demo frozen in October would have an empty auction house.
 
 ## Build it yourself

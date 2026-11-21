@@ -2,6 +2,78 @@
 
 ## Unreleased
 
+What 0.7.0 brings over 0.6.1, in short. Every change is below, one
+release candidate at a time.
+
+**For players**
+
+- Gear says how far each slot is from its best in slot (BiS): a badge on
+  every item icon, orange for BiS, purple from 85%, blue from 50%, and
+  "70% → 91% on your chest" on every upgrade, dungeon drop and quest
+  reward. The upgrades come slot furthest from BiS first.
+- The paperdoll's picture is a still of your own 3D model, drawn by the
+  server's renderer. Blizzard's armory renders are gone: they could show
+  another player's character.
+- "View in 3D" draws your character from your own game files: a weapon in
+  each hand, pauldrons on the right shoulder, eyes with their colour.
+- A quest you finished counts as done everywhere, even with the Recorder
+  off: the whole gear and bags history, every Questie or Altoholic save,
+  the rewards you hold, and what Battle.net says you wear.
+- New dungeon loot (The Drowned City's) gets its stats from your own
+  game's cache.
+- Battle.net fills what your addons don't send, every 2 hours.
+- Other players' names, realms and game ids stay on your PC unless a page
+  uses them.
+
+**For your AI**
+
+- `dashboard_refresh` refreshes "How you play" with your own AI, for the
+  character whose analysis is the oldest. It never starts a run on the
+  server and costs the host nothing.
+- The connector's login asks which account to use and, when the host set
+  it up, can send you straight to Battle.net.
+- Named metrics (`list_metrics`, `query_metric`) and `play_sql` on DuckDB.
+  A finding's query must read your play history: a constant is refused.
+
+**For hosts**
+
+- The server can run the play analysis itself, for friends who never ask
+  their own AI: Anthropic, OpenAI or any OpenAI-compatible endpoint,
+  through workload identity federation or a key file, with a monthly cap.
+  It runs for a character once it has 10 hours of play since its last
+  refresh (`ANALYSIS_STALE_PLAYED_HOURS`), and on nothing else.
+- `WOW_OWNER_SUB` takes a list of accounts. A friend listed without a name
+  gets one from their BattleTag.
+- One-button releases, signed shipper updates, the image on Docker's
+  hardened Python. After 0.7.0, a knowledge base refresh goes out as a
+  patch release by itself.
+
+### Upgrading from 0.6.x
+
+- 0.6 shippers update themselves within 6 hours of the server moving to
+  0.7.0. Nothing to reinstall.
+- Pictures need the renderer now: `RENDER_URL` on the publisher and
+  `RENDER_FROM` on the full view (docs/reference/environment.md). Without
+  them the paperdoll shows the silhouette and the 3D toggle.
+- `PROFILE_INTERVAL` defaults to 7200 (it was 86400) and picks clock slots.
+- `ui-public` with several people takes `USERS_URL` and
+  `ANALYSIS_SHARE_TOKEN_FILE` to follow Settings.
+- Lines stored before 0.7.0 keep what 0.6 sent about other players:
+  docs/contract.md, "Stored before 0.7.0", lists the filters that find
+  them.
+- Building from source needs `docker login dhi.io` once (a free Docker Hub
+  account). The released images pull as before.
+- The server's own analysis stays off until you configure a provider;
+  `ANALYSIS_AUTO=off` keeps it off with one.
+
+### Docs
+
+- Every page checked against 0.7.0's behaviour: the server's own analysis
+  and what it sends where, `dashboard_refresh` on your own AI, the BiS
+  badges, the picture, owner aliases, BattleTag names, quest completion,
+  the connector's account picker, the knowledge base's patch releases.
+  Screenshots retaken on the demo character.
+
 ## 0.7.0-rc.6 (2026-11-21)
 
 ### Changed

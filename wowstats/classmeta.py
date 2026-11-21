@@ -423,8 +423,8 @@ def talents_part(cls: str, level: int, tal: dict | None, header: dict, spec: str
         return {**base, "score": None, "known": False,
                 "gaps": [{"kind": "talents", "link": "#talents", "weight": 1,
                           "title": "Your talents aren't on your page yet",
-                          "action": "They come from Battle.net's daily read: log out once, then check back "
-                                    "tomorrow. A site without a Battle.net API client has none."}]}
+                          "action": "Battle.net reads them every 2 hours: log out once, then check back "
+                                    "later. A site without a Battle.net API client has none."}]}
     total = sum(want.values())
     matched = sum(min(ranks.get(n, 0), r) for n, r in want.items())
     spent = sum(ranks.values())

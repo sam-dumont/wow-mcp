@@ -1,7 +1,7 @@
 # Battle.net data
 
-**For:** self-hosters who want the WoW Token price and their characters' look from the
-armory. **At the end:** the exporter runs with your own Battle.net
+**For:** self-hosters who want the WoW Token price and their characters' look from
+Battle.net. **At the end:** the exporter runs with your own Battle.net
 API client, and you know what its data may and may not be used for.
 
 Optional. Everything else works without it: the game's own files give the climb, the gear,
@@ -16,7 +16,10 @@ API: auction prices come only from your own Auctionator scans. The exporter adds
   the 3D view and the character card, and for what the addons didn't send: the worn items
   without Syndicator, the class, race and faction without Polestar. The addons' data wins
   where there is some
-  (this part may show on the public site too; the guild only on the sealed one).
+  (this part may show on the public site too; the guild only on the sealed one);
+- the quests a character's worn gear proves done, when it wears a quest reward its history
+  doesn't show. Read live when a page or tool asks, never stored with the events or in the
+  analysis' database.
 
 ## Blizzard's rules, and what the kit does about them
 
@@ -63,9 +66,12 @@ From `deploy/compose`:
    On Windows, put any 30 random letters in `secrets\vm_merge_key`.
 2. In `.env`: uncomment `VM_URL=http://victoriametrics:8428`, set `BNET_REGION` (`eu` or
    `us`), and your characters as their WTF folders name them:
-   `PROFILE_CHARACTERS=Testchar-Demo,Testalt-Demo`. With friends on the install, the exporter
-   also takes `PROFILE_CHARACTERS_URL=http://ui:8091/profile-characters` and the share port's
-   token: every friend's characters then get read too, under their own account.
+   `PROFILE_CHARACTERS=Testchar-Demo,Testalt-Demo`. With friends on the install, every
+   friend's characters can be read too, under their own account: the kit's `exporter` service
+   doesn't pass these from `.env`, so add them to its `environment` in a
+   `compose.override.yaml`: `PROFILE_CHARACTERS_URL: http://ui:8082/profile-characters` and
+   `ANALYSIS_SHARE_TOKEN_FILE: /ui-state/share-token`, with `ui-state:/ui-state:ro` in its
+   `volumes` (the same way `publish` reads the token).
 3. Start it:
 
    ```sh

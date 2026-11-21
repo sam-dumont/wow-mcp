@@ -350,12 +350,12 @@ PLAN_TOOLS: tuple[T.Tool, ...] = (
     T.Tool("gear_options", "Gear options per slot",
            "Per slot, every way to an upgrade with its cost: quest (on the route or not), dungeon drop (trip time "
            "at the drop chance), world drop (luck, plus the player's own AH price), craft, and any other "
-           "source kind the "
-           "gear data names.", S({"char": CHAR, "limit": T.lim(8, 20)}), t_gear_options),
+           "source kind the gear data names. Slots furthest from BiS first; each item says bis_pct_worn → "
+           "bis_pct (null worn: empty slot).", S({"char": CHAR, "limit": T.lim(8, 20)}), t_gear_options),
     T.Tool("dungeon_options", "Dungeons worth it",
            "Dungeons in range now or soon, ranked: one more run at the character's level now (time, XP, share "
            "of the level, XP/h against its questing, quests to pick up; the Overview's line), expected gear "
-           "per clear with the top items (boss, drop chance); for the ones it did, one more run and looping "
+           "per clear with the top items (boss, drop chance, bis_pct); for the ones it did, one more run and looping "
            "it (gold per hour, runs for the mount).",
            S({"char": CHAR}), t_dungeon_options),
     T.Tool("mount_goal", "Mount progress",

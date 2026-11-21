@@ -4,8 +4,7 @@
 measured runs, and what to give it.
 
 **Start with 2 vCPU and 2 GiB of RAM** for one player, a Linux VM or a small box. The
-numbers below are why. They come from the release candidate's staging tests on 2026-11-19,
-with the small preset (`MODEL3D=off`, `WOW_ITEMS=off`) unless a row says otherwise, on an
+numbers below are why. They come from the 0.7.0 release candidate's staging tests, with the small preset (`MODEL3D=off`, `WOW_ITEMS=off`) unless a row says otherwise, on an
 Apple silicon Mac running Docker Desktop, each service under a memory cap.
 
 ## Two histories
@@ -45,41 +44,17 @@ Peak use per service (`memory.peak`), and the limit it ran under:
 
 After the long-history build, the four together sat at 445 MiB.
 
-**Since DuckDB and the semantic layer** (0.7.0), the analysis holds a
-second copy of a character's tables in DuckDB, and the MCP loads DuckDB, ibis and sqlglot the
-first time an analysis tool runs. Measured on 2026-11-20, same demo, same calls (the analysis
-brief, a `play_sql` count, plus two `query_metric` calls after), amd64 image under emulation:
+**The analysis and the page's numbers run on DuckDB**, which the tables above predate. The
+first analysis tool call loads DuckDB, ibis and sqlglot and makes a second copy of the
+character's tables: on the demo (amd64 image under emulation, the analysis brief, a `play_sql`
+count and two `query_metric` calls), `ui` peaked at 354 MiB against 228 MiB without them.
+About 75 MiB of that is the libraries (DuckDB 53, ibis and the layer 22); the rest is the copy
+and the queries. `publish` loads them too, since the character page's numbers come out of the
+layer at build time: a forced build of both demo sites, run outside Docker on macOS, peaked at
+314 MiB against 248 MiB without them.
 
-| Service | Before | After |
-|---|---|---|
-| `ui` (with the MCP) | 228 MiB | 354 MiB |
-| `publish` | 146 MiB | 145 MiB |
-
-The move from Debian slim to Docker's hardened Python base (2026-11-20, amd64 under emulation,
-the same calls through `wow-stats mcp-stdio` run inside the `ui` container, so its peak
-includes that process): `ui` 485 to 433 MiB, `publish` 160 to 146 MiB. That method counts more than the table
-above, so compare the two rows with each other, not with the table.
-
-About 75 MiB of the `ui` difference is loading the libraries (DuckDB 53, ibis and the layer
-22); the rest is the copy and the queries.
-
-**Since the pages read the layer** (same release), `publish` loads DuckDB and the layer too: the
-character page's numbers come out of it at build time. Measured on 2026-11-20 on the demo, one
-process each with the events answered in memory (no VictoriaLogs, no Docker), peak resident
-memory on macOS:
-
-| Run | Before | After |
-|---|---|---|
-| `publish`, both sites, forced | 248 MiB | 314 MiB |
-| `ui`, one background build of every answer | 224 MiB | 292 MiB |
-
-About 47 MiB of it is the imports (DuckDB, ibis, the layer), the rest the narrow copy and the
-queries. A process measures more on macOS than in the Linux container (the table above has
-`publish` at 145 MiB there), so compare the two columns, not the rows across tables. The long
-history wasn't re-run: `publish` measured 342 MiB there under a 384 MiB cap before this, so
-give it 512 MiB if you set a limit. The long history
-wasn't re-run: give `ui` 1 GiB (the compose default) and check `docker stats` after the first
-`analysis_brief`.
+The long history wasn't re-run with DuckDB: give `publish` 512 MiB if you set a limit, `ui`
+1 GiB (the compose default), and check `docker stats` after the first `analysis_brief`.
 
 The compose kit caps `ui` at 1 GiB (`UI_MEM_LIMIT`), about twice its measured peak; the others
 run without a limit. A history much longer than a year, or item cards on with a long history:
@@ -89,10 +64,9 @@ raise `UI_MEM_LIMIT` and watch `docker stats`.
 
 - **Events**: 6.5 MiB for 100,705 events. They're kept 100 years; `VL_MAX_DISK` sets a
   ceiling ([Install, disk space](../install.md#disk-space)).
-- **Image**: the main image is about 291 MB (amd64, on Docker's hardened Python base since
-  2026-11-20). DuckDB's library is 65 MB of it, ibis 28 MB. It was 173 MB on Alpine before
-  DuckDB, then 340 MB on Debian slim. The optional renderer stays on Debian slim, about
-  850 MB, and no longer shares base layers with the main image.
+- **Image**: the main image is about 291 MB (amd64, on Docker's hardened Python base).
+  DuckDB's library is 65 MB of it, ibis 28 MB. The optional renderer is on Debian slim, about
+  850 MB, and shares no base layers with the main image.
 - **Downloads cache** (`ui-state`, with items on): game tables and icons.
 - **3D files** (`ui-state`, with 3D on): what each person's shipper sends, up to 512 MiB a
   person (`MODEL3D_ASSETS_MB`).

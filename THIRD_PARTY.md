@@ -171,7 +171,7 @@ knows (its README).
 The notice above says Questie is moving to GPL-3.0. That hasn't happened: Questie#4447 was closed
 in October 2026 without a licence, and its last comments (February 2026) say every contributor
 would have to agree to one. wow-stats ships forever-db as Polestar v0.4.1.1 distributes it, QuestieDB
-lineage included (owner's decision, 2026-11-20): Polestar puts the same data in front of a much
+lineage included (the maintainer's call): Polestar puts the same data in front of a much
 larger audience, and can build without QuestieDB (`--no-questie`) should that be needed.
 
 ## wow.export
