@@ -86,4 +86,4 @@ jobs:
           LUA: lua5.4
         run: |
           uv sync --frozen
-          POLESTAR_CHECKOUT="$RUNNER_TEMP/polestar" uv run pytest -q -rs tests/test_gear_parity.py
+          POLESTAR_CHECKOUT="$RUNNER_TEMP/polestar" uv run pytest -q -rs -m ci_only tests/test_gear_parity.py
