@@ -20,6 +20,8 @@
 
 - Gear (the page and the MCP `gear` tool) no longer offers a quest's reward again once the reward that proved the quest done is sold or replaced: it read only the newest sheet and bags, the planner the whole history. Every gear and bags sheet now counts, as one answer per character for Gear, the Overview, `next_moves`, `sanity_check`, the planner and the Dungeons panel. What Battle.net says the character wears now counts too, everywhere (the only proof for a friend without Syndicator): read live, after the history and only adding quests, never kept past the readers' short caches nor put in the analysis' database; over MCP only when the person lets Battle.net data reach their AI.
 
+- Gear, the Overview, next steps and the MCP read only the newest 20 quest-addon snapshots, while the planner read them all: a quest only an older Questie or Altoholic save listed (DataStore's saves lose different low bits each time) was done for the planner and not done everywhere else. Every reader now reads every snapshot. Working the list out is also about 7 times faster (1,000 snapshots of 800 quests: 1.7 s before, 0.2 s now), for the planner too.
+
 ## 0.7.0-rc.5 (2026-11-21)
 
 ### Added

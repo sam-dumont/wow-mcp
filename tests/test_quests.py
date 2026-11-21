@@ -118,6 +118,33 @@ def test_the_logsql_reads_answer_from_the_cache():
     assert got[POWER_OVERWHELMING] == "reward" and got[BAZIL_THREDD] == "turnin" and got[5] == "altoholic"
 
 
+def long_history(n: int, ids_each: int = 0, proof: int = 5) -> list[dict]:
+    """`n` DataStore snapshots, oldest first, an hour apart: only the oldest
+    has `proof` (a bit the later saves rounded away), each has `ids_each`
+    other quests. Shaped as the shipper sends them (one per changed set)."""
+    out = []
+    for i in range(n):
+        ids = set(range(100_000, 100_000 + ids_each + i))
+        if i == 0:
+            ids.add(proof)
+        t = datetime(2026, 1, 1, tzinfo=UTC).timestamp() + i * 3600
+        out.append(snap("altoholic", ids, datetime.fromtimestamp(t, UTC).strftime("%Y-%m-%dT%H:%M:%SZ")))
+    return out
+
+
+def test_the_live_readers_see_every_snapshot_like_the_planner():
+    """Review 2 of 0.7.0: Q_SNAPSHOTS kept the newest 20 snapshots while the
+    planner (wowstats.plan.facts.gather) reads every event. A quest only the
+    oldest of 25 says is done was done for the planner and not for Gear, the
+    Overview or the MCP. Every reader now gets the same answer."""
+    cf = 'char:="Testpriest-Fixture"'
+    rows = long_history(25)
+    planner = quests.completed(rows)
+    live = quests.history(lambda q: logsql.parse(q).run(rows), f'feed:="wow-recorder" {cf}', cf)
+    assert planner[5] == "altoholic"
+    assert live == planner
+
+
 # ---------------------------------------------------------------- the shipper
 
 

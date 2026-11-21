@@ -63,8 +63,13 @@ SNAPSHOT_SOURCES = ("questie", "altoholic")
 # LogsQL pipes after a character's Recorder filter, and after a stream and
 # character filter: what views and the MCP read for completed().
 Q_RECORDS = "kind:in(turnin, offer) | stats by (kind, quest_id, quests_done) count() as n"
-Q_SNAPSHOTS = ('feed:="wow-quests" {cf} kind:=completed | fields _time, feed, kind, source, quest_ids '
-               "| sort by (_time desc) | limit 20")
+# Every snapshot, like the planner, which reads every event: DataStore's
+# saves lose different low bits from one to the next, and a Questie reset
+# starts a smaller set, so no newest-N holds them all. Review 2 of 0.7.0:
+# the newest 20 here missed a quest only the 25th-newest listed. The shipper
+# sends one per changed set (a few a play day); 1,000 of 800 ids each take
+# about 0.25 s in completed(), cached a minute by the Views.
+Q_SNAPSHOTS = 'feed:="wow-quests" {cf} kind:=completed | fields _time, feed, kind, source, quest_ids'
 # Every gear and bags sheet, not just the newest: a reward sold or replaced
 # since still proves the hand-in. The Gear page once read the newest alone
 # and offered Violet Sash from Power Overwhelming again once it was gone
@@ -169,7 +174,10 @@ def _found(rows: Iterable[dict], held: Iterable[int] | None,
     ev: dict[str, dict[int, dict]] = {s: {} for s in SOURCES if s != "inferred"}
 
     def add(src: str, q: int, why: str, t: float | None) -> None:
-        e = ev[src].setdefault(q, {"why": why, "t": t, "last_t": t})
+        e = ev[src].get(q)
+        if e is None:
+            ev[src][q] = {"why": why, "t": t, "last_t": t}
+            return
         if t is not None:
             if e["t"] is None or t < e["t"]:
                 e.update(why=why, t=t)
@@ -195,12 +203,16 @@ def _found(rows: Iterable[dict], held: Iterable[int] | None,
             if (q := _int(r.get("quest_id"))) is not None:
                 add("turnin", q, "handed in (the Recorder saw it)", t)
         elif kind == "offer":
+            why = f"the game flagged it completed{day(t)}"
             for q in _ids(r.get("quests_done")):
-                add("flagged", q, f"the game flagged it completed{day(t)}", t)
+                add("flagged", q, why, t)
         elif feed == "wow-quests" and kind == "completed" and r.get("source") in SNAPSHOT_SOURCES:
+            # Every snapshot, each a full set of up to ~1,000 ids: the reason is
+            # worded once per snapshot, not per quest (review 2 of 0.7.0).
             who = "Questie" if r["source"] == "questie" else "Altoholic (DataStore_Quests)"
+            why = f"{who} lists it completed{day(t)}"
             for q in _ids(r.get("quest_ids")):
-                add(r["source"], q, f"{who} lists it completed{day(t)}", t)
+                add(r["source"], q, why, t)
         elif held is None and feed == "wow-gear":
             # Every sheet, not just the newest: a reward sold or banked
             # since still proves the hand-in.
