@@ -67,7 +67,7 @@ class Workspace:
         from wowstats.mcp import route
         from wowstats.plan.facts import store_for
 
-        from . import TABLES, kb, prep, tables_of, upgrades_for
+        from . import TABLES, kb, manifest, prep, tables_of, upgrades_for
 
         st = store_for(env, store)
         self.store = st
@@ -76,8 +76,11 @@ class Workspace:
         if not rows:
             raise LookupError(f"no events for {self.char}")
         self.kb = kb.shared(env)
-        self.db = prep.build(rows, self.char, route.reference(), map_sizes=self.kb.meta.get("ui_map"),
+        ref = route.reference()
+        self.db = prep.build(rows, self.char, ref, map_sizes=self.kb.meta.get("ui_map"),
                              upgrades=upgrades_for(rows, self.char, env))
+        # What this build was computed with: each finding judged here keeps its id.
+        self.manifest = manifest.build(self.db, rows, self.kb, ref)
         # play_sql, the judge and the semantic layer read a locked-down DuckDB
         # copy (wowstats.analysis.duck); the plan and the synthesis's checks
         # keep reading the SQLite build (self.db). The copy with the rows sits
@@ -322,12 +325,16 @@ def brief(env: dict, char: str, section: str = "start", page: int = 1, goals: st
     if section not in SECTIONS:
         raise ValueError(f"unknown section {section!r}: {', '.join(SECTIONS)}")
     if section == "start":
-        return {"char": w.char, "run": {k: run[k] for k in ("id", "started", "pass")},
-                "intro": passes.INTRO, "goals": run.get("goals") or passes.GOALS_UNKNOWN,
-                "procedure": passes.PROCEDURE, "finding_rules": passes.FINDING_RULES,
-                "sections": {k: {"about": v, **({"pages": len(_pages(w.text(k)))} if k in ("schema", "profile", "kb")
-                                                else {})} for k, v in SECTIONS.items() if k != "start"},
-                "tables": w.tables, "next": next_step(run)}
+        out = {"char": w.char, "run": {k: run[k] for k in ("id", "started", "pass")},
+               "intro": passes.INTRO, "goals": run.get("goals") or passes.GOALS_UNKNOWN,
+               "procedure": passes.PROCEDURE, "finding_rules": passes.FINDING_RULES,
+               "sections": {k: {"about": v, **({"pages": len(_pages(w.text(k)))} if k in ("schema", "profile", "kb")
+                                               else {})} for k, v in SECTIONS.items() if k != "start"},
+               "tables": w.tables, "next": next_step(run)}
+        stale = to_revalidate(env, w.char)
+        if stale:
+            out["to_revalidate"] = {"findings": stale, "do": REVALIDATE_DO}
+        return out
     if section in ("schema", "profile", "kb"):
         return {"char": w.char, **_paged(section, w.text(section), page)}
     if section == "survey":
@@ -350,6 +357,22 @@ def brief(env: dict, char: str, section: str = "start", page: int = 1, goals: st
         f"- [{q['id']}] {q['question']} (answered: {q.get('answered')})" for q in run["questions"])
     return {"char": w.char, "task": passes.SYNTH_TASK, "answer_shape": passes.SYNTH_SCHEMA,
             **_paged("synthesis", listing, page)}
+
+
+REVALIDATE_DO = ("Kept findings judged under other definitions (prep version, semantic model or reference data): "
+                 "the nightly recheck no longer runs them and the page shows them as to revalidate. In a lane, "
+                 "check each with play_sql or query_metric under today's tables and propose it again with the "
+                 "same key if it still holds; one you don't propose stays marked.")
+
+
+def to_revalidate(env: dict, char: str) -> list[dict]:
+    """The kept findings marked to revalidate: key, title, why, and the evidence they were judged on."""
+    from . import load_state
+
+    found = (load_state(env, char).get("findings") or {}).values()
+    return [{"key": f.get("key"), "title": f.get("title"), "why": (f.get("revalidate") or {}).get("why"),
+             **({"metric_query": f["metric_query"]} if f.get("metric_query") else {"sql": f.get("sql")})}
+            for f in found if f.get("revalidate")]
 
 
 def _untouched(w: Workspace, run: dict) -> list[str]:
@@ -428,14 +451,18 @@ def note_kb(env: dict, char: str) -> None:
 
 
 def _store_finding(env: dict, w: Workspace, run: dict, got: dict) -> bool:
-    from . import SCHEMA, data_mark, keep, load_state, save_state, score
+    from . import SCHEMA, data_mark, keep, load_state, manifest, save_state, score
 
     now = _now()
     state = load_state(env, w.char)
     kept = dict(state.get("findings") or {})
+    # Judged under this build's definitions: a "to revalidate" mark from an
+    # older build goes (keep replaces the finding with this one).
+    got = {**got, "manifest": w.manifest["id"]}
     new = keep(kept, got, now, data_mark(w.db))
     kept[got["key"]]["score"] = score(kept[got["key"]])
     save_state(env, w.char, {**state, "schema": SCHEMA, "char": w.char, "findings": kept, "updated": now,
+                             "manifests": manifest.kept(state.get("manifests"), kept, w.manifest),
                              "goals": run.get("goals") or state.get("goals") or ""})
     run["verified"][got["key"]] = {k: got.get(k) for k in ("key", "title", "text", "sql", "row", "kb", "metric_query")}
     if new and got["key"] not in run["new_keys"]:
@@ -735,7 +762,7 @@ def _submit_synthesis(env, w, run, answer):
     info = {"at": _now(), "kind": drv.get("kind") or "client", "by": drv.get("by") or "player",
             "via": drv.get("via") or "client",
             "driver": str(drv.get("driver") or answer.get("driver") or "")[:80] or None,
-            "run": run["id"], "passes": run["submits"] + 1,
+            "run": run["id"], "manifest": w.manifest["id"], "passes": run["submits"] + 1,
             "questions": {"asked": len(asked), "answered": sum(1 for q in asked if q.get("answered")),
                           "added_for_coverage": sum(1 for q in asked if q.get("added")),
                           "followups": sum(1 for q in asked if q["round"] == "followup"),
@@ -749,7 +776,8 @@ def _submit_synthesis(env, w, run, answer):
             "confirmed": 0, "faded": 0, "dropped": dropped, "refused": len(_refusals(run)),
             "seconds_total": round((datetime.now(UTC) - datetime.fromisoformat(run["started"])).total_seconds())}
     out = finish(env, w.char, {**state, "goals": run.get("goals") or state.get("goals") or ""}, kept, nudges,
-                 patterns, w.db, w.kb, other_players(w.store, w.store.stream, w.char), info, info["at"])
+                 patterns, w.db, w.kb, other_players(w.store, w.store.stream, w.char), info, info["at"],
+                 w.manifest)
     run["pass"] = "done"
     run["result"] = info
     return {"accepted": True, "kept": sorted(out["findings"]),
@@ -778,8 +806,11 @@ def progress(env: dict, char: str, store=None) -> dict:
     runs = state.get("runs") or []
     recheck = next((r for r in reversed(runs) if r.get("kind") == "recheck"), None)
     last = next((r for r in reversed(runs) if r.get("kind") in CLIENT_KINDS), None)
+    kept = (state.get("findings") or {}).values()
     out = {"char": w.char, "kept_findings": len(state.get("findings") or {}),
-           "last_recheck": {k: recheck.get(k) for k in ("at", "confirmed", "faded")} if recheck else None,
+           "to_revalidate": sum(1 for f in kept if f.get("revalidate")),
+           "last_recheck": {k: recheck.get(k) for k in ("at", "confirmed", "still", "faded", "revalidate")}
+           if recheck else None,
            "last_analysis": last}
     if run is None:
         return {**out, "run": None, "next": {"pass": "survey", "do": "No run yet: call analysis_brief to start one."}}

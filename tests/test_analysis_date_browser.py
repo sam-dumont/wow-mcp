@@ -26,7 +26,12 @@ def _analysis(kind: str) -> dict:
     """The full view's /api/analysis answer, one finding and one nudge."""
     return {"available": True, "char": D.CHAR, "updated": RUNS[kind], "findings": [
         {"key": "f1", "title": "Deaths cluster on escorts", "text": "Three of five deaths were on escort quests.",
-         "action": {"do": "Skip the next escort", "where": "Thousand Needles", "next_step": "Drop it"}}],
+         "action": {"do": "Skip the next escort", "where": "Thousand Needles", "next_step": "Drop it"},
+         "confirmations": 2},
+        {"key": "f2", "title": "Long sessions level faster", "text": "Sessions over two hours gain more XP an hour.",
+         "action": {"do": "Keep the long sessions", "where": "anywhere", "next_step": "Plan the next one"},
+         "confirmations": 3, "revalidate": {"since": RUNS[kind], "why": ["the semantic model changed"]}}],
+        "checked": 1, "to_revalidate": 1,
         "nudges": [{"text": "Train before the next zone.", "where": "Ironforge", "next_step": "Fly there"}],
         "patterns": [], "time_budget": [], "last_run": {"at": RUNS[kind], "kind": kind},
         "last_analysis": {"at": RUNS[kind], "kind": kind}, "runs": []}
@@ -90,6 +95,25 @@ def test_how_you_play_says_when_and_who(site, pw, engine, kind, who):
         text = pg.locator("#analysis .asof").inner_text()
         day = {"server": "19 Nov", "client": "20 Nov"}[kind]
         assert re.fullmatch(rf"As of \w{{3}} {day}, by {who}\.", text), text
+        assert not errors, errors
+    finally:
+        b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_a_finding_to_revalidate_says_so_and_has_no_seen_count(site, pw, engine):
+    """Review 4: a finding judged under other definitions isn't rechecked;
+    the page says why instead of counting it as seen again."""
+    url, state = site
+    state["v"] = "client"
+    b, pg, errors = open_page(pw, engine, url, 1280)
+    try:
+        pg.click("#tab-overview")
+        pg.wait_for_selector("#analysis:not([hidden]) .findings", timeout=30000)
+        titles = pg.locator("#analysis .findings .ftitle")
+        assert titles.nth(0).inner_text().endswith("seen 3×")
+        second = titles.nth(1).inner_text()
+        assert "to revalidate: the semantic model changed" in second and "seen" not in second
         assert not errors, errors
     finally:
         b.close()

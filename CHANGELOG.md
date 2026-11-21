@@ -65,6 +65,9 @@ release candidate at a time.
   them.
 - Building from source needs `docker login dhi.io` once (a free Docker Hub
   account). The released images pull as before.
+- Findings kept before this change have no manifest: the first nightly
+  recheck marks them "to revalidate", and they come back to checked when
+  the next analysis (your AI's or the server's) proposes them again.
 - The server's own analysis stays off until you configure a provider;
   `ANALYSIS_AUTO=off` keeps it off with one.
 - The exporter's profile series carry a new `snapshot` label, plus
@@ -79,6 +82,10 @@ release candidate at a time.
   badges, the picture, owner aliases, BattleTag names, quest completion,
   the connector's account picker, the knowledge base's patch releases.
   Screenshots retaken on the demo character.
+
+### Changed
+
+- The nightly recheck runs a finding only under the definitions it was judged with. Each analysis build now keeps a run manifest (the play it saw, `PREP_VERSION`, a hash of the semantic model, the reference data's versions, timezone and gaps, build time, freshness) and each finding the id of its own. When the prep version, the semantic model or the reference data changed since, the finding shows as "to revalidate" on the page and in `play_analysis`, stays out of the checked count, and `analysis_brief` lists it for the next analysis to judge again. Before, the same SQL could pass on data that meant something else.
 
 ### Fixed
 

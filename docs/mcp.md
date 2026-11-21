@@ -204,6 +204,30 @@ as `still`, not `confirmed`. One that no longer holds loses half its weight
 each night and goes under 0.25: three nights for a new finding, four for a
 well-supported one. No model.
 
+The recheck only runs a finding under the definitions it was judged with.
+Every build (a run's workspace, each night's recheck) gets a run manifest
+(`wowstats/analysis/manifest.py`): which play it saw (newest event, event
+count, data mark), `PREP_VERSION` (`wowstats/analysis/prep.py`), a hash of
+the semantic model as loaded (`semantic.yaml` and its SQL views), the
+reference data's versions (the KB's Polestar tag and forever-db version, the
+route planner's and the gear data's Polestar tag), the timezone, the session
+and trip gaps, the build time and how old the newest event was. Each kept
+finding stores the id of the manifest it was judged under (`manifest`, the
+manifests themselves under `manifests` in `analysis.json`). When the prep
+version, the semantic hash or a reference version differs from tonight's,
+the finding isn't run: it gets `revalidate` (since when, and why in words),
+keeps its weight, counts as `revalidate` in the run instead of `still` or
+`confirmed`, and is left out of `checked` in `play_analysis` and the page,
+which tags it "to revalidate". The next analysis gets the list in
+`analysis_brief` (`to_revalidate`); proposing one again under today's
+definitions clears the mark. A finding kept before 0.7.0 has no manifest, so
+it starts out to revalidate.
+
+`PREP_VERSION` is bumped by hand, in the same change as anything that makes
+a query give another answer on the same events: a table, column or unit, a
+gap or interval, the order rows are read in, a dedupe rule. A refactor that
+changes no answer keeps it.
+
 ## The knowledge base
 
 One KB (`wowstats/analysis/kb.py`, `kb.shared()`) serves the analysis, the
