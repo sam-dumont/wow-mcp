@@ -275,3 +275,20 @@ def test_an_upload_wakes_the_builder_once_after_the_burst(server, vl, monkeypatc
         assert server.get("/ingest", headers={"Authorization": auth}, method="POST", data=line)[0] == 200
         assert not prebuilt.WAKE.is_set()  # not per upload
     assert prebuilt.WAKE.wait(2.0)  # once the burst is over
+
+
+def test_new_item_facts_rebuild_the_answers(monkeypatch, tmp_path, shipper):
+    """The shipper sends its item facts after its events: a build those
+    events started must not keep the Drowned City's bare names for a day."""
+    from tests.test_itemfacts import facts_of
+    from wowstats import itemfacts
+    from wowstats.plan import facts
+
+    monkeypatch.setattr(facts, "store_for", lambda _env, like=None: like)
+    app = ui.App({"VIEW": "full", "BIND": "127.0.0.1", "MODEL3D": "off", "ITEM_FACTS_DIR": str(tmp_path)},
+                 store=CountingStore())
+    assert app.prebuilt.check(now=1000.0) == "first build"
+    assert app.prebuilt.check(now=1001.0) is None
+    app.item_facts.store.put_items(list(facts_of(shipper).values()), itemfacts.has_reference)
+    assert app.prebuilt.check(now=1002.0) == "new data"
+    assert app.prebuilt.check(now=1003.0) is None

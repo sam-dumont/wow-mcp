@@ -4267,6 +4267,10 @@ def ship_assets(state: dict, now: float | None = None, force: bool = False,
             if "over the run's limit" in missing.values():
                 more = True
             before = sent
+            big = sorted(fid for fid, data in got.items() if len(data) > limit)
+            if big and st.get("too_big") != big:  # once, not every run
+                log(f"3d files: {len(big)} file(s) over the server's {limit // (1024 * 1024)} MB limit, not sent")
+            st["too_big"] = big
             for fid, data in got.items():
                 if len(data) > limit:
                     continue
@@ -4619,9 +4623,11 @@ def prefill() -> int:
         tally: dict = {}
         items = ship_item_facts(state, force=True, tally=tally)
         files = None
+        # Each run sends what the server named, a model's skin and skeleton
+        # a few asks later (ASSETS_ROUNDS): again until a run sends nothing.
         for _ in range(PREFILL_ROUNDS):
             files = ship_assets(state, force=True, tally=tally)
-            if files != "sent" or not state.get("assets", {}).get("more"):
+            if files != "sent":
                 break
         save_state(state)
     finally:
@@ -4640,8 +4646,7 @@ def prefill() -> int:
         line = f"3D files: {tally.get('files', 0)} sent ({tally.get('bytes', 0) // 1024} KB)"
         if tally.get("files_refused"):
             line += f", {tally['files_refused']} refused"
-        line += "; more to send: run it again later" if state.get("assets", {}).get("more") \
-            else "; the server has every file it asked for"
+        line += "; more to send: run it again later" if files == "sent" else "; nothing left to send"
     else:
         line = f"3D files: {files}"
     print(line)

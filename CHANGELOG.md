@@ -9,6 +9,8 @@
 ### Fixed
 
 - The 3D view asked the shipper for no model files on a new server: the answer made before the client tables arrived was kept 10 minutes, and the gear history's outfits were never counted (an unpack error, logged as `model3d: <name>'s gear history: ValueError`).
+- The 3D view never had a character model: Forever's HD models are 17-28 MB, over the server's 16 MB limit per file (now 48 MB). The shipper says in its log when a file is over the limit.
+- New dungeon loot kept its bare names until the next day: the page's answers were rebuilt when events arrived, and the shipper sends its item facts after its events. New item facts now rebuild them too.
 
 ## 0.7.0-rc.2 (2026-11-20)
 
