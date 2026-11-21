@@ -394,7 +394,8 @@ ENDPOINTS = [
           "the page's JSON answers (`/api/plan` also takes a POST)"),
          (["/model3d/*", "/model3d/file/<id>", "/api/model3d", "/render/<char>.webp",
            "/icons/<size>/<name>.jpg"], "login",
-          "the 3D view (its frame, and the game files your shipper sent, by id), the character's picture (our still of the 3D model), the item icons"),
+          "the 3D view (its frame, and the game files your shipper sent, by id), "
+          "the character's picture (our still of the 3D model), the item icons"),
          (["/full/"], "login", "`FULL_DOOR_PATH`: a redirect to `/`, through your login. Empty: off"),
          (["/healthz"], "public", "health check: `200 ok`, no login. Fine to route; probes need no credentials"),
          (["/ingest"], "public", "`POST` from the shipper, with its own password (`INGEST_PASSWORD`). "
