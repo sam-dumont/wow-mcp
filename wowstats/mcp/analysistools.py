@@ -269,7 +269,7 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
                            "description": "Output names; prefix with - for descending, e.g. [\"-deaths\"]."},
               "limit": {"type": "integer", "minimum": 1, "maximum": 500,
                         "description": "Rows at most (default 50)."}}, ("char", "metrics")),
-           _guard(t_query_metric)),
+           _guard(t_query_metric), writes="adds"),
     T.Tool("propose_finding", "Propose a finding",
            "Hand one finding to the judge: it re-runs the SQL (or the finding's metric_query, a query_metric "
            "call), checks every number (placeholders, expect, holds), "
