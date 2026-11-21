@@ -48,6 +48,12 @@ class Ctx:
     # Battle.net data to the model (the person's settings toggle): `market`
     # joins the MCP's tools. Off unless a tenancy front turns it on.
     bnet: bool = False
+    # Who the session is signed in as, said to them when their account has
+    # no data: the person's slug (wowstats.tenancy.Tenancy.ctx_for). "" on a
+    # one-person install. A connector signed in through the Battle.net button
+    # landed on another account of the owner's and only heard "is the shipper
+    # sending?" (2026-11-21).
+    who: str = ""
 
     def environ(self) -> dict:
         return dict(os.environ) if self.env is None else dict(self.env)
@@ -138,6 +144,9 @@ def resolve_char(ctx: Ctx, args: dict) -> str:
     rows = ctx.store.logs("char:* | stats by (char) max(_time) as last_seen")
     rows = [r for r in rows if r.get("char")]
     if not rows:
+        if ctx.who:
+            raise ToolError(f"No character has any events yet for {ctx.who}. If that isn't you, sign in again "
+                            "with the account that ships your data.")
         raise ToolError("no character has any events yet: is the shipper sending?")
     return max(rows, key=lambda r: parse_t(r.get("last_seen")))["char"]
 

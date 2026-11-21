@@ -20,8 +20,11 @@ client's run, marked `kind: "server"` with the model's name.
 - **The timer resets** whenever the player's analysis is refreshed, by anyone: this server's
   run, the player's own AI calling `dashboard_refresh`, or a full analysis from their own client.
 - **`dashboard_refresh`** (an MCP tool) runs it now for the caller, whatever the timer says,
-  budget permitting. It answers with the last refresh and who did it, the play since, what it
-  started or skipped and why, how the last try ended, and the budget left.
+  budget permitting. It answers with the last refresh and who did it, the play since, whether
+  the caller's refresh runs now or waits behind someone else's (one runs at a time; `state` and
+  `position`), what it skipped and why, how the last try ended, the budget left for the whole
+  install (`budget`, `scope: "install"`) and the caller's own runs and cost this month (`yours`).
+  Calling again while queued adds no second job.
 - **Only the analysis tools run** (no plans, no Battle.net data), on the player's own data, with
   `char` forced to the character being analysed. Tool results go back as data.
 - **It runs unattended** and finishes in one go: the run is done when its synthesis is accepted,
@@ -30,8 +33,9 @@ client's run, marked `kind: "server"` with the model's name.
   twice in a row at most; then the run is **incomplete**. A run that doesn't finish, for that or
   any other reason (budget, a provider error), changes nothing the player sees: their last
   finished analysis stays.
-- **/admin** shows the month's spend and, per person, their play since the last refresh and
-  who did it ([Admin overview](admin.md)).
+- **/admin** shows the month's spend for the whole install and, per person, their play since
+  the last refresh, who did it, and their own server runs and cost this month
+  ([Admin overview](admin.md)). The spend file splits the month per tenant number.
 
 The run happens in the **full-view process** (`wow-stats ui` with `VIEW=full`): give that
 process the credentials and egress to the provider's API, nothing else.

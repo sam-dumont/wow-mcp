@@ -21,7 +21,7 @@ press **Reload**.
 | Publisher | the publisher's last pass, and how many sites failed. Red when a site failed or the last pass is more than an hour old |
 | Battle.net | the exporter's last good read, from vm-wow (only with `VM_URL`). Red after 6 hours |
 | State folder | the size of `WOW_STATE_DIR` |
-| AI analysis | with [server-side analysis](server-analysis.md) on: the month's spend against `ANALYSIS_MONTHLY_BUDGET` (USD) and what's left, or "cost unknown" with the tokens used for an endpoint without prices; runs this month. Red once the budget is spent |
+| AI analysis | with [server-side analysis](server-analysis.md) on: the month's spend against `ANALYSIS_MONTHLY_BUDGET` (USD) and what's left, or "cost unknown" with the tokens used for an endpoint without prices; runs this month. Every figure is the whole install's: everyone's runs count against one budget. Red once the budget is spent |
 
 Below it, the server's own checks, green or red with the time they took: your store
 (`VL_URL`), the friends' store (`FRIENDS_VL_URL`), vm-wow (`VM_URL`), the static sites
@@ -43,7 +43,7 @@ your install.
 | Public page | whether they turned it on in Settings |
 | Last build | when the publisher last built their site: "ok", or the error line |
 | Addons | the shipper's setup report as one badge: "addons OK", "N missing" (of the two required addons), "Recorder off", or "no report" |
-| AI analysis | with server-side analysis on: their play since their analysis was last refreshed ("due" past `ANALYSIS_STALE_PLAYED_HOURS`), and when and by whom: the server, or them (their own AI, or `dashboard_refresh`) |
+| AI analysis | with server-side analysis on: their play since their analysis was last refreshed ("due" past `ANALYSIS_STALE_PLAYED_HOURS`), and when and by whom: the server, or them (their own AI, or `dashboard_refresh`); their own server runs this month and what they cost |
 
 The red flags:
 

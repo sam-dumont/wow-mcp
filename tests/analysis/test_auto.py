@@ -329,9 +329,9 @@ def test_the_rebuild_hook_never_blocks_and_never_doubles(lab, monkeypatch):
     s = service(e, FakeAnthropic(Script()), played=10 * H)
     queued = []
     monkeypatch.setattr(s, "_enqueue", queued.append)
-    assert s.on_rebuild(e) is None and len(queued) == 1 and queued[0][0] == "auto"
+    assert s.on_rebuild(e) is None and queued == [s.key(e)] and s._queued[s.key(e)][0] == "auto"
     assert s.on_rebuild(e) == "busy"  # its check hasn't run yet
-    s._busy.clear()
+    s._queued.clear()
     assert s.on_rebuild(e) == "checked recently"
     assert service(lab.env("a", ANALYSIS_AUTO="off"), None).on_rebuild(e) == "off"
 
@@ -546,8 +546,9 @@ def test_the_mcp_tool_runs_for_the_caller_only(lab, monkeypatch):
     monkeypatch.setattr(s, "_enqueue", seen.append)
     monkeypatch.setattr(auto, "_SERVICE", s)
     out = tools.call(lab.ctx(ea), "dashboard_refresh", {})
-    assert out["started"] and seen[0][1]["ANALYSIS_STATE_DIR"] == ea["ANALYSIS_STATE_DIR"]
-    assert str(seen[0][2].store.account_id) == lab.acct("a")
+    job = s._queued[seen[0]]
+    assert out["started"] and job[1]["ANALYSIS_STATE_DIR"] == ea["ANALYSIS_STATE_DIR"]
+    assert str(job[2].store.account_id) == lab.acct("a")
     with pytest.raises(tools.ToolError):
         tools.call(lab.ctx(ea), "dashboard_refresh", {"char": "Someoneelse-Realm"})
 
@@ -819,3 +820,137 @@ def test_the_unattended_wording_is_in_the_server_prompt_only(lab):
     assert mcp == prompts.analyse_text(CHAR, "")
     assert "unattended" not in mcp and "no one will reply" not in mcp.lower()
     assert 'say "continue" works in a new chat' in mcp
+
+
+# ---------------------------------------------------------------- queued vs running, per person
+
+
+def test_a_job_waiting_behind_another_tenant_is_queued_not_running(lab, monkeypatch):
+    """One worker: a's refresh runs, b's waits. b hears "queued behind
+    another refresh (position 1)", never "already running"; only a does."""
+    ea, eb, ec = lab.env("a"), lab.env("b"), lab.env("c")
+    s = service(ea, FakeAnthropic(Script()))
+    put = []
+    monkeypatch.setattr(s, "_enqueue", put.append)  # the worker is played by hand below
+    a = s.refresh(lab.ctx(ea))
+    assert a["started"] and a["state"] == "running" and a["running_for_you"]
+    ka, kb = s.key(ea), s.key(eb)
+    job_a = s._next(ka)  # the worker takes a's job
+    assert job_a[0] == "player" and ka in s._running
+    b = s.refresh(lab.ctx(eb))
+    assert b["started"] and b["state"] == "queued" and not b["running_for_you"]
+    assert b["position"] == 1 and "queued behind another refresh (position 1)" in b["note"]
+    assert "already running" not in json.dumps(b)
+    c = s.refresh(lab.ctx(ec))
+    assert c["position"] == 2 and "queued behind 2 other refreshes (position 2)" in c["note"]
+    again = s.refresh(lab.ctx(ea))
+    assert not again["started"] and again["skipped"] == "no new refresh: a refresh is already running for you"
+    # a finishes; b's job is next and runs as the player's own.
+    assert s._run_job(ka, job_a)["runs"][0]["status"] == "done"
+    assert s.refresh(lab.ctx(eb))["position"] == 1 and s.refresh(lab.ctx(eb))["ahead"] == 0
+    assert s._next(kb)[0] == "player" and s.refresh(lab.ctx(eb))["state"] == "running"
+    assert put == [ka, kb, s.key(ec)]
+
+
+def test_a_second_call_while_queued_adds_no_job(lab, monkeypatch):
+    ea, eb = lab.env("a"), lab.env("b")
+    s = service(ea, FakeAnthropic(Script()), played=10 * H)
+    put = []
+    monkeypatch.setattr(s, "_enqueue", put.append)
+    s.refresh(lab.ctx(ea))
+    s._next(s.key(ea))
+    # b's rebuild queued a timer check; b then calls: still one job, now theirs (it always runs).
+    assert s.on_rebuild(eb) is None and s._queued[s.key(eb)][0] == "auto"
+    for _ in range(3):
+        out = s.refresh(lab.ctx(eb))
+        assert not out["started"] and out["state"] == "queued" and out["position"] == 1
+        assert out["skipped"] == "no new refresh: your refresh is queued behind another refresh (position 1)"
+    assert list(s._queued) == [s.key(eb)] and s._queued[s.key(eb)][0] == "player"
+    assert put == [s.key(ea), s.key(eb)]
+    assert s.on_rebuild(eb) == "busy"
+
+
+def drain(s: auto.Service, timeout: float = 60.0) -> None:
+    import time
+
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        with s._lock:
+            if not s._queued and not s._running:
+                return
+        time.sleep(0.05)
+    raise AssertionError("the worker never finished")
+
+
+# ---------------------------------------------------------------- install-wide vs per person
+
+
+def test_the_budget_is_the_install_and_yours_is_your_own(lab, monkeypatch):
+    ea, eb = lab.env("a"), lab.env("b")
+    s = service(ea, FakeAnthropic(Script()))
+    ra = s.run_job("player", ea, lab.ctx(ea))["runs"][0]
+    drive._WS.clear()
+    s2 = service(eb, FakeAnthropic(Script()))
+    s2.run_job("player", eb, lab.ctx(eb))
+    s2.run_job("player", eb, lab.ctx(eb))  # nothing new to say still counts as a run
+    monkeypatch.setattr(s, "_enqueue", lambda k: None)
+    out = s.refresh(lab.ctx(ea))
+    b, mine = out["budget"], out["yours"]
+    assert b["scope"] == "install" and "whole install" in b["said"] and b["runs"] == 3
+    assert mine["scope"] == "you" and mine["said"] == "this month, your own runs only" and mine["runs"] == 1
+    assert mine["spent"] == pytest.approx(ra["usd"], abs=0.01) and mine["tokens"] == ra["tokens"]
+    assert b["spent"] > mine["spent"] and "note" not in mine
+    assert auto.mine(eb, s.spend)["runs"] == 2
+    # The split is per tenant number, never a name.
+    tenants = s.spend.this_month()["tenants"]
+    assert set(tenants) == {lab.acct("a"), lab.acct("b")}
+    # A month recorded before the split says so instead of undercounting silently.
+    d = s.spend.read()
+    d["months"][auto.month()]["runs"] += 4
+    auto._write_json(s.spend.path, d)
+    assert "4 of the install's runs this month predate" in auto.mine(ea, s.spend)["note"]
+
+
+def test_admin_labels_the_install_and_shows_each_persons_runs():
+    from wowstats import admin
+
+    now = 1_800_000_000.0
+    person = {"slug": "friend", "owner": False, "status": "active", "admitted": True, "full": None, "mcp": None,
+              "upload": {}, "os": None, "version": None, "chars": 1, "public_on": False, "build": None,
+              "addons": None, "stale": [], "error": "", "name_conflict": None,
+              "analysis": {"played_since": "1 h 00", "due": False, "at": now - 60, "by": "server", "last_try": None,
+                           "month": {"runs": 2, "spent": 3.1, "cost_known": True}}}
+    o = {"checked_at": now, "version": "0.7.0", "answers": {"built_at": None, "error": ""}, "publisher": None,
+         "exporter": None, "disk": {"bytes": 0, "capped": False}, "checks": [], "people": [person],
+         "analysis": {"cost_known": True, "spent": 5.0, "cap": 50.0, "left": 45.0, "tokens": 1, "tokens_cap": None,
+                      "runs": 3, "month": "2026-11"}}
+    page = admin.page_body(o)
+    assert "3 runs this month (2026-11), whole install" in page
+    assert "2 server runs, $3.10 this month" in page
+
+
+# ---------------------------------------------------------------- last refresh and last try, per person
+
+
+def test_a_server_run_sets_last_refresh_and_last_try_for_its_player(lab, monkeypatch):
+    """The page rebuild's timer runs the job on the worker; the player's
+    next dashboard_refresh sees both, and another player sees neither."""
+    ea, eb = lab.env("a"), lab.env("b")
+    s = service(ea, FakeAnthropic(Script()), played=11 * H)
+    assert s.on_rebuild(ea) is None
+    drain(s)
+    m, lt = auto.marker(ea), s.last_try(ea)
+    assert m["by"] == "server" and m["via"] == "auto" and lt["by"] == "server" and lt["status"] == "done"
+    monkeypatch.setattr(s, "_enqueue", lambda k: None)
+    seen = s.refresh(lab.ctx(ea))
+    assert seen["timer"]["last_refresh"]["by"] == "server" and seen["timer"]["last_refresh"]["at"] == m["at"]
+    assert seen["last_try"]["status"] == "done" and seen["last_try"]["by"] == "server"
+    other = s.refresh(lab.ctx(eb))
+    assert other["timer"]["last_refresh"] is None and other["last_try"] is None
+
+
+def test_the_run_log_names_the_character(lab, capsys):
+    e = lab.env("a")
+    service(e, FakeAnthropic(Script())).run_job("player", e, lab.ctx(e))
+    lines = [json.loads(x) for x in capsys.readouterr().out.splitlines() if '"what": "run"' in x]
+    assert lines and lines[-1]["char"] == CHAR and lines[-1]["tenant"] == lab.acct("a")
