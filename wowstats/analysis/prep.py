@@ -22,7 +22,7 @@ import sqlite3
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
-from wowstats import profcaps
+from wowstats import gear, profcaps
 from wowstats import quests as questsmod
 from wowstats import timebounds as tb
 from wowstats.stores import (
@@ -46,7 +46,11 @@ from wowstats.stores import (
 # the shipper's duration_s; same-time records by chunk and index as numbers.
 # 3: a taxi record's time from its land record (stores.taxi_time), not the
 # shipper's duration_s, which a flight across two shipper runs lacked.
-PREP_VERSION = 3
+# 4: the gear in force picked like the page's (an exact sheet first, the
+# items from the newest sheet with any); a snapshot whose id is its content
+# (bags, quest sets) kept per observation time, so quest evidence keeps
+# when it was first seen (evidence properties, tests/invariants/test_evidence.py).
+PREP_VERSION = 4
 
 
 def _zone() -> tuple[str, ZoneInfo]:
@@ -827,7 +831,10 @@ def _gear(db, rows) -> None:
                          _int(it.get("slot")), it.get("slot_name"), _int(it.get("item_id")), it.get("name"),
                          _int(it.get("quality")), _int(it.get("item_level")), _int(it.get("req_level"))))
     db.executemany("INSERT INTO gear_sheets VALUES (?,?,?,?,?,?,?,?,?,?)", hist)
-    g = sheets[-1]
+    # The sheet in force, as the page and the MCP pick it (gear.pick_sheet):
+    # an exact one before one dated by a commit or the run, and the items
+    # of the newest sheet that has any when the newest has none to say.
+    g = gear.pick_sheet(sheets)
     out = []
     for it in _items(g):
         iid = _int(it.get("item_id"))

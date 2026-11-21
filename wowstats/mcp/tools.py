@@ -24,7 +24,12 @@ from ..stores import (
     PLAYER_LEVEL_KINDS,
     SESSION_BUCKETS,
     SESSION_GAP_S,
+    SHEET_QUERY,
+    SNAPSHOT_SORT,
+    SNAPSHOT_TAKE,
     ZONE_RECORDS,
+    newest,
+    pick_sheet,
     split_sessions,
     zone_time,
     zone_totals,
@@ -216,9 +221,7 @@ def levels_rows(ctx: Ctx, char: str) -> list[dict]:
 def t_character_summary(ctx: Ctx, args: dict) -> dict:
     char = resolve_char(ctx, args)
     st = ctx.store
-    snap = st.logs(f'feed:="wow-character" {cf(char)} -kind:=played | fields _time, level, xp, xp_max, '
-                   f"money_copper, zone "
-                   f"| sort by (_time desc) | limit 1", limit=1)
+    snap = st.logs(f'feed:="wow-character" {cf(char)} -kind:=played | {SHEET_QUERY}', limit=SNAPSHOT_TAKE)
     last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, kind, level, xp, xp_max, money_copper, "
                    f"zone | sort by (_time desc) | limit 1", limit=1)
     # One row per record, as dedupe() reads them: count_uniq(source_id) gave
@@ -229,7 +232,7 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     n_deaths = len(death_rows(ctx, char, None, None))
     chars = st.logs("char:* | stats by (char) max(_time) as last_seen")
     levels = build_levels(levels_rows(ctx, char))
-    s, r = (snap or [{}])[0], (last or [{}])[0]
+    s, r = pick_sheet(snap), (last or [{}])[0]
     top = s if parse_t(s.get("_time")) >= parse_t(r.get("_time")) else r
     level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
     xp, xp_max = opt_num(top.get("xp")), opt_num(top.get("xp_max"))
@@ -288,9 +291,9 @@ def summary_talents(ctx: Ctx, char: str) -> dict:
     order and when it was read; or why there are none."""
     cls = who(ctx, char).get("class")
     if not cls:
-        sheet = ctx.store.logs(f'feed:="wow-gear" {cf(char)} | fields _time, class | sort by (_time desc) '
-                               f"| limit 1", limit=1)
-        cls = (sheet or [{}])[0].get("class")
+        sheet = ctx.store.logs(f'feed:="wow-gear" {cf(char)} | fields _time, at_basis, source_id, class '
+                               f"| {SNAPSHOT_SORT} | limit 1", limit=1)
+        cls = newest(sheet).get("class")
     tal, why = current_talents(ctx, char, cls)
     if not tal:
         return {"talents": None, "talents_why": why}
@@ -802,9 +805,10 @@ def _gear_item(u: dict | None) -> dict | None:
 def t_gear(ctx: Ctx, args: dict) -> dict:
     char = resolve_char(ctx, args)
     st = ctx.store
-    rows = st.logs(f'feed:="wow-gear" {cf(char)} | {gearmod.Q_SHEET}', limit=1)
-    snap = st.logs(f'feed:="wow-character" {cf(char)} -kind:=played | fields _time, level, zone, money_copper, '
-                   f"class, race, faction | sort by (_time desc) | limit 1", limit=1)
+    picked = gearmod.pick_sheet(st.logs(f'feed:="wow-gear" {cf(char)} | {gearmod.Q_SHEET}', limit=SNAPSHOT_TAKE))
+    rows = [picked] if picked else []
+    snap = [pick_sheet(st.logs(f'feed:="wow-character" {cf(char)} -kind:=played | {SHEET_QUERY}',
+                               limit=SNAPSHOT_TAKE))]
     worn = gearmod.armory_worn(st, char)
     worn_from = "sheet"
     if not gearmod.sheet_has_items(rows[0] if rows else None):
@@ -827,7 +831,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         rows = [row]
     last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, level, zone "
                    f"| sort by (_time desc) | limit 1", limit=1)
-    held = st.logs(gearmod.Q_HELD.format(cf=cf(char)), limit=1)
+    held = st.logs(gearmod.Q_HELD.format(cf=cf(char)), limit=SNAPSHOT_TAKE)
     # The Gear page's answer (Views.quests_done): the whole history, so a
     # reward sold or replaced since still counts, plus Battle.net's worn
     # items when this person lets them reach the model (bnet_vm_url).

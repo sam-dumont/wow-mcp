@@ -27,6 +27,11 @@ on one core).
 | 10 | A finding judged under another prep version, semantic model or reference data is marked "to revalidate" with the reason, every night until judged again; a finding from before manifests is carried over once. | `test_definitions.py` |
 | 11 | A crash or a failed write at any step between the game files and the server's store (the crash points below) loses no event and stores none twice in another form: after a restart, every event a run without the crash sends is stored, every copy of one `source_id` is the same line, and the prepared facts are the same. | `test_crash.py::test_a_crash_loses_and_doubles_nothing` |
 | 12 | `/ingest` takes an upload whole or not at all: one that ends before its `Content-Length` stores nothing and isn't answered 2xx, even when every line that came is whole. The shipper's spool and `state.json` reach the disk before the rename that makes them count, the spool before the state. | `test_crash.py::test_a_cut_upload_stores_nothing`, `test_crash.py::test_the_spool_and_the_state_reach_the_disk_before_they_count` |
+| 13 | A snapshot sent again keeps its observation time: gear, bags, quest sets, character sheets and Battle.net's read. The same content seen again later is a second observation and never moves the first. | `test_evidence.py::test_a_*`, `test_bnet_a_*` |
+| 14 | A snapshot dated only approximately (`at_basis`: an archive commit, or the shipper's clock) never replaces one with an exact time; a Battle.net read cut half way never replaces the last complete one. | `test_evidence.py::test_b_*`, `test_bnet_b_d_*` |
+| 15 | Two conflicting snapshots on one second give the same answer in either arrival order, on the page, the MCP and the analysis' tables. | `test_evidence.py::test_c_*` |
+| 16 | A snapshot that lacks a part (the bank, the equipped items, the money, quests a smaller set doesn't list, a Battle.net part that failed) doesn't erase it from an earlier complete one. | `test_evidence.py::test_d_*` |
+| 17 | What no snapshot says stays unknown (`null`), never 0 or empty: a bank never opened, a sheet without items, money never read, a Battle.net read never complete. | `test_evidence.py::test_e_*` |
 
 ## Crash points
 
@@ -111,6 +116,21 @@ Fixed in the same change as the tests:
   rename, and the state had no copy to fall back on.
 - `test_consumers.py` left the analysis' workspace cache (built under the Auckland case's
   timezone) for the owner-and-friend test on the same worker.
+
+Evidence properties (13 to 17), fixed in the same change as their tests:
+
+- Readers picked "the newest" gear sheet, bags and character sheet by time alone: an
+  archive copy dated by its commit (an upper bound) beat the exact sheet before it, and two
+  on the same second gave whichever arrived first. One rule now (`stores.SNAPSHOT_SORT`,
+  `stores.snapshot_rank`).
+- Bags, quest sets and the roster's sheets have ids made of their content: the same content
+  seen again later replaced the first copy, so quest evidence moved to the later day.
+  `stores.record_id` keys them by time too.
+- The shipper sent an empty bank for a bank Syndicator never saw, and no items for a
+  character Syndicator didn't know: both read as "holds nothing" and hid the earlier read.
+  They are left out now, and readers take them from the last snapshot that has them
+  (`stores.newest_with`), the money too.
+- The analysis took the newest gear sheet by time, not the one the page shows.
 
 ## Every consumer, every guarantee
 

@@ -38,7 +38,9 @@ itself.
 - `_time`: RFC 3339 UTC with milliseconds, `2026-11-17T15:14:03.120Z`: the
   event's own time, not when it was sent ("Times" below says which one).
 - `at_basis`: only on an event whose `_time` is approximate. `commit` means
-  it is the archive's capture time, an upper bound (below).
+  it is the archive's capture time, an upper bound (below); `run` means the
+  snapshot had no time at all and carries the shipper's clock. Readers pick
+  a snapshot with an exact time before an approximate one.
 - `feed`: `wow-recorder`, `wow-level`, `wow-dungeon`, `wow-character`,
   `wow-gear`, `wow-bags`, `wow-quests`, `wow-player`, `wow-prices`, `wow-talents` or `wow-combatlog`.
 - `char`: `Name-Surname` as in the WTF folder, `Testchar-Demo`. Polestar's
@@ -79,7 +81,7 @@ Recorder records, levels and dungeons carry their event time. Snapshots
 (`wow-quests`, `wow-bags`, `wow-gear` without a Polestar logout, `wow-character`)
 carry their observation time: the quest was done by then, maybe long before.
 Processing time is never an event's `_time`, except as a last resort when a
-snapshot has no time at all.
+snapshot has no time at all (then `at_basis: "run"`).
 
 Git keeps no file times, so a re-extraction from the archive can't read them
 from the rebuilt files. Each archive commit carries a capture manifest,
@@ -183,7 +185,8 @@ newest of the files' modification times (an observation time, "Times"). `source_
 content, so a sheet that goes back to an earlier state is sent again with
 the newer time.
 
-- `items`: the equipped items, from the account's `Syndicator.lua`
+- `items`: the equipped items (left out when Syndicator doesn't know the
+  character: unknown, readers keep the last sheet's), from the account's `Syndicator.lua`
   (`SYNDICATOR_DATA.Characters[...].equipped`, a Lua array whose index is the
   inventory slot + 1): `slot` (1 head ... 19 tabard), `slot_name`, `item_id`,
   `name` (from the item link), `quality` (0 poor, 1 common, 2 uncommon,
@@ -250,7 +253,8 @@ guessed. The server reads the string with the addon's talent table
 item IDs in its bags or its bank changes, from the account's `Syndicator.lua`
 (`SYNDICATOR_DATA.Characters[...].bags` and `.bank`, Lua arrays of
 containers of slots; the bank as it was the last time the character opened
-it, empty when it never did). `bags` and `bank` are sorted lists of item
+it). `bank` is left out when Syndicator holds no bank (never opened, or its
+cache lost): unknown, and readers keep the last bank they saw. `bags` and `bank` are sorted lists of item
 IDs: no counts, no links, nothing else from the slots. A character whose
 bags Syndicator hasn't scanned yet sends nothing; one that holds nothing
 sends empty lists, so an older list doesn't stay the newest. `_time` is

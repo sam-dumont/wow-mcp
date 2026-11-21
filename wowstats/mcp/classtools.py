@@ -5,6 +5,7 @@ and Forever's own trainer and talent data, every statement with its source.
 
 from __future__ import annotations
 
+from ..stores import SHEET_QUERY, SNAPSHOT_SORT, SNAPSHOT_TAKE, newest, pick_sheet
 from . import tools as T
 
 CHAR = T.CHAR
@@ -15,13 +16,12 @@ def _who(ctx: T.Ctx, char: str) -> dict:
     Battle.net reads them now (T.current_talents: live from vm-wow, never
     kept; None without them)."""
     st = ctx.store
-    snap = st.logs(f'feed:="wow-character" {T.cf(char)} -kind:=played | fields _time, level, class, race, faction '
-                   f"| sort by (_time desc) | limit 1", limit=1)
+    snap = st.logs(f'feed:="wow-character" {T.cf(char)} -kind:=played | {SHEET_QUERY}', limit=SNAPSHOT_TAKE)
     last = st.logs(f"{T.rec(char)} kind:in(xp, level) | fields _time, level | sort by (_time desc) | limit 1",
                    limit=1)
-    sheet = st.logs(f'feed:="wow-gear" {T.cf(char)} | fields _time, class, race, faction | sort by (_time desc) '
-                    f"| limit 1", limit=1)
-    s, r, g = (snap or [{}])[0], (last or [{}])[0], (sheet or [{}])[0]
+    sheet = st.logs(f'feed:="wow-gear" {T.cf(char)} | fields _time, at_basis, source_id, class, race, faction '
+                    f"| {SNAPSHOT_SORT} | limit 1", limit=1)
+    s, r, g = pick_sheet(snap), (last or [{}])[0], newest(sheet)
     who = {**T.who(ctx, char), **{k: g[k] for k in ("class", "race", "faction") if g.get(k)},
            **{k: s[k] for k in ("class", "race", "faction") if s.get(k)}}
     newer = r if T.parse_t(r.get("_time")) >= T.parse_t(s.get("_time")) else s

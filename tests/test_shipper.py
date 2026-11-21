@@ -354,9 +354,10 @@ def test_inventory_ids_on_change(shipper, tmp_path):
     shipper.extract_inventory(acct, chars, state, out)
     # Other-One's bags were never scanned and Nobody-Here is unknown: no
     # event. Empty-Bags was scanned and holds nothing: an empty event, so an
-    # older list doesn't stay the newest.
-    assert [(e["feed"], e["char"], e["bags"], e["bank"]) for e in got] == [
-        ("wow-bags", "Empty-Bags", [], []), ("wow-bags", "Hero-Test", [2589, 6948], [10413])]
+    # older list doesn't stay the newest. Its bank was never opened: unknown,
+    # so `bank` stays out (an empty one would erase an earlier read).
+    assert [(e["feed"], e["char"], e["bags"], e.get("bank")) for e in got] == [
+        ("wow-bags", "Empty-Bags", [], None), ("wow-bags", "Hero-Test", [2589, 6948], [10413])]
     assert "itemCount" not in json.dumps(got) and "Hearthstone" not in json.dumps(got)
     got.clear()
     shipper.extract_inventory(acct, chars, state, out)
