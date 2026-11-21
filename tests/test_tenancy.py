@@ -17,6 +17,7 @@ import json
 import os
 import re
 import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -45,11 +46,17 @@ SERIES = re.compile(r"([a-z_]+)\{([^}]*)\}")
 LABEL = re.compile(r'([a-z_]+)=("(?:[^"\\]|\\.)*")')
 
 
+# Read an hour before the test runs: a fixed date stops counting as a read
+# 30 days later (Blizzard's cap, views.fill_from_battlenet) and the guild
+# goes blank (a fixed 2026-11-18 would have gone red on 2026-12-18).
+REFRESHED = time.time() - 3600
+
+
 def _profile(acct: str, char: str, guild: str, trees: list[tuple[str, int]], ach: int, spell: int) -> list:
     who = {"character": char, "account_id": acct}
     return [("wow_character_profile", {**who, "race_id": "7", "gender": "female", "guild": guild}, 30.0),
             ("wow_character_profile_found", who, 1.0),
-            ("wow_character_profile_refreshed_timestamp_seconds", who, 1795000000.0),
+            ("wow_character_profile_refreshed_timestamp_seconds", who, REFRESHED),
             ("wow_character_achievement", {**who, "achievement_id": str(ach)}, 1795000000.0),
             ("wow_character_achievements_read", who, 1.0),
             ("wow_character_talent_rank", {**who, "spell_id": str(spell), "talent": ""}, 2.0),

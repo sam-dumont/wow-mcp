@@ -17,6 +17,9 @@ from wowstats.mcp import tools as T
 from wowstats.mcp.store import Store as MStore
 from wowstats.plan import write
 
+# The demo days are fixed: read them on the demo's clock, not the wall clock.
+pytestmark = pytest.mark.usefixtures("demo_clock")
+
 NO_RECORDER = ("no-recorder", "recorder-off", "polestar-only", "only-level-splits", "recorder-later-before")
 
 
@@ -89,6 +92,10 @@ def test_the_estimated_gold_rate_matches_the_recorded_one(served):
     rec = served["full"]["inputs"]["gold_rate"]["copper_per_hour"]
     est = served["recorder-off"]["inputs"]["gold_rate"]["copper_per_hour"]
     assert rec and est and abs(est - rec) / rec < 0.1
+    # The same sheets every day: the 14 days count back from the demo's
+    # clock. On the wall clock they lost about one sheet a day (16 on the
+    # 18th, 12 from the 21st at 19:16 UTC, the two rates then 22% apart).
+    assert served["full"]["inputs"]["gold_rate"]["n"] == served["recorder-off"]["inputs"]["gold_rate"]["n"] == 16
 
 
 def test_level_from_the_splits_alone(served):

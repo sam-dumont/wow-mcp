@@ -62,6 +62,18 @@ class _SharedBrowser:
         return getattr(self._real, name)
 
 
+@pytest.fixture(scope="module")
+def demo_clock():
+    """The clock at the demo's own "now" for a whole module (tests/degraded.py
+    clock()): `pytestmark = pytest.mark.usefixtures("demo_clock")` in every
+    module that serves the fixed demo days, so its module fixtures are made
+    under it too."""
+    from tests import degraded
+
+    with degraded.clock():
+        yield
+
+
 @pytest.fixture(autouse=True, scope="module")
 def one_browser_per_module():
     """Tests launch browsers as they like (one per test, closed on their last
