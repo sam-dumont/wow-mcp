@@ -10,10 +10,13 @@ account is the common case, so it is the baseline here.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
 import threading
 import urllib.parse
+from collections.abc import Iterator
+from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -24,6 +27,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools" / "fixtures"))
 
 import generate  # noqa: E402
+import time_machine  # noqa: E402
 
 END = "2026-11-18"
 CHAR = generate.DEMO
@@ -109,6 +113,24 @@ def base_rows() -> list[dict]:
 
 def rows_for(scenario: str) -> list[dict]:
     return SCENARIOS[scenario](base_rows())
+
+
+def now() -> datetime:
+    """The demo's "now": an hour after its newest event (END's morning).
+    Taken from the rows, never the wall clock."""
+    return max(parse_t(r["_time"]) for r in base_rows()) + timedelta(hours=1)
+
+
+@contextlib.contextmanager
+def clock() -> Iterator[None]:
+    """Every clock the app reads (time.time, datetime.now, date.today) set
+    to now() and ticking from there. The demo days are fixed and the app's
+    windows (the gold rate's 14 days of sheets, the loot's, the price days)
+    count back from the clock: on the wall clock each window slid across the
+    demo a little more every hour, and the gold-rate test went red when its
+    oldest sheet fell out (2026-11-21 19:16 UTC; it passed at 19:09)."""
+    with time_machine.travel(now(), tick=True):
+        yield
 
 
 class VL:

@@ -98,6 +98,8 @@ UPSTREAMS = {
     # Gear tables the fit model is checked against (tests/data/gearfit-refs.json:
     # item IDs, ranks and the page each came from).
     "wowforeverbislist.com", "noobtoboss.com",
+    # README.md, "Similar projects": a hosted service credited there.
+    "wowcoach.gg",
 }
 # Hosts that stand for an attacker in the security tests (open redirects,
 # lookalike origins): never contacted.

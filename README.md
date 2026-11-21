@@ -93,6 +93,28 @@ PowerShell, a port already taken, or the sites for friends: [Try the demo](docs/
 
 What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
+## Similar projects
+
+- [Polestar](https://github.com/fitzforge/polestar) (GPL-3.0): the guide addon this kit stands
+  on. Its Recorder logs your play; the route clock and gear scoring are its work.
+- [WoW Character Intelligence](https://github.com/bkhouser/WoW4EMCP) (MIT): addon and Windows
+  companion, quests, gear and bags in SQLite on your PC with provenance, read-only MCP.
+- [WoW Eye](https://github.com/TravinDSO/woweye) (MIT): addon and MCP; the agent reads your
+  character and puts markers and a compass in the game.
+- [wow-coach](https://github.com/RayanBayat/wow-coach) (MIT): addon, desktop coach app and
+  MCP, with a journal and goals per character.
+- [LevelTrail](https://github.com/Bencepo/LevelTrail) (all rights reserved, source on GitHub):
+  addon for level splits, deaths, gold and zones, shown in a browser viewer.
+- [wcl-mcp](https://github.com/webmakersteve/wcl-mcp) (no license file): Warcraft Logs reports
+  and combat logs in DuckDB, read-only SQL over MCP.
+- [WowCoach Forever](https://forever.wowcoach.gg/) (hosted service): uploaded combat log
+  reviews, with an AI connection on paid plans.
+- [WoWthing](https://github.com/ThingEngineering/wowthing-again) (GPL-3.0): web app tracking
+  characters and collections through the Battle.net API and an addon.
+
+This one focuses on a self-hosted levelling history, metric definitions shared by the page and
+the AI, and findings checked against the data.
+
 ## License
 
 GPL-3.0-only ([LICENSE](LICENSE)). The kit ships route times and gear data
