@@ -51,6 +51,10 @@ RULES: list[tuple[str, list[str]]] = [
      ["tests/test_kb_*.py", "tests/mcp/test_kb_*.py", "tests/analysis/test_kb_offline.py"]),
     # The shipper (the Windows end-to-end test runs in CI only).
     (r"^shipper/", ["tests/test_shipper*.py", "tests/test_recorder_install.py"]),
+    # The modules that register MCP tools: the registry's checks (description
+    # length, schemas) import only tools.py, so a long description in
+    # analysistools passed locally and failed CI (PR #40).
+    (r"^wowstats/mcp/(analysis|class|plan)tools\.py$", [OWN, "tests/mcp/test_tools.py"]),
     # Package code: the module's own tests plus every test importing it.
     (r"^wowstats/.*\.py$", [OWN]),
     # Data files and their exporters.
