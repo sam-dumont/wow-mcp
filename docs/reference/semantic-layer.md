@@ -425,7 +425,7 @@ Each quest the log held: its accept paired with its hand-in or abandon, and the 
 | `quest_xp_per_min` | ratio | xp/minute | XP per minute on quests: done_quest_xp over done_quest_s. | Done quests only. Time is the shared quest_s, so a quick quest done while ten sat in the log looks quicker than it was, and one carried for days looks slower. Kill XP on the way is not in it. |
 | `quests_open_avg` | ratio | quests | How many quests were in the log on average while these were: quest_open_s over quest_s. | 1 means one quest at a time; read it next to quest_s. |
 
-Group or filter by: `character`, `class`, `level`, `level_accepted`, `quest`, `quest_id`, `status`, `time`, `zone`.
+Group or filter by: `character`, `class`, `done_why`, `level`, `level_accepted`, `quest`, `quest_id`, `status`, `time`, `zone`.
 
 ### gold_moves
 
@@ -458,6 +458,7 @@ Each model aggregates on its own to the question's group_by, the results join on
 | `character` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves | The character (one per query: the char argument). |
 | `class` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves | The character's class, from its latest session record. |
 | `dings` | gold_moves | Level-ups between the two snapshots: 0 for a move inside one level. |
+| `done_why` | quests | For 'done (inferred)': the evidence, e.g. a reward only that quest gives worn or in the bags, or Questie's completed list. NULL otherwise. |
 | `dungeon` | timeline, dungeon_runs, dungeon_trips | Dungeon name while inside a dungeon run, else NULL. |
 | `guide` | timeline | The Polestar guide active then (the last step record), its id. NULL before the first step record. |
 | `guide_title` | timeline | That guide's title, from the route reference (NULL when the reference doesn't have the guide). |
@@ -472,7 +473,7 @@ Each model aggregates on its own to the question's group_by, the results join on
 | `run` | dungeon_runs | One run, named by when it started (unix seconds): group by it to list the runs one by one. |
 | `session_id` | timeline, records, sessions | Login span (sessions). |
 | `start_hour` | sessions | Hour of the start, local time. |
-| `status` | quests | done (accept and hand-in seen), abandoned, open (still in the log) or untimed (handed in, accepted before tracking began). |
+| `status` | quests | done (accept and hand-in seen), abandoned, open (still in the log), untimed (handed in, accepted before tracking began) or 'done (inferred)' (still in the log, but handed in with the Recorder off: done_why says what shows it). |
 | `step` | timeline | The guide's step number then (from 1). Group by guide too: step numbers restart in each guide. |
 | `step_title` | timeline | That step's title, from the route reference (NULL when the reference doesn't have it). |
 | `subzone` | timeline | Subzone text. |

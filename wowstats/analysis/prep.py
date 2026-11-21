@@ -25,6 +25,7 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from wowstats import profcaps
+from wowstats import quests as questsmod
 from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits, truthy
 
 
@@ -269,15 +270,28 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
                "was in the log, shared equally among the quests open then, so the quests' times add up to the "
                "online time with a quest open (nothing counted twice).", {
         "quest_row": "row number", "quest_id": "quest id", "quest_name": "title, when a record names it",
-        "status": "done (accept and hand-in seen), abandoned, open (still in the log) or untimed (handed in, "
-                  "accepted before tracking began)",
+        "status": "done (accept and hand-in seen), abandoned, open (still in the log), untimed (handed in, "
+                  "accepted before tracking began) or 'done (inferred)': still in the log but handed in with the "
+                  "Recorder off, as another source shows (done_why; the quests_done table)",
         "accepted_t": "accept, unix s", "closed_t": "hand-in or abandon, unix s",
         "accepted_local": "accept, local time", "closed_local": "hand-in or abandon, local time",
         "level_accepted": "level at the accept", "level": "level at the hand-in or abandon (else at the accept)",
         "zone": "zone of the hand-in (else of the accept)", "xp": "XP the hand-in paid",
         "money_copper": "money the hand-in paid, copper", "wall_s": "calendar seconds from accept to close",
         "open_online_s": "online seconds while in the log (each open quest counts them in full)",
-        "quest_s": "online seconds while in the log, each shared among the quests open then"}),
+        "quest_s": "online seconds while in the log, each shared among the quests open then",
+        "done_why": "for 'done (inferred)': the evidence (a reward only this quest gives worn, in the bags or "
+                    "bank; Questie's or Altoholic's completed list; the game's flag; a later quest that needs it); "
+                    "closed_t is when that evidence was first seen after the accept, NULL when unknown (its time "
+                    "then runs to the last record, as an open quest's)"}),
+    "quests_done": ("Every quest the character has done, whatever saw it: the Recorder's hand-ins, the game's "
+                    "flags, Questie's and Altoholic's completed lists, rewards only that quest gives held at any "
+                    "snapshot, and the quests those need first. The one answer the planner and the pages use; "
+                    "quests handed in before the Recorder was installed are here and not in quests.", {
+        "quest_id": "quest id", "quest_name": "title (forever-db), when known",
+        "source": "turnin, flagged, questie, altoholic, reward or inferred (the first, in that order of trust)",
+        "why": "the evidence in words", "seen_t": "first time that source said so, unix s (NULL when unknown)",
+        "seen_local": "seen_t, local time"}),
     "gold_moves": ("The purse between two consecutive snapshots (logout or /reload): what it moved and the part "
                    "the records name (quest money). No addon the kit reads saves spending (repairs, vendors, "
                    "training), so other_copper is everything else together.", {
@@ -613,7 +627,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     _gear(db, rows)
     _dungeon_trips(db, rows)
     _snapshots(db, rows)
-    _quests(db)
+    _quests(db, questsmod.explain(rows))
     _gold_moves(db)
     _upgrades(db, upgrades or [])
     _meta(db, char, rows, rec, now)
@@ -678,7 +692,9 @@ def _schema(db: sqlite3.Connection) -> None:
     CREATE TABLE quests (quest_row INTEGER PRIMARY KEY, quest_id INTEGER, quest_name TEXT, status TEXT,
         accepted_t REAL, closed_t REAL, accepted_local TEXT, closed_local TEXT, level_accepted INTEGER,
         level INTEGER, zone TEXT, xp INTEGER, money_copper INTEGER, wall_s REAL, open_online_s REAL,
-        quest_s REAL);
+        quest_s REAL, done_why TEXT);
+    CREATE TABLE quests_done (quest_id INTEGER PRIMARY KEY, quest_name TEXT, source TEXT, why TEXT, seen_t REAL,
+        seen_local TEXT);
     CREATE TABLE gold_moves (t0 REAL, t1 REAL, time_local TEXT, level INTEGER, level_end INTEGER,
         money_before INTEGER, money_after INTEGER, delta_copper INTEGER, quest_copper INTEGER,
         other_copper INTEGER, dings INTEGER, online_s REAL);
@@ -832,7 +848,7 @@ def _snapshots(db, rows) -> None:
     db.executemany("INSERT INTO snapshots VALUES (?,?,?,?,?,?,?,?,?,?)", out)
 
 
-def _quests(db) -> None:
+def _quests(db, done: dict[int, dict] | None = None) -> None:
     """Each quest the log held, from its accept to its hand-in or abandon
     (records paired by quest_id, in time order), and the online time it took.
 
@@ -849,7 +865,19 @@ def _quests(db) -> None:
     A hand-in with no accept before it (accepted before tracking began) is
     `untimed`; an accept while the same quest is already open keeps the
     first; an abandon closes it; what is still in the log is `open`, its
-    time counted up to the last record."""
+    time counted up to the last record.
+
+    `done` is wowstats.quests.explain of the character's events. A quest
+    still in the log that it says was handed in some other way (a reward
+    only that quest gives, worn or in the bags; Questie's list; ...) was
+    handed in while the Recorder was off: it closes as `done (inferred)`,
+    with the reason, when that evidence was first seen after the accept."""
+    done = done or {}
+    from wowstats import forever
+
+    db.executemany("INSERT INTO quests_done VALUES (?,?,?,?,?,?)",
+                   [(q, (forever.quest(q) or {}).get("name"), e["from"], e["why"], e["t"],
+                     _iso(e["t"], TZ) if e["t"] is not None else None) for q, e in sorted(done.items())])
     evs = db.execute("SELECT t, kind, quest_id, quest_name, level, zone, xp_reward, money_copper FROM records "
                      "WHERE kind IN ('accept', 'turnin', 'abandon') AND quest_id IS NOT NULL ORDER BY t, rec_id"
                      ).fetchall()
@@ -875,6 +903,11 @@ def _quests(db) -> None:
         elif q is not None:  # abandon
             q.update(status="abandoned", closed_t=t, level=lv, quest_name=q["quest_name"] or name)
             del open_[qid]
+    for qid, q in open_.items():
+        e = done.get(qid)
+        if questsmod.settles_open(e, q["accepted_t"]):
+            first = e["t"] if e["t"] is not None and e["t"] >= q["accepted_t"] else None
+            q.update(status=questsmod.INFERRED, closed_t=first, done_why=e["why"])
     # The time: one sweep over the timeline, quests opened as their accept passes.
     timed = sorted((q for q in rows if q["accepted_t"] is not None), key=lambda q: q["accepted_t"])
     for q in timed:
@@ -897,8 +930,8 @@ def _quests(db) -> None:
         out.append((n, q["quest_id"], q["quest_name"], q["status"], a, c, _iso(a, TZ) if a else None,
                     _iso(c, TZ) if c else None, q["level_accepted"], q["level"], q["zone"], q["xp"],
                     q["money_copper"], (c - a) if a is not None and c is not None else None,
-                    q.get("open_online_s"), q.get("quest_s")))
-    db.executemany("INSERT INTO quests VALUES (" + ",".join("?" * 16) + ")", out)
+                    q.get("open_online_s"), q.get("quest_s"), q.get("done_why")))
+    db.executemany("INSERT INTO quests VALUES (" + ",".join("?" * 17) + ")", out)
 
 
 def _gold_moves(db) -> None:

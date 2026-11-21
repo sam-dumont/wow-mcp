@@ -347,7 +347,8 @@ quests:
   dimensions:
     quest: {expr: _.quest, description: "Quest title (the records' own; \"Quest <id>\" when none names it). Two quests with one title group together: add quest_id."}
     quest_id: {expr: _.quest_id, description: "Quest id."}
-    status: {expr: _.status, description: "done (accept and hand-in seen), abandoned, open (still in the log) or untimed (handed in, accepted before tracking began)."}
+    status: {expr: _.status, description: "done (accept and hand-in seen), abandoned, open (still in the log), untimed (handed in, accepted before tracking began) or 'done (inferred)' (still in the log, but handed in with the Recorder off: done_why says what shows it)."}
+    done_why: {expr: _.done_why, description: "For 'done (inferred)': the evidence, e.g. a reward only that quest gives worn or in the bags, or Questie's completed list. NULL otherwise."}
     level: {expr: _.level, is_entity: true, description: "Level at the hand-in or abandon (at the accept while open)."}
     level_accepted: {expr: _.level_accepted, description: "Level at the accept (NULL for untimed)."}
     zone: {expr: _.zone, description: "Zone of the hand-in, else of the accept."}
