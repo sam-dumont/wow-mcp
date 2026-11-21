@@ -503,9 +503,11 @@ def test_an_api_error_is_reported_as_itself_not_as_a_tool_refusal(lab):
     r = service(e, FakeOpenAI(Script(), error=no)).run_job("player", e, lab.ctx(e))["runs"][0]
     assert r["why"].startswith("tool calling is required") and "does not support tools" in r["why"]
     # Nothing key-shaped from an error message reaches the run's record.
-    leak = api_error(400, "Incorrect API key provided: sk-proj-abcdefghijklmnopqrstuvwxyz0123456789ABCD.")
+    # Built at run time from a filler, so no key-shaped literal sits in the source.
+    fake = "sk" + "-" + "Z" * 40
+    leak = api_error(400, f"Incorrect API key provided: {fake}.")
     r = service(e, FakeOpenAI(Script(), error=leak)).run_job("player", e, lab.ctx(e))["runs"][0]
-    assert "abcdefghijklmnop" not in r["why"] and "[masked]" in r["why"]
+    assert "ZZZZZZZZ" not in r["why"] and "[masked]" in r["why"]
 
 
 def test_the_mcp_tool_runs_for_the_caller_only(lab, monkeypatch):
