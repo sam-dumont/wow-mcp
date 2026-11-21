@@ -27,7 +27,8 @@ full analysis from the player's own client (drive's synthesis calls
 Money: each response's usage is counted (tokens always) and priced:
 Anthropic from PRICES (its pricing page), an OpenAI-compatible endpoint
 from ANALYSIS_PRICE_INPUT_PER_MTOK / ANALYSIS_PRICE_OUTPUT_PER_MTOK (endpoints
-vary; unset: the cost is unknown and no money cap applies). The month's
+vary; unset: the cost is unknown and no money cap applies), cached prompt
+tokens at ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK (the input price when unset). The month's
 spend sits on the state volume (SPEND_FILE). A run that would likely cross
 ANALYSIS_MONTHLY_BUDGET (USD, what the APIs bill in) or
 ANALYSIS_MONTHLY_TOKENS doesn't start, and a run stops before a call that
@@ -61,6 +62,7 @@ import time
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlparse
 
 from . import providers
 
@@ -174,6 +176,7 @@ class Config:
     tokens_cap: int | None
     price_in: float | None
     price_out: float | None
+    price_cached: float | None
     auto: bool
     stale_s: float
     key_file: str
@@ -198,6 +201,7 @@ class Config:
                    tokens_cap=int(cap) if cap else None,
                    price_in=_num(env.get("ANALYSIS_PRICE_INPUT_PER_MTOK", "")),
                    price_out=_num(env.get("ANALYSIS_PRICE_OUTPUT_PER_MTOK", "")),
+                   price_cached=_num(env.get("ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK", "")),
                    auto=env.get("ANALYSIS_AUTO", "on").strip().lower() not in OFF_WORDS,
                    stale_s=max(0.0, _num(env.get("ANALYSIS_STALE_PLAYED_HOURS", "10")) or 0.0) * 3600,
                    key_file=env.get("ANALYSIS_API_KEY_FILE", "").strip(),
@@ -311,14 +315,25 @@ class Config:
         return openai.OpenAI(api_key=self._key() or "none", base_url=base, max_retries=3)
 
     def adapter(self, client, tools: list[dict]):
-        return providers.ADAPTERS[self.provider](client, self.model, SYSTEM, tools)
+        # OpenAI itself speaks Responses (its reasoning models take tools only
+        # there); any other ANALYSIS_BASE_URL speaks Chat Completions.
+        kind = "openai-responses" if self.provider == "openai" and self.openai_itself else self.provider
+        return providers.ADAPTERS[kind](client, self.model, SYSTEM, tools)
+
+    @property
+    def openai_itself(self) -> bool:
+        return not self.base_url or urlparse(self.base_url).hostname == "api.openai.com"
 
     def cost(self, model: str, usage: dict[str, int]) -> float | None:
         if self.provider == "anthropic":
             return anthropic_cost(model, usage)
         if not self.priced:
             return None
-        return ((usage["input"] + usage["cache_read"] + usage["cache_write"]) * self.price_in
+        # OpenAI bills cached prompt tokens at a tenth of the input price or
+        # less, and a run's prompts are mostly cached: at the input price a
+        # real run counted about 5x what it was billed and hit the cap early.
+        cached = self.price_cached if self.price_cached is not None else self.price_in
+        return ((usage["input"] + usage["cache_write"]) * self.price_in + usage["cache_read"] * cached
                 + usage["output"] * self.price_out) / 1e6
 
 
@@ -665,10 +680,13 @@ def api_error(e: Exception) -> str:
     name = type(e).__name__
     if status in (401, 403) or name in ("AuthenticationError", "PermissionDeniedError", "CredentialsError"):
         return "the AI provider refused the server's credentials"
+    # The endpoint's own words with the status: a bare "answered 400" hid
+    # OpenAI's "use /v1/responses", and z.ai says "Insufficient balance" with
+    # a 429, which isn't a rate limit to wait out (2026-11-21).
     if status == 429 or name == "RateLimitError":
-        return "the AI provider's rate limit: tried again later"
+        return f"the AI provider refused for rate or quota (429: {providers.said(e)})"
     if status is not None:
-        return f"the AI provider answered {status}"
+        return f"the AI provider answered {status}: {providers.said(e)}"
     if name in ("APIConnectionError", "APITimeoutError"):
         return "couldn't reach the AI provider"
     if isinstance(e, AuthError):

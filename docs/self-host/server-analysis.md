@@ -33,9 +33,11 @@ process the credentials and egress to the provider's API, nothing else.
 ## Pick a provider and a way in
 
 `ANALYSIS_PROVIDER` is `anthropic` (the default) or `openai`, which means any OpenAI-compatible
-Chat Completions endpoint: OpenAI, OpenRouter, Ollama, vLLM, LM Studio. The model has to support
-tool calling: one that refuses tools fails the run with that reason on /admin and in
-`dashboard_refresh`. It never falls back to a run without tools.
+Chat Completions endpoint: OpenAI, OpenRouter, Ollama, vLLM, LM Studio, z.ai. OpenAI's own API
+goes through Responses instead, because its reasoning models only take tools there; you don't set
+anything for that. The model has to support tool calling: one that refuses tools fails the run
+with that reason on /admin and in `dashboard_refresh`. It never falls back to a run without
+tools. Any other failure shows what the provider said.
 
 Credentials, first match wins: workload identity federation, then `ANALYSIS_API_KEY_FILE`, then
 (OpenAI-compatible only) no key. Each is handed to the SDK explicitly: a stray
@@ -65,7 +67,10 @@ start, and a run stops before a call that would cross it.
   reads and writes included.
 - **OpenAI-compatible:** endpoints charge what they like, so set
   `ANALYSIS_PRICE_INPUT_PER_MTOK` and `ANALYSIS_PRICE_OUTPUT_PER_MTOK` (USD per million tokens).
-  Without both, tokens are counted, /admin says "cost unknown", and no money cap applies.
+  Without both, tokens are counted, /admin says "cost unknown", and no money cap applies. Set
+  `ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK` too: most of a run's prompt is cached, which OpenAI
+  bills at a tenth of the input price or less, and without it the meter counts several times
+  what you're billed.
 - **`ANALYSIS_MONTHLY_TOKENS`** caps tokens instead, or as well: the cap for an endpoint with no
   prices, a local one included if you care about its GPU time.
 
@@ -101,7 +106,7 @@ Then in the full view's service (`deploy/compose/compose.yaml` already mounts `.
 ```
 
 OpenAI instead: add `ANALYSIS_PROVIDER: openai` and `ANALYSIS_MODEL: <a model with tool
-calling>`, plus the two prices if you want the money cap.
+calling>`, plus the three prices (input, cached input, output) if you want the money cap.
 
 ### Ollama on the same host
 

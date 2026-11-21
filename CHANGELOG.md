@@ -11,6 +11,9 @@
 
 ### Fixed
 
+- Server-side analysis on OpenAI's own API failed every run with "the endpoint refused tool calling": OpenAI's reasoning models (gpt-6 and later) take function tools on the Responses API only, and Chat Completions answered 400 "use /v1/responses". OpenAI itself (no `ANALYSIS_BASE_URL`, or `api.openai.com`) now goes through Responses, stateless (`store: false`, the reasoning passed back each turn); every other OpenAI-compatible endpoint stays on Chat Completions.
+- A failed server-side run says what the AI provider said: any 4xx naming tools used to read as "refused tool calling", other errors as a bare status, and z.ai's "Insufficient balance" (a 429) as a rate limit to wait out. Only an endpoint saying the model has no tools counts as a refusal now; the run's reason carries the provider's message (key-shaped strings masked).
+- Server-side analysis on OpenAI counted cached prompt tokens at the full input price: a run's prompts are mostly cached, so the meter read several times the bill and the monthly cap stopped runs early. `ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK` sets their price (the input price when unset).
 - "How you play" said "No analysis yet" above the kept findings when the only client run was saved before runs had a `kind`.
 - The nightly recheck re-ran a nudge's or pattern's findings but kept its words, so a line written at level 32 still said "well behind level 32" at 33. The client now writes changing values as `{column}` placeholders from the cited findings, rendered again every night; a line that types the level it was written at goes once the character is past it, and an `at_level` nudge turns `now` when reached. Older lines keep working.
 - The journal in the night theme: each session was a pale parchment card on the dark page. It now takes the page's colours like every other panel; by day it stays parchment.
