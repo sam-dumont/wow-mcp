@@ -989,7 +989,7 @@ function metaPart(p) {
   const pct = p.score == null ? null : Math.round(p.score * 100);
   const sub = p.key === 'talents' && p.target === 'none' ? `no target yet for ${p.spec} at 60`
     : p.key === 'talents' && p.known ? `${p.have} of ${p.of} points in the ${p.spec}${p.target === 'role' ? ` ${p.role}` : ''} build`
-    : p.key === 'gear' ? `${fmtNum(Math.round(p.worn))} of ${fmtNum(Math.round(p.best))} points the best gear now gives`
+    : p.key === 'gear' ? 'of what the best gear for your level gives'
     : p.key === 'enchants' ? `${p.have} of ${p.of} slots` : 'not known yet';
   // The page's CSP has no inline styles: the bar's width goes through the CSSOM.
   const fillEl = h('span', {});
@@ -1238,6 +1238,16 @@ function upShort(u) {
 function upText(u) {
   if (!badgeFor(u)) return `${u.slot_name || 'Gear'}, ${pts(u.gain)} points`;
   return `${upShort(u)} on your ${(slotKey(u) || 'gear').toLowerCase()}`;
+}
+// The item line every list of gear to get shares (the Overview's moves, the
+// Dungeons panel's drops and quest rewards): upText, and the level it opens
+// at when it can't be worn yet.
+function upLine(u) {
+  return `${upText(u)}${u.now === false ? ` at level ${u.level}` : ''}`;
+}
+// "chance one of your 3 upgrades drops", "chance your upgrade drops".
+function dropsOne(n) {
+  return n === 1 ? 'chance your upgrade drops' : `chance one of your ${plural(n, 'upgrade')} drops`;
 }
 
 // The display rule (owner, 2026-11-18, "WAY TOO MUCH options"): per slot the
@@ -1555,12 +1565,15 @@ function byWhere(a, list) {
       };
       g.value = per((u) => u.gain);
       g.rank = per(rankOf);
-      g.label = `${pts(g.value)} expected per clear`;
+      // Said as the chance a clear drops one of them, as the Dungeons panel
+      // does: the points behind the ranking are no scale the item lines use.
+      const none = g.items.reduce((x, { s }) => x * (1 - (s.chance_pct || 0) / 100), 1);
+      g.label = `${Math.round((1 - none) * 100)}% ${dropsOne(g.items.length)}`;
     } else {
       const open = g.items.filter(({ u }) => feasible(u, a.level).now);
       g.value = open.reduce((x, { u }) => x + u.gain, 0);
       g.rank = open.reduce((x, { u }) => x + rankOf(u), 0);
-      g.label = g.value ? `${pts(g.value)} if you take every one you can now` : 'none open yet';
+      g.label = open.length ? `${plural(open.length, 'upgrade')} you can take now` : 'none open yet';
     }
   }
   // What you already hold first (no trip), then by value.
@@ -1568,7 +1581,7 @@ function byWhere(a, list) {
     if (g.kind !== 'ah') continue;
     const now = g.items.filter(({ u }) => feasible(u, a.level).now);
     const cost = now.reduce((x, { u }) => x + ahOf(u).price_copper, 0);
-    g.label = now.length ? `${pts(g.value)} for ${priceText(cost)} in all` : 'none you can wear yet';
+    g.label = now.length ? `${plural(now.length, 'upgrade')} for ${priceText(cost)} in all` : 'none you can wear yet';
   }
   // Ranked on the fit-weighted gain: a dungeon of someone else's drops
   // comes after one of yours (gearfit.py), the label stays the plain gain.
@@ -2063,17 +2076,15 @@ function dropRow(it, dungeon, quests) {
     h('div', { class: 'dgitem' }, itemChip(it), whMark(it.url, it.name), it.state === 'missing' ? fitEl(it.fit) : null),
     h('div', { class: 'dgmeta' },
       it.state === 'missing'
-        ? h('span', { class: 'gain', title: upText(it) },
-          h('b', { text: upShort(it) }), it.fills_empty && !badgeFor(it) ? h('small', { text: 'empty slot' }) : null)
+        ? h('span', { class: 'gain', text: upLine(it) })
         : h('span', { class: 'own', text: ownText(it) || 'yours' }),
-      h('span', { class: 'pill', text: (it.slot_name || '').toLowerCase() + (it.now ? '' : `, level ${it.level}`) }),
       dropSource(it, dungeon, quests)));
 }
 
 // An item he has: where, and when it beats what he wears, the step to take.
 function ownText(x) {
   const up = x.gain > 0 && HELD[x.where];
-  return up ? `${HELD[x.where].toLowerCase()}, ${upShort(x)}${x.now ? '' : ` at level ${x.level}`}` : WHERE[x.where] || '';
+  return up ? `${HELD[x.where].toLowerCase()}, ${upLine(x)}` : WHERE[x.where] || '';
 }
 
 // A quest's reward is listed under the quests' rewards, not as a drop.
@@ -2132,9 +2143,7 @@ function rewardRow(r) {
   return h('li', { class: 'dgdrop missing' },
     h('div', { class: 'dgitem' }, itemChip(r), whMark(r.url, r.name)),
     h('div', { class: 'dgmeta' },
-      h('span', { class: 'gain', title: upText(r) },
-        h('b', { text: upShort(r) }), r.fills_empty && !badgeFor(r) ? h('small', { text: 'empty slot' }) : null),
-      h('span', { class: 'pill', text: (r.slot_name || '').toLowerCase() + (r.now ? '' : `, level ${r.level}`) }),
+      h('span', { class: 'gain', text: upLine(r) }),
       h('span', { class: 'src' }, 'from ', whLink(q.url, q.name || `quest ${q.quest_id}`),
         q.state === 'open' ? (q.complete ? ': complete, hand it in' : ': in your log')
           : giver ? [': pick it up from ', npcs([giver])] : '',
@@ -2268,8 +2277,11 @@ function dungeonTrip(b) {
   if (!b.drops.length && (b.kb_drops || []).length) {
     facts.push(fact('Gear a clear', b.kb_fit ? plural(b.kb_fit, 'drop') : 'none', b.kb_fit ? 'made for you' : 'none made for you'));
   } else {
-    facts.push(fact('Gear a clear', b.missing_now ? `+${b.expected_gain_per_clear.toFixed(1)}` : 'none',
-      b.missing_now ? `${b.chance_one_per_clear_pct}% one of ${plural(b.missing_now, 'upgrade')} drops` : 'nothing missing at your level'));
+    // The chance a clear drops one of his upgrades: the points behind
+    // expected_gain_per_clear are no scale the item lines use (owner,
+    // 2026-11-21: "+19.8" next to "17% → 30% on your wrist").
+    facts.push(fact('Gear a clear', b.missing_now ? `${b.chance_one_per_clear_pct}%` : 'none',
+      b.missing_now ? dropsOne(b.missing_now) : 'nothing missing at your level'));
   }
   if (t.measured) {
     facts.push(fact('Loot a run', coins(t.vendor_copper),
@@ -3053,7 +3065,7 @@ function moveRewards(rw) {
   if (!rw || !rw.length) return null;
   return h('div', { class: 'mrewards' }, h('span', { text: 'Quest rewards you could use:' }),
     h('ul', { class: 'ditems' }, rw.slice(0, 3).map((r) => h('li', {}, itemWithLink(r),
-      h('span', { class: 'sub' }, `${upText(r)}${r.now ? '' : ` at level ${r.level}`}, from `,
+      h('span', { class: 'sub' }, `${upLine(r)}, from `,
         whLink(r.quest.url, r.quest.name || `quest ${r.quest.quest_id}`))))),
     rw.length > 3 ? h('span', { class: 'sub', text: `and ${rw.length - 3} more in Dungeons` }) : null);
 }

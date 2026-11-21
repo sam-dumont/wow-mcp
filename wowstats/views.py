@@ -451,6 +451,24 @@ class Views:
         """Gear advice (wowstats.gear): per slot what is worn, the best item
         at this level and the next one coming, and the upgrades in order.
         spec: the page's choice, else Polestar's setting or the player's pick."""
+        gi = self.gear_inputs(char)
+        if not gi["available"]:
+            return gi
+        try:
+            advice = gearmod.advise(gearmod.reference(), gi["sheet"], spec=spec, **gear_args(gi))
+        except gearmod.GearError as e:
+            return {**gi["base"], "available": False, "why": str(e)}
+        return {**gi["base"], "available": True, "at": gi["at"], "talents": gi["sheet"].get("talents"), **advice,
+                **({} if gi["worn_from"] == "sheet" else gearmod.unknown_worn(gi["worn_from"]))}
+
+    def gear_inputs(self, char: str) -> dict:
+        """What the doll's advice is scored from: the newest sheet with
+        Battle.net's talents and worn stats, the level, the quests done, the
+        bags and the auction house. The planner scores the Dungeons panel and
+        the Overview's dungeon moves from these same inputs (wowstats.plan
+        inputs `gear_inputs`), so every item line's BiS share starts from the
+        doll's badge (owner, 2026-11-21: one number per slot). {"available":
+        False, "why"} without a sheet to score."""
         cf = self.char_filter(char)
         st = self.stream
         rec = f'{st} feed:="wow-recorder" {cf}'
@@ -495,14 +513,10 @@ class Views:
                                      money=header.get("money_copper"))
         except SourceError:
             market = None  # no prices is no reason to lose the advice
-        try:
-            advice = gearmod.advise(gearmod.reference(), sheet, level=header.get("level"), zone=header.get("zone"),
-                                    done=done, spec=spec, weights=self.settings.weights.get(char),
-                                    held=gearmod.newest_bags(res["held"]), market=market)
-        except gearmod.GearError as e:
-            return {**base, "available": False, "why": str(e)}
-        return {**base, "available": True, "at": row.get("_time"), "talents": sheet.get("talents"), **advice,
-                **({} if worn_from == "sheet" else gearmod.unknown_worn(worn_from))}
+        return {"available": True, "base": base, "at": row.get("_time"), "worn_from": worn_from, "sheet": sheet,
+                "level": header.get("level"), "zone": header.get("zone"), "done": done,
+                "weights": self.settings.weights.get(char), "held": gearmod.newest_bags(res["held"]),
+                "market": market}
 
     def meta(self, char: str, data: dict | None = None, advice: dict | None = None, cite: bool = False) -> dict:
         """The class's meta for this character and how close it is to it
@@ -945,6 +959,11 @@ def recorder_played(times: list) -> int | None:
     if not ts:
         return None
     return int(sum(b - a for a, b in zip(ts, ts[1:], strict=False) if b - a <= OFFLINE_GAP_S))
+
+
+def gear_args(gi: dict) -> dict:
+    """advise()'s keyword arguments from Views.gear_inputs (the sheet apart)."""
+    return {k: gi[k] for k in ("level", "zone", "done", "weights", "held", "market")}
 
 
 def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = None,

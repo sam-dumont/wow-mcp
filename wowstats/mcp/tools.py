@@ -20,14 +20,12 @@ from datetime import UTC, datetime, timedelta
 from .. import ahsource, gearfit
 from .. import gear as gearmod
 from ..rates import per_hour
-from ..stores import SESSION_BUCKETS, split_sessions
+from ..stores import PLAYER_LEVEL_KINDS, SESSION_BUCKETS, split_sessions
 from ..stores import public_error as stores_public_error
 from . import route
 from .store import SourceError, Store, iso, lq, parse_t, parse_when
 
 GROUPED = {"grouped", "dungeon"}
-# Recorder kinds whose `level` is the player's (docs/contract.md, shipper KINDS).
-PLAYER_LEVEL_KINDS = frozenset({"level", "session"})
 
 
 class ToolError(Exception):
@@ -973,7 +971,8 @@ def _with_gain(ctx: Ctx, char: str, moves: list[dict]) -> list[dict]:
     from wowstats.plan import dungeonview
 
     try:
-        inp = plan.inputs(ctx.environ(), char.replace(" ", "-"), store=ctx.store, battlenet=bnet_worn(ctx, char))
+        inp = plan.inputs(ctx.environ(), char.replace(" ", "-"), store=ctx.store, battlenet=bnet_worn(ctx, char),
+                          gear_inputs=lambda: _views(ctx).gear_inputs(char.replace(" ", "-")))
     except LookupError:
         return moves
     return dungeonview.with_gain(moves, dungeonview.build(inp))

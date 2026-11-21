@@ -251,6 +251,25 @@ def badges(page, scope: str) -> list[dict]:
     })""")
 
 
+# The doll's slots (app.js paperdoll, data-slot) as an item line names them.
+LINE_SLOT = {1: "head", 2: "neck", 3: "shoulder", 5: "chest", 6: "waist", 7: "legs", 8: "feet", 9: "wrist",
+             10: "hands", 11: "finger", 12: "finger", 13: "trinket", 14: "trinket", 15: "back", 16: "weapons",
+             17: "weapons", 18: "ranged"}
+
+
+def doll_badges(page) -> dict[str, set]:
+    """The doll's badge per slot as an item line says it ("59%", "100%",
+    "empty"): {slot word: {...}}, two of each for rings and trinkets."""
+    got = page.eval_on_selector_all("#gear .slot[data-slot]", """els => els.map(e => [
+      e.dataset.slot, e.classList.contains('empty'), (e.querySelector('.ifr .ibis') || {}).textContent || null])""")
+    out: dict[str, set] = {}
+    for slot, empty, badge in got:
+        word = LINE_SLOT.get(int(slot))
+        if word:
+            out.setdefault(word, set()).add("empty" if empty else "100%" if badge == "BiS" else badge)
+    return out
+
+
 def check_badge(b: dict) -> None:
     assert re.match(BADGE, b["text"]), b
     pct = 100 if b["text"] == "BiS" else int(b["text"].rstrip("%"))
@@ -289,13 +308,22 @@ def test_items_carry_the_bis_badge(browser, base, width):
     assert drops
     for b in drops:
         check_badge(b)
-    # A missing drop's gain: from the worn share to the item's, the badge's number.
+    # A missing drop's or quest reward's line is the Overview's (app.js
+    # upLine): from the worn share to the item's, the badge's number, the
+    # slot in words; never the slot as a chip (owner, 2026-11-21).
     gains = page.eval_on_selector_all(".dg .dgdrop.missing:has(.ifr .ibis)", """els => els.map(e => [
-      e.querySelector('.dgmeta .gain b').textContent, e.querySelector('.ifr .ibis').textContent])""")
+      e.querySelector('.dgmeta .gain').textContent, e.querySelector('.ifr .ibis').textContent])""")
     assert gains
+    assert not page.locator(".dg .dgdrop:has(.dgmeta .gain) .pill").count()
+    doll = doll_badges(page)
     for text, badge in gains:
-        m = re.match(r"^(empty|\d+%) → (\d+)%$", text)
+        m = re.match(r"^(empty|\d+%) → (\d+)% on your ([a-z ]+?)( at level \d+)?$", text)
         assert m and int(m.group(2)) == (100 if badge == "BiS" else int(badge.rstrip("%"))), (text, badge)
+        # One BiS share per slot: the line starts from the doll's badge.
+        assert m.group(1) in doll.get(m.group(3), {"empty"}), (text, doll.get(m.group(3)))
+    # What a trip is worth: the chance a clear drops an upgrade, no points.
+    trip = page.locator(".dg .dgfacts").first.inner_text()
+    assert "Gear a clear" in trip and not re.search(r"[+−]\d+\.\d", trip), trip
     # The same colour as the doll's badge of the same tier.
     doll = {t: page.eval_on_selector_all(f"#gear .slot .ifr .ibis.{t}", "els => els.map(e => getComputedStyle(e)"
                                          ".backgroundColor)") for t in TIERS}
