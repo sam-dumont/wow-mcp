@@ -165,15 +165,45 @@ class FakeAnthropic:
         return Ctx()
 
 
-class FakeOpenAI:
-    """client.chat.completions.create(...) answering the next scripted turn."""
+OLLAMA = "http://ollama:11434/v1"
 
-    def __init__(self, script: Script, refuse_tools: bool = False):
-        self.script, self.requests, self.refuse_tools = script, [], refuse_tools
+
+class FakeOpenAI:
+    """client.chat.completions.create(...) (any OpenAI-compatible endpoint)
+    and client.responses.create(...) (OpenAI itself) answering the next
+    scripted turn. `error` is raised by either, as the SDK raises an API error."""
+
+    def __init__(self, script: Script, refuse_tools: bool = False, error: Exception | None = None):
+        self.script, self.requests, self.refuse_tools, self.error = script, [], refuse_tools, error
         self.chat = NS(completions=NS(create=self.create))
+        self.responses = NS(create=self.respond)
+
+    def respond(self, model, instructions, input, tools, **kw):
+        self.requests.append({"model": model, "instructions": instructions, "input": list(input), "tools": tools,
+                              **kw})
+        if self.error:
+            raise self.error
+        self.script.seen_tools = [t["name"] for t in tools]
+        last = input[-1]
+        step = self.script.next(last["output"] if last.get("type") == "function_call_output" else None)
+        u = self.script.usage
+        usage = NS(input_tokens=u["input"] + u["cache_read"], output_tokens=u["output"],
+                   input_tokens_details=NS(cached_tokens=u["cache_read"]))
+        reasoning = NS(type="reasoning", model_dump=lambda **k: {"type": "reasoning", "encrypted_content": "x"})
+        if step is None:
+            out = [reasoning, NS(type="message", content=[NS(type="output_text", text="Done.")],
+                                 model_dump=lambda **k: {"type": "message", "role": "assistant"})]
+        else:
+            name, args = step
+            cid = f"call_{self.script.calls}"
+            out = [reasoning, NS(type="function_call", call_id=cid, name=name, arguments=json.dumps(args),
+                                 model_dump=lambda **k: {"type": "function_call", "call_id": cid})]
+        return NS(output=out, usage=usage, model=model, incomplete_details=None)
 
     def create(self, model, messages, tools):
         self.requests.append({"model": model, "messages": list(messages), "tools": tools})
+        if self.error:
+            raise self.error
         if self.refuse_tools:
             err = Exception("registry.ollama.ai/library/tiny does not support tools")
             err.status_code = 400
@@ -210,7 +240,7 @@ def kept(env: dict) -> dict:
 def test_the_same_script_records_the_same_findings_through_both_adapters(lab):
     ea = lab.env("a")
     eo = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="some-local-model",
-                 ANALYSIS_BASE_URL="http://ollama:11434/v1")
+                 ANALYSIS_BASE_URL=OLLAMA)
     sa, so = Script(), Script()
     ant, oai = FakeAnthropic(sa), FakeOpenAI(so)
     ra = service(ea, ant).run_job("player", ea, lab.ctx(ea))
@@ -262,6 +292,11 @@ def test_openai_without_prices_counts_tokens_only(lab):
     priced = lab.env("p", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="m", ANALYSIS_PRICE_INPUT_PER_MTOK="1",
                      ANALYSIS_PRICE_OUTPUT_PER_MTOK="2")
     assert auto.Config.from_env(priced).cost("m", USAGE) == pytest.approx(((2000 + 8000 + 500) * 1 + 300 * 2) / 1e6)
+    # Cached prompt tokens at their own price when it's set (OpenAI: a tenth of the input's).
+    cached = lab.env("c", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="m", ANALYSIS_PRICE_INPUT_PER_MTOK="1",
+                     ANALYSIS_PRICE_OUTPUT_PER_MTOK="2", ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK="0.1")
+    assert auto.Config.from_env(cached).cost("m", USAGE) == pytest.approx(
+        ((2000 + 500) * 1 + 8000 * 0.1 + 300 * 2) / 1e6)
 
 
 def test_a_token_cap_stops_a_run(lab, monkeypatch):
@@ -324,7 +359,7 @@ def test_a_full_analysis_from_the_players_own_client_resets_the_timer(lab, monke
 
 
 def test_the_last_try_waits_before_the_timer_tries_again(lab):
-    e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="tiny")
+    e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="tiny", ANALYSIS_BASE_URL=OLLAMA)
     s = service(e, FakeOpenAI(Script(), refuse_tools=True), played=12 * H)
     out = s.run_job("auto", e, lab.ctx(e))
     assert out["runs"][0]["status"] == "stopped"
@@ -408,7 +443,7 @@ def test_not_configured_means_off(lab, monkeypatch):
 
 
 def test_a_model_without_tool_calling_fails_the_run_plainly(lab):
-    e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="tiny")
+    e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="tiny", ANALYSIS_BASE_URL=OLLAMA)
     s = service(e, FakeOpenAI(Script(), refuse_tools=True))
     r = s.run_job("player", e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and r["why"].startswith("tool calling is required")
@@ -417,6 +452,62 @@ def test_a_model_without_tool_calling_fails_the_run_plainly(lab):
     words = Script(iter(()))
     r = service(e, FakeOpenAI(words)).run_job("player", e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and "without calling a tool" in r["why"]
+
+
+def api_error(status: int, message: str) -> Exception:
+    """Shaped like the openai SDK's APIStatusError: status, body, message."""
+    e = Exception(f"Error code: {status} - {message}")
+    e.status_code, e.body, e.message = status, {"error": {"message": message}}, f"Error code: {status} - {message}"
+    return e
+
+
+def test_openai_itself_runs_through_responses_and_keeps_its_reasoning(lab):
+    """OpenAI's reasoning models take function tools on Responses only (gpt-6
+    on Chat Completions: 400 "use /v1/responses", 2026-11-21)."""
+    e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="gpt-6-luna", ANALYSIS_PRICE_INPUT_PER_MTOK="0.1",
+                ANALYSIS_PRICE_OUTPUT_PER_MTOK="0.5", ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK="0.01")
+    script = Script()
+    oai = FakeOpenAI(script)
+    r = service(e, oai).run_job("player", e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "done", r
+    assert sorted(kept(e)) == ["sessions-online", "xp-by-level"] and set(script.seen_tools) == set(auto.ALLOWED)
+    first, last = oai.requests[0], oai.requests[-1]
+    assert first["store"] is False and first["include"] == ["reasoning.encrypted_content"] and first["instructions"]
+    # Stateless: each turn's reasoning and calls go back with the tool results.
+    kinds = [i.get("type") for i in last["input"]]
+    assert "reasoning" in kinds and "function_call" in kinds and "function_call_output" in kinds
+    # Responses has no cache writes: the uncached prompt, the cached one at its price, the output.
+    per_call = (USAGE["input"] * 0.1 + USAGE["cache_read"] * 0.01 + USAGE["output"] * 0.5) / 1e6
+    assert r["usd"] == pytest.approx(r["calls"] * per_call, abs=1e-4)  # usd is rounded to 4 places
+    # The same host named outright is OpenAI too; any other host is Chat Completions.
+    assert auto.Config.from_env({**e, "ANALYSIS_BASE_URL": "https://api.openai.com/v1"}).openai_itself
+    assert not auto.Config.from_env({**e, "ANALYSIS_BASE_URL": OLLAMA}).openai_itself
+
+
+def test_an_api_error_is_reported_as_itself_not_as_a_tool_refusal(lab):
+    """A 400 that names function tools without saying the model has none is
+    the endpoint's own words, not "refused tool calling" (gpt-6-luna on Chat
+    Completions, 2026-11-21); a quota 429 isn't a rate limit to wait out."""
+    e = lab.env("o", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="gpt-6-luna", ANALYSIS_BASE_URL=OLLAMA)
+    route = ("Function tools with reasoning_effort are not supported for gpt-6-luna in /v1/chat/completions. "
+             "To use function tools, use /v1/responses or set reasoning_effort to 'none'.")
+    r = service(e, FakeOpenAI(Script(), error=api_error(400, route))).run_job("player", e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "stopped" and not r["why"].startswith("tool calling is required")
+    assert r["why"].startswith("the AI provider answered 400: Function tools with reasoning_effort") and \
+        "use /v1/responses" in r["why"]
+    quota = api_error(429, "Insufficient balance or no resource package. Please recharge.")
+    r = service(e, FakeOpenAI(Script(), error=quota)).run_job("player", e, lab.ctx(e))["runs"][0]
+    assert "quota" in r["why"] and "Insufficient balance" in r["why"]
+    # A real refusal still is one, with what the endpoint said.
+    no = api_error(400, "registry.ollama.ai/library/tiny does not support tools")
+    r = service(e, FakeOpenAI(Script(), error=no)).run_job("player", e, lab.ctx(e))["runs"][0]
+    assert r["why"].startswith("tool calling is required") and "does not support tools" in r["why"]
+    # Nothing key-shaped from an error message reaches the run's record.
+    # Built at run time from a filler, so no key-shaped literal sits in the source.
+    fake = "sk" + "-" + "Z" * 40
+    leak = api_error(400, f"Incorrect API key provided: {fake}.")
+    r = service(e, FakeOpenAI(Script(), error=leak)).run_job("player", e, lab.ctx(e))["runs"][0]
+    assert "ZZZZZZZZ" not in r["why"] and "[masked]" in r["why"]
 
 
 def test_the_mcp_tool_runs_for_the_caller_only(lab, monkeypatch):
@@ -461,7 +552,7 @@ def test_auth_order_and_explicit_credentials(lab, monkeypatch):
 
     assert auto.Config.from_env(lab.env("a")).make_client().api_key == "not-a-real-key"
     local = auto.Config.from_env(lab.env("o", **oai, ANALYSIS_API_KEY_FILE="",
-                                         ANALYSIS_BASE_URL="http://ollama:11434/v1")).make_client()
+                                         ANALYSIS_BASE_URL=OLLAMA)).make_client()
     assert local.api_key == "none" and str(local.base_url).startswith("http://ollama:11434/v1")
 
     tok.write_text(jwt(["https://api.anthropic.com"]))
