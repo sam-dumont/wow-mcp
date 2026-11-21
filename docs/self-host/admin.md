@@ -56,8 +56,11 @@ The red flags:
   keeps its version.
   [Signing your own build](upgrade.md#signing-your-own-build).
 - **server analysis stopped**: the server's last run for them ended early, with the reason: the
-  budget, the provider refusing the credentials, a model without tool calling. The timer waits 6
-  hours before it tries again.
+  budget, the provider refusing the credentials, a model without tool calling, a call limit (300
+  calls a run). The timer waits 6 hours before it tries again.
+- **server analysis incomplete**: the model kept stopping before the end of the run (twice nudged
+  that nobody would reply, then it stopped again), with the pass it was at. A weak or chatty model;
+  try another. The player keeps their last finished analysis.
 
 The shipper's version comes from its setup report when it sends one, otherwise from the last
 install or update command they ran. A row without a version or OS is someone who installed before

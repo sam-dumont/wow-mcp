@@ -243,6 +243,22 @@ def next_step(run: dict) -> dict:
             "refusals; a new run starts with analysis_brief(restart=true)."}
 
 
+def next_for(env: dict, char: str) -> dict | None:
+    """The open run's next step, or None (no run, or it is finished)."""
+    run = _load_run(env, char)
+    return next_step(run) if run and run.get("pass") != "done" else None
+
+
+def run_files(env: dict, char: str) -> list:
+    """The character's files a run writes: its kept analysis and the run's
+    state, and the single file of 0.3.x that the first save removes. The
+    server's runner puts them back when its run doesn't finish."""
+    from . import STATE_FILE, char_dir, state_dir
+
+    d = char_dir(env, char)
+    return [d / STATE_FILE, d / RUN_FILE, state_dir(env) / STATE_FILE] if d else []
+
+
 # ---------------------------------------------------------------- the brief
 
 

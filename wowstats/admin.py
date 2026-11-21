@@ -291,10 +291,19 @@ def analysis_row(t: T.Tenancy, u: T.User, row: dict) -> dict | None:
         out.update(played_since=tm["played_since"], due=tm["due"], at=last.get("at"), by=last.get("by"))
     except Exception as e:  # noqa: BLE001 - one store down: that cell says so
         out["error"] = type(e).__name__
-    lt = out["last_try"] or {}
-    if lt.get("status") == "stopped" and lt.get("why"):
-        row["stale"].append(f"server analysis stopped: {str(lt['why'])[:160]}")
+    line = last_try_line(out["last_try"])
+    if line:
+        row["stale"].append(line)
     return out
+
+
+def last_try_line(lt: dict | None) -> str:
+    """How the server's last try ended, when it didn't: stopped (a cap, an
+    error) or incomplete (the model quit before the synthesis), with why."""
+    lt = lt or {}
+    if lt.get("status") in ("stopped", "incomplete") and lt.get("why"):
+        return f"server analysis {lt['status']}: {str(lt['why'])[:160]}"
+    return ""
 
 
 def analysis_tile(env: dict) -> dict | None:

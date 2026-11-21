@@ -4,8 +4,8 @@ The analysis loop (wowstats.analysis.auto) is provider-neutral: tool
 definitions as plain JSON Schema, the read-only analysis tools, the same
 prompts. An adapter does two things only: send the conversation and the
 tools and hand back the reply as a Turn (text, tool calls, usage, why it
-stopped); and put tool results back into the conversation in its
-provider's shape. No shim library: each adapter speaks its provider's
+stopped); and put tool results, or a user message (`say`), back into the
+conversation in its provider's shape. No shim library: each adapter speaks its provider's
 official SDK, imported only when that provider is the configured one.
 
   anthropic  Anthropic's SDK (`analysis` extra): streaming, adaptive
@@ -116,6 +116,12 @@ class Anthropic:
             {"type": "tool_result", "tool_use_id": i, "content": text, **({"is_error": True} if err else {})}
             for i, text, err in results]})
 
+    def say(self, text: str) -> None:
+        """A user message after a turn that ended in words (the runner's
+        nudge). Appended after the assistant turn as it came: the history
+        stays append-only, so its thinking blocks stay valid."""
+        self.messages.append({"role": "user", "content": text})
+
 
 # ---------------------------------------------------------------- OpenAI-compatible
 
@@ -206,6 +212,9 @@ class OpenAI:
         for i, text, err in results:
             self.messages.append({"role": "tool", "tool_call_id": i, "content": ("Error: " + text) if err else text})
 
+    def say(self, text: str) -> None:
+        self.messages.append({"role": "user", "content": text})
+
 
 class OpenAIResponses:
     """OpenAI's own API through Responses, stateless: store=False, and each
@@ -272,6 +281,9 @@ class OpenAIResponses:
         for i, text, err in results:
             self.input.append({"type": "function_call_output", "call_id": i,
                                "output": ("Error: " + text) if err else text})
+
+    def say(self, text: str) -> None:
+        self.input.append({"role": "user", "content": text})
 
 
 ADAPTERS = {"anthropic": Anthropic, "openai": OpenAI, "openai-responses": OpenAIResponses}
