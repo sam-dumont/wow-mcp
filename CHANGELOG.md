@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0-rc.5 (2026-11-21)
+
 ### Added
 
 - `WOW_OWNER_SUB` takes a comma-separated list: an owner who signs in with two accounts (the usual one and one linked to Battle.net) is the owner with both, on the web, over MCP and on /admin, with one set of data and one analysis timer. A single sub works as before. A sub in both this list and the friends list is the owner's; the start log names it by its place in the list, and no data is made or deleted for it. A BattleTag header never gives the owner's other login a friend's name or tenant.
