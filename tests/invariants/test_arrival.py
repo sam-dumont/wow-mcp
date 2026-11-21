@@ -25,6 +25,7 @@ from tests.test_zone_time import CHAR as ZCHAR
 from tests.test_zone_time import _digits_chunks, ship
 from tests.test_zone_time import facts as zone_facts
 from wowstats import stores
+from wowstats import views as V
 from wowstats.analysis import prep
 from wowstats.stores import parse_t, record_order
 
@@ -134,7 +135,9 @@ def _rich_chunks() -> dict:
     """tests/test_zone_time.py's chunks (sequences 9, 10, 99, 100; zone
     records sharing seconds inside and across chunks) plus guide steps and
     kills on both sides of each chunk roll: the records whose zone and step
-    time come from the records before them."""
+    time come from the records before them. And two flights: one taking off
+    in chunk 9 and landing in chunk 10 (the game says 290 s in the air), one
+    inside chunk 100 with no `seconds` on its land record (its times say 30 s)."""
     ch = _digits_chunks()
 
     def put(key, i: int, kind: str, *fields: str) -> None:
@@ -153,6 +156,10 @@ def _rich_chunks() -> dict:
     put(("CID", 99), 3, "step", *step(3))
     put(("CID", 100), 3, "kill", *kill)
     put(("CID", 100), 5, "step", *step(4))
+    put(("CID", 9), 8, "taxi", "2", "4")
+    put(("CID", 10), 5, "land", "4", "290", "1429", "4100", "6500")
+    put(("CID", 100), 20, "taxi", "4", "2")
+    put(("CID", 100), 50, "land", "2", "", "1429", "4100", "6500")
     return ch
 
 
@@ -180,13 +187,19 @@ def test_any_chunk_schedule_gives_the_same_facts(shipper, seed):
     split = ship(shipper, runs)
     assert zone_facts(split) == zone_facts(whole)
     # What the shipper sends for each record is the same, not just what the
-    # pages make of it. A zone record's duration_s is the one exception: the
-    # shipper still sends what it saw, and no reader uses it (stores.zone_time).
+    # pages make of it. A zone's and a taxi's duration_s are the exceptions:
+    # the shipper still sends what it saw (for older servers), and no reader
+    # uses them (stores.zone_time, stores.taxi_time).
     def sent(rows):
-        return {r["source_id"]: {k: v for k, v in r.items() if not (k == "duration_s" and r["kind"] == "zone")}
-                for r in rows}
+        return {r["source_id"]: {k: v for k, v in r.items()
+                                 if not (k == "duration_s" and r["kind"] in ("zone", "taxi"))} for r in rows}
     assert sent(split) == sent(whole)
     assert H.facts(prep.build([dict(r) for r in split], ZCHAR)) == H.facts(prep.build([dict(r) for r in whole], ZCHAR))
+    # The page's flights: the land record's own seconds, else the two records' times.
+    flights = [V.build_flights(stores.dedupe([dict(r) for r in rows if r["kind"] in ("taxi", "land")]))
+               for rows in (whole, split)]
+    assert flights[0] == flights[1]
+    assert sorted(f["secs"] for f in flights[0]["recent"]) == [30, 290]
 
 
 # ---------------------------------------------------------------- property 5: source order

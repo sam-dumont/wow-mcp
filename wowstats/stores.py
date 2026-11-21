@@ -204,6 +204,35 @@ def zone_time(zones: list[dict], spans: list[tuple[float, float]]) -> list[dict]
     return out
 
 
+# The flight records taxi_time reads, after the Recorder's feed and character.
+FLIGHT_RECORDS = "kind:in(taxi, land) | fields _time, kind, zone, seconds, source_id, rev"
+
+
+def taxi_time(rows: list[dict]) -> list[dict]:
+    """Each taxi record once (dedupe), oldest first, with `secs` and the
+    `land` record that ends it: the first land before the next take-off.
+    `secs` is the land record's own `seconds` (the game's time in the air),
+    else the two records' times; None while no land is stored.
+
+    Worked out here, never from the taxi's duration_s: the shipper set that
+    only when the land record came in the same run, so a flight across a
+    chunk roll read in two runs had none (pipeline invariants, #86)."""
+    recs = sorted(({**r, "_t": parse_t(r.get("_time")).timestamp()} for r in dedupe(rows)
+                   if r.get("kind") in ("taxi", "land")), key=lambda r: (r["_t"], *record_order(r)))
+    out: list[dict] = []
+    for r in recs:
+        t = r.pop("_t")
+        if r["kind"] == "taxi":
+            out.append({**r, "_t": t, "secs": None, "land": None})
+        elif out and out[-1]["land"] is None:
+            secs = num(r.get("seconds"))
+            out[-1]["land"] = r
+            out[-1]["secs"] = round(secs if secs and secs > 0 else max(0.0, t - out[-1]["_t"]), 1)
+    for f in out:
+        f.pop("_t")
+    return out
+
+
 def zone_totals(visits: list[dict]) -> list[dict]:
     """zone_time's rows summed per zone, the most time first: {zone, secs, visits}."""
     by: dict[str, dict] = {}

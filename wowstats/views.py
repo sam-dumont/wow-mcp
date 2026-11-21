@@ -19,6 +19,7 @@ from wowstats import gear as gearmod
 from wowstats.analysis import pages
 from wowstats.rates import per_hour
 from wowstats.stores import (
+    FLIGHT_RECORDS,
     HISTORY_START,
     SESSION_BUCKET_OPS,
     SESSION_BUCKETS,
@@ -36,6 +37,7 @@ from wowstats.stores import (
     pick_splits,
     public_error,
     split_sessions,
+    taxi_time,
     truthy,
     zone_time,
     zone_totals,
@@ -260,7 +262,7 @@ class Views:
             "dungeons": sub(vl, f'{st} feed:="wow-dungeon" {cf} | fields _time, name, dungeon_id, level, '
                                 f"seconds, xp, source_id"),
             "deaths": sub(vl, f"{rec} kind:=death | fields _time, zone, level, source_id"),
-            "flights": sub(vl, f"{rec} kind:in(taxi, land) | fields _time, kind, zone, duration_s, source_id"),
+            "flights": sub(vl, f"{rec} {FLIGHT_RECORDS}"),
             "player_days": sub(vl, f'{st} feed:="wow-player" {cf} player:* | stats by (player, context, '
                                    f"_time:1d) count_uniq(source_id) as n",
                                ("player", "context", "_time"), {"n": "sum"}),
@@ -1391,19 +1393,10 @@ def build_players(char: str, summary: list[dict], days: list[dict]) -> dict:
 
 
 def build_flights(rows: list[dict]) -> dict:
-    rows.sort(key=lambda r: parse_t(r.get("_time")))
-    flights = []
-    open_taxi = None
-    for r in rows:
-        if r.get("kind") == "taxi":
-            open_taxi = r
-            flights.append({"t": r.get("_time"), "from_zone": r.get("zone"), "to_zone": None,
-                            "secs": opt_num(r.get("duration_s"))})
-        elif r.get("kind") == "land" and open_taxi is not None:
-            flights[-1]["to_zone"] = r.get("zone")
-            if flights[-1]["secs"] is None:
-                flights[-1]["secs"] = int((parse_t(r.get("_time")) - parse_t(open_taxi.get("_time"))).total_seconds())
-            open_taxi = None
+    """The flights from the stored taxi and land records (stores.taxi_time):
+    a flight still in the air, or whose land record isn't stored, has no time."""
+    flights = [{"t": f.get("_time"), "from_zone": f.get("zone"), "to_zone": (f["land"] or {}).get("zone"),
+                "secs": None if f["secs"] is None else int(f["secs"])} for f in taxi_time(rows)]
     total = sum(f["secs"] or 0 for f in flights)
     return {"count": len(flights), "total_s": total, "recent": flights[::-1][:15],
             "longest": max(flights, key=lambda f: f["secs"] or 0) if flights else None}
