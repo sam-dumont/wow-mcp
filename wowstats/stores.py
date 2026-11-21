@@ -158,6 +158,20 @@ def split_sessions(rows: list[dict], gap: float = SESSION_GAP_S) -> list[tuple[f
     return out
 
 
+def record_order(r: dict) -> tuple:
+    """How records with the same _time follow each other: a Recorder record
+    (rec:<char id>:<chunk>:<index>) by its chunk sequence, then its index,
+    as numbers; any other id as text. Sorted as text, rec:aa:1:10 came
+    before rec:aa:1:2 and the earlier of two zone records at one time took
+    the time of the later (second review of review 3)."""
+    sid = r.get("source_id") or ""
+    if sid.startswith("rec:"):
+        cid, seq, idx = (sid[4:].rsplit(":", 2) + ["", ""])[:3]
+        if seq.isdigit() and idx.isdigit():
+            return ("rec:" + cid, int(seq), int(idx))
+    return (sid, -1, -1)
+
+
 # The zone records zone_time reads, after the Recorder's feed and character.
 ZONE_RECORDS = "kind:=zone | fields _time, zone, subzone, source_id, rev"
 
@@ -173,7 +187,7 @@ def zone_time(zones: list[dict], spans: list[tuple[float, float]]) -> list[dict]
     first go's 5 s where one read gave 306 s (external review 3). Nothing of
     it is stored: an old store with the short values reads right as it is."""
     rows = sorted(({**r, "_t": parse_t(r.get("_time")).timestamp()} for r in dedupe(zones)),
-                  key=lambda r: (r["_t"], r.get("source_id") or ""))
+                  key=lambda r: (r["_t"], *record_order(r)))
     spans = sorted(spans)
     out, j = [], 0
     for i, r in enumerate(rows):

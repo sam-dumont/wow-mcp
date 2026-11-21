@@ -26,7 +26,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from wowstats import profcaps
 from wowstats import quests as questsmod
-from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits, truthy, zone_time
+from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits, record_order, truthy, zone_time
 
 # What the tables mean. Bump it in the same change as anything that makes a
 # query give another answer on the same events: a table, column or unit, a
@@ -434,7 +434,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     rows = [r for r in dedupe(rows) if norm(r.get("char", "")) == char]
     for r in rows:
         r["_t"] = parse_t(r.get("_time")).timestamp()
-    rows.sort(key=lambda r: (r["_t"], r.get("source_id") or ""))
+    rows.sort(key=lambda r: (r["_t"], *record_order(r)))
     rec = [r for r in rows if r.get("feed") == "wow-recorder"]
     db = sqlite3.connect(":memory:", check_same_thread=False)
     db.execute("PRAGMA foreign_keys=OFF")
