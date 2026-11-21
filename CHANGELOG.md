@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.7.0-rc.6 (2026-11-21)
+
 ### Changed
 
 - `dashboard_refresh` runs on the client: the calling AI does the analysis itself, with the same flow as `analyse` (analysis_brief, the passes, analysis_submit), for the character whose analysis is most out of date. It starts nothing on the server and costs the host nothing; it used to queue a run of the server's own model, and the owner's Claude calling it spent the lab's OpenAI money. Its answer is `analyse`'s, plus `do` (the one line to follow), `then` (the other characters to refresh) and `server_automatic_refresh`: the timers, budget and last try of the server's automatic refreshes, which stay for players who don't refresh themselves. No MCP call starts a server run any more (and /admin never had a button for one); the accepted synthesis resets the character's timer like any refresh. The tool is now read-only and no longer open-world.

@@ -2442,7 +2442,7 @@ wheels = [
 
 [[package]]
 name = "wow-stats"
-version = "0.7.0rc5"
+version = "0.7.0rc6"
 source = { editable = "." }
 
 [package.optional-dependencies]
