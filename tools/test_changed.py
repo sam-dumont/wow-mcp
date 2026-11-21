@@ -60,7 +60,8 @@ RULES: list[tuple[str, list[str]]] = [
     # Data files and their exporters.
     (r"^data/", [FULL]),
     (r"^tools/fixtures/", [FULL]),
-    (r"^tools/", ["tests/test_audit_deps.py", "tests/test_release.py", "tests/test_workflow_guard.py"]),
+    (r"^tools/", ["tests/test_audit_deps.py", "tests/test_release.py", "tests/test_release_kb.py",
+                  "tests/test_workflow_guard.py"]),
     # The install steps are app data too: /start, /help/ and the shipper's
     # preflight read them (a docs-only rule missed test_tenancy, PR #14).
     (r"^docs/videos/steps\.json$", ["tests/test_tenancy.py", "tests/test_addon_lists.py", "tests/test_missing.py",
@@ -69,7 +70,8 @@ RULES: list[tuple[str, list[str]]] = [
     # Docs and repo text: the tests that read them.
     (r"^(docs/|[^/]+\.md$)", ["tests/test_links.py", "tests/test_public_scan.py", "tests/test_license.py",
                               "tests/test_manual.py", "tests/test_privacy_table.py", "tests/test_release.py"]),
-    (r"^(\.github/|deploy/)", ["tests/test_workflow_guard.py", "tests/test_deploy_shapes.py", "tests/test_release.py"]),
+    (r"^(\.github/|deploy/)", ["tests/test_workflow_guard.py", "tests/test_deploy_shapes.py", "tests/test_release.py",
+                               "tests/test_release_kb.py"]),
     (r"^(\.gitignore|\.pre-commit-config\.yaml|\.dockerignore|LICENSE)$", [NONE]),
 ]
 
