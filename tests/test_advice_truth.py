@@ -103,6 +103,65 @@ def ref_inv(item_id: int) -> int:
     return gear.reference().item(item_id)["inv"]
 
 
+BUZZER_BLADE = 2169  # a one-handed dagger with spell power, worn in the main hand below
+
+
+def one_hander() -> dict:
+    """The caster with a one-hander instead of the staff, nothing in the
+    off hand (the blind review's shape: a level 33 character whose ~30 off
+    hands were all scored with one unworn weapon)."""
+    s = caster()
+    items = [i for i in s["items"] if i["slot"] != 16] + [{"slot": 16, "item_id": BUZZER_BLADE, "name": "Buzzer Blade"}]
+    return {**s, "items": items}
+
+
+def test_an_off_hand_is_scored_with_the_main_hand_worn():
+    a = advise(one_hander())
+    worn = next(s for s in a["slots"] if s["slot"] == 16)["current"]
+    assert worn["item_id"] == BUZZER_BLADE
+    offs = [u for u in a["upgrades_all"] if u["slot"] == 17]
+    assert len(offs) >= 10
+    for u in offs:
+        assert u["with"] == {"kind": "worn", "item_id": BUZZER_BLADE, "name": "Buzzer Blade",
+                             "slot_name": "Main hand"}, u
+        # Nothing in the off hand: the gain is the off hand's own score.
+        assert u["gain"] == pytest.approx(u["score"], abs=0.02), u
+    # A better main hand the list knows of (Swinetusk Shank) never rides along.
+    assert max(u["gain"] for u in offs) < 25
+    # The Overview's move names the worn main hand, not one to get.
+    reach = insights.in_reach({"upgrades": offs}, 33)
+    assert reach
+    ref = insights.item_ref(reach[0][0])
+    assert ref["with"]["kind"] == "worn" and ref["with"]["name"] == "Buzzer Blade"
+    assert "worn with" not in insights._pick_text(*reach[0])
+
+
+def test_the_mcp_gear_tool_scores_off_hands_with_the_main_hand_worn():
+    import json
+
+    from tests.mcp import fakes
+    from wowstats.mcp import tools
+    from wowstats.mcp.store import Store
+
+    s = one_hander()
+    level = [{"_time": fakes._t(17, 21, 40), "level": 33, "zone": "Arathi Highlands", "money_copper": 123456}]
+    logs = [('feed:="wow-gear"', [{**fakes.GEAR[0], "class": s["class"], "race": s["race"], "faction": s["faction"],
+                                    "items": json.dumps(s["items"]), "professions": json.dumps(s["professions"])}]),
+            ('feed:="wow-character"', level), ("kind:in(xp, level, zone) | fields", level),
+            *[r for r in fakes.LOGS if r[0] != 'feed:="wow-bags"']]
+    fake = fakes.FakeStores(logs=logs)
+    try:
+        out = tools.call(tools.Ctx(store=Store(vl_url=fake.url)), "gear", {"char": fakes.CHAR, "limit": 40})
+    finally:
+        fake.close()
+    assert out["level"] == 33
+    offs = [u for u in out["next_upgrades"] + out.get("buy_now", []) if u["slot"] == "Off hand"]
+    assert offs
+    for u in offs:
+        assert u["together_with"] == "Buzzer Blade (main hand), which you wear", u
+        assert u["gain_points"] < 25, u
+
+
 # ---------------------------------------------------------------- 2. crafts
 
 

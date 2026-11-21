@@ -696,6 +696,8 @@ def _with_text(w: dict | None) -> str | None:
     if w.get("kind") == "empty":
         return "nothing in the other hand"
     if w.get("kind") == "worn":
+        if w.get("name"):
+            return f"{w['name']} ({(w.get('slot_name') or '').lower()}), which you wear"
         return "the item worn in the other hand"
     return (f"{w.get('name') or 'item ' + str(w.get('item_id'))} ({(w.get('slot_name') or '').lower()}): "
             + "; ".join(_src_text(s) for s in w.get("sources") or []))
