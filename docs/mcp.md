@@ -186,8 +186,9 @@ run), so
 `analysis_progress` lets "continue" pick up in a new chat. The full view
 reads it; `/zogzog/` gets the screened nudges only. Each night
 (`ANALYSIS_HOUR`, 4, so from 04:00 local time, `WOW_TIMEZONE`, by default) a deterministic recheck re-runs every
-kept finding on the fresh data: a confirmed one gains weight, one that no
-longer holds fades and goes after three nights. No model.
+kept finding on the fresh data. One that still holds stays; it gains weight only
+when there's play since the last time it did, so the same data checked again
+adds nothing. One that no longer holds fades and goes after three nights. No model.
 
 ## The knowledge base
 

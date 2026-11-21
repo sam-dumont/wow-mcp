@@ -74,8 +74,9 @@ Two tools do it:
   result, and keeps the finding or refuses it with the reason. A number above 100 typed by
   hand instead of taken from the query is refused.
 
-Kept findings are re-run every night on fresh data: one that still holds gains weight, one
-that stops holding fades and goes after three nights.
+Kept findings are re-run every night on fresh data. One that still holds stays, and gains
+weight only when you've played since it last did: the same data checked again proves nothing
+new. One that stops holding fades and goes after three nights.
 
 **An example on the demo.**
 
