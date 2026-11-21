@@ -97,6 +97,8 @@ def test_the_other_panels_are_legible(site, pw, engine, scheme):  # noqa: F811
         pg.evaluate("() => document.querySelectorAll('.dg details').forEach((d) => { d.open = true; })")
         legible(pg, ".dg", "dungeon cards", least=20)
         legible(pg, "#gear", "the character plate (doll and advice)", least=40)
+        # The badge colours' legend: every tier's colour with its ink.
+        legible(pg, "#gear .bislegend", "the BiS badges' legend", least=4)
         pg.locator(".tabs button", has_text="Journal").first.click()
         wait_count(pg, ".jentry")
         # Click first (it toggles), then open them all: a single session stays open.

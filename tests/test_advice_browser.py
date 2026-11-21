@@ -256,6 +256,16 @@ def test_the_doll_says_where_each_item_stands(site, pw, engine, width):
         got = pg.locator("#gear .slot .ifr .ibis").evaluate_all(
             "els => els.filter(e => e.checkVisibility()).map(e => [e.closest('.slot').dataset.slot, e.textContent])")
         assert dict(got) == want
+        # The badge's colour by closeness to BiS (bisTier: 100 BiS, 85+
+        # epic, 50+ rare, none below), with its legend under the doll.
+        tier = {k: next((t for t, lo in (("bis", 100), ("epic", 85), ("rare", 50)) if st["pct"] >= lo), "")
+                for k, st in ((str(s["slot"]), s["standing"]) for s in gear["slots"]) if k in want}
+        got = pg.locator("#gear .slot .ifr .ibis").evaluate_all(
+            "els => els.filter(e => e.checkVisibility()).map(e => [e.closest('.slot').dataset.slot,"
+            " ([...e.classList].find(c => c.startsWith('t-')) || '').slice(2)])")
+        assert dict(got) == tier
+        assert pg.locator("#gear .bislegend .bischip").all_text_contents() == ["BiS", "85%+", "50%+"]
+        assert pg.locator("#gear .bislegend").is_visible()
         assert pg.locator("#advice .cand .bisgain:visible").count() > 0
         assert all("% of BiS" in t for t in pg.locator("#advice .cand .bisgain").all_text_contents())
         pg.locator("#advice .order button", has_text="By slot").click()

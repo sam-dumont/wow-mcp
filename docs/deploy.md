@@ -563,7 +563,7 @@ restarts the full view. Needs `VIEW=full`, `AUTH=proxy` and
 
 **Who is who.** The login proxy sets `X-Forwarded-User` (the provider's
 `sub`) and strips any the client sent. The sub is all the app reads: the
-owner is `WOW_OWNER_SUB`, a friend is a sub on the list, and nobody else
+owner is any sub in `WOW_OWNER_SUB`, a friend is a sub on the list, and nobody else
 gets in, whatever their name, email, org or roles. The web view and the MCP
 use the same rule (`tenancy.Tenancy.identify`; the MCP's auth calls
 `resolve_tenant(sub)` at each login and refresh). Org and role belong to
@@ -579,7 +579,7 @@ friends list is the lock either way.
 | `wow-stats ui` | |
 |---|---|
 | `WOW_STATE_DIR` | the registry (`users.json`, 0600) and each person's state, on a volume |
-| `WOW_OWNER_SUB` | the owner's login id |
+| `WOW_OWNER_SUB` | the owner's login id; comma-separated for an owner with several logins (one linked to Battle.net): each is the owner, one tenant, one set of data and settings. One also on the friends list stays the owner's: nothing is made or deleted for it, and the start log names it by its place in this list (`owner_also_listed`, `position`) |
 | `WOW_OWNER_SLUG` (empty by default: set your own), `WOW_OWNER_ALIASES` | the owner's site name, and hosts that are theirs too (`wow.example.org`): all reserved for them. Pages never print it to friends: they say "the person who runs this site" |
 | `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}` (a slug may be `""`, or a plain list of subs: named from `PROXY_BATTLETAG_HEADER` at the first login), watched for changes (mount its folder, not the file); how often a full pass runs anyway. Unset: the owner only |
 | `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends |

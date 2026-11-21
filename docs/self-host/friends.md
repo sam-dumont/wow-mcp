@@ -30,7 +30,7 @@ page, `https://wow-full.example.org/start`.
 | The full view's name | `PUBLIC_URL`, https | The page answers for its host (and `MCP_PUBLIC_URL`'s, `ALLOWED_HOSTS`), refuses plain http unless it's localhost |
 | The AI login | `MCP_PUBLIC_URL` and the `OIDC_*` settings, same provider | Each friend's AI logs in as them ([Set up the login for your AI](oidc.md)) |
 | A state folder on a volume | `WOW_STATE_DIR` | Who is who, each person's settings and upload password |
-| You, the owner | `WOW_OWNER_SUB` (your `sub`), `WOW_OWNER_SLUG` (your site name) | You stay on the original store, with everything you had |
+| You, the owner | `WOW_OWNER_SUB` (your `sub`; two or more comma-separated if you sign in with more than one account, a Battle.net one say), `WOW_OWNER_SLUG` (your site name) | You stay on the original store, with everything you had, whichever account you sign in with |
 | The friends list | `WOW_FRIENDS_FILE` | Who gets in besides you (below) |
 | A VictoriaLogs for friends | `FRIENDS_VL_URL`, and its `-deleteAuthKey` in `FRIENDS_VL_DELETE_KEY_FILE` | One tenant per friend; the key lets `users delete` erase a friend's events |
 | A master key | `ZOGZOG_MASTER_KEY_FILE` (32 random bytes, base64url) | Each person's sealed-link key comes from it |

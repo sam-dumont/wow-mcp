@@ -1,8 +1,8 @@
 """The owner's overview at /admin: who uses this install, when they last
 did, and whether its parts answer. Not what anyone plays.
 
-Only the owner (WOW_OWNER_SUB) gets it; anyone else gets the 404 every
-unknown address gets, so the page isn't advertised. It needs several people
+Only the owner (any of WOW_OWNER_SUB's logins) gets it; anyone else gets
+the 404 every unknown address gets, so the page isn't advertised. It needs several people
 (WOW_STATE_DIR): an install for one person has nobody else to look at.
 
 One row per person, the owner included: the slug, whether they're on the
@@ -275,21 +275,25 @@ def person(t: T.Tenancy, u: T.User, listed: dict | None, sites: dict, now: float
 
 
 def analysis_row(t: T.Tenancy, u: T.User, row: dict) -> dict | None:
-    """The person's timer for the server's own analysis
-    (wowstats.analysis.auto): their play since the last refresh, who did it,
-    and how the server's last try ended. None when the feature is off."""
+    """The person's timers for the server's own analysis
+    (wowstats.analysis.auto): each character's play since its last refresh
+    (all its play when it has none) against the threshold, the latest
+    refresh and who did it, and how the server's last try ended. None when
+    the feature is off."""
     from wowstats.analysis import auto
 
     svc = auto.service()
     if not svc.cfg.on:
         return None
     env = t.env_for(u)
-    out = {"played_since": None, "due": False, "at": None, "by": None, "last_try": svc.last_try(env) or None,
-           "month": auto.mine(env, svc.spend)}
+    out = {"chars": [], "refresh_after": auto.hours(svc.cfg.stale_s), "due": False, "at": None, "by": None,
+           "last_try": svc.last_try(env) or None, "month": auto.mine(env, svc.spend)}
     try:
         tm = svc.timer(env, t.app_for(u).store)
         last = tm["last_refresh"] or {}
-        out.update(played_since=tm["played_since"], due=tm["due"], at=last.get("at"), by=last.get("by"))
+        chars = [{"char": c["char"], "played_since": c["played_since"], "due": c["due"],
+                  "refreshed": c["last_refresh"] is not None} for c in tm["chars"]]
+        out.update(chars=chars, due=tm["due"], at=last.get("at"), by=last.get("by"))
     except Exception as e:  # noqa: BLE001 - one store down: that cell says so
         out["error"] = type(e).__name__
     line = last_try_line(out["last_try"])
@@ -326,7 +330,7 @@ def overview(t: T.Tenancy, fresh: bool = False) -> dict:
     now = time.time()
     report = read_report(t)
     sites = {s["slug"]: s for s in (report or {}).get("sites") or []}
-    listed = T.read_friends(t.friends_file) if t.friends_file else None
+    listed = t.listed()
     users = sorted(t.registry.users(), key=lambda u: (not u.owner, u.slug or "~", u.account_id))
     people = [person(t, u, listed, sites, now) for u in users]
     owner = t.registry.get(t.owner_sub)
@@ -431,22 +435,32 @@ def _row(p: dict, now: float, has_analysis: bool = False) -> str:
             + "</tr>")
 
 
+ANALYSIS_CHARS = 3  # characters listed per person, the due ones first
+
+
 def _analysis_cell(a: dict | None, now: float) -> str:
-    """Play since the last refresh of the person's analysis, and who did it."""
+    """Each character's play since its last refresh (all of it when never
+    refreshed) against the threshold, the latest refresh and who did it."""
     if a is None:
         return '<span class="dim">-</span>'
     if a.get("error"):
         return f'<span class="dim">store: {escape(a["error"])}</span>'
     by = {"server": "the server", "player": "them"}.get(str(a.get("by") or ""), "")
-    played = escape(str(a.get("played_since") or "0 h 00")) + " played since"
+    of = escape(str(a.get("refresh_after") or ""))
+    chars = sorted(a.get("chars") or [], key=lambda c: not c.get("due"))
+    lines = [f'{escape(str(c["char"]))}: {escape(str(c["played_since"]))} of {of} '
+             + ("since its refresh" if c.get("refreshed") else '<span class="dim">never refreshed</span>')
+             + (' <span class="tag">due</span>' if c.get("due") else "") for c in chars[:ANALYSIS_CHARS]]
+    if len(chars) > ANALYSIS_CHARS:
+        lines.append(f'<span class="dim">{len(chars) - ANALYSIS_CHARS} more</span>')
+    played = "<br>".join(lines) or '<span class="dim">no play on record</span>'
     last = (_when(a["at"], now) + (f" by {by}" if by else "")) if a.get("at") else '<span class="dim">never</span>'
-    due = ' <span class="tag">due</span>' if a.get("due") else ""
     m = a.get("month") or {}
     runs = ""
     if m.get("runs"):
         cost = f', ${m["spent"]:.2f}' if m.get("cost_known") and m.get("spent") is not None else ""
         runs = f'<br><span class="dim">{m["runs"]} server run{"" if m["runs"] == 1 else "s"}{cost} this month</span>'
-    return f"{played}{due}<br>last refresh {last}{runs}"
+    return f"{played}<br>last refresh {last}{runs}"
 
 
 def page_body(o: dict) -> str:

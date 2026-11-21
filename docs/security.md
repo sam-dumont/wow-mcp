@@ -117,7 +117,7 @@ Playwright's Chromium from Playwright's CDN. Both move with their projects'
 releases; pinning them by hash would break every install on their next
 release. The Polestar Recorder download is pinned.
 
-**The owner's overview.** `/admin` answers the owner only (`WOW_OWNER_SUB`); a
+**The owner's overview.** `/admin` answers the owner only (any sub in `WOW_OWNER_SUB`); a
 friend gets the same 404 as any unknown address, and a request without a login
 never reaches it. It shows activity times, counts and versions per person, never
 game content, keys, hashes or install codes, and its answers are not logged.

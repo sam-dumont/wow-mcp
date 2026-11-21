@@ -14,8 +14,8 @@ so a query for one tenant can't read another's rows whatever its text. The
 owner is tenant 0 on VL_URL, as before; friends are tenants 1..n on
 FRIENDS_VL_URL, a store of their own that can delete (wowstats.tenancy.delete).
 
-Who gets in (identify, the web view and the MCP alike): the owner's sub, or
-a sub on WOW_FRIENDS_FILE ({"<sub>": "<slug>"}, {"<sub>": ""} or ["<sub>"],
+Who gets in (identify, the web view and the MCP alike): one of the owner's
+subs, or a sub on WOW_FRIENDS_FILE ({"<sub>": "<slug>"}, {"<sub>": ""} or ["<sub>"],
 rendered by the host from its identity provider's friends group). Nothing
 else: no org, role or name claim decides who gets in, so a proxy that drops
 a header can't lock anyone out or let anyone in (2026-11-19: the org header
@@ -40,7 +40,10 @@ from ZOGZOG_MASTER_KEY_FILE with the account id and a generation.
 
 Environment (docs/deploy.md, "Friends"):
   WOW_STATE_DIR        the registry and each person's state (users/<account>/)
-  WOW_OWNER_SUB        the owner's `sub`: tenant 0 on VL_URL
+  WOW_OWNER_SUB        the owner's `sub`: tenant 0 on VL_URL. Comma-separated for
+                       an owner with several logins (a second account linked to
+                       Battle.net): each one is the owner, one tenant, one App.
+                       A sub also on the friends list is the owner's.
   WOW_OWNER_SLUG       the owner's slug (its site name); WOW_OWNER_ALIASES: more hosts for it
   WOW_FRIENDS_FILE     who may use it besides the owner, {"<sub>": "<slug>" or ""}
                        or ["<sub>"], watched for changes; FRIENDS_RECONCILE_S (120)
@@ -498,9 +501,16 @@ class Tenancy:
         self.env = dict(env)
         self.state = Path(env["WOW_STATE_DIR"])
         self.registry = Registry(self.state / "users.json")
-        self.owner_sub = env.get("WOW_OWNER_SUB", "").strip()
-        if not self.owner_sub:
+        # Every login of the owner's (2026-11-21: the usual account and the
+        # one linked to Battle.net). They all land on one record, owner_sub,
+        # so one tenant, one App, one analysis timer: the record already
+        # marked owner if it's listed (reordering the list moves nothing),
+        # else the first.
+        self.owner_subs = tuple(dict.fromkeys(_csv(env.get("WOW_OWNER_SUB", ""))))
+        if not self.owner_subs:
             raise SystemExit("WOW_STATE_DIR needs WOW_OWNER_SUB (the owner's sub: tenant 0)")
+        self.owner_sub = next((u.sub for u in self.registry.users() if u.owner and u.sub in self.owner_subs),
+                              self.owner_subs[0])
         self.owner_slug = env.get("WOW_OWNER_SLUG", "").strip().lower()
         if self.owner_slug and not SLUG_RE.match(self.owner_slug):
             raise SystemExit(f"WOW_OWNER_SLUG={self.owner_slug!r}: {SLUG_RULE}")
@@ -531,6 +541,23 @@ class Tenancy:
         # The owner's slug and his aliases' first labels (wow.m -> wow) are
         # never anyone else's, even before his record has a slug.
         self.registry.reserved = frozenset({self.owner_slug} | {a.split(".")[0] for a in self.owner_aliases}) - {""}
+        # An owner's login also on the friends list stays the owner's (listed()
+        # drops it). Said once, by its place in WOW_OWNER_SUB, never the sub.
+        raw = read_friends(self.friends_file) if self.friends_file else None
+        for i, s in enumerate(self.owner_subs, 1):
+            if raw and s in raw:
+                log_event("owner_also_listed", position=i, why=f"WOW_OWNER_SUB's login #{i} is also on the "
+                          "friends list: it is the owner's", fix="take it off the friends list")
+
+    def is_owner(self, sub: str) -> bool:
+        return sub in self.owner_subs
+
+    def listed(self) -> dict[str, str] | None:
+        """The friends list (read_friends) without the owner's logins: the
+        owner wins over the list, so none of his is provisioned, named or
+        offboarded as a friend."""
+        raw = read_friends(self.friends_file) if self.friends_file else None
+        return None if raw is None else {k: v for k, v in raw.items() if k not in self.owner_subs}
 
     # ------------------------------------------------------------ who
 
@@ -543,9 +570,9 @@ class Tenancy:
         sub = (sub or "").strip()
         if not sub or len(sub) > 200:
             return Who(None, 401, "not logged in")
-        if sub == self.owner_sub:
-            return Who(self.registry.get(sub))
-        listed = read_friends(self.friends_file) if self.friends_file else None
+        if self.is_owner(sub):  # before the list and the BattleTag: no slug, no tenant of his own
+            return Who(self.registry.get(self.owner_sub))
+        listed = self.listed()
         u = self.registry.get(sub)
         # A broken list changes nothing (reconcile): the registry, which
         # mirrors the last good one, answers until it's fixed.
@@ -586,7 +613,7 @@ class Tenancy:
 
     def mcp_user(self, sub: str) -> User | None:
         """Every /mcp call and refresh: the person still exists and is on."""
-        u = self.registry.get(sub)
+        u = self.registry.get(self.owner_sub if self.is_owner(sub) else sub)
         if u is None or not u.active:
             return None
         self.activity.seen(u, "mcp")
@@ -898,7 +925,7 @@ def reconcile(t: Tenancy) -> dict:
     """Make the registry match the friends list: provision who is listed
     with a slug, offboard who left it. Someone listed without one waits for
     their first login (identify). The owner is never in play."""
-    listed = read_friends(t.friends_file) if t.friends_file else None
+    listed = t.listed()
     if listed is None:
         if not t.list_unusable:  # once, not every pass
             log_event("list_unusable", path=t.friends_file,
@@ -906,7 +933,6 @@ def reconcile(t: Tenancy) -> dict:
         t.list_unusable = True
         return {"skipped": True}
     t.list_unusable = False
-    listed = {k: v for k, v in listed.items() if k != t.owner_sub}
     out: dict = {"skipped": False, "provisioned": [], "removed": [], "errors": []}
     for sub, slug in listed.items():
         u = t.registry.get(sub)
@@ -921,7 +947,9 @@ def reconcile(t: Tenancy) -> dict:
         else:
             out["provisioned"].append(slug)
     for u in t.registry.users():
-        if u.owner or u.account_id == 0 or u.sub == t.owner_sub or u.sub in listed:
+        # An owner's login with a friend's record from before stays as it is:
+        # nothing of anyone's is deleted for being the owner's.
+        if u.owner or u.account_id == 0 or t.is_owner(u.sub) or u.sub in listed:
             continue
         try:
             t.registry.update(u.sub, status="disabled")  # refused at once, whatever happens next
@@ -1016,7 +1044,7 @@ def cli(argv: list[str]) -> int:
     a = ap.parse_args(argv)
     t = Tenancy(dict(os.environ))
     if a.action == "list":
-        listed = read_friends(t.friends_file) if t.friends_file else None
+        listed = t.listed()
         for u in t.registry.users():
             c = name_conflict(t, u, listed)
             clash = (c["slug"] or c["why"]) if c else None  # the name to fix, or "no name"
