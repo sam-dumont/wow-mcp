@@ -1222,9 +1222,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             slot = per_slot.setdefault(o["slot"], {"now": [], "soon": []})
             slot[bucket].append((o["delta"], -c["id"], c, o))
 
-    def pick(slot: int, bucket: str, exclude: int | None = None):
+    def pick(slot: int, bucket: str, exclude: frozenset = frozenset()):
         ranked = [t for t in sorted((per_slot.get(slot) or {}).get(bucket) or [], key=lambda t: (t[0], t[1]),
-                                    reverse=True) if t[2]["id"] != exclude]
+                                    reverse=True) if t[2]["id"] not in exclude]
         if not ranked or ranked[0][0] <= 0:
             return ranked[0] if ranked else None
         # Among the close ones, the one built for the spec (gearfit's factor):
@@ -1241,10 +1241,14 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             # Gear.lua compare: an empty slot first, else the weaker of the two
             # takes the best item; the other gets the best one left (a quest
             # reward is one item, worn once).
+            # Never the ring the other hand already wears: compare() calls it
+            # equipped, and _pair's BiS leaves it out (the doll offered the
+            # worn trinket again for an empty trinket slot).
             weak = a if a not in worn.ids else b if b not in worn.ids else (b if worn.score(b) < worn.score(a) else a)
             strong = b if weak == a else a
-            pw = picks[(weak, bucket)] = pick(weak, bucket)
-            picks[(strong, bucket)] = pick(strong, bucket, pw[2]["id"] if pw else None)
+            on = frozenset(worn.ids[x] for x in (a, b) if x in worn.ids)
+            pw = picks[(weak, bucket)] = pick(weak, bucket, on)
+            picks[(strong, bucket)] = pick(strong, bucket, on | ({pw[2]["id"]} if pw else set()))
     # Where each worn item stands against the best the slot can hold now
     # (owner, 2026-11-21: "show bis or second or a percentage of bis").
     stand.update(standings(per_slot, worn, setups, level))

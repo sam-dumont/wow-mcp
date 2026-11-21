@@ -302,7 +302,7 @@ def dungeon_items(inp: dict) -> dict[str, dict]:
             d = out.setdefault(inst, {"name": inst, "levels": s.get("levels"), "drops": [], "quests": []})
             row = {"item": u.get("name"), "item_id": u.get("item_id"), "slot": u.get("slot_name"),
                    "gain": round(u.get("value", u.get("gain")) or 0, 1), "req_level": u.get("level"),
-                   "now": bool(u.get("now")), **gearmod.badge_of(u)}
+                   "now": bool(u.get("now")), **gearmod.badge_of(u), "line": gearmod.gain_words(u)}
             if s["kind"] == "drop":
                 d["drops"].append({**row, "boss": s.get("boss") or "trash", "chance": s.get("chance_pct")})
             elif s["kind"] == "quest":
@@ -600,7 +600,8 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict) -> list[dic
     for u in inp.get("upgrades") or []:
         for s in u.get("sources") or []:
             row = {"item": u.get("name"), "item_id": u.get("item_id"), "gain": round(u.get("gain") or 0, 1),
-                   **gearmod.badge_of(u), "req_level": u.get("level"), "now": bool(u.get("now")),
+                   **gearmod.badge_of(u), "line": gearmod.gain_words(u), "req_level": u.get("level"),
+                   "now": bool(u.get("now")),
                    "available": "now" if u.get("now") else f"at {u.get('level')}",
                    # The ranking's value and who it's built for (wowstats.gearfit).
                    "value": round(u.get("value", u.get("gain")) or 0, 1),
@@ -932,7 +933,7 @@ def town_stop(inp: dict, p: dict, blocks: list[dict], mount: dict, cons: dict | 
             s["kind"] == "craft" and s.get("can_make") for s in u.get("sources") or [])]
     for u in crafts[:2]:
         s = next(s for s in u.get("sources") or [] if s["kind"] == "craft" and s.get("can_make"))
-        errands.append({"what": f"craft {u['name']}", "why": f"+{u['gain']:.1f} points; {gearmod.craft_status(s)}"})
+        errands.append({"what": f"craft {u['name']}", "why": f"{gearmod.gain_words(u)}; {gearmod.craft_status(s)}"})
     if mount.get("behind") and (inp.get("loot_value") or {}).get("ah_per_hour"):
         errands.append({"what": "auction house", "why": "sell the cloth and trade goods you loot (mount savings)"})
     if not errands:
@@ -1065,6 +1066,7 @@ def gear_now(inp: dict) -> list[dict]:
             continue
         srcs = u.get("sources") or []
         rows.append({"item": u.get("name"), "slot": u.get("slot_name"), "gain": round(u.get("gain") or 0, 1),
+                     "line": gearmod.gain_words(u),
                      "where": src_text(srcs[0]) if srcs else None, "worn_with": with_text(u),
                      "fit": gearfit.text(u.get("fit")), "value": round(u.get("value", u.get("gain")) or 0, 1)})
     rows.sort(key=lambda r: -r["value"])
@@ -1221,7 +1223,7 @@ def facts(e: dict) -> dict[str, str]:
             if v.get("text"):
                 f[f"{k}.vs_guide"] = v["text"]
         for m, it in enumerate(d["top_items"][:3], 1):
-            f[f"{k}.item{m}"] = (f"{it['item']} ({it['slot']}, +{it['gain']}, {it['boss']}"
+            f[f"{k}.item{m}"] = (f"{it['item']} ({it['line']}, {it['boss']}"
                                  + (f", {it['chance']:.0f}%" if it.get("chance") else "") + ")")
         r = d.get("redo")
         if r:
@@ -1253,7 +1255,7 @@ def facts(e: dict) -> dict[str, str]:
     if lo.get("rested_per_8h"):
         f["logout.rested"] = f"about {fint(lo['rested_per_8h'])} rested XP per 8 hours offline"
     for j, g in enumerate(e["gear_now"], 1):
-        f[f"gear{j}"] = (f"{g['item']} ({g['slot']}, +{g['gain']}): {g['where']}"
+        f[f"gear{j}"] = (f"{g['item']} ({g['line']}): {g['where']}"
                          + (f"; worn with {g['worn_with']}" if g.get("worn_with") else ""))
     for j, fd in enumerate(e["findings"][:6], 1):
         f[f"finding{j}"] = fd["text"] or fd["title"] or ""

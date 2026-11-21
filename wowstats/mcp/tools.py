@@ -728,6 +728,9 @@ def _gear_item(u: dict | None) -> dict | None:
         out["bis_pct"] = u["bis_pct"]
         out["bis_pct_worn"] = u.get("bis_pct_worn")
         out["delta_pct"] = u["delta_pct"]
+    # The page's item line (gear.gain_words): "70% → 91% on your chest", or
+    # the points without a badge. Say it as is.
+    out["line"] = gearmod.gain_words(u)
     links = [_src_link(s) for s in u.get("sources") or []]
     if any(links):
         out["where_wowhead"] = links  # one per `where` entry, null where the source has no page
@@ -1104,13 +1107,13 @@ TOOLS: tuple[Tool, ...] = (
     Tool("gear", "Gear upgrades",
          "Gear advice from Polestar's scoring: per slot what is worn and where it stands (BiS, 2nd, or a percent "
          "of BiS), the best item at its level and the next within 3 levels, with the gain and where to get it; "
-         "then the upgrades, held or in the current zone first, then the slot furthest from BiS. Say each as "
-         "bis_pct_worn → bis_pct (null worn: empty slot). Polestar's spec unless `spec` names another.",
+         "then the upgrades, held or in the current zone first, then the slot furthest from BiS. Say each "
+         "item's `line` as is. Polestar's spec unless `spec` names another.",
          schema({"char": CHAR, "spec": {"type": "string", "description": "A spec of the class, e.g. shadow, holy."},
                  "limit": lim(10, 40)}), t_gear),
     Tool("next_moves", "What to do now",
-         "Answers 'besides following Polestar, what should I do now?': upgrades in reach (bis_pct_worn → "
-         "bis_pct, where to get them), dungeons at the character's level that drop upgrades, "
+         "Answers 'besides following Polestar, what should I do now?': upgrades in reach (\"70% → 91% on "
+         "your chest\", where to get them), dungeons at the character's level that drop upgrades, "
          "profession trainer visits due, rested XP, time to the next level, plus pace against the route. Each "
          "point names its data; also lists the checks the data can't support yet.",
          schema({"char": CHAR}), t_next_moves),

@@ -625,7 +625,7 @@ function renderGear(d) {
   // One number, said plainly: the average item level of what is worn. The
   // armory's figure (every slot, an empty one 0) stood above it until
   // 2026-11-19, "23 item level" over "27.6 average": its empty slots are
-  // already on the paperdoll ("something to wear"), and Classic's armory
+  // already on the paperdoll (an empty slot), and Classic's armory
   // counts the off hand a two-hander leaves empty as 0, so it never reaches
   // the gear's level. It stays in the answer and the MCP; the page shows it
   // only when the sheet has no average.
@@ -1228,20 +1228,26 @@ function badgeFor(i) {
   return { short: top ? 'BiS' : `${i.bis_pct}%`, label: top ? 'BiS' : `${i.bis_pct}% of BiS`,
     tier: bisTier({ rank: top ? 1 : null, pct: i.bis_pct }) };
 }
-// "70% → 91%", "empty → 91%" (nothing worn there), or the points without a badge.
+// The item line, one helper for every place an item shows (owner,
+// 2026-11-21): the worn slot's doll % and the % with this item. "Gear",
+// the default: next moves, dungeon cards and drops, quest rewards, the
+// Upgrades list and its comparison, Back in time, /zogzog/: "70% → 91% on
+// your chest". "doll", under each slot of the paper doll, where the slot is
+// already the place: "70% → 91% with the best at hand". "empty → 91%" when
+// nothing is worn there; the points when there's no badge ("Chest, +4.3
+// points"). wowstats/gear.py gain_words says the same on the server. Never
+// build a "%" line by hand: tests/test_item_line.py greps for one.
 function upShort(u) {
   if (!badgeFor(u)) return pts(u.gain);
   const worn = u.bis_pct_worn === null || u.bis_pct_worn === undefined ? 'empty' : `${u.bis_pct_worn}%`;
   return `${worn} → ${u.bis_pct}%`;
 }
-// "70% → 91% on your chest", or "Chest, +4.3 points" without a badge.
-function upText(u) {
-  if (!badgeFor(u)) return `${u.slot_name || 'Gear'}, ${pts(u.gain)} points`;
-  return `${upShort(u)} on your ${(slotKey(u) || 'gear').toLowerCase()}`;
+function upText(u, where) {
+  const doll = where === 'doll';
+  if (!badgeFor(u)) return doll ? `${pts(u.gain)} points with the best at hand` : `${u.slot_name || 'Gear'}, ${pts(u.gain)} points`;
+  return `${upShort(u)} ${doll ? 'with the best at hand' : `on your ${(slotKey(u) || 'gear').toLowerCase()}`}`;
 }
-// The item line every list of gear to get shares (the Overview's moves, the
-// Dungeons panel's drops and quest rewards): upText, and the level it opens
-// at when it can't be worn yet.
+// upText, and the level it opens at when it can't be worn yet.
 function upLine(u) {
   return `${upText(u)}${u.now === false ? ` at level ${u.level}` : ''}`;
 }
@@ -1363,14 +1369,13 @@ function compareEl(u, a, alts, onPick) {
       : h('p', { class: 'sub', text: empty }));
   const kids = [
     h('div', { class: 'cmphead' },
-      h('h3', {}, (u.slot === 16 || u.slot === 17) ? 'Weapons' : u.slot_name, ': ', h('span', { class: 'gainbig', text: upShort(u) }),
-        badgeFor(u) ? h('small', { class: 'bisgain', text: ' of BiS' }) : null),
+      h('h3', {}, h('span', { class: 'gainbig', text: upText(u) })),
       h('span', { class: 'pill' + (f.now ? ' now' : ''), text: f.now ? 'Now' : f.text, title: f.title }),
       h('button', { type: 'button', class: 'cmpclose', 'aria-label': 'Close the comparison', text: '×' })),
     h('div', { class: 'cmpsides' }, side('You wear', wornNames, 'Nothing in this slot.'), side('Best replacement', cand, '')),
     fitEl(u.fit),
     u.fit && u.fit.alternative ? h('p', { class: 'fitalt' }, 'Built for your spec instead: ',
-      h('b', { text: u.fit.alternative.name }), ` ${upShort(u.fit.alternative)}`,
+      h('b', { text: u.fit.alternative.name }), `, ${upText(u.fit.alternative)}`,
       u.fit.alternative.sources && u.fit.alternative.sources[0] ? [', ', sourceEl(u.fit.alternative.sources[0], a.level)] : null) : null,
     statTable(worn.items, cand, a.weights || {}),
     keepsOther ? h('p', { class: 'cmpcalc sub', text: 'You keep the other hand as it is.' }) : null,
@@ -1384,7 +1389,7 @@ function compareEl(u, a, alts, onPick) {
         const s = primarySource(x);
         const b = h('button', { type: 'button', class: 'linkish', text: x.name });
         b.addEventListener('click', () => onPick(x));
-        return h('li', {}, b, ` ${upShort(x)}, `, feasible(x, a.level).text.toLowerCase(), s ? [', ', sourceEl(s, a.level, ahOf(x))] : null);
+        return h('li', {}, b, `, ${upText(x)}, `, feasible(x, a.level).text.toLowerCase(), s ? [', ', sourceEl(s, a.level, ahOf(x))] : null);
       }))));
   }
   const box = h('section', { class: 'cmp', 'aria-label': `Compare ${u.name}`, tabindex: '-1' }, ...kids);
@@ -1448,7 +1453,7 @@ function renderAdvice(a) {
       li.title = STANDING_TITLE[st.rank] || `${st.pct}% of the best item for this slot at your level`;
     }
     const u = sl.best;
-    if (u) li.querySelector('.imeta').after(h('span', { class: 'iup', text: u.fills_empty ? '▲ something to wear' : `▲ ${upShort(u)} at hand`, title: 'Click to compare' }));
+    if (u) li.querySelector('.imeta').after(h('span', { class: 'iup', text: upText(u, 'doll'), title: `${u.name}: click to compare` }));
     // Beside the icon where there's room (the band on the icon says it on a phone).
     if (st && frame && !li.classList.contains('empty')) li.querySelector('.imeta').after(h('span', { class: 'ibis ibisline' + (st.rank === 1 ? ' top' : ''), text: st.label }));
     if (li.dataset.cmp) continue;
@@ -1529,8 +1534,7 @@ function candRow(u, a, extra) {
   const partner = u.with && u.with.item_id ? h('span', { class: 'sub', text: ` with ${u.with.name || 'item ' + u.with.item_id} (${(u.with.slot_name || '').toLowerCase()}${u.with.kind === 'worn' ? ', which you wear' : ''})` }) : null;
   li.append(
     h('div', { class: 'candmain' }, itemChip(u), partner, fitEl(u.fit)),
-    h('div', { class: 'candmeta' }, h('span', { class: 'slotname', text: slotKey(u) === 'Weapons' ? 'Weapons' : u.slot_name }),
-      h('b', { class: 'gain', text: upShort(u) }),
+    h('div', { class: 'candmeta' }, h('b', { class: 'gain', text: upText(u) }),
       feasEl(u, a.level), extra || null));
   li.querySelector('.candmain .itm').addEventListener('click', (e) => {
     e.preventDefault();
@@ -1623,7 +1627,7 @@ function bySlot(a, picks) {
       h('th', { text: k }),
       h('td', {}, worn.length ? worn.map((i) => itemChip(i, { label: false })) : h('span', { class: 'sub', text: 'empty' })),
       h('td', { class: 'best' }, itemChip(u)),
-      h('td', { class: 'gain' }, upShort(u)),
+      h('td', { class: 'gain' }, upText(u)),
       h('td', {}, feasEl(u, a.level)),
       h('td', { class: 'srccell' }, s ? sourceEl(s, a.level, ahOf(u)) : ''));
     tr.querySelector('.best .itm').addEventListener('click', (e) => {
@@ -3379,7 +3383,7 @@ function renderSnapshot(sn, out) {
   if (sn.gear) {
     kids.push(...snapGear(sn));
     if (sn.bis && sn.bis.upgrades && sn.bis.upgrades.length) {
-      kids.push(h('p', {}, h('b', { text: 'Best upgrades then: ' }), sn.bis.upgrades.slice(0, 3).map((u) => `${u.name} (${upShort(u)})`).join(', ')));
+      kids.push(h('p', {}, h('b', { text: 'Best upgrades then: ' }), sn.bis.upgrades.slice(0, 3).map((u) => `${u.name} (${upText(u)})`).join(', ')));
     }
     if (window.wowPastLevel) window.wowPastLevel(holder, state.char, sn.level, sn.picture);
   } else {
