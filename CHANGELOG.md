@@ -19,6 +19,10 @@
 
 - `query_metric` didn't count in the analysis run's bookkeeping: no query counted, and a table read only through a metric stayed "untouched", so the coverage round asked about it again. `play_sql` and `query_metric` now share one bookkeeping: both count as queries, and a metric's semantic-layer view counts as the prep tables (and columns) under it.
 
+### Fixed
+
+- A server analysis run that didn't finish put back the character's files from its start, erasing anything the player's own AI had written to the same character meanwhile (a finding it proposed, its run's progress). The server run now watches who else writes that character's analysis while it runs; it rolls back only when nobody did, and otherwise leaves the files alone and ends its reason with "not rolled back".
+
 ## 0.7.0-rc.5 (2026-11-21)
 
 ### Added
