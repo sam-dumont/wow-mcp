@@ -683,6 +683,47 @@ def test_words_ring_pair_from_the_weaker_worn():
     assert gear.gain_words({**gear.bis_badge(st1[r1["slot"]], r1), "slot_name": "Finger"}).startswith("empty → ")
 
 
+@pytest.mark.parametrize("pair,name", [((11, 12), "finger"), ((13, 14), "trinket")])
+def test_words_pair_from_the_ring_it_replaces(pair, name):
+    """rc.7 on a live character: the doll read 40% and 34% for the two
+    rings and every ring line said "40% → ...", though the 40% ring was the
+    stronger of the two in points. _pair measured the stronger worn ring
+    against the best item left and the weaker against the next, so the
+    weaker read the higher share, while compare() and the advice's picks put
+    the best item in the weaker slot. The weaker worn one is the one a new
+    piece replaces, and the doll must say it is the weaker."""
+    a, b = pair
+    inv = 11 if a == 11 else 12
+    # Worn 36.8 and 34 points; the best two on the list are 100 and 80.
+    worn = _worn({a: 36.8, b: 34.0})
+    lst = _now((1, 100.0), (2, 80.0), (3, 70.0))
+    st = _standings(worn, {a: lst, b: lst})
+    assert (st[b]["pct"], st[a]["pct"]) == (34, 46)
+    r = gear.compare(_item(inv, 70), 3, worn, SP, None, False)
+    assert r["slot"] == b
+    u = {**gear.bis_badge(st[r["slot"]], r), "slot_name": name.capitalize()}
+    assert gear.gain_words(u) == f"34% → 70% on your {name}"
+    # The best item reads BiS going into the slot it replaces.
+    assert _badge(worn, st, 1, _item(inv, 100))["bis_pct"] == 100
+
+
+def test_pair_standing_follows_the_points():
+    """Whatever the list, the weaker worn ring never reads a higher share of
+    BiS than the stronger: the doll and every item line agree on which one a
+    new ring replaces."""
+    import itertools
+
+    for sa, sb, x, y in itertools.product((5.0, 9.0, 12.0), (4.0, 8.5, 11.0), (10.0, 13.0, 20.0), (6.0, 9.5, 12.5)):
+        if sa == sb:
+            continue
+        worn = _worn({11: sa, 12: sb})
+        lst = _now((1, x), (2, y))
+        st = _standings(worn, {11: lst, 12: lst})
+        weak, strong = (11, 12) if sa < sb else (12, 11)
+        if st[weak] and st[strong]:
+            assert st[weak]["pct"] <= st[strong]["pct"], (sa, sb, x, y, st[11], st[12])
+
+
 def test_words_weapon_setup():
     hands = {"pct": 50, "target": 20.0}
     u = {**gear.bis_badge(hands, {"slot": 16, "new": 9.0, "setup_score": 15.0, "empty": False}),

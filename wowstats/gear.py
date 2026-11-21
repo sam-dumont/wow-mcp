@@ -1422,8 +1422,11 @@ def _rank(above: int, cur: float, target: float) -> dict:
 def _pair(a: int, b: int, per_slot: dict, worn: Worn) -> dict[int, dict | None]:
     """Rings or trinkets: BiS is the best two different items. A worn one
     among those two is BiS; the rest measure against the BiS item they'd
-    make room for (the stronger worn one against the best left, the weaker
-    against the next)."""
+    make room for. The best item left goes where compare() and advise()'s
+    picks put it: an empty slot, else the weaker worn one; the stronger
+    measures against the next. The other way round (until rc.7) the weaker
+    ring could read the higher share (40% next to 34%), and every ring line
+    started from it while the doll said the replaced ring was the 40% one."""
     pool: dict[int, float] = {}
     for slot in (a, b):
         for _d, _i, c, o in (per_slot.get(slot) or {}).get("now") or []:
@@ -1445,7 +1448,7 @@ def _pair(a: int, b: int, per_slot: dict, worn: Worn) -> dict[int, dict | None]:
         else:
             rest.append(slot)
     free = [pool[i] for i in top2 if i not in {worn.ids.get(x) for x in (a, b) if out.get(x)}]
-    rest.sort(key=lambda x: -(worn.score(x) if x in worn.ids else -1))
+    rest.sort(key=lambda x: worn.score(x) if x in worn.ids else -1)
     for slot, target in zip(rest, free, strict=False):
         if target <= 0:
             out[slot] = None
