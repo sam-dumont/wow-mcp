@@ -8,6 +8,12 @@ text is filled from the re-run. `expect` is what the model saw: a re-run
 that gives other numbers drops the finding, and so does a literal number in
 the text, a placeholder its query doesn't return, or a `holds` condition
 that is false.
+
+The query must read the character's play history: `SELECT 3 AS n` re-runs
+to 3 every time, so a constant passed the re-run while saying nothing about
+the data (external review of 0.7.0-rc.5: "You died {n} times." kept with 3,
+five deaths on record). That closes this one hole only: a query that reads a
+table can still compute the wrong thing, which no re-run catches.
 """
 
 from __future__ import annotations
@@ -161,6 +167,20 @@ def holds(expr: str, row: dict) -> bool:
     return bool(ev(tree))
 
 
+NO_HISTORY = ("the query reads none of the character's tables (a constant, or a FROM on the documentation "
+              "tables only): it isn't evidence. Select the numbers from the play history, or cite a "
+              "query_metric call (list_metrics has deaths, kills, time played and more)")
+
+
+def history_read(ro) -> set[str]:
+    """The play-history tables the runner's last query read: the prep's game
+    tables (wowstats.analysis.TABLES) and the semantic layer's views over them."""
+    from . import TABLES
+
+    read = getattr(ro, "last_read", None) or set()
+    return {t for t in read if TABLES.get(t) == "game" or t.startswith("sem_")}
+
+
 def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     """(the finding with `row` and rendered `text`, "") or (None, why)."""
     if not isinstance(f, dict):
@@ -174,6 +194,8 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
         row = ro.first_row(sql_text, params)
     except QueryError as e:
         return None, f"{key}: query failed on re-run: {e}"
+    if not history_read(ro):
+        return None, f"{key}: {NO_HISTORY}"
     for part in ("title", "claim"):
         if literal_numbers(str(f.get(part) or "")):
             return None, f"{key}: number written into the {part} instead of a placeholder"
@@ -238,6 +260,8 @@ def recheck(stored: dict, ro: ReadOnly) -> tuple[dict | None, str]:
         row = ro.first_row(stored["sql"], stored.get("sql_params"))
     except QueryError as e:
         return None, f"query failed: {e}"
+    if not history_read(ro):  # kept before the judge asked for it
+        return None, "the query reads no play history"
     if stored.get("holds"):
         try:
             if not holds(stored["holds"], row):

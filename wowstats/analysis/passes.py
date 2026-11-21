@@ -58,7 +58,9 @@ A finding is something the data shows, with the SQL that shows it. Its `claim` i
 in which every number is a placeholder naming a column of the FIRST row that `sql` returns: {col}, {col:dur} \
 (seconds as hours/minutes), {col:pct} (a ratio as a percent), {col:int}, {col:1f}. Never write a number above \
 100 yourself. `expect` holds the values of those columns exactly as your query returned them: the judge runs \
-the SQL again and refuses the finding if they differ. Describe what the player chose to do by what it cost \
+the SQL again and refuses the finding if they differ. The SQL must read the character's tables: a constant \
+(`SELECT 3 AS n`) is refused. For common counts and times (deaths, kills, time played) prefer a query_metric \
+call as evidence. Describe what the player chose to do by what it cost \
 and what it paid, never as a fault; describe interruptions neutrally and never guess why a session stopped. \
 List in `kb` the ids of the knowledge base documents a finding relies on.
 

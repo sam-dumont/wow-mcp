@@ -226,6 +226,9 @@ class ReadOnlyDuck:
         self.tables = None if tables is None else frozenset(tables)
         self.lock = threading.Lock()
         self.touched: set[tuple[str, str]] = set()
+        # The tables (and the semantic layer's views) the last query read:
+        # the judge refuses evidence that reads none.
+        self.last_read: set[str] = set()
         self._cols: dict[str, list[str]] = {}
 
     def columns(self, table: str) -> list[str]:
@@ -245,7 +248,9 @@ class ReadOnlyDuck:
             raise QueryError(NOT_ALLOWED)
         with self.lock:
             cur = self.con.cursor()
+            self.last_read = set()
             read = plan_check(cur, q, self.tables)
+            self.last_read = set(read)
             words = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", q))
             for t in read:
                 self.touched.update((t, c) for c in self.columns(t) if c in words)

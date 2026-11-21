@@ -120,3 +120,36 @@ def test_play_sql_value_bomb_stops_only_the_query(env, monkeypatch):
     # every function stays available: the same operators on a small value answer
     small = call("play_sql", {"query": "SELECT length(string_agg('ab', '') || 'x') AS n FROM range(10)"})
     assert small["result"] == "n\n21"
+
+
+# External review of 0.7.0-rc.5: "You died {n} times." with `SELECT 3 AS n`
+# was kept through the real MCP path (five deaths in the fixture), because a
+# constant re-runs to the same value every time.
+CONSTANTS = ["SELECT 3 AS n", "WITH c AS (SELECT 3 AS n) SELECT n FROM c",
+             "SELECT COUNT(*) AS n FROM range(3)", "SELECT 3 AS n FROM meta LIMIT 1"]
+
+
+@pytest.mark.parametrize("sql", CONSTANTS)
+def test_a_constant_is_not_evidence(env, sql):
+    deaths = "SELECT COUNT(*) AS n FROM records WHERE kind = 'death'"
+    assert drive.workspace(env, CHAR).judge.first_row(deaths)["n"] == 5
+    f = {"key": "deaths-count", "title": "Deaths", "claim": "You died {n} times.", "sql": sql, "expect": {"n": 3},
+         "relevance": 1, "action": None}
+    got = call("propose_finding", {"finding": f})
+    assert not got["stored"] and "reads none of the character's tables" in got["why"]
+    assert "deaths-count" not in (load_state(env, CHAR).get("findings") or {})
+    # The same claim from the records, or from the named metric, stands.
+    assert call("propose_finding", {"finding": {**f, "sql": deaths, "expect": {"n": 5}}})["stored"]
+    mq = call("propose_finding", {"finding": {**f, "key": "deaths-metric", "sql": "", "claim": "You died {deaths} "
+                                              "times.", "expect": {"deaths": 5}}, "metric_query": {"metrics": ["deaths"]}})
+    assert mq["stored"], mq
+
+
+def test_a_kept_constant_fades_on_the_recheck(env):
+    from wowstats.analysis import verify
+
+    w = drive.workspace(env, CHAR)
+    stored = {"key": "deaths-count", "sql": "SELECT 3 AS n", "sql_params": None, "holds": None,
+              "title_template": "Deaths", "claim_template": "You died {n} times."}
+    upd, why = verify.recheck(stored, w.judge)
+    assert upd is None and "no play history" in why
