@@ -7,7 +7,7 @@ The full guide is [docs/development.md](docs/development.md). The short
 version:
 
 1. **Python through [uv](https://docs.astral.sh/uv/) only.**
-   `uv sync --frozen --extra publish --extra mcp --group browser`.
+   `uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai --group browser`.
 2. **Before a pull request**, run what covers your change:
    ```sh
    uv run ruff check .
