@@ -580,16 +580,24 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
                  "Log lines about you stay until the logs expire: ask the owner how long.")
     from wowstats.analysis import auto
 
-    # The server's own analysis (wowstats.analysis.auto): only when the host configured an AI provider.
+    # The server's own analysis (wowstats.analysis.auto): only when the host configured an AI provider
+    # and left ANALYSIS_AUTO on. The timer is the only way a server run starts (no MCP call does), so
+    # configured but off sends nothing: review 2 of 0.7.0 found the page said it ran anyway.
     cfg = auto.Config.from_env(env)
     every = f"{cfg.stale_s / 3600:g} hours"
-    server_ai = ("This server also runs the play analysis itself, with the AI provider the host configured, once "
-                 f"a character has {every} of play since its analysis was last refreshed (by your own AI or the "
-                 "server): what the analysis tools answer about that character (your events, the names of other "
-                 "players your game showed you included, never Battle.net data) goes to that provider then. Your "
-                 "AI never starts one." if auto.configured(env) else
-                 "This server doesn't run the play analysis itself: the host hasn't configured an AI provider for "
-                 "it, so nothing goes to one from here.")
+    if cfg.on and cfg.auto:
+        server_ai = ("This server also runs the play analysis itself, with the AI provider the host configured, "
+                     f"once a character has {every} of play since its analysis was last refreshed (by your own AI "
+                     "or the server): what the analysis tools answer about that character (your events, the names "
+                     "of other players your game showed you included, never Battle.net data) goes to that "
+                     "provider then. Your AI never starts one.")
+    elif cfg.on:
+        server_ai = ("This server doesn't run the play analysis itself: the host configured an AI provider but "
+                     "turned the server's own analysis off, so nothing goes to it from here. If they turn it on, "
+                     "this page says so.")
+    else:
+        server_ai = ("This server doesn't run the play analysis itself: the host hasn't configured an AI provider "
+                     "for it, so nothing goes to one from here.")
     body = (PRIVACY.replace("@SERVER_AI@", server_ai).replace("@VISITS@", visits).replace("@BACKUPS@", backups)
             .replace("@LOGS_GONE@", logs_gone).replace("@LOGS@", logs))
     return page("Privacy", body, "privacy", script=False, assets="/privacy/", current="/privacy",

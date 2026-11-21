@@ -118,11 +118,11 @@ when a person turns on "Battle.net data to my AI" on a shared install, for their
 ## The server's own analysis
 
 Off unless the host configures an AI provider (`ANALYSIS_PROVIDER`: Anthropic, OpenAI or any
-OpenAI-compatible endpoint). Then the server runs the play analysis itself for a character
+OpenAI-compatible endpoint) and leaves `ANALYSIS_AUTO` on. Then the server runs the play analysis itself for a character
 with `ANALYSIS_STALE_PLAYED_HOURS` of play (10 by default) since its analysis was last
 refreshed, and that provider receives what the analysis tools answer about that character: its
 events and the names of other players its game showed, never Battle.net data. Nothing else
-starts a server run: no MCP call, no button. The app's Privacy page says whether it's on.
+starts a server run: no MCP call, no button. The app's Privacy page says whether it's on, and says so when a provider is configured but `ANALYSIS_AUTO` is off.
 [Server-side analysis](../self-host/server-analysis.md).
 
 ## Visitor counts
