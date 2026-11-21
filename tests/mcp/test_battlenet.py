@@ -97,6 +97,22 @@ def test_allow_keeps_the_normal_login(bnet):
     assert set(idp.seen[-1]["scope"].split()) == {"openid", "offline_access"}
 
 
+def test_allow_asks_which_account_battlenet_doesnt(bnet):
+    # Allow after a Battle.net sign-in in the same browser: the provider must
+    # ask which account, not reuse its newest session (the Battle.net one).
+    idp, run, lg = bnet
+    lg.login()
+    assert idp.seen[-1]["prompt"] == server.SELECT_ACCOUNT
+    lg.authorize(consent_query="?login=battlenet")
+    assert set(idp.seen[-1]["scope"].split()) >= BNET and "prompt" not in idp.seen[-1]
+
+
+def test_without_the_button_allow_asks_which_account_too(plain):
+    idp, run, lg = plain
+    lg.login()
+    assert idp.seen[-1]["prompt"] == server.SELECT_ACCOUNT
+
+
 def test_battlenet_adds_exactly_the_two_scopes_and_round_trips(bnet):
     idp, run, lg = bnet
     assert lg.register().status_code == 201

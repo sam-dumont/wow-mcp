@@ -310,7 +310,10 @@ What the server does:
   ChatGPT, VS Code and Cursor, plus loopback on any port).
   `/help/` lists the clients and how to add each.
 - PKCE S256, a consent page before the first login of each client, tokens
-  bound to this `/mcp` URL.
+  bound to this `/mcp` URL. The login asks the provider for its account
+  picker (`prompt=select_account`), so a browser signed in to several
+  accounts never logs a connector in as the wrong one without asking; the
+  Battle.net button skips it.
 - Who gets in is checked at the login and again at every refresh, against
   the identity provider's own answer (the ID token and userinfo). With
   several people (wowstats.tenancy) the sub alone decides, by the web

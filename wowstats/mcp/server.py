@@ -117,6 +117,9 @@ ORG_SCOPE = "urn:zitadel:iam:user:resourceowner"
 # account in that org.
 BATTLENET_ORG_ENV, BATTLENET_IDP_ENV = "OIDC_BATTLENET_ORG_ID", "OIDC_BATTLENET_IDP_ID"
 _ZITADEL_ID = re.compile(r"^[0-9]{1,32}$")
+# OpenID Connect's prompt on the normal login: always the account picker
+# (auth_from_env, extra_authorize_params).
+SELECT_ACCOUNT = "select_account"
 # Set while the consent form is submitted through the Battle.net button, for
 # the authorize URL built in that same call.
 _BATTLENET_LOGIN: contextvars.ContextVar[bool] = contextvars.ContextVar("wow_battlenet_login", default=False)
@@ -661,9 +664,11 @@ def auth_from_env(s: Settings, who: Who):
             url = super()._build_upstream_authorize_url(txn_id, transaction)
             if not (bnet and _BATTLENET_LOGIN.get()):
                 return url
+            # The Battle.net button: its two scopes, and no account picker
+            # (the IdP scope already says which login to start).
             parts = urlsplit(url)
             query = [(k, " ".join([v, *bnet]) if k == "scope" else v)
-                     for k, v in parse_qsl(parts.query, keep_blank_values=True)]
+                     for k, v in parse_qsl(parts.query, keep_blank_values=True) if k != "prompt"]
             return urlunsplit(parts._replace(query=urlencode(query)))
 
         # ------------------------------------------------ tokens
@@ -729,7 +734,13 @@ def auth_from_env(s: Settings, who: Who):
         verify_id_token=True,
         # Always `openid` (the ID token is the login) whatever the client
         # asked; offline_access for the refresh token the re-checks need.
-        extra_authorize_params={"scope": scopes},
+        # prompt=select_account: the provider asks which account instead of
+        # reusing the browser's newest session. Without it, one Battle.net
+        # sign-in in that browser made every later "Allow" log in as that
+        # account too, silently (ZITADEL's login v2 picks the most recently
+        # changed session when the request names nobody), and the owner
+        # couldn't get his own account back (2026-11-21).
+        extra_authorize_params={"scope": scopes, "prompt": SELECT_ACCOUNT},
         required_scopes=["openid"],
         jwt_signing_key=_key(master, b"jwt"),
         client_storage=FernetEncryptionWrapper(
