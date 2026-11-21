@@ -447,8 +447,8 @@ class Store:
     PROFILE_SERIES = ("wow_character_profile", "wow_character_customization", "wow_character_equipped",
                       "wow_character_profile_refreshed_timestamp_seconds", "wow_character_profile_found",
                       "wow_character_item_level", "wow_character_equipped_stat",
-                      "wow_character_talent_points", "wow_character_talent_rank", "wow_character_achievement")
-
+                      "wow_character_talent_points", "wow_character_talent_rank", "wow_character_achievement",
+                      "wow_character_snapshot")
 
     def profile_sel(self, name: str = "") -> str:
         """The selector of this person's profile series: the exporter labels
@@ -459,13 +459,47 @@ class Store:
         acct = f"account_id={json.dumps(str(self.account_id))}"
         return f"{{character={json.dumps(name)},{acct}}}" if name else f"{{{acct}}}"
 
+    def snapshots(self, name: str = "", query=None) -> dict[tuple, str]:
+        """{(account_id, character): snapshot} of the exporter's newest read
+        of each character (wowstats.exporter.SNAPSHOT: the marker whose value
+        is the latest). The readers' 2-day window rides out an exporter
+        restart, but it also keeps a series the exporter dropped (a talent
+        gone in a respec, an emptied slot) for 2 days: `latest` keeps the
+        newest snapshot's series only (review 3)."""
+        best: dict[tuple, tuple[float, str]] = {}
+        for r in (query or self.profile_query)(f"last_over_time(wow_character_snapshot{self.profile_sel(name)}[2d])"):
+            m = r.get("metric") or {}
+            k, v = (m.get("account_id"), m.get("character")), float((r.get("value") or [0, 0])[1])
+            if m.get("snapshot") and (k not in best or v > best[k][0]):
+                best[k] = (v, m["snapshot"])
+        return {k: sid for k, (_v, sid) in best.items()}
+
+    @staticmethod
+    def latest(rows: list[dict], snaps: dict[tuple, str]) -> list[dict]:
+        """The rows of each character's newest snapshot (Store.snapshots). A
+        character with no marker (an exporter older than the marker) keeps
+        every row, as before."""
+        out = []
+        for r in rows:
+            m = r.get("metric") or {}
+            k = (m.get("account_id"), m.get("character"))
+            if k not in snaps or m.get("snapshot") == snaps[k]:
+                out.append(r)
+        return out
+
+    def profile_now(self, q: str, name: str = "", query=None) -> list[dict]:
+        """`q` (a last_over_time over the profile series) on the exporter's
+        newest snapshot only."""
+        query = query or self.profile_query
+        return self.latest(query(q), self.snapshots(name, query))
+
     def bnet_read_at(self, name: str) -> float | None:
         """When the exporter last read this character from Battle.net (its
         refreshed series), or None when it never did or that was 30 days ago
         or more: Blizzard's terms cap API data at 30 days, so a value older
         than that is never shown, whatever a store still holds."""
-        rows = self.profile_query(
-            f"last_over_time(wow_character_profile_refreshed_timestamp_seconds{self.profile_sel(name)}[2d])")
+        rows = self.profile_now(
+            f"last_over_time(wow_character_profile_refreshed_timestamp_seconds{self.profile_sel(name)}[2d])", name)
         if not rows:
             return None
         at = max(float((r.get("value") or [0, 0])[1]) for r in rows)
@@ -494,7 +528,7 @@ class Store:
         out: dict = {"item_level": None}
         if not self.profile_vm_url:
             return out
-        for r in self.profile_query(f"last_over_time(wow_character_item_level{self.profile_sel(name)}[2d])"):
+        for r in self.profile_now(f"last_over_time(wow_character_item_level{self.profile_sel(name)}[2d])", name):
             if (r.get("metric") or {}).get("kind") == "equipped":
                 out["item_level"] = float(r["value"][1])
         return out
@@ -508,12 +542,13 @@ class Store:
         if not self.profile_vm_url or self.bnet_read_at(name) is None:
             return {}
         sel = self.profile_sel(name)
+        snaps = self.snapshots(name)
         out: dict = {}
-        for r in self.profile_query(f"last_over_time(wow_character_equipped{sel}[2d])"):
+        for r in self.latest(self.profile_query(f"last_over_time(wow_character_equipped{sel}[2d])"), snaps):
             slot = (r.get("metric") or {}).get("slot")
             if slot:
                 out[slot] = {"item_id": int(float(r["value"][1])), "stats": {}}
-        for r in self.profile_query(f"last_over_time(wow_character_equipped_stat{sel}[2d])"):
+        for r in self.latest(self.profile_query(f"last_over_time(wow_character_equipped_stat{sel}[2d])"), snaps):
             m = r.get("metric") or {}
             if m.get("slot") in out and m.get("stat"):
                 out[m["slot"]]["stats"][m["stat"]] = float(r["value"][1])
@@ -527,7 +562,10 @@ class Store:
         vm-wow holds none."""
         if not self.profile_vm_url:
             return None
-        q = self.profile_query
+        snaps = self.snapshots(name)
+
+        def q(query: str) -> list[dict]:
+            return self.latest(self.profile_query(query), snaps)
 
         sel = self.profile_sel(name)
         pts = q(f"last_over_time(wow_character_talent_points{sel}[2d])")
@@ -631,7 +669,7 @@ class Store:
         if not self.profile_vm_url:
             return None
         sel = self.profile_sel(name)
-        prof = self.profile_query(f"last_over_time(wow_character_profile{sel}[2d])")
+        prof = self.profile_now(f"last_over_time(wow_character_profile{sel}[2d])", name)
         if not prof:
             return None
         best = max(prof, key=lambda r: float((r.get("value") or [0, 0])[1]))
@@ -659,10 +697,11 @@ class Store:
         if not self.profile_vm_url:
             return None
         sel = self.profile_sel()
-        if not self.profile_query(f"last_over_time(wow_character_achievements_read{sel}[2d])"):
+        snaps = self.snapshots()
+        if not self.latest(self.profile_query(f"last_over_time(wow_character_achievements_read{sel}[2d])"), snaps):
             return None
         out: dict[int, float] = {}
-        for r in self.profile_query(f"last_over_time(wow_character_achievement{sel}[2d])"):
+        for r in self.latest(self.profile_query(f"last_over_time(wow_character_achievement{sel}[2d])"), snaps):
             aid = str((r.get("metric") or {}).get("achievement_id") or "")
             if aid.isdigit():
                 t = float(r["value"][1])
@@ -677,11 +716,16 @@ class Store:
         if not self.vm_url:
             return None
         sel = self.profile_sel(name)
-        opts = self.vm_query(f"last_over_time(wow_character_customization{sel}[2d])")
+        snaps = self.snapshots(name, self.vm_query)
+
+        def q(query: str) -> list[dict]:
+            return self.latest(self.vm_query(query), snaps)
+
+        opts = q(f"last_over_time(wow_character_customization{sel}[2d])")
         if not opts:
             return None
-        prof = self.vm_query(f"last_over_time(wow_character_profile{sel}[2d])")
-        when = self.vm_query(f"last_over_time(wow_character_profile_refreshed_timestamp_seconds{sel}[2d])")
+        prof = q(f"last_over_time(wow_character_profile{sel}[2d])")
+        when = q(f"last_over_time(wow_character_profile_refreshed_timestamp_seconds{sel}[2d])")
         out = {"source": "battle.net", "gender": None, "refreshed": None,
                "options": sorted(({"optionId": int(r["metric"]["option_id"]), "choiceId": int(float(r["value"][1]))}
                                   for r in opts if r.get("metric", {}).get("option_id")),

@@ -341,10 +341,18 @@ through VictoriaLogs:
    `wow_character_talent_rank{character, spell_id, talent}` = rank (the
    active group of `/specializations`), and
    `wow_character_profile_found` = 0 for a 404 (its other series are
-   dropped). It stops pushing a value 3 days after its last read and forgets
+   dropped). Each call (profile, appearance, equipment, talents,
+   achievements) replaces its own series only when it answers, and records
+   when in `wow_character_part_refreshed_timestamp_seconds{part}`; the
+   character's refreshed time is the oldest part's, so a 503 on one call
+   never makes the rest look fresh. Every profile series carries a
+   `snapshot` label (a hash of which series the character has), and
+   `wow_character_snapshot{character, snapshot}` marks the newest one. It
+   stops pushing a value 3 polling intervals after its last read and forgets
    anything not refreshed for 30 days.
 2. The exporter's VictoriaMetrics stores them 23 days, force-merged daily.
-3. The full view reads the last value (`last_over_time(...[2d])`) when it
+3. The full view reads the last value (`last_over_time(...[2d])`) of the
+   newest snapshot only (a talent dropped in a respec is gone at once) when it
    draws the 3D model, and every view reads the talents the same way for the
    character card (never stored anywhere else, so there is no talent
    history). A character Battle.net doesn't know gets its race's default
