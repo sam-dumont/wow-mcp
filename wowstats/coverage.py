@@ -46,6 +46,7 @@ GAP_MIN_S = 15 * 60
 GAP_SHARE = 0.10  # nor under a tenth of the level's time
 RECORDER_OFF_FIX = "Type /psrec on once in game, then /reload."
 BNET_NEVER = "Battle.net reads each character within 2 hours of its first upload."
+BNET_DOWN = "Battle.net's store didn't answer: this is its last read. It comes back on its own."
 
 
 def entry(state: str, as_of=None, gaps: list | None = None, fix: str | None = None) -> dict:
@@ -130,7 +131,8 @@ def build(snap: dict, char: str, gaps: list[dict] | None = None, bnet: dict | st
     when, the setup report), the Recorder's gaps (recorder_gaps) and the
     Battle.net state: a dict from Store.bnet_state ({as_of epoch, fallback}),
     {} when the exporter never read the character, None when this server has
-    no exporter, "unknown" when vm-wow didn't answer."""
+    no exporter, {error, as_of} or "unknown" when vm-wow didn't answer
+    (bnet_of)."""
     who = missing.norm(char)
     gone = {m["id"]: m for m in missing.for_char(snap, char)}
     last = snap.get("last") or {}
@@ -159,6 +161,8 @@ def build(snap: dict, char: str, gaps: list[dict] | None = None, bnet: dict | st
 def battlenet(bnet: dict | str | None) -> dict:
     if bnet == "unknown":
         return entry("unknown")
+    if isinstance(bnet, dict) and bnet.get("error"):  # vm-wow failed after a read this process saw
+        return entry("unavailable", _iso(float(bnet["as_of"])), fix=BNET_DOWN)
     if bnet is None:
         return entry("unavailable")  # no exporter here: nothing a player can do about it
     if not bnet:
@@ -173,8 +177,9 @@ def unknown() -> dict:
 
 
 def bnet_of(store, char: str) -> dict | str | None:
-    """build()'s `bnet` from a Store: None without vm-wow, "unknown" when
-    it doesn't answer."""
+    """build()'s `bnet` from a Store: None without vm-wow; when it doesn't
+    answer, {error, as_of} of the last read this process saw, else
+    "unknown". Never {} (never read) for an error (#92)."""
     from wowstats.stores import SourceError
 
     if not getattr(store, "profile_vm_url", None):
@@ -182,7 +187,8 @@ def bnet_of(store, char: str) -> dict | str | None:
     try:
         return store.bnet_state(char) or {}
     except (SourceError, OSError, ValueError):
-        return "unknown"
+        last = store.bnet_last_read(char) if hasattr(store, "bnet_last_read") else None
+        return {"error": True, "as_of": last} if last is not None else "unknown"
 
 
 # ---------------------------------------------------------------- from raw events

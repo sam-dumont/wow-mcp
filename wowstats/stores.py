@@ -439,6 +439,10 @@ class Store:
         self._archive_lock = threading.Lock()
         # A test's fake store answers vl() itself; the real one reads through the cache.
         self.use_cache = True
+        # {character: when the exporter last read it}, as this process last
+        # saw vm-wow answer (bnet_read_at): a time, no Battle.net data. When
+        # vm-wow then fails, the answer is "as of" that read, never "not read".
+        self._bnet_seen: dict[str, float] = {}
 
     # ------------------------------------------------------------ logs
 
@@ -646,7 +650,18 @@ class Store:
         if not rows:
             return None
         at = max(float((r.get("value") or [0, 0])[1]) for r in rows)
-        return at if time.time() - at < BNET_KEEP_S else None
+        if time.time() - at >= BNET_KEEP_S:
+            return None
+        self._bnet_seen[name] = at
+        return at
+
+    def bnet_last_read(self, name: str) -> float | None:
+        """The last read bnet_read_at saw while vm-wow answered, for an
+        answer made while it doesn't: a failed read is stale or an error,
+        never "Battle.net hasn't read this character" (#92). None when this
+        process never saw one (or it is 30 days old: Blizzard's cap)."""
+        at = getattr(self, "_bnet_seen", {}).get(name)
+        return at if at is not None and time.time() - at < BNET_KEEP_S else None
 
     def profile_fingerprint(self) -> str:
         """A hash of every profile, appearance and equipment value vm-wow

@@ -102,7 +102,7 @@ view's answers cut to their tier's shape (`wowstats/redact.py`). Paths are under
 | **Coverage attached** | `cov::test_the_page_says_what_the_recorder_missed` | **open**: not in the public shape | **open**: not in the `/zogzog/` shape | `cov::test_the_mcp_answer_carries_the_coverage` | `cov::test_query_metric_and_play_sql_carry_the_coverage` | n/a: writes findings, not answers; the answer that shows them carries it (server analysis) | `cov::test_battlenet_states` |
 | **Source order kept** | `test_zone_time::test_a_tie_goes_to_the_later_record_by_number_not_text` | n/a: the full view's answer, cut; no order of its own | n/a: as the public view | `test_zone_time::test_a_tie_goes_to_the_later_record_by_number_not_text` | `invariants/test_arrival::test_equal_times_keep_the_recorders_order` | same test: the recheck builds through `prep.build` | n/a: metric series, one value per time |
 | **Paired eligibility** | `test_layer_pages::test_the_pages_say_the_same_numbers_from_the_layer` | n/a: no ratio | n/a: the full view's numbers, cut | `invariants/test_paired::test_both_sides_read_the_eligible_rows` | `invariants/test_paired::test_both_sides_read_the_eligible_rows`, `analysis/test_semantic_evidence::test_vs_route_pairs_the_levels_both_sides_read` | same: the same semantic layer | n/a: no ratio |
-| **Completeness** | `inc::test_the_page_refuses_rather_than_shows_a_part`, `test_bounded_reads::test_more_same_second_events_than_a_page_is_an_explicit_failure` | `test_publish::test_vm_wow_down_neither_rebuilds_nor_fails`; live, the full view's answer (`inc`) | `test_publish::test_vm_wow_down_neither_rebuilds_nor_fails`, `test_publish_cleanup::test_a_failed_build_keeps_the_site_and_leaves_no_folder` | `inc::test_every_tool_refuses_or_answers_whole`, `inc::test_a_cut_text_says_more` | `inc::test_more_is_true_exactly_when_rows_are_left_out`, `inc::test_a_dimension_outside_a_metric_is_refused` | `matrix::test_one_characters_store_failure_leaves_the_others_rechecked` | `test_bnet_freshness::test_after_an_exporter_restart_a_half_read_falls_back_to_the_last_complete_one`; **open**: a vm-wow error reads like "never read" |
+| **Completeness** | `inc::test_the_page_refuses_rather_than_shows_a_part`, `test_bounded_reads::test_more_same_second_events_than_a_page_is_an_explicit_failure` | `test_publish::test_vm_wow_down_neither_rebuilds_nor_fails`; live, the full view's answer (`inc`) | `test_publish::test_vm_wow_down_neither_rebuilds_nor_fails`, `test_publish_cleanup::test_a_failed_build_keeps_the_site_and_leaves_no_folder` | `inc::test_every_tool_refuses_or_answers_whole`, `inc::test_a_cut_text_says_more` | `inc::test_more_is_true_exactly_when_rows_are_left_out`, `inc::test_a_dimension_outside_a_metric_is_refused` | `matrix::test_one_characters_store_failure_leaves_the_others_rechecked` | `test_bnet_freshness::test_after_an_exporter_restart_a_half_read_falls_back_to_the_last_complete_one`, `test_bnet_freshness::test_a_vm_wow_error_is_never_never_read` |
 | **Same config as the UI** | `cons::test_page_and_mcp_agree`, `test_mcp_weights::test_one_settings_builder` | `test_mcp_weights::test_one_settings_builder` (every view's `App` calls `settings_from_env`) | as the public view | `cons::test_page_and_mcp_agree`, `test_mcp_weights::test_page_and_mcp_score_the_weights_spec` | `cons::test_page_and_mcp_agree` (per local day), `matrix::test_the_analysis_scores_gear_for_the_pages_weights` | `invariants/test_definitions.py` (`settings`: another timezone marks findings to revalidate), `analysis/test_analysis::test_nightly_schedule` | n/a: reads no setting; WEIGHTS apply after, in the views |
 | **Tenant permissions** | `test_tenancy::test_friend_sees_only_their_own_data`, `cons::test_neither_reads_the_others_character` | `test_public_view::test_public_never_leaks`, `test_publish::test_public_bundle_holds_only_the_allowlist` | `test_publish::test_zogzog_bundle_holds_only_its_allowlist`, `test_tenancy::test_bundles_are_per_person` | `test_tenancy::test_every_mcp_tool_as_the_friend` | `analysis/test_auto::test_a_run_reads_and_writes_only_its_own_tenant`, `analysis/test_semantic::test_a_friend_cant_query_the_owners_character` | same reader and state folders as the server analysis | `test_bnet_scoping::test_a_friend_naming_the_owners_character_reads_nothing`, `test_tenancy::test_battlenet_data_is_each_persons_own` |
 
@@ -116,14 +116,16 @@ Gaps the matrix found, fixed with their test (review 5):
 - A finding judged under another timezone (or session or trip gap) wasn't marked to
   revalidate: its hours and days meant other hours. The analysis also read `WEIGHTS` with its
   own call; it goes through `settings_from_env` like the page and the MCP.
+- The exporter readers turned a vm-wow error into the "never read" answer: coverage said
+  `unknown`, the talents card and the MCP said "No talents known yet ... once it knows the
+  character", the Legacy points "Battle.net hasn't read this account's characters". Now
+  coverage is `unavailable` as of the last read this process saw (`Store.bnet_last_read`), and
+  the talents and Legacy points say the store didn't answer.
 
 Open, not fixed:
 
 - **Coverage on the public view and `/zogzog/`.** Neither shape carries it, so they never say
   "the Recorder missed 1h" or "equipment last read 5 h ago". Adding it widens what leaves the
   server: the owner's call.
-- **Exporter readers** turn a vm-wow error into the same empty answer as "never read"
-  (`stores.vm_query`); only `coverage` tells them apart. That's `stores.py`, changed in
-  another review.
 - The Deaths section's "Per level" divides every Recorder death by Polestar's level count, so a
   Recorder switched on late understates it (`web/app.js`, `renderDeaths`).

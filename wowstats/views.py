@@ -371,12 +371,13 @@ class Views:
 
     def bnet_talents(self, char: str) -> dict | None:
         """Battle.net's talents (stores.character_talents, from vm-wow), the
-        only source of talents since 2026-11-20. None when vm-wow is down,
-        absent, or the API doesn't know the character."""
+        only source of talents since 2026-11-20. None when vm-wow is absent
+        or the API doesn't know the character; {"error": True} when vm-wow
+        didn't answer, so the card says so rather than "not read yet" (#92)."""
         try:
             return self.store.character_talents(char)
         except Exception:  # noqa: BLE001
-            return None
+            return {"error": True}
 
     def addon_talents(self, char: str, cls) -> list[dict]:
         """The builds WoWSims Exporter saved (the shipper's wow-talents
@@ -452,11 +453,12 @@ class Views:
 
     def bnet_achievements(self) -> dict | None:
         """The account's completed achievements on Battle.net (the Legacy
-        points); None when vm-wow is down or absent."""
+        points); None when vm-wow is absent, {"error": True} when it didn't
+        answer (talents.legacy says so, #92)."""
         try:
             return self.store.account_achievements()
         except Exception:  # noqa: BLE001
-            return None
+            return {"error": True}
 
     def talent_points(self, char: str, cls) -> list[dict] | None:
         """Points per tree under the frame's own names, in the game's tab
