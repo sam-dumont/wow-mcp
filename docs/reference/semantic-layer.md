@@ -77,6 +77,22 @@ flowchart LR
   limit and a 5 s timeout. A query that reads `read_csv`, `read_parquet`, a URL or `ATTACH`
   is refused, and so is one calling `repeat`, `lpad` or a scalar `range` (DuckDB's memory limit
   doesn't count one huge value: `lpad('x', 500000000)` made 1.6 GB in a test).
+- **Both sides of a ratio count the same rows.** A metric read from two sides (a ratio, a
+  difference, a cross-model rate) has an `eligibility` in the model file: the rows it reads,
+  on both sides. `vs_route` reads whole splits with a planned time. Before that rule, a
+  finished level (100 s played, 100 s planned) next to the level in play (no split yet, 100 s
+  planned) came out at 0.5 and 100 s ahead of plan; now it's 1.0 and 0. `planned_s` asked on
+  its own is still the whole target, every level with a plan in it.
+- **Too little evidence is empty, never zero.** A metric with `min_evidence` is NULL below
+  it, and the answer adds a `<metric>_evidence` column with the count. `gold_delta_copper`
+  needs two snapshots with money, taken at different times: one snapshot used to read as a
+  change of 0. So 0 in the evidence column means no snapshot at all (unavailable), 1 means one
+  (unknown), 2 or more with a 0 in the metric is a purse that really didn't move.
+  `query_metric` also sums it up per metric under `min_evidence`: rows measured, unknown and
+  unavailable.
+- **`more` means more.** The SQL asks for one row past `limit` (`LIMIT 4` for a limit of 3)
+  and the extra row only sets `more`. With `LIMIT n` the runner never saw row n+1, so a
+  `limit: 1` over three zones said `more: false`.
 
 ## Examples on the demo
 
@@ -130,7 +146,7 @@ up (the test suite checks that the weeks sum to the days):
 | 2026-11-09 | 75162 |
 | 2026-11-16 | 16591 |
 
-**Against the route planner** (a derived metric, `played_s / planned_s`):
+**Against the route planner** (a ratio, `played_s / planned_s`, over whole splits only):
 
 ```json
 {"metrics": ["played_s", "planned_s", "vs_route"], "group_by": ["level"], "limit": 3}
@@ -138,9 +154,13 @@ up (the test suite checks that the weeks sum to the days):
 
 | level | played_s | planned_s | vs_route |
 |---|---|---|---|
-| 22 | 6420 | 3933 | 1.632 |
+| 22 | 6420 | 8454 |  |
 | 23 | 7310 | 4632 | 1.578 |
 | 24 | 8520 | 5300 | 1.608 |
+
+Level 22 is the demo's first tracked level: its split began partway through, so it has no
+`vs_route`. 6,420 s against a whole level's 8,454 s would say "faster than plan" for a level
+nobody timed from the start.
 
 **Which quest paid the most XP per minute** (`quest_xp_per_min`, done quests only):
 
@@ -211,6 +231,10 @@ moved minus the quest money handed in between them. That's loot coin, vendor and
 and mail in, less repairs, purchases, training, flights and mail out, all together. It is never
 "repairs". A move counts in the level of its first snapshot; filter `dings = 0` for the moves
 inside one level. On the demo the rest is the flights: -86 copper at 22, -116 at 24.
+
+`gold_delta_copper` (last snapshot minus first, per group) needs two snapshots with money at
+different times. By day on the demo, 2026-11-15 has one: its delta is empty and
+`gold_delta_copper_evidence` says 1. The days around it have 2 or 3.
 
 [Accountant Classic](https://www.curseforge.com/wow/addons/accountant-classic) (GPL-2.0, lists
 Forever) saves money in and out per source (training, taxi, trade, auction
@@ -311,19 +335,19 @@ those on SQLite, so none of them breaks.
 
 One row per level: Polestar's split when the level is done, the ding time and the route planner's time.
 
-| Metric | Kind | Unit | Definition | Caveats |
-|---|---|---|---|---|
-| `split_levels` | simple | levels | Levels with a Polestar split (a time played). | The level in play has no split yet; a partial split counts. |
-| `played_s` | simple | seconds | Time at a level, way 1: Polestar's own split, the game's /played seconds spent in the level. | Counts from the moment tracking started: a level marked partial began before it. Offline time is not in it. |
-| `calendar_s` | simple | seconds | Time at a level, way 4: wall-clock seconds from the previous ding to this one, offline time included. | NULL for the first tracked level and the level in play. A week off between two dings counts in full. |
-| `level_xp` | simple | xp | XP the level took (Polestar split). | From the split: missing for a level the split never closed. |
-| `split_quests` | simple | quests | Quests handed in during the level, as Polestar's split counts them. | The split's own count; records.turnin can differ for a partial level. |
-| `split_kills` | simple | kills | Kills during the level, as Polestar's split counts them. | The split's own count; records.kill can differ for a partial level. |
-| `planned_s` | simple | seconds | The route planner's seconds for the level: for this class, or the median over classes when the class isn't known. | A model of a quick player who knows the route, uncalibrated. NULL when the route reference has no time for the level. |
-| `xp_per_hour` | ratio | xp/hour | XP per played hour in the level: level_xp over played_s. | Played time from the split, so idle time in the game counts against it. |
-| `vs_route` | ratio | ratio | Played time over the route planner's time: 1.0 is on plan, 2.0 twice as long. | As uncalibrated as planned_s; NULL without a planned time. |
-| `avg_level_s` | ratio | seconds | Average played seconds a level: played_s over split_levels (the page's "a level, over the last 5"). | Filter partial = 0 for whole levels: a partial split is short. |
-| `over_route_s` | derived | seconds | Seconds played beyond the route planner's time (negative: faster). | As uncalibrated as planned_s; NULL without a planned time. |
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `split_levels` | simple | levels | Levels with a Polestar split (a time played). | The level in play has no split yet; a partial split counts. | sum; time: level_completion; observed. |
+| `played_s` | simple | seconds | Time at a level, way 1: Polestar's own split, the game's /played seconds spent in the level. | Counts from the moment tracking started: a level marked partial began before it. Offline time is not in it. | sum; time: level_completion; observed. |
+| `calendar_s` | simple | seconds | Time at a level, way 4: wall-clock seconds from the previous ding to this one, offline time included. | NULL for the first tracked level and the level in play. A week off between two dings counts in full. | sum; time: level_completion; reconstructed. |
+| `level_xp` | simple | xp | XP the level took (Polestar split). | From the split: missing for a level the split never closed. | sum; time: level_completion; observed. |
+| `split_quests` | simple | quests | Quests handed in during the level, as Polestar's split counts them. | The split's own count; records.turnin can differ for a partial level. | sum; time: level_completion; observed. |
+| `split_kills` | simple | kills | Kills during the level, as Polestar's split counts them. | The split's own count; records.kill can differ for a partial level. | sum; time: level_completion; observed. |
+| `planned_s` | simple | seconds | The route planner's seconds for the level: for this class, or the median over classes when the class isn't known. | A model of a quick player who knows the route, uncalibrated. NULL when the route reference has no time for the level. | sum; time: level_completion; estimated. |
+| `xp_per_hour` | ratio | xp/hour | XP per played hour in the level: level_xp over played_s. | Played time from the split, so idle time in the game counts against it. | ratio_of_sums; time: level_completion; observed. Rows: A level with a split: played time above 0 and its XP known. |
+| `vs_route` | ratio | ratio | Played time over the route planner's time: 1.0 is on plan, 2.0 twice as long. | As uncalibrated as planned_s. Reads whole splits with a planned time only (eligibility): planned_s on its own is the total target, every level with a plan. NULL when no level qualifies. | ratio_of_sums; time: level_completion; estimated. Rows: A whole split (partial = 0, played time above 0) with a planned time. The level in play has no split and a partial split began partway through the level, so both stay out of both sides; planned_s on its own still counts them. |
+| `avg_level_s` | ratio | seconds | Average played seconds a level: played_s over split_levels (the page's "a level, over the last 5"). | Filter partial = 0 for whole levels: a partial split is short. | ratio_of_sums; time: level_completion; observed. Rows: A level with a split (the level in play has none). |
+| `over_route_s` | derived | seconds | Seconds played beyond the route planner's time (negative: faster). | As uncalibrated as planned_s. Reads whole splits with a planned time only (eligibility): planned_s on its own is the total target, every level with a plan. NULL when no level qualifies. | sum; time: level_completion; estimated. Rows: A whole split (partial = 0, played time above 0) with a planned time. The level in play has no split and a partial split began partway through the level, so both stay out of both sides; planned_s on its own still counts them. |
 
 Group or filter by: `character`, `class`, `level`, `partial`, `time`.
 
@@ -331,18 +355,18 @@ Group or filter by: `character`, `class`, `level`, `partial`, `time`.
 
 The online time cut at every record: each row an interval inside a login span, with the state at its start.
 
-| Metric | Kind | Unit | Definition | Caveats |
-|---|---|---|---|---|
-| `online_s` | simple | seconds | Time at a level, way 2: online seconds the Recorder saw, every interval between two records of a login span. | A silence over 330 s ends a span, so a crash or a long loading screen can drop a few minutes. |
-| `active_s` | simple | seconds | Time at a level, way 3: online seconds with the AFK flag off. | The game sets AFK after 5 idle minutes: those 5 minutes still count as active. |
-| `afk_s` | simple | seconds | Online seconds with the AFK flag on. | Starts 5 minutes into the idle time (the game's own flag). |
-| `dungeon_s` | simple | seconds | Online seconds inside a dungeon run. | Inside the instance only: the walk there and the hand-ins are outside (see trip_s). |
-| `combat_s` | simple | seconds | Online seconds in combat. | From the combat records' on/off pairs. |
-| `dead_s` | simple | seconds | Online seconds from a death to the revive (ghost run, spirit healer). | Death to revive only; the walk back after a spirit healer is alive time. |
-| `taxi_s` | simple | seconds | Online seconds on a flight path. | Flight paths only; boats and zeppelins are ride time, not in it. |
-| `dungeon_share` | ratio | share | Share of online time spent inside dungeons: dungeon_s over online_s. | 0 to 1. NULL when online_s is 0. |
-| `afk_share` | ratio | share | Share of online time with the AFK flag on: afk_s over online_s. | 0 to 1. |
-| `combat_share` | ratio | share | Share of online time in combat: combat_s over online_s. | 0 to 1. |
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `online_s` | simple | seconds | Time at a level, way 2: online seconds the Recorder saw, every interval between two records of a login span. | A silence over 330 s ends a span, so a crash or a long loading screen can drop a few minutes. | sum; time: interval_start; reconstructed. |
+| `active_s` | simple | seconds | Time at a level, way 3: online seconds with the AFK flag off. | The game sets AFK after 5 idle minutes: those 5 minutes still count as active. | sum; time: interval_start; reconstructed. |
+| `afk_s` | simple | seconds | Online seconds with the AFK flag on. | Starts 5 minutes into the idle time (the game's own flag). | sum; time: interval_start; reconstructed. |
+| `dungeon_s` | simple | seconds | Online seconds inside a dungeon run. | Inside the instance only: the walk there and the hand-ins are outside (see trip_s). | sum; time: interval_start; reconstructed. |
+| `combat_s` | simple | seconds | Online seconds in combat. | From the combat records' on/off pairs. | sum; time: interval_start; reconstructed. |
+| `dead_s` | simple | seconds | Online seconds from a death to the revive (ghost run, spirit healer). | Death to revive only; the walk back after a spirit healer is alive time. | sum; time: interval_start; reconstructed. |
+| `taxi_s` | simple | seconds | Online seconds on a flight path. | Flight paths only; boats and zeppelins are ride time, not in it. | sum; time: interval_start; reconstructed. |
+| `dungeon_share` | ratio | share | Share of online time spent inside dungeons: dungeon_s over online_s. | 0 to 1. NULL when online_s is 0. | ratio_of_sums; time: interval_start; reconstructed. Rows: Every interval: both sides cut the same online time. |
+| `afk_share` | ratio | share | Share of online time with the AFK flag on: afk_s over online_s. | 0 to 1. | ratio_of_sums; time: interval_start; reconstructed. Rows: Every interval: both sides cut the same online time. |
+| `combat_share` | ratio | share | Share of online time in combat: combat_s over online_s. | 0 to 1. | ratio_of_sums; time: interval_start; reconstructed. Rows: Every interval: both sides cut the same online time. |
 
 Group or filter by: `character`, `class`, `dungeon`, `guide`, `guide_title`, `hour`, `level`, `session_id`, `step`, `step_title`, `subzone`, `time`, `zone`.
 
@@ -350,18 +374,18 @@ Group or filter by: `character`, `class`, `dungeon`, `guide`, `guide_title`, `ho
 
 Every Recorder record except positions: kills, deaths, quests, loot and the rest.
 
-| Metric | Kind | Unit | Definition | Caveats |
-|---|---|---|---|---|
-| `kills` | simple | kills | Creatures the player or pet killed (kill records). | Includes kills tapped by another player (records.extra has tapped). |
-| `deaths` | simple | deaths | Deaths (death records). | The zone is where the player died, not where the corpse run ended. |
-| `quests_done` | simple | quests | Quests handed in (turnin records). | A quest handed in twice (repeatable) counts twice. |
-| `quests_accepted` | simple | quests | Quests accepted (accept records). | Re-accepting after an abandon counts again. |
-| `quests_abandoned` | simple | quests | Quests abandoned (abandon records). | Only what the player abandoned; a failed quest is a fail record. |
-| `kill_xp` | simple | xp | XP from kills (kill records' xp_reward). | Rested bonus included, as the game reports it. |
-| `quest_xp` | simple | xp | XP from quest hand-ins (turnin records' xp_reward). | Discovery XP is apart (explore records). |
-| `quest_money_copper` | simple | copper | Money quest hand-ins paid, copper. | Quest rewards only; loot, sales and costs are not in it (see gold_delta_copper). |
-| `quest_xp_share` | derived | share | Share of kill and quest XP that came from quests: quest_xp over quest_xp + kill_xp. | Leaves out discovery XP and dungeon bonus XP. |
-| `deaths_per_100_kills` | ratio | deaths/100 kills | Deaths per 100 kills. | NULL without kills; a death to a fall or drowning counts too. |
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `kills` | simple | kills | Creatures the player or pet killed (kill records). | Includes kills tapped by another player (records.extra has tapped). | sum; time: event; observed. |
+| `deaths` | simple | deaths | Deaths (death records). | The zone is where the player died, not where the corpse run ended. | sum; time: event; observed. |
+| `quests_done` | simple | quests | Quests handed in (turnin records). | A quest handed in twice (repeatable) counts twice. | sum; time: event; observed. |
+| `quests_accepted` | simple | quests | Quests accepted (accept records). | Re-accepting after an abandon counts again. | sum; time: event; observed. |
+| `quests_abandoned` | simple | quests | Quests abandoned (abandon records). | Only what the player abandoned; a failed quest is a fail record. | sum; time: event; observed. |
+| `kill_xp` | simple | xp | XP from kills (kill records' xp_reward). | Rested bonus included, as the game reports it. | sum; time: event; observed. |
+| `quest_xp` | simple | xp | XP from quest hand-ins (turnin records' xp_reward). | Discovery XP is apart (explore records). | sum; time: event; observed. |
+| `quest_money_copper` | simple | copper | Money quest hand-ins paid, copper. | Quest rewards only; loot, sales and costs are not in it (see gold_delta_copper). | sum; time: event; observed. |
+| `quest_xp_share` | derived | share | Share of kill and quest XP that came from quests: quest_xp over quest_xp + kill_xp. | Leaves out discovery XP and dungeon bonus XP. | ratio_of_sums; time: event; observed. Rows: Kill and turnin records: the top is a part of the bottom. |
+| `deaths_per_100_kills` | ratio | deaths/100 kills | Deaths per 100 kills. | NULL without kills; a death to a fall or drowning counts too. | ratio_of_sums; time: event; observed. Rows: Every record of the group: deaths and kills are counted on the same records. |
 
 Group or filter by: `character`, `class`, `hour`, `kind`, `level`, `session_id`, `time`, `zone`.
 
@@ -369,13 +393,13 @@ Group or filter by: `character`, `class`, `hour`, `kind`, `level`, `session_id`,
 
 Login spans: a silence of more than 330 s between Recorder records ends one.
 
-| Metric | Kind | Unit | Definition | Caveats |
-|---|---|---|---|---|
-| `session_count` | simple | sessions | Login spans. | A /reload doesn't split a span; a crash longer than 330 s does. |
-| `session_s` | simple | seconds | Seconds from a span's first record to its last. | Close to online_s for the same spans, without the timeline's cut. |
-| `session_xp` | simple | xp | XP gained during the spans (xp records). | From the XP bar every 5 minutes: a span shorter than that can show 0. |
-| `avg_session_s` | ratio | seconds | Average span length: session_s over session_count. | One long evening moves it a lot on few sessions. |
-| `xp_per_session_hour` | ratio | xp/hour | XP per hour of login span: session_xp over session_s. | AFK time inside a span counts against it. |
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `session_count` | simple | sessions | Login spans. | A /reload doesn't split a span; a crash longer than 330 s does. | sum; time: interval_start; reconstructed. |
+| `session_s` | simple | seconds | Seconds from a span's first record to its last. | Close to online_s for the same spans, without the timeline's cut. | sum; time: interval_start; reconstructed. |
+| `session_xp` | simple | xp | XP gained during the spans (xp records). | From the XP bar every 5 minutes: a span shorter than that can show 0. | sum; time: interval_start; observed. |
+| `avg_session_s` | ratio | seconds | Average span length: session_s over session_count. | One long evening moves it a lot on few sessions. | ratio_of_sums; time: interval_start; reconstructed. Rows: A span with a duration. |
+| `xp_per_session_hour` | ratio | xp/hour | XP per hour of login span: session_xp over session_s. | AFK time inside a span counts against it. | ratio_of_sums; time: interval_start; reconstructed. Rows: A span with a duration and an XP reading. |
 
 Group or filter by: `character`, `class`, `level_start`, `session_id`, `start_hour`, `time`, `weekday`.
 
@@ -383,12 +407,12 @@ Group or filter by: `character`, `class`, `level_start`, `session_id`, `start_ho
 
 Polestar's instance runs: one row per run, enter to leave.
 
-| Metric | Kind | Unit | Definition | Caveats |
-|---|---|---|---|---|
-| `run_count` | simple | runs | Dungeon runs. | A wipe and re-entry can show as two runs. |
-| `run_s` | simple | seconds | Seconds inside the instance, as Polestar times the run (the `dungeons` tool's number). | Inside only. The trip around it: trip_s. |
-| `run_xp` | simple | xp | XP gained inside the instance. | Kills inside; the quests handed in after are trip XP (trip_xp). |
-| `run_xp_per_hour` | ratio | xp/hour | XP per hour inside: run_xp over run_s (the `dungeons` tool's xp_per_hour). | Leaves out the quest XP the run unlocks. |
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `run_count` | simple | runs | Dungeon runs. | A wipe and re-entry can show as two runs. | sum; time: interval_start; observed. |
+| `run_s` | simple | seconds | Seconds inside the instance, as Polestar times the run (the `dungeons` tool's number). | Inside only. The trip around it: trip_s. | sum; time: interval_start; observed. |
+| `run_xp` | simple | xp | XP gained inside the instance. | Kills inside; the quests handed in after are trip XP (trip_xp). | sum; time: interval_start; observed. |
+| `run_xp_per_hour` | ratio | xp/hour | XP per hour inside: run_xp over run_s (the `dungeons` tool's xp_per_hour). | Leaves out the quest XP the run unlocks. | ratio_of_sums; time: interval_start; observed. Rows: A run with a time above 0 and its XP known. |
 
 Group or filter by: `character`, `class`, `dungeon`, `level`, `run`, `time`.
 
@@ -396,15 +420,15 @@ Group or filter by: `character`, `class`, `dungeon`, `level`, `run`, `time`.
 
 A dungeon trip: from the first pickup guide step to the last hand-in around one run, online time.
 
-| Metric | Kind | Unit | Definition | Caveats |
-|---|---|---|---|---|
-| `trip_count` | simple | trips | Dungeon trips. | One per run; bracket says whether guide steps widened it. |
-| `trip_s` | simple | seconds | Online seconds from the trip's start to its end: pickup, travel, inside, travel back, hand-in. | Online time only: logging out mid-trip doesn't count. |
-| `trip_inside_s` | simple | seconds | Online seconds inside the instance during the trip. | Online time, so it can differ from run_s by a few seconds. |
-| `trip_travel_s` | simple | seconds | Online seconds getting to the instance and back to the first hand-in. | Needs guide steps for the edges: an `instance` bracket trip has 0. |
-| `trip_xp` | simple | xp | XP inside the instance plus XP from the trip's quests handed in during the trip. | A trip quest handed in a day later is not in it. |
-| `trip_xp_per_hour` | ratio | xp/hour | XP per online hour of the whole trip: trip_xp over trip_s. | The number to compare with questing XP/hour; run_xp_per_hour flatters dungeons. |
-| `trip_inside_share` | ratio | share | Share of the trip spent inside the instance. | 0 to 1. |
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `trip_count` | simple | trips | Dungeon trips. | One per run; bracket says whether guide steps widened it. | sum; time: interval_start; reconstructed. |
+| `trip_s` | simple | seconds | Online seconds from the trip's start to its end: pickup, travel, inside, travel back, hand-in. | Online time only: logging out mid-trip doesn't count. | sum; time: interval_start; reconstructed. |
+| `trip_inside_s` | simple | seconds | Online seconds inside the instance during the trip. | Online time, so it can differ from run_s by a few seconds. | sum; time: interval_start; reconstructed. |
+| `trip_travel_s` | simple | seconds | Online seconds getting to the instance and back to the first hand-in. | Needs guide steps for the edges: an `instance` bracket trip has 0. | sum; time: interval_start; reconstructed. |
+| `trip_xp` | simple | xp | XP inside the instance plus XP from the trip's quests handed in during the trip. | A trip quest handed in a day later is not in it. | sum; time: interval_start; reconstructed. |
+| `trip_xp_per_hour` | ratio | xp/hour | XP per online hour of the whole trip: trip_xp over trip_s. | The number to compare with questing XP/hour; run_xp_per_hour flatters dungeons. | ratio_of_sums; time: interval_start; reconstructed. Rows: A trip with online time. |
+| `trip_inside_share` | ratio | share | Share of the trip spent inside the instance. | 0 to 1. | ratio_of_sums; time: interval_start; reconstructed. Rows: A trip with online time. |
 
 Group or filter by: `bracket`, `character`, `class`, `dungeon`, `level`, `time`.
 
@@ -412,10 +436,10 @@ Group or filter by: `bracket`, `character`, `class`, `dungeon`, `level`, `time`.
 
 The character snapshots the shipper sends at logout and /reload: money, XP, bind.
 
-| Metric | Kind | Unit | Definition | Caveats |
-|---|---|---|---|---|
-| `snapshot_count` | simple | snapshots | Snapshots (logouts and reloads). | Only what the shipper read: a crash leaves none. |
-| `gold_delta_copper` | derived | copper | Money on the group's last snapshot minus money on its first, copper. | Not additive: a week's delta is not the sum of its days (the change between days is in neither). Needs two snapshots in the group. |
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `snapshot_count` | simple | snapshots | Snapshots (logouts and reloads). | Only what the shipper read: a crash leaves none. | sum; time: snapshot_observation; observed. |
+| `gold_delta_copper` | derived | copper | Money on the group's last snapshot minus money on its first, copper. | Not additive: a week's delta is not the sum of its days (the change between days is in neither). NULL with fewer than two snapshots with money at different times in the group: gold_delta_copper_evidence beside it counts them (0: no snapshot, 1: one, not enough). | endpoint_difference; time: snapshot_observation; observed. Needs two snapshots with money, taken at different times (else NULL; `gold_delta_copper_evidence` counts them). |
 
 Group or filter by: `character`, `class`, `level`, `time`, `zone`.
 
@@ -423,18 +447,18 @@ Group or filter by: `character`, `class`, `level`, `time`, `zone`.
 
 Each quest the log held: its accept paired with its hand-in or abandon, and the online time it took.
 
-| Metric | Kind | Unit | Definition | Caveats |
-|---|---|---|---|---|
-| `quest_count` | simple | quests | Quests (one per accept, or per hand-in with no accept seen). | A repeatable quest counts once per accept. |
-| `quest_s` | simple | seconds | Time on quests: every online second while a quest was in the log, shared equally among the quests open in that second. | Additive: the quests' times sum to the online time with a quest open, nothing counted twice. It can't tell which quest the player worked on, so a quest that sits in the log takes its share of the others' time. NULL for untimed quests. |
-| `quest_open_s` | simple | seconds | Online seconds while the quest was in the log, in full for each open quest. | Not additive across quests: ten open quests each count the same evening. Use quest_s for time spent. |
-| `quest_wall_s` | simple | seconds | Calendar seconds from accept to hand-in or abandon. | Counts the nights and days off in between: never a time spent. |
-| `quest_reward_xp` | simple | xp | XP the hand-ins paid (untimed quests included). | Same hand-ins as quest_xp in records, grouped by quest. |
-| `quest_reward_copper` | simple | copper | Money the hand-ins paid, copper. | Quest rewards only. |
-| `done_quest_xp` | simple | xp | XP of the done quests (accept and hand-in both seen). | Leaves out untimed quests, whose time is unknown. NULL without a done quest. |
-| `done_quest_s` | simple | seconds | quest_s of the done quests. | Abandoned and open quests' time is in quest_s, not here. NULL without a done quest. |
-| `quest_xp_per_min` | ratio | xp/minute | XP per minute on quests: done_quest_xp over done_quest_s. | Done quests only. Time is the shared quest_s, so a quick quest done while ten sat in the log looks quicker than it was, and one carried for days looks slower. Kill XP on the way is not in it. |
-| `quests_open_avg` | ratio | quests | How many quests were in the log on average while these were: quest_open_s over quest_s. | 1 means one quest at a time; read it next to quest_s. |
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `quest_count` | simple | quests | Quests (one per accept, or per hand-in with no accept seen). | A repeatable quest counts once per accept. | sum; time: quest_closure; reconstructed. |
+| `quest_s` | simple | seconds | Time on quests: every online second while a quest was in the log, shared equally among the quests open in that second. | Additive: the quests' times sum to the online time with a quest open, nothing counted twice. It can't tell which quest the player worked on, so a quest that sits in the log takes its share of the others' time. NULL for untimed quests. | sum; time: quest_closure; allocated. |
+| `quest_open_s` | simple | seconds | Online seconds while the quest was in the log, in full for each open quest. | Not additive across quests: ten open quests each count the same evening. Use quest_s for time spent. | sum; time: quest_closure; reconstructed. |
+| `quest_wall_s` | simple | seconds | Calendar seconds from accept to hand-in or abandon. | Counts the nights and days off in between: never a time spent. | sum; time: quest_closure; reconstructed. |
+| `quest_reward_xp` | simple | xp | XP the hand-ins paid (untimed quests included). | Same hand-ins as quest_xp in records, grouped by quest. | sum; time: quest_closure; observed. |
+| `quest_reward_copper` | simple | copper | Money the hand-ins paid, copper. | Quest rewards only. | sum; time: quest_closure; observed. |
+| `done_quest_xp` | simple | xp | XP of the done quests (accept and hand-in both seen). | Leaves out untimed quests, whose time is unknown. NULL without a done quest. | sum; time: quest_closure; observed. |
+| `done_quest_s` | simple | seconds | quest_s of the done quests. | Abandoned and open quests' time is in quest_s, not here. NULL without a done quest. | sum; time: quest_closure; allocated. |
+| `quest_xp_per_min` | ratio | xp/minute | XP per minute on quests: done_quest_xp over done_quest_s. | Done quests only. Time is the shared quest_s, so a quick quest done while ten sat in the log looks quicker than it was, and one carried for days looks slower. Kill XP on the way is not in it. | ratio_of_sums; time: quest_closure; allocated. Rows: A done quest with its shared time and its XP known. |
+| `quests_open_avg` | ratio | quests | How many quests were in the log on average while these were: quest_open_s over quest_s. | 1 means one quest at a time; read it next to quest_s. | ratio_of_sums; time: quest_closure; allocated. Rows: A quest with both times (untimed quests have neither). |
 
 Group or filter by: `character`, `class`, `done_why`, `level`, `level_accepted`, `quest`, `quest_id`, `status`, `time`, `zone`.
 
@@ -442,12 +466,12 @@ Group or filter by: `character`, `class`, `done_why`, `level`, `level_accepted`,
 
 The purse between two consecutive snapshots (logout or /reload): what it moved and the part the records name (quest money).
 
-| Metric | Kind | Unit | Definition | Caveats |
-|---|---|---|---|---|
-| `gold_moves` | simple | moves | Moves between two snapshots. | A crash leaves no snapshot: the next move spans both sessions. |
-| `gold_moved_copper` | simple | copper | How much the purse moved, copper: the sum of each move's change. | Additive, unlike gold_delta_copper: a week is the sum of its moves. A move counts in the level and day of its first snapshot. |
-| `gold_quest_copper` | simple | copper | Money hand-ins paid inside the moves, copper. | Quest rewards the Recorder saw; one handed in with the Recorder off is unexplained. |
-| `unexplained_gold_delta` | simple | copper | The purse's change no record explains, copper: gold_moved_copper minus gold_quest_copper. | Loot coin, vendor and auction sales and mail in, less repairs, vendor purchases, training, flights, auction deposits and mail out, all together. No addon the kit reads saves spending (the Recorder has quest money only; Auctionator saves prices, not sales), so this is never repairs. A move counts in the level of its first snapshot: filter dings = 0 for moves inside one level. |
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `gold_moves` | simple | moves | Moves between two snapshots. | A crash leaves no snapshot: the next move spans both sessions. | sum; time: snapshot_observation; reconstructed. |
+| `gold_moved_copper` | simple | copper | How much the purse moved, copper: the sum of each move's change. | Additive, unlike gold_delta_copper: a week is the sum of its moves. A move counts in the level and day of its first snapshot. | sum; time: snapshot_observation; reconstructed. |
+| `gold_quest_copper` | simple | copper | Money hand-ins paid inside the moves, copper. | Quest rewards the Recorder saw; one handed in with the Recorder off is unexplained. | sum; time: snapshot_observation; observed. |
+| `unexplained_gold_delta` | simple | copper | The purse's change no record explains, copper: gold_moved_copper minus gold_quest_copper. | Loot coin, vendor and auction sales and mail in, less repairs, vendor purchases, training, flights, auction deposits and mail out, all together. No addon the kit reads saves spending (the Recorder has quest money only; Auctionator saves prices, not sales), so this is never repairs. A move counts in the level of its first snapshot: filter dings = 0 for moves inside one level. | sum; time: snapshot_observation; inferred. |
 
 Group or filter by: `character`, `class`, `dings`, `level`, `time`.
 
@@ -455,11 +479,11 @@ Group or filter by: `character`, `class`, `dings`, `level`, `time`.
 
 Each model aggregates on its own to the question's group_by, the results join on those columns, then the expression runs on the joined row: no fan-out. They group and filter by the dimensions their models share.
 
-| Metric | Kind | Unit | Expression | Definition | Caveats | Group or filter by |
-|---|---|---|---|---|---|---|
-| `kills_per_combat_hour` | ratio | kills/hour | `kills / (combat_s / 3600)` | Kills per hour in combat: kills (records) over combat_s (timeline). | Combat time includes fights that ended in no kill (fleeing, dying, a tapped mob). NULL without combat time. | `character`, `class`, `hour`, `level`, `session_id`, `time`, `zone` |
-| `deaths_per_online_hour` | ratio | deaths/hour | `deaths / (online_s / 3600)` | Deaths per online hour: deaths (records) over online_s (timeline). | Online time includes AFK; filter or compare with active_s. | `character`, `class`, `hour`, `level`, `session_id`, `time`, `zone` |
-| `quest_xp_per_played_hour` | ratio | xp/hour | `quest_xp / (played_s / 3600)` | XP from quest hand-ins per played hour in the level: quest_xp (records) over played_s (levels). | Levels only share level, character, class and time with records: group by one of those. A partial level's split is short. | `character`, `class`, `level` |
+| Metric | Kind | Unit | Expression | Definition | Caveats | Read as | Group or filter by |
+|---|---|---|---|---|---|---|---|
+| `kills_per_combat_hour` | ratio | kills/hour | `kills / (combat_s / 3600)` | Kills per hour in combat: kills (records) over combat_s (timeline). | Combat time includes fights that ended in no kill (fleeing, dying, a tapped mob). NULL without combat time. | ratio_of_sums; time: event, interval_start; reconstructed. Rows: Inside a login span the Recorder saw, on both sides. | `character`, `class`, `hour`, `level`, `session_id`, `time`, `zone` |
+| `deaths_per_online_hour` | ratio | deaths/hour | `deaths / (online_s / 3600)` | Deaths per online hour: deaths (records) over online_s (timeline). | Online time includes AFK; filter or compare with active_s. | ratio_of_sums; time: event, interval_start; reconstructed. Rows: Inside a login span the Recorder saw, on both sides. | `character`, `class`, `hour`, `level`, `session_id`, `time`, `zone` |
+| `quest_xp_per_played_hour` | ratio | xp/hour | `quest_xp / (played_s / 3600)` | XP from quest hand-ins per played hour in the level: quest_xp (records) over played_s (levels). | Levels only share level, character, class and time with records: group by one of those. Whole splits only, on both sides. | ratio_of_sums; time: event, level_completion; observed. Rows: Levels with a whole split: the quest XP of those levels over their played time. The level in play and a partial split stay out of both sides. | `character`, `class`, `level` |
 
 ### Dimensions
 

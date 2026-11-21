@@ -493,6 +493,9 @@ def metric(env: dict, char: str, query: dict, store=None) -> dict:
            "rows": len(got["rows"]), "more": got["more"], "query": got["query"], "definitions": got["definitions"],
            "sql": got["sql"], "params": got["params"],
            "evidence": "propose_finding takes this call as evidence: finding.metric_query = query"}
+    if got.get("evidence"):
+        # An empty cell is unknown or unavailable, never a zero: say which, per metric.
+        out["min_evidence"] = got["evidence"]
     return out
 
 
