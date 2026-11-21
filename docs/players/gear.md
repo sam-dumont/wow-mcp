@@ -15,6 +15,11 @@ Every slot shows what you wear and its item level. Under it, in green:
   Click the item to compare the two.
 - **"something to wear"**: the slot is empty and anything would help.
 
+On the icon (and beside it on a wide screen), where the item stands against the best you can
+wear at your level for that slot: **BiS** (it's the best), **2nd** (one item beats it), or
+**62%** (its share of the best one's points). Nothing when there's nothing to compare it with.
+Rings and trinkets count the best two.
+
 Hover or tap an item for its card. Under the slots: your average item level and your
 professions. Items Forever added that no item data covers yet get their card (item level,
 stats) from your own game's files, sent by the program on your computer; they aren't counted
@@ -33,13 +38,17 @@ nice-to-have, an 18% one is worth a trip. **Scored for**, at the top, picks the 
 
 Two ways to read it, switched at the top:
 
+Each upgrade also says what it does in BiS terms: "62% → 100% of BiS" takes that slot from
+62% of the best to the best itself. The order follows it: the slot furthest from its best
+first, and within a slot the item that closes most of the gap.
+
 **By where you get it** (the default) groups the upgrades by trip: one dungeon, the quests of
 one zone, a profession, the auction house, the best trip on top. A dungeon says "+39.0
 expected per clear" (its bosses' drop chances counted), quests "+15.8 if you take every one
 you can now". Each item says the slot, the points, the boss and its drop chance.
 
-**By slot** lists the best item per slot: the best you can wear now, and the next one within
-3 levels when it beats it. The pills: **Now** (you can wear it), **Level 35** (not yet),
+**By slot** lists the best item per slot, the slot furthest from BiS first: the best you can
+wear now, and the next one within 3 levels when it beats it. The pills: **Now** (you can wear it), **Level 35** (not yet),
 **cheap** (on the auction house for at most what you earn in a level).
 
 ## The auction house

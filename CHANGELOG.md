@@ -4,12 +4,14 @@
 
 ### Added
 
+- Gear: each worn item says where it stands against the best you can wear at your level for that slot: BiS, 2nd, or its percent of BiS (on the icon, so a phone shows it too). Nothing when there's no item to compare it with. Each upgrade says it in the same terms, "62% → 100% of BiS", and the upgrades are ordered by it: the slot furthest from BiS first, then the item that closes most of the gap. The same order and numbers in the Overview's gear moves and the MCP `gear` tool (`worn_standing`, `share_of_bis_pct`).
 - `wow_stats.py --prefill`: sends the server the item facts and 3D files it still lacks right away (the background runs ask once a day for item facts), prints how many went and exits.
 
 ### Fixed
 
 - "How you play" said "No analysis yet" above the kept findings when the only client run was saved before runs had a `kind`.
 - The nightly recheck re-ran a nudge's or pattern's findings but kept its words, so a line written at level 32 still said "well behind level 32" at 33. The client now writes changing values as `{column}` placeholders from the cited findings, rendered again every night; a line that types the level it was written at goes once the character is past it, and an `at_level` nudge turns `now` when reached. Older lines keep working.
+- The journal in the night theme: each session was a pale parchment card on the dark page. It now takes the page's colours like every other panel; by day it stays parchment.
 - The 3D view asked the shipper for no model files on a new server: the answer made before the client tables arrived was kept 10 minutes, and the gear history's outfits were never counted (an unpack error, logged as `model3d: <name>'s gear history: ValueError`).
 - The 3D view never had a character model: Forever's HD models are 17-28 MB, over the server's 16 MB limit per file (now 48 MB). The shipper says in its log when a file is over the limit.
 - New dungeon loot kept its bare names until the next day: the page's answers were rebuilt when events arrived, and the shipper sends its item facts after its events. New item facts now rebuild them too.

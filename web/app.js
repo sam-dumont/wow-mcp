@@ -1176,6 +1176,18 @@ function small(u, a) {
 
 const slotKey = (u) => (u.slot_name === 'Main hand' || u.slot_name === 'Off hand' ? 'Weapons' : u.slot_name);
 
+// The order by BiS (wowstats/gear.py bis_order, owner 2026-11-21): the slot
+// furthest from its best first; an upgrade with no BiS to measure against
+// after those. Within a slot the points (rankOf) break the tie: the same
+// start, the same BiS, so the biggest fit-weighted gain closes most of the gap.
+function bisCmp(x, y) {
+  const a = x.bis, b = y.bis;
+  if (!a || !b) return (!a) - (!b);
+  return a.from_pct - b.from_pct;
+}
+const bisText = (u) => (u.bis ? `${u.bis.from_pct}% → ${u.bis.to_pct}% of BiS` : null);
+const STANDING_TITLE = { 1: 'Best in slot at your level', 2: 'Second best for this slot at your level' };
+
 // The display rule (owner, 2026-11-18, "WAY TOO MUCH options"): per slot the
 // best, then at most 2 more that differ in a way that matters (a faster or
 // different source, available now when the best isn't, a different gate);
@@ -1198,7 +1210,7 @@ function choose(a) {
   }
   const out = new Map();
   for (const [k, list] of by) {
-    list.sort((x, y) => (feasible(y, a.level).now - feasible(x, a.level).now) || (rankOf(y) - rankOf(x)));
+    list.sort((x, y) => (feasible(y, a.level).now - feasible(x, a.level).now) || bisCmp(x, y) || (rankOf(y) - rankOf(x)));
     const best = list[0];
     const sig = (u) => {
       const s = primarySource(u) || {};
@@ -1287,7 +1299,8 @@ function compareEl(u, a, alts, onPick) {
   const kids = [
     h('div', { class: 'cmphead' },
       h('h3', {}, (u.slot === 16 || u.slot === 17) ? 'Weapons' : u.slot_name, ': ', h('span', { class: 'gainbig', text: pts(u.gain) }),
-        h('small', { text: u.gain_share_pct !== null && u.gain_share_pct !== undefined ? ` ${Math.round(u.gain_share_pct)}% of your gear` : '' })),
+        h('small', { text: u.gain_share_pct !== null && u.gain_share_pct !== undefined ? ` ${Math.round(u.gain_share_pct)}% of your gear` : '' }),
+        u.bis ? h('small', { class: 'bisgain', text: ` · ${bisText(u)}` }) : null),
       h('span', { class: 'pill' + (f.now ? ' now' : ''), text: f.now ? 'Now' : f.text, title: f.title }),
       h('button', { type: 'button', class: 'cmpclose', 'aria-label': 'Close the comparison', text: '×' })),
     h('div', { class: 'cmpsides' }, side('You wear', wornNames, 'Nothing in this slot.'), side('Best replacement', cand, '')),
@@ -1352,12 +1365,25 @@ function renderAdvice(a) {
   const picks = choose(a);
   // The doll: a mark on each slot with something better now; a click on
   // that slot opens the comparison (a hover keeps the plain tooltip).
-  document.querySelectorAll('#gear .slot .iup').forEach((el) => el.remove());
+  document.querySelectorAll('#gear .slot .iup, #gear .slot .ibis').forEach((el) => el.remove());
   for (const sl of a.slots) {
     const li = document.querySelector(`#gear .slot[data-slot="${sl.slot}"]`);
     if (!li) continue;
+    // Where the worn item stands: BiS, 2nd, or its share of BiS, on the
+    // icon so a phone shows it too. Nothing when there's no BiS to measure.
+    const st = sl.standing;
+    const frame = li.querySelector('.ifr');
+    if (st && frame && !li.classList.contains('empty')) {
+      const short = st.rank === 1 ? 'BiS' : st.rank === 2 ? '2nd' : `${st.pct}%`;
+      frame.append(h('span', { class: 'ibis' + (st.rank === 1 ? ' top' : ''), text: short, 'aria-hidden': 'true' }));
+      const btn = li.querySelector('.itm');
+      if (btn) btn.setAttribute('aria-label', `${btn.getAttribute('aria-label').replace(/, (BiS|2nd|\d+% of BiS)$/, '')}, ${st.label}`);
+      li.title = STANDING_TITLE[st.rank] || `${st.pct}% of the best item for this slot at your level`;
+    }
     const u = sl.best;
     if (u) li.querySelector('.imeta').after(h('span', { class: 'iup', text: u.fills_empty ? '▲ something to wear' : `▲ ${pts(u.gain)} at hand`, title: 'Click to compare' }));
+    // Beside the icon where there's room (the band on the icon says it on a phone).
+    if (st && frame && !li.classList.contains('empty')) li.querySelector('.imeta').after(h('span', { class: 'ibis ibisline' + (st.rank === 1 ? ' top' : ''), text: st.label }));
     if (li.dataset.cmp) continue;
     li.dataset.cmp = '1';
     li.addEventListener('click', (e) => {
@@ -1431,7 +1457,8 @@ function candRow(u, a, extra) {
   li.append(
     h('div', { class: 'candmain' }, itemChip(u), partner, fitEl(u.fit)),
     h('div', { class: 'candmeta' }, h('span', { class: 'slotname', text: slotKey(u) === 'Weapons' ? 'Weapons' : u.slot_name }),
-      h('b', { class: 'gain', text: pts(u.gain) }), feasEl(u, a.level), extra || null));
+      h('b', { class: 'gain', text: pts(u.gain) }), u.bis ? h('span', { class: 'bisgain', text: bisText(u) }) : null,
+      feasEl(u, a.level), extra || null));
   li.querySelector('.candmain .itm').addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1496,7 +1523,7 @@ function groupRows(g, a) {
   const row = ({ u, s }) => candRow(u, a, s ? sourceEl(s, a.level, ahOf(u)) : null);
   // The Auction House: the most gain for the gold first.
   const per = ({ u }) => (ahOf(u) || {}).gain_per_gold || 0;
-  const items = g.items.sort((x, y) => (g.kind === 'ah' ? per(y) - per(x) : 0) || rankOf(y.u) - rankOf(x.u));
+  const items = g.items.sort((x, y) => (g.kind === 'ah' ? per(y) - per(x) : 0) || bisCmp(x.u, y.u) || rankOf(y.u) - rankOf(x.u));
   const rest = items.slice(3);
   return [h('ul', { class: 'cands' }, items.slice(0, 3).map(row)),
     rest.length ? h('details', { class: 'upmore grpmore' }, h('summary', { text: `${rest.length} more from ${g.title}` }),
@@ -1506,10 +1533,13 @@ function groupRows(g, a) {
 // "By slot": one line a slot, the best for it.
 function bySlot(a, picks) {
   const rows = [];
-  const order = ['Head', 'Neck', 'Shoulder', 'Back', 'Chest', 'Wrist', 'Hands', 'Waist', 'Legs', 'Feet', 'Finger', 'Trinket', 'Weapons', 'Ranged'];
+  const fixed = ['Head', 'Neck', 'Shoulder', 'Back', 'Chest', 'Wrist', 'Hands', 'Waist', 'Legs', 'Feet', 'Finger', 'Trinket', 'Weapons', 'Ranged'];
+  // The slot furthest from BiS first; slots with nothing to measure keep
+  // the paperdoll's order after those.
+  const order = fixed.filter((k) => picks.has(k)).map((k, i) => ({ k, i, b: picks.get(k).best.bis }))
+    .sort((x, y) => bisCmp({ bis: x.b }, { bis: y.b }) || x.i - y.i).map((x) => x.k);
   for (const k of order) {
     const p = picks.get(k);
-    if (!p) continue;
     const u = p.best;
     const worn = wornFor(u, a).items;
     const s = primarySource(u);
@@ -1517,7 +1547,7 @@ function bySlot(a, picks) {
       h('th', { text: k }),
       h('td', {}, worn.length ? worn.map((i) => itemChip(i, { label: false })) : h('span', { class: 'sub', text: 'empty' })),
       h('td', { class: 'best' }, itemChip(u)),
-      h('td', { class: 'gain', text: pts(u.gain) }),
+      h('td', { class: 'gain' }, pts(u.gain), u.bis ? h('span', { class: 'bisgain', text: bisText(u) }) : null),
       h('td', {}, feasEl(u, a.level)),
       h('td', { class: 'srccell' }, s ? sourceEl(s, a.level, ahOf(u)) : ''));
     tr.querySelector('.best .itm').addEventListener('click', (e) => {
@@ -1536,7 +1566,7 @@ function bySlot(a, picks) {
 }
 
 function compactList(a, list) {
-  return h('ul', { class: 'cands compact' }, list.sort((x, y) => rankOf(y) - rankOf(x)).map((u) => {
+  return h('ul', { class: 'cands compact' }, list.sort((x, y) => bisCmp(x, y) || rankOf(y) - rankOf(x)).map((u) => {
     const s = primarySource(u);
     return candRow(u, a, s ? sourceEl(s, a.level, ahOf(u)) : null);
   }));

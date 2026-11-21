@@ -17,7 +17,8 @@
 
 /* One palette a surface, never a mix: the night palette is the page at
    night and the character plate in both themes; the day palette is the page
-   by day and the journal's parchment in both. A box drawn on a surface (the
+   by day, with --parch, the journal's parchment (night has none: the
+   journal is a night panel there, 2026-11-21). A box drawn on a surface (the
    comparison under the doll, a list) takes every colour from that surface,
    its background as well as its text: the plate once kept the day page's
    --panel under its own night ink, and the comparison under the doll read
@@ -62,11 +63,6 @@
   --plate-ink: #F2E8CF;
   --plate-muted: #B8A27C;
 
-  /* the journal's parchment, a little dimmed at night */
-  --parch: #D8C49A;
-  --parch-edge: #A8895A;
-  --parch-ink: #2E2012;
-  --parch-muted: #58442A;
 
   /* XP: purple, blue while rested (as in the game) */
   --xp: #9A35B4;
@@ -114,7 +110,7 @@
     color-scheme: light;
   }
 }
-:root[data-theme="light"], .jentry {
+:root[data-theme="light"] {
   --page: #E6D5AE;
   --panel: #F1E4C4;
   --raised: #EADAB4;

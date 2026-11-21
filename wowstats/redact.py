@@ -237,6 +237,7 @@ FIT = {**_keys("for_you", "label", "built_for", "wasted_pct", "tip", "factor"), 
 # No "here" (in the zone the character is in now).
 UPGRADE = {**ADVICE_ITEM, **_keys("level", "slot", "slot_name", "gain", "gain_pct", "gain_share_pct",
                                   "fills_empty", "now", "vs_unknown", "setup_score", "value"), "sources": [SOURCE],
+           "bis": _keys("from_pct", "to_pct"),
            "gates": [_keys("kind", "profession", "need", "have")], "fit": FIT}
 UPGRADE_PAIR = {**UPGRADE, "with": {**UPGRADE, "kind": None}}
 SPEC = {**_keys("key", "label", "source", "adjusted", "why", "role"), "choices": [_keys("key", "label")]}
@@ -314,7 +315,8 @@ ZOGZOG: dict[str, dict] = {
                 "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score"),
         "band": _keys("label", "note", "source", "upTo"),
         "spec": SPEC, "weights": {}, "talents": [{}],
-        "slots": [{**_keys("slot", "slot_name"), "current": ADVICE_ITEM, "best": UPGRADE_PAIR,
+        "slots": [{**_keys("slot", "slot_name"), "standing": _keys("rank", "pct", "label"),
+                   "current": ADVICE_ITEM, "best": UPGRADE_PAIR,
                    "next": UPGRADE_PAIR}],
         "upgrades": [UPGRADE_PAIR],
         "ah": AH,

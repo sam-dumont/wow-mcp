@@ -231,3 +231,39 @@ def test_each_upgrade_says_who_it_is_built_for(site, pw, engine, scheme):
             pg.locator(".cmp").screenshot(path=f"{shots}/fit-compare-{engine}-{scheme}.png")
     finally:
         b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+@pytest.mark.parametrize("width", [1920, 390])
+def test_the_doll_says_where_each_item_stands(site, pw, engine, width):
+    """Each worn item with a BiS to measure against says BiS, 2nd or its
+    percent of BiS on its icon, at 390 px too; the upgrades say theirs in BiS
+    terms, and By slot puts the slot furthest from BiS first (owner,
+    2026-11-21)."""
+    url, gear = site
+    b, pg, _ = open_page(pw, engine, url, width)
+    try:
+        want = {}
+        for s in gear["slots"]:
+            st = s.get("standing")
+            if st and s.get("current"):
+                want[str(s["slot"])] = "BiS" if st["rank"] == 1 else "2nd" if st["rank"] == 2 else f"{st['pct']}%"
+        # The doll is the page's own sheet, the advice a separate answer: the
+        # slots both fill.
+        filled = set(pg.locator("#gear .slot:not(.empty)").evaluate_all("els => els.map(e => e.dataset.slot)"))
+        want = {k: v for k, v in want.items() if k in filled}
+        assert want, "the fixture has no standing to show"
+        got = pg.locator("#gear .slot .ifr .ibis").evaluate_all(
+            "els => els.filter(e => e.checkVisibility()).map(e => [e.closest('.slot').dataset.slot, e.textContent])")
+        assert dict(got) == want
+        assert pg.locator("#advice .cand .bisgain:visible").count() > 0
+        assert all("% of BiS" in t for t in pg.locator("#advice .cand .bisgain").all_text_contents())
+        pg.locator("#advice .order button", has_text="By slot").click()
+        rows = pg.locator("#advice .byslot tbody tr.cand").evaluate_all(
+            "els => els.map(e => { const t = (e.querySelector('.bisgain') || {}).textContent || '';"
+            " const m = t.match(/^(\\d+)% → /); return m ? +m[1] : null; })")
+        ranked = [r for r in rows if r is not None]
+        assert ranked and ranked == sorted(ranked)
+        assert rows[: len(ranked)] == ranked  # the ones with no BiS after
+    finally:
+        b.close()
