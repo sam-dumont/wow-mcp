@@ -33,6 +33,15 @@ mcp = ["fastmcp==4.2.0", "cryptography>=46", "duckdb==2.0.0", "boring-semantic-l
 # (Dockerfile `renderer`), never in the main image. Pinned like the browser
 # group: each Playwright release wants its own Chromium build.
 render = ["playwright==1.65.1"]
+# The server's own play analysis (wowstats.analysis.auto): the full view
+# plays the MCP client itself, through the provider the host configures
+# (ANALYSIS_PROVIDER). One extra per provider; only the configured one is
+# imported. Without it, or without credentials, the feature is off.
+# analysis: Anthropic's official SDK (pinned like the kb group's).
+analysis = ["anthropic==2.8.0"]
+# analysis-openai: OpenAI's official SDK, for any OpenAI-compatible Chat
+# Completions endpoint (OpenAI, OpenRouter, Ollama, vLLM, LM Studio...).
+analysis-openai = ["openai==3.46.0"]
 
 [project.scripts]
 wow-stats = "wowstats.cli:main"

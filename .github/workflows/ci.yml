@@ -44,7 +44,9 @@ jobs:
       # before pushing (tests/test_*browser*.py skip without Playwright), and
       # installing Chromium and WebKit with their system packages was most of
       # this job's minutes, and hung for 30 minutes once.
-      - run: uv sync --frozen --extra publish --extra mcp
+      # The analysis extras: the server-side analysis' tests build both SDKs'
+      # clients (credentials passed explicitly), on fake clients, no calls.
+      - run: uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai
       - run: uv run ruff check .
       # Everything but the browser suites, on every core; docker compose and
       # Polestar tests (ci_only) are in, they skip without their tool.
@@ -118,7 +120,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-      - run: uv sync --frozen --extra publish --extra mcp
+      - run: uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai
       - run: uv run pytest -v -rs -m ci_only tests/test_windows_e2e.py
         env:
           WOW_STATS_WINDOWS_E2E: "1"

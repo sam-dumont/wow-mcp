@@ -257,9 +257,9 @@ def annotations(spec: tools.Tool) -> ToolAnnotations:
     to say read-only, the analysis and planner writers too (review,
     2026-11-19)."""
     if not spec.writes:
-        return ToolAnnotations(readOnlyHint=True, openWorldHint=False)
+        return ToolAnnotations(readOnlyHint=True, openWorldHint=spec.open_world)
     return ToolAnnotations(readOnlyHint=False, destructiveHint=spec.writes == "replaces", idempotentHint=False,
-                           openWorldHint=False)
+                           openWorldHint=spec.open_world)
 
 
 def _tool(spec: tools.Tool, who: Who) -> WowTool:

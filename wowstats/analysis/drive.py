@@ -29,6 +29,7 @@ never vm-wow.
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import json
 import os
 import tempfile
@@ -37,6 +38,12 @@ import time
 from datetime import UTC, datetime
 
 from . import passes
+
+# Who drives the analysis: a player's MCP client unless the server's own
+# runner (wowstats.analysis.auto) set it for its run. Kept on the run's
+# record as `kind` ("client" or "server") and `driver`.
+DRIVER: contextvars.ContextVar[dict | None] = contextvars.ContextVar("analysis_driver", default=None)
+CLIENT_KINDS = ("client", "server")
 
 CACHE_S = 1800  # one database for a whole run, and few reads of the store
 PAGE_CHARS = 12000
@@ -673,7 +680,9 @@ def _submit_synthesis(env, w, run, answer):
     nudges = bind(nudges, kept, lvl, dropped, "nudge")
     patterns = bind(patterns, kept, lvl, dropped, "pattern")
     asked = run["questions"]
-    info = {"at": _now(), "kind": "client", "driver": str(answer.get("driver") or "")[:80] or None,
+    drv = DRIVER.get() or {}
+    info = {"at": _now(), "kind": drv.get("kind") or "client",
+            "driver": str(drv.get("driver") or answer.get("driver") or "")[:80] or None,
             "run": run["id"], "passes": run["submits"] + 1,
             "questions": {"asked": len(asked), "answered": sum(1 for q in asked if q.get("answered")),
                           "added_for_coverage": sum(1 for q in asked if q.get("added")),
@@ -691,6 +700,12 @@ def _submit_synthesis(env, w, run, answer):
                  patterns, w.db, w.kb, other_players(w.store, w.store.stream, w.char), info, info["at"])
     run["pass"] = "done"
     run["result"] = info
+    # The player's analysis is fresh again, whoever drove it: their timer
+    # for the server's own runs starts over (wowstats.analysis.auto).
+    with contextlib.suppress(Exception):
+        from . import auto
+
+        auto.mark_refreshed(env, drv.get("by") or "player", drv.get("via") or "client", drv.get("played_s"))
     return {"accepted": True, "kept": sorted(out["findings"]),
             "nudges": [{k: n.get(k) for k in ("text", "verdict", "at_level", "shareable", "why_not")}
                        for n in out["nudges"]],
@@ -716,7 +731,7 @@ def progress(env: dict, char: str, store=None) -> dict:
     state = load_state(env, w.char)
     runs = state.get("runs") or []
     recheck = next((r for r in reversed(runs) if r.get("kind") == "recheck"), None)
-    last = next((r for r in reversed(runs) if r.get("kind") == "client"), None)
+    last = next((r for r in reversed(runs) if r.get("kind") in CLIENT_KINDS), None)
     out = {"char": w.char, "kept_findings": len(state.get("findings") or {}),
            "last_recheck": {k: recheck.get(k) for k in ("at", "confirmed", "faded")} if recheck else None,
            "last_analysis": last}

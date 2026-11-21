@@ -83,6 +83,8 @@ UPSTREAMS = {
     "sam-dumont.github.io",
     # The MCP clients the OAuth redirect list and the docs name.
     "claude.ai", "claude.com", "anthropic.com", "chatgpt.com", "vscode.dev", "cursor.com", "apple.com",
+    # The AI providers the server-side analysis can call (docs/self-host/server-analysis.md).
+    "openai.com",
     # Sources the KB cites, fact by fact (data/kb/research): public guides,
     # forums, news and wikis about the game.
     "warcrafttavern.com", "method.gg", "conquestcapped.com", "kami-labs.fr", "wow-professions.com",

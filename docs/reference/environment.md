@@ -112,12 +112,29 @@ Kept per character, judged by the server.
 
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
+| `ANALYSIS_API_KEY_FILE` | ui | path | empty: none | `/run/secrets/analysis-key` | A file holding the AI provider's API key, read at the first run, never logged. Used when workload identity federation isn't set up; a local `openai` endpoint may need none. `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are never read. |
+| `ANALYSIS_AUTO` | ui | `on` or `off` | `on` | `off` | Whether the page rebuild starts the server's own analysis after `ANALYSIS_STALE_PLAYED_HOURS` of play. Off: only a player's `dashboard_refresh` does. |
+| `ANALYSIS_BASE_URL` | ui | URL | empty: the provider's own API | `http://ollama:11434/v1` | The API's address: an OpenAI-compatible endpoint with `ANALYSIS_PROVIDER=openai`, or a proxy in front of Anthropic's. `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` are never read. |
 | `ANALYSIS_HOUR` | ui | hour, 0 to 23 | `4` | `4` | The local hour of the nightly recheck of kept findings. |
+| `ANALYSIS_MODEL` | ui | model id | `claude-opus-5-5` with `anthropic`; required with `openai` | `claude-sonnet-5-5` | The model the server's own analysis runs on. It must support tool calling. |
+| `ANALYSIS_MONTHLY_BUDGET` | ui | US dollars | `10` | `50` | What the server's own analysis may spend a calendar month (UTC), in USD, the currency the APIs bill in. A run that would likely cross it doesn't start. With `openai`, only when both prices below are set. |
+| `ANALYSIS_MONTHLY_TOKENS` | ui | tokens | empty: no cap | `20000000` | A cap in tokens (sent and received) a month, besides or instead of the money one: the cap for an endpoint with no prices. |
+| `ANALYSIS_PRICE_INPUT_PER_MTOK` | ui | US dollars | empty: cost unknown | `0.15` | With `openai`: what the endpoint charges per million prompt tokens. Set it and the next one to count money and apply the budget; Anthropic's prices are built in. |
+| `ANALYSIS_PRICE_OUTPUT_PER_MTOK` | ui | US dollars | empty: cost unknown | `0.60` | With `openai`: what the endpoint charges per million completion tokens. |
+| `ANALYSIS_PROVIDER` | ui | `anthropic` or `openai` | `anthropic` | `openai` | Who runs the server's own play analysis: Anthropic's API, or any OpenAI-compatible Chat Completions endpoint (OpenAI, OpenRouter, Ollama, vLLM, LM Studio). Off until it has credentials, or for `openai` a model. See [Server-side analysis](../self-host/server-analysis.md). |
 | `ANALYSIS_SHARE_BIND` | ui | address | `BIND`, else `127.0.0.1` | `0.0.0.0` | The address the share port listens on. |
 | `ANALYSIS_SHARE_PORT` | ui | port | empty: off | `8091` | A bare listener that hands the screened analysis lines to the publisher. Never route it from outside. |
 | `ANALYSIS_SHARE_TOKEN_FILE` | ui, publish, exporter | path | empty: `share-token` in the state folder, made on first start | `/data/share-token` | The share port's bearer token. `ui` makes it on first start; `publish` and the exporter read the same file to call the share port. |
 | `ANALYSIS_SHARE_URL` | publish | URL | empty: none | `http://ui:8091/analysis.json` | Where the publisher reads those lines, for `/zogzog/`. |
+| `ANALYSIS_STALE_PLAYED_HOURS` | ui | hours of play | `10` | `6` | How much in-game play since a player's last analysis makes the server refresh it (the journal's sessions, every character). Any refresh resets it: the server's, the player's `dashboard_refresh`, or a full analysis from their own AI. |
 | `ANALYSIS_STATE_DIR` | ui | path | empty: off | `/data/analysis` | Where the play analysis and the session plans are kept (full view only). Put it on a volume. |
+| `ANALYSIS_WIF_AUDIENCE` | ui | string | `https://api.anthropic.com` with `anthropic`, `https://api.openai.com/v1` with `openai` | `https://api.openai.com/v1` | The audience the projected token must carry, checked before each client is made so a wrong volume says so instead of an opaque 401. Set it only when the provider was configured with another audience. |
+| `ANALYSIS_WIF_ORGANIZATION_ID` | ui | id | empty: none | an organization UUID | With `anthropic`: your organization. |
+| `ANALYSIS_WIF_PROVIDER_ID` | ui | id | empty: none | the Workload Identity Provider's id | With `openai`: the Workload Identity Provider (Organization settings, Security). |
+| `ANALYSIS_WIF_RULE_ID` | ui | id | empty: none | `fdrl_...` | With `anthropic`: the federation rule. |
+| `ANALYSIS_WIF_SERVICE_ACCOUNT_ID` | ui | id | empty: none | `svac_...` | The service account the token is exchanged for: required with `openai`, optional with `anthropic`. |
+| `ANALYSIS_WIF_TOKEN_FILE` | ui | path | empty: no federation | `/var/run/secrets/ai-token/token` | Workload identity federation, either provider: the identity token's file (a Kubernetes projected service account token), reread at each exchange as it rotates. With the provider's IDs below it comes before `ANALYSIS_API_KEY_FILE`. See [Server-side analysis](../self-host/server-analysis.md). |
+| `ANALYSIS_WIF_WORKSPACE_ID` | ui | id | empty: none | `wrkspc_...` | With `anthropic`, optional: the workspace the exchanged token works in. |
 
 ## The static sites (`wow-stats publish`, `wow-stats static`)
 

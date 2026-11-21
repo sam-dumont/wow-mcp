@@ -33,7 +33,14 @@ WRITERS = {
     "kb_lookup": "adds",
     "kb_search": "adds",
     "plan_session": "replaces",  # keeps the plan check_plan reads; the oldest drop past 30
+    # Starts the server's own run (wowstats.analysis.auto), which replaces the
+    # kept findings later, in the background; reaches the AI provider (open world).
+    "dashboard_refresh": "replaces",
 }
+# Writes after the call returns, in the background, or (here, no provider
+# configured) not at all: tests/analysis/test_auto.py runs it for real.
+LATER = {"dashboard_refresh"}
+OPEN_WORLD = {"dashboard_refresh"}
 READ_ONLY = {"list_metrics", "query_metric", "character_summary", "levels", "sessions", "zones", "guide_steps", "deaths", "dungeons", "players",
              "prices", "gear", "next_moves", "sanity_check", "people", "route_reference", "market", "play_analysis",
              "check_plan", "how_did_my_plan_go", "next_step", "gear_options", "dungeon_options", "mount_goal",
@@ -63,7 +70,7 @@ def test_the_server_lists_each_tools_own_annotations():
         if w:
             assert a.destructive_hint is (w == "replaces"), name
             assert a.idempotent_hint is False, name
-        assert a.open_world_hint is False, name
+        assert a.open_world_hint is (name in OPEN_WORLD), name
 
 
 def snapshot(d: Path) -> dict:
@@ -126,6 +133,7 @@ CALLS = [
     ("character_summary", {}), ("levels", {}), ("sessions", {"since": "2026-11-01"}), ("zones", {}),
     ("guide_steps", {}), ("deaths", {}), ("dungeons", {}), ("players", {}), ("prices", {}), ("gear", {}),
     ("next_moves", {}), ("sanity_check", {}), ("people", {}), ("route_reference", {}), ("market", {}),
+    ("dashboard_refresh", {}),
 ]
 
 
@@ -147,4 +155,4 @@ def test_running_each_tool_matches_its_annotation(lab):
             wrote.add(name)
             assert name in WRITERS, f"{name} changed the state but says it is read-only"
     # Each writer did write in this run: none is marked a writer for nothing.
-    assert wrote == set(WRITERS), set(WRITERS) - wrote
+    assert wrote == set(WRITERS) - LATER, set(WRITERS) - LATER - wrote
