@@ -919,13 +919,19 @@ a.whsmall { font: 500 12.5px/1 var(--sans); color: var(--muted); }
 .ifr.medium .ench { width: 7px; height: 7px; right: 2px; bottom: 2px; }
 /* Where a worn item stands against BiS (app.js renderAdvice): a band across
    the icon's top, on the doll only, so a phone's icon-only paperdoll shows it.
-   The plate is night in both themes. */
+   The plate is night in both themes. Its colour says how close to BiS
+   (app.js bisTier, the tokens in base.css); below 50% the plain dark band. */
 .ifr .ibis {
   position: absolute; z-index: 1; left: 0; right: 0; top: 0; text-align: center;
   font: 700 11px/15px var(--sans); letter-spacing: .02em; color: var(--plate-ink);
   background: rgba(14, 10, 7, .86); pointer-events: none;
 }
-.ifr .ibis.top { color: var(--gold-hi); }
+.ifr .ibis.t-bis, .bischip.t-bis { background: var(--bis-bis); color: var(--bis-bis-ink); }
+.ifr .ibis.t-epic, .bischip.t-epic { background: var(--bis-epic); color: var(--bis-epic-ink); }
+.ifr .ibis.t-rare, .bischip.t-rare { background: var(--bis-rare); color: var(--bis-rare-ink); }
+/* The badges' legend under the doll: the same colours on the same plate. */
+.bislegend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 0 0; color: var(--muted); font-size: 13px; }
+.bischip { font: 700 11px/15px var(--sans); letter-spacing: .02em; padding: 0 6px; border-radius: 2px; }
 .chips { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .chips > li { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; }
 .worn { margin: 8px 0; }
