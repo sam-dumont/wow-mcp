@@ -227,14 +227,22 @@ services:
     depends_on: [victoriametrics]
     secrets: [bnet_client_id, bnet_client_secret, vm_merge_key]
     environment:
-      # YOUR OWN Battle.net API client (README, "Battle.net client"): never
-      # someone else's.
+      # YOUR OWN Battle.net API client (docs/self-host/battlenet.md, "1. Make
+      # your API client"): never someone else's.
       BNET_CLIENT_ID_FILE: /run/secrets/bnet_client_id
       BNET_CLIENT_SECRET_FILE: /run/secrets/bnet_client_secret
       BNET_REGION: ${BNET_REGION:-eu}
       PROFILE_CHARACTERS: ${PROFILE_CHARACTERS:-}
+      # Several people: every friend's characters too, each under their own
+      # account (http://ui:8082/profile-characters in .env). It asks the ui's
+      # share port, with the ui's token (below), like publish does.
+      PROFILE_CHARACTERS_URL: ${PROFILE_CHARACTERS_URL:-}
+      ANALYSIS_SHARE_TOKEN_FILE: /ui-state/share-token
       VM_PUSH_URL: http://victoriametrics:8428/api/v1/import/prometheus
       VM_MERGE_KEY_FILE: /run/secrets/vm_merge_key
+    # Read-only: the share token only.
+    volumes:
+      - ui-state:/ui-state:ro
 
 secrets:
   bnet_client_id:
