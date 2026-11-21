@@ -39,7 +39,7 @@ Logs carry status codes and counts, never prices: container logs often end
 up in a store kept longer than 30 days.
 
 Environment: BNET_CLIENT_ID_FILE, BNET_CLIENT_SECRET_FILE (required: your own
-client, README), BNET_REGION (eu), BNET_LOCALE (en_GB), PROFILE_CHARACTERS
+client, docs/self-host/battlenet.md), BNET_REGION (eu), BNET_LOCALE (en_GB), PROFILE_CHARACTERS
 (comma list of Name-Surname, as the WTF folders name them),
 BNET_PROFILE_NAMESPACE (profile-forever-{region}), PROFILE_INTERVAL (7200),
 VM_PUSH_URL (may carry its own query args), VM_PUSH_EXTRA_LABELS (comma list of name=value), VM_PUSH_INTERVAL (60),
@@ -133,7 +133,7 @@ def configure(env=None):
     CLIENT_SECRET_FILE = env.get("BNET_CLIENT_SECRET_FILE", "")
     if not CLIENT_ID_FILE or not CLIENT_SECRET_FILE:
         sys.exit("set BNET_CLIENT_ID_FILE and BNET_CLIENT_SECRET_FILE: files holding YOUR Battle.net API "
-                 "client's id and secret (README, \"Battle.net client\")")
+                 "client's id and secret (docs/self-host/battlenet.md)")
     # {"forever": "dynamic-forever-eu", "retail": "dynamic-eu"}
     TOKEN_NAMESPACES = json.loads(env.get("BNET_TOKEN_NAMESPACES") or json.dumps(
         {"forever": f"dynamic-forever-{REGION}", "retail": f"dynamic-{REGION}"}))
