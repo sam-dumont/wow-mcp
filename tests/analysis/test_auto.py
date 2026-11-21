@@ -836,6 +836,12 @@ def test_the_privacy_page_says_whether_a_provider_gets_the_data(lab):
     assert "with the AI provider the host configured" in on and "never Battle.net data" in on
     off = account.privacy_page(False, {}).decode()
     assert "hasn't configured an AI provider" in off
+    # Review 2 of 0.7.0: a provider configured with ANALYSIS_AUTO=off never runs
+    # (no MCP call starts a server run either): the page says so, not "runs it itself".
+    paused = account.privacy_page(False, lab.env("a", ANALYSIS_AUTO="off")).decode()
+    assert "runs the play analysis itself" not in paused and "never Battle.net data" not in paused
+    assert "configured an AI provider but turned the server's own analysis off" in paused
+    assert "nothing goes to it from here" in paused
 
 
 # ---------------------------------------------------------------- unattended: done is the protocol's
