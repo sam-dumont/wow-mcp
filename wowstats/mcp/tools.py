@@ -235,6 +235,7 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     current = next((lv for lv in levels if lv["level"] == level and lv["partial"]), None)
     eta = int((xp_max - xp) / xph * 3600) if xph and xp_max and xp is not None and xp_max > xp else None
     kq = {x.get("kind"): int(num(x.get("n"))) for x in counts}
+    recorded = bool(kq or last or n_deaths)  # any Recorder record: its deaths count, 0 included
     first = st.logs(f"{rec(char)} | sort by (_time) | limit 1 | fields _time", limit=1) if kq else []
     since = parse_t(first[0]["_time"]) if first else None
     if levels and (not kq or (since and any(parse_t(lv["at"]) < since for lv in levels))):
@@ -257,7 +258,9 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
         "played_tracked": dur(sum(lv["seconds"] for lv in levels)) if levels else None,
         "avg_last_5_levels": dur(sum(lv["seconds"] for lv in done[-5:]) / len(done[-5:])) if done else None,
         "xp_per_hour_last_3_levels": xph, "eta_next_level": dur(eta),
-        "kills": kq.get("kill"), "quests_turned_in": kq.get("turnin"), "deaths": n_deaths,
+        # Without any Recorder record the deaths are unknown, never 0.
+        "kills": kq.get("kill"), "quests_turned_in": kq.get("turnin"),
+        "deaths": n_deaths if recorded else None,
         **summary_talents(ctx, char),
         "other_characters": sorted({c["char"] for c in chars if c.get("char") and c["char"] != char}),
         # From Polestar's level splits rather than the Recorder or the sheet.
@@ -358,6 +361,12 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
     # Time per zone from the records' own times (stores.zone_time).
     visits = zone_time([e for e in ev if e.get("kind") == "zone"], split_sessions(buckets))
     out = []
+    from wowstats.coverage import attach
+
+    # Play the Recorder missed, on the newest session of its level (the
+    # whole history's sessions: `sessions` is cut to the range and limit).
+    every, gaps = recorder_gaps(ctx, char)
+    marks = {round(every[i][0]): g for i, g in attach(gaps, every).items()}
     for a, b in reversed(sessions):
         inside = [e for e in ev if a <= parse_t(e.get("_time")) <= b]
         kinds: dict[str, int] = {}
@@ -392,6 +401,9 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
             "dungeons": [{"name": d.get("name"), "dur": dur(num(d.get("seconds")))} for d in runs
                          if a <= parse_t(d.get("_time")) < b],
             "grouped_with": grouped[:8],
+            # Play around it the Recorder missed: its counts are a floor.
+            **({"recorder_off": {"about": dur(g["off_s"]), "in_levels": g["levels"]}}
+               if (g := marks.get(round(a.timestamp()))) else {}),
         })
     # Older first-hand sessions fill the limit before the estimated logouts.
     early = early[:max(0, limit - len(out))]
@@ -515,6 +527,10 @@ def t_deaths(ctx: Ctx, args: dict) -> dict:
     start, end = time_range(args, None)
     limit = limit_arg(args, 15)
     rows = death_rows(ctx, char, start, end)
+    if not rows and not ctx.store.logs(f"{rec(char)} | limit 1 | fields _time", limit=1):
+        # Deaths come from the Recorder only: none of its records, no count.
+        return {"char": char, "total": None, "recent": [], "by_zone": [], "by_level": {},
+                "note": "unknown, not 0: the Recorder sent nothing for this character (coverage.recorder)"}
     rows.sort(key=lambda r: parse_t(r.get("_time")), reverse=True)
     by_zone: dict[str, int] = {}
     by_level: dict[str, int] = {}
@@ -1287,6 +1303,11 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
         gap = missing_for(ctx, tool, args, out)
         if gap is not None:
             out = {**out, "missing": gap}
+    # A one-character answer (it names its `char`) says what it stood on.
+    if isinstance(out, dict) and not tool.writes and "coverage" not in out and isinstance(out.get("char"), str):
+        cov = coverage_for(ctx, out["char"])
+        if cov is not None:
+            out = {**out, "coverage": cov}
     if name in KB_TEXT_TOOLS and isinstance(out, dict):
         out = {KB_TEXT_FIELD: KB_TEXT_NOTE, **out}
     if name in KB_TOOLS and isinstance(out, dict):
@@ -1295,6 +1316,69 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
 
 
 _MISSING: dict[tuple, tuple[float, dict]] = {}
+
+
+def _store_key(ctx: Ctx) -> tuple:
+    # Per store and tenant: never one person's list for another.
+    return tuple(getattr(ctx.store, k, None) for k in ("vl_url", "vl_archive_url", "account_id", "logs_filter"))
+
+
+def _cached(key: tuple, fn):
+    """`fn()` kept 60 s under `key` (the missing list, the Recorder's gaps)."""
+    hit = _MISSING.get(key)
+    if hit is None or time.time() - hit[0] > 60:
+        hit = (time.time(), fn())
+        _MISSING[key] = hit
+        if len(_MISSING) > 64:
+            _MISSING.pop(min(_MISSING, key=lambda k: _MISSING[k][0]), None)
+    return hit[1]
+
+
+def _snapshot(ctx: Ctx) -> dict:
+    from wowstats import missing
+
+    return _cached(_store_key(ctx), lambda: missing.snapshot(ctx.store.logs))
+
+
+def recorder_gaps(ctx: Ctx, char: str) -> tuple[list[tuple[float, float]], list[dict]]:
+    """(the Recorder's sessions over the whole history, its gaps:
+    wowstats.coverage.recorder_gaps), from the page journal's reads."""
+    from wowstats import coverage
+
+    def read() -> tuple[list, list]:
+        st = ctx.store
+        spans = split_sessions(st.logs(f"{rec(char)} {SESSION_BUCKETS}"))
+        if not spans:
+            return [], []
+        levels = st.logs(f'feed:="wow-level" {cf(char)} | fields _time, level, seconds, partial')
+        return spans, coverage.recorder_gaps(spans, levels)
+
+    return _cached((*_store_key(ctx), "gaps", char), read)
+
+
+BNET_AI_OFF = "Switch on Battle.net data to my AI in Settings."
+
+
+def coverage_for(ctx: Ctx, char: str) -> dict | None:
+    """What a one-character answer stood on (wowstats.coverage), so the
+    assistant can tell a 0 from a source that was off. Every source
+    "unknown" when the store doesn't answer."""
+    from wowstats import coverage
+    from wowstats.stores import SourceError as ViewsSourceError
+    def build() -> dict:
+        cov = coverage.build(_snapshot(ctx), char, recorder_gaps(ctx, char)[1],
+                             coverage.bnet_of(_views(ctx).store, char))
+        if ctx.store.vm_url and not bnet_vm_url(ctx):
+            cov["battlenet"] = coverage.entry("unavailable", fix=BNET_AI_OFF)
+        return cov
+
+    try:
+        return _cached((*_store_key(ctx), "coverage", char, bnet_vm_url(ctx)), build)
+    except (SourceError, ViewsSourceError):
+        return coverage.unknown()
+    except Exception:  # noqa: BLE001 - the answer matters more than its footnote; the log keeps the bug
+        logging.getLogger(__name__).exception("coverage: none for %s", char)
+        return None
 
 
 def missing_for(ctx: Ctx, tool: Tool, args: dict, out: dict) -> list[dict] | None:
@@ -1307,16 +1391,8 @@ def missing_for(ctx: Ctx, tool: Tool, args: dict, out: dict) -> list[dict] | Non
     from wowstats import missing
     from wowstats.stores import SourceError as ViewsSourceError
 
-    # Per store and tenant: never one person's list for another.
-    key = tuple(getattr(ctx.store, k, None) for k in ("vl_url", "vl_archive_url", "account_id", "logs_filter"))
     try:
-        hit = _MISSING.get(key)
-        if hit is None or time.time() - hit[0] > 60:
-            hit = (time.time(), missing.snapshot(ctx.store.logs))
-            _MISSING[key] = hit
-            if len(_MISSING) > 64:
-                _MISSING.pop(min(_MISSING, key=lambda k: _MISSING[k][0]), None)
-        snap = hit[1]
+        snap = _snapshot(ctx)
         if "char" in tool.input_schema["properties"]:
             char = out.get("char") if isinstance(out.get("char"), str) else resolve_char(ctx, args)
             gap = missing.for_char(snap, char)

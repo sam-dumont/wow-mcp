@@ -205,6 +205,30 @@ function untrackedNote(body) {
 // (owner, 2026-11-19: nobody needs to read that; /help/ and the docs have it).
 const RECORDER_ON = 'Turn Polestar Recorder on (/psrec on in game), play, then /reload.';
 
+// ------------------------------------------------------------ coverage
+
+// What an answer stood on (wowstats/coverage.py): shown only where it
+// changes what a number means. A count from the Recorder is a floor once it
+// missed play, and "no deaths" stops meaning none.
+function recorderGap(d) {
+  const r = ((d && d.coverage) || {}).recorder;
+  if (!r || r.state !== 'partial') return null;
+  const gaps = r.gaps || [];
+  if (!gaps.length) return `The Recorder is off now, so new deaths won’t show. ${r.fix}`;
+  const off = gaps.reduce((a, g) => a + g.off_s, 0);
+  const lv = gaps.map((g) => g.level).join(', ');
+  return `The Recorder missed about ${dur(off)} of play (level${gaps.length > 1 ? 's' : ''} ${lv}): deaths from then aren’t counted.`;
+}
+
+// Battle.net's equipment read older than one refresh (2 h) and a bit, or
+// shown from the last complete read after a failed one.
+function bnetStale(d) {
+  const b = ((d && d.coverage) || {}).battlenet;
+  if (!b || !b.as_of) return null;
+  const old = Date.now() - new Date(b.as_of).getTime() > 3 * 3600e3;
+  return old || b.state === 'partial' ? `Equipment last read ${ago(b.as_of)}: what you wear now may differ.` : null;
+}
+
 function emptyNote(body, strong, rest) {
   if (state.data && state.data.header.polestar === false) return untrackedNote(body);
   fill(body, h('p', { class: 'empty' }, h('strong', { text: strong }), rest ? ' ' + rest : null));
@@ -649,6 +673,7 @@ function renderGear(d) {
     h('div', { class: 'dollfoot' },
       // Where the worn items come from when Syndicator sent none (Battle.net), or when they will.
       g.items_note ? h('p', { class: 'empty' }, g.items_note) : null,
+      g.items_from === 'battle.net' && bnetStale(d) ? h('p', { class: 'sub covnote', text: bnetStale(d) }) : null,
       ilvl,
       profs.length ? h('ul', { class: 'profs', 'aria-label': 'Professions' }, profs) : null,
       wanted.length ? h('div', { class: 'wanted' }, h('h3', { text: 'Tracked upgrades' }), h('ul', {}, wanted)) : null),
@@ -2395,9 +2420,10 @@ function renderDungeonPanel(d) {
 function renderDeaths(d) {
   const body = $('#deaths .body');
   const de = d.deaths;
+  const gap = recorderGap(d);
   if (!de.total) {
     const recorder = d.zones.length || d.steps.total || d.flights.count;
-    emptyNote(body, 'No deaths recorded.', recorder ? '' : RECORDER_ON);
+    emptyNote(body, 'No deaths recorded.', recorder ? gap || '' : RECORDER_ON);
     return;
   }
   const levels = Object.keys(de.by_level).length;
@@ -2407,6 +2433,7 @@ function renderDeaths(d) {
       h('div', {}, h('dt', { text: 'Deaths' }), h('dd', { text: de.total })),
       worst ? h('div', {}, h('dt', { text: 'Worst level' }), h('dd', { text: `${worst[0]} (${worst[1]})` })) : null,
       levels ? h('div', {}, h('dt', { text: 'Per level' }), h('dd', { text: (de.total / Math.max(1, d.levels.length)).toFixed(1) })) : null),
+    gap ? h('p', { class: 'sub covnote', text: gap }) : null,
     barRows(de.by_zone.slice(0, 8), { name: (r) => r.zone, value: (r) => r.n, cls: 'death' }),
     de.recent ? h('h3', { text: 'Most recent' }) : null,
     de.recent ? h('ul', { class: 'list' }, de.recent.slice(0, 6).map((r) =>
@@ -2752,6 +2779,8 @@ function renderJournal(j, err) {
           h('span', { class: 'jlv', text: lv }),
           h('span', { class: 'jzone', text: s.zones.length ? s.zones[0].zone : '' })),
         h('dl', { class: 'sum' }, facts),
+        // Play in this session's level the Recorder missed (wowstats/coverage.py): its counts are a floor.
+        s.recorder_off ? h('p', { class: 'sub covnote', text: `The Recorder missed about ${dur(s.recorder_off.off_s)} of your level${s.recorder_off.levels.length > 1 ? 's' : ''} ${s.recorder_off.levels.join(', ')}: deaths, quests and zones from then aren’t counted.` }) : null,
         parts));
   }));
   if (cut > 0) {
@@ -3375,7 +3404,8 @@ function renderSnapshot(sn, out) {
     ['Time', sn.seconds ? dur(sn.seconds) + (sn.so_far ? ' so far' : sn.partial_time ? ' (partly recorded)' : '') : sn.to ? 'not recorded' : 'in progress'],
     ['Route plans', sn.route_s ? dur(sn.route_s) : 'no data'],
     ['Quests, kills', sn.counts && Object.keys(sn.counts).length ? `${sn.counts.turnin || 0} quests, ${sn.counts.kill || 0} kills` : 'not recorded'],
-    ['Deaths', String(Array.isArray(sn.deaths) ? sn.deaths.length : sn.deaths || 0)],
+    // null: no Recorder record in the level, so no count (wowstats/insights.py).
+    ['Deaths', sn.deaths === null ? 'not recorded' : String(Array.isArray(sn.deaths) ? sn.deaths.length : sn.deaths || 0)],
   ] : [['Level', String(sn.level)]];
   if (sn.gear && sn.gear.item_level) facts.push(['Item level', String(sn.gear.item_level)]);
   const kids = [h('dl', { class: 'snapfacts' }, facts.map(([k, v]) => h('div', {}, h('dt', { text: k }), h('dd', { text: v }))))];

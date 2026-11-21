@@ -433,6 +433,22 @@ class App:
         snap = self.cached("missing", lambda: missing.snapshot(lambda q: self.views.vl(f"{self.views.stream} {q}")))
         return missing.for_char(snap, name)
 
+    def coverage(self, name: str) -> dict:
+        """What name's answers stood on (wowstats.coverage): the missing
+        list's snapshot with its times, the journal's Recorder gaps and the
+        Battle.net read; full view only, like `missing`."""
+        from wowstats import coverage, missing
+
+        try:
+            snap = self.cached("missing", lambda: missing.snapshot(lambda q: self.views.vl(f"{self.views.stream} {q}")))
+        except SourceError:
+            return coverage.unknown()
+        try:
+            gaps = self.journal(name).get("recorder_gaps")
+        except SourceError:
+            gaps = None
+        return coverage.build(snap, name, gaps, coverage.bnet_of(self.store, name))
+
     def journal(self, name: str) -> dict:
         self._full_only()
         return self.cached(f"journal:{name}", lambda: self.views.journal(name))
@@ -544,7 +560,8 @@ class App:
         if self.view != "full":
             return self.char(name)
         return self.cached(f"api:char:{name}", lambda: {**self.char(name), "sources": self.store.sources(),
-                                                        "missing": self.missing(name)})
+                                                        "missing": self.missing(name),
+                                                        "coverage": self.coverage(name)})
 
     def api_journal(self, name: str) -> dict:
         self._full_only()

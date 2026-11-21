@@ -44,6 +44,7 @@ venv with the `wowstats` package and those two extras.
 | `wowstats/eventcache.py`, `wowstats/logsql.py` | One character's events kept in the process and refreshed by the hour that changed; the views' LogsQL answered over them ("Caching" below). |
 | `wowstats/views.py` | Builds each JSON answer from the stores: characters, header, climb, levels, zones, guide steps, dungeons, deaths, players, flights, prices, market. Treats `Name Surname` and `Name-Surname` as one character. |
 | `wowstats/journal.py` | Splits the play history into sessions (more than 330 s without a Recorder record, the semantic layer's rule: `stores.split_sessions`) and builds one journal entry per session. |
+| `wowstats/coverage.py` | What an answer stood on: one value per source (complete, partial, unavailable, unknown, with its time, the Recorder's gaps and the fix), from the missing list, Polestar's level splits and the Battle.net read. On `/api/char`, every MCP answer on one character, `query_metric` and `play_sql`. |
 | `wowstats/redact.py` | The public and `/zogzog/` tiers: allow lists of what may leave the server. |
 | `wowstats/items.py` | Item names and qualities for the loot history (Forever's ItemSparse via wago.tools). |
 | `wowstats/itemfacts.py` | Item facts (name, slot, item level, stats) the shipper reads from the player's own client for items our reference data lacks yet; kept per person, the reference always wins. |

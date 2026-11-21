@@ -67,6 +67,9 @@ def _old(rows: list[dict]) -> list[dict]:
 SWITCH = "2026-11-12T00:00:00Z"
 
 
+GAP = ("2026-11-05T17:20:00Z", "2026-11-05T18:30:00Z")
+
+
 def _before(rows: list[dict], t: str = SWITCH) -> list[dict]:
     """The account as it stood just before `t` (the setup report kept: it
     tells what was installed then)."""
@@ -96,6 +99,10 @@ SCENARIOS = {
     # The Recorder switched on at SWITCH, after days without it: before and after.
     "recorder-later-before": lambda rows: _setup(_before(_drop(rows, "wow-recorder")), recorder_on="false"),
     "recorder-later": lambda rows: _from(rows, ("wow-recorder",)),
+    # The Recorder off for an hour in the middle of one evening (/psrec off,
+    # then on again): level 28's split is longer than the Recorder saw.
+    "recorder-gap": lambda rows: [r for r in rows if r["feed"] != "wow-recorder" or not (
+        parse_t(GAP[0]) <= parse_t(r["_time"]) < parse_t(GAP[1]))],
     # Syndicator installed at SWITCH.
     "syndicator-later-before": lambda rows: _setup(_before(_drop(rows, "wow-gear", "wow-bags")),
                                                    drop_addons=("syndicator",)),

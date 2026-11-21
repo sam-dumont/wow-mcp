@@ -207,7 +207,8 @@ def by_logout(snaps: list[dict], levels: list[dict], dungeons: list[dict], until
         dings = sorted(r["level"] + 1 for r in lv_rows if not r["partial"] and r["t"] and t0 < r["t"] <= t1)
         out.append({"start": _iso(start), "end": _iso(t1), "played_s": int(played), "level_start": la,
                     "level_end": lb, "levels_gained": max(0, lb - la), "dings": dings,
-                    "xp": None, "zones": [], "quests": [], "deaths": {"total": 0, "by_zone": []},
+                    # Deaths need the Recorder: unknown here, never 0.
+                    "xp": None, "zones": [], "quests": [], "deaths": {"total": None, "by_zone": []},
                     "dungeons": runs, "players": [], "gold_delta_copper": gold, "estimated": True})
     out.reverse()
     return out
@@ -220,3 +221,18 @@ def with_history(sessions: list[dict], snaps: list[dict], levels: list[dict], du
     logouts alone."""
     first = min((t for x in sessions if (t := _ts(x["start"])) is not None), default=None)
     return sessions + by_logout(snaps, levels, dungeons, until=first)
+
+
+def mark_gaps(sessions: list[dict], gaps: list[dict], spans: list[tuple[float, float]]) -> None:
+    """`recorder_off` ({off_s, levels}) on the Recorder session each gap
+    goes to (wowstats.coverage.attach: the newest in the gap's level): about
+    that much play in that level the Recorder didn't see, so the counts of
+    the sessions in it are a floor. The estimated logouts need none: they
+    say so already."""
+    from wowstats.coverage import attach
+
+    by_start = {_iso(spans[i][0]): g for i, g in attach(gaps, spans).items()}
+    for s in sessions:
+        g = None if s.get("estimated") else by_start.get(s["start"])
+        if g:
+            s["recorder_off"] = dict(g)
