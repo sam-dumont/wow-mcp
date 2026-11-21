@@ -78,25 +78,45 @@ def _item_lines(x, out: list) -> list[dict]:
     return out
 
 
-def _doll(app) -> dict[str, set]:
-    """The doll's badge per slot name: {slot name: {pct, ...}} (two rings,
-    two trinkets; both hands are one setup)."""
+PAIRED = ("Finger", "Trinket")
+
+
+def _doll(app, worn: bool = False) -> dict[str, set]:
+    """The doll's badge per slot name: {slot name: {pct, ...}} (both hands
+    are one setup). Rings and trinkets: only the weaker worn one's, the one
+    a new piece replaces (gear.compare), so a line that starts from the
+    other ring's share is wrong even though the doll shows it too. worn:
+    both, for the lines of the worn items themselves."""
     g = app.gear(D.CHAR, None)
     out: dict[str, set] = {}
+    pairs: dict[str, list] = {}
     for s in g["slots"]:
         st = s.get("standing")
-        out.setdefault(s["slot_name"], set()).add(None if s.get("current") is None else (st or {}).get("pct"))
+        pct = None if s.get("current") is None else (st or {}).get("pct")
+        if s["slot_name"] in PAIRED:
+            pairs.setdefault(s["slot_name"], []).append((s.get("current"), pct))
+        else:
+            out.setdefault(s["slot_name"], set()).add(pct)
+    for name, two in pairs.items():
+        # An empty one first, else the fewer points (gear.compare).
+        empty = [pct for cur, pct in two if cur is None]
+        weak = min(two, key=lambda t: t[0].get("score") or 0)[1] if not empty else None
+        out[name] = {pct for _c, pct in two} if worn else {weak}
+        if not empty:
+            # The doll orders the pair as the points do: the weaker reads less.
+            assert weak == min(pct for _c, pct in two if pct is not None), two
     return out
 
 
 def test_every_item_line_starts_from_the_dolls_badge(app):
-    doll = _doll(app)
+    doll, on = _doll(app), _doll(app, worn=True)
     rows = _item_lines(app.dungeons(D.CHAR), []) + _item_lines(app.overview(D.CHAR), [])
     assert len(rows) > 20, "the demo's dungeons and moves should carry badged items"
+    assert any(r["slot_name"] in PAIRED for r in rows), "the demo should carry ring or trinket lines"
     bad = []
     for r in rows:
         name = "Main hand" if r["slot_name"] in ("Main hand", "Off hand") else r["slot_name"]
-        want = doll.get(name, set())
+        want = (on if r.get("equipped") or r.get("where") == "worn" else doll).get(name, set())
         if r.get("bis_pct_worn") not in want:
             bad.append((r.get("name"), r["slot_name"], r.get("bis_pct_worn"), sorted(want, key=str)))
     assert not bad, f"item lines whose 'from' isn't the doll's badge: {bad[:8]}"
