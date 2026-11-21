@@ -15,6 +15,10 @@
 - A gear sheet worn again no longer erases its earlier occurrence: outfit A, then B, then A again showed B, A in the gear history, and a level played in the first A had no sheet. The shipper now names each sheet by its content and the time it was read (`gear:<char>:<hash>:<epoch>`), and the server keeps every occurrence; a resend of the same line still counts once. Sheets from older shippers (`gear:<char>:<hash>`) are told apart by their time, so the history already stored comes back whole without a shipper update.
 - The nightly recheck raised a kept finding's weight (and its "seen N×" tag) every night, even when no play had been added: three nights on the same data took a finding from 1.0 to 2.5. Still applicable and better supported are now apart: a finding that holds gets `last_checked`; its weight, `confirmations` and `last_confirmed` move only when the play history changed since its last support (`support_mark`). Proposing the same finding again on the same data adds nothing either. The recheck's log line and run record count `still` next to `confirmed`.
 
+### Fixed
+
+- `query_metric` didn't count in the analysis run's bookkeeping: no query counted, and a table read only through a metric stayed "untouched", so the coverage round asked about it again. `play_sql` and `query_metric` now share one bookkeeping: both count as queries, and a metric's semantic-layer view counts as the prep tables (and columns) under it.
+
 ## 0.7.0-rc.5 (2026-11-21)
 
 ### Added
