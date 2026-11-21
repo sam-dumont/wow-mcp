@@ -12,9 +12,12 @@ wago.tools (product wowf), as wowstats.items and wowstats.character3d read their
   TraitTreeXTraitCurrency (3820: class talent points, 4225: Legacy points),
   TraitCurrencySource (what earns each Legacy point), Talent and TalentTab
   (the classic trees' names and class, matched by rank spell), SpellName,
-  Spell (descriptions), SpellEffect (the numbers in them), SpellMisc
-  (SpellIconFileDataID) and ManifestInterfaceData (the icon's file name, as
-  wow.zamimg.com names its renders).
+  Spell (descriptions), SpellEffect (the numbers in them, and the tick and
+  radius), SpellMisc (SpellIconFileDataID, DurationIndex), SpellDuration,
+  SpellAuraOptions (stacks, proc chance, charges), SpellRadius, and
+  ManifestInterfaceData (the icon's file name, as wow.zamimg.com names its
+  renders). A description's numbers may be another spell's ($15271s1:
+  Spirit Tap's Spirit is its buff's): those spells' rows are read too.
 
 Legacy points (Forever's "Legacy" system) are an account-wide currency
 (TraitCurrency 4225) earned by Legacy Challenges, each an achievement listed
@@ -57,10 +60,10 @@ TABLES = ("TraitTree", "TraitNode", "TraitNodeXTraitNodeEntry", "TraitNodeEntry"
 # module is rebuilt, not reused (2: the grid from the commonest step, off-grid
 # nodes dropped, the prerequisite edges; 3: each Legacy challenge's
 # achievement ids, both client versions').
-FORMAT = 5  # 5: the per-rank numbers (TraitDefinitionEffectPoints curves)
+FORMAT = 6  # 5: the per-rank numbers (TraitDefinitionEffectPoints curves); 6: the spells a description names
 # Read in a second pass, only the rows the trees need (they're large).
 SPELL_TABLES = ("SpellName", "Spell", "SpellEffect", "SpellMisc", "ManifestInterfaceData",
-                "TraitDefinitionEffectPoints", "CurvePoint")
+                "TraitDefinitionEffectPoints", "CurvePoint", "SpellDuration", "SpellAuraOptions", "SpellRadius")
 
 
 def _i(v) -> int:
@@ -77,33 +80,154 @@ def class_token(c) -> str | None:
 
 # ------------------------------------------------------------------ descriptions
 
-# $s1 / $m1 / $o1 (this spell's effect), $/1000;S1 (scaled), $lone:many;
-# (a plural), and anything else: another spell's value ($12536s1), a
-# duration ($d), a formula (${...}).
-_TOKEN = re.compile(r"\$(?:/(\d+);)?([sSmMoO])([1-3])|\$[lL]([^:;]*):([^;]*);|\$(?:/\d+;)?\d*[a-zA-Z]\d*|\$\{[^}]*\}")
+# What a description's $ tokens read (Spell.Description_lang):
+#   $s1 $m1 $S1 $M1  an effect's number; $o1 its total over the duration
+#   $d  the duration, $t1 an effect's tick, $a1 its radius
+#   $u  the stacks, $h the proc chance, $n the charges
+#   any of them after a spell id ($15271s1): that spell's, not this one's
+#   $/10;s1 or $*2;s1 scaled, ${...} a formula of them (".1": decimals),
+#   $lone:many; a plural, $gmale:female; a gendered word.
+# Multi-letter names ($SPFR, $bh, $pl, $<mult>) are the caster's stats,
+# which only the client knows.
+_VAR = r"\$(?:(?P<op>[/*])(?P<k>\d+);)?(?P<sid>\d+)?(?P<var>[sSmMoOdDtTaAuUhHnN])(?P<idx>[1-3])?(?![a-zA-Z])"
+_TOKEN = re.compile(r"\$\{(?P<expr>[^}]*)\}(?:\.(?P<prec>\d)(?!\d))?"
+                    r"|\$[lLgG](?P<one>[^:;$]*):(?P<many>[^;$]*);"
+                    r"|" + _VAR +
+                    r"|\$<[^>]*>|\$[a-zA-Z]+\d*")
+_INNER = re.compile(_VAR + r"|\$<[^>]*>|\$[a-zA-Z]+\d*")
+_GONE = "\x00"  # a number we can't read, until its words are dropped
+_UNIT = r"(?:%|\s+(?:sec|seconds?|min|yds?|yards?|times)\b)?"
+# The words that only carry a dropped number, dropped with it:
+# "by ?%" -> "", "a ?% chance" -> "a chance", "?% of" -> "part of".
+_DROP = [(re.compile(p.replace("X", _GONE + _UNIT)), r) for p, r in (
+    (r",?\s*stacking up to X", ""),
+    (r"\s+and\s+lasts\s+X", ""),
+    (r"(?:(?<=[.!])|^)\s*Lasts\s+X\s*\.", ""),
+    (r"\s+(?:by|for|over|within|every|lasts|after)\s+(?:an additional\s+|up to\s+)?X", ""),
+    (r"\b([Aa])\s+X\s+chance", r"\1 chance"),
+    (r"X\s+of\b", "part of"),
+    (r"\s*(?:up to\s+)?X", ""),
+)]
 
 
-def describe(text: str, values: list[float], times: int = 1) -> str:
+def _duration(sec: float) -> str:
+    if sec < 60:
+        return f"{round(sec, 1):g} sec"
+    if sec < 3600:
+        return f"{round(sec / 60, 1):g} min"
+    return f"{round(sec / 3600, 1):g} hrs"
+
+
+def _number(v: float, prec: int | None = None) -> str:
+    return f"{round(v, 2 if prec is None else prec):g}"
+
+
+def _calc(expr: str) -> float | None:
+    """A formula's arithmetic (numbers, + - * /, brackets) without eval."""
+    import ast
+
+    def ev(n):
+        if isinstance(n, ast.Expression):
+            return ev(n.body)
+        if isinstance(n, ast.Constant) and isinstance(n.value, (int, float)):
+            return float(n.value)
+        if isinstance(n, ast.UnaryOp) and isinstance(n.op, (ast.USub, ast.UAdd)):
+            v = ev(n.operand)
+            return -v if isinstance(n.op, ast.USub) else v
+        if isinstance(n, ast.BinOp) and isinstance(n.op, (ast.Add, ast.Sub, ast.Mult, ast.Div)):
+            a, b = ev(n.left), ev(n.right)
+            if isinstance(n.op, ast.Add):
+                return a + b
+            if isinstance(n.op, ast.Sub):
+                return a - b
+            if isinstance(n.op, ast.Mult):
+                return a * b
+            return a / b
+        raise ValueError(expr)
+
+    if not re.fullmatch(r"[\d.+\-*/() ]+", expr):
+        return None
+    try:
+        return ev(ast.parse(expr, mode="eval"))
+    except (ValueError, SyntaxError, ZeroDivisionError, TypeError):
+        return None
+
+
+def describe(text: str, values: list[float], times: int = 1, spell: dict | None = None,
+             spells: dict | None = None) -> str:
     """A tooltip line from Spell.Description_lang: $s1..$s3 (and $/1000;S1)
     become the effect's numbers (EffectBasePointsF, times the rank for a
-    trait talent whose rank spell is the same at every rank); a number the
-    client works out at run time from another spell or a formula shows as
-    "?", never guessed."""
+    trait talent whose rank spell is the same at every rank); `spell` has
+    this spell's duration, stacks, proc chance... and `spells` the spells a
+    token names by id ($15271s1). A number none of them has (a spell
+    outside the catalog, the caster's spell power) is left out with the
+    words that only carry it, never shown as "?" or guessed."""
+    own = {**(spell or {}), "values": [v * times for v in values]}
+    spells = spells or {}
+
+    def read(m: re.Match) -> float | str | None:
+        sp = spells.get(m.group("sid")) if m.group("sid") else own
+        if not sp:
+            return None
+        var, idx = m.group("var").lower(), int(m.group("idx") or 1) - 1
+        vals = sp.get("values") or []
+        v = None
+        if var in "sm":
+            v = vals[idx] if idx < len(vals) else None
+        elif var == "o":
+            per = (sp.get("period") or [0, 0, 0])[idx] if idx < 3 else 0
+            if idx < len(vals) and sp.get("dur") and per:
+                v = vals[idx] * sp["dur"] / (per / 1000)
+        elif var == "d":
+            return sp["dur"] if (sp.get("dur") or 0) > 0 else None
+        elif var == "t":
+            per = (sp.get("period") or [0, 0, 0])[idx] if idx < 3 else 0
+            v = per / 1000 if per else None
+        elif var == "a":
+            v = ((sp.get("radius") or [0, 0, 0])[idx] or None) if idx < 3 else None
+        else:
+            v = {"u": sp.get("stacks"), "h": sp.get("chance"), "n": sp.get("charges")}[var] or None
+        if v is None:
+            return None
+        k = int(m.group("k") or 1)
+        return v / k if m.group("op") == "/" else v * k if m.group("op") == "*" else v
+
+    def formula(m: re.Match) -> str:
+        def inner(t: re.Match) -> str:
+            v = read(t) if t.group("var") else None
+            if v is None:
+                raise LookupError
+            return f"({v!r})"
+
+        try:
+            v = _calc(_INNER.sub(inner, m.group("expr")))
+        except LookupError:
+            v = None
+        return _GONE if v is None else _number(abs(v), int(m.group("prec")) if m.group("prec") else 1)
+
+    last: list[float | None] = [None]  # the number a plural follows ("1 spell", "2 spells")
 
     def sub(m: re.Match) -> str:
-        if m.group(2):
-            idx = int(m.group(3)) - 1
-            if idx >= len(values):
-                return "?"
-            v = abs(values[idx]) * times
-            if m.group(1):
-                v = v / int(m.group(1))
-            return f"{v:g}"
-        if m.group(5) is not None:
-            return m.group(5)
-        return "?"
+        if m.group("expr") is not None:
+            return formula(m)
+        if m.group("many") is not None:
+            if m.group(0)[1] in "gG":
+                return m.group("one")
+            return m.group("one") if last[0] == 1 else m.group("many")
+        if m.group("var"):
+            v = read(m)
+            last[0] = None if v is None else abs(v)
+            if v is None:
+                return _GONE
+            return _duration(v) if m.group("var").lower() == "d" else _number(abs(v))
+        return _GONE
 
     out = _TOKEN.sub(sub, text or "")
+    for rx, rep in _DROP:
+        out = rx.sub(rep, out)
+    out = out.replace(_GONE, "")
+    out = re.sub(r"\s+([,.;:!])", r"\1", out)
+    out = re.sub(r",\s*\.", ".", out)
     return re.sub(r"\s{2,}", " ", out).strip()
 
 
@@ -276,12 +400,25 @@ def needed_spells(cat: dict) -> set[str]:
     return s
 
 
+def named_spells(descs: dict) -> set[str]:
+    """The spells the descriptions take a number from ($15271s1, $/10;12536s1)."""
+    return {m.group(1) for d in descs.values() for m in re.finditer(r"\$(?:[/*]\d+;)?(\d+)[a-zA-Z]", d or "")}
+
+
 def add_spell_text(cat: dict, names: dict, descs: dict, effects: dict, icons: dict,
-                   curves: dict | None = None) -> None:
+                   curves: dict | None = None, extra: dict | None = None) -> None:
     """Names, descriptions, effect values and icon names onto the catalog;
-    `curves`: each trait definition's per-rank numbers (rank_curves)."""
+    `curves`: each trait definition's per-rank numbers (rank_curves);
+    `extra`: {spell: {dur, stacks, chance, charges, period, radius}}, for
+    the trees' spells and the ones their descriptions name (values only)."""
+    extra = extra or {}
+    want = needed_spells(cat)
     cat["spells"] = {s: {"name": names.get(s), "desc": descs.get(s) or "", "values": effects.get(s) or [],
-                         "icon": icons.get(s)} for s in sorted(needed_spells(cat), key=int)}
+                         "icon": icons.get(s), **extra.get(s, {})} for s in sorted(want, key=int)}
+    for s in sorted(named_spells({k: descs.get(k) for k in want}) - want, key=int):
+        if s in effects or s in extra:
+            cat["spells"][s] = {"name": None, "desc": "", "values": effects.get(s) or [], "icon": None,
+                                **extra.get(s, {})}
     cat["curves"] = curves or {}
 
 
@@ -381,18 +518,49 @@ def catalog_from(rows) -> dict:
     want = needed_spells(cat)
     names = {r["ID"]: r["Name_lang"] for r in rows("SpellName") if r["ID"] in want}
     descs = {r["ID"]: r["Description_lang"] for r in rows("Spell") if r["ID"] in want}
+    # The spells whose numbers the descriptions name ($15271s1) are read too.
+    every = want | named_spells(descs)
     effects: dict[str, list[float]] = {}
+    extra: dict[str, dict] = {}
+    radius_ix: dict[tuple[str, int], str] = {}
     for r in rows("SpellEffect"):
-        if r["SpellID"] not in want or r.get("DifficultyID") != "0":
+        if r["SpellID"] not in every or r.get("DifficultyID") != "0":
             continue
         vals = effects.setdefault(r["SpellID"], [0.0, 0.0, 0.0])
         k = _i(r["EffectIndex"])
         if 0 <= k < 3:
             with contextlib.suppress(ValueError):
                 vals[k] = float(r["EffectBasePointsF"])
+            if _i(r.get("EffectAuraPeriod")) > 0:
+                extra.setdefault(r["SpellID"], {}).setdefault("period", [0, 0, 0])[k] = _i(r["EffectAuraPeriod"])
+            if _i(r.get("EffectRadiusIndex_0")) > 0:
+                radius_ix[(r["SpellID"], k)] = r["EffectRadiusIndex_0"]
     # SpellMisc is keyed by its own ID; SpellID names the spell.
-    fdids = {r["SpellID"]: r["SpellIconFileDataID"] for r in rows("SpellMisc")
-             if r.get("SpellID") in want and r.get("DifficultyID") in ("0", "")}
+    fdids: dict[str, str] = {}
+    dur_ix: dict[str, str] = {}
+    for r in rows("SpellMisc"):
+        if r.get("SpellID") not in every or r.get("DifficultyID") not in ("0", ""):
+            continue
+        if r["SpellID"] in want:
+            fdids[r["SpellID"]] = r["SpellIconFileDataID"]
+        if _i(r.get("DurationIndex")) > 0:
+            dur_ix[r["SpellID"]] = r["DurationIndex"]
+    if dur_ix:
+        durs = {r["ID"]: _i(r.get("Duration")) for r in rows("SpellDuration") if r.get("ID") in set(dur_ix.values())}
+        for s, ix in dur_ix.items():
+            if durs.get(ix, 0) > 0:
+                extra.setdefault(s, {})["dur"] = durs[ix] / 1000
+    for r in rows("SpellAuraOptions"):
+        if r.get("SpellID") in every and r.get("DifficultyID") in ("0", ""):
+            e = extra.setdefault(r["SpellID"], {})
+            for key, col in (("stacks", "CumulativeAura"), ("chance", "ProcChance"), ("charges", "ProcCharges")):
+                if _i(r.get(col)) > 0:
+                    e[key] = min(_i(r[col]), 100) if key == "chance" else _i(r[col])
+    if radius_ix:
+        radii = {r["ID"]: float(r["Radius"]) for r in rows("SpellRadius") if r.get("ID") in set(radius_ix.values())}
+        for (s, k), ix in radius_ix.items():
+            if radii.get(ix):
+                extra.setdefault(s, {}).setdefault("radius", [0, 0, 0])[k] = radii[ix]
     files = set(fdids.values())
     # rstrip("."): the game has a few doubled dots ("Spell_Shadow_DevouringPlague..blp",
     # Devouring Contagion's), which left a trailing dot the icon check refused.
@@ -404,7 +572,7 @@ def catalog_from(rows) -> dict:
     points = [r for r in rows("TraitDefinitionEffectPoints") if r.get("TraitDefinitionID") in defs]
     want_curves = {r["CurveID"] for r in points}
     curve_points = [r for r in rows("CurvePoint") if r.get("CurveID") in want_curves]
-    add_spell_text(cat, names, descs, effects, icons, rank_curves(points, curve_points))
+    add_spell_text(cat, names, descs, effects, icons, rank_curves(points, curve_points), extra)
     return cat
 
 
@@ -474,7 +642,7 @@ def frame(cat: dict | None, cls, ranks: dict[str, int], kind: str = "class") -> 
                 base = spells.get(nd["spells"][0]) or {}
                 nodes.append({"col": nd["col"], "row": nd["row"], "name": base.get("name") or sp.get("name"),
                               "icon": base.get("icon") or sp.get("icon"), "rank": rank, "max": nd["max"],
-                              "desc": describe(sp.get("desc") or "", values)})
+                              "desc": describe(sp.get("desc") or "", values, spell=sp, spells=spells)})
             sections.append({"name": sec["name"], "points": pts, "nodes": nodes, "edges": sec.get("edges") or []})
     return {"sections": sections, "unmatched": len(set(ranks) - used)}
 
