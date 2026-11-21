@@ -303,6 +303,12 @@ Three layers, all in the UI process:
   Parallel requests for one character share one read. The auction scans and
   raw combat log lines stay out; queries that reach them, or no single
   character (the character list, the roster, prices), go to VictoriaLogs.
+  A read is whole or it says it isn't: an hour over a page is counted
+  again by the minute, a minute over a page by the second, and a page that
+  comes back fuller than its count (events landed in between) is read again
+  finer. A second still over a page can't be split, so the character's
+  answers fail with "no answer rather than a partial one" until it fits.
+  Same rule for any other paged VictoriaLogs read (`stores.paged_read`).
 - **Answers worked out when asked** (before the first build, a spec or
   faction a plain open doesn't ask for, the publisher, the MCP): each one
   kept for `CACHE_TTL` (45 s).

@@ -22,6 +22,12 @@ read ten times over (243k rows for 23k events). Now:
   FRESH_S seconds.
 - Every VictoriaLogs request of the process goes through one gate,
   stores.VL_GATE (VL_CONCURRENCY, 2 by default).
+- Complete or it says so: an hour over a page is read by the minute, a
+  minute over a page by the second, and a page that comes back fuller than
+  its count (events landed in between) is read again finer. A second still
+  over a page can't be split: rows() raises stores.IncompleteRead naming
+  it, every time, until it fits. It never hands back part of a bucket
+  (review 4, G: page 3 and 12 events in one minute gave 4 rows, for good).
 
 Left out of the cache: the auction scans (wow-prices, not a character's
 history) and raw combat log lines (wow-combatlog). A query that could reach
@@ -38,12 +44,15 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from . import logsql
-from .stores import HISTORY_START, hour_pages, lq, num, parse_t
+from .stores import HISTORY_START, IncompleteRead, hour_pages, iso, lq, num, parse_t
 
 EXCLUDED = ("wow-prices", "wow-combatlog")
 FRESH_S = 30
 MAX_CHARS = 8
 HOUR = 3600
+# An overfull bucket is counted again at the next finer step; a second is the
+# last (VictoriaLogs' hourly, by-minute and by-second counts).
+FINER = {HOUR: (60, "1m"), 60: (1, "1s")}
 # The hourly count of a character: one row per hour with events (a year of
 # play every hour is under 9,000).
 HIST_LIMIT = 100_000
@@ -70,6 +79,7 @@ class _Entry:
     hours: dict[int, list] = field(default_factory=dict)
     rows: tuple = ()
     at: float = 0.0  # time.monotonic() of the last refresh
+    short: dict[int, int] = field(default_factory=dict)  # second (epoch s) -> rows it holds, over a page
 
 
 class EventCache:
@@ -115,10 +125,11 @@ class EventCache:
             while len(self._entries) > self.max_chars:
                 self._entries.popitem(last=False)
         with e.lock:  # single-flight: the others wait for this read
-            if e.at and time.monotonic() - e.at < self.fresh_s:
-                return e.rows
-            self._refresh(char, e)
-            e.at = time.monotonic()
+            if not (e.at and time.monotonic() - e.at < self.fresh_s):
+                self._refresh(char, e)
+                e.at = time.monotonic()
+            if e.short:
+                raise IncompleteRead({iso(_dt(s)): n for s, n in e.short.items()}, self.page)
             return e.rows
 
     def _base(self, char: str) -> str:
@@ -136,15 +147,36 @@ class EventCache:
                 e.counts.pop(h, None)
                 e.hours.pop(h, None)
         todo = [h for h in changed if hist.get(h)]
+        e.short = {s: n for s, n in e.short.items() if s - s % HOUR not in changed}
         for lo, hi, n in hour_pages(todo, hist, HOUR, self.page):
-            if n > self.page:  # one hour over a page: by the minute
-                e.hours.pop(lo, None)
-                sub = self._hist(base, _dt(lo), _dt(hi) - timedelta(microseconds=1), "1m")
-                for lo2, hi2, _ in hour_pages(sorted(sub), sub, 60, self.page):
-                    self._read(base, lo2, hi2, e)
-            else:
-                self._read(base, lo, hi, e)
+            self._fill(base, lo, hi, n, HOUR, e)
         self._snapshot(e)
+
+    def _fill(self, base: str, lo: int, hi: int, n: int, step: int, e: _Entry) -> None:
+        """Every row of [lo, hi) seconds (buckets of `step`, `n` rows when
+        counted): one read when it fits a page, else counted again at the
+        next finer step and read in pages of that. A second over a page goes
+        to e.short, its rows left out, so rows() can say what's missing."""
+        if n <= self.page and self._read(base, lo, hi, e):
+            return
+        self._drop(lo, hi, e)
+        if step not in FINER:
+            e.short[lo] = n
+            h = lo - lo % HOUR
+            e.counts[h] = -1  # read again at the next refresh, whatever the count says
+            return
+        finer, unit = FINER[step]
+        sub = self._hist(base, _dt(lo), _dt(hi) - timedelta(microseconds=1), unit)
+        for lo2, hi2, n2 in hour_pages(sorted(sub), sub, finer, self.page):
+            self._fill(base, lo2, hi2, n2, finer, e)
+        for h in range(lo - lo % HOUR, hi, HOUR):  # the hours' counts once every part is in
+            if any(s - s % HOUR == h for s in e.short):
+                e.counts[h] = -1
+            elif e.hours.get(h):
+                e.counts[h] = len(e.hours[h])
+            else:
+                e.hours.pop(h, None)
+                e.counts.pop(h, None)
 
     def _hist(self, base: str, start: datetime, end: datetime, step: str) -> dict[int, int]:
         self.reads += 1
@@ -152,11 +184,14 @@ class EventCache:
                                     limit=HIST_LIMIT, start=start, end=end)
         return {int(parse_t(r.get("_time")).timestamp()): int(num(r.get("n"))) for r in rows if r.get("_time")}
 
-    def _read(self, base: str, lo: int, hi: int, e: _Entry) -> None:
-        """Every row in [lo, hi) seconds, in one request of at most `page` rows."""
+    def _read(self, base: str, lo: int, hi: int, e: _Entry) -> bool:
+        """Every row in [lo, hi) seconds, in one request of at most `page`
+        rows; False, keeping nothing, when more came back than a page
+        (events landed since the count: the caller reads finer)."""
         self.reads += 1
         got = self.store.vl_range(base, _dt(lo), _dt(hi) - timedelta(microseconds=1), self.page + 1)
-        full = len(got) > self.page  # more than planned arrived since the count: read again next time
+        if len(got) > self.page:
+            return False
         fresh: dict[int, list] = {h: [] for h in range(lo - lo % HOUR, hi, HOUR)}
         for raw in got:
             r = {sys.intern(k): (sys.intern(v) if k not in _NO_INTERN and isinstance(v, str) and len(v) <= _INTERN_MAX
@@ -166,13 +201,25 @@ class EventCache:
         for h, rs in fresh.items():
             if lo <= h and h + HOUR <= hi:  # whole hours read: replace them
                 e.hours[h] = rs
-            else:  # part of an hour (a minute-planned one): add to what the other parts brought
+            else:  # part of an hour (a finer-planned one): add to what the other parts brought
                 keep = [r for r in e.hours.get(h, []) if not lo <= parse_t(r.get("_time")).timestamp() < hi]
                 e.hours[h] = keep + rs
-            e.counts[h] = -1 if full else len(e.hours[h])
+            e.counts[h] = len(e.hours[h])
             if not e.hours[h]:
                 e.hours.pop(h)
                 e.counts.pop(h)
+        return True
+
+    @staticmethod
+    def _drop(lo: int, hi: int, e: _Entry) -> None:
+        """Forget the rows of [lo, hi) seconds before they're read again finer."""
+        for h in range(lo - lo % HOUR, hi, HOUR):
+            if h not in e.hours:
+                continue
+            if lo <= h and h + HOUR <= hi:
+                e.hours.pop(h)
+            else:
+                e.hours[h] = [r for r in e.hours[h] if not lo <= parse_t(r.get("_time")).timestamp() < hi]
 
     @staticmethod
     def _snapshot(e: _Entry) -> None:
