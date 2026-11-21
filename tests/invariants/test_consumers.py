@@ -144,10 +144,15 @@ def analysis_numbers(call, char: str) -> dict:
 
 def _fresh() -> None:
     from wowstats import plan as planmod
+    from wowstats.analysis import drive
     from wowstats.mcp import tools as T
 
     planmod._CACHE.clear()
     T._VIEWS.clear()
+    # The analysis' workspace is cached per tenant and character, built
+    # under the timezone of its day: the Auckland case left the demo
+    # character's for the owner and friend test on the same worker.
+    drive._WS.clear()
 
 
 def _mcp(ctx):

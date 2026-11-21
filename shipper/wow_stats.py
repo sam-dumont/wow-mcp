@@ -588,6 +588,8 @@ class Out:
     def close(self) -> Path | None:
         if self.fh is None:
             return None
+        self.fh.flush()
+        os.fsync(self.fh.fileno())  # on the disk before the state that counts on it (docs/guarantees.md)
         self.fh.close()
         dest = SPOOL / (datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ") + ".ndjson")
         os.replace(self.tmp, dest)
@@ -2609,26 +2611,52 @@ def replay() -> int:
 
 # ---------------------------------------------------------------------------
 
+def _read_state(path: Path) -> dict:
+    state = json.loads(path.read_text())
+    if not isinstance(state, dict):
+        raise ValueError("not an object")
+    return state
+
+
 def load_state() -> dict:
-    """The state, {} when there is none. A corrupt one (a crash mid-write on
-    an old version, a disk error) is kept aside as state.json.corrupt and
-    the run starts over from {}: the events it repeats carry the same
-    source_id, which queries dedupe (client review 2026-11-20, M1)."""
+    """The state, {} when there is none. A corrupt one (a power cut that
+    kept the rename and lost the data, a disk error) is kept aside as
+    state.json.corrupt and the run goes on from the one before it
+    (state.json.prev): it extracts the last run's records again, the same
+    events under the same source_id, which queries dedupe. Starting over
+    from {} instead sent snapshots the last runs had sent, under their
+    ids with a later time (crash points, docs/guarantees.md); that is
+    left for when neither file reads (client review 2026-11-20, M1)."""
+    prev = STATE.with_name("state.json.prev")
     try:
-        state = json.loads(STATE.read_text())
+        return _read_state(STATE)
+    except FileNotFoundError:
+        pass  # a first run, or a crash between save_state's two renames
+    except (OSError, ValueError) as e:
+        log(f"state.json unreadable ({type(e).__name__}): kept as state.json.corrupt, going on from the one before")
+        with contextlib.suppress(OSError):
+            os.replace(STATE, STATE.with_name("state.json.corrupt"))
+    try:
+        return _read_state(prev)
     except FileNotFoundError:
         return {}
     except (OSError, ValueError) as e:
-        log(f"state.json unreadable ({type(e).__name__}): kept as state.json.corrupt, starting over")
-        with contextlib.suppress(OSError):
-            os.replace(STATE, STATE.with_name("state.json.corrupt"))
+        log(f"state.json.prev unreadable too ({type(e).__name__}): starting over")
         return {}
-    return state if isinstance(state, dict) else {}
 
 
 def save_state(state: dict) -> None:
+    """Written whole to a temporary file and flushed to the disk, then put
+    in place by rename, the last good state kept as state.json.prev: a
+    crash at any point leaves one of them whole (crash points,
+    docs/guarantees.md)."""
     tmp = STATE.with_name(".state.json.tmp")
-    tmp.write_text(json.dumps(state, indent=1, sort_keys=True))
+    with tmp.open("w", encoding="utf-8") as fh:
+        fh.write(json.dumps(state, indent=1, sort_keys=True))
+        fh.flush()
+        os.fsync(fh.fileno())
+    if STATE.exists():
+        os.replace(STATE, STATE.with_name("state.json.prev"))
     os.replace(tmp, STATE)
 
 

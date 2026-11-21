@@ -818,7 +818,14 @@ def make_handler(root: App, tenancy=None):
                 n = -1
             if n < 0 or n > limit:
                 return None
-            return self.rfile.read(n)
+            body = self.rfile.read(n)
+            # The sender died or the line dropped mid-upload: what came is
+            # not the upload, even when every line of it reads whole
+            # (crash points, docs/guarantees.md). Refused, never stored.
+            if len(body) < n:
+                self.close_connection = True
+                return None
+            return body
 
         def _authorized(self, expected: bytes | None) -> bool:
             if expected is None:
@@ -1167,6 +1174,9 @@ def make_handler(root: App, tenancy=None):
             from wowstats import ingest
 
             body = self.read_body(INGEST_MAX_BYTES)
+            declared = self.headers.get("Content-Length") or ""
+            if body is None and declared.isdigit() and int(declared) <= INGEST_MAX_BYTES:
+                return self.json(400, {"error": "the upload ended before its Content-Length: nothing stored"})
             if body is None:
                 return self.json(413, {"error": f"send a Content-Length of at most {INGEST_MAX_BYTES} bytes"})
             lines, bad = ingest.parse(body)

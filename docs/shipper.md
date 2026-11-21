@@ -182,7 +182,7 @@ What stays either way, all under `archive_dir`:
 |---|---|---|
 | `spool/` | events not sent yet | empty once the server has them |
 | `sent/` | every event sent, gzipped: your own copy, for a new server | grows with your play |
-| `state.json` | what was already sent, so nothing goes twice | small |
+| `state.json` | what was already sent, so nothing goes twice; `state.json.prev` is the one before, used when a power cut leaves the new one unreadable | small |
 | `wtf/_polestar-client/sent.jsonl` | the Polestar Client chunks kept beyond its 8 days (only with Polestar Client) | grows with your play |
 
 Without the archive, `--backfill` and `--reextract` have nothing to read:

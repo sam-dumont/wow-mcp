@@ -8,7 +8,7 @@ Each line below is a property test in [`tests/invariants/`](../tests/invariants/
 run on made-up histories: the demo character (`tests/degraded.py`) plus seeded variations
 (`tests/invariants/histories.py`) that put records on the same millisecond across the 9 to 10
 and 99 to 100 record and chunk boundaries. A property that fails is a bug in the product, never
-a reason to loosen the test. The folder runs in about 35 seconds with `make test` (140 seconds
+a reason to loosen the test. The folder runs in about 45 seconds with `make test` (160 seconds
 on one core).
 
 ## The guarantees
@@ -25,6 +25,25 @@ on one core).
 | 8 | The page and the MCP give the same deaths, zones, levels, dungeons and sessions, with `WEIGHTS` set and in other timezones. A friend with the same play gets the same numbers as the owner, and neither reads the other's character. | `test_consumers.py` |
 | 9 | Sessions, levels, days and ranges follow the time rules below, on a midnight, on both DST changes, on a ding and over a 3-day break. | `test_time_rules.py`, `tests/test_timebounds.py` |
 | 10 | A finding judged under another prep version, semantic model or reference data is marked "to revalidate" with the reason, every night until judged again; a finding from before manifests is carried over once. | `test_definitions.py` |
+| 11 | A crash or a failed write at any step between the game files and the server's store (the crash points below) loses no event and stores none twice in another form: after a restart, every event a run without the crash sends is stored, every copy of one `source_id` is the same line, and the prepared facts are the same. | `test_crash.py::test_a_crash_loses_and_doubles_nothing` |
+| 12 | `/ingest` takes an upload whole or not at all: one that ends before its `Content-Length` stores nothing and isn't answered 2xx, even when every line that came is whole. The shipper's spool and `state.json` reach the disk before the rename that makes them count, the spool before the state. | `test_crash.py::test_a_cut_upload_stores_nothing`, `test_crash.py::test_the_spool_and_the_state_reach_the_disk_before_they_count` |
+
+## Crash points
+
+An event goes from the game files through the shipper's spool, the network, the server's store
+and the server's 200 (sent only once the store has the lines) to the shipper's checkpoint (the
+spool file shortened or removed, the copy in `sent/`). These are separate steps, not one
+transaction, so each boundary is safe on its own. Property 11 kills the shipper (or fails the
+I/O) at each one, on the first run and on the last of a few play days, then restarts it:
+
+| Crash point | What happens on the restart |
+|---|---|
+| After the spool file is written, before `state.json` | The run extracts the same records again: the same events under the same `source_id`, which queries keep once. |
+| Mid-upload | The server stores nothing of the cut upload (property 12); the spool file is still whole and goes again. |
+| After the server's store, before its 200 | The shipper sees no answer and sends the lines again: the same lines, stored twice, kept once. |
+| After the 200, before the shipper's checkpoint | As above: the spool file still holds the lines, they go again. |
+| Mid-write of `state.json` | The new state is written to a temporary file and renamed in place; the old one is still whole. |
+| `state.json` cut short on the disk (a power cut that kept the rename, not the data) | The shipper goes on from the state before it (`state.json.prev`) and extracts the last run's records again. Starting over from nothing sent the snapshots of earlier days again under their ids with a later time. |
 
 ## Time rules
 
@@ -84,6 +103,14 @@ Fixed in the same change as the tests:
   record came in the same run, so a flight across a chunk roll read in two runs had none in the
   analysis. The server now takes it from the stored land record (`stores.taxi_time`), for the
   page's flights and the analysis' records alike (`PREP_VERSION` 3).
+- `/ingest` stored the lines of an upload that ended before its `Content-Length` (the shipper
+  killed or the connection lost mid-upload) and answered 200 to nobody.
+- A `state.json` cut short on the disk made the shipper start over from nothing: it sent the
+  roster and Questie snapshots of earlier days again with the newest file time, so the server
+  dated them days late. Neither the spool nor the state was flushed to the disk before its
+  rename, and the state had no copy to fall back on.
+- `test_consumers.py` left the analysis' workspace cache (built under the Auckland case's
+  timezone) for the owner-and-friend test on the same worker.
 
 ## Every consumer, every guarantee
 
