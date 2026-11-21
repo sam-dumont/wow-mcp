@@ -30,6 +30,10 @@ this list.
 
 from __future__ import annotations
 
+# Every item's badge (wowstats.gear.bis_badge): its share of BiS and the
+# change from the worn one. /zogzog/ only: the public view has no advice.
+from wowstats.gear import BADGE
+
 SCALAR = (str, int, float, bool, type(None))
 
 ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "quality", "item_level", "req_level", "enchant_id",
@@ -177,7 +181,7 @@ CHECKS = {"checks": [None], "not_possible_yet": [None]}
 ZOGZOG_MOVE_KINDS = frozenset({"upgrade", "dungeon", "profession", "riding", "deaths_zone", "slow_steps", "talents",
                                "enchant"})
 PLACE = {**_keys("name", "id", "url"), "levels": [None]}
-MOVE_ITEM = {**_keys("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct", "url"),
+MOVE_ITEM = {**_keys("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct", "url", *BADGE),
              "with": _keys("item_id", "name", "slot_name", "kind", "url")}
 TRAINER = {**_keys("npc", "name", "url", "x", "y"), "zone": PLACE}
 # One more run of a dungeon (wowstats.plan.dungeongain): time, XP, pace
@@ -191,7 +195,7 @@ GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "
 # A dungeon's quest rewards he could use (wowstats.plan.dungeonview
 # quest_rewards): the item, its gain, the quest and who gives it.
 QUEST_REWARD = {**_keys("item_id", "name", "quality", "slot_name", "gain", "gain_pct", "fills_empty", "level", "now",
-                        "url", "of"),
+                        "url", "of", *BADGE),
                 "quest": {**_keys("quest_id", "name", "url", "state", "complete"), "starts": [WHO]}}
 # Our dungeon against Polestar's dungeons for the level (wowstats.plan.vsguide):
 # dungeon names, levels and the character's own counts and paces.
@@ -232,11 +236,12 @@ ADVICE_ITEM = {**_keys("item_id", "name", "quality", "item_level", "req_level", 
 # game data and the character's spec, nothing about his place or people.
 FIT = {**_keys("for_you", "label", "built_for", "wasted_pct", "tip", "factor"), "notes": [None],
        "wasted_stats": [None], "armor": _keys("item", "best"),
-       "alternative": {**_keys("item_id", "name", "quality", "gain", "level", "now", "slot_name", "label"),
+       "alternative": {**_keys("item_id", "name", "quality", "gain", "level", "now", "slot_name", "label", *BADGE),
                        "sources": [SOURCE]}}
 # No "here" (in the zone the character is in now).
 UPGRADE = {**ADVICE_ITEM, **_keys("level", "slot", "slot_name", "gain", "gain_pct", "gain_share_pct",
-                                  "fills_empty", "now", "vs_unknown", "setup_score", "value"), "sources": [SOURCE],
+                                  "fills_empty", "now", "vs_unknown", "setup_score", "value", *BADGE),
+           "sources": [SOURCE],
            "bis": _keys("from_pct", "to_pct"),
            "gates": [_keys("kind", "profession", "need", "have")], "fit": FIT}
 UPGRADE_PAIR = {**UPGRADE, "with": {**UPGRADE, "kind": None}}
@@ -257,7 +262,7 @@ DUNGEON = {
             "drops_shown", "missing_now", "obtained", "expected_gain_per_clear", "expected_gain_share_pct",
             "chance_one_per_clear_pct"),
     "drops": [{**_keys("item_id", "name", "quality", "item_level", "slot_name", "score", "gain", "gain_pct",
-                       "fills_empty", "level", "now", "state", "where", "url", "value"),
+                       "fills_empty", "level", "now", "state", "where", "url", "value", *BADGE),
                "drops": [_keys("boss", "npc_id", "chance_pct", "wing", "url")], "quests": [None], "fit": FIT}],
     "kb_drops": [{**_keys("name", "boss", "armour", "item_id", "url", "fit", "confidence", "item_level", "quality",
                           "slot_name"), "roles": [None], "stats": [None]}],
@@ -265,7 +270,7 @@ DUNGEON = {
     "quests": [{**_keys("quest_id", "name", "level", "min_level", "xp", "money_copper", "route", "state", "complete",
                         "xp_now", "url", "reward_choices"),
                 "starts": [WHO], "ends": [WHO], "needs": [QREF], "blocked": None,
-                "rewards": [_keys("item_id", "name", "quality", "gain", "state", "where", "url")]}],
+                "rewards": [_keys("item_id", "name", "quality", "gain", "state", "where", "url", *BADGE)]}],
     "quest_rewards": [QUEST_REWARD],
     "trip": {**_keys("measured", "n", "inside_s", "travel_s", "quests_s", "total_s", "xp_kills", "xp_quests",
                      "xp_per_run", "xp_per_hour", "again_s", "again_xp", "again_xp_per_hour", "vendor_copper",

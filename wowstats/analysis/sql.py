@@ -57,10 +57,14 @@ class ReadOnly:
         self.lock = threading.Lock()
         # (table, column) pairs the queries read, for the run's coverage.
         self.touched: set[tuple[str, str]] = set()
+        # The tables the last query read: the judge refuses evidence that reads none.
+        self.last_read: set[str] = set()
 
     def _auth(self, action, arg1, arg2, dbname, source):
         if action == 31 and (arg2 or "").lower() in _DENY_FUNCS:
             return sqlite3.SQLITE_DENY
+        if action == 20 and arg1:  # COUNT(*) reads its table with no database name
+            self.last_read.add(arg1)
         if action == 20 and arg1 and dbname == "main":
             if self.tables is not None and arg1 not in self.tables:
                 return sqlite3.SQLITE_DENY
@@ -82,6 +86,7 @@ class ReadOnly:
             raise QueryError(NOT_ALLOWED)
         deadline = time.monotonic() + self.seconds
         with self.lock:
+            self.last_read = set()
             self.db.execute("PRAGMA query_only = ON")
             # Read before the authorizer: the server's own query, not the
             # caller's, so it counts in no coverage.

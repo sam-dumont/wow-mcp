@@ -60,7 +60,7 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `analysis_submit` | Hands in a pass (`survey`, `lane`, `pick`, `synthesis`); the server checks it and answers with the next step |
 | `analysis_progress` | Where the run stands (pass, lanes, queries, tables untouched, proposed, verified, refused with why), the next step, the last run and the nightly recheck |
 | `kb_get`, `kb_lookup` | Knowledge base documents (up to 10) and names (up to 100) by id |
-| `dashboard_refresh` | Has the server run the play analysis itself, in the background, for the caller's own characters, with the AI provider its host configured ([Server-side analysis](self-host/server-analysis.md)). Returns the last refresh and who started it, each character's play since its own refresh against the threshold (all its play when never refreshed), whether the caller's refresh runs now or waits behind someone else's (`state`: `running` or `queued`, with its `position`), what it skipped and why (not configured, budget spent), how the last try ended, the month's budget for the whole install (`budget`, `scope: "install"`) and the caller's own runs and cost this month (`yours`). Off when the host configured no provider |
+| `dashboard_refresh` | Refreshes the caller's play analysis on the client: their own model runs it, so it costs the server nothing and starts nothing there ([Server-side analysis](self-host/server-analysis.md)). Picks the character whose analysis is most out of date (or `char`) and returns `analyse`'s procedure for it, plus `do`: analysis_brief, the passes, then analysis_submit, which refreshes the dashboard and resets that character's timer. Under `server_automatic_refresh`, the server's automatic refreshes only: each character's play since its refresh against the threshold, the last refresh and who did it, whether an automatic refresh of theirs runs or waits, how the last one ended, the install's budget and the caller's own share |
 
 Every tool takes `char` (default: `DEFAULT_CHAR`, else the character seen
 last). Time ranges take `7d`, `36h`, `2w` or an ISO date. Rates per hour are
@@ -71,9 +71,9 @@ write the character's analysis run or plans. `play_sql`, `kb_search`,
 `kb_get` and `kb_lookup` only add to a run's coverage (with `char`, during a
 run); `analysis_brief` (a new run, `restart`, new goals), `propose_finding`
 (a finding under a kept key), `analysis_submit` and `plan_session` can
-replace what is kept, so they are marked destructive. `dashboard_refresh` is
-marked destructive and open-world: its run replaces the kept findings, and it
-sends the analysis tools' answers to the host's AI provider.
+replace what is kept, so they are marked destructive. `dashboard_refresh`
+reads only: it hands the run to the caller's own model and starts nothing on
+the server.
 
 Every object in an answer that carries a game id (`item_id`, `quest_id`,
 `npc_id`, `spell_id`, `object_id`, `zone_id`/`area_id`, `quest_ids`) also
@@ -135,7 +135,8 @@ plan box shows the estimator's own text.
 
 Your assistant runs it; the server keeps the run and judges. `analyse` (the
 prompt, or the tool) gives the procedure, and each answer's `next` says what
-to do:
+to do. `dashboard_refresh` is the same entry with the character picked for
+you (the one most out of date) and the server's automatic-refresh timers:
 
 1. **survey**: read `schema`, `profile` and `kb` (page by page on a small
    context), then hand in 25 to 40 open questions. The server adds one
@@ -185,8 +186,9 @@ run), so
 `analysis_progress` lets "continue" pick up in a new chat. The full view
 reads it; `/zogzog/` gets the screened nudges only. Each night
 (`ANALYSIS_HOUR`, 4, so from 04:00 local time, `WOW_TIMEZONE`, by default) a deterministic recheck re-runs every
-kept finding on the fresh data: a confirmed one gains weight, one that no
-longer holds fades and goes after three nights. No model.
+kept finding on the fresh data. One that still holds stays; it gains weight only
+when there's play since the last time it did, so the same data checked again
+adds nothing. One that no longer holds fades and goes after three nights. No model.
 
 ## The knowledge base
 

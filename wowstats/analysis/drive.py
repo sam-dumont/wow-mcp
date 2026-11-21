@@ -373,14 +373,7 @@ def sql(env: dict, char: str, query: str, page: int = 1, page_size: int = SQL_PA
             err = None
         except QueryError as e:
             cols, rows, cut, err = [], [], False, str(e)
-        touched = set(w.ro.touched)
-        run = current(env, w.char)
-        run["queries"] += 1
-        run["lane_queries"] += 1
-        run["touched"] = sorted(({*run["touched"], *(t for t, _ in touched)} | passes.tables_in(query, w.tables))
-                                & set(w.tables)) if err is None else run["touched"]
-        run["columns"] = sorted({*run["columns"], *(f"{t}.{c}" for t, c in touched if c)})
-        _save_run(env, w.char, run)
+        run = _count_query(env, w, set(w.ro.touched), query, err)
     if err is not None:
         return {"error": err}
     got = rows[skip:]
@@ -390,6 +383,34 @@ def sql(env: dict, char: str, query: str, page: int = 1, page_size: int = SQL_PA
     if run["pass"] == "lanes":
         out["lane_queries"] = run["lane_queries"]
     return out
+
+
+def _count_query(env: dict, w: Workspace, touched: set[tuple[str, str]], query: str, err: str | None) -> dict:
+    """One query of the run, play_sql's or query_metric's: the counters and
+    the tables and columns it read, for the coverage. A metric reads the
+    semantic layer's views (sem_*): each counts as the prep tables under it,
+    so a table read through a metric isn't left "untouched" (external review
+    of 0.7.0-rc.5). Call with _LOCK held."""
+    from .semantic import VIEWS
+
+    real = set(w.tables)
+    flat: set[tuple[str, str]] = set()
+    for t, c in touched:
+        if t in VIEWS:
+            for base in passes.tables_in(VIEWS[t], w.tables):
+                if not c or c in w.ro.columns(base):
+                    flat.add((base, c))
+                flat.add((base, ""))
+        else:
+            flat.add((t, c))
+    run = current(env, w.char)
+    run["queries"] += 1
+    run["lane_queries"] += 1
+    if err is None:
+        run["touched"] = sorted(({*run["touched"], *(t for t, _ in flat)} | passes.tables_in(query, w.tables)) & real)
+        run["columns"] = sorted({*run["columns"], *(f"{t}.{c}" for t, c in flat if c and t in real)})
+    _save_run(env, w.char, run)
+    return run
 
 
 def note_kb(env: dict, char: str) -> None:
@@ -405,12 +426,12 @@ def note_kb(env: dict, char: str) -> None:
 
 
 def _store_finding(env: dict, w: Workspace, run: dict, got: dict) -> bool:
-    from . import SCHEMA, keep, load_state, save_state, score
+    from . import SCHEMA, data_mark, keep, load_state, save_state, score
 
     now = _now()
     state = load_state(env, w.char)
     kept = dict(state.get("findings") or {})
-    new = keep(kept, got, now)
+    new = keep(kept, got, now, data_mark(w.db))
     kept[got["key"]]["score"] = score(kept[got["key"]])
     save_state(env, w.char, {**state, "schema": SCHEMA, "char": w.char, "findings": kept, "updated": now,
                              "goals": run.get("goals") or state.get("goals") or ""})
@@ -456,10 +477,16 @@ def metric(env: dict, char: str, query: dict, store=None) -> dict:
     from .sql import QueryError, as_text
 
     w = workspace(env, char, store)
-    try:
-        got = semantic.run(w.layer(), w.metrics, query)
-    except QueryError as e:
-        return {"error": str(e)}
+    with _LOCK:
+        w.metrics.touched.clear()
+        try:
+            got = semantic.run(w.layer(), w.metrics, query)
+            err = None
+        except QueryError as e:
+            got, err = None, str(e)
+        _count_query(env, w, set(w.metrics.touched), (got or {}).get("sql") or "", err)
+    if err is not None:
+        return {"error": err}
     out = {"char": w.char, "result": as_text(got["columns"], [tuple(r) for r in got["rows"]], got["more"], SQL_CHARS),
            "rows": len(got["rows"]), "more": got["more"], "query": got["query"], "definitions": got["definitions"],
            "sql": got["sql"], "params": got["params"],
@@ -627,6 +654,7 @@ def _submit_pick(env, w, run, answer):
 def _submit_synthesis(env, w, run, answer):
     from . import bind, current_level, feasible, finish, load_state, other_players
     from .sql import QueryError
+    from .verify import history_read
 
     # New or merged findings handed in with the synthesis: judged like any,
     # and kept with the ones it names.
@@ -654,7 +682,7 @@ def _submit_synthesis(env, w, run, answer):
         clashes["found"] += 1
         try:
             w.ro.run(str(c.get("query") or ""), 1)
-            ran = True
+            ran = bool(history_read(w.ro))  # a constant reconciles nothing
         except QueryError:
             ran = False
         mk = str(c.get("merged_key") or "")

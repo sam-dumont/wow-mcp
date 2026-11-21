@@ -266,12 +266,18 @@ def test_the_doll_says_where_each_item_stands(site, pw, engine, width):
         assert dict(got) == tier
         assert pg.locator("#gear .bislegend .bischip").all_text_contents() == ["BiS", "85%+", "50%+"]
         assert pg.locator("#gear .bislegend").is_visible()
-        assert pg.locator("#advice .cand .bisgain:visible").count() > 0
-        assert all("% of BiS" in t for t in pg.locator("#advice .cand .bisgain").all_text_contents())
+        # The upgrades carry the same badge on their icons, and their gain
+        # in its points ("+12%"), never "% of your gear".
+        assert pg.locator("#advice .cand .itm .ifr .ibis:visible").count() > 0
+        assert "of your gear" not in pg.locator("#advice").inner_text()
+        assert all(re.match(r"^[+−]\d+%$|^\+<1%$", t.strip()) for t in pg.locator(
+            "#advice .cand:has(.ifr .ibis) .candmeta .gain").all_text_contents())
         pg.locator("#advice .order button", has_text="By slot").click()
+        # The worn item's share: the badge less the change.
         rows = pg.locator("#advice .byslot tbody tr.cand").evaluate_all(
-            "els => els.map(e => { const t = (e.querySelector('.bisgain') || {}).textContent || '';"
-            " const m = t.match(/^(\\d+)% → /); return m ? +m[1] : null; })")
+            "els => els.map(e => { const b = e.querySelector('.best .ibis'); const g = e.querySelector('td.gain');"
+            " if (!b) return null; const pct = b.textContent === 'BiS' ? 100 : parseInt(b.textContent, 10);"
+            " const m = g.textContent.match(/([+−])(\\d+)%/); return m ? pct - (m[1] === '−' ? -1 : 1) * +m[2] : pct; })")
         ranked = [r for r in rows if r is not None]
         assert ranked and ranked == sorted(ranked)
         assert rows[: len(ranked)] == ranked  # the ones with no BiS after

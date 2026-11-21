@@ -302,7 +302,7 @@ def dungeon_items(inp: dict) -> dict[str, dict]:
             d = out.setdefault(inst, {"name": inst, "levels": s.get("levels"), "drops": [], "quests": []})
             row = {"item": u.get("name"), "item_id": u.get("item_id"), "slot": u.get("slot_name"),
                    "gain": round(u.get("value", u.get("gain")) or 0, 1), "req_level": u.get("level"),
-                   "now": bool(u.get("now"))}
+                   "now": bool(u.get("now")), **gearmod.badge_of(u)}
             if s["kind"] == "drop":
                 d["drops"].append({**row, "boss": s.get("boss") or "trash", "chance": s.get("chance_pct")})
             elif s["kind"] == "quest":
@@ -600,7 +600,7 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict) -> list[dic
     for u in inp.get("upgrades") or []:
         for s in u.get("sources") or []:
             row = {"item": u.get("name"), "item_id": u.get("item_id"), "gain": round(u.get("gain") or 0, 1),
-                   "req_level": u.get("level"), "now": bool(u.get("now")),
+                   **gearmod.badge_of(u), "req_level": u.get("level"), "now": bool(u.get("now")),
                    "available": "now" if u.get("now") else f"at {u.get('level')}",
                    # The ranking's value and who it's built for (wowstats.gearfit).
                    "value": round(u.get("value", u.get("gain")) or 0, 1),

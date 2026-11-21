@@ -87,9 +87,11 @@ def zone_ref(name: str | None, levels=None) -> dict | None:
 
 
 def item_ref(u: dict) -> dict:
-    """An upgrade as the Overview shows it: the item, its slot, its gain."""
+    """An upgrade as the Overview shows it: the item, its slot, its gain,
+    its badge (gear.bis_badge)."""
     w = u.get("with") or {}
-    return {**{k: u.get(k) for k in ("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct")},
+    return {**{k: u.get(k) for k in ("item_id", "name", "quality", "slot", "slot_name", "gain", "gain_share_pct",
+                                     *gearmod.BADGE)},
             "url": wowhead_url("item", u["item_id"]) if u.get("item_id") else None,
             # A weapon setup's gain is both hands': the other one goes with it
             # (an off hand alone against a two-hander is no upgrade).
@@ -527,8 +529,8 @@ def overview(data: dict, advice: dict | None, ds: list[dict], ref, who: dict, st
         s = sessions[0]
         now_claims.append(claim(f"Last session: {dur(s['seconds'])}, {s['when']}.", "#timeline",
                                 "recorder session and activity records"))
-    up_claims = [claim(f"{u['name']}: +{u['gain']:.1f} points ({u.get('gain_share_pct') or 0:.0f}% of your gear), "
-                       f"{_where(s)}.", f"#up-{u.get('slot')}", "Polestar's gear scoring on your worn gear")
+    up_claims = [claim(f"{u['name']}: {gearmod.gain_words(u)}, {_where(s)}.", f"#up-{u.get('slot')}",
+                       "Polestar's gear scoring on your worn gear")
                  for u, s in in_reach(advice, hd.get("level"))[:3]]
     death_claims = []
     if ds:
@@ -546,7 +548,7 @@ HELD_WHERE = {"bags": "in your bags: equip it", "bank": "in your bank: take it o
 
 
 def _pick_text(u: dict, s: dict) -> str:
-    gain = f"+{u['gain']:.1f} points, {u.get('gain_share_pct') or 0:.0f}% of your gear"
+    gain = gearmod.gain_words(u)
     w = u.get("with") or {}
     if w.get("kind") == "get":  # a weapon setup: both hands, the gain is the pair's
         other = next(iter(w.get("sources") or []), {})
@@ -849,7 +851,7 @@ def dungeon_claims(level: int | None, reach: list[tuple[dict, dict]]) -> list[di
         if later(z):
             block = f"it starts at level {lo}" if lo > level else f"Polestar lists it from level {start_of[z]}"
         out.append(claim(f"{z} (levels {lo}-{hi}) drops {n} upgrade{'s' if n > 1 else ''} for you ("
-                         + ", ".join(f"{u['name']} +{u['gain']:.0f}" for u in us[:3]) + ")"
+                         + ", ".join(f"{u['name']} ({gearmod.gain_words(u)})" for u in us[:3]) + ")"
                          + (f"; {block}" if block else "") + ".",
                          "#advice", "gear advice drop sources", kind="dungeon", title=z,
                          weight=1.5 if block else 2.5,
@@ -962,8 +964,8 @@ def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, a
     big = [(u, s) for u, s in in_reach(advice, level) if (u.get("gain_share_pct") or 0) >= 10]
     if big:
         u, s = big[0]
-        found.append(_upgrade_claim(u, s, f"You could wear {u['name']} now: +{u['gain']:.1f} points, "
-                                          f"{u.get('gain_share_pct'):.0f}% of your gear ({_where(s)}).",
+        found.append(_upgrade_claim(u, s, f"You could wear {u['name']} now: {gearmod.gain_words(u)} "
+                                          f"({_where(s)}).",
                                     "gear advice", level))
     found += profession_claims(level, gear_profs, skills, header)
     if talents and level and level >= 10:

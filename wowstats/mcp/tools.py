@@ -720,11 +720,12 @@ def _gear_item(u: dict | None) -> dict | None:
            "gain_share_of_gear_pct": u.get("gain_share_pct"), "gain_pct_over_replaced": u.get("gain_pct"),
            "fills_empty_slot": u.get("fills_empty") or None, "in_current_zone": u.get("here"),
            "where": [_src_text(s) for s in u.get("sources") or []]}
-    b = u.get("bis")
-    if b:
-        # The upgrade in BiS terms: the worn item's share of the best the
-        # slot can hold now, and this one's.
-        out["share_of_bis_pct"] = {"worn": b["from_pct"], "with_it": b["to_pct"]}
+    if u.get("bis_pct") is not None:
+        # The page's badge (gear.bis_badge): this item's share of the best
+        # the slot can hold now (100 = BiS), and the change from the worn
+        # one in the same points. Absent when there's no BiS to measure.
+        out["bis_pct"] = u["bis_pct"]
+        out["delta_pct"] = u["delta_pct"]
     links = [_src_link(s) for s in u.get("sources") or []]
     if any(links):
         out["where_wowhead"] = links  # one per `where` entry, null where the source has no page
@@ -1036,8 +1037,9 @@ class Tool:
     input_schema: dict
     fn: Callable[[Ctx, dict], dict]
     writes: str = ""
-    # Reaches outside the server (dashboard_refresh: the AI provider the host
-    # configured), for the MCP's openWorldHint.
+    # Reaches outside the server, for the MCP's openWorldHint. None does
+    # today: dashboard_refresh reached the host's AI provider until it moved
+    # to the client (2026-11-21).
     open_world: bool = False
 
     def __post_init__(self):
@@ -1085,8 +1087,8 @@ TOOLS: tuple[Tool, ...] = (
     Tool("gear", "Gear upgrades",
          "Gear advice from Polestar's scoring: per slot what is worn and where it stands (BiS, 2nd, or a percent "
          "of BiS), the best item at its level and the next within 3 levels, with the gain and where to get it; "
-         "then the upgrades: held or in the current zone first, then the slot furthest from BiS first, each with "
-         "its share of BiS before and after. Scored for Polestar's spec unless `spec` names another.",
+         "then the upgrades: held or in the current zone first, then the slot furthest from BiS first, with "
+         "bis_pct and delta_pct (the page's badge). Scored for Polestar's spec unless `spec` names another.",
          schema({"char": CHAR, "spec": {"type": "string", "description": "A spec of the class, e.g. shadow, holy."},
                  "limit": lim(10, 40)}), t_gear),
     Tool("next_moves", "What to do now",

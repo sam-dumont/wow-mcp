@@ -72,6 +72,24 @@ def test_the_tools_drive_a_run(env):
     assert {f["key"] for f in call("whats_new", {})["new"]} == {"levels-count", "levels-wrong"}
 
 
+def test_query_metric_counts_like_play_sql(env):
+    """External review of 0.7.0-rc.5: a table read only through query_metric
+    stayed "untouched" and the call counted as no query at all."""
+    call("analysis_brief", {})
+    before = call("analysis_progress", {})["run"]
+    assert "records" in before["untouched"] and before["queries"] == 0
+    got = call("query_metric", {"metrics": ["deaths"]})
+    assert got["rows"] == 1
+    after = call("analysis_progress", {})["run"]
+    assert after["queries"] == 1 and "records" not in after["untouched"]
+    # The view's own columns land on the prep table under it.
+    assert any(c.startswith("records.") for c in drive.current(env, CHAR)["columns"])
+    assert all(not c.startswith("sem_") for c in drive.current(env, CHAR)["columns"])
+    # A refused one counts as a query, like play_sql's, and touches nothing.
+    assert "error" in call("query_metric", {"metrics": ["no_such_metric"]})
+    assert call("analysis_progress", {})["run"]["queries"] == 2
+
+
 def test_the_prompt_and_the_ask_links_carry_no_data():
     text = prompts.analyse_text(CHAR, "")
     assert CHAR in text and "analysis_progress" in text
@@ -120,3 +138,36 @@ def test_play_sql_value_bomb_stops_only_the_query(env, monkeypatch):
     # every function stays available: the same operators on a small value answer
     small = call("play_sql", {"query": "SELECT length(string_agg('ab', '') || 'x') AS n FROM range(10)"})
     assert small["result"] == "n\n21"
+
+
+# External review of 0.7.0-rc.5: "You died {n} times." with `SELECT 3 AS n`
+# was kept through the real MCP path (five deaths in the fixture), because a
+# constant re-runs to the same value every time.
+CONSTANTS = ["SELECT 3 AS n", "WITH c AS (SELECT 3 AS n) SELECT n FROM c",
+             "SELECT COUNT(*) AS n FROM range(3)", "SELECT 3 AS n FROM meta LIMIT 1"]
+
+
+@pytest.mark.parametrize("sql", CONSTANTS)
+def test_a_constant_is_not_evidence(env, sql):
+    deaths = "SELECT COUNT(*) AS n FROM records WHERE kind = 'death'"
+    assert drive.workspace(env, CHAR).judge.first_row(deaths)["n"] == 5
+    f = {"key": "deaths-count", "title": "Deaths", "claim": "You died {n} times.", "sql": sql, "expect": {"n": 3},
+         "relevance": 1, "action": None}
+    got = call("propose_finding", {"finding": f})
+    assert not got["stored"] and "reads none of the character's tables" in got["why"]
+    assert "deaths-count" not in (load_state(env, CHAR).get("findings") or {})
+    # The same claim from the records, or from the named metric, stands.
+    assert call("propose_finding", {"finding": {**f, "sql": deaths, "expect": {"n": 5}}})["stored"]
+    mq = call("propose_finding", {"finding": {**f, "key": "deaths-metric", "sql": "", "claim": "You died {deaths} "
+                                              "times.", "expect": {"deaths": 5}}, "metric_query": {"metrics": ["deaths"]}})
+    assert mq["stored"], mq
+
+
+def test_a_kept_constant_fades_on_the_recheck(env):
+    from wowstats.analysis import verify
+
+    w = drive.workspace(env, CHAR)
+    stored = {"key": "deaths-count", "sql": "SELECT 3 AS n", "sql_params": None, "holds": None,
+              "title_template": "Deaths", "claim_template": "You died {n} times."}
+    upd, why = verify.recheck(stored, w.judge)
+    assert upd is None and "no play history" in why

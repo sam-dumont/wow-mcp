@@ -196,7 +196,9 @@ class GearToolTest(unittest.TestCase):
         self.assertEqual(sorted((u["item"], u["where"]) for u in ups[:2]),
                          [("Adept's Gloves", ["in your bags: equip it"]),
                           ("Seer's Cuffs", ["in your bank: take it out at a banker and equip it"])])
-        held = [u["share_of_bis_pct"]["worn"] for u in ups[:2]]
+        # The badge: the item's share of BiS and the change from the worn one
+        # (so the worn one's share is the difference).
+        held = [u["bis_pct"] - u["delta_pct"] for u in ups[:2]]
         self.assertEqual(held, sorted(held))
         self.assertTrue(all(s["worn_standing"] is None or s["worn_standing"] in ("BiS", "2nd")
                             or s["worn_standing"].endswith("% of BiS") for s in out["slots"]))

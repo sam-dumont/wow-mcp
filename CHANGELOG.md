@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Changed
+
+- `dashboard_refresh` runs on the client: the calling AI does the analysis itself, with the same flow as `analyse` (analysis_brief, the passes, analysis_submit), for the character whose analysis is most out of date. It starts nothing on the server and costs the host nothing; it used to queue a run of the server's own model, and the owner's Claude calling it spent the lab's OpenAI money. Its answer is `analyse`'s, plus `do` (the one line to follow), `then` (the other characters to refresh) and `server_automatic_refresh`: the timers, budget and last try of the server's automatic refreshes, which stay for players who don't refresh themselves. No MCP call starts a server run any more (and /admin never had a button for one); the accepted synthesis resets the character's timer like any refresh. The tool is now read-only and no longer open-world.
+- Every item the page shows (the Overview's upgrade and dungeon cards, the Dungeons panel's drops, quest rewards and what you already have, the gear advice and its comparison, past levels' best upgrades) carries the paperdoll's BiS badge on its icon, in the same colours, and says what it changes as "+12% on your head" instead of "+32.0 points (11% of your gear)". Rings and trinkets count against the weaker of the two worn, weapons as a whole setup. An item with nothing to measure against (a one-hander scored alone, a random-suffix item worn) has no badge and keeps its points. The MCP's `gear`, `gear_options`, `next_moves` and `dungeon_options` items carry the same `bis_pct` and `delta_pct`; `gear` drops `share_of_bis_pct` for them.
+
+### Fixed
+
+- The analysis' judge accepted a finding whose SQL read nothing: `SELECT 3 AS n` with "You died {n} times." was kept with 3 while the records held 5 deaths, because a constant re-runs to the same value every time. A finding's query (and a clash's reconciling query) must now read the character's play history; a constant, a CTE of constants, `range()` or a read of the documentation tables alone is refused with why, and the refusal points to `query_metric` for counts like deaths. A kept finding with such a query fades on the next recheck. This closes that hole only: a query that reads a table can still compute the wrong thing.
+- `query_metric` with metrics from three or more models (say `run_s`, `played_s`, `online_s` by level) no longer splits a level into two rows when the first model has no row for it (dungeon runs cover a few levels only). Each model now joins on the keys of all the models before it, so every order of the metrics gives the same rows.
+- An upload the store refused (VictoriaLogs down or answering an error) no longer counts as one: `/ingest` answers 502 as before, and now leaves the person's first-event mark, their last upload in /admin and the day's upload budget as they were. Those three are set only once the store has the lines.
+- A gear sheet worn again no longer erases its earlier occurrence: outfit A, then B, then A again showed B, A in the gear history, and a level played in the first A had no sheet. The shipper now names each sheet by its content and the time it was read (`gear:<char>:<hash>:<epoch>`), and the server keeps every occurrence; a resend of the same line still counts once. Sheets from older shippers (`gear:<char>:<hash>`) are told apart by their time, so the history already stored comes back whole without a shipper update.
+- The nightly recheck raised a kept finding's weight (and its "seen N×" tag) every night, even when no play had been added: three nights on the same data took a finding from 1.0 to 2.5. Still applicable and better supported are now apart: a finding that holds gets `last_checked`; its weight, `confirmations` and `last_confirmed` move only when the play history changed since its last support (`support_mark`). Proposing the same finding again on the same data adds nothing either. The recheck's log line and run record count `still` next to `confirmed`.
+
+### Fixed
+
+- `query_metric` didn't count in the analysis run's bookkeeping: no query counted, and a table read only through a metric stayed "untouched", so the coverage round asked about it again. `play_sql` and `query_metric` now share one bookkeeping: both count as queries, and a metric's semantic-layer view counts as the prep tables (and columns) under it.
+
+## 0.7.0-rc.5 (2026-11-21)
+
 ### Added
 
 - `WOW_OWNER_SUB` takes a comma-separated list: an owner who signs in with two accounts (the usual one and one linked to Battle.net) is the owner with both, on the web, over MCP and on /admin, with one set of data and one analysis timer. A single sub works as before. A sub in both this list and the friends list is the owner's; the start log names it by its place in the list, and no data is made or deleted for it. A BattleTag header never gives the owner's other login a friend's name or tenant.

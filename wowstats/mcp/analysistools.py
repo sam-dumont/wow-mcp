@@ -4,6 +4,8 @@ No model runs on the server.
 
   analyse            the `analyse` prompt as a tool, for clients without
                      prompt support (ChatGPT): the procedure and the next step
+  dashboard_refresh  `analyse` for the character whose analysis is most out of
+                     date, plus the server's automatic-refresh timers
   analysis_brief     the instructions, the schema, the profile and the KB's
                      contents, in sections and pages for small contexts
   play_sql           read-only SQL on the character's prep database, paged
@@ -132,12 +134,32 @@ def t_analysis_progress(ctx: T.Ctx, args: dict) -> dict:
 
 
 def t_dashboard_refresh(ctx: T.Ctx, args: dict) -> dict:
-    """The caller's own analysis, refreshed by the server's model
-    (wowstats.analysis.auto): always the caller's context, never anyone
-    else's; runs whatever their timer says, budget permitting."""
+    """Refresh the caller's dashboard on the client: the caller's own model
+    runs the analysis (`analyse`'s procedure, the same tools), so it costs
+    the server nothing. It used to queue a run of the server's model, and the
+    owner's own AI calling it spent the host's provider money in the lab
+    (2026-11-21). The server's automatic refreshes stay for players who never
+    refresh themselves (wowstats.analysis.auto); this only reads their timers."""
     from wowstats.analysis import auto
 
-    return auto.service().refresh(ctx)
+    server = auto.service().status(ctx)
+    timers = (server.get("timer") or {}).get("chars") or []
+    # The most out of date first: due, then most play since its refresh.
+    order = [t["char"] for t in sorted(timers, key=lambda t: (not t["due"], -t["played_since_s"]))
+             if t["played_since_s"] > 0]
+    char = _char(ctx, args) if str(args.get("char") or "").strip() else (order or [_char(ctx, {})])[0]
+    out = t_analyse(ctx, {"char": char, "goals": args.get("goals")})
+    do = (f"Run the analysis now for {char}: follow `instructions` (analysis_brief section start first), pass by "
+          f"pass, and hand each pass in with analysis_submit. The accepted synthesis refreshes the dashboard (How "
+          f"you play) and resets {char}'s timer.")
+    if server.get("state") == "running":
+        do = (f"{server['said'][0].upper()}{server['said'][1:]}: let it end (a few minutes; call dashboard_refresh "
+              f"again) before starting your own run, which would share its run state. Then: {do}")
+    rest = [c for c in order if c != char]
+    return {"runs_on": "client",
+            "server_cost": "none: your own model does the analysis; this call starts nothing on the server",
+            "do": do, **({"then": rest, "then_do": "the same for each, one character per run"} if rest else {}),
+            **out, "server_automatic_refresh": server}
 
 
 def _ids(args: dict, cap: int) -> list[str]:
@@ -192,7 +214,8 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
     T.Tool("analyse", "Analyse my play",
            "Start or continue the play analysis of a character: you (the model) run it pass by pass with the tools "
            "below, the server judges every finding. Returns the procedure and where the run stands. The same as "
-           "the `analyse` prompt, for clients without prompts.",
+           "the `analyse` prompt, for clients without prompts; dashboard_refresh starts it for the character whose "
+           "analysis is most out of date.",
            S({"char": CHAR, "goals": GOALS}), _guard(t_analyse)),
     T.Tool("analysis_brief", "Analysis brief",
            "The play analysis' brief, in sections sized for small contexts: start (procedure, goals, finding rules, "
@@ -246,7 +269,7 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
                            "description": "Output names; prefix with - for descending, e.g. [\"-deaths\"]."},
               "limit": {"type": "integer", "minimum": 1, "maximum": 500,
                         "description": "Rows at most (default 50)."}}, ("char", "metrics")),
-           _guard(t_query_metric)),
+           _guard(t_query_metric), writes="adds"),
     T.Tool("propose_finding", "Propose a finding",
            "Hand one finding to the judge: it re-runs the SQL (or the finding's metric_query, a query_metric "
            "call), checks every number (placeholders, expect, holds), "
@@ -277,11 +300,11 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
            "the last nightly recheck. Call it first to continue in a new chat.",
            S({"char": CHAR}), _guard(t_analysis_progress)),
     T.Tool("dashboard_refresh", "Refresh my dashboard",
-           "Have the server refresh your play analysis now (How you play) with its host's AI model, in the "
-           "background, for your own characters. Says the last refresh, each character's play since its own "
-           "refresh against the threshold, whether your refresh runs or waits in the queue (and where), why "
-           "one was skipped, how the last try ended, the install's budget left and your own runs and cost.",
-           S({}), _guard(t_dashboard_refresh), writes="replaces", open_world=True),
+           "Refresh your dashboard (How you play) on the client: you, the calling model, run the analysis, so it "
+           "costs the server nothing and starts nothing there. Returns `analyse`'s procedure for the character "
+           "most out of date (or `char`): analysis_brief, the passes, then analysis_submit, which refreshes the "
+           "dashboard and resets that character's timer. Also shows the server's automatic refreshes.",
+           S({"char": CHAR, "goals": GOALS}), _guard(t_dashboard_refresh)),
     T.Tool("kb_get", "Knowledge base documents",
            "Full knowledge base documents by id (kind:id, e.g. npc:1234, quest:56, note:xp-sources), up to 10, each "
            "with its source.",

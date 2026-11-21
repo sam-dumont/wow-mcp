@@ -27,24 +27,23 @@ CHAR = fakes.CHAR
 WRITERS = {
     "analysis_brief": "replaces",  # opens a run; restart drops the open one; goals replace the kept ones
     "play_sql": "adds",  # counts the query and the tables in the run's coverage
+    "query_metric": "adds",  # the same bookkeeping as play_sql
     "propose_finding": "replaces",  # a finding with a kept key replaces it
     "analysis_submit": "replaces",  # the synthesis replaces the kept findings
     "kb_get": "adds",  # with char: counts a KB call in the open run
     "kb_lookup": "adds",
     "kb_search": "adds",
     "plan_session": "replaces",  # keeps the plan check_plan reads; the oldest drop past 30
-    # Starts the server's own run (wowstats.analysis.auto), which replaces the
-    # kept findings later, in the background; reaches the AI provider (open world).
-    "dashboard_refresh": "replaces",
 }
-# Writes after the call returns, in the background, or (here, no provider
-# configured) not at all: tests/analysis/test_auto.py runs it for real.
-LATER = {"dashboard_refresh"}
-OPEN_WORLD = {"dashboard_refresh"}
-READ_ONLY = {"list_metrics", "query_metric", "character_summary", "levels", "sessions", "zones", "guide_steps", "deaths", "dungeons", "players",
+# Writes after the call returns, in the background. None since
+# dashboard_refresh moved to the client (2026-11-21): it starts nothing on the
+# server and reaches no AI provider.
+LATER: set[str] = set()
+OPEN_WORLD: set[str] = set()
+READ_ONLY = {"list_metrics", "character_summary", "levels", "sessions", "zones", "guide_steps", "deaths", "dungeons", "players",
              "prices", "gear", "next_moves", "sanity_check", "people", "route_reference", "market", "play_analysis",
              "check_plan", "how_did_my_plan_go", "next_step", "gear_options", "dungeon_options", "mount_goal",
-             "whats_new", "kb_rule", "kb_topics", "analyse", "analysis_progress", "class_guide", "class_meta", "news", "talent_changes"}
+             "whats_new", "kb_rule", "kb_topics", "analyse", "analysis_progress", "dashboard_refresh", "class_guide", "class_meta", "news", "talent_changes"}
 ALL = (*tools.TOOLS, tools.MARKET)
 
 
