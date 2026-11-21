@@ -161,9 +161,11 @@ stay in your own folder there and go with your account.
 
 By default, when git is installed, every run commits your whole `WTF`
 folder to `~/WoWArchive/wtf`: every version of every SavedVariables file,
-other addons' included. That history is what `--backfill` replays after an
-update that reads something new, and the only copy of the Recorder chunks
-an uploader already deleted. It grows with `WTF`: 8 MiB of unrelated
+other addons' included. That history is what `--backfill` reads again after
+an update that reads something new, what `--reextract` rebuilds a server
+from, and the only copy of the Recorder chunks an uploader already deleted.
+Each commit also carries `_capture.json`, the files' times as the shipper
+saw them, since git keeps none ([the contract's "Times"](contract.md#times)). It grows with `WTF`: 8 MiB of unrelated
 files in `WTF` once made about 16 MiB of archive.
 
 To keep the stats only, put this at the top of the config, next to
@@ -183,8 +185,9 @@ What stays either way, all under `archive_dir`:
 | `state.json` | what was already sent, so nothing goes twice | small |
 | `wtf/_polestar-client/sent.jsonl` | the Polestar Client chunks kept beyond its 8 days (only with Polestar Client) | grows with your play |
 
-Without the archive, `--backfill` has nothing to replay: events a past
-run missed can only come back while the game files still hold them. An
+Without the archive, `--backfill` and `--reextract` have nothing to read:
+events a past run missed can only come back while the game files still
+hold them. `--replay` still works: it only needs `sent/`. An
 archive already made stays where it is; delete `~/WoWArchive/wtf` by hand
 if you don't want it (keep `_polestar-client/` inside it if you use
 Polestar Client).
@@ -257,10 +260,17 @@ usual install places), `archive_dir`, `wtf_archive` (default `true`),
 - `--dry-run`: extract to stdout, write nothing, send nothing. The quickest
   way to see what it would send.
 - `--no-ship`: archive and extract, keep the spool.
-- `--backfill`: re-extract every archived version of WTF. Not needed after
-  installing (the first run sends what is there); use it after an update
-  that reads something new (quest names, Auctionator). Duplicates are
-  harmless: every event has a `source_id`.
+- `--backfill`: re-extract every archived version of WTF, for what this PC
+  hasn't sent yet. Not needed after installing (the first run sends what is
+  there); use it after an update that reads something new (quest names,
+  Auctionator). Duplicates are harmless: every event has a `source_id`. It
+  is not a restore: on a PC that sent everything, it finds next to nothing.
+- `--replay`: send every event in `sent/` again, as it went the first time,
+  then stop. For a new or emptied server
+  ([Back up and restore](self-host/backup.md#restore)). Writes nothing on the PC.
+- `--reextract`: read every archived version again from scratch, with a
+  record of its own, and send it all. For a server to refill when `sent/` is
+  gone too. `state.json` stays as it was.
 - `--prefill`: sends the [3D view's files](#the-3d-views-files) and the [item facts](#item-facts)
   the server still lacks, now (the background runs wait up to a day), prints how many
   went and exits. Events stay with the background runs.

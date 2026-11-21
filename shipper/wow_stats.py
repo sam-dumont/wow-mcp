@@ -41,6 +41,8 @@ config.example.toml (~/.config/wow-stats/ on macOS and Linux,
 
 Flags: --dry-run (extract to stdout, write nothing), --no-ship, --backfill
 (re-extract every archived version, for events a past run missed),
+--replay (send sent/ again, to a new or emptied server), --reextract (read
+the whole archive again with a checkpoint of its own, see reextract),
 --install-recorder (the installers: put Polestar Recorder in the AddOns
 folder, see install_recorder).
 """
@@ -1317,6 +1319,11 @@ def recipes_of(acct: Path, char: str) -> list[dict]:
 # The roster: every character any local file knows, not only Polestar's
 # ---------------------------------------------------------------------------
 
+def char_folders(acct: Path) -> list[Path]:
+    """Each character's WTF folder in an account folder: <realm>/<char>/."""
+    return [d for d in sorted(acct.glob("*/*")) if d.is_dir() and d.parent.name != "SavedVariables"]
+
+
 def roster(acct: Path) -> dict[str, dict]:
     """Every character of one account folder: its WTF folder
     (<realm>/<char>/, written at each login), Polestar's alts list and
@@ -1335,9 +1342,7 @@ def roster(acct: Path) -> dict[str, dict]:
             elif v not in (None, "") and c.get(k) in (None, ""):
                 c[k] = v
 
-    for d in sorted(acct.glob("*/*")):
-        if not d.is_dir() or d.parent.name == "SavedVariables":
-            continue
+    for d in char_folders(acct):
         times = [f.stat().st_mtime for f in d.rglob("*") if f.is_file()]
         put(char_of(d.name), "folder", folder=d, seen=max(times, default=0.0), realm=d.parent.name)
     for db in read_sv_versions(acct / "SavedVariables" / "Polestar.lua"):
@@ -2126,9 +2131,10 @@ def char_sv_dirs(acct: Path) -> list[Path]:
 
 
 def extract_tree(wtf: Path, state: dict, out: Out, live: bool = True) -> list[dict]:
-    """live=False for an old archived version (--backfill): its file times
-    are the extraction's, so characters dated by them (the ones Polestar
-    doesn't track) are left to the current tree."""
+    """live=False for an archived version whose character folders aren't
+    dated (no capture manifest, archived_versions): characters dated by
+    their folder (the ones Polestar doesn't track) are left to the current
+    tree."""
     char_ids = state.setdefault("char_ids", {})
     all_sessions = []
     for acct in accounts(wtf):
@@ -2290,17 +2296,26 @@ def archive() -> bool:
 
 
 def write_capture(wanted) -> None:
-    """The capture manifest (CAPTURE_FILE) for what the archive now holds:
-    each source a rebuild reads -> its mtime in ns, as the live run reads
-    it. Written before every commit, so each commit carries its own."""
+    """The capture manifest (CAPTURE_FILE) for what the archive now holds,
+    as the live run reads it: `mtime_ns`, each source a rebuild reads -> its
+    mtime in ns; `folders`, each character folder -> its newest file's
+    mtime in ns (what dates a character Polestar doesn't track: roster).
+    Written before every commit, so each commit carries its own."""
     times = {}
     for rel in sorted(wanted):
         name = Path(rel).as_posix()
         if ARCHIVED_SOURCES.match(name):
             with contextlib.suppress(OSError):
                 times[name] = (REPO / rel).stat().st_mtime_ns
-    (REPO / CAPTURE_FILE).write_text(json.dumps({"version": 1, "mtime_ns": times}, indent=0, sort_keys=True) + "\n",
-                                     encoding="utf-8")
+    folders = {}
+    for acct in accounts(REPO):
+        for d in char_folders(acct):
+            newest = max((f.stat().st_mtime_ns for f in d.rglob("*") if f.is_file()), default=None)
+            if newest is not None:
+                folders[d.relative_to(REPO).as_posix()] = newest
+    (REPO / CAPTURE_FILE).write_text(
+        json.dumps({"version": 1, "mtime_ns": times, "folders": folders}, indent=0, sort_keys=True) + "\n",
+        encoding="utf-8")
 
 
 def _show(c: str, path: str) -> bytes | None:
@@ -2310,17 +2325,23 @@ def _show(c: str, path: str) -> bytes | None:
 
 def archived_versions():
     """Each archived version, oldest first, rebuilt in a temp folder: yields
-    that folder's WTF tree. Each rebuilt file gets back the mtime it had
-    when it was captured (the commit's capture manifest), so the extractors
-    date it as the live run did. A commit without a manifest (an archive
-    from before it) dates its files at the commit's time and lists them in
-    APPROX: observed() labels those events `at_basis: "commit"`."""
+    (that folder's WTF tree, whether its character folders are dated). Each
+    rebuilt file gets back the mtime it had when it was captured (the
+    commit's capture manifest), so the extractors date it as the live run
+    did, and each character folder gets a `_captured` file at its newest
+    time, so roster dates it as the live run did. A commit without a
+    manifest (an archive from before it) dates its files at the commit's
+    time and lists them in APPROX: observed() labels those events
+    `at_basis: "commit"`."""
     for line in git("log", "--reverse", "--format=%H %ct", check=False).stdout.splitlines():  # none yet: nothing
         c, ct = line.split()
         try:
-            man = json.loads(_show(c, CAPTURE_FILE) or b"{}").get("mtime_ns") or {}
+            capture = json.loads(_show(c, CAPTURE_FILE) or b"{}")
         except ValueError:
-            man = {}
+            capture = {}
+        capture = capture if isinstance(capture, dict) else {}
+        man = capture.get("mtime_ns") if isinstance(capture.get("mtime_ns"), dict) else {}
+        folders = capture.get("folders") if isinstance(capture.get("folders"), dict) else None
         with tempfile.TemporaryDirectory() as tmp:
             for path in git("ls-tree", "-r", "--name-only", c).stdout.splitlines():
                 if ARCHIVED_SOURCES.match(path):
@@ -2333,19 +2354,47 @@ def archived_versions():
                     else:
                         os.utime(dst, (int(ct), int(ct)))
                         APPROX.add(dst)
+            for rel, ns in (folders or {}).items():
+                if isinstance(ns, int) and not isinstance(ns, bool) and re.fullmatch(r"Account/[^/]+/[^/]+/[^/]+", rel):
+                    mark = Path(tmp) / rel / "_captured"
+                    mark.parent.mkdir(parents=True, exist_ok=True)
+                    mark.touch()
+                    os.utime(mark, ns=(ns, ns))
             try:
-                yield Path(tmp)
+                yield Path(tmp), folders is not None
             finally:
                 APPROX.clear()
 
 
 def backfill(state: dict, out: Out) -> None:
-    """Re-extract every archived version: the Recorder chunks of each one."""
+    """Re-extract every archived version with `state`: what it doesn't
+    already hold. With the normal checkpoint (--backfill), the records a
+    past run missed or a new version reads for the first time; with an
+    empty one (reextract), everything."""
     if not REPO.joinpath(".git").is_dir():
         log("backfill: no archive yet" if archive_on() else "backfill: no archive (wtf_archive = false)")
         return
-    for tree in archived_versions():
-        extract_tree(tree, state, out, live=False)
+    for tree, dated in archived_versions():
+        # Without dated folders, a character Polestar doesn't track would read
+        # as seen at rebuild time: those are left to the current tree.
+        extract_tree(tree, state, out, live=dated)
+
+
+def reextract(tree: Path, out: Out) -> None:
+    """--reextract: every archived version, then the current files (and
+    Polestar Client's chunks), read again from scratch with a checkpoint of
+    its own. Everything the archive holds goes to the spool again, with the
+    times it had the first time (archived_versions). The normal checkpoint
+    (state.json) is never read or written here, so the next normal run goes
+    on where it was. Combat logs aren't archived: --replay has them."""
+    own: dict = {}
+    if not REPO.joinpath(".git").is_dir():
+        log("reextract: no archive (wtf_archive = false or no git): the current files only")
+    else:
+        backfill(own, out)
+    step("Polestar Client", load_client, own)
+    extract_tree(tree, own, out)
+    log(f"reextract: {sum(out.counts.values())} events from the archive and the current files")
 
 
 # ---------------------------------------------------------------------------
@@ -2479,6 +2528,61 @@ def ship() -> None:
                 log(f"ship: {f.name}: {sent}/{len(lines)} events sent")
         f.unlink()
         log(f"ship: {f.name} sent ({len(lines)} events)")
+
+
+def sent_lines(f: Path) -> list[bytes]:
+    """The lines of one sent/ file (gzip, one member per POST). A member a
+    crash cut short ends the file: what reads before it is kept."""
+    data = b""
+    with gzip.open(f, "rb") as fh:
+        try:
+            while chunk := fh.read(1 << 20):
+                data += chunk
+        except (EOFError, OSError, zlib.error) as e:
+            log(f"replay: {f.name}: cut short ({type(e).__name__}), sending what reads before it")
+    lines = data.splitlines(keepends=True)
+    if lines and not lines[-1].endswith(b"\n"):
+        lines.pop()  # half a line
+    return lines
+
+
+def replay() -> int:
+    """--replay: send every event in sent/ again, as it went the first time
+    (same source_id, same fields): a new or emptied server gets back all
+    that was delivered. Reads sent/, never moves or rewrites it, and never
+    touches the checkpoint. The server keeps one copy per source_id, so
+    what it already has costs nothing. Stops at the first refusal; run it
+    again then."""
+    files = sorted(SENT.glob("*.gz")) if SENT.is_dir() else []
+    if not files:
+        log(f"replay: nothing in {SENT}")
+        return 0
+    settings = ship_settings()
+    if settings is None:
+        log(f"replay: no [ship] url in {config_path()}")
+        return 1
+    url, headers = settings
+    cutoff = retention_cutoff()
+    total = 0
+    for f in files:
+        lines = [ln for ln in sent_lines(f) if valid(ln) and not (cutoff and json.loads(ln)["_time"] < cutoff)]
+        done = 0
+        while done < len(lines):
+            part, size = [], 0
+            for ln in lines[done:]:
+                if part and size + len(ln) > POST_MAX_BYTES:
+                    break
+                part.append(ln)
+                size += len(ln)
+            code = post(url, headers, b"".join(part))
+            if code is None or not 200 <= code < 300:
+                log(f"replay: {f.name}: {'unreachable' if code is None else f'HTTP {code}'} after {done}/{len(lines)} "
+                    f"events; {total + done} sent in all. Run --replay again: what the server has isn't stored twice")
+                return 1
+            done += len(part)
+        total += done
+    log(f"replay: {total} events from {len(files)} files in {SENT} sent again")
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -4739,7 +4843,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--dry-run", action="store_true", help="extract from the live files to stdout, write nothing")
     ap.add_argument("--no-ship", action="store_true", help="archive and extract only")
-    ap.add_argument("--backfill", action="store_true", help="re-extract every archived version too")
+    ap.add_argument("--backfill", action="store_true",
+                    help="re-extract every archived version too, for records a past run missed (the normal checkpoint)")
+    ap.add_argument("--replay", action="store_true",
+                    help="send every event in sent/ again (a new or emptied server), then stop")
+    ap.add_argument("--reextract", action="store_true",
+                    help="read every archived version again from scratch, with a checkpoint of its own, and send it")
     ap.add_argument("--print-wow-dir", action="store_true", help="print the WoW folder in use (for the installers)")
     ap.add_argument("--talents-check", action="store_true",
                     help="WoWSims Exporter: count its saves and how many match a character, read-only, counts only")
@@ -4835,6 +4944,8 @@ def main() -> int:
     if lock is None:
         log("another run holds the lock")
         return 0
+    if a.replay:
+        return replay()
 
     if not wait_quiet(WOW / "WTF"):
         log("the client is still writing its files; next run")
@@ -4855,6 +4966,8 @@ def main() -> int:
     try:
         if a.backfill:
             backfill(state, out)
+        if a.reextract:
+            reextract(tree, out)
         step("Polestar Client", load_client, state)  # after the backfill: the current tree's pass takes them, once
         extract_tree(tree, state, out)
         ours, latest = our_characters(tree)

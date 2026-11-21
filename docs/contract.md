@@ -46,7 +46,8 @@ itself.
   character.
 - `_msg`: a short human line (Recorder events: the record line, cut to the
   fields the shipper knows for its kind). Never a raw combat log line.
-- `source_id`: unique per event, so a resend or a `--backfill` is harmless:
+- `source_id`: unique per event, so a resend (`--replay`, `--reextract`,
+  `--backfill`) is harmless:
   `rec:<charId>:<chunkSeq>:<line>`, `level:<char>:<level>`,
   `dungeon:<char>:<entered>`, `character:<char>:<seen>`,
   `gear:<char>:<hash>:<epoch>` (the sheet and when it was read: an outfit
@@ -83,8 +84,10 @@ snapshot has no time at all.
 Git keeps no file times, so a re-extraction from the archive can't read them
 from the rebuilt files. Each archive commit carries a capture manifest,
 `_capture.json` next to the WTF mirror: every file a re-extraction reads, with
-the modification time (ns) the live run saw. A re-extraction puts it back, so
-the same archive gives the same `_time` (and the same `gear:` id) every time.
+the modification time (ns) the live run saw, and each character folder with
+its newest file's time (what dates a character Polestar doesn't track). A
+re-extraction puts them back, so the same archive gives the same `_time` (and
+the same `gear:` id) every time, and the same events the live runs sent.
 
 An archive commit made before the manifest existed (shippers up to
 0.7.0-rc.7) has nothing to put back: its files are dated by the commit's
