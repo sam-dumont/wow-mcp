@@ -352,7 +352,9 @@ through VictoriaLogs:
    anything not refreshed for 30 days.
 2. The exporter's VictoriaMetrics stores them 23 days, force-merged daily.
 3. The full view reads the last value (`last_over_time(...[2d])`) of the
-   newest snapshot only (a talent dropped in a respec is gone at once) when it
+   newest complete snapshot only (a talent dropped in a respec is gone at
+   once; after an exporter restart whose first read failed half way, the
+   last complete one, flagged with its age) when it
    draws the 3D model, and every view reads the talents the same way for the
    character card (never stored anywhere else, so there is no talent
    history). A character Battle.net doesn't know gets its race's default
