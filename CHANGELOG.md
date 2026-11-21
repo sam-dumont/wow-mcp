@@ -6,6 +6,10 @@
 
 - `wow_stats.py --prefill`: sends the server the item facts and 3D files it still lacks right away (the background runs ask once a day for item facts), prints how many went and exits.
 
+### Fixed
+
+- The 3D view asked the shipper for no model files on a new server: the answer made before the client tables arrived was kept 10 minutes, and the gear history's outfits were never counted (an unpack error, logged as `model3d: <name>'s gear history: ValueError`).
+
 ## 0.7.0-rc.2 (2026-11-20)
 
 ### Fixed

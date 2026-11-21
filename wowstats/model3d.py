@@ -143,7 +143,7 @@ def history_outfits(app, name: str) -> list[list[dict]]:
         return []
     out: list[list[dict]] = []
     try:
-        data, _wins, _ds, gh = views.snapshot_inputs(name)
+        data, _wins, _ds, gh, _skills = views.snapshot_inputs(name)
         out += [g["items"] for g in gh or [] if g.get("items")]
         recon = views.reconstruction(name, data, gh)
     except Exception as e:  # noqa: BLE001 - the history's store down: the levels' outfits still count
@@ -176,7 +176,7 @@ class Model3D:
         # the store's tables don't change.
         self.load_tables = character3d.load_tables
         self._tables: tuple[tuple, object] | None = None
-        self._wanted: tuple[float, set[int]] | None = None
+        self._wanted: tuple[float, set[int], object] | None = None
         self.lock = threading.Lock()
 
     # ------------------------------------------------------------ the store
@@ -388,10 +388,14 @@ class Model3D:
     def wanted(self, app) -> set[int]:
         """What the person's shipper should send: the union of every
         character's needs, now, at each past level and in every gear sheet
-        of its history, each outfit once. Kept WANTED_TTL seconds; a
-        failure keeps the last set."""
+        of its history, each outfit once. Kept WANTED_TTL seconds for the
+        same tables: a set made before the tables came (empty, nothing to
+        resolve the outfits with) is never kept, so the shipper's next ask,
+        right after it sent them, gets the files. A failure keeps the last set."""
+        tables = self.tables()
         with self.lock:
-            if self._wanted and time.time() - self._wanted[0] < WANTED_TTL:
+            if (self._wanted and tables is not None and self._wanted[2] is tables
+                    and time.time() - self._wanted[0] < WANTED_TTL):
                 return set(self._wanted[1])
         out: set[int] = set()
         try:
@@ -425,5 +429,5 @@ class Model3D:
             with self.lock:
                 return set(self._wanted[1]) if self._wanted else set()
         with self.lock:
-            self._wanted = (time.time(), out)
+            self._wanted = (time.time(), out, tables)
         return set(out)
