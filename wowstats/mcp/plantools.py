@@ -36,7 +36,7 @@ def _inputs(ctx: T.Ctx, args: dict) -> dict:
     from wowstats import plan
 
     char = T.resolve_char(ctx, args).replace(" ", "-")
-    return plan.inputs(_env(ctx), char, store=ctx.store)
+    return plan.inputs(_env(ctx), char, store=ctx.store, battlenet=T.bnet_worn(ctx, char))
 
 
 def _no_data(char: str, why: str) -> dict:

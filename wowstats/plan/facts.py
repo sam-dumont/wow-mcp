@@ -63,7 +63,8 @@ def _i(v, d=None):
 
 
 def store_for(env: dict, like=None):
-    """The stores, with vm-wow left out on purpose (no Battle.net data):
+    """The stores, with vm-wow left out on purpose (no Battle.net data; the
+    callers pass Battle.net's worn item ids, read live, to gather):
     from the settings, or the logs of an existing Store (`like`)."""
     from wowstats.stores import Store, env_account
 
@@ -101,8 +102,12 @@ def prices(store, days: int = 30) -> dict[int, dict]:
     return best
 
 
-def gather(env: dict, char: str | None = None, now: float | None = None, store=None) -> dict:
-    """Read the stores and the KB; return extract()'s inputs."""
+def gather(env: dict, char: str | None = None, now: float | None = None, store=None, battlenet=None) -> dict:
+    """Read the stores and the KB; return extract()'s inputs. `battlenet`:
+    the item ids Battle.net says the character wears now, read live by the
+    caller (this store never reads vm-wow): they add the quests their
+    rewards prove (wowstats.quests.with_battlenet) to the advice, the
+    quests done and the open quests, never to the analysis' database."""
     from wowstats import analysis
     from wowstats.analysis import kb, prep
     from wowstats.mcp import route
@@ -120,7 +125,7 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
 
     loot: dict = {}
     with contextlib.suppress(gear.GearError):
-        advice = gear.advise_rows(rows, analysis.weights_for(env, char))
+        advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet)
         loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char), (advice or {}).get("bis_by_slot"))
     db = prep.build(rows, char, route.reference(), map_sizes=knowledge.meta.get("ui_map"),
                     upgrades=(advice or {}).get("upgrades_all") or [])
@@ -129,7 +134,8 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
     except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail
         scans = {}
     inp = extract(db, knowledge, route.reference(), advice=advice, scans=scans,
-                  state=analysis.load_state(env, char), now=now, loot=loot, bags=gear.newest_bags(rows))
+                  state=analysis.load_state(env, char), now=now, loot=loot, bags=gear.newest_bags(rows),
+                  done=quests.completed(rows, battlenet=battlenet) if battlenet else None)
     inp["who"]["char"] = inp["who"].get("char") or char
     # Polestar's own record of the last class trainer visit (classTrainVisit,
     # the level it was at), from the shipper's sheet: exact where the
@@ -793,7 +799,9 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
                       "dungeon_trip_id IS NULL", ding_lo) or 0
     all_xp = one(db, "SELECT COALESCE(SUM(xp_gained),0) FROM xp WHERE t >= ?", ding_lo) or 0
     share_rule = knowledge.rule("quest_xp.share_by_levels_over") if knowledge is not None else None
-    oq = open_quests(db, level)
+    # A quest still in the log that only Battle.net's worn items prove done
+    # (the history closes the others in the prep, wowstats.quests.settles_open).
+    oq = [o for o in open_quests(db, level) if quests_done.get(o["quest_id"]) != "battlenet"]
     for o in oq:
         o.update({k: v for k, v in quest_facts(knowledge, o["quest_id"]).items() if k != "xp"},
                  xp_full=quest_facts(knowledge, o["quest_id"])["xp"])

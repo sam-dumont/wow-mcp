@@ -112,10 +112,13 @@ def rows_for(scenario: str) -> list[dict]:
 
 
 class VL:
-    """VictoriaLogs (and an empty VictoriaMetrics) over `rows`, on a port."""
+    """VictoriaLogs over `rows`, and a VictoriaMetrics that answers each
+    query with the first `metrics` entry whose key is in it (else nothing),
+    on a port."""
 
-    def __init__(self, rows: list[dict]):
+    def __init__(self, rows: list[dict], metrics: dict[str, list[dict]] | None = None):
         self.rows = sorted(rows, key=lambda r: parse_t(r.get("_time")))
+        self.metrics = metrics or {}
         self.unsupported: list[str] = []
         fake = self
 
@@ -147,7 +150,8 @@ class VL:
                     return self._send(200, "".join(json.dumps(r) + "\n" for r in out).encode(),
                                       "application/stream+json")
                 if u.path.startswith("/api/v1/"):
-                    return self._send(200, json.dumps({"status": "success", "data": {"result": []}}).encode())
+                    res = next((v for k, v in fake.metrics.items() if k in q.get("query", "")), [])
+                    return self._send(200, json.dumps({"status": "success", "data": {"result": res}}).encode())
                 self._send(404, b"")
 
             do_POST = do_GET

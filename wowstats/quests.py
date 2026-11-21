@@ -19,6 +19,13 @@ done when any of these says so:
 - `reward`: the character holds or held (worn, bags, bank, on any gear or
   bags snapshot) gear that only that quest gives
   (data/forever-reference.json `rewards`);
+- `battlenet`: the same, from what Battle.net says it wears now (the
+  friend without Syndicator has no sheet at all). Read live at query time
+  and never kept: Blizzard's API terms allow 30 days, so it never enters
+  the history, the analysis' database, an export or a cache longer than
+  the readers' minute (wowstats.views.Views.quests_done, wowstats.plan's
+  two-minute inputs, keyed by the items). Last in trust: it only adds
+  quests the history doesn't have, never removes or relabels one;
 - `inferred`: a quest it had to hand in first to get one of the above
   (forever-db's prerequisites, every one of an "all" list, the one quest
   of a one-quest "any" list), and so on down the chain. This holds even
@@ -32,10 +39,14 @@ planner's open quests both read that one answer (wowstats.analysis.prep).
 No addon the kit reads saves the quest log itself, so "gone from the log"
 is not a source.
 
+Every reader gets the same answer: Gear, the Overview, next steps and the
+MCP through Views.quests_done; the planner and the Dungeons panel through
+wowstats.plan.facts.gather, from the same history plus the same live
+Battle.net equipment. The analysis' database (wowstats.analysis.prep)
+keeps the history alone.
+
 Battle.net's profile API has the whole set too (/quests/completed in
-profile-forever-*, checked 2026-11-19), but the planner never reads
-Battle.net data (its plans are kept past the API terms' 30 days), so it
-isn't a source here.
+profile-forever-*, checked 2026-11-19); the exporter doesn't read it.
 """
 
 from __future__ import annotations
@@ -46,7 +57,7 @@ from collections.abc import Iterable
 from wowstats import forever
 
 # In order of trust: a quest some source names keeps the first one.
-SOURCES = ("turnin", "flagged", "questie", "altoholic", "reward", "inferred")
+SOURCES = ("turnin", "flagged", "questie", "altoholic", "reward", "battlenet", "inferred")
 SNAPSHOT_SOURCES = ("questie", "altoholic")
 
 # LogsQL pipes after a character's Recorder filter, and after a stream and
@@ -54,6 +65,35 @@ SNAPSHOT_SOURCES = ("questie", "altoholic")
 Q_RECORDS = "kind:in(turnin, offer) | stats by (kind, quest_id, quests_done) count() as n"
 Q_SNAPSHOTS = ('feed:="wow-quests" {cf} kind:=completed | fields _time, feed, kind, source, quest_ids '
                "| sort by (_time desc) | limit 20")
+# Every gear and bags sheet, not just the newest: a reward sold or replaced
+# since still proves the hand-in. The Gear page once read the newest alone
+# and offered Violet Sash from Power Overwhelming again once it was gone
+# (#33's case), while the planner, reading the whole history, had it done.
+# What the character owns now is wowstats.gear's Q_SHEET and Q_HELD.
+Q_SHEETS = 'feed:in("wow-gear", "wow-bags") {cf} | fields _time, feed, items, bags, bank'
+
+
+def history(run, rec: str, cf: str) -> dict[int, str]:
+    """completed() from a character's history, for the live readers (the
+    web Views, and through them the MCP): `run(query)` returns the rows of
+    a LogsQL query after the stream filter, `rec` is the character's
+    Recorder filter, `cf` its character filter. The planner reads every
+    event (wowstats.analysis.prep.query): the same evidence."""
+    return completed([r for q in (f"{rec} {Q_RECORDS}", Q_SNAPSHOTS.format(cf=cf), Q_SHEETS.format(cf=cf))
+                      for r in run(q)])
+
+
+def worn_ids(worn: dict | None) -> list[int]:
+    """The item ids of Battle.net's equipment as wowstats.gear.armory_worn
+    gives it ({slot: {"item_id", ...}}), for the `battlenet` source."""
+    return sorted({n for r in (worn or {}).values() if isinstance(r, dict) and (n := _int(r.get("item_id")))})
+
+
+def with_battlenet(done: dict[int, str], worn: Iterable[int] | None) -> dict[int, str]:
+    """`done` (completed() of the history) plus the quests Battle.net's
+    worn items prove (and what they need first): the history keeps every
+    quest and source it has, Battle.net only adds."""
+    return {**completed([], battlenet=worn), **done} if worn else dict(done)
 
 
 def _int(v) -> int | None:
@@ -119,7 +159,8 @@ INFERRED = "done (inferred)"
 _WHERE = {"gear": "worn", "bags": "in the bags", "bank": "in the bank"}
 
 
-def _found(rows: Iterable[dict], held: Iterable[int] | None) -> dict[str, dict[int, dict]]:
+def _found(rows: Iterable[dict], held: Iterable[int] | None,
+           battlenet: Iterable[int] | None = None) -> dict[str, dict[int, dict]]:
     """Per source (SOURCES but `inferred`), quest -> {why, t, last_t}: what
     says it is done, and the first and last time it was seen saying so (unix
     s; None when the record has no time, like a `held` list)."""
@@ -143,10 +184,10 @@ def _found(rows: Iterable[dict], held: Iterable[int] | None) -> dict[str, dict[i
         from datetime import UTC, datetime
         return f" on {datetime.fromtimestamp(t, UTC):%Y-%m-%d}" if t is not None else ""
 
-    def reward(item: int, where: str, t: float | None) -> None:
+    def reward(item: int, where: str, t: float | None, src: str = "reward") -> None:
         if (q := reward_quest(item)) is not None:
             name = ((forever.data() or {}).get("items") or {}).get(str(item)) or f"item {item}"
-            add("reward", q, f"{name} ({item}) {where}{day(t)}: a reward only this quest gives", t)
+            add(src, q, f"{name} ({item}) {where}{day(t)}: a reward only this quest gives", t)
 
     for r in rows:
         kind, feed, t = r.get("kind"), r.get("feed"), when(r)
@@ -179,6 +220,9 @@ def _found(rows: Iterable[dict], held: Iterable[int] | None) -> dict[str, dict[i
     for n in held or []:
         if (n := _int(n)) is not None:
             reward(n, "held (worn, bags or bank)", None)
+    for n in battlenet or []:
+        if (n := _int(n)) is not None:
+            reward(n, "worn, as Battle.net says now", None, "battlenet")
     return ev
 
 
@@ -192,12 +236,14 @@ def evidence(rows: Iterable[dict], held: Iterable[int] | None = None) -> dict[st
     return {src: set(qs) for src, qs in _found(rows, held).items()}
 
 
-def explain(rows: Iterable[dict], held: Iterable[int] | None = None) -> dict[int, dict]:
+def explain(rows: Iterable[dict], held: Iterable[int] | None = None,
+            battlenet: Iterable[int] | None = None) -> dict[int, dict]:
     """completed() with the reason: quest -> {from: the first source (SOURCES
     order) that says so, why: the evidence in words, t / last_t: the first
-    and last time that source said so (unix s, None when unknown)}."""
+    and last time that source said so (unix s, None when unknown)}.
+    `battlenet`: the item ids Battle.net says it wears now (worn_ids)."""
     out: dict[int, dict] = {}
-    for src, qs in _found(rows, held).items():
+    for src, qs in _found(rows, held, battlenet).items():
         for q in sorted(qs):
             if q not in out:
                 out[q] = {"from": src, **qs[q]}
@@ -207,10 +253,11 @@ def explain(rows: Iterable[dict], held: Iterable[int] | None = None) -> dict[int
     return out
 
 
-def completed(rows: Iterable[dict], held: Iterable[int] | None = None) -> dict[int, str]:
+def completed(rows: Iterable[dict], held: Iterable[int] | None = None,
+              battlenet: Iterable[int] | None = None) -> dict[int, str]:
     """Every quest the character has done -> the first source (SOURCES
     order) that says so. The keys are the answer to "is this quest done?"."""
-    return {q: e["from"] for q, e in explain(rows, held).items()}
+    return {q: e["from"] for q, e in explain(rows, held, battlenet).items()}
 
 
 def settles_open(e: dict | None, accepted_t: float | None) -> bool:

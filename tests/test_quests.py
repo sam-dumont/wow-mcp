@@ -109,6 +109,13 @@ def test_the_logsql_reads_answer_from_the_cache():
     assert {q: s for q, s in done.items() if s != "inferred"} == {BAZIL_THREDD: "turnin", 97914: "flagged",
                                                                   5: "altoholic", 6: "altoholic"}
     assert done[UNSENT_LETTER] == "inferred"
+    # quests.history: the same reads plus every gear and bags sheet, the
+    # older ones too (the Views' and the MCP's one answer).
+    sheets = [{**worn("2026-11-10T20:00:00Z", VIOLET_SASH), "char": "Testpriest-Fixture"},
+              {**worn("2026-11-12T20:00:00Z"), "char": "Testpriest-Fixture"}]
+    cf = 'char:="Testpriest-Fixture"'
+    got = quests.history(lambda q: logsql.parse(q).run([*rows, *sheets]), f'feed:="wow-recorder" {cf}', cf)
+    assert got[POWER_OVERWHELMING] == "reward" and got[BAZIL_THREDD] == "turnin" and got[5] == "altoholic"
 
 
 # ---------------------------------------------------------------- the shipper
@@ -306,3 +313,168 @@ def test_the_analysis_sees_it_done():
     assert got[0][0] == "done (inferred)" and "Violet Sash" in got[0][1] and got[0][2] == "reward"
     _, open_, _ = run.run("SELECT COUNT(*) FROM quests WHERE status = 'open'")
     assert open_ == [(0,)]
+
+
+# ---------------------------------------------------------------- sold or replaced since
+
+
+def _sheet(t: str, waist: int | None) -> dict:
+    """Testpriest's sheet (tests/test_gear.py) with this belt, or none."""
+    from tests.test_gear import WORN
+
+    slots = {k: v for k, v in WORN.items() if k != 6} | ({6: waist} if waist else {})
+    return {"_time": t, "feed": "wow-gear", "char": CHAR, "class": "PRIEST", "race": "Gnome", "faction": "Alliance",
+            "spec": "Shadow", "items": json.dumps([{"slot": k, "item_id": v} for k, v in slots.items()]),
+            "professions": json.dumps([{"name": "Tailoring", "rank": 160}])}
+
+
+def _bags(t: str) -> dict:
+    return {"_time": t, "feed": "wow-bags", "char": CHAR, "bags": "[]", "bank": "[]"}
+
+
+@pytest.fixture
+def sash_sold(tmp_path, monkeypatch):
+    """Power Overwhelming handed in with the Recorder off (#33): its accept
+    recorded, Violet Sash worn on the 10th, gone from the sheet and the bags
+    on the 12th (sold or replaced). Served by the VictoriaLogs stand-in."""
+    from tests import degraded as D
+    from wowstats import plan as planmod
+    from wowstats import ui
+
+    monkeypatch.setenv("WOW_ITEMS", "off")
+    rows = [rec("2026-11-10T18:00:00Z", "accept", quest_id=POWER_OVERWHELMING, level=32, zone="Stormwind City"),
+            _sheet("2026-11-10T21:00:00Z", VIOLET_SASH), _bags("2026-11-10T21:00:00Z"),
+            _sheet("2026-11-12T19:00:00Z", None), _bags("2026-11-12T19:00:00Z"),
+            {"_time": "2026-11-12T19:00:00Z", "feed": "wow-character", "char": CHAR, "level": 32,
+             "zone": "Stormwind City", "class": "PRIEST", "race": "Gnome", "faction": "Alliance",
+             "source": "polestar"}]
+    vl = D.VL(rows)
+    env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": vl.url, "VM_URL": vl.url,
+           "MODEL3D": "off", "DEFAULT_CHAR": CHAR, "HOME": str(tmp_path), "ANALYSIS_STATE_DIR": str(tmp_path),
+           "WOW_ITEMS": "off"}
+    planmod._CACHE.clear()
+    yield env, ui.App(env)
+    vl.close()
+    planmod._CACHE.clear()
+
+
+def test_a_completed_quest_stays_completed_after_its_reward_is_gone(sash_sold):
+    """The sash proved the hand-in once; selling or replacing it doesn't
+    undo it. Gear (page and MCP), the Overview's advice (next steps,
+    next_moves), the planner and the dungeon picks never offer it again."""
+    from wowstats import plan as planmod
+    from wowstats.mcp import tools as T
+    from wowstats.mcp.store import Store as MStore
+
+    env, app = sash_sold
+
+    def from_po(ups):
+        return [u for u in ups or [] if any(s.get("quest_id") == POWER_OVERWHELMING for s in u.get("sources") or [])]
+
+    assert app.views.quests_done(CHAR)[POWER_OVERWHELMING] == "reward"
+    assert from_po(app.gear(CHAR, None)["upgrades"]) == []
+    assert (app.views.insights(CHAR)["advice"] or {}).get("upgrades") is not None
+    assert from_po(app.views.insights(CHAR)["advice"]["upgrades"]) == []
+    ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=CHAR, env=env)
+    m = T.call(ctx, "gear", {"char": CHAR, "limit": 40})
+    assert not [u for u in m["next_upgrades"] + m.get("buy_now", []) if u["item_id"] == VIOLET_SASH]
+    inp = planmod.inputs(env, CHAR)
+    assert POWER_OVERWHELMING in inp["quests_done"]
+    assert VIOLET_SASH not in {u["item_id"] for u in inp["upgrades"]}
+    # The dungeon picks read the planner's quests_done: Testpriest's inputs
+    # at 30 (tests/plan/test_dungeonview.py), City of Dalaran's quests open,
+    # then this character's answer added.
+    from tests.plan.test_dungeonview import _caster_at_30, load
+
+    picks = _caster_at_30(load("plan-inputs.json.gz"))
+    picks["quests_done"] = sorted({*picks["quests_done"], *inp["quests_done"]})
+    dal = next(b for b in dungeonview.build(picks)["dungeons"] if b["name"] == "City of Dalaran")
+    assert next(q for q in dal["quests"] if q["quest_id"] == POWER_OVERWHELMING)["state"] == "done"
+    assert "Violet Sash" not in {r["name"] for r in dal["quest_rewards"]}
+
+
+# ---------------------------------------------------------------- Battle.net's worn items
+
+
+def test_battlenet_only_adds():
+    """Battle.net's worn items prove a quest like a sheet does, last in
+    trust: the history keeps every quest and source it has."""
+    assert quests.completed([], battlenet=[VIOLET_SASH])[POWER_OVERWHELMING] == "battlenet"
+    assert quests.with_battlenet({}, [VIOLET_SASH])[POWER_OVERWHELMING] == "battlenet"
+    hist = quests.completed([worn("2026-11-10T21:00:00Z", VIOLET_SASH), {"kind": "turnin", "quest_id": 1}])
+    both = quests.with_battlenet(hist, [VIOLET_SASH])
+    assert both[POWER_OVERWHELMING] == "reward" and both[1] == "turnin" and hist.items() <= both.items()
+    assert quests.with_battlenet(hist, []) == hist
+    assert quests.worn_ids({6: {"item_id": VIOLET_SASH, "stats": {}}, 1: {"item_id": None}}) == [VIOLET_SASH]
+
+
+@pytest.fixture
+def sash_on_battlenet(tmp_path, monkeypatch):
+    """No Syndicator (no gear or bags sheet at all), Power Overwhelming
+    accepted with the Recorder on and handed in with it off; Battle.net says
+    Violet Sash is worn now. VictoriaLogs and vm-wow stand-ins."""
+    import time as _time
+
+    from tests import degraded as D
+    from wowstats import plan as planmod
+    from wowstats import ui
+
+    monkeypatch.setenv("WOW_ITEMS", "off")
+    who = {"character": CHAR, "account_id": "0"}
+    rows = [rec("2026-11-10T18:00:00Z", "accept", quest_id=POWER_OVERWHELMING, level=32, zone="Stormwind City"),
+            {"_time": "2026-11-12T19:00:00Z", "feed": "wow-character", "char": CHAR, "level": 32,
+             "zone": "Stormwind City", "class": "PRIEST", "race": "Gnome", "faction": "Alliance",
+             "source": "polestar"}]
+    vl = D.VL(rows, metrics={
+        "wow_character_profile_refreshed_timestamp_seconds": [{"metric": who, "value": [0, str(_time.time())]}],
+        "wow_character_equipped_stat": [],
+        "wow_character_equipped": [{"metric": {**who, "slot": "waist"}, "value": [0, str(VIOLET_SASH)]}]})
+    env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": vl.url, "VM_URL": vl.url,
+           "MODEL3D": "off", "DEFAULT_CHAR": CHAR, "HOME": str(tmp_path), "ANALYSIS_STATE_DIR": str(tmp_path),
+           "WOW_ITEMS": "off"}
+    planmod._CACHE.clear()
+    yield env, ui.App(env)
+    vl.close()
+    planmod._CACHE.clear()
+
+
+def test_a_reward_battlenet_says_is_worn_proves_its_quest_everywhere(sash_on_battlenet):
+    """Degraded mode: without Syndicator, Battle.net's equipment is the only
+    proof. Gear (page and MCP), the Overview's advice, the planner (quests
+    done, open quests) and the dungeon picks all count the quest done; the
+    MCP only when the person lets Battle.net data reach the model."""
+    from wowstats import plan as planmod
+    from wowstats.mcp import tools as T
+    from wowstats.mcp.store import Store as MStore
+
+    env, app = sash_on_battlenet
+
+    def from_po(ups):
+        return [u for u in ups or [] if any(s.get("quest_id") == POWER_OVERWHELMING for s in u.get("sources") or [])]
+
+    assert app.views.quests_done(CHAR)[POWER_OVERWHELMING] == "battlenet"
+    assert POWER_OVERWHELMING not in app.views.quests_history(CHAR)  # never cached with the history
+    g = app.gear(CHAR, None)
+    assert g["worn_from"] == "battle.net" and from_po(g["upgrades"]) == []
+    assert from_po(app.views.insights(CHAR)["advice"]["upgrades"]) == []
+
+    ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=CHAR, env=env, bnet=True)
+    assert T._views(ctx).quests_done(CHAR)[POWER_OVERWHELMING] == "battlenet"
+    m = T.call(ctx, "gear", {"char": CHAR, "limit": 40})
+    assert not [u for u in m["next_upgrades"] + m.get("buy_now", []) if "Power Overwhelming" in str(u["where"])]
+    off = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=CHAR, env=env, bnet=False)
+    assert T.bnet_worn(off, CHAR) == [] and POWER_OVERWHELMING not in T._views(off).quests_done(CHAR)
+
+    inp = planmod.inputs(env, CHAR, battlenet=app.bnet_worn(CHAR))
+    assert POWER_OVERWHELMING in inp["quests_done"] and inp["quests_done_from"]["battlenet"] >= 1
+    assert POWER_OVERWHELMING not in {o["quest_id"] for o in inp["open_quests"]}
+    without = planmod.inputs(env, CHAR)  # its own cache entry: Battle.net off
+    assert POWER_OVERWHELMING not in without["quests_done"]
+    assert POWER_OVERWHELMING in {o["quest_id"] for o in without["open_quests"]}
+
+    from tests.plan.test_dungeonview import _caster_at_30, load
+
+    picks = _caster_at_30(load("plan-inputs.json.gz"))
+    picks["quests_done"] = sorted({*picks["quests_done"], *inp["quests_done"]})
+    dal = next(b for b in dungeonview.build(picks)["dungeons"] if b["name"] == "City of Dalaran")
+    assert next(q for q in dal["quests"] if q["quest_id"] == POWER_OVERWHELMING)["state"] == "done"

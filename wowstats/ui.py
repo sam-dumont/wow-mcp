@@ -137,10 +137,10 @@ def _basic(user: str, pw: str) -> bytes:
     return b"Basic " + base64.b64encode(f"{user}:{pw}".encode())
 
 
-def plan_status(char: str, store, env: dict | None = None) -> dict:
+def plan_status(char: str, store, env: dict | None = None, battlenet: list[int] | None = None) -> dict:
     from wowstats import plan
 
-    return plan.status(dict(os.environ if env is None else env), char or None, store)
+    return plan.status(dict(os.environ if env is None else env), char or None, store, battlenet=battlenet)
 
 
 def parse_weights(raw: str) -> dict[str, str]:
@@ -489,6 +489,13 @@ class App:
         self._full_only()
         return self.cached(f"loot:{name}", lambda: self.views.loot(name))
 
+    def bnet_worn(self, name: str) -> list[int]:
+        """What Battle.net says the character wears now (item ids), read live
+        for the planner's quest answer (wowstats.quests.with_battlenet)."""
+        from wowstats import gear, quests
+
+        return quests.worn_ids(gear.armory_worn(self.store, name))
+
     def dungeons(self, name: str) -> dict:
         """The Dungeons panel (wowstats.plan.dungeonview), from the planner's
         inputs: what each dungeon holds for the character."""
@@ -499,7 +506,7 @@ class App:
             from wowstats.plan import dungeonview
 
             try:
-                inp = plan.inputs(self.env, name, self.store)
+                inp = plan.inputs(self.env, name, self.store, battlenet=self.bnet_worn(name))
             except LookupError as e:
                 return {"char": name, "available": False, "why": str(e)}
             return {**dungeonview.build(inp), "available": True}
@@ -571,7 +578,7 @@ class App:
 
         def build() -> dict:
             try:
-                return plan_status(name, self.store, self.env)
+                return plan_status(name, self.store, self.env, battlenet=self.bnet_worn(name))
             except LookupError as e:
                 return {"available": False, "why": str(e)}
 

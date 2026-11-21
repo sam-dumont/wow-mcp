@@ -1900,14 +1900,15 @@ def spec_why(ref: Reference, cls: str, key: str, label: str, how: str, sheet: di
     return f"Scored for {label} because {why}."
 
 
-def advise_rows(rows: list[dict], weights: str | None = None) -> dict | None:
+def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None) -> dict | None:
     """advise() from one character's stored events as the analysis' prep
     reads them (wowstats.analysis.prep.query): the newest sheet, the level
     and zone of the newest record, the quests seen handed in, the newest
     bags and bank. Every upgrade
     is kept (`upgrades_all`). None without a sheet or a level; a GearError
-    passes through."""
-    got = newest_sheet(rows)
+    passes through. `battlenet`: the item ids Battle.net says it wears now
+    (wowstats.quests.with_battlenet), read live by the caller."""
+    got = newest_sheet(rows, battlenet)
     if got is None:
         return None
     sh, level, zone, done = got
@@ -1997,7 +1998,7 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
     return out
 
 
-def newest_sheet(rows: list[dict]) -> tuple[dict, int, str | None, set] | None:
+def newest_sheet(rows: list[dict], battlenet=None) -> tuple[dict, int, str | None, set] | None:
     """(sheet, level, zone, quests done: wowstats.quests) from one character's stored
     events (wowstats.analysis.prep.query), or None without a sheet or a level."""
     from wowstats.stores import parse_t
@@ -2011,7 +2012,8 @@ def newest_sheet(rows: list[dict]) -> tuple[dict, int, str | None, set] | None:
         return None
     zone = newest(lambda r: r.get("feed") in ("wow-recorder", "wow-character") and r.get("zone"))
     who = newest(lambda r: r.get("feed") == "wow-recorder" and r.get("kind") == "session") or {}
-    return sheet(g, who), int(_num(lv.get("level"))), (zone or {}).get("zone"), set(quests.completed(rows))
+    done = set(quests.completed(rows, battlenet=battlenet))
+    return sheet(g, who), int(_num(lv.get("level"))), (zone or {}).get("zone"), done
 
 
 def instance_loot_rows(rows: list[dict], weights: str | None = None, bis: dict | None = None) -> dict[str, list[dict]]:

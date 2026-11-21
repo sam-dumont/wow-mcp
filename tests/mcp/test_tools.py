@@ -24,6 +24,10 @@ class ToolsTest(unittest.TestCase):
         return tools.call(self.ctx, name, args)
 
     def test_every_query_keeps_the_stream_filter_and_the_char(self):
+        # The account-wide missing-sources read (wowstats.missing, every
+        # character on purpose) is cached a minute; another test clearing
+        # that cache on the same worker made it show up here.
+        self.call("zones", char=fakes.CHAR)
         self.fake.queries.clear()
         self.call("zones", char=fakes.CHAR)
         qs = self.fake.log_queries()

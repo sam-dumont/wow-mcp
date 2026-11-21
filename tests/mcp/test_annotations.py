@@ -84,7 +84,7 @@ def lab(tmp_path, monkeypatch):
     monkeypatch.setattr(prep, "query", lambda store, stream, char: [dict(r) for r in rows])
     with gzip.open(DATA / "plan-inputs.json.gz") as f:
         priest = json.loads(f.read())
-    monkeypatch.setattr(plan, "inputs", lambda env, char=None, store=None: {**priest, "who": {
+    monkeypatch.setattr(plan, "inputs", lambda env, char=None, store=None, battlenet=None: {**priest, "who": {
         **priest["who"], "char": CHAR}})
     drive._WS.clear()
     state = tmp_path / "state"

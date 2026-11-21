@@ -3,8 +3,9 @@
 Each plan is saved to ANALYSIS_STATE_DIR/plans.json (the MCP state volume)
 with what a later comparison needs: when it was made, the start, the
 checkpoints (played offset and level) and the end. Nothing in it comes from
-Battle.net (the planner never reads vm-wow), so it needs no 30-day expiry;
-the newest MAX_PLANS per character are kept.
+Battle.net (the planner never reads vm-wow; the worn item ids a caller
+passes for the quests done stay in the inputs' two-minute cache), so it
+needs no 30-day expiry; the newest MAX_PLANS per character are kept.
 
 `review()` lays a plan over the XP the character really made after it: the
 online time at which he reached each checkpoint's level against the time
