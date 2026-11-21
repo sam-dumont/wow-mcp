@@ -3353,7 +3353,10 @@ async function loadSnapshot(level, out) {
   state.snapLevel = level;
   try {
     const sn = await getJSON(api('snapshot', { name: state.char, level }));
-    if (state.snapLevel === level) renderSnapshot(sn, out);
+    if (state.snapLevel === level) {
+      renderSnapshot(sn, out);
+      out.dataset.level = level;
+    }
   } catch (e) {
     fill(out.parts.info, h('p', { class: 'err', text: `Couldn’t read level ${level}: ${e.message}.` }));
   }

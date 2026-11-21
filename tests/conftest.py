@@ -176,3 +176,31 @@ def pytest_collection_modifyitems(items):
             item.add_marker(pytest.mark.browser)
         if name in CI_ONLY:
             item.add_marker(pytest.mark.ci_only)
+
+
+# release.yml's browser gate sets WOW_BROWSER_GATE: there a browser test that
+# skips (no Playwright, an engine that won't start, a fixture missing) fails
+# instead, so a green gate means every page was really opened in Chromium and
+# WebKit. Locally they still skip without their browsers.
+BROWSER_GATE = os.environ.get("WOW_BROWSER_GATE") == "1"
+
+
+def _gate(report, what):
+    if BROWSER_GATE and report.skipped and "browser" in Path(str(report.fspath)).name:
+        reason = report.longrepr[2] if isinstance(report.longrepr, tuple) else report.longrepr
+        report.outcome = "failed"
+        report.longrepr = f"WOW_BROWSER_GATE: {what} skipped: {reason}"
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    report = outcome.get_result()
+    if not hasattr(report, "wasxfail"):
+        _gate(report, item.nodeid)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_make_collect_report(collector):
+    outcome = yield
+    _gate(outcome.get_result(), str(collector.nodeid))

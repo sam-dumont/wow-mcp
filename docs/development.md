@@ -16,7 +16,8 @@ uv run playwright install chromium webkit
 
 The `browser` group and the two browsers are for the browser tests
 (`tests/test_browser.py`, `tests/test_advice_browser.py`). Without them those
-tests skip; CI doesn't install them, so run them locally before a release.
+tests skip. CI doesn't install them: run them locally when you change a page,
+and the release runs the whole browser suite before it publishes anything.
 
 ## What to run before pushing
 
@@ -33,8 +34,8 @@ runs the whole non-browser suite. `--list` shows the selection without running i
 
 Browser tests (files named `*browser*`, marked `browser`) are the slow part and
 run only when a rule selects them (`pyproject.toml` keeps them out of a plain
-`pytest` too). Run the whole browser suite once before a release:
-`make test-browser`. The whole fast suite, in parallel: `make test`. Tests marked
+`pytest` too). The whole browser suite: `make test-browser`; the release
+runs it too (below). The whole fast suite, in parallel: `make test`. Tests marked
 `ci_only` (docker compose, the Polestar comparison, Windows) run in CI and at
 release: `-m ci_only`. Tests run in parallel with pytest-xdist, so none may lean
 on another or on a fixed port or path: servers bind port 0, state lives in `tmp_path`.
@@ -241,7 +242,13 @@ A real run (`.github/workflows/release.yml`, its header has the detail):
    no sense, saying what to press instead: nothing under "Unreleased", a
    `bump` while a candidate series is open, a `channel` that doesn't match a
    version already prepared.
-2. `ci.yml` runs in full.
+2. `ci.yml` runs in full, and next to it the whole browser suite
+   (Chromium and WebKit) on the release commit's tree, on GitHub's hosted
+   runners. A browser that can't start fails it there (`WOW_BROWSER_GATE`),
+   never a skip. It's the only place CI runs browsers: never in `ci.yml` or on a
+   pull request (an install once hung a CI job for 30 minutes), so the job
+   and each install step have their own timeout, and the browsers are cached
+   per Playwright version. A dry run runs it too.
 3. The release commit: the version in `pyproject.toml`, `wowstats/__init__.py`,
    `shipper/wow_stats.py`, `uv.lock` and the bug template, CHANGELOG.md's
    "Unreleased" under `## X.Y.Z (date)`, and the shipper's signature in
@@ -274,8 +281,8 @@ sorts below its final (`0.7.0-rc.2` < `0.7.0`). Shippers before 0.7.0 only
 read `X.Y.Z`: they log "the server names no version" every 6 hours and move
 at the final.
 
-Before pressing for real: the full checks above on main, browsers
-included, and the A/B check below. Write the CHANGELOG as you merge, under
+Before pressing for real: the A/B check below. The release runs the
+rest, browsers included. Write the CHANGELOG as you merge, under
 "Unreleased": what changed for a player, then "Upgrading" with every
 changed variable, port, volume or route.
 

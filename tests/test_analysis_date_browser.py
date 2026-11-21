@@ -98,7 +98,8 @@ def test_how_you_play_says_when_and_who(site, pw, engine, kind, who):
         pg.wait_for_selector("#analysis:not([hidden]) .asof", timeout=30000)
         text = pg.locator("#analysis .asof").inner_text()
         day = {"server": "19 Nov", "client": "20 Nov"}[kind]
-        assert re.fullmatch(rf"As of \w{{3}} {day}, by {who}\.", text), text
+        # WebKit on Linux writes "Thu, 19 Nov", on macOS "Thu 19 Nov".
+        assert re.fullmatch(rf"As of \w{{3}},? {day}, by {who}\.", text), text
         assert not errors, errors
     finally:
         b.close()
