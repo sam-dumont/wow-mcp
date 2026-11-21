@@ -94,6 +94,9 @@ class Views:
         # most, as every level's snapshot reads it.
         self._recon: dict[str, tuple[float, object]] = {}
         self._snap_in: dict[str, tuple[float, tuple]] = {}
+        # The quests each character's history says are done (quests_history,
+        # never Battle.net's): worked out once a minute at most.
+        self._done: dict[str, tuple[float, dict[int, str]]] = {}
         # The account's Auctionator scans: /api/prices and the advice's
         # Auction House source read them once (price_rows).
         self._prices: tuple[float, list] | None = None
@@ -105,6 +108,7 @@ class Views:
         the next answers are worked out from the stores as they are now."""
         self._recon.clear()
         self._snap_in.clear()
+        self._done.clear()
         with self._prices_lock:
             self._prices = None
         if getattr(self.store, "use_cache", False):
@@ -418,6 +422,31 @@ class Views:
         tal, _ = talents.from_battlenet(talents.shared().get(), cls, self.bnet_talents(char))
         return (tal.get("points") or None) if tal.get("available") else None
 
+    def quests_done(self, char: str, worn: dict | None = None) -> dict[int, str]:
+        """Every quest the character has done -> what says so: the history
+        (quests_history), plus what Battle.net says it wears now
+        (wowstats.quests.with_battlenet; `worn`: gear.armory_worn's answer
+        when the caller has it, else read here, live). The one answer Gear,
+        the Overview and the MCP read."""
+        if worn is None:
+            worn = gearmod.armory_worn(self.store, char)
+        return quests.with_battlenet(self.quests_history(char), quests.worn_ids(worn))
+
+    def quests_history(self, char: str) -> dict[int, str]:
+        """wowstats.quests.history: the Recorder, the quest addons and every
+        gear and bags sheet it ever sent, so a reward sold or replaced since
+        still counts. No Battle.net data, so it may be cached a minute."""
+        import time
+
+        hit = self._done.get(char)
+        if hit and time.time() - hit[0] < 60:
+            return hit[1]
+        st = self.stream
+        cf = self.char_filter(char)
+        out = quests.history(lambda q: self.vl(f"{st} {q}"), f'feed:="wow-recorder" {cf}', cf)
+        self._done[char] = (time.time(), out)
+        return out
+
     def gear(self, char: str, spec: str | None = None) -> dict:
         """Gear advice (wowstats.gear): per slot what is worn, the best item
         at this level and the next one coming, and the upgrades in order.
@@ -434,8 +463,7 @@ class Views:
             "xp": sub(vl, f"{rec} kind:in(xp, level, zone) | fields _time, kind, level, zone "
                           f"| sort by (_time desc) | limit 1"),
             # Quests already done (wowstats.quests): their rewards are gone.
-            "done": sub(vl, f"{rec} {quests.Q_RECORDS}"),
-            "snapshots": sub(vl, f"{st} {quests.Q_SNAPSHOTS.format(cf=cf)}"),
+            "done": sub(self.quests_history, char),
             # What the bags and the bank hold: those upgrades are an equip away.
             "held": sub(vl, f"{st} {gearmod.Q_HELD.format(cf=cf)}"),
         }
@@ -461,7 +489,7 @@ class Views:
         sheet = gearmod.sheet(row, header)
         sheet["talents"] = self.talent_points(char, sheet.get("class"))  # spec detection: Battle.net only
         sheet["worn_stats"] = worn
-        done = set(quests.completed([*res["done"], *res["snapshots"], *res["held"], {**row, "feed": "wow-gear"}]))
+        done = set(quests.with_battlenet(res["done"], quests.worn_ids(worn)))
         try:
             market = ahsource.market({k: f.result() for k, f in ah.items()}, faction=sheet.get("faction"),
                                      money=header.get("money_copper"))

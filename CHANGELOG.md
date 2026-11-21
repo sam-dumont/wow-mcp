@@ -13,6 +13,8 @@
 - An upload the store refused (VictoriaLogs down or answering an error) no longer counts as one: `/ingest` answers 502 as before, and now leaves the person's first-event mark, their last upload in /admin and the day's upload budget as they were. Those three are set only once the store has the lines.
 - A gear sheet worn again no longer erases its earlier occurrence: outfit A, then B, then A again showed B, A in the gear history, and a level played in the first A had no sheet. The shipper now names each sheet by its content and the time it was read (`gear:<char>:<hash>:<epoch>`), and the server keeps every occurrence; a resend of the same line still counts once. Sheets from older shippers (`gear:<char>:<hash>`) are told apart by their time, so the history already stored comes back whole without a shipper update.
 
+- Gear (the page and the MCP `gear` tool) no longer offers a quest's reward again once the reward that proved the quest done is sold or replaced: it read only the newest sheet and bags, the planner the whole history. Every gear and bags sheet now counts, as one answer per character for Gear, the Overview, `next_moves`, `sanity_check`, the planner and the Dungeons panel. What Battle.net says the character wears now counts too, everywhere (the only proof for a friend without Syndicator): read live, after the history and only adding quests, never kept past the readers' short caches nor put in the analysis' database; over MCP only when the person lets Battle.net data reach their AI.
+
 ## 0.7.0-rc.5 (2026-11-21)
 
 ### Added

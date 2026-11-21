@@ -31,15 +31,19 @@ _KEY_LOCKS = [threading.Lock() for _ in range(64)]
 MAX_CACHED = 64
 
 
-def inputs(env: dict, char: str | None = None, store=None) -> dict:
+def inputs(env: dict, char: str | None = None, store=None, battlenet=None) -> dict:
     """facts.gather, kept two minutes: the MCP commands of one conversation
     read the same inputs. One gather per character at a time: the full
     view's page asks for the plan's status and the Dungeons panel at once,
     and two gathers side by side would read every event twice. Keyed by
-    the person too (wowstats.tenancy): two people may name a character alike."""
+    the person too (wowstats.tenancy): two people may name a character alike.
+    `battlenet`: the item ids Battle.net says it wears now, read live by the
+    caller (wowstats.quests.with_battlenet); in the key, so an answer made
+    with them never reaches a caller without them (Battle.net to the AI off)."""
     from wowstats.stores import tenant_of
 
-    key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower())
+    bn = tuple(sorted(set(battlenet or ())))
+    key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower(), bn)
     with _LOCK:
         lock = _KEY_LOCKS[hash(key) % len(_KEY_LOCKS)]
     with lock:
@@ -47,7 +51,7 @@ def inputs(env: dict, char: str | None = None, store=None) -> dict:
             hit = _CACHE.get(key)
             if hit and time.time() - hit[0] < CACHE_S:
                 return hit[1]
-        inp = facts.gather(env, char, store=store)
+        inp = facts.gather(env, char, store=store, battlenet=bn)
         with _LOCK:
             _CACHE[key] = (time.time(), inp)
             while len(_CACHE) > MAX_CACHED:
@@ -56,16 +60,16 @@ def inputs(env: dict, char: str | None = None, store=None) -> dict:
 
 
 def compute(env: dict, char: str | None = None, hours: float | None = None, constraints: str = "",
-            context: str | None = None, store=None) -> dict:
-    return est_mod.estimate(inputs(env, char, store), hours, constraints, context)
+            context: str | None = None, store=None, battlenet=None) -> dict:
+    return est_mod.estimate(inputs(env, char, store, battlenet), hours, constraints, context)
 
 
 def plan(env: dict, char: str | None = None, hours: float | None = None, constraints: str = "",
-         context: str | None = None, store=None) -> dict:
+         context: str | None = None, store=None, battlenet=None) -> dict:
     """The plan: {markdown, writer, checked, estimate}."""
     from . import write as writer
 
-    inp = inputs(env, char, store)
+    inp = inputs(env, char, store, battlenet)
     e = est_mod.estimate(inp, hours, constraints, context)
     if not e.get("supported"):
         return {"markdown": e["message"], "writer": "estimator", "checked": True, "estimate": e}
@@ -73,9 +77,9 @@ def plan(env: dict, char: str | None = None, hours: float | None = None, constra
     return {"markdown": writer.fallback(e), "writer": "estimator", "checked": True, "estimate": e}
 
 
-def status(env: dict, char: str | None = None, store=None) -> dict:
+def status(env: dict, char: str | None = None, store=None, battlenet=None) -> dict:
     """For the full view: the mount goal and how the last plan went."""
-    inp = inputs(env, char, store)
+    inp = inputs(env, char, store, battlenet)
     p = est_mod.pace(inp)
     m = est_mod.mounts(inp, p)
     revs = inp.get("plan_reviews") or []

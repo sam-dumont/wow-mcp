@@ -17,7 +17,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
-from .. import ahsource, gearfit, quests
+from .. import ahsource, gearfit
 from .. import gear as gearmod
 from ..rates import per_hour
 from ..stores import SESSION_BUCKETS, split_sessions
@@ -780,9 +780,10 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, level, zone "
                    f"| sort by (_time desc) | limit 1", limit=1)
     held = st.logs(gearmod.Q_HELD.format(cf=cf(char)), limit=1)
-    done = quests.completed([*st.logs(f"{rec(char)} {quests.Q_RECORDS}"),
-                             *st.logs(quests.Q_SNAPSHOTS.format(cf=cf(char))), *held,
-                             {**rows[0], "feed": "wow-gear"}])
+    # The Gear page's answer (Views.quests_done): the whole history, so a
+    # reward sold or replaced since still counts, plus Battle.net's worn
+    # items when this person lets them reach the model (bnet_vm_url).
+    done = _views(ctx).quests_done(char)
     s, r = (snap or [{}])[0], (last or [{}])[0]
     top = s if parse_t(s.get("_time")) >= parse_t(r.get("_time")) else r
     level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
@@ -909,6 +910,15 @@ def bnet_vm_url(ctx: Ctx) -> str:
     return ctx.store.vm_url if (ctx.env is None or ctx.bnet) else ""
 
 
+def bnet_worn(ctx: Ctx, char: str) -> list[int]:
+    """The item ids Battle.net says the character wears now, read live for
+    the planner's quest answer (wowstats.quests.with_battlenet), or [] when
+    this person's Battle.net data may not reach the model (bnet_vm_url)."""
+    from wowstats import quests
+
+    return quests.worn_ids(gearmod.armory_worn(_views(ctx).store, char)) if bnet_vm_url(ctx) else []
+
+
 def _views(ctx: Ctx):
     """The web server's Views over the same VictoriaLogs: next_moves,
     sanity_check and people share their rules with the Overview page
@@ -961,7 +971,7 @@ def _with_gain(ctx: Ctx, char: str, moves: list[dict]) -> list[dict]:
     from wowstats.plan import dungeonview
 
     try:
-        inp = plan.inputs(ctx.environ(), char.replace(" ", "-"), store=ctx.store)
+        inp = plan.inputs(ctx.environ(), char.replace(" ", "-"), store=ctx.store, battlenet=bnet_worn(ctx, char))
     except LookupError:
         return moves
     return dungeonview.with_gain(moves, dungeonview.build(inp))
