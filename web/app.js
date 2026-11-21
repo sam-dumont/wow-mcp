@@ -2479,7 +2479,10 @@ function renderAnalysis(a) {
       f.doubtful ? h('span', { class: 'tag', text: 'doubtful: another finding disagrees' }) : null),
     f.action ? h('p', { class: 'fdo', text: f.action.do }) : null,
     f.action ? stepList(f.action) : null,
-    h('p', { class: f.action ? 'sub' : '', text: f.text }));
+    h('p', { class: f.action ? 'sub' : '', text: f.text }),
+    // Kept before 0.7's run manifests and checked once on today's build
+    // (wowstats.analysis.recheck): say so, plainly.
+    f.carried_note ? h('p', { class: 'sub carried', text: f.carried_note }) : null);
   const acts = (a.findings || []).filter((f) => f.action);
   const obs = (a.findings || []).filter((f) => !f.action);
   if (acts.length) kids.push(h('h3', { text: 'Findings to act on' }), h('ol', { class: 'findings' }, acts.map(finding)));
