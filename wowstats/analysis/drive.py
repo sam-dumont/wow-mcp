@@ -697,7 +697,10 @@ def _submit_synthesis(env, w, run, answer):
     patterns = bind(patterns, kept, lvl, dropped, "pattern")
     asked = run["questions"]
     drv = DRIVER.get() or {}
-    info = {"at": _now(), "kind": drv.get("kind") or "client",
+    # Who refreshed it and through what: the server's timer for this
+    # character starts over from here (wowstats.analysis.auto, last_refresh).
+    info = {"at": _now(), "kind": drv.get("kind") or "client", "by": drv.get("by") or "player",
+            "via": drv.get("via") or "client",
             "driver": str(drv.get("driver") or answer.get("driver") or "")[:80] or None,
             "run": run["id"], "passes": run["submits"] + 1,
             "questions": {"asked": len(asked), "answered": sum(1 for q in asked if q.get("answered")),
@@ -716,12 +719,6 @@ def _submit_synthesis(env, w, run, answer):
                  patterns, w.db, w.kb, other_players(w.store, w.store.stream, w.char), info, info["at"])
     run["pass"] = "done"
     run["result"] = info
-    # The player's analysis is fresh again, whoever drove it: their timer
-    # for the server's own runs starts over (wowstats.analysis.auto).
-    with contextlib.suppress(Exception):
-        from . import auto
-
-        auto.mark_refreshed(env, drv.get("by") or "player", drv.get("via") or "client", drv.get("played_s"))
     return {"accepted": True, "kept": sorted(out["findings"]),
             "nudges": [{k: n.get(k) for k in ("text", "verdict", "at_level", "shareable", "why_not")}
                        for n in out["nudges"]],

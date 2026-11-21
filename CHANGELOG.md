@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- The server's first analysis ran for every character with no refresh on record, including an alt logged into once to reserve its name ($0.32 for nothing in the lab). The timer is now each character's own: its play since its last refresh, or all its play on record when it has none, so that alt stays at 10 minutes of the 10 hours and a 40-hour main is due straight away. An automatic run takes only the due characters. `dashboard_refresh` still runs on demand whatever the play, and it and /admin list each character's play against `ANALYSIS_STALE_PLAYED_HOURS`, "never refreshed" included.
+
 ## 0.7.0-rc.4 (2026-11-21)
 
 ### Added
