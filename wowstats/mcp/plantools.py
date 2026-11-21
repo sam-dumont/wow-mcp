@@ -168,9 +168,9 @@ def t_gear_options(ctx: T.Ctx, args: dict) -> dict:
             "kinds": sorted({o["kind"] for s in slots for o in s["options"]}),
             "note": "Gains are Polestar's gear points for this character's class and spec. bis_pct is the item's share "
                     "of its slot's best at this level (100 = BiS), bis_pct_worn the worn one's (null: an empty slot), "
-                    "delta_pct the difference; the page says \"70% → 91% on your chest\", never \"+21%\" (that "
-                    "reads as 21% more stats). All null when there's nothing to measure against. Each option "
-                    "says what it "
+                    "delta_pct the difference; `line` is the page's words, \"70% → 91% on your chest\": say it as "
+                    "is, never \"+21%\" (that reads as 21% more stats). All null when there's nothing to "
+                    "measure against. Each option says what it "
                     "costs: time (a quest on the route, dungeon trips at the drop chance), luck (a world drop: a "
                     "bonus, never a plan step; the player's own AH price when they scanned it) or a craft. " + CITE}
 
@@ -351,8 +351,9 @@ PLAN_TOOLS: tuple[T.Tool, ...] = (
     T.Tool("gear_options", "Gear options per slot",
            "Per slot, every way to an upgrade with its cost: quest (on the route or not), dungeon drop (trip time "
            "at the drop chance), world drop (luck, plus the player's own AH price), craft, and any other "
-           "source kind the gear data names. Slots furthest from BiS first; each item says bis_pct_worn → "
-           "bis_pct (null worn: empty slot).", S({"char": CHAR, "limit": T.lim(8, 20)}), t_gear_options),
+           "source kind the gear data names. Slots furthest from BiS first; each item's `line` is the page's "
+           "words (\"70% → 91% on your chest\"): say it as is.", S({"char": CHAR, "limit": T.lim(8, 20)}),
+           t_gear_options),
     T.Tool("dungeon_options", "Dungeons worth it",
            "Dungeons in range now or soon, ranked: one more run at the character's level now (time, XP, share "
            "of the level, XP/h against its questing, quests to pick up; the Overview's line), expected gear "

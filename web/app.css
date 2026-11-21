@@ -258,6 +258,8 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 
 /* gear advice: Polestar's scoring, per slot and as a list */
 .slot .iup { display: block; color: var(--good); font-size: 13px; line-height: 1.25; }
+/* The mark is decoration: the line's text is the item line itself (upText). */
+.slot .iup::before { content: '▲ ' / ''; }
 .slot .ibisline { display: block; color: var(--muted); font-size: 13px; line-height: 1.25; }
 .slot .ibisline.top { color: var(--gold-hi); font-weight: 700; }
 .advice { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule); }
@@ -1152,12 +1154,8 @@ li.cand:first-child { border-top: 0; }
 .candmain { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-width: 0; }
 .candmeta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 2px 8px; font-size: 13.5px; color: var(--muted); }
 .candmeta .src { flex-basis: 100%; text-align: right; }
-.candmeta .slotname { font: 600 11.5px/1.4 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
 .advice .gain, .cand .gain { color: var(--good); font-weight: 700; }
 /* An upgrade in BiS terms, "62% → 100% of BiS": quiet, next to the gain. */
-.bisgain { color: var(--muted); font-size: 13px; white-space: nowrap; }
-.byslot .gain .bisgain { display: block; font-weight: 400; }
-.cmphead .bisgain { color: var(--muted); font-weight: 400; }
 .cands.compact .cand { font-size: 14px; }
 /* Who an upgrade is built for: a quiet line under the item, the label in
    green when it's yours, gold for another spec of your class, red when

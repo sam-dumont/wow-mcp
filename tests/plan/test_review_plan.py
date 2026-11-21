@@ -117,7 +117,8 @@ def test_check_plan_refuses_more_time_than_asked(tmp_path, priest):
 def test_check_plan_without_constraints_still_checks_numbers(tmp_path, priest):
     env, e = stored_plan(tmp_path, priest, 3, "")
     assert check(env, "If you get a group, City of Dalaran.")["ok"] is True
-    assert check(env, "Level 99 by the end")["ok"] is False
+    # Past any level and any share of BiS: the item lines' "45% → 99%" made 99 a fact.
+    assert check(env, "Level 101 by the end")["ok"] is False
 
 
 def test_write_check_names_the_constraint():

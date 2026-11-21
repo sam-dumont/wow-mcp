@@ -129,7 +129,8 @@ def test_slot_click_opens_the_comparison(site, pw, engine, width):
         assert "You wear" in text and "Best replacement" in text and "Where to get it" in text
         assert not re.search(r"Polestar|new − [\d.]+ worn", text), "the score's arithmetic is not shown"
         # The slot's BiS share from what's worn to the item, or the points without a BiS.
-        assert re.match(r"^(empty|\d+%) → \d+%$|^[+−][\d.]+$", cmp.locator(".cmphead .gainbig").inner_text().strip())
+        assert re.match(r"^(empty|\d+%) → \d+% on your [a-z ]+$|^[A-Za-z ]+, [+−][\d.]+ points$",
+                        cmp.locator(".cmphead .gainbig").inner_text().strip())
         assert cmp.locator(".cmpstats tbody tr").count() >= 1
         assert pg.locator("#wowtip:visible").count() == 0, "the comparison, not the tooltip"
         best = cmp.locator(".cmpside").nth(1).locator(".iname").first.inner_text()
@@ -273,13 +274,13 @@ def test_the_doll_says_where_each_item_stands(site, pw, engine, width):
         assert pg.locator("#advice .cand .itm .ifr .ibis:visible").count() > 0
         assert "of your gear" not in pg.locator("#advice").inner_text()
         gains = pg.locator("#advice .cand:has(.ifr .ibis) .candmeta .gain").all_text_contents()
-        assert gains and all(re.match(r"^(empty|\d+%) → \d+%$", t.strip()) for t in gains), gains
+        assert gains and all(re.match(r"^(empty|\d+%) → \d+% on your [a-z ]+$", t.strip()) for t in gains), gains
         pg.locator("#advice .order button", has_text="By slot").click()
         # The worn item's share is the "from"; the "to" is the badge.
         rows = pg.locator("#advice .byslot tbody tr.cand").evaluate_all(
             "els => els.map(e => { const b = e.querySelector('.best .ibis'); const g = e.querySelector('td.gain');"
             " if (!b) return null; const pct = b.textContent === 'BiS' ? 100 : parseInt(b.textContent, 10);"
-            " const m = g.textContent.trim().match(/^(empty|(\\d+)%) → (\\d+)%$/);"
+            " const m = g.textContent.trim().match(/^(empty|(\\d+)%) → (\\d+)% on your [a-z ]+$/);"
             " return m ? [m[1] === 'empty' ? 0 : +m[2], +m[3] === pct] : [null, g.textContent]; })")
         assert all(r is None or r[1] is True for r in rows), rows
         rows = [r and r[0] for r in rows]

@@ -92,7 +92,7 @@ COMMANDS = {
               "actual, the end level, what the calibration changes. If there's no plan yet, say how to make one."),
     "gear": ("Gear", "Upgrades now, at the next level and from professions, with where to get them.", None,
              "What gear should I go for? Call gear_options. Per slot (the slot furthest from BiS first, at most "
-             "five), the best option now and at the next levels, said as bis_pct_worn → bis_pct (\"70% → 91% "
+             "five), the best option now and at the next levels, said as its `line` (\"70% → 91% "
              "on your chest\"), with its source and its cost (time, gold or luck); crafts "
              "the character can "
              "make first. A world drop is a lucky bonus, never a plan step."),

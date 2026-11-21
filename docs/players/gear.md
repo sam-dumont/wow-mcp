@@ -7,7 +7,7 @@ Everything here is in the Character tab: your gear at the top, the upgrades unde
 
 ## Your gear
 
-![The Equipment panel of the demo priest: the picture in the middle with View in 3D under it, every slot with its item, item level and BiS badge, a green "▲ 17% → 82% at hand" under the slots with an upgrade, the badge legend, item level 29.1 and professions below](../images/gear.webp)
+![The Equipment panel of the demo priest: the picture in the middle with View in 3D under it, every slot with its item, item level and BiS badge, a green "▲ 17% → 82% with the best at hand" under the slots with an upgrade, the badge legend, item level 29.1 and professions below](../images/gear.webp)
 
 The badge on each item's icon says how close it is to the best you can wear at your level for
 that slot: **BiS** (orange) is the best, then **2nd** or a share like **84%** (purple from 85%,
@@ -15,15 +15,17 @@ blue from 50%, dark below). Rings and trinkets count the best two: a new one rep
 weaker, so its line starts from the weaker one's %. Both weapons count as one setup. No badge:
 nothing to measure against.
 
-"▲ 62% → 85% at hand", in green under a slot, means an upgrade you can get now takes that slot
-from 62% to 85%. Click the item to compare. "▲ something to wear": the slot is empty.
+"▲ 62% → 85% with the best at hand", in green under a slot, means the best upgrade you can get
+now takes that slot from 62% to 85%. Click the item to compare. "empty → 85%": nothing is worn
+there yet. For rings and trinkets the weaker one gets the best item, the stronger one the next:
+both read 100% only when two different items that good are in reach.
 
 The picture in the middle is your character in that gear. "Picture on its way": it isn't drawn
 yet, and **View in 3D** shows the model meanwhile.
 
 ## The upgrades list
 
-![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, each with its badge and its slot's share before and after (17% → 100%), and the expected points per clear, the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, each with its badge and its slot's share before and after ("17% → 100% on your head"), and the expected points per clear, the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../images/upgrades.webp)
 
 Every item has the same badge and says what it does to its slot: "70% → 91% on your chest"
 ("empty → 91%" for an empty slot). The slot furthest from its best comes first.
