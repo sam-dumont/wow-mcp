@@ -79,7 +79,10 @@ second prints `401`: the endpoint is there and wants a token. A `502` or `404` i
 proxy: the MCP paths must go to port 8090 ([What goes where](reverse-proxy.md#what-goes-where)).
 
 Then add the connector in claude.ai, or any client: [Connect your AI](../ai/connect.md). Your
-browser opens a consent page from your server (**Approve**), then your provider's login.
+browser opens a consent page from your server (**Allow Access**), then your provider's login.
+**Allow Access** asks your provider to show its account picker (`prompt=select_account`)
+instead of reusing whichever account last signed in in that browser: pick the account that
+should own this connection.
 
 ## Worked example: Keycloak
 
@@ -142,7 +145,8 @@ ZITADEL's own login page shows only the default org's sign-in methods. With Batt
 provider in ZITADEL, set both `OIDC_BATTLENET_ORG_ID` (the org your friends' accounts live in)
 and `OIDC_BATTLENET_IDP_ID` (the provider's id). The consent page then has **Sign in with
 Battle.net** next to **Allow Access**: it asks ZITADEL for that org and provider, so Battle.net
-opens straight away. **Allow Access** stays the normal login, for your own account. Both empty
+opens straight away. **Allow Access** stays the normal login, with the account picker, for your
+own account. Both empty
 (the default): no button. How I set up the provider:
 [How I run it](how-i-run-it.md#battlenet-as-an-identity-provider).
 
@@ -158,7 +162,7 @@ Every login setting: [Environment variables, the MCP endpoint](../reference/envi
   opencode, Copilot CLI, Zed and Goose are by default. Others: add their redirect address to
   `MCP_REDIRECT_URIS` or their host to `MCP_CIMD_HOSTS` (this replaces the list, so keep the
   ones you use).
-- **"Authorization session mismatch" at Approve.** The proxy drops cookies on the login pages.
+- **"Authorization session mismatch" at Allow Access.** The proxy drops cookies on the login pages.
 - **Refused after logging in.** Your `sub` isn't in `OIDC_ALLOWED_SUBS`. The `ui` log says
   which one was refused: `docker compose logs ui | grep -i refus`.
 - **Everyone logged out after a restart.** `MCP_SIGNING_KEY_FILE` isn't set, or the file

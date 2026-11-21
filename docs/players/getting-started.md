@@ -4,7 +4,7 @@
 characters are on your own page, and it updates by itself a few minutes after you log out.
 
 A friend runs wow-stats and sent you a link. You need a few addons and one command on the
-computer you play on: about 5 minutes, nothing from this repository. The link opens your start
+computer you play on: about 5 minutes. The link opens your start
 page, which has these same steps with your own command in them: use it if you can.
 
 ## What you need

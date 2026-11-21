@@ -66,19 +66,22 @@ assistant's own reading.
 <details>
 <summary>How the check works, with an example</summary>
 
-Two tools do it:
+Three tools do it:
 
 - **`play_sql`** runs one read-only `SELECT` on a database of your play, built from your
   events: levels, sessions, the timeline of where you were at what level, deaths, loot, gear.
   The assistant uses it to count and compare.
+- **`query_metric`** asks for named numbers with one fixed definition each (time played per
+  level, deaths per zone): [Semantic layer](../reference/semantic-layer.md).
 - **`propose_finding`** is the judge. A finding the assistant wants to keep goes in with its
-  SQL. The server runs the SQL again itself, checks every number in the claim against the
-  result, and keeps the finding or refuses it with the reason. A number above 100 typed by
-  hand instead of taken from the query is refused.
+  SQL (or its `query_metric` call). The server runs it again itself, checks every number in
+  the claim against the result, and keeps the finding or refuses it with the reason. A number
+  above 100 typed by hand instead of taken from the query is refused, and so is a query that
+  doesn't read your play at all (`SELECT 3` gives 3 whatever you did).
 
 Kept findings are re-run every night on fresh data. One that still holds stays, and gains
 weight only when you've played since it last did: the same data checked again proves nothing
-new. One that stops holding fades and goes after three nights.
+new. One that stops holding fades and goes after three or four nights.
 
 **An example on the demo.**
 

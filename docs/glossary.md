@@ -49,7 +49,12 @@ is the route's pace, 2.0× twice as long. [Overview and next moves](players/over
 dungeon worth a run, a talent point or profession rank to sort out.
 
 **Points.** Polestar's score for an item, for your class and talents. The same scale in every
-slot, so a ring and a helmet compare. [Gear and upgrades](players/gear.md#points).
+slot, so a ring and a helmet compare. [Gear and upgrades](players/gear.md#the-upgrades-list).
+
+**BiS, the badge.** Best in slot: the best item you can wear at your level for that slot. The
+badge on an item's icon says how close it is: BiS (orange), 2nd, or a share like 84% (purple
+from 85%, blue from 50%). "70% → 91% on your chest" is that slot's share with what you wear
+now, then with the item. [Gear and upgrades](players/gear.md#your-gear).
 
 **Rested.** The rested XP you have banked. It grows while you're logged out in an inn or a
 city.
@@ -88,5 +93,10 @@ death, a loot). The server keeps them and works out everything else from them.
 **VictoriaLogs.** The store the events go to. The compose kit runs it for you.
 
 **Battle.net data.** Optional: with your own Battle.net API client, the server fetches your
-character's look (for the 3D view) and the WoW Token price. Blizzard's terms cap it at 30
-days. [Battle.net data](self-host/battlenet.md).
+characters' look (for the 3D view), gear and talents, and the WoW Token price. Blizzard's terms
+cap it at 30 days. [Battle.net data](self-host/battlenet.md).
+
+**Server-side analysis.** Optional: the server has an AI provider the host picks write a
+character's "How you play" section once it has 10 hours of play (`ANALYSIS_STALE_PLAYED_HOURS`)
+since its last refresh. Off until the host configures a provider.
+[Server-side analysis](self-host/server-analysis.md).

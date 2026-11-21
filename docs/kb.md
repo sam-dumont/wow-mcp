@@ -122,7 +122,7 @@ gets the credit and you can check the claim.
   `sources.json` is never read by the refresh and may be cited only next
   to another source; it never counts as a source, toward the two-source
   rule or the confidence cap (`wowstats/analysis/kbschema.py`). JudgeHype
-  is the one so far (owner, 2026-11-20): of its 17 newest Forever items, 10
+  is the one so far: of its 17 newest Forever items when it was checked, 10
   relayed sources the KB already reads, and only 3 held a fact the KB
   lacked.
 - **Relays:** `relays` ({cited domain: the domain it relays}) marks a page
@@ -296,9 +296,9 @@ MCP's `news`, the upcoming events (`class_meta`'s `coming_up`, the card's
 one line within two weeks, `plan_session`'s `coming_up`), and the prep gaps
 in the adherence list (four weeks; advice, never scored). A dated event
 drops off once its day is past; an undated one when its window ends, or 120
-days after its last mention. The first digest (week to 2026-11-19) was
-written by hand from that lane's statements and the KB's dated
-announcements; the next ones come from the weekly pass.
+days after its last mention. The first digest was written by hand from
+that lane's statements and the KB's dated announcements; the next ones
+come from the weekly pass.
 
 ### What players are saying (Community)
 
@@ -358,7 +358,7 @@ and its changes go in the same PR (its section of the PR body lists them):
 | digests | `news.json` keeps the newest 8 weeks. An older week keeps only its items announcing an event still to come (by `news.live_event`, the same rule as the "Coming up" list); the rest becomes one line in `digest-history.json`: the titles of its items, by category, 240 characters at most. A week of known issues alone says nothing lasting and leaves no line. 52 lines at most. `community.json` keeps its newest 8 weeks at most (the community pass itself keeps 4). |
 | re-verify | Statements not checked for 120 days, oldest first, one fetch per page. Every source 404/410: retired. Otherwise the model reads the page (`KB_LIFECYCLE_MAX_USD`, $1 a run) and answers per statement: holds (`last_verified` moves to today), contradicted (retired), not found (kept, listed). Without the model, or when the page doesn't answer: kept and listed. |
 | compact | `sources` is dropped when it only repeats `source_url`; files are written one record per line (smaller, and a per-statement diff). |
-| budget | `data/kb/budget.json` caps every file and the total (the sizes of 2026-11-20 plus 10%; `news.json` has room for 8 weeks). Over: `tests/test_kb_budget.py` fails, the gates refuse the PR, and one issue (label `kb-watch`) says which file. The fix is consolidation (merge, shorten, supersede, expire); a cap goes up only for a new lane or real new coverage, with the reason in the PR. |
+| budget | `data/kb/budget.json` caps every file and the total (the sizes when the caps were set, plus 10%; `news.json` has room for 8 weeks). Over: `tests/test_kb_budget.py` fails, the gates refuse the PR, and one issue (label `kb-watch`) says which file. The fix is consolidation (merge, shorten, supersede, expire); a cap goes up only for a new lane or real new coverage, with the reason in the PR. |
 
 `tests/test_kb_lifecycle.py` checks each rule, and that the shipped KB is
 already what the job would make of it (no dated file, no duplicate, nothing

@@ -495,7 +495,8 @@ password: the login service keeps those.</li>
 <li>Battle.net data about your characters (their look, item level, gear, talents), fetched every 2 hours from
 Blizzard's public API, for your own characters only: a character name someone else here also sends
 gets none, unless it is the owner's. It is deleted after 30 days at most, as Blizzard's API terms
-require.</li>
+require. What Battle.net says your character wears also shows which quests it finished (by their
+rewards): that is read when a page or your AI asks, and never kept.</li>
 </ul>
 <h2>Who sees it</h2>
 <ul>
@@ -543,7 +544,8 @@ Your login account is separate: ask the owner to delete it too.</p>
 <p>Your own computer keeps its copy (the WoWArchive folder): uninstalling wow-stats doesn't delete it.</p>
 <h2>Blizzard</h2>
 <p>Battle.net data comes from Blizzard's API under its Developer API Terms: kept 30 days at most, shown
-only to you (and on your public page if you turn it on), never sold or shared. wow-stats is not made by
+to you, on your /zogzog/ link and public page if you share them, and to your AI only if you allow it. Never
+sold. wow-stats is not made by
 or affiliated with Blizzard Entertainment.</p>
 """
 

@@ -2,8 +2,9 @@
 
 **For:** self-hosters checking what an install has to get right, and anyone reviewing wow-stats' security. **At the end:** you know the settings that keep an install closed and which findings were left open on purpose.
 
-What an install has to get right, and what the pre-publication review
-(2026-11-19, 4 medium, 12 low, 12 info findings) left open on purpose. How to
+What an install has to get right, and what the reviews (the pre-publication
+one: 4 medium, 12 low, 12 info findings; then 0.6.0's and 0.7.0's) left open
+on purpose. How to
 report a vulnerability: [SECURITY.md](../SECURITY.md).
 
 The app is meant to be safe on its own: a port published by mistake, a flat
@@ -28,7 +29,7 @@ checks each attack is refused. Setup recipes: [deploy.md](deploy.md),
 | M3 the share port was open and served sealed data | a bearer token on every request (`ANALYSIS_SHARE_TOKEN_FILE`, made 0600 on first start), 127.0.0.1 unless `ANALYSIS_SHARE_BIND` says otherwise; the publisher and the exporter send it, and the compose kit shares the file through the `ui-state` volume |
 | M2 Wowhead's viewer ran in the app's origin | gone since the 3D view draws with its own viewer (`web/model3d/m3d/`, no eval, no WebAssembly). The frame stays sandboxed (`allow-scripts` only: an opaque origin) with no network; the page around it fetches only `model3d/file/<id>` (the person's own files, behind the login) and keeps the /zogzog/ key |
 | Info 2 the relay's maps grew with every path asked | the relay is gone |
-| L1, L2 `play_sql` | the authorizer is in place before anything compiles, PRAGMA and every non-SELECT are refused, and a value is capped at 64 KB while a query runs (#65, 64 KB since 0.6.1: at 1 MB a sort held about 0.5 GB) |
+| L1, L2 `play_sql` | the authorizer is in place before anything compiles, PRAGMA and every non-SELECT are refused, and a value is capped at 64 KB while a query runs (at 1 MB a sort held about 0.5 GB) |
 
 ## What the low findings changed
 
@@ -41,12 +42,12 @@ checks each attack is refused. Setup recipes: [deploy.md](deploy.md),
 | L8 no socket timeouts or connection cap | every listener (`ui`, `static`, `render`) closes a connection silent for 30 s and serves at most 256 at once; one more is closed right away (`wowstats/httpserve.py`) |
 | L9 the 100-client registration cap could be filled by anyone | a full list drops the oldest registration that never logged in. Clients that did log in are kept on disk, so a restart doesn't make them look unused |
 | L10 kb-refresh resolved anthropic at run time next to a write token | `anthropic` is in the locked `kb` group (hashes in `uv.lock`); `GH_TOKEN` is only in the steps that call GitHub, never the model passes; the checkout keeps no credentials; `inputs.mode` reaches shell through `env` |
-| L11 Renovate automerged patches with no soak time | Renovate is gone (#64): Dependabot, 7-day cooldown, nothing automerged |
+| L11 Renovate automerged patches with no soak time | Renovate is gone: Dependabot, 7-day cooldown, nothing automerged |
 | L12 the privacy page stated one install's operations | the visit-count line needs `PLAUSIBLE_DOMAIN` on the full view, the backup line `PRIVACY_BACKUP_DAYS`, the log line `PRIVACY_LOG_DAYS`; without those two the page tells friends to ask the owner |
 | Info 1 the renderer had no login | `POST /render` needs a bearer token (`RENDER_TOKEN_FILE`, or one made on first start in the cache folder); the publisher sends it from its own `RENDER_TOKEN_FILE` |
 | Info 4 activity times on the public page | the Settings toggle says the page shows when you cleared each dungeon and your time per level |
 | Info 6 "scoped" LogsQL | the docstring now says what it is: a filter, not a boundary. The tenant header is the boundary |
-| Info 7 no release attestation | done in #64: provenance, SBOMs, and attestations plus cosign in a public repository |
+| Info 7 no release attestation | done: provenance, SBOMs, and attestations plus cosign in a public repository |
 | Info 9 other players' names reach the AI provider | said on the privacy page |
 | Info 10 docs drift and lab names in comments | `WOW_OWNER_SLUG` documented as empty by default; the lab's store name, its identity provider and the owner's phone are out of the comments (and the compose file's "prints the link" comment) |
 | Info 11 the owner's first zogzog key wasn't length-checked | refused unless it is 256 bits, as the publisher does |
@@ -54,7 +55,7 @@ checks each attack is refused. Setup recipes: [deploy.md](deploy.md),
 
 ## What the 0.6.0 review changed
 
-The pre-launch review of 0.6.0 (2026-11-20) found nothing a stranger can use
+The pre-launch review of 0.6.0 found nothing a stranger can use
 against the image or the compose kit. These are friend-level and
 operator-trust items.
 
@@ -72,6 +73,19 @@ operator-trust items.
 owns.** Forever has no proof that a character is yours short of a Battle.net
 login. Such a name is read for that friend only, at most 12 a day, and it's
 Blizzard's public armory data.
+
+## What the 0.7.0 review changed
+
+| Finding | Now |
+|---|---|
+| H1 other players' data left the player's PC whole | the shipper sends the combat log parsed, with anyone but you and the monsters as "another player", Recorder records cut to the fields it knows, and other players as a name, when, where and how you met (no realm, no game id, no position). `/ingest` applies the same cut to what an older shipper sends (`wowstats/otherplayers.py`) |
+| `play_sql` could take the whole server's memory | its DuckDB queries (and the judge's and the recheck's) run in a child process capped at 512 MB: only that query fails, with "aggregate or narrow it" |
+| `ui-public` showed everyone | given `USERS_URL` and the share token, it follows Settings: a public page turned off answers 404, a hidden character isn't there |
+| `/ingest` answered 500 to deeply nested JSON | 400 |
+| a store error showed its address and text | the page, the shipper and the AI get "the data store didn't answer" with a request id; the server's log has the detail |
+| outbound downloads followed redirects anywhere | only to the same host, or another allowed render address |
+| two characters' names that differ only by accents shared one analysis folder | each folder is the name plus a short hash |
+| Blizzard's render of a character could be another player's | its renders sit on paths shared by character id across the Classic games. Nothing downloads them any more: the picture is our renderer's still of the 3D model |
 
 ## Accepted findings
 

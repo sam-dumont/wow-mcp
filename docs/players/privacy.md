@@ -5,72 +5,40 @@ can read it, and how to take it back.
 
 ## What leaves your computer
 
-The program on your computer reads the files WoW and your addons write in the `_forever_`
-folder and sends what's new to your friend's server, with your own upload password.
+The program on your computer sends what WoW and your addons save in the `_forever_` folder to
+your friend's server, with your own upload password.
 
-- **Sent:** your addons' saved files (every character), and WoW's combat logs if you turned
-  combat logging on.
-- **About other players, only this:** the name (no realm) of a player you grouped with, saw
-  nearby or targeted, with when and in which zone: what the People tab shows. In your combat
-  log, anyone but you and the monsters is "another player".
-- **Also read, for item facts only:** the game's hotfix cache, for the items Forever added
-  that no item data has yet: the ids of the weapons and armour in it, then name, slot, type,
-  quality, item level, required level, stats, speed, icon and sell price of the ones the server
-  asks for. `item_facts = false` in the config turns it off.
+- **Sent:** your addons' saved files (every character), WoW's combat logs if you turned combat
+  logging on, and the stats of Forever's newest items from the game's cache.
+- **About other players, only this:** the name of a player you grouped with, saw nearby or
+  targeted, with when and in which zone: what the People tab shows.
 - **Never sent:** your WoW or Battle.net password, your account name, anything outside the
   WoW folder.
 - **Kept on your computer:** a copy of everything it sent, in `WoWArchive` in your home folder.
-- **Updates:** the program updates itself from the server within a few hours of a new
-  version, and takes only an update signed with the key it was installed with.
-- **Battle.net data** (your characters' look, item level, gear, talents) is read every 2
-  hours, for your own characters only, when the owner set it up.
+
+When the owner set it up, the server also reads your characters' look, gear and talents from
+Battle.net every 2 hours. The details, file by file: [The shipper](../shipper.md).
 
 ## Who sees what
 
 | Who | What they see |
 |---|---|
 | You, logged in | Everything: every tab, every character, the players your game showed you. |
-| The owner | Everything you send. They run the server and its database: trust them like anyone holding your files. |
+| The owner | Everything you send ([the full list](../explanation/privacy.md#what-the-owner-sees)). Trust them like anyone holding your files. |
 | Friends with your zogzog link | Your page minus the private parts: never other players, what killed you, or where you are now. |
-| Anyone, once you switch your public page on | Your characters' card, climb and dungeons. No gold, zones, journal or other players. Off until you turn it on. |
-| Your AI, once you connect it | Your own data, nothing from anyone else's page. Battle.net data only with "Battle.net data to my AI" on in Settings. |
-| The AI provider the host configured, only if they did | What the play analysis reads about your characters (your events and the players your game showed you, never Battle.net data), when the server refreshes your analysis itself: once a character has 10 hours of play (the host's setting) since its analysis was last refreshed, by your AI or the server. Your AI never starts one. Off when the host hasn't configured one; the Privacy page in the app says which. |
+| Anyone, once you switch your public page on | Your characters' card, climb and dungeons. No gold, zones, journal or other players. |
+| Your AI, once you connect it | Your own data. Battle.net data only with "Battle.net data to my AI" on in Settings. |
+| The AI provider the host picked, if they turned it on | A character's play data (never Battle.net data), once it has 10 hours of play since its last analysis (the host's number). Your AI never starts that. The app's Privacy page says whether it's on. |
 
 Your zogzog link works like a password. Sent to the wrong person: Settings, **Make a new
-link**; the old one stops at the next update. Hide a character from either page: Settings,
-Characters, untick it.
-
-<details>
-<summary>Everything the owner can see</summary>
-
-- **Your game data**, including the names of other players your game showed you, with when
-  and where. Before version 0.7.0 the program sent combat logs line by line, with every player
-  in range: the owner can delete those lines ([the event contract](../contract.md)).
-- **What you or your AI write down**: goals for the play analysis, what a plan should work
-  around, the findings it kept.
-- **The web server's log**: each request from your browser, your AI or the program, with the
-  time, your IP address, your browser, the page (without the part after `?`) and who you are
-  logged in as.
-- **The app's own log**: AI logins, a tool that failed, installs and updates of the program,
-  when you're added or removed, and a character's name in a few lines.
-- **The login service**: your email address or BattleTag, your name, when you logged in.
-- **Their overview page**: when you last opened your page, used your AI and sent data, your
-  program's version, how many characters, whether the addons are all there. No character
-  names, zones or gold.
-- **What your AI asks for**: the tool it picked and what it filled in. Never your
-  conversation: the answers go to your AI provider.
-
-How long logs and backups last is up to the owner: the Privacy page in the app has their
-numbers.
-
-</details>
+link**; the old one stops at the next update. To hide a character: Settings, Characters,
+untick it.
 
 ## Delete your data
 
 1. Ask the owner to take you off their friends list. Within minutes your events, settings,
-   goals, plans, upload password and pages are gone. Backups and logs expire on their own,
-   after the days the Privacy page shows. Your login account is separate: ask them to delete
-   it too.
+   goals, plans, upload password and pages are gone. Backups and logs expire on their own
+   (the app's Privacy page says when). Ask them to delete your login account too.
 2. [Uninstall the program](getting-started.md#uninstall).
 3. Delete `WoWArchive` in your home folder if you don't want the local copy either.
 

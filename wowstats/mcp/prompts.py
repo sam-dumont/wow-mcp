@@ -91,8 +91,9 @@ COMMANDS = {
               "How did my last session go against the plan? Call how_did_my_plan_go: each checkpoint planned vs "
               "actual, the end level, what the calibration changes. If there's no plan yet, say how to make one."),
     "gear": ("Gear", "Upgrades now, at the next level and from professions, with where to get them.", None,
-             "What gear should I go for? Call gear_options. Per slot (best gain first, at most five), the best "
-             "option now and at the next levels, with its source and its cost (time, gold or luck); crafts "
+             "What gear should I go for? Call gear_options. Per slot (the slot furthest from BiS first, at most "
+             "five), the best option now and at the next levels, said as bis_pct_worn → bis_pct (\"70% → 91% "
+             "on your chest\"), with its source and its cost (time, gold or luck); crafts "
              "the character can "
              "make first. A world drop is a lucky bonus, never a plan step."),
     "dungeon": ("Dungeons", "Dungeons that fit, whole-trip cost from your runs, and their gear.", None,
@@ -120,16 +121,17 @@ finding. {goals}
 1. Call analysis_progress{char_arg}. If a run is open, go on from its `next`; if not, call analysis_brief{char_arg}\
 {goals_arg} to open one and read its procedure.
 2. Follow the passes in order: survey (read the schema, profile and kb sections, page by page if your context is \
-small, then hand in 25 to 40 open questions), the lanes the server hands you (play_sql to look, kb_search, kb_get \
-and kb_lookup for game facts, each finding to propose_finding: fix a refused one and retry once), the follow-up \
-picks, the coverage lanes, then the synthesis. Hand in each pass with analysis_submit; its answer says what is next.
+small, then hand in 25 to 40 open questions), the lanes the server hands you (play_sql or query_metric to look, \
+kb_search, kb_get and kb_lookup for game facts, each finding to propose_finding: fix a refused one and retry once), \
+the follow-up picks, the coverage lanes, then the synthesis. Hand in each pass with analysis_submit; its answer says \
+what is next.
 3. Ask your own questions: the brief is neutral on purpose and holds no hypothesis. A game rule or fact \
 comes from the knowledge base with its source, or is "unknown".
 4. If the chat runs long, stop after a handed-in lane and say "continue" works in a new chat (analysis_progress \
 picks it up).
 5. At the end, tell the player in a few lines what to do (the nudges and the findings' actions: what, where, \
 what blocks it, the next step), the observations apart, and what the judge refused and why. Everything you show \
-is actionable; say "the character", the name or "you", never he or she."""
+says what to do; say "the character", the name or "you", never he or she."""
 
 
 def analyse_text(char: str = "", goals: str = "") -> str:
