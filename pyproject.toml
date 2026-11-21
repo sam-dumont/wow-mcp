@@ -51,6 +51,7 @@ dev = [
     "pytest>=8.3",
     "pytest-xdist>=3.6",
     "ruff>=0.6",
+    "time-machine>=2.16",
 ]
 # tests/test_browser.py: the static sites in Chromium. Pinned: each
 # Playwright release wants its own browser build.

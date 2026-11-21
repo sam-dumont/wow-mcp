@@ -14,6 +14,9 @@ from wowstats import ui
 from wowstats.mcp import tools as T
 from wowstats.mcp.store import Store as MStore
 
+# The demo days are fixed: read them on the demo's clock, not the wall clock.
+pytestmark = pytest.mark.usefixtures("demo_clock")
+
 # Tools that take no character or need a free-form input of their own.
 SKIP_TOOLS = {"propose_finding", "analysis_submit", "check_plan", "kb_get", "kb_lookup", "kb_rule", "kb_topics",
               "kb_search", "route_reference", "play_sql", "query_metric"}
