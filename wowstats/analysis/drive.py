@@ -156,6 +156,8 @@ def _load_run(env: dict, char: str) -> dict | None:
 
 
 def _save_run(env: dict, char: str, run: dict) -> None:
+    from . import note_write
+
     p = _run_path(env, char)
     if p is None:
         raise LookupError("the analysis is off here (ANALYSIS_STATE_DIR unset)")
@@ -165,6 +167,7 @@ def _save_run(env: dict, char: str, run: dict) -> None:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(run, f, ensure_ascii=False)
     os.replace(tmp, p)
+    note_write(p.parent)
 
 
 def _new_run(goals: str) -> dict:
