@@ -4,8 +4,9 @@
 end:** your assistant answers questions about your character from your own data.
 
 You add one address to your assistant, log in once, and from then on it reads your characters'
-history and plans when you ask. No model runs on the server: your assistant does the thinking,
-in your own account, at no extra cost beyond your plan. (Under the hood that's MCP, the
+history and plans when you ask. Your assistant does the thinking, in your own account, at no
+extra cost beyond your plan. (A host can also turn on the server's own analysis, with an AI
+provider they pay for: [What's shared](../players/privacy.md).) (Under the hood that's MCP, the
 standard way an assistant calls outside tools.)
 
 You need:

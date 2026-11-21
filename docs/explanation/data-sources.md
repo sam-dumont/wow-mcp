@@ -62,7 +62,7 @@ nobody here has called it on Forever yet.
 | Profession ranks | Polestar | no | no API |
 | Profession caps | Polestar Recorder skill records, else trainer tiers | no | no API |
 | Recipes known | Altoholic | no | no API |
-| Quests done before Polestar | Questie or Altoholic | no | no API |
+| Quests done | Polestar Recorder (hand-ins, the game's "done" flags at quest givers); before Polestar, Questie or Altoholic, the rewards only one quest gives that you hold, and the quests a done one needed first | yes (`/quests/completed`, checked 2026-11-19), not read | the plans are kept past the API terms' 30 days, so the planner never reads Battle.net data |
 | `/played` since level 1 | Altoholic | no | no API |
 | Gold, bags, bank | Syndicator, Polestar | no | no API |
 | Spec pick, stat weights, tracked upgrades (the gear advice's spec: these first, the talents only as a hint) | Polestar, ForeverLevelingBiS, GearQuestForever | no (they're your settings) | no API |

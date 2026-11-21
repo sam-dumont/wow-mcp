@@ -115,6 +115,16 @@ showed you included. Battle.net data (token, the armory look) reaches it only
 when a person turns on "Battle.net data to my AI" on a shared install, for their own data.
 [Ask about your character](../ai/asking.md#what-the-assistant-can-see).
 
+## The server's own analysis
+
+Off unless the host configures an AI provider (`ANALYSIS_PROVIDER`: Anthropic, OpenAI or any
+OpenAI-compatible endpoint). Then the server runs the play analysis itself for a character
+with `ANALYSIS_STALE_PLAYED_HOURS` of play (10 by default) since its analysis was last
+refreshed, and that provider receives what the analysis tools answer about that character: its
+events and the names of other players its game showed, never Battle.net data. Nothing else
+starts a server run: no MCP call, no button. The app's Privacy page says whether it's on.
+[Server-side analysis](../self-host/server-analysis.md).
+
 ## Visitor counts
 
 Optional (`PLAUSIBLE_DOMAIN`): one pageview per page on the static sites and, with it set on

@@ -581,10 +581,13 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
     from wowstats.analysis import auto
 
     # The server's own analysis (wowstats.analysis.auto): only when the host configured an AI provider.
-    server_ai = ("This server also runs the play analysis itself, with the AI provider the host configured, after "
-                 "every few hours of play when your own AI hasn't refreshed it: what the analysis tools answer "
-                 "about your characters (your events, the names of other players your game showed you included, "
-                 "never Battle.net data) goes to that provider then." if auto.configured(env) else
+    cfg = auto.Config.from_env(env)
+    every = f"{cfg.stale_s / 3600:g} hours"
+    server_ai = ("This server also runs the play analysis itself, with the AI provider the host configured, once "
+                 f"a character has {every} of play since its analysis was last refreshed (by your own AI or the "
+                 "server): what the analysis tools answer about that character (your events, the names of other "
+                 "players your game showed you included, never Battle.net data) goes to that provider then. Your "
+                 "AI never starts one." if auto.configured(env) else
                  "This server doesn't run the play analysis itself: the host hasn't configured an AI provider for "
                  "it, so nothing goes to one from here.")
     body = (PRIVACY.replace("@SERVER_AI@", server_ai).replace("@VISITS@", visits).replace("@BACKUPS@", backups)
