@@ -2,13 +2,22 @@
 
 ## Unreleased
 
+### Added
+
+- `WOW_OWNER_SUB` takes a comma-separated list: an owner who signs in with two accounts (the usual one and one linked to Battle.net) is the owner with both, on the web, over MCP and on /admin, with one set of data and one analysis timer. A single sub works as before. A sub in both this list and the friends list is the owner's; the start log names it by its place in the list, and no data is made or deleted for it. A BattleTag header never gives the owner's other login a friend's name or tenant.
+
 ### Changed
 
+- Gear: the BiS badge on each worn item's icon is coloured by how close it is, like the Forever Leveling BiS addon: orange for BiS, purple from 85%, blue from 50%, the plain dark band below. A legend under the paperdoll says so. The badge keeps its text ("BiS", "84%"), and the item's border still shows its quality.
 - The paperdoll's picture is our own still of the character's 3D model (the same race, look and gear as "View in 3D"), drawn by the renderer (`RENDER_URL`) when the publisher builds, in the public site and /zogzog/ (`data/render/<char>.webp`), and in the full view through `RENDER_FROM`. It is kept per person, character and look, so new gear draws it again. No still yet (the renderer down or busy): "Picture on its way. View it in 3D meanwhile."; no renderer: the silhouette and the 3D toggle. The 3D view's caption says "Look as of <date>." instead of "Look from Battle.net".
 
 ### Removed
 
 - Blizzard's armory renders, everywhere: the exporter no longer reads `/character-media` (no `wow_character_render` series), the publisher no longer downloads from `render.worldofwarcraft.com`, and the old cache of those downloads (`MODEL3D_CACHE_DIR/render`) is deleted at start. Blizzard serves its renders on paths shared by character id across the Classic games: the owner's Gnome showed a stranger's Night Elf, byte for byte what Blizzard served for that character. `/render/<char>.webp` serves only a WebP; `RENDER_FROM` empty now means no picture rather than Blizzard's.
+
+### Fixed
+
+- The server's first analysis ran for every character with no refresh on record, including an alt logged into once to reserve its name ($0.32 for nothing in the lab). The timer is now each character's own: its play since its last refresh, or all its play on record when it has none, so that alt stays at 10 minutes of the 10 hours and a 40-hour main is due straight away. An automatic run takes only the due characters. `dashboard_refresh` still runs on demand whatever the play, and it and /admin list each character's play against `ANALYSIS_STALE_PLAYED_HOURS`, "never refreshed" included.
 
 ## 0.7.0-rc.4 (2026-11-21)
 

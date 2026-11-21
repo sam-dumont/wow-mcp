@@ -1194,6 +1194,18 @@ function bisCmp(x, y) {
 }
 const bisText = (u) => (u.bis ? `${u.bis.from_pct}% → ${u.bis.to_pct}% of BiS` : null);
 const STANDING_TITLE = { 1: 'Best in slot at your level', 2: 'Second best for this slot at your level' };
+// The doll badge's colour by closeness to BiS, the Forever Leveling BiS
+// addon's legend (owner, 2026-11-21): legendary for BiS, epic from 85%, rare
+// from 50%, the plain dark band below. The text keeps the number, so the
+// colour is never the only signal. Colours: --bis-* in base.css.
+function bisTier(st) {
+  if (!st) return null;
+  if (st.rank === 1 || st.pct >= 100) return 'bis';
+  if (st.pct >= 85) return 'epic';
+  if (st.pct >= 50) return 'rare';
+  return null;
+}
+const BIS_LEGEND = [['bis', 'BiS'], ['epic', '85%+'], ['rare', '50%+']];
 
 // The display rule (owner, 2026-11-18, "WAY TOO MUCH options"): per slot the
 // best, then at most 2 more that differ in a way that matters (a faster or
@@ -1375,7 +1387,8 @@ function renderAdvice(a) {
   const picks = choose(a);
   // The doll: a mark on each slot with something better now; a click on
   // that slot opens the comparison (a hover keeps the plain tooltip).
-  document.querySelectorAll('#gear .slot .iup, #gear .slot .ibis').forEach((el) => el.remove());
+  document.querySelectorAll('#gear .slot .iup, #gear .slot .ibis, #gear .bislegend').forEach((el) => el.remove());
+  let badges = 0;
   for (const sl of a.slots) {
     const li = document.querySelector(`#gear .slot[data-slot="${sl.slot}"]`);
     if (!li) continue;
@@ -1385,7 +1398,9 @@ function renderAdvice(a) {
     const frame = li.querySelector('.ifr');
     if (st && frame && !li.classList.contains('empty')) {
       const short = st.rank === 1 ? 'BiS' : st.rank === 2 ? '2nd' : `${st.pct}%`;
-      frame.append(h('span', { class: 'ibis' + (st.rank === 1 ? ' top' : ''), text: short, 'aria-hidden': 'true' }));
+      const tier = bisTier(st);
+      frame.append(h('span', { class: 'ibis' + (tier ? ' t-' + tier : ''), text: short, 'aria-hidden': 'true' }));
+      badges += 1;
       const btn = li.querySelector('.itm');
       if (btn) btn.setAttribute('aria-label', `${btn.getAttribute('aria-label').replace(/, (BiS|2nd|\d+% of BiS)$/, '')}, ${st.label}`);
       li.title = STANDING_TITLE[st.rank] || `${st.pct}% of the best item for this slot at your level`;
@@ -1403,6 +1418,12 @@ function renderAdvice(a) {
       e.stopPropagation();
       openCompare(cur.best, document.querySelector('#gear .doll'), state.advice);
     }, true);
+  }
+  // What the badge colours mean, under the doll; only when a badge shows.
+  const doll = document.querySelector('#gear .doll');
+  if (badges && doll) {
+    doll.after(h('p', { class: 'bislegend', title: 'Each badge: how close the item is to the best for its slot at your level' },
+      h('span', { text: 'Badges:' }), BIS_LEGEND.map(([k, t]) => h('span', { class: 'bischip t-' + k, text: t }))));
   }
   // "Automatic" drops the page's own choice: Polestar's setting, the
   // player's pick or the class default decide again.

@@ -1,7 +1,7 @@
 """The server's own analysis (wowstats.analysis.auto): the server plays the
 MCP client through a provider adapter, on a fake client for each provider,
 no network. One scripted model drives a whole run through either adapter;
-the findings it leaves are the same. The per-player played-time timer, the
+the findings it leaves are the same. The per-character played-time timer, the
 money and token caps, tenant isolation, "not configured" and a model
 without tool calling."""
 
@@ -52,8 +52,6 @@ def lab(rows, tmp_path, monkeypatch):
     monkeypatch.setattr(analysis, "other_players", lambda store, stream, char: set())
     monkeypatch.setattr(auto, "sdk_installed", lambda module: True)
     monkeypatch.setattr(auto, "RUN_GUESS_USD", {"claude-opus-5-5": 0.5})
-    # A client's run marks the timer too: never measure play over the network here.
-    monkeypatch.setattr(auto, "played_since", lambda env, since, store=None: 0.0)
     drive._WS.clear()
     key = tmp_path / "key"
     key.write_text("not-a-real-key\n")
@@ -227,8 +225,13 @@ class FakeOpenAI:
 
 
 def service(env: dict, client, played=0.0, chars=(CHAR,)) -> auto.Service:
-    return auto.Service(env, client=client, played=lambda e, since, store=None: played,
-                        chars=lambda e, since: list(chars))
+    """Every character has `played` seconds on its timer, whatever its last refresh."""
+    return auto.Service(env, client=client, played=lambda e, char, since, store=None: played,
+                        chars=lambda e, store=None: list(chars))
+
+
+def refreshed(env: dict, char: str = CHAR) -> dict | None:
+    return analysis.last_refresh(load_state(env, char))
 
 
 def kept(env: dict) -> dict:
@@ -316,12 +319,13 @@ def test_nine_hours_59_of_play_is_not_due_ten_is(lab):
     script = Script()
     s = service(e, FakeAnthropic(script), played=9 * H + 59 * 60)
     out = s.run_job("auto", e, lab.ctx(e))
-    assert not out["started"] and "not due: 9 h 59" in out["skipped"] and script.calls == 0
+    assert not out["started"] and script.calls == 0
+    assert out["skipped"] == f"not due: {CHAR}: 9 h 59 of play on record, never refreshed, due at 10 h 00"
     s = service(e, FakeAnthropic(script), played=10 * H)
     out = s.run_job("auto", e, lab.ctx(e))
     assert out["started"] and out["runs"][0]["status"] == "done"
-    m = auto.marker(e)
-    assert m["by"] == "server" and m["via"] == "auto" and m["played_total_s"] == 10 * H
+    m = refreshed(e)
+    assert m["by"] == "server" and m["via"] == "auto"
 
 
 def test_the_rebuild_hook_never_blocks_and_never_doubles(lab, monkeypatch):
@@ -342,21 +346,20 @@ def test_a_players_call_always_runs_and_resets_the_timer(lab):
     out = s.refresh(lab.ctx(e), wait=True)
     assert out["started"] and out["runs"][0]["status"] == "done" and not out["timer"]["due"]
     assert out["budget"]["currency"] == "USD" and out["budget"]["left"] <= 50
-    m = auto.marker(e)
-    assert m["by"] == "player" and m["via"] == "dashboard_refresh" and m["played_total_s"] == 2 * H
+    m = refreshed(e)
+    assert m["by"] == "player" and m["via"] == "dashboard_refresh"
     # The timer starts over: the next rebuild check finds nothing due.
     s2 = service(e, FakeAnthropic(Script()), played=0.0)
     assert "not due" in s2.run_job("auto", e, lab.ctx(e))["skipped"]
 
 
-def test_a_full_analysis_from_the_players_own_client_resets_the_timer(lab, monkeypatch):
+def test_a_full_analysis_from_the_players_own_client_resets_the_timer(lab):
     from tests.analysis.test_analysis import walk
 
     e = lab.env("a")
-    monkeypatch.setattr(auto, "played_since", lambda env, since, store=None: 4 * H)
     walk(e, drive)
-    m = auto.marker(e)
-    assert m["by"] == "player" and m["via"] == "client" and m["played_total_s"] == 4 * H
+    m = refreshed(e)
+    assert m["by"] == "player" and m["via"] == "client" and m["at"] == load_state(e, CHAR)["runs"][-1]["at"]
     assert load_state(e, CHAR)["runs"][-1]["kind"] == "client"
 
 
@@ -367,6 +370,98 @@ def test_the_last_try_waits_before_the_timer_tries_again(lab):
     assert out["runs"][0]["status"] == "stopped"
     again = s.run_job("auto", e, lab.ctx(e))
     assert not again["started"] and "stopped recently" in again["skipped"]
+
+
+# ---------------------------------------------------------------- each character's own timer
+
+ALT = "Namekeeper-Fixture"
+
+
+class PlayStore(FakeStore):
+    """The Recorder as the timer's two queries read it (wowstats.analysis.auto:
+    played_chars, played_since), from synthetic sessions: {char: [(start,
+    seconds)]}, one minute bucket per minute played."""
+
+    def __init__(self, account_id: str, play: dict[str, list[tuple[float, float]]]):
+        super().__init__(account_id)
+        self.play = play
+
+    @staticmethod
+    def iso(t: float) -> str:
+        from datetime import UTC, datetime
+
+        return datetime.fromtimestamp(t, UTC).isoformat().replace("+00:00", "Z")
+
+    def logs(self, query: str, start=None, end=None, limit=None) -> list[dict]:
+        assert 'feed:="wow-recorder"' in query
+        if "stats by (char)" in query:
+            return [{"char": c, "last": self.iso(max(a + n for a, n in ss))} for c, ss in self.play.items()]
+        (char,) = [c for c in self.play if json.dumps(c) in query]
+        lo = start.timestamp() if start else 0.0
+        return [{"n": "1", "t0": self.iso(a + m), "t1": self.iso(a + min(m + 60, n))}
+                for a, n in self.play[char] for m in range(0, int(n), 60) if a + min(m + 60, n) > lo]
+
+
+def played(lab, who: str, play: dict) -> tuple[dict, tools.Ctx]:
+    e = lab.env(who)
+    return e, tools.Ctx(store=PlayStore(e["VL_ACCOUNT_ID"], play), default_char=CHAR, env=e)
+
+
+T0 = 1_790_000_000.0  # 2026-09: long before any refresh in these tests
+
+
+def test_a_never_refreshed_alt_with_10_minutes_played_isnt_due(lab):
+    """The lab's first server run (2026-11-21) analysed every character
+    with no refresh on record, an alt logged into once to reserve a name
+    included. A character with none counts all its play on record."""
+    e, ctx = played(lab, "a", {ALT: [(T0, 10 * 60)]})
+    script = Script()
+    s = auto.Service(e, client=FakeAnthropic(script))
+    out = s.run_job("auto", e, ctx)
+    assert not out["started"] and script.calls == 0
+    assert out["skipped"] == f"not due: {ALT}: 0 h 10 of play on record, never refreshed, due at 10 h 00"
+    (alt,) = s.timer(e, ctx.store)["chars"]
+    assert alt["last_refresh"] is None and alt["played_since"] == "0 h 10" and not alt["due"]
+
+
+def test_a_never_refreshed_main_with_40_hours_played_is_due_and_runs_alone(lab):
+    main = [(T0 + d * 86400, 10 * H) for d in range(4)]
+    e, ctx = played(lab, "a", {CHAR: main, ALT: [(T0 + 5 * 86400, 10 * 60)]})
+    s = auto.Service(e, client=FakeAnthropic(Script()))
+    tm = s.timer(e, ctx.store)
+    assert tm["due"] and [(c["char"], c["played_since"], c["due"]) for c in tm["chars"]] == [
+        (ALT, "0 h 10", False), (CHAR, "40 h 00", True)]  # the latest played first
+    assert tm["chars"][1]["said"] == f"{CHAR}: 40 h 00 of play on record, never refreshed, due at 10 h 00"
+    out = s.run_job("auto", e, ctx)
+    assert [(r["char"], r["status"]) for r in out["runs"]] == [(CHAR, "done")]
+    assert refreshed(e)["by"] == "server" and refreshed(e, ALT) is None
+
+
+def test_after_a_refresh_the_timer_counts_from_that_refresh(lab):
+    play = {CHAR: [(T0 + d * 86400, 10 * H) for d in range(4)]}
+    e, ctx = played(lab, "a", play)
+    s = auto.Service(e, client=FakeAnthropic(Script()))
+    assert s.run_job("auto", e, ctx)["runs"][0]["status"] == "done"
+    at = auto._epoch(refreshed(e)["at"])
+    # 40 h before the refresh, none since: not due, however much came before.
+    (c,) = s.timer(e, ctx.store)["chars"]
+    assert c["played_since"] == "0 h 00" and c["last_refresh"]["at"] == refreshed(e)["at"] and not c["due"]
+    assert "since its last refresh" in c["said"]
+    play[CHAR].append((at + 3600, 9 * H + 59 * 60))
+    assert "not due: " + f"{CHAR}: 9 h 59 of play since its last refresh" in s.run_job("auto", e, ctx)["skipped"]
+    play[CHAR].append((at + 86400, 60))
+    assert s.timer(e, ctx.store)["chars"][0]["due"]
+
+
+def test_a_players_call_runs_a_never_refreshed_alt_whatever_its_play(lab):
+    e, ctx = played(lab, "a", {ALT: [(T0, 10 * 60)]})
+    s = auto.Service(e, client=FakeAnthropic(Script()))
+    out = s.refresh(ctx, wait=True)
+    assert [(r["char"], r["status"]) for r in out["runs"]] == [(ALT, "done")]
+    (before,) = out["timer"]["chars"]  # what the player is told: its play against the threshold
+    assert before["said"] == f"{ALT}: 0 h 10 of play on record, never refreshed, due at 10 h 00"
+    assert out["timer"]["refresh_after"] == "10 h 00" and not out["timer"]["due"]
+    assert refreshed(e, ALT)["via"] == "dashboard_refresh"
 
 
 # ---------------------------------------------------------------- money
@@ -432,7 +527,7 @@ def test_a_run_reads_and_writes_only_its_own_tenant(lab):
     assert {str(a) for a, _ in lab.asked} == {lab.acct("a")} and {c for _, c in lab.asked} == {CHAR}
     assert (lab.root / "a").exists() and not (lab.root / "b").exists()
     assert not load_state(eb, CHAR).get("findings")
-    assert auto.marker(eb) == {}
+    assert refreshed(eb) is None
 
 
 def test_only_the_analysis_tools_run(lab):
@@ -604,7 +699,7 @@ def test_a_wrong_token_fails_the_run_plainly(lab):
     tok.write_text(jwt("https://cluster.internal"))
     e = lab.env("a", ANALYSIS_WIF_TOKEN_FILE=str(tok), ANALYSIS_WIF_RULE_ID="fdrl_x",
                 ANALYSIS_WIF_ORGANIZATION_ID="org")
-    s = auto.Service(e, played=lambda e, since, store=None: 0.0, chars=lambda e, since: [CHAR])
+    s = auto.Service(e, played=lambda e, char, since, store=None: 0.0, chars=lambda e, store=None: [CHAR])
     r = s.run_job("player", e, lab.ctx(e))["runs"][0]
     assert r["status"] == "stopped" and "audience is https://cluster.internal" in r["why"]
     assert "audience" in s.last_try(e)["why"]
@@ -652,7 +747,11 @@ def test_admin_shows_the_month_and_each_players_timer():
               "upload": {}, "os": None, "version": None, "chars": 1, "public_on": False, "build": None,
               "addons": None, "stale": ["server analysis stopped: budget spent"], "error": "",
               "name_conflict": None,
-              "analysis": {"played_since": "10 h 05", "due": True, "at": now - 7200, "by": "server",
+              "analysis": {"chars": [{"char": "Alt-Realm", "played_since": "0 h 10", "due": False,
+                                     "refreshed": False},
+                                    {"char": "Main-Realm", "played_since": "10 h 05", "due": True,
+                                     "refreshed": True}],
+                           "refresh_after": "10 h 00", "due": True, "at": now - 7200, "by": "server",
                            "last_try": None}}
     o = {"checked_at": now, "version": "0.7.0", "answers": {"built_at": None, "error": ""}, "publisher": None,
          "exporter": None, "disk": {"bytes": 0, "capped": False}, "checks": [], "people": [person],
@@ -660,7 +759,10 @@ def test_admin_shows_the_month_and_each_players_timer():
                       "runs": 16, "month": "2026-11"}}
     page = admin.page_body(o)
     assert "AI analysis" in page and "$50.00 of $50, $0.00 left" in page and "16 runs" in page
-    assert "10 h 05 played since" in page and "by the server" in page and "server analysis stopped" in page
+    assert "Main-Realm: 10 h 05 of 10 h 00 since its refresh" in page and "by the server" in page
+    assert page.index("Main-Realm") < page.index("Alt-Realm")  # the due ones first
+    assert 'Alt-Realm: 0 h 10 of 10 h 00 <span class="dim">never refreshed</span>' in page
+    assert "server analysis stopped" in page
     o["analysis"] = {**o["analysis"], "cost_known": False, "spent": None, "cap": None, "left": None,
                      "tokens": 1234}
     assert "cost unknown, 1,234 tokens" in admin.page_body(o)
@@ -918,7 +1020,8 @@ def test_admin_labels_the_install_and_shows_each_persons_runs():
     person = {"slug": "friend", "owner": False, "status": "active", "admitted": True, "full": None, "mcp": None,
               "upload": {}, "os": None, "version": None, "chars": 1, "public_on": False, "build": None,
               "addons": None, "stale": [], "error": "", "name_conflict": None,
-              "analysis": {"played_since": "1 h 00", "due": False, "at": now - 60, "by": "server", "last_try": None,
+              "analysis": {"chars": [], "refresh_after": "10 h 00", "due": False, "at": now - 60, "by": "server",
+                           "last_try": None,
                            "month": {"runs": 2, "spent": 3.1, "cost_known": True}}}
     o = {"checked_at": now, "version": "0.7.0", "answers": {"built_at": None, "error": ""}, "publisher": None,
          "exporter": None, "disk": {"bytes": 0, "capped": False}, "checks": [], "people": [person],
@@ -939,11 +1042,12 @@ def test_a_server_run_sets_last_refresh_and_last_try_for_its_player(lab, monkeyp
     s = service(ea, FakeAnthropic(Script()), played=11 * H)
     assert s.on_rebuild(ea) is None
     drain(s)
-    m, lt = auto.marker(ea), s.last_try(ea)
+    m, lt = refreshed(ea), s.last_try(ea)
     assert m["by"] == "server" and m["via"] == "auto" and lt["by"] == "server" and lt["status"] == "done"
     monkeypatch.setattr(s, "_enqueue", lambda k: None)
     seen = s.refresh(lab.ctx(ea))
     assert seen["timer"]["last_refresh"]["by"] == "server" and seen["timer"]["last_refresh"]["at"] == m["at"]
+    assert seen["timer"]["chars"][0]["last_refresh"] == m
     assert seen["last_try"]["status"] == "done" and seen["last_try"]["by"] == "server"
     other = s.refresh(lab.ctx(eb))
     assert other["timer"]["last_refresh"] is None and other["last_try"] is None

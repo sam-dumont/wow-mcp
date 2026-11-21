@@ -136,7 +136,8 @@ and the rest folds under "N more". An upgrade under 2% of your gear is
 "small". **BiS** (`standing` on each slot, `bis` on each upgrade): the best
 score the slot can hold now, among what is worn and every item wearable at
 this level; a worn item is BiS, 2nd (one item above it) or its percent of
-BiS's score. Rings and trinkets count the best two different items, and the
+BiS's score. On the paperdoll that badge takes ForeverLevelingBiS's colours:
+orange for BiS, purple from 85%, blue from 50%, plain below. Rings and trinkets count the best two different items, and the
 hands count whole setups. None for a random-suffix item scored on a guess, a
 slot with nothing to compare, or no sheet at all. Upgrades are ordered by it:
 the slot furthest from BiS first; within a slot by points (the same start

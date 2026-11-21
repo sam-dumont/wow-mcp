@@ -12,15 +12,21 @@ The full view plays the MCP client itself: the same analysis tools, the same `an
 the same judge re-running every finding's SQL before it's kept. What it keeps looks like a
 client's run, marked `kind: "server"` with the model's name.
 
-- **When:** once a player has played 10 hours (`ANALYSIS_STALE_PLAYED_HOURS`) since their
-  analysis was last refreshed. Play time is the journal's sessions, every character. The check
-  runs after a page rebuild, so a new upload triggers it; the run itself goes on in the
-  background, one player at a time, and never holds up the page.
-- **What:** the characters played since the last refresh, the most recent first, three at most.
-- **The timer resets** whenever the player's analysis is refreshed, by anyone: this server's
+- **When:** once a character has been played 10 hours (`ANALYSIS_STALE_PLAYED_HOURS`) since its
+  analysis was last refreshed. Each character has its own timer. Play time is the journal's
+  sessions. A character that was never refreshed counts all its play on record, so the alt you
+  logged into once to reserve a name sits at 10 minutes and never costs a run; a main with 40
+  hours behind it is due on the first check. The check runs after a page rebuild, so a new
+  upload triggers it; the run itself goes on in the background, one player at a time, and never
+  holds up the page.
+- **What:** that player's due characters, the most recent first, three at most.
+- **A character's timer resets** whenever its analysis is refreshed, by anyone: this server's
   run, the player's own AI calling `dashboard_refresh`, or a full analysis from their own client.
-- **`dashboard_refresh`** (an MCP tool) runs it now for the caller, whatever the timer says,
-  budget permitting. It answers with the last refresh and who did it, the play since, whether
+  It counts from that refresh, not from the character's first login.
+- **`dashboard_refresh`** (an MCP tool) runs it now for the caller, whatever the timers say,
+  budget permitting: the characters played since their own refresh, the due ones first. It
+  answers with the last refresh and who did it, each character's play against the threshold
+  (`timer.chars`: "0 h 10 of play on record, never refreshed, due at 10 h 00"), whether
   the caller's refresh runs now or waits behind someone else's (one runs at a time; `state` and
   `position`), what it skipped and why, how the last try ended, the budget left for the whole
   install (`budget`, `scope: "install"`) and the caller's own runs and cost this month (`yours`).
@@ -33,8 +39,9 @@ client's run, marked `kind: "server"` with the model's name.
   twice in a row at most; then the run is **incomplete**. A run that doesn't finish, for that or
   any other reason (budget, a provider error), changes nothing the player sees: their last
   finished analysis stays.
-- **/admin** shows the month's spend for the whole install and, per person, their play since
-  the last refresh, who did it, and their own server runs and cost this month
+- **/admin** shows the month's spend for the whole install and, per person, each character's
+  play since its last refresh against the threshold ("never refreshed" when it has none), the
+  latest refresh and who did it, and their own server runs and cost this month
   ([Admin overview](admin.md)). The spend file splits the month per tenant number.
 
 The run happens in the **full-view process** (`wow-stats ui` with `VIEW=full`): give that

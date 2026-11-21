@@ -564,8 +564,27 @@ def time_budget(db) -> list[dict]:
 
 # ---------------------------------------------------------------- answers
 
-RUN_KEYS = ("at", "kind", "driver", "passes", "coverage", "questions", "findings", "clashes", "feasibility", "new",
-            "confirmed", "faded", "dropped", "refused", "seconds_total")
+RUN_KEYS = ("at", "kind", "by", "via", "driver", "passes", "coverage", "questions", "findings", "clashes",
+            "feasibility", "new", "confirmed", "faded", "dropped", "refused", "seconds_total")
+
+
+def explored(runs: list[dict]) -> dict | None:
+    """The last run that explored: a client's run or the server's own
+    (wowstats.analysis.auto). Runs kept before `kind` existed carry none: one
+    that found something new and isn't a recheck is a client run."""
+    return next((r for r in reversed(runs or []) if r.get("kind") in ("client", "server")
+                 or (r.get("new") is not None and r.get("kind") not in ("recheck",))), None)
+
+
+def last_refresh(state: dict) -> dict | None:
+    """When the character's analysis was last refreshed, and by whom: its
+    last finished run that explored (a nightly recheck isn't one). None:
+    no refresh on record. The server's timer counts from it."""
+    r = explored(state.get("runs") or [])
+    if r is None:
+        return None
+    by = r.get("by") or ("server" if r.get("kind") == "server" else "player")
+    return {"at": r.get("at"), "by": by, "via": r.get("via") or ("auto" if by == "server" else "client")}
 
 
 def answer(env: dict, char: str, tier: str = "full") -> dict:
@@ -592,11 +611,7 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
                            and verify.shareable_action(n, set())[0]][:4],
                 "time_budget": [{k: r.get(k) for k in ("level", "online_s", "instance_s", "taxi_s", "dead_s",
                                                        "afk_s", "planned_s")} for r in s.get("time_budget") or []]}
-    # A client's run or the server's own (wowstats.analysis.auto). Runs kept
-    # before `kind` existed carry none: one that found something new and isn't
-    # a recheck is a client run.
-    explored = next((r for r in reversed(runs) if r.get("kind") in ("client", "server")
-                     or (r.get("new") is not None and r.get("kind") not in ("recheck",))), None)
+    explored_run = explored(runs)
     return {"available": True, "char": s.get("char"), "updated": s.get("updated"),
             "newest_event": s.get("newest_event"),
             "findings": [{k: f.get(k) for k in ("key", "title", "text", "action", "observation", "sql", "kb", "row",
@@ -608,7 +623,7 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
                        for n in nudges],
             "patterns": patterns, "time_budget": s.get("time_budget") or [],
             "last_run": {k: last.get(k) for k in RUN_KEYS},
-            "last_analysis": {k: explored.get(k) for k in RUN_KEYS} if explored else None,
+            "last_analysis": {k: explored_run.get(k) for k in RUN_KEYS} if explored_run else None,
             "runs": [{k: r.get(k) for k in ("at", "kind", "driver", "new", "confirmed", "faded", "seconds_total")}
                      for r in runs[-14:]], "kb": s.get("kb")}
 
