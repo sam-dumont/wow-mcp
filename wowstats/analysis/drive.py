@@ -627,6 +627,7 @@ def _submit_pick(env, w, run, answer):
 def _submit_synthesis(env, w, run, answer):
     from . import bind, current_level, feasible, finish, load_state, other_players
     from .sql import QueryError
+    from .verify import history_read
 
     # New or merged findings handed in with the synthesis: judged like any,
     # and kept with the ones it names.
@@ -654,7 +655,7 @@ def _submit_synthesis(env, w, run, answer):
         clashes["found"] += 1
         try:
             w.ro.run(str(c.get("query") or ""), 1)
-            ran = True
+            ran = bool(history_read(w.ro))  # a constant reconciles nothing
         except QueryError:
             ran = False
         mk = str(c.get("merged_key") or "")

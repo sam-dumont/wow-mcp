@@ -6,6 +6,10 @@
 
 - `dashboard_refresh` runs on the client: the calling AI does the analysis itself, with the same flow as `analyse` (analysis_brief, the passes, analysis_submit), for the character whose analysis is most out of date. It starts nothing on the server and costs the host nothing; it used to queue a run of the server's own model, and the owner's Claude calling it spent the lab's OpenAI money. Its answer is `analyse`'s, plus `do` (the one line to follow), `then` (the other characters to refresh) and `server_automatic_refresh`: the timers, budget and last try of the server's automatic refreshes, which stay for players who don't refresh themselves. No MCP call starts a server run any more (and /admin never had a button for one); the accepted synthesis resets the character's timer like any refresh. The tool is now read-only and no longer open-world.
 
+### Fixed
+
+- The analysis' judge accepted a finding whose SQL read nothing: `SELECT 3 AS n` with "You died {n} times." was kept with 3 while the records held 5 deaths, because a constant re-runs to the same value every time. A finding's query (and a clash's reconciling query) must now read the character's play history; a constant, a CTE of constants, `range()` or a read of the documentation tables alone is refused with why, and the refusal points to `query_metric` for counts like deaths. A kept finding with such a query fades on the next recheck. This closes that hole only: a query that reads a table can still compute the wrong thing.
+
 ## 0.7.0-rc.5 (2026-11-21)
 
 ### Added
