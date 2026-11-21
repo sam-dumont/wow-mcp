@@ -280,7 +280,8 @@ def test_neither_reads_the_others_character(two_people, monkeypatch):
             got = app.api_char(other)
         except LookupError:  # the HTTP layer's 404
             continue
-        assert got["deaths"]["total"] == 0 and not got["levels"] and not got["zones"] and not got["dungeons"]
+        # Nothing of theirs: the deaths are unknown (None), never a count.
+        assert got["deaths"]["total"] is None and not got["levels"] and not got["zones"] and not got["dungeons"]
     for call, other in ((friend_mcp, D.CHAR), (owner_mcp, FRIEND_CHAR)):
         try:
             got = call("deaths", char=other)

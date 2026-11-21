@@ -367,10 +367,11 @@ def other_players(store, stream: str, char: str) -> set[str]:
 
 def weights_for(env: dict, char: str) -> str | None:
     """The spec the player chose to score this character's gear for
-    (WEIGHTS, read by the page's own parser: Name-Realm:spec,...)."""
-    from wowstats.views import parse_weights
+    (WEIGHTS: Name-Realm:spec,...), read by views.settings_from_env, the
+    one reader the page and the MCP use."""
+    from wowstats.views import settings_from_env
 
-    return parse_weights(env.get("WEIGHTS") or "").get(char)
+    return settings_from_env(env).weights.get(char)
 
 
 def upgrades_for(rows: list[dict], char: str, env: dict) -> list[dict]:
@@ -697,9 +698,14 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     return out
 
 
-def run_all(env: dict | None = None) -> list[str]:
+def run_all(env: dict | None = None, failed: list[str] | None = None) -> list[str]:
     """The recheck of every character with a kept analysis (and
-    DEFAULT_CHAR, so its time per level is there from the first night)."""
+    DEFAULT_CHAR, so its time per level is there from the first night).
+    A character whose store read fails (stores.SourceError, IncompleteRead
+    included) keeps its last answer, is named in `failed`, and the others
+    are still rechecked: one person's store never holds up the rest."""
+    from wowstats.stores import SourceError
+
     env = dict(os.environ if env is None else env)
     chars = characters(env)
     dc = (env.get("DEFAULT_CHAR") or "").strip().replace(" ", "-")
@@ -712,6 +718,10 @@ def run_all(env: dict | None = None) -> list[str]:
             done.append(c)
         except LookupError as e:
             log(f"{c}: {e}")
+        except SourceError as e:
+            log(f"{c}: not rechecked, the store didn't answer whole: {e}")
+            if failed is not None:
+                failed.append(c)
     return done
 
 
@@ -1045,6 +1055,7 @@ def main(argv: list[str]) -> int:
     a = ap.parse_args(argv)
     if a.char:
         run(char=a.char)
-    else:
-        run_all()
-    return 0
+        return 0
+    failed: list[str] = []
+    run_all(failed=failed)
+    return 1 if failed else 0

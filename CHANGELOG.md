@@ -16,6 +16,9 @@
 - After an exporter restart, a first Battle.net read that failed half way (a 503 on the equipment) left the character with no Battle.net data at all until the next full read, 2 hours later: no gear, no talents, no look. The pages now keep the last complete read (still inside vm-wow's 2-day window) and say how old it is. Nothing new is stored.
 - Back in time counted a death on the second you dinged in both levels. It counts in the new level only, as the deaths by level already did.
 - Your AI's `sessions` left out a dungeon you entered, or a player you grouped with, on the session's very last record. The page had them.
+- Without the Recorder, the page and the `/zogzog/` bundle said 0 deaths. They now say unknown (`null`), as your AI's `deaths` already did; the page still reads "No deaths recorded" with the Recorder's switch.
+- One character whose store read failed stopped the nightly recheck for every character after it, and the night counted as done. The others are rechecked now; the failed one keeps its last answer, and the night ends in an error.
+- A finding judged under another `WOW_TIMEZONE` (or session gap) is marked "to revalidate", like one judged under another semantic model: its hours and days meant other hours.
 
 ## 0.7.0-rc.8 (2026-11-21)
 

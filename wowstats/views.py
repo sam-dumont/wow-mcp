@@ -285,6 +285,10 @@ class Views:
         if layer is not None:
             pages.apply_rows(levels, dungeons, layer)
             pages.apply_deaths(deaths, layer, death_rows)
+        if not death_rows and not res["minutes"]:
+            # Nothing of the Recorder, which is what counts deaths: unknown,
+            # never 0 (the MCP's deaths says the same).
+            deaths["total"] = None
         gear = build_gear(newest(res["gear"]))
         if not (gear and gear["items"]):
             # Syndicator's items win; without them (no gear event, or one
