@@ -1,0 +1,17 @@
+{
+  "name": "healthy_control",
+  "about": "The demo's history as generated: nothing injected.",
+  "goals": "Reach level 40 without wasting time, and know what to fix.",
+  "inject": [],
+  "truth": {
+    "expected": "No injected effect. Deaths are few and spread out (12 in about 39 online hours, no zone stands out), the Recorder ran every evening, no long break. The demo has real patterns of its own (level 32 took far longer than the guide plans), so lines about those are fine; a right analysis establishes no death pattern and no missing records.",
+    "must_find": [],
+    "must_not_claim": [
+      {"id": "invents-a-death-hotspot", "about": "a place or level called deadly on a dozen spread-out deaths",
+       "all": [["\\bdeaths?\\b", "\\bdie[ds]?\\b", "\\bdying\\b"], ["most dangerous", "deadl", "riskiest", "hotspot", "spike", "more often", "higher (death )?rate", "die more", "more deaths", "most (of (your|the) )?deaths", "concentrat", "cluster"]],
+       "unless": ["not (a )?(pattern|significant|enough)", "too few", "no (clear )?pattern", "spread", "evenly"]},
+      {"id": "invents-missing-records", "about": "records called missing when the Recorder ran every evening",
+       "all": [["not recorded", "unrecorded", "recorder (was )?off", "missing (records|data|sessions|evenings)", "gaps? in the (records|data|recording)", "blind spot", "records? (are|is) missing"]]}
+    ]
+  }
+}

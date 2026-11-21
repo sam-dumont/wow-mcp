@@ -131,6 +131,7 @@ const SECTIONS = [
   { dir: "contribute", label: "Contributing", pages: [
     { src: "CONTRIBUTING.md", slug: "contributing", label: "How to contribute", meta: { description: "How to propose a change to wow-stats: issues, pull requests, and the checks a change has to pass." } },
     { src: "docs/development.md", label: "Development and releases" },
+    { src: "docs/evaluation.md", label: "Evaluating the analysis" },
   ] },
 ];
 

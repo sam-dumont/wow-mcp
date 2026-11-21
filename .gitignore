@@ -13,3 +13,5 @@ deploy/compose/.env
 deploy/compose/secrets/*
 !deploy/compose/secrets/README.md
 *.pem
+# make eval-analysis: synthetic runs, kept locally
+eval-analysis-out/
