@@ -24,6 +24,12 @@ client's run, marked `kind: "server"` with the model's name.
   started or skipped and why, how the last try ended, and the budget left.
 - **Only the analysis tools run** (no plans, no Battle.net data), on the player's own data, with
   `char` forced to the character being analysed. Tool results go back as data.
+- **It runs unattended** and finishes in one go: the run is done when its synthesis is accepted,
+  not when the model stops talking. A model that stops to ask something (the `analyse` prompt
+  tells a person's AI to offer "continue" in a new chat) is told nobody will reply and to finish,
+  twice in a row at most; then the run is **incomplete**. A run that doesn't finish, for that or
+  any other reason (budget, a provider error), changes nothing the player sees: their last
+  finished analysis stays.
 - **/admin** shows the month's spend and, per person, their play since the last refresh and
   who did it ([Admin overview](admin.md)).
 

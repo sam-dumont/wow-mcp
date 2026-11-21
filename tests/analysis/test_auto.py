@@ -107,7 +107,8 @@ def brain(char_arg: str = CHAR):
 
 
 class Script:
-    """The model behind both fakes: one tool call a turn, from `brain`."""
+    """The model behind both fakes: one tool call a turn, from `brain`; a
+    step that is a string is a turn that ends in those words, no tool call."""
 
     def __init__(self, gen=None, usage=USAGE):
         self.gen, self.usage, self.calls, self.started = gen or brain(), usage, 0, False
@@ -147,8 +148,9 @@ class FakeAnthropic:
         u = self.script.usage
         usage = NS(input_tokens=u["input"], output_tokens=u["output"], cache_read_input_tokens=u["cache_read"],
                    cache_creation_input_tokens=u["cache_write"])
-        if step is None:
-            msg = NS(content=[NS(type="text", text="Done.")], stop_reason="end_turn", usage=usage, model=kw["model"])
+        if step is None or isinstance(step, str):  # a turn that ends in words
+            msg = NS(content=[NS(type="thinking", thinking="...", signature="s"), NS(type="text", text=step or "Done.")],
+                     stop_reason="end_turn", usage=usage, model=kw["model"])
         else:
             name, args = step
             msg = NS(content=[NS(type="thinking", thinking="...", signature="s"),
@@ -190,8 +192,8 @@ class FakeOpenAI:
         usage = NS(input_tokens=u["input"] + u["cache_read"], output_tokens=u["output"],
                    input_tokens_details=NS(cached_tokens=u["cache_read"]))
         reasoning = NS(type="reasoning", model_dump=lambda **k: {"type": "reasoning", "encrypted_content": "x"})
-        if step is None:
-            out = [reasoning, NS(type="message", content=[NS(type="output_text", text="Done.")],
+        if step is None or isinstance(step, str):
+            out = [reasoning, NS(type="message", content=[NS(type="output_text", text=step or "Done.")],
                                  model_dump=lambda **k: {"type": "message", "role": "assistant"})]
         else:
             name, args = step
@@ -214,8 +216,8 @@ class FakeOpenAI:
         u = self.script.usage
         usage = NS(prompt_tokens=u["input"] + u["cache_read"], completion_tokens=u["output"],
                    prompt_tokens_details=NS(cached_tokens=u["cache_read"]))
-        if step is None:
-            msg, reason = NS(content="Done.", tool_calls=None, refusal=None), "stop"
+        if step is None or isinstance(step, str):
+            msg, reason = NS(content=step or "Done.", tool_calls=None, refusal=None), "stop"
         else:
             name, args = step
             tc = NS(id=f"call_{self.script.calls}", type="function",
@@ -631,6 +633,14 @@ def test_adapters_map_tool_results_back(lab):
     o.results([("call_1", "ok", False), ("call_2", "bad", True)])
     assert o.messages[-2:] == [{"role": "tool", "tool_call_id": "call_1", "content": "ok"},
                                {"role": "tool", "tool_call_id": "call_2", "content": "Error: bad"}]
+    # A nudge after a turn that ended in words: a user message, appended.
+    for ad in (a, o):
+        ad.say("go on")
+        assert ad.messages[-1] == {"role": "user", "content": "go on"}
+    r = providers.OpenAIResponses(None, "m", "sys", [])
+    r.start("hi")
+    r.say("go on")
+    assert r.input[-1] == {"role": "user", "content": "go on"}
 
 
 def test_admin_shows_the_month_and_each_players_timer():
@@ -664,3 +674,148 @@ def test_the_privacy_page_says_whether_a_provider_gets_the_data(lab):
     assert "with the AI provider the host configured" in on and "never Battle.net data" in on
     off = account.privacy_page(False, {}).decode()
     assert "hasn't configured an AI provider" in off
+
+
+# ---------------------------------------------------------------- unattended: done is the protocol's
+
+# gpt-6.1-terra on 2026-11-21 ended its turn twice asking for "continue" in a
+# new chat (the MCP prompt's own step 4). Nobody answers a server run.
+ASKS = 'The analysis is in progress and saved on the server. Say "continue" in a new chat to pick up from the next lane.'
+
+ADAPTER_ENVS = {
+    "anthropic": {},
+    "openai-chat": {"ANALYSIS_PROVIDER": "openai", "ANALYSIS_MODEL": "some-local-model", "ANALYSIS_BASE_URL": OLLAMA},
+    "openai-responses": {"ANALYSIS_PROVIDER": "openai", "ANALYSIS_MODEL": "gpt-6.1-terra"},
+}
+
+
+def fake(kind: str, script: Script):
+    return FakeAnthropic(script) if kind == "anthropic" else FakeOpenAI(script)
+
+
+def said_to_model(client) -> list[str]:
+    """The user messages in the last request after the prompt: the nudges."""
+    req = client.requests[-1]
+    msgs = req.get("messages") or req.get("input")
+    return [m["content"] for m in msgs if m.get("role") == "user" and isinstance(m.get("content"), str)][1:]
+
+
+def asks_to_continue(after_lanes: dict[int, int]):
+    """`brain`, but after the n-th handed-in lane it ends `after_lanes[n]`
+    turns in a row in words, asking the player to say continue."""
+    inner = brain()
+    step = next(inner)
+    lanes = 0
+    while True:
+        got = yield step
+        if step[0] == "analysis_submit" and step[1]["pass"] == "lane":
+            lanes += 1
+            for _ in range(after_lanes.get(lanes, 0)):
+                yield ASKS
+        try:
+            step = inner.send(got)
+        except StopIteration:
+            return
+
+
+def quits_after_a_lane():
+    """`brain` until its first lane is handed in, then only asks to continue."""
+    inner = brain()
+    step = next(inner)
+    while True:
+        got = yield step
+        if step[0] == "analysis_submit" and step[1]["pass"] == "lane":
+            while True:
+                yield ASKS
+        step = inner.send(got)
+
+
+def files(env: dict) -> dict:
+    """The character's analysis, its run state and the 0.3.x file: their bytes, None when absent."""
+    ps = drive.run_files(env, CHAR)
+    assert [p.name for p in ps] == ["analysis.json", "drive.json", "analysis.json"]
+    return {k: (p.read_bytes() if p.exists() else None) for k, p in zip(("kept", "run", "legacy"), ps, strict=True)}
+
+
+@pytest.mark.parametrize("kind", ADAPTER_ENVS)
+def test_a_model_that_asks_to_continue_is_nudged_and_finishes(lab, kind):
+    e = lab.env("a", **ADAPTER_ENVS[kind])
+    # Twice in a row after the first lane (the most it gets), once after the third.
+    script = Script(asks_to_continue({1: 2, 3: 1}))
+    client = fake(kind, script)
+    r = service(e, client).run_job("player", e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "done" and r["why"] == "" and r["nudges"] == 3, r
+    assert r["conversations"] == 1  # nudged in the same conversation, not restarted
+    assert sorted(kept(e)) == ["sessions-online", "xp-by-level"]
+    assert load_state(e, CHAR)["runs"][-1]["kind"] == "server"
+    nudges = said_to_model(client)
+    assert len(nudges) == 3 and all(n.startswith("No one will reply") for n in nudges)
+    assert 'analysis_submit(pass="synthesis")' in nudges[0] and "Next: Investigate lane L2" in nudges[0]
+    assert service(e, client).last_try(e)["status"] == "done"
+
+
+@pytest.mark.parametrize("kind", ADAPTER_ENVS)
+def test_a_model_that_never_finishes_is_incomplete_and_the_old_text_stays(lab, kind):
+    e = lab.env("a", **ADAPTER_ENVS[kind])
+    # No analysis yet: an incomplete run leaves none, not its partial findings.
+    q = Script(quits_after_a_lane())
+    r = service(e, fake(kind, q)).run_job("player", e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "incomplete" and r["nudges"] == auto.NUDGES, r
+    assert r["why"] == ('the model ended its turn without analysis_submit(pass="synthesis") after 2 nudges '
+                        "(at the lane pass L2)")
+    assert kept(e) == {} and set(files(e).values()) == {None}
+    # A finished run publishes; the next run starts clean, not on gone findings.
+    drive._WS.clear()
+    assert service(e, fake(kind, Script())).run_job("player", e, lab.ctx(e))["runs"][0]["status"] == "done"
+    before, shown = files(e), analysis.answer(e, CHAR, "full")
+    assert before["kept"] and before["run"] and before["legacy"] is None
+    # Then one that never finishes: what the player sees stays byte for byte.
+    q = Script(quits_after_a_lane())
+    s = service(e, fake(kind, q))
+    r = s.run_job("player", e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "incomplete" and q.calls > 2 and r["nudges"] == 2
+    assert files(e) == before and analysis.answer(e, CHAR, "full") == shown
+    last = s.last_try(e)
+    assert last["status"] == "incomplete" and "after 2 nudges" in last["why"]
+    from wowstats import admin
+
+    assert admin.last_try_line(last).startswith("server analysis incomplete: the model ended its turn without")
+    # The timer waits before trying again, as after any run that didn't finish.
+    again = service(e, fake(kind, Script()), played=12 * H).run_job("auto", e, lab.ctx(e))
+    assert not again["started"] and "stopped recently" in again["skipped"]
+
+
+def test_a_stopped_run_keeps_the_old_text_too(lab, monkeypatch):
+    e = lab.env("a")
+    assert service(e, FakeAnthropic(Script())).run_job("player", e, lab.ctx(e))["runs"][0]["status"] == "done"
+    before = files(e)
+    monkeypatch.setattr(auto, "MAX_CALLS", 8)  # past the first lane's findings
+    r = service(e, FakeAnthropic(Script())).run_job("player", e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "stopped" and r["why"] == "stopped after 8 calls"
+    assert files(e) == before
+
+
+def test_the_unattended_wording_is_in_the_server_prompt_only(lab):
+    from wowstats.mcp import prompts
+
+    e = lab.env("a")
+    ant = FakeAnthropic(Script())
+    service(e, ant).run_job("player", e, lab.ctx(e))
+    req = ant.requests[0]
+    assert "unattended" in req["system"] and "no one will reply" in req["system"]
+    assert "never ask to continue" in req["system"].lower()
+    assert req["messages"][0]["content"].endswith(auto.UNATTENDED)
+    for kind in ("openai-chat", "openai-responses"):
+        eo = lab.env("o", **ADAPTER_ENVS[kind])
+        oai = FakeOpenAI(Script())
+        drive._WS.clear()
+        service(eo, oai).run_job("player", eo, lab.ctx(eo))
+        first = oai.requests[0]
+        system = first.get("instructions") or first["messages"][0]["content"]
+        user = (first.get("input") or first.get("messages"))[-1]["content"]
+        assert system == auto.SYSTEM and user.endswith(auto.UNATTENDED)
+    # The MCP client's prompt is unchanged: a person is there to say "continue".
+    mcp = prompts.analyse_messages(CHAR)[0]["content"]["text"]
+    assert mcp == prompts.analyse_text(CHAR, "")
+    assert "unattended" not in mcp and "no one will reply" not in mcp.lower()
+    assert 'say "continue" works in a new chat' in mcp
