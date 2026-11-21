@@ -63,8 +63,10 @@ and to finish, NUDGES times in a row at most; then the run is "incomplete".
 A run that isn't done (incomplete, or stopped by a cap or an error) puts the
 character's analysis and run state back as they were: the player keeps the
 last finished analysis, never a partial one. Unless someone else wrote them
-while it ran (the player's own MCP session, a recheck: analysis.guard): then
-nothing is put back, so their work stays, and the run's `why` says so.
+while it ran (the player's own MCP session, the nightly recheck in its own
+process, `wow-stats analyse` by hand: analysis.guard, a file lock and a
+revision every writer moves): then nothing is put back, so their work stays,
+and the run's `why` says so.
 """
 
 from __future__ import annotations
@@ -717,12 +719,12 @@ class Runner:
                 f"run with {FINAL_STEP}.{step}")
 
     def run(self) -> dict:
-        from . import drive, guard
+        from . import drive, folder_lock, guard
 
         token = drive.DRIVER.set({"kind": "server", "driver": f"{self.cfg.provider}:{self.cfg.model}",
                                   "by": "server", "via": "auto"})
         status, why = "stopped", ""
-        with guard(self.ctx.environ(), self.char) as others:
+        with guard(self.ctx.environ(), self.char) as watch:
             kept = self.snapshot()
             try:
                 status = self.drive()
@@ -737,14 +739,16 @@ class Runner:
             finally:
                 drive.DRIVER.reset(token)
             if status != "done":
-                # Under the drive lock, so no write lands between the check and the restore.
-                with drive._LOCK:
-                    if others:
-                        why = (f"{why}; not rolled back: {others[0]} wrote this character's analysis meanwhile, "
+                # Under the drive lock and the folder's file lock, so no write from this
+                # process or another lands between the check and the restore.
+                with drive._LOCK, folder_lock(watch.folder) if watch.folder else contextlib.nullcontext():
+                    other = watch.other_writer()
+                    if other:
+                        why = (f"{why}; not rolled back: {other} wrote this character's analysis meanwhile, "
                                "and putting the old files back would erase that").lstrip("; ")
-                        log(what="rollback skipped", char=self.char, writers=len(others))
+                        log(what="rollback skipped", char=self.char, writer=other[:40])
                     else:
-                        self.restore(kept)
+                        self.restore(kept, watch.folder)
         return self.result(status, why)
 
     def drive(self) -> str:
@@ -821,23 +825,27 @@ class Runner:
                 out[p] = p.read_bytes() if p.exists() else None
         return out
 
-    def restore(self, kept: dict) -> None:
+    def restore(self, kept: dict, folder: Path | None = None) -> None:
         """Puts back what the player saw before a run that didn't finish: its
         findings were stored as the judge verified them, without the
         synthesis that keeps, drops and merges them. The run's own state goes
         back too, so the next run starts clean instead of resuming on findings
         that are gone. Only when nobody else wrote the files since the run
         started (analysis.guard): the player's own session or a recheck
-        meanwhile keeps what it wrote, and the run's partial findings stay
-        with it."""
-        for p, data in kept.items():
-            try:
-                if data is None:
-                    p.unlink(missing_ok=True)
-                elif not p.exists() or p.read_bytes() != data:
-                    _write_bytes(p, data)
-            except OSError as e:
-                log(what="restore failed", file=p.name, error=repr(e)[:200])
+        meanwhile, in this process or another, keeps what it wrote, and the
+        run's partial findings stay with it. A write like any other: the
+        folder's revision moves."""
+        from . import writing
+
+        with writing(folder) if folder is not None else contextlib.nullcontext():
+            for p, data in kept.items():
+                try:
+                    if data is None:
+                        p.unlink(missing_ok=True)
+                    elif not p.exists() or p.read_bytes() != data:
+                        _write_bytes(p, data)
+                except OSError as e:
+                    log(what="restore failed", file=p.name, error=repr(e)[:200])
 
     def result(self, status: str, why: str) -> dict:
         return {"char": self.char, "status": status, "why": why,

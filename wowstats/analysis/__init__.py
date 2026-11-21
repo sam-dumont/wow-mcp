@@ -164,37 +164,109 @@ def char_dir(env: dict, char: str) -> Path | None:
 # else (the player's own MCP session, the nightly recheck). A server run that
 # doesn't finish puts the files back only when nobody else wrote them since it
 # started: the external review of 0.7.0-rc.5 found the rollback overwrote the
-# player's own session on the same character.
+# player's own session on the same character. Review 2 of 0.7.0: the nightly
+# recheck is a child process (start_schedule), and `wow-stats analyse` can be
+# run by hand, so an in-memory watcher alone never saw them. Every write now
+# goes through `writing`: an flock on the folder's LOCK_FILE, shared by every
+# process, and a revision in REVISION_FILE bumped under it. A run rolls back
+# only when the revision is still the one its own last write left.
 WRITER: contextvars.ContextVar[str | None] = contextvars.ContextVar("analysis_writer", default=None)
-_WATCH: dict[str, dict[str, list[str]]] = {}  # character folder -> {run token: who else wrote}
+LOCK_FILE = ".lock"
+REVISION_FILE = "revision"
+_WATCH: dict[str, dict[str, Guard]] = {}  # character folder -> {run token: its guard}
 _WATCH_LOCK = threading.Lock()
+_FOLDER_LOCKS: dict[str, list] = {}  # character folder -> [RLock, depth, fd]
 
 
-def note_write(folder: Path) -> None:
-    """A write to a character's analysis files, against every server run
-    watching that folder other than the writer's own."""
-    me = WRITER.get()
+@contextlib.contextmanager
+def folder_lock(folder: Path):
+    """The character folder, locked against every thread and process that
+    writes it. Re-entrant in one process: the flock is taken once."""
+    from wowstats.tenancy import _lock_fd
+
     with _WATCH_LOCK:
-        for token, others in (_WATCH.get(str(folder)) or {}).items():
-            if token != me:
-                others.append(me or "another session")
+        held = _FOLDER_LOCKS.setdefault(str(folder), [threading.RLock(), 0, None])
+    with held[0]:
+        if held[1] == 0:
+            folder.mkdir(parents=True, exist_ok=True)
+            held[2] = os.open(folder / LOCK_FILE, os.O_RDWR | os.O_CREAT, 0o600)
+            _lock_fd(held[2], True)
+        held[1] += 1
+        try:
+            yield
+        finally:
+            held[1] -= 1
+            if held[1] == 0:
+                _lock_fd(held[2], False)
+                os.close(held[2])
+                held[2] = None
+
+
+def revision(folder: Path) -> int:
+    """How many writes the folder has had (0: none since this file came)."""
+    with contextlib.suppress(OSError, ValueError):
+        return int((folder / REVISION_FILE).read_text(encoding="ascii").strip() or 0)
+    return 0
+
+
+class Guard:
+    """A server run's watch on one character folder: who else wrote it
+    in this process (`others`), and the revision its own last write left
+    (`seen`), which any other process's write moves."""
+
+    def __init__(self, folder: Path | None):
+        self.folder, self.others, self.seen = folder, [], 0
+
+    def other_writer(self) -> str | None:
+        """Who else wrote the folder since the run started, None when nobody
+        did and a rollback is safe. Call it under folder_lock."""
+        if self.others:
+            return self.others[0]
+        if self.folder is not None and revision(self.folder) != self.seen:
+            return "another process"
+        return None
+
+
+@contextlib.contextmanager
+def writing(folder: Path):
+    """Around every write to a character's analysis files: under the
+    folder's lock, then one revision more, noted against every server run
+    watching the folder other than the writer's own."""
+    with folder_lock(folder):
+        yield
+        before = revision(folder)
+        fd, tmp = tempfile.mkstemp(dir=folder, prefix=".revision-")
+        with os.fdopen(fd, "w", encoding="ascii") as f:
+            f.write(str(before + 1))
+        os.replace(tmp, folder / REVISION_FILE)
+        me = WRITER.get()
+        with _WATCH_LOCK:
+            for token, g in (_WATCH.get(str(folder)) or {}).items():
+                if token != me:
+                    g.others.append(me or "another session")
+                    continue
+                if before != g.seen:  # another process wrote between this run's own writes
+                    g.others.append("another process")
+                g.seen = before + 1
 
 
 @contextlib.contextmanager
 def guard(env: dict, char: str):
-    """For a server run on one character: its writes carry its own token, and
-    the list it yields fills with every other writer of the character's files
-    while it runs. Empty at the end: nobody else wrote, a rollback is safe."""
+    """For a server run on one character: its writes carry its own token,
+    and the Guard it yields notes every other writer of the character's
+    files while it runs, in this process or another."""
     d = char_dir(env, char)
     token = uuid.uuid4().hex
-    others: list[str] = []
+    g = Guard(d)
     key = str(d) if d is not None else None
-    if key is not None:
-        with _WATCH_LOCK:
-            _WATCH.setdefault(key, {})[token] = others
+    if d is not None:
+        with folder_lock(d):
+            g.seen = revision(d)
+            with _WATCH_LOCK:
+                _WATCH.setdefault(key, {})[token] = g
     mark = WRITER.set(token)
     try:
-        yield others
+        yield g
     finally:
         WRITER.reset(mark)
         if key is not None:
@@ -233,15 +305,14 @@ def save_state(env: dict, char: str, state: dict) -> None:
     d = char_dir(env, char)
     if d is None:
         return
-    d.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=d, prefix=".analysis-")
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, d / STATE_FILE)
-    note_write(d)
-    old = state_dir(env) / STATE_FILE
-    if old.exists() and str(_read(old).get("char") or "").lower() == char.replace(" ", "-").lower():
-        old.unlink(missing_ok=True)
+    with writing(d):
+        fd, tmp = tempfile.mkstemp(dir=d, prefix=".analysis-")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=1)
+        os.replace(tmp, d / STATE_FILE)
+        old = state_dir(env) / STATE_FILE
+        if old.exists() and str(_read(old).get("char") or "").lower() == char.replace(" ", "-").lower():
+            old.unlink(missing_ok=True)
 
 
 def characters(env: dict) -> list[str]:

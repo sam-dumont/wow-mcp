@@ -43,10 +43,12 @@ client's run, marked `kind: "server"` with the model's name.
   tells a person's AI to offer "continue" in a new chat) is told nobody will reply and to finish,
   twice in a row at most; then the run is **incomplete**. A run that doesn't finish, for that or
   any other reason (budget, a provider error), changes nothing the player sees: their last
-  finished analysis stays. One exception: when the player's own AI (or the nightly recheck)
-  wrote to the same character while the run was going, nothing is put back, so their work isn't
-  erased, and the run's reason ends with "not rolled back". The server's partial findings then
-  stay until the next full analysis.
+  finished analysis stays. One exception: when the player's own AI, the nightly recheck (its
+  own process) or a `wow-stats analyse` by hand wrote to the same character while the run was
+  going, nothing is put back, so their work isn't erased, and the run's reason ends with "not
+  rolled back". The server's partial findings then stay until the next full analysis. Every
+  writer takes a lock on the character's folder and moves a revision kept there, so this holds
+  across processes on one machine (one state directory, not shared over NFS).
 - **/admin** shows the month's spend for the whole install and, per person, each character's
   play since its last refresh against the threshold ("never refreshed" when it has none), the
   latest refresh and who did it, and their own server runs and cost this month
