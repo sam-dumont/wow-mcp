@@ -113,7 +113,7 @@ Kept per character, judged by the server.
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
 | `ANALYSIS_API_KEY_FILE` | ui | path | empty: none | `/run/secrets/analysis-key` | A file holding the AI provider's API key, read at the first run, never logged. Used when workload identity federation isn't set up; a local `openai` endpoint may need none. `ANTHROPIC_API_KEY` and `OPENAI_API_KEY` are never read. |
-| `ANALYSIS_AUTO` | ui | `on` or `off` | `on` | `off` | Whether the page rebuild starts the server's own analysis after `ANALYSIS_STALE_PLAYED_HOURS` of play. Off: only a player's `dashboard_refresh` does. |
+| `ANALYSIS_AUTO` | ui | `on` or `off` | `on` | `off` | Whether the page rebuild starts the server's own analysis after `ANALYSIS_STALE_PLAYED_HOURS` of play. Off: the server never runs one; players refresh from their own AI. |
 | `ANALYSIS_BASE_URL` | ui | URL | empty: the provider's own API | `http://ollama:11434/v1` | The API's address: an OpenAI-compatible endpoint with `ANALYSIS_PROVIDER=openai`, or a proxy in front of Anthropic's. `ANTHROPIC_BASE_URL` and `OPENAI_BASE_URL` are never read. |
 | `ANALYSIS_HOUR` | ui | hour, 0 to 23 | `4` | `4` | The local hour of the nightly recheck of kept findings. |
 | `ANALYSIS_MODEL` | ui | model id | `claude-opus-5-5` with `anthropic`; required with `openai` | `claude-sonnet-5-5` | The model the server's own analysis runs on. It must support tool calling. |
@@ -127,7 +127,7 @@ Kept per character, judged by the server.
 | `ANALYSIS_SHARE_PORT` | ui | port | empty: off | `8091` | A bare listener that hands the screened analysis lines to the publisher. Never route it from outside. |
 | `ANALYSIS_SHARE_TOKEN_FILE` | ui, publish, exporter | path | empty: `share-token` in the state folder, made on first start | `/data/share-token` | The share port's bearer token. `ui` makes it on first start; `publish` and the exporter read the same file to call the share port. |
 | `ANALYSIS_SHARE_URL` | publish | URL | empty: none | `http://ui:8091/analysis.json` | Where the publisher reads those lines, for `/zogzog/`. |
-| `ANALYSIS_STALE_PLAYED_HOURS` | ui | hours of play | `10` | `6` | How much in-game play since a character's last analysis makes the server refresh it (the journal's sessions, one timer per character; a character never refreshed counts all its play on record). Any refresh of that character resets it: the server's, the player's `dashboard_refresh`, or a full analysis from their own AI. |
+| `ANALYSIS_STALE_PLAYED_HOURS` | ui | hours of play | `10` | `6` | How much in-game play since a character's last analysis makes the server refresh it (the journal's sessions, one timer per character; a character never refreshed counts all its play on record). Any refresh of that character resets it: the server's, or a full analysis from the player's own AI (`dashboard_refresh` starts one). |
 | `ANALYSIS_STATE_DIR` | ui | path | empty: off | `/data/analysis` | Where the play analysis and the session plans are kept (full view only). Put it on a volume. |
 | `ANALYSIS_WIF_AUDIENCE` | ui | string | `https://api.anthropic.com` with `anthropic`, `https://api.openai.com/v1` with `openai` | `https://api.openai.com/v1` | The audience the projected token must carry, checked before each client is made so a wrong volume says so instead of an opaque 401. Set it only when the provider was configured with another audience. |
 | `ANALYSIS_WIF_ORGANIZATION_ID` | ui | id | empty: none | an organization UUID | With `anthropic`: your organization. |

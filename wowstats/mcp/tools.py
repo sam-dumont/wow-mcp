@@ -1036,8 +1036,9 @@ class Tool:
     input_schema: dict
     fn: Callable[[Ctx, dict], dict]
     writes: str = ""
-    # Reaches outside the server (dashboard_refresh: the AI provider the host
-    # configured), for the MCP's openWorldHint.
+    # Reaches outside the server, for the MCP's openWorldHint. None does
+    # today: dashboard_refresh reached the host's AI provider until it moved
+    # to the client (2026-11-21).
     open_world: bool = False
 
     def __post_init__(self):

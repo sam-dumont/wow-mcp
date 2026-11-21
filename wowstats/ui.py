@@ -1279,7 +1279,7 @@ def main() -> int:
                 prebuilt.ON_BUILD.append(
                     lambda a: a.analysis_env.get("ANALYSIS_STATE_DIR") and auto.service().on_rebuild(a.env))
             print(f"analysis: the server's own runs on {cfg.provider}:{cfg.model} ({cfg.auth}), "
-                  + (f"after {auto.hours(cfg.stale_s)} of play" if cfg.auto else "on dashboard_refresh only")
+                  + (f"after {auto.hours(cfg.stale_s)} of play" if cfg.auto else "off (ANALYSIS_AUTO)")
                   + (f", budget ${cfg.budget:g} a month" if cfg.priced else ", cost unknown (no prices)")
                   + (f", {cfg.tokens_cap:,} tokens a month" if cfg.tokens_cap else ""), flush=True)
         try:

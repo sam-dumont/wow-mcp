@@ -6,7 +6,20 @@ server writes "How you play" itself, with the AI provider you pick, inside a mon
 Optional, and off until you give it a provider. Without it, "How you play" changes only when a
 player runs the analysis from their own AI client, as before.
 
-## What it does
+## The server vs the client
+
+| | Who does the analysis | Who pays |
+|---|---|---|
+| A player's own AI (`analyse`, or `dashboard_refresh`) | their model, through the MCP tools | them (their own AI subscription) |
+| The server's automatic refresh (this page) | the provider you configure, after 10 hours of play | you (`ANALYSIS_MONTHLY_BUDGET`) |
+
+A player who refreshes from their own AI never costs you anything. The server's runs are there
+for the friends who never do: the timer only starts one once a character has 10 hours of play
+since anyone last refreshed it. No MCP call starts a server run; `dashboard_refresh` used to, and
+the owner's own Claude calling it spent the lab's OpenAI money. /admin has no "run now" button
+either: the timer is the only way in.
+
+## What the server does
 
 The full view plays the MCP client itself: the same analysis tools, the same `analyse` prompt,
 the same judge re-running every finding's SQL before it's kept. What it keeps looks like a
@@ -21,16 +34,8 @@ client's run, marked `kind: "server"` with the model's name.
   holds up the page.
 - **What:** that player's due characters, the most recent first, three at most.
 - **A character's timer resets** whenever its analysis is refreshed, by anyone: this server's
-  run, the player's own AI calling `dashboard_refresh`, or a full analysis from their own client.
-  It counts from that refresh, not from the character's first login.
-- **`dashboard_refresh`** (an MCP tool) runs it now for the caller, whatever the timers say,
-  budget permitting: the characters played since their own refresh, the due ones first. It
-  answers with the last refresh and who did it, each character's play against the threshold
-  (`timer.chars`: "0 h 10 of play on record, never refreshed, due at 10 h 00"), whether
-  the caller's refresh runs now or waits behind someone else's (one runs at a time; `state` and
-  `position`), what it skipped and why, how the last try ended, the budget left for the whole
-  install (`budget`, `scope: "install"`) and the caller's own runs and cost this month (`yours`).
-  Calling again while queued adds no second job.
+  run, or a full analysis from the player's own AI (its synthesis accepted by
+  `analysis_submit`). It counts from that refresh, not from the character's first login.
 - **Only the analysis tools run** (no plans, no Battle.net data), on the player's own data, with
   `char` forced to the character being analysed. Tool results go back as data.
 - **It runs unattended** and finishes in one go: the run is done when its synthesis is accepted,
@@ -44,6 +49,26 @@ client's run, marked `kind: "server"` with the model's name.
   latest refresh and who did it, and their own server runs and cost this month
   ([Admin overview](admin.md)). The spend file splits the month per tenant number.
 
+## What the client does
+
+`dashboard_refresh` (an MCP tool) refreshes the caller's dashboard **on the client**: their own
+model runs the analysis, the server holds the run and judges each finding. It starts nothing on
+the server and reaches no provider. It picks the character whose analysis is most out of date
+(due first, then the most play since its refresh; `char` picks another) and returns what
+`analyse` returns for it: the procedure (`instructions`), where the run stands (`progress`) and
+`do`, the one line to follow: analysis_brief, the passes, then analysis_submit, whose accepted
+synthesis refreshes "How you play" and resets that character's timer. `then` lists the caller's
+other characters with play since their refresh.
+
+It also shows the server's side under `server_automatic_refresh`, labelled as the automatic
+refreshes only: each character's play against the threshold (`timer.chars`: "0 h 10 of play on
+record, never refreshed, due at 10 h 00"), the latest refresh and who did it, whether an
+automatic refresh of theirs runs or waits (`state`, `position`), how the last one ended, the
+install's budget (`budget`, `scope: "install"`) and the caller's own share (`yours`). While the
+server's run for them is going, `do` says to let it end first: both would share one run state.
+
+## Where it runs
+
 The run happens in the **full-view process** (`wow-stats ui` with `VIEW=full`): give that
 process the credentials and egress to the provider's API, nothing else.
 
@@ -53,7 +78,7 @@ process the credentials and egress to the provider's API, nothing else.
 Chat Completions endpoint: OpenAI, OpenRouter, Ollama, vLLM, LM Studio, z.ai. OpenAI's own API
 goes through Responses instead, because its reasoning models only take tools there; you don't set
 anything for that. The model has to support tool calling: one that refuses tools fails the run
-with that reason on /admin and in `dashboard_refresh`. It never falls back to a run without
+with that reason on /admin and in `dashboard_refresh` (`last_try`). It never falls back to a run without
 tools. Any other failure shows what the provider said.
 
 Credentials, first match wins: workload identity federation, then `ANALYSIS_API_KEY_FILE`, then

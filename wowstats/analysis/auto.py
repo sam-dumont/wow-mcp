@@ -2,9 +2,10 @@
 
 The analysis' LLM parts (the findings, the nudges, the pattern lines: the
 "How you play" section) are written by a model that drives the analysis
-tools (wowstats.analysis.drive). Until 0.7.0 only the player's own MCP
-client did that, so a friend who never asks their AI saw text that grew
-old. Here the server calls a model itself and plays that client: the same
+tools (wowstats.analysis.drive). The player's own MCP client does that
+(`analyse`, or `dashboard_refresh`, which starts the same flow), at no cost
+to the server. A friend who never asks their AI would see text that grows
+old, so for them the server calls a model itself and plays that client: the same
 tools (ALLOWED, run through tools.call like an MCP call), the same
 `analyse` prompt (wowstats.mcp.prompts), the same judge. What it keeps is
 shaped like a client run's, with `kind: "server"`. The model sits behind a
@@ -24,9 +25,12 @@ ANALYSIS_STALE_PLAYED_HOURS of play (10) on its timer, the page rebuild
 (wowstats.prebuilt) asks for a refresh of that player: one background run
 over their due characters, never blocking the rebuild. A character's
 timer resets whenever its analysis is refreshed by anyone: this server's
-run, the player's own `dashboard_refresh` call (which always runs, budget
-permitting, whatever the timers say), or a full analysis from the
-player's own client.
+run, or a full analysis from the player's own client.
+
+The timer is the only way a server run starts. No MCP call starts one: the
+player's `dashboard_refresh` hands the analysis to their own model and shows
+the timers (Service.status). It used to queue a server run, and the owner's
+own AI calling it spent the host's provider money in the lab (2026-11-21).
 
 Money: each response's usage is counted (tokens always) and priced:
 Anthropic from PRICES (its pricing page), an OpenAI-compatible endpoint
@@ -80,7 +84,7 @@ from . import providers
 
 # The tools a run may call: the analysis flow's own (wowstats.mcp.analysistools)
 # and kb_search, which the flow's prompt names. Nothing else is listed or callable:
-# no plan writer, no Battle.net, no dashboard_refresh (no run starts another).
+# no plan writer, no Battle.net, no dashboard_refresh.
 ALLOWED = ("analysis_progress", "analysis_brief", "play_sql", "list_metrics", "query_metric", "propose_finding",
            "analysis_submit", "kb_search", "kb_get", "kb_lookup")
 
@@ -639,10 +643,10 @@ class Runner:
     """One character's analysis, the server playing the MCP client through
     a provider adapter (wowstats.analysis.providers)."""
 
-    def __init__(self, cfg: Config, client, spend: Spend, ctx, char: str, by: str):
+    def __init__(self, cfg: Config, client, spend: Spend, ctx, char: str):
         from wowstats.mcp import tools as T
 
-        self.cfg, self.spend, self.ctx, self.char, self.by, self.T = cfg, spend, ctx, char, by, T
+        self.cfg, self.spend, self.ctx, self.char, self.T = cfg, spend, ctx, char, T
         self.tenant = tenant_key(ctx.environ())
         self.usd: float | None = 0.0 if cfg.priced else None
         self.tokens = 0
@@ -714,7 +718,7 @@ class Runner:
         from . import drive
 
         token = drive.DRIVER.set({"kind": "server", "driver": f"{self.cfg.provider}:{self.cfg.model}",
-                                  "by": self.by, "via": "auto" if self.by == "server" else "dashboard_refresh"})
+                                  "by": "server", "via": "auto"})
         kept = self.snapshot()
         status, why = "stopped", ""
         try:
@@ -861,7 +865,7 @@ def api_error(e: Exception) -> str:
 
 class Service:
     """One per process: the settings, the month's meter, and one worker
-    thread that runs one player's refresh at a time (so the process never
+    thread that runs one player's automatic refresh at a time (so the process never
     holds two analyses' databases at once, and spends at one pace).
 
     Each player has at most one job, either waiting in the queue or running:
@@ -879,8 +883,8 @@ class Service:
         self.played = played or played_since  # (env, char, since, store) -> seconds
         self.chars = chars or played_chars  # (env, store) -> names, the latest played first
         self._lock = threading.Lock()
-        self._queued: dict[str, tuple] = {}  # key -> (kind, env, ctx), oldest first
-        self._running: set[str] = set()  # the worker's job, plus a caller's own `wait` run
+        self._queued: dict[str, tuple] = {}  # key -> (env, ctx), oldest first
+        self._running: set[str] = set()  # the worker's job
         self._checked: dict[str, float] = {}
         self._q: queue.Queue = queue.Queue()  # the keys, in the order they were queued
         self._thread: threading.Thread | None = None
@@ -920,31 +924,30 @@ class Service:
                 "refresh_after": hours(self.cfg.stale_s), "due": any(t["due"] for t in chars), "chars": chars}
 
     def state(self, k: str) -> dict | None:
-        """Where the player's own job stands: running, or queued at a
-        position (1: next to start) with `ahead` other refreshes before it
+        """Where the player's automatic refresh stands: running, or queued at
+        a position (1: next to start) with `ahead` other refreshes before it
         (the one running included), or None. Call with the lock held."""
         if k in self._running:
-            return {"state": "running", "running_for_you": True}
+            return {"state": "running"}
         if k in self._queued:
             pos = list(self._queued).index(k) + 1
-            return {"state": "queued", "running_for_you": False, "position": pos,
-                    "ahead": pos - 1 + len(self._running - {k})}
+            return {"state": "queued", "position": pos, "ahead": pos - 1 + len(self._running - {k})}
         return None
 
     @staticmethod
     def said(st: dict) -> str:
         if st["state"] == "running":
-            return "a refresh is already running for you"
+            return "the server's automatic refresh is running for you now"
         if st["ahead"] == 0:
-            return "your refresh is queued and starts next (position 1)"
+            return "the server's automatic refresh for you is queued and starts next (position 1)"
         other = "another refresh" if st["ahead"] == 1 else f"{st['ahead']} other refreshes"
-        return f"your refresh is queued behind {other} (position {st['position']})"
+        return f"the server's automatic refresh for you is queued behind {other} (position {st['position']})"
 
     def would_cross(self) -> str:
         usd, toks = self.spend.run_estimate(self.cfg.model, self.cfg.run_guess())
         return over(self.cfg, self.spend, usd, toks, run=True)
 
-    # -- the two ways in
+    # -- the one way in
 
     def on_rebuild(self, env: dict) -> str | None:
         """The page rebuild's hook: never blocks. Queues a check of the
@@ -961,68 +964,37 @@ class Service:
             if self.clock() - self._checked.get(k, 0.0) < REBUILD_CHECK_S:
                 return "checked recently"
             self._checked[k] = self.clock()
-            self._queued[k] = ("auto", dict(env), None)
+            self._queued[k] = (dict(env), None)
         self._enqueue(k)
         return None
 
-    def refresh(self, ctx, wait: bool = False) -> dict:
-        """dashboard_refresh: the player's own call, on their own context.
-        Runs whatever the timer says, budget permitting; in the background
-        unless `wait`. Says what was due, whether their refresh runs now or
-        waits in the queue (and where), what was skipped and why, the month's
-        budget (the whole install's) and their own share of it, and how the
-        last try ended. A call while their own job waits adds none: a waiting
-        timer check becomes their refresh, which always runs."""
+    # -- what dashboard_refresh shows
+
+    def status(self, ctx) -> dict:
+        """The server's automatic refreshes as the caller sees them: each of
+        their characters' timer, whether a refresh of theirs runs or waits,
+        how the last one ended, the install's budget and their own share.
+        Reads only: never queues or starts a run, never reaches a provider."""
         env = ctx.environ()
-        out = {"configured": self.cfg.on, "budget": budget(env, self.spend), "yours": mine(env, self.spend),
+        on = self.cfg.on and self.cfg.auto
+        out = {"scope": "the server's automatic refreshes only, for players who don't refresh from their own AI",
+               "automatic": on, "configured": self.cfg.on,
+               "budget": budget(env, self.spend), "yours": mine(env, self.spend),
                "last_try": self.last_try(env) or None}
         if not self.cfg.on:
-            return {**out, "started": False, "skipped": self.cfg.why_off()}
-        k = self.key(env)
-        if not k:
-            return {**out, "started": False, "skipped": "analysis not configured: no state folder (ANALYSIS_STATE_DIR)"}
+            out["off"] = self.cfg.why_off()
+        elif not self.cfg.auto:
+            out["off"] = "ANALYSIS_AUTO is off: the server never refreshes on its own"
         try:
             out["timer"] = self.timer(env, ctx.store)
-        except Exception:  # noqa: BLE001 - a footnote here: the player's call runs anyway
+        except Exception:  # noqa: BLE001 - a footnote: the client's own run doesn't need it
             out["timer"] = None
-        job = ("player", dict(env), ctx)
-        mine_now = self._already(k, job)
-        if mine_now is not None:
-            return {**out, **mine_now}
-        why = self.would_cross()
-        if why:
-            return {**out, "started": False, "skipped": why}
+        k = self.key(env)
         with self._lock:
-            if self.state(k) is not None:  # queued meanwhile: the same answer as above
-                return {**out, **self._already_locked(k, job)}
-            if wait:
-                self._running.add(k)
-            else:
-                self._queued[k] = job
-                st = self.state(k)
-        if wait:
-            return {**out, "state": "running", "running_for_you": True, **self._run_job(k, job)}
-        self._enqueue(k)
-        if st["ahead"]:
-            return {**out, **st, "started": True,
-                    "note": self.said(st).replace("your refresh is", "Your refresh is") + ": it starts when the "
-                    "ones ahead end, a few minutes each. Call this again to see where it stands; last_try says "
-                    "how it ended."}
-        return {**out, "state": "running", "running_for_you": True, "started": True,
-                "note": "Running for you in the background, a few minutes. play_analysis (or the page's How you "
-                        "play) shows the result; call this again to see how it ended (last_try)."}
-
-    def _already(self, k: str, job: tuple) -> dict | None:
-        with self._lock:
-            return self._already_locked(k, job) if self.state(k) is not None else None
-
-    def _already_locked(self, k: str, job: tuple) -> dict:
-        """The player's own job is queued or running: no second one. A
-        waiting timer check becomes their refresh, at the same place."""
-        st = self.state(k)
-        if st["state"] == "queued" and self._queued[k][0] == "auto":
-            self._queued[k] = job
-        return {**st, "started": False, "skipped": "no new refresh: " + self.said(st)}
+            st = self.state(k) if k else None
+        if st is not None:
+            out.update(st, said=self.said(st))
+        return out
 
     def last_try(self, env: dict) -> dict:
         d = person_dir(env)
@@ -1063,43 +1035,26 @@ class Service:
             with self._lock:
                 self._running.discard(k)
 
-    def run_job(self, kind: str, env: dict, ctx=None) -> dict:
-        """One player's refresh, now. "auto": the characters whose timer is
-        due, once the last try didn't stop recently; "player": always, the
-        characters played since their own refresh (the due ones first), else
-        the latest played. One run each, MAX_CHARS at most, the caps checked
-        before each."""
+    def run_job(self, env: dict, ctx=None) -> dict:
+        """One player's automatic refresh: the characters whose timer is due,
+        once the last try didn't stop recently. One run each, MAX_CHARS at
+        most, the caps checked before each."""
         from wowstats.mcp import context
 
         ctx = replace(ctx if ctx is not None else context(env), bnet=False)
         try:
             timers = self.timers(env, ctx.store)
-        except Exception as e:  # noqa: BLE001 - the store down: the timer waits, a player's call goes on
-            if kind == "auto":
-                return {"started": False, "skipped": f"couldn't read the play time: {type(e).__name__}"}
-            timers = []
-        if kind == "auto":
-            due = [t["char"] for t in timers if t["due"]]
-            if not due:
-                most = sorted(timers, key=lambda t: -t["played_since_s"])[:MAX_CHARS]
-                return {"started": False, "skipped": "not due: " + ("; ".join(t["said"] for t in most)
-                                                                    or "no play on record")}
-            last = self.last_try(env)
-            if last.get("status") != "done" and (self.clock() - (_epoch(last.get("at")) or 0)) < RETRY_S:
-                return {"started": False, "skipped": "the last try stopped recently: " + str(last.get("why") or "")}
-            chars = due
-        else:
-            played = sorted((t for t in timers if t["played_since_s"] > 0), key=lambda t: not t["due"])
-            chars = [t["char"] for t in played or timers[:1]]
-        chars = chars[:MAX_CHARS]
-        if not chars:
-            with contextlib.suppress(Exception):
-                from wowstats.mcp import tools as T
-
-                chars = [T.resolve_char(ctx, {}).replace(" ", "-")]
-        if not chars:
-            return {"started": False, "skipped": "no character with any events yet"}
-        by = "server" if kind == "auto" else "player"
+        except Exception as e:  # noqa: BLE001 - the store down: the timer waits
+            return {"started": False, "skipped": f"couldn't read the play time: {type(e).__name__}"}
+        due = [t["char"] for t in timers if t["due"]]
+        if not due:
+            most = sorted(timers, key=lambda t: -t["played_since_s"])[:MAX_CHARS]
+            return {"started": False, "skipped": "not due: " + ("; ".join(t["said"] for t in most)
+                                                                or "no play on record")}
+        last = self.last_try(env)
+        if last.get("status") != "done" and (self.clock() - (_epoch(last.get("at")) or 0)) < RETRY_S:
+            return {"started": False, "skipped": "the last try stopped recently: " + str(last.get("why") or "")}
+        chars = due[:MAX_CHARS]
         results = []
         for char in chars:
             why = self.would_cross()
@@ -1108,14 +1063,14 @@ class Service:
                 continue
             t0 = time.monotonic()
             try:
-                r = Runner(self.cfg, self.client(), self.spend, ctx, char, by).run()
+                r = Runner(self.cfg, self.client(), self.spend, ctx, char).run()
             except Exception as e:  # noqa: BLE001 - no client (an unreadable key file): said, nothing spent
                 r = {"char": char, "status": "stopped", "why": api_error(e), "usd": None, "tokens": 0, "calls": 0}
             r["seconds"] = round(time.monotonic() - t0)
             self.spend.run_done(self.cfg.model, r.get("usd"), r.get("tokens") or 0, r["status"] == "done",
                                 tenant_key(ctx.environ()))
             results.append(r)
-            log(what="run", by=by, char=char, status=r["status"], why=r["why"], usd=r.get("usd"),
+            log(what="run", by="server", char=char, status=r["status"], why=r["why"], usd=r.get("usd"),
                 tokens=r.get("tokens"), calls=r.get("calls"), nudges=r.get("nudges"), seconds=r["seconds"],
                 model=f"{self.cfg.provider}:{self.cfg.model}", tenant=str(getattr(ctx.store, "account_id", "")))
         # One character done is a refresh; else "incomplete" (the model quit
@@ -1124,7 +1079,7 @@ class Service:
         d = person_dir(env)
         if d is not None:
             _write_json(d / LAST_FILE, {
-                "at": now_iso(), "by": by, "status": status,
+                "at": now_iso(), "by": "server", "status": status,
                 "why": "; ".join(dict.fromkeys(r["why"] for r in results if r.get("why")))[:400],
                 "usd": round(sum(r.get("usd") or 0 for r in results), 4) if self.cfg.priced else None,
                 "tokens": sum(r.get("tokens") or 0 for r in results)})
