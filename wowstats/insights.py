@@ -1169,7 +1169,10 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
                 if r.get("item"):
                     got.add(int(num(r["item"])))
             out["looted_item_ids"] = sorted(got)
-        out["deaths"] = [d for d in ds if t0 <= parse_t(d["t"]) <= end]
+        # The Recorder counts deaths: with nothing of it in the level, the
+        # count is unknown (None), never 0.
+        died = [d for d in ds if t0 <= parse_t(d["t"]) <= end]
+        out["deaths"] = died if died or stats or out["zones"] else None
     early = bool(t0 and out.get("counts") and not q(f"{rec(cf)} _time:[2000-01-01T00:00:00Z, {iso(t0)}] | limit 1")
                  and lv and not lv["partial"])
     if (not out.get("counts") or early) and lv and (lv.get("quests") is not None or lv.get("kills") is not None):

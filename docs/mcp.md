@@ -73,6 +73,20 @@ Every tool takes `char` (default: `DEFAULT_CHAR`, else the character seen
 last). Time ranges take `7d`, `36h`, `2w` or an ISO date. Rates per hour are
 rounded to a whole number, the same in every tool and page.
 
+Every answer about one character carries `coverage`: what it stood on, one
+entry per source (`recorder`, `polestar`, `gear`, `quests`, `prices`,
+`battlenet`), each `{state, as_of, gaps, fix}` with `state` one of
+`complete`, `partial` (arrived with a hole), `unavailable` (nothing arrived;
+`fix` is the one thing that brings it) or `unknown` (the store didn't
+answer). The Recorder's `gaps` are exact: a finished level whose Polestar
+split (the game's own played time) is longer than the Recorder's sessions in
+it, `{level, from, to, off_s}`. `sessions` marks the newest session of such a
+level with `recorder_off`. `query_metric` and `play_sql` (its first page)
+carry the same value for the prepared tables, without `battlenet` and
+`prices`, which they don't hold. A count from a source that sent nothing is
+`null`, never 0: `deaths` and `character_summary` without any Recorder
+record. All of it comes from what is stored (`wowstats/coverage.py`).
+
 Each tool's annotations say what it does: read-only, except the ones that
 write the character's analysis run or plans. `play_sql`, `query_metric`,
 `kb_search`, `kb_get` and `kb_lookup` only add to a run's coverage (with `char`, during a

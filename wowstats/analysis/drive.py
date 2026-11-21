@@ -81,6 +81,11 @@ class Workspace:
                              upgrades=upgrades_for(rows, self.char, env))
         # What this build was computed with: each finding judged here keeps its id.
         self.manifest = manifest.build(self.db, rows, self.kb, ref)
+        # What the tables stand on (wowstats.coverage): every play_sql and
+        # query_metric answer carries it, so a 0 isn't read as "never".
+        from wowstats import coverage
+
+        self.coverage = coverage.from_rows(rows, self.char)
         # play_sql, the judge and the semantic layer read a locked-down DuckDB
         # copy (wowstats.analysis.duck); the plan and the synthesis's checks
         # keep reading the SQLite build (self.db). The copy with the rows sits
@@ -407,6 +412,8 @@ def sql(env: dict, char: str, query: str, page: int = 1, page_size: int = SQL_PA
         out["next"] = f"play_sql with page={page + 1} (or aggregate)"
     if run["pass"] == "lanes":
         out["lane_queries"] = run["lane_queries"]
+    if page == 1:  # once per query, not on every page
+        out["coverage"] = w.coverage
     return out
 
 
@@ -523,6 +530,7 @@ def metric(env: dict, char: str, query: dict, store=None) -> dict:
     if got.get("evidence"):
         # An empty cell is unknown or unavailable, never a zero: say which, per metric.
         out["min_evidence"] = got["evidence"]
+    out["coverage"] = w.coverage
     return out
 
 

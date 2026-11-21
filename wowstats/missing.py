@@ -29,13 +29,16 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
+from wowstats.stores import parse_t
+
 Query = Callable[[str], list[dict]]
 SETUP_FEED = "wow-setup"
 
 # Every signal in one query (a page load's budget, tests/test_bounded_reads):
 # feeds by character, plus the two that are a field of a feed (quests by
 # source, Altoholic's /played); rows without a char are the account's.
-ARRIVED_Q = "feed:* | stats by (char, feed, source, kind) count() as n"
+# The newest record of each (`last`) dates every source for wowstats.coverage.
+ARRIVED_Q = "feed:* | stats by (char, feed, source, kind) count() as n, max(_time) as last"
 SETUP_Q = (f'feed:="{SETUP_FEED}" | fields _time, addons, recorder_on, saved_chars, off, shipper '
            '| sort by (_time desc) | limit 1')
 
@@ -59,27 +62,33 @@ def norm(c: str) -> str:
     return str(c or "").strip().replace(" ", "-")
 
 
-def arrived(q: Query) -> tuple[dict[str, set[str]], set[str]]:
+def arrived(q: Query, last: dict | None = None) -> tuple[dict[str, set[str]], set[str]]:
     """(signals per character, signals for the whole account). A character's
     signals count for the account too: prices come with the character who
-    scanned, and an account-wide kind is there once anyone has it."""
+    scanned, and an account-wide kind is there once anyone has it. `last`,
+    when given, gets {char or "": {signal: newest record's time}}."""
     per: dict[str, set[str]] = {}
     acct: set[str] = set()
 
-    def add(char, sig: str) -> None:
+    def add(char, sig: str, t) -> None:
         if char:
             per.setdefault(norm(char), set()).add(sig)
         acct.add(sig)
+        if last is not None and t:
+            for who in ((norm(char), "") if char else ("",)):
+                mine = last.setdefault(who, {})
+                if mine.get(sig) is None or parse_t(t) > parse_t(mine[sig]):
+                    mine[sig] = str(t)
 
     for r in q(ARRIVED_Q):
-        feed, char = r.get("feed"), r.get("char")
+        feed, char, t = r.get("feed"), r.get("char"), r.get("last")
         if not feed or feed == SETUP_FEED:
             continue
-        add(char, feed)
+        add(char, feed, t)
         if feed == "wow-quests" and r.get("source"):
-            add(char, f"quests:{r['source']}")
+            add(char, f"quests:{r['source']}", t)
         elif feed == "wow-character" and r.get("kind") == "played":
-            add(char, "played")
+            add(char, "played", t)
     return per, acct
 
 
@@ -179,8 +188,9 @@ NOTHING = {"id": "nothing", "what": "everything", "fix": "Play a bit, then log o
 def snapshot(q: Query) -> dict:
     """What arrived and the setup report, once for every character (the
     callers cache it: three stats queries and one row)."""
-    per, acct = arrived(q)
-    return {"per": {c: sorted(s) for c, s in per.items()}, "acct": sorted(acct), "setup": setup(q)}
+    last: dict = {}
+    per, acct = arrived(q, last)
+    return {"per": {c: sorted(s) for c, s in per.items()}, "acct": sorted(acct), "setup": setup(q), "last": last}
 
 
 def for_char(snap: dict, char: str) -> list[dict]:

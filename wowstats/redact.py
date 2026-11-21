@@ -310,7 +310,9 @@ ZOGZOG: dict[str, dict] = {
         "meta": META_PARAGRAPH,
     },
     "journal": {**_keys("char", "gap_s", "generated_at"), "sessions": [{
-        **_keys("start", "end", "played_s", "level_start", "level_end", "levels_gained", "xp", "gold_delta_copper"),
+        **_keys("start", "end", "played_s", "level_start", "level_end", "levels_gained", "xp", "gold_delta_copper",
+                "estimated"),
+        "recorder_off": {"off_s": None, "levels": [None]},
         "dings": [_keys("level", "t")], "zones": [_keys("zone", "secs")],
         "quests": [_keys("quest_id", "name", "level", "zone", "t") | {"part": [None]}],
         "deaths": {"total": None, "by_zone": [_keys("zone", "n")]},

@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from wowstats import ahsource, classguide, classmeta, forever, insights, journal, profcaps, quests, talents
+from wowstats import ahsource, classguide, classmeta, coverage, forever, insights, journal, profcaps, quests, talents
 from wowstats import gear as gearmod
 from wowstats.analysis import pages
 from wowstats.rates import per_hour
@@ -899,10 +899,15 @@ class Views:
         # logout sheet, the time played from the level splits (estimated).
         levels = self.vl(f'{st} feed:="wow-level" {cf} | fields _time, level, seconds, xp, partial')
         sessions = journal.with_history(sessions, dedupe(res["snaps"]), levels, dedupe(res["dungeons"]))
+        # Play the Recorder missed (wowstats.coverage): the session it cuts
+        # into says so, or its 0 deaths reads as none.
+        spans = split_sessions(res["minutes"])
+        gaps = coverage.recorder_gaps(spans, levels)
+        journal.mark_gaps(sessions, gaps, spans)
         quests = [q for s in sessions for q in s["quests"]]
         missing = {q["quest_id"] for q in quests if not q.get("name") and not forever.quest(q.get("quest_id"))}
         forever.name_quests(quests, self.quest_titles(cf, missing))
-        return {"char": char, "sessions": sessions, "gap_s": journal.GAP_S}
+        return {"char": char, "sessions": sessions, "gap_s": journal.GAP_S, "recorder_gaps": gaps}
 
     def quest_titles(self, cf: str, ids) -> dict[int, str]:
         """The Recorder's own quest titles (`text` records: the quest's page

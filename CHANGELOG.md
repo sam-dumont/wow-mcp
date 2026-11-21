@@ -2,8 +2,13 @@
 
 ## Unreleased
 
+### Changed
+
+- Every answer now says what it stood on. The page, your AI's tools on one character, `query_metric` and `play_sql` carry one `coverage`: per source (Recorder, Polestar, gear and bags, quests, prices, Battle.net) complete, partial, unavailable or unknown, when it was last read, and for a missing one the one thing that brings it. The Recorder's gaps are exact: a finished level whose Polestar time (the game's own played timer) is longer than what the Recorder saw. The pages show it only where it changes a number: "The Recorder missed about 1h 10m of play (level 28): deaths from then aren't counted." under Deaths and on that level's last session in the journal, and "Equipment last read 5 h ago" when Battle.net's gear is older than one read.
+
 ### Fixed
 
+- A source that sent nothing read as 0. `deaths` and `character_summary` said 0 deaths for a character without the Recorder, the journal's estimated logouts carried 0 deaths, and Back in time said "Deaths 0" at a level the Recorder never saw. They now say unknown: `null` for your AI, "not recorded" on the page.
 - After an exporter restart, a first Battle.net read that failed half way (a 503 on the equipment) left the character with no Battle.net data at all until the next full read, 2 hours later: no gear, no talents, no look. The pages now keep the last complete read (still inside vm-wow's 2-day window) and say how old it is. Nothing new is stored.
 
 ## 0.7.0-rc.8 (2026-11-21)
