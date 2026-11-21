@@ -10,6 +10,7 @@ import gzip
 import json
 import random
 import shutil
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -217,3 +218,91 @@ def test_the_stockade_panel_on_the_priests_inputs():
     after = {q["quest_id"]: q for b in dungeonview.build(inp)["dungeons"] if b["name"] == "The Stockade"
              for q in b["quests"]}
     assert after[BAZIL_THREDD]["state"] == "done" and not after[BAZIL_THREDD]["needs"]
+
+
+# ---------------------------------------------------------------- handed in with the Recorder off
+
+# City of Dalaran (Forever's new dungeon): forever-db has no reward rows for
+# its quests, the gear data names Violet Sash as Power Overwhelming's alone.
+POWER_OVERWHELMING, VIOLET_SASH = 92489, 251962
+# Quest 16's only reward in forever-db, but creatures drop it too (its
+# item_source): a generic item, holding it proves nothing.
+GIVE_GERARD_A_DRINK, SHINY_RED_APPLE = 16, 4536
+CHAR = "Testpriest-Fixture"
+
+
+def rec(t: str, kind: str, **kw) -> dict:
+    return {"_time": t, "feed": "wow-recorder", "char": CHAR, "kind": kind, "source_id": f"{kind}-{t}",
+            "level": 33, "zone": "Dalaran", **kw}
+
+
+def worn(t: str, *items: int) -> dict:
+    return {"_time": t, "feed": "wow-gear", "char": CHAR, "level": 33, "class": "PRIEST",
+            "items": json.dumps([{"slot": 6, "item_id": i} for i in items])}
+
+
+def built(rows):
+    from wowstats.analysis import prep
+    return prep.build(rows, CHAR)
+
+
+def test_dalaran_rewards_prove_their_quest():
+    assert quests.reward_quest(VIOLET_SASH) == POWER_OVERWHELMING
+    e = quests.explain([worn("2026-11-10T20:00:00Z", VIOLET_SASH)])[POWER_OVERWHELMING]
+    assert e["from"] == "reward" and "Violet Sash" in e["why"] and "worn" in e["why"]
+
+
+def test_a_quest_handed_in_with_the_recorder_off_is_done_inferred():
+    """Accepted while the Recorder ran, no hand-in, its only-this-quest
+    reward worn later: done (inferred), with the reason, closed when the
+    sheet first showed it; the planner's open quests leave it out."""
+    from wowstats.plan import facts
+
+    rows = [rec("2026-11-10T18:00:00Z", "accept", quest_id=POWER_OVERWHELMING),
+            rec("2026-11-10T18:05:00Z", "kill"), worn("2026-11-10T21:00:00Z", VIOLET_SASH),
+            rec("2026-11-12T18:00:00Z", "kill")]
+    db = built(rows)
+    status, why, closed = db.execute("SELECT status, done_why, closed_t FROM quests WHERE quest_id = ?",
+                                     (POWER_OVERWHELMING,)).fetchone()
+    assert status == quests.INFERRED == "done (inferred)"
+    assert "Violet Sash" in why and closed == datetime(2026, 11, 10, 21, tzinfo=UTC).timestamp()
+    assert db.execute("SELECT source FROM quests_done WHERE quest_id = ?", (POWER_OVERWHELMING,)).fetchone() == (
+        "reward",)
+    assert facts.open_quests(db, 33) == []
+    # Sold since: the earlier sheet still proves it.
+    db = built([*rows, worn("2026-11-12T19:00:00Z")])
+    assert db.execute("SELECT status FROM quests").fetchone()[0] == quests.INFERRED
+
+
+def test_a_generic_reward_leaves_the_quest_open():
+    from wowstats.plan import facts
+
+    item, quest = SHINY_RED_APPLE, GIVE_GERARD_A_DRINK
+    assert quests.reward_quest(item) is None
+    bags = ingest.screen({"_time": "2026-11-10T21:00:00Z", "feed": "wow-bags", "char": CHAR, "bags": [item],
+                          "bank": []})
+    db = built([rec("2026-11-10T18:00:00Z", "accept", quest_id=quest), bags])
+    assert db.execute("SELECT status, done_why FROM quests").fetchall() == [("open", None)]
+    assert [o["quest_id"] for o in facts.open_quests(db, 33)] == [quest]
+
+
+def test_a_repeat_picked_up_again_stays_open():
+    """A hand-in the Recorder saw before the accept is the last time round,
+    not this one."""
+    db = built([rec("2026-11-10T18:00:00Z", "turnin", quest_id=POWER_OVERWHELMING),
+                rec("2026-11-11T18:00:00Z", "accept", quest_id=POWER_OVERWHELMING)])
+    assert db.execute("SELECT status FROM quests ORDER BY quest_row").fetchall() == [("untimed",), ("open",)]
+
+
+def test_the_analysis_sees_it_done():
+    """play_sql's DuckDB mirror (what the analysis queries) and the
+    semantic layer's quests view carry the status and the reason."""
+    from wowstats.analysis import duck
+
+    db = built([rec("2026-11-10T18:00:00Z", "accept", quest_id=POWER_OVERWHELMING),
+                worn("2026-11-10T21:00:00Z", VIOLET_SASH)])
+    run = duck.ReadOnlyDuck(duck.mirror(db))
+    _, got, _ = run.run("SELECT q.status, q.done_why, d.source FROM quests q JOIN quests_done d USING (quest_id)")
+    assert got[0][0] == "done (inferred)" and "Violet Sash" in got[0][1] and got[0][2] == "reward"
+    _, open_, _ = run.run("SELECT COUNT(*) FROM quests WHERE status = 'open'")
+    assert open_ == [(0,)]

@@ -239,9 +239,12 @@ these carry the ones done before Polestar. `quest_ids` is the sorted list,
 
 wowstats.quests joins them with the Recorder's hand-ins, the game's
 "already done" flags in `offer` records, the gear only one quest gives
-(held: worn, bags or bank) and the quest chains (a quest done means the
-quests it needed were done), into the one "done" set the Dungeons panel, the
-plan, the gear advice and the MCP use. No page shows the lists.
+(held: worn, bags or bank, on any gear or bags snapshot) and the quest
+chains (a quest done means the quests it needed were done), into the one
+"done" set the Dungeons panel, the plan, the gear advice and the MCP use. A
+quest the Recorder saw accepted and never handed in, that this set says is
+done, closes as "done (inferred)" with the reason (the analysis' `quests`
+table, the plan's open quests). No page shows the lists.
 
 **Appearance.** From Battle.net's profile API only (the exporter, below),
 for every character it knows; any other character gets its race's default

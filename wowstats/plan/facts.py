@@ -128,8 +128,7 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
     except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail
         scans = {}
     inp = extract(db, knowledge, route.reference(), advice=advice, scans=scans,
-                  state=analysis.load_state(env, char), now=now, loot=loot, bags=gear.newest_bags(rows),
-                  done=quests.completed(rows))
+                  state=analysis.load_state(env, char), now=now, loot=loot, bags=gear.newest_bags(rows))
     inp["who"]["char"] = inp["who"].get("char") or char
     # Polestar's own record of the last class trainer visit (classTrainVisit,
     # the level it was at), from the shipper's sheet: exact where the
@@ -307,12 +306,17 @@ def step_history(db, ref) -> list[dict]:
 
 
 def open_quests(db, level: int) -> list[dict]:
+    """The quests still in his log: last seen accepted or completed, and not
+    closed as done (inferred) by the prep (wowstats.analysis.prep._quests:
+    handed in with the Recorder off, its reward worn or Questie's list
+    saying so), so nothing tells him to go back for a quest he finished."""
     from wowstats import forever
 
     rows = q(db, """WITH ev AS (SELECT quest_id, kind, t, zone, level, ROW_NUMBER() OVER (PARTITION BY quest_id
                  ORDER BY t DESC) rn FROM records WHERE kind IN ('accept','turnin','abandon','complete','fail')
                  AND quest_id IS NOT NULL) SELECT quest_id, kind, t FROM ev WHERE rn=1 AND kind IN
-                 ('accept','complete') ORDER BY t""")
+                 ('accept','complete') AND quest_id NOT IN (SELECT quest_id FROM quests WHERE status = ?)
+                 ORDER BY t""", quests.INFERRED)
     out = []
     for qid, kind, t in rows:
         acc = db.execute("SELECT zone, level, t FROM records WHERE kind='accept' AND quest_id=? ORDER BY t DESC "
@@ -711,7 +715,8 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
             reviews: dict | None = None, now: float | None = None, cards=None, loot: dict | None = None,
             bags: dict | None = None, done: dict[int, str] | None = None) -> dict:
     """The estimator's inputs, JSON only. `done`: wowstats.quests.completed
-    of the character's events; without it, the Recorder's hand-ins in `db`."""
+    of the character's events; without it, the prep's quests_done table
+    (the same answer, from the events `db` was built from)."""
     from wowstats import forever
 
     now = now or time.time()
@@ -719,8 +724,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     cards = cards if cards is not None else card_lookup()
     quests_done = done
     if quests_done is None:
-        turnins = q(db, "SELECT DISTINCT quest_id FROM records WHERE kind='turnin'")
-        quests_done = quests.completed({"kind": "turnin", "quest_id": r[0]} for r in turnins)
+        quests_done = dict(q(db, "SELECT quest_id, source FROM quests_done"))
     meta = dict(q(db, "SELECT key, value FROM meta"))
     x = db.execute("SELECT t, level, xp, xp_max, rested_xp, zone FROM xp ORDER BY t DESC LIMIT 1").fetchone()
     snap = db.execute("SELECT t, level, xp, xp_max, money_copper, zone, bind, resting FROM snapshots ORDER BY t DESC "

@@ -79,7 +79,7 @@ SCHEMA = 1
 TABLES = {
     "records": "game", "positions": "game", "loot_items": "game", "xp": "game", "timeline": "game",
     "spans": "game", "sessions": "game", "levels": "game", "route_steps": "game", "dungeon_runs": "game",
-    "dungeon_trips": "game", "quests": "game", "gold_moves": "game",
+    "dungeon_trips": "game", "quests": "game", "quests_done": "game", "gold_moves": "game",
     "gear": "game", "gear_sheets": "game", "professions": "game", "snapshots": "game",
     "upgrade_candidates": "game", "agg_session": "game",
     "agg_level": "game", "agg_zone": "game", "agg_hour": "game", "dictionary": "doc", "record_kinds": "doc",

@@ -130,19 +130,29 @@ def only_rewards(db: Path, gear: dict) -> dict[str, int]:
     quest in Polestar's gear data, and green or better (the gear data's quality).
     forever-db has no vendors and no binding; the quality floor keeps out
     what vendors sell (white goods, potions, bags). Anything another way
-    gives could have reached the bags without the quest."""
+    gives could have reached the bags without the quest.
+
+    The quests are forever-db's rewards and the gear data's quest sources
+    together: forever-db has no reward rows for Forever's new quests (City
+    of Dalaran's eight, 2026.11.1) while the gear data names them, so its
+    rewards read as nobody's and two Dalaran quests handed in with the
+    Recorder off stayed "open" with their reward worn."""
     reward_of: dict[int, set[int]] = {}
     for line in (db / "data" / "quest_reward.jsonl").read_text(encoding="utf-8").splitlines():
         r = json.loads(line)
         if r.get("kind") in ("item", "choice"):
             reward_of.setdefault(int(r["id"]), set()).add(int(r["quest"]))
+    for item, gs in (gear.get("sources") or {}).items():
+        for s in gs:
+            if s.get("kind") == "quest" and s.get("quest"):
+                reward_of.setdefault(int(item), set()).add(int(s["quest"]))
     sourced = {int(json.loads(line)["item"])
                for line in (db / "data" / "item_source.jsonl").read_text(encoding="utf-8").splitlines()}
     out = {}
     for item, qs in reward_of.items():
         info = (gear.get("items") or {}).get(str(item)) or {}
         gs = (gear.get("sources") or {}).get(str(item)) or []
-        if any(s.get("kind") != "quest" or s.get("quest") not in qs for s in gs):
+        if any(s.get("kind") != "quest" for s in gs):
             continue
         if len(qs) == 1 and item not in sourced and (info.get("quality") or 0) >= 2:
             out[str(item)] = next(iter(qs))
