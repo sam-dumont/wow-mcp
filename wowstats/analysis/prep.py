@@ -28,6 +28,13 @@ from wowstats import profcaps
 from wowstats import quests as questsmod
 from wowstats.stores import SESSION_GAP_S, VL_PAGE, dedupe, parse_t, pick_splits, truthy
 
+# What the tables mean. Bump it in the same change as anything that makes a
+# query give another answer on the same events: a table, column or unit, a
+# gap or interval, the order rows are read in, a dedupe rule. A finding
+# judged under another PREP_VERSION is shown "to revalidate" instead of
+# being rechecked (wowstats.analysis.manifest). A pure refactor keeps it.
+PREP_VERSION = 1
+
 
 def _zone() -> tuple[str, ZoneInfo]:
     """The player's local time for hours, weekdays and the nightly recheck:

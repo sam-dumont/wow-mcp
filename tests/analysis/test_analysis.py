@@ -737,3 +737,106 @@ def test_a_legacy_run_without_kind_counts_as_the_client_run(tmp_path):
     analysis.save_state(env, "Testchar", state)
     got = analysis.answer(env, "Testchar")
     assert got["last_analysis"] and got["last_analysis"]["new"] == 3
+
+
+# ------------------------------------------------------------------ run manifest (review 4)
+
+
+@pytest.fixture
+def semantic_edit(tmp_path, monkeypatch):
+    """Call it to load a copy of semantic.yaml with one description changed
+    as the model from then on; the real one is back after the test."""
+    from wowstats.analysis import manifest, semantic
+
+    def clear():
+        for f in (semantic._file, semantic.spec, manifest._semantic_hash):
+            f.cache_clear()
+
+    def edit():
+        edited = tmp_path / "semantic.yaml"
+        edited.write_text(semantic.MODEL_FILE.read_text().replace('description: "', 'description: "(edited) ', 1))
+        monkeypatch.setattr(semantic, "MODEL_FILE", edited)
+        clear()
+
+    yield edit
+    monkeypatch.undo()
+    clear()
+
+
+def test_a_finding_keeps_the_build_it_was_judged_under(driven, rows, knowledge):
+    from wowstats.analysis import manifest
+
+    env, drive = driven
+    drive.brief(env, CHAR)
+    assert drive.propose(env, CHAR, finding())["stored"]
+    st = analysis.load_state(env, CHAR)
+    m = st["manifests"][st["findings"]["sessions-online"]["manifest"]]
+    assert m["prep_version"] == prep.PREP_VERSION and len(m["semantic_hash"]) == 16
+    assert m["input"]["events"] == len(rows) and m["input"]["newest_event"]
+    assert m["reference"]["kb_polestar"] and m["reference"]["route"] and m["reference"]["gear"]
+    assert m["settings"]["timezone"] == prep.TZ_NAME and m["settings"]["session_gap_s"] == prep.OFFLINE_S
+    assert m["built_at"] and m["freshness"]["lag_s"] >= 0
+    # Unchanged definitions: the recheck runs it as before.
+    out = analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
+    f = out["findings"]["sessions-online"]
+    assert out["runs"][-1]["still"] == 1 and out["runs"][-1]["revalidate"] == 0 and "revalidate" not in f
+    assert manifest.changed(out["manifests"][out["runs"][-1]["manifest"]], m) == []
+    a = analysis.answer(env, CHAR)
+    assert a["checked"] == 1 and a["to_revalidate"] == 0
+
+
+def test_a_semantic_change_means_to_revalidate_never_a_silent_pass(driven, rows, knowledge, semantic_edit):
+    env, drive = driven
+    drive.brief(env, CHAR)
+    assert drive.propose(env, CHAR, finding())["stored"]
+    w0 = analysis.load_state(env, CHAR)["findings"]["sessions-online"]["weight"]
+    semantic_edit()
+    for _ in range(2):  # every night until re-judged, not just the first
+        out = analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
+        f, info = out["findings"]["sessions-online"], out["runs"][-1]
+        assert f["revalidate"]["why"] == ["the semantic model changed"]
+        assert info["revalidate"] == 1 and info["still"] == 0 and info["confirmed"] == 0 and info["faded"] == 0
+        assert f["weight"] == w0
+    # The page and MCP's play_analysis (analysis.answer) say so and don't count it as checked.
+    a = analysis.answer(env, CHAR)
+    assert a["to_revalidate"] == 1 and a["checked"] == 0 and a["findings"][0]["revalidate"]["why"]
+    assert drive.progress(env, CHAR)["to_revalidate"] == 1
+    # The next analysis is told which ones, then re-judges under today's model.
+    drive._WS.clear()
+    b = drive.brief(env, CHAR, restart=True)
+    assert [x["key"] for x in b["to_revalidate"]["findings"]] == ["sessions-online"]
+    assert drive.propose(env, CHAR, finding())["stored"]
+    assert "revalidate" not in analysis.load_state(env, CHAR)["findings"]["sessions-online"]
+    out = analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
+    assert out["runs"][-1]["still"] == 1 and out["runs"][-1]["revalidate"] == 0
+    assert analysis.answer(env, CHAR)["checked"] == 1
+
+
+def test_a_prep_version_or_reference_change_means_to_revalidate(driven, rows, knowledge, monkeypatch):
+    from wowstats.analysis import manifest
+
+    env, drive = driven
+    drive.brief(env, CHAR)
+    assert drive.propose(env, CHAR, finding())["stored"]
+    monkeypatch.setattr(prep, "PREP_VERSION", prep.PREP_VERSION + 1)
+    out = analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
+    assert out["findings"]["sessions-online"]["revalidate"]["why"] == [
+        f"prep version {prep.PREP_VERSION - 1} -> {prep.PREP_VERSION}"]
+    monkeypatch.setattr(prep, "PREP_VERSION", prep.PREP_VERSION - 1)
+    real = manifest.reference_versions
+    monkeypatch.setattr(manifest, "reference_versions", lambda *a: {**real(*a), "route": "v9.9.9"})
+    out = analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
+    assert any(w.startswith("route ") for w in out["findings"]["sessions-online"]["revalidate"]["why"])
+
+
+def test_a_finding_kept_before_manifests_is_to_revalidate(driven, rows, knowledge):
+    env, drive = driven
+    drive.brief(env, CHAR)
+    assert drive.propose(env, CHAR, finding())["stored"]
+    st_file = analysis.char_dir(env, CHAR) / analysis.STATE_FILE
+    st = json.loads(st_file.read_text())
+    del st["findings"]["sessions-online"]["manifest"]
+    st.pop("manifests")
+    st_file.write_text(json.dumps(st))
+    out = analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
+    assert out["findings"]["sessions-online"]["revalidate"]["why"] == ["judged before builds kept a manifest"]

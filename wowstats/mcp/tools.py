@@ -1150,8 +1150,9 @@ MARKET = Tool("market", "WoW Token and rulesets (API)",
 TOOLS = TOOLS + (
     Tool("play_analysis", "Play analysis",
          "The kept analysis of how the player plays: findings (each with its SQL, re-run on the latest data every "
-         "night, and the knowledge base documents it used), nudges, and time per level. Read it before advising; "
-         "the analyse tool runs a new analysis.",
+         "night, and the KB documents it used), nudges, and time per level. A finding with `revalidate` was judged "
+         "under older definitions and isn't rechecked: treat it as unconfirmed. Read it before advising; the "
+         "analyse tool runs a new analysis.",
          schema({"char": CHAR}), t_play_analysis),
 )
 from .analysistools import ANALYSIS_TOOLS  # noqa: E402 - they build on the helpers above
