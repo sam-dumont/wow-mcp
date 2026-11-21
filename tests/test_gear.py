@@ -473,3 +473,75 @@ def test_no_sheet_no_standing(ref):
     a = gear.advise(ref, sheet(items=[]), level=32)
     assert all(s["standing"] is None for s in a["slots"])
     assert all(u["bis"] is None for u in a["upgrades"])
+
+
+# --- the other hand of a weapon setup (blind review, 2026-11-21) ------------
+#
+# Made-up items on a level 33 character, spell power only: an off hand is
+# scored with the main hand worn, never with the best main hand on the
+# list; only against a worn two-hander does it need a partner, and then one
+# wearable now.
+
+SP = {"sp": 1}
+
+
+def _cand(item_id: int, inv: int, sp: float, at: int) -> dict:
+    return {"id": item_id, "at": at, "sources": [{"kind": "drop"}],
+            "info": {"inv": inv, "class": 2 if inv != 23 else 4, "subclass": 4, "stats": {"sp": sp}}}
+
+
+def _hands(main_inv: int, main_score: float, off_score: float | None = None) -> gear.Worn:
+    ids, infos, scores = {16: 900}, {16: {"inv": main_inv}}, {16: main_score}
+    if off_score is not None:
+        ids[17], infos[17], scores[17] = 901, {"inv": 23}, off_score
+    return gear.Worn(ids=ids, infos=infos, scores=scores)
+
+
+OFF_NOW = _cand(1, 23, 15, 30)  # held in the off hand, wearable now
+OFF_SOON = _cand(2, 23, 16, 35)  # the same, from level 35
+MAIN_NOW = _cand(3, 21, 20, 30)  # a main hand better than the one worn
+MAIN_SOON = _cand(4, 21, 40, 35)  # better again, from level 35
+MAIN_55 = _cand(5, 21, 90, 55)  # the level 55 weapon a level 33 can't wear
+
+
+def _setups(worn, *cands):
+    return gear.WeaponSetups(list(cands), worn, SP, None, False, 33)
+
+
+def test_an_off_hand_is_scored_with_the_main_hand_worn():
+    s = _setups(_hands(21, 10.0), OFF_NOW, OFF_SOON, MAIN_NOW, MAIN_SOON, MAIN_55)
+    for off in (OFF_NOW, OFF_SOON):
+        r = s.compare(off)
+        # Worn one-hander (10) + the off hand, against the one-hander alone:
+        # the gain is the off hand's own, not MAIN_NOW's or MAIN_55's too.
+        assert r["slot"] == 17 and r["delta"] == pytest.approx(off["info"]["stats"]["sp"])
+        assert r["setup_score"] == pytest.approx(10 + off["info"]["stats"]["sp"])
+        assert r["with_part"]["c"] is None and r["with_part"]["id"] == 900
+    # And a main hand with the off hand worn, the same way round.
+    s = _setups(_hands(21, 10.0, 12.0), OFF_NOW, MAIN_NOW)
+    r = s.compare(MAIN_NOW)
+    assert r["delta"] == pytest.approx(20 - 10) and r["with_part"]["id"] == 901
+    assert s.compare(OFF_NOW)["delta"] == pytest.approx(15 - 12)
+
+
+def test_against_a_two_hander_the_partner_is_wearable_now():
+    s = _setups(_hands(17, 30.0), OFF_NOW, OFF_SOON, MAIN_NOW, MAIN_SOON, MAIN_55)
+    for off in (OFF_NOW, OFF_SOON):
+        r = s.compare(off)
+        # A one-hander is needed: MAIN_NOW, never the level 35 or 55 one.
+        assert r["with_part"]["c"] is MAIN_NOW
+        assert r["setup_score"] == pytest.approx(20 + off["info"]["stats"]["sp"])
+    # A main hand from level 35 against the staff: with an off hand wearable now.
+    assert s.compare(MAIN_SOON)["with_part"]["c"] is OFF_NOW
+
+
+def test_weapon_bis_counts_only_what_is_wearable_now():
+    worn = _hands(17, 30.0)
+    s = _setups(worn, OFF_NOW, OFF_SOON, MAIN_NOW, MAIN_SOON, MAIN_55)
+    best = s.best_setup(33)
+    assert best["total"] == pytest.approx(35) and best["main"]["c"] is MAIN_NOW and best["off"]["c"] is OFF_NOW
+    st = gear.standings({}, worn, s, 33)
+    # The staff (30) against MAIN_NOW + OFF_NOW (35), the only pair wearable now.
+    assert st[16] == {"rank": 2, "pct": 86, "target": pytest.approx(35)}
+    kinds = s.by_kind(33)
+    assert kinds["pair"][0] == pytest.approx(35) and kinds["two"][0] == pytest.approx(30)

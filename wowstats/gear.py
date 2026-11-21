@@ -1204,10 +1204,10 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                 "value": _r(r["delta"] * fit_of(c)["factor"], 2)}
 
     # Weapons are set against weapons: a two-hander against main hand + off
-    # hand, a one-hander only together with the off hand it would be worn
-    # with (Gear.lua pairs it with the best piece in the bags; here the best
-    # one the character holds or can get, or the one worn).
-    setups = WeaponSetups(cands, worn, w, racial, dual, level)
+    # hand; a one-hand piece with what the other hand wears, and against a
+    # worn two-hander with the best other hand the character holds or can
+    # get and wear now (Gear.lua pairs it with the best piece in the bags).
+    setups = WeaponSetups(cands, worn, w, racial, dual, level, worn_names)
 
     # Per slot: the best now and the best coming within SOON_LEVELS.
     per_slot: dict[int, dict] = {}
@@ -1610,8 +1610,9 @@ class WeaponSetups:
     two-hander together with an off-hand piece). Each part is an item the
     character can get (a candidate) or the one it wears."""
 
-    def __init__(self, cands: list[dict], worn: Worn, w: dict, racial, dual: bool, level: int):
-        self.worn, self.level = worn, level
+    def __init__(self, cands: list[dict], worn: Worn, w: dict, racial, dual: bool, level: int,
+                 names: dict | None = None):
+        self.worn, self.level, self.names = worn, level, names or {}
         main = worn.infos.get(MAIN)
         self.worn_two = bool(main and main["inv"] == 17)
         self.current = worn.score(MAIN) + worn.score(OFF)
@@ -1676,7 +1677,9 @@ class WeaponSetups:
         if part is None:
             return {"kind": "empty"}
         if part["c"] is None:
-            return {"kind": "worn", "item_id": part["id"]}
+            slot = OFF if part["role"] == "off" else MAIN
+            return {"kind": "worn", "item_id": part["id"], "slot_name": SLOT_NAMES[slot],
+                    "name": self.names.get(slot) or forever.item_name(part["id"])}
         return {"kind": "get", **out(part["c"], {"slot": OFF if part["role"] == "off" else MAIN, "new": part["score"],
                                                   "delta": part["score"], "pct": None, "empty": False})}
 
@@ -1715,21 +1718,31 @@ class WeaponSetups:
         row["setup_score"] = _r(best["total"], 2)
         return row
 
+    def _partner(self, p: dict) -> dict | None:
+        """The other hand for a one-hand part p. Beside a worn one-hander
+        (or nothing in the hands) it is what the other hand holds now: an
+        off hand is scored with the main hand worn, never with the best main
+        hand on the list, which put that main hand's gain on every off hand
+        (a level 33 character's 30 off hands, all scored with one unworn
+        weapon). Only against a worn two-hander does a one-hand part need a
+        partner it doesn't wear, and then one it can wear now."""
+        other = "off" if p["role"] == "main" else "main"
+        if not self.worn_two:
+            kept = self.kept.get(other)
+            return kept if kept and kept["id"] != p["c"]["id"] else None
+        return self._best(other, self.level, exclude=p["c"]["id"])
+
     def compare(self, c: dict) -> dict | None:
         """compare() for one weapon: the best setup it is part of, against
         what is worn in both hands."""
-        by = max(self.level, c["at"])
         best = None
         for p in self.parts:
             if p["c"] is not c:
                 continue
             if p["role"] == "two":
                 total, partner = p["score"], None
-            elif p["role"] == "main":
-                partner = self._best("off", by, exclude=c["id"])
-                total = p["score"] + (partner["score"] if partner else 0)
             else:
-                partner = self._best("main", by, exclude=c["id"])
+                partner = self._partner(p)
                 total = p["score"] + (partner["score"] if partner else 0)
             if best is None or total > best[0]:
                 best = (total, p, partner)

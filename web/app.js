@@ -1287,8 +1287,11 @@ function statTable(worn, cand, w) {
 // header; the score's arithmetic stays out (owner, 2026-11-19).
 function compareEl(u, a, alts, onPick) {
   const worn = wornFor(u, a);
-  const cand = [u, u.with && u.with.item_id ? u.with : null].filter(Boolean);
   const keepsOther = u.with && u.with.kind === 'worn';
+  // Beside what the other hand wears, the new side is the candidate with it.
+  const other = keepsOther ? worn.items.find((i) => i.item_id === u.with.item_id) || null
+    : u.with && u.with.item_id ? u.with : null;
+  const cand = [u, other].filter(Boolean);
   const wornNames = worn.items.length ? worn.items : null;
   const f = feasible(u, a.level);
   const side = (title, items, empty) => h('div', { class: 'cmpside' }, h('h4', { text: title }),
@@ -1453,7 +1456,7 @@ function fitEl(f) {
 
 function candRow(u, a, extra) {
   const li = h('li', { class: 'cand', 'data-slot': slotKey(u), 'data-up': `${u.slot}-${u.item_id}` });
-  const partner = u.with && u.with.item_id ? h('span', { class: 'sub', text: ` with ${u.with.name} (${u.with.slot_name.toLowerCase()})` }) : null;
+  const partner = u.with && u.with.item_id ? h('span', { class: 'sub', text: ` with ${u.with.name || 'item ' + u.with.item_id} (${(u.with.slot_name || '').toLowerCase()}${u.with.kind === 'worn' ? ', which you wear' : ''})` }) : null;
   li.append(
     h('div', { class: 'candmain' }, itemChip(u), partner, fitEl(u.fit)),
     h('div', { class: 'candmeta' }, h('span', { class: 'slotname', text: slotKey(u) === 'Weapons' ? 'Weapons' : u.slot_name }),
