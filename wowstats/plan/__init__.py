@@ -31,7 +31,7 @@ _KEY_LOCKS = [threading.Lock() for _ in range(64)]
 MAX_CACHED = 64
 
 
-def inputs(env: dict, char: str | None = None, store=None, battlenet=None) -> dict:
+def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_inputs=None) -> dict:
     """facts.gather, kept two minutes: the MCP commands of one conversation
     read the same inputs. One gather per character at a time: the full
     view's page asks for the plan's status and the Dungeons panel at once,
@@ -39,11 +39,15 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None) -> di
     the person too (wowstats.tenancy): two people may name a character alike.
     `battlenet`: the item ids Battle.net says it wears now, read live by the
     caller (wowstats.quests.with_battlenet); in the key, so an answer made
-    with them never reaches a caller without them (Battle.net to the AI off)."""
+    with them never reaches a caller without them (Battle.net to the AI off).
+    `gear_inputs`: a callable returning the doll's gear inputs
+    (wowstats.views.Views.gear_inputs), called only when the cache misses;
+    in the key too, so an answer scored like the doll never reaches a caller
+    that didn't ask for it."""
     from wowstats.stores import tenant_of
 
     bn = tuple(sorted(set(battlenet or ())))
-    key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower(), bn)
+    key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower(), bn, gear_inputs is not None)
     with _LOCK:
         lock = _KEY_LOCKS[hash(key) % len(_KEY_LOCKS)]
     with lock:
@@ -51,7 +55,8 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None) -> di
             hit = _CACHE.get(key)
             if hit and time.time() - hit[0] < CACHE_S:
                 return hit[1]
-        inp = facts.gather(env, char, store=store, battlenet=bn)
+        inp = facts.gather(env, char, store=store, battlenet=bn,
+                           gear_inputs=gear_inputs() if gear_inputs is not None else None)
         with _LOCK:
             _CACHE[key] = (time.time(), inp)
             while len(_CACHE) > MAX_CACHED:
@@ -77,9 +82,9 @@ def plan(env: dict, char: str | None = None, hours: float | None = None, constra
     return {"markdown": writer.fallback(e), "writer": "estimator", "checked": True, "estimate": e}
 
 
-def status(env: dict, char: str | None = None, store=None, battlenet=None) -> dict:
+def status(env: dict, char: str | None = None, store=None, battlenet=None, gear_inputs=None) -> dict:
     """For the full view: the mount goal and how the last plan went."""
-    inp = inputs(env, char, store, battlenet)
+    inp = inputs(env, char, store, battlenet, gear_inputs)
     p = est_mod.pace(inp)
     m = est_mod.mounts(inp, p)
     revs = inp.get("plan_reviews") or []
