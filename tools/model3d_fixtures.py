@@ -376,10 +376,11 @@ def chunk(cid: bytes, payload: bytes) -> bytes:
 def m2(*, verts, textures: list[tuple[int, int]], bounds, bones=None, sequences=None, attachments=None,
        flags: int = 0, skin_id: int, skel_id: int | None = None, afid=None, ribbons=None, particles=None,
        blend: int = 0, material_flags: int = UNLIT_TWO_SIDED) -> bytes:
-    """A chunked M2. textures: (type, TXID file id); bones: callables
-    d -> bytes (bone()); sequences: sequence() bytes; attachments: (id, bone,
-    position); material_flags: the one material's (unlit and two-sided for
-    the pixel tests, whose colours must come out exact)."""
+    """A chunked M2. verts: (position, normal, uv, bone[, second uv]);
+    textures: (type, TXID file id); bones: callables d -> bytes (bone());
+    sequences: sequence() bytes; attachments: (id, bone, position);
+    material_flags: the one material's (unlit and two-sided for the pixel
+    tests, whose colours must come out exact)."""
     bones = bones or []
     sequences = sequences or []
     attachments = attachments or []
@@ -388,8 +389,8 @@ def m2(*, verts, textures: list[tuple[int, int]], bounds, bones=None, sequences=
 
     def header(d: Data) -> bytes:
         name = b"m3d-test\0"
-        vb = b"".join(struct.pack("<3f4B4B3f2f2f", *p, 255, 0, 0, 0, b, 0, 0, 0, *n, *uv, 0.0, 0.0)
-                      for p, n, uv, b in verts)
+        vb = b"".join(struct.pack("<3f4B4B3f2f2f", *v[0], 255, 0, 0, 0, v[3], 0, 0, 0, *v[1], *v[2],
+                                  *(v[4] if len(v) > 4 else (0.0, 0.0))) for v in verts)
         tex = b"".join(struct.pack("<II", t, 0) + struct.pack("<II", 0, 0) for t, _ in textures)
         att_lookup = [-1] * (max((a[0] for a in attachments), default=-1) + 1)
         for i, a in enumerate(attachments):

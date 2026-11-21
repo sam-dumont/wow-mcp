@@ -313,6 +313,45 @@ def test_a_blades_reflection_is_added(draw):
     assert not bad, (bad, d.logs)
 
 
+# An updated model's eye: one unit of shader 0x4013 (Diffuse_T1_T2, Combiners_Mod_Add), its second
+# texture read through the second UV set and added. Every vertex's second UV points at the top
+# half of a texture that is black on top and white below, so the eye stays the first texture's colour.
+EYE_M2, EYE_SKIN, TEX_EYE_SHINE = 100081, 100082, 200014
+
+
+def eye_files():
+    import struct
+
+    verts, idx = FX.box((-0.08, -0.08, -0.08), (0.08, 0.08, 0.08), 0)
+    verts = [(*v, (0.5, 0.25)) for v in verts]
+    skin_file, all_verts = FX.skin([(0, verts, idx)], [(0, 0)])
+    plain = struct.pack("<BbHHHHHHHHHHH", 0, 0, 0, 0, 0, 0xFFFF, 0, 0, 1, 0, 0, 0xFFFF, 0xFFFF)
+    eye = struct.pack("<BbHHHHHHHHHHH", 0, 0, 0x4013, 0, 0, 0xFFFF, 0, 0, 2, 0, 0, 0xFFFF, 0xFFFF)
+    assert skin_file.count(plain) == 1
+    return {
+        EYE_SKIN: skin_file.replace(plain, eye),
+        EYE_M2: FX.m2(verts=all_verts, textures=[(2, 0), (0, TEX_EYE_SHINE)], bounds=((-0.1,) * 3, (0.1,) * 3),
+                      skin_id=EYE_SKIN, bones=[lambda d: FX.bone(d, FX.PIVOT_ROOT, -1, 0)]),
+        TEX_EYE_SHINE: FX.blp_bgra(4, 4, [(0, 0, 0, 255)] * 8 + [(255, 255, 255, 255)] * 8),
+    }
+
+
+SCENE["files"].update(eye_files())
+
+
+def test_the_second_uv_set_is_read_as_stored(draw):
+    """The second UV set was flipped upside down (wow.export's, harmless
+    while it dropped the specular): an eye then added the white half of its
+    texture and came out pale, the iris washed away (the owner's gnome)."""
+    recipe = json.loads(json.dumps(SCENE["recipe"]))
+    recipe["attachments"] = [{"slot": 16, "attach": 1, "model": EYE_M2, "textures": {"2": TEX_DARK},
+                              "visuals": [], "scale": 1.0}]
+    d = draw(recipe, name="eye")
+    d.at(0)
+    bad = check(d, [((0.08, 0.7, 0.78), DARK, "the eye's own colour, plus black")])
+    assert not bad, (bad, d.logs)
+
+
 def test_missing_files_are_listed_not_fatal(draw):
     d = draw()
     assert sorted(d.handle("missing")) == SCENE["expect"]["missing"]
