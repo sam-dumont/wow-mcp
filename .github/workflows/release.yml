@@ -7,6 +7,8 @@
 # 1. plan: tools/release/release.py picks the version from pyproject.toml,
 #    CHANGELOG.md's "Unreleased" and the v* tags, and writes the notes.
 # 2. test: ci.yml in full, on the commit the run started from.
+#    browser: the full browser suite (Chromium and WebKit) on the release
+#    commit's tree. Only here: ci.yml and pull requests never run it.
 # 3. sign: the shipper files of the release commit, signed with the
 #    project's Ed25519 key (tools/release/shipper_sign.py; the secret
 #    SHIPPER_SIGNING_KEY of environment shipper-signing, limited to main,
@@ -37,7 +39,7 @@
 # job's `release apply` writes it under "### Knowledge base". The rest is
 # this run as it is: tests, signature, release PR, images, tag.
 #
-# dry_run does 1, 2 and 4 against a registry on the runner: the plan, the
+# dry_run does 1, 2 (browser included) and 4 against a registry on the runner: the plan, the
 # notes and the image tags are in the run summary, nothing is committed,
 # pushed, tagged or published. Its images are built from the commit the run
 # started on, labelled with the planned version.
@@ -209,13 +211,61 @@ jobs:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
+  # The full browser suite, Chromium and WebKit, on the release commit's tree
+  # (the run's commit plus `release apply`, as sign makes it), before
+  # anything is signed, merged, pushed or tagged (owner, 2026-11-21). Never in
+  # ci.yml or on a pull request (owner, 2026-11-19): the browser install hung
+  # a CI job for 30 minutes once. So every step that can hang has its own
+  # timeout, and the job a hard one.
+  browser:
+    needs: plan
+    if: github.repository_id == '1464458020' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      KB_NOTE: ${{ needs.plan.outputs.kb-note }}
+      # A browser that can't start fails the test instead of skipping it
+      # (tests/conftest.py): a gate that skips proves nothing.
+      WOW_BROWSER_GATE: "1"
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: The release commit's tree
+        if: needs.plan.outputs.mode == 'prepare'
+        run: uv run --no-project python tools/release/release.py apply "$VERSION" --kb-note "$KB_NOTE" >/dev/null
+      - run: uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai --group browser
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(uv run --frozen python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+      # The browsers, keyed on the Playwright version: each release wants its
+      # own builds. The system packages come from apt on every run.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ runner.arch }}-${{ steps.pw.outputs.version }}
+      - name: Browsers' system packages
+        timeout-minutes: 10
+        run: uv run --frozen playwright install-deps chromium webkit
+      - name: Browsers
+        timeout-minutes: 10
+        run: uv run --frozen playwright install chromium webkit
+      - name: Browser suite
+        timeout-minutes: 25
+        run: uv run --frozen pytest -q -rs -m browser -n 4 --dist loadfile
+
   # The shipper's release signature (security review 2026-11-20): the same
   # release commit prepare makes (release.py apply is deterministic for the
   # shipper files), signed here, in a job of its own: the key lives only in
   # this job's environment and only its signing step reads it. The output
   # (the statement and the signature, public) goes into the release commit.
   sign:
-    needs: [plan, test]
+    needs: [plan, test, browser]
     if: github.repository_id == '1464458020' && needs.plan.outputs.mode == 'prepare' && github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -255,7 +305,7 @@ jobs:
   # environment main-only, which only main can deploy to) opens the PR so its
   # checks run, and auto-merge squashes it when they pass.
   prepare:
-    needs: [plan, test, sign]
+    needs: [plan, test, browser, sign]
     if: github.repository_id == '1464458020' && needs.plan.outputs.mode == 'prepare' && github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-24.04
     environment: main-only
@@ -332,13 +382,14 @@ jobs:
 
   # One leg per image and platform, each on a runner of that architecture.
   build:
-    needs: [plan, test, sign, prepare]
-    # The tests skip on a pull request (ci.yml runs there on its own), and
+    needs: [plan, test, browser, sign, prepare]
+    # The tests skip on a pull request (ci.yml runs there on its own; the
+    # browser suite never runs there), and
     # prepare when there's no release commit to make (a dry run, a tree that
     # already carries its version). A fork's pull request can't read the
     # dhi.io credentials the main image's base needs (ci.yml's image-fork job
     # says so on that run): no dry run there.
-    if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.plan.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') && (needs.sign.result == 'success' || needs.sign.result == 'skipped') && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.plan.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') && (needs.browser.result == 'success' || github.event_name == 'pull_request') && (needs.sign.result == 'success' || needs.sign.result == 'skipped') && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     name: build (${{ matrix.target }}, ${{ matrix.arch }})
     strategy:
       fail-fast: true
