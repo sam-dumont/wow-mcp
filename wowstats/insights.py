@@ -21,6 +21,7 @@ from datetime import UTC, datetime, timedelta
 
 from . import forever, profcaps, trainers
 from . import gear as gearmod
+from . import timebounds as tb
 from .analysis import kb
 from .links import dungeon_url, wowhead_url
 from .stores import (
@@ -211,15 +212,10 @@ def _sorted(rows: list[dict]) -> list[dict]:
 
 def level_at(dings: list[tuple[datetime, int]], t: datetime, default: int | None = None) -> int | None:
     """The character's level at `t`, from the dings before it (levels)."""
-    lvl = None
-    for at, lv in dings:
-        if at <= t:
-            lvl = lv
-        else:
-            break
-    if lvl is None and dings:
-        lvl = dings[0][1] - 1 if t < dings[0][0] else None
-    return lvl if lvl is not None else default
+    i = tb.at_or_before([at for at, _ in dings], t)  # a ding at t already holds at t
+    if i >= 0:
+        return dings[i][1]
+    return dings[0][1] - 1 if dings else default
 
 
 def dings_from(levels: list[dict], recorder_levels: list[dict]) -> list[tuple[datetime, int]]:
@@ -1147,7 +1143,8 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
     if lv is None and t1 is None and hd.get("level") == level and hd.get("time_in_level_s"):
         out.update(seconds=hd["time_in_level_s"], so_far=True)  # the level in play, from the Recorder
     end = t1 or datetime.max.replace(tzinfo=t0.tzinfo if t0 else None)
-    worn = [g for g in gear_rows if parse_t(g.get("_time")) <= end]
+    # The gear in force at the level's end: the latest read at or before it.
+    worn = gear_rows[:tb.at_or_before([parse_t(g.get("_time")) for g in gear_rows], end) + 1]
     if worn and t0 and parse_t(worn[-1].get("_time")) >= t0 - timedelta(days=2):
         g = worn[-1]
         out.update(gear=g, gear_partial=False, gear_at=g.get("_time"))
@@ -1171,7 +1168,9 @@ def snapshot(level: int, data: dict, span: tuple, gear_rows: list[dict], q: Q, c
             out["looted_item_ids"] = sorted(got)
         # The Recorder counts deaths: with nothing of it in the level, the
         # count is unknown (None), never 0.
-        died = [d for d in ds if t0 <= parse_t(d["t"]) <= end]
+        # The level is [its ding, the next ding): a death on the ding's own
+        # second is the new level's, as level_at and the page's by_level say.
+        died = [d for d in ds if tb.within(parse_t(d["t"]), t0, t1)]
         out["deaths"] = died if died or stats or out["zones"] else None
     early = bool(t0 and out.get("counts") and not q(f"{rec(cf)} _time:[2000-01-01T00:00:00Z, {iso(t0)}] | limit 1")
                  and lv and not lv["partial"])

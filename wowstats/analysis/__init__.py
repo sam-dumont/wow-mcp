@@ -853,13 +853,15 @@ SCHEDULE_FILE = "recheck.json"
 def due(env: dict, last_at: str | None, now: datetime | None = None) -> bool:
     """Nightly: once a local day, from ANALYSIS_HOUR on (local time, WOW_TIMEZONE);
     never run before: at once."""
+    from wowstats import timebounds as tb
+
     from .prep import TZ
 
-    now = (now or datetime.now(UTC)).astimezone(TZ)
+    now = tb.local(now or datetime.now(UTC), TZ)
     if not last_at:
         return True
-    last = datetime.fromisoformat(last_at).astimezone(TZ)
-    return last.date() < now.date() and now.hour >= int(env.get("ANALYSIS_HOUR", "4"))
+    last_day = tb.local_day(datetime.fromisoformat(last_at), TZ)
+    return last_day < now.date() and now.hour >= int(env.get("ANALYSIS_HOUR", "4"))
 
 
 def start_schedule(env: dict, newest_event) -> threading.Thread | None:

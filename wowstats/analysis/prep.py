@@ -17,15 +17,14 @@ from __future__ import annotations
 
 import json
 import math
-import os
 import re
 import sqlite3
-import sys
 from datetime import UTC, datetime
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 from wowstats import profcaps
 from wowstats import quests as questsmod
+from wowstats import timebounds as tb
 from wowstats.stores import (
     SESSION_GAP_S,
     VL_PAGE,
@@ -51,15 +50,9 @@ PREP_VERSION = 3
 
 
 def _zone() -> tuple[str, ZoneInfo]:
-    """The player's local time for hours, weekdays and the nightly recheck:
-    WOW_TIMEZONE (an IANA name), Europe/Brussels when unset. A name the
-    system doesn't know falls back to UTC, said once on stderr."""
-    name = (os.environ.get("WOW_TIMEZONE") or "Europe/Brussels").strip()
-    try:
-        return name, ZoneInfo(name)
-    except (ZoneInfoNotFoundError, ValueError):
-        print(f"WOW_TIMEZONE={name!r} is not a known timezone: using UTC", file=sys.stderr, flush=True)
-        return "UTC", ZoneInfo("UTC")
+    """The player's local time for hours, weekdays and the nightly recheck
+    (wowstats.timebounds.zone: WOW_TIMEZONE, Europe/Brussels when unset)."""
+    return tb.zone()
 
 
 TZ_NAME, TZ = _zone()
@@ -392,7 +385,7 @@ def _on(v):
 
 
 def _local(t: float) -> datetime:
-    return datetime.fromtimestamp(t, TZ)
+    return tb.local(t, TZ)
 
 
 def _iso(t: float, tz=UTC) -> str:
@@ -465,9 +458,8 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     mark_t = [m[0] for m in marks]
 
     def level_at(t: float):
-        import bisect
-
-        i = bisect.bisect_right(mark_t, t) - 1
+        # The level written at or before t: a ding at t already holds at t.
+        i = tb.at_or_before(mark_t, t)
         if i >= 0:
             return marks[i][1]
         if not marks:
@@ -480,7 +472,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     sess_of: list[int] = []
     sid, prev = 0, None
     for r in rec:
-        if prev is not None and r["_t"] - prev > OFFLINE_S:
+        if tb.ends_session(prev, r["_t"], OFFLINE_S):
             sid += 1
         sess_of.append(sid)
         prev = r["_t"]
@@ -515,7 +507,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
 
     def instance_at(t: float):
         for t0, t1, name, *_ in runs:
-            if t1 and t0 <= t < t1:
+            if t1 and tb.within(t, t0, t1):
                 return name
         return None
 
@@ -955,7 +947,7 @@ def _quests(db, done: dict[int, dict] | None = None) -> None:
         while i < len(timed) and timed[i]["accepted_t"] <= t0:
             active.append(timed[i])
             i += 1
-        active = [q for q in active if q["closed_t"] is None or q["closed_t"] > t0]
+        active = [q for q in active if tb.within(t0, q["accepted_t"], q["closed_t"])]
         if active and dur:
             share = dur / len(active)
             for q in active:
@@ -1044,8 +1036,12 @@ def _dungeon_trips(db, rows) -> None:
         s = slug(name)
         prev_end = max((x[4] for x in runs[:i] if slug(x[0]) == s), default=float("-inf"))
         next_start = min((x[3] for x in runs[i + 1:]), default=float("inf"))
+        # A pickup up to the entry, the entry's second included; a hand-in from
+        # the exit up to the next run, [r1, next_start): a step on an edge
+        # belongs to one trip only.
         pick_t = chain([t for t, g, *_ in steps if g == f"lookup/pickup/{s}" and prev_end < t <= r0], r0, True)
-        hand_t = chain([t for t, g, *_ in steps if g == f"lookup/handin/{s}" and r1 <= t < next_start], r1, False)
+        hand_t = chain([t for t, g, *_ in steps
+                        if g == f"lookup/handin/{s}" and tb.within(t, r1, next_start)], r1, False)
         start = pick_t[0] if pick_t else r0
         end = hand_t[-1] if hand_t else r1
         used = [f"{g}#{st if st is not None else ''}" for t, g, st, _ in steps

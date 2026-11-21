@@ -23,18 +23,33 @@ on one core).
 | 6 | Every ratio in `semantic.yaml` reads its numerator and its denominator over the same rows, its `eligibility`. Checked for every ratio, with rows added that only one side would count. | `test_paired.py::test_both_sides_read_the_eligible_rows` |
 | 7 | A cut list says `more`; a store that doesn't answer or a second too full to read whole gives an error that says so, never a part of the answer; a dimension a metric doesn't have is refused. Every MCP tool and the page's main answers. | `test_incomplete.py` |
 | 8 | The page and the MCP give the same deaths, zones, levels, dungeons and sessions, with `WEIGHTS` set and in other timezones. A friend with the same play gets the same numbers as the owner, and neither reads the other's character. | `test_consumers.py` |
-| 9 | Sessions, days and ranges follow the time rules below, on a midnight, on both DST changes and over a 3-day break. | `test_time_rules.py` |
+| 9 | Sessions, levels, days and ranges follow the time rules below, on a midnight, on both DST changes, on a ding and over a 3-day break. | `test_time_rules.py`, `tests/test_timebounds.py` |
 | 10 | A finding judged under another prep version, semantic model or reference data is marked "to revalidate" with the reason, every night until judged again; a finding from before manifests is carried over once. | `test_definitions.py` |
 
 ## Time rules
 
+One module holds the edges: [`wowstats/timebounds.py`](../wowstats/timebounds.py). Prep, the
+semantic layer, the pages and the MCP call it instead of writing `<=` or `<` by hand; its own
+tests ([`tests/test_timebounds.py`](../tests/test_timebounds.py)) sit on the edges: equal
+timestamps, midnight, both DST changes, an empty history.
+
+- **Windows are half-open**, `[start, end)`: the start is in, the end is not. Two windows that
+  touch share no instant, so a record on the edge counts once. A level is `[its ding, the next
+  ding)`: a death on the ding's own second belongs to the new level, on the page, in Back in
+  time and in the analysis.
+- **A session is closed**, `[first record, last record]`: both ends are records. What happens
+  on its last record's time (a death, a dungeon entry, a grouped player) is in it, on the page
+  and in the MCP.
+- **State at a time** is the latest one written at or before it (`t <= x`): a ding, a gear read
+  or a level written at `x` already holds at `x`. Before the first one there is none.
 - **Sessions.** More than 330 seconds without a Recorder record ends a session; exactly 330
   continues it. The page's journal, the MCP's `sessions` and the analysis split the same way.
 - **Durations** are real seconds. An hour of play across a DST change counts one hour,
   whatever the wall clock jumped by (01:30 to 03:30 local is one hour on the night in March).
 - **Days** are the player's local days (`WOW_TIMEZONE`, Europe/Brussels by default): from
   00:00:00 included to the next 00:00:00 excluded. That day lasts 23 hours in March and 25 in
-  October. Per-day answers add up to the total.
+  October. Per-day answers add up to the total. **Weeks** are ISO weeks, Monday 00:00 local,
+  167 to 169 hours. The nightly recheck runs once per local day.
 - **Ranges** in `query_metric`: `since` is included. `until` as a date includes that whole
   day; as a date and time it is included too.
 - **Offline time** counts nowhere: time in a zone and online time stop at a session's last
@@ -57,6 +72,10 @@ Fixed in the same change as the tests:
   failed, and answered for every side.
 - `talent_changes` told a player who has WoWSims Exporter to install it when the store
   failed to read its saves.
+- Back in time counted a death on a ding's own second in both levels (review 5). It's the
+  new level's now, as the page's deaths by level and the analysis already said.
+- The MCP's `sessions` left out a dungeon entered and a player grouped with on the session's
+  last record (review 5); the page's journal had them.
 - `dashboard_refresh` reported no refresh timer when the store failed, rather than saying it
   couldn't read them.
 - The MCP's `sessions` capped its list at 10 without saying so, and described the old
