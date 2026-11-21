@@ -152,6 +152,12 @@ def first_word(q: str) -> str:
 
 def as_text(cols: list[str], rows: list[tuple], cut: bool, max_chars: int = MAX_CHARS) -> str:
     """A compact table for the model: a header line, tab-separated rows."""
+    return as_text_cut(cols, rows, cut, max_chars)[0]
+
+
+def as_text_cut(cols: list[str], rows: list[tuple], cut: bool, max_chars: int = MAX_CHARS) -> tuple[str, bool]:
+    """as_text, and whether the text lost rows to its size: the caller's
+    `more` says so too, not only the text (invariants, property 7)."""
     def cell(v):
         # Every digit the model may quote: the judge re-runs the SQL and
         # compares, so 13734.0 printed as 1.373e+04 made a true sum look wrong.
@@ -165,7 +171,7 @@ def as_text(cols: list[str], rows: list[tuple], cut: bool, max_chars: int = MAX_
     lines = ["\t".join(cols)] + ["\t".join(cell(v) for v in r) for r in rows]
     out = "\n".join(lines)
     if len(out) > max_chars:
-        out = out[:max_chars] + "\n... (cut: aggregate or LIMIT)"
-    elif cut:
+        return out[:max_chars] + "\n... (cut: aggregate or LIMIT)", True
+    if cut:
         out += f"\n... (more than {len(rows)} rows: aggregate or LIMIT)"
-    return out
+    return out, False

@@ -9,6 +9,9 @@
 ### Fixed
 
 - A source that sent nothing read as 0. `deaths` and `character_summary` said 0 deaths for a character without the Recorder, the journal's estimated logouts carried 0 deaths, and Back in time said "Deaths 0" at a level the Recorder never saw. They now say unknown: `null` for your AI, "not recorded" on the page.
+- The shipper gave a Recorder record its zone, a guide step its time and a session its login from what that one run had read: a run that started mid-session gave its first records no zone and called them a login. It now carries the zone and step over from the chunk before, so the events are the same however the runs split the chunks.
+- `play_sql` and `query_metric` said `more: false` on an answer cut at its size limit. The MCP's `sessions` cut its list without saying so and still described a 20-minute session rule (it is 330 seconds).
+- When the data store failed, `route_reference` answered for every side without saying the character's couldn't be read, `talent_changes` asked a player who has WoWSims Exporter to install it, and `dashboard_refresh` showed no timer. Each now says what it couldn't read.
 - After an exporter restart, a first Battle.net read that failed half way (a 503 on the equipment) left the character with no Battle.net data at all until the next full read, 2 hours later: no gear, no talents, no look. The pages now keep the last complete read (still inside vm-wow's 2-day window) and say how old it is. Nothing new is stored.
 
 ## 0.7.0-rc.8 (2026-11-21)

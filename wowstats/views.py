@@ -34,6 +34,7 @@ from wowstats.stores import (
     opt_num,
     parse_t,
     pick_splits,
+    public_error,
     split_sessions,
     truthy,
     zone_time,
@@ -409,8 +410,12 @@ class Views:
         cat = talents.shared().get()
         try:
             mine = self.addon_talents(char, cls)
-        except Exception:  # noqa: BLE001 - the logs store down: Battle.net's, as without the addon
+        except SourceError as e:
+            # The logs store down: Battle.net's, as without the addon, but
+            # said so. It read as "install the addon" to a player who has it
+            # (invariants, property 7).
             mine = []
+            out["addon_unread"] = public_error(e, "the add-on's talent saves")
         if mine:
             gaps = wowsims.missing_from(cat, cls, self.bnet_talents(char))
             return {**out, "available": True, "why": None, "source": "addon", "days": None,
