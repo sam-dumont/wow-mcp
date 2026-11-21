@@ -124,6 +124,7 @@ class TenantVL:
         self.chars = {"0": {c["char"] for c in fakes.CHARS}, "1": {renamed(c["char"]) for c in fakes.CHARS}}
         self.untagged: list[str] = []
         self.inserted: dict[str, list[dict]] = {}
+        self.insert_fails = False  # the store answers 500 to every write
         self.deleted: list[tuple[str, str]] = []
         self.vm_queries: list[str] = []
         fake = self
@@ -181,6 +182,8 @@ class TenantVL:
                 if t is None:
                     return self._send(400, b"no tenant")
                 if u.path == "/insert/jsonline":
+                    if fake.insert_fails:
+                        return self._send(500, b"disk full")
                     fake.inserted.setdefault(t, []).extend(json.loads(x) for x in body.splitlines() if x.strip())
                     return self._send(200, b"")
                 if u.path == "/delete/run_task":
@@ -609,6 +612,31 @@ def test_ingest_has_a_daily_budget_per_person(env, run_app, vl):
     assert [send("mira") for _ in range(3)] == [200, 200, 200]
     assert send("mira") == 429
     assert send("sam") == 200
+
+
+def test_an_upload_counts_only_once_the_store_has_it(server, vl):
+    """Review 2026-11-21, D: with the store refusing the write, /ingest
+    answers 502 and nothing says the person uploaded: no first event, no
+    upload in the activity, no bytes off the day's budget. On the same
+    connection, the next upload that lands sets all three."""
+    friend_ready(server)
+    t = server.t
+    u = t.registry.get(FRIEND)
+    _, token = t.registry.redeem(t.registry.new_code(u.sub))
+    auth = "Basic " + base64.b64encode(f"mira:{token}".encode()).decode()
+    data = json.dumps({"_time": "2026-11-17T15:14:03Z", "feed": "wow-level", "char": B_CHAR, "level": 3}).encode()
+    vl.insert_fails = True
+    code, _, _ = server.get("/ingest", headers={"Authorization": auth}, method="POST", data=data)
+    assert code == 502
+    assert not t.registry.get(FRIEND).first_event
+    assert not t.activity.get(u).get("upload")
+    assert t.ingest_budget._today("mira") == 0
+    vl.insert_fails = False
+    code, _, _ = server.get("/ingest", headers={"Authorization": auth}, method="POST", data=data)
+    assert code == 200
+    assert t.registry.get(FRIEND).first_event
+    assert t.activity.get(u)["upload"]["events"] == 1
+    assert t.ingest_budget._today("mira") == len(data)
 
 
 def test_installers_carry_the_token_and_never_print_it(server):
