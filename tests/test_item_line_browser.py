@@ -165,7 +165,10 @@ def test_back_in_time_says_the_line(site, pw, engine, width):
         seen = []
         for i in range(int(slider.get_attribute("max")), -1, -1):
             slider.fill(str(i))
-            pg.wait_for_timeout(400)
+            # The level drawn, not a fixed wait: a cold snapshot takes longer
+            # than 400 ms on a CI runner.
+            lv = pg.locator(".snapctl output").inner_text().split()[-1]
+            pg.wait_for_selector(f".snapbody[data-level='{lv}']", timeout=30000)
             p = pg.locator(".snap p:has(b:text('Best upgrades then'))")
             if p.count():
                 seen.append(p.first.inner_text())

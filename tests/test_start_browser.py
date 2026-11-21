@@ -326,6 +326,9 @@ def test_working_and_broken_say_so_in_one_line(site, pw, engine):
     upd = pg.locator("#f-update")
     assert "install/update" in upd.inner_text()
     assert upd.locator("button", has_text="Reset my upload password").is_visible()
+    # The OS picker starts on the reader's own system (Windows on a Linux
+    # runner): pick the Mac first.
+    pg.locator("#f-leave [data-pick-os=mac]").click()
     leave = pg.locator("#f-leave").inner_text()
     assert "launchctl bootout" in leave and "friends list" in leave
     pg.locator("#f-leave [data-pick-os=windows]").click()

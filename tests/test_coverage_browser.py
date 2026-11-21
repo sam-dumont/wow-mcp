@@ -112,6 +112,9 @@ def test_the_lines_where_they_change_the_meaning(gap, engine, width, scheme):
         _shot(pg, "#gear", f"equipment-{tag}", until="#gear .dollfoot")
         pg.goto(f"{gap.base}/?char={D.CHAR}&tab=journal")
         wait_count(pg, "#journal .jentry", None)
+        # The journal is drawn twice on a load (the tab, then the character):
+        # open a session only once both are in, or the second closes it.
+        pg.wait_for_load_state("networkidle")
         # Once, on the newest session of level 28: open it to read it.
         pg.locator("#journal .jentry details:has(p.covnote) summary").first.click()
         note = pg.locator("#journal p.covnote:visible")
