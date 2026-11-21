@@ -165,7 +165,10 @@ def t_gear_options(ctx: T.Ctx, args: dict) -> dict:
     return {"char": inp["who"]["char"], "level": inp["level"], "spec": inp.get("gear_spec"),
             "slots": slots[:int(args.get("limit") or 8)],
             "kinds": sorted({o["kind"] for s in slots for o in s["options"]}),
-            "note": "Gains are Polestar's gear points for this character's class and spec. Each option says what it "
+            "note": "Gains are Polestar's gear points for this character's class and spec; bis_pct (the item's share "
+                    "of its slot's best at this level, 100 = BiS) and delta_pct (the change from the worn one, in the "
+                    "same points) are the page's badge, null when there's nothing to measure against. Each option "
+                    "says what it "
                     "costs: time (a quest on the route, dungeon trips at the drop chance), luck (a world drop: a "
                     "bonus, never a plan step; the player's own AH price when they scanned it) or a craft. " + CITE}
 

@@ -42,6 +42,7 @@ import re
 import urllib.parse
 
 from wowstats import forever
+from wowstats.gear import BADGE, badge_of, gain_words
 from wowstats.links import WOWHEAD_BASE, dungeon_guides, dungeon_url, wowhead_url
 
 from . import dungeongain as G
@@ -277,6 +278,8 @@ def drops_for(inp: dict, aid: str, top: int | None = None) -> list[dict]:
         value = gain * (fit or {}).get("factor", 1.0) if gain is not None else None
         out.append({**{k: it.get(k) for k in ("item_id", "name", "quality", "item_level", "slot_name", "score",
                                                "gain_pct", "fills_empty")},
+                    # The advice's badge when it lists the item (weapons as setups), else the loot's.
+                    **badge_of(adv if adv else it),
                     "gain": round(gain, 1) if gain is not None else None, "level": it.get("level"),
                     "value": round(value, 1) if value is not None else None, "fit": fit,
                     "now": (it.get("level") or 0) <= level, "state": "obtained" if where else "missing",
@@ -339,7 +342,8 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                     "ends": [who(w) for w in q.get("ends") or []],
                     "needs": [{**n, **_how(n["quest_id"], q.get("pre") or {}, who)} for n in need],
                     "blocked": bool(need or too_low),
-                    "rewards": [{k: d[k] for k in ("item_id", "name", "quality", "gain", "state", "where", "url")}
+                    "rewards": [{k: d[k] for k in ("item_id", "name", "quality", "gain", "state", "where", "url",
+                                                   *BADGE)}
                                 for d in rw[:1]], "reward_choices": len(rw)})
     order = {"open": 0, "new": 1, "done": 2}
     out.sort(key=lambda q: (order[q["state"]], q.get("min_level") or 0, q["quest_id"]))
@@ -366,7 +370,7 @@ def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
             continue
         best = max(rw, key=lambda d: d.get("value", d["gain"]) or 0)
         out.append({**{k: best[k] for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_pct",
-                                            "fills_empty", "level", "now", "url")},
+                                            "fills_empty", "level", "now", "url", *BADGE)},
                     "of": len(rw), "quest": {**{k: q[k] for k in ("quest_id", "name", "url", "state", "complete")},
                                              "starts": q["starts"][:1]}})
     out.sort(key=lambda r: (not r["now"], -(r["gain"] or 0), r["item_id"]))
@@ -461,7 +465,7 @@ def with_gain(moves: list[dict], panel: dict | None) -> list[dict]:
         rw = rewards.get(k)
         if rw:
             m = {**m, "quest_rewards": rw, "text": m["text"].rstrip(".") + ". Its quests pay " + ", ".join(
-                f"{r['name']} +{r['gain']:.1f} ({r['quest']['name']})" for r in rw[:3]) + "."}
+                f"{r['name']} ({gain_words(r)}) from {r['quest']['name']}" for r in rw[:3]) + "."}
         out.append(m)
     return out
 

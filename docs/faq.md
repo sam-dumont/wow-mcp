@@ -88,7 +88,9 @@ pace. [Overview and next moves](players/overview.md).
 ### What are "points" in the upgrades?
 
 Polestar's gear score for your class and spec, the number that compares a helmet with a ring.
-"+12.4, 5% of your gear" adds 12.4 points, 5% of what you wear in total.
+The page turns them into the slot's BiS: the badge on an item's icon is its share of the best
+item for that slot at your level, and "+12% on your head" is how much closer to it the item takes
+you than what you wear. An item with nothing to measure against keeps its points ("+4.3 points").
 [Gear and upgrades](players/gear.md).
 
 ## Your AI

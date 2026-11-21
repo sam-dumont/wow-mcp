@@ -771,6 +771,8 @@ a.whx:hover { color: var(--gold-hi); background: color-mix(in srgb, var(--rule) 
 .dgvs { margin: 4px 0 6px; font-size: 15px; line-height: 1.4; }
 .ditems { list-style: none; margin: 2px 0; padding: 0; display: grid; gap: 4px; }
 .ditems li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 10px; }
+/* What the item does on its own line, whatever the name's length. */
+.ditems li > .sub { flex-basis: 100%; }
 /* One run of the dungeon: the decision line, in the text's ink. */
 .mgain { color: var(--ink); margin-top: 4px; }
 .mgain b, .dggain b { font-weight: 600; }
@@ -917,8 +919,9 @@ a.whsmall { font: 500 12.5px/1 var(--sans); color: var(--muted); }
   background: #1EFF00; box-shadow: 0 0 0 1.5px #000, 0 0 6px #1EFF00;
 }
 .ifr.medium .ench { width: 7px; height: 7px; right: 2px; bottom: 2px; }
-/* Where a worn item stands against BiS (app.js renderAdvice): a band across
-   the icon's top, on the doll only, so a phone's icon-only paperdoll shows it.
+/* Where an item stands against BiS (app.js renderAdvice on the doll,
+   itemChip everywhere else): a band across the icon's top, so a phone's
+   icon-only paperdoll shows it too.
    The plate is night in both themes. Its colour says how close to BiS
    (app.js bisTier, the tokens in base.css); below 50% the plain dark band. */
 .ifr .ibis {
@@ -926,6 +929,8 @@ a.whsmall { font: 500 12.5px/1 var(--sans); color: var(--muted); }
   font: 700 11px/15px var(--sans); letter-spacing: .02em; color: var(--plate-ink);
   background: rgba(14, 10, 7, .86); pointer-events: none;
 }
+/* The same badge on a list's 36 px icon (app.js itemChip). */
+.ifr.medium .ibis { font-size: 10px; line-height: 13px; letter-spacing: 0; }
 .ifr .ibis.t-bis, .bischip.t-bis { background: var(--bis-bis); color: var(--bis-bis-ink); }
 .ifr .ibis.t-epic, .bischip.t-epic { background: var(--bis-epic); color: var(--bis-epic-ink); }
 .ifr .ibis.t-rare, .bischip.t-rare { background: var(--bis-rare); color: var(--bis-rare-ink); }

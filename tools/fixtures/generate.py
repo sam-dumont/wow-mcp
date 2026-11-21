@@ -928,7 +928,7 @@ def plan_inputs(rows: list[dict], char: str, now: float) -> dict:
     advice, loot = None, {}
     with contextlib.suppress(gear.GearError):
         advice = gear.advise_rows(rows, None)
-        loot = gear.instance_loot_rows(rows, None)
+        loot = gear.instance_loot_rows(rows, None, (advice or {}).get("bis_by_slot"))
     mine = [r for r in rows if r.get("char") == char]
     db = prep.build(mine, char, route.reference(), map_sizes=knowledge.meta.get("ui_map"),
                     upgrades=(advice or {}).get("upgrades_all") or [], now=datetime.fromtimestamp(now, UTC))
