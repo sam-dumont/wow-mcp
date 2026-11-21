@@ -14,6 +14,8 @@
 - When the data store failed, `route_reference` answered for every side without saying the character's couldn't be read, `talent_changes` asked a player who has WoWSims Exporter to install it, and `dashboard_refresh` showed no timer. Each now says what it couldn't read.
 - A flight that took off in one shipper run and landed in the next had no time in the analysis: the shipper only timed a flight whose landing it read in the same run. The server now times every flight from its stored landing (the game's own seconds in the air when the Recorder has them), for the page and the analysis alike. Findings judged before show as "to revalidate" (`PREP_VERSION` 3).
 - After an exporter restart, a first Battle.net read that failed half way (a 503 on the equipment) left the character with no Battle.net data at all until the next full read, 2 hours later: no gear, no talents, no look. The pages now keep the last complete read (still inside vm-wow's 2-day window) and say how old it is. Nothing new is stored.
+- Back in time counted a death on the second you dinged in both levels. It counts in the new level only, as the deaths by level already did.
+- Your AI's `sessions` left out a dungeon you entered, or a player you grouped with, on the session's very last record. The page had them.
 
 ## 0.7.0-rc.8 (2026-11-21)
 

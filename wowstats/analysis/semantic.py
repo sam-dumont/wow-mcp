@@ -27,8 +27,10 @@ import functools
 import math
 import re
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from pathlib import Path
+
+from wowstats import timebounds
 
 from .sql import QueryError
 
@@ -332,14 +334,10 @@ class Layer:
                 filters.append({"field": w["dimension"], "operator": w["op"], "values": v})
             else:
                 filters.append({"field": w["dimension"], "operator": w["op"], "value": v})
-        if q["since"]:
-            # Parsed datetimes, never caller text: the compiler writes them as timestamp literals.
-            filters.append({"field": "time", "operator": ">=", "value": datetime.fromisoformat(q["since"])})
-        if q["until"]:
-            end = datetime.fromisoformat(q["until"])
-            date_only = "T" not in q["until"]
-            filters.append({"field": "time", "operator": "<" if date_only else "<=",
-                            "value": end + timedelta(days=1) if date_only else end})
+        # Parsed datetimes, never caller text: the compiler writes them as
+        # timestamp literals. The edges are wowstats.timebounds' rule.
+        for op, value in timebounds.range_edges(q["since"], q["until"]):
+            filters.append({"field": "time", "operator": op, "value": value})
         kw = {"time_grain": GRAINS[q["grain"]]} if q["grain"] else {}
         try:
             expr = sem.query(dimensions=q["group_by"] or None, measures=measures,

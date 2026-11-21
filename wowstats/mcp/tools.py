@@ -30,6 +30,7 @@ from ..stores import (
     zone_totals,
 )
 from ..stores import public_error as stores_public_error
+from ..timebounds import in_span
 from . import route
 from .store import SourceError, Store, iso, lq, parse_t, parse_when
 
@@ -382,7 +383,9 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
     every, gaps = recorder_gaps(ctx, char)
     marks = {round(every[i][0]): g for i, g in attach(gaps, every).items()}
     for a, b in reversed(sessions):
-        inside = [e for e in ev if a <= parse_t(e.get("_time")) <= b]
+        # A session is the closed span [first record, last record]
+        # (wowstats.timebounds): what happened on its last record is in it.
+        inside = [e for e in ev if in_span(parse_t(e.get("_time")), a, b)]
         kinds: dict[str, int] = {}
         zones: dict[str, int] = {}
         # The player's own level only: a ding (`level`) and the chunk's
@@ -397,11 +400,11 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
         lv_to = max([opt_num(e["level"]) for e in own] + ([lv_from] if lv_from is not None else []), default=None)
         for e in inside:
             kinds[e.get("kind")] = kinds.get(e.get("kind"), 0) + 1
-        for z in zone_totals([v for v in visits if a <= parse_t(v.get("_time")) <= b]):
+        for z in zone_totals([v for v in visits if in_span(parse_t(v.get("_time")), a, b)]):
             zones[z["zone"]] = z["secs"]
         steps = [e for e in inside if e.get("kind") == "step"]
         guides = sorted({e.get("guide") for e in steps if e.get("guide")})
-        grouped = sorted({m.get("player") for m in met if a <= parse_t(m.get("_time")) < b
+        grouped = sorted({m.get("player") for m in met if in_span(parse_t(m.get("_time")), a, b)
                           and m.get("context") in GROUPED and m.get("player") != char})
         out.append({
             "start": iso(a), "end": iso(b), "dur": dur((b - a).total_seconds()),
@@ -413,7 +416,7 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
             "guide_steps": len(steps), "guides": guides[:3], "skips": kinds.get("skip", 0),
             "flights": kinds.get("taxi", 0),
             "dungeons": [{"name": d.get("name"), "dur": dur(num(d.get("seconds")))} for d in runs
-                         if a <= parse_t(d.get("_time")) < b],
+                         if in_span(parse_t(d.get("_time")), a, b)],
             "grouped_with": grouped[:8],
             # Play around it the Recorder missed: its counts are a floor.
             **({"recorder_off": {"about": dur(g["off_s"]), "in_levels": g["levels"]}}

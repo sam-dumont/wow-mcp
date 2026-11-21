@@ -184,3 +184,72 @@ def test_a_long_offline_gap_counts_as_offline(tmp_path, brussels):
         ("Redridge Mountains|", 600.0), ("Duskwood|", 300.0)]
     assert db.execute("SELECT SUM(dur_s), MAX(dur_s) FROM timeline").fetchone() == (900.0, 60.0)
     assert db.execute("SELECT SUM(duration_s) FROM sessions").fetchone()[0] == 900.0
+
+
+def _session_contents(rows: list[dict], tmp_path) -> dict:
+    """Each session's deaths, dungeons and grouped players, as the page's
+    journal and the MCP's `sessions` count them."""
+    from wowstats.mcp import tools as T
+    from wowstats.mcp.store import Store as MStore
+
+    vl = D.VL(rows)
+    try:
+        app = ui.App({"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": vl.url, "MODEL3D": "off",
+                      "DEFAULT_CHAR": CHAR, "HOME": str(tmp_path), "WOW_ITEMS": "off"})
+        page = sorted((s["deaths"]["total"], len(s["dungeons"]), sorted(p["player"] for p in s["players"]
+                                                                        if p["grouped"]))
+                      for s in app.views.journal(CHAR)["sessions"])
+        ctx = T.Ctx(store=MStore(vl_url=vl.url), default_char=CHAR, env={})
+        got = T.call(ctx, "sessions", {"char": CHAR, "since": "2000-01-01", "limit": 50})
+        mcp = sorted((s["deaths"], len(s["dungeons"]), sorted(s["grouped_with"])) for s in got["sessions"])
+    finally:
+        vl.close()
+    return {"page": page, "mcp": mcp}
+
+
+@pytest.mark.parametrize("ms", [0, 500], ids=["on-the-second", "mid-second"])
+def test_a_sessions_last_record_is_in_the_session(tmp_path, ms):
+    """A session is the closed span [first record, last record]
+    (wowstats.timebounds.in_span): a death, a dungeon entry and a grouped
+    player on the last record's own time are in it, on the page and in the
+    MCP alike, to the millisecond."""
+    r = Recorder()
+    t0 = MIDNIGHT + 3600
+    end = t0 + 600 + ms / 1000
+    r.play(t0, end, "Westfall")
+    r.rec(end, "death", zone="Westfall")
+    r.rows.append({"_time": _iso(end), "char": CHAR, "component": "wow", "feed": "wow-dungeon", "layer": "app",
+                   "name": "The Deadmines", "level": "20", "seconds": "0", "xp": "0", "source_id": "run:1"})
+    r.rows.append({"_time": _iso(end), "char": CHAR, "component": "wow", "feed": "wow-player", "layer": "app",
+                   "player": "Somebody-Realm", "context": "grouped", "source_id": "met:1"})
+    got = _session_contents(r.rows, tmp_path)
+    assert got["page"] == got["mcp"] == [(1, 1, ["Somebody-Realm"])], got
+
+
+def test_a_death_on_a_ding_counts_in_the_new_level_once(tmp_path):
+    """A level is [its ding, the next ding): a death on the ding's own
+    second is the new level's, in the page's deaths by level and in Back in
+    time, and only there (Back in time counted it in both levels)."""
+    r = Recorder()
+    t0 = MIDNIGHT + 3600
+    ding = t0 + 1200
+    r.rec(t0 - 7200, "level", level="19")
+    r.play(t0, ding + 1200, "Westfall")
+    r.rows[1]["level"] = "19"  # the chunk's own level: 19 until the ding
+    r.rec(ding, "level", level="20")
+    r.rec(ding, "death", zone="Westfall")
+    r.rec(t0 + 300, "death", zone="Westfall")
+    vl = D.VL(r.rows)
+    try:
+        app = ui.App({"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": vl.url, "MODEL3D": "off",
+                      "DEFAULT_CHAR": CHAR, "HOME": str(tmp_path), "WOW_ITEMS": "off"})
+        by_level = app.api_char(CHAR)["deaths"]["by_level"]
+        back = {lv: len(app.views.snapshot(CHAR, lv)["deaths"]) for lv in (19, 20)}
+    finally:
+        vl.close()
+    assert by_level == {"19": 1, "20": 1}
+    assert back == {19: 1, 20: 1}
+    # The analysis puts it in the same level.
+    db = prep.build([dict(x) for x in r.rows], CHAR)
+    assert db.execute("SELECT level, COUNT(*) FROM records WHERE kind='death' GROUP BY level ORDER BY level"
+                      ).fetchall() == [(19, 1), (20, 1)]
