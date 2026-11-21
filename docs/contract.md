@@ -47,7 +47,10 @@ itself.
 - `source_id`: unique per event, so a resend or a `--backfill` is harmless:
   `rec:<charId>:<chunkSeq>:<line>`, `level:<char>:<level>`,
   `dungeon:<char>:<entered>`, `character:<char>:<seen>`,
-  `gear:<char>:<hash>`, `player:<source>:<player>:<epoch>`,
+  `gear:<char>:<hash>:<epoch>` (the sheet and when it was read: an outfit
+  worn again later is a new event; shippers up to 0.7.0-rc.5 sent
+  `gear:<char>:<hash>`, which the UI tells apart by `_time`),
+  `player:<source>:<player>:<epoch>`,
   `price:<realm>:<item key>:<day>`,
   `cl:<file>:<byteOffset>`. The UI keeps the newest `_time` per `source_id`
   (then the highest `rev`).

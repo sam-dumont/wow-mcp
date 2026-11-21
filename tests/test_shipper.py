@@ -305,6 +305,21 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     shipper.extract_gear(acct, shipper.roster(acct), state, out)
     assert len(got) == 1 and got[0]["source_id"] != g["source_id"]
 
+    # Back to the first outfit at a later logout (review 2026-11-21, C): a
+    # new occurrence with its own id, so the first one stays in the history;
+    # the same sheet read again sends nothing.
+    pole = sv / "Polestar.lua"
+    pole.write_text(pole.read_text().replace("1794928683", "1795101483"))
+    syndicator(1317)
+    shipper.extract_gear(acct, shipper.roster(acct), state, out)
+    shipper.extract_gear(acct, shipper.roster(acct), state, out)
+    again = got[-1]
+    assert len(got) == 2 and again["_time"] == shipper.iso(1795101483)
+    assert {k: v for k, v in again.items() if k not in ("_time", "source_id")} == \
+        {k: v for k, v in g.items() if k not in ("_time", "source_id")}
+    assert again["source_id"] != g["source_id"]
+    assert g["source_id"].startswith("gear:Hero-Test:") and g["source_id"].endswith(":1794928683")
+
 
 
 def test_inventory_ids_on_change(shipper, tmp_path):

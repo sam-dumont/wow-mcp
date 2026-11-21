@@ -190,3 +190,37 @@ def test_overview_without_a_snapshot_or_any_level(monkeypatch, tmp_path):
     header, ov = overview(bare)
     assert header["level"] is None and ov
     assert "None" not in json.dumps([c.get("text") for c in ov.get("now") or []])
+
+
+def _sheets(ids):
+    """A -> B -> A, then A again on retry (the same line sent twice), one
+    sheet a day at noon; `ids(content, day)` names each one as a shipper would."""
+    a = '[{"slot":16,"item_id":1317,"name":"Staff A"}]'
+    b = '[{"slot":16,"item_id":7001,"name":"Staff B"}]'
+    return [{"_time": f"2026-11-0{d}T12:00:00Z", "items": items, "item_level": il, "source_id": ids(tag, d)}
+            for tag, items, il, d in (("a", a, 20, 1), ("b", b, 25, 2), ("a", a, 20, 3), ("a", a, 20, 3))]
+
+
+@pytest.mark.parametrize("ids", [
+    lambda c, d: f"gear:Hero-Test:{c * 12}",                    # shipper <= 0.7.0-rc.5: the content alone
+    lambda c, d: f"gear:Hero-Test:{c * 12}:{1793880000 + d * 86400}",  # newer: content and capture time
+], ids=["old-shipper", "new-shipper"])
+def test_a_sheet_worn_again_keeps_its_first_occurrence(ids):
+    """Review 2026-11-21, C: outfit A on day 1, B on day 2, A again on day
+    3. The history has three sheets (the retry of day 3 collapses), and the
+    level played on day 1 shows A, not "no sheet"."""
+    from datetime import datetime, timedelta
+
+    from wowstats import insights
+
+    rows = _sheets(ids)
+    v = views.Views.__new__(views.Views)
+    v.q = lambda query: rows
+    v.char_filter = lambda char: ""
+    gh = v.gear_history("Hero-Test")
+    assert [(g["_time"][:10], g["items"][0]["item_id"]) for g in gh] == [
+        ("2026-11-01", 1317), ("2026-11-02", 7001), ("2026-11-03", 1317)]
+    t0 = datetime.fromisoformat("2026-11-01T09:00:00+00:00")
+    data = {"levels": [{"level": 12, "seconds": 3600, "partial": False}]}
+    snap = insights.snapshot(12, data, (t0, t0 + timedelta(hours=4)), gh, lambda q: [], "", None, {}, [])
+    assert snap["gear_partial"] is False and snap["gear"]["items"][0]["item_id"] == 1317

@@ -155,13 +155,27 @@ def pick_splits(rows: list[dict]) -> dict[int, dict]:
     return best
 
 
+def record_id(r: dict) -> str:
+    """Which record a row is: its source_id. Shippers up to 0.7.0-rc.5 named
+    a gear sheet by its content alone (gear:<char>:<digest>), so a sheet worn
+    again later reused the id of its first occurrence; their capture time
+    (_time) tells those apart, and a retry of the same line still has the
+    same time. Newer shippers put the capture time in the id."""
+    sid = r.get("source_id")
+    if not sid:
+        return json.dumps(r, sort_keys=True)
+    if sid.startswith("gear:") and sid.count(":") == 2:
+        return f"{sid}:{r.get('_time')}"
+    return sid
+
+
 def dedupe(rows: list[dict]) -> list[dict]:
-    """One row per source_id, the newest (then the highest rev): a timeout
-    after the store wrote makes the shipper send lines twice, and a growing
-    record (the current level's split) comes again under the same key."""
+    """One row per record (record_id), the newest (then the highest rev): a
+    timeout after the store wrote makes the shipper send lines twice, and a
+    growing record (the current level's split) comes again under the same key."""
     best: dict[str, dict] = {}
     for r in rows:
-        k = r.get("source_id") or json.dumps(r, sort_keys=True)
+        k = record_id(r)
         cur = best.get(k)
         if cur is None or (parse_t(r.get("_time")), num(r.get("rev"))) >= (
                 parse_t(cur.get("_time")), num(cur.get("rev"))):
