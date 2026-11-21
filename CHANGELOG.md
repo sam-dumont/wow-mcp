@@ -9,6 +9,7 @@
 ### Fixed
 
 - The analysis' judge accepted a finding whose SQL read nothing: `SELECT 3 AS n` with "You died {n} times." was kept with 3 while the records held 5 deaths, because a constant re-runs to the same value every time. A finding's query (and a clash's reconciling query) must now read the character's play history; a constant, a CTE of constants, `range()` or a read of the documentation tables alone is refused with why, and the refusal points to `query_metric` for counts like deaths. A kept finding with such a query fades on the next recheck. This closes that hole only: a query that reads a table can still compute the wrong thing.
+- `query_metric` with metrics from three or more models (say `run_s`, `played_s`, `online_s` by level) no longer splits a level into two rows when the first model has no row for it (dungeon runs cover a few levels only). Each model now joins on the keys of all the models before it, so every order of the metrics gives the same rows.
 
 ## 0.7.0-rc.5 (2026-11-21)
 
