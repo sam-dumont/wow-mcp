@@ -96,10 +96,54 @@ def test_legacy_points_come_from_battlenets_achievements(cat):
 
 
 def test_describe_drops_what_only_the_client_knows():
-    assert talents.describe("Heals $s1% over $1261483d.", [5.0]) == "Heals 5% over ?."
+    """A number the tables can't give (a spell outside the catalog, the
+    caster's spell power) is left out with the words that only carry it,
+    never shown as "?" (owner, 2026-11-21)."""
+    assert talents.describe("Heals $s1% over $1261483d.", [5.0]) == "Heals 5%."
     assert talents.describe("Costs $/10;12536s1% less on your next 2 $lspell:spells;.", []) == (
-        "Costs ?% less on your next 2 spells.")
+        "Costs less on your next 2 spells.")
     assert talents.describe("By $/1000;S1 sec.", [-100.0], 3) == "By 0.3 sec."
+    assert talents.describe("Increases your damage by $99999s1%.", []) == "Increases your damage."
+    assert talents.describe("A $h% chance to stun the target for $99999d.", []) == "A chance to stun the target."
+    assert talents.describe("Shields up to ${$s2*$pl} damage and lasts $99999d.", [1.0, 2.0]) == (
+        "Shields damage.")
+    assert talents.describe("Your next $m1 $lspell:spells; cast.", [1.0]) == "Your next 1 spell cast."
+    assert talents.describe("Your next $m1 $lspell:spells; cast.", [2.0]) == "Your next 2 spells cast."
+
+
+def test_describe_reads_the_spells_a_description_names():
+    """$12345s1, $12345d, $u, $h: another spell's effect, a duration, the
+    stacks and the proc chance, from the same tables as the spell's own
+    numbers; ${...} formulas of those numbers are worked out."""
+    spells = {"22959": {"values": [3.0, 0.0, 0.0], "dur": 30.0, "stacks": 5},
+              "12536": {"values": [-1000.0, 0.0, 0.0]}}
+    text = ("Increases Fire damage by $22959s1% and lasts $22959d, stacking up to $22959u times. "
+            "Costs $/10;12536s1% less. Cooldown ${$s1/-1000} sec, ${$m2/10}.1 yards, $h% chance, $d.")
+    me = {"chance": 4, "dur": 90.0}
+    assert talents.describe(text, [-2000.0, 15.0], spell=me, spells=spells) == (
+        "Increases Fire damage by 3% and lasts 30 sec, stacking up to 5 times. "
+        "Costs 100% less. Cooldown 2 sec, 1.5 yards, 4% chance, 1.5 min.")
+
+
+def test_no_talent_shows_a_question_mark(cat):
+    """0.7.0-rc.6: talents whose numbers name another spell read "?"
+    (Spirit Tap's Spirit, Improved Scorch's vulnerability). Every node of
+    the fixture's frames reads its numbers or leaves them out."""
+    f = talents.frame(cat, "Priest", {"15270": 5})
+    tap = node(f, "Spirit Tap")[1]["desc"]
+    assert "increase your Spirit by 100% for 15 sec" in tap, tap
+    assert "50% of your Mana regeneration" in tap, tap
+    m = talents.frame(cat, "Mage", RANKS)
+    scorch = node(m, "Improved Scorch")[1]["desc"]
+    assert "by 3% and lasts 30 sec, stacking up to 5 times" in scorch, scorch
+    for cls in ("Priest", "Mage"):
+        for kind in ("class", "legacy"):
+            fr = talents.frame(cat, cls, {}, kind)
+            for s in (fr or {}).get("sections") or []:
+                for n in s["nodes"]:
+                    assert "?" not in n["desc"] and "$" not in n["desc"], (n["name"], n["desc"])
+                    assert not re.search(r"\s[,.]|\(\s*\)|\b(by|for|of|over)\s*[,.]", n["desc"]), (
+                        n["name"], n["desc"])
 
 
 def test_shipper_reads_no_simbench(shipper):
