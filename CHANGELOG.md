@@ -11,6 +11,7 @@
 - `dashboard_refresh` told a player whose refresh was waiting behind someone else's that "a refresh is already running for you". The server runs one refresh at a time: the answer now says `state: "running"` only when the caller's own job runs, else `state: "queued"` with its `position` ("queued behind another refresh (position 1)"). Calling again while queued adds no second job; a queued timer check becomes the player's own refresh, which runs whatever the timer says.
 - An account with no data said "no character has any events yet: is the shipper sending?" even when the session was signed in as the wrong account (a Battle.net sign-in that landed on another of the person's accounts). It now names who the session is signed in as: "No character has any events yet for <name>. If that isn't you, sign in again with the account that ships your data."
 - The server's run log line names the character (`char`).
+- The MCP login's normal "Allow" button signed in as whichever account the browser's identity provider had used last: after one Battle.net sign-in, every later connector login landed on that account without asking, so the owner couldn't get his own back. The normal login now sends `prompt=select_account`, and the provider asks which account; the Battle.net button still goes straight to Battle.net.
 
 ## 0.7.0-rc.3 (2026-11-21)
 
