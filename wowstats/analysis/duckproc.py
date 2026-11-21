@@ -21,7 +21,11 @@ query to a child holding another copy:
 - on Linux the child asks to be the kernel's first pick when the
   container runs out of memory (oom_score_adj 1000), so `ui` lives on.
 A dead child answers the caller with a QueryError and is started again on
-the next query. Its environment is empty but for what Python needs.
+the next query. So does one that ran out of memory but answered: DuckDB
+hitting RLIMIT_AS returns its out-of-memory error, and the same child then
+crashed (SIGSEGV) on a later, small query in 4 runs of 20 on x86 Linux (CI,
+2026-11-21), so the parent retires it after that answer. Its environment is
+empty but for what Python needs.
 """
 
 from __future__ import annotations
@@ -38,6 +42,7 @@ import time
 import weakref
 from pathlib import Path
 
+from .duck import TOO_BIG
 from .sql import MAX_ROWS, QueryError
 
 try:
@@ -53,7 +58,6 @@ START_SECONDS = 120.0  # loading a long history into the child
 REPLY_MAX = 32 << 20  # bytes of JSON an answer may take
 WATCH_EVERY = 0.01
 _HEAD = struct.Struct(">I")
-TOO_BIG = "the query needs more memory than a query may use: aggregate or narrow it"
 
 
 # ---------------------------------------------------------------- framing
@@ -177,6 +181,7 @@ def child() -> None:
         key = None if q.get("tables") is None else tuple(sorted(q["tables"]))
         if key not in ro:
             ro[key] = duck.ReadOnlyDuck(con, seconds, tables=None if key is None else set(key))
+        retire = False  # out of memory: this process's heap isn't trusted for another query
         try:
             cols, rows, cut = ro[key].run(q["sql"], int(q.get("max_rows") or MAX_ROWS), q.get("params"))
             reply = json.dumps({"cols": cols, "rows": rows, "cut": cut}, separators=(",", ":")).encode()
@@ -184,12 +189,16 @@ def child() -> None:
                 reply = json.dumps({"error": f"the answer is larger than {REPLY_MAX >> 20} MB: "
                                              "aggregate or narrow it"}).encode()
         except QueryError as e:
-            reply = json.dumps({"error": str(e)}).encode()
+            retire = str(e) == TOO_BIG
+            reply = json.dumps({"error": str(e), "retire": retire}).encode()
         except MemoryError:
-            reply = json.dumps({"error": TOO_BIG}).encode()
+            retire = True
+            reply = json.dumps({"error": TOO_BIG, "retire": True}).encode()
         except Exception as e:  # noqa: BLE001 - the query's own failure, as the in-process runner says it
             reply = json.dumps({"error": duck._short(e)}).encode()
         _send(out, reply)
+        if retire:
+            return  # the parent stops this child on that answer and starts a fresh one
 
 
 # ---------------------------------------------------------------- the parent
@@ -272,6 +281,8 @@ class Worker:
             except (OSError, EOFError, ValueError):
                 _stop(self._cell)  # the cap ended it (or it died some other way): the next query starts a new one
                 raise QueryError(TOO_BIG) from None
+            if got.get("retire"):
+                _stop(self._cell)
         if "error" in got:
             raise QueryError(got["error"])
         return got["cols"], [tuple(r) for r in got["rows"]], bool(got["cut"])
