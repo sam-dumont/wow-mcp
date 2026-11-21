@@ -530,7 +530,7 @@ def _os_cmds(os_: dict, personal: bool) -> list[str]:
             cmd = o["command"]
             if personal and "{code}" in cmd:
                 cmd = cmd.replace("{code}", "<your code>")
-                part += ["Your own command is on your start page. It looks like this:", ""]
+                part += ["Your own command is on your start page:", ""]
             part += [code(cmd, OS_LANG[key]), ""]
         if o.get("installs"):
             part += ["<details>", "<summary>What it installs</summary>", "", text(o["installs"]), "", "</details>", ""]
@@ -550,13 +550,14 @@ def block_steps() -> str:
             out += [text(p), ""]
         if s.get("os"):
             out += _os_cmds(s["os"], personal=True)
+        # One action per step in sight; how to tell it worked, and the fix
+        # when it didn't, a click away (the page stays under ~350 words).
+        out += ["<details>", "<summary>Check it worked</summary>", "",
+                f"**It worked when:** {text(g.get('check') or s['check'])}", "",
+                f"**If not:** {text(g.get('if_not') or s['if_not'])}", ""]
         if s.get("code_note"):
             out += [text(s["code_note"]), ""]
-        # What to do when it didn't work stays folded: one action per step
-        # in sight, the fix a click away.
-        out += [f"**It worked when:** {text(g.get('check') or s['check'])}", "",
-                "<details>", "<summary>Didn't work?</summary>", "",
-                text(g.get('if_not') or s['if_not']), "", "</details>", ""]
+        out += ["</details>", ""]
     return "\n".join(out)
 
 
@@ -570,7 +571,7 @@ def block_update() -> str:
     upd = next((s["update"] for s in st["steps"] if s.get("update")), {})
     if upd:
         # Only a shipper that didn't update itself needs it: folded.
-        out += ["", "<details>", "<summary>The update line, when your start page asks for it</summary>", "",
+        out += ["", "<details>", "<summary>If your start page asks for an update</summary>", "",
                 *clip(st.get("update_media"), "an update"), "No code needed:", ""]
         for key, label in (("windows", "Windows (PowerShell)"), ("mac", "Mac (Terminal)")):
             if key in upd:
@@ -638,10 +639,13 @@ def block_page() -> str:
             out += [f"*{text(sec['caption'])}*", ""]
         out += clip(sec.get("media"), sec["title"].lower())
         out += [text(p) + "\n" for p in sec.get("body", [])]
-        for label, d in sec.get("points", []):
-            out += [f"- **{label}**: {text(d)}"]
         if sec.get("points"):
-            out += [""]
+            # Folded under their names: the page stays a glance (~350 words),
+            # each setting's detail a click away.
+            names = ", ".join(label for label, _ in sec["points"])
+            out += ["<details>", f"<summary>{names}</summary>", ""]
+            out += [f"- **{label}**: {text(d)}" for label, d in sec["points"]]
+            out += ["", "</details>", ""]
     return "\n".join(out).rstrip()
 
 

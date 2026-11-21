@@ -19,7 +19,7 @@
       "clip": "browser#welcome",
       "generic": {
         "body": [
-          "Open {base}/start, the link the owner sent you, and sign in the way they told you: the account they made for you, or Battle.net when the button is there."
+          "Open {base}/start, the owner's link, and sign in the way they told you."
         ],
         "check": "Your start page opens with your install command ready.",
         "if_not": "\"You're signed in, but the person who runs this site hasn't let you in yet\": the owner hasn't added you yet. Tell them you signed in, then reload the page. A login loop: same message to the owner."
@@ -32,14 +32,14 @@
       "title": "Install the addons",
       "caption": "Polestar, and Syndicator for your gear. The install command adds Polestar Recorder.",
       "body": [
-        "Easiest with the CurseForge app (https://www.curseforge.com/download/app), which lists WoW Forever as its own install. Polestar is required. Add Syndicator: it gives your page your own gear and bags (without it, Battle.net's copy). The others are optional: your start page says what each one adds."
+        "Install Polestar and Syndicator with the CurseForge app (https://www.curseforge.com/download/app), under WoW Forever."
       ],
-      "check": "Character select, AddOns: Polestar, Polestar Recorder and Syndicator are ticked, and you typed /psrec on once in game (not needed with the Polestar Client). Once data arrives (step 4), each addon turns green in the list on this page.",
+      "check": "Character select, AddOns: Polestar, Polestar Recorder and Syndicator are ticked, and you typed /psrec on once in game (not needed with the Polestar Client). Syndicator sends your own gear and bags (without it, Battle.net's copy, no bags); the others are optional. Once data arrives (step 4), each addon turns green in the list on this page.",
       "if_not": "Missing from the AddOns list: the folder is one level too deep (Interface/AddOns/Polestar/Polestar/...). Move it up so Interface/AddOns/Polestar/Polestar.toc exists, then restart WoW.",
       "media": null,
       "clip": "browser#addons",
       "generic": {
-        "check": "Character select, AddOns: Polestar, Polestar Recorder and Syndicator are ticked, and you typed /psrec on once in game (not needed with the Polestar Client)."
+        "check": "Character select, AddOns: Polestar, Polestar Recorder and Syndicator are ticked, and you typed /psrec on once in game (not needed with the Polestar Client). Syndicator sends your own gear and bags (without it, Battle.net's copy, no bags); the others are optional: your start page says what each adds."
       }
     },
     {
@@ -49,20 +49,20 @@
       "title": "Run the install command",
       "caption": "One line in a terminal. No admin rights.",
       "body": [
-        "It installs a small program that sends what WoW and your addons save to your page every 5 minutes, and adds Polestar Recorder (the official release, checked) unless you have a newer one. It writes only under your user folder and to WoW's AddOns folder."
+        "It installs a small program that sends your addons' saves to your page every 5 minutes, and Polestar Recorder."
       ],
       "os": {
         "windows": {
           "label": "Windows (PowerShell)",
           "how": "Windows key, type PowerShell, Enter. Paste with a right click, press Enter.",
           "command": "irm {base}/install/{code} | iex",
-          "installs": "%LOCALAPPDATA%\\wow-stats and a scheduled task \"wow-stats\" (every 5 minutes, as you, no admin). Log: %LOCALAPPDATA%\\wow-stats\\wow-stats.log. Polestar Recorder in _forever_\\Interface\\AddOns."
+          "installs": "Only under your user folder and WoW's AddOns folder: %LOCALAPPDATA%\\wow-stats and a scheduled task \"wow-stats\" (every 5 minutes, as you, no admin). Log: %LOCALAPPDATA%\\wow-stats\\wow-stats.log. Polestar Recorder (the official release, checked; a newer one you have stays) in _forever_\\Interface\\AddOns."
         },
         "mac": {
           "label": "Mac (Terminal)",
           "how": "Cmd+Space, type Terminal, Enter. Paste with Cmd+V, press Enter.",
           "command": "curl --proto '=https' --proto-redir '=https' -fsSL {base}/install/{code} | bash",
-          "installs": "~/.local/share/wow-stats, ~/.config/wow-stats/config.toml and a launchd agent local.wow-stats (every 5 minutes). Log: ~/Library/Logs/wow-stats.log. Polestar Recorder in _forever_/Interface/AddOns."
+          "installs": "Only under your user folder and WoW's AddOns folder: ~/.local/share/wow-stats, ~/.config/wow-stats/config.toml and a launchd agent local.wow-stats (every 5 minutes). Log: ~/Library/Logs/wow-stats.log. Polestar Recorder (the official release, checked; a newer one you have stays) in _forever_/Interface/AddOns."
         }
       },
       "code_note": "It works once, within 15 minutes. Used or expired: click \"Get my install command\" again.",
@@ -82,15 +82,18 @@
       "title": "Play 5 minutes",
       "caption": "Play, then /reload or log out.",
       "body": [
-        "Play a few minutes, then /reload or log out: WoW saves the addons' files only then, and your page gets them within 5 minutes. The first time, that's everything your addons saved so far.",
-        "A crash or Alt+F4 loses what wasn't saved: /reload after a dungeon and before a break."
+        "Play, then /reload or log out: WoW saves the addons' files only then. Your page gets them within 5 minutes.",
+        "A crash or Alt+F4 loses what wasn't saved: /reload before a break."
       ],
-      "check": "\"Data arrived\" ticks on this page by itself. No refresh needed.",
+      "check": "\"Data arrived\" ticks on this page by itself, with everything your addons saved so far. No refresh needed.",
       "if_not": "Nothing after 10 minutes: first type /psrec on in WoW (the Recorder starts off without the Polestar Client), then /reload. Still nothing: see \"My page is still empty after 10 minutes\".",
       "media": null,
       "clip": "browser#data",
       "generic": {
-        "check": "\"Data arrived\" ticks on your start page by itself."
+        "body": [
+          "Play, then /reload or log out: WoW saves the addons' files only then. Your page gets them within 5 minutes."
+        ],
+        "check": "\"Data arrived\" ticks on your start page by itself, with everything your addons saved so far. A crash or Alt+F4 loses what wasn't saved: /reload before a break."
       }
     },
     {
@@ -109,9 +112,9 @@
       "clip": "browser#character",
       "generic": {
         "body": [
-          "Open {base}: your characters are in the list at the top. Battle.net's copy (their look, and your gear without Syndicator) comes within minutes, then every 2 hours, when the owner set it up. Your public page stays off until you switch it on in Settings."
+          "Open {base}: your characters are in the list at the top."
         ],
-        "check": "Your character is in the list at the top of your page.",
+        "check": "Your character is in the list at the top of your page. Battle.net's copy (their look, and your gear without Syndicator) comes within minutes, then every 2 hours, when the owner set it up. Your public page stays off until you switch it on in Settings.",
         "if_not": "Data arrived but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, /reload, wait 5 minutes."
       }
     },
@@ -122,7 +125,7 @@
       "title": "Connect your AI",
       "caption": "Add wow-stats as a connector once.",
       "body": [
-        "Claude, ChatGPT or another assistant reads your stats and plans your next session, on your own AI account: wow-stats never sees the conversation."
+        "Add wow-stats to your own Claude, ChatGPT or other assistant: it plans your next session from your stats. wow-stats never sees the conversation."
       ],
       "os": {
         "claude": {
@@ -308,9 +311,9 @@
     {"id": "prices", "addons": ["auctionator"], "signals": ["wow-prices"], "scope": "account", "what": "auction prices", "sections": ["prices"], "fix": "Scan the auction house with Auctionator, then log out.", "wait": "Scan the auction house with Auctionator, then log out."}
   ],
   "needs": [
-    "WoW Forever on Windows 10 or 11, or macOS, logged in once (so its WTF folder exists).",
+    "WoW Forever on Windows 10/11 or macOS, logged in once.",
     "The link the owner sent you.",
-    "No admin rights: everything installs for your user only."
+    "No admin rights: it all installs for your user."
   ],
   "addon_routes": {
     "app": {
@@ -351,9 +354,9 @@
     ]
   },
   "update": [
-    "Addons: Update all in the CurseForge app.",
-    "The program updates itself, Polestar Recorder too, within a few hours of a new version: nothing to reinstall. When one didn't (an old install, or updates switched off), your start page shows the update line.",
-    "New computer or leaked upload password: Reset my upload password on your start page, then run the new install command."
+    "Addons: Update all in CurseForge.",
+    "The program and Polestar Recorder update themselves.",
+    "New computer or leaked password: Reset my upload password, then run the new install command."
   ],
   "uninstall": {
     "body": [
@@ -408,8 +411,8 @@
     },
     "tabs": [
       ["Overview", "your pace, hours to the next level, your next 3 moves."],
-      ["Character", "your gear, the best upgrade per slot and where it drops, dungeons worth running, a session plan."],
-      ["Timeline and Journal", "every level, death and session, and how you looked at each level."],
+      ["Character", "your gear, each slot's best upgrade and where it drops, dungeons worth running, a session plan."],
+      ["Timeline and Journal", "every level, death and session, and your look at each level."],
       ["Settings", "top right: hide a character, share your zogzog link, turn on your public page."]
     ],
     "status": {
@@ -534,7 +537,7 @@
         "id": "characters",
         "title": "Your other characters",
         "body": [
-          "The picker at the top left switches character. Every character you played with the addons on is in it, alts included. One is missing: its addons are off (step 2, once per character)."
+          "The picker at the top left switches character: every one you played with the addons on, alts included. One is missing: tick its addons (step 2, once per character)."
         ]
       },
       {
@@ -542,9 +545,9 @@
         "title": "Your zogzog link",
         "caption": "The whole story, for the friends you pick.",
         "body": [
-          "Settings has your zogzog link: your page for friends, with the journal, the gear advice, prices and deaths per zone. Anyone with the link can open it, so send it only to people you want there. It never shows other players or where your character is now.",
-          "It catches up within about 10 minutes of a play session.",
-          "Sent to the wrong person: Settings, Make a new link. The old one stops working at the next update."
+          "Settings has your zogzog link: your page with the journal, gear advice, prices and deaths per zone. Anyone with the link can open it, so send it only to friends. It never shows other players or where you are now.",
+          "It catches up within 10 minutes of a session.",
+          "Sent to the wrong person: Settings, Make a new link. The old one stops at the next update."
         ],
         "media": "private.mp4"
       },
@@ -552,8 +555,8 @@
         "id": "public",
         "title": "Your public page",
         "body": [
-          "Off until you switch it on (Settings, Public page on). Then anyone with the address sees your characters' card, climb and dungeons. No gold, no other players, no position.",
-          "The owner adds its address once, usually within a day. Settings says \"live\" when it works."
+          "Off until you switch it on in Settings. Then anyone with the address sees your characters' card, climb and dungeons: no gold, no other players, no position.",
+          "The owner adds its address, usually within a day. Settings says \"live\" when it works."
         ]
       },
       {
@@ -561,24 +564,24 @@
         "title": "Settings",
         "caption": "What others see, your upload password, and leaving.",
         "body": [
-          "Settings is in the menu at the top right of your page. Your own page always shows everything: these only change what others see."
+          "Top right of your page. Your own page always shows everything: these change what others see."
         ],
         "points": [
           [
             "Hide a character",
-            "tick it under Characters: off the public page, off the zogzog link, or both."
+            "tick it under Characters: off the public page, the zogzog link, or both."
           ],
           [
             "Battle.net data to my AI",
-            "on, your AI gets your characters' Battle.net data (look, item level, talents) and the WoW Token price. Off, it doesn't."
+            "on, your AI gets your characters' look, item level and talents from Battle.net, and the WoW Token price."
           ],
           [
             "Reset your upload password",
-            "new computer, or the password leaked: Reset my upload password. The old one stops at once; run the new install command on the computer you play on."
+            "new computer, or it leaked: Reset my upload password. The old one stops at once: run the new install command where you play."
           ],
           [
             "Delete your data",
-            "ask the owner to take you off the friends list. Within minutes your events, settings, upload password and pages are gone; backups expire on their own (the Privacy page says when). Then uninstall the program."
+            "ask the owner to take you off the friends list. Your events, settings and pages go within minutes; backups expire on their own (the Privacy page says when). Then uninstall the program."
           ]
         ],
         "media": "settings.mp4"
