@@ -1746,7 +1746,12 @@ def extract_gear(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> N
             files = [acct / "SavedVariables" / "Syndicator.lua", cdir / "Polestar.lua"]
             at = max((f.stat().st_mtime for f in files if f.exists()), default=time.time())
         profs = ", ".join(f"{p['name']} {p['rank']}" for p in g["professions"])
-        out.emit({"_time": iso(at), "feed": "wow-gear", "char": char, "source_id": f"gear:{char}:{digest}",
+        # The id is the occurrence (content and capture time), not the content
+        # alone: a sheet worn again later is a second record, and readers keep
+        # the newest copy of an id (review 2026-11-21, C; old ids:
+        # wowstats.stores.record_id). A resend of this line keeps it.
+        out.emit({"_time": iso(at), "feed": "wow-gear", "char": char,
+                  "source_id": f"gear:{char}:{digest}:{int(at)}",
                   "_msg": f"{char}: {len(g['items'])} items equipped"
                           + (f", item level {g['item_level']}" if g["item_level"] else "")
                           + (f"; {profs}" if profs else ""),
