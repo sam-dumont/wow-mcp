@@ -1182,12 +1182,15 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     def priced(srcs: list[dict], gain) -> list[dict]:
         return [ahsource.source(s, gain, market or {}) if s["kind"] == "ah" else s for s in srcs]
 
+    stand: dict[int, dict] = {}
+
     def out(c: dict, r: dict) -> dict:
         # Against a random-suffix item without Battle.net's stats the gain is
         # against its likely suffix: no percent for a guess.
         vs = {r["slot"]} | ({OFF} if c["info"]["inv"] == 17 else set())
         unknown = bool(vs & worn.unknown)
         return {**_item_out(ref, c["id"], c["info"]), "level": c["at"], "slot": r["slot"],
+                "bis": None if unknown else bis_gain(stand.get(r["slot"]), r),
                 "slot_name": SLOT_NAMES.get(r["slot"]), "score": _r(r["new"], 2), "gain": _r(r["delta"], 2),
                 # The gain as a share of everything worn: "+13.6, 4% of your
                 # gear". Against a weak item the percent alone reads +427%.
@@ -1241,6 +1244,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             strong = b if weak == a else a
             pw = picks[(weak, bucket)] = pick(weak, bucket)
             picks[(strong, bucket)] = pick(strong, bucket, pw[2]["id"] if pw else None)
+    # Where each worn item stands against the best the slot can hold now
+    # (owner, 2026-11-21: "show bis or second or a percentage of bis").
+    stand.update(standings(per_slot, worn, setups, level))
     weapon_rows = {"now": setups.row("now", out), "soon": setups.row("soon", out)}
 
     def part_out(p: dict | None) -> dict | None:
@@ -1280,6 +1286,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             nxt = out(nxt[2], nxt[3]) if nxt else None
         slots_out.append({
             "slot": slot, "slot_name": SLOT_NAMES[slot],
+            "standing": standing_out(stand.get(slot)) if cur_id else None,
             "current": ({**_item_out(ref, cur_id, cur_info, worn_names.get(slot)),
                          "score": _r(worn.score(slot), 2), "known": cur_info is not None,
                          "random_suffix": slot in worn.unknown} if cur_id else None),
@@ -1329,10 +1336,13 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                 continue
             shown_setups.add(pair)
         upgrades.append(u)
-    # The biggest gain in points first (a percent says little against a weak
-    # item); gains against a random-suffix item (scored on its base only)
-    # after those.
-    upgrades.sort(key=lambda u: (not u["now"], 1 if u["vs_unknown"] else 0, -(u["value"] or 0), u["item_id"]))
+    # By the share of BiS (owner, 2026-11-21): the slot furthest from its
+    # best first (bis_order); in a slot, and for slots with no BiS to measure
+    # against, the biggest gain in points (a percent says little against a
+    # weak item), gains against a random-suffix item (scored on its base
+    # only) after those.
+    upgrades.sort(key=lambda u: (not u["now"], bis_order(u), 1 if u["vs_unknown"] else 0, -(u["value"] or 0),
+                                 u["item_id"]))
     alternatives(upgrades)
 
     # At most PER_SLOT a slot (a pair of ring or trinket slots counts as one):
@@ -1376,6 +1386,175 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         "upgrades_total": len(capped),
         "data": ref.meta(),
     }
+
+
+# --- standing against BiS ------------------------------------------------------
+
+EPS = 1e-6
+
+
+def _single(pool: dict[int, float], cur: float | None) -> dict | None:
+    """One slot: BiS is the best score among what is worn and every item
+    the character can wear now; the rank counts the items above the worn one."""
+    if not pool:
+        return None
+    top = max([*pool.values(), cur or 0.0])
+    if top <= 0:
+        return None
+    if cur is None:
+        return {"rank": None, "pct": 0, "target": top}
+    above = sum(1 for v in pool.values() if v > cur + EPS)
+    return _rank(above, cur, top)
+
+
+def _rank(above: int, cur: float, target: float) -> dict:
+    if above == 0 or cur >= target - EPS:
+        return {"rank": 1, "pct": 100, "target": target}
+    # Never "100%" for something that isn't BiS.
+    pct = min(99, round(cur / target * 100)) if target > 0 else 0
+    return {"rank": 2 if above == 1 else None, "pct": pct, "target": target}
+
+
+def _pair(a: int, b: int, per_slot: dict, worn: Worn) -> dict[int, dict | None]:
+    """Rings or trinkets: BiS is the best two different items. A worn one
+    among those two is BiS; the rest measure against the BiS item they'd
+    make room for (the stronger worn one against the best left, the weaker
+    against the next)."""
+    pool: dict[int, float] = {}
+    for slot in (a, b):
+        for _d, _i, c, o in (per_slot.get(slot) or {}).get("now") or []:
+            pool[c["id"]] = max(pool.get(c["id"], 0.0), o["new"])
+    pool = {i: v for i, v in pool.items() if i not in (worn.ids.get(a), worn.ids.get(b))}
+    if not pool:
+        return {a: None, b: None}
+    for slot in (a, b):
+        if slot in worn.ids:
+            pool[worn.ids[slot]] = max(pool.get(worn.ids[slot], 0.0), worn.score(slot))
+    ranked = sorted(pool.items(), key=lambda kv: -kv[1])
+    top2 = [i for i, _ in ranked[:2]]
+    out: dict[int, dict | None] = {}
+    rest = []
+    for slot in (a, b):
+        i = worn.ids.get(slot)
+        if i is not None and i in top2:
+            out[slot] = {"rank": 1, "pct": 100, "target": worn.score(slot)}
+        else:
+            rest.append(slot)
+    free = [pool[i] for i in top2 if i not in {worn.ids.get(x) for x in (a, b) if out.get(x)}]
+    rest.sort(key=lambda x: -(worn.score(x) if x in worn.ids else -1))
+    for slot, target in zip(rest, free, strict=False):
+        if target <= 0:
+            out[slot] = None
+        elif slot not in worn.ids:
+            out[slot] = {"rank": None, "pct": 0, "target": target}
+        else:
+            cur = worn.score(slot)
+            above = sum(1 for i, v in pool.items() if i != worn.ids[slot] and v > cur + EPS)
+            # No "2nd" for a pair: the runner-up to the best two reads "2nd"
+            # next to a low percent (17% of BiS, 2nd), so a pair says the percent.
+            out[slot] = _rank(max(above, 2), cur, target)
+    for slot in (a, b):
+        out.setdefault(slot, None)
+    return out
+
+
+def _weapons(setups: WeaponSetups, worn: Worn, level: int) -> dict | None:
+    """Both hands as one setup: BiS is the best two-hander or main hand +
+    off hand pair wearable now; the rank counts the setups above the worn one."""
+    if not any(p["c"]["at"] <= level for p in setups.parts):
+        return None
+    best = setups.best_setup(level)
+    if not best or best["total"] <= 0:
+        return None
+    cur = setups.current
+    if not worn.ids.get(MAIN) and not worn.ids.get(OFF):
+        return {"rank": None, "pct": 0, "target": best["total"]}
+    above = 0
+    for t in setups._pool("two", level):
+        if t["score"] > cur + EPS:
+            above += 1
+    for m in setups._pool("main", level):
+        if above >= 2:
+            break
+        for o in [None, *setups._pool("off", level, exclude=_pid(m))]:
+            if m["score"] + (o["score"] if o else 0) > cur + EPS:
+                above += 1
+                if above >= 2:
+                    break
+    return _rank(above, cur, best["total"])
+
+
+def standings(per_slot: dict, worn: Worn, setups: WeaponSetups, level: int) -> dict[int, dict | None]:
+    """Each slot's standing against BiS (the best it can hold at this level,
+    scored like the upgrades): {"rank": 1 (BiS), 2 (runner-up) or None,
+    "pct": the worn score over BiS's, "target": BiS's score}. None where
+    there is nothing to measure against (no item for the slot, a
+    random-suffix item scored on a guess) or nothing worn is known at all
+    (no sheet: every slot would read 0%)."""
+    out: dict[int, dict | None] = {}
+    if not worn.ids:
+        return out
+    for slot in EQUIPPED_SLOTS:
+        if slot in PAIRED or slot in (MAIN, OFF):
+            continue
+        cur = worn.score(slot) if slot in worn.ids else None
+        if slot in worn.unknown or (slot in worn.ids and worn.infos.get(slot) is None):
+            out[slot] = None
+            continue
+        pool: dict[int, float] = {}
+        for _d, _i, c, o in (per_slot.get(slot) or {}).get("now") or []:
+            pool[c["id"]] = max(pool.get(c["id"], 0.0), o["new"])
+        out[slot] = _single(pool, cur)
+    for a, b in PAIRS:
+        got = _pair(a, b, per_slot, worn)
+        for slot in (a, b):
+            bad = slot in worn.unknown or (slot in worn.ids and worn.infos.get(slot) is None)
+            out[slot] = None if bad else got[slot]
+    hands = {MAIN, OFF}
+    if hands & worn.unknown or any(s in worn.ids and worn.infos.get(s) is None for s in hands):
+        w = None
+    else:
+        w = _weapons(setups, worn, level)
+    out[MAIN] = w
+    out[OFF] = w
+    return out
+
+
+def standing_out(st: dict | None) -> dict | None:
+    """The slot's standing as the page and the MCP show it."""
+    if not st:
+        return None
+    label = "BiS" if st["rank"] == 1 else "2nd" if st["rank"] == 2 else f"{st['pct']}% of BiS"
+    return {"rank": st["rank"], "pct": st["pct"], "label": label}
+
+
+def bis_gain(st: dict | None, r: dict) -> dict | None:
+    """An upgrade in BiS terms: the worn item's share of BiS and the
+    candidate's ("62% -> 100% of BiS"). Weapons count as whole setups."""
+    if not st or not st.get("target"):
+        return None
+    if r["slot"] in (MAIN, OFF):
+        if "setup_score" not in r:
+            return None
+        new = r["setup_score"]
+    else:
+        new = r["new"]
+    to = 100 if new >= st["target"] - EPS else min(99, round(new / st["target"] * 100))
+    return {"from_pct": st["pct"], "to_pct": max(to, st["pct"])}
+
+
+def bis_order(u: dict | None) -> tuple:
+    """The ranking by BiS (owner, 2026-11-21): the slot furthest from BiS
+    first; anything without a BiS to measure against after, in its old
+    order. Within a slot every candidate starts from the same item and
+    measures against the same BiS, so the points that break the tie (the
+    gain, less for an item built for someone else: wowstats.gearfit) rank
+    the one closing most of the gap first, an on-spec item before a
+    slightly bigger one made for a healer."""
+    b = (u or {}).get("bis")
+    if not b:
+        return (1, 0)
+    return (0, b["from_pct"])
 
 
 def _slot_group(u: dict) -> str:

@@ -191,10 +191,15 @@ class GearToolTest(unittest.TestCase):
             self.assertLessEqual(u["level"], 17)
         # Horde quests only; the quest handed in gives nothing any more.
         self.assertFalse(any("1884" in w for u in ups for w in u["where"]))
-        # What the bags and the bank hold comes first, an equip away (fakes.BAGS).
-        self.assertEqual([(u["item"], u["where"]) for u in ups[:2]],
+        # What the bags and the bank hold comes first, an equip away (fakes.BAGS),
+        # in the advice's order (the slot furthest from BiS first).
+        self.assertEqual(sorted((u["item"], u["where"]) for u in ups[:2]),
                          [("Adept's Gloves", ["in your bags: equip it"]),
                           ("Seer's Cuffs", ["in your bank: take it out at a banker and equip it"])])
+        held = [u["share_of_bis_pct"]["worn"] for u in ups[:2]]
+        self.assertEqual(held, sorted(held))
+        self.assertTrue(all(s["worn_standing"] is None or s["worn_standing"] in ("BiS", "2nd")
+                            or s["worn_standing"].endswith("% of BiS") for s in out["slots"]))
         # Each weapon setup's best on its own, and where the weights come from.
         self.assertTrue(out["weapon_setups"])
         self.assertTrue({x["setup"] for x in out["weapon_setups"]} <= {"two-hander", "main hand + off hand"})

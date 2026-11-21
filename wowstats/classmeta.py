@@ -482,7 +482,11 @@ def gear_part(g: dict | None, level: int) -> dict | None:
             rows.append((gain, sl, best))
     if top <= 0:
         return None
-    rows.sort(key=lambda x: -x[0])
+    # The gear advice's order (wowstats.gear.bis_order): the slot furthest
+    # from BiS first, then the bigger gain.
+    from .gear import bis_order
+
+    rows.sort(key=lambda x: (bis_order(x[2]), -x[0]))
     gaps = []
     for _gain, sl, best in rows[:3]:
         src = (best.get("sources") or [{}])[0]

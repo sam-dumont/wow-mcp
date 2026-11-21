@@ -709,6 +709,11 @@ def _gear_item(u: dict | None) -> dict | None:
            "gain_share_of_gear_pct": u.get("gain_share_pct"), "gain_pct_over_replaced": u.get("gain_pct"),
            "fills_empty_slot": u.get("fills_empty") or None, "in_current_zone": u.get("here"),
            "where": [_src_text(s) for s in u.get("sources") or []]}
+    b = u.get("bis")
+    if b:
+        # The upgrade in BiS terms: the worn item's share of the best the
+        # slot can hold now, and this one's.
+        out["share_of_bis_pct"] = {"worn": b["from_pct"], "with_it": b["to_pct"]}
     links = [_src_link(s) for s in u.get("sources") or []]
     if any(links):
         out["where_wowhead"] = links  # one per `where` entry, null where the source has no page
@@ -802,6 +807,8 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         "weights_adjusted_by_player": sp["adjusted"] or None,
         "slots": [{"slot": x["slot_name"],
                    "worn": (x["current"] or {}).get("name") if x["current"] else None,
+                   # BiS, 2nd or "N% of BiS"; null when nothing to measure against.
+                   "worn_standing": (x.get("standing") or {}).get("label"),
                    "best_now": _gear_item(x["best"]), "next_within_3_levels": _gear_item(x["next"])}
                   for x in a["slots"]],
         "next_upgrades": [_gear_item(u) for u in ups],
@@ -1062,10 +1069,10 @@ TOOLS: tuple[Tool, ...] = (
          schema({"item": {"type": "string", "description": "Part of an item name, or an item id."},
                  "since": SINCE, "until": UNTIL, "limit": lim(20, 100)}), t_prices),
     Tool("gear", "Gear upgrades",
-         "Gear advice from Polestar's own scoring: per slot what is worn, the best item the character can get at "
-         "its level and the next one within 3 levels, with the gain in percent and where to get it (quest and "
-         "zone, dungeon and boss, craft and profession); then the upgrades in order of gain, those in the current "
-         "zone flagged. Scored for the spec Polestar uses unless `spec` names another.",
+         "Gear advice from Polestar's scoring: per slot what is worn and where it stands (BiS, 2nd, or a percent "
+         "of BiS), the best item at its level and the next within 3 levels, with the gain and where to get it; "
+         "then the upgrades: held or in the current zone first, then the slot furthest from BiS first, each with "
+         "its share of BiS before and after. Scored for Polestar's spec unless `spec` names another.",
          schema({"char": CHAR, "spec": {"type": "string", "description": "A spec of the class, e.g. shadow, holy."},
                  "limit": lim(10, 40)}), t_gear),
     Tool("next_moves", "What to do now",

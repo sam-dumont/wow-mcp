@@ -133,7 +133,15 @@ by its expected gain per clear, the chance-weighted best per slot) or by
 slot; either way a slot shows its best and at most 2 alternatives that add
 something (another source, available now, another gate), a group at most 3,
 and the rest folds under "N more". An upgrade under 2% of your gear is
-"small". **Gates** (`gates` on each upgrade): the level to wear it, and for
+"small". **BiS** (`standing` on each slot, `bis` on each upgrade): the best
+score the slot can hold now, among what is worn and every item wearable at
+this level; a worn item is BiS, 2nd (one item above it) or its percent of
+BiS's score. Rings and trinkets count the best two different items, and the
+hands count whole setups. None for a random-suffix item scored on a guess, a
+slot with nothing to compare, or no sheet at all. Upgrades are ordered by it:
+the slot furthest from BiS first; within a slot by points (the same start
+and the same BiS, so the biggest gain closes most of the gap, an item built
+for someone else a little less). **Gates** (`gates` on each upgrade): the level to wear it, and for
 an item only a craft gives, the profession's skill when you have the
 profession, or "buy" when you don't (a crafter or the auction house; the
 data has no recipe price or reputation gate, so none is shown).

@@ -258,6 +258,8 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 
 /* gear advice: Polestar's scoring, per slot and as a list */
 .slot .iup { display: block; color: var(--good); font-size: 13px; line-height: 1.25; }
+.slot .ibisline { display: block; color: var(--muted); font-size: 13px; line-height: 1.25; }
+.slot .ibisline.top { color: var(--gold-hi); font-weight: 700; }
 .advice { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--rule); }
 .advice:empty { display: none; }
 .advice .iname { font-weight: 700; }
@@ -582,7 +584,7 @@ a.whx:hover { color: var(--gold-hi); background: color-mix(in srgb, var(--rule) 
   background: #8C1C13; color: #fff; border-bottom: 2px solid #E9C25A;
 }
 
-/* ------------------------------------------------------------ journal: parchment */
+/* ------------------------------------------------------------ journal */
 
 .journal { max-width: 1160px; margin: 0 auto; padding: 8px 16px 40px; }
 .journal h2 { font-size: 28px; }
@@ -590,18 +592,31 @@ a.whx:hover { color: var(--gold-hi); background: color-mix(in srgb, var(--rule) 
 .jlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
 /* Where the Recorder's detail starts (switched on later): one quiet line. */
 .jmark { color: var(--muted); font-size: 14px; padding: 8px 4px 0; border-top: 1px dashed currentColor; }
+/* A journal page takes the page's palette, like every other panel: a night
+   panel at night, parchment by day. Until 2026-11-21 it was parchment in
+   both, a pale slab per session on the night page (owner: "looks bad"). */
 .jentry {
-  --ink: var(--parch-ink); --muted: var(--parch-muted); --rule: #B89A68; --gold: #64410A; --gold-hi: #5C3A06;
-  --gold-lo: #B8975A; --sunk: #CDB58A; --bar: linear-gradient(180deg, #A97C2A, #7A4F0C); --death: #832717;
-  --parch: inherit;  /* the page's tone: a little dimmed at night */
-  --panel: var(--parch);
   color: var(--ink);
-  background-color: var(--parch);
-  background-image: var(--fibre), radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(110, 70, 25, .28));
-  border-radius: 3px;
-  box-shadow: inset 0 0 0 1px rgba(90, 60, 20, .35), inset 0 0 28px rgba(110, 70, 25, .35), 0 8px 18px -10px rgba(0, 0, 0, .6);
+  background-color: var(--panel);
+  background-image: var(--grain);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: 0 8px 18px -10px rgba(0, 0, 0, .6);
   padding: 4px 22px;
-  color-scheme: light;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .jentry {
+    --panel: var(--parch);
+    background-image: var(--fibre), radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(110, 70, 25, .22));
+    border-color: transparent;
+    box-shadow: inset 0 0 0 1px rgba(90, 60, 20, .35), inset 0 0 28px rgba(110, 70, 25, .3), 0 8px 18px -10px rgba(0, 0, 0, .45);
+  }
+}
+:root[data-theme="light"] .jentry {
+  --panel: var(--parch);
+  background-image: var(--fibre), radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(110, 70, 25, .22));
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgba(90, 60, 20, .35), inset 0 0 28px rgba(110, 70, 25, .3), 0 8px 18px -10px rgba(0, 0, 0, .45);
 }
 .jentry summary {
   display: grid; grid-template-columns: 11em 9em 9em 1fr; gap: 4px 14px; align-items: baseline;
@@ -902,6 +917,15 @@ a.whsmall { font: 500 12.5px/1 var(--sans); color: var(--muted); }
   background: #1EFF00; box-shadow: 0 0 0 1.5px #000, 0 0 6px #1EFF00;
 }
 .ifr.medium .ench { width: 7px; height: 7px; right: 2px; bottom: 2px; }
+/* Where a worn item stands against BiS (app.js renderAdvice): a band across
+   the icon's top, on the doll only, so a phone's icon-only paperdoll shows it.
+   The plate is night in both themes. */
+.ifr .ibis {
+  position: absolute; z-index: 1; left: 0; right: 0; top: 0; text-align: center;
+  font: 700 11px/15px var(--sans); letter-spacing: .02em; color: var(--plate-ink);
+  background: rgba(14, 10, 7, .86); pointer-events: none;
+}
+.ifr .ibis.top { color: var(--gold-hi); }
 .chips { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 16px; }
 .chips > li { display: inline-flex; align-items: center; min-width: 0; max-width: 100%; }
 .worn { margin: 8px 0; }
@@ -1055,7 +1079,7 @@ a.whsmall { font: 500 12.5px/1 var(--sans); color: var(--muted); }
   .doll > .stage { grid-area: 1 / 1 / 2 / 4; min-height: 0; z-index: 0; }
   .doll > .slots.left, .doll > .slots.right { position: relative; z-index: 1; gap: 6px; }
   .doll .slot { min-height: 0; }
-  .doll .ilabel, .doll .slot .iup { display: none; }
+  .doll .ilabel, .doll .slot .iup, .doll .slot .ibisline { display: none; }
   .doll .slotitm { width: auto; }
   .doll > .weapons { gap: 10px; justify-content: center; margin-top: 10px; padding-top: 10px; }
   .doll > .weapons .slot { width: auto; }
@@ -1114,6 +1138,10 @@ li.cand:first-child { border-top: 0; }
 .candmeta .src { flex-basis: 100%; text-align: right; }
 .candmeta .slotname { font: 600 11.5px/1.4 var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
 .advice .gain, .cand .gain { color: var(--good); font-weight: 700; }
+/* An upgrade in BiS terms, "62% → 100% of BiS": quiet, next to the gain. */
+.bisgain { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.byslot .gain .bisgain { display: block; font-weight: 400; }
+.cmphead .bisgain { color: var(--muted); font-weight: 400; }
 .cands.compact .cand { font-size: 14px; }
 /* Who an upgrade is built for: a quiet line under the item, the label in
    green when it's yours, gold for another spec of your class, red when

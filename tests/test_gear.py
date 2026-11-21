@@ -252,10 +252,13 @@ def test_gain_in_points_and_share(ref):
     assert a["gear_score"] == pytest.approx(sum((s["current"] or {}).get("score") or 0 for s in a["slots"]), abs=0.1)
     for u in a["upgrades"]:
         assert u["gain_share_pct"] == pytest.approx(u["gain"] / a["gear_score"] * 100, abs=0.06)
-    # Ordered by points (the gain, less for an item built for someone else:
-    # wowstats.gearfit), not by percent over a weak item.
-    now = [u["value"] for u in a["upgrades"] if u["now"] and not u["vs_unknown"]]
-    assert now == sorted(now, reverse=True)
+    # Within the same share of BiS, ordered by points (the gain, less for an
+    # item built for someone else: wowstats.gearfit), not by percent over a
+    # weak item.
+    now = [u for u in a["upgrades"] if u["now"] and not u["vs_unknown"]]
+    for k in {gear.bis_order(u) for u in now}:
+        same = [u["value"] for u in now if gear.bis_order(u) == k]
+        assert same == sorted(same, reverse=True), k
     assert all(u["value"] == pytest.approx(u["gain"] * u["fit"]["factor"], abs=0.02) for u in a["upgrades"])
 
 
@@ -391,3 +394,82 @@ def test_store_reads_battlenet_equipment():
     assert gear.worn_stats(rows) == {15: {"item_id": 7356, "stats": {"int": 4.0}}, 16: {"item_id": 1317, "stats": {}}}
     assert Store("http://vl.invalid", profile_vm_url="").character_equipment("X") == {}
     assert gear.armory_worn(object(), "X") == {}  # a store without it: the likely suffix
+
+
+# --- where the worn item stands against BiS (owner, 2026-11-21) -------------
+
+
+def _worn(scores: dict, unknown=()) -> gear.Worn:
+    return gear.Worn(ids={sl: 100 + sl for sl in scores}, infos={sl: {"inv": 1} for sl in scores},
+                     scores=dict(scores), unknown=set(unknown))
+
+
+def _now(*items) -> dict:
+    """per_slot's "now" list: (delta, -id, candidate, option) for (id, score)."""
+    return {"now": [(0, -i, {"id": i}, {"new": v}) for i, v in items], "soon": []}
+
+
+def _standings(worn, per_slot):
+    return gear.standings(per_slot, worn, gear.WeaponSetups([], worn, {}, None, False, 32), 32)
+
+
+def test_standing_bis_second_percent():
+    worn = _worn({1: 20.0, 3: 15.0, 5: 15.0, 6: 4.0})
+    st = _standings(worn, {1: _now((1, 18.0), (2, 12.0)), 3: _now((3, 20.0)), 5: _now((4, 20.0), (5, 18.0)),
+                           6: _now((6, 12.0))})
+    assert gear.standing_out(st[1]) == {"rank": 1, "pct": 100, "label": "BiS"}
+    assert gear.standing_out(st[3]) == {"rank": 2, "pct": 75, "label": "2nd"}
+    assert gear.standing_out(st[5]) == {"rank": None, "pct": 75, "label": "75% of BiS"}
+    # Never 100% for something that isn't BiS.
+    assert gear.standing_out(st[6])["pct"] == 33
+
+
+def test_standing_nothing_rather_than_a_made_up_number():
+    worn = _worn({1: 20.0, 3: 15.0}, unknown={3})
+    st = _standings(worn, {3: _now((3, 20.0))})
+    assert st[1] is None  # no item for the slot: no BiS list to stand against
+    assert st[3] is None  # a random suffix scored on a guess
+    assert st[16] is None and st[17] is None  # no weapon to measure the hands against
+    # Nothing worn known (no sheet): no standing at all, not 0% everywhere.
+    assert _standings(gear.Worn(), {1: _now((1, 5.0))}) == {}
+
+
+def test_standing_rings_count_the_best_two():
+    # Worn 10 (BiS pair: 12 and 10) and 4; candidates 12, 8.
+    worn = _worn({11: 10.0, 12: 4.0})
+    st = _standings(worn, {11: _now((1, 12.0), (2, 8.0)), 12: _now((1, 12.0), (2, 8.0))})
+    assert st[11]["rank"] == 1
+    # The weaker ring against the BiS ring it would make room for (12); no
+    # "2nd" for a pair.
+    assert st[12]["rank"] is None and st[12]["pct"] == 33
+
+
+def test_upgrades_ranked_by_share_of_bis(ref):
+    """The slot furthest from BiS first, then (the same start, the same
+    BiS) the points: the item that closes most of the gap; an upgrade
+    without a BiS to measure against after (owner, 2026-11-21: "the percent
+    of BiS should be used to order and rank")."""
+    a = gear.advise(ref, sheet(), level=32)
+    stand = {s["slot"]: s["standing"] for s in a["slots"]}
+    now = [u for u in a["upgrades"] if u["now"]]
+    keys = [gear.bis_order(u) for u in now]
+    assert keys == sorted(keys)
+    ranked = [u for u in now if u["bis"]]
+    for pct in {u["bis"]["from_pct"] for u in ranked}:
+        same = [u for u in ranked if u["bis"]["from_pct"] == pct and not u["vs_unknown"]]
+        assert [u["value"] for u in same] == sorted((u["value"] for u in same), reverse=True)
+    assert ranked and ranked[0]["bis"]["from_pct"] == min(u["bis"]["from_pct"] for u in ranked)
+    for u in ranked:
+        b = u["bis"]
+        assert 0 <= b["from_pct"] <= b["to_pct"] <= 100
+        if stand.get(u["slot"]):
+            assert b["from_pct"] == stand[u["slot"]]["pct"]
+    # Each slot's standing, where there is one, says BiS, 2nd or a percent.
+    labels = [s["standing"]["label"] for s in a["slots"] if s["standing"]]
+    assert labels and all(x in ("BiS", "2nd") or x.endswith("% of BiS") for x in labels)
+
+
+def test_no_sheet_no_standing(ref):
+    a = gear.advise(ref, sheet(items=[]), level=32)
+    assert all(s["standing"] is None for s in a["slots"])
+    assert all(u["bis"] is None for u in a["upgrades"])
