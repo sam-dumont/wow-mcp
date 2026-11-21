@@ -376,8 +376,35 @@ def test_no_run_starts_past_the_budget(lab):
     s = service(e, FakeAnthropic(script), played=20 * H)
     s.spend.add(0.9, {"input": 1})
     out = s.refresh(lab.ctx(e), wait=True)
-    assert not out["started"] and out["skipped"].startswith("budget spent") and script.calls == 0
-    assert "budget spent" in s.run_job("auto", e, lab.ctx(e))["runs"][0]["why"]
+    assert not out["started"] and script.calls == 0
+    assert out["skipped"] == "a run would likely cross the budget: about $0.50 a run, $0.10 of $1.00 left this month"
+    assert "would likely cross" in s.run_job("auto", e, lab.ctx(e))["runs"][0]["why"]
+    s.spend.add(0.2, {"input": 1})  # over the cap: said as spent
+    assert s.refresh(lab.ctx(e), wait=True)["skipped"].startswith("budget spent: $1.10 of $1.00")
+
+
+def test_a_first_run_on_an_openai_compatible_model_is_guessed_at_its_own_prices(lab):
+    """The guess for a model with no runs yet came from the priciest Claude
+    run ($3.50): a $2 budget never started glm-5.3, whose runs cost cents
+    to a dollar, and said "budget spent: $0.00" (2026-11-21)."""
+    prices = {"ANALYSIS_PROVIDER": "openai", "ANALYSIS_MODEL": "glm-5.3", "ANALYSIS_BASE_URL": OLLAMA,
+              "ANALYSIS_PRICE_INPUT_PER_MTOK": "1.4", "ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK": "0.26",
+              "ANALYSIS_PRICE_OUTPUT_PER_MTOK": "4.4"}
+    low = lab.env("o", ANALYSIS_MONTHLY_BUDGET="2", **prices)
+    guess = auto.Config.from_env(low).run_guess()
+    assert guess == pytest.approx(6 * (0.03 * 1.4 + 0.96 * 0.26 + 0.01 * 4.4), rel=1e-3)  # about $2.01
+    # Under the guess: refused before any call, said as an estimate.
+    script = Script()
+    r = service(low, FakeOpenAI(script)).run_job("player", low, lab.ctx(low))["runs"][0]
+    assert r["why"] == "a run would likely cross the budget: about $2.01 a run, $2.00 of $2.00 left this month"
+    assert script.calls == 0
+    # Over it, the run goes; the next guess is this install's own average.
+    e = {**low, "ANALYSIS_MONTHLY_BUDGET": "3"}
+    r = service(e, FakeOpenAI(Script())).run_job("player", e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "done", r
+    assert auto.Spend(auto.spend_path(e)).run_estimate("glm-5.3", guess)[0] == pytest.approx(r["usd"], abs=1e-3)
+    # Unpriced: no money guess, so no money cap.
+    assert auto.Config.from_env(lab.env("q", ANALYSIS_PROVIDER="openai", ANALYSIS_MODEL="m")).run_guess() == 0.0
 
 
 def test_a_run_stops_before_the_call_that_would_cross_the_budget(lab, monkeypatch):

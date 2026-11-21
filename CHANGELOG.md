@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- Server-side analysis on an OpenAI-compatible model never started its first run under a $3.50 monthly budget, and said "budget spent: $0.00": with no run of its own yet, the estimate was the priciest Claude run's. It is now the endpoint's own prices over a typical run's tokens (about $2 for glm-5.3, $0.11 for gpt-6-luna), and a run refused on that estimate says so, with the amount and what's left.
 - Server-side analysis on OpenAI's own API failed every run with "the endpoint refused tool calling": OpenAI's reasoning models (gpt-6 and later) take function tools on the Responses API only, and Chat Completions answered 400 "use /v1/responses". OpenAI itself (no `ANALYSIS_BASE_URL`, or `api.openai.com`) now goes through Responses, stateless (`store: false`, the reasoning passed back each turn); every other OpenAI-compatible endpoint stays on Chat Completions.
 - A failed server-side run says what the AI provider said: any 4xx naming tools used to read as "refused tool calling", other errors as a bare status, and z.ai's "Insufficient balance" (a 429) as a rate limit to wait out. Only an endpoint saying the model has no tools counts as a refusal now; the run's reason carries the provider's message (key-shaped strings masked).
 - Server-side analysis on OpenAI counted cached prompt tokens at the full input price: a run's prompts are mostly cached, so the meter read several times the bill and the monthly cap stopped runs early. `ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK` sets their price (the input price when unset).

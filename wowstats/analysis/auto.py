@@ -108,6 +108,12 @@ LONG = {"claude-haiku-5-5": (100_000, (0.50, 2.50, 0.625, 0.05))}
 # of its own finished runs replaces it): docs/self-host/server-analysis.md.
 RUN_GUESS_USD = {"claude-opus-5-5": 3.5, "claude-sonnet-5-5": 1.8, "claude-haiku-5-5": 0.25}
 RUN_GUESS_TOKENS = 6_000_000
+# How a run's tokens split, to price the first-run guess at an OpenAI-compatible
+# endpoint's own prices: three OpenAI runs on 2026-11-21 sent 18.9M tokens,
+# 1.8% uncached prompt, 97.8% cached, 0.4% output (rounded up here). The
+# priciest Claude guess stood in before, and kept every first run under a
+# $3.50 budget from starting, whatever the model cost.
+RUN_GUESS_MIX = {"input": 0.03, "cache_read": 0.96, "output": 0.01, "cache_write": 0.0}
 FIRST_CALL_USD = 0.25
 FIRST_CALL_TOKENS = 40_000
 
@@ -324,6 +330,15 @@ class Config:
     def openai_itself(self) -> bool:
         return not self.base_url or urlparse(self.base_url).hostname == "api.openai.com"
 
+    def run_guess(self) -> float:
+        """A first run's cost, before this install has its own average:
+        Anthropic's measured per model; an OpenAI-compatible endpoint's from
+        its own prices; 0 when unpriced (no money cap applies then)."""
+        if self.provider == "anthropic":
+            return RUN_GUESS_USD.get(self.model, max(RUN_GUESS_USD.values()))
+        usage = {k: round(RUN_GUESS_TOKENS * v) for k, v in RUN_GUESS_MIX.items()}
+        return self.cost(self.model, usage) or 0.0
+
     def cost(self, model: str, usage: dict[str, int]) -> float | None:
         if self.provider == "anthropic":
             return anthropic_cost(model, usage)
@@ -439,17 +454,21 @@ class Spend:
                 r["tokens"] = int(r.get("tokens") or 0) + toks
             _write_json(self.path, d)
 
-    def run_estimate(self, model: str) -> tuple[float, int]:
-        """(USD, tokens) for one run: this install's own average, else a guess."""
+    def run_estimate(self, model: str, guess_usd: float) -> tuple[float, int]:
+        """(USD, tokens) for one run: this install's own average, else the guess."""
         r = (self.read().get("runs") or {}).get(model) or {}
         if r.get("n"):
             return float(r["usd"]) / int(r["n"]), int(r.get("tokens") or 0) // int(r["n"])
-        return RUN_GUESS_USD.get(model, max(RUN_GUESS_USD.values())), RUN_GUESS_TOKENS
+        return guess_usd, RUN_GUESS_TOKENS
 
 
-def over(cfg: Config, spend: Spend, usd: float, toks: int) -> str:
-    """Why spending `usd` / `toks` more would cross a cap, or ""."""
+def over(cfg: Config, spend: Spend, usd: float, toks: int, run: bool = False) -> str:
+    """Why spending `usd` / `toks` more would cross a cap, or "". `run`: the
+    whole run's estimate, before it starts, said as one (not "spent")."""
     if cfg.priced and spend.spent() + usd > cfg.budget:
+        if run and spend.spent() < cfg.budget:
+            return (f"a run would likely cross the budget: about ${usd:.2f} a run, "
+                    f"${cfg.budget - spend.spent():.2f} of ${cfg.budget:.2f} left this month")
         return f"budget spent: ${spend.spent():.2f} of ${cfg.budget:.2f} this month"
     if cfg.tokens_cap and spend.used_tokens() + toks > cfg.tokens_cap:
         return f"token cap reached: {spend.used_tokens():,} of {cfg.tokens_cap:,} tokens this month"
@@ -739,8 +758,8 @@ class Service:
                 "refresh_after": hours(self.cfg.stale_s), "due": since >= self.cfg.stale_s}
 
     def would_cross(self) -> str:
-        usd, toks = self.spend.run_estimate(self.cfg.model)
-        return over(self.cfg, self.spend, usd, toks)
+        usd, toks = self.spend.run_estimate(self.cfg.model, self.cfg.run_guess())
+        return over(self.cfg, self.spend, usd, toks, run=True)
 
     # -- the two ways in
 
