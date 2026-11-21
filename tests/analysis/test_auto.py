@@ -948,6 +948,46 @@ def test_a_model_that_never_finishes_is_incomplete_and_the_old_text_stays(lab, k
     assert not again["started"] and "stopped recently" in again["skipped"]
 
 
+def test_a_rollback_never_erases_the_players_own_session(lab):
+    """External review of 0.7.0-rc.5: a server run that didn't finish put
+    back the files it found at its start, over whatever the player's own MCP
+    session wrote to the same character meanwhile. Two actors: the server's
+    run in this thread, the player in another (its own context, as an MCP
+    request has), proposing a finding while the server's model stalls."""
+    import contextvars
+    import threading
+
+    e = lab.env("a")
+    mine = {**FINDINGS[0], "key": "players-own"}
+    said: list = []
+
+    def player():
+        said.append(tools.call(lab.ctx(e), "propose_finding", {"char": CHAR, "finding": mine}))
+
+    def server_model():
+        inner = quits_after_a_lane()
+        step = next(inner)
+        while True:
+            got = yield step
+            if step == ASKS and not said:  # the server's run has stalled: the player works meanwhile
+                t = threading.Thread(target=contextvars.Context().run, args=(player,))
+                t.start()
+                t.join()
+            step = inner.send(got)
+
+    r = service(e, FakeAnthropic(Script(server_model()))).run_job(e, lab.ctx(e))["runs"][0]
+    assert said and said[0]["stored"], said
+    assert "players-own" in kept(e), kept(e)  # the player's own finding survives the server's failed run
+    assert r["status"] == "incomplete" and "not rolled back" in r["why"], r
+    # Nobody else wrote: the rollback runs as before (the old text stays).
+    drive._WS.clear()
+    forget_last_try(e)
+    before = files(e)
+    r = service(e, FakeAnthropic(Script(quits_after_a_lane()))).run_job(e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "incomplete" and "not rolled back" not in r["why"]
+    assert files(e) == before
+
+
 def test_a_stopped_run_keeps_the_old_text_too(lab, monkeypatch):
     e = lab.env("a")
     assert service(e, FakeAnthropic(Script())).run_job(e, lab.ctx(e))["runs"][0]["status"] == "done"

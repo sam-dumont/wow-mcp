@@ -72,6 +72,24 @@ def test_the_tools_drive_a_run(env):
     assert {f["key"] for f in call("whats_new", {})["new"]} == {"levels-count", "levels-wrong"}
 
 
+def test_query_metric_counts_like_play_sql(env):
+    """External review of 0.7.0-rc.5: a table read only through query_metric
+    stayed "untouched" and the call counted as no query at all."""
+    call("analysis_brief", {})
+    before = call("analysis_progress", {})["run"]
+    assert "records" in before["untouched"] and before["queries"] == 0
+    got = call("query_metric", {"metrics": ["deaths"]})
+    assert got["rows"] == 1
+    after = call("analysis_progress", {})["run"]
+    assert after["queries"] == 1 and "records" not in after["untouched"]
+    # The view's own columns land on the prep table under it.
+    assert any(c.startswith("records.") for c in drive.current(env, CHAR)["columns"])
+    assert all(not c.startswith("sem_") for c in drive.current(env, CHAR)["columns"])
+    # A refused one counts as a query, like play_sql's, and touches nothing.
+    assert "error" in call("query_metric", {"metrics": ["no_such_metric"]})
+    assert call("analysis_progress", {})["run"]["queries"] == 2
+
+
 def test_the_prompt_and_the_ask_links_carry_no_data():
     text = prompts.analyse_text(CHAR, "")
     assert CHAR in text and "analysis_progress" in text

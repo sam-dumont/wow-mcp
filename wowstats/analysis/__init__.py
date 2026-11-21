@@ -13,8 +13,10 @@
    the synthesis' clashes, nudges' feasibility and shared lines are checked
    the same way, in code;
 4. recheck, nightly: every kept finding runs its SQL again on today's data;
-   one that still holds gains weight, one that doesn't fades and is
-   dropped once its weight is under MIN_WEIGHT. No model.
+   one that doesn't hold fades and is dropped once its weight is under
+   MIN_WEIGHT. One that holds is still applicable (`last_checked`); it is
+   better supported (weight, `confirmations`) only when there is play the
+   last support didn't see (`data_mark`). No model.
 5. keep: findings, nudges and the shared page's pattern lines go to
    ANALYSIS_STATE_DIR/chars/<char>/analysis.json, ranked, one file per
    character.
@@ -52,6 +54,7 @@ ANALYSIS_SHARE_PORT, and the KB's MODEL3D_CACHE_DIR / KB_GAME_TABLES.
 from __future__ import annotations
 
 import contextlib
+import contextvars
 import hashlib
 import json
 import math
@@ -63,6 +66,7 @@ import tempfile
 import threading
 import time
 import unicodedata
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -155,6 +159,51 @@ def char_dir(env: dict, char: str) -> Path | None:
     return new
 
 
+# Who writes a character's analysis files (analysis.json, drive.json): a
+# server run's token while it runs (wowstats.analysis.auto), None for anyone
+# else (the player's own MCP session, the nightly recheck). A server run that
+# doesn't finish puts the files back only when nobody else wrote them since it
+# started: the external review of 0.7.0-rc.5 found the rollback overwrote the
+# player's own session on the same character.
+WRITER: contextvars.ContextVar[str | None] = contextvars.ContextVar("analysis_writer", default=None)
+_WATCH: dict[str, dict[str, list[str]]] = {}  # character folder -> {run token: who else wrote}
+_WATCH_LOCK = threading.Lock()
+
+
+def note_write(folder: Path) -> None:
+    """A write to a character's analysis files, against every server run
+    watching that folder other than the writer's own."""
+    me = WRITER.get()
+    with _WATCH_LOCK:
+        for token, others in (_WATCH.get(str(folder)) or {}).items():
+            if token != me:
+                others.append(me or "another session")
+
+
+@contextlib.contextmanager
+def guard(env: dict, char: str):
+    """For a server run on one character: its writes carry its own token, and
+    the list it yields fills with every other writer of the character's files
+    while it runs. Empty at the end: nobody else wrote, a rollback is safe."""
+    d = char_dir(env, char)
+    token = uuid.uuid4().hex
+    others: list[str] = []
+    key = str(d) if d is not None else None
+    if key is not None:
+        with _WATCH_LOCK:
+            _WATCH.setdefault(key, {})[token] = others
+    mark = WRITER.set(token)
+    try:
+        yield others
+    finally:
+        WRITER.reset(mark)
+        if key is not None:
+            with _WATCH_LOCK:
+                _WATCH[key].pop(token, None)
+                if not _WATCH[key]:
+                    del _WATCH[key]
+
+
 def _read(p: Path) -> dict:
     with contextlib.suppress(OSError, ValueError):
         s = json.loads(p.read_text(encoding="utf-8"))
@@ -189,6 +238,7 @@ def save_state(env: dict, char: str, state: dict) -> None:
     with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=1)
     os.replace(tmp, d / STATE_FILE)
+    note_write(d)
     old = state_dir(env) / STATE_FILE
     if old.exists() and str(_read(old).get("char") or "").lower() == char.replace(" ", "-").lower():
         old.unlink(missing_ok=True)
@@ -260,13 +310,45 @@ def tables_of(db) -> tuple[list[str], int]:
     return names, cols
 
 
-def keep(kept: dict, got: dict, now: str) -> bool:
-    """Store a verified finding with its bookkeeping; True when new."""
+def data_mark(db) -> str:
+    """What the play history holds: the newest record and each game table's
+    row count. A finding gains support only when this moved since its last
+    support: the same data checked again is still applicable, not more
+    proven (external review of 0.7.0-rc.5: every nightly recheck raised the
+    weight of findings whose data hadn't changed)."""
+    parts = [str((db.execute("SELECT value FROM meta WHERE key='last_record'").fetchone() or [None])[0])]
+    for t, src in TABLES.items():
+        if src == "game":
+            with contextlib.suppress(Exception):
+                n = db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
+                parts.append(f"{t}:{n}")
+    return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
+
+
+def _support(f: dict, old: dict | None, mark: str | None, now: str) -> bool:
+    """A finding that holds: still applicable now; better supported (weight,
+    confirmations) only on data its last support didn't see. True when it
+    gained support."""
+    f["last_checked"] = now
+    if old is not None and mark is not None and old.get("support_mark") == mark:
+        for k in ("weight", "confirmations", "last_confirmed", "support_mark"):
+            if k in old:
+                f[k] = old[k]
+        return False
+    f["confirmations"] = int((old or {}).get("confirmations", 0)) + (1 if old else 0)
+    f["weight"] = round(min(MAX_WEIGHT, float((old or {}).get("weight", 0.5)) + 0.5), 4)
+    f["last_confirmed"] = now
+    if mark is not None:
+        f["support_mark"] = mark
+    return True
+
+
+def keep(kept: dict, got: dict, now: str, mark: str | None = None) -> bool:
+    """Store a verified finding with its bookkeeping; True when new. `mark`:
+    data_mark of the data it was judged on."""
     old = kept.get(got["key"])
     got["first_seen"] = (old or {}).get("first_seen", now)
-    got["confirmations"] = int((old or {}).get("confirmations", 0)) + (1 if old else 0)
-    got["weight"] = round(min(MAX_WEIGHT, float((old or {}).get("weight", 0.5)) + 0.5), 4)
-    got["last_confirmed"] = now
+    _support(got, old, mark, now)
     got["misses"] = 0
     for mark in ("doubtful", "reconciles"):  # a clash's verdict stands until a new synthesis
         if old and mark in old and mark not in got:
@@ -275,9 +357,10 @@ def keep(kept: dict, got: dict, now: str) -> bool:
     return old is None
 
 
-def recheck(kept: dict, ro, now: str, info: dict, duck=None) -> None:
-    """Every kept finding on today's data, in place: one that holds gains
-    weight, one that doesn't fades and goes under MIN_WEIGHT. A finding
+def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = None) -> None:
+    """Every kept finding on today's data, in place: one that holds is still
+    applicable, and gains weight only when `mark` (data_mark) moved since
+    its last support; one that doesn't fades and goes under MIN_WEIGHT. A finding
     judged on DuckDB (play_sql and query_metric since 0.7) re-runs there
     (`duck()` gives that runner, None when DuckDB isn't installed: the
     finding waits, unchanged); one kept before runs on SQLite, its dialect."""
@@ -299,12 +382,11 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None) -> None:
                 kept.pop(key)
                 info["dropped"].append(f"{key}: faded ({why})")
             continue
-        upd["confirmations"] = int(f.get("confirmations", 0)) + 1
-        upd["weight"] = round(min(MAX_WEIGHT, float(f.get("weight", 1.0)) + 0.5), 4)
-        upd["last_confirmed"] = now
+        gained = _support(upd, f, mark, now)
         upd.pop("miss_why", None)
         kept[key] = upd
-        info["confirmed"] += 1
+        k = "confirmed" if gained else "still"
+        info[k] = info.get(k, 0) + 1
 
 
 LINE_PARTS = ("text", "gist", "where", "blocked_by", "next_step")
@@ -475,8 +557,9 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     now = datetime.now(UTC).isoformat(timespec="seconds")
     state = load_state(env, char)
     kept: dict[str, dict] = dict(state.get("findings") or {})
-    info = {"at": now, "kind": "recheck", "char": char, "confirmed": 0, "faded": 0, "dropped": []}
-    recheck(kept, ReadOnly(db), now, info, duck=_duck_runner(db))
+    info = {"at": now, "kind": "recheck", "char": char, "confirmed": 0, "still": 0, "faded": 0,
+            "dropped": []}
+    recheck(kept, ReadOnly(db), now, info, duck=_duck_runner(db), mark=data_mark(db))
     info["seconds_total"] = round(time.time() - t0, 1)
     level = current_level(db)
     nudges = bind([n for n in state.get("nudges") or [] if isinstance(n, dict)], kept, level, info["dropped"], "nudge")
@@ -485,7 +568,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     out = finish(env, char, state, kept, nudges, patterns, db, knowledge,
                  players, info, now)
     print(json.dumps({"event": "analysis_recheck", "component": "wow", "findings": len(out["findings"]),
-                      **{k: info[k] for k in ("confirmed", "faded", "seconds_total")},
+                      **{k: info[k] for k in ("confirmed", "still", "faded", "seconds_total")},
                       "dropped": len(info["dropped"])}, separators=(",", ":")), file=sys.stderr, flush=True)
     return out
 

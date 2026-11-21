@@ -3,7 +3,7 @@
 **For:** players curious about the gear advice, and contributors. **At the end:** you know how upgrades are scored, where the data comes from, and where it differs from Polestar.
 
 The equipment panel says, per slot, what to wear instead and where to get it:
-"Belt of Arugal, +13.6 (6% of your gear), drops from Archmage Arugal in Shadowfang Keep". The
+"Belt of Arugal, +24% on your waist, drops from Archmage Arugal in Shadowfang Keep". The
 items, where they come from and how much each one is worth to your class and
 spec all come from [Polestar](https://github.com/fitzforge/polestar)'s gear
 advice. `data/gear-reference.json` ships in the image and `wowstats/gear.py`
@@ -139,7 +139,13 @@ this level; a worn item is BiS, 2nd (one item above it) or its percent of
 BiS's score. On the paperdoll that badge takes ForeverLevelingBiS's colours:
 orange for BiS, purple from 85%, blue from 50%, plain below. Rings and trinkets count the best two different items, and the
 hands count whole setups. None for a random-suffix item scored on a guess, a
-slot with nothing to compare, or no sheet at all. Upgrades are ordered by it:
+slot with nothing to compare, or no sheet at all. Every item the page and the MCP show carries the same measure (`bis_pct`
+and `delta_pct`, `wowstats/gear.py` `bis_badge`): its own share of the
+slot's BiS, as a badge on its icon, and the change from the worn item in
+the same points ("+24% on your waist"). Rings and trinkets measure in the
+slot the item would take, the weaker of the two worn; a two-hander or a
+setup the advice pairs counts whole, a one-hander scored alone (a dungeon
+drop the advice doesn't list) has none. Upgrades are ordered by it:
 the slot furthest from BiS first; within a slot by points (the same start
 and the same BiS, so the biggest gain closes most of the gap, an item built
 for someone else a little less). **Gates** (`gates` on each upgrade): the level to wear it, and for

@@ -1191,6 +1191,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         unknown = bool(vs & worn.unknown)
         return {**_item_out(ref, c["id"], c["info"]), "level": c["at"], "slot": r["slot"],
                 "bis": None if unknown else bis_gain(stand.get(r["slot"]), r),
+                **(dict(NO_BADGE) if unknown else bis_badge(stand.get(r["slot"]), r)),
                 "slot_name": SLOT_NAMES.get(r["slot"]), "score": _r(r["new"], 2), "gain": _r(r["delta"], 2),
                 # The gain as a share of everything worn: "+13.6, 4% of your
                 # gear". Against a weak item the percent alone reads +427%.
@@ -1379,6 +1380,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         # setup shows next to the one best setup the upgrades rank.
         "weapon_setups": weapon_setups,
         "gear_score": _r(gear_score, 2),
+        # What each slot's BiS scores, for rows scored elsewhere
+        # (instance_loot): the same badge as the advice's.
+        "bis_by_slot": bis_by_slot(stand),
         "slots": slots_out,
         # The top `limit`, plus whatever is in the current zone, already in
         # the bags or bank, or on sale below that: the page can put those first.
@@ -1528,19 +1532,73 @@ def standing_out(st: dict | None) -> dict | None:
     return {"rank": st["rank"], "pct": st["pct"], "label": label}
 
 
+def _bis_new(r: dict) -> float | None:
+    """The score a compare result (compare(), WeaponSetups.compare) puts in
+    its slot, on BiS's scale: a weapon counts as its whole setup, so a lone
+    one-hander or off hand has none (a two-hander is a setup on its own)."""
+    if r["slot"] in (MAIN, OFF):
+        return r.get("setup_score")
+    return r["new"]
+
+
+def _share(new: float, target: float) -> int:
+    # Never "100%" for something that isn't BiS (as _rank).
+    return 100 if new >= target - EPS else min(99, round(new / target * 100))
+
+
 def bis_gain(st: dict | None, r: dict) -> dict | None:
     """An upgrade in BiS terms: the worn item's share of BiS and the
     candidate's ("62% -> 100% of BiS"). Weapons count as whole setups."""
-    if not st or not st.get("target"):
+    b = bis_badge(st, r)
+    if b["bis_pct"] is None:
         return None
-    if r["slot"] in (MAIN, OFF):
-        if "setup_score" not in r:
-            return None
-        new = r["setup_score"]
-    else:
-        new = r["new"]
-    to = 100 if new >= st["target"] - EPS else min(99, round(new / st["target"] * 100))
-    return {"from_pct": st["pct"], "to_pct": max(to, st["pct"])}
+    return {"from_pct": st["pct"], "to_pct": max(b["bis_pct"], st["pct"])}
+
+
+BADGE = ("bis_pct", "delta_pct")
+NO_BADGE = {"bis_pct": None, "delta_pct": None}
+
+
+def bis_badge(st: dict | None, r: dict) -> dict:
+    """The badge every item carries wherever it is shown (owner, 2026-11-21):
+    `bis_pct`, the item's score as a share of the best its slot can hold at
+    this level (the paperdoll's number: 100 is BiS), and `delta_pct`, that
+    share minus the worn item's, in the same points ("+12%"). Rings and
+    trinkets measure in the slot compare() picks, the weaker of the two
+    worn (Gear.lua). st: the slot's standing (standings(); `pct` and
+    `target`), r: the item's compare result. Both None without a BiS to
+    measure against (no candidate, a random-suffix item worn, a lone
+    one-hander): no badge, never a guess."""
+    if not st or not st.get("target"):
+        return dict(NO_BADGE)
+    new = _bis_new(r)
+    if new is None:
+        return dict(NO_BADGE)
+    pct = _share(new, st["target"])
+    return {"bis_pct": pct, "delta_pct": pct - st["pct"]}
+
+
+def badge_of(u: dict | None) -> dict:
+    """The two badge fields of a row, for the answers that copy a few keys."""
+    return {k: (u or {}).get(k) for k in BADGE}
+
+
+def gain_words(u: dict) -> str:
+    """An item's gain in the page's words (web/app.js gainText): "+12% on
+    your head" against BiS, "BiS" or "62% of BiS" in front; the points when
+    it has no badge ("+4.3 points"). Weapons are one setup: "your weapons"."""
+    if u.get("bis_pct") is None or u.get("delta_pct") is None:
+        return f"+{u.get('gain') or 0:.1f} points"
+    name = u.get("slot_name") or "gear"
+    slot = "weapons" if name in ("Main hand", "Off hand") else name.lower()
+    head = "BiS" if u["bis_pct"] >= 100 else f"{u['bis_pct']}% of BiS"
+    return f"{head}, {u['delta_pct']:+d}% on your {slot}" if u["delta_pct"] else head
+
+
+def bis_by_slot(stand: dict[int, dict | None]) -> dict[str, dict]:
+    """The standings as an answer carries them (string keys, JSON), for the
+    rows scored outside advise(): instance_loot() reads them back."""
+    return {str(k): {"pct": v["pct"], "target": v["target"]} for k, v in stand.items() if v}
 
 
 def bis_order(u: dict | None) -> tuple:
@@ -1574,7 +1632,7 @@ def alternatives(upgrades: list[dict]) -> None:
                     and _slot_group(a) == _slot_group(u) and (a.get("fit") or {}).get("for_you") in ("yes", "any")
                     and (a["now"] or not u["now"])), None)
         u["fit"] = {**f, "alternative": None if alt is None else {
-            **{k: alt.get(k) for k in ("item_id", "name", "quality", "gain", "level", "now", "slot_name")},
+            **{k: alt.get(k) for k in ("item_id", "name", "quality", "gain", "level", "now", "slot_name", *BADGE)},
             "label": alt["fit"]["label"], "sources": alt.get("sources", [])[:2]}}
 
 
@@ -1862,7 +1920,7 @@ def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None) ->
 
 
 def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None = None,
-                  weights: str | None = None) -> dict[str, list[dict]]:
+                  weights: str | None = None, bis: dict | None = None) -> dict[str, list[dict]]:
     """Every item a dungeon gives this character, by the dungeon's area ID:
     its bosses' drops (with the chance) and the rewards of its own quests
     (the quests whose zone is the dungeon), each scored with the character's
@@ -1871,7 +1929,9 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
     already, and whether the quest was handed in: the dungeon panel marks
     each one obtained or missing (wowstats.plan.dungeonview). Weapons are
     compared one by one here; the advice's setups (WeaponSetups) give the
-    gain for the ones it lists, which the panel prefers."""
+    gain for the ones it lists, which the panel prefers. bis: the advice's
+    `bis_by_slot` (advise()), so each row carries the same badge
+    (bis_badge); a one-hander, scored alone here, has none."""
     from wowstats import gearfit
 
     cx = _context(ref, sheet, level, None, None, spec, weights)
@@ -1923,7 +1983,10 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
         group = [{"kind": "drop", "dungeon": True}] if not any(d["quests"] for d in by_area.values()) else \
             [{"kind": "quest"}]
         f = gearfit.fit(ref, info, cx.cls, cx.key, cx.how, cx.level, cx.w, group, cx.points)
-        row = {**_item_out(ref, item_id, info), "level": at, "slot": r["slot"],
+        # A two-hander is a whole setup; any other weapon alone isn't one.
+        rb = {**r, "setup_score": r["new"]} if info["inv"] == 17 else r
+        badge = dict(NO_BADGE) if vs & cx.worn.unknown else bis_badge((bis or {}).get(str(r["slot"])), rb)
+        row = {**_item_out(ref, item_id, info), "level": at, "slot": r["slot"], **badge,
                "slot_name": SLOT_NAMES.get(r["slot"]), "score": _r(r["score"], 2), "gain": _r(r["delta"], 2),
                "gain_pct": None if vs & cx.worn.unknown else _r(r.get("pct")), "fills_empty": bool(r["empty"]),
                "equipped": bool(r.get("equipped")), "fit": f, "value": _r(r["delta"] * f["factor"], 2)}
@@ -1953,10 +2016,11 @@ def newest_sheet(rows: list[dict], battlenet=None) -> tuple[dict, int, str | Non
     return sheet(g, who), int(_num(lv.get("level"))), (zone or {}).get("zone"), done
 
 
-def instance_loot_rows(rows: list[dict], weights: str | None = None) -> dict[str, list[dict]]:
-    """instance_loot() from stored events; {} without a sheet or a level."""
+def instance_loot_rows(rows: list[dict], weights: str | None = None, bis: dict | None = None) -> dict[str, list[dict]]:
+    """instance_loot() from stored events; {} without a sheet or a level.
+    bis: the advice's `bis_by_slot`, for the badges."""
     got = newest_sheet(rows)
     if got is None:
         return {}
     sh, level, _, _ = got
-    return instance_loot(reference(), sh, level=level, weights=weights)
+    return instance_loot(reference(), sh, level=level, weights=weights, bis=bis)

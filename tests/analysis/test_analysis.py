@@ -398,11 +398,36 @@ def test_a_client_run_keeps_what_reproduces(driven, rows, knowledge):
     del st["nudges"][-2:]
     st_file.write_text(json.dumps(st))
 
-    # The next night: kept findings run again and gain weight. No model.
+    # The next night: kept findings run again. No model.
     again = analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
-    assert again["findings"]["sessions-online"]["confirmations"] == 1
-    assert again["findings"]["sessions-online"]["weight"] > out["findings"]["sessions-online"]["weight"]
     assert again["runs"][-1]["kind"] == "recheck" and again["nudges"] == out["nudges"]
+
+
+def test_a_recheck_on_the_same_data_adds_no_support(driven, rows, knowledge):
+    """External review of 0.7.0-rc.5: every nightly recheck raised a
+    finding's weight even when its data hadn't changed. Still applicable is
+    not better supported: only new play that still satisfies it counts."""
+    env, drive = driven
+    drive.brief(env, CHAR)
+    assert drive.propose(env, CHAR, finding())["stored"]
+    w0 = analysis.load_state(env, CHAR)["findings"]["sessions-online"]["weight"]
+    nights = [analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
+              for _ in range(3)]
+    f = nights[-1]["findings"]["sessions-online"]
+    assert f["weight"] == w0 and f["confirmations"] == 0 and f["last_checked"] >= f["last_confirmed"]
+    assert [n["runs"][-1]["still"] for n in nights] == [1, 1, 1]
+    assert [n["runs"][-1]["confirmed"] for n in nights] == [0, 0, 0]
+    # Proposing it again on the same data doesn't add support either.
+    assert drive.propose(env, CHAR, finding())["stored"]
+    assert analysis.load_state(env, CHAR)["findings"]["sessions-online"]["weight"] == w0
+    # New play that still satisfies it does, once.
+    last = max(rows, key=lambda r: r["_time"])
+    later = [dict(r) for r in rows] + [{**last, "_time": last["_time"][:4] + "-12-31T23:00:00Z"}]
+    grown = analysis.run(env, CHAR, rows=later, players=set(), knowledge=knowledge)
+    assert grown["findings"]["sessions-online"]["weight"] > w0 and grown["runs"][-1]["confirmed"] == 1
+    assert grown["findings"]["sessions-online"]["confirmations"] == 1
+    same = analysis.run(env, CHAR, rows=[dict(r) for r in later], players=set(), knowledge=knowledge)
+    assert same["findings"]["sessions-online"]["weight"] == grown["findings"]["sessions-online"]["weight"]
 
 
 def test_a_run_survives_a_new_chat(driven):

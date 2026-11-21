@@ -11,7 +11,7 @@ Everything here is in the Character tab: your gear at the top, the upgrades unde
 
 Every slot shows what you wear and its item level. Under it, in green:
 
-- **"+14.5 at hand"**: there's an upgrade you can get now, worth 14.5 points for that slot.
+- **"+14% at hand"**: there's an upgrade you can get now, 14% closer to that slot's best.
   Click the item to compare the two.
 - **"something to wear"**: the slot is empty and anything would help.
 
@@ -28,8 +28,11 @@ in points until the item data has them.
 ## Points
 
 Upgrades are counted in Polestar's points, one score per item for your class and talents, so
-a ring and a helmet compare. "+41.7 points (18% of your gear)": a 3% upgrade is a
-nice-to-have, an 18% one is worth a trip. **Scored for**, at the top, picks the spec
+a ring and a helmet compare. The page says them against the slot's best: every item, here, on
+the Overview and in the Dungeons panel, has the badge from the paperdoll on its icon (its share
+of BiS, same colours) and "+18% on your head", how much closer to BiS it takes that slot. A
+3% step is a nice-to-have, an 18% one is worth a trip. An item with nothing to measure it
+against keeps its points. **Scored for**, at the top, picks the spec
 ("Automatic" follows your talents); pick another to see the upgrades for a respec.
 
 ## The upgrades list

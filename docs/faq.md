@@ -40,7 +40,8 @@ Forever's. Other versions aren't supported.
 ### What does it cost?
 
 Nothing. It's open source (GPL-3.0). If you run the server yourself, it fits on a small box
-you already have: 2 vCPU and 2 GiB of RAM. The AI part uses your own assistant's plan.
+you already have: 2 vCPU and 2 GiB of RAM. The AI part uses your own assistant's plan, unless
+you turn on the server's own analysis: then you pay its provider, inside a monthly budget you set.
 
 ### Who sees my data?
 
@@ -88,7 +89,9 @@ pace. [Overview and next moves](players/overview.md).
 ### What are "points" in the upgrades?
 
 Polestar's gear score for your class and spec, the number that compares a helmet with a ring.
-"+12.4, 5% of your gear" adds 12.4 points, 5% of what you wear in total.
+The page turns them into the slot's BiS: the badge on an item's icon is its share of the best
+item for that slot at your level, and "+12% on your head" is how much closer to it the item takes
+you than what you wear. An item with nothing to measure against keeps its points ("+4.3 points").
 [Gear and upgrades](players/gear.md).
 
 ## Your AI
@@ -100,8 +103,9 @@ Codex, Cursor, VS Code, Gemini CLI, Zed and more. [Connect your AI](ai/connect.m
 
 ### Does wow-stats see my conversations?
 
-No. Your assistant calls the server for data and does the thinking in your own account. No
-model runs on the server.
+No. Your assistant calls the server for data and does the thinking in your own account. If
+the host turned on the server's own analysis, the server talks to their AI provider in its own
+conversation, not yours: [What's shared](players/privacy.md).
 
 ### "Client Not Registered" in Claude
 

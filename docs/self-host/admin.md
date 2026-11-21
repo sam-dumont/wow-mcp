@@ -60,7 +60,8 @@ The red flags:
   calls a run). The timer waits 6 hours before it tries again.
 - **server analysis incomplete**: the model kept stopping before the end of the run (twice nudged
   that nobody would reply, then it stopped again), with the pass it was at. A weak or chatty model;
-  try another. The player keeps their last finished analysis.
+  try another. The player keeps their last finished analysis, unless the reason ends with "not
+  rolled back": their own AI wrote to that character during the run, and that work was kept.
 
 The shipper's version comes from its setup report when it sends one, otherwise from the last
 install or update command they ran. A row without a version or OS is someone who installed before
