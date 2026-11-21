@@ -78,15 +78,17 @@ def t_list_metrics(ctx: T.Ctx, args: dict) -> dict:
     from wowstats.analysis import semantic
 
     cat = semantic.catalogue()
-    return {"metrics": [{k: m[k] for k in ("name", "kind", "unit", "description", "caveats", "group_by")}
-                        for m in cat["metrics"]],
+    return {"metrics": [{k: m[k] for k in ("name", "kind", "unit", "description", "caveats", *semantic.FIELDS,
+                                            "group_by")} for m in cat["metrics"]],
             "dimensions": [{k: d[k] for k in ("name", "description", "models") if k in d} | (
                 {"grains": d["grains"]} if "grains" in d else {}) for d in cat["dimensions"]],
             "grains": cat["grains"], "ops": cat["ops"],
             "how": "query_metric with metrics (names above), group_by (dimensions), where ([{dimension, op, "
                    "value}] or values for in), grain (day, week, month: groups by time), since/until "
                    "(YYYY-MM-DD), order_by (names, '-name' for descending), limit. Metrics from different "
-                   "models are each aggregated, then joined on group_by."}
+                   "models are each aggregated, then joined on group_by. A metric with eligibility reads only "
+                   "the rows it names, on every side; one with min_evidence is NULL below that many "
+                   "observations, and its <name>_evidence column counts them (0: none, unavailable)."}
 
 
 def t_query_metric(ctx: T.Ctx, args: dict) -> dict:

@@ -294,6 +294,23 @@ def test_xp_per_hour_by_level_over_mcp(lab):
     assert {"played_s", "online_s", "active_s", "calendar_s"} <= {m["name"] for m in cat["metrics"]}
 
 
+def test_a_money_change_says_why_it_is_empty_over_mcp(lab):
+    """query_metric: gold_delta_copper per day carries its evidence count, and
+    the answer counts the days measured, unknown (one snapshot) and
+    unavailable (none), so an empty cell never reads as a zero."""
+    out = call(lab[0], "query_metric", {"char": CHAR, "metrics": ["gold_delta_copper", "online_s"], "grain": "day",
+                                        "limit": 500})
+    head = out["result"].splitlines()[0].split("\t")
+    assert head == ["day", "gold_delta_copper", "gold_delta_copper_evidence", "online_s"]
+    ev = out["min_evidence"]["gold_delta_copper"]
+    assert ev["at_least"] == 2 and ev["measured"] + ev["unknown"] + ev["unavailable"] == out["rows"]
+    for row in json_rows(out):
+        assert (row[1] == "") == (row[2] < 2), row
+    cat = {m["name"]: m for m in call(lab[0], "list_metrics", {})["metrics"]}
+    assert cat["gold_delta_copper"]["min_evidence"]["at_least"] == 2
+    assert cat["vs_route"]["eligibility"]["where"]
+
+
 def test_levels_and_dungeons_tools_agree_with_the_layer(lab):
     """The existing tools read the store; the layer reads the prep: same
     numbers for every level and every run on the demo."""

@@ -22,6 +22,7 @@ BSL is only a compiler here: the tables handed to it are unbound ibis tables
 from __future__ import annotations
 
 import ast
+import copy
 import functools
 import math
 import re
@@ -52,7 +53,10 @@ VIEWS = {
     "sem_timeline": ("SELECT t.*, rs.guide_title, rs.step_title, {ts:t.t0} AS at_local, {who} FROM timeline t "
                      "LEFT JOIN (SELECT guide, step, MIN(guide_title) AS guide_title, MIN(title) AS step_title "
                      "FROM route_steps GROUP BY guide, step) rs ON rs.guide = t.guide AND rs.step = t.step"),
-    "sem_records": "SELECT *, {ts:t} AS at_local, {who} FROM records",
+    # level_whole: the record's level has a whole split (played time, not
+    # partial), for the ratios that pair records with the level's split.
+    "sem_records": ("SELECT r.*, CASE WHEN l.played_s > 0 AND l.partial = 0 THEN 1 ELSE 0 END AS level_whole, "
+                    "{ts:r.t} AS at_local, {who} FROM records r LEFT JOIN levels l ON l.level = r.level"),
     "sem_sessions": "SELECT *, {ts:start_t} AS at_local, {who} FROM sessions",
     "sem_dungeon_runs": "SELECT *, {ts:start_t} AS at_local, {who} FROM dungeon_runs",
     "sem_dungeon_trips": "SELECT *, {ts:start_t} AS at_local, {who} FROM dungeon_trips",
@@ -62,6 +66,20 @@ VIEWS = {
     "sem_gold_moves": "SELECT *, {ts:t0} AS at_local, {who} FROM gold_moves",
 }
 CROSS_KEY = "cross_model_metrics"
+
+# The fields a metric's metadata carries beside kind, unit and caveats: the
+# caveats the compiler enforces instead of only printing (review 4, 2026-11-21).
+# aggregation: how the rows become the number. time_meaning: what the model's
+# `time` is for this metric. evidence_basis: how the number was obtained.
+# eligibility: {where, means}, the rows every side of a two-sided metric reads
+# (a predicate over the model's row; for a cross-model metric one per model).
+# min_evidence: {count, at_least, means}: fewer observations in a row than
+# at_least and the value is NULL, with the count beside it (<name>_evidence).
+AGGREGATIONS = ("sum", "ratio_of_sums", "latest", "endpoint_difference")
+TIME_MEANINGS = ("interval_start", "level_completion", "snapshot_observation", "quest_closure", "event")
+EVIDENCE_BASES = ("observed", "reconstructed", "allocated", "inferred", "estimated")
+FIELDS = ("aggregation", "time_meaning", "evidence_basis", "eligibility", "min_evidence")
+_AGG_CALL = re.compile(r"\.(sum|count|nunique|mean|min|max|argmax|argmin)\(")
 
 
 def prepare(con, tz: str | None = None) -> None:
@@ -83,8 +101,103 @@ def _file() -> dict:
 
 @functools.cache
 def spec() -> dict:
-    """semantic.yaml's models, as BSL reads them (our cross-model section left out)."""
-    return {k: v for k, v in _file().items() if k != CROSS_KEY}
+    """semantic.yaml's models, as BSL reads them (our cross-model section left
+    out), plus the measures the compiler adds: for a metric with eligibility,
+    each measure it reads restricted to the eligible rows (`<measure>__for_<metric>`);
+    for one with min_evidence, its evidence count (`<metric>__evidence`).
+    Neither is in the catalogue: a caller can't name them."""
+    models = copy.deepcopy({k: v for k, v in _file().items() if k != CROSS_KEY})
+    for cfg in models.values():
+        for section in ("measures", "calculated_measures"):
+            for name, m in list((cfg.get(section) or {}).items()):
+                meta = m.get("metadata") or {}
+                if meta.get("eligibility") and section == "calculated_measures":
+                    m["expr"] = _paired(cfg, name, m["expr"], meta["eligibility"]["where"])
+                if meta.get("min_evidence"):
+                    cfg["measures"][f"{name}__evidence"] = {
+                        "expr": meta["min_evidence"]["count"], "description": f"{name}: its evidence count."}
+    for name, m in (_file().get(CROSS_KEY) or {}).items():
+        where = ((m.get("metadata") or {}).get("eligibility") or {}).get("where") or {}
+        for model, pred in where.items():
+            cfg = models[model]
+            for base in re.findall(r"[a-z_][a-z0-9_]*", str(m.get("expr") or "")):
+                if base in (cfg.get("measures") or {}):
+                    _paired(cfg, name, f"_.{base}", pred)
+    return models
+
+
+def _paired(cfg: dict, metric: str, expr: str, pred: str) -> str:
+    """`expr` (a calculated measure) reading `<m>__for_<metric>` instead of
+    each measure m it names, a copy of m restricted to the rows `pred` holds:
+    both sides of a ratio or difference count the same rows."""
+    measures = cfg.setdefault("measures", {})
+    calc = cfg.get("calculated_measures") or {}
+
+    def swap(mo):
+        base = mo.group(1)
+        if base in calc:
+            raise ValueError(f"{metric}: eligibility reads measures only, {base} is calculated")
+        if base not in measures:
+            return mo.group(0)
+        part = f"{base}__for_{metric}"
+        measures[part] = {"expr": _with_where(measures[base]["expr"], pred),
+                          "description": f"{base}, the rows {metric} compares."}
+        return f"_.{part}"
+
+    return re.sub(r"_\.([a-z_][a-z0-9_]*)\b(?!\()", swap, expr)
+
+
+def _with_where(expr: str, pred: str) -> str:
+    """Each aggregation call of a measure's expression with `pred` added to
+    its where: `_.x.sum()` -> `_.x.sum(where=(pred))`, an existing where kept
+    and both required."""
+    calls = list(_AGG_CALL.finditer(expr))
+    if not calls:
+        raise ValueError(f"no aggregation to restrict in {expr!r}")
+    for m in reversed(calls):
+        start = m.end()
+        depth, i = 1, start
+        while depth:
+            depth += {"(": 1, ")": -1}.get(expr[i], 0)
+            i += 1
+        inner = expr[start:i - 1].strip()
+        if not inner:
+            new = f"where=({pred})"
+        elif inner.startswith("where="):
+            new = f"where=({pred}) & ({inner[6:]})"
+        elif "where=" in inner:
+            head, _, w = inner.partition("where=")
+            new = f"{head}where=({pred}) & ({w})"
+        else:
+            new = f"{inner}, where=({pred})"
+        expr = expr[:start] + new + expr[i - 1:]
+    return expr
+
+
+def check_metric(m: dict) -> None:
+    """A metric's own fields, checked when the catalogue is built: a ratio or
+    difference (two sides) has eligibility, an endpoint difference has
+    min_evidence, and every value is one the compiler knows."""
+    name = m["name"]
+    if m.get("aggregation") not in AGGREGATIONS:
+        raise ValueError(f"{name}: aggregation is one of {', '.join(AGGREGATIONS)}")
+    tm = m.get("time_meaning")
+    if not all(t in TIME_MEANINGS for t in (tm if isinstance(tm, list) else [tm])):
+        raise ValueError(f"{name}: time_meaning is one of {', '.join(TIME_MEANINGS)}")
+    if m.get("evidence_basis") not in EVIDENCE_BASES:
+        raise ValueError(f"{name}: evidence_basis is one of {', '.join(EVIDENCE_BASES)}")
+    two_sided = m["model"] == "cross" or m.get("calculated") or m["aggregation"] == "ratio_of_sums"
+    el = m.get("eligibility")
+    if two_sided and not (isinstance(el, dict) and el.get("where") and el.get("means")):
+        raise ValueError(f"{name}: a metric read from two sides needs eligibility {{where, means}}")
+    if m["model"] == "cross" and el and set(el["where"]) != set(m["models"]):
+        raise ValueError(f"{name}: eligibility names a predicate for each of {', '.join(m['models'])}")
+    ev = m.get("min_evidence")
+    if m["aggregation"] == "endpoint_difference" and not ev:
+        raise ValueError(f"{name}: an endpoint difference needs min_evidence")
+    if ev and not (isinstance(ev, dict) and ev.get("count") and isinstance(ev.get("at_least"), int)
+                   and ev["at_least"] >= 1 and ev.get("means")):
+        raise ValueError(f"{name}: min_evidence is {{count, at_least, means}}")
 
 
 _ARITH = (ast.Add, ast.Sub, ast.Mult, ast.Div)
@@ -139,7 +252,7 @@ def _sql_of(node: ast.expr, col) -> str:
 def catalogue() -> dict:
     """list_metrics' answer: every metric with its definition, the
     dimensions it can be grouped and filtered by, and the time grains."""
-    s = spec()
+    s = {k: v for k, v in _file().items() if k != CROSS_KEY}  # as written: no generated parts
     metrics, dims = [], {}
     for model, cfg in s.items():
         own = cfg.get("dimensions") or {}
@@ -154,18 +267,24 @@ def catalogue() -> dict:
                 meta = m.get("metadata") or {}
                 metrics.append({"name": name, "model": model, "kind": meta.get("kind"), "unit": meta.get("unit"),
                                 "description": m.get("description"), "caveats": meta.get("caveats"),
+                                **{f: meta.get(f) for f in FIELDS}, "calculated": section == "calculated_measures",
                                 "expr": m.get("expr"), "group_by": sorted(own)})
     owner = {m["name"]: m["model"] for m in metrics}
     for name, m in (_file().get(CROSS_KEY) or {}).items():
         meta = m.get("metadata") or {}
         _, used = _cross_terms(name, str(m.get("expr") or ""), owner)
+        if any(next(x for x in metrics if x["name"] == u).get("min_evidence") for u in used):
+            raise ValueError(f"{name}: a cross-model metric can't read a metric with min_evidence")
         models = list(dict.fromkeys(owner[u] for u in used))
         shared = set.intersection(*(set(s[mo].get("dimensions") or {}) for mo in models))
         if m.get("dimensions"):
             shared &= set(m["dimensions"])
         metrics.append({"name": name, "model": "cross", "models": models, "of": used, "kind": meta.get("kind"),
                         "unit": meta.get("unit"), "description": m.get("description"),
-                        "caveats": meta.get("caveats"), "expr": m.get("expr"), "group_by": sorted(shared)})
+                        "caveats": meta.get("caveats"), **{f: meta.get(f) for f in FIELDS}, "calculated": True,
+                        "expr": m.get("expr"), "group_by": sorted(shared)})
+    for m in metrics:
+        check_metric(m)
     return {"metrics": metrics, "dimensions": sorted(dims.values(), key=lambda d: d["name"]),
             "grains": list(GRAINS), "ops": list(OPS)}
 
@@ -194,7 +313,7 @@ class Layer:
             tables[name] = ibis.table({c[0]: types.get(c[1], "string") for c in cols}, name=name)
         self.models = from_config(spec(), tables=tables)
 
-    def _one(self, model: str, metrics: list[dict], q: dict, values: list) -> str:
+    def _one(self, model: str, measures: list[str], label: str, q: dict, values: list) -> str:
         """One model's part: its metrics aggregated to the question's
         group_by, filters on its own dimensions; columns named plainly."""
         import ibis
@@ -203,7 +322,7 @@ class Layer:
         own = set(sem.get_dimensions())
         missing = [d for d in q["group_by"] + [w["dimension"] for w in q["where"]] if d not in own]
         if missing:
-            raise QueryError(f"{metrics[0]['name']} can't be grouped or filtered by {missing[0]!r}: "
+            raise QueryError(f"{label} can't be grouped or filtered by {missing[0]!r}: "
                              f"its dimensions are {', '.join(sorted(own))}")
         filters = []
         for w, v in zip(q["where"], values, strict=True):
@@ -223,7 +342,7 @@ class Layer:
                             "value": end + timedelta(days=1) if date_only else end})
         kw = {"time_grain": GRAINS[q["grain"]]} if q["grain"] else {}
         try:
-            expr = sem.query(dimensions=q["group_by"] or None, measures=[m["name"] for m in metrics],
+            expr = sem.query(dimensions=q["group_by"] or None, measures=measures,
                              filters=filters or None, **kw)
             return str(ibis.to_sql(expr.to_untagged(), dialect="duckdb"))
         except QueryError:
@@ -240,11 +359,25 @@ class Layer:
         metrics = [_metric(n) for n in q["metrics"]]
         # A cross-model metric is computed after the join from the models'
         # own metrics: those go into their models' parts (unshown if not asked).
-        base = list(dict.fromkeys(n for m in metrics for n in (m["of"] if m["model"] == "cross" else [m["name"]])))
-        by_model: dict[str, list[dict]] = {}
-        for n in base:
-            b = _metric(n)
-            by_model.setdefault(b["model"], []).append(b)
+        # Each metric's parts, as (model, measure): a cross metric with
+        # eligibility reads its terms' paired copies (spec), a metric with
+        # min_evidence its evidence count too.
+        def parts_of(m: dict) -> dict[str, tuple[str, str]]:
+            if m["model"] == "cross":
+                tag = f"__for_{m['name']}" if m.get("eligibility") else ""
+                return {n: (_metric(n)["model"], n + tag) for n in m["of"]}
+            own = {m["name"]: (m["model"], m["name"])}
+            if m.get("min_evidence"):
+                own["__evidence"] = (m["model"], f"{m['name']}__evidence")
+            return own
+
+        by_model: dict[str, list[str]] = {}
+        label: dict[str, str] = {}
+        for m in metrics:
+            for model, measure in parts_of(m).values():
+                if measure not in by_model.setdefault(model, []):
+                    by_model[model].append(measure)
+                label.setdefault(model, m["name"])
         for m in metrics:
             if m["model"] == "cross":
                 bad = [d for d in q["group_by"] + [w["dimension"] for w in q["where"]] if d not in m["group_by"]]
@@ -268,7 +401,7 @@ class Layer:
 
         values = [[sentinel(x) for x in w["values"]] if "values" in w else sentinel(w["value"]) if "value" in w
                   else None for w in q["where"]]
-        parts = {model: self._one(model, ms, q, values) for model, ms in by_model.items()}
+        parts = {model: self._one(model, ms, label[model], q, values) for model, ms in by_model.items()}
         for tok, ph in tokens.items():
             hits = [m for m, sql in parts.items() if tok in sql]
             if len(hits) != len(parts):
@@ -291,16 +424,30 @@ class Layer:
             # A day, week or month comes out as its first day: 2026-11-09, not a midnight timestamp.
             return f"CAST({c} AS DATE) AS {_q(out(d))}" if d == "time" else f"{c} AS {_q(out(d))}"
 
-        def base_col(n: str) -> str:
-            return f"m{names.index(_metric(n)['model'])}.{_q(n)}"
+        def part_col(model: str, measure: str) -> str:
+            return f"m{names.index(model)}.{_q(measure)}"
 
         sel = [col(d) for d in dims]
+        columns = [out(d) for d in dims]
         for m in metrics:
+            p = parts_of(m)
             if m["model"] == "cross":
                 tree, _ = _cross_terms(m["name"], m["expr"], {n: _metric(n)["model"] for n in m["of"]})
-                sel.append(f"{_sql_of(tree, base_col)} AS {_q(m['name'])}")
+                sel.append(f"{_sql_of(tree, lambda n, p=p: part_col(*p[n]))} AS {_q(m['name'])}")
+            elif m.get("min_evidence"):
+                # Too few observations: NULL, never the number they happen to
+                # give (one snapshot's difference with itself is 0), and the
+                # count beside it says why.
+                ev = f"COALESCE({part_col(*p['__evidence'])}, 0)"
+                need = int(m["min_evidence"]["at_least"])
+                sel.append(f"CASE WHEN {ev} >= {need} THEN {part_col(*p[m['name']])} END AS {_q(m['name'])}")
+                sel.append(f"{ev} AS {_q(m['name'] + '_evidence')}")
+                columns.append(m["name"])
+                columns.append(m["name"] + "_evidence")
+                continue
             else:
-                sel.append(f"{base_col(m['name'])} AS {_q(m['name'])}")
+                sel.append(f"{part_col(*p[m['name']])} AS {_q(m['name'])}")
+            columns.append(m["name"])
         frm = "m0"
         for i in range(1, len(names)):
             # On the keys of everything joined before, not m0's alone: a level
@@ -311,10 +458,10 @@ class Layer:
         order = q["order_by"] or [(d, "asc") for d in dims]
         ob = ", ".join(f"{_q(out(n))} {d.upper()} NULLS LAST" for n, d in order)
         sql = f"WITH {ctes}\nSELECT {', '.join(sel)}\nFROM {frm}" + (f"\nORDER BY {ob}" if ob else "") + \
-            f"\nLIMIT {int(q['limit'])}"
-        return {"sql": sql, "params": params, "columns": [out(d) for d in dims] + [m["name"] for m in metrics],
-                "definitions": {m["name"]: {k: m[k] for k in ("kind", "unit", "description", "caveats", "model",
-                                                             "models", "of", "expr") if k in m and (
+            f"\nLIMIT {int(q['limit']) + 1}"  # one row past the limit: run() says `more` from it
+        return {"sql": sql, "params": params, "columns": columns,
+                "definitions": {m["name"]: {k: m[k] for k in ("kind", "unit", "description", "caveats", *FIELDS,
+                                                             "model", "models", "of", "expr") if k in m and (
                                     m["model"] == "cross" or k not in ("expr",))}
                                 for m in metrics},
                 "query": q}
@@ -428,8 +575,25 @@ def normalise(q: dict) -> dict:
 
 
 def run(layer: Layer, ro, q: dict, max_rows: int = MAX_LIMIT) -> dict:
-    """Compile and run: rows plus the SQL, parameters and definitions."""
+    """Compile and run: rows plus the SQL, parameters and definitions. The SQL
+    asks for one row past the limit, so `more` is true only when one exists.
+    A metric with min_evidence gets an `evidence` entry: how many rows are
+    measured, unknown (some evidence, not enough) and unavailable (none)."""
     c = layer.compile(q)
     cols, rows, cut = ro.run(c["sql"], min(max_rows, c["query"]["limit"]), c["params"])
-    return {"columns": cols, "rows": [list(r) for r in rows], "more": cut, "sql": c["sql"], "params": c["params"],
-            "definitions": c["definitions"], "query": c["query"]}
+    out = {"columns": cols, "rows": [list(r) for r in rows], "more": cut, "sql": c["sql"], "params": c["params"],
+           "definitions": c["definitions"], "query": c["query"]}
+    evidence = {}
+    for name, d in c["definitions"].items():
+        ev = d.get("min_evidence")
+        if not ev:
+            continue
+        i = cols.index(name + "_evidence")
+        n = [r[i] or 0 for r in rows]
+        evidence[name] = {"needs": ev["means"], "at_least": ev["at_least"],
+                          "measured": sum(x >= ev["at_least"] for x in n),
+                          "unknown": sum(0 < x < ev["at_least"] for x in n), "unavailable": sum(x == 0 for x in n),
+                          "column": name + "_evidence"}
+    if evidence:
+        out["evidence"] = evidence
+    return out
