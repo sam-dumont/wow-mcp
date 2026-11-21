@@ -220,8 +220,16 @@ keeps its weight, counts as `revalidate` in the run instead of `still` or
 `confirmed`, and is left out of `checked` in `play_analysis` and the page,
 which tags it "to revalidate". The next analysis gets the list in
 `analysis_brief` (`to_revalidate`); proposing one again under today's
-definitions clears the mark. A finding kept before 0.7.0 has no manifest, so
-it starts out to revalidate.
+definitions clears the mark.
+
+A finding kept before 0.7.0 has no manifest. The first recheck that sees it
+carries it over once: its SQL runs on tonight's build, and if it still holds
+it takes tonight's manifest and `carried_over` (from, to, when), gains no
+weight for it, and shows one line on the page and in `play_analysis`
+(`carried_note`: "Checked against 0.7.0 data, first judged under 0.6.").
+If it fails it fades like any other finding, and from the next night it is
+to revalidate. Either way it is tried once: after that a definition change
+marks it to revalidate like any other.
 
 `PREP_VERSION` is bumped by hand, in the same change as anything that makes
 a query give another answer on the same events: a table, column or unit, a

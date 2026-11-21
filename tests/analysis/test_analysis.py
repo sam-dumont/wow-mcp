@@ -829,14 +829,73 @@ def test_a_prep_version_or_reference_change_means_to_revalidate(driven, rows, kn
     assert any(w.startswith("route ") for w in out["findings"]["sessions-online"]["revalidate"]["why"])
 
 
-def test_a_finding_kept_before_manifests_is_to_revalidate(driven, rows, knowledge):
-    env, drive = driven
+def legacy(env, drive, **kw):
+    """A finding kept by 0.6: no manifest, no support mark (#49 came later)
+    and, after #78's first recheck, maybe already marked to revalidate."""
     drive.brief(env, CHAR)
     assert drive.propose(env, CHAR, finding())["stored"]
     st_file = analysis.char_dir(env, CHAR) / analysis.STATE_FILE
     st = json.loads(st_file.read_text())
-    del st["findings"]["sessions-online"]["manifest"]
+    f = st["findings"]["sessions-online"]
+    for k in ("manifest", "support_mark"):
+        f.pop(k, None)
+    f.update(kw)
     st.pop("manifests")
     st_file.write_text(json.dumps(st))
-    out = analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
-    assert out["findings"]["sessions-online"]["revalidate"]["why"] == ["judged before builds kept a manifest"]
+    return f
+
+
+def recheck_night(env, rows, knowledge):
+    return analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
+
+
+def test_a_finding_kept_before_manifests_is_carried_over_once_when_it_holds(driven, rows, knowledge):
+    from wowstats import __version__
+
+    env, drive = driven
+    before = legacy(env, drive, revalidate={"since": "2026-11-20T04:00:00+00:00",
+                                            "why": ["judged before builds kept a manifest"]})
+    out = recheck_night(env, rows, knowledge)
+    f, info = out["findings"]["sessions-online"], out["runs"][-1]
+    assert f["manifest"] == info["manifest"] and f["manifest"] in out["manifests"]
+    assert f["carried_over"]["from"] == "0.6" and f["carried_over"]["to"] == __version__ and f["carried_over"]["held"]
+    assert "revalidate" not in f and f["last_checked"] == info["at"]
+    # Checked, with no weight gained for the carry-over itself (#49).
+    assert info["carried_over"] == 1 and info["confirmed"] == 0 and info["still"] == 0 and info["revalidate"] == 0
+    assert f["weight"] == before["weight"] and f["confirmations"] == before["confirmations"]
+    a = analysis.answer(env, CHAR)
+    assert a["checked"] == 1 and a["to_revalidate"] == 0
+    assert a["findings"][0]["carried_note"] == f"Checked against {__version__} data, first judged under 0.6."
+    # Once: the next night is an ordinary recheck, same data, same weight.
+    out = recheck_night(env, rows, knowledge)
+    f2, info = out["findings"]["sessions-online"], out["runs"][-1]
+    assert info["carried_over"] == 0 and info["still"] == 1 and info["confirmed"] == 0
+    assert f2["carried_over"] == f["carried_over"] and f2["weight"] == before["weight"]
+
+
+def test_a_legacy_finding_whose_sql_fails_fades_and_is_not_tried_again(driven, rows, knowledge):
+    env, drive = driven
+    before = legacy(env, drive, sql="SELECT COUNT(*) AS n, SUM(online_s) AS online FROM agg_session WHERE 0")
+    out = recheck_night(env, rows, knowledge)
+    f, info = out["findings"]["sessions-online"], out["runs"][-1]
+    assert info["faded"] == 1 and info["carried_over"] == 0
+    assert f["misses"] == 1 and f["weight"] == round(before["weight"] * 0.5, 4) and f["miss_why"]
+    assert not f.get("manifest") and f["carried_over"]["held"] is False
+    assert "carried_note" not in analysis.answer(env, CHAR)["findings"][0]
+    # Tried once: the next night it is to revalidate, not run again.
+    out = recheck_night(env, rows, knowledge)
+    f, info = out["findings"]["sessions-online"], out["runs"][-1]
+    assert info["revalidate"] == 1 and info["faded"] == 0 and f["misses"] == 1
+    assert f["revalidate"]["why"] == ["judged before builds kept a manifest"]
+
+
+def test_a_carried_over_finding_goes_to_revalidate_on_a_later_semantic_change(driven, rows, knowledge,
+                                                                               semantic_edit):
+    env, drive = driven
+    legacy(env, drive)
+    assert recheck_night(env, rows, knowledge)["runs"][-1]["carried_over"] == 1
+    semantic_edit()
+    out = recheck_night(env, rows, knowledge)
+    f, info = out["findings"]["sessions-online"], out["runs"][-1]
+    assert f["revalidate"]["why"] == ["the semantic model changed"]
+    assert info["revalidate"] == 1 and info["carried_over"] == 0 and info["still"] == 0

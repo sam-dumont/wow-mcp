@@ -74,11 +74,24 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
+from wowstats import __version__
+
 STATE_FILE = "analysis.json"
 MIN_WEIGHT = 0.25
 MAX_WEIGHT = 3.0
 MAX_KEPT = 40
 SCHEMA = 1
+# Findings kept without a manifest were judged by 0.6 (or a 0.7.0 release
+# candidate before the manifest): recheck() carries them over once.
+CARRIED_FROM = "0.6"
+
+
+def carried_note(f: dict) -> str | None:
+    """The one line the page and play_analysis show on a carried-over finding."""
+    c = f.get("carried_over") or {}
+    if not c.get("held"):
+        return None
+    return f"Checked against {c.get('to')} data, first judged under {c.get('from')}."
 
 # What a driver's SQL may read, each with where its data comes from: the
 # player's own game files (VictoriaLogs) or what the prep derives from them,
@@ -441,11 +454,21 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
 
     `build`: today's manifest, `builds` the kept ones by id. A finding judged
     under other definitions (manifest.changed) isn't run: it is marked
-    `revalidate` (since when, why), counted apart, and keeps its weight."""
+    `revalidate` (since when, why), counted apart, and keeps its weight.
+
+    A finding kept before manifests existed (0.6) is carried over once
+    instead: its SQL runs on today's build, and if it holds it takes today's
+    manifest and `carried_over`, with no weight gained for it (support only
+    grows on new data). If it doesn't, it fades like any other. Either way
+    it isn't tried again: a later definition change, or a failed carry-over
+    still without a manifest, is "to revalidate" like any other finding.
+    Without it, a friend who rarely plays would see every old finding "to
+    revalidate" for weeks, until the next analysis."""
     from . import manifest, verify
 
     for key, f in list(kept.items()):
-        if build is not None:
+        carry = build is not None and not f.get("manifest") and "carried_over" not in f
+        if build is not None and not carry:
             why_not = manifest.changed((builds or {}).get(f.get("manifest") or ""), build)
             if why_not:
                 f["revalidate"] = {"since": (f.get("revalidate") or {}).get("since") or now, "why": why_not}
@@ -457,6 +480,16 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
             if runner is None:
                 continue
         upd, why = verify.recheck(f, runner)
+        if carry:
+            f["carried_over"] = {"from": CARRIED_FROM, "to": __version__, "at": now, "held": upd is not None}
+            if upd is not None:
+                upd["carried_over"], upd["manifest"], upd["last_checked"] = f["carried_over"], build["id"], now
+                upd.setdefault("support_mark", mark)  # what the old support saw is unknown: count today's as seen
+                upd.pop("revalidate", None)
+                upd.pop("miss_why", None)
+                kept[key] = upd
+                info["carried_over"] = info.get("carried_over", 0) + 1
+                continue
         if upd is None:
             f["misses"] = int(f.get("misses", 0)) + 1
             f["weight"] = round(float(f.get("weight", 1.0)) * 0.5, 4)
@@ -647,7 +680,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     state = load_state(env, char)
     kept: dict[str, dict] = dict(state.get("findings") or {})
     info = {"at": now, "kind": "recheck", "char": char, "manifest": build["id"], "confirmed": 0, "still": 0,
-            "faded": 0, "revalidate": 0, "dropped": []}
+            "faded": 0, "revalidate": 0, "carried_over": 0, "dropped": []}
     recheck(kept, ReadOnly(db), now, info, duck=_duck_runner(db), mark=data_mark(db), build=build,
             builds=state.get("manifests"))
     info["seconds_total"] = round(time.time() - t0, 1)
@@ -658,7 +691,8 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     out = finish(env, char, state, kept, nudges, patterns, db, knowledge,
                  players, info, now, build)
     print(json.dumps({"event": "analysis_recheck", "component": "wow", "findings": len(out["findings"]),
-                      **{k: info[k] for k in ("confirmed", "still", "faded", "revalidate", "seconds_total")},
+                      **{k: info[k] for k in ("confirmed", "still", "faded", "revalidate", "carried_over",
+                                                 "seconds_total")},
                       "dropped": len(info["dropped"])}, separators=(",", ":")), file=sys.stderr, flush=True)
     return out
 
@@ -738,8 +772,8 @@ def time_budget(db) -> list[dict]:
 # ---------------------------------------------------------------- answers
 
 RUN_KEYS = ("at", "kind", "by", "via", "driver", "passes", "coverage", "questions", "findings", "clashes",
-            "feasibility", "new", "confirmed", "faded", "revalidate", "manifest", "dropped", "refused",
-            "seconds_total")
+            "feasibility", "new", "confirmed", "faded", "revalidate", "carried_over", "manifest", "dropped",
+            "refused", "seconds_total")
 
 
 def explored(runs: list[dict]) -> dict | None:
@@ -791,7 +825,9 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
             "findings": [{k: f.get(k) for k in ("key", "title", "text", "action", "observation", "sql", "kb", "row",
                                                  "doubtful", "reconciles", "relevance", "effect",
                                                  "sample", "weight", "score", "confirmations", "first_seen",
-                                                 "last_confirmed", "misses", "manifest", "revalidate")}
+                                                 "last_confirmed", "misses", "manifest", "revalidate",
+                                                 "carried_over")}
+                         | ({"carried_note": carried_note(f)} if carried_note(f) else {})
                          for f in findings],
             # Checked: rechecked under the definitions they were judged
             # with. The rest wait for an analysis to judge them again.
@@ -805,7 +841,7 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
             "last_analysis": {k: explored_run.get(k) for k in RUN_KEYS} if explored_run else None,
             "manifest": (s.get("manifests") or {}).get(last.get("manifest") or ""),
             "runs": [{k: r.get(k) for k in ("at", "kind", "driver", "new", "confirmed", "faded", "revalidate",
-                                            "seconds_total")}
+                                            "carried_over", "seconds_total")}
                      for r in runs[-14:]], "kb": s.get("kb")}
 
 
