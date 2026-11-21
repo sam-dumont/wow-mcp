@@ -216,13 +216,14 @@ it by hand, and its model pass skips with a notice.
 
 ## Releasing
 
-One button: **Actions > release > Run workflow**, branch `main`. Three inputs:
+One button: **Actions > release > Run workflow**, branch `main`. Four inputs:
 
 | Input | Values | What it does |
 |---|---|---|
 | `channel` | `rc` (default), `stable` | `rc` cuts a release candidate `X.Y.Z-rc.N`, published as a prerelease; `stable` cuts `X.Y.Z`, marked Latest |
 | `bump` | `auto` (default), `patch`, `minor`, `major` | the next `X.Y.Z` from the version in `pyproject.toml`; `auto` is `patch`, or the open candidate series |
 | `dry_run` | on (default), off | on: the plan, the notes, the tests and both image builds, nothing pushed, tagged or published |
+| `kb` | off (default), on | adds the knowledge base refresh line to the notes; `kb-release.yml` sets it, a person leaves it off |
 
 So a minor release goes like this, from `0.6.1`:
 
@@ -250,9 +251,9 @@ A real run (`.github/workflows/release.yml`, its header has the detail):
    (limited to `main`, read by that one step, never printed). Every installed
    shipper checks it before it updates itself ([shipper.md](shipper.md#auto-update)),
    and the build refuses to push an image whose signature doesn't match its
-   shipper files. The key's copy of record is a SOPS file in the owner's lab
-   repository (`57-wow/wow-mcp-release.enc.json`, `SHIPPER_SIGNING_KEY`); the
-   GitHub secret is set from it and can't be read back. Lose that copy and
+   shipper files. Keep a copy of record of the key outside GitHub (the
+   owner's is SOPS-encrypted): the GitHub secret is set from it and can't be
+   read back. Lose that copy and
    every installed shipper stays on its version for good, short of the
    update line on each PC. Never rotate the key without a transition: one
    release signed with the old key that pins the new one. The commit goes

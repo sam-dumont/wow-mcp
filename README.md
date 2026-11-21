@@ -5,21 +5,21 @@ can read it.
 
 A small program on the computer you play on reads what the game and your addons already save.
 A server you run turns it into your climb: time per level against Polestar's route, where the
-hours went, the next upgrade per slot and where it drops, the dungeons worth running, deaths,
-one journal entry per play session, a plan for your next two hours. Claude, ChatGPT or any
-MCP client can ask about it, and the server re-runs the SQL behind every number your assistant
-wants to keep.
+hours went, how far each slot is from its best in slot and where the next upgrade drops, the
+dungeons worth running, deaths, one journal entry per play session, a plan for your next two
+hours. Claude, ChatGPT or any MCP client can ask about it, and the server re-runs the SQL behind
+every number your assistant wants to keep.
 
 It runs on your computer or a small box at home. Nothing goes anywhere else unless you set it
 up that way. (Yes, it's absolutely overkill for levelling stats: a hardened image, signed
 releases, OIDC, and a 3D viewer that reads the game's own files. The character page still
 answers in 31 ms on the demo.)
 
-It's a hobby project: GPL-3.0, no warranty, no support promise, and security fixes land when
-I can make them. If you use a friend's server, you trust that friend: they hold your data,
+It's a hobby project, for hobbyists who host a few friends: GPL-3.0, no warranty, no support
+promise, and security fixes land when I can make them. If you use a friend's server, you trust that friend: they hold your data,
 and the install command comes from their server.
 
-![The Overview of the demo character Nibbet, level 34: behind the route at 2.2 times Polestar's route time, the next level in 2h 24m of play, 91% of guide steps in order, his next moves, and time per level against the route](docs/images/overview.webp)
+![The Overview of the demo character Nibbet, level 34: behind the route at 2.2 times Polestar's route time, the next level in 2h 24m of play, 91% of guide steps in order, the next moves, and time per level against the route](docs/images/overview.webp)
 
 **[Live demo](https://sam-dumont.github.io/wow-mcp/demo/)**: Nibbet-Gearholt, an invented Gnome
 priest, no install.
@@ -71,11 +71,11 @@ PowerShell, a port already taken, or the sites for friends: [Try the demo](docs/
 - **Your assistant does the thinking**, in your own account. The server hands it data, and
   keeps a finding only once its numbers match the query behind it, which you can inspect
   (matching its query doesn't make the reading right). [Ask about your character](docs/ai/asking.md).
-- **Unless the host turns on the server's own analysis.** Off by default. With an AI provider
-  the host configures (Anthropic, OpenAI or any OpenAI-compatible endpoint), the server runs the
-  play analysis itself for a character with 10 hours of play (the host's setting) since its
-  last refresh. What the analysis reads about that character goes to that provider then, never
-  Battle.net data. [What's shared](docs/players/privacy.md),
+- **Unless the host turns on the server's own analysis.** Off until the host configures an AI
+  provider (Anthropic, OpenAI or any OpenAI-compatible endpoint). Then the server runs the play
+  analysis itself for each character with 10 hours of play since its last refresh (the host can
+  pick another number). What the analysis reads about that character goes to that provider,
+  never Battle.net data. Your own AI never starts a server run. [What's shared](docs/players/privacy.md),
   [Server-side analysis](docs/self-host/server-analysis.md).
 - **Known addons only.** It reads [Polestar](https://github.com/fitzforge/polestar) and other
   well-known addons; it never asks you to install one of its own. [Addons](docs/reference/addons.md).

@@ -76,7 +76,7 @@ uv run --script ~/.local/share/wow-stats/wow_stats.py --preflight
 | `This server has no login (AUTH=open) and this request came through a proxy.` (403) | A reverse proxy in front of a page with no login. Set `UI_AUTH=basic` or `proxy` first |
 | 400 on every page behind the proxy | The proxy sends the identity header twice, or as a list. It has to replace it on every request. [Add friends](friends.md#what-a-shared-install-needs) |
 | A friend sees "No access yet" | They signed in, but they aren't on the friends list yet. [The friends list](friends.md#the-friends-list) |
-| `the data store didn't answer; try again in a minute (request 1a2b3c4d in the server's log)` (502, on the page, in the shipper's log or from the AI) | VictoriaLogs didn't answer. The page never shows its address or its error; the server's log does, on the line with the same request id: `docker compose logs ui \| grep 1a2b3c4d` |
+| `the data store didn't answer; try again in a minute (request 1a2b3c4d in the server's log)` (502, on the page, in the shipper's log or from the AI) | VictoriaLogs didn't answer. The page never shows its address or its error; the server's log does, on the line with the same request id: `docker compose logs ui \| grep 1a2b3c4d`. An upload refused this way counts nowhere (not against the daily budget either), and the shipper sends it again at its next run |
 | `the query needs more memory than a query may use` (from `play_sql`) | That one query built a value past 512 MB, so its process stopped. The server carries on; ask your AI to aggregate or narrow the query |
 
 ## Nothing arrives
@@ -93,6 +93,22 @@ The shipper writes one line per run in its log: Mac `~/Library/Logs/wow-stats.lo
 | `events older than the receiver's retention (N days) kept in .../too-old, not sent` | `retention_days` is set in the config's `[ship]`. [Install it for real, troubleshooting](../install.md#4-troubleshooting) |
 
 A new dungeon's loot without stats, or a 3D view still missing files: run the shipper once with `--prefill` (same command as `--preflight` above). It sends the [item facts and 3D files](../shipper.md#flags) the server still lacks now, instead of at the next daily check, and prints how many went.
+
+## Server-side analysis
+
+At start, the `ui` log has one line when it's configured: `analysis: the server's own runs on
+...`, with the provider, the threshold and the budget. No such line: it's off, and
+`dashboard_refresh` from your own AI says why (`server_automatic_refresh`, `off`). A run that
+stopped shows its reason as a red flag on /admin ([Admin overview](admin.md)).
+
+| What it says | What to do |
+|---|---|
+| `analysis not configured: this server has no Anthropic credentials` | Set `ANALYSIS_API_KEY_FILE`, or the `ANALYSIS_WIF_*` settings. [Server-side analysis](server-analysis.md#pick-a-provider-and-a-way-in) |
+| `analysis not configured: workload identity federation needs ...` | One of the provider's federation IDs is missing: the message names it |
+| `analysis not configured: ANALYSIS_MODEL is required with ANALYSIS_PROVIDER=openai` | Name a model that supports tool calling |
+| `the identity token's audience is ..., not ...` | The projected token's `audience` doesn't match the provider: fix the volume, or set `ANALYSIS_WIF_AUDIENCE` |
+| `a run would likely cross the budget` or `budget spent` | The month's `ANALYSIS_MONTHLY_BUDGET` is used up, or one more run would cross it. It resets on the 1st (UTC) |
+| `off (ANALYSIS_AUTO)` at the end of the start line | On purpose: the server never starts a run. Players refresh from their own AI |
 
 ## Friends
 

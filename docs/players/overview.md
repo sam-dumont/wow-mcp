@@ -15,27 +15,28 @@ you're ahead of Polestar's route, on it or behind, and how much play the next le
 - **Pace**: your played time per level against Polestar's route, over your last 5 levels.
   1.0× is the route's pace, 2.0× twice as long. Above 1.5×, the line under it says where the
   time went.
-- **Next level**: hours of play to the next level at your XP per hour. Hold it against the
-  time you have tonight.
+- **Next level**: hours of play to the next level at your XP per hour.
 - **Guide**: the Polestar guide steps you did in order. Many "passed over" means you left the
-  route, and the advice is built on it.
+  route the advice is built on.
 - **Rested**: your banked rested XP. "none": log out in an inn or a city.
 
 ## Next moves
 
-![The Next moves box: an off-hand upgrade from Scarlet Monastery Library, Razorfen Kraul with the quest to pick up first and the drops worth having, and the guide steps that ran long](../images/next-moves.webp)
+![The Next moves box: Gnomeregan with the quests to pick up first, the quest rewards and drops you could use, each with its badge and a line like "70% → 91% on your chest", then an upgrade from Razorfen Kraul](../images/next-moves.webp)
 
-Up to 3 things to do now, the most useful first, each with what, where and what blocks it:
+Up to 3 things to do now, the most useful first, each with what, where and what blocks it. The
+usual ones:
 
-- **Talents**: points you haven't spent.
-- **Upgrade**: the best item for one slot, its points, and the boss or quest it comes from.
-  "In your bags: equip it" means you already carry it.
+- **Upgrade**: the best item for one slot, what it does to that slot ("70% → 91% on your
+  chest": the slot's share of its best item, now and with this one) and the boss or quest it
+  comes from. "In your bags: equip it" means you already carry it.
 - **Dungeon**: the run worth doing at your level, the quests to pick up first and the drops
   you'd wear.
-- **Training**: a profession rank or riding, with the trainer and the price.
+- **Talents**: points you haven't spent.
+- **Profession** or **Riding**: the rank to train, the trainer and the price.
 
-When your level or your gold stands in the way, the move says how far you are. Do the first
-one. "See the upgrade" or "See the drops" jumps to the details in the Character tab.
+Do the first one. "See the upgrade" or "See the drops" jumps to the details in the Character
+tab.
 
 <details>
 <summary>Time per level</summary>
@@ -48,6 +49,6 @@ say where that time went.
 
 ## Next
 
-- [Gear and upgrades](gear.md): the full list behind the Upgrade move.
+- [Gear and upgrades](gear.md): the full list behind the Upgrade move, and what the badges mean.
 - [Dungeons](dungeons.md): every dungeon for your level, not only the best one.
 - [Plan your next hours](plan.md): the next 1 to 6 hours, step by step.

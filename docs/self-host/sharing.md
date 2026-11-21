@@ -61,16 +61,20 @@ python3 -c "import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).rstr
 
 No key file, no help page.
 
-## Pictures of past levels (optional)
+## Pictures (optional)
 
-The public and sealed sites show each past level's gear. With the renderer, they also show
-what the character looked like at that level, drawn with the 3D view's own viewer in a headless
-Chromium. It's its own image (`wow-mcp-render`, or `docker build --target renderer .`), runs
-one picture at a time (about 4 seconds each) and peaks at about 850 MB of memory. Give it no
-secrets, no route to your stores and no way out: the publisher sends it the game files. Point
-`RENDER_URL` on `publish` at it. Without it, past levels show the 3D model instead.
-[Deploy without compose, past levels' pictures](../deploy.md#past-levels-pictures-wow-stats-render)
-has the hardening.
+With the renderer, the sites show a picture of each character in the middle of the paperdoll
+(a still of its 3D model) and what it looked like at each past level. It draws them with the 3D view's own viewer in a headless Chromium, from the game
+files the publisher sends it: nothing comes from Blizzard's site. It's its own image
+(`wow-mcp-render`, or `docker build --target renderer .`), runs one picture at a time (about 4
+seconds each) and peaks at about 850 MB of memory. Give it no secrets, no route to your stores
+and no way out. Point `RENDER_URL` on `publish` at it, and `RENDER_FROM` on the full view at
+the static site so your own page shows the same picture.
+
+Without it, the paperdoll keeps a silhouette with its "View in 3D" toggle, and past levels show
+the 3D model. A picture not drawn yet says "Picture on its way. View it in 3D meanwhile."
+[Deploy without compose, the pictures](../deploy.md#the-pictures-wow-stats-render) has the
+hardening.
 
 ## Visitor counts (optional)
 

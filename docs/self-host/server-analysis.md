@@ -4,26 +4,31 @@
 server writes "How you play" itself, with the AI provider you pick, inside a monthly budget.
 
 Optional, and off until you give it a provider. Without it, "How you play" changes only when a
-player runs the analysis from their own AI client, as before.
+player runs the analysis from their own AI client, as before. `ANALYSIS_AUTO=off` keeps the
+provider configured (/admin still shows it) but the server never starts a run.
+
+Experimental. Real runs so far went through the OpenAI-compatible path (OpenAI's gpt-6 models,
+z.ai's glm-5.3). Anthropic's path is covered by the test suite; its costs below are estimates. Ollama,
+vLLM and LM Studio speak the same API but nobody has tried them yet.
 
 ## The server vs the client
 
 | | Who does the analysis | Who pays |
 |---|---|---|
 | A player's own AI (`analyse`, or `dashboard_refresh`) | their model, through the MCP tools | them (their own AI subscription) |
-| The server's automatic refresh (this page) | the provider you configure, after 10 hours of play | you (`ANALYSIS_MONTHLY_BUDGET`) |
+| The server's automatic refresh (this page) | the provider you configure, after 10 hours of play (`ANALYSIS_STALE_PLAYED_HOURS`) | you (`ANALYSIS_MONTHLY_BUDGET`) |
 
 A player who refreshes from their own AI never costs you anything. The server's runs are there
 for the friends who never do: the timer only starts one once a character has 10 hours of play
-since anyone last refreshed it. No MCP call starts a server run; `dashboard_refresh` used to, and
-the owner's own Claude calling it spent the lab's OpenAI money. /admin has no "run now" button
-either: the timer is the only way in.
+since anyone last refreshed it. No MCP call starts a server run, `dashboard_refresh` included,
+and /admin has no "run now" button either: the timer is the only way in.
 
 ## What the server does
 
 The full view plays the MCP client itself: the same analysis tools, the same `analyse` prompt,
 the same judge re-running every finding's SQL before it's kept. What it keeps looks like a
-client's run, marked `kind: "server"` with the model's name.
+client's run, marked `kind: "server"` with the model's name. The page says who wrote it under
+"How you play": "As of Thu 19 Nov, by the server.", or "by you." after the player's own AI.
 
 - **When:** once a character has been played 10 hours (`ANALYSIS_STALE_PLAYED_HOURS`) since its
   analysis was last refreshed. Each character has its own timer. Play time is the journal's
@@ -32,7 +37,9 @@ client's run, marked `kind: "server"` with the model's name.
   hours behind it is due on the first check. The check runs after a page rebuild, so a new
   upload triggers it; the run itself goes on in the background, one player at a time, and never
   holds up the page.
-- **What:** that player's due characters, the most recent first, three at most.
+- **What:** that player's due characters, the most recently played first, three at most. When
+  their last try stopped (a cap, an error, an incomplete run), their timer waits 6 hours before
+  trying again.
 - **A character's timer resets** whenever its analysis is refreshed, by anyone: this server's
   run, or a full analysis from the player's own AI (its synthesis accepted by
   `analysis_submit`). It counts from that refresh, not from the character's first login.
@@ -81,8 +88,8 @@ process the credentials and egress to the provider's API, nothing else.
 
 `ANALYSIS_PROVIDER` is `anthropic` (the default) or `openai`, which means any OpenAI-compatible
 Chat Completions endpoint: OpenAI, OpenRouter, Ollama, vLLM, LM Studio, z.ai. OpenAI's own API
-goes through Responses instead, because its reasoning models only take tools there; you don't set
-anything for that. The model has to support tool calling: one that refuses tools fails the run
+(`ANALYSIS_BASE_URL` unset, or pointing at `api.openai.com`) goes through the Responses API
+instead, because its reasoning models only take tools there; you don't set anything for that. The model has to support tool calling: one that refuses tools fails the run
 with that reason on /admin and in `dashboard_refresh` (`last_try`). It never falls back to a run without
 tools. Any other failure shows what the provider said.
 
@@ -225,5 +232,6 @@ Allow egress from the full view's pod to `api.anthropic.com` or `api.openai.com`
 
 What the analysis tools answer about a player's characters goes to the provider you configured
 when the server refreshes their analysis: their events and the names of other players their
-game showed them, never Battle.net data. The in-app Privacy page says so, and says it's off when
-you haven't configured a provider. Tell your friends before you turn it on.
+game showed them, never Battle.net data. The in-app Privacy page says so, with your threshold.
+When no provider is configured, or `ANALYSIS_AUTO=off`, it says the server sends nothing. Tell
+your friends before you turn it on.

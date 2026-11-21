@@ -4,7 +4,7 @@
 how my install lets friends sign in with their Battle.net account, and what each piece costs.
 
 Nobody needs an identity provider and a webhook to share WoW levelling stats with a few
-friends. I had them already (it's my homelab, and yes, it's overkill), so here's how they fit.
+friends. I had them already for my homelab, so here's how they fit.
 You don't need any of it: the kit runs with basic auth, or behind any login proxy that sets the
 user's `sub` ([Add friends](friends.md)). The part worth copying is the sign-in: friends click
 **Battle.net**, and nobody gets in until I say so.
@@ -163,7 +163,6 @@ them to their page.
 The same webhook also gets ZITADEL's **events**: a user added, renamed, deactivated,
 reactivated, removed, locked or unlocked, and any grant change.
 
-
 It keeps the friends org's events only and waits for things to calm down: 30 seconds after the
 last one, it asks GitHub (through a GitHub App, with a one-hour token limited to starting
 workflows on one repository) to run the deploy of the wow-stats module. The workflow and its
@@ -184,7 +183,8 @@ deletes their data on the spot.
 My own account had a passkey before Battle.net, and the first Battle.net click made a second,
 pending account. A small script moves the Battle.net link from the pending account to mine
 through ZITADEL's v2 user API (checks first, a dry run by default), then deletes the pending
-one: one account, one `sub`, both ways in.
+one: one account, one `sub`, both ways in. Without the script, list both `sub`s in
+`WOW_OWNER_SUB` (comma-separated): each one is the owner, with the same data and timers.
 
 ## What it costs
 

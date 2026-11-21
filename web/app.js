@@ -798,7 +798,7 @@ function renderTalents(d) {
   const kids = [h('h2', { class: 'rule-title', text: 'Talents' }), head, ...notes];
   if (!t.available) {
     kids.push(h('p', { class: 'empty' }, h('strong', { text: 'No talents yet.' }),
-      ' They come from Battle.net once a day, after it first sees this character.'));
+      ' They show once Battle.net has read this character: it reads every 2 hours.'));
   } else {
     kids.push(h('div', { class: 'tframe' }, (t.sections || []).map((sec) => {
       // The game's frame: 4 columns by 7 tiers, always (a phone shrinks the
@@ -828,7 +828,7 @@ function renderTalents(d) {
 // the day, the points per tree that moved, the talents gained or dropped.
 const THIST_TITLE = 'Talent changes over the last 3 weeks';
 const THIST_WHY = {
-  no_battlenet: 'No talent changes yet: they show once Battle.net has read this character on two days.',
+  no_battlenet: 'No talent changes yet: they show once Battle.net has read this character.',
   no_client: 'Talent changes need Battle.net: add a Battle.net API client to this site.',
   unreachable: 'Talent changes can\u2019t be read right now. Reload the page in a minute.',
 };
@@ -2535,7 +2535,7 @@ function renderLoot(l) {
         h('summary', {}, h('span', { class: 'lgroup', text: title }),
           g.kind === 'dungeon' && g.level ? h('span', { class: 'tag', text: `level ${g.level}` }) : null,
           h('span', { class: 'sub', text: ` ${day(g.t)}, ${g.items.length} item${g.items.length === 1 ? '' : 's'}` }),
-          notable.length ? h('span', { class: 'lnote', text: `${notable.length} notable` }) : null),
+          notable.length ? h('span', { class: 'lnote', text: `${notable.length} green or better` }) : null),
         notable.length ? h('ul', { class: 'lnotable' }, notable.map(lootItem)) : null,
         rest.length ? h('div', { class: 'sub lrest' }, h('span', { text: 'Also: ' }),
           h('ul', { class: 'chips' }, rest.slice(0, 30).map((i) => h('li', {}, itemChip(i),

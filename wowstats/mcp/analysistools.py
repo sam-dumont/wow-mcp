@@ -214,7 +214,7 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
     T.Tool("analyse", "Analyse my play",
            "Start or continue the play analysis of a character: you (the model) run it pass by pass with the tools "
            "below, the server judges every finding. Returns the procedure and where the run stands. The same as "
-           "the `analyse` prompt, for clients without prompts; dashboard_refresh starts it for the character whose "
+           "the `analyse` prompt, for clients without prompts; dashboard_refresh returns it for the character whose "
            "analysis is most out of date.",
            S({"char": CHAR, "goals": GOALS}), _guard(t_analyse)),
     T.Tool("analysis_brief", "Analysis brief",
@@ -274,6 +274,7 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
            "Hand one finding to the judge: it re-runs the SQL (or the finding's metric_query, a query_metric "
            "call), checks every number (placeholders, expect, holds), "
            "the action and the knowledge base ids, then stores it in the character's analysis or says why not. "
+           "The SQL must read the play history: a constant is refused. "
            "A finding with `action: null` is kept as an observation, shown apart.",
            S({"char": CHAR, "finding": {"type": "object", "description": "key, title, claim, sql, expect, "
                                         "relevance, action ({do, where, blocked_by, next_step} or null), and "
@@ -300,10 +301,11 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
            "the last nightly recheck. Call it first to continue in a new chat.",
            S({"char": CHAR}), _guard(t_analysis_progress)),
     T.Tool("dashboard_refresh", "Refresh my dashboard",
-           "Refresh your dashboard (How you play) on the client: you, the calling model, run the analysis, so it "
+           "Refresh your dashboard (How you play) on the client: you, the calling model, run the analysis; it "
            "costs the server nothing and starts nothing there. Returns `analyse`'s procedure for the character "
-           "most out of date (or `char`): analysis_brief, the passes, then analysis_submit, which refreshes the "
-           "dashboard and resets that character's timer. Also shows the server's automatic refreshes.",
+           "most out of date (or `char`), `do`, and `then` for the others; the accepted synthesis refreshes the "
+           "dashboard and resets its timer. Also: the server's automatic refreshes, the install's "
+           "budget and yours.",
            S({"char": CHAR, "goals": GOALS}), _guard(t_dashboard_refresh)),
     T.Tool("kb_get", "Knowledge base documents",
            "Full knowledge base documents by id (kind:id, e.g. npc:1234, quest:56, note:xp-sources), up to 10, each "

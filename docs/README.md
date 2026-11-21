@@ -44,12 +44,12 @@ Set it up:
 - [Run it on a server](self-host/production.md): the order to set things up.
 - [Reverse proxy and HTTPS](self-host/reverse-proxy.md): Caddy, Traefik or nginx.
 - [Share your page](self-host/sharing.md): the public site, the sealed friends' site, the
-  pictures of past levels.
+  character's pictures.
 - [The login for your AI](self-host/oidc.md): any OIDC provider, Keycloak as the example.
 - [Add friends](self-host/friends.md): several players on one server.
 - [Battle.net data](self-host/battlenet.md): your own API client and the 30-day rule.
 - [Server-side analysis](self-host/server-analysis.md): the server writes "How you play" itself,
-  with Anthropic or any OpenAI-compatible endpoint, on a monthly budget.
+  with Anthropic, OpenAI or any OpenAI-compatible endpoint, on a timer and a monthly budget.
 - [Admin overview](self-host/admin.md): who uses the install, when, and whether its parts answer.
 - [How I run it](self-host/how-i-run-it.md): my own install as a worked example, with friends
   signing in through Battle.net.

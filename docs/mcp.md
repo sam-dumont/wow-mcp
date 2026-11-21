@@ -30,26 +30,26 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | --- | --- |
 | `character_summary` | Level, XP, gold, time in this level, pace over the last 3 levels, ETA to the next |
 | `levels` | Time per level, slowest and median, from Polestar's splits |
-| `sessions` | Play sessions (a 20-minute gap ends one), with XP, deaths, quests, dungeons, who you grouped with |
+| `sessions` | Play sessions (330 s without a Recorder record ends one), with XP, deaths, quests, dungeons, who you grouped with |
 | `zones` | Time, XP and deaths per zone, XP per hour |
 | `guide_steps` | Time per guide step, steps you jumped or skipped, and the guide's expected time on Polestar's route |
 | `deaths` | Deaths by zone and what killed you |
 | `dungeons` | Runs, length, XP per hour |
 | `players` | People you grouped with, how often |
 | `prices` | Your own Auctionator scans (feed `wow-prices`) |
-| `gear` | Per slot what is worn, the best item at this level and the next within 3 levels, then the next upgrades with where to get them; Polestar's scoring for the character's spec (or the one asked for). docs/gear-reference.md |
+| `gear` | Per slot what is worn, the best item at this level and the next within 3 levels, then the next upgrades with where to get them, the slot furthest from BiS first; Polestar's scoring for the character's spec (or the one asked for). Each item carries the page's badge: `bis_pct` (its share of the slot's best at this level, 100 is BiS), `bis_pct_worn` (the worn one's, null for an empty slot) and `delta_pct`. [Gear reference](gear-reference.md) |
 | `route_reference` | Expected time per level, per guide and per step on Polestar's route (see "Route times") |
-| `next_moves` | "Besides following Polestar, what should I do now?" Upgrades in reach, dungeons that drop them, profession trainer visits due, rested XP, time to the next level; each point with the data it came from |
+| `next_moves` | "Besides following Polestar, what should I do now?" Upgrades in reach (with the same `bis_pct`, `bis_pct_worn`, `delta_pct` as `gear`), dungeons that drop them, profession trainer visits due, rested XP, time to the next level; each point with the data it came from |
 | `sanity_check` | "Is there anything stupid I'm doing?" Death clusters (zone, creature, level gap) with the likely killer, guide steps far over plan, steps passed over, upgrades not taken, a capped profession, unspent talent points, slow levels; each finding with its data |
 | `people` | Players seen (Polestar's sightings) and dungeon runs with group size, bosses, wipes and deaths. No addon saves who was in a group, and the tool says so |
 | `plan_session` | A time-boxed plan for the next `hours` (0.5 to 8), with `constraints` in plain text ("no dungeons", "level tailoring") and `context` (`levelling`; `max-level-pve` and `pvp` answer "not supported yet" with KB pointers). Returns the estimator's `facts` (every number), its own `markdown`, the `blocks` and a `brief` for the client's model. See "Session plans" |
 | `check_plan` | A write-up of the latest plan against its facts and the player's own constraints: lists every number in the text that no fact holds, and every sentence that breaks a constraint from `plan_session` (an activity ruled out, such as "no dungeons", or more time than the plan has), naming it |
 | `how_did_my_plan_go` | The latest plans against what happened: per checkpoint, the online time planned and needed; the calibration factor the next plans use. Deterministic |
 | `next_step` | The next 30 to 45 minutes: the first block of a short plan, the town errands, what to drop |
-| `gear_options` | Per slot, every source kind with its cost: quest (where), dungeon (whole-trip time / drop chance), world drop (luck, AH), craft (skill needed), and any other kind a source carries |
-| `dungeon_options` | Dungeons ranked: fits now or opens at level N; one more run at your level now (`gain`: time, XP, share of the level, XP/h against your questing, the quests to pick up; the same line as the Overview and the Dungeons panel); expected gear per clear, top items; for done ones a redo verdict and the loop numbers |
+| `gear_options` | Per slot, every source kind with its cost: quest (where), dungeon (whole-trip time / drop chance), world drop (luck, AH), craft (skill needed), and any other kind a source carries; each item with `bis_pct`, `bis_pct_worn`, `delta_pct` |
+| `dungeon_options` | Dungeons ranked: fits now or opens at level N; one more run at your level now (`gain`: time, XP, share of the level, XP/h against your questing, the quests to pick up; the same line as the Overview and the Dungeons panel); expected gear per clear, top items (with `bis_pct`, `bis_pct_worn`, `delta_pct`); for done ones a redo verdict and the loop numbers |
 | `mount_goal` | Each riding tier (from `data/kb/rules.json`): gold needed, gold left, net gold per hour, ETA in played time and level, priced options to speed it up; what isn't known (the time to a level past the route's clock) is listed under `unknown` |
-| `whats_new` | Verified analysis findings new or changed in the last week |
+| `whats_new` | Verified analysis findings new, confirmed again or dropped in the last `days` (7 by default), and the nudges |
 | `kb_search` | The knowledge base, full text, each hit with its source URL, type, confidence and scope (`forever` or `classic_fallback`); `scope` filters |
 | `kb_rule` | One static rule (`riding.apprentice`, `rested.accrual`...) with its value, source and `last_verified`, plus any other lane's differing version under `conflicts`, or "unknown" |
 | `kb_topics` | The research catalogue by lane (game rules, dungeons, levelling, economy and professions, PvP, raids): counts and the day each was checked; with `lane`, its documents, contradictions (with sources) and open questions |
@@ -61,19 +61,21 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `analyse` | The `analyse` prompt as a tool (ChatGPT has no prompts): the procedure and where the run stands |
 | `analysis_brief` | The play analysis' brief in sections sized for a 32k context: `start`, `schema`, `profile` and `kb` (paged, 12,000 characters a page), `survey`, `lane`, `followups`, `coverage`, `synthesis` |
 | `play_sql` | One read-only SELECT on that database, paged (40 rows by default, 60 at most, 1,000 deep, 6,000 characters a page). It runs in a child process with 512 MB over the data and the query's timeout: a query past either fails alone, with a plain error, and the server carries on |
-| `propose_finding` | The judge: re-runs the finding's SQL, checks every number, `expect`, `holds` and KB ids, then stores it for the character or refuses it with the reason |
+| `list_metrics` | The semantic layer's catalogue: every named metric with its kind, unit, definition and caveats, the dimensions and the time grains ([Semantic layer](reference/semantic-layer.md)) |
+| `query_metric` | Named metrics grouped, filtered and cut by day, week or month; the server writes the SQL from the model file and returns the rows, that SQL with its bound parameters and each metric's definition |
+| `propose_finding` | The judge: re-runs the finding's SQL (or its `metric_query`), checks every number, `expect`, `holds` and KB ids, then stores it for the character or refuses it with the reason |
 | `analysis_submit` | Hands in a pass (`survey`, `lane`, `pick`, `synthesis`); the server checks it and answers with the next step |
 | `analysis_progress` | Where the run stands (pass, lanes, queries, tables untouched, proposed, verified, refused with why), the next step, the last run and the nightly recheck |
 | `kb_get`, `kb_lookup` | Knowledge base documents (up to 10) and names (up to 100) by id |
-| `dashboard_refresh` | Refreshes the caller's play analysis on the client: their own model runs it, so it costs the server nothing and starts nothing there ([Server-side analysis](self-host/server-analysis.md)). Picks the character whose analysis is most out of date (or `char`) and returns `analyse`'s procedure for it, plus `do`: analysis_brief, the passes, then analysis_submit, which refreshes the dashboard and resets that character's timer. Under `server_automatic_refresh`, the server's automatic refreshes only: each character's play since its refresh against the threshold, the last refresh and who did it, whether an automatic refresh of theirs runs or waits, how the last one ended, the install's budget and the caller's own share |
+| `dashboard_refresh` | Refreshes the caller's play analysis on the client: their own model runs it, so it costs the server nothing and starts nothing there ([Server-side analysis](self-host/server-analysis.md)). Picks the character whose analysis is most out of date (or `char`) and returns `analyse`'s answer for it, plus `do` (analysis_brief, the passes, then analysis_submit, which refreshes the dashboard and resets that character's timer) and `then`, the caller's other characters with play since their refresh, one run each. Under `server_automatic_refresh`, the server's automatic refreshes only: each character's play since its refresh against the threshold, the last refresh and who did it, whether an automatic refresh of theirs runs or waits, `last_try` (how the last one ended), `budget` (`scope: "install"`: every person's runs this month against the one cap) and `yours` (`scope: "you"`: the caller's own runs, cost and tokens) |
 
 Every tool takes `char` (default: `DEFAULT_CHAR`, else the character seen
 last). Time ranges take `7d`, `36h`, `2w` or an ISO date. Rates per hour are
 rounded to a whole number, the same in every tool and page.
 
 Each tool's annotations say what it does: read-only, except the ones that
-write the character's analysis run or plans. `play_sql`, `kb_search`,
-`kb_get` and `kb_lookup` only add to a run's coverage (with `char`, during a
+write the character's analysis run or plans. `play_sql`, `query_metric`,
+`kb_search`, `kb_get` and `kb_lookup` only add to a run's coverage (with `char`, during a
 run); `analysis_brief` (a new run, `restart`, new goals), `propose_finding`
 (a finding under a kept key), `analysis_submit` and `plan_session` can
 replace what is kept, so they are marked destructive. `dashboard_refresh`
@@ -181,7 +183,10 @@ answer lists every finding, nudge and pattern dropped, and why. Goals given once
 (`goals`) stay with the character. A finding's claim names its numbers as
 placeholders over the first row of its SQL; the judge refuses any number
 above 100 typed by hand, a re-run that disagrees with `expect`, a `holds`
-that fails, and lists KB ids it doesn't know.
+that fails, and lists KB ids it doesn't know. The SQL has to read the play
+history: a constant (`SELECT 3 AS n`) or a query on the documentation tables
+alone re-runs to the same number whatever was played, so the judge refuses it
+and points to `query_metric`.
 
 State is per character, in `ANALYSIS_STATE_DIR/chars/<character>.<hash>/`
 (the name in lower case, letters outside a-z as `_`, then 10 hex characters
@@ -191,9 +196,13 @@ run), so
 `analysis_progress` lets "continue" pick up in a new chat. The full view
 reads it; `/zogzog/` gets the screened nudges only. Each night
 (`ANALYSIS_HOUR`, 4, so from 04:00 local time, `WOW_TIMEZONE`, by default) a deterministic recheck re-runs every
-kept finding on the fresh data. One that still holds stays; it gains weight only
-when there's play since the last time it did, so the same data checked again
-adds nothing. One that no longer holds fades and goes after three nights. No model.
+kept finding on the fresh data. One that still holds stays and gets a new
+`last_checked`. It gains weight (`confirmations`, `last_confirmed`) only when
+the play history changed since its last support (`support_mark`, a mark of the
+newest record and each table's row count): the same data checked again counts
+as `still`, not `confirmed`. One that no longer holds loses half its weight
+each night and goes under 0.25: three nights for a new finding, four for a
+well-supported one. No model.
 
 ## The knowledge base
 

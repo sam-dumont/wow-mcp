@@ -30,7 +30,15 @@ the computer you play on:
 - **The game's own files** for the 3D view, read only from the install's `Data/` storage: a
   few client tables and the models and textures your characters wear. Game data, nothing
   about you; they go to your own server only and stay in your folder there
-  ([The 3D view's files](../shipper.md#the-3d-views-files)).
+  ([The 3D view's files](../shipper.md#the-3d-views-files)). Your character's picture is drawn
+  from the same files by the server's own renderer, never downloaded from Blizzard.
+- **The game's hotfix cache**: for an item the server's reference data doesn't have yet (a
+  dungeon added in a patch), its facts: name, slot, item level, stats. Game data again, kept
+  in your folder on the server ([Item facts](../shipper.md#item-facts)).
+- **Battle.net**, when the host set up an API client: every 2 hours, each character's look,
+  talents, sex, guild and worn gear, in a store that keeps 23 days (Blizzard's terms allow 30).
+  What it says the character wears also proves quests done (by their rewards): that reading is
+  live only, never stored and never in the analysis' database.
 
 Never collected: your Battle.net account id or account folder name, or anything else outside
 the `_forever_` folder. Every addon: [Addons](../reference/addons.md). Every event and field:
@@ -111,18 +119,23 @@ things, so you tell it:
 ## Your AI
 
 Your AI assistant reads what the MCP tools return: your own game data, the players your game
-showed you included. Battle.net data (token, the armory look) reaches it only
-when a person turns on "Battle.net data to my AI" on a shared install, for their own data.
+showed you included. Battle.net data (the token price, the current talents, the quests your
+worn gear proves done) reaches it only when a person turns on "Battle.net data to my AI" on a
+shared install, for their own data. On a one-person install it goes to the owner's AI.
+Your AI never starts a run of the server's own analysis (below).
 [Ask about your character](../ai/asking.md#what-the-assistant-can-see).
 
 ## The server's own analysis
 
 Off unless the host configures an AI provider (`ANALYSIS_PROVIDER`: Anthropic, OpenAI or any
-OpenAI-compatible endpoint) and leaves `ANALYSIS_AUTO` on. Then the server runs the play analysis itself for a character
-with `ANALYSIS_STALE_PLAYED_HOURS` of play (10 by default) since its analysis was last
-refreshed, and that provider receives what the analysis tools answer about that character: its
-events and the names of other players its game showed, never Battle.net data. Nothing else
-starts a server run: no MCP call, no button. The app's Privacy page says whether it's on, and says so when a provider is configured but `ANALYSIS_AUTO` is off.
+OpenAI-compatible endpoint) and leaves `ANALYSIS_AUTO` on. Then the server runs the play
+analysis itself for a character with `ANALYSIS_STALE_PLAYED_HOURS` of play (10 by default; the
+host picks) since its analysis was last refreshed, by the person's own AI or the server. That
+provider receives what the analysis tools answer about that character: its events and the
+names of other players its game showed, never Battle.net data. The host pays for it. Nothing
+else starts a server run: no MCP call (`dashboard_refresh` included: it hands the work to your
+own AI), no button. The app's Privacy page gives the host's hours when it's on, and says so
+when a provider is configured but `ANALYSIS_AUTO=off`: then nothing goes to it.
 [Server-side analysis](../self-host/server-analysis.md).
 
 ## Visitor counts

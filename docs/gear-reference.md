@@ -104,7 +104,9 @@ files; kb-refresh does it on its own when the release passes its checks.
 - **Usable.** Armor and weapon types the class learns, and at what level
   (Shamans wear mail from 40), the class mask, the required level.
 - **Where.** Quests of your side, race and class only, minus the ones you
-  handed in (Polestar Recorder's `turnin` records). A quest that offers a
+  have done (`wowstats/quests.py`: the Recorder's hand-ins, Questie or
+  Altoholic, a reward only that quest gives on any gear or bags sheet, and
+  what Battle.net says you wear now, read live). A quest that offers a
   choice shows its best reward only (`Rewards.lua` `RankChoices`). Crafts
   say whether you make it at your rank; crafts with no required level
   (Engineering goggles, which need the skill to wear) only show to those
@@ -113,11 +115,12 @@ files; kb-refresh does it on its own when the release passes its checks.
 Per slot: the best item you can wear now and the next one within 3 levels,
 when it beats both.
 
-**Gains are in Polestar's points**, the number that compares across slots,
-with their share of everything the character wears ("+13.6, 6% of your
-gear"). The percent over the replaced item is Polestar's tooltip number, but
-against a weak item it reads +427% for a modest gain, so the page keeps it
-for the tooltip and sorts by points.
+**Gains are in Polestar's points** underneath, the number that compares
+across slots. The page shows them as the slot's share of BiS (below); an
+item with nothing to measure against keeps its points ("Chest, +4.3
+points"). The percent over the replaced item is Polestar's tooltip number,
+but against a weak item it reads +427% for a modest gain, so the page keeps
+it for the tooltip.
 
 **Weapons are whole setups.** A two-hander is weighed against main hand + off
 hand (`Gear.lua` `compare`). A one-hander against a worn two-hander is never
@@ -137,7 +140,8 @@ and the rest folds under "N more". An upgrade under 2% of your gear is
 score the slot can hold now, among what is worn and every item wearable at
 this level; a worn item is BiS, 2nd (one item above it) or its percent of
 BiS's score. On the paperdoll that badge takes ForeverLevelingBiS's colours:
-orange for BiS, purple from 85%, blue from 50%, plain below. Rings and trinkets count the best two different items, and the
+orange for BiS, purple from 85%, blue from 50%, the plain dark band below,
+with a legend under the paperdoll. Rings and trinkets count the best two different items, and the
 hands count whole setups. None for a random-suffix item scored on a guess, a
 slot with nothing to compare, or no sheet at all. Every item the page and the MCP show carries the same measure (`bis_pct`,
 `bis_pct_worn` and `delta_pct`, `wowstats/gear.py` `bis_badge`): its own
@@ -145,7 +149,9 @@ share of the slot's BiS, as a badge on its icon, and the worn item's share
 then its own ("70% → 94% on your waist", "empty → 94%" for an empty slot;
 `gain_words` on the server, `upText` on the page). A bare "+24%" read as
 24% more stats, so the page never says it; `delta_pct` is the difference. Rings and trinkets measure in the
-slot the item would take, the weaker of the two worn; a two-hander or a
+slot the item would take, the weaker of the two worn, so the line starts from that
+one's badge and only the best ring or trinket left reads 100% (the second of the
+best two reads its share of the best); a two-hander or a
 setup the advice pairs counts whole, a one-hander scored alone (a dungeon
 drop the advice doesn't list) has none. Upgrades are ordered by it:
 the slot furthest from BiS first; within a slot by points (the same start
@@ -167,8 +173,8 @@ data has no recipe price or reputation gate, so none is shown).
    game puts Forever Leveling BiS's pick before the talents too.
 4. Only when none of the above says anything: the talent tree with the
    most points, as Polestar's Automatic picks it (`Gear.lua` `DetectSpec`,
-   `mostPoints`), from Battle.net's API (the exporter's daily
-   `/specializations` read, under the talent frame's tree names). A hint,
+   `mostPoints`), from Battle.net's API (the exporter's
+   `/specializations` read every 2 hours, under the talent frame's tree names). A hint,
    not a choice. A site without a Battle.net client, or a character the
    API doesn't know yet, skips it.
 5. The class's levelling default in Polestar (Shadow for a Priest).
@@ -181,7 +187,7 @@ After a respec the talents catch up at Battle.net's next read, within 2 hours.
 
 The character card keeps two things apart: the talents
 as the game has them, named by points ("Discipline 16/0/7", from Battle.net
-daily), and what the gear is scored for, from the list above. A Shadow
+every 2 hours), and what the gear is scored for, from the list above. A Shadow
 priest levelling with most points in Discipline on the way to Shadowform
 gets Shadow weights as soon as anything the player chose says Shadow: the
 site's `WEIGHTS`, Polestar's Stat weights, or a gear addon's pick. From
@@ -314,7 +320,7 @@ The disagreements, decided one by one (no tuning to match a table):
   which Syndicator saves without them. A worn one scores on the stats
   Battle.net's armory shows for it (the exporter's
   `wow_character_equipped_stat`, when the character is on Battle.net and
-  wears the same item as at the daily refresh). Otherwise, and for a
+  wears the same item as at its last read). Otherwise, and for a
   random-suffix drop or bag item, it scores on its *likely* suffix: the
   median, by your weights, of what the fixed-stat items of the same slot,
   quality and item level (±2) carry beyond armor and damage. Blizzard gives
@@ -326,11 +332,12 @@ The disagreements, decided one by one (no tuning to match a table):
 - **Talent ranks.** Polestar reads ranks that change weights (Mental
   Dexterity, which turns an Enhancement shaman's Intellect into attack
   power); the server only uses points per tree, as of Battle.net's last
-  daily read, so it doesn't credit that Intellect.
+  read, so it doesn't credit that Intellect.
 - **Weapon skills.** The addon checks what you've trained; the server allows
   every weapon type the class can learn.
-- **Handed-in quests** count only from when Polestar Recorder ran: a quest
-  done before that still shows.
+- **Quests done before Polestar Recorder ran** count when something else
+  says so: Questie, Altoholic, a reward held on any sheet, or Battle.net's
+  worn gear. One with no trace anywhere still shows.
 - With ForeverLevelingBiS 1.x installed, Polestar's Automatic weights may use
   its scores in game. The page never does.
 

@@ -974,7 +974,7 @@ def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, a
             n = level - 9 - spent
             found.append(claim(f"{n} talent point{'s' if n > 1 else ''} unspent: spend {'them' if n > 1 else 'it'} "
                                f"in the talent pane (N), anywhere.",
-                               "#talents", "Battle.net's talents (its daily profile read)",
+                               "#talents", "Battle.net's talents (its profile read, every 2 hours)",
                                kind="talents", title=f"{n} talent point{'s' if n > 1 else ''} unspent", weight=4))
     found += enchant_claims(gear_items, gear_profs)
     if (track.get("own_ratio") or 0) >= 1.5:
