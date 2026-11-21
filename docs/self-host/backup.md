@@ -72,13 +72,32 @@ docker compose up -d
 
 Use your file's name in the `tar` line. Open the page: your characters are back.
 
-No server backup, but the player's archive survived? The shipper can read every archived
-version of the game files again (the `wtf/` folder: on by default when git is installed) and
-send what it finds to an empty server, from the computer you play on:
+No server backup, but the player's archive survived? Refill the empty server from the computer
+you play on. Run it once per player, each on their own computer.
 
 ```sh
-uv run --script ~/.local/share/wow-stats/wow_stats.py --backfill
+uv run --script ~/.local/share/wow-stats/wow_stats.py --replay
 ```
 
-On Windows: `uv run --script "$env:LOCALAPPDATA\wow-stats\wow_stats.py" --backfill`. Every
-event carries an id, so anything already on the server isn't stored twice.
+On Windows: `uv run --script "$env:LOCALAPPDATA\wow-stats\wow_stats.py" --replay`.
+
+`--replay` sends every event in `sent/` again, byte for byte: same ids, same fields, same
+times. It changes nothing on the PC (not `sent/`, not `state.json`), so you can run it again
+when it stops halfway: the log says how far it got, and anything the server already has isn't
+stored twice.
+
+`sent/` gone too, but `wtf/` is there? Use `--reextract` instead:
+
+```sh
+uv run --script ~/.local/share/wow-stats/wow_stats.py --reextract
+```
+
+It reads every archived version of the game files again from scratch and sends what it finds.
+It keeps its own record of what it found, so the normal one (`state.json`) stays as it was and
+the next background run carries on where it stopped. Never delete `state.json` for a restore.
+Two things it can't bring back: combat logs (`Logs/` isn't archived; `sent/` has them) and the
+exact time of a snapshot archived before 0.7.0 (it gets the archive's time instead, marked as
+approximate: [the contract's "Times"](../contract.md#times)).
+
+Don't use `--backfill` for this. It looks for what the PC hasn't sent yet, and after a server
+loss the PC has sent everything already, so it finds next to nothing.

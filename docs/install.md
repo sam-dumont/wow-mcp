@@ -218,7 +218,7 @@ and, for the history, git.
 
 The history is a git repository of your whole `WTF` folder in
 `~/WoWArchive/wtf`: every version of every SavedVariables file, which is
-what `--backfill` replays. It grows with everything in `WTF`, other addons'
+what `--backfill` and `--reextract` read again. It grows with everything in `WTF`, other addons'
 files included. To go without it, skip git, or set `wtf_archive = false` in
 the config (below): the shipper then reads the game files directly and
 keeps the stats only. [docs/shipper.md](shipper.md#stats-only-no-wtf-archive)
