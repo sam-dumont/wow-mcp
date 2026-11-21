@@ -602,7 +602,7 @@ def _submit_pick(env, w, run, answer):
 
 
 def _submit_synthesis(env, w, run, answer):
-    from . import current_level, feasible, finish, load_state, other_players
+    from . import bind, current_level, feasible, finish, load_state, other_players
     from .sql import QueryError
 
     # New or merged findings handed in with the synthesis: judged like any,
@@ -669,6 +669,9 @@ def _submit_synthesis(env, w, run, answer):
     nudges, feas = feasible(raw, current_level(w.db), w.kb_has, dropped)
     patterns = [{"text": str(p.get("text") or "")[:240], "findings": cites(p)}
                 for p in (answer.get("patterns") or [])[:6] if isinstance(p, dict)]
+    lvl = current_level(w.db)
+    nudges = bind(nudges, kept, lvl, dropped, "nudge")
+    patterns = bind(patterns, kept, lvl, dropped, "pattern")
     asked = run["questions"]
     info = {"at": _now(), "kind": "client", "driver": str(answer.get("driver") or "")[:80] or None,
             "run": run["id"], "passes": run["submits"] + 1,
