@@ -88,6 +88,7 @@ const SECTIONS = [
       { src: "docs/self-host/oidc.md", label: "The login for your AI" },
       { src: "docs/self-host/friends.md", label: "Add friends" },
       { src: "docs/self-host/battlenet.md", label: "Battle.net data" },
+      { src: "docs/self-host/server-analysis.md", label: "Server-side analysis" },
       { src: "docs/self-host/admin.md", label: "Admin overview" },
       { src: "docs/self-host/how-i-run-it.md", label: "How I run it" },
       { src: "docs/deploy.md", label: "Without Docker Compose" },
