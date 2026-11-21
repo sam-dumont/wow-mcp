@@ -291,3 +291,66 @@ def test_the_cache_is_per_tenant(monkeypatch):
     assert len(got_b) < len(got_a)
     key = lambda r: (r.get("_time"), r.get("feed"), r.get("source_id"))  # noqa: E731
     assert {key(r) for r in got_b} <= {key(r) for r in theirs}
+
+
+def test_an_overfull_minute_is_read_by_the_second():
+    """Review 4, G: a minute over a page was read once, cut at the page, and
+    kept that way (page 3, 12 events in one minute: 4 rows, every time)."""
+    t0 = datetime(2026, 11, 12, 10, tzinfo=UTC)
+    rows = [_ev(t0 + timedelta(seconds=i * 4), f"r{i}", kind="pos") for i in range(12)]
+    st = SlowStore(rows)
+    cache = eventcache.EventCache(st, page=3, fresh_s=0)
+    for _ in range(2):
+        got = cache.rows(CHAR)
+        assert sorted(r["source_id"] for r in got) == sorted(f"r{i}" for i in range(12))
+
+
+def test_more_same_second_events_than_a_page_is_an_explicit_failure():
+    """An irreducible bucket (more records in one second than a page) can't
+    be read whole: the cache says so, never hands back part of it."""
+    t0 = datetime(2026, 11, 12, 10, tzinfo=UTC)
+    rows = [_ev(t0 + timedelta(seconds=30), f"same{i}", kind="pos") for i in range(12)]
+    rows.append(_ev(t0 + timedelta(minutes=5), "other", kind="death"))
+    st = SlowStore(rows)
+    cache = eventcache.EventCache(st, page=3, fresh_s=0)
+    for _ in range(2):
+        with pytest.raises(stores.IncompleteRead) as err:
+            cache.rows(CHAR)
+        assert "2026-11-12T10:00:30Z" in str(err.value)
+    assert isinstance(err.value, stores.SourceError)  # every caller already surfaces those
+    # What a page or an AI client is told names the gap, not "try again".
+    assert "partial" in stores.public_error(err.value)
+    # Once the bucket fits (retention, a fix upstream), the reads are whole again.
+    rows[:] = [r for r in rows if r["source_id"] in ("same0", "same1", "other")]
+    assert {r["source_id"] for r in cache.rows(CHAR)} == {"same0", "same1", "other"}
+
+
+def test_events_that_arrive_after_the_count_are_read_whole():
+    """The page planned from the count comes back over full (late events
+    landed in between): read finer, never keep the cut page."""
+    t0 = datetime(2026, 11, 12, 10, tzinfo=UTC)
+    rows = [_ev(t0 + timedelta(seconds=i * 7), f"r{i}", kind="pos") for i in range(3)]
+    st = SlowStore(rows)
+    late = [_ev(t0 + timedelta(seconds=i * 7 + 1), f"late{i}", kind="pos") for i in range(5)]
+    hist = st.vl_direct
+
+    def counted_then_more(*a, **k):
+        out = hist(*a, **k)
+        if not any(r["source_id"].startswith("late") for r in rows):
+            rows.extend(late)
+        return out
+
+    st.vl_direct = counted_then_more
+    cache = eventcache.EventCache(st, page=3, fresh_s=0)
+    assert len(cache.rows(CHAR)) == 8
+
+
+def test_paged_read_says_when_it_cannot_split_further():
+    t = datetime(2026, 11, 12, 10, tzinfo=UTC)
+    rows = [{"_time": stores.iso_us(t), "n": str(i)} for i in range(10)]
+
+    def fetch(q, a, z, n):
+        return logsql.parse(q).run([r for r in rows if a <= parse_t(r["_time"]) <= z])[:n]
+
+    with pytest.raises(stores.IncompleteRead):
+        paged_read(fetch, "* | sort by (n)", t - timedelta(seconds=1), t + timedelta(seconds=1), 4)

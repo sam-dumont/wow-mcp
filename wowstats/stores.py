@@ -43,6 +43,18 @@ class SourceError(Exception):
     pass
 
 
+class IncompleteRead(SourceError):
+    """A bounded read that couldn't hold its whole range: more records at one
+    instant than one request may return. Raised instead of handing back part
+    of the evidence (review 4, G); a SourceError, so every caller that shows
+    a store failure shows this one too."""
+
+    def __init__(self, gaps: dict[str, int], page: int):
+        self.gaps, self.page = dict(gaps), page
+        where = ", ".join(f"{n} at {t}" for t, n in sorted(self.gaps.items()))
+        super().__init__(f"more records in one second than a page of {page} holds: {where}")
+
+
 # Blizzard's Developer API Terms: API data is kept 30 days at most.
 BNET_KEEP_S = 30 * 86400
 # Battle.net's class and race ids as the addons name them (the profile
@@ -57,9 +69,13 @@ def public_error(e: BaseException, where: str = "") -> str:
     """What a page, the shipper or an AI client is told when a store fails:
     no host name, no store message (2026-11-20 server review, info 2: the
     VictoriaLogs host and its error text reached all three). The detail goes
-    to this server's log under the same request id."""
+    to this server's log under the same request id. An incomplete read is
+    not a store that didn't answer: retrying won't help, so it says so."""
     rid = secrets.token_hex(4)
     print(f"store error [{rid}]{f' on {where}' if where else ''}: {e}", file=sys.stderr, flush=True)
+    if isinstance(e, IncompleteRead):
+        return (f"no answer rather than a partial one: one second holds more records than a read can return "
+                f"({e.page}) (request {rid} in the server's log)")
     return f"the data store didn't answer; try again in a minute (request {rid} in the server's log)"
 
 
@@ -268,10 +284,15 @@ def paged_read(fetch, query: str, start: datetime, end: datetime, limit: int, de
 
     The old way split every full answer in two from 2004 on: with the events
     in the last days, each split re-read the same full page, 243k rows for
-    the 23k events of one character (2026-11-18)."""
+    the 23k events of one character (2026-11-18).
+
+    A full answer that can't be split further (under 2 s, or 24 halvings
+    deep) raises IncompleteRead: a bounded read is whole or says it isn't."""
     rows = fetch(query, start, end, limit)
-    if len(rows) < limit or depth >= 24 or end - start < timedelta(seconds=2):
+    if len(rows) < limit:
         return rows
+    if depth >= 24 or end - start < timedelta(seconds=2):
+        raise IncompleteRead({iso(start): len(rows)}, limit)
     del rows  # let the full page go before the next reads
     from .logsql import split_pipes
 
