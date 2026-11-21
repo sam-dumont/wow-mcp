@@ -249,7 +249,7 @@ def test_wanted_covers_every_outfit_of_the_history_once(tmp_path, monkeypatch):
     views = SimpleNamespace(
         snapshot=lambda name, lv: {"gear": {"items": sheets[lv]}},
         snapshot_inputs=lambda name: ({}, {}, [], [{"items": outfit(200)}, {"items": outfit(300)},
-                                                   {"items": outfit(100)}, {"items": []}]),
+                                                   {"items": outfit(100)}, {"items": []}], []),
         reconstruction=lambda name, data, gh: (rp, {}, {}))
     app = SimpleNamespace(
         chars=lambda: {"chars": [{"char": "Testchar"}]}, valid_char=lambda n: True,
@@ -262,6 +262,31 @@ def test_wanted_covers_every_outfit_of_the_history_once(tmp_path, monkeypatch):
                         or {gear["items"][0]["item_id"]})
     assert m.wanted(app) == {100, 200, 300, 400, 500}
     assert sorted(seen) == [100, 200, 300, 400, 500]
+
+
+def test_wanted_asks_again_once_the_tables_came(tmp_path, monkeypatch):
+    """rc.2 on the lab: the shipper's first ask came before its tables, the
+    empty answer was kept 10 minutes, and its ask right after sending them
+    got no files."""
+    from types import SimpleNamespace
+
+    now = {"tables": None}
+    app = SimpleNamespace(
+        chars=lambda: {"chars": [{"char": "Testchar"}]}, valid_char=lambda n: True,
+        char=lambda n: {"gear": {"race": "Gnome", "class": "PRIEST", "items": [{"slot": 5, "item_id": 100}]},
+                        "header": {}},
+        timeline=lambda n: {"levels": []}, views=None)
+    monkeypatch.setattr(model3d, "find_look", lambda app, name: None)
+    m = model3d.Model3D({"MODEL3D_CACHE_DIR": str(tmp_path)}, tmp_path, None)
+    monkeypatch.setattr(m, "tables", lambda: now["tables"])
+    monkeypatch.setattr(m, "needs", lambda gear, header, look: {7} if now["tables"] else set())
+    assert m.wanted(app) == set()
+    now["tables"] = {"ChrModel": object()}
+    assert m.wanted(app) == {7}
+    monkeypatch.setattr(m, "needs", lambda gear, header, look: {8})
+    assert m.wanted(app) == {7}  # the same tables: kept
+    now["tables"] = {"ChrModel": object()}
+    assert m.wanted(app) == {8}  # new tables (a patch): asked again
 
 
 def test_a_history_that_cant_be_read_still_counts_the_levels(tmp_path, monkeypatch):
