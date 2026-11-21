@@ -1140,21 +1140,23 @@ def make_handler(root: App, tenancy=None):
             if not tenancy.ingest_budget.allows(u.slug, n):  # review L7: one person can't fill the store
                 return self.json(429, {"error": "today's upload budget is used up; the rest goes tomorrow"})
             app = tenancy.app_for(u)
-            res = self._ingest(app.store.vl_url, app.store.account_id)
-            if self._last_accepted:
+
+            def stored(lines: int) -> None:
                 tenancy.ingest_budget.spend(u.slug, n)
-                tenancy.activity.uploaded(u, self._last_accepted)
-            if not u.first_event and self._last_accepted:
-                tenancy.registry.update(u.sub, first_event=datetime.now(UTC).isoformat(timespec="seconds"))
-            return res
+                tenancy.activity.uploaded(u, lines)
+                if not u.first_event:
+                    tenancy.registry.update(u.sub, first_event=datetime.now(UTC).isoformat(timespec="seconds"))
 
-        _last_accepted = 0
+            return self._ingest(app.store.vl_url, app.store.account_id, stored)
 
-        def _ingest(self, vl_url: str, account_id: int):
+        def _ingest(self, vl_url: str, account_id: int, stored=None):
             """The shipper's NDJSON, screened line by line (wowstats.ingest,
             a shared receiver's rules), then handed to VictoriaLogs' jsonline
             API (which answers 200 and stores nothing unless the content type
-            is application/stream+json), in the sender's tenant."""
+            is application/stream+json), in the sender's tenant. `stored(n)`
+            runs once VictoriaLogs has taken the n lines, before the 200: a
+            refused write leaves no upload, budget or first event behind
+            (review 2026-11-21, D)."""
             from wowstats import ingest
 
             body = self.read_body(INGEST_MAX_BYTES)
@@ -1163,7 +1165,6 @@ def make_handler(root: App, tenancy=None):
             lines, bad = ingest.parse(body)
             if bad:  # all or nothing: the shipper keeps the file and moves bad lines aside
                 return self.json(400, {"error": f"{bad} lines are not wow-stats events"})
-            self._last_accepted = len(lines)
             if lines:
                 q = urllib.parse.urlencode({"_stream_fields": ingest.STREAM_FIELDS, "_time_field": "_time",
                                             "_msg_field": "_msg"})
@@ -1179,6 +1180,8 @@ def make_handler(root: App, tenancy=None):
                     return self.json(502, {"error": public_error(f"{at} answered {e.code}", "/ingest")})
                 except (urllib.error.URLError, OSError) as e:
                     return self.json(502, {"error": public_error(f"{at} unreachable: {e}", "/ingest")})
+                if stored is not None:
+                    stored(len(lines))
                 prebuilt.soon()  # the page catches up with the start page's "It works"
             return self.json(200, {"accepted": len(lines)})
 
