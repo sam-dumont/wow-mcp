@@ -36,7 +36,9 @@ itself.
 ## Fields on every event
 
 - `_time`: RFC 3339 UTC with milliseconds, `2026-11-17T15:14:03.120Z`: the
-  event's own time, not when it was sent.
+  event's own time, not when it was sent ("Times" below says which one).
+- `at_basis`: only on an event whose `_time` is approximate. `commit` means
+  it is the archive's capture time, an upper bound (below).
 - `feed`: `wow-recorder`, `wow-level`, `wow-dungeon`, `wow-character`,
   `wow-gear`, `wow-bags`, `wow-quests`, `wow-player`, `wow-prices`, `wow-talents` or `wow-combatlog`.
 - `char`: `Name-Surname` as in the WTF folder, `Testchar-Demo`. Polestar's
@@ -59,6 +61,36 @@ itself.
   banner for those characters.
 
 Never sent: the Battle.net account id or the account folder name.
+
+## Times
+
+Four different clocks, and an event's `_time` is always the earliest one the
+shipper knows exactly:
+
+| Name | What it is | Example |
+|---|---|---|
+| event time | when it happened in the game | a Recorder `turnin` at 19:02:11 |
+| observation time | when a source wrote down what it saw: a snapshot file's modification time, a logout stamp in its content | Questie's file saved at logout, 2026-11-17T07:20 |
+| capture time | when the shipper archived that file (the commit in `~/WoWArchive/wtf`) | a few minutes after the logout |
+| processing time | when the shipper extracted or sent it | the run, or a re-extraction weeks later |
+
+Recorder records, levels and dungeons carry their event time. Snapshots
+(`wow-quests`, `wow-bags`, `wow-gear` without a Polestar logout, `wow-character`)
+carry their observation time: the quest was done by then, maybe long before.
+Processing time is never an event's `_time`, except as a last resort when a
+snapshot has no time at all.
+
+Git keeps no file times, so a re-extraction from the archive can't read them
+from the rebuilt files. Each archive commit carries a capture manifest,
+`_capture.json` next to the WTF mirror: every file a re-extraction reads, with
+the modification time (ns) the live run saw. A re-extraction puts it back, so
+the same archive gives the same `_time` (and the same `gear:` id) every time.
+
+An archive commit made before the manifest existed (shippers up to
+0.7.0-rc.7) has nothing to put back: its files are dated by the commit's
+time, the capture time, and those events carry `at_basis: "commit"`. Read
+that `_time` as "seen by then", never as the moment. wowstats.quests words
+that evidence "by <day>" instead of "on <day>" and marks it `t_by`.
 
 ## Per feed
 
@@ -112,8 +144,8 @@ off) and Syndicator (`SYNDICATOR_DATA.Characters[...].details` and `money`):
 `realm` (the folder's name), `race`, `class`, `faction`, `money_copper`, and `source`,
 the files that know it (`folder`, `syndicator`, comma-separated). `_time` is
 the newest file in the character's folder. A backfill of archived versions
-leaves these to the current tree: an old version's file times are the
-extraction's.
+leaves these to the current tree: a rebuilt version holds only the addon
+files the extractors read, not the folder's other files that date it.
 
 **`wow-character` with `kind: played`** (optional, Altoholic): `/played` as
 DataStore_Characters saved it. Fields: `played_total_s` and
@@ -139,7 +171,7 @@ zone or race.
 **`wow-gear`** (the character sheet): one event each time it changes, for
 every character of the account (its folder, Polestar's alts, Syndicator). `_time` is the character's logout snapshot in
 `PolestarDB.alts.chars` (the moment the game wrote these files), else the
-newest of the files' modification times. `source_id` carries a hash of the
+newest of the files' modification times (an observation time, "Times"). `source_id` carries a hash of the
 content, so a sheet that goes back to an earlier state is sent again with
 the newer time.
 
