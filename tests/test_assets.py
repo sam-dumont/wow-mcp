@@ -206,3 +206,9 @@ def test_the_shipper_sends_what_the_server_asks(one, shipper, tmp_path, monkeypa
     assert shipper.ship_assets(state, now=1000 + shipper.ASSETS_EVERY_S) == "nothing new"
     monkeypatch.setattr(shipper, "CONFIG", {**shipper.CONFIG, "model3d_files": False})
     assert shipper.ship_assets({}, now=0) is None
+
+
+def test_a_forever_hd_character_model_fits():
+    """Forever's HD character models are 17-28 MB with their animations
+    (rc.2 on the lab: four of them over a 16 MB cap, never sent)."""
+    assert assets.MAX_FILE >= 32 * 1024 * 1024

@@ -157,7 +157,7 @@ a process, an image and a pod of its own:
   every field and its size) and answers a 720x960 WebP with the character
   on a clear background. When it lacks files, it answers 428 with their ids;
   the publisher sends each from the person's store (`POST /file/<id>`, the
-  token, `X-Content-SHA256`, 16 MB at most, game files only) and asks
+  token, `X-Content-SHA256`, 48 MB at most, game files only) and asks
   again. It keeps them by id within `RENDER_CACHE_MB`. It holds nothing
   else: no key, no store, no Secret, no service-account token, no character
   name. Chromium loads the 3D view's own page (`view.html?render=1`) from a
