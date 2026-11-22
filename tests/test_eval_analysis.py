@@ -590,8 +590,8 @@ def test_the_server_client_reads_the_host_not_a_substring():
               "EVAL_SERVER_MODEL": "m"}
     with pytest.raises(SystemExit, match="EVAL_SERVER_KEY_CMD"):
         clients.ServerRunner.from_env({**prices, "EVAL_SERVER_BASE_URL": "https://api.openai.com/v1"})
-    c = clients.ServerRunner.from_env({**prices, "EVAL_SERVER_BASE_URL": "http://api.openai.com.lan:8080/v1"})
-    assert c.base_url == "http://api.openai.com.lan:8080/v1"
+    c = clients.ServerRunner.from_env({**prices, "EVAL_SERVER_BASE_URL": "http://api.openai.com.example:8080/v1"})
+    assert c.base_url == "http://api.openai.com.example:8080/v1"
 
 
 def test_the_server_client_end_to_end_on_a_stub_endpoint(tmp_path):
