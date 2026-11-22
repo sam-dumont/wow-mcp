@@ -4,7 +4,7 @@
   "client_build": {
     "url": "https://wago.tools/api/builds/wowf/latest",
     "page": "https://wago.tools/builds",
-    "known": "1.60.1.70959"
+    "known": "1.60.1.71037"
   },
   "official": [
     {
