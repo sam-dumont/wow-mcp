@@ -155,20 +155,22 @@ WoW can write every fight to a file, and the program sends it with the rest. Not
 page reads it yet: it's for death recaps and dungeon and raid performance, later. Skip this
 step if you don't care about those.
 
-**Turn it on:** type `/combatlog` in chat. The game writes to the `Logs` folder next to `WTF`,
-and logging stays on until you type `/combatlog` again or exit the game
-([Warcraft Logs' guide](https://www.warcraftlogs.com/help/start)). So it's once per game
-session, not once for good.
+**Turn it on:** type `/combatlog` in chat. The game writes to the `Logs` folder next to `WTF`.
+It turns itself off at every logout, disconnect and game exit
+([Warcraft Logs' guide](https://articles.classic.warcraftlogs.com/help/getting-started)), so
+it's once per login, not once for good. "Advanced Combat Logging" in the game's settings
+isn't needed.
 
-**Make it one click:** the same command turns logging off when it's already on, so a second
-press stops it. A macro that only ever turns it on is safer:
+**Make it one click:** typed while logging is on, `/combatlog` turns it off. A macro that only
+ever turns it on is safer:
 
 1. Type `/macro`, click **New**, name it `Log`, pick any icon.
 2. Paste this line, then drag the icon to your action bar:
    ```
-   /run LoggingCombat(true)
+   /run if not LoggingCombat() then LoggingCombat(true) end print(LoggingCombat())
    ```
-3. Press it once after you log in. Pressing it again changes nothing.
+3. Press it once after each login. It prints `true` when logging is on; pressing it again
+   changes nothing.
 
 `LoggingCombat` is the game's own command ([Warcraft Wiki](https://warcraft.wiki.gg/wiki/API:LoggingCombat)),
 not an addon.
