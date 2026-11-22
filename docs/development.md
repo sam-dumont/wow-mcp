@@ -28,7 +28,10 @@ make test-changed           # only the tests your diff can break
 `tools/test_changed.py` diffs against the merge-base with `origin/main` and maps
 each changed path to test files (the `RULES` table at its top): the knowledge
 base runs the KB tests, `shipper/` the shipper tests, `wowstats/<module>.py` the
-module's tests and every test importing it, `web/` and the page code the browser
+module's tests and every test that reaches it through its imports (followed
+transitively, lazy imports inside a function included: a page test imports `views`,
+which imports `analysis.pages`, which imports the semantic layer), a `dev/` script
+the tests that name it, `web/` and the page code the browser
 tests. A path no rule knows, or `conftest.py`, `pyproject.toml` and `uv.lock`,
 runs the whole non-browser suite. `--list` shows the selection without running it.
 

@@ -6,7 +6,8 @@
 // frame on /model3d/view, the page that runs our viewer (view.js, m3d/)
 // under its own CSP, and back. When the answer has nothing to draw (the
 // player's game files haven't come yet), the still stays, with why in one
-// line. This page keeps the strict CSP.
+// line; with no answer at all (404), no toggle. This page keeps the strict
+// CSP.
 //
 // The frame is sandboxed (allow-scripts only: an opaque origin, no network):
 // it can't read this page, its cookies, the /zogzog/ key or call /api/*
@@ -81,7 +82,22 @@
   function sendAnswer(f) {
     const to = f.contentWindow;
     answerFor(f).then((answer) => to && to.postMessage({ wowM3d: 'answer', answer }, '*'),
-      (e) => to && to.postMessage({ wowM3d: 'answer', error: String(e.message || e) }, '*'));
+      (e) => to && to.postMessage({ wowM3d: 'answer', error: missing(e) ? 'there’s none for this character' : 'its file didn’t load' }, '*'));
+  }
+
+  // The answer's file isn't there (404): a bundle published without the 3D,
+  // or a level it has no model for. That's no model at all, so no line and
+  // no toggle: a button that can only fail isn't offered. Any other failure
+  // (network, 5xx) is one plain line; a status code never reaches the page
+  // (it did: "No 3D model yet: 404 Not Found.", 2026-11-22).
+  const missing = (e) => Boolean(e) && e.status === 404;
+  const FAILED = 'The 3D model didn’t load: reload the page to try again.';
+  const noModel = (why) => `No 3D model yet: ${why}.`;
+  // What the stage shows instead of a model: { d } with a recipe to draw,
+  // else { line } (the sentence on the stage) or { gone } (nothing at all).
+  function outcome(name, level) {
+    return answerOf(name, level).then((d) => (d && d.recipe ? { d } : { line: noModel((d && d.why) || 'nothing to draw') }),
+      (e) => (missing(e) ? { gone: true } : { line: FAILED }));
   }
 
   window.addEventListener('message', (ev) => {
@@ -101,8 +117,8 @@
       .then(async (r) => reply(r.status, await r.arrayBuffer(), r.headers.get('Content-Type') || ''))
       .catch(() => reply(0, null, ''));
   });
-  // One line on the stage saying why there's no 3D model (the answer's
-  // why), or none.
+  // One line on the stage saying why there's no 3D model (a whole
+  // sentence: noModel or FAILED), or none.
   function whyLine(stage, text) {
     let p = stage.querySelector('.m3dwhy');
     if (!text) { if (p) p.remove(); return; }
@@ -110,7 +126,7 @@
       p = h('p', { class: 'm3dwhy', id: 'm3dwhy-' + (++ids) });
       stage.append(p);
     }
-    p.textContent = `No 3D model yet: ${text}.`;
+    p.textContent = text;
     return p;
   }
 
@@ -121,14 +137,20 @@
     if (!at || !at.name) return;
     const ask = ++ids;
     btn.dataset.ask = String(ask);
-    answerOf(at.name, at.level).then((d) => (d && d.recipe ? '' : (d && d.why) || 'nothing to draw'),
-      (e) => String(e.message || e)).then((why) => {
+    outcome(at.name, at.level).then((o) => {
       if (btn.dataset.ask !== String(ask) || stage.querySelector('.m3dframe')) return;
-      const line = whyLine(stage, why);
-      btn.disabled = Boolean(why);
-      if (line) btn.setAttribute('aria-describedby', line.id);
-      else btn.removeAttribute('aria-describedby');
+      offer(stage, btn, o);
     });
+  }
+
+  // The toggle for an outcome: on with a model, off with the line as its
+  // reason, gone with nothing to draw at all.
+  function offer(stage, btn, o) {
+    const line = whyLine(stage, o.line || '');
+    btn.hidden = Boolean(o.gone);
+    btn.disabled = !o.d;
+    if (line) btn.setAttribute('aria-describedby', line.id);
+    else btn.removeAttribute('aria-describedby');
   }
 
   // One stage: the still, or the model on the toggle. `src` gives the
@@ -159,15 +181,12 @@
         return;
       }
       const at = src();
-      let d = null;
-      try { d = await answerOf(at.name, at.level); } catch (e) { d = { why: String(e.message || e) }; }
+      const o = await outcome(at.name, at.level);
       if (stage.querySelector('.m3dframe')) return;  // a second click while asking
-      if (!d || !d.recipe) {
-        const line = whyLine(stage, (d && d.why) || 'nothing to draw');
+      if (!o.d) {
         if (still) still.hidden = false;
         set(false);
-        btn.disabled = true;
-        btn.setAttribute('aria-describedby', line.id);
+        offer(stage, btn, o);
         return;
       }
       whyLine(stage, '');
@@ -178,6 +197,7 @@
     };
     set(Boolean(stage.querySelector('.m3dframe')));
     btn.disabled = false;
+    btn.hidden = false;
     if (!stage.querySelector('.m3dframe')) askFirst(stage, btn, src);
     return btn;
   }
@@ -219,15 +239,14 @@
       // nothing to draw, the silhouette and why.
       const stage = h('div', { class: 'stage snapstage in3d' }, frameEl(title, name, level));
       holder.replaceChildren(stage);
-      answerOf(name, level).then((d) => (d && d.recipe ? null : d && d.why), (e) => String(e.message || e))
-        .then((why) => {
-          if (!why || holder.dataset.level !== String(level) || !stage.isConnected) return;
-          const box = window.wowLevelStill(document.createElement('div'), name, level, null);
-          box.querySelectorAll('.stillnote').forEach((n) => n.remove());
-          stage.classList.remove('in3d');
-          stage.replaceChildren(box);
-          whyLine(stage, why);
-        });
+      outcome(name, level).then((o) => {
+        if (o.d || holder.dataset.level !== String(level) || !stage.isConnected) return;
+        const box = window.wowLevelStill(document.createElement('div'), name, level, null);
+        box.querySelectorAll('.stillnote').forEach((n) => n.remove());
+        stage.classList.remove('in3d');
+        stage.replaceChildren(box);
+        whyLine(stage, o.line || '');
+      });
       return;
     }
     const box = window.wowLevelStill(document.createElement('div'), name, level, picture);
