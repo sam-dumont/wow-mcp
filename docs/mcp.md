@@ -373,8 +373,7 @@ list what they checked and what the saved data can't support yet:
   levels much slower than your own.
 - Not possible yet: bags full and vendor trash (the shipper sends which
   items the bags hold, not how full they are or what each sells for), flights not taken (no list of known flight paths),
-  low-value grinding (kill records carry no XP), dungeon deaths blow by blow
-  (no combat log).
+  dungeon deaths blow by blow (no combat log).
 - Checked by `next_moves`: upgrades in reach, dungeons with upgrades,
   profession trainer visits, rested XP, time to the next level.
 - Not possible yet: class trainer visits (the recorder logs visits, not

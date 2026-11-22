@@ -206,6 +206,7 @@ timeline:
     step_title: {expr: _.step_title, description: "That step's title, from the route reference (NULL when the reference doesn't have it)."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the interval's start, local time, named by its Monday (YYYY-MM-DD)."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "Start of the interval, local time."}
   measures:
@@ -296,9 +297,11 @@ records:
     step: {expr: _.at_step, description: "That guide's step number, the same way: a step or skip record's own step. Group by guide too: step numbers restart in each guide."}
     dungeon_trip: {expr: _.dungeon_trip_id, description: "The dungeon trip the record falls in (dungeon_trips), NULL outside one: filter is null for play outside dungeons."}
     record_t: {expr: _.t, description: "One record, named by when it was written (unix seconds): group by it to list the records one by one."}
+    death_t: {expr: "(_.kind == 'death').ifelse(_.t, _.t.nullif(_.t))", description: "One death, named by when its death record was written (unix seconds); NULL on every other record. Group by it to list the deaths one by one (per_death)."}
     item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week the record was written, local time, named by its Monday (YYYY-MM-DD)."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "When the record was written, local time."}
   measures:
@@ -343,10 +346,13 @@ records:
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: quests,
                  caveats: "Only what the player abandoned; a failed quest is a fail record."}
     kill_xp:
-      expr: _.xp_reward.sum(where=_.kind == 'kill').fill_null(0)
+      # NULL, not a sum that leaves kills out, when a kill record of the group
+      # doesn't say what it paid (an older Recorder): such kills read 0 XP
+      # before, and every kill XP rate built on them.
+      expr: "(_.rec_id.count(where=(_.kind == 'kill') & _.xp_reward.isnull()) == 0).ifelse(_.xp_reward.sum(where=_.kind == 'kill').fill_null(0), _.xp_reward.sum(where=_.kind == 'kill').nullif(_.xp_reward.sum(where=_.kind == 'kill')))"
       description: "XP from kills (kill records' xp_reward)."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: xp,
-                 caveats: "Rested bonus included, as the game reports it."}
+                 caveats: "Rested bonus included, as the game reports it. NULL (unknown) when a kill of the group doesn't say what it paid: kills_without_xp counts them. 0 without a kill."}
     quest_xp:
       expr: _.xp_reward.sum(where=_.kind == 'turnin').fill_null(0)
       description: "XP from quest hand-ins (turnin records' xp_reward)."
@@ -437,6 +443,26 @@ records:
       description: "Level on the group's newest record that carries one."
       metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: level,
                  caveats: "NULL with no record in the group."}
+    explore_xp:
+      expr: _.xp_reward.sum(where=_.kind == 'explore').fill_null(0)
+      description: "XP from discovering places (explore records' xp_reward): the third source beside kill_xp and quest_xp."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: xp,
+                 caveats: "Discoveries the Recorder saw; a place found with it off pays XP nobody counted. 0 without an explore record."}
+    kills_without_xp:
+      expr: _.rec_id.count(where=(_.kind == 'kill') & _.xp_reward.isnull())
+      description: "Kill records that don't say what the kill paid (no xp_reward): their XP is unknown, and kill_xp leaves them out."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: kills,
+                 caveats: "Above 0, kill_xp and the XP-per-hour metrics built on it undercount: a Recorder older than the kill XP field wrote those kills. Read kill_xp only where this is 0."}
+    zero_xp_kills:
+      expr: _.rec_id.count(where=(_.kind == 'kill') & (_.xp_reward == 0))
+      description: "Kills that paid no XP (xp_reward 0): a creature grey to the character, or one another player tapped first."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: kills,
+                 caveats: "A kill with no xp_reward at all is unknown, not here (kills_without_xp)."}
+    rides:
+      expr: _.rec_id.count(where=(_.kind == 'ride') & (_.on_flag == 1))
+      description: "Boat, zeppelin and tram rides boarded (ride records turning on)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: rides,
+                 caveats: "Counted where the ride began; its time is ride_s. Flight paths are flights."}
   calculated_measures:
     quest_xp_share:
       expr: _.quest_xp / (_.quest_xp + _.kill_xp)
@@ -466,6 +492,7 @@ sessions:
     end_t: {expr: _.end_t, description: "When the span ended, unix seconds (UTC): its last record."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week the span began, local time, named by its Monday (YYYY-MM-DD)."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "Start of the span, local time."}
   measures:
@@ -484,6 +511,11 @@ sessions:
       description: "XP gained during the spans (xp records)."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: xp,
                  caveats: "From the XP bar every 5 minutes: a span shorter than that can show 0."}
+    distance_yd:
+      expr: _.distance_yd.sum()
+      description: "Yards covered during the spans: the distance between the Recorder's position records, summed."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: yards,
+                 caveats: "Since the Recorder ran, never a lifetime total. Straight lines between positions a few seconds apart: a winding path is a little longer. 0 for a span with no position record (an older Recorder): read it with session_s."}
   calculated_measures:
     avg_session_s:
       expr: _.session_s / _.session_count
@@ -527,6 +559,7 @@ dungeon_runs:
     level: {expr: _.level, is_entity: true, description: "Level at entry."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week the run started, local time, named by its Monday (YYYY-MM-DD)."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "When the run started, local time."}
   measures:
@@ -810,6 +843,7 @@ gold_moves:
     dings: {expr: _.dings, description: "Level-ups between the two snapshots: 0 for a move inside one level."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the move's first snapshot, local time, named by its Monday (YYYY-MM-DD)."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "The first snapshot, local time."}
   measures:
@@ -853,6 +887,11 @@ gold_moves:
       description: "When the group's last move ended: its last snapshot, Unix seconds."
       metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: unix seconds,
                  caveats: "An edge of the window, not a measure of it."}
+    gold_earned_copper:
+      expr: _.delta_copper.sum(where=_.delta_copper > 0).fill_null(0)
+      description: "Money the purse gained over the moves that ended richer, copper: the positive moves summed."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: reconstructed, unit: copper,
+                 caveats: "Since the first snapshot, never a lifetime total. Each move is net: money earned and spent between the same two snapshots cancels, so the true income is at least this."}
   calculated_measures:
     gold_per_online_hour:
       expr: _.gold_moved_copper / (_.gold_move_online_s / 3600)
@@ -911,6 +950,7 @@ loot:
     session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the loot, local time, named by its Monday (YYYY-MM-DD)."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "When it was looted, local time."}
   measures:
@@ -937,6 +977,7 @@ xp:
     step: {expr: _.step, description: "That guide's step number. Group by guide too: step numbers restart in each guide."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the reading, local time, named by its Monday (YYYY-MM-DD)."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "When the XP bar was read, local time."}
   measures:
@@ -1125,6 +1166,63 @@ worn:
       description: "That worn item's score as a percent of the best its slot can hold at this level for the scored spec."
       metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: estimated, unit: percent,
                  caveats: "Group by slot, as worn_item. NULL when there is nothing to measure against."}
+    slots_at_bis:
+      expr: _.slot.nunique(where=_.bis_pct >= 100)
+      description: "Inventory slots whose worn item is the best its slot can hold at this level for the scored spec (worn_bis_pct 100)."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: estimated, unit: slots,
+                 caveats: "The newest sheet only. The best is the gear reference's, dungeons and quests: at 60 a slot only raids fill can read 100 while a raid item would beat it. Read it with slots_scored: a slot the reference can't score is in neither."}
+    slots_scored:
+      expr: _.slot.nunique(where=_.bis_pct.notnull())
+      description: "Inventory slots worn with something to measure against (a worn_bis_pct): what slots_at_bis counts out of."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: estimated, unit: slots,
+                 caveats: "The newest sheet only. 0 without a sheet (no Syndicator) or a scored spec."}
+    slots_unscored:
+      expr: _.slot.nunique(where=_.bis_pct.isnull())
+      description: "Inventory slots worn that the gear reference can't score (no worn_bis_pct): name them rather than call them done."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: estimated, unit: slots,
+                 caveats: "The newest sheet only. A shirt or tabard counts: group by slot to see which."}
+
+sheets:
+  table: sem_gear_sheets
+  description: "Every character sheet the shipper sent (Syndicator, feed wow-gear): one row per item worn on a sheet, so the gear over time, level by level."
+  dimensions:
+    sheet: {expr: _.sheet_t, description: "One sheet, named by when it was saved (unix seconds): group by it to list the sheets one by one."}
+    level: {expr: _.level, is_entity: true, description: "Level when the sheet was saved."}
+    slot: {expr: _.slot_name, description: "The slot (Head, Chest, Finger...; both rings are Finger)."}
+    slot_id: {expr: _.slot, description: "The inventory slot 1-19: which of two rings (11, 12) or trinkets (13, 14)."}
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
+    item: {expr: _.name, description: "Item name, as the sheet saved it."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week the sheet was saved, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When the sheet was saved, local time."}
+  measures:
+    sheets:
+      expr: _.sheet_t.nunique()
+      description: "Character sheets saved: one per logout or /reload with Syndicator on."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: observed, unit: sheets,
+                 caveats: "0 without Syndicator: the gear history then is today's gear only (worn). Not additive across groups: a sheet with items in two slots counts in each."}
+    sheet_items:
+      expr: _.item_id.count()
+      description: "Items worn, summed over the sheets: one per item and sheet."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
+                 caveats: "Group by sheet for what one sheet held. An empty slot has no row."}
+    first_worn_t:
+      expr: _.sheet_t.min()
+      description: "The first sheet that shows the group's item, unix seconds: group by item_id for when each item was first worn."
+      metadata: {kind: simple, aggregation: min, time_meaning: snapshot_observation, evidence_basis: observed, unit: unix seconds,
+                 caveats: "No earlier than the first sheet: an item worn before Syndicator ran shows on its first sheet. Not additive: over several groups it is the earliest."}
+    last_worn_t:
+      expr: _.sheet_t.max()
+      description: "The newest sheet that shows the group's item, unix seconds: before the newest sheet's time, the item was taken off."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: unix seconds,
+                 caveats: "Not additive: over several groups it is the newest."}
+    gear_changes:
+      expr: _.changed.sum()
+      description: "Slot changes: an inventory slot holding another item than on its previous sheet."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: reconstructed, unit: changes,
+                 caveats: "Counted on the sheet that shows the new item. Several swaps between two sheets count once; swapping two rings between fingers counts two. A slot's first sheet is no change."}
 
 professions:
   table: sem_professions
@@ -1257,6 +1355,51 @@ cross_model_metrics:
                eligibility: {where: {records: "_.level_whole == 1", levels: "(_.played_s > 0) & (_.partial == 0)"},
                  means: "Levels with a whole split: the quest XP of those levels over their played time. The level in play and a partial split stay out of both sides."}}
 
+  kill_xp_per_online_hour:
+    expr: kill_xp / (online_s / 3600)
+    description: "XP from kills per online hour: kill_xp (records) over online_s (timeline). Group by level and zone for where grinding paid."
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [event, interval_start], evidence_basis: reconstructed, unit: xp/hour,
+               caveats: "Every online hour of the group, questing and travel included, so the three source rates add up to the XP the records name per hour. Read kills_without_xp beside it: above 0, the kill side undercounts. NULL without online time (the Recorder off).",
+               eligibility: {where: {records: "_.session_id.notnull()", timeline: "_.session_id.notnull()"},
+                 means: "Inside a login span the Recorder saw, on both sides."}}
+  quest_xp_per_online_hour:
+    expr: quest_xp / (online_s / 3600)
+    description: "XP from quest hand-ins per online hour: quest_xp (records) over online_s (timeline)."
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [event, interval_start], evidence_basis: reconstructed, unit: xp/hour,
+               caveats: "Online time, not played time: quest_xp_per_played_hour is the level split's version. A quest pays where it is handed in, so a zone of hand-ins reads high and the zone of its kills low. NULL without online time.",
+               eligibility: {where: {records: "_.session_id.notnull()", timeline: "_.session_id.notnull()"},
+                 means: "Inside a login span the Recorder saw, on both sides."}}
+  explore_xp_per_online_hour:
+    expr: explore_xp / (online_s / 3600)
+    description: "XP from discovering places per online hour: explore_xp (records) over online_s (timeline)."
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [event, interval_start], evidence_basis: reconstructed, unit: xp/hour,
+               caveats: "Small beside kills and quests; high in a zone crossed for the first time. NULL without online time.",
+               eligibility: {where: {records: "_.session_id.notnull()", timeline: "_.session_id.notnull()"},
+                 means: "Inside a login span the Recorder saw, on both sides."}}
+  xp_per_active_hour:
+    expr: xp_gained / (active_s / 3600)
+    description: "XP per hour with the AFK flag off: xp_gained (the XP bar's readings) over active_s (timeline)."
+    dimensions: [level, session_id, hour, guide, step, character, class, week, time]
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [event, interval_start], evidence_basis: reconstructed, unit: xp/hour,
+               caveats: "Not by zone: an XP reading carries the subzone text where the timeline has the zone (kill_xp_per_online_hour and its two siblings are by zone). The game sets AFK after 5 idle minutes, so those minutes count as active. NULL without active time.",
+               eligibility: {where: {xp: "_.session_id.notnull() & _.xp_gained.notnull()", timeline: "_.session_id.notnull()"},
+                 means: "XP readings with a change and online intervals, both inside a login span the Recorder saw."}}
+  dungeon_vs_quest_xp_ratio:
+    expr: (trip_xp / trip_s) / (quest_xp / played_s)
+    description: "A dungeon trip's XP per hour over questing's at the same level: trip_xp per trip_s (dungeon_trips) over quest_xp per played_s (records, levels). 2.0: the trips paid twice the hand-ins' rate."
+    dimensions: [level, character, class]
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [interval_start, event, level_completion], evidence_basis: reconstructed, unit: ratio,
+               caveats: "Group by level: trips by their start level, quests by the level split. The quest side is every hand-in of the level (the trips' own included) over its whole played time (the trips' too), as quest_xp_per_played_hour reads it. NULL at a level without a trip or without a whole split: then Polestar's dungeon floor is the guide, not this.",
+               eligibility: {where: {dungeon_trips: "_.online_s > 0", records: "_.level_whole == 1", levels: "(_.played_s > 0) & (_.partial == 0)"},
+                 means: "Trips with online time, against the levels with a whole split: their quest XP over their played time."}}
+  runs_per_online_hour:
+    expr: run_count / (online_s / 3600)
+    description: "Dungeon runs per online hour: run_count (dungeon_runs) over online_s (timeline). By dungeon: runs per hour spent inside it, the farm's pace."
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [interval_start, interval_start], evidence_basis: reconstructed, unit: runs/hour,
+               caveats: "Grouped by dungeon, the hours are the ones inside it (the walk in and out is not); otherwise every online hour of the group. Its loot's worth isn't here: only the items (trip_loot). NULL without online time.",
+               eligibility: {where: {dungeon_runs: "_.start_t.notnull()", timeline: "_.session_id.notnull()"},
+                 means: "Every run Polestar timed, against the online time inside a login span the Recorder saw."}}
+
 # Views per grain (owner, 2026-11-22: "use the semantic model all the time"):
 # one DuckDB view per entity, made by compiling the metrics above at that grain
 # (semantic.py, view_sql), never written by hand. Each model aggregates to the
@@ -1271,34 +1414,38 @@ cross_model_metrics:
 views:
   per_level:
     entity: level
-    description: "One row per level: time played, wall clock and the longest silence, how much of it the Recorder saw, deaths, the route plan against the play, quests, gold and its rate, loot, and the rested XP the kills used."
+    description: "One row per level: time played, wall clock and the longest silence, how much of it the Recorder saw, active and AFK time, deaths, the route plan against the play, quests, XP by source (kills, quests, discoveries), dungeon trips against questing, gold and its rate, the money at the level's end, loot, gear changes, and the rested XP the kills used."
     dimensions: [partial, ding_t]
     where: [{dimension: level, op: is not null}]
     metrics: [played_s, calendar_s, offline_s, longest_gap_s, longest_gap_from, longest_gap_to, recorder_missed_s,
-              recorder_coverage, online_s, deaths, deaths_per_online_hour, planned_s, class_planned_s, vs_route,
-              split_quests, quests_done, xp_gained, ride_s,
-              gold_moved_copper, gold_delta_copper, gold_changes, gold_move_online_s, gold_per_online_hour, looted_items,
-              rested_used_xp, rested_kill_xp, rested_per_kill_xp]
+              recorder_coverage, online_s, active_s, afk_s, afk_share, deaths, deaths_per_online_hour, planned_s,
+              class_planned_s, vs_route, split_quests, quests_done, xp_gained, kill_xp, quest_xp, explore_xp,
+              kills_without_xp, dungeon_vs_quest_xp_ratio, ride_s,
+              gold_moved_copper, gold_delta_copper, gold_changes, gold_move_online_s, gold_per_online_hour, money_copper,
+              looted_items, gear_changes, rested_used_xp, rested_kill_xp, rested_per_kill_xp]
   per_session:
     entity: session_id
-    description: "One row per login span: when it began and ended, its length and XP, online, active, combat and dungeon time, kills, deaths, quests, the zone records' time, guide steps, skips and flights."
+    description: "One row per login span: when it began and ended, its length and XP, online, active, AFK, combat, dungeon, dead, flight and ride time, XP per active hour, kills, deaths, quests, the zone records' time, guide steps, skips, flights and the yards covered."
     dimensions: [weekday, start_hour, start_t, end_t, level_start, level_end]
     where: [{dimension: session_id, op: is not null}]
-    metrics: [session_s, session_xp, xp_per_session_hour, online_s, active_s, combat_s, dungeon_s, kills, deaths,
-              quests_done, quests_accepted, deaths_per_online_hour, kills_per_combat_hour, xp_gained, zone_s, guide_steps,
-              steps_skipped, flights]
+    metrics: [session_s, session_xp, xp_per_session_hour, online_s, active_s, afk_s, afk_share, combat_s, combat_share,
+              dungeon_s, dead_s, taxi_s, ride_s, xp_per_active_hour, kills, deaths, quests_done, quests_accepted,
+              deaths_per_online_hour, kills_per_combat_hour, xp_gained, zone_s, guide_steps, steps_skipped, flights,
+              distance_yd]
   per_zone:
     entity: zone
-    description: "One row per zone the Recorder saw: online, combat and dungeon time, kills, deaths, quests and their XP, the zone records' own time and visits, and the XP bar's gain there."
+    description: "One row per zone the Recorder saw: online, combat, dungeon, dead, flight and ride time, kills (those that paid nothing apart), deaths, quests, XP by source and each source's XP per online hour, rides boarded, the zone records' own time and visits, and the XP bar's gain there."
     where: [{dimension: zone, op: is not null}]
-    metrics: [online_s, active_s, combat_s, dungeon_s, kills, deaths, quests_done, kill_xp, quest_xp,
-              deaths_per_online_hour, kills_per_combat_hour, zone_s, zone_visits, xp_gained, xp_per_zone_hour]
+    metrics: [online_s, active_s, combat_s, combat_share, dungeon_s, dead_s, taxi_s, ride_s, kills, zero_xp_kills,
+              deaths, quests_done, kill_xp, quest_xp, explore_xp, kill_xp_per_online_hour, quest_xp_per_online_hour,
+              explore_xp_per_online_hour, deaths_per_online_hour, kills_per_combat_hour, rides, zone_s, zone_visits,
+              xp_gained, xp_per_zone_hour]
   per_dungeon:
     entity: dungeon
-    description: "One row per dungeon: runs and their time and XP inside, trips with the travel around them and their XP an hour."
+    description: "One row per dungeon: runs and their time and XP inside, runs per hour inside (the farm's pace), trips with the travel around them and their XP an hour."
     where: [{dimension: dungeon, op: is not null}]
-    metrics: [run_count, run_s, run_xp, run_xp_per_hour, trip_count, trip_s, trip_travel_s, trip_xp, trip_xp_per_hour,
-              trip_inside_share]
+    metrics: [run_count, run_s, run_xp, run_xp_per_hour, runs_per_online_hour, trip_count, trip_s, trip_travel_s, trip_xp,
+              trip_xp_per_hour, trip_inside_share]
   per_trip:
     entity: trip
     description: "One row per dungeon trip: when, at what level, its time phase by phase (pickup, travel there, inside, travel back, hand-in), its XP inside and from its quests, and what its run looted."
@@ -1317,6 +1464,19 @@ views:
     description: "One row per quest id: times in the log, shared and open time, XP, first accept and last objectives done."
     where: [{dimension: quest_id, op: is not null}]
     metrics: [quest_count, quest_s, quest_open_s, quest_reward_xp, quest_accepted_t, quest_complete_t]
+  per_death:
+    entity: death_t
+    description: "One row per death the Recorder saw: where, at what level, and the likely killer Polestar_Recorder picked (its NPC id and level), with the level gap to it."
+    dimensions: [zone, level, npc_id, npc_level]
+    where: [{dimension: death_t, op: is not null}]
+    metrics: [deaths, level_gap_max]
+  per_week:
+    entity: week
+    description: "One row per week (local time, from Monday): online, active and AFK time, login spans, the XP bar's gain and XP by source, kills, deaths, quests, dungeon runs, loot, the purse's moves and gains, gear changes and the yards covered. A source that sent nothing that week leaves its columns NULL."
+    where: [{dimension: week, op: is not null}]
+    metrics: [online_s, active_s, afk_share, session_count, session_s, xp_gained, kill_xp, quest_xp, explore_xp, kills,
+              deaths, quests_done, run_count, looted_items, gold_moved_copper, gold_earned_copper, gear_changes,
+              distance_yd]
   per_slot:
     entity: slot
     description: "One row per gear slot, for the spec the gear is scored for: the worn item and its fit, the best upgrade wearable now, and the two percents the page says as 'NN% → NN%' (upgrade_bis_pct_worn → best_upgrade_bis_pct)."
