@@ -32,6 +32,7 @@ on one core).
 | 15 | Two conflicting snapshots on one second give the same answer in either arrival order, on the page, the MCP and the analysis' tables. | `test_evidence.py::test_c_*` |
 | 16 | A snapshot that lacks a part (the bank, the equipped items, the money, quests a smaller set doesn't list, a Battle.net part that failed) doesn't erase it from an earlier complete one. | `test_evidence.py::test_d_*` |
 | 17 | What no snapshot says stays unknown (`null`), never 0 or empty: a bank never opened, a sheet without items, money never read, a Battle.net read never complete. | `test_evidence.py::test_e_*` |
+| 18 | However many partial snapshots follow a complete one, the page, the MCP and the analysis give the same equipment, bank and money, each with its own observation time (`money_at`, the bags' `at`, and `parts` in the `gear` and `polestar` coverage): a part read from an older snapshot keeps that snapshot's time. | `test_snapshot_parts.py` |
 | 20 | `--replay` sends every whole gzip member of a damaged `sent/` file (one cut short by a crash, at the end or between two whole ones, or garbage after them), names the file and the bytes it couldn't read, and exits 1. A damaged file never ends in "sent again" and exit 0. | `test_sent_damage.py` |
 | 21 | A definition change never adds weight: a finding gains support only from source events its last support didn't see (their ids, times and revisions), never from tables a definition change moved. Another `WEIGHTS` (Holy to Shadow), a prep version, the semantic model or a setting, with the events held fixed: the affected findings are to revalidate, the others still, none confirmed, and proposing one again on the same play gains nothing. | `test_definitions.py::test_changing_weights_*`, `test_definitions.py::test_a_definition_that_moves_prepared_rows_adds_no_weight` |
 
@@ -174,6 +175,16 @@ The shipper's disk writes and its copy in `sent/` (properties 12 and 20, review 
   shortened after a POST (written and renamed with no fsync at all: a power cut could leave it
   empty and lose the events still to send), the update's new script (an empty script runs
   nothing, so it can't update itself again), or the Recorder's files before the swap.
+
+Snapshot parts (property 18), fixed in the same change as its test (review 6):
+
+- The page and the MCP read the newest 10 gear sheets, bags and character sheets
+  (`SNAPSHOT_TAKE`) and took each part from the newest of those that had it. Eleven partial
+  snapshots after a complete one (a week of runs with Syndicator's cache lost) pushed the
+  complete one out: no equipment, no bank and no money, while the analysis, which reads every
+  event, still had them. The readers now ask, for each part, for the newest snapshot that
+  carries it (`stores.in_force`), however old. The hero line's `money_at` was the newest
+  sheet's time even when the money came from an older one; it is the money's own time now.
 
 ## Every consumer, every guarantee
 

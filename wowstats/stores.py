@@ -321,8 +321,6 @@ def dedupe(rows: list[dict]) -> list[dict]:
 # two snapshots on one time give the same answer in either arrival order.
 # Evidence properties (b) and (c), tests/invariants/test_evidence.py.
 SNAPSHOT_SORT = "sort by (at_basis, _time desc, source_id desc)"
-# The newest few: a part the newest lacks comes from an older one (newest_with).
-SNAPSHOT_TAKE = 10
 
 
 def snapshot_rank(r: dict) -> tuple:
@@ -335,29 +333,67 @@ def newest(rows: list[dict]) -> dict:
     return max(rows, key=snapshot_rank, default={})
 
 
+def part_rows(rows: list[dict], parts: tuple[str, ...]) -> dict[str, dict]:
+    """{part: the row in force among those that carry it}: where each part
+    of a snapshot source was last observed. A part no row carries is left
+    out."""
+    out: dict[str, dict] = {}
+    for r in sorted(rows, key=snapshot_rank, reverse=True):
+        for p in parts:
+            if p not in out and r.get(p) not in (None, ""):
+                out[p] = r
+    return out
+
+
 def newest_with(rows: list[dict], parts: tuple[str, ...]) -> dict:
     """newest(), with each of `parts` it doesn't carry taken from the newest
     row that does: a snapshot that lacks one (Syndicator's bank cache lost,
     a sheet without its money) doesn't erase it from an earlier complete
     one (evidence property (d)). A part no row carries stays absent:
-    unknown, never empty (e)."""
-    ranked = sorted(rows, key=snapshot_rank, reverse=True)
-    if not ranked:
+    unknown, never empty (e). `part_at` is each part's own observation
+    time ({part: _time}): a part taken from an older snapshot keeps that
+    snapshot's time, never the newer row's (review 6)."""
+    top = newest(rows)
+    if not top:
         return {}
-    out = dict(ranked[0])
-    for p in parts:
-        if out.get(p) in (None, ""):
-            got = next((r[p] for r in ranked if r.get(p) not in (None, "")), None)
-            if got is not None:
-                out[p] = got
+    out = dict(top)
+    got = part_rows(rows, parts)
+    for p, r in got.items():
+        out[p] = r[p]
+    out["part_at"] = {p: r.get("_time") for p, r in got.items()}
     return out
+
+
+def in_force(read, head: str, fields: str, parts: tuple[str, ...]) -> list[dict]:
+    """The rows that decide a snapshot source: the one in force
+    (SNAPSHOT_SORT) and, for each part, the one in force among those that
+    carry it (`part:*`). newest_with over these gives the same answer as
+    over every snapshot ever sent.
+
+    `read(query)` answers a LogsQL query (after the stream filter, if the
+    reader adds it); `head` is the filter, `fields` the fields to keep (the
+    parts among them). Review 6: the readers took a fixed window of the 10
+    newest snapshots, so an eleventh partial one hid the last complete one:
+    the page and the MCP lost the equipment, the bank and the money while
+    the analysis, which reads every event, still had them. One query per
+    part instead, however many partial snapshots came after."""
+    tail = f"| fields {fields} | {SNAPSHOT_SORT} | limit 1"
+    rows = list(read(f"{head} {tail}"))
+    for p in parts:
+        rows += read(f"{head} {p}:* {tail}")
+    return rows
 
 
 # The character sheet (wow-character, Polestar's logout sheet or the
 # roster's) the hero line and the MCP read, after the character filter.
-SHEET_QUERY = ("fields _time, at_basis, source_id, level, xp, xp_max, money_copper, zone, race, class, faction, "
-               f"realm, resting, source | {SNAPSHOT_SORT} | limit {SNAPSHOT_TAKE}")
+SHEET_FIELDS = ("_time, at_basis, source_id, level, xp, xp_max, money_copper, zone, race, class, faction, "
+                "realm, resting, source")
 SHEET_PARTS = ("money_copper",)
+
+
+def sheet_rows(read, cf: str) -> list[dict]:
+    """The character sheet's rows in force (in_force) for pick_sheet."""
+    return in_force(read, f'feed:="wow-character" {cf} -kind:=played', SHEET_FIELDS, SHEET_PARTS)
 
 
 def pick_sheet(rows: list[dict]) -> dict:

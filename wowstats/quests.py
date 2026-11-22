@@ -74,7 +74,7 @@ Q_SNAPSHOTS = 'feed:="wow-quests" {cf} kind:=completed | fields _time, at_basis,
 # since still proves the hand-in. The Gear page once read the newest alone
 # and offered Violet Sash from Power Overwhelming again once it was gone
 # (#33's case), while the planner, reading the whole history, had it done.
-# What the character owns now is wowstats.gear's Q_SHEET and Q_HELD.
+# What the character owns now is wowstats.gear's sheet_rows and held_rows.
 Q_SHEETS = 'feed:in("wow-gear", "wow-bags") {cf} | fields _time, at_basis, feed, items, bags, bank'
 
 

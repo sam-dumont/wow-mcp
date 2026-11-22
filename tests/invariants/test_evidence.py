@@ -88,7 +88,7 @@ def sheet_ev(t: float, level: int, money: int | None, sid: str | None = None, **
 
 def gear_now(rows: list[dict]) -> tuple:
     """(the sheet's time, the item ids it wears), both read paths agreeing."""
-    page = gear.pick_sheet(lq(f'feed:="wow-gear" {CF} | {gear.Q_SHEET}', rows))
+    page = gear.pick_sheet(gear.sheet_rows(lambda q: lq(q, rows), CF))
     plan = gear.pick_sheet([r for r in stores.dedupe(rows) if r.get("feed") == "wow-gear"])
     got = []
     for row in (page, plan):
@@ -99,7 +99,7 @@ def gear_now(rows: list[dict]) -> tuple:
 
 
 def bags_now(rows: list[dict]) -> tuple:
-    page = gear.newest_bags(lq(gear.Q_HELD.format(cf=CF), rows))
+    page = gear.newest_bags(gear.held_rows(lambda q: lq(q, rows), CF))
     plan = gear.newest_bags(stores.dedupe(rows))
     assert page == plan, f"the page and the planner read different bags: {page} {plan}"
     return None if page is None else (page["t"], page["bags"], page["bank"])
@@ -114,7 +114,7 @@ def quests_now(rows: list[dict]) -> dict:
 def sheet_now(rows: list[dict]) -> tuple:
     """The hero line's level and money (views.build_header's pick), and the
     MCP's character_summary's: the same rows, the same pick."""
-    snap = stores.pick_sheet(lq(f'feed:="wow-character" {CF} -kind:=played | {stores.SHEET_QUERY}', rows))
+    snap = stores.pick_sheet(stores.sheet_rows(lambda q: lq(q, rows), CF))
     return snap.get("_time"), snap.get("level"), snap.get("money_copper")
 
 

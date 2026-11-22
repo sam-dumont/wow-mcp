@@ -447,7 +447,11 @@ class App:
             gaps = self.journal(name).get("recorder_gaps")
         except SourceError:
             gaps = None
-        return coverage.build(snap, name, gaps, coverage.bnet_of(self.store, name))
+        try:
+            parts = coverage.read_parts(self.views.q, self.views.char_filter(name))
+        except SourceError:
+            parts = {}
+        return coverage.with_parts(coverage.build(snap, name, gaps, coverage.bnet_of(self.store, name)), parts)
 
     def journal(self, name: str) -> dict:
         self._full_only()

@@ -957,22 +957,29 @@ def sheet(row: dict, fallback: dict | None = None) -> dict:
     }
 
 
-# The stored events the advice needs, as LogsQL pipes after a character filter.
-# The sheets in force first (stores.SNAPSHOT_SORT), a few: pick_sheet takes
-# the items from an older one when the newest has none to say.
-Q_SHEET = ("fields _time, at_basis, source_id, items, professions, recipes, spec, spec_from, polestar_spec, "
-           "gear_adjust, min_upgrade, "
-           f"class, race, faction | {stores.SNAPSHOT_SORT} | limit {stores.SNAPSHOT_TAKE}")
-# The bags and bank (wow-bags) in force, for advise(held=...) through
-# newest_bags.
-Q_HELD = ('feed:="wow-bags" {cf} | fields _time, at_basis, source_id, feed, bags, bank '
-          f"| {stores.SNAPSHOT_SORT} | limit {stores.SNAPSHOT_TAKE}")
 # What a sheet or a bags event may lack and an older one still says: a
 # shipper from 0.7.0 leaves `items` out when Syndicator didn't know the
 # character on that run, and `bank` when Syndicator holds no bank (never
 # opened, or its cache lost). Older shippers sent [] for both.
 SHEET_PARTS = ("items",)
 BAGS_PARTS = ("bags", "bank")
+# The stored events the advice needs, after a character filter: the sheet
+# in force and, for each part, the newest sheet that has it
+# (stores.in_force), for pick_sheet; the bags and bank in force, for
+# advise(held=...) through newest_bags.
+SHEET_FIELDS = ("_time, at_basis, source_id, items, professions, recipes, spec, spec_from, polestar_spec, "
+                "gear_adjust, min_upgrade, class, race, faction")
+HELD_FIELDS = "_time, at_basis, source_id, feed, bags, bank"
+
+
+def sheet_rows(read, cf: str, fields: str = SHEET_FIELDS) -> list[dict]:
+    """The gear sheet's rows in force (stores.in_force) for pick_sheet."""
+    return stores.in_force(read, f'feed:="wow-gear" {cf}', fields, SHEET_PARTS)
+
+
+def held_rows(read, cf: str) -> list[dict]:
+    """The bags and bank rows in force (stores.in_force) for newest_bags."""
+    return stores.in_force(read, f'feed:="wow-bags" {cf}', HELD_FIELDS, BAGS_PARTS)
 
 
 def pick_sheet(rows: list[dict]) -> dict | None:
@@ -1073,8 +1080,10 @@ def recipe_lists(rows) -> dict[str, set]:
 
 
 def newest_bags(rows: list[dict]) -> dict | None:
-    """The newest wow-bags event's item IDs ({bags, bank, t}), None when the
-    shipper never sent one (before 0.3.2, or no Syndicator)."""
+    """The newest wow-bags event's item IDs ({bags, bank, t, at}), None when
+    the shipper never sent one (before 0.3.2, or no Syndicator). `t` is the
+    newest event's time, `at` each part's own ({bags, bank}: _time): a bank
+    from an older event keeps that event's time (review 6)."""
     from wowstats.stores import parse_t
 
     r = stores.newest_with([r for r in rows if r.get("feed") == "wow-bags"], BAGS_PARTS)
@@ -1090,7 +1099,7 @@ def newest_bags(rows: list[dict]) -> dict | None:
                 v = None
         # Never read (no list): unknown, not empty (evidence property (e)).
         ids[k] = sorted({int(n) for x in v if isinstance(n := _num(x), int)}) if isinstance(v, list) else None
-    return {**ids, "t": parse_t(r.get("_time")).timestamp()}
+    return {**ids, "t": parse_t(r.get("_time")).timestamp(), "at": dict(r.get("part_at") or {})}
 
 
 def is_held(u: dict) -> bool:
