@@ -94,8 +94,8 @@ def opaque(px):
 POINTS = [
     ((0.12, 0.0, 0.3), violet, "the robe's skirt (Violet Sorcerer's Robes)"),
     ((0.17, -0.06, 0.7), ginger, "the beard, in the look's hair colour"),
-    ((0.12, 0.18, 0.95), blue, "the Azure Silk Hood's left side, on the head attachment"),
-    ((0.12, -0.18, 0.95), blue, "the hood's right side"),
+    ((0.12, 0.18, 0.95), blue, "the Silky Circlet's left side, on the head attachment"),
+    ((0.12, -0.18, 0.95), blue, "the head piece's right side"),
     ((0.08, -0.22, 0.45), opaque, "the scepter in the right hand (slot 16, attachment 1)"),
     ((0.078, 0.22, 0.45), opaque, "the rod in the left hand (slot 17, attachment 2)"),
     ((0.13, 0.08, 0.04), opaque, "the left boot"),

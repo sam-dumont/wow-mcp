@@ -334,18 +334,18 @@ ITEMS: dict[int, tuple[str, tuple]] = {
     270036: ("trousers", ((52, 60, 96), None)),
     7000: ("belt", ((116, 76, 40), (220, 190, 80))),
     6998: ("boots", ((128, 84, 48), (70, 44, 24))),
-    273808: ("wrists", ((170, 120, 60), None)),
+    3647: ("wrists", ((170, 120, 60), None)),
     270029: ("gloves", ((196, 168, 120), None)),
     4311: ("cloak", ((120, 120, 112), None)),
     273045: ("cloak", ((40, 140, 150), (200, 230, 240))),
     4315: ("shoulders", ((150, 150, 140), None)),
     6685: ("shoulders", ((70, 50, 90), (210, 200, 220))),
-    1312: ("staff", ((150, 110, 70), (120, 200, 120))),
+    5201: ("staff", ((150, 110, 70), (120, 200, 120))),  # Emberstone Staff
     1317: ("staff", ((112, 80, 52), (140, 220, 120))),
     2816: ("mace", ((90, 80, 100), (150, 60, 200))),
     279838: ("rod", ((60, 70, 140), (180, 140, 255))),
     4323: ("helm", ((60, 50, 70), None)),                # Shadow Hood: on the auction house today
-    7048: ("helm", ((60, 110, 190), None)),              # Azure Silk Hood: his own tailoring
+    253951: ("helm", ((60, 110, 190), None)),            # Silky Circlet: his own tailoring
     2576: ("shirt", ((236, 232, 220), None)),            # White Linen Shirt
     5976: ("tabard", ((40, 90, 60), (220, 190, 80))),    # Guild Tabard: green, a gold band
     TEST_HELM: ("helm", ((150, 40, 40), None)),
@@ -356,7 +356,7 @@ ITEMS: dict[int, tuple[str, tuple]] = {
 # others' come from the repository's item data (wowstats.gear).
 TEST_ITEMS = {TEST_HELM: (4, 4, 1), TEST_SHIELD: (4, 6, 14)}
 # Item ids the repository's item data doesn't know: as the game has them.
-KNOWN = {1312: (2, 10, 17), 2576: (4, 0, 4), 5976: (4, 0, 19)}
+KNOWN = {2576: (4, 0, 4), 5976: (4, 0, 19)}
 BODY = {"robe": (0, 1, 3, 4, 5), "trousers": (5, 6), "belt": (4,), "boots": (6, 7), "wrists": (1,),
         "gloves": (2,), "shirt": (0, 3), "tabard": (3, 4)}
 GEOSETS = {"robe": [1, 0, 1], "boots": [1], "gloves": [1], "cloak": [1]}
