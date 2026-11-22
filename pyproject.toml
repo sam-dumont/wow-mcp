@@ -145,4 +145,5 @@ addopts = "-m 'not browser and not ci_only'"
 markers = [
     "browser: drives Chromium/WebKit through Playwright (files named *browser*; tests/conftest.py)",
     "ci_only: needs docker compose, a Polestar checkout or Windows; CI and releases run it (tests/conftest.py)",
+    "real_home: reads the machine's own HOME (the shipper's HOME is a temp dir otherwise; tests/conftest.py)",
 ]

@@ -34,6 +34,22 @@ def wow_folder_is_a_fixture():
 
 
 @pytest.fixture(autouse=True)
+def shipper_never_reads_the_machines_client(request, monkeypatch, tmp_path_factory):
+    """The shipper's default Polestar client folder is under HOME: on a dev
+    Mac with the client installed, a test's main() loaded its real chunks
+    into CLIENT, and they leaked into every later extract_tree (2026-11-22).
+    HOME is a temp dir for the shipper, and CLIENT starts and ends empty."""
+    mod = sys.modules.get("wow_stats_shipper")
+    if mod is not None:
+        if not request.node.get_closest_marker("real_home"):  # the opt-in real-data test reads it
+            monkeypatch.setattr(mod, "HOME", tmp_path_factory.mktemp("home"))
+        mod.CLIENT.clear()
+    yield
+    if mod is not None:
+        mod.CLIENT.clear()
+
+
+@pytest.fixture(autouse=True)
 def no_item_tables(monkeypatch):
     """The loot history's item table comes from wago.tools: never in tests."""
     from wowstats import itemcard, items, talents
