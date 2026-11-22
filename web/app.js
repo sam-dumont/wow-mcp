@@ -2426,13 +2426,16 @@ function renderDeaths(d) {
     emptyNote(body, 'No deaths recorded.', recorder ? gap || '' : RECORDER_ON);
     return;
   }
-  const levels = Object.keys(de.by_level).length;
+  // Over the levels the Recorder saw whole, deaths and levels alike
+  // (wowstats/views.py deaths_per_level): none of them, no ratio.
+  const pl = de.per_level;
   const worst = Object.entries(de.by_level).sort((a, b) => b[1] - a[1])[0];
   fill(body, 
     h('dl', { class: 'sum' },
       h('div', {}, h('dt', { text: 'Deaths' }), h('dd', { text: de.total })),
       worst ? h('div', {}, h('dt', { text: 'Worst level' }), h('dd', { text: `${worst[0]} (${worst[1]})` })) : null,
-      levels ? h('div', {}, h('dt', { text: 'Per level' }), h('dd', { text: (de.total / Math.max(1, d.levels.length)).toFixed(1) })) : null),
+      pl ? h('div', {}, h('dt', { text: 'Per level' }), h('dd', {}, pl.value.toFixed(1),
+        h('span', { class: 'sub', text: ` over ${pl.n} level${pl.n > 1 ? 's' : ''} recorded whole` }))) : null),
     gap ? h('p', { class: 'sub covnote', text: gap }) : null,
     barRows(de.by_zone.slice(0, 8), { name: (r) => r.zone, value: (r) => r.n, cls: 'death' }),
     de.recent ? h('h3', { text: 'Most recent' }) : null,

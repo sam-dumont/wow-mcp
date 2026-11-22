@@ -302,6 +302,12 @@ class Views:
                 arm = {}
             add_armory(gear, arm)
         climb = build_climb(levels, res["dings"])
+        # "Per level" over the levels the Recorder saw whole, the same ones
+        # on both sides (review 6). The same gaps as the coverage note.
+        spans = split_sessions(res["minutes"])
+        deaths["per_level"] = (None if deaths["total"] is None else
+                               deaths_per_level(deaths["by_level"], climb, spans,
+                                                coverage.recorder_gaps(spans, res["levels"])))
         # The level being played has no split yet: its played time so far
         # comes from the Recorder, which is logged-in time like the splits.
         current_s = None
@@ -1365,6 +1371,32 @@ def build_deaths(rows: list[dict]) -> dict:
                        for r in rows[:15]],
             "by_zone": sorted(({"zone": k, "n": v} for k, v in by_zone.items()), key=lambda z: -z["n"]),
             "by_level": by_level}
+
+
+def deaths_per_level(by_level: dict, climb: list[dict], spans: list[tuple], gaps: list[dict]) -> dict | None:
+    """The Deaths section's "Per level": deaths over levels, both read over
+    the same levels, the ones the Recorder saw whole. A level counts when
+    the ding into it and the ding out of it are both known (`climb`: the
+    splits' and the Recorder's dings), the Recorder's first record (`spans`,
+    unix seconds) is at or before the ding into it, and the Recorder missed
+    none of it (`gaps`, coverage.recorder_gaps: Polestar's split longer than
+    what the Recorder saw). The level in play, the levels before the Recorder
+    and a level with a gap leave both sides. {value, deaths, n, levels} or
+    None when no level qualifies (never 0).
+
+    Review 6: the page divided every Recorder death by Polestar's level
+    count, so a Recorder switched on late read 3 deaths / 12 levels = 0.25
+    for a character that died once in the one level it saw whole."""
+    if not spans:
+        return None
+    first = spans[0][0]
+    ding = {int(c["level"]): parse_t(c["t"]).timestamp() for c in climb if c.get("t") and c.get("level") is not None}
+    missed = {int(g["level"]) for g in gaps or [] if g.get("level") is not None}
+    levels = [lv for lv in sorted(ding) if lv + 1 in ding and ding[lv] >= first and lv not in missed]
+    if not levels:
+        return None
+    n = sum(int((by_level or {}).get(str(lv), 0)) for lv in levels)
+    return {"value": round(n / len(levels), 2), "deaths": n, "n": len(levels), "levels": levels}
 
 
 def build_players(char: str, summary: list[dict], days: list[dict]) -> dict:

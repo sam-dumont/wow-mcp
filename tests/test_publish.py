@@ -166,7 +166,9 @@ def test_zogzog_has_no_other_players_and_no_location_now(site):
         assert not bad, f"{path}: {sorted(bad)}"
     char = json.loads(plain[next(p for p in plain if p.startswith("data/char/"))])
     assert "zone" not in char["header"] and "seen" not in char["header"]
-    assert set(char["deaths"]) == {"total", "by_zone", "by_level"}
+    assert set(char["deaths"]) == {"total", "by_zone", "by_level", "per_level"}
+    # How many levels the ratio read, never which: that is coverage (review 6).
+    assert char["deaths"]["per_level"] is None or set(char["deaths"]["per_level"]) == {"value", "deaths", "n"}
     ov = json.loads(plain[next(p for p in plain if p.startswith("data/overview/"))])
     assert set(ov["next_moves"]) == {"checks", "not_possible_yet"}
     assert all(m["kind"] in ZOGZOG_MOVE_KINDS for m in ov["moves"])
