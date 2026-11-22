@@ -171,6 +171,27 @@ def test_the_brief_names_the_break_and_the_off_spec_head_only_where_injected(fac
             assert gear["scored_for"] == "Shadow" and all(x["item_id"] != 253981 for x in head)
 
 
+
+def test_the_brief_hands_the_spec_s_best_head_upgrades(facts):
+    """The owner's ask (2026-11-22): the three Holy head upgrades the truth
+    names were reachable through play_sql only. The brief's gear_fit now
+    carries them under the circlet, from the semantic layer, in the page's
+    words, with where to get each and the Wowhead pages; the same three the
+    prep's own table ranks first (facts' top_upgrades, plain SQL)."""
+    f = facts["wrong_spec_gear"]
+    head = next(x for x in f["brief_facts"]["gear_fit"]["worn"] if x["slot"] == "Head")
+    rule = next(r for r in scenarios.load("wrong_spec_gear")["truth"]["must_find"]
+                if r["id"] == "head-upgrade-for-the-spec")
+    ups = head["upgrades"]
+    assert [u["item"].lower() for u in ups] == sorted(rule["all"][0], key=[
+        u["name"].lower() for u in f["top_upgrades"]["Head"]].index)
+    assert [u["item_id"] for u in ups] == [u["item_id"] for u in f["top_upgrades"]["Head"]]
+    for u in ups:
+        assert u["line"].startswith(f"{head['bis_pct']}% → ") and u["line"].endswith("% on your head"), u
+        assert u["wowhead"] == f"https://www.wowhead.com/forever/item={u['item_id']}"
+        assert u["where"] and len(u["where_wowhead"]) == len(u["where"]) and u["fit"] == "yes"
+    assert ups[0]["where"] == ["drop: Fallen Champion in Scarlet Monastery: Library (dungeon, levels 30-38), 38.5%"]
+
 def test_the_analysis_reads_what_the_store_query_would():
     rows = [{"char": "Nibbet-Gearholt", "feed": "wow-recorder"}, {"char": "Nibbet Gearholt", "feed": "wow-level"},
             {"char": "Nibbet-Gearholt", "feed": "wow-prices"}, {"char": "Other-Realm", "feed": "wow-recorder"},

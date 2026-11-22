@@ -104,8 +104,10 @@ def build(db, rows: list, knowledge=None, route_ref=None, now: datetime | None =
 
 # The tables the gear scoring fills (from analysis.advice_for): prep's
 # upgrade_candidates, and gear's score, bis_pct and fit for the scored spec.
-# A scoring change means something else only there.
-SCORED_TABLES = ("upgrade_candidates", "gear")
+# A scoring change means something else only there. The semantic layer's
+# views over them (models `upgrades` and `worn`) too: a metric_query compiles
+# to SQL that names the view, and `\bgear\b` doesn't match sem_gear.
+SCORED_TABLES = ("upgrade_candidates", "gear", "sem_upgrades", "sem_gear")
 
 
 def reads_scoring(finding: dict | None) -> bool:

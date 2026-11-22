@@ -335,7 +335,7 @@ def brief(env: dict, char: str, section: str = "start", page: int = 1, goals: st
                "procedure": passes.PROCEDURE, "finding_rules": passes.FINDING_RULES,
                "sections": {k: {"about": v, **({"pages": len(_pages(w.text(k)))} if k in ("schema", "profile", "kb")
                                                else {})} for k, v in SECTIONS.items() if k != "start"},
-               "tables": w.tables, "facts": facts(w.db), "next": next_step(run)}
+               "tables": w.tables, "facts": facts(w.db, w.layer(), w.metrics), "next": next_step(run)}
         stale = to_revalidate(env, w.char)
         if stale:
             out["to_revalidate"] = {"findings": stale, "do": REVALIDATE_DO}
@@ -373,12 +373,30 @@ WEAK_PCT = 25
 FACTS_ROWS = 8
 
 
-def facts(db) -> dict:
+# The best upgrades listed under each worn item of gear_fit, wearable now.
+UPGRADES_PER_SLOT = 3
+
+
+def facts(db, layer=None, ro=None) -> dict:
     """Measurements every run gets in the start section, the same whatever
     the client: the levels whose calendar holds a long silence (played
     against calendar time), and the worn items that do least for the spec
-    the gear is scored for. Facts, not findings: the client still checks
-    them with play_sql and decides what they mean."""
+    the gear is scored for, each with the best upgrades for its slot under
+    that spec, where to get them and their Wowhead pages. Facts, not
+    findings: the client still checks them (query_metric, play_sql) and
+    decides what they mean.
+
+    The gear part reads the semantic layer (models `worn` and `upgrades`)
+    through `layer` and `ro`, the same compiled queries query_metric runs:
+    a client gets the decision data without knowing a table (owner,
+    2026-11-22: the wrong_spec_gear scenario's three Holy head upgrades were
+    reachable through play_sql only). Without them, a copy of `db` of its own
+    (semantic.local)."""
+    if layer is None:
+        from . import semantic
+
+        layer, ro = semantic.local(db)
+
     def h(v, unit):
         return None if v is None else round(v / unit, 1)
 
@@ -389,12 +407,7 @@ def facts(db) -> dict:
                   "SELECT level, played_s, COALESCE(planned_s, planned_median_s), calendar_s, offline_s, "
                   "longest_gap_s, longest_gap_from_local, longest_gap_to_local, recorder_missed_s FROM levels "
                   "WHERE longest_gap_s >= ? ORDER BY longest_gap_s DESC LIMIT ?", (BREAK_S, FACTS_ROWS))]
-    spec = (db.execute("SELECT scored_for FROM gear WHERE scored_for IS NOT NULL LIMIT 1").fetchone() or [None])[0]
-    worn = [{"slot": sl, "item": n, "item_id": i, "bis_pct": p, "fit": f, "built_for": b}
-            for sl, n, i, p, f, b in db.execute(
-                "SELECT slot_name, name, item_id, bis_pct, fit, built_for FROM gear WHERE name IS NOT NULL "
-                "AND (fit IN ('spec', 'class') OR bis_pct < ?) ORDER BY bis_pct IS NULL, bis_pct, slot LIMIT ?",
-                (WEAK_PCT, FACTS_ROWS))]
+    spec, worn, query = gear_fit(layer, ro)
     return {
         "level_calendar": {
             "about": f"levels with a silence of {BREAK_S // 86400} days or more between two sessions (levels: "
@@ -403,10 +416,74 @@ def facts(db) -> dict:
             "levels": breaks or "none"},
         "gear_fit": {
             "scored_for": spec or "no gear sheet: unknown",
-            "about": f"worn items built for another spec or class (gear.fit), or under {WEAK_PCT}% of the best "
-                     "the slot can hold now for that spec (gear.bis_pct)",
-            "worn": worn or "none"},
+            "about": f"worn items built for another spec or class (fit), or under {WEAK_PCT}% of the best the "
+                     "slot can hold now for that spec (bis_pct). Each has `upgrades`: the best items for that "
+                     f"slot wearable now under the scored spec (up to {UPGRADES_PER_SLOT}, `more` when the gear "
+                     "advice has others), with `line` in the page's words (say it as is), where to get each "
+                     "(`where`, what blocks it included) and the Wowhead pages. `query` is the query_metric "
+                     "call that lists them: re-run it, or give it as a finding's metric_query",
+            "worn": worn or "none",
+            **({"query": query} if query else {})},
     }
+
+
+def _num(v):
+    """A whole number as an int (the prep's REAL columns: 17.0 -> 17)."""
+    return int(v) if isinstance(v, float) and v.is_integer() else v
+
+
+def gear_fit(layer, ro) -> tuple[str | None, list[dict], dict | None]:
+    """The scored spec, the worn items that fit it least with their slots'
+    best upgrades, and the upgrades' query_metric call (None when no item
+    is listed), all from the semantic layer."""
+    from wowstats import gear
+    from wowstats.links import wowhead_url
+
+    from . import semantic
+
+    def ask(**q) -> list[dict]:
+        got = semantic.run(layer, ro, {"limit": semantic.MAX_LIMIT, **q})
+        return [dict(zip(got["columns"], r, strict=True)) for r in got["rows"]]
+
+    rows = ask(metrics=["worn_bis_pct"], group_by=["slot", "item_id", "item", "fit", "built_for", "scored_for"])
+    spec = next((r["scored_for"] for r in rows if r["scored_for"]), None)
+    order = {name: n for n, name in gear.SLOT_NAMES.items()}
+    weak = sorted((r for r in rows if r["fit"] in ("spec", "class")
+                   or (r["worn_bis_pct"] is not None and r["worn_bis_pct"] < WEAK_PCT)),
+                  key=lambda r: (r["worn_bis_pct"] is None, r["worn_bis_pct"] or 0, order.get(r["slot"], 99),
+                                 r["item_id"]))[:FACTS_ROWS]
+    if not weak:
+        return spec, [], None
+    query = {"metrics": ["upgrade_gain", "upgrade_bis_pct", "upgrade_bis_pct_worn"],
+             "group_by": ["slot", "item_id", "item", "fit"],
+             "where": [{"dimension": "slot", "op": "in", "values": sorted({r["slot"] for r in weak})},
+                       {"dimension": "rank_now", "op": "<=", "value": UPGRADES_PER_SLOT + 1}],
+             "order_by": ["slot", "-upgrade_gain"]}
+    ups = ask(**query)
+    where: dict[int, list[tuple[str, str | None]]] = {}
+    if ups:
+        for r in ask(metrics=["upgrade_sources"], group_by=["item_id", "source", "source_wowhead"],
+                     where=[{"dimension": "item_id", "op": "in", "values": sorted({u["item_id"] for u in ups})}],
+                     order_by=["item_id", "source"]):
+            where.setdefault(r["item_id"], []).append((r["source"], r["source_wowhead"]))
+    by_slot: dict[str, list[dict]] = {}
+    for u in ups:
+        line = gear.gain_words({"slot_name": u["slot"], "gain": u["upgrade_gain"],
+                                "bis_pct": _num(u["upgrade_bis_pct"]), "bis_pct_worn": _num(u["upgrade_bis_pct_worn"])})
+        src = where.get(u["item_id"]) or []
+        by_slot.setdefault(u["slot"], []).append({
+            "item": u["item"], "item_id": u["item_id"], "wowhead": wowhead_url("item", u["item_id"]),
+            "gain_points": u["upgrade_gain"], "line": line, "fit": u["fit"],
+            "where": [t for t, _ in src], "where_wowhead": [w for _, w in src]})
+    worn = []
+    for r in weak:
+        got = by_slot.get(r["slot"]) or []
+        worn.append({"slot": r["slot"], "item": r["item"], "item_id": r["item_id"],
+                     "wowhead": wowhead_url("item", r["item_id"]), "bis_pct": _num(r["worn_bis_pct"]),
+                     "fit": r["fit"], "built_for": r["built_for"],
+                     "upgrades": got[:UPGRADES_PER_SLOT] or "none wearable now in the gear advice",
+                     "more": len(got) > UPGRADES_PER_SLOT})
+    return spec, worn, query
 
 
 REVALIDATE_DO = ("Kept findings judged under other definitions (prep version, semantic model or reference data): "

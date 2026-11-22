@@ -60,7 +60,8 @@ def _fresh():
 
 def _mcp(env: dict) -> dict:
     ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=D.CHAR, env=env)
-    return {name: T.call(ctx, name, {"char": D.CHAR}) for name in ("gear_options", "dungeon_options", "next_step")}
+    return {name: T.call(ctx, name, {"char": D.CHAR})
+            for name in ("gear_options", "dungeon_options", "next_step", "gear")}
 
 
 def _ui(env: dict) -> dict:
@@ -82,6 +83,9 @@ def test_page_and_mcp_score_the_weights_spec(setup, first):
     assert page["doll"]["spec"]["key"] == spec, "the doll scores for WEIGHTS"
     assert page["dungeons"]["spec"] == label
     assert mcp["gear_options"]["spec"] == label, (first, mcp["gear_options"]["spec"], label)
+    # The gear tool too: it scored the add-on's spec while everything else
+    # scored WEIGHTS (decision-data review, 2026-11-22).
+    assert mcp["gear"]["spec"] == label and "WEIGHTS" in mcp["gear"]["spec_from"], mcp["gear"]["spec_from"]
     # The same answers whichever caller filled the planner's cache first.
     _fresh()
     alone = _mcp(env)

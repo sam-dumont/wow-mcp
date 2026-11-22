@@ -220,6 +220,12 @@ view's answers cut to their tier's shape (`wowstats/redact.py`). Paths are under
 | **Same config as the UI** | `cons::test_page_and_mcp_agree`, `test_mcp_weights::test_one_settings_builder` | `test_mcp_weights::test_one_settings_builder` (every view's `App` calls `settings_from_env`) | as the public view | `cons::test_page_and_mcp_agree`, `test_mcp_weights::test_page_and_mcp_score_the_weights_spec` | `cons::test_page_and_mcp_agree` (per local day), `matrix::test_the_analysis_scores_gear_for_the_pages_weights` | `invariants/test_definitions.py` (`settings`: another timezone, or another `WEIGHTS` for a finding on the upgrade candidates, marks it to revalidate), `analysis/test_analysis::test_nightly_schedule` | n/a: reads no setting; WEIGHTS apply after, in the views |
 | **Tenant permissions** | `test_tenancy::test_friend_sees_only_their_own_data`, `cons::test_neither_reads_the_others_character` | `test_public_view::test_public_never_leaks`, `test_publish::test_public_bundle_holds_only_the_allowlist` | `test_publish::test_zogzog_bundle_holds_only_its_allowlist`, `test_tenancy::test_bundles_are_per_person` | `test_tenancy::test_every_mcp_tool_as_the_friend` | `analysis/test_auto::test_a_run_reads_and_writes_only_its_own_tenant`, `analysis/test_semantic::test_a_friend_cant_query_the_owners_character` | same reader and state folders as the server analysis | `test_bnet_scoping::test_a_friend_naming_the_owners_character_reads_nothing`, `test_tenancy::test_battlenet_data_is_each_persons_own` |
 
+Found in the decision-data review (2026-11-22), fixed with its test:
+
+- The MCP's `gear` tool scored the add-on's spec (Shadow) while the page, `gear_options` and
+  the analysis scored `WEIGHTS` (Holy): the one MCP consumer the "same config" cell missed.
+  `test_mcp_weights::test_page_and_mcp_score_the_weights_spec` now calls it too.
+
 Found in review 6, fixed with their test:
 
 - The run manifest left out the gear scoring. With only `WEIGHTS` changed (Holy to Shadow)

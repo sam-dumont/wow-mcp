@@ -76,7 +76,9 @@ long or stalled level accounts for the offline time first, and says when a level
 break; when recorder_missed_s is above 0, part of a silence was play the Recorder missed, not time away. \
 Gear: the advice scores every item for one spec (gear.scored_for: the player's setting, else the \
 talents); gear.bis_pct and gear.fit say how each worn item does for it. A finding that judges a worn item \
-names that spec, and says when the item is built for another spec or class.
+names that spec, and says when the item is built for another spec or class; its action points the slot \
+at an upgrade for that spec (the brief's gear_fit lists each listed slot's best, or query_metric's \
+`upgrades` model: upgrade_gain by slot and item, rank_now <= 3).
 
 Every finding carries an `action`: `do` (what to do, concretely: with which item, quest, place, skill or \
 habit), `where` (in game, or when), `blocked_by` (what stands in the way: a level, gold, a skill, a group; \
