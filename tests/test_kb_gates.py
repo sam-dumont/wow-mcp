@@ -329,8 +329,44 @@ def test_a_generator_that_fails_on_the_new_data_is_a_refusal_with_its_reason(mon
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     monkeypatch.setattr(bump.subprocess, "run", run)
-    why = bump.regen("v0.4.1.1", "v0.4.2.1")
-    assert len(why) == 1 and "tools/fixtures/generate.py" in why[0] and "AssertionError: 33" in why[0]
+    failed, _moved = bump.regen("v0.4.1.1", "v0.4.2.1")
+    assert len(failed) == 1 and "tools/fixtures/generate.py" in failed[0] and "AssertionError: 33" in failed[0]
+    # A generator that stops is a refusal for Polestar too: nothing derived was written.
+    assert bump.refusals("polestar", failed, [])
+
+
+def _regen_moves(monkeypatch, tmp_path):
+    """bump.regen in a scratch repo whose generator moves a route time."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "tests" / "data").mkdir(parents=True)
+    f = tmp_path / "tests" / "data" / "plan-inputs.json"
+    f.write_text('{"route_s": 390960}')
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
+
+    real = subprocess.run
+
+    def run(cmd, **kw):
+        if cmd[0] == "git":
+            return real(cmd, capture_output=True, text=True, check=True)
+        f.write_text('{"route_s": 307440}')
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(bump.subprocess, "run", run)
+
+
+def test_a_polestar_bump_takes_the_test_data_its_routes_moved(monkeypatch, tmp_path):
+    """Owner, 2026-11-22: Polestar is the source of truth. v0.4.2.1's routes
+    to 60 are 16-25 h shorter (its 50-60 grind steps are gone), and the watch
+    refused it for that. Moved route times are taken, and named."""
+    _regen_moves(monkeypatch, tmp_path)
+    refused, moved = bump.regen("v0.4.1.1", "v0.4.2.1", root=tmp_path)
+    assert refused == [] and moved == ["tests/data/plan-inputs.json"]
+
+
+def test_a_client_build_still_refuses_test_data_that_moved(monkeypatch, tmp_path):
+    _regen_moves(monkeypatch, tmp_path)
+    assert bump.refusals("client-build", *bump.regen(root=tmp_path))
+    assert not bump.refusals("polestar", *bump.regen(root=tmp_path))
 
 
 def test_regenerated_data_may_differ_by_the_polestar_version_only():

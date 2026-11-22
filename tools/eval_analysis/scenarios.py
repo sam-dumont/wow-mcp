@@ -9,7 +9,8 @@ truth: what a right analysis says (`must_find`) and what it must not claim
 two scenarios differ only by their effect:
 
   death_spike    extra deaths in one zone, until its deaths per online hour
-                 are at least `factor` times the rest of the history's; each death
+                 are at least `factor` times the rest of the history's and
+                 significant (one-sided Poisson p < 0.05); each death
                  takes its corpse run, so the rest of that evening moves later
   recorder_off   the Recorder's records dropped between two local dates; the
                  level-ups, character snapshots and gear sheets stay (Polestar
@@ -161,6 +162,9 @@ def build(sc: dict) -> list[dict]:
     return sorted(rows, key=lambda r: (r["_time"], r.get("source_id") or ""))
 
 
+SPIKE_P = 0.05
+
+
 def death_spike(rows: list[dict], inj: dict) -> list[dict]:
     zone, factor = inj["zone"], float(inj.get("factor", 2.0))
     rnd = random.Random(inj.get("seed", 1))
@@ -170,8 +174,14 @@ def death_spike(rows: list[dict], inj: dict) -> list[dict]:
     z = rate["zones"][zone]
     target = factor * rate["rest_rate"](zone) * z["hours"]
     # At least `factor` times: rounding down would leave the spike short of
-    # its own definition (7 deaths where 2x asks for 7.04).
-    extra = max(1, math.ceil(target - 1e-9) - z["deaths"])
+    # its own definition (7 deaths where 2x asks for 7.04). And significant
+    # (one-sided Poisson p < 0.05): a spike the analysis can't tell from
+    # chance tests nothing. On the demo regenerated for Polestar 0.4.2.1, 2x
+    # alone was 7 deaths at p = 0.055.
+    want = max(z["deaths"] + 1, math.ceil(target - 1e-9))
+    while poisson_tail(want, rate["rest_rate"](zone) * z["hours"]) >= SPIKE_P:
+        want += 1
+    extra = want - z["deaths"]
     kills = [r for r in rows if r["feed"] == "wow-recorder" and r.get("kind") == "kill" and r.get("zone") == zone]
     if len(kills) < extra:
         raise ScenarioError(f"death_spike: {zone} has {len(kills)} kills, fewer than {extra} deaths to add")

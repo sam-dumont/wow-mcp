@@ -11,7 +11,7 @@
     }
   ],
   "truth": {
-    "expected": "The character dies in the Wetlands at more than twice the rate of everywhere else (8 deaths in about 11 online hours, 0.73 an hour against 0.32 elsewhere; one-sided Poisson p = 0.03). A right analysis ties the deaths to the Wetlands.",
+    "expected": "The character dies in the Wetlands at more than twice the rate of everywhere else (8 deaths in about 10 online hours, 0.81 an hour against 0.34 elsewhere; one-sided Poisson p = 0.02). A right analysis ties the deaths to the Wetlands.",
     "must_find": [
       {
         "id": "ties-deaths-to-the-wetlands",

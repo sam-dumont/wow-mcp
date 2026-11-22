@@ -146,7 +146,7 @@ def finding(**kw):
     f = {"key": "sessions-online", "title": "Online time over {n} sessions",
          "claim": "You played {n} sessions, {online:dur} in all.",
          "sql": "SELECT COUNT(*) AS n, SUM(online_s) AS online FROM agg_session",
-         "expect": {"n": 4, "online": 35476}, "relevance": 2, "effect": "online", "sample": "n",
+         "expect": {"n": 4, "online": 31880}, "relevance": 2, "effect": "online", "sample": "n",
          "holds": "n > 0",
          "action": {"do": "Keep sessions near {online:dur} over {n} evenings", "where": "anywhere",
                     "blocked_by": "", "next_step": "Plan the next session at the same length"}}
@@ -177,12 +177,12 @@ def test_a_finding_carries_an_action_or_is_an_observation(db):
 
 def test_a_finding_that_reproduces_is_kept_with_rerun_text(db):
     got, why = verify.check(finding(), ReadOnly(db))
-    assert why == "" and got["text"] == "You played 4 sessions, 9h51 in all."
-    assert got["row"]["n"] == 4 and got["effect"] == pytest.approx(35475.9)
+    assert why == "" and got["text"] == "You played 4 sessions, 8h51 in all."
+    assert got["row"]["n"] == 4 and got["effect"] == pytest.approx(31880.0)
 
 
 @pytest.mark.parametrize("change,reason", [
-    ({"expect": {"n": 5, "online": 35476}}, "on re-run"),
+    ({"expect": {"n": 5, "online": 31880}}, "on re-run"),
     ({"claim": "You played {n} sessions, 578 minutes in all."}, "number written"),
     ({"claim": "You played {n} sessions in {zones} zones."}, "doesn't return"),
     ({"holds": "n > 10"}, "holds"),
@@ -260,7 +260,7 @@ FINDINGS = [
     finding(),
     {"key": "xp-by-level", "title": "XP gained at level {level}", "claim": "At level {level} you gained "
      "{xp:int} XP in {online:dur} online.", "sql": "SELECT level, xp_gained AS xp, online_s AS online FROM "
-     "agg_level ORDER BY xp_gained DESC LIMIT 1", "expect": {"level": 25, "xp": 34904}, "relevance": 3,
+     "agg_level ORDER BY xp_gained DESC LIMIT 1", "expect": {"level": 25, "xp": 32860}, "relevance": 3,
      "kb": ["note:xp-sources", "quest:0"], "action": None},
     # The model misread: refused.
     {**finding(), "key": "misread", "expect": {"n": 7}},
@@ -377,7 +377,7 @@ def test_a_finding_leaves_only_when_the_synthesis_says_why(driven):
     goes, one the synthesis names nowhere stays, and the answer says so."""
     env, drive = driven
     other = {**finding(), "key": "sessions-count", "title": "{n} sessions", "claim": "You played {n} sessions.",
-             "expect": {"n": 4, "online": 35476}}
+             "expect": {"n": 4, "online": 31880}}
     synth = {**SYNTH, "keep": ["sessions-online"], "nudges": [], "patterns": [],
              "drop": [{"key": "sessions-count", "why": "a duplicate of sessions-online"}]}
     res = walk(env, drive, findings=[*FINDINGS, other], synth=synth)
@@ -393,7 +393,7 @@ def test_a_client_run_keeps_what_reproduces(driven, rows, knowledge):
     res = walk(env, drive)
     assert res["accepted"] and res["kept"] == ["sessions-online", "xp-by-level"]
     out = analysis.load_state(env, CHAR)
-    assert out["findings"]["xp-by-level"]["text"] == "At level 25 you gained 34 904 XP in 2h15 online."
+    assert out["findings"]["xp-by-level"]["text"] == "At level 25 you gained 32 860 XP in 1h24 online."
     assert out["findings"]["xp-by-level"]["kb"] == ["note:xp-sources"]  # quest:0 isn't in the KB
     run = out["runs"][-1]
     assert run["kind"] == "client" and run["driver"] == "test" and run["new"] == 2
@@ -412,7 +412,7 @@ def test_a_client_run_keeps_what_reproduces(driven, rows, knowledge):
     assert any("Let him rest." in d and "he or she" in d for d in res["dropped"])
     # Actions and observations: the one without an action is shown apart.
     act = out["findings"]["sessions-online"]["action"]
-    assert act["do"] == "Keep sessions near 9h51 over 4 evenings" and not out["findings"]["sessions-online"]["observation"]
+    assert act["do"] == "Keep sessions near 8h51 over 4 evenings" and not out["findings"]["sessions-online"]["observation"]
     assert out["findings"]["xp-by-level"]["observation"] and out["findings"]["xp-by-level"]["action"] is None
     # Pattern lines describe: kept for the full view, never shared (owner,
     # 2026-11-18: everything shown is actionable).
@@ -644,10 +644,10 @@ def test_a_dungeon_trip_spans_the_lookup_guides():
     assert len(trips) == 1
     t = trips[0]
     assert t["bracket"] == "guides" and t["level_start"] == 31
-    assert t["start_local"] == "2026-10-14T19:07:51+02:00"  # the first pickup step
-    assert t["end_local"] == "2026-10-14T19:51:16+02:00"  # the last hand-in step (after the walk to Darkshire's flight master)
+    assert t["start_local"] == "2026-10-14T19:02:00+02:00"  # the first pickup step
+    assert t["end_local"] == "2026-10-14T19:45:59+02:00"  # the last hand-in step (after the walk to Darkshire's flight master)
     assert json.loads(t["quest_ids"]) == [377, 378, 386, 387, 388, 391]
-    assert t["quests_handed_in"] == 6 and t["inside_s"] == 1354
+    assert t["quests_handed_in"] == 6 and t["inside_s"] == 1376
     assert abs(t["pickup_s"] + t["travel_to_s"] + t["inside_s"] + t["travel_back_s"] + t["handin_s"]
                - t["online_s"]) < 1
     assert json.loads(t["rewards"]) == [1317, 270029, 270036]

@@ -26,7 +26,7 @@ Two sources, read as they ship:
 
 Nothing here comes from a website's text. The same inputs give the same bytes:
 
-    git clone --depth 1 --branch v0.4.1.1 https://github.com/fitzforge/polestar /tmp/polestar
+    git clone --depth 1 --branch v0.4.2.1 https://github.com/fitzforge/polestar /tmp/polestar
     uv run python tools/class_reference/export.py --polestar /tmp/polestar
 """
 

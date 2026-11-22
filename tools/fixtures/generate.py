@@ -40,6 +40,15 @@ recount those from the events with jq or SQL.
 
 The other numbers the tests pin come out of the run, not out of constants:
 rerun, then read them in the failing assertions.
+
+A Polestar release moves the guides' steps, and the story holds anyway: the
+steps, their titles and kinds are Polestar's, but each stretch of them lasts
+exactly the hours the script gives it, ends at the level and XP the script
+gives it (`reach`), dies where the script says, and draws from its own
+random streams. So the sessions, their online time, the levels and the
+dungeon runs are the same on any Polestar release; only what happens inside
+a stretch moves (2026-11-22: Polestar 0.4.2.1 rebuilt its routes and the
+generator, then tuned by hand to the old steps, stopped).
 """
 
 from __future__ import annotations
@@ -65,14 +74,17 @@ TZ = ZoneInfo("Europe/Brussels")
 PRIEST = "Testpriest-Fixture"
 HUNTER = "Testhunter-Fixture"
 SEED = 20261005
-VERBOSE = False  # --levels: each logout's level, to tune SCALE
+VERBOSE = False  # --levels: each logout's level and XP
 # The independent check's dungeon run (first four sessions).
 BFD_SECONDS = 4980
 BFD_XP = 18211
-# Kill XP per stretch (first four sessions, the next five, the rest, then
-# session 2 and session 4 alone): the pace that lands the levels where the
-# script says.
-SCALE = (1.0, 1.5, 0.2, 0.4, 1.5)
+# A stretch of guide steps ends where the script says (`reach`: level and XP
+# into it), whatever steps Polestar's guides hold: kill XP is paced to get
+# there. A hand-tuned XP scale per stretch stopped the generator on Polestar
+# 0.4.2.1 (2026-11-22), whose rebuilt guides moved the steps under it and
+# took the priest to 33 where the script says 32. Each mark sits mid-level:
+# the guides' quest XP lands on top of it, and the level must hold.
+KILL_S = 75.0  # seconds per kill, pulls and walks between them: the pace's estimate of the kills left
 # Classic's XP to the next level.
 XP_MAX = {1: 400, 21: 26000, 22: 27300, 23: 29400, 24: 31700, 25: 34000, 26: 36400, 27: 38900, 28: 41400,
           29: 44300, 30: 47400, 31: 50800, 32: 54500, 33: 58600, 34: 62800, 35: 67100}
@@ -222,7 +234,7 @@ class Player:
         self.packs = "guides:0.4.1;wow-forever-books:1.0.0"
         self.gained = 0  # every XP point, for the dungeon summaries
         self.xp_seen = None  # self.gained at the last xp record
-        self.scale = 0.5  # kill XP: tunes the pace so the levels land where the script says
+        self.goal: tuple[int, float] | None = None  # a stretch's (self.gained to reach, by when)
         # The demo times each guide step from the session's own start, as
         # Polestar does; the fixtures keep the clock running across logouts
         # (their pinned numbers come from that).
@@ -365,6 +377,13 @@ class Player:
                  x=round(self.x, 2), y=round(self.y, 2))
         self.step_t = self.t
 
+    def kill_xp(self, lv: int, cl: str) -> int:
+        """A kill's XP before rested XP."""
+        diff = lv - self.level
+        base = (self.level * 5 + 45)
+        xp = max(0, round(base * (1 + 0.05 * diff) if diff >= 0 else base * (1 - (-diff) / (5 + self.level / 10))))
+        return xp * 2 if cl == "e" else xp
+
     def kill(self, npc: int, *, elite: bool | None = None, quest: int | None = None, xp: int | None = None) -> None:
         lv, cl = self.g.npc_level.get(npc, (self.level, "n"))
         if elite is not None:
@@ -375,12 +394,12 @@ class Player:
         self.wait(self.rnd.uniform(15, 35), moving=False)
         forced = xp is not None
         if not forced:
-            diff = lv - self.level
-            base = (self.level * 5 + 45)
-            xp = max(0, round(self.scale * (base * (1 + 0.05 * diff) if diff >= 0
-                                            else base * (1 - (-diff) / (5 + self.level / 10)))))
-            if cl == "e":
-                xp *= 2
+            xp = self.kill_xp(lv, cl)
+            if self.goal:
+                # What's left of the stretch's XP over the kills left; rested XP doubles a kill's.
+                need = self.goal[0] - self.gained
+                per = need / max(1.0, (self.goal[1] - self.t) / KILL_S) / (2 if self.rested > 0 else 1)
+                xp = max(0, round(per))
         uid = f"{self.rnd.getrandbits(40):010X}"
         self.rec("spawn", npc_id=npc, spawn_uid=uid, **self.here())
         got = self.gain(xp, kill=not forced) if xp else 0
@@ -432,6 +451,10 @@ class Player:
         self.log.pop(q["id"], None)
         self.done.append(q["id"])
         self.level_quests += 1
+
+    def died_here(self) -> None:
+        mobs = self.g.zone_mobs(self.zone, self.level)
+        self.die(mobs[0] if mobs else None)
 
     def die(self, npc: int | None = None, how: str = "c") -> None:
         lv = self.g.npc_level.get(npc, (self.level + 1, "n"))[0] if npc else None
@@ -492,19 +515,48 @@ class Player:
 
     # -------------------------------------------------------- a guide
 
-    def guide_steps(self, guide: str, first: int, last: int, zones: dict[int, tuple], *, deaths: tuple = (),
-                    hours: float = 1.0, quests_per_step: float = 0.35, scale: float | None = None) -> None:
+    def xp_until(self, level: int, xp: int) -> int:
+        """XP from where the player stands to `xp` into `level`."""
+        return sum(XP_MAX[lv] for lv in range(self.level, level)) - self.xp + xp
+
+    def guide_steps(self, guide: str, first: int, last: int, zones: dict[int, tuple], *, reach: tuple[int, int],
+                    deaths: tuple = (), hours: float = 1.0, quests_per_step: float = 0.35) -> None:
         """Walk Polestar's guide from step `first` to `last`: the step
         records, the kills and quests a step of its kind takes, zones as
         `zones` says (step -> (zone, subzone[, how])), deaths at the listed
-        steps, the whole lasting about `hours`."""
+        steps, the whole lasting exactly `hours` and ending `reach` (level,
+        XP into it): the steps are Polestar's, the time and levels the
+        script's. The stretch draws from its own random streams, so however
+        many steps Polestar's guide has there, the rest of the story (the
+        sessions, their online time, the dungeons) is the same."""
+        outer = self.rnd, self.walk
+        self.rnd = random.Random(outer[0].random())
+        self.walk = random.Random(outer[0].random())
+        try:
+            self._stretch(guide, first, last, zones, reach, deaths, hours, quests_per_step)
+        finally:
+            self.rnd, self.walk = outer
+
+    def fitting(self, qs: list[dict]) -> list[dict]:
+        """The quests whose XP fits in what's left of the stretch's mark:
+        the kills make up the rest, so the stretch ends on it."""
+        left = self.goal[0] - self.gained if self.goal else None
+        return qs if left is None else [q for q in qs if q["xp"] <= left]
+
+    STRETCH_SPARE = 300.0  # seconds kept at a stretch's end for the last pull and a death on a missing step
+
+    def _stretch(self, guide, first, last, zones, reach, deaths, hours, quests_per_step) -> None:
         steps = [s for s in self.g.steps(guide) if first <= s[0] <= last]
-        if scale is not None:
-            self.scale = scale
-        pace = hours * 3600 / max(1.0, sum(max(20.0, s[1]) for s in steps))
-        for n, planned, _title, kind in steps:
-            if n < first or n > last:
-                continue
+        t0, total = self.t, hours * 3600
+        # A stretch that starts past its mark (the last one's quests) keeps it.
+        self.goal = (self.gained + max(0, self.xp_until(*reach)), t0 + total - self.STRETCH_SPARE)
+        # Each step's end, absolute: its share of the stretch by Polestar's planned time.
+        weights = [max(20.0, s[1]) * self.rnd.uniform(0.7, 1.3) for s in steps]
+        span, ends, acc = total - self.STRETCH_SPARE, [], 0.0
+        for w in weights:
+            acc += w
+            ends.append(t0 + span * acc / max(1e-9, sum(weights)))
+        for (n, _planned, _title, kind), end in zip(steps, ends, strict=True):
             if n in zones:
                 z = zones[n]
                 how = z[2] if len(z) > 2 else "walk"
@@ -515,10 +567,8 @@ class Player:
                 else:
                     self.go(z[0], z[1])
             self.step(guide, n, self.rnd.choice(["auto", "auto", "next", "done"]))
-            budget = max(20.0, planned) * pace * self.rnd.uniform(0.7, 1.3)
-            end = self.t + budget
             if kind == "questing":
-                qs = self.g.zone_quests(self.zone, self.level, self.used)
+                qs = self.fitting(self.g.zone_quests(self.zone, self.level, self.used))
                 mobs = self.g.zone_mobs(self.zone, self.level)
                 if qs and self.rnd.random() < quests_per_step:
                     q = qs[self.rnd.randrange(len(qs))]
@@ -526,11 +576,9 @@ class Player:
                     self.work(q, mobs)
                     self.wait(self.rnd.uniform(10, 40))
                     self.turnin(q)
-                while self.t < end - 40 and mobs:
+                while self.t < end - 90 and mobs:
                     self.wait(self.rnd.uniform(20, 50))
                     self.kill(self.rnd.choice(mobs))
-                if n in deaths:
-                    self.die(mobs[0] if mobs else None)
                 if self.rnd.random() < 0.2:
                     self.rest()
                 if self.rnd.random() < 0.08:
@@ -538,13 +586,27 @@ class Player:
                              **self.here())
             elif kind == "town":
                 self.town()
-                qs = self.g.zone_quests(self.zone, self.level, self.used)
+                qs = self.fitting(self.g.zone_quests(self.zone, self.level, self.used))
                 if qs and self.rnd.random() < quests_per_step:
                     q = qs[0]
                     self.accept(q)
                     self.wait(20)
                     self.turnin(q)
-            self.wait(max(5.0, end - self.t))
+            if n in deaths:
+                self.died_here()
+            self.wait(max(0.0, end - self.t))
+        # The script's deaths happen whatever kind of step Polestar's guide
+        # has there, and a step it no longer has dies at the stretch's end.
+        for _n in sorted(set(deaths) - {s[0] for s in steps}):
+            self.died_here()
+        # The last pull makes up what the kills' estimate left (quest XP is
+        # the guides'; a stretch already past its mark keeps it).
+        goal, self.goal = self.goal[0], None
+        if goal > self.gained:
+            mobs = (self.g.zone_mobs(self.zone, self.level)
+                    or [m for z in AREAS for m in self.g.zone_mobs(z, self.level)])
+            self.kill(mobs[0], xp=goal - self.gained)
+        self.wait(max(0.0, t0 + total - self.t))
 
 
 # ---------------------------------------------------------------- the playthrough
@@ -561,13 +623,12 @@ def sessions_priest(p: Player) -> dict:
     # Never done: The Unsent Letter (373) and Bazil Thredd (389), the
     # Stockade quest it unlocks, stay open for the dungeon panel.
     p.used |= {373, 389}
-    p.scale = SCALE[0]
 
     # 1. Mon 5 Oct: Darkshore, 22 -> 23. Two deaths.
     p.login(local(2026, 10, 5, 18, 32), "Darkshore", "Auberdine")
     p.guide_steps("forever/alliance/03-darkshore-return", 1, 22,
                   {1: ("Darkshore", "Auberdine"), 2: ("Darkshore", None), 12: ("Darkshore", "Auberdine"),
-                   14: ("Darkshore", "The Ruins of Mathystra")}, deaths=(8, 18), hours=2.1)
+                   14: ("Darkshore", "The Ruins of Mathystra")}, reach=(23, 8000), deaths=(8, 18), hours=2.1)
     p.rec("bind", **p.here())
     p.bind = "Auberdine"
     p.rec("escort", on=True, quest_id=5321, **p.here())
@@ -583,8 +644,8 @@ def sessions_priest(p: Player) -> dict:
     p.login(local(2026, 10, 6, 19, 5), "Darkshore", "Auberdine")
     p.guide_steps("forever/alliance/06-ashenvale", 1, 24,
                   {2: ("Ashenvale", None), 6: ("Ashenvale", "Astranaar"), 11: ("Stonetalon Mountains", None),
-                   20: ("Ashenvale", "Astranaar"), 22: ("Ashenvale", "The Zoram Strand")}, deaths=(16,), hours=2.0,
-                  quests_per_step=0.15, scale=SCALE[3])
+                   20: ("Ashenvale", "Astranaar"), 22: ("Ashenvale", "The Zoram Strand")}, reach=(23, 18000),
+                  deaths=(16,), hours=2.0, quests_per_step=0.15)
     p.rec("afk", on=True, zone=p.zone)
     p.wait(420, moving=False)
     p.rec("afk", on=False, zone=p.zone)
@@ -620,8 +681,12 @@ def sessions_priest(p: Player) -> dict:
     p.turnin(q[1198])  # Argent Guard Thaelrid, inside
     p.accept(q[1200], 4787)
     p.accept(q[1199], 4784)
-    p.scale = 1.0
-    while p.gained - g0 < BFD_XP - q[1199]["xp"] - 1800:
+    # The bosses give their own XP, no rested (how much rested is left here
+    # depends on the stretch before, whose steps are Polestar's): the trash
+    # stops 1,200 short of what they and the hand-in leave, and Aku'mai
+    # makes up the rest.
+    boss_xp = [p.kill_xp(*g.npc_level.get(b, (p.level, "n"))) for b in BFD_BOSSES]
+    while p.gained - g0 < BFD_XP - q[1199]["xp"] - sum(boss_xp) - 1200:
         p.wait(rnd.uniform(100, 150))
         p.kill(rnd.choice(BFD_MOBS))
         kills += 1
@@ -635,10 +700,12 @@ def sessions_priest(p: Player) -> dict:
             p.rec("loot", items="5359:1", npc_kind="o", **p.here())  # the manuscript, from a chest
             p.rec("progress", have=1, need=1, objective=1, quest_id=971, **p.here())
             p.rec("complete", quest_id=971, quest_name=q[971]["name"], zone=p.zone)
+    if kills < 9:  # the run's one death, however short the trash came out
+        p.die(4810, how="s")
     p.rec("complete", quest_id=1199, quest_name=q[1199]["name"], zone=p.zone)
-    for i, boss in enumerate(BFD_BOSSES):
+    for i, (boss, bxp) in enumerate(zip(BFD_BOSSES, boss_xp, strict=True)):
         p.wait(rnd.uniform(60, 120))
-        p.kill(boss)
+        p.kill(boss, xp=bxp)
         p.rec("encounter", difficulty=1, encounter_id=2910 + i, size=5, success=True, zone=p.zone)
     p.rec("loot", items="5881:1;6463:1", npc_id=4832, npc_kind="c", **p.here())  # Deep Fathom Ring: worn
     p.rec("progress", have=1, need=1, objective=1, quest_id=1200, **p.here())
@@ -653,7 +720,6 @@ def sessions_priest(p: Player) -> dict:
     p.rec("rare", classification="r", level=-1, npc_id=4887, **p.here())
     assert p.t < end - 60, (p.t, end)
     p.wait(end - p.t)
-    p.scale = SCALE[0]
     p.instance = None
     p.other("wow-dungeon", dungeon_id=48, dungeon_kind="party", left=iso(end), level=bfd_level,
             name="Blackfathom Deeps", resumed=None, seconds=BFD_SECONDS, xp=BFD_XP)
@@ -678,8 +744,8 @@ def sessions_priest(p: Player) -> dict:
     p.guide_steps("forever/alliance/06-ashenvale", 31, 51,
                   {31: ("Wetlands", "Menethil Harbor", "boat"), 35: ("Wetlands", "Bluegill Marsh"),
                    45: ("Wetlands", "Menethil Harbor"), 46: ("Ironforge", "The Great Forge", "fly", "Ironforge",
-                                                             "Menethil Harbor")}, deaths=(38,), hours=1.4,
-                  scale=SCALE[4])
+                                                             "Menethil Harbor")}, reach=(25, 15000), deaths=(38,),
+                  hours=1.4)
     p.rec("unitx", npc_id=5595, spawn_uid="4B1D0A0001", **p.here())
     p.rec("where", indoors=False, subzone="The Great Forge", where_id=1573, where_kind="c", zone=p.zone)
     p.turnin(q[971], reward=6743)  # Gerrig Bonegrip: the manuscript from Blackfathom Deeps
@@ -688,7 +754,8 @@ def sessions_priest(p: Player) -> dict:
                   {1: ("Stormwind City", "Trade District"), 4: ("Westfall", "Sentinel Hill", "fly", "Sentinel Hill",
                                                                  "Stormwind City"),
                    6: ("Elwynn Forest", None), 10: ("Duskwood", None), 11: ("Duskwood", "Darkshire"),
-                   15: ("Duskwood", "Tranquil Gardens Cemetery"), 24: ("Duskwood", "Darkshire")}, hours=1.6)
+                   15: ("Duskwood", "Tranquil Gardens Cemetery"), 24: ("Duskwood", "Darkshire")}, reach=(26, 10000),
+                  hours=1.6)
     p.go("Duskwood", "Scarlet Raven Tavern")
     p.gear_sheet()
     p.logout()
@@ -699,30 +766,29 @@ def sessions_priest(p: Player) -> dict:
     plan = [
         ("forever/alliance/04-redridge-mountains", 26, 45,
          {26: ("Redridge Mountains", None), 29: ("Redridge Mountains", "Lakeshire"),
-          34: ("Redridge Mountains", "Render's Valley")}, (36,)),
+          34: ("Redridge Mountains", "Render's Valley")}, (36,), (27, 15000)),
         ("forever/alliance/05-duskwood", 1, 25,
          {1: ("Duskwood", "Darkshire", "fly", "Darkshire", "Lakeshire"), 19: ("Westfall", None),
-          22: ("Elwynn Forest", None), 25: ("Stormwind City", "Trade District")}, ()),
+          22: ("Elwynn Forest", None), 25: ("Stormwind City", "Trade District")}, (), (28, 5000)),
         ("forever/alliance/06-wetlands", 11, 45,
          {11: ("Wetlands", "Menethil Harbor", "fly", "Menethil Harbor", "Stormwind City"),
           17: ("Wetlands", "Bluegill Marsh"), 20: ("Wetlands", "Raptor Ridge"),
           40: ("Darkshore", "Auberdine", "boat"), 44: ("Ashenvale", "Astranaar", "fly", "Astranaar", "Auberdine")},
-         (22,)),
+         (22,), (29, 10000)),
         ("forever/alliance/06-wetlands", 46, 88,
          {46: ("Ashenvale", "Astranaar"), 56: ("Ashenvale", "The Dor'Danil Barrow Den"),
           68: ("Ashenvale", "Astranaar"), 82: ("Darkshore", "Auberdine", "fly", "Auberdine", "Astranaar"),
           83: ("Wetlands", "Menethil Harbor", "boat"),
-          85: ("Ironforge", "The Great Forge", "fly", "Ironforge", "Menethil Harbor")}, (60,)),
+          85: ("Ironforge", "The Great Forge", "fly", "Ironforge", "Menethil Harbor")}, (60,), (30, 15000)),
         ("forever/alliance/07-thousand-needles", 1, 21,
          {1: ("Duskwood", None), 2: ("Duskwood", "Darkshire"), 11: ("Duskwood", "Vul'Gol Ogre Mound"),
-          17: ("Duskwood", "Darkshire")}, ()),
+          17: ("Duskwood", "Darkshire")}, (), (31, 15000)),
     ]
     zones_at = ["Redridge Mountains", "Redridge Mountains", "Stormwind City", "Ironforge", "Stormwind City"]
-    for (d, h, m), (guide, a, b, zones, deaths), z0 in zip(days, plan, zones_at, strict=True):
+    for (d, h, m), (guide, a, b, zones, deaths, reach), z0 in zip(days, plan, zones_at, strict=True):
         p.rested += 2500
-        p.scale = SCALE[1]
         p.login(local(2026, 10, d, h, m), z0)
-        p.guide_steps(guide, a, b, zones, deaths=deaths, hours=2.4)
+        p.guide_steps(guide, a, b, zones, reach=reach, deaths=deaths, hours=2.4)
         if d == 10:
             p.train(376)
             p.profession(TAILORING, 8)
@@ -733,7 +799,7 @@ def sessions_priest(p: Player) -> dict:
         if d == 12:
             p.guide_steps("forever/alliance/06-wetlands", 89, 96,
                           {89: ("Stormwind City", "Trade District", "boat"),
-                           91: ("Stormwind City", "Cathedral Square")}, hours=0.4)
+                           91: ("Stormwind City", "Cathedral Square")}, reach=(30, 25000), hours=0.4)
             p.profession(ENCHANTING, 8)
         p.logout()
 
@@ -741,11 +807,10 @@ def sessions_priest(p: Player) -> dict:
 
     # 10. Wed 14 Oct: The Stockade at 31, from Wetlands and back.
     p.rested += 1400
-    p.scale = SCALE[2]
     p.login(local(2026, 10, 14, 18, 20), "Wetlands", "Menethil Harbor")
     p.guide_steps("forever/alliance/30-40/01-hillsbrad-foothills", 1, 12,
                   {1: ("Wetlands", "Angerfang Encampment"), 6: ("Wetlands", "Dragonmaw Gates"),
-                   10: ("Wetlands", "The Green Belt")}, hours=0.7)
+                   10: ("Wetlands", "The Green Belt")}, reach=(31, 25000), hours=0.7)
     marks["stockade_from"] = p.t
     p.step("lookup/pickup/stormwind-stockade", 1, "auto")
     p.wait(40)
@@ -823,13 +888,13 @@ def sessions_priest(p: Player) -> dict:
     marks["stockade_logout"] = p.t
 
     # 11-13. Wetlands to Menethil: Hillsbrad guide 13 -> 37, 31 -> 32.
-    for d, (a, b) in ((15, (13, 22)), (16, (23, 31)), (17, (32, 37))):
+    for d, (a, b), reach in ((15, (13, 22), (32, 20000)), (16, (23, 31), (32, 30000)), (17, (32, 37), (32, 40000))):
         p.rested += 2400
         p.login(local(2026, 10, d, 19, 0), "Wetlands", "Menethil Harbor")
         p.guide_steps("forever/alliance/30-40/01-hillsbrad-foothills", a, b,
                       {13: ("Wetlands", "Dun Modr"), 17: ("Wetlands", "Direforge Hill"),
                        26: ("Wetlands", "The Green Belt"), 31: ("Wetlands", "Menethil Harbor")},
-                      deaths=(18,) if d == 15 else (), hours=2.0)
+                      reach=reach, deaths=(18,) if d == 15 else (), hours=2.0)
         if d == 16:
             for item, price in ((4306, 190), (4338, 395), (7909, 2400), (3864, 1100)):
                 p.other("wow-prices", item_id=item, price_copper=price, source_id=f"price:{item}:{d}")
@@ -1102,12 +1167,11 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
 
     # 16. Tue 20 Oct: Southshore and the Hillsbrad fields. One death.
     p.rested += 2600
-    p.scale = 0.45
     p.login(local(2026, 10, 20, 19, 5), "Hillsbrad Foothills", "Southshore")
     p.guide_steps("forever/alliance/30-40/01-hillsbrad-foothills", 40, 54,
                   {40: ("Hillsbrad Foothills", "Southshore"), 42: ("Hillsbrad Foothills", "Darrow Hill"),
                    50: ("Hillsbrad Foothills", "Hillsbrad Fields"), 54: ("Hillsbrad Foothills", "Southshore")},
-                  deaths=(46,), hours=2.0)
+                  reach=(32, 45000), deaths=(46,), hours=2.0)
     p.profession(TAILORING, 6)
     p.logout()
 
@@ -1116,7 +1180,7 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
     p.login(local(2026, 10, 21, 18, 45), "Hillsbrad Foothills", "Southshore")
     p.guide_steps("forever/alliance/30-40/05-arathi-highlands", 22, 26,
                   {22: ("Hillsbrad Foothills", "Southshore"), 25: ("Alterac Mountains", None),
-                   26: ("Alterac Mountains", "Gallows' Corner")}, hours=0.9)
+                   26: ("Alterac Mountains", "Gallows' Corner")}, reach=(33, 8000), hours=0.9)
     p.go("Alterac Mountains", "Dalaran")
     p.accept(q[92432], 247264)
     p.wait(200)
@@ -1131,7 +1195,6 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
     t0, g0, lvl = p.t, p.gained, p.level
     p.go("City of Dalaran", "City of Dalaran", 30.0, 60.0)
     p.instance = "City of Dalaran"
-    p.scale = 1.0
     for i, npc in enumerate(DALARAN_MOBS * 4):
         p.wait(rnd.uniform(40, 80))
         p.kill(npc, elite=True, quest=92457)
@@ -1169,7 +1232,6 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
     # 18. Thu 22 Oct: boats to Theramore, Razorfen Kraul at 33. Mortality
     # Wanes stays open (its hand-in is in Darnassus).
     p.rested += 2400
-    p.scale = 1.0
     p.login(local(2026, 10, 22, 19, 10), "Alterac Mountains", "Dalaran")
     p.go("Hillsbrad Foothills", "Southshore")
     p.boat("Wetlands", "Menethil Harbor")
@@ -1221,14 +1283,13 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
 
     # 19. Fri 23 Oct: back north, Arathi Highlands to 34.
     p.rested += 2800
-    p.scale = 1.0
     p.login(local(2026, 10, 23, 18, 30), "Dustwallow Marsh", "Theramore Isle")
     p.boat("Wetlands", "Menethil Harbor")
     p.guide_steps("forever/alliance/30-40/05-arathi-highlands", 27, 45,
                   {27: ("Arathi Highlands", None), 28: ("Arathi Highlands", "Refuge Pointe"),
                    29: ("Arathi Highlands", "Northfold Manor"), 35: ("Arathi Highlands", "Witherbark Village"),
                    43: ("Arathi Highlands", "Refuge Pointe"), 45: ("Arathi Highlands", "Faldir's Cove")},
-                  deaths=(35,), hours=2.4)
+                  reach=(34, 30000), deaths=(35,), hours=2.4)
     p.go("Arathi Highlands", "Refuge Pointe")
     p.rec("bind", **p.here())
     p.bind = "Refuge Pointe"
@@ -1611,7 +1672,7 @@ def build() -> dict[str, bytes]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--check", action="store_true", help="compare with the committed files, write nothing")
-    ap.add_argument("--levels", action="store_true", help="print each logout's level and XP (to tune SCALE)")
+    ap.add_argument("--levels", action="store_true", help="print each logout's level and XP")
     ap.add_argument("--demo", metavar="FILE", help="write the docs site's demo character's events (NDJSON), "
                                                    "nothing else")
     ap.add_argument("--end-day", metavar="YYYY-MM-DD", help="with --demo: shift the play so it ends that day")

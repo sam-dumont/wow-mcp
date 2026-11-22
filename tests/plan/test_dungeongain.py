@@ -156,7 +156,8 @@ def test_the_panel_the_move_and_the_mcp_agree(monkeypatch, tmp_path, priest):
     blocks = {b["name"]: b for b in panel["dungeons"]}
     # The Stockade, run at 31, now 32: carried by its creatures.
     st = blocks["The Stockade"]["gain"]
-    assert st["basis"] == "runs" and not st["kills_unknown"] and 0 < st["xp_kills"] < 1350
+    # At most what its 21 creatures give at 32 if none were grey (5 x 32 + 45 each).
+    assert st["basis"] == "runs" and not st["kills_unknown"] and 0 < st["xp_kills"] < 21 * (5 * 32 + 45)
     # BFD, run at 23: most of its creatures are grey at 32.
     assert blocks["Blackfathom Deeps"]["gain"]["xp_kills"] < 18211 / 10
     # A move for City of Dalaran gets the panel's estimate, word for word.

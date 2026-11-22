@@ -110,11 +110,11 @@ scenario, `tools/eval_analysis/run.py`:
 
 The demo isn't a perfect player: level 32 took about four times the guide's plan, and the gear advice has real
 upgrades. A line about those is fine in every scenario, the control included. What the control rules out is a
-pattern the data doesn't hold: a dozen deaths spread over 39 hours make no hotspot.
+pattern the data doesn't hold: a dozen deaths spread over 36 hours make no hotspot.
 
 Each scenario is a JSON file in `tools/eval_analysis/scenarios/`. The tests (`tests/test_eval_analysis.py`)
 check that each injection did what its file says, measured with the product's own prep: the Wetlands spike is
-significant (one-sided Poisson test, p = 0.03) and no zone in the control is, level 33 is on pace in played
+significant (one-sided Poisson test, p < 0.05: the injection adds deaths until it is) and no zone in the control is, level 33 is on pace in played
 time, levels 27 to 29 have played time and no records, the three head items the truth names are the gear
 advice's best for Holy.
 
