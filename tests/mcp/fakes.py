@@ -217,10 +217,10 @@ METRICS = [
 class FakeStores:
     """Both stores on one port: /select/logsql/query and /api/v1/query."""
 
-    def __init__(self, logs=None, metrics=None, raw=RAW):
+    def __init__(self, logs=None, metrics=None, raw=RAW, char=CHAR):
         # `raw` (the character's events) answers the event cache first: a
         # rule's rows may be a callable, given the request's parameters.
-        self.logs_rules = (raw_rules(raw) if raw is not None else []) + (logs if logs is not None else LOGS)
+        self.logs_rules = (raw_rules(raw, char) if raw is not None else []) + (logs if logs is not None else LOGS)
         self.metric_rules = metrics if metrics is not None else METRICS
         self.queries: list[dict] = []
         fake = self

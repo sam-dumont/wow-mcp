@@ -226,19 +226,6 @@ class Metrics:
                 return out
 
 
-def _probe(st, char: str) -> tuple:
-    """What tells a stored history changed: how many events the prep would
-    read and the newest one's time (one stats query, not the rows)."""
-    from wowstats.analysis import prep
-
-    names = sorted({char, char.replace("-", " ")})
-    cf_ = "char:in(" + ", ".join(json.dumps(n) for n in names) + ")"
-    rows = st.vl(f"{st.stream} {cf_} -feed:wow-player -feed:wow-prices -feed:wow-combatlog "
-                 "| stats count() as n, max(_time) as last", (), {"n": "sum", "last": "maxtime"})
-    r = (rows or [{}])[0]
-    return prep.PREP_VERSION, str(r.get("n")), str(r.get("last"))
-
-
 def metrics(ctx: Ctx, char: str) -> Metrics | None:
     """The character's semantic layer, from the events the analysis reads
     (wowstats.analysis.prep.query), built again when they changed. None when
@@ -251,12 +238,14 @@ def metrics(ctx: Ctx, char: str) -> Metrics | None:
     st = store_for(ctx.environ(), ctx.store)
     name = prep.norm(char)
     key = (*_store_key(ctx), name)
-    probe = _probe(st, name)
+    # The event cache answers from memory once read (wowstats.eventcache):
+    # the rows' count and newest time say whether the history changed.
+    rows = prep.query(st, st.stream, name)
+    probe = (prep.PREP_VERSION, len(rows), max((str(r.get("_time") or "") for r in rows), default=""))
     with _LAYERS_LOCK:
         hit = _LAYERS.get(key)
         if hit is not None and hit[0] == probe:
             return hit[1]
-    rows = prep.query(st, st.stream, name)
     got = None
     if rows:
         db = prep.build(rows, name, route.reference())
@@ -1463,6 +1452,11 @@ def mcp_tools(ctx: Ctx) -> tuple[Tool, ...]:
 KB_TOOLS = frozenset({"kb_search", "kb_get", "kb_lookup", "kb_rule", "kb_topics", "class_guide", "class_meta",
                       "news"})
 KB_CHARS = 24_000
+# What the footnotes every one-character answer gets (missing sources,
+# coverage) may take of KB_CHARS: the answer itself is cut to the rest
+# first, so what it says doesn't move with them (a coverage that reads
+# "unknown" when the store can't be read whole is shorter than "complete").
+FOOTNOTE_CHARS = 1_500
 TRIM_FIRST = ("open_questions", "coming_up", "upcoming", "known", "weeks")
 TRIM_LAST = ("contradictions", "conflicts", "levelling_ids")
 KB_TEXT = 1_200  # one string, once the lists are as short as they go
@@ -1545,6 +1539,8 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
             out = tool.fn(ctx, args)
     except (SourceError, ViewsSourceError) as e:
         raise ToolError(stores_public_error(e, name)) from None
+    if name in KB_TOOLS and isinstance(out, dict):
+        out = fit(out, KB_CHARS - FOOTNOTE_CHARS)
     if isinstance(out, dict) and not tool.writes and "missing" not in out:
         gap = missing_for(ctx, tool, args, out)
         if gap is not None:
@@ -1557,7 +1553,7 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     if name in KB_TEXT_TOOLS and isinstance(out, dict):
         out = {KB_TEXT_FIELD: KB_TEXT_NOTE, **out}
     if name in KB_TOOLS and isinstance(out, dict):
-        out = fit(out)
+        out = fit(out)  # footnotes over their share: the whole answer still stays under KB_CHARS
     return out
 
 

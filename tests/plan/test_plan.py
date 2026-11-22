@@ -296,3 +296,14 @@ def test_rules_need_a_full_source(tmp_path):
     assert k.rule("no.such.rule") is None
     hit = k.search("riding apprentice")
     assert any(h["url"] and h["source_type"] for h in hit)
+
+
+def test_a_falling_xp_table_still_ends_a_gain():
+    """A level in play without its bar read gives its XP so far (5200 after
+    11400): the line through them fell below 0 at the next level and
+    add_xp never finished (the MCP fakes, 2026-11-22). The extrapolation
+    stays at the last level's need at least."""
+    inp = {"xp_table": {"13": 11400, "14": 5200}}
+    assert E.xp_need(inp, 15) == (5200, True)
+    level, xp, guessed = E.add_xp(inp, 14, 0.0, 50000)
+    assert level > 14 and guessed

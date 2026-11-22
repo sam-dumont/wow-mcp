@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from tests.test_bounded_reads import FakeVL
+from wowstats import stores
 from wowstats.analysis import prep
 from wowstats.mcp import tools
 from wowstats.mcp.store import Store
@@ -34,6 +35,8 @@ def rows():
 def call(rows, monkeypatch):
     fake = FakeVL(rows)
     monkeypatch.setattr(Store, "_get", lambda self, url, params, extra=None: fake(url, params))
+    # The prep behind the semantic layer reads through wowstats.stores (its event cache).
+    monkeypatch.setattr(stores, "http_get", fake)
     ctx = tools.Ctx(store=Store(vl_url="http://vl.invalid"))
     return lambda name, **args: tools.call(ctx, name, {"char": CHAR, **args})
 
