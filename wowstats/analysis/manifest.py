@@ -33,7 +33,6 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
-import re
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -102,19 +101,21 @@ def build(db, rows: list, knowledge=None, route_ref=None, now: datetime | None =
     return m
 
 
-# The tables the gear scoring fills (from analysis.advice_for): prep's
+# The prep tables the gear scoring fills (from analysis.advice_for): prep's
 # upgrade_candidates, and gear's score, bis_pct and fit for the scored spec.
-# A scoring change means something else only there. The semantic layer's
-# views over them (models `upgrades` and `worn`) too: a metric_query compiles
-# to SQL that names the view, and `\bgear\b` doesn't match sem_gear.
-SCORED_TABLES = ("upgrade_candidates", "gear", "sem_upgrades", "sem_gear")
+# A scoring change means something else only there. A query reads them
+# directly or through any view over them (sem_upgrades, sem_gear, per_slot,
+# a metric_query's compiled SQL): semantic.reads resolves which.
+SCORED_TABLES = ("upgrade_candidates", "gear")
 
 
 def reads_scoring(finding: dict | None) -> bool:
-    """Whether a finding's query reads what the gear scoring fills. Without
-    the finding (or its SQL), assume it does."""
-    sql = str((finding or {}).get("sql") or "").lower()
-    return not sql or any(re.search(rf"\b{t}\b", sql) for t in SCORED_TABLES)
+    """Whether a finding's query reads what the gear scoring fills, through
+    whatever relation. Without the finding (or its SQL), assume it does."""
+    from . import semantic
+
+    sql = str((finding or {}).get("sql") or "")
+    return not sql.strip() or bool(semantic.reads(semantic.relations_in(sql)) & set(SCORED_TABLES))
 
 
 def changed(judged: dict | None, now: dict, finding: dict | None = None) -> list[str]:

@@ -562,22 +562,19 @@ def _count_query(env: dict, w: Workspace, touched: set[tuple[str, str]], query: 
     """One query of the run, play_sql's or query_metric's: the counters and
     the tables and columns it read, for the coverage. A metric reads the
     semantic layer's views (sem_*), a view per grain (per_level...) the
-    sem_* views under it: each counts as the prep tables under those, so a
-    table read through a metric or a view isn't left "untouched" (external
-    review of 0.7.0-rc.5). Call with _LOCK held."""
-    from .semantic import VIEWS, view_reads, views
+    sem_* views under it: each counts as the prep tables under those
+    (semantic.reads), so a table read through a metric or a view isn't left
+    "untouched" (external review of 0.7.0-rc.5). Call with _LOCK held."""
+    from .semantic import reads
 
     real = set(w.tables)
     flat: set[tuple[str, str]] = set()
     for t, c in touched:
-        if t in views():
-            under = {base for sem in view_reads(t) for base in passes.tables_in(VIEWS[sem], w.tables)}
-        elif t in VIEWS:
-            under = passes.tables_in(VIEWS[t], w.tables)
-        else:
+        under = reads({t}) - {t}
+        if not under:  # a prep table (or nothing the resolver knows)
             flat.add((t, c))
             continue
-        for base in under:
+        for base in under & real:
             if not c or c in w.ro.columns(base):
                 flat.add((base, c))
             flat.add((base, ""))

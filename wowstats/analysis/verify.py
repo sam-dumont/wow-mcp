@@ -173,12 +173,13 @@ NO_HISTORY = ("the query reads none of the character's tables (a constant, or a 
 
 
 def history_read(ro) -> set[str]:
-    """The play-history tables the runner's last query read: the prep's game
-    tables (wowstats.analysis.TABLES) and the semantic layer's views over them."""
-    from . import TABLES
+    """The play-history tables the runner's last query stood on: the prep's
+    game tables (wowstats.analysis.TABLES) it read, directly or through any
+    view over them (sem_*, per_*), as semantic.reads resolves them."""
+    from . import TABLES, semantic
 
     read = getattr(ro, "last_read", None) or set()
-    return {t for t in read if TABLES.get(t) == "game" or t.startswith("sem_")}
+    return {t for t in semantic.reads(read) if TABLES[t] == "game"}
 
 
 def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:

@@ -613,6 +613,46 @@ def view_reads(name: str) -> set[str]:
     return {spec_[mo]["table"] for mo in views()[name]["models"]}
 
 
+def relations_in(sql: str) -> set[str]:
+    """The relations a query's text names: prep tables, model views (sem_*)
+    and views per grain, string literals left out. For SQL no runner has
+    read (a kept finding's); a runner's `last_read` is exact."""
+    from . import TABLES
+
+    words = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", re.sub(r"'(?:[^']|'')*'", "''", sql or "")))
+    return {w for w in words if w in TABLES or w in VIEWS or w in views()}
+
+
+def reads(names) -> set[str]:
+    """The prep tables (wowstats.analysis.TABLES) the relations `names` stand
+    on, transitively: a prep table itself, a model view (sem_*) the tables
+    and views its SQL names, a view per grain its models' views. The one
+    dependency resolver: the run's coverage (drive._count_query), the
+    judge's evidence test (verify.history_read) and the definition check
+    (manifest.reads_scoring) all ask it, so a view declared in semantic.yaml
+    is seen through everywhere (external review, 2026-11-22: each kept its
+    own list of names, and none knew the per_* views). A name it doesn't
+    know (a CTE, a store model) stands on nothing."""
+    from . import TABLES
+
+    per = views()
+    out: set[str] = set()
+    seen: set[str] = set()
+    todo = list(names)
+    while todo:
+        n = todo.pop()
+        if n in seen:
+            continue
+        seen.add(n)
+        if n in TABLES:
+            out.add(n)
+        elif n in VIEWS:
+            todo += relations_in(VIEWS[n]) - {n}
+        elif n in per:
+            todo += view_reads(n)
+    return out
+
+
 def _metric(name: str, cat: dict | None = None) -> dict:
     m = next((x for x in (cat or catalogue())["metrics"] if x["name"] == name), None)
     if m is None:
