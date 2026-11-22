@@ -201,7 +201,7 @@ curl --proto '=https' --proto-redir '=https' -fsSL https://wow.example.org/insta
 
 Run the line for your OS. It stops the job and removes the program and your config. Your addons stay, Polestar Recorder included: remove them in CurseForge, or delete their folders in `_forever_/Interface/AddOns`.
 
-Your archive (WoWArchive in your home folder) stays: delete it yourself if you don't want the history. To delete your data on the site, ask the owner to take you off the friends list: it goes within minutes.
+Your archive (WoWArchive in your home folder) stays: delete it yourself if you don't want the history. To delete your data on the site, ask the owner to take you off the friends list: it's deleted 7 days later, or right away if you ask.
 
 <div class="os" data-os="windows">
 

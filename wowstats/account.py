@@ -537,9 +537,10 @@ your game showed you included. Battle.net data goes to it only if "Battle.net da
 Settings.</p>
 <p>@SERVER_AI@</p>
 <h2>How long</h2>
-<p>As long as you're on the owner's friends list. When the owner removes you, everything stored goes within
-minutes: your events, your settings, your goals, plans and findings, your upload password, your pages.
-@BACKUPS@ @LOGS_GONE@ Nobody deletes backups or logs by hand: they expire on their own.
+<p>As long as you're on the owner's friends list. When the owner removes you, your access stops at once:
+no login, no AI, no uploads, and your public page and /zogzog/ link go offline within a minute or two.
+@PURGE@ That covers your events, your settings, your goals, plans and findings, your upload password and
+your pages. @BACKUPS@ @LOGS_GONE@ Nobody deletes backups or logs by hand: they expire on their own.
 Battle.net data about your characters stops updating that day and is gone within 30 days.
 Your login account is separate: ask the owner to delete it too.</p>
 <p>Your own computer keeps its copy (the WoWArchive folder): uninstalling wow-stats doesn't delete it.</p>
@@ -565,7 +566,9 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
     as a fact for every install (security review L12): visit counts only
     with PLAUSIBLE_DOMAIN set, how long backups keep events with
     PRIVACY_BACKUP_DAYS, how long the logs keep a request with
-    PRIVACY_LOG_DAYS; without those the page says to ask the owner."""
+    PRIVACY_LOG_DAYS; without those the page says to ask the owner. How
+    long a removed friend's data waits is FRIENDS_PURGE_DAYS, the setting
+    the deletion itself reads."""
     # The same counting on every wow page: this full view (ui send()), the
     # public page and /zogzog/ (wowstats.publish), all with stats.js.
     visits = ("\n<li>Visit counts (Plausible, on this server's own address). Each page you open here, on your "
@@ -574,8 +577,21 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
               "your browser, device type and country. No cookies, nothing about your game.</li>") if (
         env.get("PLAUSIBLE_DOMAIN") or "").strip() else ""
     days = _days(env.get("PRIVACY_BACKUP_DAYS"))
-    backups = (f"Backups of your events expire {days} days later." if days is not None else
+    backups = (f"Backups of your events expire {days} days after that deletion." if days is not None else
                "If the owner keeps backups, your events stay in them until those expire: ask the owner how long.")
+    from wowstats import tenancy
+
+    try:  # the same setting the deletion reads (wowstats.tenancy.reconcile)
+        purge_days = tenancy.purge_seconds(env.get("FRIENDS_PURGE_DAYS")) / 86400
+    except SystemExit:
+        purge_days = tenancy.PURGE_DAYS
+    if purge_days:
+        n = f"{purge_days:g} day{'' if purge_days == 1 else 's'}"
+        purge = (f"Everything stored about you is deleted {n} later, so a removal by mistake can be undone: "
+                 f"put back on the list within those {n}, you get everything back. Ask the owner and it goes "
+                 "right away instead.")
+    else:
+        purge = "Everything stored about you is deleted within minutes."
     log_days = _days(env.get("PRIVACY_LOG_DAYS"))
     logs = (f"These lines are kept {log_days} days." if log_days is not None else
             "Ask the owner how long they keep these lines.")
@@ -602,7 +618,7 @@ def privacy_page(logged_in: bool, env: dict) -> bytes:
         server_ai = ("This server doesn't run the play analysis itself: the host hasn't configured an AI provider "
                      "for it, so nothing goes to one from here.")
     body = (PRIVACY.replace("@SERVER_AI@", server_ai).replace("@VISITS@", visits).replace("@BACKUPS@", backups)
-            .replace("@LOGS_GONE@", logs_gone).replace("@LOGS@", logs))
+            .replace("@LOGS_GONE@", logs_gone).replace("@LOGS@", logs).replace("@PURGE@", purge))
     return page("Privacy", body, "privacy", script=False, assets="/privacy/", current="/privacy",
                 links=None if logged_in else bar.links("/privacy", LOGGED_OUT))
 

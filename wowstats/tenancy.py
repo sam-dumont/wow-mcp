@@ -30,9 +30,14 @@ leaves the person in without an address until the list names them. The file is w
 runs (FriendsWatch: its content checked every WATCH_S, a full pass every
 FRIENDS_RECONCILE_S anyway), so a changed list applies without a restart:
 a listed person gets a tenant with that slug before their first login (or
-at it, if they're quicker); a person who left the list is offboarded at
-once (delete_tenant), and a valid {} offboards everyone; a missing or
-broken file changes nothing. Each person: an AccountID, a state
+at it, if they're quicker); a person who left the list loses every access
+at once (status "removed": no login, no MCP, no upload, no site) and their
+data is deleted FRIENDS_PURGE_DAYS later (delete_tenant), unless the list
+names them again before that: then they're back with everything (owner,
+2026-11-22: a valid but wrong list would otherwise wipe people for good).
+A valid list that would remove every friend at once is refused
+(FRIENDS_ALLOW_EMPTY, or `users reconcile --allow-empty`, lets it through),
+and a missing or broken file changes nothing. Each person: an AccountID, a state
 folder, a slug, an ingest token, a zogzog key, all in
 WOW_STATE_DIR/users.json (0600). Tokens and install codes are
 kept as SHA-256 hashes only; zogzog keys are never stored: each is derived
@@ -48,6 +53,11 @@ Environment (docs/deploy.md, "Friends"):
   WOW_FRIENDS_FILE     who may use it besides the owner, {"<sub>": "<slug>" or ""}
                        or ["<sub>"], watched for changes; FRIENDS_RECONCILE_S (120)
                        a full pass
+  FRIENDS_PURGE_DAYS   days between leaving the list and the deletion of the
+                       person's data (7; 0: at once). The clock is the
+                       registry's removed_at, so a restart neither resets nor skips it
+  FRIENDS_ALLOW_EMPTY  1: apply a list that removes every friend at once
+                       (refused otherwise, logged as empty_list_refused)
   PROXY_BATTLETAG_HEADER  the login's BattleTag claim, for a friend's first slug
                        (unset: slugs come from the list only)
   FRIENDS_VL_URL       the friends' VictoriaLogs; FRIENDS_VL_DELETE_KEY_FILE its
@@ -130,7 +140,9 @@ class User:
     owner: bool = False
     slug: str = ""
     created: str = ""
-    status: str = "active"  # active | disabled
+    # active | disabled (`users disable`: the operator's switch) | removed (off
+    # the friends list, data kept until removed_at + FRIENDS_PURGE_DAYS).
+    status: str = "active"
     public_on: bool = False
     hidden_public: list = field(default_factory=list)
     hidden_zogzog: list = field(default_factory=list)
@@ -142,6 +154,9 @@ class User:
     ingest_set_at: str = ""
     zogzog_gen: int = 0
     first_event: str = ""
+    # When they left the friends list (ISO, UTC), "" while they're on it:
+    # the purge clock, kept in users.json so a restart doesn't reset it.
+    removed_at: str = ""
 
     @property
     def active(self) -> bool:
@@ -475,6 +490,31 @@ def slug_key(state: Path) -> bytes:
     return key
 
 
+PURGE_DAYS = 7
+
+
+def purge_seconds(v: str | None) -> float:
+    """FRIENDS_PURGE_DAYS in seconds: days, fractions allowed, 0 for at once."""
+    raw = (v or "").strip()
+    try:
+        days = float(raw) if raw else PURGE_DAYS
+    except ValueError:
+        days = -1
+    if not (days >= 0 and days < 3650):
+        raise SystemExit(f"FRIENDS_PURGE_DAYS={raw!r}: a number of days, 0 or more (0: delete at once)")
+    return days * 86400
+
+
+def _epoch(iso: str) -> float | None:
+    if not iso:
+        return None
+    try:
+        d = datetime.fromisoformat(iso)
+    except ValueError:
+        return None
+    return (d if d.tzinfo else d.replace(tzinfo=UTC)).timestamp()
+
+
 def site_host(slug: str, domain: str) -> str:
     return f"{slug}-wow.{domain}" if domain else ""
 
@@ -518,6 +558,13 @@ class Tenancy:
         self.friends_vl = env.get("FRIENDS_VL_URL", "").strip().rstrip("/")
         self.friends_file = env.get("WOW_FRIENDS_FILE", "").strip()
         self.list_unusable = False
+        self.purge_s = purge_seconds(env.get("FRIENDS_PURGE_DAYS"))
+        from wowstats.stores import truthy
+
+        self.allow_empty = truthy(env.get("FRIENDS_ALLOW_EMPTY") or "")
+        # The last pass refused a list that removes everyone (list_state): the
+        # overview says so, and the log says it once, not every pass.
+        self.empty_refused = False
         # sub -> the listed name that clashed, so a clash is logged once, not
         # at every login and every pass (it's the owner's list to fix).
         self.name_conflicts: dict[str, str] = {}
@@ -552,12 +599,45 @@ class Tenancy:
     def is_owner(self, sub: str) -> bool:
         return sub in self.owner_subs
 
-    def listed(self) -> dict[str, str] | None:
-        """The friends list (read_friends) without the owner's logins: the
+    def list_state(self, allow_empty: bool = False) -> tuple[dict[str, str] | None, str]:
+        """The friends list (read_friends) without the owner's logins (the
         owner wins over the list, so none of his is provisioned, named or
-        offboarded as a friend."""
+        removed as a friend), and why it is None: "unusable" (missing or
+        broken) or "empty" (a valid list naming nobody while friends are
+        on: refused unless FRIENDS_ALLOW_EMPTY or `allow_empty`). Either way
+        nothing changes and the registry answers, as for a broken file."""
         raw = read_friends(self.friends_file) if self.friends_file else None
-        return None if raw is None else {k: v for k, v in raw.items() if k not in self.owner_subs}
+        if raw is None:
+            return None, "unusable"
+        out = {k: v for k, v in raw.items() if k not in self.owner_subs}
+        if not out and not (allow_empty or self.allow_empty) and self.current_friends():
+            return None, "empty"
+        return out, ""
+
+    def listed(self) -> dict[str, str] | None:
+        return self.list_state()[0]
+
+    def current_friends(self) -> list[User]:
+        """The friends who are in: not the owner, not already removed (a
+        disabled one counts: the operator's switch, still on the list)."""
+        return [u for u in self.registry.users()
+                if not (u.owner or u.account_id == 0 or self.is_owner(u.sub) or u.removed_at)]
+
+    def purge_at(self, u: User) -> float | None:
+        """When a removed person's data goes (epoch seconds), None when they're in."""
+        at = _epoch(u.removed_at)
+        return None if at is None else at + self.purge_s
+
+    def pending_purges(self) -> list[dict]:
+        """Who is removed and waiting for the deletion, soonest first: for
+        `users list`, the overview and the start log. No sub, no key."""
+        out = []
+        for u in self.registry.users():
+            at = self.purge_at(u)
+            if at is not None and not u.owner:
+                out.append({"slug": u.slug or None, "account_id": u.account_id, "removed_at": u.removed_at,
+                            "purge_at": datetime.fromtimestamp(at, UTC).isoformat(timespec="seconds")})
+        return sorted(out, key=lambda p: p["purge_at"])
 
     # ------------------------------------------------------------ who
 
@@ -584,6 +664,8 @@ class Tenancy:
                                   "you, then reload this page.")
         if not self.friends_vl:
             return Who(None, 403, f"This install doesn't take friends yet. Ask {RUNS_IT}.")
+        if u is not None and u.removed_at and listed is not None:  # listed again before the purge
+            u = restore(self, u)
         if u is None or (not u.slug and u.active):
             u = provision_or_flag(self, sub, (listed or {}).get(sub, ""), battletag) or self.registry.get(sub)
         if not u.active:
@@ -926,21 +1008,67 @@ def provision_or_flag(t: Tenancy, sub: str, slug: str, battletag: str = "") -> U
     return u
 
 
-def reconcile(t: Tenancy) -> dict:
+def revoke(t: Tenancy, u: User, now: float) -> User:
+    """A person who left the list: every access stops now (status
+    "removed": identify, mcp_user, check_ingest, redeem and the publisher
+    all want "active"), their data stays until purge_at. Someone the
+    operator had switched off stays "disabled", so being listed again
+    doesn't switch them back on."""
+    at = datetime.fromtimestamp(now, UTC).isoformat(timespec="seconds")
+    u = t.registry.update(u.sub, status="removed" if u.status == "active" else u.status, removed_at=at)
+    t.forget(u.sub)
+    log_event("removed", slug=u.slug or None, account_id=u.account_id, removed_at=at,
+              purge_at=datetime.fromtimestamp(t.purge_at(u), UTC).isoformat(timespec="seconds"))
+    return u
+
+
+def restore(t: Tenancy, u: User) -> User:
+    """Listed again before the purge: back in, with everything they had."""
+    u = t.registry.update(u.sub, status="active" if u.status == "removed" else u.status, removed_at="")
+    t.forget(u.sub)
+    log_event("restored", slug=u.slug or None, account_id=u.account_id)
+    return u
+
+
+def purge(t: Tenancy, u: User, reason: str) -> dict:
+    """delete_tenant, logged: the window ran out, or the operator said now."""
+    out = delete_tenant(t, u)
+    log_event("purged", slug=u.slug or None, account_id=u.account_id, reason=reason)
+    return out
+
+
+def reconcile(t: Tenancy, now: float | None = None, allow_empty: bool = False) -> dict:
     """Make the registry match the friends list: provision who is listed
-    with a slug, offboard who left it. Someone listed without one waits for
-    their first login (identify). The owner is never in play."""
-    listed = t.listed()
+    with a slug, restore who is listed again, revoke who left it and purge
+    who left it FRIENDS_PURGE_DAYS ago. Someone listed without a slug waits
+    for their first login (identify). The owner is never in play. A broken
+    list, or one that would remove every friend at once (unless
+    `allow_empty`), changes nothing: no purge either, since it can't say
+    who is still out."""
+    now = time.time() if now is None else now
+    listed, why = t.list_state(allow_empty)
     if listed is None:
+        if why == "empty":
+            if not t.empty_refused:  # once per refusal, not every pass
+                log_event("empty_list_refused", level="error", path=t.friends_file,
+                          friends=len(t.current_friends()),
+                          why="the list names nobody, which would remove every friend at once: nothing changed",
+                          fix="if that is what you want, run `wow-stats users reconcile --allow-empty` "
+                              "(or set FRIENDS_ALLOW_EMPTY=1)")
+            t.empty_refused = True
+            return {"skipped": True, "refused": "empty"}
         if not t.list_unusable:  # once, not every pass
             log_event("list_unusable", path=t.friends_file,
                       why="missing, unreadable or not {sub: slug}: nothing changed")
         t.list_unusable = True
         return {"skipped": True}
-    t.list_unusable = False
-    out: dict = {"skipped": False, "provisioned": [], "removed": [], "errors": []}
+    t.list_unusable = t.empty_refused = False
+    out: dict = {"skipped": False, "provisioned": [], "restored": [], "removed": [], "purged": [], "errors": []}
     for sub, slug in listed.items():
         u = t.registry.get(sub)
+        if u is not None and u.removed_at:
+            u = restore(t, u)
+            out["restored"].append(u.slug or u.account_id)
         if u is not None and u.slug:
             if slug and u.slug != slug:
                 log_event("slug_kept", slug=u.slug, listed_slug=slug, account_id=u.account_id)
@@ -957,13 +1085,14 @@ def reconcile(t: Tenancy) -> dict:
         if u.owner or u.account_id == 0 or t.is_owner(u.sub) or u.sub in listed:
             continue
         try:
-            t.registry.update(u.sub, status="disabled")  # refused at once, whatever happens next
-            t.forget(u.sub)
-            delete_tenant(t, u)
-            log_event("offboarded", slug=u.slug or None, account_id=u.account_id)
-            out["removed"].append(u.slug or u.account_id)
+            if t.purge_at(u) is None:  # just left (or a removed_at that doesn't read: the clock starts now)
+                u = revoke(t, u, now)
+                out["removed"].append(u.slug or u.account_id)
+            if now >= t.purge_at(u):
+                purge(t, u, "window" if t.purge_s else "at once")
+                out["purged"].append(u.slug or u.account_id)
         except (TenancyError, OSError) as e:
-            log_event("offboard_failed", slug=u.slug or None, account_id=u.account_id, why=str(e))
+            log_event("purge_failed", slug=u.slug or None, account_id=u.account_id, why=str(e))
             out["errors"].append(u.slug or u.account_id)
     return out
 
@@ -1008,7 +1137,7 @@ class FriendsWatch:
             log_event("list_changed", path=self.t.friends_file)
         out = reconcile(self.t)
         self.digest, self.done_at = digest, now
-        if (out.get("provisioned") or out.get("removed")) and self.on_change is not None:
+        if any(out.get(k) for k in ("provisioned", "restored", "removed", "purged")) and self.on_change is not None:
             self.on_change()
         return out
 
@@ -1018,6 +1147,9 @@ def start_reconcile(t: Tenancy, on_change=None) -> threading.Thread | None:
     if not t.friends_file:
         return None
     watch = FriendsWatch(t, int(t.env.get("FRIENDS_RECONCILE_S") or "120"), on_change)
+    # Who is waiting for the deletion, said at each start: the dates live in
+    # users.json, so a restart is also when someone may wonder.
+    log_event("purges_pending", purge_days=t.purge_s / 86400, pending=t.pending_purges())
 
     def loop():
         while True:
@@ -1036,9 +1168,11 @@ def start_reconcile(t: Tenancy, on_change=None) -> threading.Thread | None:
 
 
 def cli(argv: list[str]) -> int:
-    """`wow-stats users list | hosts | reconcile | disable <slug> |
+    """`wow-stats users list | hosts | reconcile [--allow-empty] | disable <slug> |
     enable <slug> | delete <slug> [--yes]`, run where the full view runs (docker or kubectl exec): the
-    same WOW_STATE_DIR and settings. Prints no token, hash or key."""
+    same WOW_STATE_DIR and settings. Prints no token, hash or key. `delete`
+    is also the purge-now of a removed friend: it skips the rest of the
+    FRIENDS_PURGE_DAYS window."""
     import argparse
     import sys
 
@@ -1046,6 +1180,8 @@ def cli(argv: list[str]) -> int:
     ap.add_argument("action", choices=["list", "hosts", "reconcile", "disable", "enable", "delete"])
     ap.add_argument("slug", nargs="?")
     ap.add_argument("--yes", action="store_true", help="delete: really delete (default: say what would go)")
+    ap.add_argument("--allow-empty", action="store_true",
+                    help="reconcile: apply a friends list that removes every friend at once")
     a = ap.parse_args(argv)
     t = Tenancy(dict(os.environ))
     if a.action == "list":
@@ -1053,16 +1189,24 @@ def cli(argv: list[str]) -> int:
         for u in t.registry.users():
             c = name_conflict(t, u, listed)
             clash = (c["slug"] or c["why"]) if c else None  # the name to fix, or "no name"
+            due = t.purge_at(u)
             print(json.dumps({"slug": u.slug or None, "name_conflict": clash, "account_id": u.account_id,
                               "owner": u.owner, "org": u.org,
                               "status": u.status, "public_on": u.public_on, "created": u.created,
-                              "shipper_set_at": u.ingest_set_at or None, "first_event": u.first_event or None}))
+                              "shipper_set_at": u.ingest_set_at or None, "first_event": u.first_event or None,
+                              "removed_at": u.removed_at or None,
+                              "purge_at": datetime.fromtimestamp(due, UTC).isoformat(timespec="seconds")
+                              if due is not None else None}))
         return 0
     if a.action == "hosts":
         print(json.dumps({"hosts": t.host_list()}, indent=1))
         return 0
     if a.action == "reconcile":
-        return 1 if reconcile(t).get("skipped") else 0
+        out = reconcile(t, allow_empty=a.allow_empty)
+        if out.get("refused") == "empty":
+            print("refused: the friends list names nobody, which would remove every friend at once. "
+                  "Run again with --allow-empty if that is what you want.", file=sys.stderr)
+        return 1 if out.get("skipped") else 0
     u = t.registry.by_slug(a.slug or "")
     if u is None:
         print(f"no one has the slug {a.slug!r}", file=sys.stderr)
@@ -1071,15 +1215,22 @@ def cli(argv: list[str]) -> int:
         if u.owner:
             print("the owner can't be switched off", file=sys.stderr)
             return 1
+        if u.removed_at:
+            print(f"{u.slug} is off the friends list (data deleted after {u.removed_at} + "
+                  f"{t.purge_s / 86400:g} days): put them back on the list instead", file=sys.stderr)
+            return 1
         t.registry.update(u.sub, status="disabled" if a.action == "disable" else "active")
         print(f"{u.slug}: {'disabled' if a.action == 'disable' else 'active'} (the web view and the MCP refuse "
               "at the next request; the site goes at the publisher's next pass)")
         return 0
     try:
-        print(json.dumps(delete_tenant(t, u, dry_run=not a.yes)))
+        print(json.dumps(delete_tenant(t, u, dry_run=True) if not a.yes else purge(t, u, "operator")))
     except TenancyError as e:
         print(str(e), file=sys.stderr)
         return 1
     if not a.yes:
         print("dry run: add --yes to delete the events, the state and the registry entry", file=sys.stderr)
+    elif u.sub in (t.listed() or {}):
+        print(f"{u.slug} is still on the friends list: take them off it too, or the next pass gives them a new, "
+              "empty account", file=sys.stderr)
     return 0

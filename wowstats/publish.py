@@ -956,9 +956,8 @@ def publish_all(env: dict | None = None, force: bool = False) -> list[dict]:
     their own key (user_key: the owner's ZOGZOG_KEY_FILE until his first new
     link, then like friends', derived from ZOGZOG_MASTER_KEY_FILE), public only when they turned it on, pushed with
     their slug. A slug that left the list loses its folder and its pushed
-    copies (the person was deleted or switched off)."""
-    from wowstats import tenancy
-
+    copies (the person was deleted, switched off or taken off the friends
+    list), and between builds drop_inactive takes it down sooner."""
     env = dict(os.environ if env is None else env)
     out = Path(env.get("PUBLISH_DIR", "/data/site"))
     out.mkdir(parents=True, exist_ok=True)
@@ -984,13 +983,54 @@ def publish_all(env: dict | None = None, force: bool = False) -> list[dict]:
             keep.add(slug)  # never drop a site on an error
             res.append({"slug": slug, "built": False, "why": f"failed: {e!r}", "error": error_line(e),
                         "built_at": last_built(out / slug)})
+    drop_sites(env, out, keep)
+    send_report(env, res, started)
+    return res
+
+
+def drop_sites(env: dict, out: Path, keep: set[str]) -> None:
+    """Every site not in `keep`, from PUBLISH_DIR and every static pod."""
+    from wowstats import tenancy
+
+    if not out.is_dir():
+        return unpush_others(env, keep)
     for d in out.iterdir():
         if d.is_dir() and tenancy.SLUG_RE.match(d.name) and d.name not in keep:
             shutil.rmtree(d, ignore_errors=True)
             log(f"{d.name}: no longer in the list, site removed")
     unpush_others(env, keep)
-    send_report(env, res, started)
-    return res
+
+
+# How often, between two builds, the publisher asks who is still active and
+# takes down the others' sites: a friend taken off the list (or switched
+# off) loses their public page and /zogzog/ link within this, not at the
+# next build up to PUBLISH_INTERVAL later (owner, 2026-11-22: removal
+# revokes at once). One small read of /users.json and of each static pod's
+# list; nothing is built.
+REVOKE_S = 60
+
+
+def drop_inactive(env: dict) -> None:
+    """The sites of everyone not active in /users.json, gone now. A failed
+    read keeps everything: a share port that doesn't answer is no reason
+    to take anyone's page down."""
+    try:
+        users = fetch_users(env)
+    except Exception as e:  # noqa: BLE001 - the next look, or the next build
+        log(f"who is active: {e!r}")
+        return
+    keep = {str(u.get("slug") or "") for u in users if u.get("status") == "active"} - {""}
+    drop_sites(env, Path(env.get("PUBLISH_DIR", "/data/site")), keep)
+
+
+def wait(env: dict, interval: float, sleep=time.sleep) -> None:
+    """PUBLISH_INTERVAL until the next build, with drop_inactive every REVOKE_S."""
+    left = interval
+    while left > 0:
+        step = min(REVOKE_S, left)
+        sleep(step)
+        left -= step
+        drop_inactive(env)
 
 
 # ------------------------------------------------------------------ the pass, for the owner's overview
@@ -1096,7 +1136,7 @@ def main(argv: list[str]) -> int:
                 if not loop:
                     return 0
                 force = False
-                time.sleep(interval)
+                wait(dict(os.environ), interval)
                 continue
             r = publish(force=force)
             if not r["built"]:

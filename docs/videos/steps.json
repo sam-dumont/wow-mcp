@@ -361,7 +361,7 @@
   "uninstall": {
     "body": [
       "Run the line for your OS. It stops the job and removes the program and your config. Your addons stay, Polestar Recorder included: remove them in CurseForge, or delete their folders in _forever_/Interface/AddOns.",
-      "Your archive (WoWArchive in your home folder) stays: delete it yourself if you don't want the history. To delete your data on the site, ask the owner to take you off the friends list: it goes within minutes."
+      "Your archive (WoWArchive in your home folder) stays: delete it yourself if you don't want the history. To delete your data on the site, ask the owner to take you off the friends list: it's deleted 7 days later, or right away if you ask."
     ],
     "os": {
       "windows": {
@@ -581,7 +581,7 @@
           ],
           [
             "Delete your data",
-            "ask the owner to take you off the friends list. Your events, settings and pages go within minutes; backups expire on their own (the Privacy page says when). Then uninstall the program."
+            "ask the owner to take you off the friends list. Your access and pages stop at once; your events and settings are deleted 7 days later, or right away if you ask (the Privacy page gives this server's number). Backups expire on their own. Then uninstall the program."
           ]
         ],
         "media": "settings.mp4"

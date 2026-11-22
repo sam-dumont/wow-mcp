@@ -246,7 +246,9 @@ def person(t: T.Tenancy, u: T.User, listed: dict | None, sites: dict, now: float
            "upload": {"at": upload.get("at"), "events": upload.get("events")},
            "os": install.get("os"), "version": install.get("version"),
            "chars": None, "public_on": u.public_on, "build": sites.get(u.slug) if u.slug else None,
-           "addons": None, "stale": [], "error": "", "name_conflict": T.name_conflict(t, u, listed)}
+           "addons": None, "stale": [], "error": "", "name_conflict": T.name_conflict(t, u, listed),
+           # Off the friends list: when their data goes (FRIENDS_PURGE_DAYS after).
+           "removed_at": u.removed_at or None, "purge_at": t.purge_at(u)}
     newest = None
     if u.active:
         try:
@@ -346,7 +348,11 @@ def overview(t: T.Tenancy, fresh: bool = False) -> dict:
                          if report else None),
            "exporter": exporter_last(t.app_for(owner)) if owner else None,
            "disk": disk_use(t.state), "checks": checks(t.env, report), "people": people,
-           "analysis": analysis_tile(t.env)}
+           "analysis": analysis_tile(t.env),
+           # The friends list: a refused one (it would remove everyone) and
+           # who waits for the deletion, soonest first.
+           "friends": {"refused_empty": t.empty_refused, "purge_days": t.purge_s / 86400,
+                       "pending": sorted(p["purge_at"] for p in people if p["purge_at"] is not None)}}
     with _lock:
         _cache["o"] = (now, out)
     return out
@@ -377,6 +383,16 @@ def _when(ts, now: float) -> str:
     return f'<time datetime="{iso}" title="{iso}">{ago(s, now)}</time>'
 
 
+def _on(ts: float, now: float) -> str:
+    """A date to come: "on 2026-11-29 (in 6 days)", or "at the next pass" once due."""
+    iso = datetime.fromtimestamp(ts, UTC).strftime("%Y-%m-%d %H:%M UTC")
+    if ts <= now:
+        return f'<time datetime="{iso}" title="{iso}">at the next pass</time>'
+    d = ts - now
+    left = f"{round(d / 3600)} h" if d < 36 * 3600 else f"{round(d / 86400)} days"
+    return f'<time datetime="{iso}" title="{iso}">on {iso[:10]} (in {left})</time>'
+
+
 def _size(n: int) -> str:
     for unit in ("B", "KiB", "MiB", "GiB"):
         if n < 1024 or unit == "GiB":
@@ -403,6 +419,7 @@ def _row(p: dict, now: float, has_analysis: bool = False) -> str:
     if p["error"]:
         flags += f'<span class="flag">{escape(p["error"])}</span>'
     admitted = ("owner" if p["owner"] else "yes" if p["admitted"] else
+                f'removed, data deleted {_on(p["purge_at"], now)}' if p.get("purge_at") is not None else
                 "switched off" if p["status"] != "active" else "no")
     up = p["upload"] or {}
     upload = _when(up.get("at"), now)
@@ -490,6 +507,14 @@ def page_body(o: dict) -> str:
         txt += (f' <span class="dim">{an["runs"]} run{"" if an["runs"] == 1 else "s"} this month '
                 f'({escape(an["month"])}), whole install</span>')
         tiles.append(_tile("AI analysis", txt, state))
+    fr = o.get("friends") or {}
+    if fr.get("refused_empty"):
+        tiles.append(_tile("Friends list", "refused: it names nobody (<code>users reconcile --allow-empty</code> "
+                           "to apply it)", "bad"))
+    if fr.get("pending"):
+        n = len(fr["pending"])
+        tiles.append(_tile("Pending deletion", f'{n} {"person" if n == 1 else "people"}, next '
+                           f'{_on(fr["pending"][0], now)}'))
     pings = "".join(
         f'<li class="{"good" if c["ok"] else "bad"}" title="{escape(c.get("error") or "")}">'
         f'<span class="dot"></span>{escape(c["name"])}'

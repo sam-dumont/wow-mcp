@@ -112,7 +112,9 @@ things, so you tell it:
 
 - `PRIVACY_LOG_DAYS`: what your log store really keeps, for the access log and the app's log
   alike. Unset, the page tells friends to ask you.
-- `PRIVACY_BACKUP_DAYS`: what your backups really keep.
+- `PRIVACY_BACKUP_DAYS`: what your backups really keep, counted from the deletion.
+- `FRIENDS_PURGE_DAYS` (7): how long a friend's data waits after you take them off the
+  list. The page quotes it and the deletion reads it, so the two can't disagree.
 - Keep query strings out of your access log: the page's API calls carry character names there
   (`/api/loot?name=...`). The app's own log already drops them.
 

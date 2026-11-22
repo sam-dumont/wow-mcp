@@ -30,6 +30,7 @@ from tests.test_tenancy import (  # noqa: F401 - fixtures
     vl,
 )
 from wowstats import __version__, activity, admin, analysis, guard, publish
+from wowstats import tenancy as T
 
 PATHS = ("/admin", "/api/admin/overview")
 # Every character name, both tenants', as the page could print it.
@@ -130,11 +131,32 @@ def test_a_person_off_the_list_and_stale_flags(server, tmp_path):  # noqa: F811
     m = {p["slug"]: p for p in overview(server)["people"]}["mira"]
     assert any(f.startswith("no upload for") for f in m["stale"])
     assert "shipper older than the server" in m["stale"]
-    # Taken off the list: still a row until the offboarding, "no".
+    # Taken off the list: still a row until the purge, "no".
     with open(t.friends_file, "w") as f:
         json.dump({"friend-3": "pip"}, f)
     m = {p["slug"]: p for p in overview(server)["people"]}["mira"]
-    assert m["admitted"] is False
+    assert m["admitted"] is False and m["purge_at"] is None
+    # Once the pass removed them: when their data goes, on the row and in a tile.
+    T.reconcile(t)
+    o = overview(server)
+    m = {p["slug"]: p for p in o["people"]}["mira"]
+    assert m["status"] == "removed" and m["purge_at"] == o["friends"]["pending"][0]
+    assert o["friends"]["purge_days"] == 7 and o["friends"]["refused_empty"] is False
+    admin._cache.clear()
+    page = server.get("/admin", headers=as_user(OWNER))[2].decode()
+    assert "removed, data deleted" in page and "(in 7 days)" in page and "Pending deletion" in page
+
+
+def test_a_refused_friends_list_shows(server):  # noqa: F811
+    friend_ready(server)
+    t = server.t
+    T.reconcile(t)
+    with open(t.friends_file, "w") as f:
+        f.write("{}")
+    assert T.reconcile(t)["refused"] == "empty"
+    assert overview(server)["friends"]["refused_empty"] is True
+    admin._cache.clear()
+    assert "--allow-empty" in server.get("/admin", headers=as_user(OWNER))[2].decode()
 
 
 def test_the_setup_report_is_one_badge():
