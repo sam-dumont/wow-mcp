@@ -255,7 +255,7 @@ def test_every_claim_cites_its_data():
               for lv, s in ((23, 8056), (24, 8542), (25, 7030), (26, 5978), (27, 10030))]
     tr = insights.on_track(layer(levels=levels), {"level": 28, "eta_s": 3600, "xp_per_hour": 1})
     assert tr["claims"]
-    sc = insights.sanity_check(28, [], {"claims": []}, tr, None, [], {}, [{"points": 10}])
+    sc = insights.sanity_check(28, [], {"claims": []}, tr, None, [], {}, [{"points": 10}], ask=layer())
     assert sc["findings"][0]["text"] == "9 talent points unspent: spend them in the talent pane (N), anywhere."
     assert sc["not_possible_yet"]
     for c in tr["claims"] + sc["findings"]:
@@ -263,7 +263,7 @@ def test_every_claim_cites_its_data():
 
 
 def test_an_empty_character_has_no_claims():
-    ov = insights.overview({"header": {}, "levels": [], "steps": {}}, None, [], None, {}, [], [])
+    ov = insights.overview({"header": {}, "levels": [], "steps": {}}, None, [], None, {}, [], [], layer())
     assert ov["now"] == [] and ov["guide"]["claims"] == [] and ov["deaths"] == [] and ov["upgrades"] == []
 
 
@@ -391,7 +391,7 @@ def test_zogzog_moves_keep_the_trainers_and_the_death_counts():
     ds = [{"zone": "Wetlands", "level": 25, "level_gap": 4, "attackers": 2,
            "killer": {"npc_id": 9, "name": "Raptor", "level": 29}}] * 3
     sc = insights.sanity_check(32, ds, {}, {}, None, [{"skill_id": 186, "rank": 75, "max_rank": 75}], {}, None,
-                               None, hd, layer(ds))
+                               None, hd, ask=layer(ds))
     nm = insights.next_moves(32, None, hd, {}, {}, [], {})
     z = redact.zogzog("overview", {"moves": insights.overview_moves(nm, sc)})
     by = {m["kind"]: m for m in z["moves"]}
@@ -407,7 +407,7 @@ def test_one_item_one_move():
     which ranks where the upgrade would have."""
     nm = insights.next_moves(32, ADVICE, {}, {}, {}, [], {})
     assert any(m["kind"] == "upgrade" and m["item_id"] == 1 for m in nm["moves"])  # the MCP's list keeps it
-    mv = insights.overview_moves(nm, insights.sanity_check(32, [], {}, {}, ADVICE, [], {}, None))
+    mv = insights.overview_moves(nm, insights.sanity_check(32, [], {}, {}, ADVICE, [], {}, None, ask=layer()))
     rfk = next(m for m in mv if m["kind"] == "dungeon")
     assert [i["item_id"] for i in rfk["items"]] == [1] and rfk["weight"] == 3
     assert not any(m["kind"] == "upgrade" and m["item_id"] == 1 for m in mv)

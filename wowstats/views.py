@@ -17,7 +17,6 @@ from datetime import UTC, datetime, timedelta
 from wowstats import ahsource, classguide, classmeta, coverage, forever, insights, journal, profcaps, quests, talents
 from wowstats import gear as gearmod
 from wowstats.analysis import pages
-from wowstats.rates import per_hour
 from wowstats.stores import (
     FLIGHT_RECORDS,
     HISTORY_START,
@@ -279,11 +278,12 @@ class Views:
         death_rows = dedupe(res["deaths"])
         deaths = build_deaths(death_rows)  # sorts death_rows newest first
         # The numbers come from the semantic layer, one definition with the
-        # MCP's query_metric; the rows above keep the facts around them.
+        # MCP's query_metric; the rows above keep the facts around them. Its
+        # failure is this answer's failure (SemanticError: the last good
+        # answer stays, marked stale), never numbers counted here instead.
         layer = pages.numbers(char, res["layer"])
-        if layer is not None:
-            pages.apply_rows(levels, dungeons, layer)
-            pages.apply_deaths(deaths, layer, death_rows)
+        pages.apply_rows(levels, dungeons, layer)
+        pages.apply_deaths(deaths, layer, death_rows)
         if not death_rows and not res["minutes"]:
             # Nothing of the Recorder, which is what counts deaths: unknown,
             # never 0 (the MCP's deaths says the same).
@@ -315,7 +315,7 @@ class Views:
             since = climb[-1]["t"]
             buckets = vl(f"{rec} _time:>{since} | stats by (_time:10s) count() as n", ("_time",), {"n": "sum"})
             current_s = recorder_played([b.get("_time") for b in buckets])
-        header = build_header(char, levels, res, gear, current_s, pages.header(layer) if layer else None)
+        header = build_header(char, levels, res, gear, current_s, pages.header(layer))
         header.update(played_total(res["played"], levels, header))
         fill_from_battlenet(header, self.bnet_profile(char))
         cat = talents.shared().get()
@@ -646,18 +646,11 @@ class Views:
     def layer_ask(self, char: str):
         """The semantic layer on the character's narrow prep (the rows the
         character page's numbers read: wowstats.analysis.pages.asker), for
-        the Overview's pace and death counts. None when the layer isn't
-        installed or can't build on these rows (said once in the log)."""
+        the Overview's pace and death counts. A failure raises
+        SemanticError: the Overview fails like any answer, never shows
+        its lines without the layer's counts."""
         rows = self.vl(f"{self.stream} {self.char_filter(char)} {pages.ROWS_QUERY}")
-        ask = pages.asker(char, rows)
-        if ask is None:
-            return None
-        try:
-            ask(metrics=["deaths"])
-        except Exception as e:  # noqa: BLE001 - a layer bug must not take the page down
-            print(f"views: the semantic layer failed for {char}: {e!r}", flush=True)
-            return None
-        return ask
+        return pages.asker(char, rows)
 
     def overview(self, char: str) -> dict:
         """The home page of a character: on track or not, what's happening
@@ -677,7 +670,7 @@ class Views:
                                                x["skills"])
         ov["sanity_check"] = insights.sanity_check(hd.get("level"), x["deaths"], ov["guide"], ov["on_track"],
                                                    advice, profs, x["skills"], talents, gear.get("items"), hd,
-                                                   ask)
+                                                   ask=ask)
         ov["moves"] = insights.overview_moves(ov["next_moves"], ov["sanity_check"])
         ov["deaths_detail"] = x["deaths"][::-1][:15]
         ov["clusters"] = insights.death_clusters(ask, x["deaths"])
@@ -1008,15 +1001,11 @@ class Views:
 
 def build_levels(rows: list[dict]) -> list[dict]:
     """The level splits as the MCP's level tools list them (stores.pick_splits
-    picks one per level). The pages take the same numbers from the semantic
-    layer (wowstats.analysis.pages)."""
-    out = []
-    for lvl, r in sorted(pick_splits(rows).items()):
-        secs, xp = num(r.get("seconds")), num(r.get("xp"))
-        out.append({"level": lvl, "seconds": int(secs), "xp": int(xp), "quests": opt_num(r.get("quests")),
-                    "kills": opt_num(r.get("kills")), "partial": truthy(r.get("partial")), "at": r.get("_time"),
-                    "xp_per_hour": per_hour(xp, secs)})
-    return out
+    picks one per level): the facts (which level, partial, when). Its
+    numbers are the semantic layer's alone (wowstats.analysis.pages.apply_rows)."""
+    return [{"level": lvl, "seconds": None, "xp": None, "quests": None, "kills": None,
+             "partial": truthy(r.get("partial")), "at": r.get("_time"), "xp_per_hour": None}
+            for lvl, r in sorted(pick_splits(rows).items())]
 
 
 # Polestar_Recorder rolls its chunk every 300 s while the game is running
@@ -1045,8 +1034,8 @@ def gear_args(gi: dict) -> dict:
 def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = None,
                  current_s: int | None = None, layer: dict | None = None) -> dict:
     """The hero line. `layer`: the semantic layer's numbers for it
-    (wowstats.analysis.pages.header), used as they are; without the layer
-    installed, the same sums worked out here."""
+    (wowstats.analysis.pages.header), used as they are: the only way the
+    pace, the averages and the counts are computed."""
     snap, xp = pick_sheet(res["snap"]), newest(res["xp"])
     # The newest of the account snapshot and the recorder wins for each value.
     top = snap if parse_t(snap.get("_time")) >= parse_t(xp.get("_time")) else xp
@@ -1067,19 +1056,10 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
         cur_xp, xp_max = opt_num(top.get("xp")), opt_num(top.get("xp_max"))
     if xp_max is None:
         xp_max = opt_num(snap.get("xp_max")) if opt_num(snap.get("level")) == level else None
-    done = [lv for lv in levels if not lv["partial"]]
-    recent = done[-5:]
-    pace = done[-3:]
-    if layer is not None:
-        xph = layer["xp_per_hour"]
-        avg_s, avg_n = layer["avg_level_s"], layer["avg_levels"]
-        splits_s, kills, n_quests = layer["splits_played_s"], layer["kills"], layer["quests"]
-    else:
-        xph = per_hour(sum(lv["xp"] for lv in pace), sum(lv["seconds"] for lv in pace)) if pace else None
-        avg_s = int(sum(lv["seconds"] for lv in recent) / len(recent)) if recent else None
-        avg_n = len(recent)
-        splits_s = sum(lv["seconds"] for lv in levels)
-        kills, n_quests = split_total(levels, "kills"), split_total(levels, "quests")
+    layer = layer or {}
+    xph = layer.get("xp_per_hour")
+    avg_s, avg_n = layer.get("avg_level_s"), layer.get("avg_levels") or 0
+    splits_s = layer.get("splits_played_s")
     # Polestar writes a split when a level ends, so the level being played has
     # none yet; `partial` means the recording started partway into that level.
     current = next((lv for lv in levels if lv["level"] == level), None)
@@ -1127,11 +1107,11 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
         "avg_levels": avg_n,
         "xp_per_hour": xph,
         "eta_s": eta,
-        # Totals come from the level splits, like played_s: the Recorder only
-        # saw what happened while it was on (it missed most of 22-32), so its
-        # kill and turn-in records are the detail, never the count.
-        "kills": kills,
-        "quests": n_quests,
+        # The kills and quests, each with its population (pages.climb): the
+        # completed levels (Polestar's splits) and the current level so far,
+        # never one bare total a reader could take for the other (external
+        # review, 2026-11-22).
+        "counts": layer.get("counts"),
     }
 
 
@@ -1192,11 +1172,6 @@ def played_total(snaps: list[dict], levels: list[dict], header: dict) -> dict:
         return {"played_total_s": int(total - in_level + after), "played_total_from": "altoholic",
                 "played_total_at": r.get("_time")}
     return {}
-
-
-def split_total(levels: list[dict], key: str) -> int | None:
-    vals = [lv[key] for lv in levels if lv.get(key) is not None]
-    return int(sum(vals)) if vals else None
 
 
 def build_gear(row: dict) -> dict | None:
@@ -1369,30 +1344,22 @@ def build_steps(rows: list[dict], ref=None) -> dict:
 
 
 def build_dungeons(rows: list[dict]) -> list[dict]:
-    out = []
-    for r in rows:
-        secs = num(r.get("seconds"))
-        xp = num(r.get("xp"))
-        out.append({"name": r.get("name") or f"Dungeon {r.get('dungeon_id', '?')}", "level": opt_num(r.get("level")),
-                    "seconds": int(secs), "xp": int(xp), "t": r.get("_time"),
-                    "xp_per_hour": per_hour(xp, secs)})
+    """The dungeon runs' facts (name, level, when), newest first; each run's
+    time, XP and XP an hour are the semantic layer's (pages.apply_rows)."""
+    out = [{"name": r.get("name") or f"Dungeon {r.get('dungeon_id', '?')}", "level": opt_num(r.get("level")),
+            "seconds": None, "xp": None, "t": r.get("_time"), "xp_per_hour": None} for r in rows]
     out.sort(key=lambda d: parse_t(d["t"]), reverse=True)
     return out
 
 
 def build_deaths(rows: list[dict]) -> dict:
+    """The newest deaths (facts: when, where, at what level); the counts are
+    the semantic layer's (pages.apply_deaths). Sorts `rows` newest first."""
     rows.sort(key=lambda r: parse_t(r.get("_time")), reverse=True)
-    by_zone: dict[str, int] = {}
-    by_level: dict[str, int] = {}
-    for r in rows:
-        by_zone[r.get("zone") or "Unknown"] = by_zone.get(r.get("zone") or "Unknown", 0) + 1
-        if r.get("level"):
-            by_level[str(opt_num(r["level"]))] = by_level.get(str(opt_num(r["level"])), 0) + 1
-    return {"total": len(rows),
+    return {"total": None,
             "recent": [{"t": r.get("_time"), "zone": r.get("zone"), "level": opt_num(r.get("level"))}
                        for r in rows[:15]],
-            "by_zone": sorted(({"zone": k, "n": v} for k, v in by_zone.items()), key=lambda z: -z["n"]),
-            "by_level": by_level}
+            "by_zone": [], "by_level": {}}
 
 
 def deaths_per_level(by_level: dict, climb: list[dict], spans: list[tuple], gaps: list[dict]) -> dict | None:

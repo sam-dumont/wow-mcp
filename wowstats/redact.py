@@ -224,7 +224,11 @@ HEADER_Z = _keys("char", "name", "full_name", "race", "class", "faction", "guild
                  "xp",
                  "xp_max", "rested_xp", "time_in_level_s", "played_s", "played_total_s", "played_total_from",
                  "played_total_at", "first_partial", "first_level", "avg_level_s", "avg_levels", "xp_per_hour",
-                 "eta_s", "kills", "quests", "polestar", "sources", "money_copper", "money_at")
+                 "eta_s", "polestar", "sources", "money_copper", "money_at") | {
+    # The climb's kills and quests in their populations (wowstats.analysis.pages.climb).
+    "counts": {"completed_levels": _keys("from_level", "to_level", "kills", "quests"),
+               "current_level": _keys("level", "kills", "quests"),
+               "including_current_level": _keys("kills", "quests")}}
 # An "ah" source (wowstats.ahsource): the price his own scan saw today or
 # yesterday, and what it costs against his gold.
 SOURCE = _keys("kind", "quest_id", "name", "zone", "level", "req_level", "dungeon", "choices", "boss", "npc_id",

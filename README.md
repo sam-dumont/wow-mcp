@@ -22,8 +22,11 @@ and the install command comes from their server.
 
 ![The Overview of the demo character Nibbet, level 34: behind the route at 2.2 times Polestar's route time, the next level in 2h 24m of play, 91% of guide steps in order, the next moves, and time per level against the route](docs/images/overview.webp)
 
-**[Live demo](https://sam-dumont.github.io/wow-mcp/demo/)**: Nibbet-Gearholt, an invented Gnome
-priest, no install.
+**[Live demo, the full page](https://sam-dumont.github.io/wow-mcp/demo/friends/)**: Nibbet-Gearholt,
+an invented Gnome priest, as his friends see him: the Overview with what to do next, the gear
+advice, the journal and the timeline. Demo data, no install. His
+**[public profile](https://sam-dumont.github.io/wow-mcp/demo/)** is the cut-down page anyone
+with the address sees: his card, gear, climb and dungeons.
 
 ## Three ways in
 
@@ -49,8 +52,8 @@ docker compose up -d --build ui && docker compose exec -T ui python - --vl http:
 ```
 
 The first run builds the image, a minute or two. It ends with
-`1831 events into http://victorialogs:9428`. Open <http://127.0.0.1:8080/>: five made-up
-characters, each with a DEMO DATA banner. `docker compose down -v` removes it all.
+`<N> events into http://victorialogs:9428`, a few thousand. Open <http://127.0.0.1:8080/>: five
+made-up characters, each with a DEMO DATA banner, and Testchar-Demo at level 32. `docker compose down -v` removes it all.
 PowerShell, a port already taken, or the sites for friends: [Try the demo](docs/self-host/demo.md).
 
 ## How it fits together

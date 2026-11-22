@@ -265,7 +265,8 @@ Now the page takes them from the layer:
 | Time, XP, quests, kills and XP/hour of each level | `played_s`, `level_xp`, `split_quests`, `split_kills`, `xp_per_hour` |
 | "A level, over the last 5" | `avg_level_s` on the last 5 whole levels |
 | XP an hour (the pace), and the time to the next level from it | `xp_per_hour` on the last 3 whole levels |
-| Played since tracking began, kills, quests | `played_s`, `split_kills`, `split_quests` (plus the level in play, live) |
+| Played since tracking began | `played_s` (plus the level in play, live) |
+| Kills and quests over the completed levels, and the current level's so far beside them | `climb_kills`, `climb_quests` by `in_play` (below) |
 | Each dungeon run's time, XP and XP/hour | `run_s`, `run_xp`, `run_xp_per_hour` by `run` |
 | Deaths: how many, by zone, by level | `deaths` |
 
@@ -289,8 +290,29 @@ rather than through DuckDB:
 
 The hero line's gold is the purse at the last logout, a fact rather than a metric.
 
-Without DuckDB installed (a `pip install` without the `mcp` extra; the image has it), the page
-counts those numbers itself, the same way.
+There is no second way to count them. DuckDB and the layer are core dependencies, and when
+the layer fails for a character the page shows its standard failure state: the last good
+answer, marked out of date, never numbers counted another way. The server logs one JSON line
+(`"event": "semantic_failed"`) and the full view's `/healthz` says `"semantic": "failing"`
+([Monitor it](../self-host/monitoring.md)). A missing data source is not a failure: the
+metrics it feeds are NULL, and the page says what's unknown.
+
+### Which kills and quests
+
+"How many kills?" has two honest answers mid-level, so the count says its population.
+`climb_kills` and `climb_quests` count Polestar's split for a level that has one (it counts the
+whole level), else the Recorder's records at that level. `in_play` picks the population:
+
+| Population | Filter | Demo (Testchar, level 32) |
+|---|---|---|
+| The completed levels | `in_play = 0` | 1,188 kills, 94 quests (levels 22-31) |
+| The current level so far | `in_play = 1` | 74 kills, 5 quests |
+| Including the current level | none | 1,262 kills, 99 quests |
+
+The page's climb says "over the completed levels" and puts the current level's so far beside
+it. The MCP's `character_summary` returns all three under `counts`: `completed_levels`,
+`current_level` and `including_current_level` (`wowstats.analysis.pages.climb`, one function
+for both).
 
 ## What to equip next
 
@@ -406,6 +428,8 @@ One row per level: Polestar's split when the level is done, the ding time and th
 | `level_xp` | simple | xp | XP the level took (Polestar split). | From the split: missing for a level the split never closed. | sum; time: level_completion; observed. |
 | `split_quests` | simple | quests | Quests handed in during the level, as Polestar's split counts them. | The split's own count; records.turnin can differ for a partial level. | sum; time: level_completion; observed. |
 | `split_kills` | simple | kills | Kills during the level, as Polestar's split counts them. | The split's own count; records.kill can differ for a partial level. | sum; time: level_completion; observed. |
+| `climb_kills` | simple | kills | Kills over the climb: Polestar's split count for a level with a split, else the Recorder's kill records at that level (the level in play, or Polestar off). Pick the population with in_play: 0 the completed levels, 1 the current level so far, no filter both. | Always say the population: the completed levels (in_play = 0) or including the current level. A level without a split counts only what the Recorder saw while it was on. NULL for a level neither counted. | sum; time: level_completion; observed. |
+| `climb_quests` | simple | quests | Quests handed in over the climb: Polestar's split count for a level with a split, else the Recorder's turn-in records at that level (the level in play, or Polestar off). Pick the population with in_play: 0 the completed levels, 1 the current level so far, no filter both. | Always say the population: the completed levels (in_play = 0) or including the current level. A level without a split counts only what the Recorder saw while it was on. NULL for a level neither counted. | sum; time: level_completion; observed. |
 | `planned_s` | simple | seconds | The route planner's seconds for the level: for this class, or the median over classes when the class isn't known. | A model of a quick player who knows the route, uncalibrated. NULL when the route reference has no time for the level. | sum; time: level_completion; estimated. |
 | `class_planned_s` | simple | seconds | The route planner's seconds for the level for the character's own class only: planned_s without its fallback to the median over classes. | NULL when the class isn't known (no Recorder session record names it) or the route reference has no time for the level: the planner then falls back to the route for the side and class it knows from elsewhere. As uncalibrated as planned_s. | sum; time: level_completion; estimated. |
 | `longest_gap_s` | simple | seconds | The longest stretch inside the level (previous ding to this one, or to the last record for the level in play) with no Recorder session. | Time offline, or play the Recorder missed when recorder_missed_s is above 0. Not additive: over several levels it is the longest of them. NULL for the first tracked level. | max; time: level_completion; reconstructed. |
@@ -419,7 +443,7 @@ One row per level: Polestar's split when the level is done, the ding time and th
 | `recorder_coverage` | ratio | share | Share of the level's played time the Recorder saw: played_s minus recorder_missed_s, over played_s (1.0: every minute). | The Recorder's counts for the level (deaths, kills, quests_done, online_s) cover this share of its play: below 1, a 0 there may be play it missed. NULL when it can't be measured (see recorder_missed_s): unknown, never full. | ratio_of_sums; time: level_completion; inferred. Rows: A level whose Recorder gap is measured: a whole split after the Recorder's first session. |
 | `over_route_s` | derived | seconds | Seconds played beyond the route planner's time (negative: faster). | As uncalibrated as planned_s. Reads whole splits with a planned time only (eligibility): planned_s on its own is the total target, every level with a plan. NULL when no level qualifies. | sum; time: level_completion; estimated. Rows: A whole split (partial = 0, played time above 0) with a planned time. The level in play has no split and a partial split began partway through the level, so both stay out of both sides; planned_s on its own still counts them. |
 
-Group or filter by: `character`, `class`, `ding_t`, `level`, `partial`, `time`.
+Group or filter by: `character`, `class`, `ding_t`, `in_play`, `level`, `partial`, `time`.
 
 ### timeline
 
@@ -803,6 +827,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `guide` | timeline, records, xp | The Polestar guide active then (the last step record), its id. NULL before the first step record. |
 | `guide_title` | timeline | That guide's title, from the route reference (NULL when the reference doesn't have the guide). |
 | `hour` | timeline, records, xp | Hour of day 0-23, local time. |
+| `in_play` | levels | The climb's population: 1 for the level being played (the highest level known, with no ding out of it and no whole split), 0 for a completed level. Filter in_play = 0 for the completed levels, in_play = 1 for the current level so far; no filter counts both. |
 | `instance` | upgrades | Dungeon or raid of an instance drop or quest, else NULL. |
 | `item` | upgrades, worn | Item name. |
 | `item_id` | records, loot, upgrades, worn | Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used. |

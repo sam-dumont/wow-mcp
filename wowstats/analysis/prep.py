@@ -68,7 +68,11 @@ from wowstats.stores import (
 # 9: quests gets `failed` (a fail record closes the quest) and the quests in
 # the log accepted before tracking (objectives seen done, no accept): the
 # plan's open quests read the quests model (semantic wave 3).
-PREP_VERSION = 9
+# 10: levels gets in_play (the level being played) and climb_kills and
+# climb_quests (the split's counts, else the Recorder's records at that
+# level): one population-labelled count for the page and the MCP (external
+# review, 2026-11-22: 1,188 kills on the page, 1,262 in character_summary).
+PREP_VERSION = 10
 
 # A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
 # route position starts past it when the character already stands there.
@@ -257,7 +261,10 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
                          "missed when recorder_missed_s is above 0",
         "longest_gap_from_local": "its start, local time", "longest_gap_to_local": "its end, local time",
         "recorder_missed_s": "played seconds the Recorder's sessions don't cover (the coverage's Recorder gap "
-                             "for the level, 0 when none; NULL when it can't be measured)"}),
+                             "for the level, 0 when none; NULL when it can't be measured)",
+        "in_play": "1 for the level being played (no ding out of it, no whole split), else 0",
+        "climb_kills": "kills: the split's count, else the Recorder's kill records at the level (NULL: neither)",
+        "climb_quests": "quests handed in: the split's count, else the Recorder's turn-ins at the level"}),
     "route_position": ("Where the character is in Polestar's levelling route, one row: the step to do next "
                        "(next_step) by the rule the plan and the next_step tool use. Read it for the next step; "
                        "the newest step record is only where Polestar's pointer was (it falls back to the first "
@@ -786,7 +793,8 @@ def _schema(db: sqlite3.Connection) -> None:
     CREATE TABLE levels (level INTEGER PRIMARY KEY, ding_t REAL, played_s REAL, xp INTEGER, quests INTEGER,
         kills INTEGER, partial INTEGER, planned_s REAL, planned_median_s REAL, planned_guide TEXT,
         calendar_s REAL, offline_s REAL, longest_gap_s REAL, longest_gap_from_local TEXT,
-        longest_gap_to_local TEXT, recorder_missed_s REAL);
+        longest_gap_to_local TEXT, recorder_missed_s REAL, in_play INTEGER, climb_kills INTEGER,
+        climb_quests INTEGER);
     CREATE TABLE route_steps (guide TEXT, guide_title TEXT, step INTEGER, planned_s REAL, title TEXT);
     CREATE TABLE route_position (guide TEXT, guide_title TEXT, shown_step INTEGER, shown_title TEXT, reason TEXT,
         furthest_step INTEGER, next_step INTEGER, next_title TEXT, next_why TEXT, subzone TEXT, zone TEXT);
@@ -868,6 +876,19 @@ def _levels(db, rows, rec, route) -> None:
     cur = db.execute("SELECT MAX(level) FROM records").fetchone()[0]
     if cur:
         seen.add(cur)
+    # The level being played: the highest level known, unless the Recorder
+    # saw the ding out of it or Polestar closed a whole split for it (a
+    # partial split is one still growing). Without the Recorder or a split
+    # for it there is no such row: its counts are unknown, never 0.
+    top = max(seen, default=None)
+    in_play = top if top is not None and top not in dings and (
+        top not in splits or truthy(splits[top].get("partial"))) else None
+    # The climb's counts, one population per row (pages.climb): Polestar's
+    # split counts the whole level, so it wins; a level without one (the
+    # level in play, or Polestar off) counts the Recorder's records at it.
+    recorded = {lv: (k, q) for lv, k, q in db.execute(
+        "SELECT level, COUNT(*) FILTER (WHERE kind='kill'), COUNT(*) FILTER (WHERE kind='turnin') "
+        "FROM records WHERE level IS NOT NULL GROUP BY level")}
     out = []
     for lv in sorted(seen):
         s = splits.get(lv) or {}
@@ -879,9 +900,14 @@ def _levels(db, rows, rec, route) -> None:
             med_row = route.level(lv, side)
             med, guide = (med_row.get("expected_s"), med_row.get("guide")) if med_row else (None, None)
         ding = dings.get(lv) or (s.get("_t") if s else None)
+        if s:
+            ck, cq = _int(s.get("kills")), _int(s.get("quests"))
+        else:
+            ck, cq = recorded.get(lv, (None, None))
         out.append((lv, ding, _flt(s.get("seconds")), _int(s.get("xp")), _int(s.get("quests")), _int(s.get("kills")),
-                    (1 if truthy(s.get("partial")) else 0) if s else None, plan, med, guide))
-    db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL)", out)
+                    (1 if truthy(s.get("partial")) else 0) if s else None, plan, med, guide,
+                    1 if lv == in_play else 0, ck, cq))
+    db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,?,?,?)", out)
     _level_calendar(db, rows)
 
 

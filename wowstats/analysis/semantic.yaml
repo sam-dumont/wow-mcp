@@ -69,6 +69,7 @@ levels:
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "When the level ended (the ding), local time. NULL while the level is in play."}
     ding_t: {expr: _.ding_t, description: "When the level ended, unix seconds (UTC): the Recorder's ding, else the split's own time (for a split still growing, its last update). NULL for the level in play without a split. Group by it to place a level in time."}
+    in_play: {expr: _.in_play, description: "The climb's population: 1 for the level being played (the highest level known, with no ding out of it and no whole split), 0 for a completed level. Filter in_play = 0 for the completed levels, in_play = 1 for the current level so far; no filter counts both."}
   measures:
     split_levels:
       expr: _.played_s.count()
@@ -105,6 +106,16 @@ levels:
       description: "Kills during the level, as Polestar's split counts them."
       metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: kills,
                  caveats: "The split's own count; records.kill can differ for a partial level."}
+    climb_kills:
+      expr: _.climb_kills.sum()
+      description: "Kills over the climb: Polestar's split count for a level with a split, else the Recorder's kill records at that level (the level in play, or Polestar off). Pick the population with in_play: 0 the completed levels, 1 the current level so far, no filter both."
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: kills,
+                 caveats: "Always say the population: the completed levels (in_play = 0) or including the current level. A level without a split counts only what the Recorder saw while it was on. NULL for a level neither counted."}
+    climb_quests:
+      expr: _.climb_quests.sum()
+      description: "Quests handed in over the climb: Polestar's split count for a level with a split, else the Recorder's turn-in records at that level (the level in play, or Polestar off). Pick the population with in_play: 0 the completed levels, 1 the current level so far, no filter both."
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: quests,
+                 caveats: "Always say the population: the completed levels (in_play = 0) or including the current level. A level without a split counts only what the Recorder saw while it was on. NULL for a level neither counted."}
     planned_s:
       expr: _.planned_s.coalesce(_.planned_median_s).sum()
       description: "The route planner's seconds for the level: for this class, or the median over classes when the class isn't known."

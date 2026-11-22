@@ -889,7 +889,13 @@ def make_handler(root: App, tenancy=None):
             full = app.view == "full"
             try:
                 if path == "/healthz" and self.command in ("GET", "HEAD"):
-                    return self.send(200, b"ok\n", "text/plain")
+                    # 200 while the process serves: a failing semantic layer
+                    # leaves the last good answers up, marked stale, so it is
+                    # a field to alert on, not a reason to restart the pod.
+                    from wowstats.analysis import pages
+
+                    body = json.dumps({"status": "ok", **pages.health()}).encode() + b"\n"
+                    return self.send(200, body, "application/json")
                 if not full and app.public_off():  # what the static server says for a site built with it off
                     return self.not_found()
                 # /ingest and the shipper's update carry their own credentials,

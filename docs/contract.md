@@ -373,9 +373,16 @@ counts for nothing else.
 ## What the UI builds from them
 
 - Header, climb, zones, guide steps, dungeons, deaths, flights: `wow-recorder`,
-  `wow-level`, `wow-dungeon`, `wow-character`. The climb's totals (played
-  time, kills, quests) are sums over the `wow-level` splits; the Recorder's
-  records only cover the time it was on.
+  `wow-level`, `wow-dungeon`, `wow-character`. The climb's played time is a
+  sum over the `wow-level` splits; the Recorder's records only cover the
+  time it was on. Kills and quests always name their population
+  (`climb_kills`, `climb_quests` by `in_play` in the semantic layer): the
+  **completed levels** (a level's split counts, the Recorder's records for
+  a level without one) and the **current level so far** (the Recorder's
+  records at the level in play, or its split while one grows). The page
+  shows the completed levels' totals with the current level beside them;
+  the MCP's `character_summary` returns `counts.completed_levels`,
+  `counts.current_level` and `counts.including_current_level`.
 - Played time, everywhere (the climb's x axis, pace, ETA): logged-in time,
   never calendar time. Finished levels use their split. The level being
   played has no split yet, so its time so far comes from the Recorder: it

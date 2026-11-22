@@ -20,8 +20,10 @@ def test_partial_split_is_a_finished_level():
 
 
 def test_header_totals_come_from_the_splits():
-    """The climb's kills and quests are the splits' sums, not the Recorder's
-    kill/turnin records, which only cover the time the Recorder was on."""
+    """The climb's kills and quests are the splits' sums over the completed
+    levels, not the Recorder's kill/turnin records, which only cover the
+    time the Recorder was on; the level in play has no split, so no count."""
+    from wowstats.analysis import pages
     from wowstats.views import build_header
 
     rows = [
@@ -31,10 +33,13 @@ def test_header_totals_come_from_the_splits():
          "xp": "29400", "quests": "11", "kills": "95", "partial": "false"},
     ]
     levels = build_levels(rows)
+    n = pages.numbers("A-B", [{**r, "feed": "wow-level", "char": "A-B"} for r in rows])
+    pages.apply_rows(levels, [], n)
     res = {"snap": [], "xp": [{"_time": "2026-11-12T14:00:00Z", "kind": "xp", "level": "24", "xp": "10",
                                "xp_max": "30000"}]}
-    hd = build_header("A-B", levels, res)
-    assert (hd["kills"], hd["quests"], hd["played_s"]) == (155, 15, 5199 + 8056)
+    hd = build_header("A-B", levels, res, layer=pages.header(n))
+    assert hd["counts"]["completed_levels"] == {"from_level": 22, "to_level": 23, "kills": 155, "quests": 15}
+    assert hd["counts"]["current_level"] is None and hd["played_s"] == 5199 + 8056
 
 
 def test_header_for_a_character_only_syndicator_knows():

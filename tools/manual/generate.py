@@ -398,7 +398,9 @@ ENDPOINTS = [
           "the 3D view (its frame, and the game files your shipper sent, by id), "
           "the character's picture (our still of the 3D model), the item icons"),
          (["/full/"], "login", "`FULL_DOOR_PATH`: a redirect to `/`, through your login. Empty: off"),
-         (["/healthz"], "public", "health check: `200 ok`, no login. Fine to route; probes need no credentials"),
+         (["/healthz"], "public", "health check: `200` with `{\"status\": \"ok\", \"semantic\": \"ok\"}`, no login. "
+          "`semantic` is `\"failing\"` while the page's numbers can't be computed (the page serves its last "
+          "good answers, marked stale): alert on it. Fine to route; probes need no credentials"),
          (["/ingest"], "public", "`POST` from the shipper, with its own password (`INGEST_PASSWORD`). "
           "Route it **without** your page login, or the shipper can't get through. 8 MB a post. A 502 means "
           "VictoriaLogs refused the lines or couldn't be reached: nothing counts against the daily budget, and "

@@ -46,11 +46,9 @@ PowerShell:
 Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --vl http://victorialogs:9428
 ```
 
-It prints:
-
-```text
-1831 events into http://victorialogs:9428
-```
+It prints one line, `<N> events into http://victorialogs:9428`, with N a few thousand (the
+seed grows with the product, so don't expect an exact number). What to check instead: the
+page in step 3 lists five characters, and Testchar-Demo is level 32.
 
 ## 3. Look around
 

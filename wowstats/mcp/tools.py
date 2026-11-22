@@ -351,6 +351,8 @@ def current_zone(ctx: Ctx, char: str) -> str | None:
 
 
 def t_character_summary(ctx: Ctx, args: dict) -> dict:
+    from wowstats.analysis import pages
+
     char = resolve_char(ctx, args)
     st = ctx.store
     snap = sheet_rows(one_row(st), cf(char))
@@ -359,10 +361,11 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     chars = st.logs("char:* | stats by (char) max(_time) as last_seen")
     # The pace and the counts are the layer's metrics (the page's own:
     # wowstats.analysis.pages): played_s, xp_per_hour and avg_level_s over
-    # the splits, kills, quests_done and deaths over the Recorder's records.
+    # the splits, the climb's kills and quests in their populations
+    # (pages.climb), deaths over the Recorder's records.
     m = metrics(ctx, char)
     levels = level_rows(m)
-    rec_n = (m.ask(metrics=["session_count", "kills", "quests_done", "deaths"]) or [{}])[0] if m else {}
+    rec_n = (m.ask(metrics=["session_count", "deaths"]) or [{}])[0] if m else {}
     s, r = pick_sheet(snap), (last or [{}])[0]
     top = sheet_or_record(s, r)
     level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
@@ -381,22 +384,10 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     xph = None if pace is None else round(pace)
     current = next((lv for lv in levels if lv["level"] == level and lv["partial"]), None)
     eta = int((xp_max - xp) / xph * 3600) if xph and xp_max and xp is not None and xp_max > xp else None
-    # Any Recorder record (a login span): its counts hold, 0 included;
-    # without one they are unknown, never 0.
+    # Any Recorder record (a login span): its death count holds, 0
+    # included; without one it is unknown, never 0.
     recorded = bool(rec_n.get("session_count") or last)
-    kq = {k: n for k, f in (("kill", "kills"), ("turnin", "quests_done")) if recorded and (n := int(rec_n.get(f) or 0))}
     n_deaths = int(rec_n.get("deaths") or 0)
-    first = session_spans(m)[:1] if recorded else []
-    since = datetime.fromtimestamp(first[0]["start_t"], tz=UTC) if first else None
-    if levels and (not kq or (since and any(parse_t(lv["at"]) < since for lv in levels))):
-        # No Recorder, or switched on after some levels: the kills and
-        # quests Polestar counts in each split cover the whole history
-        # (the Recorder's own counts would only start at its switch-on).
-        for k, field in (("kill", "kills"), ("turnin", "quests")):
-            got = [lv[field] for lv in levels if lv.get(field) is not None]
-            if got and sum(got) >= kq.get(k, 0):
-                kq[k] = int(sum(got))
-                estimated.append(field if field == "kills" else "quests_turned_in")
     money = opt_num(s.get("money_copper")) if s.get("money_copper") not in (None, "") else opt_num(
         r.get("money_copper"))
     tracked = (m.ask(metrics=["played_s"], where=[SPLIT]) or [{}])[0].get("played_s") if levels else None
@@ -410,8 +401,13 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
         "played_tracked": dur(tracked),
         "avg_last_5_levels": dur(avg5),
         "xp_per_hour_last_3_levels": xph, "eta_next_level": dur(eta),
+        # The kills and quests in named populations (pages.climb, the page's
+        # own): completed_levels (Polestar's splits; the Recorder's records
+        # for a level without one), current_level so far, and
+        # including_current_level. The page's "completed levels" total is
+        # counts.completed_levels.
+        "counts": pages.climb(m.ask) if m else None,
         # Without any Recorder record the deaths are unknown, never 0.
-        "kills": kq.get("kill"), "quests_turned_in": kq.get("turnin"),
         "deaths": n_deaths if recorded else None,
         **summary_talents(ctx, char),
         "other_characters": sorted({c["char"] for c in chars if c.get("char") and c["char"] != char}),
@@ -709,10 +705,7 @@ def layer_ask(ctx: Ctx, char: str):
     runs, one definition with the pages and query_metric."""
     from wowstats.analysis import pages
 
-    ask = pages.asker(char, ctx.store.logs(f"{cf(char)} {pages.ROWS_QUERY}"))
-    if ask is None:
-        raise ToolError("the semantic layer isn't installed (the mcp extra)")
-    return ask
+    return pages.asker(char, ctx.store.logs(f"{cf(char)} {pages.ROWS_QUERY}"))
 
 
 def local_when(t: datetime | None) -> str | None:
@@ -1321,7 +1314,8 @@ class Tool:
 TOOLS: tuple[Tool, ...] = (
     Tool("character_summary", "Character summary",
          "Where the character stands now: level, XP, zone, gold, time in this level, recent pace (XP/hour over the "
-         "last 3 levels), ETA to the next level, totals (kills, quests, deaths), and the other characters on record.",
+         "last 3 levels), ETA to the next level, deaths, the kills and quests in named populations (counts: "
+         "completed_levels, current_level so far, including_current_level), and the other characters on record.",
          schema({"char": CHAR}), t_character_summary),
     Tool("levels", "Time per level",
          "Time, XP, quests and kills per level from Polestar's XP splits, with median, fastest and slowest. The "

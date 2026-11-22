@@ -108,7 +108,6 @@ def diff(a, b, path="") -> list[str]:
 
 
 def test_the_pages_say_the_same_numbers_from_the_layer(seed_vl, monkeypatch):
-    pytest.importorskip("duckdb")
     from wowstats.analysis import pages
 
     built = []
@@ -132,7 +131,6 @@ def test_the_pages_say_the_same_numbers_from_the_layer(seed_vl, monkeypatch):
 
 def test_the_pages_take_the_layers_numbers(seed_vl, monkeypatch):
     """Not a copy that happens to agree: a number changed in the layer shows on the page."""
-    pytest.importorskip("duckdb")
     from wowstats.analysis import pages
 
     compute = pages._compute
@@ -156,7 +154,6 @@ def test_the_pages_take_the_layers_numbers(seed_vl, monkeypatch):
 def test_the_kept_numbers_never_cross_people(tmp_path, monkeypatch):
     """Two people with a character of the same name: the numbers are kept per
     character AND per rows, so one never gets the other's (wowstats.tenancy)."""
-    pytest.importorskip("duckdb")
     from wowstats.analysis import pages
 
     monkeypatch.setattr(pages, "_memo", type(pages._memo)())
