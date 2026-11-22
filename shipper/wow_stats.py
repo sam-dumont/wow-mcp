@@ -4990,7 +4990,9 @@ def main() -> int:
             return 1
         log(said)
         return 0
-    if not (WOW / "WTF").is_dir():
+    # --replay reads sent/ only: a PC without the game (not installed yet,
+    # moved) still refills the server (recovery drill, 2026-11-22).
+    if not a.replay and not (WOW / "WTF").is_dir():
         log(f"no WTF folder in {WOW}: set wow_dir in {config_path()}")
         return 0
 
