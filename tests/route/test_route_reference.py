@@ -80,15 +80,6 @@ class LookupTest(unittest.TestCase):
         self.assertEqual(self.ref.step_seconds(HILLSBRAD, 7), self.ref.guides[HILLSBRAD]["steps"][6][1])
         self.assertIsNone(self.ref.step_seconds(HILLSBRAD, 999))
 
-    def test_compare(self):
-        out = self.ref.compare([{"level": 28, "seconds": 15028, "partial": False},
-                                {"level": 29, "seconds": 600, "partial": True}],
-                               {"faction": "Alliance", "race": "Gnome", "class": "PRIEST"})
-        exp = self.ref.level(28, "Alliance", "PRIEST")["expected_s"]
-        self.assertEqual(out[0]["route_s"], exp)
-        self.assertEqual(out[0]["vs_route"], f"{15028 / exp:.1f}x")
-        self.assertNotIn("vs_route", out[1])  # the current level isn't finished
-
     def test_hand_made_file_still_reads(self):
         with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
             json.dump({"source": "mine", "guides": {"Barrens 12-15": {"minutes": 20}}, "levels": {"12": 2400}}, f)
@@ -107,9 +98,9 @@ class ToolsTest(unittest.TestCase):
         from wowstats.analysis import drive
 
         drive._WS.clear()  # the prep of another test's fixture character
-        rules = [("kind:=session", SESSION), ('feed:="wow-level"', LEVELS), ("kind:in(step, skip)", STEPS),
-                 *fakes.prep_rules(SESSION + STEPS)]
-        cls.fake = fakes.FakeStores(logs=rules + fakes.LOGS)
+        rules = [("kind:=session", SESSION), ('feed:="wow-level"', LEVELS), ("kind:in(step, skip)", STEPS)]
+        cls.fake = fakes.FakeStores(logs=rules + fakes.LOGS, raw=[{**r, "feed": "wow-recorder"} for r in SESSION + STEPS]
+                                    + [{**r, "feed": "wow-level"} for r in LEVELS])
         cls.ctx = tools.Ctx(store=Store(vl_url=cls.fake.url))
         route._cached = None
 

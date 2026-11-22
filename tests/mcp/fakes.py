@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import threading
 import urllib.parse
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 CHAR = "Testpriest-Fixture"
@@ -121,6 +122,42 @@ LAYER = ([{**r, "feed": "wow-level", "char": CHAR} for r in LEVELS]
          + [{**r, "feed": "wow-dungeon", "char": CHAR} for r in DUNGEONS]
          + [{**r, "feed": "wow-recorder", "kind": "death", "char": CHAR} for r in DEATHS])
 
+# The same history as raw events, for the reads that build the character's
+# prep (wowstats.analysis.prep.query: the semantic layer behind levels, zones,
+# sessions and the summary's pace and counts). Position records every five
+# minutes give the Recorder's sessions the BUCKETS spans: the 16th 19:00-20:25
+# and the 17th 20:00-21:35.
+_POS = [{"_time": b["_time"], "kind": "pos", "source_id": f"rec:1:9:{i}"} for i, b in enumerate(BUCKETS)]
+RAW = ([{**r, "feed": "wow-level", "char": CHAR} for r in LEVELS]
+       + [{**r, "feed": "wow-recorder", "char": CHAR} for r in EVENTS + STEPS + _POS]
+       + [{**r, "feed": "wow-recorder", "char": CHAR, "kind": "death"} for r in DEATHS]
+       + [{**r, "feed": "wow-dungeon", "char": CHAR} for r in DUNGEONS])
+
+
+def _secs(t: str) -> float:
+    return datetime.fromisoformat(t.replace("Z", "+00:00")).timestamp()
+
+
+def raw_rules(raw: list[dict], char: str = CHAR) -> list[tuple]:
+    """The rules that serve `raw` (the character's events, each with its feed)
+    to the event cache (wowstats.eventcache), which the prep behind the
+    semantic layer reads: its hourly count, then the rows of each range."""
+    def rows(q: dict) -> list[dict]:
+        lo, hi = _secs(q.get("start", "2000-01-01T00:00:00Z")), _secs(q.get("end", "2100-01-01T00:00:00Z"))
+        return [{**r, "char": char} for r in raw if lo <= _secs(r["_time"]) <= hi]
+
+    def hours(q: dict) -> list[dict]:
+        n: dict[int, int] = {}
+        for r in rows(q):
+            h = int(_secs(r["_time"]) // 3600 * 3600)
+            n[h] = n.get(h, 0) + 1
+        return [{"_time": datetime.fromtimestamp(h, UTC).strftime("%Y-%m-%dT%H:%M:%SZ"), "n": str(c)}
+                for h, c in n.items()]
+
+    base = f'char:in({json.dumps(char.replace("-", " "))}, {json.dumps(char)}) -feed:wow-prices -feed:wow-combatlog'
+    return [(base + " | stats by (_time:1h) count() as n", hours), (base, rows)]
+
+
 
 def recorder_rows(events: list[dict]) -> list[dict]:
     """The Recorder's events as the analysis' prep query reads them (every
@@ -132,13 +169,7 @@ def recorder_rows(events: list[dict]) -> list[dict]:
 def prep_rules(events: list[dict]) -> list[tuple[str, list[dict]]]:
     """The two answers the prep's read needs: its hourly count first (the
     event cache plans its pages from it), then the rows."""
-    rows = recorder_rows(events)
-    hours: dict[str, int] = {}
-    for r in rows:
-        h = r["_time"][:13] + ":00:00Z"
-        hours[h] = hours.get(h, 0) + 1
-    return [("-feed:wow-combatlog | stats by (_time:", [{"_time": h, "n": str(n)} for h, n in sorted(hours.items())]),
-            ("-feed:wow-combatlog", rows)]
+    return raw_rules(recorder_rows(events))
 
 
 # The prep's read of the character's events, for the tests of the tools
@@ -186,8 +217,10 @@ METRICS = [
 class FakeStores:
     """Both stores on one port: /select/logsql/query and /api/v1/query."""
 
-    def __init__(self, logs=None, metrics=None):
-        self.logs_rules = logs if logs is not None else LOGS
+    def __init__(self, logs=None, metrics=None, raw=RAW):
+        # `raw` (the character's events) answers the event cache first: a
+        # rule's rows may be a callable, given the request's parameters.
+        self.logs_rules = (raw_rules(raw) if raw is not None else []) + (logs if logs is not None else LOGS)
         self.metric_rules = metrics if metrics is not None else METRICS
         self.queries: list[dict] = []
         fake = self
@@ -202,6 +235,7 @@ class FakeStores:
                 fake.queries.append({"path": u.path, **q})
                 if u.path == "/select/logsql/query":
                     rows = next((r for s, r in fake.logs_rules if s in q.get("query", "")), [])
+                    rows = rows(q) if callable(rows) else rows
                     body = "".join(json.dumps(r) + "\n" for r in rows).encode()
                     ctype = "application/stream+json"
                 elif u.path == "/api/v1/query":

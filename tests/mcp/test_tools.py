@@ -28,16 +28,18 @@ class ToolsTest(unittest.TestCase):
 
     def test_every_query_keeps_the_stream_filter_and_the_char(self):
         # The account-wide missing-sources read (wowstats.missing, every
-        # character on purpose) is cached a minute; another test clearing
-        # that cache on the same worker made it show up here.
-        self.call("zones", char=fakes.CHAR)
-        self.fake.queries.clear()
-        self.call("zones", char=fakes.CHAR)
-        qs = self.fake.log_queries()
+        # character on purpose: `feed:*` and the shipper's setup) is left out; the character's events
+        # (the semantic layer's prep) are read once and kept, so this reads
+        # what the first call of a fresh fake sends.
+        fake = fakes.FakeStores()
+        self.addCleanup(fake.close)
+        tools.call(tools.Ctx(store=Store(vl_url=fake.url, vm_url=fake.url)), "zones", {"char": fakes.CHAR})
+        qs = [q for q in fake.log_queries() if " feed:* " not in q and 'feed:="wow-setup"' not in q]
         self.assertTrue(qs)
         for q in qs:
             self.assertTrue(q.startswith("feed:wow-* "), q)
-            self.assertIn(f'char:="{fakes.CHAR}"', q)
+            # The prep's reads (the semantic layer) name both spellings of the character.
+            self.assertTrue(f'char:="{fakes.CHAR}"' in q or f'"{fakes.CHAR}")' in q, q)
 
     def test_char_defaults_to_the_one_seen_last(self):
         out = self.call("character_summary")
@@ -68,8 +70,9 @@ class ToolsTest(unittest.TestCase):
     def test_sessions(self):
         out = self.call("sessions", char=fakes.CHAR, since="2026-11-01")
         s = out["sessions"]
-        self.assertEqual(len(s), 2)
-        newest, older = s
+        # The 15th's death is a session of one record (fakes.DEATHS).
+        self.assertEqual(len(s), 3)
+        newest, older, _ = s
         self.assertTrue(newest["start"].startswith("2026-11-17T20:00"))
         self.assertEqual(newest["dungeons"], [{"name": "Ragefire Chasm", "dur": "30m"}])
         self.assertEqual(newest["grouped_with"], ["Thrall-Fixture"])
@@ -84,8 +87,9 @@ class ToolsTest(unittest.TestCase):
         out = self.call("zones", char=fakes.CHAR)
         self.assertEqual(out["zones"][0]["zone"], "The Barrens")
         d = out["zones"][1]
-        # 970 XP over 4980 s in Durotar (fakes.ZONE_RECS): 701.2 an hour.
-        self.assertEqual((d["zone"], d["xp"], d["deaths"], d["xp_per_hour"]), ("Durotar", 970, 1, 701))
+        # 970 XP over 4980 s in Durotar (fakes.ZONE_RECS): 701.2 an hour; both
+        # deaths there (fakes.DEATHS, as `deaths` counts them).
+        self.assertEqual((d["zone"], d["xp"], d["deaths"], d["xp_per_hour"]), ("Durotar", 970, 2, 701))
 
     def test_guide_steps(self):
         out = self.call("guide_steps", char=fakes.CHAR, guide="barrens")

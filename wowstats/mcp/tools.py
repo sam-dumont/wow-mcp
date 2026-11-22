@@ -13,6 +13,7 @@ import logging
 import math
 import os
 import re
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -20,20 +21,13 @@ from datetime import UTC, datetime, timedelta
 
 from .. import ahsource, gearfit
 from .. import gear as gearmod
-from ..rates import per_hour
 from ..stores import (
-    PLAYER_LEVEL_KINDS,
-    SESSION_BUCKETS,
     SESSION_GAP_S,
     SNAPSHOT_SORT,
-    ZONE_RECORDS,
     jlist,
     newest,
     pick_sheet,
     sheet_rows,
-    split_sessions,
-    zone_time,
-    zone_totals,
 )
 from ..stores import public_error as stores_public_error
 from ..timebounds import in_span
@@ -186,23 +180,145 @@ def one_row(st: Store):
 # ---------------------------------------------------------------- shared builders
 
 
-def build_levels(rows: list[dict]) -> list[dict]:
-    by_level: dict[int, dict] = {}
-    for r in dedupe(rows):
-        lvl = opt_num(r.get("level"))
-        if lvl is None:
-            continue
-        cur = by_level.get(lvl)
-        partial = truthy(r.get("partial"))
-        # A finished split beats a partial one; otherwise the newest wins.
-        if cur is None or (cur["partial"] and not partial) or (
-                cur["partial"] == partial and parse_t(r.get("_time")) >= parse_t(cur["at"])):
-            secs, xp = num(r.get("seconds")), num(r.get("xp"))
-            by_level[lvl] = {"level": lvl, "seconds": int(secs), "dur": dur(secs), "xp": int(xp),
-                             "quests": opt_num(r.get("quests")), "kills": opt_num(r.get("kills")),
-                             "partial": partial, "at": r.get("_time"),
-                             "xp_per_hour": per_hour(xp, secs)}
-    return [by_level[k] for k in sorted(by_level)]
+# ---------------------------------------------------------------- the semantic layer
+
+# Every number the stats tools say (levels, zones, sessions, the summary's
+# pace and counts, the Recorder's gaps) is a metric of the semantic layer
+# (wowstats/analysis/semantic.yaml), read from the character's prep database
+# the way query_metric reads it (owner, 2026-11-22: "use the semantic model
+# all the time"). The tools only pick, place and word the rows.
+_LAYERS: dict[tuple, tuple] = {}
+_LAYERS_LOCK = threading.Lock()
+LAYERS_KEPT = 8
+
+
+class Metrics:
+    """One character's semantic layer over a DuckDB copy of its prep."""
+
+    def __init__(self, layer, ro):
+        self.layer, self.ro = layer, ro
+
+    def ask(self, **q) -> list[dict]:
+        """One query_metric question's rows as dicts. Never cut unless it
+        asks for a limit: a question that could have more rows than one
+        answer pages with every()."""
+        from wowstats.analysis import semantic
+
+        got = semantic.run(self.layer, self.ro, {"limit": semantic.MAX_LIMIT, **q})
+        if got["more"] and "limit" not in q:  # a limit asked for cuts on purpose
+            raise RuntimeError(f"more than {semantic.MAX_LIMIT} rows for {q.get('group_by')}: page with every()")
+        return [dict(zip(got["columns"], r, strict=True)) for r in got["rows"]]
+
+    def every(self, key: str, **q) -> list[dict]:
+        """Every row of a question grouped by the numeric dimension `key`, in
+        its order, page by page (a long history has more sessions than one
+        answer holds)."""
+        from wowstats.analysis import semantic
+
+        out: list[dict] = []
+        where = list(q.pop("where", None) or [])
+        while True:
+            after = [{"dimension": key, "op": ">", "value": out[-1][key]}] if out else []
+            got = semantic.run(self.layer, self.ro, {**q, "where": where + after, "order_by": [key],
+                                                     "limit": semantic.MAX_LIMIT})
+            out += [dict(zip(got["columns"], r, strict=True)) for r in got["rows"]]
+            if not got["more"]:
+                return out
+
+
+def _probe(st, char: str) -> tuple:
+    """What tells a stored history changed: how many events the prep would
+    read and the newest one's time (one stats query, not the rows)."""
+    from wowstats.analysis import prep
+
+    names = sorted({char, char.replace("-", " ")})
+    cf_ = "char:in(" + ", ".join(json.dumps(n) for n in names) + ")"
+    rows = st.vl(f"{st.stream} {cf_} -feed:wow-player -feed:wow-prices -feed:wow-combatlog "
+                 "| stats count() as n, max(_time) as last", (), {"n": "sum", "last": "maxtime"})
+    r = (rows or [{}])[0]
+    return prep.PREP_VERSION, str(r.get("n")), str(r.get("last"))
+
+
+def metrics(ctx: Ctx, char: str) -> Metrics | None:
+    """The character's semantic layer, from the events the analysis reads
+    (wowstats.analysis.prep.query), built again when they changed. None when
+    the character has no events."""
+    import warnings
+
+    from wowstats.analysis import TABLES, duck, prep, semantic
+    from wowstats.plan.facts import store_for
+
+    st = store_for(ctx.environ(), ctx.store)
+    name = prep.norm(char)
+    key = (*_store_key(ctx), name)
+    probe = _probe(st, name)
+    with _LAYERS_LOCK:
+        hit = _LAYERS.get(key)
+        if hit is not None and hit[0] == probe:
+            return hit[1]
+    rows = prep.query(st, st.stream, name)
+    got = None
+    if rows:
+        db = prep.build(rows, name, route.reference())
+        try:
+            con = duck.mirror(db, TABLES)
+        finally:
+            db.close()
+        semantic.prepare(con)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")  # BSL's own deprecation notes
+            got = Metrics(semantic.Layer(con), duck.ReadOnlyDuck(con))
+    with _LAYERS_LOCK:
+        _LAYERS[key] = (probe, got)
+        while len(_LAYERS) > LAYERS_KEPT:
+            _LAYERS.pop(next(iter(_LAYERS)))
+    return got
+
+
+def at_utc(t) -> str | None:
+    """Unix seconds as the store writes a time (UTC, milliseconds)."""
+    if t is None:
+        return None
+    return datetime.fromtimestamp(float(t), tz=UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def whole(v):
+    """A layer number as the tools show it: whole when it is whole (the
+    prep's REAL columns: 3754.0 -> 3754)."""
+    return int(v) if isinstance(v, float) and v.is_integer() else v
+
+
+SPLIT = {"dimension": "partial", "op": "is not null"}
+
+
+def level_rows(m: Metrics | None) -> list[dict]:
+    """One row per level with a Polestar split (stores.pick_splits picks it),
+    oldest first: the layer's played_s, level_xp, split counts, xp_per_hour,
+    planned_s and vs_route, the split's time as `at`."""
+    if m is None:
+        return []
+    out = []
+    for r in m.ask(metrics=["played_s", "level_xp", "split_quests", "split_kills", "xp_per_hour", "planned_s",
+                            "vs_route"], group_by=["level", "partial", "ding_t"], where=[SPLIT], order_by=["level"]):
+        secs = int(r["played_s"] or 0)
+        out.append({"level": r["level"], "seconds": secs, "dur": dur(secs), "xp": int(r["level_xp"] or 0),
+                    "quests": opt_num(r["split_quests"]), "kills": opt_num(r["split_kills"]),
+                    "partial": bool(r["partial"]), "at": at_utc(r["ding_t"]),
+                    "xp_per_hour": None if r["xp_per_hour"] is None else round(r["xp_per_hour"]),
+                    "_planned_s": whole(r["planned_s"]), "_vs_route": r["vs_route"]})
+    return out
+
+
+def public_levels(levels: list[dict]) -> list[dict]:
+    return [{k: v for k, v in lv.items() if not k.startswith("_")} for lv in levels]
+
+
+def one_metric(m: Metrics, metric: str, levels: list[int]):
+    """`metric` over these levels' splits (None for no level)."""
+    if not levels:
+        return None
+    got = m.ask(metrics=[metric], where=[{"dimension": "level", "op": "in", "values": levels}])
+    return got[0][metric] if got else None
 
 
 def who(ctx: Ctx, char: str) -> dict:
@@ -220,11 +336,6 @@ def who_read(ctx: Ctx, char: str) -> dict:
                           f"| sort by (_time desc) | limit 1", limit=1)
     r = (rows or [{}])[0]
     return {k: r[k] for k in ("faction", "race", "class") if r.get(k)}
-
-
-def levels_rows(ctx: Ctx, char: str) -> list[dict]:
-    return ctx.store.logs(f'feed:="wow-level" {cf(char)} | fields _time, level, seconds, xp, quests, kills, '
-                          f"partial, source_id")
 
 
 # ---------------------------------------------------------------- tools
@@ -255,14 +366,13 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     snap = sheet_rows(one_row(st), cf(char))
     last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, kind, level, xp, xp_max, money_copper, "
                    f"zone | sort by (_time desc) | limit 1", limit=1)
-    # One row per record, as dedupe() reads them: count_uniq(source_id) gave
-    # 0 for records stored without one. Deaths are `deaths`' own rows, so the
-    # two tools agree on the same data.
-    counts = st.logs(f"{rec(char)} kind:in(kill, turnin) | uniq by (kind, source_id, _time, _msg) "
-                     f"| stats by (kind) count() as n")
-    n_deaths = len(death_rows(ctx, char, None, None))
     chars = st.logs("char:* | stats by (char) max(_time) as last_seen")
-    levels = build_levels(levels_rows(ctx, char))
+    # The pace and the counts are the layer's metrics (the page's own:
+    # wowstats.analysis.pages): played_s, xp_per_hour and avg_level_s over
+    # the splits, kills, quests_done and deaths over the Recorder's records.
+    m = metrics(ctx, char)
+    levels = level_rows(m)
+    rec_n = (m.ask(metrics=["session_count", "kills", "quests_done", "deaths"]) or [{}])[0] if m else {}
     s, r = pick_sheet(snap), (last or [{}])[0]
     top = sheet_or_record(s, r)
     level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
@@ -277,15 +387,17 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
         level = max(lv["level"] + (0 if lv["partial"] else 1) for lv in levels)
         xp = next((lv["xp"] for lv in levels if lv["level"] == level and lv["partial"]), None)
         estimated.append("level")
-    pace = done[-3:]
-    pace_s = sum(lv["seconds"] for lv in pace)
-    xph = per_hour(sum(lv["xp"] for lv in pace), pace_s)
+    pace = one_metric(m, "xp_per_hour", [lv["level"] for lv in done[-3:]]) if m else None
+    xph = None if pace is None else round(pace)
     current = next((lv for lv in levels if lv["level"] == level and lv["partial"]), None)
     eta = int((xp_max - xp) / xph * 3600) if xph and xp_max and xp is not None and xp_max > xp else None
-    kq = {x.get("kind"): int(num(x.get("n"))) for x in counts}
-    recorded = bool(kq or last or n_deaths)  # any Recorder record: its deaths count, 0 included
-    first = st.logs(f"{rec(char)} | sort by (_time) | limit 1 | fields _time", limit=1) if kq else []
-    since = parse_t(first[0]["_time"]) if first else None
+    # Any Recorder record (a login span): its counts hold, 0 included;
+    # without one they are unknown, never 0.
+    recorded = bool(rec_n.get("session_count") or last)
+    kq = {k: n for k, f in (("kill", "kills"), ("turnin", "quests_done")) if recorded and (n := int(rec_n.get(f) or 0))}
+    n_deaths = int(rec_n.get("deaths") or 0)
+    first = session_spans(m)[:1] if recorded else []
+    since = datetime.fromtimestamp(first[0]["start_t"], tz=UTC) if first else None
     if levels and (not kq or (since and any(parse_t(lv["at"]) < since for lv in levels))):
         # No Recorder, or switched on after some levels: the kills and
         # quests Polestar counts in each split cover the whole history
@@ -297,14 +409,16 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
                 estimated.append(field if field == "kills" else "quests_turned_in")
     money = opt_num(s.get("money_copper")) if s.get("money_copper") not in (None, "") else opt_num(
         r.get("money_copper"))
+    tracked = (m.ask(metrics=["played_s"], where=[SPLIT]) or [{}])[0].get("played_s") if levels else None
+    avg5 = one_metric(m, "avg_level_s", [lv["level"] for lv in done[-5:]]) if done else None
     return {
         "char": char, "title": ctx.title(char) if ctx.title else None, "level": level, "xp": xp, "xp_max": xp_max,
         "xp_pct": round(100 * xp / xp_max, 1) if xp is not None and xp_max else None,
         "zone": zone_now(s, r), "last_seen": max(s.get("_time") or "", r.get("_time") or "") or None,
         "gold": gold(money), "money_copper": money,
         "time_in_level": dur(current["seconds"]) if current else None,
-        "played_tracked": dur(sum(lv["seconds"] for lv in levels)) if levels else None,
-        "avg_last_5_levels": dur(sum(lv["seconds"] for lv in done[-5:]) / len(done[-5:])) if done else None,
+        "played_tracked": dur(tracked),
+        "avg_last_5_levels": dur(avg5),
         "xp_per_hour_last_3_levels": xph, "eta_next_level": dur(eta),
         # Without any Recorder record the deaths are unknown, never 0.
         "kills": kq.get("kill"), "quests_turned_in": kq.get("turnin"),
@@ -334,15 +448,19 @@ def summary_talents(ctx: Ctx, char: str) -> dict:
 
 def t_levels(ctx: Ctx, args: dict) -> dict:
     char = resolve_char(ctx, args)
-    levels = build_levels(levels_rows(ctx, char))
+    levels = level_rows(metrics(ctx, char))
     lo, hi = opt_num(args.get("from_level")), opt_num(args.get("to_level"))
     sel = [lv for lv in levels if (lo is None or lv["level"] >= lo) and (hi is None or lv["level"] <= hi)]
     done = [lv for lv in sel if not lv["partial"]]
-    out = {"char": char, "levels": sel}
-    ref = route.reference()
-    if ref.available and sel:
-        # Each level beside Polestar's planned time for it (`route`, `vs_route`).
-        out["levels"] = ref.compare(sel, who(ctx, char))
+    out = {"char": char, "levels": public_levels(sel)}
+    if route.reference().available and sel:
+        # Each level beside Polestar's planned time for it: the layer's
+        # planned_s (`route`, `route_s`) and vs_route, whole splits only.
+        for row, lv in zip(out["levels"], sel, strict=True):
+            if lv["_planned_s"]:
+                row["route"], row["route_s"] = route._dur(lv["_planned_s"]), lv["_planned_s"]
+            if lv["_vs_route"] is not None:
+                row["vs_route"] = f"{lv['_vs_route']:.1f}x"
         out["route_note"] = route.NOTE
     if done:
         secs = sorted(lv["seconds"] for lv in done)
@@ -353,11 +471,6 @@ def t_levels(ctx: Ctx, args: dict) -> dict:
     if not sel:
         out["note"] = "no level splits in that range (Polestar's XP splits feed wow-level)"
     return out
-
-
-def _activity_sessions(rows: list[dict]) -> list[tuple[datetime, datetime]]:
-    """The journal's and the semantic layer's sessions (stores.split_sessions)."""
-    return [(datetime.fromtimestamp(a, tz=UTC), datetime.fromtimestamp(b, tz=UTC)) for a, b in split_sessions(rows)]
 
 
 EARLY_NOTE = ("Entries with `estimated` are logouts without the Recorder: the time played estimated from the "
@@ -380,6 +493,19 @@ def _early_sessions(st, char: str, start, end, until: float | None) -> list[dict
             for r in journal.by_logout(snaps, levels, runs, until=until)]
 
 
+SESSION_KEYS = ["session_id", "start_t", "end_t"]
+
+
+def session_spans(m: Metrics | None, where: list | None = None) -> list[dict]:
+    """The Recorder's sessions (the layer's per_session grain: 330 s without a
+    Recorder record ends one), oldest first: session_id, start_t, end_t and
+    the levels at its first and last record."""
+    if m is None:
+        return []
+    return m.every("session_id", metrics=["session_count"], group_by=[*SESSION_KEYS, "level_start", "level_end"],
+                   where=[{"dimension": "session_id", "op": "is not null"}, *(where or [])])
+
+
 def t_sessions(ctx: Ctx, args: dict) -> dict:
     """The journal: play sessions (330 s without a Recorder record ends one),
     newest first, each with what happened in it."""
@@ -387,116 +513,118 @@ def t_sessions(ctx: Ctx, args: dict) -> dict:
     start, end = time_range(args, 14)
     limit = limit_arg(args, 10, 50)
     st = ctx.store
-    buckets = st.logs(f"{rec(char)} {SESSION_BUCKETS}", start, end)
-    every = _activity_sessions(buckets)
-    sessions = every[-limit:]
+    m = metrics(ctx, char)
+    # The sessions that overlap the range, from the layer (per_session).
+    rng = ([{"dimension": "end_t", "op": ">=", "value": start.timestamp()}] if start else []) + (
+        [{"dimension": "start_t", "op": "<=", "value": end.timestamp()}] if end else [])
+    every = session_spans(m)
+    sessions = session_spans(m, rng)[-limit:]
     # Before the Recorder's first record (or without it): the logout
     # sheets, the time played from the level splits (journal.by_logout).
-    rec_first = st.logs(f"{rec(char)} | sort by (_time) | limit 1 | fields _time", limit=1)
-    early = _early_sessions(st, char, start, end, parse_t(rec_first[0]["_time"]).timestamp() if rec_first else None)
+    rec_first = every[0]["start_t"] if every else None
+    early = _early_sessions(st, char, start, end, rec_first)
     if not sessions:
         if early:
             return {"char": char, "estimated": True, "sessions": early[:limit], "note": EARLY_NOTE,
                     "unlock": "Switch on Polestar's Recorder (/psrec on, then /reload)."}
         return {"char": char, "sessions": [], "note": "no events in that range"}
-    lo, hi = sessions[0][0], sessions[-1][1]
-    ev = dedupe(st.logs(f"{rec(char)} kind:in(zone, step, skip, kill, turnin, accept, xp, level, death, taxi, land, "
-                        f"session) "
-                        f"| fields _time, kind, zone, level, xp_gained, guide, step, quest_id, source_id",
-                        lo, hi))
-    runs = dedupe(st.logs(f'feed:="wow-dungeon" {cf(char)} | fields _time, name, level, seconds, xp, source_id',
-                          lo, hi))
+    a0, b1 = sessions[0]["start_t"], sessions[-1]["end_t"]
+    lo, hi = datetime.fromtimestamp(a0, tz=UTC), datetime.fromtimestamp(b1, tz=UTC)
+    ids = [s_["session_id"] for s_ in sessions]
+    mine = [{"dimension": "session_id", "op": "in", "values": ids}]
+    # What happened in each: the records' counts, the XP bar, the time per
+    # zone (zone_s: the zone records' rule) and the guides moved through.
+    counts = {r["session_id"]: r for r in m.ask(
+        metrics=["xp_gained", "quests_done", "quests_accepted", "kills", "deaths", "guide_steps", "steps_skipped",
+                 "flights"], group_by=["session_id"], where=mine)}
+    zones: dict[int, list[dict]] = {}
+    for r in m.ask(metrics=["zone_s", "zone_visits"], group_by=["session_id", "zone"], where=[*mine, {
+            "dimension": "zone", "op": "is not null"}]):
+        if r["zone_s"] is not None or r["zone_visits"]:  # a zone record of it, its time 0 s included
+            zones.setdefault(r["session_id"], []).append(r)
+    guides: dict[int, list[str]] = {}
+    for r in m.ask(metrics=["guide_steps"], group_by=["session_id", "guide"], where=[*mine, {
+            "dimension": "guide", "op": "is not null"}]):
+        if r["guide_steps"]:
+            guides.setdefault(r["session_id"], []).append(r["guide"])
+    # Polestar's dungeon runs, each in the session it started in.
+    runs = m.ask(metrics=["run_s"], group_by=["dungeon", "run"], where=[
+        {"dimension": "run", "op": ">=", "value": a0}, {"dimension": "run", "op": "<=", "value": b1}],
+        order_by=["run"])
     met = st.logs(f'feed:="wow-player" {cf(char)} player:* | fields _time, player, context', lo, hi)
-    # Time per zone from the records' own times (stores.zone_time).
-    visits = zone_time([e for e in ev if e.get("kind") == "zone"], split_sessions(buckets))
     out = []
     from wowstats.coverage import attach
 
     # Play the Recorder missed, on the newest session of its level (the
     # whole history's sessions: `sessions` is cut to the range and limit).
-    every, gaps = recorder_gaps(ctx, char)
-    marks = {round(every[i][0]): g for i, g in attach(gaps, every).items()}
-    for a, b in reversed(sessions):
+    spans, gaps = recorder_gaps(ctx, char)
+    marks = {round(spans[i][0]): g for i, g in attach(gaps, spans).items()}
+    for se in reversed(sessions):
+        sid, a, b = se["session_id"], datetime.fromtimestamp(se["start_t"], tz=UTC), datetime.fromtimestamp(
+            se["end_t"], tz=UTC)
+        c = counts.get(sid) or {}
+        lv_from, lv_to = se["level_start"], se["level_end"]
+        top = sorted(zones.get(sid) or [], key=lambda z: (-int(z["zone_s"] or 0), z["zone"]))[:4]
         # A session is the closed span [first record, last record]
         # (wowstats.timebounds): what happened on its last record is in it.
-        inside = [e for e in ev if in_span(parse_t(e.get("_time")), a, b)]
-        kinds: dict[str, int] = {}
-        zones: dict[str, int] = {}
-        # The player's own level only: a ding (`level`) and the chunk's
-        # `session` record. A kill's `level` is the creature's, an accept's
-        # or turn-in's the quest's (a level-25 character read as 5 -> 35).
-        # Read as the journal does (wowstats.journal): the first `session`
-        # record's level, else the first ding's minus one, up to the highest.
-        own = sorted((e for e in inside if e.get("kind") in PLAYER_LEVEL_KINDS
-                      and opt_num(e.get("level")) is not None), key=lambda e: parse_t(e.get("_time")))
-        first = next((e for e in own if e["kind"] == "session"), None)
-        lv_from = opt_num(first["level"]) if first else (opt_num(own[0]["level"]) - 1 if own else None)
-        lv_to = max([opt_num(e["level"]) for e in own] + ([lv_from] if lv_from is not None else []), default=None)
-        for e in inside:
-            kinds[e.get("kind")] = kinds.get(e.get("kind"), 0) + 1
-        for z in zone_totals([v for v in visits if in_span(parse_t(v.get("_time")), a, b)]):
-            zones[z["zone"]] = z["secs"]
-        steps = [e for e in inside if e.get("kind") == "step"]
-        guides = sorted({e.get("guide") for e in steps if e.get("guide")})
-        grouped = sorted({m.get("player") for m in met if in_span(parse_t(m.get("_time")), a, b)
-                          and m.get("context") in GROUPED and m.get("player") != char})
+        grouped = sorted({p.get("player") for p in met if in_span(parse_t(p.get("_time")), a, b)
+                          and p.get("context") in GROUPED and p.get("player") != char})
         out.append({
             "start": iso(a), "end": iso(b), "dur": dur((b - a).total_seconds()),
             "levels": f"{lv_from}->{lv_to}" if lv_from is not None else None,
-            "xp_gained": int(sum(num(e.get("xp_gained")) for e in inside if e.get("kind") == "xp")) or None,
-            "quests_turned_in": kinds.get("turnin", 0), "quests_accepted": kinds.get("accept", 0),
-            "kills": kinds.get("kill", 0), "deaths": kinds.get("death", 0),
-            "zones": [{"zone": z, "dur": dur(s)} for z, s in sorted(zones.items(), key=lambda x: -x[1])[:4]],
-            "guide_steps": len(steps), "guides": guides[:3], "skips": kinds.get("skip", 0),
-            "flights": kinds.get("taxi", 0),
-            "dungeons": [{"name": d.get("name"), "dur": dur(num(d.get("seconds")))} for d in runs
-                         if in_span(parse_t(d.get("_time")), a, b)],
+            "xp_gained": int(c.get("xp_gained") or 0) or None,
+            "quests_turned_in": int(c.get("quests_done") or 0), "quests_accepted": int(c.get("quests_accepted") or 0),
+            "kills": int(c.get("kills") or 0), "deaths": int(c.get("deaths") or 0),
+            "zones": [{"zone": z["zone"], "dur": dur(int(z["zone_s"] or 0))} for z in top],
+            "guide_steps": int(c.get("guide_steps") or 0), "guides": sorted(guides.get(sid) or [])[:3],
+            "skips": int(c.get("steps_skipped") or 0), "flights": int(c.get("flights") or 0),
+            "dungeons": [{"name": d["dungeon"], "dur": dur(d["run_s"] or 0)} for d in runs
+                         if se["start_t"] <= d["run"] <= se["end_t"]],
             "grouped_with": grouped[:8],
             # Play around it the Recorder missed: its counts are a floor.
             **({"recorder_off": {"about": dur(g["off_s"]), "in_levels": g["levels"]}}
-               if (g := marks.get(round(a.timestamp()))) else {}),
+               if (g := marks.get(round(se["start_t"]))) else {}),
         })
     # Older first-hand sessions fill the limit before the estimated logouts.
     kept = early[:max(0, limit - len(out))]
     # A cut list says so (invariants, property 7), and the rule is the one
-    # split_sessions applies (it said 20 min, the pages and the analysis 330 s).
+    # the layer's sessions apply (it said 20 min, the pages and the analysis 330 s).
     return {"char": char, "sessions": out + kept, "more": len(every) > limit or len(kept) < len(early),
             "gap_rule": f"more than {int(SESSION_GAP_S)} s without a Recorder record ends a session",
-            **({"note": EARLY_NOTE, "tracking_from": rec_first[0]["_time"]} if kept else {})}
+            **({"note": EARLY_NOTE, "tracking_from": at_utc(rec_first)} if kept else {})}
+
+
+def local_range(start: datetime | None, end: datetime | None) -> dict:
+    """A tool's UTC range as the layer's since/until (local time, the
+    `time` dimension's clock)."""
+    from wowstats.analysis import prep
+
+    return {k: v.astimezone(prep.TZ).replace(tzinfo=None).isoformat(timespec="seconds")
+            for k, v in (("since", start), ("until", end)) if v is not None}
+
+
+ZONE_METRICS = ["zone_s", "zone_visits", "xp_gained", "kills", "quests_done", "deaths", "xp_per_zone_hour"]
 
 
 def t_zones(ctx: Ctx, args: dict) -> dict:
     char = resolve_char(ctx, args)
     start, end = time_range(args, None)
     limit = limit_arg(args, 15)
-    st = ctx.store
-    # Time per zone from the records' own times (stores.zone_time).
-    time_rows = zone_totals(zone_time(st.logs(f"{rec(char)} {ZONE_RECORDS}", start, end),
-                                      split_sessions(st.logs(f"{rec(char)} {SESSION_BUCKETS}", start, end))))
-    act = st.logs(f"{rec(char)} kind:in(xp, kill, turnin, death) | uniq by (source_id, zone, kind, xp_gained) "
-                  f"| stats by (zone, kind) count() as n, sum(xp_gained) as xp", start, end)
-    zones: dict[str, dict] = {}
-    for r in time_rows:
-        z = r.get("zone") or "Unknown"
-        d = zones.setdefault(z, {"zone": z, "secs": 0, "visits": 0, "xp": 0, "kills": 0, "quests": 0, "deaths": 0})
-        d["secs"] += int(num(r.get("secs")))
-        d["visits"] += int(num(r.get("visits")))
-    for r in act:
-        z = r.get("zone") or "Unknown"
-        d = zones.setdefault(z, {"zone": z, "secs": 0, "visits": 0, "xp": 0, "kills": 0, "quests": 0, "deaths": 0})
-        k = r.get("kind")
-        if k == "xp":
-            d["xp"] += int(num(r.get("xp")))
-        elif k == "kill":
-            d["kills"] += int(num(r.get("n")))
-        elif k == "turnin":
-            d["quests"] += int(num(r.get("n")))
-        elif k == "death":
-            d["deaths"] += int(num(r.get("n")))
-    out = sorted(zones.values(), key=lambda z: -z["secs"])
-    for z in out:
-        z["dur"] = dur(z["secs"])
-        z["xp_per_hour"] = per_hour(z["xp"], z["secs"]) if z["xp"] else None
+    m = metrics(ctx, char)
+    # Time per zone from the zone records (zone_s: stores.zone_time's rule),
+    # the counts from the records in that zone, the XP from the XP bar's
+    # readings there.
+    rows = m.ask(metrics=ZONE_METRICS, group_by=["zone"], **local_range(start, end)) if m else []
+    out = []
+    for r in rows:
+        if not (r["zone_visits"] or r["xp_gained"] is not None or r["kills"] or r["quests_done"] or r["deaths"]):
+            continue  # records of other kinds only: not a place the tool lists
+        secs, xp = int(r["zone_s"] or 0), int(r["xp_gained"] or 0)
+        out.append({"zone": r["zone"] or "Unknown", "secs": secs, "visits": int(r["zone_visits"] or 0), "xp": xp,
+                    "kills": int(r["kills"] or 0), "quests": int(r["quests_done"] or 0),
+                    "deaths": int(r["deaths"] or 0), "dur": dur(secs),
+                    "xp_per_hour": round(r["xp_per_zone_hour"]) if xp and r["xp_per_zone_hour"] is not None else None})
+    out.sort(key=lambda z: (-z["secs"], z["zone"]))
     return {"char": char, "zones": out[:limit], "zones_total": len(out)}
 
 
@@ -1459,19 +1587,27 @@ def _snapshot(ctx: Ctx) -> dict:
 
 
 def recorder_gaps(ctx: Ctx, char: str) -> tuple[list[tuple[float, float]], list[dict]]:
-    """(the Recorder's sessions over the whole history, its gaps:
-    wowstats.coverage.recorder_gaps), from the page journal's reads."""
-    from wowstats import coverage
+    """(the Recorder's sessions over the whole history, its gaps: the
+    wowstats.coverage.recorder_gaps shape), from the layer: the sessions'
+    spans and each level's recorder_missed_s between its two dings."""
 
     def read() -> tuple[list, list]:
-        st = ctx.store
-        spans = split_sessions(st.logs(f"{rec(char)} {SESSION_BUCKETS}"))
+        m = metrics(ctx, char)
+        spans = [(r["start_t"], r["end_t"]) for r in session_spans(m)]
         if not spans:
             return [], []
-        levels = st.logs(f'feed:="wow-level" {cf(char)} | fields _time, level, seconds, partial')
-        return spans, coverage.recorder_gaps(spans, levels)
+        lv = m.ask(metrics=["recorder_missed_s"], group_by=["level", "ding_t"], where=[
+            {"dimension": "level", "op": "is not null"}], order_by=["level"])
+        dings = {r["level"]: r["ding_t"] for r in lv}
+        gaps = [{"level": r["level"], "from": _utc_s(dings.get(r["level"] - 1)), "to": _utc_s(r["ding_t"]),
+                 "off_s": int(r["recorder_missed_s"])} for r in lv if (r["recorder_missed_s"] or 0) > 0]
+        return spans, gaps
 
     return _cached((*_store_key(ctx), "gaps", char), read)
+
+
+def _utc_s(t) -> str | None:
+    return None if t is None else datetime.fromtimestamp(float(t), tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 BNET_AI_OFF = "Switch on Battle.net data to my AI in Settings."

@@ -64,6 +64,7 @@ def ineligible(db, seed: int) -> None:
         preds = m["eligibility"]["where"]
         for model, pred in (preds if isinstance(preds, dict) else {m["model"]: preds}).items():
             table = spec[model]["table"].removeprefix("sem_")
+            table = {"zone_time": "spans"}.get(table, table)  # the zone records' spans (semantic.VIEWS)
             cols = [c[1] for c in db.execute(f'PRAGMA table_info("{table}")')]
             if not cols:
                 continue  # a model over a view of several tables (rested): its eligibility column is computed

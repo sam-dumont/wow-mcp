@@ -16,7 +16,7 @@ import pytest
 
 from wowstats.analysis import TABLES, duck, prep, semantic
 from wowstats.analysis.sql import QueryError
-from wowstats.mcp import route
+from wowstats.mcp import tools
 
 warnings.filterwarnings("ignore", module="boring_semantic_layer")
 
@@ -37,6 +37,7 @@ def layer(levels=(), snapshots=(), kills=(), records=()):
     def ask(**q):
         got = semantic.run(lay, ro, q)
         return got | {"table": [dict(zip(got["columns"], r, strict=True)) for r in got["rows"]]}
+    ask.metrics = tools.Metrics(lay, ro)
     return ask
 
 
@@ -73,17 +74,14 @@ def test_a_partial_split_stays_out_of_the_route_comparison():
 
 
 def test_the_levels_tool_compares_only_whole_splits():
-    """MCP `levels`: vs_route only on a whole, timed split; the route's own
-    time is still shown beside the others."""
-    ref = route.reference()
-    if not ref.available:
-        pytest.skip("no route reference")
-    rows = ref.compare([{"level": 12, "seconds": 600, "partial": False},
-                        {"level": 13, "seconds": 300, "partial": True},
-                        {"level": 14, "seconds": 0, "partial": False}], {"faction": "Alliance", "class": "WARRIOR"})
-    by = {r["level"]: r for r in rows}
-    assert "vs_route" in by[12] and "vs_route" not in by[13] and "vs_route" not in by[14]
-    assert all("route_s" in r for r in rows)
+    """MCP `levels` (tools.level_rows, the layer's per-level metrics):
+    vs_route only on a whole, timed split; the route's own time is still
+    beside the others."""
+    ask = layer(levels=[PARTIAL, DONE, (12, 1200, 0, 300, 0, 100)])
+    by = {lv["level"]: lv for lv in tools.level_rows(ask.metrics)}
+    assert by[10]["_vs_route"] == pytest.approx(1.0)
+    assert by[9]["_vs_route"] is None and by[12]["_vs_route"] is None
+    assert all(lv["_planned_s"] == 100 for lv in by.values())
 
 
 # ---------------------------------------------------------------- E: one snapshot
@@ -176,3 +174,16 @@ def test_paired_parts_are_not_metrics_a_caller_can_name():
     assert not any("__" in n for n in names)
     with pytest.raises(QueryError):
         semantic.normalise({"metrics": ["played_s__for_vs_route"]})
+
+
+# ---------------------------------------------------------------- the character now
+
+
+def test_the_newest_record_gives_the_level_now():
+    """level_now is the newest record's level (a fall back to a lower level
+    reads as such), level_max the highest, last_record_t the newest time."""
+    ask = layer(kills=[(12, "Zone"), (14, "Zone")], records=[(13, "quest", 50)])
+    row = ask(metrics=["level_now", "level_max", "last_record_t"])["table"][0]
+    assert (row["level_now"], row["level_max"], row["last_record_t"]) == (13, 14, 1600)
+    assert ask(metrics=["level_now"], where=[{"dimension": "kind", "op": "=", "value": "kill"}])["table"][0][
+        "level_now"] == 14

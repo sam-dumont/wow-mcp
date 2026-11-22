@@ -100,6 +100,10 @@ VIEWS = {
                "CASE WHEN x.t <= tl.t1 THEN tl.step END AS step, {ts:x.t} AS at_local, {who} FROM xp x "
                "ASOF LEFT JOIN timeline tl ON x.t > tl.t0"),
     "sem_sessions": "SELECT *, {ts:start_t} AS at_local, {who} FROM sessions",
+    # A zone record's time (stores.zone_time), kept by the prep as a `zone`
+    # span: its detail is "zone|subzone".
+    "sem_zone_time": ("SELECT s.*, NULLIF(split_part(s.detail, '|', 1), '') AS zone, {ts:s.t0} AS at_local, {who} "
+                      "FROM spans s WHERE s.kind = 'zone'"),
     # trip_id: the trip around the run (its dungeon, the run starting inside it).
     "sem_dungeon_runs": ("SELECT d.*, (SELECT MIN(t.trip_id) FROM dungeon_trips t WHERE t.dungeon = d.name AND "
                          "d.start_t BETWEEN t.start_t AND t.end_t) AS trip_id, {ts:d.start_t} AS at_local, {who} "
