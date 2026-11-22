@@ -142,6 +142,11 @@ def test_kb_saved_index_opens_read_only(knowledge, tmp_path):
 # ------------------------------------------------------------------ findings
 
 
+# The same numbers read through a view per grain (per_session): a finding on
+# semantic definitions, so a change to what it reads sends it to revalidate.
+PER_SESSION_SQL = "SELECT COUNT(*) AS n, SUM(online_s) AS online FROM per_session"
+
+
 def finding(**kw):
     f = {"key": "sessions-online", "title": "Online time over {n} sessions",
          "claim": "You played {n} sessions, {online:dur} in all.",
@@ -796,10 +801,20 @@ def test_a_legacy_run_without_kind_counts_as_the_client_run(tmp_path):
 # ------------------------------------------------------------------ run manifest (review 4)
 
 
+# online_s's description in semantic.yaml: per_session reads it.
+ONLINE_S_DESCRIPTION = '      description: "Time at a level, way 2: online seconds'
+
+
+def edit_online_s(text: str) -> str:
+    assert text.count(ONLINE_S_DESCRIPTION) == 1
+    return text.replace(ONLINE_S_DESCRIPTION, ONLINE_S_DESCRIPTION.replace('"', '"(edited) ', 1))
+
+
 @pytest.fixture
 def semantic_edit(tmp_path, monkeypatch):
-    """Call it to load a copy of semantic.yaml with one description changed
-    as the model from then on; the real one is back after the test."""
+    """Call it to load a copy of semantic.yaml with online_s's description
+    changed (a definition PER_SESSION_SQL reads) as the model from then on;
+    the real one is back after the test."""
     from wowstats.analysis import manifest, semantic
 
     def clear():
@@ -808,7 +823,7 @@ def semantic_edit(tmp_path, monkeypatch):
 
     def edit():
         edited = tmp_path / "semantic.yaml"
-        edited.write_text(semantic.MODEL_FILE.read_text().replace('description: "', 'description: "(edited) ', 1))
+        edited.write_text(edit_online_s(semantic.MODEL_FILE.read_text()))
         monkeypatch.setattr(semantic, "MODEL_FILE", edited)
         clear()
 
@@ -842,7 +857,7 @@ def test_a_finding_keeps_the_build_it_was_judged_under(driven, rows, knowledge):
 def test_a_semantic_change_means_to_revalidate_never_a_silent_pass(driven, rows, knowledge, semantic_edit):
     env, drive = driven
     drive.brief(env, CHAR)
-    assert drive.propose(env, CHAR, finding())["stored"]
+    assert drive.propose(env, CHAR, finding(sql=PER_SESSION_SQL))["stored"]
     w0 = analysis.load_state(env, CHAR)["findings"]["sessions-online"]["weight"]
     semantic_edit()
     for _ in range(2):  # every night until re-judged, not just the first
@@ -859,7 +874,7 @@ def test_a_semantic_change_means_to_revalidate_never_a_silent_pass(driven, rows,
     drive._WS.clear()
     b = drive.brief(env, CHAR, restart=True)
     assert [x["key"] for x in b["to_revalidate"]["findings"]] == ["sessions-online"]
-    assert drive.propose(env, CHAR, finding())["stored"]
+    assert drive.propose(env, CHAR, finding(sql=PER_SESSION_SQL))["stored"]
     assert "revalidate" not in analysis.load_state(env, CHAR)["findings"]["sessions-online"]
     out = analysis.run(env, CHAR, rows=[dict(r) for r in rows], players=set(), knowledge=knowledge)
     assert out["runs"][-1]["still"] == 1 and out["runs"][-1]["revalidate"] == 0
@@ -883,15 +898,16 @@ def test_a_prep_version_or_reference_change_means_to_revalidate(driven, rows, kn
     assert any(w.startswith("route ") for w in out["findings"]["sessions-online"]["revalidate"]["why"])
 
 
-def legacy(env, drive, **kw):
-    """A finding kept by 0.6: no manifest, no support mark (#49 came later)
-    and, after #78's first recheck, maybe already marked to revalidate."""
+def legacy(env, drive, base=finding, **kw):
+    """A finding kept by 0.6: no manifest, no support mark (#49 came later),
+    no semantic_reads, and, after #78's first recheck, maybe already marked
+    to revalidate."""
     drive.brief(env, CHAR)
-    assert drive.propose(env, CHAR, finding())["stored"]
+    assert drive.propose(env, CHAR, base())["stored"]
     st_file = analysis.char_dir(env, CHAR) / analysis.STATE_FILE
     st = json.loads(st_file.read_text())
     f = st["findings"]["sessions-online"]
-    for k in ("manifest", "support_mark"):
+    for k in ("manifest", "support_mark", "semantic_reads"):
         f.pop(k, None)
     f.update(kw)
     st.pop("manifests")
@@ -946,7 +962,7 @@ def test_a_legacy_finding_whose_sql_fails_fades_and_is_not_tried_again(driven, r
 def test_a_carried_over_finding_goes_to_revalidate_on_a_later_semantic_change(driven, rows, knowledge,
                                                                                semantic_edit):
     env, drive = driven
-    legacy(env, drive)
+    legacy(env, drive, base=lambda: finding(sql=PER_SESSION_SQL))
     assert recheck_night(env, rows, knowledge)["runs"][-1]["carried_over"] == 1
     semantic_edit()
     out = recheck_night(env, rows, knowledge)

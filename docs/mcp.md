@@ -267,10 +267,17 @@ and trip gaps, the gear scoring (the spec the upgrade candidates are scored
 for, from `WEIGHTS`, the add-ons or the class default, and the player's weight
 edits), the build time and how old the newest event was. Each kept
 finding stores the id of the manifest it was judged under (`manifest`, the
-manifests themselves under `manifests` in `analysis.json`). When the prep
-version, the semantic hash, a reference version or a setting differs from
-tonight's (the gear scoring only for a finding that reads
-`upgrade_candidates`), the finding isn't run: it gets `revalidate` (since when, and why in words),
+manifests themselves under `manifests` in `analysis.json`), and
+`semantic_reads`: the semantic definitions its evidence reads (the views and
+tables its SQL names; for a `metric_query`, its metrics and the dimensions
+it groups, filters or cuts time by) and a hash over only those, with
+everything they stand on: a metric's model and the measures it divides, a
+view's metrics and key, a model view's SQL
+(`wowstats/analysis/definitions.py`). A metric added or changed that the
+finding doesn't read leaves it valid. When the prep version, a definition
+the finding reads, a reference version or a setting differs from tonight's
+(the gear scoring only for a finding that reads `upgrade_candidates`), the
+finding isn't run: it gets `revalidate` (since when, and why in words),
 keeps its weight, counts as `revalidate` in the run instead of `still` or
 `confirmed`, and is left out of `checked` in `play_analysis` and the page,
 which tags it "to revalidate". The next analysis gets the list in
@@ -294,6 +301,14 @@ weight for it, and shows one line on the page and in `play_analysis`
 If it fails it fades like any other finding, and from the next night it is
 to revalidate. Either way it is tried once: after that a definition change
 marks it to revalidate like any other.
+
+When the reads can't be told (SQL that names no known table or view, a
+metric query whose names don't resolve), `semantic_reads` is `{"names":
+null}` and the whole of `semantic.yaml` decides, as before. A finding kept
+before `semantic_reads` (0.7.0-rc.8) takes them on the first recheck whose
+`semantic.yaml` is the one it was judged under (then today's hash is exactly
+the one it would have had); otherwise the whole file decides, so it is to
+revalidate once and takes them when an analysis proposes it again.
 
 `PREP_VERSION` is bumped by hand, in the same change as anything that makes
 a query give another answer on the same events: a table, column or unit, a

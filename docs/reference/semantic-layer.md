@@ -384,9 +384,10 @@ comes out twice. `play_sql` lists them first; the raw tables stay as the fallbac
 `finding.metric_query`, and the finding's `{placeholders}` name its output columns. The judge
 compiles it, re-runs it and compares every number in `expect`. The kept finding stores the
 compiled SQL and its parameters, and the nightly recheck re-runs exactly that, as long as
-`semantic.yaml` (as loaded) and its views haven't changed since. After a change, every kept
-finding is "to revalidate" until an analysis proposes it again (docs/mcp.md, "The play
-analysis").
+the definitions it reads haven't changed since: its metrics, the dimensions it groups, filters
+or cuts time by, their models and the model views under them (`semantic_reads`). After such a
+change the finding is "to revalidate" until an analysis proposes it again; a metric it doesn't
+read can be added or changed without touching it (docs/mcp.md, "The play analysis").
 
 The evidence has to read the play history. A SQL that selects a constant (`SELECT 3 AS n`) or
 only the documentation tables re-runs to the same number every time and says nothing about the

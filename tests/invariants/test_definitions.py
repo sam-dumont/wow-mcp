@@ -1,6 +1,6 @@
 """Definition changes (property 10): a saved finding is rechecked as before
 only while the definitions it was judged under hold. Any change to the prep
-version, the semantic model or a reference version, alone or together,
+version, the semantic definitions it reads or a reference version, alone or together,
 marks it to revalidate, says which, and keeps it so every night until it is
 judged again (#78). A finding kept before manifests is carried over once,
 never twice, whatever comes after (#80).
@@ -23,7 +23,19 @@ from wowstats.analysis import manifest, prep, semantic
 
 # The run-manifest tests' fixtures: the analysis events, the KB, the drive module.
 driven, rows, knowledge = A.driven, A.rows, A.knowledge
-CHAR, finding, legacy, recheck_night = A.CHAR, A.finding, A.legacy, A.recheck_night
+CHAR, recheck_night = A.CHAR, A.recheck_night
+
+
+def finding(**kw):
+    """The run-manifest tests' finding, read through per_session: it reads
+    semantic definitions (online_s among them), so the semantic change
+    below is one it reads."""
+    return A.finding(**{"sql": A.PER_SESSION_SQL, **kw})
+
+
+def legacy(env, drive, **kw):
+    return A.legacy(env, drive, base=finding, **kw)
+
 
 REFERENCE = ("kb_polestar", "forever_db", "route", "gear")
 CHANGES = ("prep", "semantic", *(f"reference:{k}" for k in REFERENCE))
@@ -54,7 +66,7 @@ def change(tmp_path, monkeypatch):
                 monkeypatch.setattr(prep, "TZ_NAME", "Pacific/Auckland")
             elif c == "semantic":
                 edited = tmp_path / "semantic.yaml"
-                edited.write_text(semantic.MODEL_FILE.read_text().replace('description: "', 'description: "(x) ', 1))
+                edited.write_text(A.edit_online_s(semantic.MODEL_FILE.read_text()))
                 monkeypatch.setattr(semantic, "MODEL_FILE", edited)
                 clear()
                 why.append("the semantic model changed")
