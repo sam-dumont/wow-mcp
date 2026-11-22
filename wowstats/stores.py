@@ -10,6 +10,7 @@ from __future__ import annotations
 import bisect
 import hashlib
 import json
+import math
 import os
 import secrets
 import sys
@@ -95,16 +96,22 @@ def lq(s: str) -> str:
 
 
 def num(v, default=0.0) -> float:
+    """A number from a store row; `default` when there is none. VictoriaLogs
+    answers sum() or max() over rows without the field as "NaN": no number
+    (recovery drill, 2026-11-22: `zones` failed on it)."""
     try:
-        return float(v)
+        f = float(v)
     except (TypeError, ValueError):
         return default
+    return f if math.isfinite(f) else default
 
 
 def opt_num(v):
     try:
         f = float(v)
     except (TypeError, ValueError):
+        return None
+    if not math.isfinite(f):  # "NaN" from the store: no number, and no JSON for one either
         return None
     return int(f) if f.is_integer() else f
 
