@@ -318,6 +318,21 @@ def test_the_tag_moves_in_the_tag_file_and_the_clone_lines(tmp_path):
     assert "Polestar v0.4.10 stays" in (tmp_path / "THIRD_PARTY.md").read_text()
 
 
+def test_a_generator_that_fails_on_the_new_data_is_a_refusal_with_its_reason(monkeypatch):
+    """2026-11-22: at v0.4.2.1 tools/fixtures/generate.py stopped on an
+    assertion (the synthetic priest reached level 33, not 32: Polestar's
+    routes got 16-25 h shorter). bump.py died with a traceback, wrote no
+    reason, and the issue said the run had stopped."""
+    def run(cmd, **kw):
+        if "generate.py" in " ".join(cmd):
+            raise subprocess.CalledProcessError(1, cmd, "", "AssertionError: 33\n")
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(bump.subprocess, "run", run)
+    why = bump.regen("v0.4.1.1", "v0.4.2.1")
+    assert len(why) == 1 and "tools/fixtures/generate.py" in why[0] and "AssertionError: 33" in why[0]
+
+
 def test_regenerated_data_may_differ_by_the_polestar_version_only():
     import gzip as gz
 

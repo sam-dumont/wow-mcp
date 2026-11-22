@@ -214,6 +214,14 @@ jobs:
           ps="$RUNNER_TEMP/polestar"
           was=$(jq -r .polestar.known data/kb/watch.json)
           x() { env -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_URL -u ACTIONS_RUNTIME_TOKEN "$@"; }
+          # A refusal puts the tree back at the known tag, and the checkout with
+          # it: the gates' test_gear_parity reads POLESTAR_CHECKOUT, and a
+          # checkout left at the refused tag failed it (2026-11-22), which would
+          # refuse every other kind in the PR.
+          back() {
+            git reset -q --hard HEAD && git clean -qfd
+            rm -rf "$ps" && git clone -q --depth 1 --branch "$was" https://github.com/fitzforge/polestar "$ps"
+          }
           if x node tools/route_reference/export.mjs --polestar "$ps" --lua lua5.4 \
             && x node tools/gear_reference/export.mjs --polestar "$ps" --lua lua5.4 \
             && uv run --frozen python tools/forever_reference/export.py --polestar "$ps" \
@@ -224,10 +232,10 @@ jobs:
               && uv run --frozen python tools/kb/watch.py --accept polestar --release "$TAG"; then
               git add -A && git commit -qm "Polestar $TAG: the tag, the exports and the test data"
             else
-              git reset -q --hard HEAD && git clean -qfd
+              back
             fi
           else
-            git reset -q --hard HEAD && git clean -qfd
+            back
             jq --arg w "The exports failed at $TAG (this run's step \"Polestar exports and accept\"): nothing of the release is in the PR." \
               '.polestar = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
           fi
@@ -566,10 +574,25 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
         run: |
-          set -eu
+          set -euo pipefail
           state="$RUNNER_TEMP/watch-state.json"
           [ -s "$state" ] || git show "${BASE:-HEAD}:data/kb/watch.json" > "$state"
-          uv run --frozen python tools/kb/watch.py --github --state "$state" --why "$WHY"
+          uv run --frozen python tools/kb/watch.py --github --state "$state" --why "$WHY" | tee "$RUNNER_TEMP/issues.json"
+      # Green only when everything the watch saw landed: a kind left with an
+      # open issue (a refused Polestar bump, an addon whose contract moved)
+      # waits for a person, and only a red run reaches the owner (the lab's
+      # scheduler waits for it). 2026-11-22: Polestar v0.4.2.1 sat in an issue
+      # nobody read.
+      - name: Red when a change waits for a person
+        if: inputs.mode == 'watch' && steps.land.outcome == 'success'
+        run: |
+          set -eu
+          left=$(jq -r '[.did | to_entries[] | select(.value == "opened" or .value == "edited") | .key] | join(" ")' \
+            "$RUNNER_TEMP/issues.json")
+          if [ -n "$left" ]; then
+            echo "::error::Not landed, an issue (label kb-watch) says why: $left"
+            exit 1
+          fi
       - name: The run failed before landing
         if: needs.run.result == 'failure' && inputs.mode != 'watch'
         env:
