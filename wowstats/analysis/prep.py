@@ -434,7 +434,7 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "slot": "the inventory slot 1-19 the gain is measured in (gear.slot): which ring or trinket it replaces"}),
     "reps": ("Reputation changes: one row per rep record (source recorder), and Altoholic's reputation "
              "snapshots (source altoholic: a faction's first listing and each later move of its points, so a "
-             "character the Recorder never saw has its standings). The character's own reputation; faction "
+             "character the Recorder never saw has its reputation too). The character's own reputation; faction "
              "names: kb tools.", {
         "rec_id": "the rep record", "t": "unix seconds", "time_local": "ISO time, local (meta.timezone)",
         "session_id": "login span", "level": "level then", "zone": "zone then", "faction_id": "the game's faction id",
