@@ -243,6 +243,8 @@ def test_the_shipped_truths_grade_a_right_and_a_wrong_answer():
         "wrong_spec_gear": "Keep the Filigreed Shadow Circlet: it's an upgrade.",
         "healthy_control": "The Wetlands are your most dangerous zone: most of your deaths happen there.",
     }
+    # Seen in the first run: "offline gaps" between evenings is no break.
+    wrong["offline_gap"] = "Inn logouts gave no more rested XP over similar offline gaps."
     for n in ALL:
         sc = scenarios.load(n)
         for text, want in ((right[n], "pass"), (wrong[n], "fail")):

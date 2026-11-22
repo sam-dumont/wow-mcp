@@ -76,6 +76,28 @@ def workspace(rows: list[dict], settings: dict):
     return drive.Workspace(dict(settings), scenarios.CHAR)
 
 
+def regrade(d: Path) -> dict:
+    """Grade a finished scenario folder again, with today's rules, without a
+    client: the kept analysis, its events and settings are all there."""
+    sc = scenarios.load(d.name)
+    old = json.loads((d / "report.json").read_text(encoding="utf-8"))
+    rows = scenarios.read_events(d / "events.jsonl")
+    settings = json.loads((d / "settings.json").read_text(encoding="utf-8"))
+    _, analysis = run_state(d / "state")
+    reruns = None
+    if old["client"]["done"] and analysis:
+        w = workspace(rows, settings)
+        try:
+            reruns = grade.rerun(analysis, w.judge)
+        finally:
+            w.worker.close()
+    report = {**old, **grade.grade(sc, analysis if old["client"]["done"] else None, old["client"], reruns),
+              "expected": sc["truth"]["expected"], "regraded": datetime.now(UTC).isoformat(timespec="seconds")}
+    (d / "report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
+    (d / "report.md").write_text(markdown(report), encoding="utf-8")
+    return report
+
+
 def one(name: str, client, out: Path, timeout_s: float, use_judge: bool) -> dict:
     sc = scenarios.load(name)
     d = out / name
@@ -171,7 +193,14 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--out", type=Path, default=ROOT / "eval-analysis-out")
     ap.add_argument("--timeout-min", type=float, default=90.0, help="per scenario (default 90)")
     ap.add_argument("--judge", action="store_true", help="also ask a model about the wording (never the verdict)")
+    ap.add_argument("--regrade", type=Path, metavar="RUN_DIR", help="grade a finished batch folder again with "
+                    "today's rules (no client, no model)")
     a = ap.parse_args(argv)
+    if a.regrade:
+        reports = [regrade(d) for d in sorted(a.regrade.iterdir()) if (d / "report.json").is_file()]
+        (a.regrade / "summary.md").write_text(summary(reports), encoding="utf-8")
+        print(summary(reports))
+        return 0 if all(r["verdict"] == "pass" for r in reports) else 1
     client = clients.make(a.client, a.model)
     names = a.scenario or scenarios.names()
     out = a.out / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")

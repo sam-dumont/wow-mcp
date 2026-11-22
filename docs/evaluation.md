@@ -85,7 +85,7 @@ line. `--judge` asks Claude Code about the wording too; its note goes in the rep
 
 A failed check is one of two things. When the kept lines say something wrong, it's a finding about the analysis:
 fix the analysis, never loosen the rule until it passes. When the rule missed a right answer worded another way,
-widen the rule, and add that wording to `test_the_shipped_truths_grade_a_right_and_a_wrong_answer`.
+widen the rule, and add that wording to `test_the_shipped_truths_grade_a_right_and_a_wrong_answer`. `run.py --regrade eval-analysis-out/<time>` grades a finished batch again with the new rules, no model needed.
 
 ## The output
 
