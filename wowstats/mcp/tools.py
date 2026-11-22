@@ -551,12 +551,33 @@ def t_guide_steps(ctx: Ctx, args: dict) -> dict:
 
 
 def death_rows(ctx: Ctx, char: str, start: datetime | None, end: datetime | None) -> list[dict]:
-    """The character's deaths, one per record: `deaths` and
-    `character_summary` both count these."""
+    """The character's death records, one per record: the facts the counts
+    come with (when, where). The counts are the semantic layer's (layer_ask)."""
     return dedupe(ctx.store.logs(f"{rec(char)} kind:=death | fields _time, zone, level, _msg, source_id", start, end))
 
 
+def layer_ask(ctx: Ctx, char: str):
+    """query_metric's compiler and runner on the narrow prep the pages read
+    (wowstats.analysis.pages.asker): the deaths, the levels and the dungeon
+    runs, one definition with the pages and query_metric."""
+    from wowstats.analysis import pages
+
+    ask = pages.asker(char, ctx.store.logs(f"{cf(char)} {pages.ROWS_QUERY}"))
+    if ask is None:
+        raise ToolError("the semantic layer isn't installed (the mcp extra)")
+    return ask
+
+
+def local_when(t: datetime | None) -> str | None:
+    """A tool's since/until (UTC) as query_metric's: the player's local time."""
+    from wowstats.analysis import prep
+
+    return t.astimezone(prep.TZ).strftime("%Y-%m-%dT%H:%M:%S") if t else None
+
+
 def t_deaths(ctx: Ctx, args: dict) -> dict:
+    from wowstats.analysis import pages
+
     char = resolve_char(ctx, args)
     start, end = time_range(args, None)
     limit = limit_arg(args, 15)
@@ -566,35 +587,45 @@ def t_deaths(ctx: Ctx, args: dict) -> dict:
         return {"char": char, "total": None, "recent": [], "by_zone": [], "by_level": {},
                 "note": "unknown, not 0: the Recorder sent nothing for this character (coverage.recorder)"}
     rows.sort(key=lambda r: parse_t(r.get("_time")), reverse=True)
-    by_zone: dict[str, int] = {}
-    by_level: dict[str, int] = {}
-    for r in rows:
-        z = r.get("zone") or "Unknown"
-        by_zone[z] = by_zone.get(z, 0) + 1
-        if r.get("level"):
-            k = str(opt_num(r["level"]))
-            by_level[k] = by_level.get(k, 0) + 1
-    return {"char": char, "total": len(rows),
+    n = pages.deaths(layer_ask(ctx, char), local_when(start), local_when(end))
+    # Most deaths first, then the zone of the newest death (as the page lists them).
+    newest: dict[str, int] = {}
+    for i, r in enumerate(rows):
+        newest.setdefault(r.get("zone") or "Unknown", i)
+    by_zone = {(z or "Unknown"): int(c) for z, c in n["by_zone"].items()}
+    return {"char": char, "total": int(n["total"]),
             "recent": [{"t": r.get("_time"), "zone": r.get("zone"), "level": opt_num(r.get("level")),
                         "record": (r.get("_msg") or "")[:120] or None} for r in rows[:limit]],
-            "by_zone": sorted(({"zone": k, "n": v} for k, v in by_zone.items()), key=lambda z: -z["n"])[:limit],
-            "by_level": by_level}
+            "by_zone": [{"zone": z, "n": c} for z, c in sorted(
+                by_zone.items(), key=lambda x: (-x[1], newest.get(x[0], len(newest))))][:limit],
+            # Highest level first, as the newest deaths came first before.
+            "by_level": {str(lv): int(c) for lv, c in sorted(((lv, c) for lv, c in n["by_level"].items()
+                                                                if lv is not None), reverse=True)}}
 
 
 def t_dungeons(ctx: Ctx, args: dict) -> dict:
     char = resolve_char(ctx, args)
     start, end = time_range(args, None)
     limit = limit_arg(args, 20)
-    rows = dedupe(ctx.store.logs(f'feed:="wow-dungeon" {cf(char)} | fields _time, name, dungeon_id, level, seconds, '
-                                 f"xp, source_id", start, end))
+    rows = dedupe(ctx.store.logs(f'feed:="wow-dungeon" {cf(char)} | fields _time, name, dungeon_id, level, '
+                                 f"source_id", start, end))
+    # Each run's time, XP and XP an hour are the layer's (run_s, run_xp,
+    # run_xp_per_hour by run, the run named by its start); the records keep
+    # when, where and at what level.
+    ask = layer_ask(ctx, char)
+    when = {k: v for k, v in (("since", local_when(start)), ("until", local_when(end))) if v}
+    got = {r["run"]: r for r in ask(metrics=["run_s", "run_xp", "run_xp_per_hour"], group_by=["run"], **when)}
     runs = []
     for r in rows:
-        secs, xp = num(r.get("seconds")), num(r.get("xp"))
+        n = got.get(parse_t(r.get("_time")).timestamp()) or {}
+        secs = int(n.get("run_s") or 0)
         runs.append({"t": r.get("_time"), "name": r.get("name") or f"dungeon {r.get('dungeon_id', '?')}",
-                     "level": opt_num(r.get("level")), "dur": dur(secs), "seconds": int(secs), "xp": int(xp),
-                     "xp_per_hour": per_hour(xp, secs)})
+                     "level": opt_num(r.get("level")), "dur": dur(secs), "seconds": secs,
+                     "xp": int(n.get("run_xp") or 0),
+                     "xp_per_hour": None if n.get("run_xp_per_hour") is None else round(n["run_xp_per_hour"])})
     runs.sort(key=lambda d: parse_t(d["t"]), reverse=True)
-    return {"char": char, "runs": runs[:limit], "total": len(runs)}
+    total = (ask(metrics=["run_count"], **when) or [{}])[0].get("run_count")
+    return {"char": char, "runs": runs[:limit], "total": int(total or 0)}
 
 
 def t_players(ctx: Ctx, args: dict) -> dict:

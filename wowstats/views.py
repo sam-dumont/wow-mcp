@@ -639,6 +639,22 @@ class Views:
                 "runs": res["runs"], "sessions": res["sessions"], "steps_rows": steps_rows, "skills": skills,
                 "skill_rows": sorted(dedupe(res["skills"]), key=lambda r: parse_t(r.get("_time")))}
 
+    def layer_ask(self, char: str):
+        """The semantic layer on the character's narrow prep (the rows the
+        character page's numbers read: wowstats.analysis.pages.asker), for
+        the Overview's pace and death counts. None when the layer isn't
+        installed or can't build on these rows (said once in the log)."""
+        rows = self.vl(f"{self.stream} {self.char_filter(char)} {pages.ROWS_QUERY}")
+        ask = pages.asker(char, rows)
+        if ask is None:
+            return None
+        try:
+            ask(metrics=["deaths"])
+        except Exception as e:  # noqa: BLE001 - a layer bug must not take the page down
+            print(f"views: the semantic layer failed for {char}: {e!r}", flush=True)
+            return None
+        return ask
+
     def overview(self, char: str) -> dict:
         """The home page of a character: on track or not, what's happening
         now, how the guide is followed, the top upgrades, deaths, the two
@@ -649,16 +665,18 @@ class Views:
         who = self.who(data)
         hd = data.get("header") or {}
         gear = data.get("gear") or {}
-        ov = insights.overview(data, advice, x["deaths"], ref, who, x["steps_rows"], x["sessions"])
+        ask = self.layer_ask(char)
+        ov = insights.overview(data, advice, x["deaths"], ref, who, x["steps_rows"], x["sessions"], ask)
         profs = gear.get("professions") or []
         talents = (advice or {}).get("talents") if advice else None
         ov["next_moves"] = insights.next_moves(hd.get("level"), advice, hd, ov["on_track"], ov["guide"], profs,
                                                x["skills"])
         ov["sanity_check"] = insights.sanity_check(hd.get("level"), x["deaths"], ov["guide"], ov["on_track"],
-                                                   advice, profs, x["skills"], talents, gear.get("items"), hd)
+                                                   advice, profs, x["skills"], talents, gear.get("items"), hd,
+                                                   ask)
         ov["moves"] = insights.overview_moves(ov["next_moves"], ov["sanity_check"])
         ov["deaths_detail"] = x["deaths"][::-1][:15]
-        ov["clusters"] = insights.death_clusters(x["deaths"])
+        ov["clusters"] = insights.death_clusters(ask, x["deaths"])
         ov["runs"] = x["runs"]
         ov["roster_note"] = insights.ROSTER_NOTE
         ov["char"] = char

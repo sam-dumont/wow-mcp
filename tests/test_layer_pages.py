@@ -114,7 +114,7 @@ def test_the_pages_say_the_same_numbers_from_the_layer(seed_vl, monkeypatch):
     built = []
     compute = pages._compute
     monkeypatch.setattr(pages, "_memo", type(pages._memo)())
-    monkeypatch.setattr(pages, "_compute", lambda char, rows: built.append(char) or compute(char, rows))
+    monkeypatch.setattr(pages, "_compute", lambda ask: built.append(ask.char) or compute(ask))
     got = answers(seed_vl)
     # The layer ran, once per character and data however many answers read it (both views, every level's snapshot).
     assert sorted(built) == sorted({k.split(":")[2] for k in got if ":char:" in k})
@@ -137,8 +137,8 @@ def test_the_pages_take_the_layers_numbers(seed_vl, monkeypatch):
 
     compute = pages._compute
 
-    def doubled(char, rows):
-        n = compute(char, rows)
+    def doubled(ask):
+        n = compute(ask)
         for r in n["levels"].values():
             r["played_s"] = (r["played_s"] or 0) * 2
         n["deaths"]["total"] += 100

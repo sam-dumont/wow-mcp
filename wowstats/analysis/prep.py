@@ -59,7 +59,10 @@ from wowstats.stores import (
 # page's "17% → 100% on your head"), its fit for the scored spec, and each
 # source in the gear advice's words with its Wowhead page: the brief and the
 # semantic layer's `upgrades` read them (decision data without play_sql).
-PREP_VERSION = 6
+# 7: levels.planned_s for a character the Recorder never saw uses the class
+# and side its character sheets give (as meta does), not the median over
+# classes.
+PREP_VERSION = 7
 
 
 def _zone() -> tuple[str, ZoneInfo]:
@@ -831,7 +834,7 @@ def _levels(db, rows, rec, route) -> None:
     for r in rec:
         if r.get("kind") == "level" and (lv := _int(r.get("level"))):
             dings.setdefault(lv - 1, r["_t"])
-    who = next((r for r in reversed(rec) if r.get("kind") == "session"), {})
+    who = _who(rows, rec)
     side, cls = who.get("faction"), who.get("class")
     seen = set(splits) | set(dings)
     cur = db.execute("SELECT MAX(level) FROM records").fetchone()[0]
@@ -1233,16 +1236,23 @@ def _dungeon_trips(db, rows) -> None:
         db.execute("UPDATE timeline SET dungeon_trip_id = ? WHERE t0 >= ? AND t0 < ?", (x[0], x[4], x[5]))
 
 
-def _meta(db, char, rows, rec, now, mark: str | None = None) -> None:
+def _who(rows, rec) -> dict:
+    """The character's class, race and side: its latest Recorder session
+    record. A character the recorder never saw (its folder, Syndicator,
+    Polestar's alts only) still has them in its snapshots and gear sheet:
+    without them the dungeons list mixed both sides' cities, and the route
+    planner's time per level fell back to the median over classes."""
     who = next((r for r in reversed(rec) if r.get("kind") == "session"), {})
-    # A character the recorder never saw (its folder, Syndicator, Polestar's
-    # alts only) still has a race, class and side in its snapshots and gear
-    # sheet: without them the dungeons list mixed both sides' cities.
     known = sorted((r for r in rows if r.get("feed") in ("wow-character", "wow-gear") and r.get("kind") != "played"),
                    key=lambda r: str(r.get("_time") or ""))
     for k in ("class", "race", "faction"):
         if not who.get(k):
             who = {**who, k: next((r[k] for r in reversed(known) if r.get(k)), None)}
+    return who
+
+
+def _meta(db, char, rows, rec, now, mark: str | None = None) -> None:
+    who = _who(rows, rec)
     now = now or datetime.now(UTC)
     meta = {"char": char, "class": who.get("class"), "race": who.get("race"), "faction": who.get("faction"),
             "first_record": _iso(rec[0]["_t"]) if rec else None, "last_record": _iso(rec[-1]["_t"]) if rec else None,

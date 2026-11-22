@@ -498,25 +498,73 @@ def played_between(db, a: tuple, b: tuple) -> float | None:
     return journal.played_between(rows, a, b)
 
 
-def trips(db) -> list[dict]:
-    cols = [c[1] for c in db.execute("PRAGMA table_info(dungeon_trips)")]
+def ask_on(db):
+    """query_metric's compiler and runner on a DuckDB copy of the prep build
+    `db` (wowstats.analysis.semantic.local): `ask(**query) -> rows as dicts`.
+    One copy per call: extract() makes it once and hands it on."""
+    import warnings
+
+    from wowstats.analysis import semantic
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # BSL's own deprecation notes
+        layer, ro = semantic.local(db)
+
+    def ask(**q) -> list[dict]:
+        got = semantic.run(layer, ro, {"limit": semantic.MAX_LIMIT, **q})
+        if got["more"]:  # never a cut list: a part would read as the whole
+            raise RuntimeError(f"more than {semantic.MAX_LIMIT} rows for {q.get('group_by')}")
+        return [dict(zip(got["columns"], r, strict=True)) for r in got["rows"]]
+
+    return ask
+
+
+# The trip's numbers from the semantic layer (per_trip's columns), under the
+# names the planner reads them by.
+TRIP_METRICS = {"trip_s": "online_s", "trip_pickup_s": "pickup_s", "trip_travel_to_s": "travel_to_s",
+                "trip_inside_s": "inside_s", "trip_travel_back_s": "travel_back_s", "trip_handin_s": "handin_s",
+                "trip_xp_inside": "xp_inside", "trip_xp_quests": "xp_quests",
+                "trip_quests_handed_in": "quests_handed_in", "trip_quest_money_copper": "quest_money_copper"}
+TRIP_DIMS = {"trip": "trip_id", "dungeon": "dungeon", "level": "level_start", "trip_start": "start_t",
+             "trip_end": "end_t", "trip_loot": "loot_inside"}
+RUNS_PER_ASK = 20  # runs per kills question: their rows stay under query_metric's cap
+
+
+def trips(ask) -> list[dict]:
+    """Each dungeon trip with its run's kills (the semantic layer: the
+    dungeon_trips metrics by trip, the trip's first run by dungeon_runs, the
+    kills inside that run by creature level and elite), oldest first."""
+    names = list(TRIP_METRICS)
+    rows = {r["trip"]: r for r in ask(metrics=names[:8], group_by=list(TRIP_DIMS))}
+    for r in ask(metrics=names[8:], group_by=["trip"]):
+        rows.get(r["trip"], {}).update(r)
+    # The trip's run: the first of its dungeon starting inside it.
+    first: dict = {}
+    for r in ask(metrics=["run_count"], group_by=["trip", "run"],
+                 where=[{"dimension": "trip", "op": "is not null"}]):
+        first[r["trip"]] = min(first.get(r["trip"], r["run"]), r["run"])
+    kills: dict = {run: [] for run in first.values()}
+    runs = sorted(kills)
+    for i in range(0, len(runs), RUNS_PER_ASK):
+        for r in ask(metrics=["kills"], group_by=["run", "npc_level", "elite"],
+                     where=[{"dimension": "kind", "op": "=", "value": "kill"},
+                            {"dimension": "run", "op": "in", "values": runs[i:i + RUNS_PER_ASK]}]):
+            kills[r["run"]].append(r)
     out = []
-    for r in q(db, "SELECT * FROM dungeon_trips ORDER BY start_t"):
-        d = dict(zip(cols, r, strict=True))
-        for k in ("quest_ids", "loot_inside", "rewards", "still_worn", "steps"):
-            with contextlib.suppress(TypeError, ValueError):
-                d[k] = json.loads(d[k] or "[]")
-        run = db.execute("SELECT start_t, left_t FROM dungeon_runs WHERE name=? AND start_t BETWEEN ? AND ? "
-                         "ORDER BY start_t LIMIT 1", (d["dungeon"], d["start_t"], d["end_t"])).fetchone()
-        if run:
-            d["kills_inside"] = one(db, "SELECT COUNT(*) FROM records WHERE kind='kill' AND t BETWEEN ? AND ?",
-                                    run[0], run[1])
+    for r in sorted(rows.values(), key=lambda r: (r["trip_start"], r["trip"])):
+        d = {mine: r.get(theirs) for theirs, mine in TRIP_DIMS.items()}
+        d.update({mine: r.get(theirs) for theirs, mine in TRIP_METRICS.items()})
+        with contextlib.suppress(TypeError, ValueError):
+            d["loot_inside"] = json.loads(d["loot_inside"] or "[]")
+        run = first.get(r["trip"])
+        if run is not None:
+            ks = kills[run]
+            d["kills_inside"] = sum(int(k["kills"]) for k in ks)
             # Each kill's creature level, elites flagged (classification e,
             # R or b): what carries the run's kill XP to another character
             # level (wowstats.plan.dungeongain).
-            d["kill_levels"] = [[lv, 1 if cl in ("e", "R", "b") else 0] for lv, cl in q(
-                db, "SELECT npc_level, json_extract(extra, '$.classification') FROM records WHERE kind='kill' AND "
-                    "t BETWEEN ? AND ? AND npc_level IS NOT NULL", run[0], run[1])]
+            d["kill_levels"] = [[int(k["npc_level"]), int(k["elite"])] for k in ks if k["npc_level"] is not None
+                                for _ in range(int(k["kills"]))]
         out.append({k: (round(v, 1) if isinstance(v, float) else v) for k, v in d.items()})
     return out
 
@@ -750,8 +798,13 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     x = db.execute("SELECT t, level, xp, xp_max, rested_xp, zone FROM xp ORDER BY t DESC LIMIT 1").fetchone()
     snap = db.execute("SELECT t, level, xp, xp_max, money_copper, zone, bind, resting FROM snapshots ORDER BY t DESC "
                       "LIMIT 1").fetchone()
+    # planned_s is the Recorder's route time here (estimate's level_factor
+    # says which clock it used): a character with no Recorder session gets
+    # the route reference's, by level, side and class, from the estimate.
+    rec_ran = one(db, "SELECT 1 FROM records WHERE kind = 'session' LIMIT 1")
     levels = [dict(zip(("level", "played_s", "xp", "planned_s", "partial"), r, strict=True)) for r in
-              q(db, "SELECT level, played_s, xp, planned_s, partial FROM levels ORDER BY level")]
+              q(db, "SELECT level, played_s, xp, CASE WHEN ? THEN planned_s END, partial FROM levels ORDER BY level",
+                1 if rec_ran else 0)]
     level = max(_i(x[1], 0) if x else 0, _i(snap[1], 0) if snap else 0,
                 one(db, "SELECT MAX(level) FROM records") or 0)
     if not level:
@@ -835,7 +888,8 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         ups = one(db, "SELECT COUNT(*) FROM records r JOIN timeline t ON r.t > t.t0 AND r.t <= t.t1 WHERE "
                       "r.kind='skill' AND t.guide=?", sl) or 0
         prof_rate[p["name"]] = {"seconds": round(secs), "skill_ups": ups}
-    tr = trips(db)
+    ask = ask_on(db)
+    tr = trips(ask)
     for t in tr:
         t["loot"] = run_loot(t, cards, scans)
     ups = (advice or {}).get("upgrades_all") or []

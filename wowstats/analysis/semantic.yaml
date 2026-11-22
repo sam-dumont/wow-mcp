@@ -247,6 +247,10 @@ records:
     kind: {expr: _.kind, description: "Record kind (record_kinds: kill, death, turnin, accept...)."}
     session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
     hour: {expr: _.hour_local, description: "Hour of day 0-23, local time."}
+    npc_id: {expr: _.npc_id, description: "The record's creature: a kill's, or a death's likely killer as Polestar_Recorder picks it (the last hostile creature that targeted the player within 10 s). NULL for other records and for a death with no pick."}
+    npc_level: {expr: _.npc_level, description: "That creature's level (a kill's creature, a death's likely killer)."}
+    elite: {expr: _.elite, description: "1 when a kill's creature was an elite, a rare elite or a boss (classification e, R or b), else 0."}
+    run: {expr: _.run_start, description: "The dungeon run the record falls in, named by when it started (unix seconds, as dungeon_runs names it), NULL outside a run."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
@@ -292,6 +296,21 @@ records:
       description: "Money quest hand-ins paid, copper."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: copper,
                  caveats: "Quest rewards only; loot, sales and costs are not in it (see gold_delta_copper)."}
+    deaths_above:
+      expr: _.rec_id.count(where=(_.kind == 'death') & ((_.npc_level - _.level) >= 3))
+      description: "Deaths to a likely killer 3 or more levels above the character (death records: npc_level minus the record's level)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: inferred, unit: deaths,
+                 caveats: "The killer is Polestar_Recorder's pick, likely, not certain (no combat log). A death with no pick or no level isn't counted."}
+    level_gap_max:
+      expr: (_.npc_level - _.level).max(where=_.kind == 'death')
+      description: "The largest level gap between a death's likely killer and the character: npc_level minus the record's level."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: inferred, unit: levels,
+                 caveats: "Not additive: over several deaths it is the largest of them. NULL when no death of the group has a killer and a level."}
+    come_back_level:
+      expr: _.npc_level.max(where=(_.kind == 'death') & ((_.npc_level - _.level) >= 3))
+      description: "The highest level among the likely killers 3 or more levels above the character: the level to come back at."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: inferred, unit: level,
+                 caveats: "Not additive: the largest of the group. NULL when no death of the group was to a creature 3+ levels above."}
   calculated_measures:
     quest_xp_share:
       expr: _.quest_xp / (_.quest_xp + _.kill_xp)
@@ -358,6 +377,7 @@ dungeon_runs:
   dimensions:
     dungeon: {expr: _.name, description: "Dungeon name."}
     run: {expr: _.start_t, description: "One run, named by when it started (unix seconds): group by it to list the runs one by one."}
+    trip: {expr: _.trip_id, description: "The dungeon trip around the run (dungeon_trips: the same dungeon, the run starting inside the trip), NULL for a run with no trip."}
     level: {expr: _.level, is_entity: true, description: "Level at entry."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
@@ -394,6 +414,10 @@ dungeon_trips:
   dimensions:
     dungeon: {expr: _.dungeon, description: "Dungeon name."}
     bracket: {expr: _.bracket, description: "guides (lookup guide steps bracket it) or instance (enter and leave only)."}
+    trip: {expr: _.trip_id, description: "One trip, by its number in time order: group by it to list the trips one by one."}
+    trip_start: {expr: _.start_t, description: "When the trip started (unix seconds)."}
+    trip_end: {expr: _.end_t, description: "When the trip ended (unix seconds)."}
+    trip_loot: {expr: _.loot_inside, description: "What the trip's run looted inside the instance: a JSON list of [item_id, count] (an observation, not a number to add)."}
     level: {expr: _.level_start, is_entity: true, description: "Level at the trip's start."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
@@ -420,6 +444,46 @@ dungeon_trips:
       description: "Online seconds getting to the instance and back to the first hand-in."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
                  caveats: "Needs guide steps for the edges: an `instance` bracket trip has 0."}
+    trip_pickup_s:
+      expr: _.pickup_s.sum()
+      description: "Online seconds picking up the dungeon's quests at the start of the trip (lookup pickup guide steps)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "0 for a trip with no pickup steps (bracket instance)."}
+    trip_travel_to_s:
+      expr: _.travel_to_s.sum()
+      description: "Online seconds from the trip's start (or the last pickup) to entering the instance."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Online time only. trip_travel_s is this plus trip_travel_back_s."}
+    trip_travel_back_s:
+      expr: _.travel_back_s.sum()
+      description: "Online seconds from leaving the instance to the first hand-in."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Online time only; 0 when the trip ends at the instance's door."}
+    trip_handin_s:
+      expr: _.handin_s.sum()
+      description: "Online seconds handing in the dungeon's quests at the end of the trip (lookup hand-in guide steps)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "0 for a trip with no hand-in steps."}
+    trip_xp_inside:
+      expr: _.xp_inside.sum()
+      description: "XP gained inside the instance during the trip (kills, and anything else that paid inside)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: xp,
+                 caveats: "The XP of the run, at the level it was run: another level pays its kills differently."}
+    trip_xp_quests:
+      expr: _.xp_quests.sum()
+      description: "XP from the trip's quests handed in during the trip."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: xp,
+                 caveats: "A trip quest handed in a day later is not in it."}
+    trip_quests_handed_in:
+      expr: _.quests_handed_in.sum()
+      description: "The trip's quests handed in during the trip."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: quests,
+                 caveats: "Only the dungeon's own quests (the lookup guide steps'), handed in before the trip ended."}
+    trip_quest_money_copper:
+      expr: _.quest_money_copper.sum()
+      description: "Money the trip's quest hand-ins paid, copper."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: copper,
+                 caveats: "Quest rewards only; the loot's worth is not in it."}
     trip_xp:
       expr: _.xp_inside.sum() + _.xp_quests.sum()
       description: "XP inside the instance plus XP from the trip's quests handed in during the trip."
@@ -740,6 +804,13 @@ views:
     where: [{dimension: dungeon, op: is not null}]
     metrics: [run_count, run_s, run_xp, run_xp_per_hour, trip_count, trip_s, trip_travel_s, trip_xp, trip_xp_per_hour,
               trip_inside_share]
+  per_trip:
+    entity: trip
+    description: "One row per dungeon trip: when, at what level, its time phase by phase (pickup, travel there, inside, travel back, hand-in), its XP inside and from its quests, and what its run looted."
+    dimensions: [dungeon, level, trip_start, trip_end, trip_loot]
+    where: [{dimension: trip, op: is not null}]
+    metrics: [trip_s, trip_pickup_s, trip_travel_to_s, trip_inside_s, trip_travel_back_s, trip_handin_s, trip_xp_inside,
+              trip_xp_quests, trip_quests_handed_in, trip_quest_money_copper]
   per_slot:
     entity: slot
     description: "One row per gear slot, for the spec the gear is scored for: the worn item and its fit, the best upgrade wearable now, and the two percents the page says as 'NN% → NN%' (upgrade_bis_pct_worn → best_upgrade_bis_pct)."
