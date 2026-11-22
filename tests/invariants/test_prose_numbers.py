@@ -254,6 +254,84 @@ def test_a_measure_equal_to_a_sql_literal_is_refused_on_both_paths(env):
     assert not got["stored"] and "3 in the claim is neither" in got["why"]
 
 
+def test_a_legacy_number_equal_to_one_result_value_becomes_its_placeholder(env):
+    """Bucket (a) of the 2026-11-22 breakdown: a kept finding typed a value
+    its own result holds. The migration binds it, the text reads the same,
+    and the nightly recheck renders it again (one more death: 5 -> 6)."""
+    from wowstats.analysis import SCHEMA
+
+    typed = {**_kept("You died 5 times.", DEATHS, {"n": 5}), "key": "deaths-typed5", "title_template": "5 deaths",
+             "title": "5 deaths", "text": "You died 5 times.", "expect": {"n": 5}, "holds": None,
+             "engine": "sqlite", "relevance": 1, "weight": 1.0, "score": 1.0, "observation": True,
+             "first_seen": "2026-11-01T00:00:00+00:00"}
+    analysis.save_state(env, CHAR, {"schema": SCHEMA, "char": CHAR, "findings": {"deaths-typed5": typed},
+                                    "nudges": [], "patterns": [], "runs": []})
+    f = load_state(env, CHAR)["findings"]["deaths-typed5"]
+    assert f["claim_template"] == "You died {n} times." and f["title_template"] == "{n} deaths"
+    assert f["text"] == "You died 5 times." and "unbound_numbers" not in f and "revalidate" not in f
+    assert f["migrated_templates"]["claim"] == "You died 5 times." and f["bound_on_migration"] == [
+        {"number": "5", "placeholder": "{n}"}]
+    assert verify.render(f["claim_template"], f["row"]) == f["text"]
+    events = [dict(r) for r in _events()]
+    last = max((r for r in events if r.get("kind") == "death"), key=lambda r: r["_time"])
+    knowledge = __import__("wowstats.analysis.kb", fromlist=["build"]).build({"KB_GAME_TABLES": "off"})
+    out = analysis.run(env, CHAR, rows=events + [{**last, "_time": last["_time"][:-5] + "9.900Z"}], players=set(),
+                       knowledge=knowledge)
+    assert out["findings"]["deaths-typed5"]["text"] == "You died 6 times."
+    assert out["findings"]["deaths-typed5"]["title"] == "6 deaths"
+
+
+def test_a_legacy_number_is_bound_only_to_one_unambiguous_value():
+    # A later row's cell, in the format it was typed in.
+    bound, how = verify.bind_results(_kept("Then {rows[1].zone} with 2.5 an hour.", DEATHS,
+                                           {"zone": "A", "rate": 4.0}) | {"rows": [{"zone": "A", "rate": 4.0},
+                                                                                    {"zone": "B", "rate": 2.5}]},
+                                     ["2.5"])
+    assert bound["claim"] == "Then {rows[1].zone} with {rows[1].rate} an hour." and len(how) == 1
+    # Two columns hold the value: ambiguous, left typed and flagged.
+    two = _kept("You died 5 times.", DEATHS, {"n": 5, "m": 5})
+    state = {"findings": {"x": two}}
+    assert analysis.migrate(state) == 1 and two["unbound_numbers"] == ["5"] and "{" not in two["claim_template"]
+    # No value matches: flagged, as before (the reviewer's prose).
+    assert verify.unbound(_kept("You died 3 times.", DEATHS, {"n": 5})) == ["3"]
+    # Typed after "level", it binds to a level column only.
+    xp = _kept("At level 32 each kill paid {xp} XP.", DEATHS, {"xp": 32, "n": 1})
+    assert analysis.migrate({"findings": {"x": xp}}) == 1 and xp["unbound_numbers"] == ["32"]
+    lvl = _kept("At level 32 you died {n} times.", DEATHS, {"level": 32, "n": 1})
+    assert analysis.migrate({"findings": {"x": lvl}}) == 0 and lvl["claim_template"].startswith("At level {level}")
+
+
+def test_a_flag_the_narrower_rule_no_longer_raises_is_lifted():
+    at32 = {**_kept("At level 32 you died {n} times.", DEATHS + " AND level = 32", {"n": 2}),
+            "unbound_numbers": ["32"],
+            "revalidate": {"since": "2026-11-22T00:00:00+00:00",
+                           "why": [f"{verify.UNBOUND_WHY} (32)", "the route moved"]}}
+    assert analysis.migrate({"findings": {"x": at32}}) == 0
+    assert "unbound_numbers" not in at32 and at32["revalidate"]["why"] == ["the route moved"]
+
+
+def test_names_dates_and_clock_times_are_not_quantities(env):
+    """One tokenizer (verify.prose_numbers) for proposals and kept findings."""
+    for text in ("Wetlands, Polestar guide forever/alliance/30-40/01-hillsbrad-foothills",
+                 "guides 04-redridge-mountains and 05-duskwood", "`30-40/03-ashenvale`", "item_id=4306",
+                 "Silk (item 4306) and quest id 1234", "ids 4306, 4338 and 2592", "data in analysis.json",
+                 "since 21 October", "on 2026-11-01", "Oct 3rd, 2026", "November 2026", "between 18:00 and 21:59",
+                 "at {hour}:00 most days", "after 9 pm"):
+        assert verify.bare_numbers(text) == [], text
+    # Ranges, units, group sizes and numbers dressed up as names stay numbers.
+    for text, want in (("levels 23-33", ["23", "33"]), ("riding at 40 needs 100g", ["40", "100"]),
+                       ("4x the route", ["4"]), ("a 5-player group", ["5"]), ("You died `3` times", ["3"]),
+                       ("You died #3 times", ["3"]), ("3/5 of deaths", ["3", "5"]), ("item 6948 and 3 deaths", ["3"]),
+                       ("28,000 yards", ["28,000"])):
+        assert verify.bare_numbers(text) == want, text
+    # Through the real client: names and dates pass, the typed count doesn't.
+    ok = _propose(_deaths(key="deaths-dated", claim="You died {n} times since 2026-11-01 on forever/alliance/20-30/"
+                                                    "02-redridge-mountains."))
+    assert ok["stored"], ok
+    bad = _propose(_deaths(key="deaths-ticked", claim="You died `3` times."))
+    assert not bad["stored"] and "3 in the claim is neither" in bad["why"]
+
+
 class Raises:
     """A model: any use of it fails the test."""
 

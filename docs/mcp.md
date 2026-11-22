@@ -242,7 +242,12 @@ proposes it again. Such a finding had no `constants`, so a number its own SQL
 writes as a numeric literal (`level = 32`, `LIMIT 3`) counts as declared, as a
 level, a top-N and a threshold, and goes through the same check as a new
 proposal's constant: equal to a placeholder's value on its kept row, or
-contradicting one, it stays unbound. It gains weight (`confirmations`, `last_confirmed`) only when
+contradicting one, it stays unbound. A typed number equal to exactly one value
+of its kept result becomes that value's placeholder (the prose as typed stays
+in `migrated_templates`, the bindings in `bound_on_migration`), so the text
+reads the same and the recheck renders it again; typed after "level", it binds
+to a level column only. Dates, clock times, guide keys, file names and item or
+quest ids aren't numbers to the judge, for new and kept findings alike. It gains weight (`confirmations`, `last_confirmed`) only when
 the play history changed since its last support (`support_mark`, a mark of the
 source events themselves: each one's id, observation time and revision): the
 same data checked again counts as `still`, not `confirmed`. Nothing prep or a

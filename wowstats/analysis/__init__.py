@@ -329,7 +329,12 @@ def migrate(state: dict, now: str | None = None) -> int:
     query doesn't fill and nothing declares keeps its text, and is marked
     to revalidate (`unbound_numbers`, `revalidate`) until an analysis
     proposes it again. Its nudges and patterns are held meanwhile (standing).
-    Returns how many were marked; the next save keeps the migration."""
+    Before that, a typed number equal to exactly one value of its own kept
+    result becomes that value's placeholder (verify.bind_results: the text
+    reads the same today, and the recheck renders it again); the prose as
+    typed stays in `migrated_templates`. A flag a narrower rule no longer
+    raises is lifted. Returns how many were marked; the next save keeps the
+    migration."""
     from . import verify
 
     now = now or datetime.now(UTC).isoformat(timespec="seconds")
@@ -339,9 +344,23 @@ def migrate(state: dict, now: str | None = None) -> int:
             continue
         bad = verify.unbound(f)  # a finding that meets the contract is left as it is
         if bad:
+            tpls, bound = verify.bind_results(f, bad)
+            if bound:
+                f.setdefault("migrated_templates", verify.templates(f))
+                verify.set_templates(f, tpls)
+                f["bound_on_migration"] = [*(f.get("bound_on_migration") or []), *bound]
+                bad = verify.unbound(f)
+        if bad:
             f["unbound_numbers"] = bad
             _mark_unbound(f, now)
             marked += 1
+        elif f.pop("unbound_numbers", None) is not None:
+            why = [w for w in (f.get("revalidate") or {}).get("why") or []
+                   if not str(w).startswith(verify.UNBOUND_WHY)]
+            if why:
+                f["revalidate"]["why"] = why
+            else:
+                f.pop("revalidate", None)
     return marked
 
 
