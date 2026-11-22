@@ -315,6 +315,54 @@ def test_wrong_spec_gear_needs_a_finding_that_names_the_spec():
         assert v["verdict"] == want, (text, finding, v["checks"])
 
 
+def test_a_finding_that_faults_the_circlet_isnt_praise():
+    """A release-eval run (2026-11-22) failed on praises-the-circlet: its
+    finding named the circlet next to the word "upgrades" while saying it was
+    built for damage casters at 17% of the best. A false negative; a finding
+    that does call the circlet an upgrade still fails."""
+    sc = scenarios.load("wrong_spec_gear")
+    faulted = ("Scarlet Monastery: Library drops 10 upgrades you can wear now. Its best is Embalmed Shroud for the "
+               "Head slot, where you wear the Filigreed Shadow Circlet at 17% of the best for Holy, an item built "
+               "for damage casters.")
+    praised = "The Filigreed Shadow Circlet is a good pick: keep it, it is an upgrade over most hoods at your level."
+    checks = lambda text: {c["check"]: c["ok"] for c in  # noqa: E731
+                           grade.grade(sc, _answer(text), {"done": True}, [])["checks"]}
+    assert checks(faulted)["must_not_claim praises-the-circlet"]
+    assert not checks(praised)["must_not_claim praises-the-circlet"]
+
+
+def test_a_metric_finding_reruns_on_the_metrics_reader():
+    """query_metric's findings (engine duckdb) read the semantic views, which
+    the judge's reader refuses: the grader re-runs them as the server's
+    recheck does, on the reader without the table list."""
+    calls = []
+
+    class R:
+        def __init__(self, name):
+            self.name = name
+
+        def first_row(self, sql, params=None):
+            calls.append((self.name, sql))
+            return {"n": 1}
+
+    import grade as g
+
+    from wowstats.analysis import verify
+
+    orig = verify.history_read
+    verify.history_read = lambda ro: True
+    try:
+        a = {"findings": {"m": {"sql": "SELECT 1 AS n FROM sem_levels", "engine": "duckdb", "expect": {"n": 1},
+                                "title_template": "x", "claim_template": "{n}"},
+                          "q": {"sql": "SELECT 1 AS n FROM levels", "expect": {"n": 1},
+                                "title_template": "x", "claim_template": "{n}"}}}
+        out = g.rerun(a, R("judge"), R("metrics"))
+    finally:
+        verify.history_read = orig
+    assert all(r["ok"] for r in out), out
+    assert dict((sql.split()[-1], who) for who, sql in calls) == {"sem_levels": "metrics", "levels": "judge"}
+
+
 def test_recorder_off_reads_the_meaning_not_one_wording():
     """The review-5 run's finding said the Recorder missed levels 26 to 30 in
     words the first rule didn't know: a false negative. A finding that

@@ -106,7 +106,7 @@ def regrade(d: Path) -> dict:
     if old["client"]["done"] and analysis:
         w = workspace(rows, settings)
         try:
-            reruns = grade.rerun(analysis, w.judge)
+            reruns = grade.rerun(analysis, w.judge, w.metrics)
         finally:
             w.worker.close()
     report = {**old, **grade.grade(sc, analysis if old["client"]["done"] else None, old["client"], reruns),
@@ -157,7 +157,7 @@ def one(name: str, client, out: Path, timeout_s: float, use_judge: bool, repeat:
     if res["done"] and analysis:
         w = workspace(rows, settings)
         try:
-            reruns = grade.rerun(analysis, w.judge)
+            reruns = grade.rerun(analysis, w.judge, w.metrics)
         finally:
             w.worker.close()
     verdict = grade.grade(sc, analysis if res["done"] else None, res, reruns)
@@ -242,7 +242,7 @@ def gate_ok(passed: int, runs: int) -> bool:
     return runs > 0 and passed >= math.ceil(GATE * runs - 1e-9)
 
 
-def release_table(reports: list[dict], wall_min: float, spent: float | None = None) -> str:
+def release_table(reports: list[dict], wall_min: float | None = None, spent: float | None = None) -> str:
     """The pass rate per client and scenario, for the release notes: a
     scenario under the gate is flagged."""
     r8 = rates(reports)
@@ -256,8 +256,8 @@ def release_table(reports: list[dict], wall_min: float, spent: float | None = No
             p, k = r8.get((c, n), (0, 0))
             cells.append(f"{p}/{k}" + ("" if gate_ok(p, k) else " **below the gate**") if k else "-")
         out.append(f"| {n} | " + " | ".join(cells) + " |")
-    out += ["", f"Gate: a scenario passes when at least {math.ceil(GATE * 3)} of 3 runs pass (two thirds). "
-            f"Wall time {wall_min:.0f} min, every run side by side."
+    out += ["", f"Gate: a scenario passes when at least {math.ceil(GATE * 3)} of 3 runs pass (two thirds)."
+            + (f" Wall time {wall_min:.0f} min." if wall_min is not None else " Regraded with today's rules.")
             + (f" The server's model cost ${spent:.2f}." if spent is not None else "")]
     return "\n".join(out) + "\n"
 
@@ -326,8 +326,11 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     if a.regrade:
         reports = [regrade(p.parent) for p in sorted(a.regrade.rglob("report.json"))]
-        (a.regrade / "summary.md").write_text(summary(reports), encoding="utf-8")
+        table = release_table(reports)
+        (a.regrade / "summary.md").write_text(summary(reports) + "\n" + table, encoding="utf-8")
+        (a.regrade / "release.md").write_text(table, encoding="utf-8")
         print(summary(reports))
+        print(table)
         return 0 if all(gate_ok(*v) for v in rates(reports).values()) else 1
     kinds = list(dict.fromkeys(a.client or ["claude"]))
     names = a.scenario or scenarios.names()
