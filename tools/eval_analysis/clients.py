@@ -313,15 +313,23 @@ class OpenAICompat:
             adapter.results(results)
 
 
-# What a batch may spend on the server client's model, every run together
-# (--max-usd): the upgrade review's cap, for the same reason. A lab run of
-# gpt-6.1-sol measured about $0.70 (2026-11-21), so a release batch (five
-# scenarios, three runs) comes near $10; a cut run counts as an error.
-MAX_USD = 10.0
+# What one model's batch may spend on the server client (--max-usd), every
+# run of that model together; each server model of a batch has its own. A
+# release batch of gpt-6.1-sol (five scenarios, three runs) came to $10.70
+# on 2026-11-22, so 12 leaves room for a slow run (owner, 2026-11-22); a cut
+# run counts as an error.
+MAX_USD = 12.0
 SERVER_MODEL = "gpt-6.1-sol"
-# USD per million tokens for SERVER_MODEL, OpenAI's prices as a deployment
-# configured them (2026-11-21). Another model needs EVAL_SERVER_PRICE_*.
-SERVER_PRICES = {"INPUT": "2", "CACHED_INPUT": "0.10", "OUTPUT": "10"}
+# USD per million tokens, the prices the 2026-11-21 trial ran on: OpenAI's
+# from the owner's deployment, z.ai's from docs.z.ai/guides/overview/pricing.
+# Another model needs EVAL_SERVER_PRICE_*; a local endpoint can say 0.
+MODEL_PRICES = {
+    "gpt-6.1-sol": {"INPUT": "2", "CACHED_INPUT": "0.10", "OUTPUT": "10"},
+    "gpt-6.1-terra": {"INPUT": "1", "CACHED_INPUT": "0.05", "OUTPUT": "5"},
+    "gpt-6-luna": {"INPUT": "0.10", "CACHED_INPUT": "0.01", "OUTPUT": "0.50"},
+    "glm-5.3": {"INPUT": "1.4", "CACHED_INPUT": "0.26", "OUTPUT": "4.4"},
+}
+SERVER_PRICES = MODEL_PRICES[SERVER_MODEL]
 # How the key reaches the runner's process from EVAL_SERVER_KEY_CMD: in its
 # environment only, read there before anything else and removed
 # (server_run.py). Never on disk, in argv or in a log.
@@ -343,21 +351,24 @@ class ServerRunner:
                              "it) or EVAL_SERVER_KEY_FILE (a file holding it), never a deployment's")
         if key_file and not Path(key_file).expanduser().is_file():
             raise SystemExit(f"EVAL_SERVER_KEY_FILE: no file at {key_file}")
-        if provider != "anthropic" and not (prices.get("ANALYSIS_PRICE_INPUT_PER_MTOK")
-                                            and prices.get("ANALYSIS_PRICE_OUTPUT_PER_MTOK")):
+        if provider != "anthropic" and not (prices.get("ANALYSIS_PRICE_INPUT_PER_MTOK", "") != ""
+                                            and prices.get("ANALYSIS_PRICE_OUTPUT_PER_MTOK", "") != ""):
             raise SystemExit("--client server needs EVAL_SERVER_PRICE_INPUT_PER_MTOK and "
                              "EVAL_SERVER_PRICE_OUTPUT_PER_MTOK (USD per million tokens): without them "
                              "the spend cap can't apply")
 
     @classmethod
-    def from_env(cls, env=os.environ, spend_file: Path | None = None, max_usd: float = MAX_USD) -> ServerRunner:
+    def from_env(cls, env=os.environ, spend_file: Path | None = None, max_usd: float = MAX_USD,
+                 model: str = "") -> ServerRunner:
         g = lambda k: env.get(k, "").strip()  # noqa: E731
-        model = g("EVAL_SERVER_MODEL") or SERVER_MODEL
-        known = SERVER_PRICES if model == SERVER_MODEL else {}
+        # The model first, then its prices: a model named on the command line
+        # is priced as itself, never as the default's.
+        model = model or g("EVAL_SERVER_MODEL") or SERVER_MODEL
+        known = MODEL_PRICES.get(model, {})
         prices = {f"ANALYSIS_PRICE_{k}_PER_MTOK": g(f"EVAL_SERVER_PRICE_{k}_PER_MTOK") or known.get(k, "")
                   for k in ("INPUT", "OUTPUT", "CACHED_INPUT")}
         return cls(g("EVAL_SERVER_PROVIDER") or "openai", model, g("EVAL_SERVER_BASE_URL"),
-                   g("EVAL_SERVER_KEY_FILE"), {k: v for k, v in prices.items() if v}, spend_file, max_usd,
+                   g("EVAL_SERVER_KEY_FILE"), {k: v for k, v in prices.items() if v != ""}, spend_file, max_usd,
                    g("EVAL_SERVER_KEY_CMD"))
 
     def key(self) -> str:
@@ -444,6 +455,20 @@ def spent(spend_file: Path) -> float:
 KINDS = ("claude", "openai", "server")
 
 
+def parse(spec: str, model: str = "") -> tuple[str, str]:
+    """A --client value: `kind` or `kind:model` (claude:claude-haiku-5-5,
+    server:gpt-6-luna): (kind, model), `model` when the spec names none."""
+    kind, _, own = spec.partition(":")
+    if kind not in KINDS:
+        raise SystemExit(f"unknown client {kind!r} in {spec!r}: {', '.join(KINDS)}, optionally :model")
+    return kind, own.strip() or model
+
+
+def column(kind: str, model: str) -> str:
+    """A client's column in the tables and its folder's name."""
+    return f"{kind}:{model}" if model else kind
+
+
 def make(kind: str, model: str = "", spend_file: Path | None = None,
          max_usd: float = MAX_USD) -> ClaudeCode | OpenAICompat | ServerRunner:
     if kind == "claude":
@@ -454,10 +479,7 @@ def make(kind: str, model: str = "", spend_file: Path | None = None,
             c.model = model
         return c
     if kind == "server":
-        c = ServerRunner.from_env(spend_file=spend_file, max_usd=max_usd)
-        if model:
-            c.model = model
-        return c
+        return ServerRunner.from_env(spend_file=spend_file, max_usd=max_usd, model=model)
     raise SystemExit(f"unknown client {kind!r}: {', '.join(KINDS)}")
 
 

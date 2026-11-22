@@ -323,8 +323,9 @@ def walk(env, drive, findings=FINDINGS, synth=SYNTH, extra_lane_sql=()):
                 drive.sql(env, CHAR, q)
             for f in findings:
                 drive.propose(env, CHAR, f)
-        ans = {"lane": nx["lane"], "answers": [{"question_id": q["id"], "answered": first, "note": "n"}
-                                               for q in nx["questions"]],
+        cited = [f["key"] for f in findings] if first else []
+        ans = {"lane": nx["lane"], "answers": [{"question_id": q["id"], "answered": first, "note": "n",
+                                                "findings": cited} for q in nx["questions"]],
                "ask_next": [{"question": "Which levels took longest?", "why": "pace", "tables": ["levels"]}]
                if first else []}
         first = False
@@ -332,6 +333,59 @@ def walk(env, drive, findings=FINDINGS, synth=SYNTH, extra_lane_sql=()):
         assert out["accepted"], out
     assert out["next"]["pass"] == "synthesis"
     return drive.submit(env, CHAR, "synthesis", synth)
+
+
+def test_an_answer_with_no_finding_behind_it_goes_back_once(driven):
+    """gpt-6.1-sol, death_spike r1 and r2 (2026-11-22): a lane answered "where
+    are deaths concentrated?" with "Wetlands has eight deaths" in its note and
+    proposed nothing; the note never reaches the synthesis, so the kept
+    analysis said nothing about deaths. An answered question has to rest on a
+    finding of this run (an observation when there is nothing to act on): the
+    lane goes back once, naming the question and its note; the next hand-in
+    is taken as it is."""
+    env, drive = driven
+    drive.brief(env, CHAR)
+    out = drive.submit(env, CHAR, "survey", {"questions": QUESTIONS})
+    nx = out["next"]
+    q1, *rest = nx["questions"]
+    note = "Wetlands has eight deaths; no cause established"
+    ans = {"lane": nx["lane"], "ask_next": [],
+           "answers": [{"question_id": q1["id"], "answered": True, "note": note, "findings": []},
+                       *({"question_id": q["id"], "answered": False, "note": "no data", "findings": []}
+                         for q in rest)]}
+    back = drive.submit(env, CHAR, "lane", ans)
+    assert not back["accepted"] and back["next"]["lane"] == nx["lane"], back
+    assert q1["id"] in back["why"] and note in back["why"] and "action null" in back["why"]
+    assert back["unbacked"] == [q1["id"]]
+    # A key the judge never stored backs nothing.
+    ans["answers"][0]["findings"] = ["made-up"]
+    assert drive.submit(env, CHAR, "lane", ans)["accepted"]  # once only: then taken as it is
+    nx = drive.next_for(env, CHAR)
+    # The next lane cites a stored finding: taken the first time.
+    assert drive.propose(env, CHAR, finding())["stored"]
+    ok = {"lane": nx["lane"], "ask_next": [],
+          "answers": [{"question_id": x["id"], "answered": True, "note": "n", "findings": ["sessions-online"]}
+                      for x in nx["questions"]]}
+    assert drive.submit(env, CHAR, "lane", ok)["accepted"]
+
+
+def test_a_finding_leaves_only_when_the_synthesis_says_why(driven):
+    """claude-sonnet-5-5, death_spike (2026-11-22): the lane's verified
+    "Almost half the deaths are in Wetlands" was left out of the synthesis'
+    `keep`, with no reason anywhere, and the kept analysis never named the
+    Wetlands. Leaving a finding out is a decision: one in `drop` (with why)
+    goes, one the synthesis names nowhere stays, and the answer says so."""
+    env, drive = driven
+    other = {**finding(), "key": "sessions-count", "title": "{n} sessions", "claim": "You played {n} sessions.",
+             "expect": {"n": 4, "online": 35476}}
+    synth = {**SYNTH, "keep": ["sessions-online"], "nudges": [], "patterns": [],
+             "drop": [{"key": "sessions-count", "why": "a duplicate of sessions-online"}]}
+    res = walk(env, drive, findings=[*FINDINGS, other], synth=synth)
+    assert res["accepted"], res
+    assert res["kept"] == ["sessions-online", "xp-by-level"]  # xp-by-level: in neither list
+    assert res["kept_unlisted"] == ["xp-by-level"]
+    assert "sessions-count: dropped (a duplicate of sessions-online)" in res["dropped"]
+    assert set(analysis.load_state(env, CHAR)["findings"]) == {"sessions-online", "xp-by-level"}
 
 
 def test_a_client_run_keeps_what_reproduces(driven, rows, knowledge):

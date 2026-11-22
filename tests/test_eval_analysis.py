@@ -461,20 +461,23 @@ def test_runs_go_in_processes_of_their_own(tmp_path, monkeypatch):
         def submit(self, fn, name, kind, model, out, timeout_s, judge, repeat, opts):
             from concurrent.futures import Future
 
-            seen["runs"].append((kind, name, repeat))
+            seen["runs"].append((clients.column(kind, model), name, repeat))
             f = Future()
             f.set_result({"scenario": name, "repeat": repeat, "verdict": "pass", "checks": [], "kept": [],
-                          "client": {"client": kind, "seconds": 60, "calls": 1}})
+                          "client": {"client": kind, "column": clients.column(kind, model), "seconds": 60,
+                                     "calls": 1}})
             return f
 
     import concurrent.futures
 
     monkeypatch.setattr(concurrent.futures, "ProcessPoolExecutor", Pool)
-    got = run.run_all(["offline_gap", "death_spike"], ["claude", "server"], "", tmp_path, 60, False, 8, 2)
-    # The server client's runs are held to SERVER_JOBS at once: its provider's rate limit.
+    cols = [("claude", ""), ("server", ""), ("server", "gpt-6-luna")]
+    got = run.run_all(["offline_gap", "death_spike"], cols, tmp_path, 60, False, 8, 2)
+    # The server client's runs are held to SERVER_JOBS at once, all its models
+    # together: one provider's rate limit.
     assert seen["method"] == "spawn" and seen["workers"] == [8, run.SERVER_JOBS]
-    assert len(set(seen["runs"])) == 8
-    assert [(r["client"]["client"], r["scenario"], r["repeat"]) for r in got] == seen["runs"]
+    assert len(set(seen["runs"])) == 12
+    assert [(run.col_of(r), r["scenario"], r["repeat"]) for r in got] == seen["runs"]
 
 
 def _report(client, name, verdict):
@@ -492,6 +495,54 @@ def test_a_scenario_passes_the_gate_at_two_runs_of_three():
     row = next(ln for ln in t.splitlines() if ln.startswith("| death_spike"))
     assert row == "| death_spike | 2/3 | 1/3 **below the gate** |"
     assert "claude (m)" in t and "$6.50" in t
+
+
+def _col(col, name, verdict):
+    kind = col.partition(":")[0]
+    return {"scenario": name, "verdict": verdict, "checks": [], "kept": [],
+            "client": {"client": kind, "column": col, "model": "m", "seconds": 60, "calls": 1}}
+
+
+def test_a_matrix_gates_on_the_reference_client_and_flags_what_most_clients_miss():
+    """Owner, 2026-11-22: the analysis runs in the player's own AI, so the
+    release gate is one ordinary client (REFERENCE) and every other column is
+    reported. A scenario most clients miss points at what MCP hands them."""
+    assert clients.parse("claude:claude-haiku-5-5") == ("claude", "claude-haiku-5-5")
+    assert clients.parse("server", "gpt-6-luna") == ("server", "gpt-6-luna")
+    with pytest.raises(SystemExit, match="unknown client"):
+        clients.parse("gemini:x")
+    ref, others = run.REFERENCE, ["claude:claude-haiku-5-5", "server:gpt-6-luna", "server:glm-5.3"]
+    reports = [_col(ref, "death_spike", "pass"), _col(ref, "offline_gap", "pass")]
+    reports += [_col(c, "death_spike", "fail") for c in others]
+    reports += [_col(c, "offline_gap", v) for c, v in zip(others, ("pass", "fail", "pass"), strict=True)]
+    t = run.release_table(reports)
+    assert f"{ref} (release gate)" in t.splitlines()[0] and "server:glm-5.3" in t.splitlines()[0]
+    assert run.gate(reports)  # others below the gate don't fail the release
+    assert list(run.widespread(reports)) == ["death_spike"]
+    assert "**death_spike is below the gate on 3 of 4 clients**" in t and "offline_gap is below" not in t
+    assert not run.gate([*reports, _col(ref, "recorder_off", "fail")])
+    # Without the reference in the batch, every column gates, as before.
+    assert not run.gate([_col("server", "offline_gap", "fail"), _col("claude", "offline_gap", "pass")])
+
+
+def test_a_server_model_named_on_the_command_line_is_priced_as_itself(tmp_path):
+    key = tmp_path / "key"
+    key.write_text("sk-test", encoding="utf-8")
+    env = {"EVAL_SERVER_KEY_FILE": str(key)}
+    luna = clients.ServerRunner.from_env(env, model="gpt-6-luna")
+    assert luna.prices["ANALYSIS_PRICE_INPUT_PER_MTOK"] == clients.MODEL_PRICES["gpt-6-luna"]["INPUT"]
+    with pytest.raises(SystemExit, match="PRICE"):
+        clients.ServerRunner.from_env(env, model="unknown-model")
+    # A local endpoint may price itself at zero: still priced, so still capped.
+    local = clients.ServerRunner.from_env({"EVAL_SERVER_BASE_URL": "http://127.0.0.1:9999/v1",
+                                           "EVAL_SERVER_PRICE_INPUT_PER_MTOK": "0",
+                                           "EVAL_SERVER_PRICE_OUTPUT_PER_MTOK": "0"}, model="local")
+    assert local.prices["ANALYSIS_PRICE_INPUT_PER_MTOK"] == "0"
+    # Each server model of a batch has its own cap and spend file.
+    o = {"out": tmp_path, "max_usd": 12.0}
+    a, b = run.spend_opts(o, "server", "server:gpt-6-luna"), run.spend_opts(o, "server", "server:glm-5.3")
+    assert a["spend_file"] != b["spend_file"] and a["max_usd"] == 12.0 == clients.MAX_USD
+    assert run.spend_opts(o, "claude", "claude") == {"max_usd": 12.0}
 
 
 class _Fake:

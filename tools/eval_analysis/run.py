@@ -2,11 +2,13 @@
 a real MCP client, and grade what it kept.
 
     uv run --extra mcp --extra analysis-openai python tools/eval_analysis/run.py \\
-        [--scenario NAME ...] [--client claude|openai|server ...] [--repeats N] [--jobs N]
+        [--scenario NAME ...] [--client claude|openai|server[:MODEL] ...] [--repeats N] [--jobs N]
         [--max-usd X] [--model M] [--out DIR] [--judge]
     make eval-analysis                      # every scenario once, Claude Code
     make eval-analysis SCENARIO=death_spike
-    make eval-release                       # before a release: both clients, 3 runs each
+    make eval-release                       # before a release: the reference client and the
+                                            # server's runner, 3 runs each
+    ... --client claude:claude-haiku-5-5 --client server:gpt-6-luna   # a client matrix
 
 Per scenario: build its events (scenarios.py), start a throwaway server on
 them (server.py, its own state folder), let the client run the whole
@@ -19,6 +21,16 @@ waits on the model, and each has its own server, client and folder.
 same way twice, so one run says little. A scenario passes the gate when at
 least two thirds of its runs pass (GATE); release.md, the table for the
 release notes, gives the rate per client and scenario.
+
+Clients: `--client kind:model` names a model per column, so one batch is a
+matrix (claude:claude-haiku-5-5, claude:claude-sonnet-5-5, server:gpt-6-luna,
+server:glm-5.3 with EVAL_SERVER_BASE_URL...). The analysis runs in the
+player's own AI: the evaluation asks whether what MCP hands a client is
+enough for the clients people use. The release gate is one column,
+REFERENCE (Claude Sonnet through Claude Code); the others are reported,
+not gating (owner, 2026-11-22: gaps between providers are accepted). A
+scenario below the gate on most clients is the brief's or the MCP's
+problem, not one model's: release.md flags it.
 
 Where it goes: --out, else `eval-analysis-out/` in this checkout (ignored by
 git; the data is synthetic), one folder per batch, then
@@ -59,6 +71,9 @@ GATE = 2 / 3
 # crossed a 4M tokens-per-minute limit within a minute: twelve of fifteen
 # stopped on a 429 (2026-11-22). Claude Code runs on a login, not a key.
 SERVER_JOBS = 3
+# The release gate's client (owner, 2026-11-22): Claude Sonnet through
+# Claude Code, a player's ordinary client. Every other column is reported.
+REFERENCE = "claude:claude-sonnet-5-5"
 
 
 def server_settings(sc: dict, state: Path) -> dict:
@@ -122,14 +137,16 @@ def layout(out: Path, client: str, name: str, repeat: int = 1) -> dict:
     is shared with another run going at the same time. Its server talks to
     its own client over stdio (no port at all); VL_URL is a closed port
     nothing ever answers."""
-    d = out / client / name / f"r{repeat}"
+    d = out / client.replace(":", "_") / name / f"r{repeat}"
     return {"dir": d, "work": d / "work", "state": d / "state", "events": d / "events.jsonl",
             "settings": d / "settings.json", "transcript": d / "transcript.jsonl"}
 
 
-def one(name: str, client, out: Path, timeout_s: float, use_judge: bool, repeat: int = 1) -> dict:
+def one(name: str, client, out: Path, timeout_s: float, use_judge: bool, repeat: int = 1,
+        col: str = "") -> dict:
     sc = scenarios.load(name)
-    p = layout(out, client.name, name, repeat)
+    col = col or client.name
+    p = layout(out, col, name, repeat)
     d, state = p["dir"], p["state"]
     if d.exists():
         shutil.rmtree(d)
@@ -140,7 +157,7 @@ def one(name: str, client, out: Path, timeout_s: float, use_judge: bool, repeat:
     settings = server_settings(sc, state)
     p["settings"].write_text(json.dumps(settings, indent=1), encoding="utf-8")
     facts = scenarios.facts(sc, rows)
-    tag = f"{client.name}/{name}/r{repeat}"
+    tag = f"{col}/{name}/r{repeat}"
     print(f"[{tag}] {len(rows)} events; running", flush=True)
 
     def is_done() -> bool:
@@ -151,7 +168,7 @@ def one(name: str, client, out: Path, timeout_s: float, use_judge: bool, repeat:
     job = clients.Job(char=scenarios.CHAR, goals=sc["goals"], server=cmd,
                       workdir=p["work"], transcript=p["transcript"], is_done=is_done, timeout_s=timeout_s,
                       settings=p["settings"], events=p["events"])
-    res = client.run(job).as_dict()
+    res = {**client.run(job).as_dict(), "column": col}
     run, analysis = run_state(state)
     reruns = None
     if res["done"] and analysis:
@@ -228,11 +245,16 @@ def who(r: dict) -> str:
     return f"{c['client']} ({c['model']})" if c.get("model") else c["client"]
 
 
+def col_of(r: dict) -> str:
+    """The report's column: its client and model as asked (`claude:claude-haiku-5-5`); older reports, the kind."""
+    return r["client"].get("column") or r["client"]["client"]
+
+
 def rates(reports: list[dict]) -> dict[tuple[str, str], tuple[int, int]]:
-    """(client, scenario) -> (runs passed, runs)."""
+    """(column, scenario) -> (runs passed, runs)."""
     out: dict[tuple[str, str], tuple[int, int]] = {}
     for r in reports:
-        k = (r["client"]["client"], r["scenario"])
+        k = (col_of(r), r["scenario"])
         p, n = out.get(k, (0, 0))
         out[k] = (p + (r["verdict"] == "pass"), n + 1)
     return out
@@ -246,9 +268,10 @@ def release_table(reports: list[dict], wall_min: float | None = None, spent: flo
     """The pass rate per client and scenario, for the release notes: a
     scenario under the gate is flagged."""
     r8 = rates(reports)
-    cols = list(dict.fromkeys(r["client"]["client"] for r in reports))
+    cols = list(dict.fromkeys(col_of(r) for r in reports))
     names = list(dict.fromkeys(r["scenario"] for r in reports))
-    label = {c: next(who(r) for r in reports if r["client"]["client"] == c) for c in cols}
+    label = {c: c if ":" in c else next(who(r) for r in reports if col_of(r) == c) for c in cols}
+    label = {c: v + (" (release gate)" if c == REFERENCE else "") for c, v in label.items()}
     out = ["| Scenario | " + " | ".join(label[c] for c in cols) + " |", "|---|" + "---|" * len(cols)]
     for n in names:
         cells = []
@@ -256,10 +279,37 @@ def release_table(reports: list[dict], wall_min: float | None = None, spent: flo
             p, k = r8.get((c, n), (0, 0))
             cells.append(f"{p}/{k}" + ("" if gate_ok(p, k) else " **below the gate**") if k else "-")
         out.append(f"| {n} | " + " | ".join(cells) + " |")
-    out += ["", f"Gate: a scenario passes when at least {math.ceil(GATE * 3)} of 3 runs pass (two thirds)."
+    out += ["", "Gate: a scenario passes when at least two thirds of its runs pass (2 of 3)."
+            + (f" The release gate is {REFERENCE}; the other clients are reported, not gating."
+               if REFERENCE in cols else "")
             + (f" Wall time {wall_min:.0f} min." if wall_min is not None else " Regraded with today's rules.")
-            + (f" The server's model cost ${spent:.2f}." if spent is not None else "")]
+            + (f" The server's models cost ${spent:.2f}." if spent is not None else "")]
+    for n, bad in widespread(reports).items():
+        out += ["", f"**{n} is below the gate on {len(bad)} of {len(cols)} clients** ({', '.join(bad)}): most "
+                "clients miss it, so look at what MCP hands them (the brief, its facts, the tools' answers) "
+                "before blaming a model."]
     return "\n".join(out) + "\n"
+
+
+def widespread(reports: list[dict]) -> dict[str, list[str]]:
+    """Scenarios below the gate on most clients (more than half, three
+    clients at least): a brief or MCP problem, not one model's."""
+    r8 = rates(reports)
+    cols = list(dict.fromkeys(col_of(r) for r in reports))
+    out = {}
+    for n in dict.fromkeys(r["scenario"] for r in reports):
+        bad = [c for c in cols if r8.get((c, n), (0, 0))[1] and not gate_ok(*r8[(c, n)])]
+        if len(cols) >= 3 and len(bad) * 2 > len(cols):
+            out[n] = bad
+    return out
+
+
+def gate(reports: list[dict]) -> bool:
+    """The batch passes: the reference client's every scenario at the gate,
+    or, without it in the batch, every column's."""
+    r8 = rates(reports)
+    ref = {k: v for k, v in r8.items() if k[0] == REFERENCE}
+    return all(gate_ok(*v) for v in (ref or r8).values())
 
 
 def _one_alone(name: str, kind: str, model: str, out: Path, timeout_s: float, use_judge: bool,
@@ -267,36 +317,52 @@ def _one_alone(name: str, kind: str, model: str, out: Path, timeout_s: float, us
     """one() in a process of its own: the grader's build points prep.query at
     this scenario's events (server.serve_events), a process-wide seam two
     runs must not share."""
-    return one(name, clients.make(kind, model, **opts), out, timeout_s, use_judge, repeat)
+    col = clients.column(kind, model)
+    return one(name, clients.make(kind, model, **spend_opts(opts, kind, col)), out, timeout_s, use_judge, repeat,
+               col)
 
 
-def units(names: list[str], kinds: list[str], repeats: int) -> list[tuple[str, str, int]]:
-    """Every run of the batch: (client, scenario, repeat)."""
-    return [(k, n, i) for k in kinds for n in names for i in range(1, repeats + 1)]
+def spend_opts(opts: dict, kind: str, col: str) -> dict:
+    """Each server model's runs count against a cap of their own: one
+    spend file per column (--max-usd is per model batch)."""
+    if kind != "server" or "out" not in opts:
+        return {k: v for k, v in opts.items() if k != "out"}
+    return {"max_usd": opts["max_usd"], "spend_file": opts["out"] / f"spend-{col.replace(':', '_')}.json"}
 
 
-def run_all(names: list[str], kinds: list[str], model: str, out: Path, timeout_s: float, use_judge: bool,
+def spent_all(out: Path) -> float:
+    return sum(clients.spent(p) for p in out.glob("spend-*.json"))
+
+
+def units(names: list[str], cols: list[tuple[str, str]], repeats: int) -> list[tuple[str, str, str, int]]:
+    """Every run of the batch: (kind, model, scenario, repeat)."""
+    return [(k, m, n, i) for k, m in cols for n in names for i in range(1, repeats + 1)]
+
+
+def run_all(names: list[str], cols: list[tuple[str, str]], out: Path, timeout_s: float, use_judge: bool,
             jobs: int, repeats: int = 1, opts: dict | None = None, server_jobs: int = SERVER_JOBS) -> list[dict]:
     """Every run, `jobs` at a time (the server client's `server_jobs` at
-    most: its provider's rate limit), each in its own process with its own
-    server and client (a run mostly waits on the model; the local load is
-    one small server on synthetic data). Reports in the order asked."""
-    todo = units(names, kinds, repeats)
+    most, all its models together: one provider's rate limit), each in its
+    own process with its own server and client (a run mostly waits on the
+    model; the local load is one small server on synthetic data). Reports
+    in the order asked."""
+    todo = units(names, cols, repeats)
     opts = opts or {}
     if jobs <= 1 or len(todo) <= 1:
         reports = []
-        for k, n, i in todo:
-            reports.append(_one_alone(n, k, model, out, timeout_s, use_judge, i, opts))
+        for k, m, n, i in todo:
+            reports.append(_one_alone(n, k, m, out, timeout_s, use_judge, i, opts))
             (out / "summary.md").write_text(summary(reports), encoding="utf-8")
         return reports
     import multiprocessing
     from concurrent.futures import ProcessPoolExecutor
 
     ctx = multiprocessing.get_context("spawn")
+    kinds = list(dict.fromkeys(k for k, _ in cols))
     pools = {k: ProcessPoolExecutor(max_workers=min(jobs, server_jobs) if k == "server" else jobs, mp_context=ctx)
              for k in kinds}
     try:
-        futs = [pools[k].submit(_one_alone, n, k, model, out, timeout_s, use_judge, i, opts) for k, n, i in todo]
+        futs = [pools[k].submit(_one_alone, n, k, m, out, timeout_s, use_judge, i, opts) for k, m, n, i in todo]
         return [f.result() for f in futs]
     finally:
         for p in pools.values():
@@ -307,15 +373,16 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--scenario", action="append", choices=scenarios.names(), help="one scenario (repeatable); "
                     "default: all")
-    ap.add_argument("--client", action="append", choices=clients.KINDS,
-                    help="claude (default), openai, server: the server's own runner (repeatable)")
+    ap.add_argument("--client", action="append", metavar="KIND[:MODEL]",
+                    help="claude (default), openai, server: the server's own runner; :model names the model "
+                    "(repeatable: one column each)")
     ap.add_argument("--model", default="", help="the client's model (default: the client's own)")
     ap.add_argument("--repeats", type=int, default=1, help="runs per scenario and client (the release: 3)")
     ap.add_argument("--jobs", type=int, default=0, help="runs at once (default: all of them)")
     ap.add_argument("--server-jobs", type=int, default=SERVER_JOBS,
                     help=f"server client runs at once, for its rate limit (default {SERVER_JOBS})")
     ap.add_argument("--max-usd", type=float, default=clients.MAX_USD,
-                    help=f"the batch's spend cap for the server client, checked before each call "
+                    help=f"each server model's spend cap for the batch, checked before each call "
                     f"(default {clients.MAX_USD:g})")
     ap.add_argument("--out", type=Path, default=ROOT / "eval-analysis-out")
     ap.add_argument("--timeout-min", type=float, default=clients.TIMEOUT_MIN,
@@ -331,26 +398,26 @@ def main(argv: list[str] | None = None) -> int:
         (a.regrade / "release.md").write_text(table, encoding="utf-8")
         print(summary(reports))
         print(table)
-        return 0 if all(gate_ok(*v) for v in rates(reports).values()) else 1
-    kinds = list(dict.fromkeys(a.client or ["claude"]))
+        return 0 if gate(reports) else 1
+    cols = list(dict.fromkeys(clients.parse(c, a.model) for c in a.client or ["claude"]))
     names = a.scenario or scenarios.names()
     out = a.out / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out.mkdir(parents=True)
-    opts = {"spend_file": out / "server-spend.json", "max_usd": a.max_usd}
-    for k in kinds:  # a missing setting fails here, before anything starts
-        clients.make(k, a.model, **opts)
+    opts = {"out": out, "max_usd": a.max_usd}
+    for k, m in cols:  # a missing setting fails here, before anything starts
+        clients.make(k, m, **spend_opts(opts, k, clients.column(k, m)))
     t0 = time.time()
-    reports = run_all(names, kinds, a.model, out, a.timeout_min * 60, a.judge,
-                      a.jobs or len(units(names, kinds, a.repeats)), a.repeats, opts, a.server_jobs)
+    reports = run_all(names, cols, out, a.timeout_min * 60, a.judge,
+                      a.jobs or len(units(names, cols, a.repeats)), a.repeats, opts, a.server_jobs)
     wall = (time.time() - t0) / 60
-    spent = clients.spent(opts["spend_file"]) if "server" in kinds else None
+    spent = spent_all(out) if any(k == "server" for k, _ in cols) else None
     table = release_table(reports, wall, spent)
     (out / "summary.md").write_text(summary(reports) + "\n" + table, encoding="utf-8")
     (out / "release.md").write_text(table, encoding="utf-8")
     print(summary(reports))
     print(table)
     print(f"{out} (wall time {wall:.1f} min)")
-    return 0 if all(gate_ok(*v) for v in rates(reports).values()) else 1
+    return 0 if gate(reports) else 1
 
 
 if __name__ == "__main__":

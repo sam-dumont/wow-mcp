@@ -95,8 +95,9 @@ def brain(char_arg: str = CHAR):
         if first:
             for f in FINDINGS:
                 yield "propose_finding", {"char": char_arg, "finding": f}
-        ans = {"lane": nx["lane"], "answers": [{"question_id": q["id"], "answered": first, "note": "n"}
-                                               for q in nx["questions"]],
+        cited = [f["key"] for f in FINDINGS] if first else []
+        ans = {"lane": nx["lane"], "answers": [{"question_id": q["id"], "answered": first, "note": "n",
+                                                "findings": cited} for q in nx["questions"]],
                "ask_next": [{"question": "Which levels took longest?", "why": "pace", "tables": ["levels"]}]
                if first else []}
         first = False
@@ -898,6 +899,24 @@ def quits_after_a_lane():
         step = inner.send(got)
 
 
+def asks_between_calls(times: int):
+    """`brain`, but after each of its first `times` tool calls that hand
+    nothing in (queries, proposed findings) it ends a turn asking to continue,
+    then goes on: progress between the asks, all inside one lane."""
+    inner = brain()
+    step = next(inner)
+    asked = 0
+    while True:
+        got = yield step
+        if step[0] != "analysis_submit" and asked < times:
+            asked += 1
+            yield ASKS
+        try:
+            step = inner.send(got)
+        except StopIteration:
+            return
+
+
 def files(env: dict) -> dict:
     """The character's analysis, its run state and the 0.3.x file: their bytes, None when absent."""
     ps = drive.run_files(env, CHAR)
@@ -920,6 +939,24 @@ def test_a_model_that_asks_to_continue_is_nudged_and_finishes(lab, kind):
     assert len(nudges) == 3 and all(n.startswith("No one will reply") for n in nudges)
     assert 'analysis_submit(pass="synthesis")' in nudges[0] and "Next: Investigate lane L2" in nudges[0]
     assert service(e, client).last_try(e)["status"] == "done"
+
+
+@pytest.mark.parametrize("kind", ADAPTER_ENVS)
+def test_a_model_that_asks_between_queries_is_nudged_while_it_works(lab, kind):
+    """The 2026-11-21 trial: gpt-6.1-terra stopped to ask "continue?" mid-lane,
+    after queries. A nudge it follows with tool calls is progress: the count
+    of nudges in a row starts again on any tool call, not only on a pass
+    handed in, so four asks in one lane still finish. A run's nudges stay
+    bounded (NUDGES_PER_RUN)."""
+    e = lab.env("a", **ADAPTER_ENVS[kind])
+    r = service(e, fake(kind, Script(asks_between_calls(4)))).run_job(e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "done" and r["nudges"] == 4, r
+    assert sorted(kept(e)) == ["sessions-online", "xp-by-level"]
+    # A model that asks after every call is stopped once the run's nudges run out.
+    e = lab.env("b", **ADAPTER_ENVS[kind])
+    r = service(e, fake(kind, Script(asks_between_calls(10_000)))).run_job(e, lab.ctx(e))["runs"][0]
+    assert r["status"] == "incomplete" and r["nudges"] == auto.NUDGES_PER_RUN, r
+    assert f"after {auto.NUDGES_PER_RUN} nudges in this run" in r["why"]
 
 
 @pytest.mark.parametrize("kind", ADAPTER_ENVS)
