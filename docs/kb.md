@@ -246,11 +246,21 @@ opens or edits its PR with the gates' verdict, and:
 - **passed:** `gh pr merge --auto --squash --match-head-commit <sha>`, and
   the job stays with the PR until it merges (`land.py shepherd`, up to 45
   minutes). If main moved during the run, the branch is rebased on it and
-  the gates run again first, so what merges is what was tested (a conflict
-  is a refusal). Main's ruleset requires a branch up to date with main, so
-  a PR goes BEHIND each time something else merges first: the job then
-  rebases it (`gh pr update-branch --rebase`, with the App's token, so main's
-  checks run again on it) and turns auto-merge back on if it went off.
+  the gates run again first, so what merges is what was tested. Main's
+  ruleset requires a branch up to date with main, so a PR goes BEHIND each
+  time something else merges first: the job then rebases it (`gh pr
+  update-branch --rebase`, with the App's token, so main's checks run again
+  on it) and turns auto-merge back on if it went off.
+- **main moved and the change conflicts with it:** in watch mode the change
+  is deterministic, so it is made again instead of refused: the land job
+  resets the branch to the current main, reruns `tools/kb/versions.sh` (the
+  same versions lane the run job ran: checks, tag, exports, regenerated test
+  data), gates that, force-pushes the branch and lands it again, twice at
+  most (`land.py --regen`; the third conflict is red, and the next watch run
+  makes it again). The lane runs with the mirror's read-only token for its
+  checks and never the App's. Polestar v0.4.2.2 (#140, 2026-11-22) was
+  refused because another PR had regenerated the same plan inputs during the
+  run. In the model's modes a conflict is still a refusal.
 - **refused:** the PR stays open with label `kb-refused` and the reasons;
   in watch mode each kind it carries keeps its issue with the same reasons,
   in the other modes one issue per mode (`KB <mode>: a change wasn't

@@ -25,7 +25,8 @@
 #
 # - watch (daily, no model, like Dependabot): the upstream versions
 #   (tools/kb/watch.py --kinds versions): the client build, the Polestar
-#   release and the install docs' addons. Each change kind is landed here:
+#   release and the install docs' addons. Each change kind is landed here
+#   (tools/kb/versions.sh):
 #   * polestar: tools/kb/bump.py checks the new tag (its licence terms and
 #     saved tables unchanged), moves tools/polestar-tag, and the exports
 #     (docs/route-reference.md and its siblings) rerun at the new tag;
@@ -67,8 +68,12 @@
 # until it merges: main's ruleset wants a branch up to date, so whenever the
 # PR goes BEHIND it is rebased on main (`gh pr update-branch --rebase`, the
 # App's token, so the checks run again). Gates refused: label kb-refused, left
-# for a person. The run ends red unless its PR merged: a refusal, a failed
-# required check, a conflict, or no merge within 45 minutes. The lab's
+# for a person. A watch change is deterministic, so a conflict with a main
+# that moved never refuses it: `land` makes it again on the current main
+# (tools/kb/versions.sh, the gates on it) and lands that, twice at most
+# (2026-11-22: #140, Polestar v0.4.2.2, refused on a fixture conflict).
+# The run ends red unless its PR merged: a refusal, a failed required check,
+# a conflict that outlived the tries, or no merge within 45 minutes. The lab's
 # scheduler waits for the run and fails its CronJob on red
 # (CronJobNotSucceeding), so a stuck PR reaches the owner. While a PR is open,
 # the next run of the mode adds nothing and stays with that PR instead.
@@ -192,99 +197,26 @@ jobs:
           why="PR #$PR from an earlier run is still open: this run stays with it until it merges (one labelled kb-refused waits for a person), and the next run lands this change."
           for k in $KINDS; do jq --arg k "$k" --arg w "$why" '.[$k] = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"; done
 
-      # --- Polestar: check, move the tag, rerun the exports, accept.
-      - name: Polestar release, checked
-        id: polestar
-        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && steps.watch.outputs.polestar_tag != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.watch.outputs.polestar_tag }}
-        run: |
-          if uv run --frozen python tools/kb/bump.py polestar "$TAG" --why "$WHY"; then
-            echo "ok=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "ok=0" >> "$GITHUB_OUTPUT"
-          fi
+      # --- The versions lane (tools/kb/versions.sh): addon releases checked
+      # and accepted, a Polestar release checked, its tag moved, the exports
+      # rerun and the test data regenerated, a client build's class reference
+      # rerun. One commit per kind; a refused kind gets its reason in $WHY.
+      # GH_TOKEN (read-only) for the checks only: the script drops it, and
+      # the job's OIDC and runtime tokens, before it runs Polestar's code.
+      # `land` runs the same script again on the current main when main
+      # moved under the PR and the change conflicts with it.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: steps.polestar.outputs.ok == '1'
+        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && steps.watch.outputs.kinds != ''
         with:
           # route-reference.yml's: Math.hypot and friends may round differently elsewhere.
           node-version: 24.5.0
-      - name: Polestar at tools/polestar-tag
-        if: steps.polestar.outputs.ok == '1' || (env.MODE == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'client-build'))
-        run: |
-          set -eu
-          sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends lua5.4
-          git clone -q --depth 1 --branch "$(tr -d '[:space:]' < tools/polestar-tag)" \
-            https://github.com/fitzforge/polestar "$RUNNER_TEMP/polestar"
-          # tests/test_gear_parity.py runs in the gates with it.
-          echo "POLESTAR_CHECKOUT=$RUNNER_TEMP/polestar" >> "$GITHUB_ENV"
-          echo "LUA=lua5.4" >> "$GITHUB_ENV"
-      - name: Polestar exports and accept
-        if: steps.polestar.outputs.ok == '1'
-        env:
-          TAG: ${{ steps.watch.outputs.polestar_tag }}
-        # The exports run Polestar's own planner and Lua (its code, at the
-        # new tag): without the job's OIDC and runtime tokens in reach.
-        run: |
-          set -u
-          ps="$RUNNER_TEMP/polestar"
-          was=$(jq -r .polestar.known data/kb/watch.json)
-          x() { env -u ACTIONS_ID_TOKEN_REQUEST_TOKEN -u ACTIONS_ID_TOKEN_REQUEST_URL -u ACTIONS_RUNTIME_TOKEN "$@"; }
-          # A refusal puts the tree back at the known tag, and the checkout with
-          # it: the gates' test_gear_parity reads POLESTAR_CHECKOUT, and a
-          # checkout left at the refused tag failed it (2026-11-22), which would
-          # refuse every other kind in the PR.
-          back() {
-            git reset -q --hard HEAD && git clean -qfd
-            rm -rf "$ps" && git clone -q --depth 1 --branch "$was" https://github.com/fitzforge/polestar "$ps"
-          }
-          if x node tools/route_reference/export.mjs --polestar "$ps" --lua lua5.4 \
-            && x node tools/gear_reference/export.mjs --polestar "$ps" --lua lua5.4 \
-            && uv run --frozen python tools/forever_reference/export.py --polestar "$ps" \
-            && uv run --frozen python tools/kb/export.py --polestar "$ps" \
-            && uv run --frozen python tools/class_reference/export.py --polestar "$ps" \
-            && uv run --frozen python tools/trainers/export.py --polestar "$ps"; then
-            if uv run --frozen python tools/kb/bump.py regen --old "$was" --new "$TAG" --why "$WHY" \
-              && uv run --frozen python tools/kb/watch.py --accept polestar --release "$TAG"; then
-              git add -A && git commit -qm "Polestar $TAG: the tag, the exports and the test data"
-            else
-              back
-            fi
-          else
-            back
-            jq --arg w "The exports failed at $TAG (this run's step \"Polestar exports and accept\"): nothing of the release is in the PR." \
-              '.polestar = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
-          fi
-
-      # --- Addons: check what the shipper reads, accept.
-      - name: Addon releases, checked and accepted
-        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'addons')
+      - name: Versions
+        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && steps.watch.outputs.kinds != ''
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-          if uv run --frozen python tools/kb/bump.py addons --why "$WHY" --handoff "$RUNNER_TEMP/kb-handoff-addons.json"; then
-            uv run --frozen python tools/kb/watch.py --accept addons --handoff "$RUNNER_TEMP/kb-handoff-addons.json"
-            git add -A && git commit -qm "Addon releases: what the shipper reads is unchanged"
-          fi
-
-      # --- Client build: the class reference against the new build, accept.
-      - name: Client build
-        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'client-build')
-        run: |
-          set -u
-          if uv run --frozen python tools/class_reference/export.py --polestar "$RUNNER_TEMP/polestar" \
-              --handoff "$RUNNER_TEMP/kb-handoff-client.json" \
-            && uv run --frozen python tools/kb/bump.py regen --as client-build --why "$WHY" \
-            && uv run --frozen python tools/kb/watch.py --accept client-build --handoff "$RUNNER_TEMP/kb-handoff-client.json"; then
-            git add -A && git commit -qm "Client build: the class reference rerun"
-          else
-            git reset -q --hard HEAD && git clean -qfd
-            # bump.py regen wrote its own reason; this one only when it didn't.
-            jq --arg w "The class reference export failed against the new build (this run's step \"Client build\")." \
-              '."client-build" //= $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
-          fi
+          KINDS: ${{ steps.watch.outputs.kinds }}
+          TAG: ${{ steps.watch.outputs.polestar_tag }}
+        run: tools/kb/versions.sh
 
       # --- The model passes.
       - name: Pages for the model pass
@@ -513,9 +445,11 @@ jobs:
     if: github.repository_id == '1465633168' && (always() && github.ref == 'refs/heads/main' && needs.run.result != 'cancelled' && needs.run.result != 'skipped')
     runs-on: ubuntu-24.04
     environment: main-only
-    # The gates again after a rebase (about 5 minutes), then up to 45 minutes
-    # with the PR until it merges (tools/kb/land.py SHEPHERD_S).
-    timeout-minutes: 75
+    # The gates again after a rebase (about 25 minutes since 2026-11-22), then
+    # up to 45 minutes with the PR until it merges (tools/kb/land.py
+    # SHEPHERD_S); a change made again on a moved main adds a lane and its
+    # gates (about 30 minutes) per try.
+    timeout-minutes: 180
     permissions:
       contents: read
     env:
@@ -585,7 +519,12 @@ jobs:
           GH_TOKEN: ${{ steps.token.outputs.token }}
         run: uv run --frozen python tools/kb/web.py --replay-issues "$HANDOFF/kb-issues.jsonl"
       # Red unless the PR merged (tools/kb/land.py): the lab's scheduler
-      # reports a red run. The issues below run anyway.
+      # reports a red run. The issues below run anyway. In watch mode
+      # (`--regen`) a conflict with a main that moved is outcome `moved`: the
+      # versions lane runs again on the current main (GH_TOKEN read-only for
+      # its checks, no App token in reach of Polestar's code, the gates on
+      # what it made), then lands again; the third try's `moved` is red, and
+      # the next watch run makes it again.
       - name: Land (merge when the gates passed)
         id: land
         if: needs.run.result == 'success'
@@ -593,10 +532,65 @@ jobs:
           GH_TOKEN: ${{ steps.token.outputs.token }}
           TITLE: ${{ needs.run.outputs.title }}
           KINDS: ${{ needs.run.outputs.kinds }}
+          REGEN: ${{ env.MODE == 'watch' && '1' || '' }}
         run: >-
-          uv run --frozen python tools/kb/land.py --mode "$MODE" --branch "$BRANCH"
-          --base "$BASE" --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
-          --gates "$HANDOFF/gates.json" --gates-md "$HANDOFF/gates.md"
+          uv run --frozen python tools/kb/land.py --mode "$MODE" --branch "$BRANCH" ${REGEN:+"--regen"}
+          --base "$BASE" --gates "$HANDOFF/gates.json" --gates-md "$HANDOFF/gates.md"
+          --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
+          --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.land.outputs.outcome == 'moved'
+        with:
+          node-version: 24.5.0
+      - name: Made again on the current main (1)
+        id: regen1
+        if: steps.land.outputs.outcome == 'moved'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          git fetch -q origin main
+          git reset -q --hard origin/main && git clean -qfd
+          base=$(git rev-parse HEAD)
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          GATES_BASE=$base GATES_OUT="$RUNNER_TEMP/gates-regen.json" tools/kb/versions.sh
+      - name: Land again (1)
+        id: land1
+        if: steps.regen1.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TITLE: ${{ needs.run.outputs.title }}
+          KINDS: ${{ needs.run.outputs.kinds }}
+          BASE: ${{ steps.regen1.outputs.base }}
+        run: >-
+          uv run --frozen python tools/kb/land.py --mode "$MODE" --branch "$BRANCH" --regen
+          --base "$BASE" --gates "$RUNNER_TEMP/gates-regen.json" --gates-md "$RUNNER_TEMP/gates-regen.md"
+          --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
+          --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
+      - name: Made again on the current main (2)
+        id: regen2
+        if: steps.land1.outputs.outcome == 'moved'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          git fetch -q origin main
+          git reset -q --hard origin/main && git clean -qfd
+          base=$(git rev-parse HEAD)
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          GATES_BASE=$base GATES_OUT="$RUNNER_TEMP/gates-regen.json" tools/kb/versions.sh
+      - name: Land again (2, the last)
+        id: land2
+        if: steps.regen2.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TITLE: ${{ needs.run.outputs.title }}
+          KINDS: ${{ needs.run.outputs.kinds }}
+          BASE: ${{ steps.regen2.outputs.base }}
+        run: >-
+          uv run --frozen python tools/kb/land.py --mode "$MODE" --branch "$BRANCH" --regen --last
+          --base "$BASE" --gates "$RUNNER_TEMP/gates-regen.json" --gates-md "$RUNNER_TEMP/gates-regen.md"
+          --title "$TITLE" --body-file "$HANDOFF/pr-body.md"
           --kinds "$KINDS" --why-out "$WHY" --state-out "$RUNNER_TEMP/watch-state.json"
 
       # Last, whatever happened: a kind main still doesn't know keeps one
@@ -620,7 +614,9 @@ jobs:
       # scheduler waits for it). 2026-11-22: Polestar v0.4.2.1 sat in an issue
       # nobody read.
       - name: Red when a change waits for a person
-        if: (env.MODE == 'watch' || env.MODE == 'review') && steps.land.outcome == 'success'
+        if: >-
+          (env.MODE == 'watch' || env.MODE == 'review') && steps.land.outcome == 'success'
+          && steps.land1.outcome != 'failure' && steps.land2.outcome != 'failure'
         run: |
           set -eu
           left=$(jq -r '[.did | to_entries[] | select(.value == "opened" or .value == "edited") | .key] | join(" ")' \

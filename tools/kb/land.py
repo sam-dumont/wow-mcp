@@ -11,8 +11,14 @@ and reads no page. In order:
 
 1. Nothing committed since `--base`: nothing to land.
 2. main moved since the run started: rebase on it and run the gates again
-   (a subprocess without the token), so what merges is what was tested; a
-   conflict refuses.
+   (a subprocess without the token), so what merges is what was tested. A
+   conflict refuses, except with `--regen` (watch mode: the versions lane is
+   deterministic): the outcome is then `moved`, nothing is pushed, and the
+   workflow makes the change again on the current main
+   (tools/kb/versions.sh) and lands that, a bounded number of times (`--last`
+   on the final try makes `moved` red). 2026-11-22: #140, Polestar
+   v0.4.2.2, was refused because semantic wave 1 had regenerated the same
+   plan inputs meanwhile; Polestar's numbers are never a reason to refuse.
 3. Push the branch (one per mode, force-pushed), open or edit its PR, the
    gates' verdict in the body.
 4. Gates passed: `gh pr merge --auto --squash --match-head-commit <sha>`,
@@ -21,7 +27,8 @@ and reads no page. In order:
    the PR goes BEHIND and is rebased on it (`gh pr update-branch --rebase`,
    with the App's token, so its checks run again), and auto-merge is turned
    back on if it went off. Refused: the PR keeps label `kb-refused` and stays
-   open for a person.
+   open for a person. With `--regen`, a PR that went DIRTY (main moved and
+   conflicts) is `moved` too: made again and force-pushed.
 5. The step ends red unless the PR merged (or there was nothing to land): a
    refusal, a failed required check, a conflict, or no merge within
    SHEPHERD_S. The lab's scheduler waits for the run and reports a red one
@@ -142,8 +149,10 @@ def arm(n: int) -> None:
 
 
 def shepherd(n: int, required: set[str], deadline_s: int = SHEPHERD_S, poll_s: int = POLL_S, view=pr_view,
-             update=update_branch, arm=arm, sleep=time.sleep, now=time.monotonic) -> tuple[str, str]:
-    """Stay with PR `n` until it merges: ('merged' | 'red' | 'stuck', why)."""
+             update=update_branch, arm=arm, sleep=time.sleep, now=time.monotonic,
+             regen: bool = False) -> tuple[str, str]:
+    """Stay with PR `n` until it merges: ('merged' | 'red' | 'stuck' | 'moved', why).
+    `regen`: a conflict with main is `moved` (the change is made again), not red."""
     end = now() + deadline_s
     state = "UNKNOWN"
     while True:
@@ -159,7 +168,7 @@ def shepherd(n: int, required: set[str], deadline_s: int = SHEPHERD_S, poll_s: i
             return "red", f"PR #{n}'s required checks failed: {', '.join(failed)}"
         state = v.get("mergeStateStatus") or "UNKNOWN"
         if state == "DIRTY":
-            return "red", f"PR #{n} conflicts with main"
+            return ("moved" if regen else "red"), f"PR #{n} conflicts with main"
         if state == "BEHIND":
             update(n)
             arm(n)
@@ -170,9 +179,10 @@ def shepherd(n: int, required: set[str], deadline_s: int = SHEPHERD_S, poll_s: i
         sleep(poll_s)
 
 
-def exit_code(outcome: str) -> int:
-    """The step's status: red unless the PR merged or there was nothing to land."""
-    return 0 if outcome in ("merged", "nothing") else 1
+def exit_code(outcome: str, last: bool = True) -> int:
+    """The step's status: red unless the PR merged or there was nothing to land,
+    or main moved under it and the workflow makes it again (not the last try)."""
+    return 0 if outcome in ("merged", "nothing") or (outcome == "moved" and not last) else 1
 
 
 def why_text(outcome: str, n: int | None, detail: str, gates_md: str) -> str:
@@ -181,6 +191,9 @@ def why_text(outcome: str, n: int | None, detail: str, gates_md: str) -> str:
         return f"{pr} is open, not merged: the gates refused it.\n\n{gates_md}"
     if outcome == "auto":
         return f"{pr} passed the gates; {detail}."
+    if outcome == "moved":
+        return (f"{pr} wasn't merged: main kept moving and the change still conflicted after it was made again "
+                f"on it; the next watch run makes it again on the current main.")
     if outcome == "refused-open":
         return f"{pr} from an earlier run is open with label {REFUSED}: a person merges or closes it."
     return f"{pr} passed the gates but wasn't merged: {detail}"
@@ -200,6 +213,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--state-out", help="watch: write the watch.json the issues compare with here")
     ap.add_argument("--check-open", action="store_true", help="only say whether the branch has an open PR")
     ap.add_argument("--failed", action="store_true", help="the run failed before landing: keep the mode's issue")
+    ap.add_argument("--regen", action="store_true",
+                    help="deterministic change (watch): a conflict with main is `moved`, made again, not refused")
+    ap.add_argument("--last", action="store_true", help="with --regen: the last try, `moved` is red")
     a = ap.parse_args(argv)
     gh_out = os.environ.get("GITHUB_OUTPUT")
 
@@ -228,28 +244,32 @@ def main(argv: list[str] | None = None) -> int:
 
     def finish(outcome: str, n: int | None = None, detail: str = "", gates_md: str = "") -> int:
         landed = outcome == "merged"
+        code = exit_code(outcome, a.last or not a.regen)
         if landed:  # main now holds the PR, rebased or not
             git("fetch", "-q", "origin", "main", check=False)
             seen["main"] = git("rev-parse", "origin/main")
         if a.state_out:
             text = git("show", f"{seen['main']}:{state_rel}")
             Path(a.state_out).write_text(text + ("" if text.endswith("\n") else "\n"), encoding="utf-8")
-        reason = "" if landed or outcome == "nothing" else why_text(outcome, n, detail, gates_md)
+        # Nothing to say when it landed, or when main moved and it's made again.
+        reason = "" if not code else why_text(outcome, n, detail, gates_md)
         if a.why_out and reason:
             p = Path(a.why_out)
             why = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
             why.update({k: reason for k in kinds if k not in why})
             p.write_text(json.dumps(why, indent=1) + "\n", encoding="utf-8")
-        if a.mode != "watch" and outcome != "nothing":
+        if a.mode != "watch" and outcome != "nothing" and code == exit_code(outcome):
             did = web.keep_issue(web.GitHub(web.repo()), f"refused-{a.mode}", LABEL,
                                  f"KB {a.mode}: a change wasn't merged",
                                  None if landed else f"{reason}\n\nThe next {a.mode} run that merges closes this.",
                                  "The next run merged.")
             print(f"issue: {did}")
         output(outcome=outcome, pr=n or "", landed=1 if landed else 0)
-        if exit_code(outcome):  # red: the lab's scheduler waits for this run and reports it
+        if code:  # red: the lab's scheduler waits for this run and reports it
             print(f"::error::{' '.join((detail or reason).split())[:400]}")
-        return exit_code(outcome)
+        elif outcome == "moved":
+            print(f"main moved and the change conflicts with it ({detail}): the workflow makes it again on main")
+        return code
 
     if not git("rev-list", f"{a.base}..HEAD"):
         earlier = open_pr(a.branch)
@@ -260,7 +280,7 @@ def main(argv: list[str] | None = None) -> int:
         if any(lb.get("name") == REFUSED for lb in labels):
             return finish("refused-open", earlier, f"PR #{earlier} is open with label {REFUSED}")
         print(f"nothing committed; PR #{earlier} from an earlier run is open: staying with it")
-        outcome, detail = shepherd(earlier, required_checks())
+        outcome, detail = shepherd(earlier, required_checks(), regen=a.regen)
         return finish(outcome, earlier, detail)
     result = json.loads(Path(a.gates).read_text(encoding="utf-8"))
     gates_md = Path(a.gates_md).read_text(encoding="utf-8") if a.gates_md else ""
@@ -271,6 +291,8 @@ def main(argv: list[str] | None = None) -> int:
         r = sh("git", "rebase", "origin/main", check=False)
         if r.returncode:
             sh("git", "rebase", "--abort", check=False)
+            if a.regen:
+                return finish("moved", open_pr(a.branch), "the rebase on main conflicts")
             result = {"ok": False, "refused": ["main moved during the run and the change conflicts with it"]}
             gates_md = "**Gates: refused.**\n\n- main moved during the run and the change conflicts with it\n"
         else:
@@ -296,7 +318,7 @@ def main(argv: list[str] | None = None) -> int:
     gh("pr", "edit", str(n), "--remove-label", REFUSED, check=False)
     outcome, detail = merge(n, sha)
     if outcome == "auto":
-        outcome, detail = shepherd(n, required_checks())
+        outcome, detail = shepherd(n, required_checks(), regen=a.regen)
     if outcome == "merged":
         gh("api", "-X", "DELETE", f"repos/{web.repo() or ''}/git/refs/heads/{a.branch}",
            check=False)

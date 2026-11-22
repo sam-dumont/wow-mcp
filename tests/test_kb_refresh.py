@@ -765,15 +765,23 @@ def test_a_client_build_out_after_the_export_waits_for_the_next_run(state, tmp_p
 
 
 def test_the_version_steps_accept_their_handoff():
+    """The versions lane is tools/kb/versions.sh (the run job's step, and the
+    land job's on a moved main): every accept takes what its step processed."""
+    lane = (ROOT / "tools" / "kb" / "versions.sh").read_text()
+    addons = lane[lane.index("if has addons"):lane.index("ok=0")]
+    client = lane[lane.index("if has client-build; then\n  if"):]
+    assert 'bump.py addons --why "$WHY" --handoff "$tmp/kb-handoff-addons.json"' in addons
+    assert '--accept addons --handoff "$tmp/kb-handoff-addons.json"' in addons
+    assert '--handoff "$tmp/kb-handoff-client.json"' in client.split("bump.py regen")[0]
+    assert '--accept client-build --handoff "$tmp/kb-handoff-client.json"' in client
+    accepts = [ln for ln in lane.splitlines() if "--accept" in ln]
+    assert len(accepts) == 3 and all("--handoff" in ln or "--release" in ln for ln in accepts)
     yaml = pytest.importorskip("yaml")
     steps = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())["jobs"]["run"]["steps"]
-    run = {s.get("name", ""): s.get("run", "") for s in steps}
-    addons, client = run["Addon releases, checked and accepted"], run["Client build"]
-    assert 'bump.py addons --why "$WHY" --handoff "$RUNNER_TEMP/kb-handoff-addons.json"' in addons
-    assert '--accept addons --handoff "$RUNNER_TEMP/kb-handoff-addons.json"' in addons
-    assert '--handoff "$RUNNER_TEMP/kb-handoff-client.json"' in client.split("bump.py regen")[0]
-    assert '--accept client-build --handoff "$RUNNER_TEMP/kb-handoff-client.json"' in client
-    assert all("--accept" not in r or "--handoff" in r or "--release" in r for r in run.values())
+    run = [s.get("run", "") for s in steps]
+    assert all("--accept" not in r or "--handoff" in r or "--release" in r for r in run)
+
+
 def test_hidden_text_is_stripped_before_the_model_reads_the_page(state, capsys):
     """A page hiding an instruction in the Tags block (raw, and as numeric
     entities), a bidi override and a zero-width space: the model's prompt,
