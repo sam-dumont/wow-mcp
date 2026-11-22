@@ -146,21 +146,58 @@ Its branch, PR and issues land in the public repository.
 a PR for a person). An issue (label `kb-watch`) is only for what a gate or a check
 refused, and it says why.
 
-| Mode | When | What |
-|---|---|---|
-| `watch` | daily (05:40 UTC) | `tools/kb/watch.py`: client build (wago.tools), the official hotfix and patch-note pages (text hash; forum threads by post count), Polestar's release, the addons that publish on GitHub (Questie). Each change kind is handled in the run (below) and lands in the PR `kb-watch`. |
-| `refresh` | by hand | `tools/kb/refresh.py <page keys>`: the model pass alone, folded and gated like a watch. |
-| `sweep` | the 2nd of the month | `tools/kb/sweep.py`: every cited URL fetched once. Gone (404/410), changed since last month, and statements not checked for 120 days go to one issue (a list to look at, not a refusal); the new `sweep.json` lands in the PR. A 403 or 429 is "unreadable", not gone. |
-| `meta` | Mondays | `tools/kb/meta.py`: what people write about Forever, new since last week, through the model pass, then the Community corner and the lifecycle (below). Nothing new: no model call. |
+**Deterministic work never calls a model; the model reads prose once a
+week, and only what a free check flagged as changed** (owner, 2026-11-22).
+Before, the daily watch also ran the model on the official pages, and
+re-sent the same ~50K tokens of known statements uncached on every page:
+about 1.4M tokens and 7 euros in one week.
 
-What a watch run does with each change kind, before the PR:
+| Mode | When | Model | What |
+|---|---|---|---|
+| `watch` | daily (05:40 UTC) | never | `tools/kb/watch.py --kinds versions`: the upstream versions, like Dependabot: client build (wago.tools), Polestar's release, the addons that publish on GitHub (Questie). Each change kind is handled in the run (below) and lands in the PR `kb-watch`. A quiet day commits nothing and runs no gates. |
+| `review` | Mondays | on what changed | The free checks first: `watch.py --kinds official` (the official hotfix and patch-note pages: text hash, forum threads by post count) and `meta.py collect` (news, blue posts, guides new since last week). Then the model on what they flagged: the changed official pages (a thread's new posts only), the new items, the Community corner's new threads, and the lifecycle (below), whose re-verification asks only about pages changed since they last held. A quiet week makes no model call. PR `kb-review`. `meta`, its old name, still works. |
+| `refresh` | by hand | yes | `tools/kb/refresh.py <page keys>`: the model pass alone, folded and gated like a review. |
+| `sweep` | the 2nd of the month | never | `tools/kb/sweep.py`: every cited URL fetched once. Gone (404/410), changed since last month, and statements not checked for 120 days go to one issue (a list to look at, not a refusal); the new `sweep.json` lands in the PR. A 403 or 429 is "unreadable", not gone. |
+
+Every step of the three scheduled modes, and which side it is on:
+
+| Step | Mode | What it does | Side |
+|---|---|---|---|
+| version detection | watch | `watch.py --kinds versions`: wago.tools build, GitHub releases (Polestar's plain tags, Questie) | deterministic: a value compared with `watch.json` |
+| Polestar bump | watch | `bump.py polestar`: the licence terms (a text diff, Revision stamps and name counts ignored), the saved tables, the tag file | deterministic: a diff of files |
+| exports and test data | watch | the route, gear, forever, KB, class and trainer exports at the new tag, `bump.py regen` | deterministic: Polestar's own code |
+| addon contract | watch | `bump.py addons`: the `.toc` saved tables and the contract lines | deterministic: a text match |
+| client build | watch | `class_reference/export.py` against the new build, `bump.py regen` | deterministic: an export |
+| accept | all | `watch.py --accept`: today's values into `watch.json` | deterministic: state |
+| official pages, check | review | `watch.py --kinds official`: page text hash, a thread's post count | deterministic: a hash |
+| official pages, read | review, refresh | `refresh.py`: statements from the changed pages, a thread's new posts only | model: prose to statements |
+| reword | review, refresh | `refresh.reword`: one restatement of a proposal that copied its source | model: rewriting |
+| news and guides, check | review | `meta.py collect`: feed ids, blue post times, guide page hashes | deterministic: ids and hashes |
+| news and guides, read | review | `meta.py propose`: statements and the week's digest from the new items | model: prose to statements |
+| community, check | review | `community.py`: the week's top forum threads, minus the ones already shown | deterministic: Discourse JSON |
+| community, read | review | `community.py`: one line per new thread, the Reddit searches | model: summary and web search |
+| vet, fold, merge, expire, digests | review, refresh | `vet.py`, `lifecycle.py` | deterministic: schema and record rules |
+| re-verify, check | review | `lifecycle.py`: a stale statement's page fetched; gone, or unchanged since it last held (`watch.json` `verified`) | deterministic: status and hash (moved from the model, 2026-11-22) |
+| re-verify, read | review | `lifecycle.py`: the model's verdict on a changed page | model: does the page still say it |
+| sweep | sweep | `sweep.py`: every cited URL's status and hash | deterministic |
+| gates, PR, merge, issues | all | `gates.py`, `land.py`, `watch.py --github` | deterministic |
+
+The model's calls are listed in each run's job summary, one row a call
+with `cache_creation_input_tokens` and `cache_read_input_tokens`. The
+official pass sends the known statements as its first block, sorted and
+the same bytes on every page and every run, cached for an hour when it
+reads three pages or more (an hour's write costs twice the input; under
+three pages it costs more than it saves).
+
+What a watch run does with each change kind, before the PR (`official` is
+the review's):
 
 | Kind | The job | Refused when |
 |---|---|---|
 | `polestar` | `tools/kb/bump.py polestar <tag>` checks the release, writes the tag to `tools/polestar-tag` (and the clone lines and `THIRD_PARTY.md` that name it), clones Polestar there and reruns every export that reads it (route, gear and forever references, `kb-reference.json.gz`, the class and trainer references), then `watch.py --accept polestar`. Then `bump.py regen` reruns `tools/fixtures/generate.py` and the layer pages' snapshot (`WOW_UPDATE_SNAPSHOT=1`), as a person does after a bump. The exports run Polestar's own code, without the job's OIDC or runtime token in reach. The gates' test suite runs `tests/test_gear_parity.py` against that checkout. | its `Polestar.toc` saves other tables, a LICENSE, NOTICE or COPYING file changed (THIRD_PARTY.md copies them; a data notice line that only moved a source's `Revision:` or a count of names taken doesn't count, since every data build moves those), an export fails, or the fixture generator fails. Polestar is the source of truth: route times, levels and gear scores that move with a release are taken, and the test data moves with them (owner, 2026-11-22) |
 | `addons` | `bump.py addons` reads each new release's `.toc` and the source lines `watch.json`'s `contract` names (Questie: `Questie_Forever.toc`, and `Questie.db.char.complete = ` in `QuestieQuest.lua`, what `shipper/wow_stats.py` reads), then `watch.py --accept addons`. | a saved table is renamed or gone, or a contract line is gone |
 | `client-build` | `tools/class_reference/export.py` against the new build, `bump.py regen`, then `watch.py --accept client-build`. | the export fails, or the test data moved |
-| `official` | the model pass on the changed pages, its `refresh-<date>.json` folded into the lanes at once (`lifecycle.py --no-fetch`: a `supersedes` replaces its statement), then `watch.py --accept official --only <the pages it read>`. | the model pass isn't set up or fails, or its cost cap stopped it before a page |
+| `official` (review) | the model pass on the changed pages, its `refresh-<date>.json` folded into the lanes at once (`lifecycle.py --no-fetch`: a `supersedes` replaces its statement), then `watch.py --accept official --only <the pages it read>`. | the model pass isn't set up or fails, or its cost cap stopped it before a page |
 
 A release is read from the addon's repository at both tags through
 GitHub's API (files and blob hashes); its release notes are untrusted text
@@ -177,8 +214,8 @@ refuses what the schema refuses; refused proposals are listed as open
 questions. Spend is capped per run (`KB_REFRESH_MAX_USD`, $3): the run
 stops before a call that would likely cross it.
 
-Before a pass's records are folded (`refresh-<date>.json` in watch and
-refresh mode, `meta-<date>.json` in meta mode), `tools/kb/vet.py` folds a
+Before a pass's records are folded (`refresh-<date>.json` in review and
+refresh mode, `meta-<date>.json` in review mode), `tools/kb/vet.py` folds a
 copy of the KB the same way and runs the gates' per-record checks
 (`gates.record_problems`: the schema with its lane's shape, licence,
 multi-source, instruction-shaped text) on every record the fold added or
@@ -353,7 +390,7 @@ Reddit is skipped. The full view's "This week on Forever" shows them under
 "What players are saying", each linking to its thread; the MCP's `news` has
 them in `community`, or alone with `category=community`.
 
-The PR (`kb-meta`) holds that week's statements, folded into their
+The PR (`kb-review`) holds that week's statements, folded into their
 lanes by the lifecycle (below), its digest in `news.json`,
 `data/kb/community.json` and `watch.json` moved past what was read, and
 merges when the gates pass. When the cost cap stops the pass,
@@ -469,7 +506,7 @@ it in the fork itself:
    service account, then set the repository **variables** (not secrets:
    none of them is one) `ANTHROPIC_FEDERATION_RULE_ID`,
    `ANTHROPIC_ORGANIZATION_ID`, `ANTHROPIC_SERVICE_ACCOUNT_ID` and
-   `ANTHROPIC_WORKSPACE_ID`. Without them, `refresh` and `meta` stop after
+   `ANTHROPIC_WORKSPACE_ID`. Without them, `refresh` and `review` stop after
    collecting, with a notice, and the run stays green.
    `KB_REFRESH_MAX_USD` in the workflow caps a run's spend (3 USD).
 4. **A schedule (optional).** The workflow has no `schedule:` trigger:
@@ -478,8 +515,8 @@ it in the fork itself:
    for instance a cron line on a machine you own:
 
    ```sh
-   gh workflow run kb-refresh.yaml -R <owner>/<repo> -f mode=watch   # daily
-   gh workflow run kb-refresh.yaml -R <owner>/<repo> -f mode=meta    # weekly
+   gh workflow run kb-refresh.yaml -R <owner>/<repo> -f mode=watch   # daily, no model
+   gh workflow run kb-refresh.yaml -R <owner>/<repo> -f mode=review  # weekly, the model
    gh workflow run kb-refresh.yaml -R <owner>/<repo> -f mode=sweep   # monthly
    ```
 

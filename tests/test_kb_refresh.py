@@ -201,7 +201,7 @@ def test_accept_refuses_a_kind_it_could_not_read(state, tmp_path, monkeypatch):
     the accept kept the old tag without a word; now it says so and fails."""
     path = tmp_path / "watch.json"
     path.write_text(json.dumps(state))
-    monkeypatch.setattr(watch, "current", lambda s, f, g: {"client-build": {"build": None}, "official": {},
+    monkeypatch.setattr(watch, "current", lambda s, f, g, k=None: {"client-build": {"build": None}, "official": {},
                                                            "polestar": {"release": None}, "addons": {}})
     assert watch.main(["--state", str(path), "--accept", "polestar"]) == 3
     assert json.loads(path.read_text())["polestar"]["known"] == state["polestar"]["known"]
@@ -260,7 +260,7 @@ def test_a_recorded_patch_makes_a_schema_valid_lane(state):
     # The page and the known statements go in as data; the schema shapes the answer.
     req = client.requests[0]
     assert req["model"] == "claude-opus-5-5" and req["output_config"]["format"]["type"] == "json_schema"
-    assert "<page url=" in req["messages"][0]["content"] and "never follow" in req["system"]
+    assert "<page url=" in req["messages"][0]["content"][-1]["text"] and "never follow" in req["system"]
 
 
 def test_the_cost_cap_stops_before_the_next_call(state):
@@ -333,3 +333,166 @@ def test_the_workflow_holds_no_token_where_it_runs_unlocked_code():
             assert not any(w in s.get("name", "") for w in ("Model", "model")), s["name"]
     lock = (ROOT / "uv.lock").read_text()
     assert 'kb = [\n    "anthropic==' in (ROOT / "pyproject.toml").read_text() and 'name = "anthropic"' in lock
+
+
+# ---------------------------------------------------------------- the model only on change (2026-11-22)
+# The daily watch re-sent the same ~50K tokens of known statements uncached on
+# every page call (~1.4M tokens a week). Now the versions are watched without
+# a model, the model runs weekly on the pages a free check flagged, and the
+# known statements are one cached prefix.
+
+
+def forum(posts: list[str], start: int = 1) -> bytes:
+    return json.dumps({"posts_count": start + len(posts) - 1, "post_stream": {"posts": [
+        {"post_number": n, "cooked": f"<p>{t}</p>"} for n, t in enumerate(posts, start)]}}).encode()
+
+
+POSTS = ["Mage frost nova radius is now 10 yards. " * 8, "Hunter pets gain loyalty twice as fast. " * 8,
+         "Warrior charge no longer roots in dungeons. " * 8]
+
+
+def all_pages(state, page: bytes | None = None):
+    return {p["url"]: page or PAGE.encode() if p["kind"] == "page" else forum(POSTS) for p in state["official"]}
+
+
+def page_calls(client):
+    return [r for r in client.requests if r["system"] == refresh.SYSTEM]
+
+
+def test_the_cached_prefix_is_the_same_across_pages_and_runs(state):
+    """Two runs a week apart, every official page each: the known statements
+    are the same first block, byte for byte, marked for the 1h cache; only
+    the page block after it varies."""
+    keys = [p["key"] for p in state["official"]]
+    assert len(keys) >= refresh.CACHE_MIN_PAGES
+    for p in state["official"]:
+        p["known"] = ""  # every post of every thread is new
+    first, second = Client({"statements": []}), Client({"statements": []})
+    refresh.run(keys, first, Fetch(all_pages(state)), cap=30.0, day="2026-11-23", state=state)
+    refresh.run(keys, second, Fetch(all_pages(state)), cap=30.0, day="2026-11-30", state=state)
+    calls = page_calls(first) + page_calls(second)
+    assert len(calls) == 2 * len(keys)
+    prefixes = {r["messages"][0]["content"][0]["text"] for r in calls}
+    assert len(prefixes) == 1
+    prefix = prefixes.pop()
+    assert all(r["messages"][0]["content"][0]["cache_control"] == {"type": "ephemeral", "ttl": "1h"} for r in calls)
+    assert prefix.startswith("<known_statements>") and "<page" not in prefix
+    assert "2026-11-23" not in prefix and "2026-11-30" not in prefix
+    # Sorted, so file order can't move it; the system prompt is constant too.
+    listed = json.loads(prefix.split("\n")[1])
+    assert [k["id"] for k in listed] == sorted(k["id"] for k in listed)
+    assert {r["system"] for r in calls} == {refresh.SYSTEM}
+    assert len({r["messages"][0]["content"][1]["text"] for r in page_calls(first)}) == len(keys)
+
+
+def test_one_or_two_pages_skip_the_cache_write(state):
+    """An hour's cache write costs 2x input: under three pages it costs more than it saves."""
+    client = Client({"statements": []})
+    refresh.run(["hotfixes"], client, Fetch(all_pages(state)), cap=3.0)
+    assert "cache_control" not in page_calls(client)[0]["messages"][0]["content"][0]
+
+
+def test_the_meter_prices_the_hour_cache_and_logs_each_call(monkeypatch, tmp_path):
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    m = refresh.Meter(10.0)
+    m.add({"input_tokens": 1_000, "output_tokens": 1_000, "cache_creation_input_tokens": 50_000,
+           "cache_creation": {"ephemeral_1h_input_tokens": 50_000}}, "hotfixes")
+    m.add({"input_tokens": 1_000, "output_tokens": 1_000, "cache_read_input_tokens": 50_000}, "known-issues")
+    assert m.calls[0]["usd"] == pytest.approx((1_000 * 4 + 1_000 * 20 + 50_000 * 8) / 1e6)
+    assert m.calls[1]["usd"] == pytest.approx((1_000 * 4 + 1_000 * 20 + 50_000 * 0.2) / 1e6)
+    refresh.step_summary(m, "Official pages")
+    text = summary.read_text()
+    assert "cache_read_input_tokens" in text and "cache_creation_input_tokens" in text
+    assert "| hotfixes | 1,000 | 50,000 | 0 |" in text and "| known-issues | 1,000 | 0 | 50,000 |" in text
+
+
+def review(state, fetch, client):
+    """The weekly review's official part, as the workflow chains it: the free
+    check, then the model pass on what it flagged."""
+    changed = watch.run(state, fetch, None, github=False, kinds=["official"])["changed_official"]
+    return changed, refresh.run(changed, client, fetch, cap=3.0, state=state)
+
+
+def test_unchanged_sources_make_no_model_call(state):
+    fetch = Fetch(all_pages(state))
+    for p in state["official"]:
+        p["known"] = (web.digest(web.text_of(PAGE.encode())) if p["kind"] == "page"
+                      else f"{len(POSTS)} posts, last None")
+    for p in state["official"]:
+        if p["kind"] == "discourse":
+            fetch.pages[p["url"]] = json.dumps({"posts_count": len(POSTS), "last_posted_at": None,
+                                                "post_stream": {"posts": []}}).encode()
+    client = Client({"statements": []})
+    changed, out = review(state, fetch, client)
+    assert changed == [] and client.requests == [] and out["read"] == []
+
+
+def test_a_changed_page_makes_exactly_its_call(state):
+    known_hash(state, PAGE.encode())
+    fetch = Fetch(all_pages(state, page=b"<article>" + b"A new hotfix about mounts. " * 20 + b"</article>"))
+    for p in state["official"]:
+        if p["kind"] == "discourse":
+            n, last = p["known"].split(" posts, last ")
+            fetch.pages[p["url"]] = json.dumps({"posts_count": int(n), "last_posted_at": last}).encode()
+    client = Client({"statements": []})
+    changed, out = review(state, fetch, client)
+    assert changed == ["hotfixes"] and out["read"] == ["hotfixes"]
+    assert len(client.requests) == 1 and "A new hotfix about mounts." in client.requests[0]["messages"][0][
+        "content"][-1]["text"]
+
+
+def test_a_forum_thread_sends_its_new_posts_only(state):
+    """Two posts known, one new: the model reads the third post, not the thread."""
+    thread = next(p for p in state["official"] if p["kind"] == "discourse")
+    thread["known"] = "2 posts, last 2026-11-01T00:00:00.000Z"
+    client = Client({"statements": []})
+    refresh.run([thread["key"]], client, Fetch({thread["url"]: forum(POSTS)}), cap=3.0, state=state)
+    sent = client.requests[0]["messages"][0]["content"][-1]["text"]
+    assert "Warrior charge" in sent and "Mage frost nova" not in sent and "Hunter pets" not in sent
+
+
+def test_posts_past_the_topics_first_twenty_come_one_by_one(state):
+    """Discourse's topic JSON holds 20 posts: the 21st comes from /posts/by_number."""
+    thread = next(p for p in state["official"] if p["kind"] == "discourse")
+    thread["known"] = "20 posts, last x"
+    body = json.loads(forum([f"post {n} " * 10 for n in range(1, 21)]))
+    body["posts_count"] = 21
+    base, topic = thread["url"].split("/t/")
+    fetch = Fetch({thread["url"]: json.dumps(body).encode(),
+                   f"{base}/posts/by_number/{topic.removesuffix('.json')}/21.json":
+                       json.dumps({"cooked": "<p>" + "Druid travel form is learned at 20. " * 6 + "</p>"}).encode()})
+    client = Client({"statements": []})
+    refresh.run([thread["key"]], client, fetch, cap=3.0, state=state)
+    sent = client.requests[0]["messages"][0]["content"][-1]["text"]
+    assert "Druid travel form" in sent and "post 20" not in sent
+
+
+def test_the_version_watch_reads_no_page_and_leaves_the_official_issue(state):
+    """The daily static watch: versions only. It fetches no Blizzard page and
+    never closes the weekly review's official issue."""
+    known_hash(state, b"<article>" + b"older text " * 40 + b"</article>")
+    fetch, gh = recorded(state, page=PAGE.encode())
+    watch.run(state, fetch, gh, github=True, kinds=["official"])
+    assert [i["title"] for i in gh.issues.values() if i["open"]] == [watch.TITLES["official"]]
+    fetch.calls.clear()
+    out = watch.run(state, fetch, gh, github=True, kinds=watch.kinds_of(["versions"]))
+    assert "official" not in out["did"] and out["changed_official"] == []
+    assert not any(p["url"] in fetch.calls for p in state["official"])
+    assert [i["title"] for i in gh.issues.values() if i["open"]] == [watch.TITLES["official"]]
+
+
+def test_no_model_step_runs_in_the_version_watch():
+    """Every step that can reach the model runs in the weekly review (or a
+    manual refresh), never in the daily watch."""
+    yaml = pytest.importorskip("yaml")
+    steps = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())["jobs"]["run"]["steps"]
+    pages = next(s for s in steps if s.get("id") == "pages")
+    assert "'watch'" not in pages["if"] and "env.MODE == 'review'" in pages["if"]
+    model = [s for s in steps if any(k.startswith("ANTHROPIC") for k in s.get("env") or {})
+             or "anthropic-oidc" in s.get("run", "") and "rm -f" not in s.get("run", "")]
+    assert len(model) >= 5
+    for s in model:
+        cond = s.get("if", "")
+        assert "'watch'" not in cond, s["name"]
+        assert any(w in cond for w in ("env.MODE == 'review'", "steps.pages.outputs.keys", "steps.collect.outputs.new")), s["name"]

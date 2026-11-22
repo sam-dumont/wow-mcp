@@ -274,3 +274,21 @@ def test_the_shipped_file_if_any_holds_the_stored_fields_only():
     for w in json.loads(p.read_text())["weeks"]:
         for it in w["items"]:
             assert set(it) <= allowed and it["url"].startswith("https://")
+
+
+def test_a_week_with_nothing_new_makes_no_model_call(no_digest):
+    """2026-11-22: threads already shown are never sent again, and no new
+    thread with last week's searches means no call at all."""
+    first = Model(ANSWER)
+    items, out = community.run(Fetch(), first, cap=1.0, today=TODAY, searches=["Onyxia's Lair"])
+    doc = community.update({}, items, TODAY, out["searches"])
+    assert doc["searched"] == ["Onyxia's Lair"] and len(first.requests) == 1
+    again = Model(ANSWER)
+    items, out = community.run(Fetch(), again, cap=1.0, today=TODAY, searches=["Onyxia's Lair"],
+                               seen=community.shown(doc), last=doc["searched"])
+    assert again.requests == [] and items == [] and "skipped" in out["model"]
+    # A new search topic (an event announced) is a change: one call, without the threads already shown.
+    third = Model(ANSWER)
+    community.run(Fetch(), third, cap=1.0, today=TODAY, searches=["Onyxia's Lair", "Darkmoon Faire"],
+                  seen=community.shown(doc), last=doc["searched"])
+    assert len(third.requests) == 1 and "<thread n=" not in third.requests[0]["messages"][0]["content"]

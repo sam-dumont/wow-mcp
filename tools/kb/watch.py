@@ -1,6 +1,7 @@
-"""The knowledge base's daily watchers: deterministic, no model.
+"""The knowledge base's watchers: deterministic, no model.
 
-    uv run python tools/kb/watch.py            # print what changed
+    uv run python tools/kb/watch.py                      # print what changed
+    uv run python tools/kb/watch.py --kinds versions     # the upstream versions only
     uv run python tools/kb/watch.py --accept official [--only hotfixes]  # record today's values
     uv run python tools/kb/watch.py --github --why why.json   # the issues, at the end of a run
 
@@ -8,25 +9,29 @@ Compares what data/kb/watch.json knows (the values the KB was last checked
 against) with today's:
 
 - client-build: Forever's current client build on wago.tools;
-- official: Blizzard's hotfix and patch-note pages (a page's normalised
-  text hash; a forum thread's post count and last post, from Discourse's
-  JSON);
 - polestar: the Polestar addon's newest final release on GitHub, its tag a
   plain version (the repository also releases its desktop client,
   `client-v*`, and pre-releases: neither is the addon);
 - addons: the latest releases of the install docs' other addons that
   publish on GitHub (the CurseForge- and Wago-only ones have no keyless
-  feed: listed, not watched).
+  feed: listed, not watched);
+- official: Blizzard's hotfix and patch-note pages (a page's normalised
+  text hash; a forum thread's post count and last post, from Discourse's
+  JSON).
 
-The refresh job (.github/workflows/kb-refresh.yaml) handles each change
-itself and lands it in one PR that merges when the gates pass (owner,
-2026-11-20: "the goal is automated refreshes"): the model pass on the
-changed official pages, the Polestar bump and its exports, the addons'
-contract check (tools/kb/bump.py), and `--accept` for what went through.
-`--github` runs last: a kind back to its known value (the PR merged) closes
-its issue; a kind still changed keeps one issue (label kb-watch) that says
-why it wasn't merged (`--why`: {kind: reason}, written by the run's steps),
-or that the run stopped before a PR.
+The first three are upstream versions (`--kinds versions`): the refresh
+job's daily `watch` mode (.github/workflows/kb-refresh.yaml) lands each one
+like Dependabot would, with no model at all: the Polestar bump and its
+exports, the addons' contract check (tools/kb/bump.py), the class reference
+for a new build. `official` is prose a model has to read: the weekly
+`review` mode checks it here (`--kinds official`, free) and runs the model
+pass (tools/kb/refresh.py) only on the pages that changed (owner,
+2026-11-22: the deterministic part as often as needed, the model once a
+week). `--accept` records what went through. `--github` runs last: a kind
+back to its known value (the PR merged) closes its issue; a kind still
+changed keeps one issue (label kb-watch) that says why it wasn't merged
+(`--why`: {kind: reason}, written by the run's steps), or that the run
+stopped before a PR. Each mode keeps only its own kinds' issues.
 """
 
 from __future__ import annotations
@@ -49,19 +54,35 @@ LABEL = "kb-watch"
 TAG = re.compile(r"^v\d+(\.\d+){1,4}$")
 TITLES = {"client-build": "KB watch: new Forever client build", "official": "KB watch: official patch notes changed",
           "polestar": "KB watch: new Polestar release", "addons": "KB watch: addon releases"}
+# Upstream versions, landed without a model; the rest is prose for the weekly review.
+VERSIONS = ("client-build", "polestar", "addons")
+GROUPS = {"versions": list(VERSIONS), "official": ["official"]}
 
 
-def current(state: dict, fetch, gh) -> dict:
-    """Today's value of every watched thing ({kind: {key: value}}); a value
-    that can't be read is None (said in the issue, never a change)."""
+def kinds_of(names: list[str] | None) -> list[str]:
+    """Kind names, `versions` standing for the three upstream ones; none given: all."""
+    out = [k for n in names or list(TITLES) for k in GROUPS.get(n, [n])]
+    bad = [k for k in out if k not in TITLES]
+    if bad:
+        raise SystemExit(f"unknown kind: {', '.join(bad)}")
+    return [k for k in TITLES if k in out]
+
+
+def current(state: dict, fetch, gh, kinds: list[str] | None = None) -> dict:
+    """Today's value of every watched thing of `kinds` (default all), as
+    {kind: {key: value}}; a value that can't be read is None (said in the
+    issue, never a change). A kind not asked for is {} and nothing is fetched
+    for it."""
+    kinds = list(TITLES) if kinds is None else kinds
     out: dict[str, dict] = {"client-build": {}, "official": {}, "polestar": {}, "addons": {}}
-    b = state["client_build"]
-    status, body = fetch.get(b["url"])
-    try:
-        out["client-build"]["build"] = json.loads(body)["version"] if status == 200 else None
-    except (ValueError, KeyError):
-        out["client-build"]["build"] = None
-    for p in state["official"]:
+    if "client-build" in kinds:
+        b = state["client_build"]
+        status, body = fetch.get(b["url"])
+        try:
+            out["client-build"]["build"] = json.loads(body)["version"] if status == 200 else None
+        except (ValueError, KeyError):
+            out["client-build"]["build"] = None
+    for p in state["official"] if "official" in kinds else []:
         status, body = fetch.get(p["url"])
         if status != 200:
             out["official"][p["key"]] = None
@@ -74,8 +95,9 @@ def current(state: dict, fetch, gh) -> dict:
         else:
             text = web.text_of(body)
             out["official"][p["key"]] = web.digest(text) if len(text) > 200 else None
-    out["polestar"]["release"] = polestar_release(gh, state["polestar"]["repo"]) if gh else None
-    for a in state["addons"]:
+    if "polestar" in kinds:
+        out["polestar"]["release"] = polestar_release(gh, state["polestar"]["repo"]) if gh else None
+    for a in state["addons"] if "addons" in kinds else []:
         if a.get("repo"):
             out["addons"][a["name"]] = gh.latest_release(a["repo"]) if gh else None
     return out
@@ -135,14 +157,16 @@ def run_link() -> str:
     return "the refresh job's run"
 
 
-def report(state: dict, now: dict, was: dict, why: dict | None = None) -> dict[str, str | None]:
-    """{kind: issue body, or None when nothing of that kind changed}. `why`:
-    {kind: why the run didn't land it}; a changed kind without one means the
-    run stopped before its PR (a failed step)."""
+def report(state: dict, now: dict, was: dict, why: dict | None = None,
+           kinds: list[str] | None = None) -> dict[str, str | None]:
+    """{kind: issue body, or None when nothing of that kind changed}, for
+    `kinds` (default all). `why`: {kind: why the run didn't land it}; a
+    changed kind without one means the run stopped before its PR (a failed
+    step)."""
     out: dict[str, str | None] = {}
     why = why or {}
     day = datetime.now(UTC).date().isoformat()
-    for kind in TITLES:
+    for kind in kinds or TITLES:
         changed = [(k, was[kind].get(k), v) for k, v in now[kind].items() if v is not None and v != was[kind].get(k)]
         unread = [k for k, v in now[kind].items() if v is None]
         if not changed:
@@ -193,9 +217,10 @@ def changes(state: dict, now: dict) -> dict:
     return {"kinds": kinds, "changed_official": official, "polestar_tag": tag}
 
 
-def run(state: dict, fetch, gh, github: bool, why: dict | None = None) -> dict:
-    now = current(state, fetch, gh)
-    bodies = report(state, now, known(state), why)
+def run(state: dict, fetch, gh, github: bool, why: dict | None = None, kinds: list[str] | None = None) -> dict:
+    kinds = list(TITLES) if kinds is None else kinds
+    now = current(state, fetch, gh, kinds)
+    bodies = report(state, now, known(state), why, kinds)
     did = {}
     for kind, body in bodies.items():
         did[kind] = web.keep_issue(gh, kind, LABEL, TITLES[kind], body,
@@ -212,13 +237,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--accept", nargs="*", metavar="KIND", help="record today's values (all kinds if none given)")
     ap.add_argument("--only", nargs="*", metavar="KEY", help="--accept official: only these page keys")
     ap.add_argument("--release", help="--accept polestar: this tag, not a fresh read")
+    ap.add_argument("--kinds", nargs="*", metavar="KIND",
+                    help="only these kinds (`versions`: client-build, polestar and addons); default all")
     a = ap.parse_args(argv)
     path = Path(a.state)
     state = json.loads(path.read_text(encoding="utf-8"))
     gh = web.GitHub(web.repo())
+    watched = kinds_of(a.kinds)
     if a.accept is not None:
-        kinds = a.accept or list(TITLES)
-        now = current(state, web.Fetcher(), gh)
+        kinds = kinds_of(a.accept) if a.accept else watched
+        now = current(state, web.Fetcher(), gh, kinds)
         if a.release:
             # The tag the job checked and exported (a step without GH_TOKEN can't read it again).
             now["polestar"]["release"] = a.release if TAG.match(a.release) else None
@@ -233,7 +261,7 @@ def main(argv: list[str] | None = None) -> int:
         path.write_text(json.dumps(new, indent=2) + "\n", encoding="utf-8")
         return 0
     why = json.loads(Path(a.why).read_text(encoding="utf-8")) if a.why and Path(a.why).exists() else {}
-    out = run(state, web.Fetcher(), gh, a.github, why)
+    out = run(state, web.Fetcher(), gh, a.github, why, watched)
     print(json.dumps({"did": out["did"], "kinds": out["kinds"], "changed_official": out["changed_official"],
                       "polestar_tag": out["polestar_tag"]}, indent=1))
     if os.environ.get("GITHUB_OUTPUT") and not a.github:

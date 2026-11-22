@@ -5,7 +5,7 @@
     uv run --group kb python tools/kb/lifecycle.py --summary <file>   # the weekly job
     uv run python tools/kb/lifecycle.py --budget-issue   # the budget's one issue (GH_TOKEN)
 
-The weekly `meta` mode of kb-refresh runs it after the meta pass, in the same
+The weekly `review` mode of kb-refresh runs it after the meta pass, in the same
 PR. In order:
 
 1. fold: a pass's dated file (research/meta-<date>.json, refresh-<date>.json)
@@ -35,10 +35,14 @@ PR. In order:
    HISTORY_LINES lines at most. community.json, when there, keeps its
    newest DIGEST_WEEKS weeks.
 7. re-verify: statements not checked for STALE_DAYS, oldest first. Every
-   source gone (404/410): retired. Otherwise the model reads the page
-   (cost-capped, KB_LIFECYCLE_MAX_USD, default 1): holds, last_verified moves to today;
-   contradicted, retired; not found, kept and listed. Without a model or a
-   readable page: kept and listed.
+   source gone (404/410): retired. A page whose text hash is the one the
+   model last confirmed a statement against (data/kb/watch.json
+   `verified`) still holds it: last_verified moves to today with no model
+   call (2026-11-22: a quiet week makes none). Otherwise the model reads the
+   page (cost-capped, KB_LIFECYCLE_MAX_USD, default 1): holds, last_verified
+   moves to today and the page's hash is recorded; contradicted, retired;
+   not found, kept and listed. Without a model or a readable page: kept and
+   listed.
 8. compact: `sources` dropped when it only repeats source_url; one record
    per line.
 9. budget: data/kb/budget.json caps each file and the total. Over: one issue
@@ -68,6 +72,7 @@ from wowstats.analysis import kbschema  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 KB = ROOT / "data" / "kb"
+STATE = KB / "watch.json"  # the watchers' state; `verified` is the re-verification's
 LABEL = "kb-watch"
 DATED = re.compile(r"^(meta|refresh)-(\d{4}-\d{2}-\d{2})$")
 GRACE_DAYS = kbschema.GRACE_DAYS
@@ -475,12 +480,17 @@ def stale(tree: dict, today: date) -> list[dict]:
     return sorted(old, key=lambda s: str(s.get("last_verified") or ""))
 
 
-def reverify(tree: dict, today: date, fetch, client=None, meter=None, report: dict | None = None) -> None:
-    """Gone sources retire their statements; the model's verdict on a page
-    refreshes or retires the rest; what nobody could read is listed."""
+def reverify(tree: dict, today: date, fetch, client=None, meter=None, report: dict | None = None,
+             memo: dict | None = None) -> None:
+    """Gone sources retire their statements; a page unchanged since the model
+    confirmed a statement against it keeps that one, no call; the model's
+    verdict on a page refreshes or retires the rest; what nobody could read
+    is listed. `memo`: {url: {"hash", "ids"}}, the pages' text hashes when
+    the model last said they hold those statements, updated here."""
     import refresh
 
     report = report if report is not None else new_report()
+    memo = memo if memo is not None else {}
     by_url: dict[str, list[dict]] = {}
     for s in stale(tree, today):
         by_url.setdefault(s["source_url"], []).append(s)
@@ -493,13 +503,22 @@ def reverify(tree: dict, today: date, fetch, client=None, meter=None, report: di
                 report["retired"].append(f"{s['id']}: every source gone")
         rows = [s for s in rows if s["id"] not in retire]
         status, body = pages.get(url, (0, b""))
+        text = web.text_of(body) if status == 200 and body else ""
+        h = web.digest(text) if text else ""
+        seen = memo.get(url) or {}
+        if h and seen.get("hash") == h:
+            for s in rows:
+                if s["id"] in seen.get("ids", []):
+                    s["last_verified"] = day
+                    report["unchanged"].append(s["id"])
+            rows = [s for s in rows if s["id"] not in seen.get("ids", [])]
         if not rows:
             continue
-        if client is None or status != 200 or not body:
+        if client is None or not text:
             report["unverified"] += [s["id"] for s in rows]
             continue
         listed = "\n".join(f"- {s['id']}: {s['text']}" for s in rows)
-        content = (f"<page url=\"{url}\">\n{web.text_of(body)[:MAX_PAGE]}\n</page>\n\n<statements>\n{listed}\n"
+        content = (f"<page url=\"{url}\">\n{text[:MAX_PAGE]}\n</page>\n\n<statements>\n{listed}\n"
                    "</statements>\n\nGive one verdict per statement.")
         try:
             got = refresh.call(client, meter, VERIFY_SYSTEM, VERIFY_SCHEMA, content, url, whole=True)
@@ -508,18 +527,28 @@ def reverify(tree: dict, today: date, fetch, client=None, meter=None, report: di
                                      if s["id"] not in retire]
             break
         verdict = {v.get("id"): v for v in got.get("verdicts") or []}
+        held = set(seen.get("ids", [])) if seen.get("hash") == h else set()
         for s in rows:
             v = (verdict.get(s["id"]) or {}).get("verdict")
             if v == "holds":
                 s["last_verified"] = day
                 report["reverified"].append(s["id"])
+                held.add(s["id"])
             elif v == "contradicted":
                 retire.add(s["id"])
                 report["retired"].append(f"{s['id']}: its source now says otherwise")
             else:
                 report["unverified"].append(s["id"])
+        if held:
+            memo[url] = {"hash": h, "ids": sorted(held)}
     if retire:
         _remove(tree, retire)
+    # Only statements still in the tree, only pages still cited.
+    alive = set(statements(tree))
+    for url in list(memo):
+        memo[url]["ids"] = [i for i in memo[url].get("ids", []) if i in alive]
+        if not memo[url]["ids"]:
+            del memo[url]
 
 
 # ------------------------------------------------------------------ 8. compact
@@ -573,10 +602,10 @@ def budget_body(over: list[str]) -> str | None:
 
 def new_report() -> dict:
     return {k: [] for k in ("folded", "superseded", "expired", "merged", "resolved_contradictions", "compacted",
-                            "retired", "reverified", "unverified", "refused")}
+                            "retired", "reverified", "unchanged", "unverified", "refused")}
 
 
-def run(tree: dict, today: date, fetch=None, client=None, meter=None) -> dict:
+def run(tree: dict, today: date, fetch=None, client=None, meter=None, memo: dict | None = None) -> dict:
     report = new_report()
     day = today.isoformat()
     fold(tree, day, report)
@@ -584,7 +613,7 @@ def run(tree: dict, today: date, fetch=None, client=None, meter=None) -> dict:
     expire(tree, today, report)
     merge(tree, report)
     if fetch is not None:
-        reverify(tree, today, fetch, client, meter, report)
+        reverify(tree, today, fetch, client, meter, report, memo)
     dangling(tree, report)
     window(tree, today, report)
     compact(tree)
@@ -606,6 +635,7 @@ def summary(report: dict, before: dict[str, int], after: dict[str, int], over: l
                       ("resolved_contradictions", "Contradictions with nothing left to contradict"),
                       ("compacted", "Weeks compacted into digest-history.json"),
                       ("retired", "Retired at re-verification"), ("reverified", "Re-verified"),
+                      ("unchanged", "Re-verified without the model (page unchanged since it last held)"),
                       ("unverified", "Stale and not re-verified (kept)")):
         if report[key]:
             xs = report[key]
@@ -642,8 +672,16 @@ def main(argv: list[str] | None = None) -> int:
         import refresh
 
         client, meter = anthropic.Anthropic(), refresh.Meter(float(os.environ.get("KB_LIFECYCLE_MAX_USD") or 1))
-    report = run(tree, today, None if a.no_fetch else web.Fetcher(), client, meter)
+    state = json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
+    memo = json.loads(json.dumps(state.get("verified") or {}))
+    report = run(tree, today, None if a.no_fetch else web.Fetcher(), client, meter, memo)
     written = [] if a.dry_run else write(tree)
+    if state and not a.dry_run and not a.no_fetch and memo != (state.get("verified") or {}):
+        state["verified"] = dict(sorted(memo.items()))
+        STATE.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+        written.append("watch.json (verified)")
+    if meter is not None:
+        refresh.step_summary(meter, "Re-verification (tools/kb/lifecycle.py)")
     after = sizes()
     over = over_budget()
     print(json.dumps({**{k: len(v) for k, v in report.items()}, "written": written, "before": sum(before.values()),

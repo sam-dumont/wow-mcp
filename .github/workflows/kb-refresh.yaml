@@ -17,25 +17,38 @@
 # 2026-11-20: "the goal is automated refreshes"); an issue (label kb-watch)
 # is only for what the gates or a check refused, and says why.
 #
-# - watch (daily): deterministic watchers (tools/kb/watch.py) on the client
-#   build, Blizzard's official hotfix and patch-note pages, the Polestar
-#   release and the install docs' addons. Each change kind is handled here:
-#   * polestar: tools/kb/bump.py checks the new tag (its saved tables and
-#     licence files unchanged), moves tools/polestar-tag, and the exports
+# Deterministic work runs as often as it likes and never calls a model;
+# a model only reads prose, once a week, and only what changed (owner,
+# 2026-11-22: "the kb watch is doing stuff that are deterministic and stuff
+# that needs llms"; nine daily runs re-sent the same known statements
+# uncached, ~1.4M tokens a week).
+#
+# - watch (daily, no model, like Dependabot): the upstream versions
+#   (tools/kb/watch.py --kinds versions): the client build, the Polestar
+#   release and the install docs' addons. Each change kind is landed here:
+#   * polestar: tools/kb/bump.py checks the new tag (its licence terms and
+#     saved tables unchanged), moves tools/polestar-tag, and the exports
 #     (docs/route-reference.md and its siblings) rerun at the new tag;
 #   * addons: bump.py checks each release still saves what the shipper reads;
-#   * client-build: the class reference rerun against the new build;
-#   * official: the model pass (tools/kb/refresh.py) proposes statements
-#     from the changed pages, the lifecycle folds them into their lanes.
+#   * client-build: the class reference rerun against the new build.
 #   What went through is accepted into data/kb/watch.json; a kind a check
 #   refused stays out of the PR and keeps its issue, with the reason.
+# - review (weekly): the model's week. Free checks first, then the model on
+#   what they flagged, nothing else:
+#   * official: Blizzard's hotfix and patch-note pages (watch.py --kinds
+#     official: text hash, a forum thread's post count); the model pass
+#     (tools/kb/refresh.py) reads the changed pages only, a thread's new
+#     posts only, with the known statements cached for an hour;
+#   * meta: what people write about Forever, new since watch.json's `meta`
+#     (tools/kb/meta.py collect, then propose);
+#   * the Community corner (tools/kb/community.py): new forum threads;
+#   * the lifecycle (tools/kb/lifecycle.py: fold, expire, merge, digests,
+#     and re-verify, which asks the model only about a page changed since
+#     it last held).
+#   `meta` is the old name of this mode, still accepted.
 # - refresh: the model pass alone, on the pages named in `pages`.
-# - sweep (monthly): every cited URL fetched once (no model); gone and changed
+# - sweep (monthly, no model): every cited URL fetched once; gone and changed
 #   sources and stale statements go to one issue, the new sweep.json to the PR.
-# - meta (weekly): what people write about Forever, new since watch.json's
-#   `meta` (tools/kb/meta.py), the Community corner (tools/kb/community.py),
-#   then the lifecycle (tools/kb/lifecycle.py: fold, expire, merge,
-#   re-verify, digests).
 #
 # Before a model pass's records are folded, tools/kb/vet.py folds a copy and
 # drops each of the pass's records a gate below would refuse (the schema with
@@ -61,8 +74,9 @@
 # the next run of the mode adds nothing and stays with that PR instead.
 #
 # Manual only: no `schedule:`, since GitHub's cron runs hours late or not at
-# all. The owner's scheduler dispatches it on time (watch daily, meta Mondays,
-# sweep on the 2nd); a fork dispatches it from its own scheduler (docs/kb.md).
+# all. The owner's scheduler dispatches it on time (watch daily, review
+# Mondays, sweep on the 2nd); a fork dispatches it from its own scheduler
+# (docs/kb.md).
 #
 # The model pass has no API key: GitHub's OIDC token is exchanged for a
 # short-lived Anthropic token (Workload Identity Federation), and the
@@ -80,9 +94,9 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: watch, refresh, sweep or meta
+        description: watch (versions, no model), review (the weekly model pass), refresh, sweep; meta = review
         type: choice
-        options: [watch, refresh, sweep, meta]
+        options: [watch, review, refresh, sweep, meta]
         default: watch
       pages:
         description: "refresh mode: page keys from data/kb/watch.json (space-separated)"
@@ -118,8 +132,9 @@ jobs:
     env:
       # The model pass's spend cap per run, in USD (tools/kb/refresh.py).
       KB_REFRESH_MAX_USD: "3"
-      MODE: ${{ inputs.mode }}
-      BRANCH: kb-${{ inputs.mode }}
+      # `meta`, the weekly review's old name, runs as `review`.
+      MODE: ${{ inputs.mode == 'meta' && 'review' || inputs.mode }}
+      BRANCH: kb-${{ inputs.mode == 'meta' && 'review' || inputs.mode }}
       # Where the branch, the PR and the issues go: gh reads GH_REPO, the
       # tools KB_REPO.
       KB_REPO: sam-dumont/wow-mcp
@@ -159,14 +174,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: uv run --frozen python tools/kb/land.py --check-open --branch "$BRANCH"
 
+      # Free: versions in watch mode, the official pages' hashes in review mode.
       - name: Watch
         id: watch
-        if: inputs.mode == 'watch'
+        if: env.MODE == 'watch' || env.MODE == 'review'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: uv run --frozen python tools/kb/watch.py
+          WATCH: ${{ env.MODE == 'watch' && 'versions' || 'official' }}
+        run: uv run --frozen python tools/kb/watch.py --kinds "$WATCH"
       - name: Nothing new while the last PR is open
-        if: inputs.mode == 'watch' && steps.open.outputs.pr != ''
+        if: (env.MODE == 'watch' || env.MODE == 'review') && steps.open.outputs.pr != ''
         env:
           KINDS: ${{ steps.watch.outputs.kinds }}
           PR: ${{ steps.open.outputs.pr }}
@@ -178,7 +195,7 @@ jobs:
       # --- Polestar: check, move the tag, rerun the exports, accept.
       - name: Polestar release, checked
         id: polestar
-        if: inputs.mode == 'watch' && steps.open.outputs.pr == '' && steps.watch.outputs.polestar_tag != ''
+        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && steps.watch.outputs.polestar_tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.watch.outputs.polestar_tag }}
@@ -194,7 +211,7 @@ jobs:
           # route-reference.yml's: Math.hypot and friends may round differently elsewhere.
           node-version: 24.5.0
       - name: Polestar at tools/polestar-tag
-        if: steps.polestar.outputs.ok == '1' || (inputs.mode == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'client-build'))
+        if: steps.polestar.outputs.ok == '1' || (env.MODE == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'client-build'))
         run: |
           set -eu
           sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends lua5.4
@@ -242,7 +259,7 @@ jobs:
 
       # --- Addons: check what the shipper reads, accept.
       - name: Addon releases, checked and accepted
-        if: inputs.mode == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'addons')
+        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'addons')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -254,7 +271,7 @@ jobs:
 
       # --- Client build: the class reference against the new build, accept.
       - name: Client build
-        if: inputs.mode == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'client-build')
+        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && contains(steps.watch.outputs.kinds, 'client-build')
         run: |
           set -u
           if uv run --frozen python tools/class_reference/export.py --polestar "$RUNNER_TEMP/polestar" \
@@ -271,7 +288,7 @@ jobs:
       # --- The model passes.
       - name: Pages for the model pass
         id: pages
-        if: (inputs.mode == 'watch' || inputs.mode == 'refresh') && steps.open.outputs.pr == ''
+        if: (env.MODE == 'review' || env.MODE == 'refresh') && steps.open.outputs.pr == ''
         env:
           CHANGED: ${{ steps.watch.outputs.changed_official }}
           ASKED: ${{ inputs.pages }}
@@ -282,7 +299,7 @@ jobs:
 
       - name: Meta, what's new (no model)
         id: collect
-        if: inputs.mode == 'meta' && steps.open.outputs.pr == ''
+        if: env.MODE == 'review' && steps.open.outputs.pr == ''
         run: uv run --frozen python tools/kb/meta.py collect --items "$RUNNER_TEMP/meta-items.json"
 
       - name: No model pass here (the ANTHROPIC_* variables aren't set)
@@ -292,7 +309,7 @@ jobs:
           jq --arg w "The model pass isn't set up (the ANTHROPIC_* repository variables, docs/kb.md): nothing read the changed pages." \
             '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
       - name: GitHub OIDC token for Anthropic
-        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (steps.pages.outputs.keys != '' || (inputs.mode == 'meta' && steps.open.outputs.pr == ''))
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (steps.pages.outputs.keys != '' || (env.MODE == 'review' && steps.open.outputs.pr == ''))
         run: |
           token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
             "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.anthropic.com" | jq -r .value)
@@ -366,7 +383,7 @@ jobs:
       # Forum titles only, no Reddit, without the ANTHROPIC_* variables.
       - name: Community, what players are saying
         id: community
-        if: inputs.mode == 'meta' && steps.open.outputs.pr == ''
+        if: env.MODE == 'review' && steps.open.outputs.pr == ''
         env:
           COMMUNITY_MAX_USD: "1"
           ANTHROPIC_IDENTITY_TOKEN_FILE: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID != '' && format('{0}/anthropic-oidc', runner.temp) || '' }}
@@ -380,7 +397,7 @@ jobs:
       # gone sources, the rest listed in the PR.
       - name: Lifecycle (fold, expire, merge, re-verify, digests)
         id: lifecycle
-        if: inputs.mode == 'meta' && steps.open.outputs.pr == ''
+        if: env.MODE == 'review' && steps.open.outputs.pr == ''
         env:
           KB_LIFECYCLE_MAX_USD: "1"
           ANTHROPIC_IDENTITY_TOKEN_FILE: ${{ vars.ANTHROPIC_FEDERATION_RULE_ID != '' && format('{0}/anthropic-oidc', runner.temp) || '' }}
@@ -394,13 +411,13 @@ jobs:
         run: rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/meta-items.json"
 
       - name: Sweep
-        if: inputs.mode == 'sweep' && steps.open.outputs.pr == ''
+        if: env.MODE == 'sweep' && steps.open.outputs.pr == ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: uv run --frozen python tools/kb/sweep.py --github
 
       - name: Size budget issue
-        if: inputs.mode == 'meta'
+        if: env.MODE == 'review'
         env:
           GH_TOKEN: ${{ github.token }}
         run: uv run --frozen python tools/kb/lifecycle.py --budget-issue
@@ -411,16 +428,28 @@ jobs:
         env:
           BASE: ${{ steps.base.outputs.sha }}
           SPENT: ${{ steps.refresh.outputs.spent_usd }}
+          READ: ${{ steps.refresh.outputs.read }}
         run: |
           set -eu
           git add -A
           git diff --cached --quiet || git commit -qm "kb-refresh $MODE"
+          # Nothing committed (a quiet day): no gates, land has nothing to do.
+          if [ "$(git rev-parse HEAD)" = "$BASE" ]; then echo "committed=0"; else echo "committed=1"; fi >> "$GITHUB_OUTPUT"
           day=$(date -u +%F)
           body="$RUNNER_TEMP/pr-body.md"
           case "$MODE" in
-            meta)
-              title="KB meta $day: news, blue posts and guides, and the lifecycle"
-              cat "$RUNNER_TEMP/meta-summary.md" > "$body" 2>/dev/null || echo "The weekly meta pass." > "$body" ;;
+            review)
+              title="KB review $day: official pages, news, blue posts and guides, and the lifecycle"
+              {
+                echo "The weekly review: the model read only what the free checks flagged as changed."
+                if [ -n "$READ" ]; then
+                  echo
+                  echo "## Official pages"
+                  echo "Read: $READ. Statements from tools/kb/refresh.py (model pass, \$${SPENT:-0} of a \$${KB_REFRESH_MAX_USD} cap); each cites its page."
+                  cat "$RUNNER_TEMP/refresh-summary.md" 2>/dev/null || true
+                fi
+                cat "$RUNNER_TEMP/meta-summary.md" 2>/dev/null || true
+              } > "$body" ;;
             sweep)
               title="KB sweep $day: cited sources"
               echo "The monthly sweep's record of every cited URL (data/kb/sweep.json), so next month compares with this one. What to look at is in the open kb-watch sweep issue." > "$body" ;;
@@ -440,6 +469,7 @@ jobs:
       # No token here: the gates run the test suite. A refusal is the
       # verdict in gates.json, not a red step.
       - name: Gates
+        if: steps.pr.outputs.committed == '1'
         env:
           BASE: ${{ steps.base.outputs.sha }}
         run: >-
@@ -486,8 +516,8 @@ jobs:
     permissions:
       contents: read
     env:
-      MODE: ${{ inputs.mode }}
-      BRANCH: kb-${{ inputs.mode }}
+      MODE: ${{ inputs.mode == 'meta' && 'review' || inputs.mode }}
+      BRANCH: kb-${{ inputs.mode == 'meta' && 'review' || inputs.mode }}
       KB_REPO: sam-dumont/wow-mcp
       GH_REPO: sam-dumont/wow-mcp
       BASE: ${{ needs.run.outputs.base }}
@@ -570,21 +600,24 @@ jobs:
       # issue that says why (a step's reason, or this run's link when it
       # stopped early); a kind main now knows closes its issue.
       - name: Issues
-        if: always() && inputs.mode == 'watch'
+        if: always() && (env.MODE == 'watch' || env.MODE == 'review')
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
+          # Each mode keeps its own kinds' issues only.
+          WATCH: ${{ env.MODE == 'watch' && 'versions' || 'official' }}
         run: |
           set -euo pipefail
           state="$RUNNER_TEMP/watch-state.json"
           [ -s "$state" ] || git show "${BASE:-HEAD}:data/kb/watch.json" > "$state"
-          uv run --frozen python tools/kb/watch.py --github --state "$state" --why "$WHY" | tee "$RUNNER_TEMP/issues.json"
+          uv run --frozen python tools/kb/watch.py --github --kinds "$WATCH" --state "$state" --why "$WHY" \
+            | tee "$RUNNER_TEMP/issues.json"
       # Green only when everything the watch saw landed: a kind left with an
       # open issue (a refused Polestar bump, an addon whose contract moved)
       # waits for a person, and only a red run reaches the owner (the lab's
       # scheduler waits for it). 2026-11-22: Polestar v0.4.2.1 sat in an issue
       # nobody read.
       - name: Red when a change waits for a person
-        if: inputs.mode == 'watch' && steps.land.outcome == 'success'
+        if: (env.MODE == 'watch' || env.MODE == 'review') && steps.land.outcome == 'success'
         run: |
           set -eu
           left=$(jq -r '[.did | to_entries[] | select(.value == "opened" or .value == "edited") | .key] | join(" ")' \
@@ -594,7 +627,7 @@ jobs:
             exit 1
           fi
       - name: The run failed before landing
-        if: needs.run.result == 'failure' && inputs.mode != 'watch'
+        if: needs.run.result == 'failure' && env.MODE != 'watch'
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
         run: uv run --frozen python tools/kb/land.py --failed --mode "$MODE" --branch "$BRANCH"

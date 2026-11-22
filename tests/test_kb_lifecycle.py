@@ -289,3 +289,34 @@ def test_the_meta_pass_keeps_an_expiry_only_when_it_is_a_real_day():
                                          ("Combat rules", "game-rules"), ("", "game-rules")])
 def test_a_topic_finds_its_lane(topic, lane_):
     assert lifecycle.lane_for({"topic": topic}, lifecycle.LANES) == lane_
+
+
+def test_a_page_unchanged_since_it_held_is_reverified_without_the_model():
+    """2026-11-22: re-verification asks the model only about a page that
+    changed since the model last said it holds the statement."""
+    body = b"<main>Dungeon guide text</main>"
+    t = stale_tree()
+    client = Client([{"id": "d:holds", "verdict": "holds", "why": ""},
+                     {"id": "d:wrong", "verdict": "holds", "why": ""},
+                     {"id": "d:unsure", "verdict": "not_found", "why": ""}])
+    memo = {}
+    lifecycle.run(t, TODAY, Fetch({GUIDE: (200, body)}), client, refresh.Meter(3.0), memo)
+    assert len(client.prompts) == 1 and memo[GUIDE]["ids"] == ["d:holds", "d:wrong"]
+    # 120 days on, same page: no call for what held; the one it never confirmed is asked again.
+    t = stale_tree()
+    client = Client([{"id": "d:unsure", "verdict": "holds", "why": ""}])
+    r = lifecycle.run(t, TODAY, Fetch({GUIDE: (200, body)}), client, refresh.Meter(3.0), memo)
+    assert sorted(r["unchanged"]) == ["d:holds", "d:wrong"] and r["reverified"] == ["d:unsure"]
+    assert len(client.prompts) == 1 and "d:holds" not in json.dumps(client.prompts[0])
+    assert memo[GUIDE]["ids"] == ["d:holds", "d:unsure", "d:wrong"]
+    # Nothing left to ask: no call at all.
+    t = stale_tree()
+    client = Client([])
+    r = lifecycle.run(t, TODAY, Fetch({GUIDE: (200, body)}), client, refresh.Meter(3.0), memo)
+    assert client.prompts == [] and len(r["unchanged"]) == 3
+    # The page changed: the model reads it again.
+    t = stale_tree()
+    client = Client([{"id": i, "verdict": "holds", "why": ""} for i in ("d:holds", "d:wrong", "d:unsure")])
+    r = lifecycle.run(t, TODAY, Fetch({GUIDE: (200, b"<main>Rewritten guide</main>")}), client,
+                      refresh.Meter(3.0), memo)
+    assert len(client.prompts) == 1 and r["unchanged"] == []
