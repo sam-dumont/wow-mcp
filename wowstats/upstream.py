@@ -31,7 +31,7 @@ _PORTS = {"https": 443, "http": 80}
 # code. Real icon names carry hyphens (ui-hud-actionbar-keyring); none is over
 # 76 characters (Forever 1.60.1, 2026-11-22).
 ICON_NAME = re.compile(r"[a-z0-9][a-z0-9_-]{0,79}")
-ICON_SIZES = frozenset({"small", "medium", "large"})
+ICON_SIZE = re.compile(r"small|medium|large")
 BUILD = re.compile(r"[0-9]{1,4}(?:\.[0-9]{1,7}){3}")
 PRODUCT_NAME = re.compile(r"[a-z0-9_]{1,32}")
 # Every client table the server and its tools read from wago.tools.
@@ -69,40 +69,51 @@ def allowed(url: str) -> bool:
         return False
 
 
-def _part(value, shape: re.Pattern, what: str) -> str:
-    """`value` quoted for one URL segment, or ValueError when it isn't `shape`
-    whole (the value itself is never echoed: it may be anything)."""
-    if not isinstance(value, str) or not shape.fullmatch(value):
-        raise ValueError(f"not a {what}")
-    return urllib.parse.quote(value, safe="")
+# Each check below is a direct fullmatch on a module-level pattern, one value
+# per `if`: CodeQL's request-forgery query only takes that shape as a guard (a
+# helper handed the pattern, or `in` a frozenset, left alert #42 open).
+def _str(value, what: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"not a {what}")  # the value is never echoed: it may be anything
+    return value
 
 
 def builds_url(base: str, product: str) -> str:
     """wago.tools' latest build of `product`."""
-    return f"{base.rstrip('/')}/api/builds/{_part(product, PRODUCT_NAME, 'product')}/latest"
+    product = _str(product, "product")
+    if not PRODUCT_NAME.fullmatch(product):
+        raise ValueError("not a product")
+    return f"{base.rstrip('/')}/api/builds/{urllib.parse.quote(product, safe='')}/latest"
 
 
 def build_of(body: bytes | None) -> str:
     """The build in builds_url()'s answer; ValueError when there is none or
     it isn't one (wago.tools' answer is data, like a request)."""
     d = json.loads(body or b"{}")
-    version = d.get("version") if isinstance(d, dict) else None
-    _part(str(version), BUILD, "build")
-    return str(version)
+    version = str(d.get("version") if isinstance(d, dict) else None)
+    if not BUILD.fullmatch(version):
+        raise ValueError("not a build")
+    return version
 
 
 def table_url(base: str, table: str, build: str) -> str:
     """One client table of one build, as CSV."""
     if table not in WAGO_TABLES:
         raise ValueError("not a listed table")
-    return f"{base.rstrip('/')}/db2/{urllib.parse.quote(table, safe='')}/csv?build={_part(build, BUILD, 'build')}"
+    build = _str(build, "build")
+    if not BUILD.fullmatch(build):
+        raise ValueError("not a build")
+    return f"{base.rstrip('/')}/db2/{urllib.parse.quote(table, safe='')}/csv?build={urllib.parse.quote(build, safe='')}"
 
 
 def icon_url(base: str, size: str, name: str) -> str:
     """One icon on Wowhead's icon host (`base` ends in /icons/)."""
-    if size not in ICON_SIZES:
+    size, name = _str(size, "icon size"), _str(name, "icon name")
+    if not ICON_SIZE.fullmatch(size):
         raise ValueError("not an icon size")
-    return f"{base.rstrip('/')}/{urllib.parse.quote(size, safe='')}/{_part(name, ICON_NAME, 'icon name')}.jpg"
+    if not ICON_NAME.fullmatch(name):
+        raise ValueError("not an icon name")
+    return f"{base.rstrip('/')}/{urllib.parse.quote(size, safe='')}/{urllib.parse.quote(name, safe='')}.jpg"
 
 
 def same_origin(url: str):
