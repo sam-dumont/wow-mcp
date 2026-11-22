@@ -53,7 +53,7 @@ For each scenario, `tools/eval_analysis/run.py`:
 | `death_spike` | extra deaths in the Wetlands, until its rate is twice the rest's or more (8 deaths in 11 hours against 0.32 an hour elsewhere) | ties the deaths to the Wetlands |
 | `recorder_off` | the Recorder off for four evenings (levels 26 to 30); level-ups, snapshots and gear sheets still arrive | says the records are missing, never "you died less" or "you took a break" |
 | `offline_gap` | a 21-day break in the middle of level 33; the played time is the demo's (on the guide's pace) | names the break, never calls level 33 slow |
-| `wrong_spec_gear` | gear scored for Holy (`WEIGHTS`), and the character just put on the Filigreed Shadow Circlet, a Shadow item worth next to nothing for Holy | points the head slot at a Holy-scored upgrade, never tells the player to get or keep a Shadow head item |
+| `wrong_spec_gear` | gear scored for Holy (`WEIGHTS`), and the character just put on the Filigreed Shadow Circlet, a Shadow item worth next to nothing for Holy | a verified finding names the circlet (or the head slot) and Holy; points the head slot at a Holy-scored upgrade, never tells the player to get or keep a Shadow head item |
 | `healthy_control` | nothing | no death hotspot, no missing records: no pattern established |
 
 The demo isn't a perfect player: level 32 took about four times the guide's plan, and the gear advice has real
@@ -76,7 +76,7 @@ Deterministic checks, in order:
   the server, and gives the values the finding was judged on.
 - **must_find**: each expected line is there. A rule is groups of regular expressions; a kept finding, nudge or
   pattern matches when each group has a match in it. `"in": "actions"` reads only what tells the player to do
-  something.
+  something; `"kinds": ["finding"]` only the findings the judge verified (a nudge has no query behind it).
 - **must_not_claim**: no kept line says what the truth rules out. `unless` excuses a line that says why (the
   records are missing, there was a break).
 

@@ -139,7 +139,7 @@ def _night(env, rows, knowledge, extra=None):
 def _upgrades(rows, env) -> int:
     from wowstats.mcp import route
 
-    db = prep.build([dict(r) for r in rows], CHAR, route.reference(), upgrades=analysis.upgrades_for(rows, CHAR, env))
+    db = prep.build([dict(r) for r in rows], CHAR, route.reference(), advice=analysis.advice_for(rows, CHAR, env))
     return db.execute("SELECT COUNT(*) FROM upgrade_candidates").fetchone()[0]
 
 
@@ -188,7 +188,7 @@ def test_the_manifest_holds_the_resolved_scoring(rows, knowledge):
 
     def scoring(env):
         ref = route.reference()
-        db = prep.build([dict(r) for r in rows], CHAR, ref, upgrades=analysis.upgrades_for(rows, CHAR, env))
+        db = prep.build([dict(r) for r in rows], CHAR, ref, advice=analysis.advice_for(rows, CHAR, env))
         return manifest.build(db, rows, knowledge, ref, scoring=analysis.scoring_for(rows, CHAR, env))["settings"]
 
     picked = scoring({})  # the fixture's add-on picked Shadow
@@ -208,8 +208,13 @@ def test_a_definition_that_moves_prepared_rows_adds_no_weight(driven, rows, know
     assert drive.propose(env, CHAR, finding())["stored"]
     w0 = analysis.load_state(env, CHAR)["findings"]["sessions-online"]["weight"]
     change((what,))
-    real = analysis.upgrades_for
-    monkeypatch.setattr(analysis, "upgrades_for", lambda *a: real(*a)[:-3])  # the new prep's tables differ
+    real = analysis.advice_for
+
+    def fewer(*a):  # the new prep's tables differ
+        got = real(*a)
+        return {**got, "upgrades_all": got["upgrades_all"][:-3]}
+
+    monkeypatch.setattr(analysis, "advice_for", fewer)
     out = _night(env, rows, knowledge)
     assert out["runs"][-1]["revalidate"] == 1 and out["findings"]["sessions-online"]["weight"] == w0
     drive._WS.clear()
@@ -229,8 +234,8 @@ def test_the_support_mark_reads_the_source_events_only(rows):
     from wowstats.mcp import route
 
     ref = route.reference()
-    a = prep.build([dict(r) for r in rows], CHAR, ref, upgrades=analysis.upgrades_for(rows, CHAR, HOLY))
-    b = prep.build([dict(r) for r in reversed(rows)] + [dict(rows[0])], CHAR, ref, upgrades=[])
+    a = prep.build([dict(r) for r in rows], CHAR, ref, advice=analysis.advice_for(rows, CHAR, HOLY))
+    b = prep.build([dict(r) for r in reversed(rows)] + [dict(rows[0])], CHAR, ref, advice=None)
     assert analysis.data_mark(a) == analysis.data_mark(b)  # same events, other order, a duplicate, other tables
     last = max(rows, key=lambda r: r["_time"])
     c = prep.build([dict(r) for r in rows] + [{**last, "_time": last["_time"][:4] + "-12-31T23:00:00Z"}], CHAR, ref)

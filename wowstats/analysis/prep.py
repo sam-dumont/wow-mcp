@@ -52,7 +52,10 @@ from wowstats.stores import (
 # items from the newest sheet with any); a snapshot whose id is its content
 # (bags, quest sets) kept per observation time, so quest evidence keeps
 # when it was first seen (evidence properties, tests/invariants/test_evidence.py).
-PREP_VERSION = 4
+# 5: levels gets its calendar time, offline time and longest silence (the
+# view's calendar_s moved here); gear gets the worn items' score and fit for
+# the spec the advice scores (seeded evaluation: offline_gap, wrong_spec_gear).
+PREP_VERSION = 5
 
 
 def _zone() -> tuple[str, ZoneInfo]:
@@ -217,14 +220,25 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "hour_local": "hour of day, local", "xp": "XP into the level",
         "xp_max": "XP the level needs", "xp_gained": "change since the previous xp record",
         "rested_xp": "rested XP left"}),
-    "levels": ("Per level: Polestar's own split when the level is done (played seconds), the ding time, and the "
-               "route planner's time for the level (route_plan).", {
+    "levels": ("Per level: Polestar's own split when the level is done (played seconds), the ding time, the "
+               "route planner's time for the level (route_plan), and the calendar around it: a level's pace is "
+               "played_s against planned_s; calendar_s also counts the days the game was closed.", {
         "level": "level", "ding_t": "unix seconds the level ended (NULL while in play)",
         "played_s": "played seconds in the level (Polestar split)", "xp": "XP of the level",
         "quests": "quests handed in (split)", "kills": "kills (split)",
         "partial": "1 when tracking started partway through the level",
         "planned_s": "the route planner's seconds for this level, this class",
-        "planned_median_s": "the planner's median over classes", "planned_guide": "the guide the level ends in"}),
+        "planned_median_s": "the planner's median over classes", "planned_guide": "the guide the level ends in",
+        "calendar_s": "wall-clock seconds from the previous level's ding to this one, offline time included "
+                      "(NULL for the first tracked level and the level in play)",
+        "offline_s": "calendar_s - played_s: seconds the game was closed during the level, both from the game "
+                     "(NULL without a whole split)",
+        "longest_gap_s": "the longest stretch inside the level (previous ding to this ding, or to the last record "
+                         "for the level in play) with no Recorder session: time offline, or play the Recorder "
+                         "missed when recorder_missed_s is above 0",
+        "longest_gap_from_local": "its start, local time", "longest_gap_to_local": "its end, local time",
+        "recorder_missed_s": "played seconds the Recorder's sessions don't cover (the coverage's Recorder gap "
+                             "for the level, 0 when none; NULL when it can't be measured)"}),
     "route_steps": ("Polestar's route planner: planned seconds per guide step (a model of a quick player who "
                     "knows the route, uncalibrated).", {
         "guide": "guide id", "guide_title": "guide title", "step": "step number from 1", "planned_s": "seconds",
@@ -268,7 +282,14 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
             "first craft record naming this item id (an enchanting craft names the item it enchanted)"),
         "vendor_seen": "1 when a vendor window listed it",
         "first_t": "earliest of turnin_t, loot_t and craft_t (null when no record names the item)",
-        "first_level": "the character's level at first_t"}),
+        "first_level": "the character's level at first_t",
+        "scored_for": "the spec the gear advice scores for (the player's WEIGHTS setting, else the talents)",
+        "score": "the item's score for that spec (Polestar's points; NULL when the item isn't known)",
+        "bis_pct": "the item's score as a percent of the best the slot can hold at this level for that spec "
+                   "(100: the best; NULL when there is nothing to measure against)",
+        "fit": "how the item fits that spec: yes (built for it), any (fits every spec), spec (built for another "
+               "spec of the class), class (made for another class), unknown",
+        "built_for": "who the item's stats are made for, in words"}),
     "gear_sheets": ("Every character sheet the shipper sent: the equipped items at that time, one row per slot.", {
         "sheet_t": "time of the sheet, unix s", "time_local": "ISO time, local (meta.timezone)",
         "level": "the character's level then (newest record at or before the sheet)", "slot": "inventory slot 1-19",
@@ -457,12 +478,12 @@ def input_mark(rows: list[dict]) -> str:
 
 
 def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None,
-          now: datetime | None = None, upgrades: list[dict] | None = None) -> sqlite3.Connection:
+          now: datetime | None = None, advice: dict | None = None) -> sqlite3.Connection:
     """The database for one character. `route` is wowstats.mcp.route's
     Reference (or None); `map_sizes` {uiMapID: (width_yd, height_yd)} from
-    the KB when the records lack a map's frame; `upgrades` the gear
-    advice's `upgrades_all` (wowstats.gear.advise_rows), for
-    upgrade_candidates."""
+    the KB when the records lack a map's frame; `advice` the gear advice
+    with every upgrade (wowstats.gear.advise_rows): its `upgrades_all` for
+    upgrade_candidates, its spec and slots for the worn items' fit."""
     char = norm(char)
     rows = [r for r in dedupe(rows) if norm(r.get("char", "")) == char]
     mark = input_mark(rows)
@@ -685,7 +706,8 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     _snapshots(db, rows)
     _quests(db, questsmod.explain(rows))
     _gold_moves(db)
-    _upgrades(db, upgrades or [])
+    _upgrades(db, (advice or {}).get("upgrades_all") or [])
+    _gear_fit(db, advice)
     _meta(db, char, rows, rec, now, mark)
     _aggregates(db)
     _dictionary(db)
@@ -722,7 +744,9 @@ def _schema(db: sqlite3.Connection) -> None:
         level_start INTEGER, level_end INTEGER, xp_gained INTEGER, kills INTEGER, deaths INTEGER, turnins INTEGER,
         distance_yd REAL, first_zone TEXT, last_zone TEXT, last_subzone TEXT, last_kind TEXT, gap_before_s REAL);
     CREATE TABLE levels (level INTEGER PRIMARY KEY, ding_t REAL, played_s REAL, xp INTEGER, quests INTEGER,
-        kills INTEGER, partial INTEGER, planned_s REAL, planned_median_s REAL, planned_guide TEXT);
+        kills INTEGER, partial INTEGER, planned_s REAL, planned_median_s REAL, planned_guide TEXT,
+        calendar_s REAL, offline_s REAL, longest_gap_s REAL, longest_gap_from_local TEXT,
+        longest_gap_to_local TEXT, recorder_missed_s REAL);
     CREATE TABLE route_steps (guide TEXT, guide_title TEXT, step INTEGER, planned_s REAL, title TEXT);
     CREATE TABLE dungeon_runs (name TEXT, dungeon_id INTEGER, level INTEGER, start_t REAL, left_t REAL,
         seconds REAL, xp INTEGER);
@@ -734,7 +758,8 @@ def _schema(db: sqlite3.Connection) -> None:
         gold_before_copper INTEGER, gold_after_copper INTEGER, steps TEXT);
     CREATE TABLE gear (slot INTEGER, slot_name TEXT, item_id INTEGER, name TEXT, quality INTEGER,
         item_level INTEGER, req_level INTEGER, sheet_t REAL, turnin_quest_id INTEGER, turnin_t REAL, loot_t REAL,
-        craft_t REAL, vendor_seen INTEGER, first_t REAL, first_level INTEGER);
+        craft_t REAL, vendor_seen INTEGER, first_t REAL, first_level INTEGER, scored_for TEXT, score REAL,
+        bis_pct REAL, fit TEXT, built_for TEXT);
     CREATE TABLE gear_sheets (sheet_t REAL, time_local TEXT, level INTEGER, slot INTEGER, slot_name TEXT,
         item_id INTEGER, name TEXT, quality INTEGER, item_level INTEGER, req_level INTEGER);
     CREATE TABLE professions (skill_id INTEGER, name TEXT, rank INTEGER, max_rank INTEGER, max_rank_from TEXT);
@@ -813,7 +838,49 @@ def _levels(db, rows, rec, route) -> None:
         ding = dings.get(lv) or (s.get("_t") if s else None)
         out.append((lv, ding, _flt(s.get("seconds")), _int(s.get("xp")), _int(s.get("quests")), _int(s.get("kills")),
                     (1 if truthy(s.get("partial")) else 0) if s else None, plan, med, guide))
-    db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?)", out)
+    db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL)", out)
+    _level_calendar(db, rows)
+
+
+def _level_calendar(db, rows) -> None:
+    """Each level's calendar beside its played time: a level that took three
+    weeks with its played time on plan was a break, not slow play (seeded
+    evaluation, offline_gap). The window is the previous ding to this one
+    (timebounds: half-open), or to the last record for the level in play;
+    the silences are the gaps between the sessions table's spans."""
+    from wowstats import coverage
+
+    spans = db.execute("SELECT start_t, end_t FROM sessions ORDER BY start_t").fetchall()
+    last = db.execute("SELECT MAX(t) FROM records").fetchone()[0]
+    missed = {g["level"]: g["off_s"] for g in coverage.recorder_gaps(
+        [(a, b) for a, b in spans], [r for r in rows if r.get("feed") == "wow-level"])}
+    lv_rows = db.execute("SELECT level, ding_t, played_s, partial FROM levels ORDER BY level").fetchall()
+    dings = {lv: d for lv, d, _p, _q in lv_rows}
+    first = spans[0][0] if spans else None
+    out = []
+    for lv, ding, played, partial in lv_rows:
+        a = dings.get(lv - 1)
+        b = ding if ding is not None else last
+        cal = ding - a if a is not None and ding is not None else None
+        off = max(0.0, cal - played) if cal is not None and played is not None and partial == 0 else None
+        gap = gap_from = gap_to = None
+        if a is not None and b is not None and b > a:
+            cursor = a
+            for s0, s1 in spans:
+                if s1 < a or s0 >= b:
+                    continue
+                if s0 > cursor and (gap is None or s0 - cursor > gap):
+                    gap, gap_from, gap_to = s0 - cursor, cursor, s0
+                cursor = max(cursor, s1)
+            if b > cursor and (gap is None or b - cursor > gap):
+                gap, gap_from, gap_to = b - cursor, cursor, b
+        # The coverage's own rule (wowstats.coverage.recorder_gaps): measured
+        # only for a whole level the Recorder was already on for.
+        whole = cal is not None and played is not None and partial == 0 and first is not None and a >= first
+        out.append((cal, off, gap, _iso(gap_from, TZ) if gap is not None else None,
+                    _iso(gap_to, TZ) if gap is not None else None, float(missed.get(lv, 0)) if whole else None, lv))
+    db.executemany("UPDATE levels SET calendar_s=?, offline_s=?, longest_gap_s=?, longest_gap_from_local=?, "
+                   "longest_gap_to_local=?, recorder_missed_s=? WHERE level=?", out)
 
 
 def _route_steps(db, route) -> None:
@@ -878,7 +945,7 @@ def _gear(db, rows) -> None:
         out.append((_int(it.get("slot")), it.get("slot_name"), iid, it.get("name"), _int(it.get("quality")),
                     _int(it.get("item_level")), _int(it.get("req_level")), g["_t"], ti[0], ti[1], lt, ct,
                     1 if vs else 0, ft, fl))
-    db.executemany("INSERT INTO gear VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", out)
+    db.executemany("INSERT INTO gear VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL)", out)
     profs = g.get("professions")
     try:
         profs = json.loads(profs) if isinstance(profs, str) else (profs or [])
@@ -1025,6 +1092,28 @@ def _upgrades(db, ups: list[dict]) -> None:
                                _int(s.get("choices")), s.get("profession"), _int(s.get("skill")),
                                None if s.get("can_make") is None else int(bool(s.get("can_make")))))
     db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 24) + ")", out)
+
+
+def _gear_fit(db, advice: dict | None) -> None:
+    """The worn items as the gear advice scores them: for which spec, how
+    many points, their share of the slot's best, and how they fit the spec
+    (wowstats.gearfit). Without it a Shadow circlet worn by a Holy priest
+    reads as any other head (seeded evaluation, wrong_spec_gear)."""
+    if not advice:
+        return
+    spec = advice.get("spec") or {}
+    label = spec.get("label") or spec.get("key")
+    out = []
+    for sl in advice.get("slots") or []:
+        cur = sl.get("current") or {}
+        if not cur.get("item_id"):
+            continue
+        f = cur.get("fit") or {}
+        st = sl.get("standing") or {}
+        out.append((label, _flt(cur.get("score")) if cur.get("known") else None, _flt(st.get("pct")),
+                    f.get("for_you"), f.get("built_for"), _int(sl.get("slot")), _int(cur.get("item_id"))))
+    db.executemany("UPDATE gear SET scored_for=?, score=?, bis_pct=?, fit=?, built_for=? WHERE slot=? AND item_id=?",
+                   out)
 
 
 def slug(name: str) -> str:

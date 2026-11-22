@@ -374,17 +374,16 @@ def weights_for(env: dict, char: str) -> str | None:
     return settings_from_env(env).weights.get(char)
 
 
-def upgrades_for(rows: list[dict], char: str, env: dict) -> list[dict]:
-    """Every upgrade the gear advice finds, for prep's upgrade_candidates
-    ([] without a sheet)."""
+def advice_for(rows: list[dict], char: str, env: dict) -> dict | None:
+    """The gear advice with every upgrade, for prep's upgrade_candidates and
+    the worn items' fit (None without a sheet)."""
     from wowstats import gear
 
     try:
-        a = gear.advise_rows(rows, weights_for(env, char))
+        return gear.advise_rows(rows, weights_for(env, char))
     except gear.GearError as e:
         log(f"no gear advice for the prep: {e}")
-        return []
-    return (a or {}).get("upgrades_all") or []
+        return None
 
 
 def scoring_for(rows: list[dict], char: str, env: dict) -> dict:
@@ -747,7 +746,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     knowledge = knowledge if knowledge is not None else kb.shared(env)
     ref = route.reference()
     db = prep.build(rows, char, ref, map_sizes=knowledge.meta.get("ui_map"),
-                    upgrades=upgrades_for(rows, char, env))
+                    advice=advice_for(rows, char, env))
     build = manifest.build(db, rows, knowledge, ref, scoring=scoring_for(rows, char, env))
     now = datetime.now(UTC).isoformat(timespec="seconds")
     state = load_state(env, char)

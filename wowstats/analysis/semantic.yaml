@@ -78,6 +78,11 @@ levels:
       description: "Time at a level, way 4: wall-clock seconds from the previous ding to this one, offline time included."
       metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: reconstructed, unit: seconds,
                  caveats: "NULL for the first tracked level and the level in play. A week off between two dings counts in full."}
+    offline_s:
+      expr: _.offline_s.sum()
+      description: "Time at a level, offline: calendar_s minus played_s, the seconds the game was closed between the two dings."
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: inferred, unit: seconds,
+                 caveats: "Whole splits only (NULL for a partial split, the first tracked level and the level in play). A level that took weeks on the calendar with its played time on plan was a break, not slow play: read played_s and vs_route for pace."}
     level_xp:
       expr: _.xp.sum()
       description: "XP the level took (Polestar split)."
@@ -113,6 +118,13 @@ levels:
                  caveats: "As uncalibrated as planned_s. Reads whole splits with a planned time only (eligibility): planned_s on its own is the total target, every level with a plan. NULL when no level qualifies.",
                  eligibility: {where: "(_.played_s > 0) & (_.partial == 0) & (_.planned_s.coalesce(_.planned_median_s) > 0)",
                    means: "A whole split (partial = 0, played time above 0) with a planned time. The level in play has no split and a partial split began partway through the level, so both stay out of both sides; planned_s on its own still counts them."}}
+    offline_share:
+      expr: _.offline_s / _.calendar_s
+      description: "Share of the calendar time at a level spent offline: offline_s over calendar_s (0.9: nine days in ten the game was closed)."
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: level_completion, evidence_basis: inferred, unit: ratio,
+                 caveats: "Says how much of a level's calendar was a break, nothing about the pace inside the game.",
+                 eligibility: {where: "_.offline_s.notnull() & (_.calendar_s > 0)",
+                   means: "A whole split with both dings known: its offline time and calendar time are measured."}}
     avg_level_s:
       expr: _.played_s / _.split_levels
       description: "Average played seconds a level: played_s over split_levels (the page's \"a level, over the last 5\")."
