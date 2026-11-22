@@ -17,12 +17,19 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  # The suite in three parts side by side, whole test files each (tests/
+  # conftest.py --shard): one job on a runner's 4 cores took 12 to 20 minutes
+  # and hit its limit on main (2026-11-22), and a slow runner doubles it.
+  pytest:
     if: github.repository_id == '1464458020'
     runs-on: ubuntu-24.04
     # A hang (2026-11-19: the apt step of the browser install, 30 min) stops
-    # here, not at GitHub's 6-hour default. The job takes about 5 minutes.
+    # here, not at GitHub's 6-hour default. A part takes about 5 minutes.
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
         with:
@@ -47,21 +54,35 @@ jobs:
       # The analysis extras: the server-side analysis' tests build both SDKs'
       # clients (credentials passed explicitly), on fake clients, no calls.
       - run: uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai
-      - run: uv run ruff check .
       # Everything but the browser suites, on every core; docker compose and
       # Polestar tests (ci_only) are in, they skip without their tool.
-      - run: uv run pytest -q -rs -n auto -m "not browser"
+      - run: uv run pytest -q -rs -n auto -m "not browser" --shard ${{ matrix.shard }}/3
+
+  # The required check: the parts' result, then what needs the whole tree
+  # once. It runs when a part failed too (a skipped required check would
+  # count as passed).
+  test:
+    if: ${{ !cancelled() && github.repository_id == '1464458020' }}
+    needs: pytest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: every part of the suite passed
+        run: test "${{ needs.pytest.result }}" = success
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai
+      - run: uv run ruff check .
       # The fixtures are made by tools/fixtures/generate.py: a change to it, or
       # to the code that derives them, without a rerun fails here.
       - run: uv run python tools/fixtures/generate.py --check
       - run: for f in web/*.js web/model3d/model3d.js web/model3d/view.js; do node --check "$f"; done
 
-  # The repository and its dependencies, not the program: the workflows
-  # (actionlint, with shellcheck on their scripts), uv.lock in step with
-  # pyproject.toml, no known vulnerability in any locked package
-  # (tools/audit_deps.py, exceptions in .github/vulnerability-allowlist.toml
-  # with a reason), and no secret in the tree or the history (gitleaks,
-  # .gitleaks.toml). The tools are pinned by version and SHA-256.
   audit:
     if: github.repository_id == '1464458020'
     runs-on: ubuntu-24.04
