@@ -198,6 +198,23 @@ def log(*parts: object) -> None:
         pass
 
 
+def flush_fd(fd: int) -> None:
+    """fsync, and on macOS the real one: there os.fsync leaves the data in
+    the drive's own write cache, which a power cut loses; F_FULLFSYNC asks
+    the drive to empty it. A filesystem that refuses it (some network
+    shares) gets the plain fsync. One place, so every flush of the
+    shipper's durability (docs/guarantees.md) is the same one."""
+    if sys.platform == "darwin":
+        import fcntl  # not on Windows, and only needed here
+
+        try:
+            fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+            return
+        except OSError:
+            pass
+    os.fsync(fd)
+
+
 def fsync_dir(d: Path) -> None:
     """Puts d's entries on the disk: a rename or a new file is a change to
     the directory, which fsync on the file doesn't cover. Without it a
@@ -212,7 +229,7 @@ def fsync_dir(d: Path) -> None:
     with contextlib.suppress(OSError):
         fd = os.open(d, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
         try:
-            os.fsync(fd)
+            flush_fd(fd)
         finally:
             os.close(fd)
 
@@ -220,7 +237,7 @@ def fsync_dir(d: Path) -> None:
 def fsync_path(path: Path) -> None:
     """A file written by someone else (shutil, zipfile) to the disk."""
     with path.open("ab") as fh:  # write access: Windows' fsync needs it
-        os.fsync(fh.fileno())
+        flush_fd(fh.fileno())
 
 
 def append_durable(path: Path, data: bytes, gz: bool = False) -> None:
@@ -236,7 +253,7 @@ def append_durable(path: Path, data: bytes, gz: bool = False) -> None:
         else:
             fh.write(data)
         fh.flush()
-        os.fsync(fh.fileno())
+        flush_fd(fh.fileno())
     if new:
         fsync_dir(path.parent)
 
@@ -640,7 +657,7 @@ class Out:
         if self.fh is None:
             return None
         self.fh.flush()
-        os.fsync(self.fh.fileno())  # on the disk before the state that counts on it (docs/guarantees.md)
+        flush_fd(self.fh.fileno())  # on the disk before the state that counts on it (docs/guarantees.md)
         self.fh.close()
         dest = SPOOL / (datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ") + ".ndjson")
         os.replace(self.tmp, dest)
@@ -2577,7 +2594,7 @@ def rewrite(f: Path, lines: list[bytes]) -> None:
     with tmp.open("wb") as fh:
         fh.write(b"".join(lines))
         fh.flush()
-        os.fsync(fh.fileno())
+        flush_fd(fh.fileno())
     os.replace(tmp, f)
     fsync_dir(f.parent)
 
@@ -2784,7 +2801,7 @@ def save_state(state: dict) -> None:
     with tmp.open("w", encoding="utf-8") as fh:
         fh.write(json.dumps(state, indent=1, sort_keys=True))
         fh.flush()
-        os.fsync(fh.fileno())
+        flush_fd(fh.fileno())
     if STATE.exists():
         os.replace(STATE, STATE.with_name("state.json.prev"))
     os.replace(tmp, STATE)
@@ -4460,7 +4477,7 @@ def apply_update(new: bytes) -> None:
     with tmp.open("wb") as fh:  # on the disk before the rename: an empty script after a power cut runs nothing again
         fh.write(new)
         fh.flush()
-        os.fsync(fh.fileno())
+        flush_fd(fh.fileno())
     if not WINDOWS:
         tmp.chmod(0o755)
     prev = SELF.with_name(SELF.name + ".prev")

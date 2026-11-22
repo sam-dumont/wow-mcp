@@ -73,9 +73,9 @@ They don't prove:
   system's cache never goes away under them. A missing fsync shows up only as a missing call
   in `test_durability.py`.
 - **The drive's own write cache.** fsync hands the data to the drive; a drive that acknowledges
-  writes it still holds in its cache can lose them. On macOS, fsync doesn't even ask the drive
-  to empty that cache (`F_FULLFSYNC` does; the shipper doesn't use it: it's slow, and losing
-  the last run means extracting it again).
+  writes it still holds in its cache can lose them. On macOS the shipper asks the drive to empty
+  that cache (`F_FULLFSYNC`, falling back to plain fsync where the filesystem refuses it); on
+  Linux and Windows it relies on fsync doing its job.
 - **Filesystem bugs**, or a network share that refuses to flush a folder: the shipper goes on
   without it.
 - **Windows' folders.** Python can't open a folder there to flush it (`os.open` fails), and
