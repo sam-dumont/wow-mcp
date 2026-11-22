@@ -108,6 +108,10 @@ def frame_of(page):
     for _ in range(100):
         for f in page.frames:
             if "/model3d/view" in f.url:
+                # Its address changes when the navigation commits, before the
+                # page is parsed: read then, it had no <html> yet (a loaded
+                # suite, 2026-11-23).
+                f.wait_for_load_state("domcontentloaded")
                 return f
         page.wait_for_timeout(100)  # not time.sleep: Playwright handles its events while it waits
     raise AssertionError("no 3D frame")

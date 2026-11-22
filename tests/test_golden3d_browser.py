@@ -54,7 +54,10 @@ def drawn(tmp_path_factory):
         def log_message(self, *a):
             pass
 
-    srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    # The viewer asks for every file at once: the default backlog (5) reset
+    # some under a loaded suite, "Failed to fetch", and the model came out
+    # with files missing (seen on the Mac's full suite, 3 runs in 5).
+    srv = type("Server", (ThreadingHTTPServer,), {"request_queue_size": 128})(("127.0.0.1", 0), Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     yield f"http://127.0.0.1:{srv.server_address[1]}/"
     srv.shutdown()
@@ -110,7 +113,7 @@ def test_golden_character_draws(browser, drawn):
     page.on("pageerror", lambda e: logs.append(str(e)[:300]))
     page.goto(drawn)
     assert page.evaluate("() => window.__ready") == "ok", logs
-    assert page.evaluate("() => window.__h.missing || []") == []
+    assert page.evaluate("() => window.__h.missing || []") == [], page.evaluate("() => window.__h.errors")
     page.evaluate("window.__at(0)")
     got = page.evaluate("(p) => window.__sample(p)", [list(p) for p, _f, _w in POINTS] + [list(p) for p, _w in CLEAR])
     bad = [f"{why}: {px}" for (_p, test, why), px in zip(POINTS, got, strict=False) if not (px and test(px))]
