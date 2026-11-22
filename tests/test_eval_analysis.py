@@ -400,17 +400,15 @@ def test_runs_go_in_processes_of_their_own(tmp_path, monkeypatch):
     process-wide seam: run_all gives each run a process (spawn) once more
     than one runs at a time, every client x scenario x repeat, in the order
     asked."""
-    seen = {"runs": []}
+    seen = {"runs": [], "workers": []}
 
     class Pool:
         def __init__(self, max_workers, mp_context):
-            seen["workers"], seen["method"] = max_workers, mp_context.get_start_method()
+            seen["workers"].append(max_workers)
+            seen["method"] = mp_context.get_start_method()
 
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
+        def shutdown(self):
+            pass
 
         def submit(self, fn, name, kind, model, out, timeout_s, judge, repeat, opts):
             from concurrent.futures import Future
@@ -425,7 +423,8 @@ def test_runs_go_in_processes_of_their_own(tmp_path, monkeypatch):
 
     monkeypatch.setattr(concurrent.futures, "ProcessPoolExecutor", Pool)
     got = run.run_all(["offline_gap", "death_spike"], ["claude", "server"], "", tmp_path, 60, False, 8, 2)
-    assert seen["method"] == "spawn" and seen["workers"] == 8
+    # The server client's runs are held to SERVER_JOBS at once: its provider's rate limit.
+    assert seen["method"] == "spawn" and seen["workers"] == [8, run.SERVER_JOBS]
     assert len(set(seen["runs"])) == 8
     assert [(r["client"]["client"], r["scenario"], r["repeat"]) for r in got] == seen["runs"]
 

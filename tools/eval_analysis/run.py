@@ -54,6 +54,11 @@ CLOSED_PORT_URL = "http://127.0.0.1:9"  # nothing listens: a read the scenario d
 # A scenario passes the gate when this share of its runs pass: 2 of 3 by
 # default. Below it, the release table flags it.
 GATE = 2 / 3
+# The server client's runs at once (--server-jobs): one gpt-6.1-sol run sends
+# about 1M tokens a minute, cached prompt included, and fifteen side by side
+# crossed a 4M tokens-per-minute limit within a minute: twelve of fifteen
+# stopped on a 429 (2026-11-22). Claude Code runs on a login, not a key.
+SERVER_JOBS = 3
 
 
 def server_settings(sc: dict, state: Path) -> dict:
@@ -271,10 +276,11 @@ def units(names: list[str], kinds: list[str], repeats: int) -> list[tuple[str, s
 
 
 def run_all(names: list[str], kinds: list[str], model: str, out: Path, timeout_s: float, use_judge: bool,
-            jobs: int, repeats: int = 1, opts: dict | None = None) -> list[dict]:
-    """Every run, `jobs` at a time, each in its own process with its own
-    server and client (a run mostly waits on the model; the local load is one
-    small server on synthetic data). Reports in the order asked."""
+            jobs: int, repeats: int = 1, opts: dict | None = None, server_jobs: int = SERVER_JOBS) -> list[dict]:
+    """Every run, `jobs` at a time (the server client's `server_jobs` at
+    most: its provider's rate limit), each in its own process with its own
+    server and client (a run mostly waits on the model; the local load is
+    one small server on synthetic data). Reports in the order asked."""
     todo = units(names, kinds, repeats)
     opts = opts or {}
     if jobs <= 1 or len(todo) <= 1:
@@ -286,9 +292,15 @@ def run_all(names: list[str], kinds: list[str], model: str, out: Path, timeout_s
     import multiprocessing
     from concurrent.futures import ProcessPoolExecutor
 
-    with ProcessPoolExecutor(max_workers=jobs, mp_context=multiprocessing.get_context("spawn")) as ex:
-        futs = [ex.submit(_one_alone, n, k, model, out, timeout_s, use_judge, i, opts) for k, n, i in todo]
+    ctx = multiprocessing.get_context("spawn")
+    pools = {k: ProcessPoolExecutor(max_workers=min(jobs, server_jobs) if k == "server" else jobs, mp_context=ctx)
+             for k in kinds}
+    try:
+        futs = [pools[k].submit(_one_alone, n, k, model, out, timeout_s, use_judge, i, opts) for k, n, i in todo]
         return [f.result() for f in futs]
+    finally:
+        for p in pools.values():
+            p.shutdown()
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -300,6 +312,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--model", default="", help="the client's model (default: the client's own)")
     ap.add_argument("--repeats", type=int, default=1, help="runs per scenario and client (the release: 3)")
     ap.add_argument("--jobs", type=int, default=0, help="runs at once (default: all of them)")
+    ap.add_argument("--server-jobs", type=int, default=SERVER_JOBS,
+                    help=f"server client runs at once, for its rate limit (default {SERVER_JOBS})")
     ap.add_argument("--max-usd", type=float, default=clients.MAX_USD,
                     help=f"the batch's spend cap for the server client, checked before each call "
                     f"(default {clients.MAX_USD:g})")
@@ -324,7 +338,7 @@ def main(argv: list[str] | None = None) -> int:
         clients.make(k, a.model, **opts)
     t0 = time.time()
     reports = run_all(names, kinds, a.model, out, a.timeout_min * 60, a.judge,
-                      a.jobs or len(units(names, kinds, a.repeats)), a.repeats, opts)
+                      a.jobs or len(units(names, kinds, a.repeats)), a.repeats, opts, a.server_jobs)
     wall = (time.time() - t0) / 60
     spent = clients.spent(opts["spend_file"]) if "server" in kinds else None
     table = release_table(reports, wall, spent)

@@ -293,7 +293,7 @@ release runs the rest, browsers included.
 **Release eval.** `make eval-release` on your own machine, on the commit
 you'll release: the seeded evaluation ([evaluation.md](evaluation.md)) with
 Claude Code and with the server's own runner, every scenario three times,
-all at once (about 20 minutes, up to $10 of the server's model). A scenario
+all at once, three server runs at a time (about 25 minutes, up to $10 of the server's model). A scenario
 under two passes of three is a reason to wait. Paste the batch's
 `release.md` table, per model and scenario, into "Unreleased" so it lands in
 the release notes. Never in CI. Write the CHANGELOG as you merge, under

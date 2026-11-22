@@ -44,7 +44,9 @@ EVAL_SERVER_KEY_CMD='op read op://private/openai-eval/key' make eval-analysis CL
 `EVAL_SERVER_MODEL` defaults to `gpt-6.1-sol` (its prices are built in: $2 per million prompt tokens, $0.10
 cached, $10 output) and `EVAL_SERVER_PROVIDER` to `openai`; `EVAL_SERVER_BASE_URL` points it at another endpoint.
 Another model needs its prices (`EVAL_SERVER_PRICE_INPUT_PER_MTOK`, `..._OUTPUT_...`, `..._CACHED_INPUT_...`), or
-it refuses to start: without them the cap can't work. Every server run of a batch spends from one cap, `--max-usd` (10 dollars by
+it refuses to start: without them the cap can't work. Three server runs go at once (`--server-jobs`): one run sends about a million tokens a minute, cached prompt
+included, and fifteen at once crossed OpenAI's tokens-per-minute limit within a minute. Every server run of a batch
+spends from one cap, `--max-usd` (10 dollars by
 default), checked before each model call, like the server's own monthly budget: the batch can pass it by one call
 per run going at once, and a run it stops counts as an error. A run measured about $0.70 on real play, so a release
 batch (15 runs) sits near the default cap; raise it with `EVAL_ARGS="--max-usd 15"` if one gets cut.
