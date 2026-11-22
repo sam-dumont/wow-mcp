@@ -16,7 +16,7 @@ on one core).
 | # | Guarantee | Test |
 |---|---|---|
 | 1 | Server lost, PC kept: `--replay` gives back the same events and the same prepared facts. | `test_restore.py::test_replay_restores_the_same_events_and_facts` |
-| 2 | `sent/` lost too: `--reextract` dates every event as the live run did, none approximate (no `at_basis`). | `test_restore.py::test_reextract_keeps_every_observation_time` |
+| 2 | `sent/` lost too: `--reextract` dates every event as the live run did, none approximate (no `at_basis`), from an archive made by 0.7.0 or later (older commits have no capture manifest: [Recovery drill](#recovery-drill)). | `test_restore.py::test_reextract_keeps_every_observation_time` |
 | 3 | One batch, eight batches, batches out of order or a seventh of the rows a day late: the same prepared facts and metric answers. The shipper gives the same events whichever runs read which Recorder chunks, and a zone's or a flight's time doesn't depend on them (a flight that takes off in one chunk and lands in the next). | `test_arrival.py::test_arrival_schedule_changes_no_answer`, `test_arrival.py::test_any_chunk_schedule_gives_the_same_facts` |
 | 4 | A batch sent twice changes no total. | `test_arrival.py::test_a_resent_batch_changes_no_total` |
 | 5 | Records on the same millisecond keep the Recorder's own order (chunk, then index, as numbers: 10 after 9). | `test_arrival.py::test_equal_times_keep_the_recorders_order` |
@@ -176,3 +176,56 @@ Open, not fixed:
   server: the owner's call.
 - The Deaths section's "Per level" divides every Recorder death by Polestar's level count, so a
   Recorder switched on late understates it (`web/app.js`, `renderDeaths`).
+
+## Recovery drill
+
+The tests above play made-up histories. Before 0.7.0 the restore also ran once on a real one:
+a copy of the maintainer's own archive (`state.json`, `sent/`, the WTF archive), into servers
+on 127.0.0.1 only (VictoriaLogs and `wow-stats ui`). The shipper ran in a throwaway HOME, with a
+WoW folder rebuilt from the archive's own copy, never the game's.
+
+- **Date:** 2026-11-22.
+- **Procedure:** [Back up and restore](self-host/backup.md#restore) as on main `f458c4d`
+  (0.7.0-rc.8 plus #86 to #93), followed as written.
+- **Reference:** an empty server filled by a normal shipper run (the 24 files of `sent/` put
+  back in the spool), then 34 answers recorded: per character (two), the page's `char`,
+  `journal`, `overview`, `timeline`, `loot`, `dungeons`, `people` and `gear`, and the MCP's
+  `character_summary`, `levels`, `deaths`, `zones`, `sessions`, `dungeons`, `guide_steps`,
+  `gear` and `players`.
+- **Restore:** the server's data folder deleted, `--replay`, the same 34 answers again.
+  Then `--reextract` with `sent/` deleted, into a third empty server.
+
+| | Events | Same fields | Same answers | Time |
+|---|---|---|---|---|
+| `--replay` | 25,880 of 25,880 ids | 25,880 | 34 of 34 | 1.6 s to empty and restart the server, 0.6 s to send, 8 s until the page listed the characters |
+| `--reextract` | 24,516 ids; every one of the 23,017 Recorder records | 22,933 | 33 of 34 | 10.6 s |
+
+A second `--replay` on top stored 51,760 rows for the same 25,880 ids and changed no answer.
+
+What `--reextract` gives differently, and why:
+
+- **Auction scans:** the server held 1,347 scan rows twice, under two realm keys an older
+  shipper used. The re-read sends each once.
+- **Names:** 1,347 scan rows and 219 Recorder records differ in their item, NPC or quest name.
+  Names come from the data addons in the game folder, which the drill didn't read, so most came
+  back empty; 56 quest names the very first run (11-18, an early version) didn't send came back
+  from the Recorder's own records.
+- **Logins:** 5 Recorder records gained the login mark the live runs missed when a session
+  spanned two runs (fixed in #86).
+- **Snapshots:** 14 gear, bag and character sheets only in the reference, 7 only in the
+  re-read: older versions gave them other ids, and the archive holds a gear sheet no live run
+  sent. That sheet is the one answer that differs: the timeline has 2 more gear lines.
+- **`at_basis`:** 5 snapshots say `commit`. Every commit of this archive predates the capture
+  manifest (#75), so a version the current files don't cover gets the commit's time. 3 of them
+  share an id with a snapshot the live run dated exactly, which wins (guarantee 14).
+- **Setup reports:** one per run (11 in the reference, 1 in the re-read), never history.
+
+What the drill found:
+
+- `--replay` stopped at "no WTF folder" without the game installed and exited 0 having sent
+  nothing (#94).
+- The MCP's `players` gave another top 20 on each call when players tied, and `zones` failed on
+  a `NaN` from the store (#95).
+- The restore page said a second replay "isn't stored twice" (it is, counted once) and that
+  `--reextract` leaves `state.json` as it was (its re-read does; the normal run it ends with
+  updates it). Both fixed in the page.

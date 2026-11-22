@@ -82,9 +82,14 @@ uv run --script ~/.local/share/wow-stats/wow_stats.py --replay
 On Windows: `uv run --script "$env:LOCALAPPDATA\wow-stats\wow_stats.py" --replay`.
 
 `--replay` sends every event in `sent/` again, byte for byte: same ids, same fields, same
-times. It changes nothing on the PC (not `sent/`, not `state.json`), so you can run it again
-when it stops halfway: the log says how far it got, and anything the server already has isn't
-stored twice.
+times. It reads nothing else, so the game doesn't need to be installed yet. It changes nothing
+on the PC (not `sent/`, not `state.json`), so you can run it again when it stops halfway: the
+log says how far it got. What the server already has is stored a second time but counted
+once: every answer keeps one copy per event id.
+
+The log's last line says how much went: `replay: 12000 events from 9 files in ... sent
+again`. The page lists your characters within a minute (it keeps the character list for 45
+seconds).
 
 `sent/` gone too, but `wtf/` is there? Use `--reextract` instead:
 
@@ -92,9 +97,15 @@ stored twice.
 uv run --script ~/.local/share/wow-stats/wow_stats.py --reextract
 ```
 
-It reads every archived version of the game files again from scratch and sends what it finds.
-It keeps its own record of what it found, so the normal one (`state.json`) stays as it was and
-the next background run carries on where it stopped. Never delete `state.json` for a restore.
+It reads every archived version of the game files again from scratch and sends what it finds,
+with a record of its own: that re-read never touches `state.json`. The same command then does
+what a background run does (read the game files, send what's new), and that part updates
+`state.json` as usual, so the next background run carries on where it stopped. Never delete
+`state.json` for a restore.
+
+It writes the events as today's shipper does: quest, NPC and item names come from the data
+addons installed now, and a snapshot an older version sent under another id comes back under
+today's.
 Two things it can't bring back: combat logs (`Logs/` isn't archived; `sent/` has them) and the
 exact time of a snapshot archived before 0.7.0 (it gets the archive's time instead, marked as
 approximate: [the contract's "Times"](../contract.md#times)).
