@@ -36,6 +36,7 @@ on one core).
 | 19 | With an archive (`VL_ARCHIVE_URL`), a read whose range reaches the archive's days while the archive doesn't answer fails with an error that says so (`ArchiveUnavailable`), never the recent days alone as the whole history; the event cache keeps what it had and nothing reads the missing days as deleted. Both on the first read and after a complete history was cached. | `test_archive.py` |
 | 20 | `--replay` sends every whole gzip member of a damaged `sent/` file (one cut short by a crash, at the end or between two whole ones, or garbage after them), names the file and the bytes it couldn't read, and exits 1. A damaged file never ends in "sent again" and exit 0. | `test_sent_damage.py` |
 | 21 | A definition change never adds weight: a finding gains support only from source events its last support didn't see (their ids, times and revisions), never from tables a definition change moved. Another `WEIGHTS` (Holy to Shadow), a prep version, the semantic model or a setting, with the events held fixed: the affected findings are to revalidate, the others still, none confirmed, and proposing one again on the same play gains nothing. | `test_definitions.py::test_changing_weights_*`, `test_definitions.py::test_a_definition_that_moves_prepared_rows_adds_no_weight` |
+| 22 | Advice never outlives its finding's check: a nudge or pattern line citing a finding to revalidate, doubtful or gone is held on every reader (the page, `play_analysis`, `whats_new`, the plan's facts, `/zogzog/` and the share port), from the findings as they are at answer time, and comes back once they are judged again. | `test_dependents.py` |
 
 ## Crash points
 
@@ -226,6 +227,11 @@ Found in review 6, fixed with their test:
   to 1.5. The manifest now holds the resolved spec and the player's weight edits, and the
   support mark reads the source events (`prep.input_mark`). A finding proposed again after a
   prep or semantic change gained weight the same way; it doesn't now.
+- A definition change marked a finding "to revalidate" and left the advice on it up: verify a
+  finding, keep a nudge and a pattern on it, bump `PREP_VERSION`, run the night. The full
+  view's nudge (verdict "now"), the pattern and the `/zogzog/` nudge stayed, as did the plan's
+  facts and `whats_new`: the line screen only refused findings missing or doubtful, and only
+  when a run saved the lines. Every reader now goes through `analysis.standing`.
 
 Gaps the matrix found, fixed with their test (review 5):
 

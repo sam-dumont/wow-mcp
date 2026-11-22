@@ -841,6 +841,8 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     ups = (advice or {}).get("upgrades_all") or []
     for u in ups:
         u["ah_copper"] = (scans.get(u.get("item_id")) or {}).get("copper")
+    from wowstats.analysis import standing
+
     st = state or {}
     findings = sorted((st.get("findings") or {}).values(), key=lambda f: -float(f.get("score") or 0))
     dungeons = []
@@ -904,10 +906,12 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         "rested_burn": rested_burn(db),
         "route_levels": route_levels(ref, meta, level),
         "gold_rate": gold_rate(db, now=now), "loot_value": loot_value(db, cards, scans, now=now),
-        "findings": [{"key": f.get("key"), "title": f.get("title"), "text": f.get("text")} for f in findings[:10]
-                     if not f.get("doubtful")],
+        # What the plan acts on: findings judged under today's definitions
+        # and the nudges standing on them (analysis.standing, review 6).
+        "findings": [{"key": f.get("key"), "title": f.get("title"), "text": f.get("text")}
+                     for f in [f for f in findings if not f.get("doubtful") and not f.get("revalidate")][:10]],
         "nudges": [{"text": n.get("text"), "verdict": n.get("verdict"), "at_level": n.get("at_level")}
-                   for n in st.get("nudges") or []],
+                   for n in standing(st)["nudges"]],
         "analysis_updated": st.get("updated"),
         "calibration": reviews or {"factor": 1.0, "n": 0},
         "progress": progress(db),

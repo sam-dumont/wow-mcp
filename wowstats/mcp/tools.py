@@ -1216,9 +1216,9 @@ MARKET = Tool("market", "WoW Token and rulesets (API)",
 # Last: clients that list the tools show the long-standing ones first.
 TOOLS = TOOLS + (
     Tool("play_analysis", "Play analysis",
-         "The kept analysis of how the player plays: findings (each with its SQL, re-run on the latest data every "
-         "night, and the KB documents it used), nudges, and time per level. A finding with `revalidate` was judged "
-         "under older definitions and isn't rechecked: treat it as unconfirmed; quote a `carried_note` as is. Read it "
+         "The kept analysis of how the player plays: findings (each with its SQL, re-run nightly, and its KB "
+         "documents), nudges, time per level. A finding with `revalidate` isn't rechecked: treat it as unconfirmed; "
+         "advice resting on one is in `on_hold`, not `nudges`: don't give it. Quote a `carried_note` as is. Read it "
          "before advising; the analyse tool runs a new analysis.",
          schema({"char": CHAR}), t_play_analysis),
 )

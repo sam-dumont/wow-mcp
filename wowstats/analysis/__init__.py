@@ -577,6 +577,40 @@ def bind(lines: list[dict], kept: dict, level: int | None, dropped: list, what: 
     return out
 
 
+def held_on(line: dict, findings: dict) -> list[str]:
+    """The findings a nudge or pattern line cites that can't back it today:
+    awaiting revalidation (judged under other definitions), doubtful, or no
+    longer kept. [] when the line stands. A line that names no finding
+    stands on nothing: held on "(none)". Review 6: a definition change
+    marked the finding and left the nudge on it in "What to do"."""
+    keys = [k for k in line.get("findings") or [] if isinstance(k, str)]
+    if not keys:
+        return ["(none)"]
+    return [k for k in keys if k not in findings or findings[k].get("revalidate") or findings[k].get("doubtful")]
+
+
+def standing(state: dict) -> dict:
+    """The kept lines every reader shows, by one rule (held_on): `nudges`
+    and `patterns` that stand on findings judged under today's definitions,
+    and `on_hold`, the others ({kind, text, waits_on}), which come back
+    once an analysis judges their findings again. Read at output time, on
+    the findings as they are now: a state saved before a finding was marked
+    shows no held line either. The page, the MCP's play_analysis and
+    whats_new, the plan's facts and the /zogzog/ bundle all go through it."""
+    findings = state.get("findings") or {}
+    out: dict = {"nudges": [], "patterns": [], "on_hold": []}
+    for kind, lines in (("nudge", state.get("nudges")), ("pattern", state.get("patterns"))):
+        for line in lines or []:
+            if not isinstance(line, dict):
+                continue
+            waits = held_on(line, findings)
+            if waits:
+                out["on_hold"].append({"kind": kind, "text": line.get("text"), "waits_on": waits})
+            else:
+                out[kind + "s"].append({k: v for k, v in line.items() if k != "on_hold"})
+    return out
+
+
 def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns: list, db, knowledge,
            players: set[str], info: dict, now: str, build: dict | None = None) -> dict:
     """Screen, rank and save: shared by the nightly recheck and a driver's
@@ -635,6 +669,16 @@ def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns
         f["score"] = score(f)
     ranked = sorted(kept.values(), key=lambda f: -f["score"])[:MAX_KEPT]
     kept = {f["key"]: f for f in ranked}
+    # A line on a finding to revalidate is kept (it comes back once the
+    # finding is judged again) but held: out of every "do now" list.
+    info["on_hold"] = 0
+    for line in (*nudges, *patterns):
+        waits = held_on(line, kept)
+        if waits:
+            line["on_hold"] = waits
+            info["on_hold"] += 1
+        else:
+            line.pop("on_hold", None)
     newest = db.execute("SELECT value FROM meta WHERE key='last_record'").fetchone()[0]
     runs = (state.get("runs") or [])[-29:] + [info]
     from . import manifest
@@ -847,8 +891,11 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
     # may still mark some). Nudges are screened again with today's rules: one
     # kept by an older run (that called the character "he", or was shared as
     # a short gist) stops being shared without a rerun.
-    patterns = [{**p, "shareable": False} for p in s.get("patterns") or [] if isinstance(p, dict)]
-    nudges = [n for n in s.get("nudges") or [] if isinstance(n, dict)]
+    # A line resting on a finding that awaits revalidation (or is doubtful,
+    # or gone) is held on every tier, from the findings as they are now.
+    lines = standing(s)
+    patterns = [{**p, "shareable": False} for p in lines["patterns"]]
+    nudges = lines["nudges"]
     if tier == "zogzog":
         return {"available": True, "char": s.get("char"),
                 "nudges": [{k: n.get(k) for k in verify.SHARED_NUDGE} for n in nudges
@@ -873,7 +920,7 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
             "nudges": [{k: n.get(k) for k in ("text", "gist", "where", "blocked_by", "next_step", "findings",
                                               "shareable", "verdict", "at_level", "constraints")}
                        for n in nudges],
-            "patterns": patterns, "time_budget": s.get("time_budget") or [],
+            "patterns": patterns, "on_hold": lines["on_hold"], "time_budget": s.get("time_budget") or [],
             "last_run": {k: last.get(k) for k in RUN_KEYS},
             "last_analysis": {k: explored_run.get(k) for k in RUN_KEYS} if explored_run else None,
             "manifest": (s.get("manifests") or {}).get(last.get("manifest") or ""),
