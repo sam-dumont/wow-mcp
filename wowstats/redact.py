@@ -251,7 +251,11 @@ GEAR_SHEET = {**_keys("at", "item_level", "guild", "spec", "class", "race", "fac
               "render": _keys("ext", "pending"),
               "items": [ITEM], "professions": [PROFESSION],
               "wanted": [_keys("item_id", "name", "item_level", "req_level", "slot_name", "level")]}
-DEATH_COUNTS = {"total": None, "by_zone": [_keys("zone", "n")], "by_level": {}}
+# per_level: the ratio and how many levels it read, not which ones (which
+# levels the Recorder saw whole is coverage, and coverage stays off the
+# static tiers until the owner says otherwise).
+DEATH_COUNTS = {"total": None, "by_zone": [_keys("zone", "n")], "by_level": {},
+                "per_level": _keys("value", "deaths", "n")}
 LOOT_ITEM = _keys("item_id", "name", "quality", "count", "t", "zone")
 
 # The Dungeons panel (wowstats.plan.dungeonview): game data, his own runs

@@ -102,7 +102,13 @@ jobs:
           WOW_DEMO_DIR: site/public/demo
           WOW_DEMO_ENGINES: chromium
       - run: npm ci --prefix site
+      # Page counts (site/scripts/analytics.mjs): the Plausible site and its
+      # event endpoint, repository variables like immich-memories' docs. Public
+      # values; unset, the pages load no tracker.
       - run: npm run build --prefix site
+        env:
+          DOCS_ANALYTICS_DOMAIN: ${{ vars.DOCS_ANALYTICS_DOMAIN }}
+          DOCS_ANALYTICS_ENDPOINT: ${{ vars.DOCS_ANALYTICS_ENDPOINT }}
       - if: needs.visibility.outputs.public == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:

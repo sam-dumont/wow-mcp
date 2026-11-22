@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import fs from "node:fs";
 import { BASE, ORIGIN, REPO_URL } from "./scripts/site.mjs";
+import { analyticsHead } from "./scripts/analytics.mjs";
 
 // Written by scripts/prepare.mjs from its SECTIONS list (the one place that
 // orders the site): run prepare first (`npm run build` and `dev` do).
@@ -45,6 +46,8 @@ export default defineConfig({
         { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
         { tag: "meta", attrs: { property: "og:image:alt", content: "The Overview of a made-up level 34 priest: pace against the route, hours to the next level, next moves" } },
         { tag: "meta", attrs: { name: "twitter:card", content: "summary_large_image" } },
+        // Page counts (scripts/analytics.mjs): nothing unless the build sets both variables.
+        ...analyticsHead(BASE),
       ],
       sidebar,
     }),

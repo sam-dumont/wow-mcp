@@ -26,6 +26,7 @@ wow-stats is GPL-3.0-only (`LICENSE`). It ships these parts made by others.
 | [WoWDBDefs](https://github.com/wowdev/WoWDBDefs) by the WoWDBDefs contributors | The client tables' column names and types (`definitions/*.dbd`), trimmed: only the tables the 3D view and the item facts read, and in each only its column list and the definition blocks for Forever's 1.60 builds (`tools/model3d_dbd.py`) | CC BY-SA 4.0 (the trimmed files stay under it), notice below | `data/dbd/` |
 | The Ed25519 reference code of [RFC 8032](https://www.rfc-editor.org/rfc/rfc8032) section 6 (Josefsson, Liusvaara) | Checking the release signature before the shipper updates itself (the verify half), and signing a release (the sign half, on the same arithmetic) | Simplified BSD, as IETF Trust code components (Copyright (c) 2017 IETF Trust and the persons identified as the document authors) | `shipper/wow_stats.py` (`ed25519_verify`), `tools/release/shipper_sign.py` |
 | Cinzel, Alegreya, Alegreya Sans | The page's fonts | SIL Open Font License 1.1 | `web/fonts/`, licence files next to them |
+| [Plausible](https://github.com/plausible/analytics) tracker v33 (Plausible CE v3.2.1, built at commit e4f5a87a5570, unmodified) | Page counts on the docs site only, not the product | MIT (Copyright 2020 Plausible Insights OÜ), notice in the file's header | `site/public/js/app.js` |
 
 No version of ForeverLevelingBiS after v0.12.0-beta is used: its 1.x
 releases are All Rights Reserved.

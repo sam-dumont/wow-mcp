@@ -46,8 +46,10 @@ def two_hosts():
         s.server_close()
 
 
-def test_upstream_follows_redirects_on_its_own_host_only(two_hosts):
+def test_upstream_follows_redirects_on_its_own_host_only(two_hosts, monkeypatch):
     home, other_hits = two_hosts
+    monkeypatch.setattr(upstream, "ALLOWED", set(upstream.ALLOWED))
+    upstream.allow(home)  # the test's server, as config would; `other` stays off the list
     assert upstream.fetch(f"{home}/same") == b"\x89PNG\r\n\x1a\nhere"
     with pytest.raises(upstream.Upstream, match="answered 302"):
         upstream.fetch(f"{home}/off")
