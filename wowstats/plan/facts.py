@@ -23,11 +23,11 @@ import time
 from datetime import UTC, datetime
 
 from wowstats import quests, trainers
+from wowstats.analysis.prep import TRAVEL  # the route position's rule, one copy
 from wowstats.gear import BADGE
 from wowstats.stores import parse_t
 
 LEVELING = re.compile(r"^forever/(alliance|horde)/")
-TRAVEL = re.compile(r"^(fly|boat|tram|zeppelin|portal|to|back to|hearth|take the|ride)\b", re.I)
 TRAVEL_DEST = re.compile(r"^(?:fly|boat|tram|zeppelin|portal) to (.+)$", re.I)
 CITIES = ("Stormwind", "Ironforge", "Darnassus", "Orgrimmar", "Thunder Bluff", "Undercity")
 CITY_STEP_MAX_S = 180
@@ -260,41 +260,16 @@ def guide_sequence(ref, side: str, level: int) -> list[str]:
     return [g for g in seq if (_i(((ref.guides or {}).get(g) or {}).get("level_end"), 0) or 0) >= level - 1]
 
 
-def position(db, ref) -> dict:
-    """Where the player is in Polestar's route: the guide and step Polestar
-    shows, the furthest step its pointer reached in that guide (the step he
-    was on, not yet done), and the step to plan from. Polestar falls back to
-    the first unfinished step at login (an open quest from earlier): when it
-    shows a step before the furthest one, the plan starts from the furthest
-    instead, or from the first step after it named after where he stands
-    (past it when that step is the trip there)."""
-    last = db.execute("SELECT guide, step, reason, t FROM records WHERE kind='step' AND guide LIKE 'forever/%' "
-                      "AND guide NOT LIKE 'forever/professions/%' ORDER BY t DESC LIMIT 1").fetchone()
-    if not last:
+def position(db) -> dict:
+    """Where the player is in Polestar's route: the prep's route_position
+    (wowstats.analysis.prep._route_position), the row play_sql reads too."""
+    row = db.execute("SELECT guide, guide_title, shown_step, shown_title, reason, furthest_step, next_step, "
+                     "next_title, next_why, subzone, zone FROM route_position").fetchone()
+    if not row:
         return {}
-    guide, step, reason, _ = last
-    furthest = one(db, "SELECT MAX(step) FROM records WHERE kind='step' AND guide=? AND reason IN "
-                       "('next','done','skip','auto')", guide) or step or 1
-    step = step or furthest
-    sub = db.execute("SELECT subzone, zone FROM records WHERE subzone IS NOT NULL OR zone IS NOT NULL ORDER BY t "
-                     "DESC LIMIT 1").fetchone() or (None, None)
-    bind = one(db, "SELECT bind FROM snapshots ORDER BY t DESC LIMIT 1")
-    steps = guide_steps(ref, guide)
-    titles = {n: t for n, _, t in steps}
-    anchor, why = furthest, "the step Polestar's pointer reached last"
-    names = list(dict.fromkeys(x for x in (sub[0], bind) if x))
-    if step < furthest:
-        for n in range(furthest, furthest + 11):
-            t = titles.get(n, "")
-            if any(x.lower() in t.lower() or t.lower() in x.lower() for x in names if t):
-                there = TRAVEL.match(t) and any(x.lower() in t.lower() for x in names) and n + 1 in titles
-                anchor = n + 1 if there else n
-                why = (f"Polestar fell back to step {step}; you are at {', '.join(names)}, so the plan starts "
-                       f"{'after' if there else 'at'} step {n} ({t})")
-                break
-    return {"guide": guide, "guide_title": ((ref.guides or {}).get(guide) or {}).get("title"), "shown_step": step,
-            "shown_title": titles.get(step), "reason": reason, "furthest_step": furthest, "anchor_step": anchor,
-            "anchor_title": titles.get(anchor), "anchor_why": why, "subzone": sub[0], "zone": sub[1]}
+    keys = ("guide", "guide_title", "shown_step", "shown_title", "reason", "furthest_step", "anchor_step",
+            "anchor_title", "anchor_why", "subzone", "zone")
+    return dict(zip(keys, row, strict=True))
 
 
 def step_history(db, ref) -> list[dict]:
@@ -900,7 +875,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     if xp_max:
         xp_table[level] = xp_max
     hist = step_history(db, ref)
-    pos = position(db, ref)
+    pos = position(db)
     side = meta.get("faction")
     seq = guide_sequence(ref, side, level) if side else []
     ahead: list[dict] = []

@@ -67,6 +67,10 @@ from wowstats.stores import (
 # measured against (the MCP's gear reads its numbers by item and slot).
 PREP_VERSION = 8
 
+# A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
+# route position starts past it when the character already stands there.
+TRAVEL = re.compile(r"^(fly|boat|tram|zeppelin|portal|to|back to|hearth|take the|ride)\b", re.I)
+
 
 def _zone() -> tuple[str, ZoneInfo]:
     """The player's local time for hours, weekdays and the nightly recheck
@@ -176,7 +180,9 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "xp_reward": "XP the record says was gained (kill, turnin, explore)",
         "money_copper": "money paid (turnin) or offered (accept), copper",
         "on_flag": "1 on / 0 off for combat, afk, ride, escort",
-        "guide": "Polestar guide id (step records)", "step": "guide step number (step records)",
+        "guide": "Polestar guide id (step records)",
+        "step": "guide step number (step records): where Polestar's pointer was, which falls back to an earlier "
+                "step at login; the step to do next is route_position.next_step",
         "reason": "why the step changed (step records)",
         "seconds": "a duration: rest (aura length), land (flight), step (seconds since the previous step), "
                    "zone (seconds to the next zone record of the session, else to the session's last record)",
@@ -249,6 +255,17 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "longest_gap_from_local": "its start, local time", "longest_gap_to_local": "its end, local time",
         "recorder_missed_s": "played seconds the Recorder's sessions don't cover (the coverage's Recorder gap "
                              "for the level, 0 when none; NULL when it can't be measured)"}),
+    "route_position": ("Where the character is in Polestar's levelling route, one row: the step to do next "
+                       "(next_step) by the rule the plan and the next_step tool use. Read it for the next step; "
+                       "the newest step record is only where Polestar's pointer was (it falls back to the first "
+                       "unfinished step at login).", {
+        "guide": "the levelling guide of the newest step record", "guide_title": "its title",
+        "shown_step": "the step Polestar showed last", "shown_title": "its title",
+        "reason": "why it changed (step records' reason)",
+        "furthest_step": "the furthest step the pointer reached in that guide",
+        "next_step": "the step to do next: furthest_step, or the first step after it named after where the "
+                     "character stands when Polestar fell back", "next_title": "its title",
+        "next_why": "why that step, in words", "subzone": "the newest subzone", "zone": "the newest zone"}),
     "route_steps": ("Polestar's route planner: planned seconds per guide step (a model of a quick player who "
                     "knows the route, uncalibrated).", {
         "guide": "guide id", "guide_title": "guide title", "step": "step number from 1", "planned_s": "seconds",
@@ -722,6 +739,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     _gear(db, rows)
     _dungeon_trips(db, rows)
     _snapshots(db, rows)
+    _route_position(db)
     _quests(db, questsmod.explain(rows))
     _gold_moves(db)
     _upgrades(db, (advice or {}).get("upgrades_all") or [])
@@ -766,6 +784,8 @@ def _schema(db: sqlite3.Connection) -> None:
         calendar_s REAL, offline_s REAL, longest_gap_s REAL, longest_gap_from_local TEXT,
         longest_gap_to_local TEXT, recorder_missed_s REAL);
     CREATE TABLE route_steps (guide TEXT, guide_title TEXT, step INTEGER, planned_s REAL, title TEXT);
+    CREATE TABLE route_position (guide TEXT, guide_title TEXT, shown_step INTEGER, shown_title TEXT, reason TEXT,
+        furthest_step INTEGER, next_step INTEGER, next_title TEXT, next_why TEXT, subzone TEXT, zone TEXT);
     CREATE TABLE dungeon_runs (name TEXT, dungeon_id INTEGER, level INTEGER, start_t REAL, left_t REAL,
         seconds REAL, xp INTEGER);
     CREATE TABLE dungeon_trips (trip_id INTEGER PRIMARY KEY, dungeon TEXT, dungeon_id INTEGER, level_start INTEGER,
@@ -914,6 +934,45 @@ def _route_steps(db, route) -> None:
         for st in row.get("steps") or []:
             out.append((g, row.get("title"), st[0], st[1], st[2] if len(st) > 2 else None))
     db.executemany("INSERT INTO route_steps VALUES (?,?,?,?,?)", out)
+
+
+def _route_position(db) -> None:
+    """Where the player is in Polestar's route: the guide and step Polestar
+    shows, the furthest step its pointer reached in that guide (the step he
+    was on, not yet done), and the step to do next. Polestar falls back to
+    the first unfinished step at login (an open quest from earlier): when it
+    shows a step before the furthest one, the next step is the furthest
+    instead, or the first step after it named after where he stands (past it
+    when that step is the trip there). One rule for the plan, the next_step
+    tool and play_sql: a model that read the newest step record answered 45
+    where next_step said 66 (eval-mcp, route_next_step)."""
+    last = db.execute("SELECT guide, step, reason FROM records WHERE kind='step' AND guide LIKE 'forever/%' "
+                      "AND guide NOT LIKE 'forever/professions/%' ORDER BY t DESC, rec_id DESC LIMIT 1").fetchone()
+    if not last:
+        return
+    guide, step, reason = last
+    furthest = db.execute("SELECT MAX(step) FROM records WHERE kind='step' AND guide=? AND reason IN "
+                          "('next','done','skip','auto')", (guide,)).fetchone()[0] or step or 1
+    step = step or furthest
+    sub = db.execute("SELECT subzone, zone FROM records WHERE subzone IS NOT NULL OR zone IS NOT NULL ORDER BY t "
+                     "DESC, rec_id DESC LIMIT 1").fetchone() or (None, None)
+    bind = (db.execute("SELECT bind FROM snapshots ORDER BY t DESC LIMIT 1").fetchone() or (None,))[0]
+    titles = {int(n): t or "" for n, t in db.execute("SELECT step, title FROM route_steps WHERE guide=?", (guide,))}
+    gtitle = (db.execute("SELECT guide_title FROM route_steps WHERE guide=? LIMIT 1", (guide,)).fetchone()
+              or (None,))[0]
+    anchor, why = furthest, "the step Polestar's pointer reached last"
+    names = list(dict.fromkeys(x for x in (sub[0], bind) if x))
+    if step < furthest:
+        for n in range(furthest, furthest + 11):
+            t = titles.get(n, "")
+            if any(x.lower() in t.lower() or t.lower() in x.lower() for x in names if t):
+                there = TRAVEL.match(t) and any(x.lower() in t.lower() for x in names) and n + 1 in titles
+                anchor = n + 1 if there else n
+                why = (f"Polestar fell back to step {step}; you are at {', '.join(names)}, so the plan starts "
+                       f"{'after' if there else 'at'} step {n} ({t})")
+                break
+    db.execute("INSERT INTO route_position VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+               (guide, gtitle, step, titles.get(step), reason, furthest, anchor, titles.get(anchor), why, *sub))
 
 
 def _items(g: dict) -> list:

@@ -99,7 +99,8 @@ def carried_note(f: dict) -> str | None:
 # the database at all.
 TABLES = {
     "records": "game", "positions": "game", "loot_items": "game", "xp": "game", "timeline": "game",
-    "spans": "game", "sessions": "game", "levels": "game", "route_steps": "game", "dungeon_runs": "game",
+    "spans": "game", "sessions": "game", "levels": "game", "route_steps": "game", "route_position": "game",
+    "dungeon_runs": "game",
     "dungeon_trips": "game", "quests": "game", "quests_done": "game", "gold_moves": "game",
     "gear": "game", "gear_sheets": "game", "professions": "game", "snapshots": "game",
     "upgrade_candidates": "game", "agg_session": "game",

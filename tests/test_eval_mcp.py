@@ -72,6 +72,31 @@ def test_answers_on_the_demo(computed):
     assert computed["longest_break_h"] > 3  # a night between evenings at least
 
 
+def test_play_sql_route_position_is_next_steps_rule():
+    """One next-step rule (eval-mcp 2026-11-22, route_next_step): on the
+    demo Polestar fell back from step 66 to 45, so the newest step record
+    says 45; play_sql's route_position and the next_step tool both say 66."""
+    pytest.importorskip("fastmcp")
+    import tempfile
+
+    rows = D.rows_for("full")
+    vl = D.VL(rows)
+    try:
+        with D.clock(), tempfile.TemporaryDirectory() as state:
+            t = answers.Tools(vl.url, state)
+            pos = t.sql("SELECT shown_step, furthest_step, next_step FROM route_position")
+            assert len(pos) == 1
+            shown, furthest, nxt = (int(pos[0][k]) for k in ("shown_step", "furthest_step", "next_step"))
+            assert shown < furthest <= nxt  # the fallback the demo seeds
+            newest = t.sql("SELECT step FROM records WHERE kind = 'step' AND guide LIKE 'forever/alliance/%' "
+                           "ORDER BY t DESC, rec_id DESC LIMIT 1")
+            assert int(newest[0]["step"]) == shown
+            first = t("next_step")["blocks"][0]["what"]
+            assert f"steps {nxt} " in first or f"step {nxt} " in first, first
+    finally:
+        vl.close()
+
+
 def test_level_at_reads_the_splits():
     rows = [{"feed": "wow-level", "level": "5", "_time": "2026-01-01T10:00:00Z"},
             {"feed": "wow-level", "level": "6", "_time": "2026-01-01T11:00:00Z"}]

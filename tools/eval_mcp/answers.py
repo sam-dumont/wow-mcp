@@ -162,10 +162,16 @@ def zone_quest_upgrade_line(t: Tools) -> str:
 
 
 def next_guide_step(t: Tools) -> int:
+    """next_step's first block, which play_sql's route_position must say
+    too: a model that read the newest step record instead answered 45
+    where next_step said 66 (eval-mcp 2026-11-22)."""
     first = t("next_step")["blocks"][0]["what"]
     m = re.search(r"steps? (\d+)", first)
     if not m:
         raise ValueError(f"no step number in the first block: {first!r}")
+    sql = int(_one(t.sql("SELECT next_step FROM route_position"), "route_position row")["next_step"])
+    if sql != int(m.group(1)):
+        raise ValueError(f"next_step says {m.group(1)}, route_position says {sql}")
     return int(m.group(1))
 
 
