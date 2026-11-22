@@ -119,6 +119,7 @@ Kept per character, judged by the server.
 | `ANALYSIS_MODEL` | ui | model id | `claude-opus-5-5` with `anthropic`; required with `openai` | `claude-sonnet-5-5` | The model the server's own analysis runs on. It must support tool calling. |
 | `ANALYSIS_MONTHLY_BUDGET` | ui | US dollars | `10` | `50` | What the server's own analysis may spend a calendar month (UTC), in USD, the currency the APIs bill in. A run that would likely cross it doesn't start. With `openai`, only when both prices below are set. |
 | `ANALYSIS_MONTHLY_TOKENS` | ui | tokens | empty: no cap | `20000000` | A cap in tokens (sent and received) a month, besides or instead of the money one: the cap for an endpoint with no prices. |
+| `ANALYSIS_NUDGE_LEAD` | ui | hours of play, or `off` | `5` | `3` | How long before the server's own refresh (`ANALYSIS_STALE_PLAYED_HOURS`) a player is asked to run the analysis from their own AI, which costs you nothing: a card on their full view and, once in a while, a line in their AI's tool answers. Same timer as the server's refresh: 5 with 15 hours asks from 10 hours of play. `off` or `0`: never. No nudge when the server's refresh is off. |
 | `ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK` | ui | US dollars | empty: the input price | `0.015` | With `openai`: what the endpoint charges per million cached prompt tokens (OpenAI: a tenth of the input price or less). Most of a run's prompt is cached, so without it the count runs several times over the bill. |
 | `ANALYSIS_PRICE_INPUT_PER_MTOK` | ui | US dollars | empty: cost unknown | `0.15` | With `openai`: what the endpoint charges per million prompt tokens. Set it and the next one to count money and apply the budget; Anthropic's prices are built in. |
 | `ANALYSIS_PRICE_OUTPUT_PER_MTOK` | ui | US dollars | empty: cost unknown | `0.60` | With `openai`: what the endpoint charges per million completion tokens. |
@@ -136,6 +137,7 @@ Kept per character, judged by the server.
 | `ANALYSIS_WIF_SERVICE_ACCOUNT_ID` | ui | id | empty: none | `svac_...` | The service account the token is exchanged for: required with `openai`, optional with `anthropic`. |
 | `ANALYSIS_WIF_TOKEN_FILE` | ui | path | empty: no federation | `/var/run/secrets/ai-token/token` | Workload identity federation, either provider: the identity token's file (a Kubernetes projected service account token), reread at each exchange as it rotates. With the provider's IDs below it comes before `ANALYSIS_API_KEY_FILE`. See [Server-side analysis](../self-host/server-analysis.md). |
 | `ANALYSIS_WIF_WORKSPACE_ID` | ui | id | empty: none | `wrkspc_...` | With `anthropic`, optional: the workspace the exchanged token works in. |
+| `OPERATOR_NAME` | ui | text, 40 characters | empty: "the host" | `Sam` | Your name in the refresh nudge: "In about 5h of play the server refreshes it on Sam's credit. Be nice to Sam". You see "your own credit" on your own page. |
 
 ## The static sites (`wow-stats publish`, `wow-stats static`)
 

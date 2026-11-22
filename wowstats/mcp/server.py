@@ -64,7 +64,7 @@ from fastmcp.utilities.authorization import AuthContext  # noqa: E402
 from mcp.types import TextContent, ToolAnnotations  # noqa: E402
 from pydantic import PrivateAttr  # noqa: E402
 
-from . import consent, prompts, tools, wowhead  # noqa: E402
+from . import consent, prompts, reminder, tools, wowhead  # noqa: E402
 
 log = logging.getLogger("wowstats.mcp")
 
@@ -239,8 +239,15 @@ class WowTool(Tool):
         if self.name not in {t.name for t in reg}:
             return ToolResult(content=[TextContent(type="text", text=f"unknown tool: {self.name}")], is_error=True)
         registry = tools.TOOLS if reg == tools.TOOLS else reg
+        tok = get_access_token()
+        client = f"{sub}|{getattr(tok, 'client_id', '')}" if tok is not None else "local"
+
+        def go():
+            out = tools.call(ctx, self.name, dict(arguments or {}), registry)
+            return out, reminder.REMINDER.notice(ctx, client, self.name)
+
         try:
-            out = await anyio.to_thread.run_sync(tools.call, ctx, self.name, dict(arguments or {}), registry)
+            out, notice = await anyio.to_thread.run_sync(go)
         except tools.ToolError as e:
             return ToolResult(content=[TextContent(type="text", text=str(e))], is_error=True)
         except Exception:  # a bug in a tool: say so to the model, keep the details in the log
@@ -249,6 +256,8 @@ class WowTool(Tool):
             return ToolResult(content=[TextContent(type="text", text=f"{self.name} failed inside the server; see "
                                                                      "its log")], is_error=True)
         out = wowhead.annotate(out)
+        if notice and isinstance(out, dict):  # once in a while: the refresh nudge (reminder.py)
+            out = {**out, "notice": notice}
         text = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
         return ToolResult(content=[TextContent(type="text", text=text)], structured_content=out)
 

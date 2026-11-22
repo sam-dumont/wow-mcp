@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Players are asked to refresh their own analysis before the server pays for it. From 5 hours of play before the server's own refresh (`ANALYSIS_NUDGE_LEAD`, so from 10 h with 15), the full view shows a card above the Ask links: "Your analysis is 10h 12m of play old. In about 4h 48m of play the server refreshes it on Sam's credit. Be nice to Sam: ask your own assistant to run it.", with the prompt to copy; dismissed, it stays hidden for that browser session. Your AI's tool answers carry the same as a `notice` once in a while: a client's first call, then at most every 20 calls or every hour, never on the analysis' own tools. The name is `OPERATOR_NAME` ("the host" when unset), and the host reads "your own credit" on their own page. No nudge while the server's refresh is off, and never on the public page or `/zogzog/`.
+
 ### Changed
 
 - The knowledge base's jobs split into what needs a model and what doesn't. The daily watch now only checks upstream versions (the client build, Polestar, Questie) and lands them like Dependabot, with no model call. The model runs once a week (mode `review`, `meta` still works) and only on what a free check saw change: an official page whose text hash moved, a forum thread's new posts (not the whole thread), new news items, new community threads, and stale statements whose page changed since they last held. A quiet week makes no model call. The known statements go first in each page call, sorted and cached for an hour when three pages or more are read, and every call's `cache_creation_input_tokens` and `cache_read_input_tokens` land in the job summary. Before, nine daily runs re-sent the same ~50K tokens uncached on every page: about 1.4M tokens and 7 euros in one week.

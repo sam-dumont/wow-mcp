@@ -3474,6 +3474,55 @@ function setAsk(name) {
   }
 }
 
+// The nudge: the character's play since its last analysis nears the
+// server's own refresh, which the host pays for (owner, 2026-11-22: "be
+// nice to me"). One card above the Ask links with the prompt to paste in
+// your own assistant; dismissed for the browser session. Full view only:
+// /api/nudge doesn't exist anywhere else.
+function nudgeOff(name) {
+  try { return sessionStorage.getItem(`wow-nudge:${name}`) === '1'; } catch (e) { return false; }
+}
+
+async function loadNudge(name) {
+  const box = $('#nudgebox');
+  if (!box || PUBLIC || STATIC) return;
+  let n = null;
+  if (!nudgeOff(name)) {
+    try { n = (await getJSON(api('nudge', { name }))).nudge; } catch (e) { n = null; }
+  }
+  if (name !== state.char) return;
+  box.hidden = !n;
+  if (!n) { box.replaceChildren(); return; }
+  const payer = n.you_pay ? 'your own credit' : `${n.operator}’s credit`;
+  const what = n.never_refreshed ? 'runs the first one' : 'refreshes it';
+  const head = n.never_refreshed ? `${dur(n.played_since_s)} of play and no analysis yet.`
+    : `Your analysis is ${dur(n.played_since_s)} of play old.`;
+  const when = n.server_in_s > 0 ? `In about ${dur(n.server_in_s)} of play the server ${what} on ${payer}.`
+    : `The server ${what} any time now, on ${payer}.`;
+  const ask = n.you_pay ? 'Cheaper: ask your own assistant to run it.' : `Be nice to ${n.operator}: ask your own assistant to run it.`;
+  const code = h('code', { text: n.ask });
+  const copy = h('button', { type: 'button', class: 'coachbtn', text: 'Copy' });
+  copy.addEventListener('click', () => {
+    (navigator.clipboard ? navigator.clipboard.writeText(n.ask) : Promise.reject()).then(() => {
+      copy.textContent = 'Copied';
+      setTimeout(() => { copy.textContent = 'Copy'; }, 1500);
+    }, () => {
+      const r = document.createRange();
+      r.selectNodeContents(code);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+    });
+  });
+  const close = h('button', { type: 'button', class: 'nudgeclose', 'aria-label': 'Hide until the next visit', text: '×' });
+  close.addEventListener('click', () => {
+    try { sessionStorage.setItem(`wow-nudge:${name}`, '1'); } catch (e) { /* private mode */ }
+    box.hidden = true;
+  });
+  fill(box, close, h('p', { class: 'nudgehead', text: head }), h('p', { text: `${when} ${ask}` }),
+    h('div', { class: 'nudgecmd' }, code, copy));
+}
+
 // The session planner (wowstats/plan): the mount goal, how the last plan
 // went, and a plan for the next hours. Full view only.
 async function loadPlan(name) {
@@ -3759,6 +3808,7 @@ async function loadChar(name, quiet) {
     if (!PUBLIC) more.push(loadTalentHistory(name));
     if (!PUBLIC && feat('plan')) more.push(loadPlan(name));
     if (!PUBLIC) setAsk(name);
+    if (!PUBLIC && !STATIC) more.push(loadNudge(name));
     if (state.tab === 'journal') more.push(loadJournal(quiet));
     if (state.tab === 'home') more.push(loadOverview(quiet));
     if (state.tab === 'timeline' && !quiet) more.push(loadTimeline());

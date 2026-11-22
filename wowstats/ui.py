@@ -238,6 +238,7 @@ class App:
         # The play analysis (wowstats.analysis): the full view reads its kept
         # state; the nightly recheck starts from main().
         self.analysis_env = {k: v for k, v in env.items() if k.startswith("ANALYSIS_")} if full else {}
+        self._nudges: dict[str, tuple[float, dict | None]] = {}  # nudge(): name -> (when, answer)
         # Never in the public view: its routes don't exist there, its markup
         # is stripped and the page's CSP stays the strict one.
         on = env.get("MODEL3D", "on").strip().lower() not in ("off", "0", "false", "no")
@@ -373,6 +374,27 @@ class App:
                  "loot": full, "analysis": bool(self.analysis_env.get("ANALYSIS_STATE_DIR")),
                  "plan": full}
         return feats if full else redact.public("config", feats)
+
+    def nudge(self, name: str) -> dict | None:
+        """The full view's "refresh it yourself" card (wowstats.analysis.auto,
+        Service.nudge): the character's play since its last analysis, near
+        the server's own refresh. None without a state folder, or when the
+        timer can't be read (the card is a nudge, never an error)."""
+        if not self.analysis_env.get("ANALYSIS_STATE_DIR"):
+            return None
+        from wowstats.analysis import auto
+
+        hit = self._nudges.get(name)
+        if hit is not None and time.time() - hit[0] < 60:  # one store read a minute per character
+            return hit[1]
+        try:
+            n = auto.service().nudge(self.env, char=name)
+        except Exception:  # noqa: BLE001 - the store down: no card
+            n = None
+        if len(self._nudges) > 32:
+            self._nudges.clear()
+        self._nudges[name] = (time.time(), n)
+        return n
 
     def public_off(self) -> bool:
         """The person turned their public page off in Settings (public view only)."""
@@ -1090,6 +1112,11 @@ def make_handler(root: App, tenancy=None):
                     if not CHAR_RE.match(name):
                         return self.json(400, {"error": "bad character name"})
                     return self.json(200, analysis.answer(app.analysis_env, name, "full"))
+                if path == "/api/nudge":  # refresh from your own assistant before the server pays for it
+                    name = (qs.get("name", [""])[0] or "").replace(" ", "-")
+                    if not CHAR_RE.match(name):
+                        return self.json(400, {"error": "bad character name"})
+                    return self.json(200, {"nudge": app.nudge(name)})
                 if path == "/api/plan":  # the mount goal and the last plan against what happened
                     name = (qs.get("char", [""])[0] or app.settings.default_char or "").replace(" ", "-")
                     if not CHAR_RE.match(name):

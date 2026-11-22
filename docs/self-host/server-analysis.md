@@ -43,6 +43,13 @@ client's run, marked `kind: "server"` with the model's name. The page says who w
 - **A character's timer resets** whenever its analysis is refreshed, by anyone: this server's
   run, or a full analysis from the player's own AI (its synthesis accepted by
   `analysis_submit`). It counts from that refresh, not from the character's first login.
+- **Before that, the player is asked to do it themselves.** From 5 hours before the server's
+  refresh (`ANALYSIS_NUDGE_LEAD`), on the same timer, their full view shows a card: "Your analysis
+  is 10h 12m of play old. In about 4h 48m of play the server refreshes it on Sam's credit. Be nice
+  to Sam: ask your own assistant to run it.", with the prompt to copy. Their AI's tool answers say
+  the same once in a while (a `notice`, [MCP](../mcp.md)). Your name comes from `OPERATOR_NAME`
+  ("the host" when unset); on your own page it reads "your own credit". No card while the server's
+  refresh is off, or while it already runs for them.
 - **Only the analysis tools run** (no plans, no Battle.net data), on the player's own data, with
   `char` forced to the character being analysed. Tool results go back as data.
 - **It runs unattended** and finishes in one go: the run is done when its synthesis is accepted,

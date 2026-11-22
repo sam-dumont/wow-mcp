@@ -96,6 +96,15 @@ replace what is kept, so they are marked destructive. `dashboard_refresh`
 reads only: it hands the run to the caller's own model and starts nothing on
 the server.
 
+Once in a while an answer carries a `notice`: a line for the assistant to
+pass on when a character's play since its last analysis nears the server's
+own refresh (`ANALYSIS_NUDGE_LEAD` hours before it, [Server-side
+analysis](self-host/server-analysis.md)), with the action that costs the host
+nothing: `dashboard_refresh`. Per client, on the first call, then at most
+every 20 calls or every hour; never on the analysis' own tools (`analyse`,
+`analysis_*`, `dashboard_refresh`, `play_sql`, `query_metric`,
+`list_metrics`, `propose_finding`, `kb_search`, `kb_get`, `kb_lookup`).
+
 Every object in an answer that carries a game id (`item_id`, `quest_id`,
 `npc_id`, `spell_id`, `object_id`, `zone_id`/`area_id`, `quest_ids`) also
 carries its Wowhead Forever page, `https://www.wowhead.com/forever/<kind>=<id>`
