@@ -244,10 +244,19 @@ function main() {
     }
   }
 
+  // The values the pages quote ({{polestar_version}}, {{route_hours_min}}...), from their
+  // sources at build time: tools/docs_values.py, the one place that reads them.
+  const values = JSON.parse(execFileSync("uv", ["run", "--no-project", "python", "tools/docs_values.py"],
+    { cwd: REPO, encoding: "utf8" }));
+  const fillValues = (src, md) => md.replace(/\{\{\s*([a-z_]+)\s*\}\}/g, (_, k) => {
+    if (!(k in values)) fail(`${src}: unknown value {{${k}}} (tools/docs_values.py)`);
+    return values[k];
+  });
+
   const text = new Map();
   const ids = new Map();
   for (const src of placed.keys()) {
-    const raw = fs.readFileSync(path.join(REPO, src), "utf8").replace(/^---\n[\s\S]*?\n---\n/, "");
+    const raw = fillValues(src, fs.readFileSync(path.join(REPO, src), "utf8").replace(/^---\n[\s\S]*?\n---\n/, ""));
     text.set(src, raw);
     ids.set(src, anchors(raw));
   }

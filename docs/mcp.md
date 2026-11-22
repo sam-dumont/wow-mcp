@@ -500,7 +500,7 @@ container, bound to `0.0.0.0` inside Docker, can't).
 
 "Was that level slow?" needs to know how long it should take. The kit ships
 that clock: `data/route-reference.json`, made by Polestar's own route planner
-from Polestar v0.4.1's guides (packaged as `wowstats/data/route-reference.json`,
+from Polestar {{polestar_version}}'s guides (packaged as `wowstats/data/route-reference.json`,
 so it is in the image). Per side and level, per guide and per guide step, for
 every starting race and class. `route_reference` reads it, and the `coach`
 prompt compares your levels with it ("level 28 took you 4h10m, the route

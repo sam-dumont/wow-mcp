@@ -109,8 +109,7 @@ What the export can't reproduce from Polestar's maintainer setup:
 - **190 to 250 planner warnings per run**, nearly all delivery quests whose
   carried item forever-db lists as an objective. They don't change the time.
 
-The full runs take 79 to 94 hours to 60 depending on class: Hunter fastest
-(81 h on average), Paladin slowest (92 h). Polestar 0.4.2.1 cut 16 to 25
-hours from every run against 0.4.1.1 (97 to 119 h), nearly all of it in
-levels 50 to 60: the release replaced the 50-60 grind steps with quests,
-Mount Hyjal included.
+On Polestar {{polestar_version}}, the full runs take {{route_hours_min}} to {{route_hours_max}} hours to 60 depending on class:
+{{route_fastest_class}} fastest ({{route_fastest_hours}} h on average), {{route_slowest_class}} slowest ({{route_slowest_hours}} h). Polestar's
+50-60 rebuild (grind steps replaced by quests, Mount Hyjal included) took 16 to 25 hours off
+every run, nearly all of it in levels 50 to 60.

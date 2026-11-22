@@ -258,7 +258,7 @@ opens or edits its PR with the gates' verdict, and:
   data), gates that, force-pushes the branch and lands it again, twice at
   most (`land.py --regen`; the third conflict is red, and the next watch run
   makes it again). The lane runs with the mirror's read-only token for its
-  checks and never the App's. Polestar v0.4.2.2 (#140, 2026-11-22) was
+  checks and never the App's. A Polestar bump (#140, 2026-11-22) was
   refused because another PR had regenerated the same plan inputs during the
   run. In the model's modes a conflict is still a refusal.
 - **refused:** the PR stays open with label `kb-refused` and the reasons;
@@ -271,7 +271,7 @@ opens or edits its PR with the gates' verdict, and:
 check, a conflict with main, or no merge within 45 minutes. A watch run is
 also red when a change it saw didn't land: a kind the job's own checks
 refused (a Polestar release whose routes moved, say) keeps its `kb-watch`
-issue, and that issue alone reached nobody (Polestar v0.4.2.1, 2026-11-22).
+issue, and that issue alone reached nobody (a Polestar release, 2026-11-22).
 A refused Polestar bump puts the tree and the Polestar checkout back at the
 known tag, so the other kinds in the PR are gated against what main has. The owner's
 scheduler waits for each run it starts and fails when the run does, which
