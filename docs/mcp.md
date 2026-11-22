@@ -241,6 +241,15 @@ which tags it "to revalidate". The next analysis gets the list in
 `analysis_brief` (`to_revalidate`); proposing one again under today's
 definitions clears the mark.
 
+The advice built on such a finding waits with it. A nudge or a pattern line
+that cites a finding to revalidate, a doubtful one or one no longer kept is
+on hold (`analysis.standing`): out of `nudges` and `patterns` in
+`play_analysis`, `whats_new` and the plan's facts, out of "What to do" on the
+page (one line says how many steps wait) and out of the `/zogzog/` bundle,
+listed in `on_hold` (kind, text, `waits_on`) instead. The readers check the
+findings as they are at answer time, and the nightly recheck marks the lines
+it keeps (`on_hold`). It comes back once its findings are judged again.
+
 A finding kept before 0.7.0 has no manifest. The first recheck that sees it
 carries it over once: its SQL runs on tonight's build, and if it still holds
 it takes tonight's manifest and `carried_over` (from, to, when), gains no

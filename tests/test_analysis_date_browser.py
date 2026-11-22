@@ -37,6 +37,8 @@ def _analysis(kind: str) -> dict:
          "carried_note": "Checked against 0.7.0 data, first judged under 0.6."}],
         "checked": 2, "to_revalidate": 1,
         "nudges": [{"text": "Train before the next zone.", "where": "Ironforge", "next_step": "Fly there"}],
+        # A nudge on f2 (to revalidate): held out of "What to do" (review 6).
+        "on_hold": [{"kind": "nudge", "text": "Keep the long sessions.", "waits_on": ["f2"]}],
         "patterns": [], "time_budget": [], "last_run": {"at": RUNS[kind], "kind": kind},
         "last_analysis": {"at": RUNS[kind], "kind": kind}, "runs": []}
 
@@ -139,6 +141,25 @@ def test_a_carried_over_finding_says_so_in_one_line(site, pw, engine):
         assert notes.count() == 1
         assert notes.inner_text() == "Checked against 0.7.0 data, first judged under 0.6."
         assert "first judged" in pg.locator("#analysis .findings > li").nth(2).inner_text()
+        assert not errors, errors
+    finally:
+        b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_a_nudge_on_a_finding_to_revalidate_waits_in_one_line(site, pw, engine):
+    """Review 6: a nudge resting on a finding to revalidate isn't in "What
+    to do"; one line says a step waits for the next analysis."""
+    url, state = site
+    state["v"] = "client"
+    b, pg, errors = open_page(pw, engine, url, 1280)
+    try:
+        pg.click("#tab-overview")
+        pg.wait_for_selector("#analysis:not([hidden]) .nudges", timeout=30000)
+        assert pg.locator("#analysis .nudges li").all_inner_texts()[0].startswith("Train before the next zone.")
+        assert "Keep the long sessions." not in pg.locator("#analysis .nudges").inner_text()
+        assert pg.locator("#analysis .onhold").inner_text() == (
+            "1 step is on hold until the next analysis judges its finding again.")
         assert not errors, errors
     finally:
         b.close()
