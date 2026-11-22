@@ -78,6 +78,16 @@ semantic layer or prompts): a real AI on five synthetic histories with known eff
 step and gates nothing: the server hands every client good data, and a model that doesn't act on it is accepted.
 Not in CI: it needs a model client. See [evaluation.md](evaluation.md).
 
+## The MCP check
+
+`make eval-mcp` asks Claude Haiku ten questions about the demo character (deaths at a level, the longest break,
+the next guide step, a slot's best upgrade...) through this checkout's MCP tools and nothing else, one `claude -p`
+per question, all at once, 3 minutes each. Each answer is one short value that `tools/eval_mcp/answers.py`
+computes from the demo data, and the grade is an exact or normalized match, no model involved. If Haiku finds
+the answer, the tool is clear enough. The table lists the tools each question used and flags an answer found
+through `play_sql` alone: that data has no typed path yet. About a minute on your own Claude Code login. Not in
+CI, not a release gate. One question: `make eval-mcp EVAL_ARGS="--only top_dungeon"`.
+
 ## The docs site and its demo
 
 The site (`site/`, Starlight) is built from this repository's Markdown: `README.md` stays

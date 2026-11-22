@@ -15,3 +15,5 @@ deploy/compose/secrets/*
 *.pem
 # make eval-analysis: synthetic runs, kept locally
 eval-analysis-out/
+# make eval-mcp: the same, for the MCP check
+eval-mcp-out/

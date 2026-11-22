@@ -3,7 +3,7 @@
 TEST_WORKERS ?= $(shell python3 -c "import os; print(max(1, (os.cpu_count() or 2) // 2))")
 BROWSER_WORKERS ?= 4
 
-.PHONY: test test-changed test-browser eval-analysis
+.PHONY: test test-changed test-browser eval-analysis eval-mcp
 
 # What to run before pushing: only the tests your diff can break.
 test-changed:
@@ -26,3 +26,9 @@ eval-analysis:
 	uv run --frozen --extra mcp --extra analysis-openai python tools/eval_analysis/run.py \
 		$(if $(SCENARIO),--scenario $(SCENARIO)) $(if $(CLIENT),--client $(CLIENT)) $(EVAL_ARGS)
 
+# The MCP check (docs/development.md, "The MCP check"): ten questions about the
+# demo character, one exact answer each, answered by Claude Haiku through the
+# MCP tools alone (your Claude Code login), graded without a model. About a
+# minute; not in CI, not a release gate. One: make eval-mcp EVAL_ARGS="--only top_dungeon"
+eval-mcp:
+	uv run --frozen --extra mcp python tools/eval_mcp/run.py $(EVAL_ARGS)
