@@ -796,12 +796,41 @@ def og_generic(html: str) -> str:
     return html.replace("</head>", tags + "</head>", 1)
 
 
+class ClientStream:
+    """The answer's stream to the client, which remembers that the client
+    went away mid-answer (a closed tab, a page that moved on). The catch-all
+    in _route then has no one to send its 500 to, and nothing went wrong on
+    this side: it used to log a bug, write a 500 into the same dead socket
+    and print that second broken pipe's traceback (the 0.7.0 release gate's
+    log)."""
+
+    __slots__ = ("raw", "gone")
+
+    def __init__(self, raw):
+        self.raw = raw
+        self.gone = False
+
+    def write(self, b):
+        try:
+            return self.raw.write(b)
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            self.gone = True
+            raise
+
+    def __getattr__(self, name):
+        return getattr(self.raw, name)
+
+
 def make_handler(root: App, tenancy=None):
     """One App (one person), or a tenancy front (wowstats.tenancy): then the
     login says who is asking and each request runs on that person's App."""
     class Handler(BaseHTTPRequestHandler):
         server_version = "wow-stats"
         sys_version = ""
+
+        def setup(self):
+            super().setup()
+            self.wfile = ClientStream(self.wfile)
 
         def log_message(self, fmt, *args):  # one line per request, no query strings
             # An install code is a bearer for 15 minutes: never in the log.
@@ -1159,6 +1188,9 @@ def make_handler(root: App, tenancy=None):
             except SourceError as e:
                 return self.json(502, {"error": public_error(e, path)})
             except Exception as e:  # noqa: BLE001 - the page shows it; the log keeps it
+                if self.wfile.gone:  # the client left mid-answer: no one to tell
+                    self.close_connection = True
+                    return None
                 sys.stdout.write(f"error on {path}: {e!r}\n")
                 return self.json(500, {"error": "the server hit a bug; see its log"})
 

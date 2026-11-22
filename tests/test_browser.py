@@ -17,6 +17,7 @@ import json
 import os
 import re
 import threading
+import urllib.parse
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -680,4 +681,41 @@ def test_zogzog_section_links_keep_the_key(served, pw, engine):
     assert pg.locator(".slotitm").first.is_visible()
     top = pg.locator("#levels").evaluate("(e) => e.getBoundingClientRect().top")
     assert 0 <= top < 300, top
+    b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_zogzog_section_link_lands_when_the_advice_comes_late(served, pw, engine):
+    """The gear advice is drawn in #gear, above every section, after the page
+    shows. A section link followed before it came used to end a screen lower
+    (the 0.7.0 release gate: #levels at 522 px in WebKit on a loaded runner).
+    Here the advice is held until after the click: the jump still lands."""
+    base, key = served
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001 - that browser isn't installed
+        pytest.skip(f"no {engine}: {e}")
+    c = b.new_context(viewport={"width": 1280, "height": 900})
+    p0 = c.new_page()
+    p0.goto(f"{base}/zogzog/#{key}")
+    to_gear(p0)
+    name = p0.locator("#char").input_value()
+    p0.close()
+    gear = publish.sealed_name(publish.unb64u(key), f"data/gear/{urllib.parse.quote(name, safe='')}.json")
+    held = []
+    pg = c.new_page()
+    pg.route(f"**/zogzog/{gear}", lambda r: held.append(r))
+    pg.goto(f"{base}/zogzog/#{key}")
+    to_gear(pg)
+    assert len(held) == 1 and pg.locator("#advice .adv-h").count() == 0
+    before = pg.locator("#gear").evaluate("(e) => e.getBoundingClientRect().height")
+    pg.locator('.sections a[href="#levels"]').click()
+    held[0].continue_()
+    pg.locator("#advice .adv-h").wait_for()
+    pg.wait_for_timeout(800)
+    grew = pg.locator("#gear").evaluate("(e) => e.getBoundingClientRect().height") - before
+    assert grew > 900, grew  # the advice did push the sections down a screen
+    top = pg.locator("#levels").evaluate("(e) => e.getBoundingClientRect().top")
+    assert 0 <= top < 300, top
+    c.close()
     b.close()
