@@ -39,7 +39,7 @@ anything:
 It takes under 3 seconds and gives the same file byte for byte on every run. To redo it after a Polestar release:
 
 ```sh
-git clone --depth 1 --branch v0.4.2.1 https://github.com/fitzforge/polestar /tmp/polestar
+git clone --depth 1 --branch v0.4.2.2 https://github.com/fitzforge/polestar /tmp/polestar
 node tools/route_reference/export.mjs --polestar /tmp/polestar
 ```
 

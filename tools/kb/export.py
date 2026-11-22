@@ -14,7 +14,7 @@ Nothing here comes from a website. Spells, zones and talents are read at run
 time from Forever's own client tables on wago.tools (wowstats.analysis.kb).
 The same checkout always gives the same bytes.
 
-    git clone --depth 1 --branch v0.4.2.1 https://github.com/fitzforge/polestar /tmp/polestar
+    git clone --depth 1 --branch v0.4.2.2 https://github.com/fitzforge/polestar /tmp/polestar
     python3 tools/kb/export.py --polestar /tmp/polestar
 """
 
