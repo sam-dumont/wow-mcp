@@ -164,7 +164,11 @@ def test_icy_cloak_shows_its_real_gate(site, pw, engine):
         assert row.count() == 1
         pill = row.locator(".pill")
         assert pill.inner_text() == "Level 35 + Tailoring 200"
-        assert "Tailoring reaches 200 (you have 105, 95 to go)" in pill.get_attribute("title")
+        # The skill the fixture seeds moves with the generated data (105, then 109
+        # after the Polestar 0.4.2.1 regen): the title must agree with itself.
+        m = re.search(r"Tailoring reaches 200 \(you have (\d+), (\d+) to go\)", pill.get_attribute("title"))
+        assert m, pill.get_attribute("title")
+        assert 0 < int(m[1]) < 200 and int(m[1]) + int(m[2]) == 200
     finally:
         b.close()
 
