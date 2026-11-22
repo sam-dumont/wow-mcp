@@ -661,7 +661,7 @@ def run(items: list[dict], client, cap: float, day: str | None = None) -> dict:
            "digest": {"week": day, "from": min([i["date"] for i in read if i.get("date")] or [day]),
                       "items": digest}}
     return {"doc": doc, "spent_usd": round(meter.spent, 4), "read": read, "skipped": skipped,
-            "refused": len(refused)}
+            "refused": len(refused), "meter": meter}
 
 
 def advance(state: dict, read: list[dict], baseline: dict) -> dict:
@@ -730,6 +730,7 @@ def main(argv: list[str] | None = None) -> int:
 
     cap = float(os.environ.get("KB_REFRESH_MAX_USD") or 3)
     out = run(got["items"], anthropic.Anthropic(), cap, got.get("day"))
+    refresh.step_summary(out["meter"], "News, blue posts and guides, model pass (tools/kb/meta.py)")
     doc = out["doc"]
     print(json.dumps({"statements": len(doc["statements"]), "digest": len(doc["digest"]["items"]),
                       "contradictions": len(doc["contradictions"]),

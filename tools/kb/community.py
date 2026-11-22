@@ -227,7 +227,7 @@ def ask(client, meter, threads: list[dict], searches: list[str]) -> tuple[dict, 
         r = client.messages.create(model=meter.model, max_tokens=16000, system=SYSTEM, tools=[tool(searches)],
                                    output_config={"effort": "medium"}, messages=messages)
         usage = _get(r, "usage")
-        meter.add(usage)
+        meter.add(usage, "community: forum lines and Reddit searches")
         searched = _get(_get(usage, "server_tool_use") or {}, "web_search_requests") or 0
         meter.spent += searched * SEARCH_COST
         content = list(_get(r, "content") or [])
@@ -318,10 +318,13 @@ def empty() -> dict:
             "weeks": []}
 
 
-def update(doc: dict, items: list[dict], today: date) -> dict:
-    """This week's items in, a thread already shown an earlier week out, weeks past RETAIN_WEEKS gone."""
+def update(doc: dict, items: list[dict], today: date, searched: list[str] | None = None) -> dict:
+    """This week's items in, a thread already shown an earlier week out, weeks past RETAIN_WEEKS gone.
+    `searched`: the Reddit searches the model ran, kept so next week can tell whether they changed."""
     doc = {**empty(), **{k: v for k, v in doc.items() if k != "weeks"},
            "weeks": [dict(w) for w in doc.get("weeks") or []]}
+    if searched is not None:
+        doc["searched"] = list(searched)
     week = today.isoformat()
     doc["weeks"] = [w for w in doc["weeks"] if w.get("week") != week]
     shown = {it["id"] for w in doc["weeks"] for it in w.get("items") or []}
@@ -334,14 +337,27 @@ def update(doc: dict, items: list[dict], today: date) -> dict:
     return doc
 
 
-def run(fetch, client, cap: float, today: date, searches: list[str] | None = None) -> tuple[list[dict], dict]:
-    """This week's items and what happened (spent, searches, notes)."""
+def shown(doc: dict) -> set[str]:
+    """The threads the file already holds: never shown, nor read, again."""
+    return {it["id"] for w in doc.get("weeks") or [] for it in w.get("items") or [] if it.get("id")}
+
+
+def run(fetch, client, cap: float, today: date, searches: list[str] | None = None,
+        seen: set[str] | None = None, last: list[str] | None = None) -> tuple[list[dict], dict]:
+    """This week's items and what happened (spent, searches, notes). `seen`:
+    threads shown in an earlier week, left out of the model's input; `last`:
+    the searches the model ran last time. No new thread and the same
+    searches: no model call (2026-11-22: the model reads only what changed)."""
     since = (today - timedelta(days=7)).isoformat()
     threads, notes = forum_threads(fetch, since)
+    threads = [t for t in threads if t["id"] not in (seen or set())]
     searches = topics(today) if searches is None else searches
     if client is None:
         return pick([{k: v for k, v in t.items() if k != "excerpt"} | {"text": None} for t in threads], []), {
             "model": "skipped (no ANTHROPIC_* credentials): forum titles only, no Reddit", "notes": notes}
+    if not threads and last is not None and list(searches) == list(last):
+        return [], {"model": "skipped: no new forum thread and the same Reddit searches as last time",
+                    "notes": notes}
     meter = refresh.Meter(cap)
     try:
         answer, results = ask(client, meter, threads, searches)
@@ -349,6 +365,7 @@ def run(fetch, client, cap: float, today: date, searches: list[str] | None = Non
         answer, results = {}, {}
         notes.append(str(e))
     items = merge(answer, threads, results, since)
+    refresh.step_summary(meter, "Community (tools/kb/community.py)")
     return items, {"spent_usd": round(meter.spent, 4), "searches": searches, "results": len(results), "notes": notes}
 
 
@@ -375,14 +392,14 @@ def main(argv: list[str] | None = None) -> int:
 
         client = anthropic.Anthropic()
     cap = float(os.environ.get("COMMUNITY_MAX_USD") or 1)
-    items, out = run(web.Fetcher(), client, cap, today)
     path = Path(a.out)
     try:
         before = path.read_text(encoding="utf-8")
         doc = json.loads(before)
     except (OSError, ValueError):
         before, doc = "", {}
-    after = json.dumps(update(doc, items, today), indent=1, ensure_ascii=False) + "\n"
+    items, out = run(web.Fetcher(), client, cap, today, seen=shown(doc), last=doc.get("searched"))
+    after = json.dumps(update(doc, items, today, out.get("searches")), indent=1, ensure_ascii=False) + "\n"
     changed = after != before
     if changed:
         path.write_text(after, encoding="utf-8")

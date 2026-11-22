@@ -39,9 +39,19 @@ from wowstats.analysis import kbschema, verbatim  # noqa: E402
 ROOT = Path(__file__).resolve().parents[2]
 KB = ROOT / "data" / "kb"
 MODEL = "claude-opus-5-5"
-# $ per million tokens: input, output, cache read; a cache write is 1.25x input.
+# $ per million tokens: input, output, cache read; a cache write is 1.25x
+# input for 5 minutes, 2x for an hour.
 PRICES = {"claude-opus-5-5": (4.0, 20.0, 0.20)}
 MAX_PAGE = 60_000  # characters of one page handed to the model
+# The known statements (about 50K tokens) are the same for every page of a
+# run, so they go first, cached for an hour (a run's page calls, each a few
+# minutes with its reword, outlast 5 minutes). An hour's write costs 2x
+# input and each read 0.05x: on 50K tokens one page pays $0.40 instead of
+# $0.20, two about the same, three $0.42 instead of $0.60. So the marker is
+# set from three pages on (2026-11-22: nine runs a week sent ~1.4M uncached
+# tokens of that list, about 7 euros).
+CACHE = {"type": "ephemeral", "ttl": "1h"}
+CACHE_MIN_PAGES = 3
 
 SYSTEM = """You maintain a knowledge base of game rules for World of Warcraft: Forever (Blizzard's Classic-era \
 re-release with its own changes). You receive one official Blizzard page (hotfixes, patch notes, known issues) \
@@ -117,20 +127,52 @@ class Meter:
 
     def __init__(self, cap: float, model: str = MODEL):
         self.cap, self.model, self.spent, self.last = cap, model, 0.0, 0.0
+        self.calls: list[dict] = []  # one row per call, for the job summary
 
     def check(self) -> None:
         # The next call is assumed to cost what the last one did (the first: a guess for one page).
         if self.spent + (self.last or 0.5) > self.cap:
             raise OverBudget(f"stopped at ${self.spent:.2f}: the next call would likely cross ${self.cap:.2f}")
 
-    def add(self, usage) -> float:
+    def add(self, usage, what: str = "") -> float:
         i, o, cr = PRICES[self.model]
-        get = (lambda k: getattr(usage, k, 0) or 0) if not isinstance(usage, dict) else (lambda k: usage.get(k) or 0)
-        cost = (get("input_tokens") * i + get("output_tokens") * o + get("cache_read_input_tokens") * cr
-                + get("cache_creation_input_tokens") * i * 1.25) / 1e6
+
+        def get(obj, k):
+            v = obj.get(k) if isinstance(obj, dict) else getattr(obj, k, 0)
+            return v or 0
+
+        written = get(usage, "cache_creation_input_tokens")
+        split = (usage.get("cache_creation") if isinstance(usage, dict) else getattr(usage, "cache_creation", None))
+        hour = min(get(split, "ephemeral_1h_input_tokens"), written) if split else 0
+        row = {"what": what, "input": get(usage, "input_tokens"), "cache_write": written,
+               "cache_read": get(usage, "cache_read_input_tokens"), "output": get(usage, "output_tokens")}
+        cost = (row["input"] * i + row["output"] * o + row["cache_read"] * cr
+                + hour * i * 2 + (written - hour) * i * 1.25) / 1e6
         self.spent += cost
         self.last = cost
+        self.calls.append(row | {"usd": round(cost, 4)})
+        print(f"model call {what[:80]}: input {row['input']}, cache_creation_input_tokens {written}, "
+              f"cache_read_input_tokens {row['cache_read']}, output {row['output']}, ${cost:.4f}", file=sys.stderr)
         return cost
+
+    def markdown(self, title: str) -> str:
+        """The calls as a table, for $GITHUB_STEP_SUMMARY: what each read and
+        what the cache saved."""
+        if not self.calls:
+            return f"### {title}\n\nNo model call.\n"
+        rows = "\n".join(f"| {c['what'][:70].replace('|', '/')} | {c['input']:,} | {c['cache_write']:,} | "
+                         f"{c['cache_read']:,} | {c['output']:,} | ${c['usd']:.4f} |" for c in self.calls)
+        return (f"### {title}\n\n| Call | Input | cache_creation_input_tokens | cache_read_input_tokens | Output "
+                f"| Cost |\n|---|---:|---:|---:|---:|---:|\n{rows}\n\n{len(self.calls)} calls, "
+                f"${self.spent:.2f}.\n")
+
+
+def step_summary(meter: Meter, title: str) -> None:
+    """The meter's table in the job summary, when there is one."""
+    path = os.environ.get("GITHUB_STEP_SUMMARY")
+    if path:
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(meter.markdown(title) + "\n")
 
 
 def official_statements() -> list[dict]:
@@ -147,24 +189,38 @@ def official_statements() -> list[dict]:
     for name, r in rules.items():
         if any(allow.get(kbschema.domain(u), {}).get("type") == "official" for u in kbschema.urls(r)):
             out.append({"id": f"rule:{name}", "text": r["statement"][:400], "source_url": r["source_url"]})
-    return out
+    # Sorted, so the cached prefix is the same bytes whatever order the files list in.
+    return sorted(out, key=lambda k: k["id"])
 
 
-def prompt(page_url: str, text: str, known: list[dict]) -> str:
-    return (f"<known_statements>\n{json.dumps(known, ensure_ascii=False)}\n</known_statements>\n\n"
-            f"<page url=\"{page_url}\">\n{text[:MAX_PAGE]}\n</page>\n\n"
+def known_block(known: list[dict]) -> str:
+    """The prefix every page call of a run shares, byte for byte: nothing
+    from the page, the day or the run in it."""
+    return (f"<known_statements>\n{json.dumps(known, ensure_ascii=False, sort_keys=True)}\n"
+            "</known_statements>\n\n")
+
+
+def page_block(page_url: str, text: str) -> str:
+    return (f"<page url=\"{page_url}\">\n{text[:MAX_PAGE]}\n</page>\n\n"
             "Propose the statements this page adds or changes, as the schema says.")
 
 
-def call(client, meter: Meter, system: str, schema: dict, content: str, what: str, whole: bool = False):
+def prompt(page_url: str, text: str, known: list[dict]) -> str:
+    return known_block(known) + page_block(page_url, text)
+
+
+def call(client, meter: Meter, system: str, schema: dict, content: str, what: str, whole: bool = False,
+         prefix: str = "", cache: bool = False):
     """One model call under the meter, its answer's `statements` (the meta pass, tools/kb/meta.py, shares it;
-    `whole`: the whole answer, {} when the model stopped)."""
+    `whole`: the whole answer, {} when the model stopped). `prefix`: a block that goes before `content`,
+    the same for every call of the run; `cache`: cached for an hour (CACHE)."""
     meter.check()
+    blocks = ([{"type": "text", "text": prefix, **({"cache_control": CACHE} if cache else {})}] if prefix else [])
     r = client.messages.create(
         model=meter.model, max_tokens=16000, system=system,
         output_config={"effort": "high", "format": {"type": "json_schema", "schema": schema}},
-        messages=[{"role": "user", "content": content}])
-    meter.add(r.usage)
+        messages=[{"role": "user", "content": [*blocks, {"type": "text", "text": content}] if blocks else content}])
+    meter.add(r.usage, what)
     if r.stop_reason in ("refusal", "max_tokens"):
         print(f"{what}: the model stopped ({r.stop_reason}); nothing taken from it", file=sys.stderr)
         return {} if whole else []
@@ -173,8 +229,9 @@ def call(client, meter: Meter, system: str, schema: dict, content: str, what: st
     return got if whole else got.get("statements") or []
 
 
-def ask(client, meter: Meter, page_url: str, text: str, known: list[dict]) -> list[dict]:
-    return call(client, meter, SYSTEM, SCHEMA, prompt(page_url, text, known), page_url)
+def ask(client, meter: Meter, page_url: str, text: str, known: list[dict], cache: bool = False) -> list[dict]:
+    return call(client, meter, SYSTEM, SCHEMA, page_block(page_url, text), page_url, prefix=known_block(known),
+                cache=cache)
 
 
 def reword(client, meter: Meter, copies: list[dict], source: str | list[str]) -> list[str]:
@@ -237,16 +294,18 @@ def to_records(props: list[dict], page_url: str, page_key: str, allow: dict, day
     return kept, refused
 
 
-def run(keys: list[str], client, fetch, cap: float, day: str | None = None) -> dict:
+def run(keys: list[str], client, fetch, cap: float, day: str | None = None, state: dict | None = None) -> dict:
     day = day or datetime.now(UTC).date().isoformat()
-    state = json.loads((KB / "watch.json").read_text(encoding="utf-8"))
+    state = state or json.loads((KB / "watch.json").read_text(encoding="utf-8"))
     allow = kbschema.load_allow(KB / "sources.json")
     known = official_statements()
     known_ids = {k["id"] for k in known}
     meter = Meter(cap)
+    watched = {p["key"]: p for p in state["official"]}
+    cache = sum(k in watched for k in keys) >= CACHE_MIN_PAGES
     statements, refused, skipped, read = [], [], [], []
     for key in keys:
-        p = next((p for p in state["official"] if p["key"] == key), None)
+        p = watched.get(key)
         if p is None:
             skipped.append(f"{key}: not a watched page")
             continue
@@ -255,10 +314,16 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None) -> d
         if status != 200:
             skipped.append(f"{key}: HTTP {status}")
             continue
-        text = forum_text(body) if p["kind"] == "discourse" else web.text_of(body)
+        # A forum thread: only the posts since the last read (the rest was read then).
+        text = (thread_text(fetch, p["url"], body, read_posts(p.get("known"))) if p["kind"] == "discourse"
+                else web.text_of(body))
+        if not text.strip():
+            skipped.append(f"{key}: nothing new to read")
+            read.append(key)
+            continue
         web.remember(page_url, text)
         try:
-            props = ask(client, meter, page_url, text, known)
+            props = ask(client, meter, page_url, text, known, cache)
         except OverBudget as e:
             skipped.append(f"{key}: {e}")
             break
@@ -279,16 +344,56 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None) -> d
            "open_questions": [{"id": f"refresh-{day}:refused-{i}", "text": refused_note(r)}
                               for i, r in enumerate(refused, 1)]}
     return {"doc": doc, "spent_usd": round(meter.spent, 4), "skipped": skipped, "refused": len(refused),
-            "read": read}
+            "read": read, "meter": meter}
 
 
-def forum_text(body: bytes) -> str:
-    """A Discourse topic's posts (its .json), as text: each post's cooked HTML stripped."""
+def read_posts(known) -> int:
+    """How many posts of a forum thread the last read covered, from its
+    watch.json value ("12 posts, last ..."); 0 when unknown (read them all)."""
+    try:
+        return int(str(known or "").split(" posts", 1)[0])
+    except ValueError:
+        return 0
+
+
+MAX_NEW_POSTS = 40  # posts of one thread read in one run at most, the newest
+
+
+def thread_text(fetch, url: str, body: bytes, after: int) -> str:
+    """The thread's posts numbered past `after`. Discourse's topic JSON holds
+    its first 20 posts only: newer ones come one by one from
+    /posts/by_number/<topic>/<n>.json, as tools/kb/meta.py reads blue posts."""
+    try:
+        d = json.loads(body)
+        count = int(d.get("posts_count") or 0)
+    except (ValueError, TypeError, AttributeError):
+        return forum_text(body, after)
+    have = {p.get("post_number") for p in (d.get("post_stream") or {}).get("posts") or []}
+    missing = [n for n in range(max(after + 1, count - MAX_NEW_POSTS + 1), count + 1) if n not in have]
+    base, _, rest = url.partition("/t/")
+    topic = rest.split(".json")[0].split("/")[-1]
+    texts = [forum_text(body, after)]
+    for n in missing:
+        status, post = fetch.get(f"{base}/posts/by_number/{topic}/{n}.json")
+        try:
+            cooked = json.loads(post).get("cooked") if status == 200 else ""
+        except (ValueError, AttributeError):
+            cooked = ""
+        if cooked:
+            texts.append(web.text_of(f"<article>{cooked}</article>".encode()))
+    return "\n\n".join(t for t in texts if t)
+
+
+def forum_text(body: bytes, after: int = 0) -> str:
+    """A Discourse topic's posts (its .json), as text: each post's cooked HTML
+    stripped. `after`: only the posts numbered past it (a post without a
+    number is kept)."""
     try:
         d = json.loads(body)
     except ValueError:
         return ""
-    posts = (d.get("post_stream") or {}).get("posts") or []
+    posts = [p for p in (d.get("post_stream") or {}).get("posts") or []
+             if not after or not isinstance(p.get("post_number"), int) or p["post_number"] > after]
     return "\n\n".join(web.text_of(f"<article>{p.get('cooked') or ''}</article>".encode()) for p in posts)
 
 
@@ -306,14 +411,16 @@ def main(argv: list[str] | None = None) -> int:
         state = json.loads((KB / "watch.json").read_text(encoding="utf-8"))
         p = next(p for p in state["official"] if p["key"] == keys[0])
         _, body = web.Fetcher().get(p["url"])
-        text = forum_text(body) if p["kind"] == "discourse" else web.text_of(body)
+        text = forum_text(body, read_posts(p.get("known"))) if p["kind"] == "discourse" else web.text_of(body)
         print(SYSTEM, "\n\n", prompt(p.get("page") or p["url"], text, official_statements())[:4000])
         return 0
     import anthropic
 
     out = run(keys, anthropic.Anthropic(), web.Fetcher(), float(os.environ.get("KB_REFRESH_MAX_USD") or 3))
+    step_summary(out["meter"], "Official pages, model pass (tools/kb/refresh.py)")
     doc = out["doc"]
-    print(json.dumps({k: v for k, v in out.items() if k != "doc"} | {"statements": len(doc["statements"])}))
+    print(json.dumps({k: v for k, v in out.items() if k not in ("doc", "meter")}
+                     | {"statements": len(doc["statements"])}))
     if doc["statements"]:
         path = Path(a.out) / f"{doc['lane']}.json"
         path.write_text(json.dumps(doc, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
