@@ -1,0 +1,87 @@
+# The MCP check's ten questions (tools/eval_mcp/run.py, docs/development.md,
+# "The MCP check"). Each has one short answer, computed from the demo
+# character's data by answers.py (the key named `answer`), never written
+# here: the expected answers follow the seed when it changes.
+#
+# match: text (normalized: case, quotes, apostrophes, spaces), number (within
+# `tolerance`), yesno, or pct_line ("NN% → NN%", both numbers exact).
+# Written after Anthropic's mcp-builder evaluation guide: read-only,
+# independent, one answer each, stable (the demo's clock is frozen), and each
+# needs the tools, ideally more than one call.
+
+- id: deaths_at_level
+  area: deaths
+  question: How many times did the character die while it was level 32?
+  answer: deaths_at_level_32
+  match: number
+  tolerance: 0
+
+- id: longest_break
+  area: time
+  question: >-
+    What was the character's longest break between two play sessions, in hours?
+    Give the number of hours with one decimal.
+  answer: longest_break_h
+  match: number
+  tolerance: 0.2
+
+- id: off_class_armor
+  area: gear fit
+  question: >-
+    One of the armor pieces the character wears (head, shoulders, chest, waist, legs, feet,
+    wrists or hands) was made for a different class altogether, not just another spec of the
+    character's class. What is that item's name?
+  answer: off_class_armor
+  match: text
+
+- id: best_feet
+  area: gear upgrade
+  question: >-
+    For the spec its gear is scored for, what is the best item the character can wear in its
+    feet slot at its current level? Give the item's name.
+  answer: best_feet_now
+  match: text
+
+- id: route_next_step
+  area: route
+  question: >-
+    The character follows a Polestar levelling guide. What is the number of the next step of
+    that guide it should do?
+  answer: next_guide_step
+  match: number
+  tolerance: 0
+
+- id: top_dungeon
+  area: dungeons
+  question: Which dungeon is ranked as the character's best dungeon option right now? Give its name.
+  answer: top_dungeon
+  match: text
+
+- id: recorder_missed
+  area: coverage
+  question: >-
+    Did the Recorder (Polestar_Recorder) miss any of the character's play time while it was
+    level 32? Answer Yes or No.
+  answer: recorder_missed_32
+  match: yesno
+
+- id: zone_quest_upgrade
+  area: upgrade line
+  question: >-
+    One gear upgrade comes from a quest in the zone the character is in now. How does the gear
+    advice put that upgrade's standing, in the form "NN% → NN%"?
+  answer: zone_quest_upgrade_line
+  match: pct_line
+
+- id: level_time
+  area: time per level
+  question: How many minutes of played time did the character's level 27 take? Give whole minutes.
+  answer: level_27_minutes
+  match: number
+  tolerance: 1
+
+- id: top_killer
+  area: deaths
+  question: Which creature killed the character more often than any other? Give its name.
+  answer: top_killer
+  match: text
