@@ -62,7 +62,10 @@ from wowstats.stores import (
 # 7: levels.planned_s for a character the Recorder never saw uses the class
 # and side its character sheets give (as meta does), not the median over
 # classes.
-PREP_VERSION = 7
+# 8: upgrade_candidates gets the inventory slot its gain is measured in, so
+# an item that fits both rings or trinkets is one row per slot it was
+# measured against (the MCP's gear reads its numbers by item and slot).
+PREP_VERSION = 8
 
 
 def _zone() -> tuple[str, ZoneInfo]:
@@ -377,7 +380,8 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "fit": "how the item fits the scored spec: yes, any, spec (built for another spec of the class), class "
                "(made for another class), unknown",
         "source_text": "this source in the gear advice's words, as the gear tool says it",
-        "source_wowhead": "the source's Wowhead page (the quest, the boss, the craft's spell), when it has one"}),
+        "source_wowhead": "the source's Wowhead page (the quest, the boss, the craft's spell), when it has one",
+        "slot": "the inventory slot 1-19 the gain is measured in (gear.slot): which ring or trinket it replaces"}),
     "agg_session": ("Neutral sums per login span, from timeline, records and positions.", {}),
     "agg_level": ("Neutral sums per level, from timeline, records and positions.", {}),
     "agg_zone": ("Neutral sums per zone, from timeline, records and positions.", {}),
@@ -784,7 +788,7 @@ def _schema(db: sqlite3.Connection) -> None:
         source_kind TEXT, instance TEXT, instance_min_level INTEGER, instance_max_level INTEGER, zone TEXT, boss TEXT,
         npc_id INTEGER, drop_chance_pct REAL, quest_id INTEGER, quest_name TEXT, quest_choices INTEGER,
         profession TEXT, skill INTEGER, can_make INTEGER, bis_pct REAL, bis_pct_worn REAL, fit TEXT,
-        source_text TEXT, source_wowhead TEXT);
+        source_text TEXT, source_wowhead TEXT, slot INTEGER);
     CREATE TABLE quests (quest_row INTEGER PRIMARY KEY, quest_id INTEGER, quest_name TEXT, status TEXT,
         accepted_t REAL, closed_t REAL, accepted_local TEXT, closed_local TEXT, level_accepted INTEGER,
         level INTEGER, zone TEXT, xp INTEGER, money_copper INTEGER, wall_s REAL, open_online_s REAL,
@@ -1107,8 +1111,28 @@ def _upgrades(db, ups: list[dict]) -> None:
                                _flt(s.get("chance_pct")), _int(s.get("quest_id")), s.get("name"),
                                _int(s.get("choices")), s.get("profession"), _int(s.get("skill")),
                                None if s.get("can_make") is None else int(bool(s.get("can_make"))))
-                       + badge + (gear.source_text(s), gear.source_link(s)))
-    db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 29) + ")", out)
+                       + badge + (gear.source_text(s), gear.source_link(s), _int(u.get("slot"))))
+    db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 30) + ")", out)
+
+
+def advice_db(advice: dict, char: str, cls: str | None, upgrades: list[dict]) -> sqlite3.Connection:
+    """The gear advice alone as a prep build holds it: the worn items (gear,
+    scored by _gear_fit), `upgrades` (upgrade_candidates, one row per item
+    and source) and the character's name and class (meta), every other
+    table empty. For a tool that scores the gear live, with its own inputs
+    (the MCP's gear: the level, zone, quests done, bags, auction house), and
+    reads its numbers through the `worn` and `upgrades` models (semantic.local)."""
+    db = sqlite3.connect(":memory:", check_same_thread=False)
+    _schema(db)
+    worn = [(_int(sl.get("slot")), sl.get("slot_name"), _int(cur.get("item_id")), cur.get("name"),
+             _int(cur.get("quality"))) for sl in advice.get("slots") or [] for cur in [sl.get("current") or {}]
+            if cur.get("item_id")]
+    db.executemany("INSERT INTO gear (slot, slot_name, item_id, name, quality) VALUES (?,?,?,?,?)", worn)
+    _upgrades(db, upgrades)
+    _gear_fit(db, advice)
+    db.executemany("INSERT INTO meta VALUES (?,?)", [("char", norm(char)), ("class", cls)])
+    db.commit()
+    return db
 
 
 def _gear_fit(db, advice: dict | None) -> None:

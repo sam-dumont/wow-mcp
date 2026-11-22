@@ -736,6 +736,17 @@ def block_semantic() -> str:
         out += [f"| `{m['name']}` | {m['kind']} | {cell(m['unit'])} | `{cell(m['expr'])}` | {cell(m['description'])} "
                 f"| {cell(m['caveats'])} | {rules(m)} | {', '.join(f'`{d}`' for d in m['group_by'])} |" for m in cross]
         out += [""]
+    store = semantic.store_catalogue()["metrics"]
+    if store:
+        out += ["### Store models", "",
+                "Read by the tools that fetch their rows from the store for one answer (players, people, prices, "
+                "talent_changes): the rows go into an in-memory copy for that call and nothing is kept, so the "
+                "store's own retention (30 days for Battle.net data) is the only one. query_metric doesn't read "
+                "them.", "",
+                "| Metric | Model | Unit | Definition | Read as |", "|---|---|---|---|---|"]
+        out += [f"| `{m['name']}` | {m['model']} | {cell(m['unit'])} | {cell(m['description'])} | {rules(m)} |"
+                for m in store]
+        out += [""]
     out += ["### Views per grain", "",
             "Each view is the metrics below compiled at one entity, one row per key, added to the character's "
             "DuckDB copy beside the models' views. `play_sql` reads them by name; each metric column is the "

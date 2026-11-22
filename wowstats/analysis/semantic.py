@@ -41,6 +41,8 @@ OPS = ("=", "!=", "<", "<=", ">", ">=", "in", "not in", "is null", "is not null"
 # source is the text, the kind and the page (the brief's gear_fit reads both).
 MAX_METRICS, MAX_GROUP, MAX_WHERE, MAX_IN, MAX_TEXT = 8, 6, 8, 50, 200
 DEFAULT_LIMIT, MAX_LIMIT = 50, 500
+# The app's own readers (the plan's facts, the tools) read every key: run()'s max_rows.
+EVERY_ROW = 100_000
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?$")
 _NAME = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 
@@ -61,11 +63,15 @@ VIEWS = {
     # elite: a kill's creature an elite, rare elite or boss (the record's
     # classification), for the kill XP a run would pay at another level
     # (wowstats.plan.dungeongain). run_start: the dungeon run the record
-    # falls in (start to leave), as dungeon_runs names it.
+    # falls in (start to leave), as dungeon_runs names it. skill_id and
+    # skill_rank: a skill record's own (records.extra), for the Riding rank
+    # the mount goal reads.
     "sem_records": ("SELECT r.*, CASE WHEN l.played_s > 0 AND l.partial = 0 THEN 1 ELSE 0 END AS level_whole, "
                     "CASE WHEN json_extract_string(r.extra, '$.classification') IN ('e', 'R', 'b') THEN 1 ELSE 0 "
-                    "END AS elite, (SELECT MIN(d.start_t) FROM dungeon_runs d WHERE r.t BETWEEN d.start_t AND "
-                    "d.left_t) AS run_start, {ts:r.t} AS at_local, {who} FROM records r "
+                    "END AS elite, TRY_CAST(json_extract_string(r.extra, '$.skill_id') AS BIGINT) AS skill_id, "
+                    "TRY_CAST(json_extract_string(r.extra, '$.rank') AS BIGINT) AS skill_rank, (SELECT MIN(d.start_t) "
+                    "FROM dungeon_runs d WHERE r.t BETWEEN d.start_t AND d.left_t) AS run_start, {ts:r.t} AS at_local, "
+                    "{who} FROM records r "
                     "LEFT JOIN levels l ON l.level = r.level"),
     "sem_sessions": "SELECT *, {ts:start_t} AS at_local, {who} FROM sessions",
     # trip_id: the trip around the run (its dungeon, the run starting inside it).
@@ -77,6 +83,20 @@ VIEWS = {
     "sem_quests": ("SELECT *, {ts:at_t} AS at_local, {who} FROM (SELECT *, COALESCE(closed_t, accepted_t) AS at_t, "
                    "COALESCE(quest_name, 'Quest ' || CAST(quest_id AS VARCHAR)) AS quest FROM quests)"),
     "sem_gold_moves": "SELECT *, {ts:t0} AS at_local, {who} FROM gold_moves",
+    # Each interval between two XP records where the rested pool went down,
+    # with the kill XP inside it outside dungeon trips (kill_xp) and inside
+    # them (trip_kill_xp): what rested_per_kill_xp pairs.
+    "sem_rested": ("SELECT x.t, x.level, x.zone, x.session_id, x.pr - x.r AS rested_used, "
+                   "CAST((SELECT COALESCE(SUM(k.xp_reward), 0) FROM records k WHERE k.kind = 'kill' AND "
+                   "k.dungeon_trip_id IS NULL AND k.t > x.pt AND k.t <= x.t) AS BIGINT) AS kill_xp, "
+                   "CAST((SELECT COALESCE(SUM(k.xp_reward), 0) FROM records k WHERE k.kind = 'kill' AND "
+                   "k.dungeon_trip_id IS NOT NULL AND k.t > x.pt AND k.t <= x.t) AS BIGINT) AS trip_kill_xp, "
+                   "{ts:x.t} AS at_local, {who} FROM (SELECT t, level, zone, session_id, rested_xp AS r, "
+                   "LAG(t) OVER (ORDER BY t) AS pt, LAG(rested_xp) OVER (ORDER BY t) AS pr FROM xp) x "
+                   "WHERE x.pr > x.r"),
+    # The loot with the record it came in: its trip, level and zone.
+    "sem_loot": ("SELECT li.item_id, li.count AS n, li.t, r.dungeon_trip_id, r.level, r.zone, r.session_id, "
+                 "{ts:li.t} AS at_local, {who} FROM loot_items li JOIN records r ON r.rec_id = li.rec_id"),
     # The gear advice's upgrades (one row per item and source) with each
     # item's place in its slot among those wearable now: 1 is the biggest
     # gain. Rows of one item share its rank (same gain, same id).
@@ -92,19 +112,31 @@ CROSS_KEY = "cross_model_metrics"
 # The views per grain (semantic.yaml `views`): per_level, per_session...,
 # compiled from the metrics by view_sql and added beside VIEWS by prepare.
 VIEWS_KEY = "views"
-OURS = (CROSS_KEY, VIEWS_KEY)
+# The store models (semantic.yaml `store_models`): what a tool reads from the
+# store itself rather than the prep (other players, the player's price scans,
+# talents, the groups in a dungeon run). Each declares its relation's
+# `columns`; `read` loads the rows the tool fetched for one answer into an
+# in-memory DuckDB for that call only and runs the question there, with the
+# same compiler and contract. Nothing is kept: no copy, no cache of rows,
+# the store's own retention untouched (Battle.net's 30 days above all).
+STORE_KEY = "store_models"
+OURS = (CROSS_KEY, VIEWS_KEY, STORE_KEY)
 
 # The fields a metric's metadata carries beside kind, unit and caveats: the
 # caveats the compiler enforces instead of only printing (review 4, 2026-11-21).
 # aggregation: how the rows become the number (max: the largest value in
 # the group, for a per-item fact the model repeats on each of the item's rows;
-# top: the value on the slot's top row, its best upgrade or weakest worn item). time_meaning: what the model's
+# min: the smallest, a price's low or the first of a window; earliest: the
+# value on the group's first row in time, as latest is on its last; count_distinct:
+# how many different values, a player's days; top: the value on the slot's
+# top row, its best upgrade or weakest worn item). time_meaning: what the model's
 # `time` is for this metric. evidence_basis: how the number was obtained.
 # eligibility: {where, means}, the rows every side of a two-sided metric reads
 # (a predicate over the model's row; for a cross-model metric one per model).
 # min_evidence: {count, at_least, means}: fewer observations in a row than
 # at_least and the value is NULL, with the count beside it (<name>_evidence).
-AGGREGATIONS = ("sum", "ratio_of_sums", "latest", "endpoint_difference", "max", "top")
+AGGREGATIONS = ("sum", "ratio_of_sums", "latest", "earliest", "endpoint_difference", "max", "min", "count_distinct",
+                "top")
 TIME_MEANINGS = ("interval_start", "level_completion", "snapshot_observation", "quest_closure", "event")
 EVIDENCE_BASES = ("observed", "reconstructed", "allocated", "inferred", "estimated")
 FIELDS = ("aggregation", "time_meaning", "evidence_basis", "eligibility", "min_evidence")
@@ -124,12 +156,13 @@ def prepare(con, tz: str | None = None) -> None:
         con.execute(f"CREATE VIEW {name} AS {sql}")
 
 
-def signature(con) -> tuple:
-    """The model's views' columns and types on this copy: all the compiler
-    reads from it, so the key its output is cached under."""
+def signature(con, models: dict | None = None) -> tuple:
+    """The model's views' columns and types on this copy (or `models`'
+    tables): all the compiler reads from it, so the key its output is
+    cached under."""
     cur = con.cursor()
     return tuple((cfg["table"], tuple((c[0], c[1]) for c in cur.execute(f'DESCRIBE "{cfg["table"]}"').fetchall()))
-                 for cfg in spec().values())
+                 for cfg in (spec() if models is None else models).values())
 
 
 def view_sql(con) -> dict[str, str]:
@@ -185,7 +218,20 @@ def spec() -> dict:
     each measure it reads restricted to the eligible rows (`<measure>__for_<metric>`);
     for one with min_evidence, its evidence count (`<metric>__evidence`).
     Neither is in the catalogue: a caller can't name them."""
-    models = copy.deepcopy({k: v for k, v in _file().items() if k not in OURS})
+    models = _expand({k: v for k, v in _file().items() if k not in OURS})
+    for name, m in (_file().get(CROSS_KEY) or {}).items():
+        where = ((m.get("metadata") or {}).get("eligibility") or {}).get("where") or {}
+        for model, pred in where.items():
+            cfg = models[model]
+            for base in re.findall(r"[a-z_][a-z0-9_]*", str(m.get("expr") or "")):
+                if base in (cfg.get("measures") or {}):
+                    _paired(cfg, name, f"_.{base}", pred)
+    return models
+
+
+def _expand(models: dict) -> dict:
+    """A copy of the models with the compiler's own measures added (spec)."""
+    models = copy.deepcopy(models)
     for cfg in models.values():
         for section in ("measures", "calculated_measures"):
             for name, m in list((cfg.get(section) or {}).items()):
@@ -195,14 +241,15 @@ def spec() -> dict:
                 if meta.get("min_evidence"):
                     cfg["measures"][f"{name}__evidence"] = {
                         "expr": meta["min_evidence"]["count"], "description": f"{name}: its evidence count."}
-    for name, m in (_file().get(CROSS_KEY) or {}).items():
-        where = ((m.get("metadata") or {}).get("eligibility") or {}).get("where") or {}
-        for model, pred in where.items():
-            cfg = models[model]
-            for base in re.findall(r"[a-z_][a-z0-9_]*", str(m.get("expr") or "")):
-                if base in (cfg.get("measures") or {}):
-                    _paired(cfg, name, f"_.{base}", pred)
     return models
+
+
+@functools.cache
+def store_spec() -> dict:
+    """semantic.yaml's store models as BSL reads them (their `columns` left
+    out), with the compiler's own measures added as in spec()."""
+    return _expand({k: {f: v for f, v in cfg.items() if f != "columns"}
+                    for k, cfg in (_file().get(STORE_KEY) or {}).items()})
 
 
 def _paired(cfg: dict, metric: str, expr: str, pred: str) -> str:
@@ -327,11 +374,8 @@ def _sql_of(node: ast.expr, col) -> str:
     return f"({a} {dict(((ast.Add, '+'), (ast.Sub, '-'), (ast.Mult, '*')))[type(node.op)]} {b})"
 
 
-@functools.cache
-def catalogue() -> dict:
-    """list_metrics' answer: every metric with its definition, the
-    dimensions it can be grouped and filtered by, and the time grains."""
-    s = {k: v for k, v in _file().items() if k not in OURS}  # as written: no generated parts
+def _listed(s: dict) -> tuple[list[dict], dict]:
+    """The models' metrics and dimensions as written (catalogue)."""
     metrics, dims = [], {}
     for model, cfg in s.items():
         own = cfg.get("dimensions") or {}
@@ -348,6 +392,15 @@ def catalogue() -> dict:
                                 "description": m.get("description"), "caveats": meta.get("caveats"),
                                 **{f: meta.get(f) for f in FIELDS}, "calculated": section == "calculated_measures",
                                 "expr": m.get("expr"), "group_by": sorted(own)})
+    return metrics, dims
+
+
+@functools.cache
+def catalogue() -> dict:
+    """list_metrics' answer: every metric with its definition, the
+    dimensions it can be grouped and filtered by, and the time grains."""
+    s = {k: v for k, v in _file().items() if k not in OURS}  # as written: no generated parts
+    metrics, dims = _listed(s)
     owner = {m["name"]: m["model"] for m in metrics}
     for name, m in (_file().get(CROSS_KEY) or {}).items():
         meta = m.get("metadata") or {}
@@ -366,6 +419,76 @@ def catalogue() -> dict:
         check_metric(m)
     return {"metrics": metrics, "dimensions": sorted(dims.values(), key=lambda d: d["name"]),
             "grains": list(GRAINS), "ops": list(OPS)}
+
+
+TYPES = ("INTEGER", "REAL", "TEXT")
+
+
+@functools.cache
+def store_catalogue() -> dict:
+    """The store models' metrics and dimensions, checked as catalogue()'s
+    (each metric's contract fields) and named apart from them: a name means
+    one thing across both. list_metrics lists them; their tools read them
+    (read), query_metric doesn't (no prep holds their rows)."""
+    raw = _file().get(STORE_KEY) or {}
+    for model, cfg in raw.items():
+        cols = cfg.get("columns") or {}
+        if not cols or any(t not in TYPES for t in cols.values()):
+            raise ValueError(f"store model {model}: columns {{name: {' | '.join(TYPES)}}}")
+    metrics, dims = _listed(raw)
+    taken = {m["name"] for m in catalogue()["metrics"]}
+    for m in metrics:
+        if m["name"] in taken:
+            raise ValueError(f"{m['name']}: a store metric's name is its own, not a prep metric's")
+        m["source"] = "store"
+        check_metric(m)
+    return {"metrics": metrics, "dimensions": sorted(dims.values(), key=lambda d: d["name"]),
+            "grains": list(GRAINS), "ops": list(OPS)}
+
+
+def read(model: str, rows: list[dict], q: dict) -> dict:
+    """A store model's question over `rows`, the relation a tool read from
+    the store for this one answer (one dict per row, the model's `columns`):
+    loaded into an in-memory DuckDB (locked down, as the prep's copy) for
+    this call only, compiled and run as query_metric runs a question, and
+    closed. No row limit but the rows given: the tool reads every key."""
+    import sqlite3
+
+    from . import duck
+
+    cfg = (_file().get(STORE_KEY) or {}).get(model)
+    if cfg is None:
+        raise QueryError(f"unknown store model {model!r}")
+    cols = cfg["columns"]
+    table = cfg["table"]
+    db = sqlite3.connect(":memory:")
+    con = None
+    try:
+        db.execute(f'CREATE TABLE "{table}" (' + ", ".join(f'"{c}" {t}' for c, t in cols.items()) + ")")
+        db.executemany(f'INSERT INTO "{table}" VALUES (' + ",".join("?" * len(cols)) + ")",
+                       [tuple(r.get(c) for c in cols) for r in rows])
+        con = duck.mirror(db)
+        models = {model: store_spec()[model]}
+        layer = _store_layer(signature(con, models))
+        c = layer.compile(q, max_limit=max(len(rows), 1))
+        out_cols, got, _ = duck.ReadOnlyDuck(con).run(c["sql"], max(len(rows), 1), c["params"])
+        return {"columns": out_cols, "rows": [dict(zip(out_cols, r, strict=True)) for r in got],
+                "definitions": c["definitions"], "query": c["query"], "sql": c["sql"], "params": c["params"]}
+    finally:
+        if con is not None:
+            con.close()
+        db.close()
+
+
+@functools.lru_cache(maxsize=32)
+def _store_layer(sig: tuple):
+    """The layer for one store model at these column types: no rows in it
+    (ibis' unbound tables), so caching it keeps nothing of the data."""
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # BSL's own deprecation notes
+        return Layer(sig=sig, store=True)
 
 
 @functools.cache
@@ -441,8 +564,8 @@ def view_reads(name: str) -> set[str]:
     return {spec_[mo]["table"] for mo in views()[name]["models"]}
 
 
-def _metric(name: str) -> dict:
-    m = next((x for x in catalogue()["metrics"] if x["name"] == name), None)
+def _metric(name: str, cat: dict | None = None) -> dict:
+    m = next((x for x in (cat or catalogue())["metrics"] if x["name"] == name), None)
     if m is None:
         raise QueryError(f"unknown metric {name!r}: list_metrics names them")
     return m
@@ -452,7 +575,7 @@ class Layer:
     """The model compiled against one character's DuckDB copy (its column
     types), built once per workspace."""
 
-    def __init__(self, con=None, *, sig: tuple | None = None):
+    def __init__(self, con=None, *, sig: tuple | None = None, store: bool = False):
         import ibis
         from boring_semantic_layer import from_config
 
@@ -460,7 +583,10 @@ class Layer:
                  "TIMESTAMP": "timestamp", "BOOLEAN": "boolean"}
         tables = {name: ibis.table({c: types.get(t, "string") for c, t in cols}, name=name)
                   for name, cols in (sig if sig is not None else signature(con))}
-        self.models = from_config(spec(), tables=tables)
+        # store: the store models whose tables `sig` names (read), else the prep's.
+        models = {k: v for k, v in store_spec().items() if v["table"] in tables} if store else spec()
+        self.cat = store_catalogue() if store else None
+        self.models = from_config(models, tables=tables)
 
     def _one(self, model: str, measures: list[str], label: str, q: dict, values: list, attrs=()) -> str:
         """One model's part: its metrics aggregated to the question's
@@ -497,7 +623,7 @@ class Layer:
         except Exception as e:  # BSL's and ibis' own errors: the caller's mix doesn't fit the model
             raise QueryError(f"can't compile that: {str(e).splitlines()[0][:240]}") from None
 
-    def compile(self, q: dict, attrs=(), view: bool = False) -> dict:
+    def compile(self, q: dict, attrs=(), view: bool = False, max_limit: int | None = None) -> dict:
         """The query checked and compiled: {sql, params, columns, definitions, query}.
         One model: its aggregate. Several: each model's aggregate, joined on
         the group_by columns (a full outer join, so a level with time but no
@@ -505,8 +631,13 @@ class Layer:
         metrics, no limit, and `attrs`, dimensions grouped in the models that
         have them and joined on group_by only (one value per key: the views'
         test checks no key comes out twice)."""
-        q = normalise(q, max_metrics=None if view else MAX_METRICS)
-        metrics = [_metric(n) for n in q["metrics"]]
+        q = normalise(q, max_metrics=None if view else MAX_METRICS, cat=self.cat, max_limit=max_limit)
+        cat = self.cat
+
+        def _m(n: str) -> dict:
+            return _metric(n, cat)
+
+        metrics = [_m(n) for n in q["metrics"]]
         # A cross-model metric is computed after the join from the models'
         # own metrics: those go into their models' parts (unshown if not asked).
         # Each metric's parts, as (model, measure): a cross metric with
@@ -515,7 +646,7 @@ class Layer:
         def parts_of(m: dict) -> dict[str, tuple[str, str]]:
             if m["model"] == "cross":
                 tag = f"__for_{m['name']}" if m.get("eligibility") else ""
-                return {n: (_metric(n)["model"], n + tag) for n in m["of"]}
+                return {n: (_m(n)["model"], n + tag) for n in m["of"]}
             own = {m["name"]: (m["model"], m["name"])}
             if m.get("min_evidence"):
                 own["__evidence"] = (m["model"], f"{m['name']}__evidence")
@@ -587,7 +718,7 @@ class Layer:
         for m in metrics:
             p = parts_of(m)
             if m["model"] == "cross":
-                tree, _ = _cross_terms(m["name"], m["expr"], {n: _metric(n)["model"] for n in m["of"]})
+                tree, _ = _cross_terms(m["name"], m["expr"], {n: _m(n)["model"] for n in m["of"]})
                 sel.append(f"{_sql_of(tree, lambda n, p=p: part_col(*p[n]))} AS {_q(m['name'])}")
             elif m.get("min_evidence"):
                 # Too few observations: NULL, never the number they happen to
@@ -659,13 +790,15 @@ def _when(v, what: str) -> str | None:
     return v
 
 
-def normalise(q: dict, max_metrics: int | None = MAX_METRICS) -> dict:
+def normalise(q: dict, max_metrics: int | None = MAX_METRICS, cat: dict | None = None,
+              max_limit: int | None = None) -> dict:
     """The query's shape checked, names against the closed lists: a QueryError
     says what's wrong. Values are only type-checked: they are bound later.
-    max_metrics None: a view per grain's own compile, every metric it lists."""
+    max_metrics None: a view per grain's own compile, every metric it lists.
+    cat: a store model's catalogue (read); max_limit: read's own row count."""
     if not isinstance(q, dict):
         raise QueryError("a query is an object: metrics, group_by, where, grain, order_by, limit")
-    cat = catalogue()
+    cat = cat or catalogue()
     known_m = {m["name"] for m in cat["metrics"]}
     known_d = {d["name"] for d in cat["dimensions"]}
 
@@ -723,9 +856,10 @@ def normalise(q: dict, max_metrics: int | None = MAX_METRICS) -> dict:
         if name not in out_names | {"time"}:
             raise QueryError(f"order_by: {name!r} is not a metric or group_by of this query")
         order.append((name, "desc" if desc else "asc"))
-    limit = q.get("limit", DEFAULT_LIMIT)
-    if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= MAX_LIMIT:
-        raise QueryError(f"limit: 1 to {MAX_LIMIT}")
+    top = max_limit or MAX_LIMIT
+    limit = q.get("limit", top if max_limit else DEFAULT_LIMIT)
+    if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= top:
+        raise QueryError(f"limit: 1 to {top}")
     return {"metrics": metrics, "group_by": group, "where": where, "grain": grain,
             "since": _when(q.get("since"), "since"), "until": _when(q.get("until"), "until"),
             "order_by": order, "limit": limit}
@@ -736,7 +870,9 @@ def run(layer: Layer, ro, q: dict, max_rows: int = MAX_LIMIT) -> dict:
     asks for one row past the limit, so `more` is true only when one exists.
     A metric with min_evidence gets an `evidence` entry: how many rows are
     measured, unknown (some evidence, not enough) and unavailable (none)."""
-    c = layer.compile(q)
+    # A reader of the app's own (not a caller's question) may ask for every
+    # key: max_rows past MAX_LIMIT lifts the limit to it.
+    c = layer.compile(q, max_limit=max_rows if max_rows > MAX_LIMIT else None)
     cols, rows, cut = ro.run(c["sql"], min(max_rows, c["query"]["limit"]), c["params"])
     out = {"columns": cols, "rows": [list(r) for r in rows], "more": cut, "sql": c["sql"], "params": c["params"],
            "definitions": c["definitions"], "query": c["query"]}

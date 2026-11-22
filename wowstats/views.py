@@ -428,10 +428,13 @@ class Views:
             # (invariants, property 7).
             mine = []
             out["addon_unread"] = public_error(e, "the add-on's talent saves")
+        from wowstats import storemodels
+
         if mine:
             gaps = wowsims.missing_from(cat, cls, self.bnet_talents(char))
             return {**out, "available": True, "why": None, "source": "addon", "days": None,
-                    "since": str(mine[0]["t"])[:10], "changes": talents.history(cat, cls, mine), "not_recorded": gaps}
+                    "since": str(mine[0]["t"])[:10],
+                    "changes": storemodels.talent_changes(talents.history(cat, cls, mine)), "not_recorded": gaps}
         # The one step to the full history (degraded mode): the addon, as steps.json names it.
         from wowstats import missing
 
@@ -445,8 +448,9 @@ class Views:
             return {**out, "why": "unreachable"}
         if not readings:
             return out
+        # Battle.net's readings go through the model for this call only (semantic.read keeps nothing).
         return {**out, "available": True, "why": None, "source": "battlenet", "since": str(readings[0]["t"])[:10],
-                "changes": talents.history(cat, cls, readings)}
+                "changes": storemodels.talent_changes(talents.history(cat, cls, readings))}
 
     def bnet_profile(self, char: str) -> dict:
         """Battle.net's profile (stores.character_profile), {} when vm-wow
@@ -1418,33 +1422,21 @@ def deaths_per_level(by_level: dict, climb: list[dict], spans: list[tuple], gaps
 
 
 def build_players(char: str, summary: list[dict], days: list[dict]) -> dict:
-    per: dict[str, dict] = {}
-    for r in days:
-        p = r.get("player")
-        if not p or norm_char(p) == char:
-            continue
-        d = per.setdefault(p, {"days": set(), "group_days": set(), "grouped": 0, "sightings": 0, "contexts": {}})
-        n = int(num(r.get("n")))
-        day = (r.get("_time") or "")[:10]
-        d["days"].add(day)
-        d["sightings"] += n
-        ctx = r.get("context") or "seen"
-        d["contexts"][ctx] = d["contexts"].get(ctx, 0) + n
-        if ctx in GROUPED:
-            d["grouped"] += n
-            d["group_days"].add(day)
-    info = {r.get("player"): r for r in summary}
+    """The People tab's players: the `players` store model's metrics per
+    player (wowstats.storemodels.players), the regulars first."""
+    from wowstats import storemodels
+
+    per = storemodels.players(days, summary, lambda p: norm_char(p) != char)
     out = []
     for p, d in per.items():
-        s = info.get(p, {})
-        out.append({"player": p, "days": len(d["days"]), "day_list": sorted(d["days"]),
-                    "group_days": sorted(d["group_days"]), "grouped": d["grouped"], "sightings": d["sightings"],
-                    "contexts": d["contexts"], "last_seen": s.get("last_seen"), "level": opt_num(s.get("level")),
-                    "class": (jlist(s.get("classes")) or [None])[0], "race": (jlist(s.get("races")) or [None])[0],
-                    "zones": jlist(s.get("zones"))})
+        out.append({"player": p, "days": d["days"], "day_list": d["day_list"], "group_days": d["group_days"],
+                    "grouped": d["grouped"], "sightings": d["sightings"], "contexts": d["contexts"],
+                    "last_seen": d["last_seen"], "level": opt_num(d["level"]),
+                    "class": (jlist(d["classes"]) or [None])[0], "race": (jlist(d["races"]) or [None])[0],
+                    "zones": jlist(d["zones"])})
     out.sort(key=lambda r: (-r["days"], -r["grouped"], -r["sightings"]))
     recurring = [r for r in out if r["days"] >= 2 or r["grouped"] >= 2]
-    last_day = max((day for d in per.values() for day in d["days"] if day), default=None)
+    last_day = max((day for d in per.values() for day in d["day_list"] if day), default=None)
     return {"recurring": recurring[:30], "total": len(out), "once": len(out) - len(recurring), "last_day": last_day}
 
 

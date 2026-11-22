@@ -454,10 +454,11 @@ Every Recorder record except positions: kills, deaths, quests, loot and the rest
 | `deaths_above` | simple | deaths | Deaths to a likely killer 3 or more levels above the character (death records: npc_level minus the record's level). | The killer is Polestar_Recorder's pick, likely, not certain (no combat log). A death with no pick or no level isn't counted. | sum; time: event; inferred. |
 | `level_gap_max` | simple | levels | The largest level gap between a death's likely killer and the character: npc_level minus the record's level. | Not additive: over several deaths it is the largest of them. NULL when no death of the group has a killer and a level. | max; time: event; inferred. |
 | `come_back_level` | simple | level | The highest level among the likely killers 3 or more levels above the character: the level to come back at. | Not additive: the largest of the group. NULL when no death of the group was to a creature 3+ levels above. | max; time: event; inferred. |
+| `skill_rank` | simple | rank | The highest rank the skill records saw: group or filter by skill_id (Riding is 762). | Only ranks the Recorder saw change: a skill learned before it ran and never raised since has no record. NULL without a skill record. | max; time: event; observed. |
 | `quest_xp_share` | derived | share | Share of kill and quest XP that came from quests: quest_xp over quest_xp + kill_xp. | Leaves out discovery XP and dungeon bonus XP. | ratio_of_sums; time: event; observed. Rows: Kill and turnin records: the top is a part of the bottom. |
 | `deaths_per_100_kills` | ratio | deaths/100 kills | Deaths per 100 kills. | NULL without kills; a death to a fall or drowning counts too. | ratio_of_sums; time: event; observed. Rows: Every record of the group: deaths and kills are counted on the same records. |
 
-Group or filter by: `character`, `class`, `elite`, `hour`, `kind`, `level`, `npc_id`, `npc_level`, `run`, `session_id`, `time`, `zone`.
+Group or filter by: `character`, `class`, `elite`, `hour`, `kind`, `level`, `npc_id`, `npc_level`, `run`, `session_id`, `skill_id`, `time`, `zone`.
 
 ### sessions
 
@@ -518,6 +519,10 @@ The character snapshots the shipper sends at logout and /reload: money, XP, bind
 |---|---|---|---|---|---|
 | `snapshot_count` | simple | snapshots | Snapshots (logouts and reloads). | Only what the shipper read: a crash leaves none. | sum; time: snapshot_observation; observed. |
 | `gold_delta_copper` | derived | copper | Money on the group's last snapshot minus money on its first, copper. | Not additive: a week's delta is not the sum of its days (the change between days is in neither). NULL with fewer than two snapshots with money at different times in the group: gold_delta_copper_evidence beside it counts them (0: no snapshot, 1: one, not enough). | endpoint_difference; time: snapshot_observation; observed. Needs two snapshots with money, taken at different times (else NULL; `gold_delta_copper_evidence` counts them). |
+| `snapshot_first_level` | simple | level | The level on the group's first snapshot. | A point, not a sum: the first sheet of the group (with snapshot_first_xp, where the character stood). | earliest; time: snapshot_observation; observed. |
+| `snapshot_first_xp` | simple | xp | The XP into its level on the group's first snapshot. | Read it with snapshot_first_level. | earliest; time: snapshot_observation; observed. |
+| `snapshot_last_level` | simple | level | The level on the group's last snapshot. | A point, not a sum: the newest sheet of the group. | latest; time: snapshot_observation; observed. |
+| `snapshot_last_xp` | simple | xp | The XP into its level on the group's last snapshot. | Read it with snapshot_last_level. | latest; time: snapshot_observation; observed. |
 
 Group or filter by: `character`, `class`, `level`, `time`, `zone`.
 
@@ -550,8 +555,36 @@ The purse between two consecutive snapshots (logout or /reload): what it moved a
 | `gold_moved_copper` | simple | copper | How much the purse moved, copper: the sum of each move's change. | Additive, unlike gold_delta_copper: a week is the sum of its moves. A move counts in the level and day of its first snapshot. | sum; time: snapshot_observation; reconstructed. |
 | `gold_quest_copper` | simple | copper | Money hand-ins paid inside the moves, copper. | Quest rewards the Recorder saw; one handed in with the Recorder off is unexplained. | sum; time: snapshot_observation; observed. |
 | `unexplained_gold_delta` | simple | copper | The purse's change no record explains, copper: gold_moved_copper minus gold_quest_copper. | Loot coin, vendor and auction sales and mail in, less repairs, vendor purchases, training, flights, auction deposits and mail out, all together. No addon the kit reads saves spending (the Recorder has quest money only; Auctionator saves prices, not sales), so this is never repairs. A move counts in the level of its first snapshot: filter dings = 0 for moves inside one level. | sum; time: snapshot_observation; inferred. |
+| `gold_move_online_s` | simple | seconds | Online seconds (timeline) between the two snapshots of each move, summed. | 0 for a move the Recorder didn't see (switched off, or not installed): the money moved, the time is unknown. | sum; time: snapshot_observation; reconstructed. |
+| `gold_changes` | simple | moves | Moves where the purse changed. | A move that earned and spent the same counts as no change. | sum; time: snapshot_observation; observed. |
+| `gold_first_t` | simple | unix seconds | When the group's first move started: its first snapshot, Unix seconds. | An edge of the window, not a measure of it. | min; time: snapshot_observation; observed. |
+| `gold_last_t` | simple | unix seconds | When the group's last move ended: its last snapshot, Unix seconds. | An edge of the window, not a measure of it. | max; time: snapshot_observation; observed. |
+| `gold_per_online_hour` | ratio | copper/hour | Net gold per online hour: gold_moved_copper over gold_move_online_s, copper an hour. | Everything earned less everything spent. NULL when no move has online time (no Recorder): the plan then estimates the time from the level splits. | ratio_of_sums; time: snapshot_observation; reconstructed. Rows: Moves with online time the Recorder saw: the money and the hours come from the same moves. A move it missed would add money with no time. |
 
 Group or filter by: `character`, `class`, `dings`, `level`, `time`.
+
+### rested
+
+The intervals between two Recorder XP records (about 5 minutes) in which the rested pool went down: how much it went down and the kill XP of the same interval.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `rested_intervals` | simple | intervals | Intervals in which the rested pool went down. | Only while the Recorder ran: its XP records bound the intervals. | sum; time: event; observed. |
+| `rested_used_xp` | simple | xp | Rested XP used: how far the pool went down, summed over the intervals. | Kills inside a dungeon trip use it too: rested_per_kill_xp leaves those intervals out. | sum; time: event; observed. |
+| `rested_kill_xp` | simple | xp | Kill XP recorded in the same intervals, outside dungeon trips (kill records' xp_reward). | Rested bonus included, as the game reports it. | sum; time: event; observed. |
+| `rested_per_kill_xp` | ratio | xp/xp | Rested XP used per point of kill XP: rested_used_xp over rested_kill_xp, measured, no rule assumed. | NULL without outdoor kill XP, or with fewer than three intervals to measure. | ratio_of_sums; time: event; observed. Rows: Intervals with no kill inside a dungeon trip: the rested used and the kill XP are of the same kills. Needs three intervals outside dungeon trips where the pool went down (else NULL; `rested_per_kill_xp_evidence` counts them). |
+
+Group or filter by: `character`, `class`, `level`, `session_id`, `time`, `zone`.
+
+### loot
+
+Every item the Recorder saw looted (loot_items), with the record it came in.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `looted_items` | simple | items | Items looted, a stack counted by its size. | Only what the Recorder saw; what it is worth is the item's (vendor price, the player's own scans), not here. | sum; time: event; observed. |
+
+Group or filter by: `character`, `class`, `item_id`, `level`, `session_id`, `time`, `trip_id`, `zone`.
 
 ### upgrades
 
@@ -560,6 +593,7 @@ The gear advice's upgrades for the spec the gear is scored for (the player's WEI
 | Metric | Kind | Unit | Definition | Caveats | Read as |
 |---|---|---|---|---|---|
 | `upgrade_gain` | simple | points | Score gain over what is worn in the slot (Polestar's points, for the scored spec): the biggest in the group. | The gear advice as of the newest character sheet, scored with the weights the player chose. Not additive: two items for one slot are alternatives. Group by item_id for one item's gain. | max; time: snapshot_observation; estimated. |
+| `upgrade_gain_share_pct` | simple | percent | The item's gain as a percent of the score of everything worn now. | Lead with it and upgrade_gain; a percent over the replaced item misleads against a weak one. Group by item_id. | max; time: snapshot_observation; estimated. |
 | `upgrade_bis_pct` | simple | percent | The item's score as a percent of the best its slot can hold at this level for the scored spec (100: the best). | Say it with upgrade_bis_pct_worn as the page does: '17% → 100% on your head', never as '+83%'. NULL when there is nothing to measure against. | max; time: snapshot_observation; estimated. |
 | `upgrade_bis_pct_worn` | simple | percent | The same percent for what is worn in that slot now. | NULL for an empty slot, or when there is nothing to measure against. | max; time: snapshot_observation; estimated. |
 | `upgrade_sources` | simple | sources | Ways to get the upgrades: one per item and source. | An item with a drop and a quest counts twice; group by item_id and source to list them. | sum; time: snapshot_observation; estimated. |
@@ -568,7 +602,7 @@ The gear advice's upgrades for the spec the gear is scored for (the player's WEI
 | `best_upgrade_gain` | simple | points | The best upgrade's score gain over what is worn (Polestar's points, for the scored spec). | Group by slot, as best_upgrade. Not additive: one slot's best is not another's. | top; time: snapshot_observation; estimated. |
 | `best_upgrade_bis_pct` | simple | percent | The best upgrade's score as a percent of the best its slot can hold at this level for the scored spec. | Say it with upgrade_bis_pct_worn as the page does: '17% → 64% on your head', never as '+47%'. NULL when there is nothing to measure against. | top; time: snapshot_observation; estimated. |
 
-Group or filter by: `character`, `class`, `fills_empty`, `fit`, `instance`, `item`, `item_id`, `now`, `rank_now`, `slot`, `source`, `source_kind`, `source_wowhead`, `zone`.
+Group or filter by: `character`, `class`, `fills_empty`, `fit`, `instance`, `item`, `item_id`, `now`, `rank_now`, `slot`, `slot_id`, `source`, `source_kind`, `source_wowhead`, `with_item_id`, `zone`.
 
 ### worn
 
@@ -584,7 +618,7 @@ The items worn on the newest character sheet, as the gear advice scores them for
 | `worn_fit` | simple | fit | How that worn item fits the scored spec: yes, any, spec (built for another spec of the class), class (made for another class) or unknown. | Group by slot, as worn_item. The spec is the player's WEIGHTS setting, else the talents (scored_for). | top; time: snapshot_observation; estimated. |
 | `worn_item_bis_pct` | simple | percent | That worn item's score as a percent of the best its slot can hold at this level for the scored spec. | Group by slot, as worn_item. NULL when there is nothing to measure against. | top; time: snapshot_observation; estimated. |
 
-Group or filter by: `built_for`, `character`, `class`, `fit`, `item`, `item_id`, `scored_for`, `slot`.
+Group or filter by: `built_for`, `character`, `class`, `fit`, `item`, `item_id`, `scored_for`, `slot`, `slot_id`.
 
 ### Across two models
 
@@ -596,13 +630,41 @@ Each model aggregates on its own to the question's group_by, the results join on
 | `deaths_per_online_hour` | ratio | deaths/hour | `deaths / (online_s / 3600)` | Deaths per online hour: deaths (records) over online_s (timeline). | Online time includes AFK; filter or compare with active_s. | ratio_of_sums; time: event, interval_start; reconstructed. Rows: Inside a login span the Recorder saw, on both sides. | `character`, `class`, `hour`, `level`, `session_id`, `time`, `zone` |
 | `quest_xp_per_played_hour` | ratio | xp/hour | `quest_xp / (played_s / 3600)` | XP from quest hand-ins per played hour in the level: quest_xp (records) over played_s (levels). | Levels only share level, character, class and time with records: group by one of those. Whole splits only, on both sides. | ratio_of_sums; time: event, level_completion; observed. Rows: Levels with a whole split: the quest XP of those levels over their played time. The level in play and a partial split stay out of both sides. | `character`, `class`, `level` |
 
+### Store models
+
+Read by the tools that fetch their rows from the store for one answer (players, people, prices, talent_changes): the rows go into an in-memory copy for that call and nothing is kept, so the store's own retention (30 days for Battle.net data) is the only one. query_metric doesn't read them.
+
+| Metric | Model | Unit | Definition | Read as |
+|---|---|---|---|---|
+| `player_sightings` | players | sightings | Sightings: the update.probed saves that listed the player, summed. | sum; time: event; observed. |
+| `player_grouped_sightings` | players | sightings | Sightings in a group or a dungeon (contexts grouped and dungeon). | sum; time: event; observed. |
+| `player_days` | players | days | Days the player was seen. | count_distinct; time: event; observed. |
+| `player_group_days` | players | days | Days the player was seen in a group or a dungeon. | count_distinct; time: event; observed. |
+| `player_last_seen` | players | time | When the player was last seen, UTC ISO time. | max; time: event; observed. |
+| `player_level` | players | level | The highest level the saves gave the player. | max; time: event; observed. |
+| `price_scan_days` | prices | days | Scan days: one per item and day the player scanned it. | sum; time: snapshot_observation; observed. |
+| `price_item` | prices | name | The item's name on its newest scan. | latest; time: snapshot_observation; observed. |
+| `price_latest_copper` | prices | copper | The lowest buyout per unit on the newest scan day, copper. | latest; time: snapshot_observation; observed. |
+| `price_latest_high_copper` | prices | copper | The highest buyout per unit on the newest scan day, copper. | latest; time: snapshot_observation; observed. |
+| `price_latest_t` | prices | unix seconds | The newest scan day's time, Unix seconds. | max; time: snapshot_observation; observed. |
+| `price_min_copper` | prices | copper | The lowest of the days' lowest buyouts, copper. | min; time: snapshot_observation; observed. |
+| `price_max_copper` | prices | copper | The highest of the days' lowest buyouts, copper. | max; time: snapshot_observation; observed. |
+| `price_change_copper` | prices | copper | The lowest buyout on the newest scan day minus on the first, copper. | endpoint_difference; time: snapshot_observation; observed. Needs two scan days (else NULL; `price_change_copper_evidence` counts them). |
+| `talent_change_count` | talent_changes | changes | Changes: builds that differ from the one before. | sum; time: snapshot_observation; observed. |
+| `talent_ranks_gained` | talent_changes | ranks | Ranks gained: each gained talent's new rank minus its old one, summed. | sum; time: snapshot_observation; observed. |
+| `talent_ranks_dropped` | talent_changes | ranks | Ranks dropped: each dropped talent's old rank minus its new one, summed. | sum; time: snapshot_observation; observed. |
+| `run_party_size` | run_groups | players | The largest party during the run. | max; time: event; observed. |
+| `run_bosses` | run_groups | bosses | Boss fights won in the run. | sum; time: event; observed. |
+| `run_wipes` | run_groups | wipes | Boss fights lost in the run. | sum; time: event; observed. |
+| `run_deaths` | run_groups | deaths | The character's deaths in the run. | sum; time: event; observed. |
+
 ### Views per grain
 
 Each view is the metrics below compiled at one entity, one row per key, added to the character's DuckDB copy beside the models' views. `play_sql` reads them by name; each metric column is the metric of that name, its rules included.
 
 | View | One row per | Columns | Definition |
 |---|---|---|---|
-| `per_level` | `level` | `level`, `partial`, `played_s`, `calendar_s`, `offline_s`, `longest_gap_s`, `recorder_missed_s`, `recorder_coverage`, `online_s`, `deaths`, `deaths_per_online_hour`, `planned_s`, `vs_route`, `split_quests`, `quests_done`, `gold_moved_copper`, `gold_delta_copper`, `gold_delta_copper_evidence` | One row per level: time played, wall clock and the longest silence, how much of it the Recorder saw, deaths, the route plan against the play, quests and gold. |
+| `per_level` | `level` | `level`, `partial`, `played_s`, `calendar_s`, `offline_s`, `longest_gap_s`, `recorder_missed_s`, `recorder_coverage`, `online_s`, `deaths`, `deaths_per_online_hour`, `planned_s`, `vs_route`, `split_quests`, `quests_done`, `gold_moved_copper`, `gold_delta_copper`, `gold_delta_copper_evidence`, `gold_changes`, `gold_move_online_s`, `gold_per_online_hour`, `looted_items`, `rested_used_xp`, `rested_kill_xp`, `rested_per_kill_xp`, `rested_per_kill_xp_evidence` | One row per level: time played, wall clock and the longest silence, how much of it the Recorder saw, deaths, the route plan against the play, quests, gold and its rate, loot, and the rested XP the kills used. |
 | `per_session` | `session_id` | `session_id`, `weekday`, `start_hour`, `level_start`, `session_s`, `session_xp`, `xp_per_session_hour`, `online_s`, `active_s`, `combat_s`, `dungeon_s`, `kills`, `deaths`, `quests_done`, `deaths_per_online_hour`, `kills_per_combat_hour` | One row per login span: its length and XP, online, active, combat and dungeon time, kills, deaths and quests. |
 | `per_zone` | `zone` | `zone`, `online_s`, `active_s`, `combat_s`, `dungeon_s`, `kills`, `deaths`, `quests_done`, `kill_xp`, `quest_xp`, `deaths_per_online_hour`, `kills_per_combat_hour` | One row per zone the Recorder saw: online, combat and dungeon time, kills, deaths, quests and their XP. |
 | `per_dungeon` | `dungeon` | `dungeon`, `run_count`, `run_s`, `run_xp`, `run_xp_per_hour`, `trip_count`, `trip_s`, `trip_travel_s`, `trip_xp`, `trip_xp_per_hour`, `trip_inside_share` | One row per dungeon: runs and their time and XP inside, trips with the travel around them and their XP an hour. |
@@ -615,8 +677,8 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 |---|---|---|
 | `bracket` | dungeon_trips | guides (lookup guide steps bracket it) or instance (enter and leave only). |
 | `built_for` | worn | Who the item's stats are made for, in words (healers, damage casters...). |
-| `character` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, upgrades, worn | The character (one per query: the char argument). |
-| `class` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, upgrades, worn | The character's class, from its latest session record. |
+| `character` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, upgrades, worn | The character (one per query: the char argument). |
+| `class` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, upgrades, worn | The character's class, from its latest session record. |
 | `dings` | gold_moves | Level-ups between the two snapshots: 0 for a move inside one level. |
 | `done_why` | quests | For 'done (inferred)': the evidence, e.g. a reward only that quest gives worn or in the bags, or Questie's completed list. NULL otherwise. |
 | `dungeon` | timeline, dungeon_runs, dungeon_trips | Dungeon name while inside a dungeon run, else NULL. |
@@ -628,9 +690,9 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `hour` | timeline, records | Hour of day 0-23, local time. |
 | `instance` | upgrades | Dungeon or raid of an instance drop or quest, else NULL. |
 | `item` | upgrades, worn | Item name. |
-| `item_id` | upgrades, worn | Item id (its Wowhead page: item=<id>). |
+| `item_id` | loot, upgrades, worn | Item id (its Wowhead page: item=<id>). |
 | `kind` | records | Record kind (record_kinds: kill, death, turnin, accept...). |
-| `level` | levels, timeline, records, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves | Character level. |
+| `level` | levels, timeline, records, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot | Character level. |
 | `level_accepted` | quests | Level at the accept (NULL for untimed). |
 | `level_start` | sessions | Level at the start of the span. |
 | `now` | upgrades | 1 when the character can wear it at its level now, 0 within 3 levels. |
@@ -642,8 +704,10 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `rank_now` | upgrades | The item's place in its slot among the upgrades wearable now, by gain: 1 is the biggest. NULL for an item not wearable yet. Filter rank_now <= 3 for each slot's top three. |
 | `run` | records, dungeon_runs | The dungeon run the record falls in, named by when it started (unix seconds, as dungeon_runs names it), NULL outside a run. |
 | `scored_for` | worn | The spec the gear advice scores for: the player's WEIGHTS setting, else the talents. |
-| `session_id` | timeline, records, sessions | Login span (sessions). |
+| `session_id` | timeline, records, sessions, rested, loot | Login span (sessions). |
+| `skill_id` | records | The skill line of a skill record (762: Riding; the professions' own ids), else NULL. |
 | `slot` | upgrades, worn | The slot the item would go in (Head, Chest, Finger...; both rings are Finger). |
+| `slot_id` | upgrades, worn | The inventory slot 1-19: which of two rings (11, 12) or trinkets (13, 14) it is measured against or worn in. |
 | `source` | upgrades | One source in the gear advice's words: 'drop: Fallen Champion in Scarlet Monastery: Library (dungeon, levels 30-38), 38.5%', 'quest ...', 'craft: Tailoring 150; ...', 'in your bags: equip it'. |
 | `source_kind` | upgrades | quest, drop, craft, bags or bank (or another kind the gear data names: reputation, vendor...). |
 | `source_wowhead` | upgrades | The source's Wowhead page (the quest, the boss, the craft's spell); NULL when it has none. |
@@ -652,12 +716,14 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `step` | timeline | The guide's step number then (from 1). Group by guide too: step numbers restart in each guide. |
 | `step_title` | timeline | That step's title, from the route reference (NULL when the reference doesn't have it). |
 | `subzone` | timeline | Subzone text. |
-| `time` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves | When the level ended (the ding), local time. NULL while the level is in play. Grains: day, week, month. |
+| `time` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot | When the level ended (the ding), local time. NULL while the level is in play. Grains: day, week, month. |
 | `trip` | dungeon_runs, dungeon_trips | The dungeon trip around the run (dungeon_trips: the same dungeon, the run starting inside the trip), NULL for a run with no trip. |
 | `trip_end` | dungeon_trips | When the trip ended (unix seconds). |
+| `trip_id` | loot | The dungeon trip it was looted on (dungeon_trips.trip_id), NULL outside one. |
 | `trip_loot` | dungeon_trips | What the trip's run looted inside the instance: a JSON list of [item_id, count] (an observation, not a number to add). |
 | `trip_start` | dungeon_trips | When the trip started (unix seconds). |
 | `weekday` | sessions | Mon..Sun of the start, local time. |
-| `zone` | timeline, records, snapshots, quests, upgrades | Zone name, as the last zone record said (inside a dungeon, the game usually names the dungeon). |
+| `with_item_id` | upgrades | For a one-hander: the item in the other hand it is scored with (a weapon is a whole setup), NULL alone or for any other slot. |
+| `zone` | timeline, records, snapshots, quests, rested, loot, upgrades | Zone name, as the last zone record said (inside a dungeon, the game usually names the dungeon). |
 
 <!-- /generated:semantic-catalogue -->
