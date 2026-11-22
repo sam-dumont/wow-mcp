@@ -171,7 +171,203 @@ VIEWS = {
     "sem_professions": "SELECT *, {who} FROM professions",
     "sem_quests_done": "SELECT *, {ts:seen_t} AS at_local, {who} FROM quests_done",
     "sem_route_position": "SELECT *, {who} FROM route_position",
+    # The 0.7.0 data slice, unit 3: models over the tables prep 11 added. Each
+    # is a view of its own, never a column added to an existing one: a kept
+    # finding is tied to the model views it reads (wowstats.analysis.
+    # definitions), so editing sem_loot or sem_zone_time would send every
+    # per_level, per_zone and per_week finding to revalidate.
+    #
+    # The level records' played time (records.extra played_s): the game's
+    # /played total at the ding, when the record carries it.
+    "sem_dings": ("SELECT r.rec_id, r.t, r.level, r.zone, r.session_id, "
+                  "TRY_CAST(json_extract_string(r.extra, '$.played_s') AS DOUBLE) AS played_total_s, "
+                  "{ts:r.t} AS at_local, {who} FROM records r WHERE r.kind = 'level'"),
+    # Each death to its revive (the prep's `dead` spans: detail is the
+    # revive's how, NULL when none came), with the death record's level and
+    # zone and the online seconds spent a ghost inside it (timeline ghost:
+    # the position flag 32 after the release, so the run back).
+    "sem_revives": ("SELECT s.t0 AS death_t, s.t1 AS revive_t, s.dur_s AS revive_s, s.detail AS how, s.session_id, "
+                    "d.level, d.zone, COALESCE(g.ghost_s, 0) AS ghost_s, {ts:s.t0} AS at_local, {who} FROM spans s "
+                    "LEFT JOIN (SELECT t, MIN(level) AS level, MIN(zone) AS zone FROM records WHERE kind = 'death' "
+                    "GROUP BY t) d ON d.t = s.t0 "
+                    "LEFT JOIN (SELECT s2.t0, SUM(tl.dur_s) AS ghost_s FROM spans s2 JOIN timeline tl ON tl.ghost = 1 "
+                    "AND tl.t0 >= s2.t0 AND tl.t0 < s2.t1 WHERE s2.kind = 'dead' GROUP BY s2.t0) g ON g.t0 = s.t0 "
+                    "WHERE s.kind = 'dead'"),
+    # The zone records' time (as sem_zone_time) cut at each ding: a span
+    # over a level-up counts on both levels. A level's edges are the levels
+    # table's dings (the previous level's ding to its own); no level known:
+    # the span whole, level NULL.
+    "sem_zone_levels": ("SELECT z.*, {ts:z.t0} AS at_local, {who} FROM (SELECT s.session_id, "
+                        "NULLIF(split_part(s.detail, '|', 1), '') AS zone, lv.level, "
+                        "GREATEST(s.t0, COALESCE(lv.start_t, s.t0)) AS t0, "
+                        "LEAST(s.t1, COALESCE(lv.end_t, s.t1)) - GREATEST(s.t0, COALESCE(lv.start_t, s.t0)) AS dur_s "
+                        "FROM spans s LEFT JOIN (SELECT level, LAG(ding_t) OVER (ORDER BY level) AS start_t, "
+                        "ding_t AS end_t FROM levels) lv ON (lv.start_t IS NULL OR lv.start_t < s.t1) AND "
+                        "(lv.end_t IS NULL OR lv.end_t > s.t0) WHERE s.kind = 'zone') z"),
+    # A quest giver's window (offers), with taken: 1 when the character
+    # accepted the quest at some point or it is known done.
+    "sem_offers": ("SELECT o.*, CASE WHEN EXISTS (SELECT 1 FROM records r WHERE r.kind = 'accept' AND "
+                   "r.quest_id = o.quest_id) OR EXISTS (SELECT 1 FROM quests_done d WHERE d.quest_id = o.quest_id) "
+                   "THEN 1 ELSE 0 END AS taken, {ts:o.t} AS at_local, {who} FROM offers o"),
+    "sem_quest_rewards": "SELECT q.*, {who} FROM quest_rewards q",
+    # The loot an unfinished quest objective wanted (loot_items.wanted_quest_id).
+    "sem_quest_loot": ("SELECT li.wanted_quest_id AS quest_id, li.item_id, li.count AS n, li.t, r.level, r.zone, "
+                       "r.session_id, {ts:li.t} AS at_local, {who} FROM loot_items li JOIN records r "
+                       "ON r.rec_id = li.rec_id WHERE li.wanted_quest_id IS NOT NULL"),
+    # The loot at a vendor's price (item_values: the client's sell price,
+    # never an auction price). value_copper NULL: no vendor price known.
+    "sem_loot_value": ("SELECT li.item_id, li.count AS n, li.t, v.vendor_copper, li.count * v.vendor_copper "
+                       "AS value_copper, r.dungeon_trip_id, r.level, r.zone, r.session_id, {ts:li.t} AS at_local, "
+                       "{who} FROM loot_items li JOIN records r ON r.rec_id = li.rec_id "
+                       "LEFT JOIN item_values v ON v.item_id = li.item_id"),
+    "sem_flight_nodes": "SELECT f.*, {ts:f.first_known_t} AS at_local, {who} FROM flight_nodes f",
+    "sem_attunement_steps": "SELECT a.*, {who} FROM attunement_steps a",
+    "sem_achievements_seen": "SELECT a.*, {ts:a.t} AS at_local, {who} FROM achievements_seen a",
 }
+
+
+# Three model views carry bundled reference data in their SQL, written when
+# this module loads: the KB's reputation tiers and riding costs (static
+# rules) and the class trainers' lists (data/class-reference.json). Their
+# SQL is their definition: a reference that moves changes it, and the
+# findings that read it revalidate (wowstats.analysis.definitions).
+
+def _lit(v) -> str:
+    if v is None:
+        return "NULL"
+    if isinstance(v, bool):
+        return "TRUE" if v else "FALSE"
+    if isinstance(v, int):
+        return str(v)
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+def _kb_rule(name: str) -> dict | None:
+    try:
+        from . import kb
+
+        rules, _ = kb.load_rules(kb.rules_paths())
+    except Exception:  # noqa: BLE001 - no readable KB: the views say unknown
+        return None
+    return rules.get(name)
+
+
+# The game's reactions 4 (neutral) to 7 (revered), each with its tier's
+# name in reputation.thresholds (the width of the tier, in points).
+REP_TIERS = ((4, "neutral"), (5, "friendly"), (6, "honored"), (7, "revered"))
+
+
+def _reps_sql() -> str:
+    """sem_reps: each rep record with the online seconds since the faction's
+    previous rep record (the window its gain was made in: NULL for the
+    faction's first) and the points to the next tier, from the KB's
+    reputation.thresholds (NULL below neutral, at exalted, or without the
+    rule)."""
+    widths = ((_kb_rule("reputation.thresholds") or {}).get("value") or {})
+    edge, cases = 0, []
+    for reaction, tier in REP_TIERS:
+        w = widths.get(tier)
+        if not isinstance(w, int) or w <= 0:
+            cases = []
+            break
+        edge += w
+        cases.append(f"WHEN {reaction} THEN {edge}")
+    nxt = f"(CASE x.reaction {' '.join(cases)} END - x.rep_points)" if cases else "CAST(NULL AS BIGINT)"
+    return ("SELECT x.*, CASE WHEN x.prev_t IS NULL THEN NULL ELSE CAST((SELECT COALESCE(SUM(tl.dur_s), 0) "
+            "FROM timeline tl WHERE tl.t0 >= x.prev_t AND tl.t0 < x.t) AS DOUBLE) END AS online_since_s, "
+            f"{nxt} AS rep_to_next, " + "{ts:x.t} AS at_local, {who} FROM (SELECT r.*, LAG(r.t) OVER "
+            "(PARTITION BY r.faction_id ORDER BY r.t, r.rec_id) AS prev_t FROM reps r) x")
+
+
+RIDING_SKILL = 762
+RIDING_TIERS = ("riding.apprentice", "riding.journeyman")
+
+
+def _riding_sql() -> str:
+    """sem_riding: one row per riding tier the KB has a sourced cost for,
+    with the newest snapshot's money and the riding rank the skill records
+    saw. gap_copper: what the training still needs, 0 once the rank is
+    reached, NULL without a snapshot with money."""
+    tiers = []
+    for name in RIDING_TIERS:
+        v = (_kb_rule(name) or {}).get("value") or {}
+        if all(isinstance(v.get(k), int) for k in ("level", "skill", "training_copper")):
+            tiers.append(f"({_lit(name)}, {v['level']}, {v['skill']}, {v['training_copper']})")
+    rows = ", ".join(tiers) or "(NULL, NULL, NULL, NULL)"
+    return ("SELECT t.tier, t.tier_level, t.tier_skill, t.training_copper, m.money_copper, k.riding_rank, "
+            "CASE WHEN COALESCE(k.riding_rank, 0) >= t.tier_skill THEN 0 WHEN m.money_copper IS NULL THEN NULL "
+            "ELSE GREATEST(t.training_copper - m.money_copper, 0) END AS gap_copper, {who} "
+            f"FROM (VALUES {rows}) t(tier, tier_level, tier_skill, training_copper) "
+            "LEFT JOIN (SELECT money_copper FROM snapshots WHERE money_copper IS NOT NULL ORDER BY t DESC LIMIT 1) m "
+            "ON TRUE LEFT JOIN (SELECT MAX(TRY_CAST(json_extract_string(extra, '$.rank') AS BIGINT)) AS riding_rank "
+            "FROM records WHERE kind = 'skill' AND TRY_CAST(json_extract_string(extra, '$.skill_id') AS BIGINT) = "
+            f"{RIDING_SKILL}) k ON TRUE WHERE t.tier IS NOT NULL")
+
+
+def _class_spells_sql() -> str:
+    """sem_class_spells: the character's class trainer ranks up to its level
+    (class-reference.json, for its race), each with a status:
+
+    - learned: spells_known has it (the Recorder's learn records, or
+      Altoholic's spellbook), or a later rank of the same spell (a rank
+      needs the one before);
+    - talent: a rank of a talent's spell, no rank of it learned (the trainer
+      shows it only with the talent);
+    - missing: still to train. With Altoholic's spellbook (spells_known
+      rows of source altoholic) the list is exact: every rank not known.
+      Without it, the Recorder's estimate: only ranks from a level above
+      the one the Recorder started at;
+    - unknown: without Altoholic's spellbook, a rank from that level or
+      below: learned before the Recorder, or not, can't be told.
+
+    basis says which: altoholic (exact) or recorder (the estimate).
+    """
+    from wowstats import classguide
+
+    classes = (classguide.reference().get("classes") or {})
+    rows = []
+    for cls in sorted(classes):
+        spells = classes[cls].get("spells") or {}
+        prev = {r["id"]: r.get("prev") for rs in spells.values() for r in rs}
+        needs = classguide._needs(cls)
+        for lv in sorted(spells, key=int):
+            for r in spells[lv]:
+                root, seen = r["id"], set()
+                while prev.get(root) and root not in seen:
+                    seen.add(root)
+                    root = prev[root]
+                rows.append("(" + ", ".join(_lit(x) for x in (
+                    cls, r["id"], r.get("name"), r.get("rank") or 1, int(lv), r.get("cost_copper"),
+                    int(r.get("races") or 0), root, needs.get(r["id"]))) + ")")
+    values = ", ".join(rows) or "(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)"
+    race_bit = " ".join(f"WHEN {_lit(k)} THEN {v}" for k, v in sorted(classguide.RACE_BIT.items()))
+    sky_bit = " ".join(f"WHEN {_lit(k)} THEN {v}" for k, v in sorted(classguide.SKYBORNE_BITS.items()))
+    return (
+        "WITH ref(cls, spell_id, spell, rank, spell_level, cost_copper, races, chain, needs_talent) AS "
+        f"(VALUES {values}), "
+        "me AS (SELECT (SELECT value FROM meta WHERE key = 'class') AS cls, "
+        "(SELECT MAX(l) FROM (SELECT level AS l FROM records UNION ALL SELECT level FROM snapshots "
+        "UNION ALL SELECT level FROM levels)) AS level_now, "
+        "(SELECT level FROM records WHERE level IS NOT NULL ORDER BY t, rec_id LIMIT 1) AS recorder_level, "
+        "CASE WHEN EXISTS (SELECT 1 FROM spells_known WHERE source = 'altoholic') THEN 'altoholic' "
+        "ELSE 'recorder' END AS basis, "
+        "(SELECT CASE lower(regexp_replace(value, '[^A-Za-z]', '', 'g')) "
+        f"{race_bit} WHEN 'skyborne' THEN (SELECT CASE lower(value) {sky_bit} END FROM meta WHERE key = 'faction') "
+        "END FROM meta WHERE key = 'race') AS race_bit), "
+        # Every rank the Recorder saw learned, with its chain and rank.
+        "got AS (SELECT r.chain, MAX(r.rank) AS rank FROM spells_known k JOIN ref r ON r.spell_id = k.spell_id "
+        "JOIN me ON r.cls = me.cls GROUP BY r.chain) "
+        "SELECT c.*, CASE WHEN c.learned = 1 THEN 'learned' WHEN c.needs_talent IS NOT NULL AND c.chain_learned = 0 "
+        "THEN 'talent' WHEN c.basis = 'altoholic' OR c.spell_level > c.recorder_level THEN 'missing' "
+        "ELSE 'unknown' END AS status, {who} "
+        "FROM (SELECT ref.spell_id, ref.spell, ref.rank, ref.spell_level, ref.cost_copper, ref.needs_talent, "
+        "me.recorder_level, me.basis, CASE WHEN got.rank >= ref.rank THEN 1 ELSE 0 END AS learned, "
+        "CASE WHEN got.chain IS NOT NULL THEN 1 ELSE 0 END AS chain_learned FROM ref JOIN me ON me.cls = ref.cls "
+        "AND ref.spell_level <= me.level_now AND (ref.races = 0 OR me.race_bit IS NULL OR "
+        "(ref.races // me.race_bit) % 2 = 1) LEFT JOIN got ON got.chain = ref.chain) c")
+
+
+VIEWS.update({"sem_reps": _reps_sql(), "sem_riding": _riding_sql(), "sem_class_spells": _class_spells_sql()})
 CROSS_KEY = "cross_model_metrics"
 # The views per grain (semantic.yaml `views`): per_level, per_session...,
 # compiled from the metrics by view_sql and added beside VIEWS by prepare.
@@ -613,8 +809,8 @@ def views_text() -> str:
            "Compiled from the semantic layer's metrics, one row per key (no fan-out). Each metric column is the "
            "list_metrics metric of that name, its rules included: a ratio reads its eligible rows, a metric with "
            "min_evidence is NULL below it with <name>_evidence beside it, and NULL is unknown, never 0. Join "
-           "them on their key (level, session_id, zone, dungeon, trip, guide, quest_id, death_t, week, slot) with "
-           "each other or a raw table."]
+           "them on their key (level, session_id, zone, dungeon, trip, guide, quest_id, death_t, week, slot, "
+           "faction_id, node_id, npc_id) with each other or a raw table."]
     # Each column is described once, in the first view that has it: the
     # listing has to fit the schema section's first page (12,000 characters)
     # with the raw tables' heading after it, and per_session and per_zone

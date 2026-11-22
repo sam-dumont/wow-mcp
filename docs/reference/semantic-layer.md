@@ -8,8 +8,8 @@ The MCP server has two ways to ask the play data a question. `play_sql` runs wha
 the assistant writes. `query_metric` asks for **named metrics**: `played_s` by `level`,
 `dungeon_s` by `zone` per week. The server writes the SQL from one model file,
 [`wowstats/analysis/semantic.yaml`](../../wowstats/analysis/semantic.yaml), and sends back the
-rows, the SQL it ran and each metric's definition and caveats. 190 metrics (10 of them across
-models), 63 dimensions, three time grains (day, week, month), and ten
+rows, the SQL it ran and each metric's definition and caveats. 245 metrics (11 of them across
+models), 88 dimensions, three time grains (day, week, month), and thirteen
 [views per grain](#views-per-grain) that `play_sql` reads like tables.
 
 The character page reads the same file: its time per level, XP an hour, kill and quest totals,
@@ -349,7 +349,8 @@ each of its source rows, and two items for one slot are alternatives, never a su
 The owner's call (2026-11-22): every tool and brief fact reads through the layer. A SELECT
 the assistant writes is the one reader the layer can't hand a metric to, so the layer hands it
 views instead: `per_level`, `per_session`, `per_zone`, `per_dungeon`, `per_trip`, `per_guide`,
-`per_quest`, `per_death`, `per_week` and `per_slot`, one row per key. Nobody wrote their SQL.
+`per_quest`, `per_death`, `per_week`, `per_slot`, `per_faction`, `per_flight_node` and
+`per_quest_giver`, one row per key. Nobody wrote their SQL.
 Each is declared in `semantic.yaml` under `views` (its entity, its metrics, a few dimensions
 that hold one value per key) and compiled at startup by the same compiler as `query_metric`:
 each model aggregates to the entity, the parts join on it. So a view's `vs_route` is `query_metric`'s `vs_route` by level, eligibility included, and
@@ -461,11 +462,19 @@ The online time cut at every record: each row an interval inside a login span, w
 | `taxi_s` | simple | seconds | Online seconds on a flight path. | Flight paths only; boats and zeppelins are ride time, not in it. | sum; time: interval_start; reconstructed. |
 | `first_online_t` | simple | unix seconds | When the group's first online interval began, unix seconds (a guide step: when it first came up). | Not additive: over several groups it is the earliest. Online time only: a step shown while offline isn't seen. | min; time: interval_start; reconstructed. |
 | `ride_s` | simple | seconds | Online seconds between a ride record's on and its off: a boat, a zeppelin, a tram. | From the Recorder's ride records' on/off pairs; flight paths are taxi_s, not in it. | sum; time: interval_start; reconstructed. |
+| `solo_s` | simple | seconds | Online seconds with no group (group_size 0). | Only after the session's first group record: the time before it is group_unknown_s, never solo. Without the Recorder: 0, and online_s too (/psrec on, then /reload). | sum; time: interval_start; reconstructed. |
+| `grouped_s` | simple | seconds | Online seconds in a party or a raid (group_size above 0). | A group counts from its group record to the next one, whoever is in it: the Recorder never says who. Without the Recorder: 0 (/psrec on, then /reload). | sum; time: interval_start; reconstructed. |
+| `group_unknown_s` | simple | seconds | Online seconds before the session's first group record: solo or grouped, unknown. | The Recorder writes a group record at each session's start; an older Recorder may not, and its sessions are unknown here (update the Recorder). Read solo_s and grouped_s against what is left. | sum; time: interval_start; reconstructed. |
+| `mounted_move_s` | simple | seconds | Online seconds moving on a mount: after a position record with the mount flag and a speed, up to 20 seconds past it. | The Recorder writes a position at least every 20 seconds while the character moves, so time more than 20 s past the last one counts as a stop. Flights and boats are taxi_s and ride_s. Without the Recorder's positions: 0 (/psrec on, then /reload). | sum; time: interval_start; reconstructed. |
+| `unmounted_move_s` | simple | seconds | Online seconds moving on foot, alive, out of water: after a position record with a speed and no mount, up to 20 seconds past it. | Counted as mounted_move_s (stops past 20 s left out). Swimming is swim_s, the run back as a ghost ghost_s. Without the Recorder's positions: 0 (/psrec on, then /reload). | sum; time: interval_start; reconstructed. |
+| `swim_s` | simple | seconds | Online seconds with the last position in water (its swimming flag). | Until the next position record: floating still counts. Without the Recorder's positions: 0 (/psrec on, then /reload). | sum; time: interval_start; reconstructed. |
+| `ghost_s` | simple | seconds | Online seconds as a ghost: from the first position after the release (flag 32) to the revive. | The run back to the corpse or a spirit healer; lying dead before the release is dead_s, not here. Without the Recorder's positions: 0 (/psrec on, then /reload). | sum; time: interval_start; reconstructed. |
+| `group_share` | ratio | share | Share of the online time with a known group spent grouped: grouped_s over grouped_s + solo_s. | 0 to 1. Leaves out group_unknown_s on both sides. NULL without a group record: no Recorder (/psrec on, then /reload), or one older than its group records (update the Recorder). | ratio_of_sums; time: interval_start; reconstructed. Rows: Intervals after a group record: the group is known on both sides. |
 | `dungeon_share` | ratio | share | Share of online time spent inside dungeons: dungeon_s over online_s. | 0 to 1. NULL when online_s is 0. | ratio_of_sums; time: interval_start; reconstructed. Rows: Every interval: both sides cut the same online time. |
 | `afk_share` | ratio | share | Share of online time with the AFK flag on: afk_s over online_s. | 0 to 1. | ratio_of_sums; time: interval_start; reconstructed. Rows: Every interval: both sides cut the same online time. |
 | `combat_share` | ratio | share | Share of online time in combat: combat_s over online_s. | 0 to 1. | ratio_of_sums; time: interval_start; reconstructed. Rows: Every interval: both sides cut the same online time. |
 
-Group or filter by: `character`, `class`, `dungeon`, `guide`, `guide_title`, `hour`, `level`, `session_id`, `step`, `step_title`, `subzone`, `time`, `week`, `zone`.
+Group or filter by: `character`, `class`, `dungeon`, `group_size`, `guide`, `guide_title`, `hour`, `in_raid`, `level`, `session_id`, `step`, `step_title`, `subzone`, `time`, `week`, `zone`.
 
 ### records
 
@@ -776,6 +785,169 @@ Where the character stands in Polestar's levelling route, one row: the step Pole
 
 Group or filter by: `character`, `class`.
 
+### dings
+
+The Recorder's level records: one row per ding, with the game's /played total the record carries.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `dings_seen` | simple | levels | Level-ups the Recorder saw (level records). | A ding with the Recorder off has no record: Polestar's splits (levels) still have it. 0 without the Recorder (/psrec on, then /reload). | sum; time: event; observed. |
+| `played_total_at_ding_s` | simple | seconds | The game's /played total at the ding, seconds since level 1, as the level record carries it: group by level for each level's. | A point, not a sum: over several levels it is the newest ding's. NULL when the level record carries no played time. Then the total comes from Altoholic's /played, which character_summary carries forward with the level splits: install Altoholic and log in once. | latest; time: event; observed. |
+
+Group or filter by: `character`, `class`, `level`, `session_id`, `time`, `week`, `zone`.
+
+### revives
+
+Each death to its revive (the prep's dead spans): how the character came back and the time it took, with the run back as a ghost.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `revives` | simple | revives | Deaths with a revive seen (revive records). | A death the character logged out on has no revive in its session. 0 without the Recorder (/psrec on, then /reload). | sum; time: event; observed. |
+| `corpse_runs` | simple | deaths | Deaths ended at the corpse: the run back as a ghost. | From the revive record's how. 0 without the Recorder (/psrec on, then /reload). | sum; time: event; observed. |
+| `spirit_res` | simple | deaths | Deaths ended at a spirit healer (resurrection sickness, durability lost). | From the revive record's how. 0 without the Recorder (/psrec on, then /reload). | sum; time: event; observed. |
+| `player_res` | simple | deaths | Deaths ended by another player's resurrection. | Never who: the Recorder doesn't say. 0 without the Recorder (/psrec on, then /reload). | sum; time: event; observed. |
+| `revive_s` | simple | seconds | Seconds from each death to its revive: what the deaths cost, summed. | Deaths with a revive seen only (revives). Wall clock inside one session: lying dead, the release, the run back. NULL without one (no Recorder: /psrec on, then /reload). | sum; time: event; reconstructed. |
+| `corpse_run_s` | simple | seconds | Online seconds as a ghost in the deaths ended at the corpse: the runs back, summed. | From the timeline's ghost flag (the first position after the release): a run with no position record reads 0. NULL without a corpse run (no Recorder: /psrec on, then /reload). | sum; time: event; reconstructed. |
+| `avg_corpse_run_s` | ratio | seconds | Average run back to the corpse: corpse_run_s over corpse_runs. | A long one says the graveyard is far from where the deaths happen. NULL without a corpse run (no Recorder: /psrec on, then /reload). | ratio_of_sums; time: event; reconstructed. Rows: Deaths ended at the corpse, on both sides. |
+
+Group or filter by: `character`, `class`, `death_t`, `how`, `level`, `session_id`, `time`, `week`, `zone`.
+
+### zone_levels
+
+The zone records' time (zone_time) cut at each ding, so a zone's time splits by level.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `zone_level_s` | simple | seconds | Seconds in a zone at a level: zone_s cut at each ding. | Group by zone and level. Summed over levels it is zone_s. A level's edges are its dings (the Recorder's, else Polestar's split time). Without the Recorder there are no zone records: nothing (/psrec on, then /reload). | sum; time: interval_start; reconstructed. |
+
+Group or filter by: `character`, `class`, `level`, `session_id`, `time`, `week`, `zone`.
+
+### offers
+
+What each quest giver offered when its window opened (the Recorder's offer records): one row per window, quest and state.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `giver_windows` | simple | windows | Quest giver windows opened (offer records). | Only windows that listed a quest. Without the Recorder: 0 (/psrec on, then /reload). | count_distinct; time: event; observed. |
+| `quests_offered` | simple | quests | Quests a giver offered to pick up, each counted once. | Not additive across givers: a quest two givers offer counts in each. Only givers whose window the character opened with the Recorder on (/psrec on, then /reload). | count_distinct; time: event; observed. |
+| `quests_skipped` | simple | quests | Quests offered to pick up that the character never accepted and isn't known to have done. | Accepted means an accept record or a known done quest (quests_done): a quest taken with the Recorder off and still in the log reads skipped: install Questie, whose completed list fills quests_done. Group by quest_id for which; their text stays in the game. | count_distinct; time: event; inferred. |
+| `quests_held_back` | simple | quests | Quests a giver starts in Polestar's data but didn't show: a prerequisite, level or side missing. | Polestar's list of what the giver starts, against what the game showed: a quest of the other side counts too. Group by quest_id and look each up (kb tools) for what it needs. Only givers opened with the Recorder on (/psrec on, then /reload). | count_distinct; time: event; inferred. |
+| `giver_zone` | simple | zone | The zone of the group's newest window: by npc_id, where the quest giver stands. | A point, not a sum. NULL when the window's record had no zone. No windows without the Recorder (/psrec on, then /reload). | latest; time: event; observed. |
+
+Group or filter by: `character`, `class`, `level`, `npc_id`, `quest_id`, `state`, `subzone`, `taken`, `time`, `week`, `zone`.
+
+### quest_rewards
+
+The items each quest offered at its accept (the newest accept record of the quest), and the one picked at the hand-in.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `reward_choice_quests` | simple | quests | Quests that offered a choice of reward. | Only quests accepted with the Recorder on: a quest taken before it has no list (/psrec on, then /reload). | count_distinct; time: event; observed. |
+| `rewards_offered` | simple | items | Reward choices offered: one per item to pick from, summed over the quests. | Group by quest_id for one quest's list. Only quests accepted with the Recorder on (/psrec on, then /reload). | sum; time: event; observed. |
+| `rewards_picked` | simple | items | Choices picked at the hand-in (the turn-in record's item). | Group by quest_id and item_id for which one. What a pick was worth against the others isn't here: the gear advice scores today's upgrades, not the choice at the hand-in. Only hand-ins with the Recorder on (/psrec on, then /reload). | sum; time: event; observed. |
+| `reward_picks_unknown` | simple | quests | Choice quests handed in whose pick the turn-in record doesn't name. | An older Recorder's turn-in records name no item: the pick is unknown, never "none": update the Recorder. | count_distinct; time: event; observed. |
+
+Group or filter by: `character`, `chosen`, `class`, `handed_in`, `item_id`, `quest_id`, `reward_kind`.
+
+### quest_loot
+
+The loot an unfinished quest objective wanted (loot_items.wanted_quest_id): one row per item and loot window.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `wanted_looted_items` | simple | items | Items looted for a quest objective, a stack counted by its size. | An item counts for a quest when exactly one wanted objective fits it (by its name, or by the quest's progress right after a one-item loot); an item two quests want counts for neither. NULL without such loot (no Recorder: /psrec on, then /reload). | sum; time: event; inferred. |
+
+Group or filter by: `character`, `class`, `item_id`, `level`, `quest_id`, `session_id`, `time`, `week`, `zone`.
+
+### loot_value
+
+Every item the Recorder saw looted at a vendor's price: the game client's sell price (item_values), never an auction price.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `loot_vendor_copper` | simple | copper | What a vendor pays for the loot, copper: each item's sell price times the stack. | Vendor value only, said so: the player's own auction scans stay out of the analysis. An item without a known sell price (a quest item, or one the item catalog lacks) adds nothing: loot_items_unpriced counts them. NULL when no item has a price: the item catalog loads with the dashboard pages (dashboard_refresh), the loot with the Recorder (/psrec on, then /reload). Coin looted is not in it (gold_moved_copper has it). | sum; time: event; estimated. |
+| `loot_items_unpriced` | simple | items | Items looted with no vendor price known, a stack counted by its size. | A quest item sells for nothing; an item missing from the item catalog reads here too. The catalog loads with the dashboard pages: refresh the dashboard (dashboard_refresh) for more prices. | sum; time: event; observed. |
+
+Group or filter by: `character`, `class`, `item_id`, `level`, `session_id`, `time`, `trip_id`, `week`, `zone`.
+
+### flight_nodes
+
+The flight paths the character knows: each taxi node the flight map listed (flightmaster records), with the flights from and to it.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `known_flight_nodes` | simple | nodes | Flight paths known: the nodes the newest flight map listed. | As of the newest flight map opened: a path learned since reads after the next one. 0 before the first flight map with the Recorder on: open a flight map once. | sum; time: snapshot_observation; observed. |
+| `flight_maps_opened` | simple | maps | Flight maps opened, counted at the node they were opened at. | Only with the Recorder on (/psrec on, then /reload). | sum; time: snapshot_observation; observed. |
+| `node_flights_from` | simple | flights | Flights that left from the node (taxi records). | Group by node_id. A taxi record without its node isn't counted: records' flights counts every take-off. A node shows once a flight map listed it: open a flight map once. | sum; time: snapshot_observation; observed. |
+| `node_flights_to` | simple | flights | Flights bound for the node (taxi records). | Group by node_id, as node_flights_from: open a flight map once for the nodes. | sum; time: snapshot_observation; observed. |
+| `node_first_known_t` | simple | unix seconds | When a flight map first listed the node, unix seconds. | No earlier than the first flight map the Recorder saw: a path learned before it reads from then. | min; time: snapshot_observation; observed. |
+
+Group or filter by: `character`, `class`, `known_now`, `node_id`, `time`.
+
+### reputation
+
+The character's reputation changes (the Recorder's rep records): one row per change, with the online time since the faction's previous one and the points to its next tier.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `rep_changes` | simple | changes | Reputation changes the Recorder saw (rep records). | 0 without the Recorder: Battle.net's reputations are out of the analysis (/psrec on, then /reload). | sum; time: event; observed. |
+| `rep_gained` | simple | points | Reputation points gained (lost: negative), summed over the changes. | Group by faction_id: points of two factions don't add up to anything. A change the Recorder had no earlier value for has no gain. NULL without one (no Recorder: /psrec on, then /reload). | sum; time: event; observed. |
+| `rep_standing_now` | simple | points | The faction's points on its newest change, counted from the start of neutral (the game's own value: friendly from 3,000). | Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload). | latest; time: event; observed. |
+| `rep_reaction_now` | simple | tier | The faction's tier on its newest change: 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted. | Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload). | latest; time: event; observed. |
+| `rep_to_next_points` | simple | points | Points from the newest change to the faction's next tier. | The tiers' widths are the KB's reputation.thresholds, low confidence (one commercial source). NULL below neutral, at exalted, or without that rule. | latest; time: event; estimated. |
+| `rep_online_s` | simple | seconds | Online seconds between each change and the faction's change before it: the time the gains were made in. | Every online second in between counts, whatever was done: the pace at the way the character plays. NULL for a faction's first change (the Recorder sees the next: /psrec on, then /reload). | sum; time: event; reconstructed. |
+| `rep_per_online_hour` | ratio | points/hour | Reputation points per online hour: rep_gained over rep_online_s. | Group by faction_id. Measured from the faction's first change the Recorder saw to its newest: a faction gained twice has one window. NULL with fewer than two changes (the Recorder sees them: /psrec on, then /reload). | ratio_of_sums; time: event; reconstructed. Rows: Changes with a gain and online time since the faction's change before: the points and the hours of the same windows. |
+| `rep_to_next_s` | derived | seconds | Online seconds to the faction's next tier at the pace so far: rep_to_next_points over rep_per_online_hour, in seconds. | Group by faction_id. An estimate: the tiers are the KB's low-confidence reputation.thresholds and the pace is the past one (a turn-in burst moves it). Negative when the faction lost points over the window: no tier ahead at that pace. NULL with fewer than two changes. | ratio_of_sums; time: event; estimated. Rows: As rep_per_online_hour; the points to go are the newest such change's. |
+
+Group or filter by: `character`, `class`, `faction_id`, `level`, `reaction`, `session_id`, `time`, `week`, `zone`.
+
+### attunements
+
+The quest chains that unlock a raid (Onyxia's Lair: the Drakefire Amulet) for the character's side, step by step, with what quests_done says is done.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `attunement_steps` | simple | quests | Quests in the chain. | forever-db's prerequisites, for the character's side. Group by attunement. Which are done comes from quests_done: install Questie for the ones before tracking. | sum; time: quest_closure; observed. |
+| `attunement_steps_done` | simple | quests | Quests of the chain known done. | A quest done before any tracking reads not done: install Questie, whose completed list fills quests_done. | sum; time: quest_closure; observed. |
+| `attunement_next_quest` | simple | quest id | The chain's first quest not known done (its Wowhead page: quest=<id>). | Group by attunement. Can be one done before any tracking: install Questie, whose completed list fills quests_done. NULL when every step is done. | top; time: quest_closure; inferred. |
+| `attunement_next_min_level` | simple | level | The level that quest needs. | forever-db's minimum level, as attunement_next_quest. A step done before any tracking reads not done: install Questie. | top; time: quest_closure; observed. |
+
+Group or filter by: `attunement`, `chain_step`, `character`, `class`, `done`, `done_source`, `faction`, `quest_id`.
+
+### achievements
+
+The achievements the Recorder saw the character earn (achieve records); none from before it.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `achievements_seen` | simple | achievements | Achievements earned while the Recorder ran. | Since the Recorder ran only, never the whole list: Battle.net has that, and its achievements stay out of the analysis. Legacy points by name are the character page's (Battle.net). | sum; time: event; observed. |
+
+Group or filter by: `achievement_id`, `character`, `class`, `level`, `time`, `week`, `zone`.
+
+### class_spells
+
+The class trainer's ranks up to the character's level (the bundled class reference, for its race), each with what spells_known says: learned, missing, a talent's, or unknown. Exact with Altoholic's spellbook; without it, the Recorder's learn records give an estimate.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `spells_trainable_now` | simple | ranks | Trainer ranks the character can learn at its level and doesn't know (status missing). | Exact with Altoholic's spellbook (spells_basis altoholic). Without it, an estimate from the Recorder's learn records: ranks from levels at or below the one the Recorder started at are unknown, not here (spells_unknown), and a rank learned with the Recorder off reads missing. Install Altoholic for the exact list. | sum; time: snapshot_observation; inferred. |
+| `training_cost_copper` | simple | copper | What the missing ranks cost at the trainer, copper. | Forever's training lists before any reputation discount; a rank the lists only know from the client has no cost and adds nothing. NULL with nothing missing. An estimate without Altoholic's spellbook (spells_trainable_now): install Altoholic for the exact list. | sum; time: snapshot_observation; estimated. |
+| `spells_unknown` | simple | ranks | Trainer ranks from the level the Recorder started at or below, never seen learned: learned before it, or still to learn. | Ranks learned before the Recorder unknown: without Altoholic's spellbook only the Recorder's learn records are read. Install Altoholic for the exact list; 0 once its spellbook is in. | sum; time: snapshot_observation; inferred. |
+| `spell_ranks_learned` | simple | ranks | Trainer ranks known (Altoholic's spellbook or the Recorder's learn records), or a later rank of (a rank needs the one before). | Without Altoholic's spellbook, since the Recorder ran only: install Altoholic for the ranks learned before it. | sum; time: snapshot_observation; observed. |
+
+Group or filter by: `character`, `class`, `needs_talent`, `rank`, `spell`, `spell_id`, `spell_level`, `spell_status`, `spells_basis`.
+
+### riding
+
+The riding tiers with a sourced cost in the KB (riding.apprentice, riding.journeyman), against the money on the newest snapshot.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `riding_cost_copper` | simple | copper | The tier's training cost, copper (the training comes with a mount). | The KB's rule, medium confidence, before the home city's Honored discount. Group by tier. | max; time: snapshot_observation; estimated. |
+| `riding_gold_gap_copper` | simple | copper | What the tier's training still needs: its cost minus the money on the newest snapshot, 0 when the money covers it or the riding skill already reaches it. | Group by tier. A riding rank trained before the Recorder ran has no skill record and reads untrained. NULL without a snapshot with money: log out once (the shipper reads the money at logout and /reload). | max; time: snapshot_observation; estimated. |
+
+Group or filter by: `character`, `class`, `tier`, `tier_level`.
+
 ### Across two models
 
 Each model aggregates on its own to the question's group_by, the results join on those columns, then the expression runs on the joined row: no fan-out. They group and filter by the dimensions their models share.
@@ -792,6 +964,7 @@ Each model aggregates on its own to the question's group_by, the results join on
 | `xp_per_active_hour` | ratio | xp/hour | `xp_gained / (active_s / 3600)` | XP per hour with the AFK flag off: xp_gained (the XP bar's readings) over active_s (timeline). | Not by zone: an XP reading carries the subzone text where the timeline has the zone (kill_xp_per_online_hour and its two siblings are by zone). The game sets AFK after 5 idle minutes, so those minutes count as active. NULL without active time. | ratio_of_sums; time: event, interval_start; reconstructed. Rows: XP readings with a change and online intervals, both inside a login span the Recorder saw. | `character`, `class`, `guide`, `hour`, `level`, `session_id`, `step`, `time`, `week` |
 | `dungeon_vs_quest_xp_ratio` | ratio | ratio | `(trip_xp / trip_s) / (quest_xp / played_s)` | A dungeon trip's XP per hour over questing's at the same level: trip_xp per trip_s (dungeon_trips) over quest_xp per played_s (records, levels). 2.0: the trips paid twice the hand-ins' rate. | Group by level: trips by their start level, quests by the level split. The quest side is every hand-in of the level (the trips' own included) over its whole played time (the trips' too), as quest_xp_per_played_hour reads it. NULL at a level without a trip or without a whole split: then Polestar's dungeon floor is the guide, not this. | ratio_of_sums; time: interval_start, event, level_completion; reconstructed. Rows: Trips with online time, against the levels with a whole split: their quest XP over their played time. | `character`, `class`, `level` |
 | `runs_per_online_hour` | ratio | runs/hour | `run_count / (online_s / 3600)` | Dungeon runs per online hour: run_count (dungeon_runs) over online_s (timeline). By dungeon: runs per hour spent inside it, the farm's pace. | Grouped by dungeon, the hours are the ones inside it (the walk in and out is not); otherwise every online hour of the group. Its loot's worth isn't here: only the items (trip_loot). NULL without online time. | ratio_of_sums; time: interval_start, interval_start; reconstructed. Rows: Every run Polestar timed, against the online time inside a login span the Recorder saw. | `character`, `class`, `dungeon`, `level`, `time`, `week` |
+| `loot_value_per_online_hour` | ratio | copper/hour | `loot_vendor_copper / (online_s / 3600)` | What the loot would fetch at a vendor per online hour: loot_vendor_copper (loot_value) over online_s (timeline), copper an hour. Group by zone or level for where farming pays. | Vendor value only, said so: the player's own auction prices stay out of the analysis, so an item worth more at the auction house reads low. Coin looted is in gold_per_online_hour, not here. NULL without online time or without an item with a known price (no Recorder: /psrec on, then /reload). | ratio_of_sums; time: event, interval_start; estimated. Rows: Loot and online time inside a login span the Recorder saw, on both sides. | `character`, `class`, `level`, `session_id`, `time`, `week`, `zone` |
 
 ### Store models
 
@@ -837,51 +1010,71 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `per_death` | `death_t` | `death_t`, `zone`, `level`, `npc_id`, `npc_level`, `deaths`, `level_gap_max` | One row per death the Recorder saw: where, at what level, and the likely killer Polestar_Recorder picked (its NPC id and level), with the level gap to it. |
 | `per_week` | `week` | `week`, `online_s`, `active_s`, `afk_share`, `session_count`, `session_s`, `xp_gained`, `kill_xp`, `quest_xp`, `explore_xp`, `kills`, `deaths`, `quests_done`, `run_count`, `looted_items`, `gold_moved_copper`, `gold_earned_copper`, `gear_changes`, `distance_yd` | One row per week (local time, from Monday): online, active and AFK time, login spans, the XP bar's gain and XP by source, kills, deaths, quests, dungeon runs, loot, the purse's moves and gains, gear changes and the yards covered. A source that sent nothing that week leaves its columns NULL. |
 | `per_slot` | `slot` | `slot`, `scored_for`, `worn_items`, `worn_item`, `worn_item_id`, `worn_fit`, `worn_item_bis_pct`, `best_upgrade`, `best_upgrade_id`, `best_upgrade_gain`, `best_upgrade_bis_pct`, `upgrade_bis_pct_worn`, `upgrade_sources` | One row per gear slot, for the spec the gear is scored for: the worn item and its fit, the best upgrade wearable now, and the two percents the page says as 'NN% → NN%' (upgrade_bis_pct_worn → best_upgrade_bis_pct). |
+| `per_faction` | `faction_id` | `faction_id`, `rep_changes`, `rep_gained`, `rep_standing_now`, `rep_reaction_now`, `rep_to_next_points`, `rep_online_s`, `rep_per_online_hour`, `rep_to_next_s` | One row per faction the Recorder saw change: the changes, the points gained, where it stands now and how far the next tier is, the pace per online hour and the online time to the next tier at that pace. |
+| `per_flight_node` | `node_id` | `node_id`, `known_flight_nodes`, `node_first_known_t`, `flight_maps_opened`, `node_flights_from`, `node_flights_to` | One row per flight path the flight map listed: known on the newest map or not, when first listed, maps opened there and flights from and to it. |
+| `per_quest_giver` | `npc_id` | `npc_id`, `giver_zone`, `giver_windows`, `quests_offered`, `quests_skipped`, `quests_held_back` | One row per quest giver whose window the character opened: where it stands, the windows, the quests it offered, the ones never taken and the ones it held back (a prerequisite, level or side missing). |
 
 ### Dimensions
 
 | Dimension | Models | Definition |
 |---|---|---|
+| `achievement_id` | achievements | Achievement id (its Wowhead page: achievement=<id>). |
+| `attunement` | attunements | What the chain unlocks. |
 | `bracket` | dungeon_trips | guides (lookup guide steps bracket it) or instance (enter and leave only). |
 | `built_for` | worn | Who the item's stats are made for, in words (healers, damage casters...). |
-| `character` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position | The character (one per query: the char argument). |
-| `class` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position | The character's class, from its latest session record. |
-| `death_t` | records | One death, named by when its death record was written (unix seconds); NULL on every other record. Group by it to list the deaths one by one (per_death). |
+| `chain_step` | attunements | The quest's place in the chain, from 1 (each after the quests it needs). |
+| `character` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding | The character (one per query: the char argument). |
+| `chosen` | quest_rewards | For a choice: 1 picked at the hand-in, 0 another one picked, NULL not handed in or the pick unknown; NULL for a reward. |
+| `class` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding | The character's class, from its latest session record. |
+| `death_t` | records, revives | One death, named by when its death record was written (unix seconds); NULL on every other record. Group by it to list the deaths one by one (per_death). |
 | `ding_t` | levels | When the level ended, unix seconds (UTC): the Recorder's ding, else the split's own time (for a split still growing, its last update). NULL for the level in play without a split. Group by it to place a level in time. |
 | `dings` | gold_moves | Level-ups between the two snapshots: 0 for a move inside one level. |
-| `done_source` | done_quests | How it is known done, the first source that says so: turnin or flagged (the Recorder), questie or altoholic (the addon's completed list), reward (an item only its reward gives), battlenet (a reward Battle.net says is worn), inferred (a quest that needs it is done). |
+| `done` | attunements | 1 when quests_done has the quest, else 0. |
+| `done_source` | done_quests, attunements | How it is known done, the first source that says so: turnin or flagged (the Recorder), questie or altoholic (the addon's completed list), reward (an item only its reward gives), battlenet (a reward Battle.net says is worn), inferred (a quest that needs it is done). |
 | `done_why` | quests | For 'done (inferred)': the evidence, e.g. a reward only that quest gives worn or in the bags, or Questie's completed list. NULL otherwise. |
 | `dungeon` | timeline, dungeon_runs, dungeon_trips | Dungeon name while inside a dungeon run, else NULL. |
 | `dungeon_trip` | records | The dungeon trip the record falls in (dungeon_trips), NULL outside one: filter is null for play outside dungeons. |
 | `elite` | records | 1 when a kill's creature was an elite, a rare elite or a boss (classification e, R or b), else 0. |
 | `end_t` | sessions | When the span ended, unix seconds (UTC): its last record. |
+| `faction` | attunements | Alliance or Horde: the character's side, both when it isn't known. |
+| `faction_id` | reputation | The game's faction id (its Wowhead page: faction=<id>). Its name: the KB's Faction table is a follow-up, so look the id up for now. |
 | `fills_empty` | upgrades | 1 when the slot is empty now. |
 | `fit` | upgrades, worn | How the item fits the scored spec: yes (built for it), any, spec (built for another spec of the class), class (made for another class), unknown. |
+| `group_size` | timeline | The group then, from the session's last group record: 0 solo, 1-4 the other party members, or a raid's size with the character. NULL before the session's first group record: unknown, never solo. |
 | `guide` | timeline, records, xp | The Polestar guide active then (the last step record), its id. NULL before the first step record. |
 | `guide_title` | timeline | That guide's title, from the route reference (NULL when the reference doesn't have the guide). |
+| `handed_in` | quest_rewards | 1 when a turnin record of the quest exists, else 0. |
 | `hour` | timeline, records, xp | Hour of day 0-23, local time. |
+| `how` | revives | How the character came back: c at the corpse, s at a spirit healer, r resurrected by another player. NULL: no revive seen (logged out dead, or the Recorder stopped). |
 | `in_play` | levels | The climb's population: 1 for the level being played (the highest level known, with no ding out of it and no whole split), 0 for a completed level. Filter in_play = 0 for the completed levels, in_play = 1 for the current level so far; no filter counts both. |
+| `in_raid` | timeline | 1 in a raid, 0 not, from the same group record (NULL: unknown). |
 | `instance` | upgrades | Dungeon or raid of an instance drop or quest, else NULL. |
 | `item` | upgrades, worn, sheets | Item name. |
-| `item_id` | records, loot, upgrades, worn, sheets | Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used. |
+| `item_id` | records, loot, upgrades, worn, sheets, quest_rewards, quest_loot, loot_value | Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used. |
 | `kind` | records | Record kind (record_kinds: kill, death, turnin, accept...). |
-| `level` | levels, timeline, records, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets | Character level. |
+| `known_now` | flight_nodes | 1 when the newest flight map lists the node, else 0. |
+| `level` | levels, timeline, records, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements | Character level. |
 | `level_accepted` | quests | Level at the accept (NULL for untimed). |
 | `level_end` | sessions | Level at the end of the span (its last record with one). |
 | `level_start` | sessions | Level at the start of the span. |
+| `needs_talent` | class_spells | The talent the spell's first rank comes from, NULL for a trainer spell. |
+| `node_id` | flight_nodes | The game's taxi node id. Its name and place: the KB's TaxiNodes table is a follow-up, so look the id up for now. |
 | `now` | upgrades | 1 when the character can wear it at its level now, 0 within 3 levels. |
-| `npc_id` | records | The NPC the record names: a kill's creature, a trainer record's trainer, or a death's likely killer as Polestar_Recorder picks it (the last hostile creature that targeted the player within 10 s). NULL for a record that names none and for a death with no pick. |
+| `npc_id` | records, offers | The NPC the record names: a kill's creature, a trainer record's trainer, or a death's likely killer as Polestar_Recorder picks it (the last hostile creature that targeted the player within 10 s). NULL for a record that names none and for a death with no pick. |
 | `npc_level` | records | That creature's level (a kill's creature, a death's likely killer). |
 | `partial` | levels | 1 when Polestar's split began partway through the level (tracking started then), 0 for a whole level, NULL with no split (the level in play). |
 | `profession` | professions | The profession's name (Tailoring, Cooking...). |
 | `quest` | quests | Quest title (the records' own; "Quest <id>" when none names it). Two quests with one title group together: add quest_id. |
-| `quest_id` | quests, done_quests | Quest id. |
+| `quest_id` | quests, done_quests, offers, quest_rewards, quest_loot, attunements | Quest id. |
+| `rank` | class_spells | The rank (1 for a spell with one). |
 | `rank_now` | upgrades | The item's place in its slot among the upgrades wearable now, by gain: 1 is the biggest. NULL for an item not wearable yet. Filter rank_now <= 3 for each slot's top three. |
+| `reaction` | reputation | The tier after the change: 1 hated .. 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted. |
 | `reading` | progress | One reading of the series, numbered from 1 in time order within its source: group by it (with source) to list the series point by point. |
 | `record_t` | records | One record, named by when it was written (unix seconds): group by it to list the records one by one. |
+| `reward_kind` | quest_rewards | choice (one of several to pick) or reward (given with the quest). |
 | `run` | records, dungeon_runs | The dungeon run the record falls in, named by when it started (unix seconds, as dungeon_runs names it), NULL outside a run. |
 | `scored_for` | worn | The spec the gear advice scores for: the player's WEIGHTS setting, else the talents. |
-| `session_id` | timeline, records, sessions, zone_time, rested, loot, xp | Login span (sessions). |
+| `session_id` | timeline, records, sessions, zone_time, rested, loot, xp, dings, revives, zone_levels, quest_loot, loot_value, reputation | Login span (sessions). |
 | `sheet` | sheets | One sheet, named by when it was saved (unix seconds): group by it to list the sheets one by one. |
 | `skill_id` | records, professions | The skill line of a skill record (762: Riding; the professions' own ids), else NULL. |
 | `slot` | upgrades, worn, sheets | The slot the item would go in (Head, Chest, Finger...; both rings are Finger). |
@@ -889,21 +1082,30 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `source` | progress, upgrades | Which series: xp (the Recorder's XP bar readings, with online time) or snapshot (the logout and /reload character sheets, no online time). Filter on one: the two are measured apart. |
 | `source_kind` | upgrades | quest, drop, craft, bags or bank (or another kind the gear data names: reputation, vendor...). |
 | `source_wowhead` | upgrades | The source's Wowhead page (the quest, the boss, the craft's spell); NULL when it has none. |
+| `spell` | class_spells | The spell's name (the game client's). |
+| `spell_id` | class_spells | Spell id (its Wowhead page: spell=<id>). |
+| `spell_level` | class_spells | The level the trainer teaches it from. |
+| `spell_status` | class_spells | learned (spells_known has it or a later rank), missing (still to train: with Altoholic's spellbook any rank not known; without it, ranks from a level above the one the Recorder started at), talent (a rank of a talent's spell with no rank learned) or unknown (without Altoholic's spellbook, from that level or below: learned before the Recorder, or not). |
+| `spells_basis` | class_spells | altoholic: Altoholic's spellbook is in spells_known, the list is exact. recorder: only the Recorder's learn records, an estimate (ranks learned before the Recorder unknown). |
 | `start_hour` | sessions | Hour of the start, local time. |
 | `start_t` | sessions | When the span began, unix seconds (UTC): its first record. |
+| `state` | offers | available (offered to pick up), active (in the log), done (this giver's quest the game flags completed), not_offered (the giver starts it in Polestar's data but didn't show it: a prerequisite, level or side missing). |
 | `status` | quests | done (accept and hand-in seen), abandoned, failed (the game failed it: still in the log, can't be handed in), open (still in the log; accepted before tracking began when only its objectives were seen done), untimed (handed in, accepted before tracking began) or 'done (inferred)' (still in the log, but handed in with the Recorder off: done_why says what shows it). |
 | `step` | timeline, records, xp | The guide's step number then (from 1). Group by guide too: step numbers restart in each guide. |
 | `step_title` | timeline | That step's title, from the route reference (NULL when the reference doesn't have it). |
-| `subzone` | timeline | Subzone text. |
-| `time` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets, done_quests | When the level ended (the ding), local time. NULL while the level is in play. Grains: day, week, month. |
+| `subzone` | timeline, offers | Subzone text. |
+| `taken` | offers | 1 when the character accepted the quest at some point or it is known done (quests_done), else 0. |
+| `tier` | riding | The KB rule of the tier: riding.apprentice (level 40) or riding.journeyman (level 60). |
+| `tier_level` | riding | The level the tier is trained from. |
+| `time` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets, done_quests, dings, revives, zone_levels, offers, quest_loot, loot_value, flight_nodes, reputation, achievements | When the level ended (the ding), local time. NULL while the level is in play. Grains: day, week, month. |
 | `trip` | dungeon_runs, dungeon_trips | The dungeon trip around the run (dungeon_trips: the same dungeon, the run starting inside the trip), NULL for a run with no trip. |
 | `trip_end` | dungeon_trips | When the trip ended (unix seconds). |
-| `trip_id` | loot | The dungeon trip it was looted on (dungeon_trips.trip_id), NULL outside one. |
+| `trip_id` | loot, loot_value | The dungeon trip it was looted on (dungeon_trips.trip_id), NULL outside one. |
 | `trip_loot` | dungeon_trips | What the trip's run looted inside the instance: a JSON list of [item_id, count] (an observation, not a number to add). |
 | `trip_start` | dungeon_trips | When the trip started (unix seconds). |
-| `week` | timeline, records, sessions, dungeon_runs, gold_moves, loot, xp, sheets | The week of the interval's start, local time, named by its Monday (YYYY-MM-DD). |
+| `week` | timeline, records, sessions, dungeon_runs, gold_moves, loot, xp, sheets, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements | The week of the interval's start, local time, named by its Monday (YYYY-MM-DD). |
 | `weekday` | sessions | Mon..Sun of the start, local time. |
 | `with_item_id` | upgrades | For a one-hander: the item in the other hand it is scored with (a weapon is a whole setup), NULL alone or for any other slot. |
-| `zone` | timeline, records, zone_time, snapshots, quests, rested, loot, xp, upgrades | Zone name, as the last zone record said (inside a dungeon, the game usually names the dungeon). |
+| `zone` | timeline, records, zone_time, snapshots, quests, rested, loot, xp, upgrades, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements | Zone name, as the last zone record said (inside a dungeon, the game usually names the dungeon). |
 
 <!-- /generated:semantic-catalogue -->

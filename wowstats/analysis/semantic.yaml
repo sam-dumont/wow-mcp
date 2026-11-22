@@ -207,6 +207,8 @@ timeline:
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
     week: {expr: _.at_local.truncate('W').date(), description: "The week of the interval's start, local time, named by its Monday (YYYY-MM-DD)."}
+    group_size: {expr: _.group_size, description: "The group then, from the session's last group record: 0 solo, 1-4 the other party members, or a raid's size with the character. NULL before the session's first group record: unknown, never solo."}
+    in_raid: {expr: _.in_raid, description: "1 in a raid, 0 not, from the same group record (NULL: unknown)."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "Start of the interval, local time."}
   measures:
@@ -255,7 +257,52 @@ timeline:
       description: "Online seconds between a ride record's on and its off: a boat, a zeppelin, a tram."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
                  caveats: "From the Recorder's ride records' on/off pairs; flight paths are taxi_s, not in it."}
+    solo_s:
+      expr: _.dur_s.sum(where=_.group_size == 0).fill_null(0)
+      description: "Online seconds with no group (group_size 0)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Only after the session's first group record: the time before it is group_unknown_s, never solo. Without the Recorder: 0, and online_s too (/psrec on, then /reload)."}
+    grouped_s:
+      expr: _.dur_s.sum(where=_.group_size > 0).fill_null(0)
+      description: "Online seconds in a party or a raid (group_size above 0)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "A group counts from its group record to the next one, whoever is in it: the Recorder never says who. Without the Recorder: 0 (/psrec on, then /reload)."}
+    group_unknown_s:
+      expr: _.dur_s.sum(where=_.group_size.isnull()).fill_null(0)
+      description: "Online seconds before the session's first group record: solo or grouped, unknown."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "The Recorder writes a group record at each session's start; an older Recorder may not, and its sessions are unknown here (update the Recorder). Read solo_s and grouped_s against what is left."}
+    mounted_move_s:
+      # The Recorder writes a position after 25 yd and 2 s, or 4 yd and 20 s
+      # (prep KINDS): a player still moving has a position under 20 s old.
+      # The part of an interval past 20 s since the last position is a stop.
+      expr: "(_.since_pos_s >= 20).ifelse(0, ((20 - _.since_pos_s) < _.dur_s).ifelse(20 - _.since_pos_s, _.dur_s)).sum(where=(_.mounted == 1) & (_.speed > 0) & (_.taxi == 0) & (_.ride == 0) & (_.dead == 0)).fill_null(0)"
+      description: "Online seconds moving on a mount: after a position record with the mount flag and a speed, up to 20 seconds past it."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "The Recorder writes a position at least every 20 seconds while the character moves, so time more than 20 s past the last one counts as a stop. Flights and boats are taxi_s and ride_s. Without the Recorder's positions: 0 (/psrec on, then /reload)."}
+    unmounted_move_s:
+      expr: "(_.since_pos_s >= 20).ifelse(0, ((20 - _.since_pos_s) < _.dur_s).ifelse(20 - _.since_pos_s, _.dur_s)).sum(where=(_.mounted == 0) & (_.speed > 0) & (_.taxi == 0) & (_.ride == 0) & (_.swimming == 0) & (_.ghost == 0) & (_.dead == 0)).fill_null(0)"
+      description: "Online seconds moving on foot, alive, out of water: after a position record with a speed and no mount, up to 20 seconds past it."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Counted as mounted_move_s (stops past 20 s left out). Swimming is swim_s, the run back as a ghost ghost_s. Without the Recorder's positions: 0 (/psrec on, then /reload)."}
+    swim_s:
+      expr: _.dur_s.sum(where=_.swimming == 1).fill_null(0)
+      description: "Online seconds with the last position in water (its swimming flag)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Until the next position record: floating still counts. Without the Recorder's positions: 0 (/psrec on, then /reload)."}
+    ghost_s:
+      expr: _.dur_s.sum(where=_.ghost == 1).fill_null(0)
+      description: "Online seconds as a ghost: from the first position after the release (flag 32) to the revive."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "The run back to the corpse or a spirit healer; lying dead before the release is dead_s, not here. Without the Recorder's positions: 0 (/psrec on, then /reload)."}
   calculated_measures:
+    group_share:
+      expr: _.grouped_s / (_.grouped_s + _.solo_s)
+      description: "Share of the online time with a known group spent grouped: grouped_s over grouped_s + solo_s."
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: reconstructed, unit: share,
+                 caveats: "0 to 1. Leaves out group_unknown_s on both sides. NULL without a group record: no Recorder (/psrec on, then /reload), or one older than its group records (update the Recorder).",
+                 eligibility: {where: "_.group_size.notnull()",
+                   means: "Intervals after a group record: the group is known on both sides."}}
     dungeon_share:
       expr: _.dungeon_s / _.online_s
       description: "Share of online time spent inside dungeons: dungeon_s over online_s."
@@ -1324,6 +1371,440 @@ position:
       metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: zone,
                  caveats: "The same record as route_subzone."}
 
+# The 0.7.0 data slice, unit 3: models over the tables prep 11 parsed out of
+# the Recorder's records (reps, offers, quest_rewards, spells_known,
+# flight_nodes, attunement_steps, item_values, achievements_seen,
+# loot_items.wanted_quest_id, the dead spans with the timeline's ghost
+# flag). Each reads a model view of its own (semantic.py VIEWS): no existing
+# view's SQL moves, so no kept finding that doesn't read these revalidates.
+# quest_text has no model: findings cite quest ids, never the game's text.
+
+dings:
+  table: sem_dings
+  description: "The Recorder's level records: one row per ding, with the game's /played total the record carries."
+  dimensions:
+    level: {expr: _.level, is_entity: true, description: "The level reached at the ding."}
+    zone: {expr: _.zone, description: "Zone name."}
+    session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the ding, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When the level record was written, local time."}
+  measures:
+    dings_seen:
+      expr: _.rec_id.count()
+      description: "Level-ups the Recorder saw (level records)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: levels,
+                 caveats: "A ding with the Recorder off has no record: Polestar's splits (levels) still have it. 0 without the Recorder (/psrec on, then /reload)."}
+    played_total_at_ding_s:
+      expr: _.played_total_s.argmax(_.t, where=_.played_total_s.notnull())
+      description: "The game's /played total at the ding, seconds since level 1, as the level record carries it: group by level for each level's."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: seconds,
+                 caveats: "A point, not a sum: over several levels it is the newest ding's. NULL when the level record carries no played time. Then the total comes from Altoholic's /played, which character_summary carries forward with the level splits: install Altoholic and log in once."}
+
+revives:
+  table: sem_revives
+  description: "Each death to its revive (the prep's dead spans): how the character came back and the time it took, with the run back as a ghost."
+  dimensions:
+    death_t: {expr: _.death_t, description: "One death, named by when its death record was written (unix seconds): the records model's death_t, so the two join."}
+    how: {expr: _.how, description: "How the character came back: c at the corpse, s at a spirit healer, r resurrected by another player. NULL: no revive seen (logged out dead, or the Recorder stopped)."}
+    level: {expr: _.level, is_entity: true, description: "Level at the death."}
+    zone: {expr: _.zone, description: "Zone of the death."}
+    session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the death, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When the character died, local time."}
+  measures:
+    revives:
+      expr: _.death_t.count(where=_.how.notnull())
+      description: "Deaths with a revive seen (revive records)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: revives,
+                 caveats: "A death the character logged out on has no revive in its session. 0 without the Recorder (/psrec on, then /reload)."}
+    corpse_runs:
+      expr: _.death_t.count(where=_.how == 'c')
+      description: "Deaths ended at the corpse: the run back as a ghost."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: deaths,
+                 caveats: "From the revive record's how. 0 without the Recorder (/psrec on, then /reload)."}
+    spirit_res:
+      expr: _.death_t.count(where=_.how == 's')
+      description: "Deaths ended at a spirit healer (resurrection sickness, durability lost)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: deaths,
+                 caveats: "From the revive record's how. 0 without the Recorder (/psrec on, then /reload)."}
+    player_res:
+      expr: _.death_t.count(where=_.how == 'r')
+      description: "Deaths ended by another player's resurrection."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: deaths,
+                 caveats: "Never who: the Recorder doesn't say. 0 without the Recorder (/psrec on, then /reload)."}
+    revive_s:
+      expr: _.revive_s.sum(where=_.how.notnull())
+      description: "Seconds from each death to its revive: what the deaths cost, summed."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Deaths with a revive seen only (revives). Wall clock inside one session: lying dead, the release, the run back. NULL without one (no Recorder: /psrec on, then /reload)."}
+    corpse_run_s:
+      expr: _.ghost_s.sum(where=_.how == 'c')
+      description: "Online seconds as a ghost in the deaths ended at the corpse: the runs back, summed."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "From the timeline's ghost flag (the first position after the release): a run with no position record reads 0. NULL without a corpse run (no Recorder: /psrec on, then /reload)."}
+  calculated_measures:
+    avg_corpse_run_s:
+      expr: _.corpse_run_s / _.corpse_runs
+      description: "Average run back to the corpse: corpse_run_s over corpse_runs."
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: event, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "A long one says the graveyard is far from where the deaths happen. NULL without a corpse run (no Recorder: /psrec on, then /reload).",
+                 eligibility: {where: "_.how == 'c'",
+                   means: "Deaths ended at the corpse, on both sides."}}
+
+zone_levels:
+  table: sem_zone_levels
+  description: "The zone records' time (zone_time) cut at each ding, so a zone's time splits by level."
+  dimensions:
+    zone: {expr: _.zone, description: "Zone name, as the zone record named it."}
+    level: {expr: _.level, is_entity: true, description: "The level the time was spent at (the levels table's dings bound it). NULL when no level is known."}
+    session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the part's start, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When the part began (the zone record, or the ding inside it), local time."}
+  measures:
+    zone_level_s:
+      expr: _.dur_s.sum()
+      description: "Seconds in a zone at a level: zone_s cut at each ding."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Group by zone and level. Summed over levels it is zone_s. A level's edges are its dings (the Recorder's, else Polestar's split time). Without the Recorder there are no zone records: nothing (/psrec on, then /reload)."}
+
+offers:
+  table: sem_offers
+  description: "What each quest giver offered when its window opened (the Recorder's offer records): one row per window, quest and state."
+  dimensions:
+    npc_id: {expr: _.npc_id, description: "The quest giver's id (its Wowhead page: npc=<id>; an object for npc_kind o)."}
+    quest_id: {expr: _.quest_id, description: "Quest id (its Wowhead page: quest=<id>)."}
+    state: {expr: _.state, description: "available (offered to pick up), active (in the log), done (this giver's quest the game flags completed), not_offered (the giver starts it in Polestar's data but didn't show it: a prerequisite, level or side missing)."}
+    taken: {expr: _.taken, description: "1 when the character accepted the quest at some point or it is known done (quests_done), else 0."}
+    zone: {expr: _.zone, description: "Zone of the window."}
+    subzone: {expr: _.subzone, description: "Subzone of the window."}
+    level: {expr: _.level, is_entity: true, description: "Level when the window opened."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the window, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When the window opened, local time."}
+  measures:
+    giver_windows:
+      expr: _.rec_id.nunique()
+      description: "Quest giver windows opened (offer records)."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: event, evidence_basis: observed, unit: windows,
+                 caveats: "Only windows that listed a quest. Without the Recorder: 0 (/psrec on, then /reload)."}
+    quests_offered:
+      expr: _.quest_id.nunique(where=_.state == 'available')
+      description: "Quests a giver offered to pick up, each counted once."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: event, evidence_basis: observed, unit: quests,
+                 caveats: "Not additive across givers: a quest two givers offer counts in each. Only givers whose window the character opened with the Recorder on (/psrec on, then /reload)."}
+    quests_skipped:
+      expr: _.quest_id.nunique(where=(_.state == 'available') & (_.taken == 0))
+      description: "Quests offered to pick up that the character never accepted and isn't known to have done."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: event, evidence_basis: inferred, unit: quests,
+                 caveats: "Accepted means an accept record or a known done quest (quests_done): a quest taken with the Recorder off and still in the log reads skipped: install Questie, whose completed list fills quests_done. Group by quest_id for which; their text stays in the game."}
+    quests_held_back:
+      expr: _.quest_id.nunique(where=_.state == 'not_offered')
+      description: "Quests a giver starts in Polestar's data but didn't show: a prerequisite, level or side missing."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: event, evidence_basis: inferred, unit: quests,
+                 caveats: "Polestar's list of what the giver starts, against what the game showed: a quest of the other side counts too. Group by quest_id and look each up (kb tools) for what it needs. Only givers opened with the Recorder on (/psrec on, then /reload)."}
+    giver_zone:
+      expr: _.zone.argmax(_.t)
+      description: "The zone of the group's newest window: by npc_id, where the quest giver stands."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: zone,
+                 caveats: "A point, not a sum. NULL when the window's record had no zone. No windows without the Recorder (/psrec on, then /reload)."}
+
+quest_rewards:
+  table: sem_quest_rewards
+  description: "The items each quest offered at its accept (the newest accept record of the quest), and the one picked at the hand-in."
+  dimensions:
+    quest_id: {expr: _.quest_id, description: "Quest id (its Wowhead page: quest=<id>)."}
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
+    reward_kind: {expr: _.kind, description: "choice (one of several to pick) or reward (given with the quest)."}
+    chosen: {expr: _.chosen, description: "For a choice: 1 picked at the hand-in, 0 another one picked, NULL not handed in or the pick unknown; NULL for a reward."}
+    handed_in: {expr: _.handed_in, description: "1 when a turnin record of the quest exists, else 0."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    reward_choice_quests:
+      expr: _.quest_id.nunique(where=_.kind == 'choice')
+      description: "Quests that offered a choice of reward."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: event, evidence_basis: observed, unit: quests,
+                 caveats: "Only quests accepted with the Recorder on: a quest taken before it has no list (/psrec on, then /reload)."}
+    rewards_offered:
+      expr: _.item_id.count(where=_.kind == 'choice')
+      description: "Reward choices offered: one per item to pick from, summed over the quests."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: items,
+                 caveats: "Group by quest_id for one quest's list. Only quests accepted with the Recorder on (/psrec on, then /reload)."}
+    rewards_picked:
+      expr: _.item_id.count(where=_.chosen == 1)
+      description: "Choices picked at the hand-in (the turn-in record's item)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: items,
+                 caveats: "Group by quest_id and item_id for which one. What a pick was worth against the others isn't here: the gear advice scores today's upgrades, not the choice at the hand-in. Only hand-ins with the Recorder on (/psrec on, then /reload)."}
+    reward_picks_unknown:
+      expr: _.quest_id.nunique(where=(_.kind == 'choice') & (_.handed_in == 1) & _.chosen.isnull())
+      description: "Choice quests handed in whose pick the turn-in record doesn't name."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: event, evidence_basis: observed, unit: quests,
+                 caveats: "An older Recorder's turn-in records name no item: the pick is unknown, never \"none\": update the Recorder."}
+
+quest_loot:
+  table: sem_quest_loot
+  description: "The loot an unfinished quest objective wanted (loot_items.wanted_quest_id): one row per item and loot window."
+  dimensions:
+    quest_id: {expr: _.quest_id, description: "The quest the item counted for (its Wowhead page: quest=<id>)."}
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
+    level: {expr: _.level, is_entity: true, description: "Character level."}
+    zone: {expr: _.zone, description: "Zone name."}
+    session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the loot, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When it was looted, local time."}
+  measures:
+    wanted_looted_items:
+      expr: _.n.sum()
+      description: "Items looted for a quest objective, a stack counted by its size."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: inferred, unit: items,
+                 caveats: "An item counts for a quest when exactly one wanted objective fits it (by its name, or by the quest's progress right after a one-item loot); an item two quests want counts for neither. NULL without such loot (no Recorder: /psrec on, then /reload)."}
+
+loot_value:
+  table: sem_loot_value
+  description: "Every item the Recorder saw looted at a vendor's price: the game client's sell price (item_values), never an auction price."
+  dimensions:
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
+    trip_id: {expr: _.dungeon_trip_id, description: "The dungeon trip it was looted on (dungeon_trips.trip_id), NULL outside one."}
+    level: {expr: _.level, is_entity: true, description: "Character level."}
+    zone: {expr: _.zone, description: "Zone name."}
+    session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the loot, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When it was looted, local time."}
+  measures:
+    loot_vendor_copper:
+      expr: _.value_copper.sum()
+      description: "What a vendor pays for the loot, copper: each item's sell price times the stack."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: estimated, unit: copper,
+                 caveats: "Vendor value only, said so: the player's own auction scans stay out of the analysis. An item without a known sell price (a quest item, or one the item catalog lacks) adds nothing: loot_items_unpriced counts them. NULL when no item has a price: the item catalog loads with the dashboard pages (dashboard_refresh), the loot with the Recorder (/psrec on, then /reload). Coin looted is not in it (gold_moved_copper has it)."}
+    loot_items_unpriced:
+      expr: _.n.sum(where=_.vendor_copper.isnull()).fill_null(0)
+      description: "Items looted with no vendor price known, a stack counted by its size."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: items,
+                 caveats: "A quest item sells for nothing; an item missing from the item catalog reads here too. The catalog loads with the dashboard pages: refresh the dashboard (dashboard_refresh) for more prices."}
+
+flight_nodes:
+  table: sem_flight_nodes
+  description: "The flight paths the character knows: each taxi node the flight map listed (flightmaster records), with the flights from and to it."
+  dimensions:
+    node_id: {expr: _.node_id, description: "The game's taxi node id. Its name and place: the KB's TaxiNodes table is a follow-up, so look the id up for now."}
+    known_now: {expr: _.known_now, description: "1 when the newest flight map lists the node, else 0."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When a flight map first listed the node, local time."}
+  measures:
+    known_flight_nodes:
+      expr: _.node_id.count(where=_.known_now == 1)
+      description: "Flight paths known: the nodes the newest flight map listed."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: nodes,
+                 caveats: "As of the newest flight map opened: a path learned since reads after the next one. 0 before the first flight map with the Recorder on: open a flight map once."}
+    flight_maps_opened:
+      expr: _.opened_here.sum()
+      description: "Flight maps opened, counted at the node they were opened at."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: maps,
+                 caveats: "Only with the Recorder on (/psrec on, then /reload)."}
+    node_flights_from:
+      expr: _.flights_from.sum()
+      description: "Flights that left from the node (taxi records)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: flights,
+                 caveats: "Group by node_id. A taxi record without its node isn't counted: records' flights counts every take-off. A node shows once a flight map listed it: open a flight map once."}
+    node_flights_to:
+      expr: _.flights_to.sum()
+      description: "Flights bound for the node (taxi records)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: flights,
+                 caveats: "Group by node_id, as node_flights_from: open a flight map once for the nodes."}
+    node_first_known_t:
+      expr: _.first_known_t.min()
+      description: "When a flight map first listed the node, unix seconds."
+      metadata: {kind: simple, aggregation: min, time_meaning: snapshot_observation, evidence_basis: observed, unit: unix seconds,
+                 caveats: "No earlier than the first flight map the Recorder saw: a path learned before it reads from then."}
+
+reputation:
+  table: sem_reps
+  description: "The character's reputation changes (the Recorder's rep records): one row per change, with the online time since the faction's previous one and the points to its next tier."
+  dimensions:
+    faction_id: {expr: _.faction_id, description: "The game's faction id (its Wowhead page: faction=<id>). Its name: the KB's Faction table is a follow-up, so look the id up for now."}
+    reaction: {expr: _.reaction, description: "The tier after the change: 1 hated .. 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted."}
+    level: {expr: _.level, is_entity: true, description: "Character level."}
+    zone: {expr: _.zone, description: "Zone name."}
+    session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the change, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When the reputation changed, local time."}
+  measures:
+    rep_changes:
+      expr: _.rec_id.count()
+      description: "Reputation changes the Recorder saw (rep records)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: changes,
+                 caveats: "0 without the Recorder: Battle.net's reputations are out of the analysis (/psrec on, then /reload)."}
+    rep_gained:
+      expr: _.rep_gained.sum()
+      description: "Reputation points gained (lost: negative), summed over the changes."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: points,
+                 caveats: "Group by faction_id: points of two factions don't add up to anything. A change the Recorder had no earlier value for has no gain. NULL without one (no Recorder: /psrec on, then /reload)."}
+    rep_standing_now:
+      expr: _.rep_points.argmax(_.t)
+      description: "The faction's points on its newest change, counted from the start of neutral (the game's own value: friendly from 3,000)."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: points,
+                 caveats: "Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload)."}
+    rep_reaction_now:
+      expr: _.reaction.argmax(_.t)
+      description: "The faction's tier on its newest change: 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: tier,
+                 caveats: "Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload)."}
+    rep_to_next_points:
+      expr: _.rep_to_next.argmax(_.t)
+      description: "Points from the newest change to the faction's next tier."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: estimated, unit: points,
+                 caveats: "The tiers' widths are the KB's reputation.thresholds, low confidence (one commercial source). NULL below neutral, at exalted, or without that rule."}
+    rep_online_s:
+      expr: _.online_since_s.sum()
+      description: "Online seconds between each change and the faction's change before it: the time the gains were made in."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Every online second in between counts, whatever was done: the pace at the way the character plays. NULL for a faction's first change (the Recorder sees the next: /psrec on, then /reload)."}
+  calculated_measures:
+    rep_per_online_hour:
+      expr: _.rep_gained / (_.rep_online_s / 3600)
+      description: "Reputation points per online hour: rep_gained over rep_online_s."
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: event, evidence_basis: reconstructed, unit: points/hour,
+                 caveats: "Group by faction_id. Measured from the faction's first change the Recorder saw to its newest: a faction gained twice has one window. NULL with fewer than two changes (the Recorder sees them: /psrec on, then /reload).",
+                 eligibility: {where: "_.rep_gained.notnull() & (_.online_since_s > 0)",
+                   means: "Changes with a gain and online time since the faction's change before: the points and the hours of the same windows."}}
+    rep_to_next_s:
+      expr: _.rep_to_next_points / (_.rep_gained / _.rep_online_s)
+      description: "Online seconds to the faction's next tier at the pace so far: rep_to_next_points over rep_per_online_hour, in seconds."
+      metadata: {kind: derived, aggregation: ratio_of_sums, time_meaning: event, evidence_basis: estimated, unit: seconds,
+                 caveats: "Group by faction_id. An estimate: the tiers are the KB's low-confidence reputation.thresholds and the pace is the past one (a turn-in burst moves it). Negative when the faction lost points over the window: no tier ahead at that pace. NULL with fewer than two changes.",
+                 eligibility: {where: "_.rep_gained.notnull() & (_.online_since_s > 0)",
+                   means: "As rep_per_online_hour; the points to go are the newest such change's."}}
+
+attunements:
+  table: sem_attunement_steps
+  description: "The quest chains that unlock a raid (Onyxia's Lair: the Drakefire Amulet) for the character's side, step by step, with what quests_done says is done."
+  dimensions:
+    attunement: {expr: _.attunement, description: "What the chain unlocks."}
+    faction: {expr: _.faction, description: "Alliance or Horde: the character's side, both when it isn't known."}
+    chain_step: {expr: _.step, description: "The quest's place in the chain, from 1 (each after the quests it needs)."}
+    quest_id: {expr: _.quest_id, description: "Quest id (its Wowhead page: quest=<id>)."}
+    done: {expr: _.done, description: "1 when quests_done has the quest, else 0."}
+    done_source: {expr: _.done_source, description: "How it is known done (quests_done): turnin, flagged, questie, altoholic, reward, battlenet or inferred. NULL when not done."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    attunement_steps:
+      expr: _.quest_id.count()
+      description: "Quests in the chain."
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: observed, unit: quests,
+                 caveats: "forever-db's prerequisites, for the character's side. Group by attunement. Which are done comes from quests_done: install Questie for the ones before tracking."}
+    attunement_steps_done:
+      expr: _.quest_id.count(where=_.done == 1)
+      description: "Quests of the chain known done."
+      metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: observed, unit: quests,
+                 caveats: "A quest done before any tracking reads not done: install Questie, whose completed list fills quests_done."}
+    attunement_next_quest:
+      expr: _.quest_id.argmin(_.step, where=_.done == 0)
+      description: "The chain's first quest not known done (its Wowhead page: quest=<id>)."
+      metadata: {kind: simple, aggregation: top, time_meaning: quest_closure, evidence_basis: inferred, unit: quest id,
+                 caveats: "Group by attunement. Can be one done before any tracking: install Questie, whose completed list fills quests_done. NULL when every step is done."}
+    attunement_next_min_level:
+      expr: _.min_level.argmin(_.step, where=_.done == 0)
+      description: "The level that quest needs."
+      metadata: {kind: simple, aggregation: top, time_meaning: quest_closure, evidence_basis: observed, unit: level,
+                 caveats: "forever-db's minimum level, as attunement_next_quest. A step done before any tracking reads not done: install Questie."}
+
+achievements:
+  table: sem_achievements_seen
+  description: "The achievements the Recorder saw the character earn (achieve records); none from before it."
+  dimensions:
+    achievement_id: {expr: _.achievement_id, description: "Achievement id (its Wowhead page: achievement=<id>)."}
+    level: {expr: _.level, is_entity: true, description: "Character level."}
+    zone: {expr: _.zone, description: "Zone name."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week it was earned, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When it was earned, local time."}
+  measures:
+    achievements_seen:
+      expr: _.rec_id.count()
+      description: "Achievements earned while the Recorder ran."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: achievements,
+                 caveats: "Since the Recorder ran only, never the whole list: Battle.net has that, and its achievements stay out of the analysis. Legacy points by name are the character page's (Battle.net)."}
+
+class_spells:
+  table: sem_class_spells
+  description: "The class trainer's ranks up to the character's level (the bundled class reference, for its race), each with what spells_known says: learned, missing, a talent's, or unknown. Exact with Altoholic's spellbook; without it, the Recorder's learn records give an estimate."
+  dimensions:
+    spell_id: {expr: _.spell_id, description: "Spell id (its Wowhead page: spell=<id>)."}
+    spell: {expr: _.spell, description: "The spell's name (the game client's)."}
+    rank: {expr: _.rank, description: "The rank (1 for a spell with one)."}
+    spell_level: {expr: _.spell_level, description: "The level the trainer teaches it from."}
+    spell_status: {expr: _.status, description: "learned (spells_known has it or a later rank), missing (still to train: with Altoholic's spellbook any rank not known; without it, ranks from a level above the one the Recorder started at), talent (a rank of a talent's spell with no rank learned) or unknown (without Altoholic's spellbook, from that level or below: learned before the Recorder, or not)."}
+    spells_basis: {expr: _.basis, description: "altoholic: Altoholic's spellbook is in spells_known, the list is exact. recorder: only the Recorder's learn records, an estimate (ranks learned before the Recorder unknown)."}
+    needs_talent: {expr: _.needs_talent, description: "The talent the spell's first rank comes from, NULL for a trainer spell."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    spells_trainable_now:
+      expr: _.spell_id.count(where=_.status == 'missing')
+      description: "Trainer ranks the character can learn at its level and doesn't know (status missing)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: inferred, unit: ranks,
+                 caveats: "Exact with Altoholic's spellbook (spells_basis altoholic). Without it, an estimate from the Recorder's learn records: ranks from levels at or below the one the Recorder started at are unknown, not here (spells_unknown), and a rank learned with the Recorder off reads missing. Install Altoholic for the exact list."}
+    training_cost_copper:
+      expr: _.cost_copper.sum(where=_.status == 'missing')
+      description: "What the missing ranks cost at the trainer, copper."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: estimated, unit: copper,
+                 caveats: "Forever's training lists before any reputation discount; a rank the lists only know from the client has no cost and adds nothing. NULL with nothing missing. An estimate without Altoholic's spellbook (spells_trainable_now): install Altoholic for the exact list."}
+    spells_unknown:
+      expr: _.spell_id.count(where=_.status == 'unknown')
+      description: "Trainer ranks from the level the Recorder started at or below, never seen learned: learned before it, or still to learn."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: inferred, unit: ranks,
+                 caveats: "Ranks learned before the Recorder unknown: without Altoholic's spellbook only the Recorder's learn records are read. Install Altoholic for the exact list; 0 once its spellbook is in."}
+    spell_ranks_learned:
+      expr: _.spell_id.count(where=_.status == 'learned')
+      description: "Trainer ranks known (Altoholic's spellbook or the Recorder's learn records), or a later rank of (a rank needs the one before)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: ranks,
+                 caveats: "Without Altoholic's spellbook, since the Recorder ran only: install Altoholic for the ranks learned before it."}
+
+riding:
+  table: sem_riding
+  description: "The riding tiers with a sourced cost in the KB (riding.apprentice, riding.journeyman), against the money on the newest snapshot."
+  dimensions:
+    tier: {expr: _.tier, description: "The KB rule of the tier: riding.apprentice (level 40) or riding.journeyman (level 60)."}
+    tier_level: {expr: _.tier_level, description: "The level the tier is trained from."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    riding_cost_copper:
+      expr: _.training_copper.max()
+      description: "The tier's training cost, copper (the training comes with a mount)."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: copper,
+                 caveats: "The KB's rule, medium confidence, before the home city's Honored discount. Group by tier."}
+    riding_gold_gap_copper:
+      expr: _.gap_copper.max()
+      description: "What the tier's training still needs: its cost minus the money on the newest snapshot, 0 when the money covers it or the riding skill already reaches it."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: copper,
+                 caveats: "Group by tier. A riding rank trained before the Recorder ran has no skill record and reads untrained. NULL without a snapshot with money: log out once (the shipper reads the money at logout and /reload)."}
+
 cross_model_metrics:
   kills_per_combat_hour:
     expr: kills / (combat_s / 3600)
@@ -1399,6 +1880,13 @@ cross_model_metrics:
                caveats: "Grouped by dungeon, the hours are the ones inside it (the walk in and out is not); otherwise every online hour of the group. Its loot's worth isn't here: only the items (trip_loot). NULL without online time.",
                eligibility: {where: {dungeon_runs: "_.start_t.notnull()", timeline: "_.session_id.notnull()"},
                  means: "Every run Polestar timed, against the online time inside a login span the Recorder saw."}}
+  loot_value_per_online_hour:
+    expr: loot_vendor_copper / (online_s / 3600)
+    description: "What the loot would fetch at a vendor per online hour: loot_vendor_copper (loot_value) over online_s (timeline), copper an hour. Group by zone or level for where farming pays."
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [event, interval_start], evidence_basis: estimated, unit: copper/hour,
+               caveats: "Vendor value only, said so: the player's own auction prices stay out of the analysis, so an item worth more at the auction house reads low. Coin looted is in gold_per_online_hour, not here. NULL without online time or without an item with a known price (no Recorder: /psrec on, then /reload).",
+               eligibility: {where: {loot_value: "_.session_id.notnull()", timeline: "_.session_id.notnull()"},
+                 means: "Loot and online time inside a login span the Recorder saw, on both sides."}}
 
 # Views per grain (owner, 2026-11-22: "use the semantic model all the time"):
 # one DuckDB view per entity, made by compiling the metrics above at that grain
@@ -1484,6 +1972,22 @@ views:
     where: [{dimension: slot, op: is not null}]
     metrics: [worn_items, worn_item, worn_item_id, worn_fit, worn_item_bis_pct, best_upgrade, best_upgrade_id,
               best_upgrade_gain, best_upgrade_bis_pct, upgrade_bis_pct_worn, upgrade_sources]
+  per_faction:
+    entity: faction_id
+    description: "One row per faction the Recorder saw change: the changes, the points gained, where it stands now and how far the next tier is, the pace per online hour and the online time to the next tier at that pace."
+    where: [{dimension: faction_id, op: is not null}]
+    metrics: [rep_changes, rep_gained, rep_standing_now, rep_reaction_now, rep_to_next_points, rep_online_s,
+              rep_per_online_hour, rep_to_next_s]
+  per_flight_node:
+    entity: node_id
+    description: "One row per flight path the flight map listed: known on the newest map or not, when first listed, maps opened there and flights from and to it."
+    where: [{dimension: node_id, op: is not null}]
+    metrics: [known_flight_nodes, node_first_known_t, flight_maps_opened, node_flights_from, node_flights_to]
+  per_quest_giver:
+    entity: npc_id
+    description: "One row per quest giver whose window the character opened: where it stands, the windows, the quests it offered, the ones never taken and the ones it held back (a prerequisite, level or side missing)."
+    where: [{dimension: npc_id, op: is not null}]
+    metrics: [giver_zone, giver_windows, quests_offered, quests_skipped, quests_held_back]
 
 # Store models (owner, 2026-11-22: every tool reads through the semantic
 # layer). What a tool reads from the store itself, not the prep: other

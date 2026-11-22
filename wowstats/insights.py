@@ -618,7 +618,6 @@ IMPLEMENTED_SANITY = [
 UNSUPPORTED_SANITY = [
     "bags full and vendor trash not sold: the shipper sends which items the bags hold (Syndicator), not how "
     "full they are or what each sells for",
-    "flights not taken: the recorder has flights and positions, but no list of known flight paths to compare with",
     "what killed you in a dungeon fight blow by blow: no combat log, only the recorder's likely killer",
 ]
 IMPLEMENTED_NEXT = [
@@ -629,7 +628,6 @@ IMPLEMENTED_NEXT = [
     "time to the next level and to the end of the current guide",
 ]
 UNSUPPORTED_NEXT = [
-    "class trainer visits: the recorder logs trainer visits, but not which spells are still unlearned",
     "cheap auction-house wins: prices exist in the full view only, without a per-item gain model",
 ]
 
