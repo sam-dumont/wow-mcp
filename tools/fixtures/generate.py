@@ -230,6 +230,7 @@ class Player:
         self.first_level = True
         self.skills = {TAILORING: [100, 150], ENCHANTING: [120, 150], COOKING: [90, 150]}
         self.instance = None
+        self.flags = 0  # the pos records' flags (32: dead or a ghost, on the corpse run)
         self.worn: dict[int, int] = {}
         self.packs = "guides:0.4.1;wow-forever-books:1.0.0"
         self.gained = 0  # every XP point, for the dungeon summaries
@@ -276,7 +277,7 @@ class Player:
             if moving and self.t < end and self.instance != "taxi":
                 self.x = min(95.0, max(5.0, self.x + self.walk.uniform(-1.2, 1.2)))
                 self.y = min(95.0, max(5.0, self.y + self.walk.uniform(-1.2, 1.2)))
-                self.rec("pos", flags=0, map_id=self.map_id, speed=7.0, x=round(self.x, 2), y=round(self.y, 2),
+                self.rec("pos", flags=self.flags, map_id=self.map_id, speed=7.0, x=round(self.x, 2), y=round(self.y, 2),
                          zone=self.zone)
 
     def chunk(self, login: bool = False) -> None:
@@ -410,8 +411,14 @@ class Player:
         if self.rnd.random() < 0.65:
             item = self.rnd.choice([4306, 4306, 2589, 4338, 1205, 3770, 858, 4592, 2592])
             self.rec("loot", items=f"{item}:{self.rnd.randint(1, 3)}", npc_id=npc, npc_kind="c",
-                     wanted=";".join(f"{q}:1" for q in self.log), **self.here())
+                     wanted=self.wanted(), **self.here())
             self.money += self.rnd.randint(20, 160)
+
+    def wanted(self) -> str | None:
+        """The Recorder's `wanted`: quest:objective of every unfinished item
+        objective in the log (a quest's objectives are its kills, else its items)."""
+        return ";".join(f"{qid}:{i}" for qid, q in self.log.items() if not q["kills"]
+                        for i in range(1, len(q["items"]) + 1)) or None
 
     def accept(self, q: dict, npc: int | None = None) -> None:
         npc = npc or q["starts"] or None
@@ -422,7 +429,8 @@ class Player:
             self.rec("text", objective=f"Do what {q['name']} asks.", quest_id=q["id"],
                      text="(Synthetic quest text: the fixtures carry none of the game's.)")
         self.rec("accept", level=self.level, money_copper=q["money"] or None, npc_id=npc, npc_kind="c" if npc else None,
-                 quest_id=q["id"], quest_name=q["name"], xp_reward=q["xp"], **self.here())
+                 quest_id=q["id"], quest_name=q["name"], xp_reward=q["xp"],
+                 choices=";".join(f"{c}:1" for c in q["choices"]) or None, **self.here())
         objs = ";".join(f"monster:{c}:" for _, c in q["kills"]) or ";".join(f"item:{c}:" for _, c in q["items"])
         if objs:
             self.rec("objectives", objectives=objs, quest_id=q["id"], zone=self.zone)
@@ -459,7 +467,9 @@ class Player:
     def die(self, npc: int | None = None, how: str = "c") -> None:
         lv = self.g.npc_level.get(npc, (self.level + 1, "n"))[0] if npc else None
         self.rec("death", npc_id=npc, npc_level=lv, **self.here())
+        self.flags = 32
         self.wait(self.rnd.uniform(60, 140), moving=True)
+        self.flags = 0
         self.rec("revive", how=how, **self.here())
         self.rest()
 

@@ -95,16 +95,20 @@ def carried_note(f: dict) -> str | None:
     return f"Checked against {c.get('to')} data, first judged under {c.get('from')}."
 
 # What a driver's SQL may read, each with where its data comes from: the
-# player's own game files (VictoriaLogs) or what the prep derives from them,
-# and the prep's own documentation. Nothing from Battle.net (vm-wow) is in
-# the database at all.
+# player's own game files (VictoriaLogs) or what the prep derives from them
+# ("game", the only evidence a finding stands on: verify.history_read), the
+# game's quest text ("text": play_sql reads it, no finding quotes it), the
+# game client's item prices ("reference") and the prep's own documentation.
+# Nothing from Battle.net (vm-wow) is in the database at all.
 TABLES = {
     "records": "game", "positions": "game", "loot_items": "game", "xp": "game", "timeline": "game",
     "spans": "game", "sessions": "game", "levels": "game", "route_steps": "game", "route_position": "game",
     "dungeon_runs": "game",
     "dungeon_trips": "game", "quests": "game", "quests_done": "game", "gold_moves": "game",
     "gear": "game", "gear_sheets": "game", "professions": "game", "snapshots": "game",
-    "upgrade_candidates": "game", "agg_session": "game",
+    "upgrade_candidates": "game", "reps": "game", "offers": "game", "quest_rewards": "game",
+    "spells_known": "game", "flight_nodes": "game", "attunement_steps": "game", "achievements_seen": "game",
+    "quest_text": "text", "item_values": "reference", "agg_session": "game",
     "agg_level": "game", "agg_zone": "game", "agg_hour": "game", "dictionary": "doc", "record_kinds": "doc",
     "meta": "doc",
 }
