@@ -20,6 +20,8 @@ release: `make test-browser`.
 from __future__ import annotations
 
 import argparse
+import ast
+import functools
 import os
 import re
 import subprocess
@@ -29,9 +31,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 FULL = "FULL"  # the whole non-browser suite
-OWN = "OWN"  # tests/test_<module>*.py plus every test that imports the module
+OWN = "OWN"  # tests/test_<module>*.py plus every test that reaches the module through imports
 BROWSER = "BROWSER"  # every browser test
 NONE = "NONE"  # nothing to run
+NAMED = "NAMED"  # every test whose source names the file (a script it runs, a file it reads)
 
 # First match wins. (regex on the repo-relative path, what it selects): globs
 # are relative to the repo root; FULL, OWN, BROWSER and NONE are above.
@@ -57,6 +60,8 @@ RULES: list[tuple[str, list[str]]] = [
     (r"^wowstats/mcp/(analysis|class|plan)tools\.py$", [OWN, "tests/mcp/test_tools.py"]),
     # Package code: the module's own tests plus every test importing it.
     (r"^wowstats/.*\.py$", [OWN]),
+    # Dev scripts the tests run as subprocesses (the demo seed behind the page snapshots).
+    (r"^dev/", [NAMED]),
     # Data files and their exporters.
     (r"^data/", [FULL]),
     (r"^tools/fixtures/", [FULL]),
@@ -103,17 +108,86 @@ def all_tests() -> list[str]:
     return sorted(str(p.relative_to(ROOT)) for p in (ROOT / "tests").rglob("test_*.py"))
 
 
+@functools.lru_cache(maxsize=1)
+def module_names() -> frozenset[str]:
+    out = set()
+    for p in (ROOT / "wowstats").rglob("*.py"):
+        parts = p.relative_to(ROOT).with_suffix("").parts
+        out.add(".".join(parts[:-1] if parts[-1] == "__init__" else parts))
+    return frozenset(out)
+
+
+def _imports(node: ast.AST, pkg: list[str], lazy: bool = False):
+    """(dotted name, imported inside a function?) for every import under `node`."""
+    for child in ast.iter_child_nodes(node):
+        inner = lazy or isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+        if isinstance(child, ast.Import):
+            for a in child.names:
+                yield a.name, inner
+        elif isinstance(child, ast.ImportFrom):
+            base = child.module or ""
+            if child.level:
+                base = ".".join([*pkg[: len(pkg) - child.level + 1], *([base] if base else [])])
+            yield base, inner
+            for a in child.names:  # `from pkg import module`
+                yield f"{base}.{a.name}", inner
+        else:
+            yield from _imports(child, pkg, inner)
+
+
+@functools.cache
+def direct_imports(rel: str, own: bool = False) -> frozenset[str]:
+    """wowstats modules a file imports. A test's imports all count (a lazy import in a test
+    function is how the page tests reach `analysis.pages`). Inside the package (`own=True`) a
+    top-level import counts, and one inside a function only when it names a module of the
+    same package: analysis.pages imports the semantic layer inside the function that needs
+    it, but stores importing `analysis` lazily is an optional hook, and following those ties
+    every test to every module."""
+    path = ROOT / rel
+    try:
+        tree = ast.parse(path.read_text(errors="replace"))
+    except SyntaxError:
+        return frozenset()
+    pkg = list(path.relative_to(ROOT).with_suffix("").parts[:-1])
+    here = ".".join(pkg)
+    return frozenset(n for n, lazy in _imports(tree, pkg)
+                     if n in module_names() and not (own and lazy and n.rsplit(".", 1)[0] != here))
+
+
+@functools.cache
+def reach(module: str) -> frozenset[str]:
+    """Every wowstats module that importing `module` pulls in, itself included."""
+    seen, todo = set(), [module]
+    while todo:
+        m = todo.pop()
+        if m in seen:
+            continue
+        seen.add(m)
+        rel = m.replace(".", "/")
+        for cand in (f"{rel}.py", f"{rel}/__init__.py"):
+            if (ROOT / cand).exists():
+                todo.extend(direct_imports(cand, own=True))
+    return frozenset(seen)
+
+
 def importers(path: str) -> list[str]:
-    """Test files that import wowstats/<...>/<module>.py (or the package <module>/)."""
-    parts = Path(path).with_suffix("").parts[1:]  # drop "wowstats"
+    """Test files that reach wowstats/<...>/<module>.py through their imports, however deep:
+    a snapshot test imports `ui` and gets the analysis modules from it, never by name."""
+    parts = Path(path).with_suffix("").parts
     if parts[-1] == "__init__":
         parts = parts[:-1]
-    if not parts:
+    if len(parts) < 2:
         return []
-    dotted = ".".join(("wowstats", *parts))
-    parent = ".".join(("wowstats", *parts[:-1]))
-    pat = re.compile(rf"(\b{re.escape(dotted)}\b|from {re.escape(parent)} import [^\n]*\b{re.escape(parts[-1])}\b)")
-    return [t for t in all_tests() if pat.search((ROOT / t).read_text(errors="replace"))]
+    target = ".".join(parts)
+    # Browser files are left out: they reach everything through the server, and run only when a rule names them.
+    return [t for t in all_tests() if not is_browser(t)
+            and target in set().union(*(reach(m) for m in direct_imports(t))) | direct_imports(t)]
+
+
+def naming(path: str) -> list[str]:
+    """Test files whose source mentions this file's name (a script a test runs)."""
+    name = Path(path).name
+    return [t for t in all_tests() if name in (ROOT / t).read_text(errors="replace")]
 
 
 def globs(pattern: str) -> list[str]:
@@ -137,6 +211,8 @@ def select(paths: list[str]) -> tuple[bool, set[str], list[str]]:
             elif a == OWN:
                 mod = Path(path).stem
                 picked |= set(globs(f"tests/test_{mod}*.py")) | set(importers(path))
+            elif a == NAMED:
+                picked |= set(naming(path))
             elif a != NONE:
                 picked |= set(globs(a))
         tests |= picked
