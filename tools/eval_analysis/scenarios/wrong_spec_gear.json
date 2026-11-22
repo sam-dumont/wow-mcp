@@ -23,7 +23,8 @@
        "unless": ["replace", "\\bswap", "instead", "\\boff\\b", "wrong", "not (for|suited|scored|an upgrade)", "\\bpoor", "\\bweak", "than (the|your) "]},
       {"id": "praises-the-circlet", "about": "the circlet called an upgrade or a good pick",
        "all": [["shadow circlet"], ["upgrade", "improv", "\\bbetter\\b", "good (pick|choice)", "right (pick|choice)"]],
-       "unless": ["not an upgrade", "no upgrade", "wrong", "\\bpoor", "\\bweak", "instead", "replace", "\\bswap", "barely", "\\blittle\\b", "\\bsmall", "\\bonly\\b", "\\bover (the|your) "]}
+       "unless": ["not an upgrade", "no upgrade", "wrong", "\\bpoor", "\\bweak", "instead", "replace", "\\bswap", "barely", "\\blittle\\b", "\\bsmall", "\\bonly\\b", "\\bover (the|your) ",
+                  "built for (damage|another|a different|other)", "another spec", "\\d+(\\.\\d+)?% of the best"]}
     ]
   }
 }
