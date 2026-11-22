@@ -9,7 +9,7 @@ the assistant writes. `query_metric` asks for **named metrics**: `played_s` by `
 `dungeon_s` by `zone` per week. The server writes the SQL from one model file,
 [`wowstats/analysis/semantic.yaml`](../../wowstats/analysis/semantic.yaml), and sends back the
 rows, the SQL it ran and each metric's definition and caveats. 278 metrics (11 of them across
-models), 93 dimensions, three time grains (day, week, month), and thirteen
+models), 94 dimensions, three time grains (day, week, month), and thirteen
 [views per grain](#views-per-grain) that `play_sql` reads like tables.
 
 The character page reads the same file: its time per level, XP an hour, kill and quest totals,
@@ -887,20 +887,20 @@ Group or filter by: `character`, `class`, `known_now`, `node_id`, `time`.
 
 ### reputation
 
-The character's reputation changes (the Recorder's rep records): one row per change, with the online time since the faction's previous one and the points to its next tier.
+The character's reputation: the Recorder's rep records (one row per change) and Altoholic's reputation snapshots (a faction's first listing and each later move of its points), with the online time since the faction's previous row of the same source and the points to its next tier.
 
 | Metric | Kind | Unit | Definition | Caveats | Read as |
 |---|---|---|---|---|---|
-| `rep_changes` | simple | changes | Reputation changes the Recorder saw (rep records). | 0 without the Recorder: Battle.net's reputations are out of the analysis (/psrec on, then /reload). | sum; time: event; observed. |
-| `rep_gained` | simple | points | Reputation points gained (lost: negative), summed over the changes. | Group by faction_id: points of two factions don't add up to anything. A change the Recorder had no earlier value for has no gain. NULL without one (no Recorder: /psrec on, then /reload). | sum; time: event; observed. |
-| `rep_standing_now` | simple | points | The faction's points on its newest change, counted from the start of neutral (the game's own value: friendly from 3,000). | Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload). | latest; time: event; observed. |
-| `rep_reaction_now` | simple | tier | The faction's tier on its newest change: 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted. | Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload). | latest; time: event; observed. |
+| `rep_changes` | simple | changes | Reputation changes the Recorder saw (rep records). | The Recorder's rep records only: Altoholic's logout snapshots are not counted here (group by rep_source for those rows). 0 without the Recorder (/psrec on, then /reload); Battle.net's reputations are out of the analysis. | sum; time: event; observed. |
+| `rep_gained` | simple | points | Reputation points gained (lost: negative), summed over the changes. | Group by faction_id: points of two factions don't add up to anything. A change the Recorder had no earlier value for has no gain. Altoholic's snapshots add the move since the faction's previous snapshot only where no rep record falls between (never counted twice). NULL without either (/psrec on, or install Altoholic). | sum; time: event; observed. |
+| `rep_standing_now` | simple | points | The faction's points on its newest change, counted from the start of neutral (the game's own value: friendly from 3,000). | Group by faction_id. As of the newest row: a rep record or Altoholic's logout snapshot. A character the Recorder never saw has it from Altoholic only: install Altoholic and log in once. | latest; time: event; observed. |
+| `rep_reaction_now` | simple | tier | The faction's tier on its newest change: 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted. | Group by faction_id. As of the newest row: a rep record or Altoholic's logout snapshot. A character the Recorder never saw has it from Altoholic only: install Altoholic and log in once. | latest; time: event; observed. |
 | `rep_to_next_points` | simple | points | Points from the newest change to the faction's next tier. | The tiers' widths are the KB's reputation.thresholds, low confidence (one commercial source). NULL below neutral, at exalted, or without that rule. | latest; time: event; estimated. |
-| `rep_online_s` | simple | seconds | Online seconds between each change and the faction's change before it: the time the gains were made in. | Every online second in between counts, whatever was done: the pace at the way the character plays. NULL for a faction's first change (the Recorder sees the next: /psrec on, then /reload). | sum; time: event; reconstructed. |
+| `rep_online_s` | simple | seconds | Online seconds between each change and the faction's change before it: the time the gains were made in. | Every online second in between counts, whatever was done: the pace at the way the character plays. Windows of one source each (an Altoholic window only where no rep record falls in it). NULL for a faction's first change (the Recorder sees the next: /psrec on, then /reload; or Altoholic's next logout). | sum; time: event; reconstructed. |
 | `rep_per_online_hour` | ratio | points/hour | Reputation points per online hour: rep_gained over rep_online_s. | Group by faction_id. Measured from the faction's first change the Recorder saw to its newest: a faction gained twice has one window. NULL with fewer than two changes (the Recorder sees them: /psrec on, then /reload). | ratio_of_sums; time: event; reconstructed. Rows: Changes with a gain and online time since the faction's change before: the points and the hours of the same windows. |
 | `rep_to_next_s` | derived | seconds | Online seconds to the faction's next tier at the pace so far: rep_to_next_points over rep_per_online_hour, in seconds. | Group by faction_id. An estimate: the tiers are the KB's low-confidence reputation.thresholds and the pace is the past one (a turn-in burst moves it). Negative when the faction lost points over the window: no tier ahead at that pace. NULL with fewer than two changes. | ratio_of_sums; time: event; estimated. Rows: As rep_per_online_hour; the points to go are the newest such change's. |
 
-Group or filter by: `character`, `class`, `faction_id`, `level`, `reaction`, `session_id`, `time`, `week`, `zone`.
+Group or filter by: `character`, `class`, `faction_id`, `level`, `reaction`, `rep_source`, `session_id`, `time`, `week`, `zone`.
 
 ### attunements
 
@@ -1125,6 +1125,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `reaction` | reputation | The tier after the change: 1 hated .. 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted. |
 | `reading` | progress | One reading of the series, numbered from 1 in time order within its source: group by it (with source) to list the series point by point. |
 | `record_t` | records | One record, named by when it was written (unix seconds): group by it to list the records one by one. |
+| `rep_source` | reputation | recorder: a rep record (each change, as it happened). altoholic: Altoholic's snapshot at a logout (every faction, even of a character the Recorder never saw). |
 | `reward_kind` | quest_rewards | choice (one of several to pick) or reward (given with the quest). |
 | `run` | records, dungeon_runs | The dungeon run the record falls in, named by when it started (unix seconds, as dungeon_runs names it), NULL outside a run. |
 | `scored_for` | worn | The spec the gear advice scores for: the player's WEIGHTS setting, else the talents. |

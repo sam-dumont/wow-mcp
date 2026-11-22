@@ -1644,10 +1644,11 @@ flight_nodes:
 
 reputation:
   table: sem_reps
-  description: "The character's reputation changes (the Recorder's rep records): one row per change, with the online time since the faction's previous one and the points to its next tier."
+  description: "The character's reputation: the Recorder's rep records (one row per change) and Altoholic's reputation snapshots (a faction's first listing and each later move of its points), with the online time since the faction's previous row of the same source and the points to its next tier."
   dimensions:
     faction_id: {expr: _.faction_id, description: "The game's faction id (its Wowhead page: faction=<id>). Its name: the KB's Faction table is a follow-up, so look the id up for now."}
     reaction: {expr: _.reaction, description: "The tier after the change: 1 hated .. 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted."}
+    rep_source: {expr: _.source, description: "recorder: a rep record (each change, as it happened). altoholic: Altoholic's snapshot at a logout (every faction, even of a character the Recorder never saw)."}
     level: {expr: _.level, is_entity: true, description: "Character level."}
     zone: {expr: _.zone, description: "Zone name."}
     session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
@@ -1661,22 +1662,22 @@ reputation:
       expr: _.rec_id.count()
       description: "Reputation changes the Recorder saw (rep records)."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: changes,
-                 caveats: "0 without the Recorder: Battle.net's reputations are out of the analysis (/psrec on, then /reload)."}
+                 caveats: "The Recorder's rep records only: Altoholic's logout snapshots are not counted here (group by rep_source for those rows). 0 without the Recorder (/psrec on, then /reload); Battle.net's reputations are out of the analysis."}
     rep_gained:
       expr: _.rep_gained.sum()
       description: "Reputation points gained (lost: negative), summed over the changes."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: points,
-                 caveats: "Group by faction_id: points of two factions don't add up to anything. A change the Recorder had no earlier value for has no gain. NULL without one (no Recorder: /psrec on, then /reload)."}
+                 caveats: "Group by faction_id: points of two factions don't add up to anything. A change the Recorder had no earlier value for has no gain. Altoholic's snapshots add the move since the faction's previous snapshot only where no rep record falls between (never counted twice). NULL without either (/psrec on, or install Altoholic)."}
     rep_standing_now:
       expr: _.rep_points.argmax(_.t)
       description: "The faction's points on its newest change, counted from the start of neutral (the game's own value: friendly from 3,000)."
       metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: points,
-                 caveats: "Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload)."}
+                 caveats: "Group by faction_id. As of the newest row: a rep record or Altoholic's logout snapshot. A character the Recorder never saw has it from Altoholic only: install Altoholic and log in once."}
     rep_reaction_now:
       expr: _.reaction.argmax(_.t)
       description: "The faction's tier on its newest change: 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted."
       metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: tier,
-                 caveats: "Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload)."}
+                 caveats: "Group by faction_id. As of the newest row: a rep record or Altoholic's logout snapshot. A character the Recorder never saw has it from Altoholic only: install Altoholic and log in once."}
     rep_to_next_points:
       expr: _.rep_to_next.argmax(_.t)
       description: "Points from the newest change to the faction's next tier."
@@ -1686,7 +1687,7 @@ reputation:
       expr: _.online_since_s.sum()
       description: "Online seconds between each change and the faction's change before it: the time the gains were made in."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "Every online second in between counts, whatever was done: the pace at the way the character plays. NULL for a faction's first change (the Recorder sees the next: /psrec on, then /reload)."}
+                 caveats: "Every online second in between counts, whatever was done: the pace at the way the character plays. Windows of one source each (an Altoholic window only where no rep record falls in it). NULL for a faction's first change (the Recorder sees the next: /psrec on, then /reload; or Altoholic's next logout)."}
   calculated_measures:
     rep_per_online_hour:
       expr: _.rep_gained / (_.rep_online_s / 3600)

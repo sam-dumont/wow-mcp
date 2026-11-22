@@ -115,3 +115,37 @@ def test_every_new_metric_names_altoholic():
            for n in (semantic._file()[m].get(s) or {})} | set(NEW_SNAPSHOTS["measures"])
     cat = {m["name"]: m for m in semantic.catalogue()["metrics"]}
     assert sorted(n for n in new if "Altoholic" not in json.dumps(cat[n])) == []
+
+
+# ------------------------------------------- class_spells and reputation
+
+
+def test_the_spellbook_makes_class_spells_exact_and_future_spells_missing(alto):
+    """The priest's book: 9 known, 3 to come (6074 at 14, 2055 at 20, 8092 at
+    10). A spell still to come is never learned; with the book no rank reads
+    unknown."""
+    rows = alto + [polestar("2026-11-20T18:39:30Z", 5, level=32) | {"class": "PRIEST"}]
+    by = {r["spell_status"]: r["spell_ranks_learned"] + r["spells_unknown"] for r in ask(
+        rows, metrics=["spell_ranks_learned", "spells_unknown"], group_by=["spell_status"])}
+    assert "unknown" not in by
+    basis = one(ask(rows, metrics=["spells_unknown"], group_by=["spells_basis"]))
+    assert basis["spells_basis"] == "altoholic" and basis["spells_unknown"] == 0
+    db = prep.build(rows, CHAR, None, now=NOW)
+    layer, ro = semantic.local(db)
+    _, got, _ = ro.run("SELECT spell_id, status FROM sem_class_spells WHERE spell_id IN (6074, 2055, 8092)", 100)
+    assert got and all(st != "learned" for _, st in got)
+
+
+def test_reputation_without_the_recorder(alto):
+    by = {r["faction_id"]: r for r in ask(alto, metrics=["rep_changes", "rep_standing_now", "rep_reaction_now"],
+                                          group_by=["faction_id"])}
+    assert by[72]["rep_reaction_now"] == 5 and by[72]["rep_standing_now"] == 4200
+    assert by[69]["rep_reaction_now"] == 6 and all(r["rep_changes"] == 0 for r in by.values())
+    assert {r["rep_source"] for r in ask(alto, metrics=["rep_gained"], group_by=["rep_source"])} == {"altoholic"}
+
+
+def test_without_altoholic_reputation_is_the_recorders():
+    rows = [polestar("2026-11-20T18:39:30Z", 5),
+            rec("2026-11-20T18:00:00Z", "rep", faction_id=72, reaction=5, standing=4000, rep_gained=25)]
+    got = one(ask(rows, metrics=["rep_changes", "rep_standing_now"], group_by=["rep_source"]))
+    assert got == {"rep_source": "recorder", "rep_changes": 1, "rep_standing_now": 4000}
