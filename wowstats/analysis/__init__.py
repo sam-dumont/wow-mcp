@@ -387,6 +387,27 @@ def upgrades_for(rows: list[dict], char: str, env: dict) -> list[dict]:
     return (a or {}).get("upgrades_all") or []
 
 
+def scoring_for(rows: list[dict], char: str, env: dict) -> dict:
+    """The gear scoring the build's upgrade candidates come from, normalized
+    for the run manifest's definitions: the spec the gear is scored for, as
+    resolved from WEIGHTS (settings_from_env), the add-ons and the class
+    default (gear.resolve_spec), and the player's own weight edits for it.
+    Two settings that resolve to the same spec score the same. Without a
+    sheet or the gear data nothing is scored: None. Review 6: without it a
+    WEIGHTS change wasn't a definition change at all."""
+    from wowstats import gear
+
+    got = gear.newest_sheet(rows)
+    ref = gear.reference()
+    cls = gear.class_token((got or ({},))[0].get("class"))
+    if got is None or not ref.available or not cls:
+        return {"spec": None, "adjust": None}
+    sheet = got[0]
+    key, _how = gear.resolve_spec(ref, cls, sheet, None, weights_for(env, char))
+    edits = (sheet.get("gear_adjust") or {}).get(key) if isinstance(sheet.get("gear_adjust"), dict) else None
+    return {"spec": key, "adjust": json.loads(json.dumps(edits, sort_keys=True)) if edits else None}
+
+
 def tables_of(db) -> tuple[list[str], int]:
     """The tables a run should look at (those with rows), and their column
     count: the run's coverage is measured against these."""
@@ -398,18 +419,21 @@ def tables_of(db) -> tuple[list[str], int]:
 
 
 def data_mark(db) -> str:
-    """What the play history holds: the newest record and each game table's
-    row count. A finding gains support only when this moved since its last
-    support: the same data checked again is still applicable, not more
-    proven (external review of 0.7.0-rc.5: every nightly recheck raised the
-    weight of findings whose data hadn't changed)."""
-    parts = [str((db.execute("SELECT value FROM meta WHERE key='last_record'").fetchone() or [None])[0])]
-    for t, src in TABLES.items():
-        if src == "game":
-            with contextlib.suppress(Exception):
-                n = db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]
-                parts.append(f"{t}:{n}")
-    return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
+    """Which play the build read: the source events (prep.input_mark), never
+    what prep, the gear scoring or a setting derived from them. A finding
+    gains support only when this moved since its last support: the same
+    data checked again is still applicable, not more proven (external review
+    of 0.7.0-rc.5: every nightly recheck raised the weight of findings whose
+    data hadn't changed). Review 6: it counted the prepared tables' rows, so
+    a WEIGHTS change (other upgrade candidates) or a prep change read as new
+    play; a definition change is the manifest's, "to revalidate"."""
+    return MARK_PREFIX + str((db.execute("SELECT value FROM meta WHERE key='input_mark'").fetchone() or [""])[0])
+
+
+# A support mark read from the source events. One without it was made from
+# the prepared tables (before review 6): comparing the two would read every
+# finding's next recheck as new play.
+MARK_PREFIX = "src:"
 
 
 def _support(f: dict, old: dict | None, mark: str | None, now: str) -> bool:
@@ -417,10 +441,14 @@ def _support(f: dict, old: dict | None, mark: str | None, now: str) -> bool:
     confirmations) only on data its last support didn't see. True when it
     gained support."""
     f["last_checked"] = now
-    if old is not None and mark is not None and old.get("support_mark") == mark:
-        for k in ("weight", "confirmations", "last_confirmed", "support_mark"):
+    was = (old or {}).get("support_mark")
+    if old is not None and mark is not None and (was == mark or (was and not str(was).startswith(MARK_PREFIX))):
+        # The same play, or a mark of the old kind: what it saw can't be
+        # compared, so today's play counts as seen, with no weight for it.
+        for k in ("weight", "confirmations", "last_confirmed"):
             if k in old:
                 f[k] = old[k]
+        f["support_mark"] = mark
         return False
     f["confirmations"] = int((old or {}).get("confirmations", 0)) + (1 if old else 0)
     f["weight"] = round(min(MAX_WEIGHT, float((old or {}).get("weight", 0.5)) + 0.5), 4)
@@ -470,7 +498,7 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
     for key, f in list(kept.items()):
         carry = build is not None and not f.get("manifest") and "carried_over" not in f
         if build is not None and not carry:
-            why_not = manifest.changed((builds or {}).get(f.get("manifest") or ""), build)
+            why_not = manifest.changed((builds or {}).get(f.get("manifest") or ""), build, f)
             if why_not:
                 f["revalidate"] = {"since": (f.get("revalidate") or {}).get("since") or now, "why": why_not}
                 info["revalidate"] = info.get("revalidate", 0) + 1
@@ -676,7 +704,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     ref = route.reference()
     db = prep.build(rows, char, ref, map_sizes=knowledge.meta.get("ui_map"),
                     upgrades=upgrades_for(rows, char, env))
-    build = manifest.build(db, rows, knowledge, ref)
+    build = manifest.build(db, rows, knowledge, ref, scoring=scoring_for(rows, char, env))
     now = datetime.now(UTC).isoformat(timespec="seconds")
     state = load_state(env, char)
     kept: dict[str, dict] = dict(state.get("findings") or {})

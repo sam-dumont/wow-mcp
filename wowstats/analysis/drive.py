@@ -67,7 +67,7 @@ class Workspace:
         from wowstats.mcp import route
         from wowstats.plan.facts import store_for
 
-        from . import TABLES, kb, manifest, prep, tables_of, upgrades_for
+        from . import TABLES, kb, manifest, prep, scoring_for, tables_of, upgrades_for
 
         st = store_for(env, store)
         self.store = st
@@ -80,7 +80,7 @@ class Workspace:
         self.db = prep.build(rows, self.char, ref, map_sizes=self.kb.meta.get("ui_map"),
                              upgrades=upgrades_for(rows, self.char, env))
         # What this build was computed with: each finding judged here keeps its id.
-        self.manifest = manifest.build(self.db, rows, self.kb, ref)
+        self.manifest = manifest.build(self.db, rows, self.kb, ref, scoring=scoring_for(rows, self.char, env))
         # What the tables stand on (wowstats.coverage): every play_sql and
         # query_metric answer carries it, so a 0 isn't read as "never".
         from wowstats import coverage

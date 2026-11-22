@@ -213,8 +213,10 @@ reads it; `/zogzog/` gets the screened nudges only. Each night
 kept finding on the fresh data. One that still holds stays and gets a new
 `last_checked`. It gains weight (`confirmations`, `last_confirmed`) only when
 the play history changed since its last support (`support_mark`, a mark of the
-newest record and each table's row count): the same data checked again counts
-as `still`, not `confirmed`. One that no longer holds loses half its weight
+source events themselves: each one's id, observation time and revision): the
+same data checked again counts as `still`, not `confirmed`. Nothing prep or a
+setting derives goes into that mark, so a definition change (another
+`WEIGHTS`, a prep version) never reads as new play. One that no longer holds loses half its weight
 each night and goes under 0.25: three nights for a new finding, four for a
 well-supported one. No model.
 
@@ -225,11 +227,14 @@ count, data mark), `PREP_VERSION` (`wowstats/analysis/prep.py`), a hash of
 the semantic model as loaded (`semantic.yaml` and its SQL views), the
 reference data's versions (the KB's Polestar tag and forever-db version, the
 route planner's and the gear data's Polestar tag), the timezone, the session
-and trip gaps, the build time and how old the newest event was. Each kept
+and trip gaps, the gear scoring (the spec the upgrade candidates are scored
+for, from `WEIGHTS`, the add-ons or the class default, and the player's weight
+edits), the build time and how old the newest event was. Each kept
 finding stores the id of the manifest it was judged under (`manifest`, the
 manifests themselves under `manifests` in `analysis.json`). When the prep
-version, the semantic hash or a reference version differs from tonight's,
-the finding isn't run: it gets `revalidate` (since when, and why in words),
+version, the semantic hash, a reference version or a setting differs from
+tonight's (the gear scoring only for a finding that reads
+`upgrade_candidates`), the finding isn't run: it gets `revalidate` (since when, and why in words),
 keeps its weight, counts as `revalidate` in the run instead of `still` or
 `confirmed`, and is left out of `checked` in `play_analysis` and the page,
 which tags it "to revalidate". The next analysis gets the list in

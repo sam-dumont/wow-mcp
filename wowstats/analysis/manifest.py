@@ -20,7 +20,9 @@ play the build saw), `prep_version` (prep.PREP_VERSION, bumped by hand when
 the tables' meaning changes), `semantic_hash` (semantic.yaml as loaded,
 plus the SQL views the model reads), `reference` (the bundled Polestar and
 forever-db versions the KB, the route and the gear advice come from),
-`settings` (timezone, session and trip gaps), `built_at`, `freshness` (how
+`settings` (timezone, session and trip gaps, and the gear `scoring`: the
+spec the upgrade candidates are scored for and the player's edits, review
+6), `built_at`, `freshness` (how
 old the newest event was at build time). The id hashes everything but the
 build time and freshness, so two builds of the same play under the same
 definitions share one.
@@ -79,7 +81,8 @@ def reference_versions(knowledge=None, route_ref=None) -> dict:
     return out
 
 
-def build(db, rows: list, knowledge=None, route_ref=None, now: datetime | None = None) -> dict:
+def build(db, rows: list, knowledge=None, route_ref=None, now: datetime | None = None,
+          scoring: dict | None = None) -> dict:
     from . import data_mark, prep
 
     now = now or datetime.now(UTC)
@@ -90,19 +93,34 @@ def build(db, rows: list, knowledge=None, route_ref=None, now: datetime | None =
     m = {"input": {"newest_event": newest, "events": len(rows), "data_mark": data_mark(db)},
          "prep_version": prep.PREP_VERSION, "semantic_hash": semantic_hash(),
          "reference": reference_versions(knowledge, route_ref),
-         "settings": {"timezone": prep.TZ_NAME, "session_gap_s": prep.OFFLINE_S, "trip_gap_s": prep.TRIP_GAP_S}}
+         "settings": {"timezone": prep.TZ_NAME, "session_gap_s": prep.OFFLINE_S, "trip_gap_s": prep.TRIP_GAP_S,
+                      "scoring": scoring or {"spec": None, "adjust": None}}}
     m["id"] = _digest(m)[:16]
     m["built_at"] = now.isoformat(timespec="seconds")
     m["freshness"] = {"newest_event": newest, "lag_s": lag}
     return m
 
 
-def changed(judged: dict | None, now: dict) -> list[str]:
+# The tables the gear scoring fills (prep's upgrade_candidates, from
+# analysis.upgrades_for): a scoring change means something else only there.
+SCORED_TABLES = ("upgrade_candidates",)
+
+
+def reads_scoring(finding: dict | None) -> bool:
+    """Whether a finding's query reads what the gear scoring fills. Without
+    the finding (or its SQL), assume it does."""
+    sql = str((finding or {}).get("sql") or "").lower()
+    return not sql or any(t in sql for t in SCORED_TABLES)
+
+
+def changed(judged: dict | None, now: dict, finding: dict | None = None) -> list[str]:
     """What moved between the build a finding was judged under and today's,
     in words; [] when it rechecks as before. The definitions and the
     settings that change what a query means (the timezone its hours and days
-    are in, the session and trip gaps) count; the input and the times are
-    kept for the record, since the recheck's whole job is to run on new input."""
+    are in, the session and trip gaps, the spec the gear is scored for) count; the input and the times are
+    kept for the record, since the recheck's whole job is to run on new input.
+    `finding`: the gear scoring counts only for one that reads what it fills
+    (reads_scoring): a WEIGHTS change says nothing new about online time."""
     if not judged:
         return ["judged before builds kept a manifest"]
     out = []
@@ -113,7 +131,15 @@ def changed(judged: dict | None, now: dict) -> list[str]:
     old, new = judged.get("reference") or {}, now["reference"]
     out += [f"{k} {old.get(k)} -> {new.get(k)}" for k in sorted(set(old) | set(new)) if old.get(k) != new.get(k)]
     old, new = judged.get("settings") or {}, now.get("settings") or {}
-    out += [f"{k} {old.get(k)} -> {new.get(k)}" for k in sorted(set(old) | set(new)) if old.get(k) != new.get(k)]
+    for k in sorted(set(old) | set(new)):
+        a, b = old.get(k), new.get(k)
+        if a == b or (k == "scoring" and not reads_scoring(finding)):
+            continue
+        if isinstance(a, dict) or isinstance(b, dict):  # the scoring: say which part moved
+            a, b = a if isinstance(a, dict) else {}, b if isinstance(b, dict) else {}
+            out += [f"{k} {p} {a.get(p)} -> {b.get(p)}" for p in sorted(set(a) | set(b)) if a.get(p) != b.get(p)]
+        else:
+            out.append(f"{k} {a} -> {b}")
     return out
 
 
