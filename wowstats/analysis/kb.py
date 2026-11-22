@@ -187,7 +187,7 @@ def game_docs(tables: dict[str, list[dict]], source: str) -> list[dict]:
 def _num(v) -> int:
     try:
         return int(float(v))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
 
 

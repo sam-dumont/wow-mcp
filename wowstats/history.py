@@ -72,7 +72,7 @@ def iso(t: datetime) -> str:
 def _int(v) -> int | None:
     try:
         return int(float(v))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
 
 

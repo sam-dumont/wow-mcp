@@ -98,7 +98,7 @@ EQUIP = (("defense", "Increased Defense +{}."),
 def _i(v) -> int:
     try:
         return int(float(v or 0))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
 
 

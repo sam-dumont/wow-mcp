@@ -70,7 +70,7 @@ SPELL_TABLES = ("SpellName", "Spell", "SpellEffect", "SpellMisc", "ManifestInter
 def _i(v) -> int:
     try:
         return int(float(v))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return 0
 
 
