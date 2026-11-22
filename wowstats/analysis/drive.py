@@ -706,13 +706,30 @@ def _submit_lane(env, w, run, answer):
     if ln is None or ln.get("done"):
         open_ = [x["id"] for x in _open_lanes(run)]
         return {"accepted": False, "why": f"no open lane {lid!r}; open lanes: {', '.join(open_) or 'none'}"}
+    answers = [a for a in answer.get("answers") or []
+               if isinstance(a, dict) and a.get("question_id") in ln["questions"]]
+    # An answer's note never reaches the synthesis, only findings do: a
+    # question answered with nothing verified behind it goes back once
+    # (gpt-6.1-sol noted "Wetlands has eight deaths" and proposed nothing,
+    # 2026-11-22). The second hand-in is taken as it is.
+    unbacked = [a for a in answers if a.get("answered") and not
+                [k for k in a.get("findings") or [] if isinstance(k, str) and k in run["verified"]]]
+    if unbacked and not ln.get("sent_back"):
+        ln["sent_back"] = True
+        listed = "; ".join(f"{a['question_id']} (your note: {str(a.get('note') or '')[:200]!r})" for a in unbacked)
+        return {"accepted": False, "unbacked": [a["question_id"] for a in unbacked],
+                "why": f"answered without a finding behind it: {listed}. Only findings reach the player; a note "
+                       "is dropped. For each, propose_finding what the data showed (with action null when there "
+                       "is nothing to act on: it is kept as an observation), then hand the lane in again with "
+                       "the finding keys in that answer's `findings`; or set answered false if the data didn't "
+                       "answer it."}
     answered = 0
-    for a in answer.get("answers") or []:
-        if isinstance(a, dict) and a.get("question_id") in ln["questions"]:
-            q = _q(run, a["question_id"])
-            q["answered"] = bool(a.get("answered"))
-            q["note"] = str(a.get("note") or "")[:300]
-            answered += q["answered"]
+    for a in answers:
+        q = _q(run, a["question_id"])
+        q["answered"] = bool(a.get("answered"))
+        q["note"] = str(a.get("note") or "")[:300]
+        q["findings"] = [k for k in a.get("findings") or [] if isinstance(k, str) and k in run["verified"]][:10]
+        answered += q["answered"]
     if ln["round"] == "survey":  # only the first round's "ask next" feeds the follow-ups
         for a in (answer.get("ask_next") or [])[:5]:
             if isinstance(a, dict) and str(a.get("question") or "").strip():

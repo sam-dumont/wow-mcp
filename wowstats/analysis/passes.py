@@ -117,8 +117,10 @@ SURVEY_SCHEMA = {"type": "object", "properties": {
 LANE_SCHEMA = {"type": "object", "properties": {
     "lane": {"type": "string", "description": "the lane's id, as the server gave it"},
     "answers": {"type": "array", "items": {"type": "object", "properties": {
-        "question_id": {"type": "string"}, "answered": {"type": "boolean"}, "note": {"type": "string"}},
-        "required": ["question_id", "answered", "note"], "additionalProperties": False}},
+        "question_id": {"type": "string"}, "answered": {"type": "boolean"}, "note": {"type": "string"},
+        "findings": {"type": "array", "items": {"type": "string"},
+                     "description": "the keys of the findings this answer rests on, as propose_finding stored them"}},
+        "required": ["question_id", "answered", "note", "findings"], "additionalProperties": False}},
     "ask_next": {"type": "array", "items": {"type": "object", "properties": {
         "question": {"type": "string"}, "why": {"type": "string"},
         "tables": {"type": "array", "items": {"type": "string"}}},
@@ -172,7 +174,10 @@ Investigate the lane's questions with SQL (play_sql, about 20 queries per lane) 
 each finding to propose_finding as soon as you have it: the judge re-runs the SQL and stores it or says why \
 not; fix a refused one and try once more, then move on. When the lane is done, hand in with \
 analysis_submit(pass="lane", answer={"lane": ..., "answers": [...], "ask_next": [...]}): for each question \
-whether the data answered it, with a one-line note, and up to five questions you would ask next.
+whether the data answered it, with a one-line note and the keys of the findings the answer rests on, and up \
+to five questions you would ask next. Only findings reach the player, never a note: whatever answers a question \
+is a finding, an observation (action null) when there is nothing to act on. An answered question with no \
+finding behind it comes back once.
 
 """ + FINDING_RULES
 

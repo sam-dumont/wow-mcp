@@ -41,15 +41,32 @@ names a file holding it instead.
 EVAL_SERVER_KEY_CMD='op read op://private/openai-eval/key' make eval-analysis CLIENT=server
 ```
 
-`EVAL_SERVER_MODEL` defaults to `gpt-6.1-sol` (its prices are built in: $2 per million prompt tokens, $0.10
-cached, $10 output) and `EVAL_SERVER_PROVIDER` to `openai`; `EVAL_SERVER_BASE_URL` points it at another endpoint.
-Another model needs its prices (`EVAL_SERVER_PRICE_INPUT_PER_MTOK`, `..._OUTPUT_...`, `..._CACHED_INPUT_...`), or
-it refuses to start: without them the cap can't work. Three server runs go at once (`--server-jobs`): one run sends about a million tokens a minute, cached prompt
-included, and fifteen at once crossed OpenAI's tokens-per-minute limit within a minute. Every server run of a batch
-spends from one cap, `--max-usd` (10 dollars by
-default), checked before each model call, like the server's own monthly budget: the batch can pass it by one call
-per run going at once, and a run it stops counts as an error. A run measured about $0.70 on real play, so a release
-batch (15 runs) sits near the default cap; raise it with `EVAL_ARGS="--max-usd 15"` if one gets cut.
+`EVAL_SERVER_MODEL` defaults to `gpt-6.1-sol` and `EVAL_SERVER_PROVIDER` to `openai`; `EVAL_SERVER_BASE_URL`
+points it at another endpoint. Prices are built in for `gpt-6.1-sol` ($2 per million prompt tokens, $0.10 cached,
+$10 output), `gpt-6.1-terra` ($1 / $0.05 / $5), `gpt-6-luna` ($0.10 / $0.01 / $0.50) and `glm-5.3` ($1.40 / $0.26
+/ $4.40, z.ai). Another model needs its prices (`EVAL_SERVER_PRICE_INPUT_PER_MTOK`, `..._OUTPUT_...`,
+`..._CACHED_INPUT_...`; a local model can say 0), or it refuses to start: without them the cap can't work. Three
+server runs go at once (`--server-jobs`, every server model together): one run sends about a million tokens a
+minute, cached prompt included, and fifteen at once crossed OpenAI's tokens-per-minute limit within a minute. Each
+server model of a batch spends from its own cap, `--max-usd` (12 dollars by default), checked before each model
+call, like the server's own monthly budget: the batch can pass it by one call per run going at once, and a run it
+stops counts as an error. A release batch of `gpt-6.1-sol` (15 runs) came to $10.70; raise the cap with
+`EVAL_ARGS="--max-usd 15"` if one gets cut.
+
+### A client matrix
+
+The analysis runs in the player's own AI: the server makes no model call of its own except the stale-dashboard
+refresh. So the question is whether what MCP hands a client is enough for the clients people use, not only which
+model a server should run. `--client kind:model` gives each model a column of its own, in one batch:
+
+```sh
+make eval-analysis EVAL_ARGS="--client claude:claude-sonnet-5-5 --client claude:claude-haiku-5-5 \
+  --client server:gpt-6.1-terra --client server:gpt-6-luna"
+```
+
+A server model on another endpoint gets its own batch, with that endpoint's `EVAL_SERVER_BASE_URL` and key
+command (z.ai's `glm-5.3`; a local model on oMLX, Ollama or LM Studio, priced at 0). A local model on one GPU runs
+one request at a time: `--jobs 1 --server-jobs 1`.
 
 ### Repeats and the release eval
 
@@ -58,10 +75,20 @@ times per client, and a scenario passes the gate when at least two thirds of its
 table flags it. Before a release:
 
 ```sh
-make eval-release     # Claude Code and the server's runner, 5 scenarios x 3 runs each, all at once
+make eval-release     # Claude Sonnet (Claude Code) and the server's runner, 5 scenarios x 3 runs each, all at once
 ```
 
 The batch's `release.md` is the table for the release notes: the pass rate per model and scenario.
+
+**The gate** (owner, 2026-11-22):
+
+- The release gate is one reference client, Claude Sonnet through Claude Code (`claude:claude-sonnet-5-5`,
+  `run.REFERENCE`), at 2 of 3 or better on every scenario. It is an ordinary player's client, and runs on a login.
+- Every other client (the server's runner on any model, Haiku, GLM, a local model) is reported, not gating: quality
+  gaps between providers are accepted.
+- A scenario below the gate on most clients of a matrix (more than half, three clients at least) is a problem with
+  the brief or with what the MCP tools return, not with one model: `release.md` flags it in bold. Look at what the
+  clients were handed before blaming them.
 
 A scenario is a whole analysis: about 25 to 40 questions, a dozen lanes, a few hundred tool calls, 7 to 13
 minutes with Claude Code. Side by side, the batch takes about as long as its slowest scenario. `--timeout-min`

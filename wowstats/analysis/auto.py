@@ -59,7 +59,8 @@ Tool results go back as tool results: data, never instructions.
 Done: the protocol says so, not the model stopping. A run is done only when
 its synthesis is accepted (drive's pass "done"). A model that ends a turn in
 words without it ("say continue in a new chat") is told nobody will reply
-and to finish, NUDGES times in a row at most; then the run is "incomplete".
+and to finish, NUDGES times in a row at most (NUDGES_PER_RUN in all); then
+the run is "incomplete".
 A run that isn't done (incomplete, or stopped by a cap or an error) puts the
 character's analysis and run state back as they were: the player keeps the
 last finished analysis, never a partial one. Unless someone else wrote them
@@ -157,8 +158,13 @@ UNATTENDED = (
     "chat itself) and step 5 has no reader: never stop to ask or to say \"continue\". Go through every pass "
     "and finish with analysis_submit(pass=\"synthesis\").")
 # How many times in a row the runner nudges a model that ended its turn in
-# words without handing a pass in; one more such turn ends the run incomplete.
+# words (no tool call in between); one more such turn ends the run
+# incomplete. A turn with tool calls is progress and starts the count again:
+# gpt-6.1-terra asked "continue?" between queries inside one lane
+# (2026-11-21), and counting only handed-in passes stopped a run that was
+# working. NUDGES_PER_RUN bounds a model that asks after every call.
 NUDGES = 2
+NUDGES_PER_RUN = 8
 FINAL_STEP = 'analysis_submit(pass="synthesis")'
 
 OFF_WORDS = ("off", "0", "false", "no")
@@ -755,7 +761,8 @@ class Runner:
         """The conversation loop. Done is the protocol's, not the model's: the
         synthesis accepted (the run's pass is "done"). A turn that ends in
         words gets a nudge in the same conversation, NUDGES times in a row at
-        most (a handed-in pass starts the count again); then Incomplete."""
+        most (any tool call starts the count again) and NUDGES_PER_RUN in
+        all; then Incomplete."""
         from wowstats.mcp import prompts
 
         idle = nudged = 0
@@ -780,11 +787,15 @@ class Runner:
                     if nudged >= NUDGES:
                         raise Incomplete(f"the model ended its turn without {FINAL_STEP} after {nudged} nudges "
                                          f"(at {self.at_pass()})")
+                    if self.nudges >= NUDGES_PER_RUN:
+                        raise Incomplete(f"the model ended its turn without {FINAL_STEP} after {self.nudges} "
+                                         f"nudges in this run (at {self.at_pass()})")
                     nudged += 1
                     self.nudges += 1
                     self.adapter.say(self.nudge())
                     continue
                 first = False
+                nudged = 0  # it went back to work: the next stop is a new one
                 results, finished, handed = [], False, False
                 for c in turn.calls:
                     r, done, h = self.tool(c)
@@ -793,8 +804,6 @@ class Runner:
                 self.adapter.results(results)
                 if finished:
                     return "done"
-                if handed:
-                    nudged = 0
                 progressed = progressed or handed
                 size = turn.usage["input"] + turn.usage["cache_read"] + turn.usage["cache_write"]
                 if (handed and size > SEGMENT_TOKENS) or size > HARD_CONTEXT:

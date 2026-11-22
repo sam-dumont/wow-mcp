@@ -292,9 +292,12 @@ release runs the rest, browsers included.
 
 **Release eval.** `make eval-release` on your own machine, on the commit
 you'll release: the seeded evaluation ([evaluation.md](evaluation.md)) with
-Claude Code and with the server's own runner, every scenario three times,
-all at once, three server runs at a time (about 25 minutes, up to $10 of the server's model). A scenario
-under two passes of three is a reason to wait. Paste the batch's
+Claude Sonnet through Claude Code and with the server's own runner, every
+scenario three times, all at once, three server runs at a time (about 25
+minutes, up to $12 of the server's model). The gate is Claude Sonnet: a
+scenario under two passes of three there is a reason to wait. The server's
+runner is reported beside it, and a scenario most clients miss is flagged
+in `release.md` as the brief's or the MCP's problem. Paste the batch's
 `release.md` table, per model and scenario, into "Unreleased" so it lands in
 the release notes. Never in CI. Write the CHANGELOG as you merge, under
 "Unreleased": what changed for a player, then "Upgrading" with every
