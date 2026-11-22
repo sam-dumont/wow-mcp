@@ -12,7 +12,7 @@ that has `read:packages` (an `imagePullSecrets` entry; docs/development.md,
 
 | Command | Port | Health | Serves |
 |---|---|---|---|
-| `wow-stats ui` (the default `CMD`) | 8080 (`PORT`) | `GET /healthz`: 200 `{"status": "ok", "semantic": ...}`, no login, both views; alert on `"semantic": "failing"` | the page, `/api/*`, `POST /ingest` when set up |
+| `wow-stats ui` (the default `CMD`) | 8080 (`PORT`) | `GET /healthz`: 200 `{"status": "ok", "semantic": ...}`, no login, both views; alert on `"semantic": "failing"`. Also counts to graph: `analysis_workspaces` (open, at most `analysis_workspaces_max` unless requests hold more), `analysis_workspaces_held`, `uploads_running` and `uploads_waiting` (`uploads_max` at once) | the page, `/api/*`, `POST /ingest` when set up |
 | `wow-stats exporter` | 9464 (`LISTEN_PORT`) | `GET /healthz` | `GET /metrics`: `wow_api_up`, `wow_api_paused`, `wow_exporter_*` (its own health, never Blizzard's data) |
 | `wow-stats publish [--loop] [--force]` | none | its log line per build | writes the static sites to `PUBLISH_DIR` (or pushes them, below) |
 | `wow-stats static` | 8080, upload on `UPLOAD_PORT` | `GET /healthz` | the files `publish` wrote, nothing else |
