@@ -33,6 +33,7 @@ on one core).
 | 16 | A snapshot that lacks a part (the bank, the equipped items, the money, quests a smaller set doesn't list, a Battle.net part that failed) doesn't erase it from an earlier complete one. | `test_evidence.py::test_d_*` |
 | 17 | What no snapshot says stays unknown (`null`), never 0 or empty: a bank never opened, a sheet without items, money never read, a Battle.net read never complete. | `test_evidence.py::test_e_*` |
 | 18 | However many partial snapshots follow a complete one, the page, the MCP and the analysis give the same equipment, bank and money, each with its own observation time (`money_at`, the bags' `at`, and `parts` in the `gear` and `polestar` coverage): a part read from an older snapshot keeps that snapshot's time. | `test_snapshot_parts.py` |
+| 19 | With an archive (`VL_ARCHIVE_URL`), a read whose range reaches the archive's days while the archive doesn't answer fails with an error that says so (`ArchiveUnavailable`), never the recent days alone as the whole history; the event cache keeps what it had and nothing reads the missing days as deleted. Both on the first read and after a complete history was cached. | `test_archive.py` |
 | 20 | `--replay` sends every whole gzip member of a damaged `sent/` file (one cut short by a crash, at the end or between two whole ones, or garbage after them), names the file and the bytes it couldn't read, and exits 1. A damaged file never ends in "sent again" and exit 0. | `test_sent_damage.py` |
 | 21 | A definition change never adds weight: a finding gains support only from source events its last support didn't see (their ids, times and revisions), never from tables a definition change moved. Another `WEIGHTS` (Holy to Shadow), a prep version, the semantic model or a setting, with the events held fixed: the affected findings are to revalidate, the others still, none confirmed, and proposing one again on the same play gains nothing. | `test_definitions.py::test_changing_weights_*`, `test_definitions.py::test_a_definition_that_moves_prepared_rows_adds_no_weight` |
 
@@ -185,6 +186,16 @@ Snapshot parts (property 18), fixed in the same change as its test (review 6):
   event, still had them. The readers now ask, for each part, for the newest snapshot that
   carries it (`stores.in_force`), however old. The hero line's `money_at` was the newest
   sheet's time even when the money came from an older one; it is the money's own time now.
+
+An archive that doesn't answer (property 19), fixed in the same change as its test (review 6):
+
+- With `VL_ARCHIVE_URL` set, an archive that didn't answer was skipped without a word: the
+  reader answered from the recent store alone. The event cache then took the missing old hours
+  for retention and dropped them, and the analysis counted 1 death of 2 with the Recorder's
+  coverage still `complete`. A read that needs the archive now fails (`stores.ArchiveUnavailable`,
+  "no answer rather than one without the older days"); the page's prebuilt answers then keep
+  the last whole ones, marked stale. A failed archive check is asked again after 30 seconds,
+  not 10 minutes. The MCP's own store already raised.
 
 ## Every consumer, every guarantee
 

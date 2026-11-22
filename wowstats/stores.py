@@ -56,6 +56,25 @@ class IncompleteRead(SourceError):
         super().__init__(f"more records in one second than a page of {page} holds: {where}")
 
 
+class ArchiveUnavailable(SourceError):
+    """A read whose range reaches the archive's days (older than
+    VL_ARCHIVE_AFTER_DAYS) while the archive doesn't answer. Raised rather
+    than answering from the recent store alone: a history without its
+    older days reads as fewer deaths, and the event cache took the missing
+    hours for retention and dropped them (review 6). A SourceError, so
+    every caller shows it as the store failing."""
+
+    def __init__(self, detail: str):
+        super().__init__(f"the archive of older days didn't answer: {detail}")
+
+
+# How long the archive's answer to "do you hold older days?" is kept; a
+# failed check is asked again sooner, so a read works again soon after the
+# archive is back.
+ARCHIVE_RECHECK_S = 600
+ARCHIVE_RETRY_S = 30
+
+
 # Blizzard's Developer API Terms: API data is kept 30 days at most.
 BNET_KEEP_S = 30 * 86400
 # Battle.net's class and race ids as the addons name them (the profile
@@ -77,6 +96,9 @@ def public_error(e: BaseException, where: str = "") -> str:
     if isinstance(e, IncompleteRead):
         return (f"no answer rather than a partial one: one second holds more records than a read can return "
                 f"({e.page}) (request {rid} in the server's log)")
+    if isinstance(e, ArchiveUnavailable):
+        return (f"no answer rather than one without the older days: the archive that holds them didn't answer; "
+                f"try again in a minute (request {rid} in the server's log)")
     return f"the data store didn't answer; try again in a minute (request {rid} in the server's log)"
 
 
@@ -569,12 +591,14 @@ class Store:
         return paged_read(lambda q, a, b, n: self.vl_raw(base, q, a, b, n), query, start, end, limit)
 
     def archive_status(self) -> tuple[bool, str | None]:
-        """Whether the archive holds events older than the recent store's window; checked every 10 min."""
+        """Whether the archive holds events older than the recent store's
+        window, and the error when it didn't answer; checked every
+        ARCHIVE_RECHECK_S, every ARCHIVE_RETRY_S after a failure."""
         if not self.vl_archive_url:
             return False, None
         st = self._archive
         with self._archive_lock:
-            if time.time() - st["checked"] < 600:
+            if time.time() - st["checked"] < (ARCHIVE_RETRY_S if st["error"] else ARCHIVE_RECHECK_S):
                 return st["has_old"], st["error"]
             now = datetime.now(UTC)
             try:
@@ -621,20 +645,30 @@ class Store:
 
     def _split(self, read, start: datetime | None, end: datetime | None) -> list[dict]:
         """read(base, start, end) on the recent store, and on the archive for
-        the part of the range older than hot_days when it holds any."""
+        the part of the range older than hot_days when it holds any.
+
+        A range that reaches the archive's days while the archive doesn't
+        answer (its check or its read) raises ArchiveUnavailable: never the
+        recent store's rows alone as if they were the whole history
+        (review 6). A range inside the recent days doesn't need it."""
         now = datetime.now(UTC)
         start, end = start or HISTORY_START, end or now
         cutoff = now - timedelta(days=self.hot_days)
-        use_archive, _ = self.archive_status()
+        use_archive, err = self.archive_status()
+        if err and start < cutoff:
+            raise ArchiveUnavailable(err)
         if not use_archive:
             return read(self.vl_url, start, end)
         rows = read(self.vl_url, max(start, cutoff), end) if end >= cutoff else []
         if start < cutoff:
             try:
                 rows = read(self.vl_archive_url, start, min(end, cutoff - timedelta(microseconds=1))) + rows
+            except IncompleteRead:
+                raise
             except SourceError as e:
                 with self._archive_lock:
                     self._archive.update(error=str(e), checked=time.time())
+                raise ArchiveUnavailable(str(e)) from None
         return rows
 
     def sources(self) -> dict:
