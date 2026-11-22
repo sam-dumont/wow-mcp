@@ -20,6 +20,13 @@ States:
   thing that brings it (wowstats.missing's list, the same the pages show);
 - unknown: the store didn't answer, so nothing can be said.
 
+`gear` and `polestar` also carry `parts`: {part: iso} for each part of
+their snapshots (the equipped `items`, the `bags`, the `bank`; the logout
+sheet's `money_copper`), each the time of the snapshot it was read from.
+A newer snapshot that lacks a part leaves it to an older one, and the part
+keeps that older time, so an answer can say "the bank as of a week ago"
+(review 6). A part no snapshot carries is left out: unknown.
+
 Everything is derived from what is stored, never assumed: `as_of` is the
 newest record, a gap is a finished level whose Polestar split (the game's
 played time) is longer than the Recorder's sessions in it (without Polestar
@@ -191,6 +198,41 @@ def bnet_of(store, char: str) -> dict | str | None:
         return {"error": True, "as_of": last} if last is not None else "unknown"
 
 
+# ---------------------------------------------------------------- snapshot parts
+
+
+def parts_of(rows: list[dict]) -> dict[str, dict[str, str]]:
+    """{source: {part: iso}}: each snapshot part's own observation time
+    (stores.part_rows) among wow-gear, wow-bags and wow-character rows."""
+    from wowstats import gear, stores
+
+    def times(feed: str, parts: tuple[str, ...]) -> dict[str, str]:
+        mine = [r for r in rows if r.get("feed") == feed and r.get("kind") != "played"]
+        return {p: _iso(parse_t(r.get("_time")).timestamp()) for p, r in stores.part_rows(mine, parts).items()}
+
+    return {"gear": {**times("wow-gear", gear.SHEET_PARTS), **times("wow-bags", gear.BAGS_PARTS)},
+            "polestar": times("wow-character", stores.SHEET_PARTS)}
+
+
+def read_parts(read, cf: str) -> dict[str, dict[str, str]]:
+    """parts_of() from a store: `read(query)` answers LogsQL after the
+    stream filter, `cf` the character filter (the rows in force only,
+    stores.in_force)."""
+    from wowstats import gear, stores
+
+    rows = [{**r, "feed": "wow-gear"} for r in gear.sheet_rows(read, cf, "_time, at_basis, source_id, items")]
+    rows += [{**r, "feed": "wow-character"} for r in stores.sheet_rows(read, cf)]
+    return parts_of(rows + gear.held_rows(read, cf))
+
+
+def with_parts(cov: dict, parts: dict[str, dict[str, str]]) -> dict:
+    """`cov` with each source's `parts` (parts_of), where it has any."""
+    for src, got in parts.items():
+        if got and src in cov:
+            cov[src] = {**cov[src], "parts": got}
+    return cov
+
+
 # ---------------------------------------------------------------- from raw events
 
 
@@ -213,7 +255,7 @@ def from_rows(rows: list[dict], char: str) -> dict:
     rec = [{"n": 1, "t0": r["_time"], "t1": r["_time"]} for r in rows if r.get("feed") == "wow-recorder"
            and r.get("_time")]
     levels = [r for r in rows if r.get("feed") == "wow-level"]
-    out = build(snap, char, recorder_gaps(split_sessions(rec), levels))
+    out = with_parts(build(snap, char, recorder_gaps(split_sessions(rec), levels)), parts_of(rows))
     out.pop("battlenet", None)
     out.pop("prices", None)
     return out

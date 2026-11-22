@@ -23,9 +23,6 @@ from wowstats.stores import (
     HISTORY_START,
     SESSION_BUCKET_OPS,
     SESSION_BUCKETS,
-    SHEET_QUERY,
-    SNAPSHOT_SORT,
-    SNAPSHOT_TAKE,
     ZONE_RECORDS,
     SourceError,
     Store,
@@ -40,6 +37,7 @@ from wowstats.stores import (
     pick_sheet,
     pick_splits,
     public_error,
+    sheet_rows,
     split_sessions,
     taxi_time,
     truthy,
@@ -240,20 +238,19 @@ class Views:
         st = self.stream
         rec = f'{st} feed:="wow-recorder" {cf}'
         sub = self.pool.submit
-        vl = self.vl
+        vl, own = self.vl, self.q
         jobs = {
             "levels": sub(vl, f'{st} feed:="wow-level" {cf} | fields _time, level, seconds, xp, quests, '
                               f"kills, partial, source_id"),
-            "snap": sub(vl, f'{st} feed:="wow-character" {cf} -kind:=played | {SHEET_QUERY}'),
+            "snap": sub(sheet_rows, own, cf),
             "xp": sub(vl, f"{rec} kind:in(xp, level) | fields _time, kind, level, xp, xp_max, rested_xp, zone "
                           f"| sort by (_time desc) | limit 1"),
             "dings": sub(vl, f"{rec} kind:=level | fields _time, level, source_id"),
             # Altoholic's /played (optional): the shipper's kind=played events.
             "played": sub(vl, f'{st} feed:="wow-character" {cf} kind:=played | fields _time, played_total_s, '
                               f"played_level_s, level | sort by (_time desc) | limit 50"),
-            "gear": sub(vl, f'{st} feed:="wow-gear" {cf} | fields _time, at_basis, source_id, items, item_level, '
-                            f"professions, wanted, spec, spec_from, polestar_spec, class, race, faction "
-                            f"| {SNAPSHOT_SORT} | limit {SNAPSHOT_TAKE}"),
+            "gear": sub(gearmod.sheet_rows, own, cf, "_time, at_basis, source_id, items, item_level, professions, "
+                                                   "wanted, spec, spec_from, polestar_spec, class, race, faction"),
             # The Recorder's skill records: each profession's cap (wowstats.profcaps).
             "skills": sub(vl, f"{rec} kind:=skill | fields _time, skill_id, rank, max_rank"),
             # Time per zone from the records' own times (stores.zone_time).
@@ -520,16 +517,16 @@ class Views:
         st = self.stream
         rec = f'{st} feed:="wow-recorder" {cf}'
         sub = self.pool.submit
-        vl = self.vl
+        vl, own = self.vl, self.q
         jobs = {
-            "gear": sub(vl, f'{st} feed:="wow-gear" {cf} | {gearmod.Q_SHEET}'),
-            "snap": sub(vl, f'{st} feed:="wow-character" {cf} -kind:=played | {SHEET_QUERY}'),
+            "gear": sub(gearmod.sheet_rows, own, cf),
+            "snap": sub(sheet_rows, own, cf),
             "xp": sub(vl, f"{rec} kind:in(xp, level, zone) | fields _time, kind, level, zone "
                           f"| sort by (_time desc) | limit 1"),
             # Quests already done (wowstats.quests): their rewards are gone.
             "done": sub(self.quests_history, char),
             # What the bags and the bank hold: those upgrades are an equip away.
-            "held": sub(vl, f"{st} {gearmod.Q_HELD.format(cf=cf)}"),
+            "held": sub(gearmod.held_rows, own, cf),
         }
         # What is on sale on the auction house (wowstats.ahsource): the
         # scans are the price list's own read.
@@ -1086,7 +1083,9 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
         # Gold comes from the account snapshot (PolestarDB.alts.chars, saved at
         # logout): the Recorder's money fields are quest rewards, not the purse.
         "money_copper": opt_num(snap.get("money_copper")),
-        "money_at": snap.get("_time"),
+        # The money's own time: from an older sheet when the newest has none
+        # (stores.newest_with), never the newer sheet's (review 6).
+        "money_at": (snap.get("part_at") or {}).get("money_copper"),
         "zone": top.get("zone") or snap.get("zone"),
         "seen": max(snap.get("_time") or "", xp.get("_time") or "", key=lambda s: parse_t(s)) or None,
         "time_in_level_s": current["seconds"] if current else current_s,

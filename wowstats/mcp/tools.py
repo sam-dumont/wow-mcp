@@ -25,12 +25,11 @@ from ..stores import (
     PLAYER_LEVEL_KINDS,
     SESSION_BUCKETS,
     SESSION_GAP_S,
-    SHEET_QUERY,
     SNAPSHOT_SORT,
-    SNAPSHOT_TAKE,
     ZONE_RECORDS,
     newest,
     pick_sheet,
+    sheet_rows,
     split_sessions,
     zone_time,
     zone_totals,
@@ -178,6 +177,11 @@ def rec(char: str) -> str:
     return f'feed:="wow-recorder" {cf(char)}'
 
 
+def one_row(st: Store):
+    """A reader of one row per store (stores.in_force: every query is a `limit 1`)."""
+    return lambda q: st.logs(q, limit=1)
+
+
 # ---------------------------------------------------------------- shared builders
 
 
@@ -228,7 +232,7 @@ def levels_rows(ctx: Ctx, char: str) -> list[dict]:
 def t_character_summary(ctx: Ctx, args: dict) -> dict:
     char = resolve_char(ctx, args)
     st = ctx.store
-    snap = st.logs(f'feed:="wow-character" {cf(char)} -kind:=played | {SHEET_QUERY}', limit=SNAPSHOT_TAKE)
+    snap = sheet_rows(one_row(st), cf(char))
     last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, kind, level, xp, xp_max, money_copper, "
                    f"zone | sort by (_time desc) | limit 1", limit=1)
     # One row per record, as dedupe() reads them: count_uniq(source_id) gave
@@ -817,10 +821,9 @@ def _gear_item(u: dict | None) -> dict | None:
 def t_gear(ctx: Ctx, args: dict) -> dict:
     char = resolve_char(ctx, args)
     st = ctx.store
-    picked = gearmod.pick_sheet(st.logs(f'feed:="wow-gear" {cf(char)} | {gearmod.Q_SHEET}', limit=SNAPSHOT_TAKE))
+    picked = gearmod.pick_sheet(gearmod.sheet_rows(one_row(st), cf(char)))
     rows = [picked] if picked else []
-    snap = [pick_sheet(st.logs(f'feed:="wow-character" {cf(char)} -kind:=played | {SHEET_QUERY}',
-                               limit=SNAPSHOT_TAKE))]
+    snap = [pick_sheet(sheet_rows(one_row(st), cf(char)))]
     worn = gearmod.armory_worn(st, char)
     worn_from = "sheet"
     if not gearmod.sheet_has_items(rows[0] if rows else None):
@@ -843,7 +846,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         rows = [row]
     last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, level, zone "
                    f"| sort by (_time desc) | limit 1", limit=1)
-    held = st.logs(gearmod.Q_HELD.format(cf=cf(char)), limit=SNAPSHOT_TAKE)
+    held = gearmod.held_rows(one_row(st), cf(char))
     # The Gear page's answer (Views.quests_done): the whole history, so a
     # reward sold or replaced since still counts, plus Battle.net's worn
     # items when this person lets them reach the model (bnet_vm_url).
@@ -1410,6 +1413,7 @@ def coverage_for(ctx: Ctx, char: str) -> dict | None:
     def build() -> dict:
         cov = coverage.build(_snapshot(ctx), char, recorder_gaps(ctx, char)[1],
                              coverage.bnet_of(_views(ctx).store, char))
+        coverage.with_parts(cov, coverage.read_parts(one_row(ctx.store), cf(char)))
         if ctx.store.vm_url and not bnet_vm_url(ctx):
             cov["battlenet"] = coverage.entry("unavailable", fix=BNET_AI_OFF)
         return cov
