@@ -168,7 +168,7 @@ Every step of the three scheduled modes, and which side it is on:
 | exports and test data | watch | the route, gear, forever, KB, class and trainer exports at the new tag, `bump.py regen` | deterministic: Polestar's own code |
 | addon contract | watch | `bump.py addons`: the `.toc` saved tables and the contract lines | deterministic: a text match |
 | client build | watch | `class_reference/export.py` against the new build, `bump.py regen` | deterministic: an export |
-| accept | all | `watch.py --accept`: the checked values into `watch.json`; for official pages, the version the model pass read (`--handoff`), never a fresh fetch | deterministic: state |
+| accept | all | `watch.py --accept`: into `watch.json`, each value as the step that processed it saw it (`--handoff` from the model pass, the addon bump or the class-reference export; `--release` for Polestar), never a fresh fetch | deterministic: state |
 | official pages, check | review | `watch.py --kinds official`: page text hash, a thread's post count | deterministic: a hash |
 | official pages, read | review, refresh | `refresh.py`: statements from the changed pages, a thread's new posts only | model: prose to statements |
 | reword | review, refresh | `refresh.reword`: one restatement of a proposal that copied its source | model: rewriting |
@@ -195,8 +195,8 @@ the review's):
 | Kind | The job | Refused when |
 |---|---|---|
 | `polestar` | `tools/kb/bump.py polestar <tag>` checks the release, writes the tag to `tools/polestar-tag` (and the clone lines and `THIRD_PARTY.md` that name it), clones Polestar there and reruns every export that reads it (route, gear and forever references, `kb-reference.json.gz`, the class and trainer references), then `watch.py --accept polestar`. Then `bump.py regen` reruns `tools/fixtures/generate.py` and the layer pages' snapshot (`WOW_UPDATE_SNAPSHOT=1`), as a person does after a bump. The exports run Polestar's own code, without the job's OIDC or runtime token in reach. The gates' test suite runs `tests/test_gear_parity.py` against that checkout. | its `Polestar.toc` saves other tables, a LICENSE, NOTICE or COPYING file changed (THIRD_PARTY.md copies them; a data notice line that only moved a source's `Revision:` or a count of names taken doesn't count, since every data build moves those), an export fails, or the fixture generator fails. Polestar is the source of truth: route times, levels and gear scores that move with a release are taken, and the test data moves with them (owner, 2026-11-22) |
-| `addons` | `bump.py addons` reads each new release's `.toc` and the source lines `watch.json`'s `contract` names (Questie: `Questie_Forever.toc`, and `Questie.db.char.complete = ` in `QuestieQuest.lua`, what `shipper/wow_stats.py` reads), then `watch.py --accept addons`. | a saved table is renamed or gone, or a contract line is gone |
-| `client-build` | `tools/class_reference/export.py` against the new build, `bump.py regen`, then `watch.py --accept client-build`. | the export fails, or the test data moved |
+| `addons` | `bump.py addons` reads each new release's `.toc` and the source lines `watch.json`'s `contract` names (Questie: `Questie_Forever.toc`, and `Questie.db.char.complete = ` in `QuestieQuest.lua`, what `shipper/wow_stats.py` reads), then `watch.py --accept addons --handoff <file>`: each addon at the release the bump checked, so one out since waits for the next run; an addon whose release couldn't be read stays pending (said on the issue). | a saved table is renamed or gone, or a contract line is gone |
+| `client-build` | `tools/class_reference/export.py` against the new build, `bump.py regen`, then `watch.py --accept client-build --handoff <file>`: the build the export read, never one wago.tools listed after it. | the export fails, or the test data moved |
 | `official` (review) | the model pass on the changed pages, its `refresh-<date>.json` folded into the lanes at once (`lifecycle.py --no-fetch`: a `supersedes` replaces its statement), then `watch.py --accept official --handoff <file>`: each page the pass read, at the version it read (a thread's post count when its topic was fetched, a page's text hash), so a post that arrives while the model reads is next week's. | the model pass isn't set up or fails, a fetch a page needs failed (a thread's new post answered 503: the thread stays pending, never "nothing new"; a deleted post, 404, is nothing to read), the model stopped without an answer, or its cost cap stopped it before a page |
 
 A release is read from the addon's repository at both tags through
@@ -403,9 +403,14 @@ By hand (a refused kind, once fixed), record the new state in the same PR
 so the issue closes:
 
 ```bash
-uv run python tools/kb/watch.py --accept client-build  # or polestar --release <tag>, addons
-uv run --group kb python tools/kb/refresh.py --handoff read.json <page key>   # official pages:
-uv run python tools/kb/watch.py --accept official --handoff read.json         # what the pass read
+# Each kind is accepted at what its step processed, never a fresh read:
+uv run python tools/kb/watch.py --accept polestar --release <tag>             # the tag bump.py checked
+uv run python tools/kb/bump.py addons --handoff seen.json                     # addons:
+uv run python tools/kb/watch.py --accept addons --handoff seen.json
+uv run python tools/class_reference/export.py --polestar <checkout> --handoff seen.json   # client build:
+uv run python tools/kb/watch.py --accept client-build --handoff seen.json
+uv run --group kb python tools/kb/refresh.py --handoff seen.json <page key>   # official pages:
+uv run python tools/kb/watch.py --accept official --handoff seen.json
 ```
 
 Not watched (no keyless release feed): Syndicator, Auctionator, Altoholic

@@ -264,8 +264,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          if uv run --frozen python tools/kb/bump.py addons --why "$WHY"; then
-            uv run --frozen python tools/kb/watch.py --accept addons
+          if uv run --frozen python tools/kb/bump.py addons --why "$WHY" --handoff "$RUNNER_TEMP/kb-handoff-addons.json"; then
+            uv run --frozen python tools/kb/watch.py --accept addons --handoff "$RUNNER_TEMP/kb-handoff-addons.json"
             git add -A && git commit -qm "Addon releases: what the shipper reads is unchanged"
           fi
 
@@ -275,8 +275,9 @@ jobs:
         run: |
           set -u
           if uv run --frozen python tools/class_reference/export.py --polestar "$RUNNER_TEMP/polestar" \
+              --handoff "$RUNNER_TEMP/kb-handoff-client.json" \
             && uv run --frozen python tools/kb/bump.py regen --as client-build --why "$WHY" \
-            && uv run --frozen python tools/kb/watch.py --accept client-build; then
+            && uv run --frozen python tools/kb/watch.py --accept client-build --handoff "$RUNNER_TEMP/kb-handoff-client.json"; then
             git add -A && git commit -qm "Client build: the class reference rerun"
           else
             git reset -q --hard HEAD && git clean -qfd
@@ -408,7 +409,9 @@ jobs:
         run: uv run --frozen python tools/kb/lifecycle.py --summary "$RUNNER_TEMP/meta-summary.md"
       - name: Remove the token and the collected text
         if: always()
-        run: rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/meta-items.json" "$RUNNER_TEMP/kb-refresh-read.json"
+        run: |
+          rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/meta-items.json" "$RUNNER_TEMP/kb-refresh-read.json" \
+            "$RUNNER_TEMP/kb-handoff-addons.json" "$RUNNER_TEMP/kb-handoff-client.json"
 
       - name: Sweep
         if: env.MODE == 'sweep' && steps.open.outputs.pr == ''

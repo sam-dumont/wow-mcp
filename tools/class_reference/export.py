@@ -28,6 +28,10 @@ Nothing here comes from a website's text. The same inputs give the same bytes:
 
     git clone --depth 1 --branch v0.4.2.2 https://github.com/fitzforge/polestar /tmp/polestar
     uv run python tools/class_reference/export.py --polestar /tmp/polestar
+
+`--handoff <file>` writes the client build the export read
+({"client-build": {"build": ...}}): the refresh job's accept records that
+build, never a newer one wago.tools listed meanwhile (tools/kb/watch.py).
 """
 
 from __future__ import annotations
@@ -197,6 +201,7 @@ def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--polestar", required=True, type=Path)
     ap.add_argument("--out", type=Path, default=OUT)
+    ap.add_argument("--handoff", type=Path, help="write the client build read, for watch.py --accept client-build")
     a = ap.parse_args(argv)
     root = a.polestar
     from wowstats import talents
@@ -245,6 +250,8 @@ def main(argv: list[str]) -> int:
         "zones": {str(k): v for k, v in sorted(zones.items())},
     }
     a.out.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
+    if a.handoff:
+        a.handoff.write_text(json.dumps({"client-build": {"build": str(build)}}) + "\n", encoding="utf-8")
     for c in CLASSES:
         n = sum(len(v) for v in by_class.get(c, {}).values())
         print(f"{c}: {len(ts[c])} trainers, {n} spells, {len(tal.get(c, {}))} talents")
