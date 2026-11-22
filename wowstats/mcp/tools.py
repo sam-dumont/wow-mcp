@@ -27,6 +27,7 @@ from ..stores import (
     SESSION_GAP_S,
     SNAPSHOT_SORT,
     ZONE_RECORDS,
+    jlist,
     newest,
     pick_sheet,
     sheet_rows,
@@ -639,31 +640,14 @@ def t_players(ctx: Ctx, args: dict) -> dict:
     info = st.logs(f'feed:="wow-player" {cf(char)} player:* | stats by (player) max(_time) as last_seen, '
                    f"max(level) as level, uniq_values(class) limit 3 as classes, uniq_values(zone) limit 8 as zones",
                    start, end)
-    per: dict[str, dict] = {}
-    for r in days:
-        p = r.get("player")
-        if not p or p == char or (name and name not in p.lower()):
-            continue
-        d = per.setdefault(p, {"days": set(), "grouped": 0, "sightings": 0, "contexts": {}})
-        n = int(num(r.get("n")))
-        d["days"].add((r.get("_time") or "")[:10])
-        d["sightings"] += n
-        ctxn = r.get("context") or "seen"
-        d["contexts"][ctxn] = d["contexts"].get(ctxn, 0) + n
-        if ctxn in GROUPED:
-            d["grouped"] += n
-    meta = {r.get("player"): r for r in info}
+    from wowstats import storemodels
+
+    per = storemodels.players(days, info, lambda p: p != char and (not name or name in p.lower()))
     out = []
     for p, d in per.items():
-        m = meta.get(p, {})
-        try:
-            classes = json.loads(m.get("classes") or "[]")
-            zones = json.loads(m.get("zones") or "[]")
-        except ValueError:
-            classes, zones = [], []
-        out.append({"player": p, "days": len(d["days"]), "grouped": d["grouped"], "sightings": d["sightings"],
-                    "contexts": d["contexts"], "last_seen": m.get("last_seen"), "level": opt_num(m.get("level")),
-                    "class": (classes or [None])[0], "zones": zones[:5]})
+        out.append({"player": p, "days": d["days"], "grouped": d["grouped"], "sightings": d["sightings"],
+                    "contexts": d["contexts"], "last_seen": d["last_seen"], "level": opt_num(d["level"]),
+                    "class": (jlist(d["classes"]) or [None])[0], "zones": jlist(d["zones"])[:5]})
     # Ties go to the one seen last, then by name: VictoriaLogs' stats rows
     # come in no set order, and the top `limit` changed from call to call
     # over the same events (recovery drill, 2026-11-22).
@@ -688,26 +672,21 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
         k = r.get("source_id") or json.dumps(r, sort_keys=True)
         if k not in best or num(r.get("rev")) >= num(best[k].get("rev")):
             best[k] = r
-    items: dict[str, dict] = {}
-    for r in best.values():
-        key = str(r.get("item_id") or r.get("item_key") or "")
-        name = r.get("item_name") or f"item {key}"
-        if not key or (want and want not in name.lower() and want != key):
-            continue
-        p = opt_num(r.get("price_copper"))
-        if p is None:
-            continue
-        d = items.setdefault(key, {"item": name, "item_id": opt_num(r.get("item_id")), "days": []})
-        d["days"].append((parse_t(r.get("_time")), p, opt_num(r.get("price_high_copper"))))
+    from wowstats import storemodels
+
     out = []
-    for d in items.values():
-        days = sorted(d.pop("days"))
-        t, p, hi = days[-1]
-        lows = [x[1] for x in days]
-        d.update({"latest": gold(p), "latest_copper": p, "latest_high": gold(hi), "latest_day": iso(t)[:10],
-                  "min": gold(min(lows)), "max": gold(max(lows)), "scan_days": len(days),
-                  "change_vs_first": gold(p - lows[0]) if len(lows) > 1 else None})
-        out.append(d)
+    for key, d in storemodels.prices(list(best.values())).items():
+        name = d["price_item"] or f"item {key}"
+        if want and want not in name.lower() and want != key:
+            continue
+        p, hi = opt_num(d["price_latest_copper"]), opt_num(d["price_latest_high_copper"])
+        out.append({"item": name, "item_id": opt_num(d["item_id"]), "latest": gold(p), "latest_copper": p,
+                    "latest_high": gold(hi), "latest_day": iso(datetime.fromtimestamp(d["price_latest_t"], UTC))[:10],
+                    "min": gold(d["price_min_copper"]), "max": gold(d["price_max_copper"]),
+                    "scan_days": d["price_scan_days"],
+                    # NULL with one scan day (the metric's min_evidence), as it was.
+                    "change_vs_first": gold(d["price_change_copper"]) if d["price_change_copper"] is not None
+                    else None})
     out.sort(key=lambda d: d["item"])
     note = None if out else "no Auctionator scans in that range (feed wow-prices)"
     return {"items": out[:limit], "total": len(out), "note": note,
@@ -777,9 +756,34 @@ def _with_text(w: dict | None) -> str | None:
             + "; ".join(_src_text(s) for s in w.get("sources") or []))
 
 
-def _gear_item(u: dict | None) -> dict | None:
+def gear_facts(advice: dict, char: str, items: list[dict]) -> tuple[dict, dict]:
+    """The gear answer's numbers read through the semantic layer's `worn`
+    and `upgrades` models, over this advice as a prep build holds it
+    (prep.advice_db: the gear is scored live, with this answer's level,
+    zone, quests, bags and auction house): per worn (slot_id, item_id) its
+    fit and who it's built for, per upgrade (item_id, slot_id) its gain,
+    share of the gear and the two BiS percents. `items`: every upgrade the answer
+    shows."""
+    from wowstats.analysis import prep, semantic
+    from wowstats.plan.facts import upgrade_facts, upgrade_key
+
+    ups = list({upgrade_key(u): u for u in items if u and u.get("item_id")}.values())
+    sem = semantic.local(prep.advice_db(advice, char, advice.get("class"), ups))
+    worn = {(r[0], r[1]): {"fit": r[2], "built_for": r[3]} for r in semantic.run(*sem, {
+        "metrics": ["worn_items"], "group_by": ["slot_id", "item_id", "fit", "built_for"]}, semantic.EVERY_ROW)["rows"]}
+    return worn, upgrade_facts(sem)
+
+
+def _gear_item(u: dict | None, up: dict | None = None) -> dict | None:
+    """One upgrade as the gear answer shows it; its numbers (gain, share of
+    the gear, BiS percents) from `up`, the upgrades model (gear_facts)."""
     if not u:
         return None
+    if up is not None:
+        from wowstats.plan.facts import upgrade_key
+
+        u = {**u, **up.get(upgrade_key(u), dict.fromkeys(
+            ("gain", "gain_share_pct", *gearmod.BADGE)))}
     out = {"item": u.get("name") or f"item {u['item_id']}", "item_id": u["item_id"], "quality": u.get("quality"),
            "slot": u.get("slot_name"), "level": u.get("level"), "gain_points": u.get("gain"),
            "gain_share_of_gear_pct": u.get("gain_share_pct"), "gain_pct_over_replaced": u.get("gain_pct"),
@@ -881,6 +885,19 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     # then the zone, and the limit holds.
     ups = sorted(a["upgrades"], key=lambda u: (not gearmod.is_held(u), not u["here"]))[:lim]
     sp = a["spec"]
+    buy = sorted((u for u in a["upgrades"] if gearmod.on_sale(u) and u.get("now")),
+                 key=lambda u: -(next(s for s in u["sources"] if s["kind"] == "ah").get("gain_per_gold") or 0))[:5]
+    worn, up = gear_facts(a, char, ups + buy + [x.get(k) for x in a["slots"] for k in ("best", "next")])
+
+    def worn_fit(x: dict) -> dict | None:
+        """The worn item's fit: for_you and built_for from the worn model, the words from the advice."""
+        cur = x["current"] or {}
+        f = _worn_fit(cur.get("fit"))
+        if f is None:
+            return None
+        w = worn.get((x["slot"], cur.get("item_id"))) or {}
+        return {**f, "for_you": w.get("fit"), "built_for": w.get("built_for")}
+
     return {
         **({} if worn_from == "sheet" else {
             **gearmod.unknown_worn(worn_from),
@@ -897,10 +914,10 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                    "worn_standing": (x.get("standing") or {}).get("label"),
                    # How the worn item fits the scored spec: a Shadow circlet on a Holy priest
                    # says so here, not only in the analysis brief.
-                   "worn_fit": _worn_fit((x["current"] or {}).get("fit") if x["current"] else None),
-                   "best_now": _gear_item(x["best"]), "next_within_3_levels": _gear_item(x["next"])}
+                   "worn_fit": worn_fit(x) if x["current"] else None,
+                   "best_now": _gear_item(x["best"], up), "next_within_3_levels": _gear_item(x["next"], up)}
                   for x in a["slots"]],
-        "next_upgrades": [_gear_item(u) for u in ups],
+        "next_upgrades": [_gear_item(u, up) for u in ups],
         "weapon_setups": [{"setup": x["setup"], "score": x["score"], "worn_now": x["worn"],
                            "parts": [{"item": p.get("name"), "item_id": p.get("item_id"), "score": p.get("score"),
                                       "have": p["have"], "level": p.get("level"),
@@ -908,9 +925,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                                      for p in x["parts"]]} for x in a.get("weapon_setups") or []],
         "weights_from": {k: a["band"].get(k) for k in ("label", "note", "source")} if a.get("band") else None,
         # On the auction house now: the most gain for the gold first.
-        "buy_now": [_gear_item(u) for u in sorted(
-            (u for u in a["upgrades"] if gearmod.on_sale(u) and u.get("now")),
-            key=lambda u: -(next(s for s in u["sources"] if s["kind"] == "ah").get("gain_per_gold") or 0))[:5]],
+        "buy_now": [_gear_item(u, up) for u in buy],
         "auction_house": _ah_summary(a.get("ah")),
         "role": sp.get("role") or "unknown: ask the player to pick a spec in settings",
         "how": "Polestar's own scoring and weights (its addon's Gear.lua, ported), with the stats the class can't "

@@ -374,25 +374,9 @@ def dungeon_runs(q: Q, cf: str) -> list[dict]:
     # one before it plus any change inside.
     rows = _sorted(q(f"{rec(cf)} kind:in(group, encounter, death) _time:[{iso(lo - timedelta(hours=6))}, {iso(hi)}] "
                      f"| fields _time, kind, size, raid, encounter_id, success, npc_id, npc_name, source_id"))
-    out = []
-    for r in runs:
-        t0 = parse_t(r.get("_time"))
-        t1 = t0 + timedelta(seconds=num(r.get("seconds")))
-        inside = [x for x in rows if t0 - timedelta(seconds=5) <= parse_t(x.get("_time")) <= t1]
-        groups = [x for x in rows if x.get("kind") == "group" and parse_t(x.get("_time")) <= t1]
-        prior = [x for x in groups if parse_t(x.get("_time")) < t0]
-        sizes = [int(num(x.get("size"))) for x in prior[-1:] + [x for x in groups if x in inside] if x.get("size")]
-        enc = [x for x in inside if x.get("kind") == "encounter"]
-        out.append({
-            "t": r.get("_time"), "name": r.get("name"), "level": opt_num(r.get("level")),
-            "seconds": int(num(r.get("seconds"))), "xp": int(num(r.get("xp"))),
-            "party_size": max(sizes) if sizes else None,
-            "bosses": sum(1 for x in enc if x.get("success") in ("true", "1")),
-            "wipes": sum(1 for x in enc if x.get("success") in ("false", "0")),
-            "deaths": sum(1 for x in inside if x.get("kind") == "death"),
-            "roster": None,
-        })
-    return out[::-1]
+    from wowstats import storemodels
+
+    return storemodels.run_groups(runs, rows)
 
 
 ROSTER_NOTE = ("Who was in the group isn't saved by any of the addons the kit reads: Polestar_Recorder keeps the "

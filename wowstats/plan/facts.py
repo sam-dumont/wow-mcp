@@ -87,19 +87,14 @@ def last_seen(store) -> str:
 def prices(store, days: int = 30) -> dict[int, dict]:
     """The player's own Auctionator scans: per item, the newest day's lowest
     buyout (copper), and the day."""
-    from wowstats.stores import dedupe, parse_t
+    from wowstats import storemodels
+    from wowstats.stores import dedupe
 
     rows = store.vl(f'{store.stream} feed:="wow-prices" _time:{days}d | fields _time, item_id, item_name, '
                     f"price_copper, rev, source_id")
-    best: dict[int, dict] = {}
-    for r in dedupe(rows):
-        iid, p = _i(r.get("item_id")), _i(r.get("price_copper"))
-        if iid is None or p is None:
-            continue
-        t = parse_t(r.get("_time")).timestamp()
-        if iid not in best or t >= best[iid]["t"]:
-            best[iid] = {"t": t, "copper": p, "name": r.get("item_name")}
-    return best
+    got = storemodels.prices([r for r in dedupe(rows) if _i(r.get("item_id")) is not None])
+    return {_i(d["item_id"]): {"t": d["price_latest_t"], "copper": _i(d["price_latest_copper"]),
+                               "name": d["price_item"]} for d in got.values()}
 
 
 def gather(env: dict, char: str | None = None, now: float | None = None, store=None, battlenet=None,
@@ -402,26 +397,86 @@ def cite(r: dict) -> dict:
     return {k: r.get(k) for k in ("name", "source_url", "source_type", "date", "confidence", "scope")}
 
 
-def riding_known(db) -> int:
+def semantic_of(db) -> tuple:
+    """The semantic layer and its runner over this prep build
+    (wowstats.analysis.semantic.local): the gold, loot, rested and riding
+    readers ask it, never the tables (owner, 2026-11-22: "use the semantic
+    model all the time"). extract makes it once and hands it to each."""
+    from wowstats.analysis import semantic
+
+    return semantic.local(db)
+
+
+def metric_row(sem: tuple, q: dict) -> dict:
+    """The one row of a query_metric question without group_by (or {})."""
+    from wowstats.analysis import semantic
+
+    got = semantic.run(*sem, q)
+    return dict(zip(got["columns"], got["rows"][0], strict=True)) if got["rows"] else {}
+
+
+def since_local(t: float) -> str:
+    """A Unix time as query_metric's `since`: the local time to the second,
+    in the zone the prep's local times are in."""
+    from zoneinfo import ZoneInfo
+
+    from wowstats.analysis import prep
+
+    return datetime.fromtimestamp(t, ZoneInfo(prep.TZ_NAME)).strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def riding_known(db, sem: tuple | None = None) -> int:
     """The riding skill the records saw (0: none): the client's Riding skill
-    line (kb.RIDING), as the shipper reports skill ranks."""
+    line (kb.RIDING), as the shipper reports skill ranks (skill_rank)."""
     from wowstats.analysis.kb import RIDING
 
-    return _i(one(db, "SELECT MAX(CAST(json_extract(extra, '$.rank') AS INTEGER)) FROM records WHERE kind='skill' "
-                      "AND CAST(json_extract(extra, '$.skill_id') AS TEXT) = ?", RIDING), 0) or 0
+    row = metric_row(sem or semantic_of(db), {"metrics": ["skill_rank"],
+                                              "where": [{"dimension": "skill_id", "op": "=", "value": int(RIDING)}]})
+    return _i(row.get("skill_rank"), 0) or 0
 
 
-def rested_burn(db) -> dict:
+def rested_burn(db, sem: tuple | None = None) -> dict:
     """How much rested XP his kills use, measured: over the 5-minute XP
     records where the rested pool went down, rested XP used against the kill
-    XP recorded in the same intervals (outside dungeons). No rule assumed."""
-    r = db.execute("""WITH x AS (SELECT t, rested_xp r, LAG(t) OVER (ORDER BY t) pt, LAG(rested_xp) OVER (ORDER BY t)
-                   pr FROM xp) SELECT COUNT(*), COALESCE(SUM(pr - r), 0), (SELECT COALESCE(SUM(k.xp_reward), 0)
-                   FROM records k WHERE k.kind='kill' AND k.dungeon_trip_id IS NULL AND EXISTS (SELECT 1 FROM x x2
-                   WHERE k.t > x2.pt AND k.t <= x2.t AND x2.pr > x2.r)) FROM x WHERE pr > r""").fetchone()
-    n, used, kill = r
-    return {"intervals": n, "rested_used": used, "kill_xp": kill,
-            "per_kill_xp": round(used / kill, 2) if kill and n >= 3 else None}
+    XP recorded in the same intervals (rested_per_kill_xp: intervals with a
+    kill inside a dungeon trip left out of both sides). No rule assumed."""
+    row = metric_row(sem or semantic_of(db), {"metrics": ["rested_intervals", "rested_used_xp", "rested_kill_xp",
+                                                          "rested_per_kill_xp"]})
+    burn = row.get("rested_per_kill_xp")
+    return {"intervals": row.get("rested_intervals") or 0, "rested_used": row.get("rested_used_xp") or 0,
+            "kill_xp": row.get("rested_kill_xp") or 0, "per_kill_xp": round(burn, 2) if burn is not None else None}
+
+
+def upgrade_key(u: dict) -> tuple:
+    """An upgrade's row key in the `upgrades` model: the item, the inventory
+    slot its gain is measured in (one ring or trinket of two) and, for a
+    one-hander, the other hand it is scored with."""
+    return u.get("item_id"), u.get("slot"), _i((u.get("with") or {}).get("item_id"))
+
+
+def upgrade_facts(sem: tuple) -> dict[tuple, dict]:
+    """Per upgrade_key, the `upgrades` model's numbers: gain, share of the
+    gear and the two BiS percents (delta_pct, their difference)."""
+    from wowstats.analysis import semantic
+
+    got = semantic.run(*sem, {"metrics": ["upgrade_gain", "upgrade_gain_share_pct", "upgrade_bis_pct",
+                                          "upgrade_bis_pct_worn"], "group_by": ["item_id", "slot_id", "with_item_id"]},
+                       semantic.EVERY_ROW)
+    out = {}
+    for iid, slot, with_id, gain, share, pct, worn in got["rows"]:
+        pct, worn = (None if v is None else int(v) for v in (pct, worn))
+        out[(iid, slot, with_id)] = {"gain": gain, "gain_share_pct": share, "bis_pct": pct, "bis_pct_worn": worn,
+                                     "delta_pct": None if pct is None else pct - (worn or 0)}
+    return out
+
+
+def upgrades(sem: tuple, advice_ups: list[dict]) -> list[dict]:
+    """The gear advice's upgrades (the build's upgrade_candidates came from
+    the same advice) with their numbers from the `upgrades` model
+    (upgrade_facts). An upgrade with no way to get it (no source, so no row)
+    is left out: nothing to plan."""
+    facts = upgrade_facts(sem)
+    return [{**u, **facts[k]} for u in advice_ups if (k := upgrade_key(u)) in facts]
 
 
 def route_levels(ref, meta: dict, level: int) -> dict:
@@ -466,27 +521,34 @@ def progress(db) -> list[dict]:
     return out
 
 
-def gold_rate(db, days: float = 14, now: float | None = None) -> dict:
-    """Net gold per online hour between logout snapshots: the money on the
-    newest one minus the oldest one in the window, over the online time
-    between (everything earned less everything spent)."""
-    now = now or time.time()
-    rows = q(db, "SELECT t, money_copper, online_s_since_prev, level, xp FROM snapshots WHERE t >= ? ORDER BY t",
-             now - days * 86400)
-    if len(rows) < 2:
-        return {"n": len(rows), "copper_per_hour": None}
-    online = sum(r[2] or 0 for r in rows[1:])
+def gold_rate(db, days: float = 14, now: float | None = None, sem: tuple | None = None) -> dict:
+    """Net gold per online hour between logout snapshots in the window: the
+    moves between consecutive snapshots (gold_moves) summed, over the online
+    time between them (everything earned less everything spent). The rate is
+    gold_per_online_hour: the moves the Recorder saw time for, on both sides."""
+    sem = sem or semantic_of(db)
+    since = since_local((now or time.time()) - days * 86400)
+    snap = metric_row(sem, {"metrics": ["snapshot_count", "snapshot_first_level", "snapshot_first_xp",
+                                        "snapshot_last_level", "snapshot_last_xp"], "since": since})
+    n = snap.get("snapshot_count") or 0
+    if n < 2:
+        return {"n": n, "copper_per_hour": None}
+    g = metric_row(sem, {"metrics": ["gold_moved_copper", "gold_move_online_s", "gold_changes", "gold_per_online_hour",
+                                     "gold_first_t", "gold_last_t"], "since": since})
+    online = g.get("gold_move_online_s") or 0
+    net = g.get("gold_moved_copper") or 0
+    rate = g.get("gold_per_online_hour")
     estimated = False
     if online <= 0:
         # No Recorder timeline: the played time between the two snapshots
         # from Polestar's level splits (seconds per XP of each level crossed).
-        online = played_between(db, (rows[0][3], rows[0][4]), (rows[-1][3], rows[-1][4])) or 0
+        online = played_between(db, (snap["snapshot_first_level"], snap["snapshot_first_xp"]),
+                                (snap["snapshot_last_level"], snap["snapshot_last_xp"])) or 0
         estimated = online > 0
-    net = rows[-1][1] - rows[0][1]
-    changes = sum(1 for a, b in zip(rows, rows[1:], strict=False) if a[1] != b[1])
-    return {"n": len(rows), "changes": changes, "net_copper": net, "online_s": round(online),
-            "copper_per_hour": round(net / online * 3600) if online > 0 else None,
-            "from_t": rows[0][0], "to_t": rows[-1][0], **({"estimated": True} if estimated else {})}
+        rate = net / online * 3600 if online > 0 else None
+    return {"n": n, "changes": g.get("gold_changes") or 0, "net_copper": net, "online_s": round(online),
+            "copper_per_hour": round(rate) if rate is not None else None,
+            "from_t": g.get("gold_first_t"), "to_t": g.get("gold_last_t"), **({"estimated": True} if estimated else {})}
 
 
 def played_between(db, a: tuple, b: tuple) -> float | None:
@@ -569,15 +631,21 @@ def trips(ask) -> list[dict]:
     return out
 
 
-def loot_value(db, cards, scans: dict, days: float = 14, now: float | None = None) -> dict:
+def loot_value(db, cards, scans: dict, days: float = 14, now: float | None = None, sem: tuple | None = None) -> dict:
     """What the questing loot was worth per online hour over the last days,
     outside dungeons: at a vendor (the client's sell price) and, for what he
-    scanned, at his own Auctionator prices."""
-    now = now or time.time()
-    t0 = now - days * 86400
-    online = one(db, "SELECT COALESCE(SUM(dur_s),0) FROM timeline WHERE t0 >= ? AND instance IS NULL", t0) or 0
-    rows = q(db, "SELECT li.item_id, SUM(li.count) FROM loot_items li JOIN records r ON r.rec_id = li.rec_id "
-                 "WHERE li.t >= ? AND r.dungeon_trip_id IS NULL GROUP BY li.item_id", t0)
+    scanned, at his own Auctionator prices. The items (looted_items outside
+    a dungeon trip) and the time (online_s outside a dungeon) are metrics."""
+    from wowstats.analysis import semantic
+
+    sem = sem or semantic_of(db)
+    since = since_local((now or time.time()) - days * 86400)
+    online = metric_row(sem, {"metrics": ["online_s"], "since": since,
+                              "where": [{"dimension": "dungeon", "op": "is null"}]}).get("online_s") or 0
+    got = semantic.run(*sem, {"metrics": ["looted_items"], "group_by": ["item_id"], "since": since,
+                              "where": [{"dimension": "trip_id", "op": "is null"},
+                                        {"dimension": "item_id", "op": "is not null"}]}, semantic.EVERY_ROW)
+    rows = [(r[0], r[1]) for r in got["rows"]]
     vendor = ah = 0
     items = []
     for iid, n in rows:
@@ -791,6 +859,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     now = now or time.time()
     scans = scans or {}
     cards = cards if cards is not None else card_lookup()
+    sem = semantic_of(db)
     quests_done = done
     if quests_done is None:
         quests_done = dict(q(db, "SELECT quest_id, source FROM quests_done"))
@@ -892,7 +961,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     tr = trips(ask)
     for t in tr:
         t["loot"] = run_loot(t, cards, scans)
-    ups = (advice or {}).get("upgrades_all") or []
+    ups = upgrades(sem, (advice or {}).get("upgrades_all") or [])
     for u in ups:
         u["ah_copper"] = (scans.get(u.get("item_id")) or {}).get("copper")
     from wowstats.analysis import standing
@@ -954,12 +1023,12 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         "dungeon_quests": dungeon_quests(knowledge, side, runs),
         "gear_score": (advice or {}).get("gear_score"),
         "quests_done": sorted(quests_done), "quests_done_from": quests.counts(quests_done),
-        "mount": {**mount_facts(knowledge), "riding_skill": riding_known(db)},
+        "mount": {**mount_facts(knowledge), "riding_skill": riding_known(db, sem)},
         "rules": {"quest_xp_share": cite(share_rule) | {"value": share_rule["value"]} if share_rule else None,
                   "rested_accrual": cite(acc) | {"value": acc["value"]} if acc else None},
-        "rested_burn": rested_burn(db),
+        "rested_burn": rested_burn(db, sem),
         "route_levels": route_levels(ref, meta, level),
-        "gold_rate": gold_rate(db, now=now), "loot_value": loot_value(db, cards, scans, now=now),
+        "gold_rate": gold_rate(db, now=now, sem=sem), "loot_value": loot_value(db, cards, scans, now=now, sem=sem),
         # What the plan acts on: findings judged under today's definitions
         # and the nudges standing on them (analysis.standing, review 6).
         "findings": [{"key": f.get("key"), "title": f.get("title"), "text": f.get("text")}

@@ -87,6 +87,11 @@ def t_list_metrics(ctx: T.Ctx, args: dict) -> dict:
             "views": [{"name": v["name"], "one_row_per": v["entity"], "description": v["description"],
                        "columns": [{k: c[k] for k in ("name", "unit", "description") if c.get(k)}
                                    for c in v["columns"]]} for v in semantic.views().values()],
+            "tool_metrics": [{k: m[k] for k in ("name", "model", "unit", "description", *semantic.FIELDS) if k in m}
+                             for m in semantic.store_catalogue()["metrics"]],
+            "tool_metrics_how": "The store models' metrics: what players, people, prices and talent_changes "
+                                "compute over the rows they read from the store for that one answer (nothing kept). "
+                                "Call those tools for them; query_metric and play_sql don't hold their rows.",
             "views_how": "The views per grain are these metrics compiled at one entity each, one row per key: read "
                          "them with play_sql (SELECT * FROM per_level WHERE level >= 30), before the raw tables. "
                          "Each metric column follows its metric's rules (eligibility, min_evidence).",

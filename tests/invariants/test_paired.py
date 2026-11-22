@@ -65,6 +65,8 @@ def ineligible(db, seed: int) -> None:
         for model, pred in (preds if isinstance(preds, dict) else {m["model"]: preds}).items():
             table = spec[model]["table"].removeprefix("sem_")
             cols = [c[1] for c in db.execute(f'PRAGMA table_info("{table}")')]
+            if not cols:
+                continue  # a model over a view of several tables (rested): its eligibility column is computed
             pk = next((c[1] for c in db.execute(f'PRAGMA table_info("{table}")') if c[5]), None)
             rows = db.execute(f'SELECT * FROM "{table}"').fetchall()
             if not rows:
@@ -160,6 +162,10 @@ def test_both_sides_read_the_eligible_rows(prep_db, whole, metric, request):
                                                                 strict=True)))
                 for r in sides["rows"]}
         have = {tuple(r[:len(by)]): r[len(by)] for r in got["rows"]}
+        if m.get("min_evidence"):  # below its evidence the metric is NULL by contract, whatever its sides say
+            ev = got["columns"].index(f"{metric}_evidence")
+            short = {tuple(r[:len(by)]) for r in got["rows"] if (r[ev] or 0) < m["min_evidence"]["at_least"]}
+            want = {k: None if k in short else v for k, v in want.items()}
         keys = {k for k, v in have.items() if v is not None} | {k for k, v in want.items() if v is not None}
         bad = {k: (have.get(k), want.get(k)) for k in keys if not _close(have.get(k), want.get(k))}
         assert not bad, f"{metric} by {by or 'nothing'}: the ratio differs from its sides over the eligible rows {bad}"

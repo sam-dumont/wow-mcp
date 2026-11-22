@@ -251,6 +251,7 @@ records:
     npc_level: {expr: _.npc_level, description: "That creature's level (a kill's creature, a death's likely killer)."}
     elite: {expr: _.elite, description: "1 when a kill's creature was an elite, a rare elite or a boss (classification e, R or b), else 0."}
     run: {expr: _.run_start, description: "The dungeon run the record falls in, named by when it started (unix seconds, as dungeon_runs names it), NULL outside a run."}
+    skill_id: {expr: _.skill_id, description: "The skill line of a skill record (762: Riding; the professions' own ids), else NULL."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
@@ -311,6 +312,11 @@ records:
       description: "The highest level among the likely killers 3 or more levels above the character: the level to come back at."
       metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: inferred, unit: level,
                  caveats: "Not additive: the largest of the group. NULL when no death of the group was to a creature 3+ levels above."}
+    skill_rank:
+      expr: _.skill_rank.max(where=_.kind == 'skill')
+      description: "The highest rank the skill records saw: group or filter by skill_id (Riding is 762)."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: rank,
+                 caveats: "Only ranks the Recorder saw change: a skill learned before it ran and never raised since has no record. NULL without a skill record."}
   calculated_measures:
     quest_xp_share:
       expr: _.quest_xp / (_.quest_xp + _.kill_xp)
@@ -528,6 +534,26 @@ snapshots:
                  caveats: "Not additive: a week's delta is not the sum of its days (the change between days is in neither). NULL with fewer than two snapshots with money at different times in the group: gold_delta_copper_evidence beside it counts them (0: no snapshot, 1: one, not enough).",
                  min_evidence: {count: "_.t.nunique(where=_.money_copper.notnull())", at_least: 2,
                    means: "two snapshots with money, taken at different times"}}
+    snapshot_first_level:
+      expr: _.level.argmin(_.t)
+      description: "The level on the group's first snapshot."
+      metadata: {kind: simple, aggregation: earliest, time_meaning: snapshot_observation, evidence_basis: observed, unit: level,
+                 caveats: "A point, not a sum: the first sheet of the group (with snapshot_first_xp, where the character stood)."}
+    snapshot_first_xp:
+      expr: _.xp.argmin(_.t)
+      description: "The XP into its level on the group's first snapshot."
+      metadata: {kind: simple, aggregation: earliest, time_meaning: snapshot_observation, evidence_basis: observed, unit: xp,
+                 caveats: "Read it with snapshot_first_level."}
+    snapshot_last_level:
+      expr: _.level.argmax(_.t)
+      description: "The level on the group's last snapshot."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: level,
+                 caveats: "A point, not a sum: the newest sheet of the group."}
+    snapshot_last_xp:
+      expr: _.xp.argmax(_.t)
+      description: "The XP into its level on the group's last snapshot."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: xp,
+                 caveats: "Read it with snapshot_last_level."}
 
 quests:
   table: sem_quests
@@ -632,16 +658,104 @@ gold_moves:
       description: "The purse's change no record explains, copper: gold_moved_copper minus gold_quest_copper."
       metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: inferred, unit: copper,
                  caveats: "Loot coin, vendor and auction sales and mail in, less repairs, vendor purchases, training, flights, auction deposits and mail out, all together. No addon the kit reads saves spending (the Recorder has quest money only; Auctionator saves prices, not sales), so this is never repairs. A move counts in the level of its first snapshot: filter dings = 0 for moves inside one level."}
+    gold_move_online_s:
+      expr: _.online_s.sum()
+      description: "Online seconds (timeline) between the two snapshots of each move, summed."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "0 for a move the Recorder didn't see (switched off, or not installed): the money moved, the time is unknown."}
+    gold_changes:
+      expr: _.t0.count(where=_.delta_copper != 0)
+      description: "Moves where the purse changed."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: moves,
+                 caveats: "A move that earned and spent the same counts as no change."}
+    gold_first_t:
+      expr: _.t0.min()
+      description: "When the group's first move started: its first snapshot, Unix seconds."
+      metadata: {kind: simple, aggregation: min, time_meaning: snapshot_observation, evidence_basis: observed, unit: unix seconds,
+                 caveats: "An edge of the window, not a measure of it."}
+    gold_last_t:
+      expr: _.t1.max()
+      description: "When the group's last move ended: its last snapshot, Unix seconds."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: unix seconds,
+                 caveats: "An edge of the window, not a measure of it."}
+  calculated_measures:
+    gold_per_online_hour:
+      expr: _.gold_moved_copper / (_.gold_move_online_s / 3600)
+      description: "Net gold per online hour: gold_moved_copper over gold_move_online_s, copper an hour."
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: snapshot_observation, evidence_basis: reconstructed, unit: copper/hour,
+                 caveats: "Everything earned less everything spent. NULL when no move has online time (no Recorder): the plan then estimates the time from the level splits.",
+                 eligibility: {where: "_.online_s > 0",
+                   means: "Moves with online time the Recorder saw: the money and the hours come from the same moves. A move it missed would add money with no time."}}
+
+rested:
+  table: sem_rested
+  description: "The intervals between two Recorder XP records (about 5 minutes) in which the rested pool went down: how much it went down and the kill XP of the same interval."
+  dimensions:
+    level: {expr: _.level, is_entity: true, description: "Character level."}
+    zone: {expr: _.zone, description: "Zone name."}
+    session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "The XP record that ends the interval, local time."}
+  measures:
+    rested_intervals:
+      expr: _.t.count()
+      description: "Intervals in which the rested pool went down."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: intervals,
+                 caveats: "Only while the Recorder ran: its XP records bound the intervals."}
+    rested_used_xp:
+      expr: _.rested_used.sum()
+      description: "Rested XP used: how far the pool went down, summed over the intervals."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: xp,
+                 caveats: "Kills inside a dungeon trip use it too: rested_per_kill_xp leaves those intervals out."}
+    rested_kill_xp:
+      expr: _.kill_xp.sum()
+      description: "Kill XP recorded in the same intervals, outside dungeon trips (kill records' xp_reward)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: xp,
+                 caveats: "Rested bonus included, as the game reports it."}
+  calculated_measures:
+    rested_per_kill_xp:
+      expr: _.rested_used_xp / _.rested_kill_xp
+      description: "Rested XP used per point of kill XP: rested_used_xp over rested_kill_xp, measured, no rule assumed."
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: event, evidence_basis: observed, unit: xp/xp,
+                 caveats: "NULL without outdoor kill XP, or with fewer than three intervals to measure.",
+                 eligibility: {where: "_.trip_kill_xp == 0",
+                   means: "Intervals with no kill inside a dungeon trip: the rested used and the kill XP are of the same kills."},
+                 min_evidence: {count: "_.t.count(where=_.trip_kill_xp == 0)", at_least: 3,
+                   means: "three intervals outside dungeon trips where the pool went down"}}
+
+loot:
+  table: sem_loot
+  description: "Every item the Recorder saw looted (loot_items), with the record it came in."
+  dimensions:
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
+    trip_id: {expr: _.dungeon_trip_id, description: "The dungeon trip it was looted on (dungeon_trips.trip_id), NULL outside one."}
+    level: {expr: _.level, is_entity: true, description: "Character level."}
+    zone: {expr: _.zone, description: "Zone name."}
+    session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When it was looted, local time."}
+  measures:
+    looted_items:
+      expr: _.n.sum()
+      description: "Items looted, a stack counted by its size."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: items,
+                 caveats: "Only what the Recorder saw; what it is worth is the item's (vendor price, the player's own scans), not here."}
 
 upgrades:
   table: sem_upgrades
   description: "The gear advice's upgrades for the spec the gear is scored for (the player's WEIGHTS setting, else the talents): one row per item and source, items within 3 levels. The decision data behind 'what should I equip next and where do I get it'."
   dimensions:
     slot: {expr: _.slot_name, description: "The slot the item would go in (Head, Chest, Finger...; both rings are Finger)."}
+    slot_id: {expr: _.slot, description: "The inventory slot 1-19: which of two rings (11, 12) or trinkets (13, 14) it is measured against or worn in."}
     item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
     item: {expr: _.name, description: "Item name."}
     fit: {expr: _.fit, description: "How the item fits the scored spec: yes (built for it), any, spec (built for another spec of the class), class (made for another class), unknown."}
     now: {expr: _.now, description: "1 when the character can wear it at its level now, 0 within 3 levels."}
+    with_item_id: {expr: _.with_item_id, description: "For a one-hander: the item in the other hand it is scored with (a weapon is a whole setup), NULL alone or for any other slot."}
     rank_now: {expr: _.rank_now, description: "The item's place in its slot among the upgrades wearable now, by gain: 1 is the biggest. NULL for an item not wearable yet. Filter rank_now <= 3 for each slot's top three."}
     fills_empty: {expr: _.fills_empty, description: "1 when the slot is empty now."}
     source: {expr: _.source_text, description: "One source in the gear advice's words: 'drop: Fallen Champion in Scarlet Monastery: Library (dungeon, levels 30-38), 38.5%', 'quest ...', 'craft: Tailoring 150; ...', 'in your bags: equip it'."}
@@ -657,6 +771,11 @@ upgrades:
       description: "Score gain over what is worn in the slot (Polestar's points, for the scored spec): the biggest in the group."
       metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: points,
                  caveats: "The gear advice as of the newest character sheet, scored with the weights the player chose. Not additive: two items for one slot are alternatives. Group by item_id for one item's gain."}
+    upgrade_gain_share_pct:
+      expr: _.gain_share_pct.max()
+      description: "The item's gain as a percent of the score of everything worn now."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: percent,
+                 caveats: "Lead with it and upgrade_gain; a percent over the replaced item misleads against a weak one. Group by item_id."}
     upgrade_bis_pct:
       expr: _.bis_pct.max()
       description: "The item's score as a percent of the best its slot can hold at this level for the scored spec (100: the best)."
@@ -698,6 +817,7 @@ worn:
   description: "The items worn on the newest character sheet, as the gear advice scores them for the spec the gear is scored for."
   dimensions:
     slot: {expr: _.slot_name, description: "The slot it is worn in (Head, Chest, Finger...; both rings are Finger)."}
+    slot_id: {expr: _.slot, description: "The inventory slot 1-19: which of two rings (11, 12) or trinkets (13, 14) it is measured against or worn in."}
     item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
     item: {expr: _.name, description: "Item name."}
     fit: {expr: _.fit, description: "How the worn item fits the scored spec: yes (built for it), any, spec (built for another spec of the class), class (made for another class), unknown."}
@@ -780,11 +900,13 @@ cross_model_metrics:
 views:
   per_level:
     entity: level
-    description: "One row per level: time played, wall clock and the longest silence, how much of it the Recorder saw, deaths, the route plan against the play, quests and gold."
+    description: "One row per level: time played, wall clock and the longest silence, how much of it the Recorder saw, deaths, the route plan against the play, quests, gold and its rate, loot, and the rested XP the kills used."
     dimensions: [partial]
     where: [{dimension: level, op: is not null}]
     metrics: [played_s, calendar_s, offline_s, longest_gap_s, recorder_missed_s, recorder_coverage, online_s, deaths,
-              deaths_per_online_hour, planned_s, vs_route, split_quests, quests_done, gold_moved_copper, gold_delta_copper]
+              deaths_per_online_hour, planned_s, vs_route, split_quests, quests_done, gold_moved_copper, gold_delta_copper,
+              gold_changes, gold_move_online_s, gold_per_online_hour, looted_items, rested_used_xp, rested_kill_xp,
+              rested_per_kill_xp]
   per_session:
     entity: session_id
     description: "One row per login span: its length and XP, online, active, combat and dungeon time, kills, deaths and quests."
@@ -818,3 +940,170 @@ views:
     where: [{dimension: slot, op: is not null}]
     metrics: [worn_items, worn_item, worn_item_id, worn_fit, worn_item_bis_pct, best_upgrade, best_upgrade_id,
               best_upgrade_gain, best_upgrade_bis_pct, upgrade_bis_pct_worn, upgrade_sources]
+
+# Store models (owner, 2026-11-22: every tool reads through the semantic
+# layer). What a tool reads from the store itself, not the prep: other
+# players, the player's own price scans, the talent changes, the groups in a
+# dungeon run. Each declares the `columns` of the relation its tool fetches
+# for one answer; semantic.py `read` loads those rows into an in-memory
+# DuckDB for that call only and compiles the question as query_metric does,
+# contract included. Read only: nothing is copied or kept, the store's own
+# retention holds (Battle.net's talent readings stay its 30 days, read live).
+# list_metrics lists them; query_metric doesn't read them (no prep holds
+# their rows).
+store_models:
+  players:
+    table: sem_players
+    description: "Other players Polestar saw (update.probed, feed wow-player): one row per player, context and day, with that day's sightings and the player's last known level, class, race and zones."
+    columns: {player: TEXT, context: TEXT, day: TEXT, sightings: INTEGER, last_seen: TEXT, level: REAL,
+              classes: TEXT, races: TEXT, zones: TEXT}
+    dimensions:
+      player: {expr: _.player, description: "The other player's name."}
+      context: {expr: _.context, description: "Where Polestar saw them: seen, grouped, dungeon, quest-nearby..."}
+      day: {expr: _.day, description: "The day of the sightings, YYYY-MM-DD (UTC)."}
+      classes: {expr: _.classes, description: "The classes seen for the player, a JSON list (up to 3)."}
+      races: {expr: _.races, description: "The races seen for the player, a JSON list (up to 3)."}
+      zones: {expr: _.zones, description: "The zones the player was seen in, a JSON list."}
+    measures:
+      player_sightings:
+        expr: _.sightings.sum()
+        description: "Sightings: the update.probed saves that listed the player, summed."
+        metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: sightings,
+                   caveats: "Polestar saves its list on logout and /reload: a long evening with one player counts once."}
+      player_grouped_sightings:
+        expr: _.sightings.sum(where=(_.context == 'grouped') | (_.context == 'dungeon'))
+        description: "Sightings in a group or a dungeon (contexts grouped and dungeon)."
+        metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: sightings,
+                   caveats: "NULL when never grouped."}
+      player_days:
+        expr: _.day.nunique()
+        description: "Days the player was seen."
+        metadata: {kind: simple, aggregation: count_distinct, time_meaning: event, evidence_basis: observed, unit: days,
+                   caveats: "Not additive across players: two players on one day are one day each."}
+      player_group_days:
+        expr: _.day.nunique(where=(_.context == 'grouped') | (_.context == 'dungeon'))
+        description: "Days the player was seen in a group or a dungeon."
+        metadata: {kind: simple, aggregation: count_distinct, time_meaning: event, evidence_basis: observed, unit: days,
+                   caveats: "0 when never grouped."}
+      player_last_seen:
+        expr: _.last_seen.max()
+        description: "When the player was last seen, UTC ISO time."
+        metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: time,
+                   caveats: "The newest save that listed them, whatever the context."}
+      player_level:
+        expr: _.level.max()
+        description: "The highest level the saves gave the player."
+        metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: level,
+                   caveats: "Polestar names most players without a level: NULL then."}
+
+  prices:
+    table: sem_prices
+    description: "The player's own Auctionator scans (feed wow-prices): one row per item and scan day, its newest revision, with the day's lowest buyout per unit. Nothing from Blizzard's API."
+    columns: {item_key: TEXT, item: TEXT, item_id: INTEGER, t: REAL, price_copper: INTEGER, price_high_copper: INTEGER}
+    dimensions:
+      item_key: {expr: _.item_key, description: "The item: its id, else Auctionator's own key."}
+      item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>), NULL for a key Auctionator alone knows."}
+    measures:
+      price_scan_days:
+        expr: _.t.count()
+        description: "Scan days: one per item and day the player scanned it."
+        metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: days,
+                   caveats: "Only the days the player opened the auction house with Auctionator."}
+      price_item:
+        expr: _.item.argmax(_.t)
+        description: "The item's name on its newest scan."
+        metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: name,
+                   caveats: "NULL when the scan didn't name it."}
+      price_latest_copper:
+        expr: _.price_copper.argmax(_.t)
+        description: "The lowest buyout per unit on the newest scan day, copper."
+        metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                   caveats: "What was listed that day, not what sold: an auction lasts 24 h at most."}
+      price_latest_high_copper:
+        expr: _.price_high_copper.argmax(_.t)
+        description: "The highest buyout per unit on the newest scan day, copper."
+        metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                   caveats: "NULL when the scan kept only the lowest."}
+      price_latest_t:
+        expr: _.t.max()
+        description: "The newest scan day's time, Unix seconds."
+        metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: unix seconds,
+                   caveats: "A day's scans count at the day's newest revision."}
+      price_min_copper:
+        expr: _.price_copper.min()
+        description: "The lowest of the days' lowest buyouts, copper."
+        metadata: {kind: simple, aggregation: min, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                   caveats: "Over the scan days in the range only."}
+      price_max_copper:
+        expr: _.price_copper.max()
+        description: "The highest of the days' lowest buyouts, copper."
+        metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                   caveats: "Over the scan days in the range only."}
+      price_change_copper:
+        expr: _.price_copper.argmax(_.t) - _.price_copper.argmin(_.t)
+        description: "The lowest buyout on the newest scan day minus on the first, copper."
+        metadata: {kind: derived, aggregation: endpoint_difference, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                   caveats: "Two days only, never a trend. NULL with one scan day: price_change_copper_evidence counts them.",
+                   min_evidence: {count: "_.t.count()", at_least: 2, means: "two scan days"}}
+
+  talent_changes:
+    table: sem_talent_changes
+    description: "The character's talent changes (wowstats.talents.history): one row per change between two saved builds, WoWSims Exporter's (every change) or Battle.net's daily reads (the last 3 weeks, read live, never kept). The trees and talents of each change are JSON lists."
+    columns: {t: TEXT, date: TEXT, before: TEXT, after: TEXT, gained: TEXT, dropped: TEXT, ranks_gained: INTEGER,
+              ranks_dropped: INTEGER}
+    dimensions:
+      change: {expr: _.t, description: "When the build with the change was saved or read, UTC ISO time."}
+      date: {expr: _.date, description: "That day, YYYY-MM-DD."}
+      before: {expr: _.before, description: "Points per tree before, a JSON list of {tree, points} in the frame's tab order."}
+      after: {expr: _.after, description: "Points per tree after, the same shape."}
+      gained: {expr: _.gained, description: "Talents gained or ranked up, a JSON list of {name, spell, from, to}."}
+      dropped: {expr: _.dropped, description: "Talents dropped or ranked down, the same shape."}
+    measures:
+      talent_change_count:
+        expr: _.t.count()
+        description: "Changes: builds that differ from the one before."
+        metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: changes,
+                   caveats: "Battle.net reads once a day: two changes in a day are one."}
+      talent_ranks_gained:
+        expr: _.ranks_gained.sum()
+        description: "Ranks gained: each gained talent's new rank minus its old one, summed."
+        metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: ranks,
+                   caveats: "A respec gains and drops at once: read it with talent_ranks_dropped."}
+      talent_ranks_dropped:
+        expr: _.ranks_dropped.sum()
+        description: "Ranks dropped: each dropped talent's old rank minus its new one, summed."
+        metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: ranks,
+                   caveats: "Read it with talent_ranks_gained."}
+
+  run_groups:
+    table: sem_run_groups
+    description: "Each dungeon run (Polestar's instanceRuns, feed wow-dungeon) with the Recorder's group, encounter and death records that belong to it: the group record in force when it began and the ones inside. No names: no addon saves the party."
+    columns: {run: TEXT, dungeon: TEXT, level: REAL, seconds: INTEGER, xp: INTEGER, kind: TEXT, size: INTEGER,
+              success: TEXT}
+    dimensions:
+      run: {expr: _.run, description: "When the run began, UTC ISO time: one run."}
+      dungeon: {expr: _.dungeon, description: "Dungeon name."}
+      level: {expr: _.level, description: "Character level at the run."}
+      seconds: {expr: _.seconds, description: "The run's length, seconds (Polestar's)."}
+      xp: {expr: _.xp, description: "XP gained in the run (Polestar's)."}
+    measures:
+      run_party_size:
+        expr: _.size.max(where=_.kind == 'group')
+        description: "The largest party during the run."
+        metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: players,
+                   caveats: "NULL without a group record before or inside it (the Recorder off)."}
+      run_bosses:
+        expr: _.kind.count(where=(_.kind == 'encounter') & ((_.success == 'true') | (_.success == '1')))
+        description: "Boss fights won in the run."
+        metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: bosses,
+                   caveats: "Encounter records only: a boss the game doesn't flag as one isn't counted."}
+      run_wipes:
+        expr: _.kind.count(where=(_.kind == 'encounter') & ((_.success == 'false') | (_.success == '0')))
+        description: "Boss fights lost in the run."
+        metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: wipes,
+                   caveats: "Encounter records only."}
+      run_deaths:
+        expr: _.kind.count(where=_.kind == 'death')
+        description: "The character's deaths in the run."
+        metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: deaths,
+                   caveats: "The character's own, not the party's."}
