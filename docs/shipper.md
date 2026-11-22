@@ -270,9 +270,8 @@ usual install places), `archive_dir`, `wtf_archive` (default `true`),
   ([Back up and restore](self-host/backup.md#restore)). Writes nothing on the PC
   and doesn't need the WoW folder.
 - `--reextract`: read every archived version again from scratch, with a
-  record of its own, and send it all, then do a normal run. For a server to
-  refill when `sent/` is gone too. The re-read leaves `state.json` alone; the
-  normal run after it updates it as usual.
+  record of its own, and send it all. For a server to refill when `sent/` is
+  gone too. `state.json` stays byte for byte as it was.
 - `--prefill`: sends the [3D view's files](#the-3d-views-files) and the [item facts](#item-facts)
   the server still lacks, now (the background runs wait up to a day), prints how many
   went and exits. Events stay with the background runs.

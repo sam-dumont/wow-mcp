@@ -2439,6 +2439,32 @@ def reextract(tree: Path, out: Out) -> None:
     log(f"reextract: {sum(out.counts.values())} events from the archive and the current files")
 
 
+def reextract_run(tree: Path, ship_it: bool) -> int:
+    """--reextract as a whole run: the re-read (reextract) with its own
+    checkpoint, a setup report, the spool, the send. state.json is neither
+    read nor written (#77): it used to end with a normal run that advanced
+    it, so the next background run skipped play only the recovery had sent
+    (recovery drill, 2026-11-22). The 3D files, item facts and update check
+    wait for that background run."""
+    out = Out(dry=False)
+    try:
+        reextract(tree, out)
+        setup_event({}, out, force=True)
+    except Exception:  # noqa: BLE001 - what is spooled from before still ships
+        out.discard()
+        log("reextract failed; sending what is spooled:\n" + traceback.format_exc())
+        if ship_it:
+            ship()
+        return 1
+    spooled = out.close()
+    if spooled:
+        log(f"extract: {spooled.name}:", json.dumps(dict(sorted(out.counts.items()))))
+        log(f"extract: {spooled.name}:", out.summary())
+    if ship_it:
+        ship()
+    return 0
+
+
 # ---------------------------------------------------------------------------
 # Ship
 # ---------------------------------------------------------------------------
@@ -5030,14 +5056,15 @@ def main() -> int:
         log("git not found: no WTF archive this run")
         tree = WOW / "WTF"
 
+    if a.reextract:
+        return reextract_run(tree, ship_it=not a.no_ship)
+
     state = load_state()
     out = Out(dry=False)
     failed = False
     try:
         if a.backfill:
             backfill(state, out)
-        if a.reextract:
-            reextract(tree, out)
         step("Polestar Client", load_client, state)  # after the backfill: the current tree's pass takes them, once
         extract_tree(tree, state, out)
         ours, latest = our_characters(tree)

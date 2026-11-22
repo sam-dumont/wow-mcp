@@ -98,10 +98,9 @@ uv run --script ~/.local/share/wow-stats/wow_stats.py --reextract
 ```
 
 It reads every archived version of the game files again from scratch and sends what it finds,
-with a record of its own: that re-read never touches `state.json`. The same command then does
-what a background run does (read the game files, send what's new), and that part updates
-`state.json` as usual, so the next background run carries on where it stopped. Never delete
-`state.json` for a restore.
+with a record of its own. It never reads or writes `state.json`, so the next background run
+carries on where it stopped (and sends the 3D files and item facts, which `--reextract` leaves
+to it). Never delete `state.json` for a restore.
 
 It writes the events as today's shipper does: quest, NPC and item names come from the data
 addons installed now, and a snapshot an older version sent under another id comes back under

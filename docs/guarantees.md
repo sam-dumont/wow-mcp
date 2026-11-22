@@ -226,6 +226,9 @@ What the drill found:
   nothing (#94).
 - The MCP's `players` gave another top 20 on each call when players tied, and `zones` failed on
   a `NaN` from the store (#95).
-- The restore page said a second replay "isn't stored twice" (it is, counted once) and that
-  `--reextract` leaves `state.json` as it was (its re-read does; the normal run it ends with
-  updates it). Both fixed in the page.
+- The restore page said a second replay "isn't stored twice" (it is, counted once): fixed in
+  the page.
+- `--reextract` ended with a normal run that advanced `state.json` (the bags, gear and quest
+  checkpoints, the Recorder context, the setup report), against #77's own-checkpoint design: a
+  background run after it skipped play only the recovery had sent. It now leaves `state.json`
+  byte for byte as it was.
