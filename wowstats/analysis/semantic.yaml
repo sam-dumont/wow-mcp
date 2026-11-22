@@ -26,7 +26,9 @@
 # Five more keys turn caveats into rules the compiler enforces (review 4,
 # 2026-11-21: vs_route read the level in play's plan against no played time,
 # and one snapshot gave a money change of 0):
-# - `aggregation`: sum, ratio_of_sums, latest or endpoint_difference.
+# - `aggregation`: sum, ratio_of_sums, latest, endpoint_difference or max
+#   (the largest in the group: a per-item fact the gear models repeat on
+#   each row of the item, or a slot's best).
 # - `time_meaning`: what `time` is for this metric: interval_start,
 #   level_completion, snapshot_observation, quest_closure or event (a list,
 #   one per model, for a cross-model metric).
@@ -547,6 +549,75 @@ gold_moves:
       description: "The purse's change no record explains, copper: gold_moved_copper minus gold_quest_copper."
       metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: inferred, unit: copper,
                  caveats: "Loot coin, vendor and auction sales and mail in, less repairs, vendor purchases, training, flights, auction deposits and mail out, all together. No addon the kit reads saves spending (the Recorder has quest money only; Auctionator saves prices, not sales), so this is never repairs. A move counts in the level of its first snapshot: filter dings = 0 for moves inside one level."}
+
+upgrades:
+  table: sem_upgrades
+  description: "The gear advice's upgrades for the spec the gear is scored for (the player's WEIGHTS setting, else the talents): one row per item and source, items within 3 levels. The decision data behind 'what should I equip next and where do I get it'."
+  dimensions:
+    slot: {expr: _.slot_name, description: "The slot the item would go in (Head, Chest, Finger...; both rings are Finger)."}
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
+    item: {expr: _.name, description: "Item name."}
+    fit: {expr: _.fit, description: "How the item fits the scored spec: yes (built for it), any, spec (built for another spec of the class), class (made for another class), unknown."}
+    now: {expr: _.now, description: "1 when the character can wear it at its level now, 0 within 3 levels."}
+    rank_now: {expr: _.rank_now, description: "The item's place in its slot among the upgrades wearable now, by gain: 1 is the biggest. NULL for an item not wearable yet. Filter rank_now <= 3 for each slot's top three."}
+    fills_empty: {expr: _.fills_empty, description: "1 when the slot is empty now."}
+    source: {expr: _.source_text, description: "One source in the gear advice's words: 'drop: Fallen Champion in Scarlet Monastery: Library (dungeon, levels 30-38), 38.5%', 'quest ...', 'craft: Tailoring 150; ...', 'in your bags: equip it'."}
+    source_kind: {expr: _.source_kind, description: "quest, drop, craft, bags or bank (or another kind the gear data names: reputation, vendor...)."}
+    source_wowhead: {expr: _.source_wowhead, description: "The source's Wowhead page (the quest, the boss, the craft's spell); NULL when it has none."}
+    instance: {expr: _.instance, description: "Dungeon or raid of an instance drop or quest, else NULL."}
+    zone: {expr: _.zone, description: "Zone of the drop or the quest."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    upgrade_gain:
+      expr: _.gain.max()
+      description: "Score gain over what is worn in the slot (Polestar's points, for the scored spec): the biggest in the group."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: points,
+                 caveats: "The gear advice as of the newest character sheet, scored with the weights the player chose. Not additive: two items for one slot are alternatives. Group by item_id for one item's gain."}
+    upgrade_bis_pct:
+      expr: _.bis_pct.max()
+      description: "The item's score as a percent of the best its slot can hold at this level for the scored spec (100: the best)."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: percent,
+                 caveats: "Say it with upgrade_bis_pct_worn as the page does: '17% → 100% on your head', never as '+83%'. NULL when there is nothing to measure against."}
+    upgrade_bis_pct_worn:
+      expr: _.bis_pct_worn.max()
+      description: "The same percent for what is worn in that slot now."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: percent,
+                 caveats: "NULL for an empty slot, or when there is nothing to measure against."}
+    upgrade_sources:
+      expr: _.item_id.count()
+      description: "Ways to get the upgrades: one per item and source."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: estimated, unit: sources,
+                 caveats: "An item with a drop and a quest counts twice; group by item_id and source to list them."}
+
+worn:
+  table: sem_gear
+  description: "The items worn on the newest character sheet, as the gear advice scores them for the spec the gear is scored for."
+  dimensions:
+    slot: {expr: _.slot_name, description: "The slot it is worn in (Head, Chest, Finger...; both rings are Finger)."}
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
+    item: {expr: _.name, description: "Item name."}
+    fit: {expr: _.fit, description: "How the worn item fits the scored spec: yes (built for it), any, spec (built for another spec of the class), class (made for another class), unknown."}
+    built_for: {expr: _.built_for, description: "Who the item's stats are made for, in words (healers, damage casters...)."}
+    scored_for: {expr: _.scored_for, description: "The spec the gear advice scores for: the player's WEIGHTS setting, else the talents."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    worn_items:
+      expr: _.item_id.count()
+      description: "Items worn."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
+                 caveats: "The newest sheet only; a shirt or tabard counts when it has a name."}
+    worn_score:
+      expr: _.score.sum()
+      description: "The worn items' score for the scored spec (Polestar's points): one item's, or the whole gear's summed over slots."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: estimated, unit: points,
+                 caveats: "NULL for an item the gear data doesn't know."}
+    worn_bis_pct:
+      expr: _.bis_pct.max()
+      description: "The worn item's score as a percent of the best its slot can hold at this level for the scored spec (100: the best)."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: percent,
+                 caveats: "Group by slot and item_id: over several slots it is the best of them. NULL when there is nothing to measure against."}
 
 cross_model_metrics:
   kills_per_combat_hour:

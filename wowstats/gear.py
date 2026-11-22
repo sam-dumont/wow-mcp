@@ -1622,6 +1622,42 @@ def badge_of(u: dict | None) -> dict:
     return {k: (u or {}).get(k) for k in BADGE}
 
 
+def source_text(s: dict) -> str:
+    """One source in a few words: 'quest Tharil'zun (Redridge Mountains, req 18)'."""
+    if s["kind"] == "bags":
+        return "in your bags: equip it"
+    if s["kind"] == "bank":
+        return "in your bank: take it out at a banker and equip it"
+    if s["kind"] == "quest":
+        where = ", ".join(x for x in (s.get("zone"), f"req {s['req_level']}" if s.get("req_level") else None,
+                                      "dungeon quest" if s.get("dungeon") else None,
+                                      f"one of {s['choices']} rewards" if (s.get("choices") or 0) > 1 else None) if x)
+        return f"quest {s.get('name') or s.get('quest_id')} ({where})"
+    if s["kind"] == "drop":
+        chance = f", {s['chance_pct']}%" if s.get("chance_pct") else ""
+        inst = ""
+        if s.get("instance"):
+            lv = s.get("levels")
+            inst = f" ({s['instance']}{f', levels {lv[0]}-{lv[1]}' if lv else ''})"
+        return f"drop: {s.get('boss') or 'trash'} in {s.get('zone') or '?'}{inst}{chance}"
+    if s["kind"] == "ah":
+        share = f", {s['gold_share_pct']:g}% of your gold" if s.get("gold_share_pct") is not None else ""
+        return (f"auction house: {ahsource.price_text(s['price_copper'])}{share}, "
+                f"{ahsource.seen_text(s.get('seen_days_ago'))}{' (cheap)' if s.get('cheap') else ''}")
+    if s["kind"] != "craft":  # a kind the gear data names that has no words here (reputation, vendor...)
+        return f"{s['kind']}: {s.get('name') or s.get('zone') or '?'}"
+    return f"craft: {s.get('profession')} {s.get('skill')}; {craft_status(s)}"
+
+
+def source_link(s: dict) -> str | None:
+    """The Wowhead page of a source: the quest, the boss, the craft's spell."""
+    from wowstats.links import wowhead_url
+
+    kind, i = {"quest": ("quest", s.get("quest_id")), "drop": ("npc", s.get("npc_id")),
+               "craft": ("spell", s.get("spell_id"))}.get(s.get("kind"), (None, None))
+    return wowhead_url(kind, i) if kind and isinstance(i, int) and i > 0 else None
+
+
 def gain_words(u: dict) -> str:
     """An item's gain in the page's words (web/app.js upText): the slot's
     BiS share from what's worn to this item, "70% → 91% on your chest",
