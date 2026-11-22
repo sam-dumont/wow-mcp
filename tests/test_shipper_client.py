@@ -188,6 +188,7 @@ def test_ship_resumes_and_keeps_too_old(shipper, tmp_path, monkeypatch):
 REPO = Path.home() / "WoWArchive" / "wtf"
 
 
+@pytest.mark.real_home
 @pytest.mark.skipif(not (REPO / ".git").is_dir(), reason="no WTF archive on this computer")
 def test_real_overlap_archive_vs_client(shipper, no_addons, capsys):
     """On the player's own data: every chunk that both the WTF archive (any

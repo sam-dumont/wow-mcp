@@ -22,6 +22,7 @@ import http.client
 import json
 import os
 import shutil
+import sys
 import threading
 import urllib.parse
 from datetime import UTC, datetime
@@ -360,6 +361,12 @@ def test_the_spool_and_the_state_reach_the_disk_before_they_count(shipper, tmp_p
     calls: list[str] = []
     real_fsync, real_replace = os.fsync, os.replace
     monkeypatch.setattr(shipper.os, "fsync", lambda fd: (calls.append("fsync"), real_fsync(fd))[1])
+    if sys.platform == "darwin":  # the flush there is F_FULLFSYNC, a flush all the same
+        import fcntl
+
+        real_fcntl = fcntl.fcntl
+        monkeypatch.setattr(fcntl, "fcntl", lambda fd, cmd, *a: (
+            (calls.append("fsync"), real_fcntl(fd, cmd, *a))[1] if cmd == fcntl.F_FULLFSYNC else real_fcntl(fd, cmd, *a)))
     monkeypatch.setattr(shipper.os, "replace",
                         lambda a, b: (calls.append(f"replace {os.path.basename(a)}"), real_replace(a, b))[1])
     out = shipper.Out(dry=False)

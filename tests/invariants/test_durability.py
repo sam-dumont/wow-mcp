@@ -14,6 +14,7 @@ only.
 
 from __future__ import annotations
 
+import contextlib
 import gzip
 import json
 import os
@@ -213,3 +214,36 @@ def test_macos_flushes_with_f_fullfsync_and_falls_back(shipper, tmp_path, monkey
     fake.seen.clear()
     shipper.flush_fd(9)
     assert fake.seen == [] and plain == [8, 9]
+
+
+@pytest.mark.skipif(sys.platform != "darwin", reason="F_FULLFSYNC only exists on macOS")
+def test_real_macos_full_fsync_on_a_file_and_a_directory(shipper, tmp_path):
+    """No mocks: the kernel's own answer. A file takes F_FULLFSYNC (the
+    drive's cache is flushed, not just the OS's); a directory fd may refuse
+    it on some volumes, and the shipper must never crash on that: the write
+    or rename it follows has already happened."""
+    import fcntl
+
+    f = tmp_path / "a.bin"
+    with f.open("wb") as fh:
+        fh.write(b"x" * 4096)
+        fh.flush()
+        fcntl.fcntl(fh.fileno(), fcntl.F_FULLFSYNC)  # the real call: raises if the volume can't
+        shipper.flush_fd(fh.fileno())
+    shipper.fsync_path(f)
+    shipper.fsync_dir(tmp_path)
+
+    shipper.append_durable(tmp_path / "new.gz", b"hello", gz=True)
+    (tmp_path / "t").write_bytes(b"y")
+    os.replace(tmp_path / "t", tmp_path / "u")
+    shipper.fsync_dir(tmp_path)
+    assert (tmp_path / "u").read_bytes() == b"y"
+    assert gzip.decompress((tmp_path / "new.gz").read_bytes()) == b"hello"
+
+    fd = os.open(tmp_path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        with contextlib.suppress(OSError):  # refused on this volume: flush_fd must fall back, never raise
+            fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
+        shipper.flush_fd(fd)
+    finally:
+        os.close(fd)
