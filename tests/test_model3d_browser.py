@@ -81,9 +81,14 @@ def browser(request):
         b.close()
 
 
-def open_page(browser, base, width=1280, height=900):
+def open_page(browser, base, width=1280, height=900, answers=None):
+    """`answers`: a status the bundle's 3D answers (data/model3d/...) get
+    instead of their file, to stand for a missing file or a failing server."""
     ctx = browser.new_context(viewport={"width": width, "height": height})
     asked, outside, errors = [], [], []
+    if answers:
+        ctx.route(lambda url: url.startswith(base + "/data/model3d/"),
+                  lambda r: r.fulfill(status=answers, body="nope", content_type="text/plain"))
 
     def away(r):
         outside.append(r.request.url)
@@ -195,6 +200,48 @@ def test_no_recipe_keeps_the_picture_and_says_why(browser, tmp_path, monkeypatch
             # the text itself wraps inside its box: nothing scrolls sideways
             assert why.evaluate("(e) => e.scrollWidth <= e.clientWidth + 1")
         assert not [u for u in asked if u.startswith("/model3d/file/")]
+        assert not outside and not errors, (outside, errors)
+    finally:
+        ctx.close()
+        httpd.shutdown()
+
+
+@pytest.mark.parametrize("size", [None, (390, 844)])
+def test_no_answer_file_offers_no_toggle_and_no_status(browser, tmp_path, monkeypatch, size):
+    """The 3D answer's file isn't there (404: a bundle published without the
+    3D): no "View in 3D" (it could only fail), and no "404 Not Found" on the
+    page ("No 3D model yet: 404 Not Found." under a dead button, 2026-11-22)."""
+    httpd, base = bundle(tmp_path, monkeypatch)
+    ctx, page, asked, outside, errors = open_page(browser, base, *(size or ()), answers=404)
+    try:
+        page.locator("#gear .doll > .stage").first.wait_for(timeout=20000)
+        btn = page.locator("#gear button.m3dtoggle")
+        # askFirst has asked once the 404 came back: wait for the toggle to go.
+        page.wait_for_function("() => [...document.querySelectorAll('#gear button.m3dtoggle')].every((b) => b.hidden)",
+                               timeout=10000)
+        assert any(u.startswith("/data/model3d/") for u in asked), asked
+        assert btn.count() == 0 or not btn.first.is_visible()
+        assert page.locator("#gear .m3dwhy").count() == 0
+        text = page.locator("body").inner_text()
+        assert "404" not in text and "Not Found" not in text and "View in 3D" not in text
+        assert page.locator("iframe.m3dframe").count() == 0
+        assert not outside and not errors, (outside, errors)
+    finally:
+        ctx.close()
+        httpd.shutdown()
+
+
+def test_a_failing_answer_says_so_plainly(browser, tmp_path, monkeypatch):
+    """Any other failure (a 5xx, the network): one plain line, no status code."""
+    httpd, base = bundle(tmp_path, monkeypatch)
+    ctx, page, _asked, outside, errors = open_page(browser, base, 390, 844, answers=503)
+    try:
+        why = page.locator("#gear .m3dwhy")
+        why.wait_for(timeout=20000)
+        assert why.text_content() == "The 3D model didn’t load: reload the page to try again."
+        text = page.locator("body").inner_text()
+        assert "503" not in text and "Service Unavailable" not in text
+        assert page.locator("#gear button.m3dtoggle").first.is_disabled()
         assert not outside and not errors, (outside, errors)
     finally:
         ctx.close()

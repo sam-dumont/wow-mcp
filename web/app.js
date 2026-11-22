@@ -161,7 +161,7 @@ async function sealedUrl(path) {
 // The decrypted bytes of the bundle's data/<path>; throws when it isn't there.
 async function fetchSealed(path) {
   const r = await fetch(await sealedUrl(path), { credentials: 'same-origin' });
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  if (!r.ok) throw httpError(r, null);
   return openBytes(path, await r.arrayBuffer());
 }
 // The item icons (web/items.js) are sealed data files too.
@@ -171,6 +171,14 @@ function locked() {
   document.title = 'Leveling log';
 }
 
+// A failed answer: the server's own words when it has some, and the status
+// on the error, so a caller can tell a missing file (404) from a failure.
+// The status text is for the console: a page says it in its own words.
+function httpError(r, body) {
+  const e = new Error((body && body.error) || `${r.status} ${r.statusText}`);
+  e.status = r.status;
+  return e;
+}
 async function getJSON(url) {
   if (SEALED) return JSON.parse(new TextDecoder().decode(await fetchSealed(url)));
   const r = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
@@ -180,7 +188,7 @@ async function getJSON(url) {
     // A login in front (reverse proxy, OIDC) answers a lapsed session with a
     // redirect fetch can't follow across origins: reload so the browser logs in.
     if (r.type === 'opaqueredirect' || r.status === 0) location.reload();
-    throw new Error((body && body.error) || `${r.status} ${r.statusText}`);
+    throw httpError(r, body);
   }
   return body;
 }
