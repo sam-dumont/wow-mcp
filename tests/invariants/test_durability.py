@@ -18,6 +18,7 @@ import gzip
 import json
 import os
 import stat
+import sys
 from pathlib import Path
 
 import pytest
@@ -46,6 +47,13 @@ def calls(shipper, monkeypatch):
         return res
 
     monkeypatch.setattr(shipper.os, "fsync", fsync)
+    if sys.platform == "darwin":  # the shipper's flush there is F_FULLFSYNC, a flush all the same
+        import fcntl
+
+        real_fcntl = fcntl.fcntl
+        monkeypatch.setattr(
+            fcntl, "fcntl", lambda fd, cmd, *a: fsync(fd) if cmd == fcntl.F_FULLFSYNC else real_fcntl(fd, cmd, *a)
+        )
     monkeypatch.setattr(shipper.os, "replace", lambda a, b: moved(a, b, real_replace))
     monkeypatch.setattr(Path, "rename", lambda a, b: moved(a, b, real_rename))
     return out
@@ -174,3 +182,34 @@ def test_windows_skips_the_directory_fsync(shipper, tmp_path, monkeypatch, calls
     assert json.loads((tmp_path / "state.json").read_text()) == {"a": 1}
     assert not [c for c in calls if c[:2] == ("fsync", "dir")]
     assert not [p for p in opened if Path(p).is_dir()]
+
+
+def test_macos_flushes_with_f_fullfsync_and_falls_back(shipper, tmp_path, monkeypatch):
+    """os.fsync on macOS leaves the data in the drive's cache. The shipper asks
+    F_FULLFSYNC there, and a filesystem that refuses it gets the plain fsync."""
+    import types
+
+    fake = types.SimpleNamespace(F_FULLFSYNC=51, seen=[], fail=False)
+
+    def fcntl_(fd, cmd, *a):
+        fake.seen.append(cmd)
+        if fake.fail:
+            raise OSError(25, "not supported")
+
+    fake.fcntl = fcntl_
+    plain = []
+    monkeypatch.setitem(sys.modules, "fcntl", fake)
+    monkeypatch.setattr(shipper.os, "fsync", plain.append)
+    monkeypatch.setattr(shipper.sys, "platform", "darwin")
+
+    shipper.flush_fd(7)
+    assert fake.seen == [51] and plain == []
+
+    fake.fail = True
+    shipper.flush_fd(8)
+    assert plain == [8]
+
+    monkeypatch.setattr(shipper.sys, "platform", "linux")
+    fake.seen.clear()
+    shipper.flush_fd(9)
+    assert fake.seen == [] and plain == [8, 9]
