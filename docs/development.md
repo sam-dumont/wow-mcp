@@ -294,14 +294,19 @@ A real run (`.github/workflows/release.yml`, its header has the detail):
    release signed with the old key that pins the new one. The commit goes
    through a pull request,
    `Release X.Y.Z`, opened by the CI GitHub App so its checks run, and
-   auto-merge squashes it when they pass. A red check stops the run: fix
-   main, press again.
+   auto-merge squashes it when they pass. Its body is short: the version,
+   the section's opening paragraph and a link to CHANGELOG.md at that commit,
+   never the notes (0.7.0's were 108 kB; GitHub refuses a PR body over
+   65,536 characters). A `release/vX.Y.Z` branch left by an interrupted run is
+   replaced when it holds only that run's `Release X.Y.Z` commit; anything
+   else on it stops the run. A red check stops the run: fix main, press again.
 4. Both images for linux/amd64 and linux/arm64, from the merged commit:
    `ghcr.io/<owner>/wow-mcp:<version>` and `ghcr.io/<owner>/wow-mcp-render:<version>`,
    checked, attested and signed (below). No `latest` tag.
 5. The `v<version>` tag on that commit and the GitHub release: the
-   CHANGELOG section (a final also carries its candidates' sections) and
-   each image's `tag@digest` to pin.
+   CHANGELOG section (a final also carries its candidates' sections; past
+   120,000 bytes it stops at a paragraph and links the rest) and each
+   image's `tag@digest` to pin.
 
 What an rc changes for the people running it: the shipper on their PCs
 updates itself to any higher version, candidates included, and a candidate

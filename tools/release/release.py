@@ -12,8 +12,14 @@ says which button to press. Three commands, all local and offline:
   apply VERSION [--date YYYY-MM-DD] [--kb-note TEXT]
         Writes VERSION everywhere the tree carries it and moves "Unreleased"
         under "## VERSION (date)".
-  notes VERSION
-        Prints the GitHub release notes for VERSION from CHANGELOG.md.
+  notes VERSION [--changelog-url URL]
+        Prints the GitHub release notes for VERSION from CHANGELOG.md, cut
+        to fit GitHub's release body with a link to URL when they don't.
+  pr-body VERSION --changelog-url URL
+        Prints the release pull request's body: the version, the section's
+        opening paragraph and a link to URL (CHANGELOG.md at the release
+        commit). Never the notes themselves: 0.7.0's, every candidate since
+        0.6.1, broke GitHub's 65,536-character PR body limit.
 
 Modes:
   prepare  "Unreleased" has entries: the release commit (apply) comes first,
@@ -242,20 +248,85 @@ def apply(root: Path, version: Version, date: dt.date, kb_note: str = "") -> lis
 
 # -------------------------------------------------------------------- notes
 
+# GitHub's limits are in characters; size() counts UTF-8 bytes, never fewer.
+PR_BODY_LIMIT = 65_536
+RELEASE_BODY_LIMIT = 125_000
+# The notes' share of the release body: publish appends the "### Images"
+# lines (two tag@digest refs, a few hundred bytes) after them.
+NOTES_LIMIT = RELEASE_BODY_LIMIT - 5_000
 
-def notes(root: Path, version: Version) -> str:
-    """The section of VERSION; a final also carries its candidates' sections."""
+
+def size(text: str) -> int:
+    return len(text.encode())
+
+
+def candidates(text: str, version: Version) -> list[tuple[str, str]]:
+    """(name, entries) of each candidate of a final, as CHANGELOG.md orders them (newest first)."""
+    if version.rc is not None:
+        return []
+    return [(n, text[s:e].strip()) for n, s, e in sections(text)
+            if VERSION_RE.match(n) and Version.parse(n).core == version and Version.parse(n).rc]
+
+
+def anchor(text: str, version: Version) -> str:
+    """GitHub's anchor for VERSION's heading: "## 0.7.0 (2026-11-22)" is #070-2026-11-22."""
+    for h in HEADING_RE.finditer(text):
+        if h.group(1) == str(version):
+            title = h.group(0)[3:].strip().lower()
+            return "#" + re.sub(r"[^\w\- ]", "", title).replace(" ", "-")
+    raise Refused(f"CHANGELOG.md has no {version} section")
+
+
+def notes(root: Path, version: Version, changelog_url: str = "", limit: int = NOTES_LIMIT) -> str:
+    """The section of VERSION; a final also carries its candidates' sections.
+
+    Past `limit`, the notes stop at the last paragraph that fits and link
+    the whole section instead (the CHANGELOG has no limit).
+    """
     text = (root / "CHANGELOG.md").read_text()
     own = body(text, str(version))
     if own is None:
         raise Refused(f"CHANGELOG.md has no {version} section")
-    parts = [own]
-    if version.rc is None:
-        candidates = [(n, text[s:e].strip()) for n, s, e in sections(text)
-                      if VERSION_RE.match(n) and Version.parse(n).core == version and Version.parse(n).rc]
-        for name, entries in candidates:
-            parts.append(f"### From {name}\n\n{entries}")
-    return "\n\n".join(parts).strip() + "\n"
+    parts = [own, *(f"### From {name}\n\n{entries}" for name, entries in candidates(text, version))]
+    full = "\n\n".join(parts).strip() + "\n"
+    if size(full) <= limit:
+        return full
+    where = f"[CHANGELOG.md]({changelog_url}{anchor(text, version)})" if changelog_url else "CHANGELOG.md"
+    tail = f"\n\n**The notes stop here: GitHub caps a release's text.** All of them: {where}.\n"
+    budget = limit - size(tail)
+    cut = full.encode()[:budget].decode(errors="ignore")
+    # A paragraph boundary, so no list item, table or code fence is cut in half.
+    cut = cut[:cut.rfind("\n\n")] if "\n\n" in cut else ""
+    return cut.rstrip() + tail
+
+
+def pr_body(root: Path, version: Version, changelog_url: str) -> str:
+    """The release PR's body, whatever the release's size: nothing in it grows with the notes."""
+    text = (root / "CHANGELOG.md").read_text()
+    own = body(text, str(version))
+    if own is None:
+        raise Refused(f"CHANGELOG.md has no {version} section")
+    lede = own.split("\n\n", 1)[0].strip()
+    if size(lede) > 1_000 or lede.startswith(("-", "#", "|", "`")):
+        lede = ""  # a section that opens on its entries has no summary to quote
+    series = candidates(text, version)
+    entries = sum(1 for _, e in [("", own), *series] for line in e.splitlines() if line.startswith("- "))
+    gathers = ""
+    if series:
+        names = [n for n, _ in series]
+        gathers = f", gathering {names[-1]} to {names[0]}" if len(names) > 1 else f", gathering {names[0]}"
+    lines = [
+        f"The release commit for v{version}: the version in every file that carries it, and "
+        "CHANGELOG.md's \"Unreleased\" under its heading. The release run merges it once the checks "
+        "pass, then builds, tags and publishes.",
+        "",
+        f"**{version}**: {entries} entries{gathers}.",
+    ]
+    if lede:
+        lines += ["", "> " + " ".join(lede.split())]
+    lines += ["", f"The notes: [CHANGELOG.md at this commit]({changelog_url}{anchor(text, version)}). "
+              "The GitHub release carries them once published."]
+    return "\n".join(lines) + "\n"
 
 
 # ---------------------------------------------------------------------- cli
@@ -274,6 +345,10 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--kb-note", default="")
     n = sub.add_parser("notes")
     n.add_argument("version")
+    n.add_argument("--changelog-url", default="")
+    b = sub.add_parser("pr-body")
+    b.add_argument("version")
+    b.add_argument("--changelog-url", required=True)
     ap.add_argument("--root", type=Path, default=ROOT)
     args = ap.parse_args(argv)
     try:
@@ -281,8 +356,10 @@ def main(argv: list[str] | None = None) -> int:
             print("\n".join(plan(args.root, args.channel, args.bump, args.kb_note).lines()))
         elif args.cmd == "apply":
             print("\n".join(apply(args.root, Version.parse(args.version), args.date, args.kb_note)))
+        elif args.cmd == "notes":
+            sys.stdout.write(notes(args.root, Version.parse(args.version), args.changelog_url))
         else:
-            sys.stdout.write(notes(args.root, Version.parse(args.version)))
+            sys.stdout.write(pr_body(args.root, Version.parse(args.version), args.changelog_url))
     except Refused as e:
         print(f"release: {e}", file=sys.stderr)
         return 1
