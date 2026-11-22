@@ -145,3 +145,6 @@ the ui too, the full view, through your own address. Plausible gets the path alo
 `/zogzog/`, `/settings`), never the `/zogzog/` key or the query; the site that sent the
 visitor when their browser says; their browser, device type and country. No cookies. The
 privacy page tells friends the same. [Share your page, visitor counts](../self-host/sharing.md#visitor-counts-optional).
+
+This documentation site counts page views with the maintainer's self-hosted Plausible: no
+cookies, no personal data.

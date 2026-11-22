@@ -6,3 +6,7 @@ src/content/docs/
 sidebar.json
 public/*
 !public/favicon.svg
+# The page-count tracker (scripts/analytics.mjs): a pinned build, kept in git.
+!public/js/
+public/js/*
+!public/js/app.js
