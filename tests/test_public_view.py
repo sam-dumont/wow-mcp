@@ -150,7 +150,9 @@ def test_public_config_and_payload_shape(run_app):
     d = json.loads(srv.get(f"/api/char?name={CHAR}")[2])
     # The card, the climb and the dungeons; nothing else (redact.PUBLIC).
     assert set(d) == {"char", "generated_at", "stale", "route_source", "header", "levels", "dungeons", "gear",
-                      "spec", "talents", "legacy", "class_guide"}
+                      "spec", "talents", "legacy", "class_guide", "coverage"}
+    # The coverage state is judged when a bundle is built (publish.static_coverage); the live view has none.
+    assert d["coverage"] is None
     for gone in ("money_copper", "zone", "seen", "guild", "spec", "rested_xp", "kills", "quests", "eta_s"):
         assert gone not in d["header"], gone
     assert d["header"]["level"] == 12 and d["header"]["race"] == "Gnome"

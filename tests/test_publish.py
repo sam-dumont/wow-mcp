@@ -272,7 +272,10 @@ ALLOWED = {
              "gear.armory_item_level", "gear.armory_item_level_source", "gear.render", "gear.render.asset",
              "gear.render.refreshed", "gear.render.ext", "gear.items_from", "gear.items_note",
              *keys("gear.professions[].", ("skill_id", "name", "rank", "max_rank", "max_rank_from")), *TALENT_KEYS,
-             *CLASS_GUIDE_KEYS},
+             *CLASS_GUIDE_KEYS,
+             # Whether the equipment may be out of date: a state, never a time
+             # (owner, 2026-11-22).
+             "coverage", "coverage.battlenet"},
     "timeline": {"char", "generated_at", "levels"},
     # A past level's gear says exact (a sheet) or likely (the replay), and
     # how a likely item was got by kind only: no quest, zone or creature.

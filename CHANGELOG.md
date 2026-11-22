@@ -5,6 +5,7 @@
 ### Changed
 
 - Every answer now says what it stood on. The page, your AI's tools on one character, `query_metric` and `play_sql` carry one `coverage`: per source (Recorder, Polestar, gear and bags, quests, prices, Battle.net) complete, partial, unavailable or unknown, when it was last read, and for a missing one the one thing that brings it. The Recorder's gaps are exact: a finished level whose Polestar time (the game's own played timer) is longer than what the Recorder saw. The pages show it only where it changes a number: "The Recorder missed about 1h 10m of play (level 28): deaths from then aren't counted." under Deaths and on that level's last session in the journal, and "Equipment last read 5 h ago" when Battle.net's gear is older than one read.
+- The `/zogzog/` link shows the same coverage lines as your own page (the Recorder's gap under Deaths and in the journal, the equipment's last read). The public page says "Equipment may be out of date." where your page says how old the read is, and never when or how long; its data holds that one state, with no time.
 
 ### Fixed
 

@@ -83,7 +83,9 @@ The public view is enforced in the server, in three places:
    level's route time, the dungeons cleared, the level slider. A field added
    to a full answer stays out of the public one until someone adds it to the
    list. The `/zogzog/` bundle has its own list (`ZOGZOG`): no other players,
-   no location now, deaths as counts, the Overview's moves minus those about creatures.
+   no location now, deaths as counts, the Overview's moves minus those about creatures,
+   and the coverage the full view's lines read. The public answer's coverage is one state
+   per source its page draws a line for (`coverage.public`), never a time or a gap.
 2. **Full-only routes don't exist.** `/api/market`, `/api/prices`,
    `/api/logsql`, `/model3d/*`, `/api/model3d` and the login door
    (`FULL_DOOR_PATH`, `/full/`) answer 404, a public server starts no MCP
