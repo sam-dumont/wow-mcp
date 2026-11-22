@@ -797,8 +797,8 @@ def _duck_runner(db):
             return None
         if not made:
             con = duck.mirror(db, TABLES, rows=False)
-            semantic.prepare(con)
-            made.append(duck.ReadOnlyDuck(con, worker=duckproc.Worker(db, TABLES)))
+            views = semantic.prepare(con)
+            made.append(duck.ReadOnlyDuck(con, worker=duckproc.Worker(db, TABLES, views=views)))
         return made[0]
 
     return get

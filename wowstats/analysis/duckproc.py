@@ -164,7 +164,7 @@ def child() -> None:
     con = duck.mirror(db, head.get("tables"))
     db.close()
     if head.get("semantic"):
-        semantic.prepare(con, head.get("tz"))
+        semantic.prepare(con, head.get("tz"), head.get("views"))
     ro = {}
     seconds = float(head.get("seconds") or duck.QUERY_SECONDS)
     memory = int(head.get("memory") or QUERY_MEMORY)
@@ -226,13 +226,17 @@ class Worker:
     execution part (the parent has checked the query)."""
 
     def __init__(self, db: sqlite3.Connection, tables=None, seconds: float | None = None,
-                 memory: int | None = None, semantic: bool = True):
+                 memory: int | None = None, semantic: bool = True, views: dict[str, str] | None = None):
         from . import duck, prep
 
         self.db = db  # serialized again at each start: no second copy held between them
         self.tables = None if tables is None else sorted(tables)
         self.seconds = duck.QUERY_SECONDS if seconds is None else seconds
         self.memory, self.semantic = QUERY_MEMORY if memory is None else memory, semantic
+        # The views per grain the parent compiled for its own copy of these
+        # tables (semantic.prepare's answer): the child creates them as they
+        # are instead of compiling them again at every start. None: it compiles.
+        self.views = views
         self.tz = prep.TZ_NAME
         self.lock = threading.Lock()
         self.starts = 0
@@ -257,7 +261,8 @@ class Worker:
         self.starts += 1
         try:
             _send(proc.stdin, json.dumps({"tables": self.tables, "tz": self.tz, "seconds": self.seconds,
-                                          "memory": self.memory, "semantic": self.semantic}).encode())
+                                          "memory": self.memory, "semantic": self.semantic,
+                                          "views": self.views}).encode())
             _send(proc.stdin, self.db.serialize())
             if json.loads(_recv(proc.stdout, time.monotonic() + START_SECONDS, 1024)) != {"ready": True}:
                 raise EOFError
