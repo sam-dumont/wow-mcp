@@ -37,7 +37,9 @@ from .sql import QueryError
 MODEL_FILE = Path(__file__).with_name("semantic.yaml")
 GRAINS = {"day": "TIME_GRAIN_DAY", "week": "TIME_GRAIN_WEEK", "month": "TIME_GRAIN_MONTH"}
 OPS = ("=", "!=", "<", "<=", ">", ">=", "in", "not in", "is null", "is not null")
-MAX_METRICS, MAX_GROUP, MAX_WHERE, MAX_IN, MAX_TEXT = 8, 4, 8, 50, 200
+# Six dimensions: an upgrade row is slot, item, its id and how it fits; its
+# source is the text, the kind and the page (the brief's gear_fit reads both).
+MAX_METRICS, MAX_GROUP, MAX_WHERE, MAX_IN, MAX_TEXT = 8, 6, 8, 50, 200
 DEFAULT_LIMIT, MAX_LIMIT = 50, 500
 _DATE = re.compile(r"^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2})?)?$")
 _NAME = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
@@ -65,18 +67,26 @@ VIEWS = {
     "sem_quests": ("SELECT *, {ts:at_t} AS at_local, {who} FROM (SELECT *, COALESCE(closed_t, accepted_t) AS at_t, "
                    "COALESCE(quest_name, 'Quest ' || CAST(quest_id AS VARCHAR)) AS quest FROM quests)"),
     "sem_gold_moves": "SELECT *, {ts:t0} AS at_local, {who} FROM gold_moves",
+    # The gear advice's upgrades (one row per item and source) with each
+    # item's place in its slot among those wearable now: 1 is the biggest
+    # gain. Rows of one item share its rank (same gain, same id).
+    "sem_upgrades": ("SELECT u.*, CASE WHEN u.now = 1 THEN DENSE_RANK() OVER (PARTITION BY u.slot_name, u.now "
+                     "ORDER BY u.gain DESC, u.item_id) END AS rank_now, {who} FROM upgrade_candidates u"),
+    # The worn items on the newest sheet, as the gear advice scores them.
+    "sem_gear": "SELECT *, {who} FROM gear WHERE name IS NOT NULL",
 }
 CROSS_KEY = "cross_model_metrics"
 
 # The fields a metric's metadata carries beside kind, unit and caveats: the
 # caveats the compiler enforces instead of only printing (review 4, 2026-11-21).
-# aggregation: how the rows become the number. time_meaning: what the model's
+# aggregation: how the rows become the number (max: the largest value in
+# the group, for a per-item fact the model repeats on each of the item's rows). time_meaning: what the model's
 # `time` is for this metric. evidence_basis: how the number was obtained.
 # eligibility: {where, means}, the rows every side of a two-sided metric reads
 # (a predicate over the model's row; for a cross-model metric one per model).
 # min_evidence: {count, at_least, means}: fewer observations in a row than
 # at_least and the value is NULL, with the count beside it (<name>_evidence).
-AGGREGATIONS = ("sum", "ratio_of_sums", "latest", "endpoint_difference")
+AGGREGATIONS = ("sum", "ratio_of_sums", "latest", "endpoint_difference", "max")
 TIME_MEANINGS = ("interval_start", "level_completion", "snapshot_observation", "quest_closure", "event")
 EVIDENCE_BASES = ("observed", "reconstructed", "allocated", "inferred", "estimated")
 FIELDS = ("aggregation", "time_meaning", "evidence_basis", "eligibility", "min_evidence")
@@ -91,6 +101,22 @@ def prepare(con, tz: str | None = None) -> None:
     for name, body in VIEWS.items():
         sql = re.sub(r"\{ts:([a-z_.0-9]+)\}", lambda m: f"timezone('{zone}', to_timestamp({m.group(1)}))", body)
         con.execute(f"CREATE VIEW {name} AS {sql.replace('{who}', _WHO)}")
+
+
+def local(db, tz: str | None = None):
+    """The layer and a read-only runner on an in-process DuckDB copy of a
+    prep build, rows included: for a caller holding the SQLite build only
+    (the seeded evaluation's facts, tests). The workspace keeps its own."""
+    import warnings
+
+    from . import TABLES, duck
+
+    con = duck.mirror(db, TABLES)
+    prepare(con, tz)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # BSL's own deprecation notes
+        layer = Layer(con)
+    return layer, duck.ReadOnlyDuck(con)
 
 
 @functools.cache

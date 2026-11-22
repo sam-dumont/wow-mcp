@@ -8,8 +8,8 @@ The MCP server has two ways to ask the play data a question. `play_sql` runs wha
 the assistant writes. `query_metric` asks for **named metrics**: `played_s` by `level`,
 `dungeon_s` by `zone` per week. The server writes the SQL from one model file,
 [`wowstats/analysis/semantic.yaml`](../../wowstats/analysis/semantic.yaml), and sends back the
-rows, the SQL it ran and each metric's definition and caveats. 68 metrics (3 of them across
-two models), 26 dimensions, three time grains (day, week, month).
+rows, the SQL it ran and each metric's definition and caveats. 75 metrics (3 of them across
+two models), 39 dimensions, three time grains (day, week, month).
 
 The character page reads the same file: its time per level, XP an hour, kill and quest totals,
 dungeon runs and deaths come out of the layer when the page's answers are built (see
@@ -291,6 +291,36 @@ The hero line's gold is the purse at the last logout, a fact rather than a metri
 Without DuckDB installed (a `pip install` without the `mcp` extra; the image has it), the page
 counts those numbers itself, the same way.
 
+## What to equip next
+
+Two models hold the gear advice, scored for the spec the player set (`WEIGHTS`, else the
+talents): `worn` (the items on the newest sheet, their share of the slot's best and who they're
+built for) and `upgrades` (every upgrade, one row per item and source, with its source in the
+gear tool's words and its Wowhead page). `rank_now` ranks a slot's upgrades wearable now by
+gain, so "the best three for my head" needs no SQL:
+
+```json
+{"metrics": ["upgrade_gain", "upgrade_bis_pct", "upgrade_bis_pct_worn"],
+ "group_by": ["slot", "item_id", "item", "fit"],
+ "where": [{"dimension": "slot", "op": "=", "value": "Head"},
+           {"dimension": "rank_now", "op": "<=", "value": 3}],
+ "order_by": ["-upgrade_gain"]}
+```
+
+On the seeded evaluation's Holy priest wearing a Shadow circlet (`wrong_spec_gear`):
+
+| slot | item | fit | upgrade_gain | upgrade_bis_pct | upgrade_bis_pct_worn |
+|---|---|---|---|---|---|
+| Head | Embalmed Shroud | yes | 27.17 | 100 | 17 |
+| Head | Earthen Silk Hood | yes | 20.91 | 81 | 17 |
+| Head | Electromagnetic Gigaflux Reactivator | yes | 18.68 | 74 | 17 |
+
+Say each as the page does, "17% → 100% on your head", never "+83%". The brief's
+`facts.gear_fit` runs this query for every worn item that fits the spec badly, and lists each
+item's sources (`upgrade_sources` by `item_id`, `source`, `source_wowhead`) beside it. Their
+metrics take the largest value in the group (`aggregation: max`): an item's gain is the same on
+each of its source rows, and two items for one slot are alternatives, never a sum.
+
 ## Still out of reach
 
 - **Two characters in one query.** Each character is its own database. Ask twice, once per
@@ -480,6 +510,31 @@ The purse between two consecutive snapshots (logout or /reload): what it moved a
 
 Group or filter by: `character`, `class`, `dings`, `level`, `time`.
 
+### upgrades
+
+The gear advice's upgrades for the spec the gear is scored for (the player's WEIGHTS setting, else the talents): one row per item and source, items within 3 levels. The decision data behind 'what should I equip next and where do I get it'.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `upgrade_gain` | simple | points | Score gain over what is worn in the slot (Polestar's points, for the scored spec): the biggest in the group. | The gear advice as of the newest character sheet, scored with the weights the player chose. Not additive: two items for one slot are alternatives. Group by item_id for one item's gain. | max; time: snapshot_observation; estimated. |
+| `upgrade_bis_pct` | simple | percent | The item's score as a percent of the best its slot can hold at this level for the scored spec (100: the best). | Say it with upgrade_bis_pct_worn as the page does: '17% → 100% on your head', never as '+83%'. NULL when there is nothing to measure against. | max; time: snapshot_observation; estimated. |
+| `upgrade_bis_pct_worn` | simple | percent | The same percent for what is worn in that slot now. | NULL for an empty slot, or when there is nothing to measure against. | max; time: snapshot_observation; estimated. |
+| `upgrade_sources` | simple | sources | Ways to get the upgrades: one per item and source. | An item with a drop and a quest counts twice; group by item_id and source to list them. | sum; time: snapshot_observation; estimated. |
+
+Group or filter by: `character`, `class`, `fills_empty`, `fit`, `instance`, `item`, `item_id`, `now`, `rank_now`, `slot`, `source`, `source_kind`, `source_wowhead`, `zone`.
+
+### worn
+
+The items worn on the newest character sheet, as the gear advice scores them for the spec the gear is scored for.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `worn_items` | simple | items | Items worn. | The newest sheet only; a shirt or tabard counts when it has a name. | sum; time: snapshot_observation; observed. |
+| `worn_score` | simple | points | The worn items' score for the scored spec (Polestar's points): one item's, or the whole gear's summed over slots. | NULL for an item the gear data doesn't know. | sum; time: snapshot_observation; estimated. |
+| `worn_bis_pct` | simple | percent | The worn item's score as a percent of the best its slot can hold at this level for the scored spec (100: the best). | Group by slot and item_id: over several slots it is the best of them. NULL when there is nothing to measure against. | max; time: snapshot_observation; estimated. |
+
+Group or filter by: `built_for`, `character`, `class`, `fit`, `item`, `item_id`, `scored_for`, `slot`.
+
 ### Across two models
 
 Each model aggregates on its own to the question's group_by, the results join on those columns, then the expression runs on the joined row: no fan-out. They group and filter by the dimensions their models share.
@@ -495,23 +550,36 @@ Each model aggregates on its own to the question's group_by, the results join on
 | Dimension | Models | Definition |
 |---|---|---|
 | `bracket` | dungeon_trips | guides (lookup guide steps bracket it) or instance (enter and leave only). |
-| `character` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves | The character (one per query: the char argument). |
-| `class` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves | The character's class, from its latest session record. |
+| `built_for` | worn | Who the item's stats are made for, in words (healers, damage casters...). |
+| `character` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, upgrades, worn | The character (one per query: the char argument). |
+| `class` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, upgrades, worn | The character's class, from its latest session record. |
 | `dings` | gold_moves | Level-ups between the two snapshots: 0 for a move inside one level. |
 | `done_why` | quests | For 'done (inferred)': the evidence, e.g. a reward only that quest gives worn or in the bags, or Questie's completed list. NULL otherwise. |
 | `dungeon` | timeline, dungeon_runs, dungeon_trips | Dungeon name while inside a dungeon run, else NULL. |
+| `fills_empty` | upgrades | 1 when the slot is empty now. |
+| `fit` | upgrades, worn | How the item fits the scored spec: yes (built for it), any, spec (built for another spec of the class), class (made for another class), unknown. |
 | `guide` | timeline | The Polestar guide active then (the last step record), its id. NULL before the first step record. |
 | `guide_title` | timeline | That guide's title, from the route reference (NULL when the reference doesn't have the guide). |
 | `hour` | timeline, records | Hour of day 0-23, local time. |
+| `instance` | upgrades | Dungeon or raid of an instance drop or quest, else NULL. |
+| `item` | upgrades, worn | Item name. |
+| `item_id` | upgrades, worn | Item id (its Wowhead page: item=<id>). |
 | `kind` | records | Record kind (record_kinds: kill, death, turnin, accept...). |
 | `level` | levels, timeline, records, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves | Character level. |
 | `level_accepted` | quests | Level at the accept (NULL for untimed). |
 | `level_start` | sessions | Level at the start of the span. |
+| `now` | upgrades | 1 when the character can wear it at its level now, 0 within 3 levels. |
 | `partial` | levels | 1 when Polestar's split began partway through the level (tracking started then), 0 for a whole level, NULL with no split (the level in play). |
 | `quest` | quests | Quest title (the records' own; "Quest <id>" when none names it). Two quests with one title group together: add quest_id. |
 | `quest_id` | quests | Quest id. |
+| `rank_now` | upgrades | The item's place in its slot among the upgrades wearable now, by gain: 1 is the biggest. NULL for an item not wearable yet. Filter rank_now <= 3 for each slot's top three. |
 | `run` | dungeon_runs | One run, named by when it started (unix seconds): group by it to list the runs one by one. |
+| `scored_for` | worn | The spec the gear advice scores for: the player's WEIGHTS setting, else the talents. |
 | `session_id` | timeline, records, sessions | Login span (sessions). |
+| `slot` | upgrades, worn | The slot the item would go in (Head, Chest, Finger...; both rings are Finger). |
+| `source` | upgrades | One source in the gear advice's words: 'drop: Fallen Champion in Scarlet Monastery: Library (dungeon, levels 30-38), 38.5%', 'quest ...', 'craft: Tailoring 150; ...', 'in your bags: equip it'. |
+| `source_kind` | upgrades | quest, drop, craft, bags or bank (or another kind the gear data names: reputation, vendor...). |
+| `source_wowhead` | upgrades | The source's Wowhead page (the quest, the boss, the craft's spell); NULL when it has none. |
 | `start_hour` | sessions | Hour of the start, local time. |
 | `status` | quests | done (accept and hand-in seen), abandoned, open (still in the log), untimed (handed in, accepted before tracking began) or 'done (inferred)' (still in the log, but handed in with the Recorder off: done_why says what shows it). |
 | `step` | timeline | The guide's step number then (from 1). Group by guide too: step numbers restart in each guide. |
@@ -519,6 +587,6 @@ Each model aggregates on its own to the question's group_by, the results join on
 | `subzone` | timeline | Subzone text. |
 | `time` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves | When the level ended (the ding), local time. NULL while the level is in play. Grains: day, week, month. |
 | `weekday` | sessions | Mon..Sun of the start, local time. |
-| `zone` | timeline, records, snapshots, quests | Zone name, as the last zone record said (inside a dungeon, the game usually names the dungeon). |
+| `zone` | timeline, records, snapshots, quests, upgrades | Zone name, as the last zone record said (inside a dungeon, the game usually names the dungeon). |
 
 <!-- /generated:semantic-catalogue -->

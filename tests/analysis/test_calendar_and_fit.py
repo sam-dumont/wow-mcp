@@ -152,3 +152,99 @@ def test_a_finding_on_the_worn_gear_s_fit_follows_the_scoring():
     assert manifest.reads_scoring({"sql": "SELECT bis_pct FROM gear WHERE slot = 1"})
     assert manifest.reads_scoring({"sql": "SELECT COUNT(*) FROM upgrade_candidates"})
     assert not manifest.reads_scoring({"sql": "SELECT COUNT(*) FROM gear_sheets"})
+    # A query_metric finding on the gear models: its compiled SQL names the
+    # layer's views, and those read the scoring too.
+    from wowstats.analysis import semantic
+
+    layer, _ = semantic.local(build(_with_gear(history()), ADVICE))
+    for metric in ("upgrade_gain", "worn_bis_pct"):
+        assert manifest.reads_scoring({"sql": layer.compile({"metrics": [metric]})["sql"]}), metric
+    assert not manifest.reads_scoring({"sql": layer.compile({"metrics": ["played_s"]})["sql"]})
+
+
+def _up(item_id: int, name: str, gain: float, bis: int, *sources: dict, now: bool = True, fit: str = "yes") -> dict:
+    return {"item_id": item_id, "name": name, "quality": 3, "slot_name": "Head", "gain": gain, "gain_share_pct": 3.0,
+            "level": 30 if now else 33, "now": now, "fills_empty": False, "bis_pct": bis, "bis_pct_worn": 17,
+            "fit": {"for_you": fit}, "sources": list(sources)}
+
+
+DROP = {"kind": "drop", "zone": "Scarlet Monastery: Library", "instance": "dungeon", "levels": [30, 38],
+        "boss": "Fallen Champion", "npc_id": 6488, "chance_pct": 38.5}
+CRAFT = {"kind": "craft", "profession": "Tailoring", "skill": 150, "spell_id": 1257433, "can_make": False}
+QUEST = {"kind": "quest", "zone": "Tanaris", "quest_id": 2768, "name": "Divino-matic Rod"}
+
+# Five head upgrades for the Holy spec: four wearable now (the shroud from a
+# drop and a quest), one at level 33. The brief lists the best three now.
+UPGRADES = [_up(7691, "Embalmed Shroud", 27.17, 100, DROP, QUEST),
+            _up(254015, "Earthen Silk Hood", 20.91, 81, CRAFT),
+            _up(9492, "Electromagnetic Gigaflux Reactivator", 18.68, 74, {**DROP, "boss": "Mekgineer Thermaplugg",
+                                                                          "npc_id": 7800, "zone": "Gnomeregan"}),
+            _up(253975, "Filigreed Pristine Circlet", 17.8, 71, CRAFT),
+            _up(10504, "Green Lens", 40.0, 100, DROP, now=False)]
+
+
+def test_the_brief_hands_the_best_upgrades_for_a_weak_slot():
+    """The wrong_spec_gear gap (owner, 2026-11-22): the brief named the
+    off-spec circlet, and the head upgrades for the scored spec were in
+    upgrade_candidates, reachable through play_sql only. Now each listed worn
+    item carries its slot's best wearable upgrades from the semantic layer."""
+    db = build(_with_gear(history()), {**ADVICE, "upgrades_all": UPGRADES})
+    g = drive.facts(db)["gear_fit"]
+    head = g["worn"][0]
+    assert head["slot"] == "Head" and head["wowhead"] == "https://www.wowhead.com/forever/item=253981"
+    ups = head["upgrades"]
+    assert [u["item"] for u in ups] == ["Embalmed Shroud", "Earthen Silk Hood", "Electromagnetic Gigaflux Reactivator"]
+    assert head["more"] is True  # the circlet is a fourth one wearable now; the lens isn't wearable yet
+    shroud = ups[0]
+    assert shroud["line"] == "17% → 100% on your head" and shroud["gain_points"] == 27.17 and shroud["fit"] == "yes"
+    assert shroud["wowhead"] == "https://www.wowhead.com/forever/item=7691"
+    # Both sources, in the gear tool's words, each with its page; a craft says what blocks it.
+    assert sorted(zip(shroud["where"], shroud["where_wowhead"], strict=True)) == [
+        ("drop: Fallen Champion in Scarlet Monastery: Library (dungeon, levels 30-38), 38.5%",
+         "https://www.wowhead.com/forever/npc=6488"),
+        ("quest Divino-matic Rod (Tanaris)", "https://www.wowhead.com/forever/quest=2768")]
+    assert ups[1]["where"][0].startswith("craft: Tailoring 150; ")
+    # The query it hands over is a query_metric call: re-run, it lists the same items.
+    from wowstats.analysis import semantic
+
+    layer, ro = semantic.local(db)
+    got = semantic.run(layer, ro, g["query"])
+    names = [r[got["columns"].index("item")] for r in got["rows"]]
+    assert names[:3] == [u["item"] for u in ups] and "Green Lens" not in names
+
+
+def test_a_weak_slot_with_no_upgrade_says_so():
+    db = build(_with_gear(history()), ADVICE)
+    head = drive.facts(db)["gear_fit"]["worn"][0]
+    assert head["upgrades"] == "none wearable now in the gear advice" and head["more"] is False
+
+
+def test_the_layer_ranks_upgrades_per_slot_and_reads_the_worn_gear():
+    """query_metric's `upgrades` and `worn` models: what the brief reads,
+    open to any client without a table name."""
+    from wowstats.analysis import semantic
+
+    db = build(_with_gear(history()), {**ADVICE, "upgrades_all": UPGRADES})
+    layer, ro = semantic.local(db)
+
+    def ask(**q):
+        got = semantic.run(layer, ro, q)
+        return [dict(zip(got["columns"], r, strict=True)) for r in got["rows"]]
+
+    top = ask(metrics=["upgrade_gain", "upgrade_bis_pct", "upgrade_bis_pct_worn"], group_by=["item", "rank_now"],
+              where=[{"dimension": "slot", "op": "=", "value": "Head"},
+                     {"dimension": "rank_now", "op": "<=", "value": 2}], order_by=["rank_now"])
+    assert [(r["item"], r["rank_now"], r["upgrade_bis_pct"], r["upgrade_bis_pct_worn"]) for r in top] == [
+        ("Embalmed Shroud", 1, 100, 17), ("Earthen Silk Hood", 2, 81, 17)]
+    # Two sources, one item: its gain is the item's, not summed.
+    shroud = ask(metrics=["upgrade_gain", "upgrade_sources"], where=[{"dimension": "item_id", "op": "=", "value": 7691}])
+    assert shroud == [{"upgrade_gain": 27.17, "upgrade_sources": 2}]
+    later = ask(metrics=["upgrade_gain"], group_by=["item", "now", "rank_now"],
+                where=[{"dimension": "now", "op": "=", "value": 0}])
+    assert later == [{"item": "Green Lens", "now": 0, "rank_now": None, "upgrade_gain": 40.0}]
+    worn = ask(metrics=["worn_bis_pct", "worn_score"], group_by=["slot", "item", "fit", "scored_for"],
+               order_by=["slot"])
+    assert worn == [{"slot": "Chest", "item": "Robe", "fit": "yes", "scored_for": "Holy (healer)",
+                     "worn_bis_pct": 100, "worn_score": 25.0},
+                    {"slot": "Head", "item": "Filigreed Shadow Circlet", "fit": "spec", "scored_for": "Holy (healer)",
+                     "worn_bis_pct": 17, "worn_score": 5.59}]

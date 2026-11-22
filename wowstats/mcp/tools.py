@@ -727,38 +727,10 @@ def t_route_reference(ctx: Ctx, args: dict) -> dict:
     return {**out, "profile_unread": unread} if unread else out
 
 
-def _src_text(s: dict) -> str:
-    """One source in a few words: 'quest Tharil'zun (Redridge Mountains, req 18)'."""
-    if s["kind"] == "bags":
-        return "in your bags: equip it"
-    if s["kind"] == "bank":
-        return "in your bank: take it out at a banker and equip it"
-    if s["kind"] == "quest":
-        where = ", ".join(x for x in (s.get("zone"), f"req {s['req_level']}" if s.get("req_level") else None,
-                                      "dungeon quest" if s.get("dungeon") else None,
-                                      f"one of {s['choices']} rewards" if (s.get("choices") or 0) > 1 else None) if x)
-        return f"quest {s.get('name') or s.get('quest_id')} ({where})"
-    if s["kind"] == "drop":
-        chance = f", {s['chance_pct']}%" if s.get("chance_pct") else ""
-        inst = ""
-        if s.get("instance"):
-            lv = s.get("levels")
-            inst = f" ({s['instance']}{f', levels {lv[0]}-{lv[1]}' if lv else ''})"
-        return f"drop: {s.get('boss') or 'trash'} in {s.get('zone') or '?'}{inst}{chance}"
-    if s["kind"] == "ah":
-        share = f", {s['gold_share_pct']:g}% of your gold" if s.get("gold_share_pct") is not None else ""
-        return (f"auction house: {ahsource.price_text(s['price_copper'])}{share}, "
-                f"{ahsource.seen_text(s.get('seen_days_ago'))}{' (cheap)' if s.get('cheap') else ''}")
-    return f"craft: {s.get('profession')} {s.get('skill')}; {gearmod.craft_status(s)}"
-
-
-def _src_link(s: dict) -> str | None:
-    """The Wowhead page of a source: the quest, the boss, the craft's spell."""
-    from wowstats.links import wowhead_url
-
-    kind, i = {"quest": ("quest", s.get("quest_id")), "drop": ("npc", s.get("npc_id")),
-               "craft": ("spell", s.get("spell_id"))}.get(s.get("kind"), (None, None))
-    return wowhead_url(kind, i) if kind and isinstance(i, int) and i > 0 else None
+# One source in words and its Wowhead page: the gear advice's own (wowstats.gear),
+# shared with the analysis' upgrade_candidates so the brief says it the same way.
+_src_text = gearmod.source_text
+_src_link = gearmod.source_link
 
 
 def _with_text(w: dict | None) -> str | None:
@@ -866,6 +838,10 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                            zone=top.get("zone") or s.get("zone"),
                            done=set(done),
                            spec=(args.get("spec") or None), limit=(lim := limit_arg(args, 10, 40)),
+                           # The player's WEIGHTS, like the page, gear_options and the analysis: without
+                           # it this tool scored the add-on's spec (Shadow) while every other answer
+                           # scored the configured one (Holy) (seeded evaluation, wrong_spec_gear).
+                           weights=views_weights(ctx, char),
                            held=gearmod.newest_bags(held), market=market)
     except gearmod.GearError as e:
         raise ToolError(str(e)) from None
@@ -888,6 +864,9 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                    "worn": (x["current"] or {}).get("name") if x["current"] else None,
                    # BiS, 2nd or "N% of BiS"; null when nothing to measure against.
                    "worn_standing": (x.get("standing") or {}).get("label"),
+                   # How the worn item fits the scored spec: a Shadow circlet on a Holy priest
+                   # says so here, not only in the analysis brief.
+                   "worn_fit": _worn_fit((x["current"] or {}).get("fit") if x["current"] else None),
                    "best_now": _gear_item(x["best"]), "next_within_3_levels": _gear_item(x["next"])}
                   for x in a["slots"]],
         "next_upgrades": [_gear_item(u) for u in ups],
@@ -913,7 +892,9 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                "it, a lower armour type, the group-loot tip (who usually gets first pick) and the best upgrade "
                "for the same slot built for this spec (on_spec_alternative). Use it to answer 'should I roll "
                "on this?': an upgrade is an upgrade, but say when it is built for someone else and name the "
-               "alternative. kb lists the knowledge-base statements behind the label (kb_rule / kb_search). "
+               "alternative. worn_fit on each slot says the same of the worn item: a worn item built for another "
+               "spec is a slot to fix first. The spec is the player's WEIGHTS setting when there is one. "
+               "kb lists the knowledge-base statements behind the label (kb_rule / kb_search). "
                "The list is ranked by rank_points: the gain, 10% less for an item built for another spec of the "
                "class, 25% less for one made for another class, and 15% less again when only a group drops it "
                "and others roll first. gain_points is the score gain, "
@@ -936,6 +917,23 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                "at most), at that price; cheap means at most the gold the character nets in one level. buy_now: the "
                "upgrades on sale he can wear now, the most gain per gold first.",
     }
+
+
+def _worn_fit(f: dict | None) -> dict | None:
+    if not f:
+        return None
+    return {"for_you": f["for_you"], "says": gearfit.text(f), "built_for": f.get("built_for")}
+
+
+def views_weights(ctx: Ctx, char: str) -> str | None:
+    """The spec the player set to score this character's gear for (WEIGHTS),
+    read the way the page reads it (views.settings_from_env)."""
+    from wowstats import views
+
+    try:
+        return views.settings_from_env(ctx.environ(), "full").weights.get(char.replace(" ", "-"))
+    except views.ConfigError:
+        return None
 
 
 def _ah_summary(ah: dict | None) -> dict | None:

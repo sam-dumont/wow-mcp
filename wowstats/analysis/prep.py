@@ -55,7 +55,11 @@ from wowstats.stores import (
 # 5: levels gets its calendar time, offline time and longest silence (the
 # view's calendar_s moved here); gear gets the worn items' score and fit for
 # the spec the advice scores (seeded evaluation: offline_gap, wrong_spec_gear).
-PREP_VERSION = 5
+# 6: upgrade_candidates gets each item's BiS share and the worn one's (the
+# page's "17% → 100% on your head"), its fit for the scored spec, and each
+# source in the gear advice's words with its Wowhead page: the brief and the
+# semantic layer's `upgrades` read them (decision data without play_sql).
+PREP_VERSION = 6
 
 
 def _zone() -> tuple[str, ZoneInfo]:
@@ -363,7 +367,14 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "npc_id": "that creature's id", "drop_chance_pct": "drop chance in percent, when known",
         "quest_id": "the quest that rewards it", "quest_name": "its title", "quest_choices": "rewards to choose from",
         "profession": "the profession that makes it", "skill": "the skill it needs",
-        "can_make": "1 when the character's rank is enough"}),
+        "can_make": "1 when the character's rank is enough",
+        "bis_pct": "the item's score as a percent of the best the slot can hold at this level for the scored spec "
+                   "(100: the best; NULL when there is nothing to measure against)",
+        "bis_pct_worn": "the same percent for what is worn in that slot now (NULL: the slot is empty)",
+        "fit": "how the item fits the scored spec: yes, any, spec (built for another spec of the class), class "
+               "(made for another class), unknown",
+        "source_text": "this source in the gear advice's words, as the gear tool says it",
+        "source_wowhead": "the source's Wowhead page (the quest, the boss, the craft's spell), when it has one"}),
     "agg_session": ("Neutral sums per login span, from timeline, records and positions.", {}),
     "agg_level": ("Neutral sums per level, from timeline, records and positions.", {}),
     "agg_zone": ("Neutral sums per zone, from timeline, records and positions.", {}),
@@ -769,7 +780,8 @@ def _schema(db: sqlite3.Connection) -> None:
         gain_share_pct REAL, req_level INTEGER, now INTEGER, fills_empty INTEGER, with_item_id INTEGER,
         source_kind TEXT, instance TEXT, instance_min_level INTEGER, instance_max_level INTEGER, zone TEXT, boss TEXT,
         npc_id INTEGER, drop_chance_pct REAL, quest_id INTEGER, quest_name TEXT, quest_choices INTEGER,
-        profession TEXT, skill INTEGER, can_make INTEGER);
+        profession TEXT, skill INTEGER, can_make INTEGER, bis_pct REAL, bis_pct_worn REAL, fit TEXT,
+        source_text TEXT, source_wowhead TEXT);
     CREATE TABLE quests (quest_row INTEGER PRIMARY KEY, quest_id INTEGER, quest_name TEXT, status TEXT,
         accepted_t REAL, closed_t REAL, accepted_local TEXT, closed_local TEXT, level_accepted INTEGER,
         level INTEGER, zone TEXT, xp INTEGER, money_copper INTEGER, wall_s REAL, open_online_s REAL,
@@ -1084,14 +1096,16 @@ def _upgrades(db, ups: list[dict]) -> None:
         base = (_int(u.get("item_id")), u.get("name"), _int(u.get("quality")), u.get("slot_name"), _flt(u.get("gain")),
                 _flt(u.get("gain_share_pct")), _int(u.get("level")), 1 if u.get("now") else 0,
                 1 if u.get("fills_empty") else 0, _int((u.get("with") or {}).get("item_id")))
+        badge = (_flt(u.get("bis_pct")), _flt(u.get("bis_pct_worn")), (u.get("fit") or {}).get("for_you"))
         for s in u.get("sources") or []:
             lv = s.get("levels") or [None, None]
             out.append(base + (s.get("kind"), s.get("zone") if (s.get("instance") or s.get("dungeon")) else None,
                                _int(lv[0]), _int(lv[1]), s.get("zone"), s.get("boss"), _int(s.get("npc_id")),
                                _flt(s.get("chance_pct")), _int(s.get("quest_id")), s.get("name"),
                                _int(s.get("choices")), s.get("profession"), _int(s.get("skill")),
-                               None if s.get("can_make") is None else int(bool(s.get("can_make")))))
-    db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 24) + ")", out)
+                               None if s.get("can_make") is None else int(bool(s.get("can_make"))))
+                       + badge + (gear.source_text(s), gear.source_link(s)))
+    db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 29) + ")", out)
 
 
 def _gear_fit(db, advice: dict | None) -> None:
