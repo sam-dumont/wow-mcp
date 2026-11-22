@@ -613,9 +613,10 @@ def standing(state: dict) -> dict:
 
 
 def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns: list, db, knowledge,
-           players: set[str], info: dict, now: str, build: dict | None = None) -> dict:
+           players: set[str], info: dict, now: str, build: dict | None = None, sem: tuple = (None, None)) -> dict:
     """Screen, rank and save: shared by the nightly recheck and a driver's
-    synthesis. A nudge or pattern stands only on findings still kept and not
+    synthesis. `sem` is the caller's semantic layer and its runner, when it
+    has them (else time_budget makes its own copy). A nudge or pattern stands only on findings still kept and not
     doubtful; a line with a number nobody re-ran goes; the shared page's
     lines are screened for numbers, times, dates and names."""
     from . import verify
@@ -689,7 +690,7 @@ def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns
            "nudges": nudges, "patterns": patterns, "runs": runs,
            "kb": {"docs": len(knowledge), "kinds": knowledge.kinds(), "game_build": knowledge.meta.get("game_build"),
                   "polestar": (knowledge.meta.get("polestar") or {}).get("tag")},
-           "time_budget": time_budget(db)}
+           "time_budget": time_budget(db, *sem)}
     save_state(env, char, out)
     return out
 
@@ -757,12 +758,15 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     recheck(kept, ReadOnly(db), now, info, duck=_duck_runner(db), mark=data_mark(db), build=build,
             builds=state.get("manifests"))
     info["seconds_total"] = round(time.time() - t0, 1)
-    level = current_level(db)
+    from . import semantic
+
+    sem = semantic.local(db)  # one copy for the level now and the time budget
+    level = current_level(db, *sem)
     nudges = bind([n for n in state.get("nudges") or [] if isinstance(n, dict)], kept, level, info["dropped"], "nudge")
     patterns = bind([p for p in state.get("patterns") or [] if isinstance(p, dict)], kept, level, info["dropped"],
                     "pattern")
     out = finish(env, char, state, kept, nudges, patterns, db, knowledge,
-                 players, info, now, build)
+                 players, info, now, build, sem)
     print(json.dumps({"event": "analysis_recheck", "component": "wow", "findings": len(out["findings"]),
                       **{k: info[k] for k in ("confirmed", "still", "faded", "revalidate", "carried_over",
                                                  "seconds_total")},
@@ -797,9 +801,14 @@ def run_all(env: dict | None = None, failed: list[str] | None = None) -> list[st
     return done
 
 
-def current_level(db) -> int | None:
-    r = db.execute("SELECT level FROM records WHERE level IS NOT NULL ORDER BY t DESC LIMIT 1").fetchone()
-    return r[0] if r else None
+def current_level(db, layer=None, ro=None) -> int | None:
+    """The level on the newest record that carries one (the layer's level_now)."""
+    from . import semantic
+
+    if layer is None:
+        layer, ro = semantic.local(db)
+    got = semantic.run(layer, ro, {"metrics": ["level_now"]})
+    return got["rows"][0][0] if got["rows"] else None
 
 
 def feasible(raw: list, level: int | None, kb_has, dropped: list | None = None) -> tuple[list[dict], dict]:
@@ -840,15 +849,41 @@ def feasible(raw: list, level: int | None, kb_has, dropped: list | None = None) 
     return out, counts
 
 
-def time_budget(db) -> list[dict]:
-    """Per level: online time and the neutral splits the prep keeps (no
-    category of its own), next to the route planner's time."""
-    rows = db.execute("SELECT a.level, a.online_s, a.instance_s, a.taxi_s, a.ride_s, a.dead_s, a.afk_s, "
-                      "a.combat_s, a.xp_gained, l.played_s, l.planned_s FROM agg_level a LEFT JOIN levels l "
-                      "ON l.level = a.level ORDER BY a.level").fetchall()
-    keys = ("level", "online_s", "instance_s", "taxi_s", "ride_s", "dead_s", "afk_s", "combat_s", "xp_gained",
-            "played_s", "planned_s")
-    return [{k: (round(v) if isinstance(v, float) else v) for k, v in zip(keys, r, strict=True)} for r in rows]
+TIME_BUDGET = (("online_s", "online_s"), ("instance_s", "dungeon_s"), ("taxi_s", "taxi_s"), ("ride_s", "ride_s"),
+               ("dead_s", "dead_s"), ("afk_s", "afk_s"), ("combat_s", "combat_s"), ("xp_gained", "xp_gained"),
+               ("played_s", "played_s"), ("planned_s", "class_planned_s"))
+
+
+def time_budget(db, layer=None, ro=None) -> list[dict]:
+    """Per level the Recorder saw (online time or a record): online time and
+    the neutral splits the prep keeps (no category of its own), next to the
+    route planner's time for the class. All metrics of the semantic layer
+    (`layer` and `ro`, else a copy of `db` of its own: semantic.local)."""
+    from . import semantic
+
+    if layer is None:
+        layer, ro = semantic.local(db)
+    names = [m for _, m in TIME_BUDGET] + ["kills"]  # kills marks a level the records have (0, never NULL, there)
+    by: dict = {}
+    for part in (names[:7], names[7:]):  # a question holds 8 metrics at most
+        got = semantic.run(layer, ro, {"metrics": part, "group_by": ["level"], "limit": semantic.MAX_LIMIT})
+        if got["more"]:
+            raise RuntimeError(f"more than {semantic.MAX_LIMIT} levels")
+        for v in got["rows"]:
+            r = dict(zip(got["columns"], v, strict=True))
+            by.setdefault(r["level"], {}).update(r)
+    out = []
+    for _, r in sorted(by.items(), key=lambda x: (x[0] is not None, x[0] or 0)):
+        r = {n: r.get(n) for n in ("level", *names)}
+        if r["online_s"] is None and r["kills"] is None:
+            continue  # a level with a split or a plan only: nothing the Recorder saw
+        row = {"level": r["level"]}
+        for k, metric in TIME_BUDGET:
+            v = r[metric]
+            v = 0 if v is None and k not in ("played_s", "planned_s") else v
+            row[k] = round(v) if isinstance(v, float) else v
+        out.append(row)
+    return out
 
 
 # ---------------------------------------------------------------- answers

@@ -927,10 +927,10 @@ def _submit_synthesis(env, w, run, answer):
             dropped.append(f"nudge \"{str(n.get('text') or '')[:60]}\": no next_step (the first thing to do, where)")
             continue
         raw.append({**n, "findings": cites(n)})
-    nudges, feas = feasible(raw, current_level(w.db), w.kb_has, dropped)
+    lvl = current_level(w.db, w.layer(), w.metrics)
+    nudges, feas = feasible(raw, lvl, w.kb_has, dropped)
     patterns = [{"text": str(p.get("text") or "")[:240], "findings": cites(p)}
                 for p in (answer.get("patterns") or [])[:6] if isinstance(p, dict)]
-    lvl = current_level(w.db)
     nudges = bind(nudges, kept, lvl, dropped, "nudge")
     patterns = bind(patterns, kept, lvl, dropped, "pattern")
     asked = run["questions"]
@@ -955,7 +955,7 @@ def _submit_synthesis(env, w, run, answer):
             "seconds_total": round((datetime.now(UTC) - datetime.fromisoformat(run["started"])).total_seconds())}
     out = finish(env, w.char, {**state, "goals": run.get("goals") or state.get("goals") or ""}, kept, nudges,
                  patterns, w.db, w.kb, other_players(w.store, w.store.stream, w.char), info, info["at"],
-                 w.manifest)
+                 w.manifest, (w.layer(), w.metrics))
     run["pass"] = "done"
     run["result"] = info
     return {"accepted": True, "kept": sorted(out["findings"]),

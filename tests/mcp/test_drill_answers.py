@@ -6,8 +6,10 @@ the tools' queries; the rows are made up."""
 
 from __future__ import annotations
 
+from tests.mcp import fakes
 from wowstats import stores
 from wowstats.mcp import tools
+from wowstats.mcp.store import Store
 
 
 class Rows:
@@ -40,10 +42,21 @@ def test_players_breaks_ties_the_same_way_whatever_order_the_store_answers():
 
 
 def test_zones_reads_a_sum_over_no_values_as_nothing():
-    # VictoriaLogs answers sum() over rows without the field as "NaN".
-    act = [{"zone": "Durotar", "kind": "xp", "n": "3", "xp": "NaN"},
-           {"zone": "Durotar", "kind": "kill", "n": "4", "xp": "NaN"}]
-    out = tools.t_zones(ctx(Rows(("kind:in(xp, kill, turnin, death)", act))), {"char": "Me-Realm"})
+    # XP bar readings without xp_gained (an older Recorder) and kills: the
+    # zone's XP sums no values, so it is 0 and its XP an hour unknown.
+    def at(m):
+        return f"2026-11-20T18:{m:02d}:00.000Z"
+
+    raw = ([{"_time": at(0), "feed": "wow-recorder", "kind": "zone", "zone": "Durotar", "source_id": "rec:1:1:0"}]
+           + [{"_time": at(1 + i), "feed": "wow-recorder", "kind": "xp", "level": 5, "xp": 100 * i, "xp_max": 2000,
+               "zone": "Durotar", "source_id": f"rec:1:1:{1 + i}"} for i in range(3)]
+           + [{"_time": at(5 + i), "feed": "wow-recorder", "kind": "kill", "level": 4, "zone": "Durotar",
+               "source_id": f"rec:1:1:{5 + i}"} for i in range(4)])
+    fake = fakes.FakeStores(logs=[], metrics=[], raw=raw, char="Me-Realm")
+    try:
+        out = tools.t_zones(tools.Ctx(store=Store(vl_url=fake.url)), {"char": "Me-Realm"})
+    finally:
+        fake.close()
     (z,) = out["zones"]
     assert (z["zone"], z["xp"], z["kills"], z["xp_per_hour"]) == ("Durotar", 0, 4, None)
 

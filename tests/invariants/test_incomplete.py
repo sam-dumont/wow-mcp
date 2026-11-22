@@ -115,6 +115,7 @@ def _fresh() -> None:
     T._VIEWS.clear()
     T._MISSING.clear()
     drive._WS.clear()  # a prep the healthy store built
+    T._LAYERS.clear()  # the tools' semantic layers, built from it too
 
 
 ARGS = {"play_sql": {"query": "SELECT COUNT(*) AS n FROM records"}, "query_metric": {"metrics": ["deaths"]},

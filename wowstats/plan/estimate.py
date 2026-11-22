@@ -242,7 +242,10 @@ def xp_need(inp: dict, level: int) -> tuple[int, bool]:
     ks = sorted(k for k in t if k < level)
     if len(ks) >= 2:
         a, b = t[ks[-2]], t[ks[-1]]
-        return int(b + (b - a) * (level - ks[-1])), True
+        # Never less than the last recorded level: a level in play whose XP
+        # bar wasn't read gives its XP so far, and a falling line reached 0
+        # and below, where add_xp never got to the end of a gain.
+        return max(b, int(b + (b - a) * (level - ks[-1]))), True
     return (t[ks[-1]] if ks else 50000), True
 
 

@@ -190,6 +190,61 @@ def one(db, sql: str, *a):
     return r[0] if r else None
 
 
+# ---------------------------------------------------------------- the semantic layer
+
+# The pace the estimator reads (each level's played time, XP and route time,
+# the recent sessions' online, AFK and XP) is the semantic layer's metrics,
+# on a DuckDB copy of the prep (owner, 2026-11-22: "use the semantic model
+# all the time"). The levels are kept for the last prep asked: played_between
+# reads them once per snapshot.
+_LEVELS: list = [None, None]
+
+
+def rows_of(layer, ro, **q) -> list[dict]:
+    """One query_metric question's rows as dicts, never cut unless it asks for a limit."""
+    from wowstats.analysis import semantic
+
+    got = semantic.run(layer, ro, {"limit": semantic.MAX_LIMIT, **q})
+    if got["more"] and "limit" not in q:  # a limit asked for cuts on purpose
+        raise RuntimeError(f"more than {semantic.MAX_LIMIT} rows for {q.get('group_by')}")
+    return [dict(zip(got["columns"], r, strict=True)) for r in got["rows"]]
+
+
+def level_rows(db, layer=None, ro=None) -> list[dict]:
+    """Every level of the prep, oldest first, with or without a split: played_s,
+    level_xp (as xp), class_planned_s (as planned_s: the class's route time
+    only, the estimator falls back to the route itself) and partial."""
+    if _LEVELS[0] is db:
+        return _LEVELS[1]
+    if layer is None:
+        layer, ro = semantic_of(db)
+    # planned_s is the Recorder's route time here (estimate's level_factor
+    # says which clock it used): a character with no Recorder session gets
+    # the route reference's, by level, side and class, from the estimate.
+    rec_ran = rows_of(layer, ro, metrics=["session_records"])[0]["session_records"]
+    out = [{"level": r["level"], "played_s": r["played_s"], "xp": r["level_xp"],
+            "planned_s": r["class_planned_s"] if rec_ran else None, "partial": r["partial"]}
+           for r in rows_of(layer, ro, metrics=["played_s", "level_xp", "class_planned_s"],
+                            group_by=["level", "partial"], where=[{"dimension": "level", "op": "is not null"}],
+                            order_by=["level"])]
+    _LEVELS[:] = [db, out]
+    return out
+
+
+def recent_sessions(layer, ro, n: int = RECENT_SESSIONS) -> list[dict]:
+    """The `n` newest Recorder sessions, newest first: their online and AFK
+    time (timeline) and XP (sessions), the levels they began and ended at."""
+    rows = rows_of(layer, ro, metrics=["session_xp"], group_by=["session_id", "start_t", "level_start", "level_end"],
+               where=[{"dimension": "session_id", "op": "is not null"}], order_by=["-start_t"], limit=n)
+    ids = [r["session_id"] for r in rows]
+    tl = {r["session_id"]: r for r in rows_of(layer, ro, metrics=["online_s", "afk_s"], group_by=["session_id"], where=[
+        {"dimension": "session_id", "op": "in", "values": ids}])} if ids else {}
+    return [{"session_id": r["session_id"], "start_t": r["start_t"],
+             "online_s": (tl.get(r["session_id"]) or {}).get("online_s") or 0,
+             "afk_s": (tl.get(r["session_id"]) or {}).get("afk_s") or 0, "xp_gained": r["session_xp"],
+             "level_start": r["level_start"], "level_end": r["level_end"]} for r in rows]
+
+
 def step_kind(guide: str, title: str | None, prev_dest: str | None, planned_s: float | None) -> str:
     """questing, travel, town or dungeon, from the step's place in the guide
     and its title (the route has no other label): the lookup guides are
@@ -546,11 +601,12 @@ def gold_rate(db, days: float = 14, now: float | None = None, sem: tuple | None 
 
 
 def played_between(db, a: tuple, b: tuple) -> float | None:
-    """wowstats.journal.played_between over the prep database's levels."""
+    """wowstats.journal.played_between over the prep's levels (the layer's
+    played_s and level_xp: level_rows)."""
     from wowstats import journal
 
-    rows = [{"level": lv, "seconds": sec, "xp": xp, "partial": bool(part)}
-            for lv, sec, xp, part in q(db, "SELECT level, played_s, xp, partial FROM levels")]
+    rows = [{"level": lv["level"], "seconds": lv["played_s"], "xp": lv["xp"], "partial": bool(lv["partial"])}
+            for lv in level_rows(db)]
     return journal.played_between(rows, a, b)
 
 
@@ -859,18 +915,19 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     if quests_done is None:
         quests_done = dict(q(db, "SELECT quest_id, source FROM quests_done"))
     meta = dict(q(db, "SELECT key, value FROM meta"))
-    x = db.execute("SELECT t, level, xp, xp_max, rested_xp, zone FROM xp ORDER BY t DESC LIMIT 1").fetchone()
-    snap = db.execute("SELECT t, level, xp, xp_max, money_copper, zone, bind, resting FROM snapshots ORDER BY t DESC "
-                      "LIMIT 1").fetchone()
-    # planned_s is the Recorder's route time here (estimate's level_factor
-    # says which clock it used): a character with no Recorder session gets
-    # the route reference's, by level, side and class, from the estimate.
-    rec_ran = one(db, "SELECT 1 FROM records WHERE kind = 'session' LIMIT 1")
-    levels = [dict(zip(("level", "played_s", "xp", "planned_s", "partial"), r, strict=True)) for r in
-              q(db, "SELECT level, played_s, xp, CASE WHEN ? THEN planned_s END, partial FROM levels ORDER BY level",
-                1 if rec_ran else 0)]
-    level = max(_i(x[1], 0) if x else 0, _i(snap[1], 0) if snap else 0,
-                one(db, "SELECT MAX(level) FROM records") or 0)
+    layer, ro = sem
+    _LEVELS[0] = None  # a prep asked again (the tests' replays) reads its levels again
+    levels = level_rows(db, layer, ro)
+    # The character now: the newest XP bar reading, the newest snapshot and
+    # the records' highest level and newest time (the layer's latest and max).
+    x = rows_of(layer, ro, metrics=["bar_t", "bar_level", "bar_xp", "bar_xp_max", "bar_rested_xp"])[0]
+    x = (x["bar_t"], x["bar_level"], x["bar_xp"], x["bar_xp_max"], x["bar_rested_xp"]) if x["bar_t"] else None
+    keys = ("snapshot_last_level", "snapshot_last_xp", "snapshot_last_xp_max", "money_copper", "snapshot_last_zone",
+            "bind", "resting")
+    snap = rows_of(layer, ro, metrics=["snapshot_count", *keys])[0]
+    snap = (None, *(snap[k] for k in keys)) if snap["snapshot_count"] else None
+    recs = rows_of(layer, ro, metrics=["level_max", "last_record_t"])[0]
+    level = max(_i(x[1], 0) if x else 0, _i(snap[1], 0) if snap else 0, recs["level_max"] or 0)
     if not level:
         # Polestar's level splits alone (no sheet, no Recorder): the level
         # after the last one finished, or the one still in progress.
@@ -878,7 +935,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     in_split = next((lv["xp"] for lv in levels if lv["level"] == level and lv["partial"]), 0)
     xp_now = x[2] if x and x[1] == level else (snap[2] if snap and snap[1] == level else in_split or 0)
     xp_max = x[3] if x and x[1] == level else (snap[3] if snap and snap[1] == level else None)
-    last_t = one(db, "SELECT MAX(t) FROM records") or now
+    last_t = recs["last_record_t"] or now
     # Rested XP left at the last record, plus what logging out added since
     # (the KB's Classic rates, labelled as such).
     rested_then = (x[4] if x else 0) or 0
@@ -918,11 +975,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         pos["shown_behind"] = [{"step": n, "planned_s": p, "title": t, "kind": kinds[n]} for n, p, t in steps
                                if pos["shown_step"] <= n <= pos["shown_step"] + 1 and pos["shown_step"] <
                                pos["furthest_step"]]
-    sessions = [dict(zip(("session_id", "start_t", "online_s", "afk_s", "xp_gained", "level_start", "level_end"), r,
-                         strict=True)) for r in q(db, "SELECT s.session_id, s.start_t, a.online_s, a.afk_s, "
-                                                      "s.xp_gained, s.level_start, s.level_end FROM sessions s JOIN "
-                                                      "agg_session a ON a.session_id = s.session_id ORDER BY s.start_t "
-                                                      "DESC LIMIT ?", RECENT_SESSIONS)]
+    sessions = recent_sessions(layer, ro)
     done = [lv for lv in levels if lv["played_s"] and not lv["partial"] and lv["level"] < level][-PACE_LEVELS:]
     lo = done[0]["level"] if done else level
     # Kill XP outside dungeons over every XP the bar gained, from level lo

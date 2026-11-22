@@ -159,22 +159,6 @@ class Reference:
                 "guide": rows[0][1].get("guide"), "range_s": [min(r["min_s"] for _, r in rows),
                                                               max(r["max_s"] for _, r in rows)]}
 
-    def compare(self, levels: list[dict], who: dict | None = None) -> list[dict]:
-        """The player's level splits (tools.build_levels rows) with the
-        route's expected time beside each finished one."""
-        who = who or {}
-        out = []
-        for lv in levels:
-            row = dict(lv)
-            exp = self.level(lv["level"], who.get("faction"), who.get("class"))
-            if exp and exp.get("expected_s"):
-                row["route"] = exp["expected"]
-                row["route_s"] = exp["expected_s"]
-                if not lv.get("partial") and lv.get("seconds"):
-                    row["vs_route"] = f"{lv['seconds'] / exp['expected_s']:.1f}x"
-            out.append(row)
-        return out
-
     # ------------------------------------------------------------ the tool
 
     def lookup(self, args: dict, who: dict | None = None) -> dict:
