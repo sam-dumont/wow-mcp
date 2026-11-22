@@ -14,6 +14,9 @@ Four things, for every character (owner, 2026-11-18, after v0.2.0 showed
 3. the dungeons: which one, when, at what level;
 4. the level snapshots: the gear (and the 3D look) at each past level.
 
+Plus one state under the equipment: whether it may be out of date
+(wowstats.coverage.public; owner, 2026-11-22), never when it was read.
+
 Everything else stays in the full content (/zogzog/, /full/): the Overview's
 advice, the current zone and guide step, deaths and killers, the journal,
 guide steps, flights, zones, the timeline's events, tracked and next
@@ -124,6 +127,9 @@ PUBLIC: dict[str, dict] = {
                  "render": {"ext": None, "pending": None}, "items": [ITEM],
                  "professions": [PROFESSION]},
         "spec": SPEC_CARD, "talents": TALENTS, "legacy": LEGACY, "class_guide": CLASS_GUIDE,
+        # Whether the equipment may be out of date (wowstats.coverage.public):
+        # a state, never when it was read (owner, 2026-11-22).
+        "coverage": {"battlenet": None},
     },
     # The level slider's stops: no events.
     "timeline": {"char": None, "generated_at": None, "levels": [None]},
@@ -252,10 +258,14 @@ GEAR_SHEET = {**_keys("at", "item_level", "guild", "spec", "class", "race", "fac
               "items": [ITEM], "professions": [PROFESSION],
               "wanted": [_keys("item_id", "name", "item_level", "req_level", "slot_name", "level")]}
 # per_level: the ratio and how many levels it read, not which ones (which
-# levels the Recorder saw whole is coverage, and coverage stays off the
-# static tiers until the owner says otherwise).
+# levels the Recorder saw whole is coverage's to say: COVERAGE_Z below).
 DEATH_COUNTS = {"total": None, "by_zone": [_keys("zone", "n")], "by_level": {},
                 "per_level": _keys("value", "deaths", "n")}
+# The full view's coverage lines (wowstats.coverage, owner 2026-11-22): what
+# the Recorder missed, by level and length, and when Battle.net last read the
+# equipment. Only what the page's lines read: no gap's times.
+COVERAGE_Z = {"recorder": {**_keys("state", "fix"), "gaps": [_keys("level", "off_s")]},
+              "battlenet": _keys("state", "as_of")}
 LOOT_ITEM = _keys("item_id", "name", "quality", "count", "t", "zone")
 
 # The Dungeons panel (wowstats.plan.dungeonview): game data, his own runs
@@ -311,7 +321,7 @@ ZOGZOG: dict[str, dict] = {
                     "recent": [_keys("from_zone", "to_zone", "secs", "t")]},
         "gear": GEAR_SHEET,
         "spec": SPEC_CARD, "talents": TALENTS, "legacy": LEGACY, "class_guide": CLASS_GUIDE,
-        "meta": META_PARAGRAPH,
+        "meta": META_PARAGRAPH, "coverage": COVERAGE_Z,
     },
     "journal": {**_keys("char", "gap_s", "generated_at"), "sessions": [{
         **_keys("start", "end", "played_s", "level_start", "level_end", "levels_gained", "xp", "gold_delta_copper",

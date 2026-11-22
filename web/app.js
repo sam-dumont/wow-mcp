@@ -221,9 +221,12 @@ function recorderGap(d) {
 }
 
 // Battle.net's equipment read older than one refresh (2 h) and a bit, or
-// shown from the last complete read after a failed one.
+// shown from the last complete read after a failed one. The public view gets
+// the state alone, judged when its bundle was built (wowstats/coverage.py
+// public): a line that says neither when nor how long (owner, 2026-11-22).
 function bnetStale(d) {
   const b = ((d && d.coverage) || {}).battlenet;
+  if (typeof b === 'string') return b === 'partial' ? 'Equipment may be out of date.' : null;
   if (!b || !b.as_of) return null;
   const old = Date.now() - new Date(b.as_of).getTime() > 3 * 3600e3;
   return old || b.state === 'partial' ? `Equipment last read ${ago(b.as_of)}: what you wear now may differ.` : null;
