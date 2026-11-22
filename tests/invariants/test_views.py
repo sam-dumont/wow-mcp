@@ -27,6 +27,7 @@ from wowstats import analysis
 from wowstats.analysis import TABLES, drive, duck, prep, semantic
 from wowstats.analysis.sql import QueryError
 from wowstats.mcp import route, tools
+from wowstats.plan import facts
 
 ROOT = Path(__file__).resolve().parents[2]
 SEED_CHAR = "Testchar-Demo"
@@ -207,6 +208,53 @@ def test_a_metric_that_cant_be_read_at_the_grain_is_refused(monkeypatch):
             semantic.views()
     finally:
         semantic.views.cache_clear()
+
+
+def _old_progress(db) -> list[dict]:
+    """The plan's review series as facts.progress computed it with its own
+    SQL before it read the layer (semantic.yaml `progress`): each XP reading,
+    and the timeline intervals in start order up to the first one the
+    reading hadn't seen end."""
+    segs = db.execute("SELECT t0, t1, dur_s FROM timeline ORDER BY t0").fetchall()
+    out, on, i = [], 0.0, 0
+    for t, level, xp, xp_max in db.execute("SELECT t, level, xp, xp_max FROM xp WHERE level IS NOT NULL ORDER BY t"):
+        while i < len(segs) and segs[i][1] <= t:
+            on += segs[i][2] or 0
+            i += 1
+        out.append({"t": t, "level": round(level + (xp or 0) / xp_max, 3) if xp_max else float(level),
+                    "online_s": round(on)})
+    return out
+
+
+def test_the_progress_series_is_the_plans_old_series_and_query_metric_by_day(built):
+    """The level over time (semantic.yaml `progress`, what a plan is reviewed
+    against): read at its reading grain it is exactly the series the plan
+    built with its own SQL (the XP readings, and the snapshots apart); by
+    day, query_metric gives each day's last reading, its level and the
+    online total then."""
+    sem = (built["layer"], built["ro"])
+    assert facts.progress(built["db"], sem) == _old_progress(built["db"]) != []
+    snaps = built["db"].execute("SELECT t, level, xp, xp_max FROM snapshots WHERE level IS NOT NULL "
+                                "ORDER BY t").fetchall()
+    got = facts.series(sem, "snapshot")
+    assert [(r["progress_t"], r["level"], r["progress_xp"], r["progress_online_s"]) for r in got] == [
+        (t, lv, xp, None) for t, lv, xp, _ in snaps]
+    assert [r["progress_level"] for r in got] == [lv + (xp or 0) / mx if mx else float(lv) for _, lv, xp, mx in snaps]
+    # By day: query_metric's answer is the series' last reading of each local day.
+    xp = [{"dimension": "source", "op": "=", "value": "xp"}]
+    days = semantic.rows(*sem, {"metrics": ["progress_t"], "group_by": ["reading"], "grain": "day", "where": xp})
+    reading = {r["reading"]: r for r in facts.series(sem, "xp")}
+    last: dict = {}
+    for r in days:
+        if r["reading"] > last.get(r["day"], 0):
+            last[r["day"]] = r["reading"]
+    ans = semantic.run(*sem, {"metrics": ["progress_level", "progress_online_s", "progress_readings"],
+                              "grain": "day", "where": xp, "limit": semantic.MAX_LIMIT})
+    assert not ans["more"] and len(ans["rows"]) == len(last)
+    for day, level, online, n in ans["rows"]:
+        want = reading[last[str(day)]]
+        assert (level, online) == (want["progress_level"], want["progress_online_s"]), (built["name"], day)
+        assert n == sum(1 for r in days if r["day"] == str(day))
 
 
 def test_views_hold_in_the_query_process(built):

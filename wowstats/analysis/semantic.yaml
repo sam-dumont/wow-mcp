@@ -285,6 +285,7 @@ records:
     step: {expr: _.at_step, description: "That guide's step number, the same way: a step or skip record's own step. Group by guide too: step numbers restart in each guide."}
     dungeon_trip: {expr: _.dungeon_trip_id, description: "The dungeon trip the record falls in (dungeon_trips), NULL outside one: filter is null for play outside dungeons."}
     record_t: {expr: _.t, description: "One record, named by when it was written (unix seconds): group by it to list the records one by one."}
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
@@ -907,6 +908,11 @@ loot:
       description: "Items looted, a stack counted by its size."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: items,
                  caveats: "Only what the Recorder saw; what it is worth is the item's (vendor price, the player's own scans), not here."}
+    first_looted_t:
+      expr: _.t.min()
+      description: "When the group's first item was looted, unix seconds: by item_id, when the character first got it."
+      metadata: {kind: simple, aggregation: min, time_meaning: event, evidence_basis: observed, unit: unix seconds,
+                 caveats: "Not additive: over several groups it is the earliest. Only what the Recorder saw: an item looted before it ran isn't here."}
 
 xp:
   table: sem_xp
@@ -953,6 +959,44 @@ xp:
       description: "Rested XP left on the newest XP bar reading."
       metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: xp,
                  caveats: "The newest reading where it is known: a newest reading without it gives the one before. NULL with no reading in the group."}
+
+progress:
+  table: sem_progress
+  description: "The character's level over time: one row per XP bar reading (the Recorder) and, apart, per logout snapshot (the character sheet), with the online time the Recorder saw up to each reading. The series a session plan is reviewed against."
+  dimensions:
+    source: {expr: _.source, description: "Which series: xp (the Recorder's XP bar readings, with online time) or snapshot (the logout and /reload character sheets, no online time). Filter on one: the two are measured apart."}
+    reading: {expr: _.reading, description: "One reading of the series, numbered from 1 in time order within its source: group by it (with source) to list the series point by point."}
+    level: {expr: _.level, is_entity: true, description: "Character level."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When the reading was taken, local time."}
+  measures:
+    progress_readings:
+      expr: _.t.count()
+      description: "Readings in the series: XP bar readings, or snapshots."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: readings,
+                 caveats: "Readings with a level only. Filter on source: XP bar readings come every 5 minutes, snapshots at logout."}
+    progress_t:
+      expr: _.t.max()
+      description: "When the group's newest reading was taken, unix seconds (UTC)."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: unix seconds,
+                 caveats: "NULL with no reading in the group."}
+    progress_level:
+      expr: _.level_frac.argmax(_.t)
+      description: "The level with the fraction of it done, on the group's newest reading: 32.5 is halfway through level 32."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: level,
+                 caveats: "A point, not a sum: by day it is where the day ended. The whole level when the reading has no XP the level needs."}
+    progress_xp:
+      expr: _.xp.argmax(_.t)
+      description: "XP into the level on the group's newest reading."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: xp,
+                 caveats: "Read it with the reading's level. NULL when the reading has none."}
+    progress_online_s:
+      expr: _.online_to_s.max()
+      description: "Online seconds the Recorder saw from its first record up to the group's newest reading: every timeline interval that had ended by then."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "A running total, not additive: by day it is the total at the day's last reading, and a day's own time is the difference between two days. NULL on snapshot rows: without the Recorder there is no online time (the plan estimates it from Polestar's level splits)."}
 
 upgrades:
   table: sem_upgrades
@@ -1070,6 +1114,106 @@ worn:
       description: "That worn item's score as a percent of the best its slot can hold at this level for the scored spec."
       metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: estimated, unit: percent,
                  caveats: "Group by slot, as worn_item. NULL when there is nothing to measure against."}
+
+professions:
+  table: sem_professions
+  description: "The professions on the newest character sheet, with their ranks (Polestar's, the cap filled from the Recorder's skill records)."
+  dimensions:
+    profession: {expr: _.name, description: "The profession's name (Tailoring, Cooking...)."}
+    skill_id: {expr: _.skill_id, description: "The skill line of a skill record (762: Riding; the professions' own ids), else NULL."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    profession_rank:
+      expr: _.rank.max()
+      description: "The profession's skill rank on the newest sheet."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: skill points,
+                 caveats: "Group by profession: over several it is the highest. The newest sheet only."}
+    profession_max_rank:
+      expr: _.max_rank.max()
+      description: "The rank the profession can reach before its next trainer (the cap)."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: skill points,
+                 caveats: "Group by profession. From the newest skill record when the sheet's own cap is older."}
+
+done_quests:
+  table: sem_quests_done
+  description: "The quests known done, one row per quest, with the first source that says so (wowstats.quests.completed)."
+  dimensions:
+    quest_id: {expr: _.quest_id, description: "Quest id (its Wowhead page: quest=<id>)."}
+    done_source: {expr: _.source, description: "How it is known done, the first source that says so: turnin or flagged (the Recorder), questie or altoholic (the addon's completed list), reward (an item only its reward gives), battlenet (a reward Battle.net says is worn), inferred (a quest that needs it is done)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When it was first seen done, local time."}
+  measures:
+    quests_known_done:
+      expr: _.quest_id.count()
+      description: "Quests known done, whatever the source."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: quests,
+                 caveats: "A quest done before the Recorder ran is here only when another source says so; done_source reward, battlenet and inferred are deduced, not seen."}
+
+position:
+  table: sem_route_position
+  description: "Where the character stands in Polestar's levelling route, one row: the step Polestar shows, the furthest step its pointer reached, and the step to do next."
+  dimensions:
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    route_guide:
+      expr: _.guide.max()
+      description: "The guide the newest step record is in, its id."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: guide,
+                 caveats: "One row: where the character stands now. NULL before the first step record of a levelling guide."}
+    route_guide_title:
+      expr: _.guide_title.max()
+      description: "That guide's title, from the route reference."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: guide,
+                 caveats: "NULL when the reference doesn't have the guide."}
+    route_shown_step:
+      expr: _.shown_step.max()
+      description: "The step Polestar shows: the newest step record's."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: step,
+                 caveats: "Polestar falls back to the first unfinished step at login, so it can be behind the furthest step."}
+    route_shown_title:
+      expr: _.shown_title.max()
+      description: "That step's title, from the route reference."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: step,
+                 caveats: "NULL when the reference doesn't have the step."}
+    route_reason:
+      expr: _.reason.max()
+      description: "Why Polestar moved to the shown step (next, done, skip, auto, pick)."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: reason,
+                 caveats: "The newest step record's own reason."}
+    route_furthest_step:
+      expr: _.furthest_step.max()
+      description: "The furthest step Polestar's pointer reached in the guide: the step the character was on, not yet done."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: step,
+                 caveats: "Steps reached by next, done, skip or auto; a pick doesn't move it."}
+    route_next_step:
+      expr: _.next_step.max()
+      description: "The step to do next: the furthest step, or the first step after it named after where the character stands when Polestar fell back."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: inferred, unit: step,
+                 caveats: "route_next_why says which rule chose it. The plan, the next_step tool and play_sql read this one step."}
+    route_next_title:
+      expr: _.next_title.max()
+      description: "That step's title, from the route reference."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: step,
+                 caveats: "NULL when the reference doesn't have the step."}
+    route_next_why:
+      expr: _.next_why.max()
+      description: "Why that step is next, in words."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: inferred, unit: text,
+                 caveats: "Names the step Polestar fell back to and where the character stands when it moved the plan on."}
+    route_subzone:
+      expr: _.subzone.max()
+      description: "The subzone on the newest record that has one."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: place,
+                 caveats: "The newest record with a subzone or a zone; NULL with none."}
+    route_zone:
+      expr: _.zone.max()
+      description: "The zone on that record."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: zone,
+                 caveats: "The same record as route_subzone."}
 
 cross_model_metrics:
   kills_per_combat_hour:
