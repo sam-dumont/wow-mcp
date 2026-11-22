@@ -32,6 +32,7 @@ on one core).
 | 15 | Two conflicting snapshots on one second give the same answer in either arrival order, on the page, the MCP and the analysis' tables. | `test_evidence.py::test_c_*` |
 | 16 | A snapshot that lacks a part (the bank, the equipped items, the money, quests a smaller set doesn't list, a Battle.net part that failed) doesn't erase it from an earlier complete one. | `test_evidence.py::test_d_*` |
 | 17 | What no snapshot says stays unknown (`null`), never 0 or empty: a bank never opened, a sheet without items, money never read, a Battle.net read never complete. | `test_evidence.py::test_e_*` |
+| 20 | `--replay` sends every whole gzip member of a damaged `sent/` file (one cut short by a crash, at the end or between two whole ones, or garbage after them), names the file and the bytes it couldn't read, and exits 1. A damaged file never ends in "sent again" and exit 0. | `test_sent_damage.py` |
 
 ## Crash points
 
@@ -47,6 +48,7 @@ I/O) at each one, on the first run and on the last of a few play days, then rest
 | Mid-upload | The server stores nothing of the cut upload (property 12); the spool file is still whole and goes again. |
 | After the server's store, before its 200 | The shipper sees no answer and sends the lines again: the same lines, stored twice, kept once. |
 | After the 200, before the shipper's checkpoint | As above: the spool file still holds the lines, they go again. |
+| Mid-append to `sent/` (after the 200) | The spool file still holds the lines and they go again, so the server has them. The copy in `sent/` keeps a member cut short, then the member the restart appends with the same lines. `--replay` skips the cut one and sends every event, and still says the file is damaged and exits 1: it can't know a later member repeats the cut one (property 20, `test_sent_damage.py::test_a_kill_mid_append_then_the_restart`). |
 | Mid-write of `state.json` | The new state is written to a temporary file and renamed in place; the old one is still whole. |
 | `state.json` cut short on the disk (a power cut that kept the rename, not the data) | The shipper goes on from the state before it (`state.json.prev`) and extracts the last run's records again. Starting over from nothing sent the snapshots of earlier days again under their ids with a later time. |
 
@@ -131,6 +133,13 @@ Evidence properties (13 to 17), fixed in the same change as their tests:
   They are left out now, and readers take them from the last snapshot that has them
   (`stores.newest_with`), the money too.
 - The analysis took the newest gear sheet by time, not the one the page shows.
+
+The shipper's copy in `sent/` (property 20), fixed in the same change as its test (review 6):
+
+- `--replay` read a `sent/` file as one stream in 1 MiB reads. A member cut short by a crash
+  raised in the read that also held the whole members before it, so a file of two whole
+  members and a cut one sent nothing, and the run still exited 0 (review 6). The old test
+  had other files in `sent/`, whose events hid the loss. It now reads member by member.
 
 ## Every consumer, every guarantee
 

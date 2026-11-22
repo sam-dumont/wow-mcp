@@ -91,6 +91,12 @@ The log's last line says how much went: `replay: 12000 events from 9 files in ..
 again`. The page lists your characters within a minute (it keeps the character list for 45
 seconds).
 
+A file in `sent/` damaged by a crash or the disk still sends every part that reads whole. The
+log then names the file and how many bytes it couldn't read, ends with `replay: incomplete`,
+and the run exits 1. The events in those bytes can't be counted. A crash in the middle of a
+copy is the usual cause, and then the next run copied the same events again, so nothing is
+missing; `--reextract` (below) brings back what the archive holds either way.
+
 `sent/` gone too, but `wtf/` is there? Use `--reextract` instead:
 
 ```sh
