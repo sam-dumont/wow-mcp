@@ -327,13 +327,11 @@ def death_counts(ask: Ask, *where: dict) -> dict:
             "gap": r.get("level_gap_max"), "back": r.get("come_back_level")}
 
 
-def death_clusters(ask: Ask | None, ds: list[dict]) -> list[dict]:
+def death_clusters(ask: Ask, ds: list[dict]) -> list[dict]:
     """Deaths that repeat: the same zone, the same creature, or creatures
     well above the player's level. Counted by the semantic layer (deaths by
     zone, by likely killer and zone, deaths_above); `ds` (deaths()) names
-    the creatures and orders a tie by the earliest death. [] without the layer."""
-    if ask is None:
-        return []
+    the creatures and orders a tie by the earliest death."""
     first: dict = {}
     for i, d in enumerate(ds):
         first.setdefault(("zone", d.get("zone")), i)
@@ -388,20 +386,17 @@ ROSTER_NOTE = ("Who was in the group isn't saved by any of the addons the kit re
 # ----------------------------------------------------------------- overview
 
 
-def route_levels(ask: Ask | None) -> list[dict]:
+def route_levels(ask: Ask) -> list[dict]:
     """Each level's split and the route planner's time for it, from the
     semantic layer (played_s, planned_s by level and partial): the level in
-    play has no split (partial NULL), a whole split partial 0. [] without
-    the layer."""
-    if ask is None:
-        return []
+    play has no split (partial NULL), a whole split partial 0."""
     return [{"level": int(r["level"]), "partial": r["partial"], "seconds": None if r["played_s"] is None else int(
         r["played_s"]), "route_s": None if not r["planned_s"] else round(r["planned_s"])}
         for r in ask(metrics=["played_s", "planned_s"], group_by=["level", "partial"])
         if r["level"] is not None]
 
 
-def on_track(ask: Ask | None, header: dict) -> dict:
+def on_track(ask: Ask, header: dict) -> dict:
     """Pace against Polestar's route clock and against the player's own
     previous levels, plus the time to the next level. The split times, the
     route planner's and their ratio are the semantic layer's (played_s,
@@ -528,7 +523,7 @@ def guide_title(guide: str | None, ref=None) -> str:
 
 
 def overview(data: dict, advice: dict | None, ds: list[dict], ref, who: dict, steps_rows: list[dict],
-             sessions: list[dict], ask: Ask | None = None) -> dict:
+             sessions: list[dict], ask: Ask) -> dict:
     """The Overview's lines. `ask`: the semantic layer on the character's
     data (wowstats.analysis.pages.asker), for the pace and the death counts."""
     hd = data.get("header") or {}
@@ -557,7 +552,7 @@ def overview(data: dict, advice: dict | None, ds: list[dict], ref, who: dict, st
     if ds:
         last = ds[-1]
         k = last.get("killer")
-        n = death_counts(ask)["n"] if ask is not None else None
+        n = death_counts(ask)["n"]
         death_claims.append(claim(
             (f"{n} deaths recorded. " if n else "") + f"The last, in {last.get('zone') or 'an unknown zone'}"
             + (f": likely {k['name']} (level {k.get('level') or '?'})" if k else "") + ".",
@@ -959,7 +954,7 @@ def deaths_zone_claim(zone: str, ds: list[dict], level: int | None, ask: Ask) ->
 
 def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, advice: dict | None,
                  gear_profs: list[dict], skills: dict[int, dict], talents: list[dict] | None,
-                 gear_items: list[dict] | None = None, header: dict | None = None, ask: Ask | None = None) -> dict:
+                 gear_items: list[dict] | None = None, header: dict | None = None, *, ask: Ask) -> dict:
     """What looks like a mistake in the recorded play, worst first. The
     death counts are the semantic layer's (`ask`, death_clusters)."""
     found = []

@@ -1928,11 +1928,20 @@ function renderLevels(d) {
   const parts = [`${dur(hd.played_s)} played from level ${hd.first_level} to ${hd.level}`];
   const rt = routeTotals(d);
   if (hd.played_total_s) parts.push(`${dur(hd.played_total_s)} since level 1 (Altoholic’s /played)`);
-  if (hd.kills !== null && hd.kills !== undefined) parts.push(`${fmtNum(hd.kills)} kills and ${fmtNum(hd.quests || 0)} quests handed in`);
+  // The counts say their population (wowstats.analysis.pages.climb): the
+  // completed levels' totals, and the level in play's so far apart from them.
+  const cn = hd.counts || {};
+  const cl = cn.completed_levels;
+  if (cl && cl.kills !== null && cl.kills !== undefined) {
+    const span = cl.from_level === cl.to_level ? `level ${cl.from_level}` : `levels ${cl.from_level}–${cl.to_level}`;
+    parts.push(`${fmtNum(cl.kills)} kills and ${fmtNum(cl.quests || 0)} quests handed in over the completed levels (${span})`);
+  }
   const fastest = done.length ? done.reduce((a, b) => (b.seconds < a.seconds ? b : a)) : null;
   const slowest = done.length ? done.reduce((a, b) => (b.seconds > a.seconds ? b : a)) : null;
   let lede = parts.join(', ') + '.';
   if (fastest && slowest && fastest !== slowest) lede += ` Fastest was ${fastest.level} (${dur(fastest.seconds)}), slowest ${slowest.level} (${dur(slowest.seconds)}).`;
+  const cur = cn.current_level;
+  if (cur && cur.kills !== null && cur.kills !== undefined) lede += ` Level ${cur.level} so far: ${fmtNum(cur.kills)} kills and ${fmtNum(cur.quests || 0)} quests, not in those totals.`;
   if (rt.n) lede += ` Polestar’s route plans ${dur(rt.route)} for the ${rt.n} finished level${rt.n === 1 ? '' : 's'} it times: ${(rt.played / rt.route).toFixed(1)}× here.`;
 
   const chart = h('div', { class: 'climb' });

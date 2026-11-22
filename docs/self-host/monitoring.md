@@ -11,7 +11,7 @@ From `deploy/compose`:
 docker compose ps
 ```
 
-Every service should say `running`. Each server answers `GET /healthz` with `200 ok`, with no
+Every service should say `running`. Each server answers `GET /healthz` with `200`, with no
 login, so an uptime checker (Uptime Kuma, Gatus, your router's) can poll it:
 
 | Service | Health check |
@@ -25,7 +25,15 @@ login, so an uptime checker (Uptime Kuma, Gatus, your router's) can poll it:
 curl -s http://127.0.0.1:8080/healthz
 ```
 
-prints `ok`.
+prints `{"status": "ok", "semantic": "ok"}` on the full view, `ok` on the others.
+
+`semantic` is the one to alert on. Every number on the page comes from one place, the semantic
+layer, with no second way to count them. When it fails for a character, the page keeps showing
+the last good answers, marked out of date, `semantic` reads `"failing"` (with
+`semantic_failing_chars` and `semantic_failed_at`, never a name), and the `ui` log gets one JSON
+line per failure: `"event": "semantic_failed"` with the character and the error. The status
+stays `200`: the process still serves, so a restart wouldn't help. In Gatus, for example:
+`[BODY].semantic != failing`.
 
 ## Data arriving
 

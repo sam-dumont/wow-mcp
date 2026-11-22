@@ -24,8 +24,11 @@ curl -s http://127.0.0.1:8080/healthz
 ```
 
 `ps` says what runs and what restarts in a loop. A service that won't start prints why as the
-last line of its log, word for word as in the table below. `/healthz` answers `ok` once the
-page serves.
+last line of its log, word for word as in the table below. On the full view, `/healthz`
+answers `{"status": "ok", "semantic": "ok"}` once the page serves (`"idle"` before its first
+build). `"semantic": "failing"` means the page's numbers couldn't be computed: the page keeps
+its last good answers, marked out of date, and the `ui` log has a `"event": "semantic_failed"`
+line saying why.
 
 On the computer someone plays on, the little program checks itself: every line a tick, or a
 cross with the one thing that fixes it.

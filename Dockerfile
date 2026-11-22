@@ -93,9 +93,17 @@ COPY THIRD_PARTY.md ./THIRD_PARTY.md
 COPY shipper ./shipper
 COPY docs/videos/steps.json ./docs/videos/steps.json
 # The wheel force-includes the welcome clips, which the renderer never serves: an empty directory keeps
-# the build passing without 24 MB in the image.
+# the build passing without 24 MB in the image. The semantic layer is a core dependency (the pages'
+# numbers, pyproject.toml) that the renderer never imports: DuckDB, the layer and what only they pull in
+# stay out (tests/test_docker_context.py checks the list against uv.lock).
 RUN mkdir -p docs/videos/media \
- && uv sync --frozen --no-dev --no-editable --extra render && chmod -R a+rX,go-w /app/.venv
+ && uv sync --frozen --no-dev --no-editable --extra render \
+      --no-install-package duckdb --no-install-package boring-semantic-layer --no-install-package ibis-framework \
+      --no-install-package sqlglot --no-install-package atpublic --no-install-package attrs \
+      --no-install-package parsy --no-install-package returns --no-install-package toolz \
+      --no-install-package pyyaml --no-install-package python-dateutil \
+      --no-install-package tzdata --no-install-package packaging --no-install-package typing-extensions \
+ && chmod -R a+rX,go-w /app/.venv
 
 FROM render-base AS renderer
 ARG DEBIAN_SNAPSHOT=20261115T000000Z

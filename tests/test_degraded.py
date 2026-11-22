@@ -106,7 +106,8 @@ def test_level_splits_alone(served):
         pytest.skip("more than the splits")
     ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=D.CHAR, env=env)
     cs = T.call(ctx, "character_summary", {"char": D.CHAR})
-    assert cs["level"] and "level" in cs["from_level_splits"] and cs["kills"] and cs["quests_turned_in"]
+    done = cs["counts"]["completed_levels"]
+    assert cs["level"] and "level" in cs["from_level_splits"] and done["kills"] and done["quests"]
     for tool in ("class_guide", "class_meta", "gear"):
         out = T.call(ctx, tool, {"char": D.CHAR})
         assert out["answer"] is None and out["why"] and out["unlock"]
@@ -211,7 +212,8 @@ def test_summary_counts_span_the_switch(switch):
     splits = [r for r in D.rows_for("only-level-splits")]
     # Polestar's per-level counts, the whole history (the Recorder's own
     # would start at the switch).
-    assert cs["kills"] >= sum(int(float(r.get("kills") or 0)) for r in splits if r["_time"] < D.SWITCH)
+    assert cs["counts"]["completed_levels"]["kills"] >= sum(int(float(r.get("kills") or 0)) for r in splits
+                                                            if r["_time"] < D.SWITCH)
 
 
 def test_syndicator_installed_later(switch):

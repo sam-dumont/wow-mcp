@@ -2508,6 +2508,10 @@ wheels = [
 name = "wow-stats"
 version = "0.7.0rc8"
 source = { editable = "." }
+dependencies = [
+    { name = "boring-semantic-layer" },
+    { name = "duckdb" },
+]
 
 [package.optional-dependencies]
 analysis = [
@@ -2517,9 +2521,7 @@ analysis-openai = [
     { name = "openai" },
 ]
 mcp = [
-    { name = "boring-semantic-layer" },
     { name = "cryptography" },
-    { name = "duckdb" },
     { name = "fastmcp" },
 ]
 publish = [
@@ -2549,10 +2551,10 @@ kb = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", marker = "extra == 'analysis'", specifier = "==2.8.0" },
-    { name = "boring-semantic-layer", marker = "extra == 'mcp'", specifier = "==0.3.19" },
+    { name = "boring-semantic-layer", specifier = "==0.3.19" },
     { name = "cryptography", marker = "extra == 'mcp'", specifier = ">=46" },
     { name = "cryptography", marker = "extra == 'publish'", specifier = ">=46" },
-    { name = "duckdb", marker = "extra == 'mcp'", specifier = "==2.0.0" },
+    { name = "duckdb", specifier = "==2.0.0" },
     { name = "fastmcp", marker = "extra == 'mcp'", specifier = "==4.2.0" },
     { name = "openai", marker = "extra == 'analysis-openai'", specifier = "==3.46.0" },
     { name = "playwright", marker = "extra == 'render'", specifier = "==1.65.1" },

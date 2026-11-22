@@ -14,7 +14,7 @@ Time, XP and gold per level, against the route.
 
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
-| `character_summary` | Where the character stands now: level, XP, zone, gold, time in this level, recent pace (XP/hour over the last 3 levels), ETA to the next level, totals (kills, quests, deaths), and the other characters on record. | none | reads |
+| `character_summary` | Where the character stands now: level, XP, zone, gold, time in this level, recent pace (XP/hour over the last 3 levels), ETA to the next level, deaths, the kills and quests in named populations (counts: completed_levels, current_level so far, including_current_level), and the other characters on record. | none | reads |
 | `levels` | Time, XP, quests and kills per level from Polestar's XP splits, with median, fastest and slowest. The current level is marked partial. | `from_level`: First level to include.; `to_level`: Last level to include. | reads |
 | `route_reference` | Polestar's planned route clock: expected time per level (for the character's class, the median over its side's starting races), per guide and per guide step. Guide ids as the recorder writes them, e.g. forever/alliance/05-duskwood; steps count from 1. A planner's model of a quick player, not /played. | `level`: A level: the route's expected time for it.; `guide`: A guide id, or part of one.; `step`: A step of that guide (from 1).; `faction`: Look up this faction's route instead of the character's.; `class`: Look up this class's route instead of the character's. | reads |
 

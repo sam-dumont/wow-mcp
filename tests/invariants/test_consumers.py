@@ -109,6 +109,8 @@ def page_numbers(app, char: str) -> dict:
         "dungeons": sorted((d["name"], d["level"], d["seconds"], d["xp"]) for d in c["dungeons"]),
         "sessions": sorted((s["start"], s["end"]) for s in j["sessions"]),
         "spec": c["spec"]["scored_for"]["label"],
+        # The climb's kills and quests, each population named (pages.climb).
+        "counts": c["header"]["counts"],
     }
 
 
@@ -128,6 +130,7 @@ def mcp_numbers(call, char: str) -> dict:
         "dungeons": sorted((d["name"], d["level"], d["seconds"], d["xp"]) for d in call("dungeons", char=char)["runs"]),
         "sessions": sorted((s["start"], s["end"]) for s in sessions),
         "spec": call("gear_options", char=char)["spec"],
+        "counts": call("character_summary", char=char)["counts"],
     }
 
 
@@ -215,7 +218,7 @@ def test_page_and_mcp_agree(demo_vl, tmp_path, monkeypatch, config):
     got = analysis_numbers(call, D.CHAR)
     assert got["deaths"] == got["deaths_by_day_sum"] == page["deaths"]
     assert got["session_count"] == len(page["sessions"])
-    assert got["kills"] == call("character_summary", char=D.CHAR)["kills"]
+    assert page["counts"]["completed_levels"] and page["counts"]["including_current_level"]["kills"]
     if config == "WEIGHTS":
         assert page["spec"] != app.api_char(D.CHAR)["spec"].get("name")  # sanity: not the add-on's pick
     if tz:

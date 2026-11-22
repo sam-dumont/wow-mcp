@@ -6,11 +6,21 @@ license = "GPL-3.0-only"
 license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.11"
-# Runtime: the standard library only. Keep it that way. Two exceptions, both
-# extras: `wow-stats publish` seals the full-content site with AES-256-GCM,
-# which the standard library doesn't have (pyca/cryptography, well known;
-# no hand-made crypto), and the MCP endpoint runs on FastMCP (`mcp`).
-dependencies = []
+# Runtime: the standard library, plus the semantic layer. The page's numbers
+# have one computation path (owner, 2026-11-22: "use the semantic model all
+# the time", wowstats/analysis/pages.py), so DuckDB (it runs the metrics'
+# SQL on a locked-down in-memory copy of the prep: wowstats/analysis/duck.py)
+# and the Boring Semantic Layer (MIT, on ibis and sqlglot: it compiles the
+# metric catalogue, wowstats/analysis/semantic.yaml, to DuckDB SQL; only
+# compiled, no ibis backend, so no pandas or pyarrow:
+# docs/reference/semantic-layer.md) are core. The shipper is a standalone
+# script on the standard library (shipper/wow_stats.py) and never installs
+# this package; the renderer image leaves the two out (Dockerfile). Other
+# additions are extras: `wow-stats publish` seals the full-content site with
+# AES-256-GCM, which the standard library doesn't have (pyca/cryptography,
+# well known; no hand-made crypto), and the MCP endpoint runs on FastMCP
+# (`mcp`).
+dependencies = ["duckdb==2.0.0", "boring-semantic-layer==0.3.19"]
 
 [project.urls]
 # wowstats.SOURCE_URL says the same (tests/test_license.py).
@@ -21,13 +31,9 @@ publish = ["cryptography>=46"]
 # The MCP endpoint (wowstats.mcp.server): FastMCP's OAuth proxy and its HTTP
 # transport.
 # Without it the full view runs without /mcp. FASTMCP_CHECK_FOR_UPDATES=off is
-# set by the server itself: no call home.
-# DuckDB runs the analysis' queries (play_sql, the judge, query_metric) on a
-# locked-down in-memory copy of the prep (wowstats/analysis/duck.py), and the
-# Boring Semantic Layer (MIT, on ibis and sqlglot) compiles the metric
-# catalogue (wowstats/analysis/semantic.yaml) to DuckDB SQL. Only compiled:
-# no ibis backend, so no pandas or pyarrow (docs/reference/semantic-layer.md).
-mcp = ["fastmcp==4.2.0", "cryptography>=46", "duckdb==2.0.0", "boring-semantic-layer==0.3.19"]
+# set by the server itself: no call home. DuckDB and the semantic layer the
+# analysis' queries run on (play_sql, the judge, query_metric) are core.
+mcp = ["fastmcp==4.2.0", "cryptography>=46"]
 # `wow-stats render` (wowstats.renderer): a past level's picture, drawn by the
 # 3D view's own viewer in a headless Chromium. Its own image target
 # (Dockerfile `renderer`), never in the main image. Pinned like the browser

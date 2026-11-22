@@ -64,3 +64,31 @@ def test_every_stage_that_builds_the_wheel_has_the_force_includes():
         for src in inc:
             ok = any(src == c or src.startswith(c + "/") for c in copied + made)
             assert ok, f"stage {st.splitlines()[0]!r} builds the wheel without {src}"
+
+
+def _closure(lock: dict, names: list[str]) -> set[str]:
+    pkgs = {p["name"]: p for p in lock["package"]}
+    seen: set[str] = set()
+    todo = list(names)
+    while todo:
+        n = todo.pop()
+        if n in seen:
+            continue
+        seen.add(n)
+        todo += [d["name"] for d in pkgs[n].get("dependencies", [])]
+    return seen
+
+
+def test_the_renderer_leaves_out_the_semantic_layer_and_only_it():
+    """The semantic layer is core (one computation path for the pages); the
+    renderer image never imports it, so its stage skips exactly what only
+    the core dependencies pull in: nothing the render extra needs, nothing
+    left behind."""
+    lock = tomllib.loads((ROOT / "uv.lock").read_text())
+    me = next(p for p in lock["package"] if p["name"] == "wow-stats")
+    core = _closure(lock, [d["name"] for d in me.get("dependencies", [])])
+    render = _closure(lock, [d["name"] for d in me["optional-dependencies"]["render"]])
+    stage = re.split(r"(?m)^FROM ", (ROOT / "Dockerfile").read_text())
+    builder = next(st for st in stage if st.startswith("render-base AS render-builder"))
+    skipped = set(re.findall(r"--no-install-package (\S+)", builder))
+    assert core and skipped == core - render

@@ -68,6 +68,15 @@ class ArchiveUnavailable(SourceError):
         super().__init__(f"the archive of older days didn't answer: {detail}")
 
 
+class SemanticError(SourceError):
+    """The semantic layer couldn't compute a page's numbers
+    (wowstats.analysis.pages). The page's numbers have one computation path
+    (owner, 2026-11-22: "use the semantic model all the time"): a failure is
+    an answer that failed, never numbers counted another way. A SourceError,
+    so the prebuilt answers keep the last good set marked stale, a route
+    answers 502 and the publisher keeps the previous sites."""
+
+
 # How long the archive's answer to "do you hold older days?" is kept; a
 # failed check is asked again sooner, so a read works again soon after the
 # archive is back.
@@ -96,6 +105,9 @@ def public_error(e: BaseException, where: str = "") -> str:
     if isinstance(e, IncompleteRead):
         return (f"no answer rather than a partial one: one second holds more records than a read can return "
                 f"({e.page}) (request {rid} in the server's log)")
+    if isinstance(e, SemanticError):
+        return (f"no answer rather than numbers counted another way: the page's numbers couldn't be computed "
+                f"(request {rid} in the server's log)")
     if isinstance(e, ArchiveUnavailable):
         return (f"no answer rather than one without the older days: the archive that holds them didn't answer; "
                 f"try again in a minute (request {rid} in the server's log)")

@@ -11,7 +11,7 @@ Apple silicon Mac running Docker Desktop, each service under a memory cap.
 
 | | Demo | Long history |
 |---|---|---|
-| Data | The demo's week: 1,831 events, 5 characters | The demo's week copied 55 times, each copy a week earlier: 100,705 events |
+| Data | The demo's week as it was then: 1,831 events, 5 characters (the seed has grown since) | The demo's week copied 55 times, each copy a week earlier: 100,705 events |
 | Events on disk | | 6.5 MiB, right after a flush |
 | Ingest | | 100,705 events in 55 posts, 2.6 s |
 
