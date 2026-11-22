@@ -51,7 +51,6 @@ import sqlite3
 import tempfile
 import threading
 import time
-import urllib.parse
 from pathlib import Path
 
 _HERE = Path(__file__).resolve()
@@ -101,19 +100,17 @@ class GameTables:
             cached = self._cached()
             if cached and time.time() - cached["checked"] < DAY:
                 return cached["docs"], cached["build"]
-            from wowstats.upstream import Upstream, fetch
+            from wowstats.upstream import Upstream, build_of, builds_url, fetch, table_url
             from wowstats.upstream import write_file as _write
 
             try:
-                latest = json.loads(fetch(f"{self.wago}/api/builds/{urllib.parse.quote(self.product)}/latest")
-                                    or b"{}")
-                build = str(latest["version"])
+                build = build_of(fetch(builds_url(self.wago, self.product)))
                 if cached and cached["build"] == build:
                     docs = cached["docs"]
                 else:
                     tables = {}
                     for t in GAME_TABLES:
-                        body = fetch(f"{self.wago}/db2/{t}/csv?build={urllib.parse.quote(build)}", timeout=180)
+                        body = fetch(table_url(self.wago, t, build), timeout=180)
                         tables[t] = list(csv.DictReader(io.StringIO((body or b"").decode("utf-8-sig"))))
                     docs = game_docs(tables, f"Forever client tables {build} (wago.tools, product {self.product})")
             except (Upstream, ValueError, KeyError, TypeError):
@@ -684,7 +681,7 @@ def build(env: dict | None = None, game: GameTables | None = None) -> KB:
     meta["research"] = research_summary()
     docs = docs + notes() + rule_docs_of(rules) + research_docs() + research
     if game is None:
-        from wowstats.upstream import PRODUCT, WAGO_URL
+        from wowstats.upstream import PRODUCT, WAGO_URL, allow
 
         cache = Path(env.get("MODEL3D_CACHE_DIR") or Path(tempfile.gettempdir()) / "wow-stats-model3d")
         try:
@@ -696,7 +693,8 @@ def build(env: dict | None = None, game: GameTables | None = None) -> KB:
         off = ("off", "0", "false", "no")
         on = (env.get("KB_GAME_TABLES", "on").strip().lower() not in off
               and env.get("WOW_ITEMS", "on").strip().lower() not in off)
-        game = GameTables(env.get("MODEL3D_WAGO_URL", WAGO_URL), env.get("MODEL3D_PRODUCT", PRODUCT), cache, on=on)
+        game = GameTables(allow(env.get("MODEL3D_WAGO_URL", WAGO_URL)), env.get("MODEL3D_PRODUCT", PRODUCT), cache,
+                          on=on)
     gdocs, build_id = game.docs()
     meta["game_build"] = build_id
     levels = zone_levels(docs)

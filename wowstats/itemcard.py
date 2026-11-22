@@ -47,13 +47,14 @@ import json
 import re
 import threading
 import time
-import urllib.parse
 from pathlib import Path
+
+from wowstats import upstream
 
 DAY = 86400
 ICON_URL = "https://wow.zamimg.com/images/wow/icons/"
 SIZES = ("large", "medium")
-ICON_NAME = re.compile(r"^[a-z0-9_\-]{1,96}$")
+ICON_NAME = upstream.ICON_NAME
 # The client's icon for an item without one (and an item it doesn't know).
 QUESTION = "inv_misc_questionmark"
 # The client whose names fill Forever's gaps (its base items, unchanged).
@@ -108,7 +109,7 @@ def _num(v):
 def icon_name(file_name: str) -> str | None:
     """INV_Sword_39.blp -> inv_sword_39, as Wowhead names its renders."""
     n = file_name.rsplit(".", 1)[0].strip().lower()
-    return n if ICON_NAME.match(n) else None
+    return n if ICON_NAME.fullmatch(n) else None
 
 
 def enchant_text(row: dict) -> str | None:
@@ -302,13 +303,11 @@ class Catalog:
                     self.build, self.checked = d["build"], float(d["checked"])
                 if self.cards and time.time() - self.checked < DAY:
                     return
-            from wowstats.upstream import Upstream, fetch
+            from wowstats.upstream import Upstream, build_of, builds_url, fetch
             from wowstats.upstream import write_file as _write
 
             try:
-                latest = json.loads(fetch(f"{self.wago}/api/builds/{urllib.parse.quote(self.product)}/latest")
-                                    or b"{}")
-                build = str(latest["version"])
+                build = build_of(fetch(builds_url(self.wago, self.product)))
                 if build != self.build or not self.cards:
                     self._refresh(build, fetch, Upstream)
             except (Upstream, ValueError, KeyError, TypeError):
@@ -326,9 +325,10 @@ class Catalog:
 
     def _refresh(self, build: str, fetch, Upstream) -> None:  # noqa: N803 - the exception class passed in
         from wowstats import gear
+        from wowstats.upstream import table_url
 
         def table(name: str) -> bytes:
-            body = fetch(f"{self.wago}/db2/{name}/csv?build={urllib.parse.quote(build)}", timeout=180)
+            body = fetch(table_url(self.wago, name, build), timeout=180)
             if not body:
                 raise Upstream(f"wago.tools has no {name} table for {build}")
             return body
@@ -371,10 +371,11 @@ class Catalog:
     def _era_names(self, ids: set[str], fetch, Upstream) -> dict[str, str]:  # noqa: N803
         """The Classic Era client's item names for `ids` ({} when wago.tools
         has no Era build or table: the items stay unnamed, nothing fails)."""
+        from wowstats.upstream import build_of, builds_url, table_url
+
         try:
-            latest = json.loads(fetch(f"{self.wago}/api/builds/{ERA_PRODUCT}/latest") or b"{}")
-            body = fetch(f"{self.wago}/db2/ItemSparse/csv?build={urllib.parse.quote(str(latest['version']))}",
-                         timeout=180)
+            era = build_of(fetch(builds_url(self.wago, ERA_PRODUCT)))
+            body = fetch(table_url(self.wago, "ItemSparse", era), timeout=180)
         except (Upstream, ValueError, KeyError, TypeError):
             return {}
         if not body:
@@ -386,7 +387,13 @@ class Catalog:
 
     def icon(self, name: str, size: str) -> bytes | None:
         """The icon's JPEG, from the cache or fetched once; None when unknown."""
-        if not self.on or size not in SIZES or not ICON_NAME.match(name or ""):
+        from wowstats.upstream import icon_url
+
+        if not self.on or size not in SIZES:
+            return None
+        try:  # the name comes from a request path: checked before it is a file name or a URL
+            url = icon_url(self.icon_url, size, name)
+        except ValueError:
             return None
         f = self.cache / "icons" / size / f"{name}.jpg" if self.cache else None
         if f is not None and f.is_file():
@@ -396,7 +403,7 @@ class Catalog:
         from wowstats.upstream import write_file as _write
 
         try:
-            body = fetch(f"{self.icon_url}{size}/{name}.jpg")
+            body = fetch(url)
         except Upstream:
             return None
         if not body or body[:3] != b"\xff\xd8\xff":  # a JPEG, nothing else
@@ -418,7 +425,7 @@ def shared() -> Catalog:
             import os
             import tempfile
 
-            from wowstats.upstream import PRODUCT, WAGO_URL
+            from wowstats.upstream import PRODUCT, WAGO_URL, allow
 
             env = os.environ
             cache: Path | None = Path(env.get("MODEL3D_CACHE_DIR") or Path(tempfile.gettempdir()) / "wow-stats-model3d")
@@ -426,9 +433,10 @@ def shared() -> Catalog:
                 cache.mkdir(parents=True, exist_ok=True)
             except OSError:
                 cache = None
-            _shared = Catalog(env.get("MODEL3D_WAGO_URL", WAGO_URL), env.get("MODEL3D_PRODUCT", PRODUCT), cache,
+            # The configured upstreams (tests point them at a local server).
+            _shared = Catalog(allow(env.get("MODEL3D_WAGO_URL", WAGO_URL)), env.get("MODEL3D_PRODUCT", PRODUCT), cache,
                               on=env.get("WOW_ITEMS", "on").strip().lower() not in ("off", "0", "false", "no"),
-                              icon_url=env.get("ICON_URL", ICON_URL))
+                              icon_url=allow(env.get("ICON_URL", ICON_URL)))
         return _shared
 
 
