@@ -118,3 +118,143 @@ def test_an_old_finding_is_carried_over_once(driven, rows, knowledge, change, th
         if night and then:
             assert "revalidate" in f and info["revalidate"] == 1
     assert carried == 1
+
+
+# ---------------------------------------------------------------- review 6: definitions never add weight
+#
+# The run manifest held the prep version, the semantic model, the reference
+# data and the time settings, not the gear scoring: with WEIGHTS changed
+# (Holy -> Shadow) the upgrade candidates moved, so did data_mark (it counted
+# the prepared tables' rows), and the nightly recheck read that as new play:
+# confirmed, weight 1.0 -> 1.5. Support now comes from the source events only.
+
+HOLY, SHADOW = {"WEIGHTS": f"{CHAR}:holy"}, {"WEIGHTS": f"{CHAR}:shadow"}
+
+
+def _night(env, rows, knowledge, extra=None):
+    return analysis.run({**env, **(extra or {})}, CHAR, rows=[dict(r) for r in rows], players=set(),
+                        knowledge=knowledge)
+
+
+def _upgrades(rows, env) -> int:
+    from wowstats.mcp import route
+
+    db = prep.build([dict(r) for r in rows], CHAR, route.reference(), upgrades=analysis.upgrades_for(rows, CHAR, env))
+    return db.execute("SELECT COUNT(*) FROM upgrade_candidates").fetchone()[0]
+
+
+def upgrades_finding(n: int) -> dict:
+    """A finding on what the gear scoring fills: the upgrade candidates."""
+    return finding(key="upgrades", title="{n} upgrades within reach", claim="The gear advice lists {n} upgrades.",
+                   sql="SELECT COUNT(*) AS n FROM upgrade_candidates", expect={"n": n}, effect="n", sample="n",
+                   holds="n > 0", action={"do": "Go through the {n} upgrades on the Gear panel", "where": "Gear panel",
+                                          "blocked_by": "", "next_step": "Pick the first one on the way"})
+
+
+def test_changing_weights_marks_findings_to_revalidate_never_more_confident(driven, rows, knowledge):
+    env, drive = driven
+    judged = {**env, **HOLY}
+    drive.brief(judged, CHAR)
+    n_holy, n_shadow = (_upgrades(rows, w) for w in (HOLY, SHADOW))
+    assert n_holy != n_shadow  # the fixture's candidates do move with the spec
+    assert drive.propose(judged, CHAR, finding())["stored"]
+    assert drive.propose(judged, CHAR, upgrades_finding(n_holy))["stored"]
+    w0 = {k: f["weight"] for k, f in analysis.load_state(env, CHAR)["findings"].items()}
+    assert _night(env, rows, knowledge, HOLY)["runs"][-1]["still"] == 2  # same play, same scoring: as before
+    for _night_n in range(2):
+        out = _night(env, rows, knowledge, SHADOW)
+        f, info = out["findings"], out["runs"][-1]
+        # The finding on the upgrade candidates: to revalidate. The one on
+        # online time reads nothing the scoring fills: still, no gain.
+        assert info["revalidate"] == 1 and info["still"] == 1 and info["confirmed"] == 0, info
+        assert f["upgrades"]["revalidate"]["why"] == ["scoring spec holy -> shadow"], f["upgrades"]["revalidate"]
+        assert "revalidate" not in f["sessions-online"]
+        assert {k: x["weight"] for k, x in f.items()} == w0 and all(x["confirmations"] == 0 for x in f.values())
+    # Proposed again under Shadow on the same play: judged, still no gain.
+    drive._WS.clear()
+    drive.brief({**env, **SHADOW}, CHAR, restart=True)
+    assert drive.propose({**env, **SHADOW}, CHAR, upgrades_finding(n_shadow))["stored"]
+    f = analysis.load_state(env, CHAR)["findings"]["upgrades"]
+    assert "revalidate" not in f and f["weight"] == w0["upgrades"] and f["confirmations"] == 0
+    out = _night(env, rows, knowledge, SHADOW)
+    assert out["runs"][-1]["still"] == 2 and out["findings"]["upgrades"]["weight"] == w0["upgrades"]
+
+
+def test_the_manifest_holds_the_resolved_scoring(rows, knowledge):
+    """Normalized: the spec the gear is scored for, whichever way it was
+    chosen. WEIGHTS naming the spec the add-on already picked scores the
+    same, so it isn't a definition change."""
+    from wowstats.mcp import route
+
+    def scoring(env):
+        ref = route.reference()
+        db = prep.build([dict(r) for r in rows], CHAR, ref, upgrades=analysis.upgrades_for(rows, CHAR, env))
+        return manifest.build(db, rows, knowledge, ref, scoring=analysis.scoring_for(rows, CHAR, env))["settings"]
+
+    picked = scoring({})  # the fixture's add-on picked Shadow
+    assert picked["scoring"]["spec"] == "shadow"
+    assert scoring({"WEIGHTS": f"{CHAR}:Shadow"}) == picked
+    assert scoring(HOLY)["scoring"]["spec"] == "holy"
+
+
+@pytest.mark.parametrize("what", ["prep", "semantic", "settings"])
+def test_a_definition_that_moves_prepared_rows_adds_no_weight(driven, rows, knowledge, change, monkeypatch, what):
+    """The support marker reads the source events, never the prepared
+    tables a definition change can move: a prep version whose upgrade
+    candidates differ, proposed again on the same play, is judged, not
+    better supported. New source events still count, once."""
+    env, drive = driven
+    drive.brief(env, CHAR)
+    assert drive.propose(env, CHAR, finding())["stored"]
+    w0 = analysis.load_state(env, CHAR)["findings"]["sessions-online"]["weight"]
+    change((what,))
+    real = analysis.upgrades_for
+    monkeypatch.setattr(analysis, "upgrades_for", lambda *a: real(*a)[:-3])  # the new prep's tables differ
+    out = _night(env, rows, knowledge)
+    assert out["runs"][-1]["revalidate"] == 1 and out["findings"]["sessions-online"]["weight"] == w0
+    drive._WS.clear()
+    drive.brief(env, CHAR, restart=True)
+    assert drive.propose(env, CHAR, finding())["stored"]
+    f = analysis.load_state(env, CHAR)["findings"]["sessions-online"]
+    assert "revalidate" not in f and f["weight"] == w0 and f["confirmations"] == 0
+    assert _night(env, rows, knowledge)["findings"]["sessions-online"]["weight"] == w0
+    # New play does count, once.
+    last = max(rows, key=lambda r: r["_time"])
+    later = [dict(r) for r in rows] + [{**last, "_time": last["_time"][:4] + "-12-31T23:00:00Z"}]
+    grown = _night(env, later, knowledge)
+    assert grown["runs"][-1]["confirmed"] == 1 and grown["findings"]["sessions-online"]["weight"] > w0
+
+
+def test_the_support_mark_reads_the_source_events_only(rows):
+    from wowstats.mcp import route
+
+    ref = route.reference()
+    a = prep.build([dict(r) for r in rows], CHAR, ref, upgrades=analysis.upgrades_for(rows, CHAR, HOLY))
+    b = prep.build([dict(r) for r in reversed(rows)] + [dict(rows[0])], CHAR, ref, upgrades=[])
+    assert analysis.data_mark(a) == analysis.data_mark(b)  # same events, other order, a duplicate, other tables
+    last = max(rows, key=lambda r: r["_time"])
+    c = prep.build([dict(r) for r in rows] + [{**last, "_time": last["_time"][:4] + "-12-31T23:00:00Z"}], CHAR, ref)
+    assert analysis.data_mark(c) != analysis.data_mark(a)
+
+
+def test_a_support_mark_from_before_counts_todays_play_as_seen(driven, rows, knowledge):
+    """A finding supported under the old mark (the prepared tables' rows):
+    the first recheck after the upgrade can't compare the two, so it counts
+    today's play as seen, with no weight for it; new play after that counts."""
+    import json
+
+    env, drive = driven
+    drive.brief(env, CHAR)
+    assert drive.propose(env, CHAR, finding())["stored"]
+    st_file = analysis.char_dir(env, CHAR) / analysis.STATE_FILE
+    st = json.loads(st_file.read_text())
+    st["findings"]["sessions-online"]["support_mark"] = "0123456789abcdef"  # the old kind
+    st_file.write_text(json.dumps(st))
+    w0 = st["findings"]["sessions-online"]["weight"]
+    out = _night(env, rows, knowledge)
+    f = out["findings"]["sessions-online"]
+    assert out["runs"][-1]["still"] == 1 and f["weight"] == w0 and f["support_mark"].startswith(analysis.MARK_PREFIX)
+    last = max(rows, key=lambda r: r["_time"])
+    grown = _night(env, [dict(r) for r in rows] + [{**last, "_time": last["_time"][:4] + "-12-31T23:00:00Z"}],
+                   knowledge)
+    assert grown["runs"][-1]["confirmed"] == 1 and grown["findings"]["sessions-online"]["weight"] > w0

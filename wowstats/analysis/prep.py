@@ -15,6 +15,7 @@ since 2026-11-20 they come from Battle.net's API only (no add-on).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 import re
@@ -31,6 +32,7 @@ from wowstats.stores import (
     dedupe,
     parse_t,
     pick_splits,
+    record_id,
     record_order,
     taxi_time,
     truthy,
@@ -434,6 +436,26 @@ class _Frames:
         return math.hypot((a[0] - b[0]) * s[0] / 100.0, (a[1] - b[1]) * s[1] / 100.0)
 
 
+# Fields the store or a previous build adds to a line, not the game.
+_STORE_FIELDS = ("_stream", "_stream_id", "_t")
+
+
+def input_mark(rows: list[dict]) -> str:
+    """Which source events a build read, whatever their order or their
+    copies (rows already one per record: dedupe): each event's identity
+    (stores.record_id), its observation time and its revision. Nothing
+    prep, the gear scoring or a setting derives goes in, so a definition
+    change never moves it; a new event, a later observation or a grown
+    record always does. A field the shipper computes from what one run saw
+    (a zone's duration_s) doesn't: the same play read in other runs is the
+    same input. analysis.data_mark reads it (review 6: the old mark counted
+    the prepared tables' rows, and a WEIGHTS change that moved the upgrade
+    candidates read as new play)."""
+    one = sorted(json.dumps([record_id({k: v for k, v in r.items() if k not in _STORE_FIELDS}),
+                             str(r.get("_time")), str(r.get("rev") or "")]) for r in rows)
+    return hashlib.sha256("\n".join(one).encode()).hexdigest()[:16]
+
+
 def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None,
           now: datetime | None = None, upgrades: list[dict] | None = None) -> sqlite3.Connection:
     """The database for one character. `route` is wowstats.mcp.route's
@@ -443,6 +465,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     upgrade_candidates."""
     char = norm(char)
     rows = [r for r in dedupe(rows) if norm(r.get("char", "")) == char]
+    mark = input_mark(rows)
     for r in rows:
         r["_t"] = parse_t(r.get("_time")).timestamp()
     rows.sort(key=lambda r: (r["_t"], *record_order(r)))
@@ -663,7 +686,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     _quests(db, questsmod.explain(rows))
     _gold_moves(db)
     _upgrades(db, upgrades or [])
-    _meta(db, char, rows, rec, now)
+    _meta(db, char, rows, rec, now, mark)
     _aggregates(db)
     _dictionary(db)
     db.commit()
@@ -1107,7 +1130,7 @@ def _dungeon_trips(db, rows) -> None:
         db.execute("UPDATE timeline SET dungeon_trip_id = ? WHERE t0 >= ? AND t0 < ?", (x[0], x[4], x[5]))
 
 
-def _meta(db, char, rows, rec, now) -> None:
+def _meta(db, char, rows, rec, now, mark: str | None = None) -> None:
     who = next((r for r in reversed(rec) if r.get("kind") == "session"), {})
     # A character the recorder never saw (its folder, Syndicator, Polestar's
     # alts only) still has a race, class and side in its snapshots and gear
@@ -1121,7 +1144,7 @@ def _meta(db, char, rows, rec, now) -> None:
     meta = {"char": char, "class": who.get("class"), "race": who.get("race"), "faction": who.get("faction"),
             "first_record": _iso(rec[0]["_t"]) if rec else None, "last_record": _iso(rec[-1]["_t"]) if rec else None,
             "built_at": now.isoformat(timespec="seconds"), "timezone": TZ_NAME,
-            "polestar_version": who.get("polestar_version"), "game_build": who.get("build")}
+            "polestar_version": who.get("polestar_version"), "game_build": who.get("build"), "input_mark": mark}
     db.executemany("INSERT INTO meta VALUES (?,?)", [(k, None if v is None else str(v)) for k, v in meta.items()])
     counts = dict(db.execute("SELECT kind, COUNT(*) FROM records GROUP BY kind").fetchall())
     counts["pos"] = db.execute("SELECT COUNT(*) FROM positions").fetchone()[0]
