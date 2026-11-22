@@ -21,6 +21,8 @@ press **Reload**.
 | Publisher | the publisher's last pass, and how many sites failed. Red when a site failed or the last pass is more than an hour old |
 | Battle.net | the exporter's last good read, from vm-wow (only with `VM_URL`). Red after 6 hours |
 | State folder | the size of `WOW_STATE_DIR` |
+| Pending deletion | only when someone left the friends list: how many wait for their data to be deleted, and the date of the next one (`FRIENDS_PURGE_DAYS` after they left) |
+| Friends list | only when the last pass refused the list because it would remove every friend at once. Red; `wow-stats users reconcile --allow-empty` applies it if you meant it |
 | AI analysis | with [server-side analysis](server-analysis.md) configured: the month's spend against `ANALYSIS_MONTHLY_BUDGET` (USD) and what's left, or "cost unknown" with the tokens used for an endpoint without prices; the tokens against `ANALYSIS_MONTHLY_TOKENS` when set; runs this month. Every figure is the whole install's, and the tile says so ("whole install"): everyone's runs count against one budget. Red once the budget is spent |
 
 Below it, the server's own checks, green or red with the time they took: your store
@@ -35,7 +37,7 @@ your install.
 | Column | What it says |
 |---|---|
 | Person | the name on the friends list (yours is marked "owner"), with a red flag when something looks stale |
-| On the list | yes, no (they left the list and are being removed) or switched off (`wow-stats users disable`) |
+| On the list | yes, no (they just left the list), removed with the date their data is deleted, or switched off (`wow-stats users disable`) |
 | Last visit | the last time they opened their page (any page or answer of the full view) |
 | Last AI use | the last time their AI assistant called the MCP |
 | Last upload | when the shipper last sent events, how many, its version and Mac or Windows |

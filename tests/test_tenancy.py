@@ -29,6 +29,7 @@ from tests.mcp import fakes
 from wowstats import account, ingest, publish, tenancy, ui
 from wowstats import mcp as mcpmod
 from wowstats.mcp import tools
+from wowstats.sitesettings import PageSettings
 
 CHAR_FILTER = re.compile(r'char:=?"?([A-Z][A-Za-z]+-[A-Z][A-Za-z]+)')
 RENAME = {"Testpriest": "Testfriend", "Fixture": "Otherhall", "Thrall": "Varian", "Jaina": "Tyrande", "Twig": "Pip"}
@@ -945,7 +946,12 @@ def test_listed_friends_get_a_tenant_and_nobody_else(listed, vl):
     assert vl.deleted == []
 
 
-def test_a_friend_who_leaves_the_list_is_offboarded(listed, vl):
+DAY = 86400
+
+
+def removed_mira(listed, vl):
+    """mira with a shipper, events and state, then taken off the list at
+    t0: (t0, mira, her token, pip's token)."""
     t = listed.t
     tenancy.reconcile(t)
     mira = t.registry.get(FRIEND)
@@ -954,18 +960,230 @@ def test_a_friend_who_leaves_the_list_is_offboarded(listed, vl):
     assert ingest_as(listed, "mira", token) == 200
     (t.user_dir(mira) / "analysis").mkdir(parents=True, exist_ok=True)
     listed.file.write_text(json.dumps({"friend-3": "pip"}))
-    out = tenancy.reconcile(t)
-    assert out["removed"] == ["mira"] and not out["errors"]
-    # Their tenant's events, and only theirs.
-    assert vl.deleted == [(str(mira.account_id), "filter=%2A")]
-    assert t.registry.get(FRIEND) is None and not t.user_dir(mira).exists()
+    t0 = time.time()
+    out = tenancy.reconcile(t, now=t0)
+    assert out["removed"] == ["mira"] and out["purged"] == [] and not out["errors"]
+    return t0, mira, token, pip_token
+
+
+def test_a_friend_who_leaves_the_list_loses_every_access_at_once(listed, vl):
+    """Owner, 2026-11-22: removal revokes now (web, MCP, uploads, install
+    codes, pages, sealed links) and deletes nothing yet."""
+    t = listed.t
+    tenancy.reconcile(t)
+    code = t.registry.new_code(FRIEND)  # a live install code, taken before the removal
+    t0, mira, token, pip_token = removed_mira(listed, vl)
     assert ingest_as(listed, "mira", token) == 401
     assert listed.get("/api/me", headers=as_user(FRIEND))[0] == 403
+    assert listed.get("/", headers=as_user(FRIEND))[0] == 403
     assert t.mcp_user(FRIEND) is None and t.resolve_tenant(FRIEND) is None
-    assert [u["slug"] for u in t.users_json()["users"]] == ["sam", "pip"]  # the publisher drops mira's site
+    assert t.registry.redeem(code) is None
+    assert listed.get(f"/install/{t.registry.new_code(FRIEND)}", headers={"User-Agent": "curl/8.7.1"})[0] == 404
+    # The publisher and the live public view drop the site and the /zogzog/ bundle.
+    line = next(u for u in t.users_json()["users"] if u["slug"] == "mira")
+    assert line["status"] == "removed" and not PageSettings.of({**line, "public_on": True}).public
+    assert [h["active"] for h in t.host_list() if h["slug"] == "mira"] == [False]
+    assert t.app_for(mira) not in ui.prebuilt_apps(listed.app, t)
+    # Nothing deleted: the events, the state folder and the record stay.
+    assert vl.deleted == [] and t.user_dir(mira).exists()
+    assert t.registry.get(FRIEND).removed_at and t.registry.get(FRIEND).account_id == mira.account_id
     # The other friend and the owner are untouched.
     assert t.registry.get("friend-3").slug == "pip" and ingest_as(listed, "pip", pip_token) == 200
     assert t.registry.get(OWNER).owner and listed.get("/api/me", headers=as_user(OWNER))[0] == 200
+
+
+def test_the_site_goes_between_two_builds(tmp_path):
+    """A removed friend's page and /zogzog/ link don't wait for the next
+    build (PUBLISH_INTERVAL): drop_inactive takes them down within REVOKE_S."""
+    from wowstats import static
+
+    for slug in ("sam", "mira", "pip"):
+        (tmp_path / "site" / slug / "b1" / "public").mkdir(parents=True)
+        (tmp_path / "site" / slug / "current").symlink_to("b1")
+        (tmp_path / "out" / slug).mkdir(parents=True)
+    (tmp_path / "token").write_text("t" * 32)
+    site = static.Site({"SITE_DIR": str(tmp_path / "site"), "SITE_DOMAIN": "m.example", "UPLOAD_TOKEN_FILE":
+                        str(tmp_path / "token")})
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), static.make_upload_handler(site))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    users = [{"slug": "sam", "status": "active"}, {"slug": "mira", "status": "removed"},
+             {"slug": "pip", "status": "active"}]
+    env = {"PUBLISH_PUSH_URL": f"http://127.0.0.1:{srv.server_address[1]}",
+           "PUBLISH_PUSH_TOKEN_FILE": str(tmp_path / "token"), "PUBLISH_DIR": str(tmp_path / "out")}
+    slept = []
+    try:
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(publish, "fetch_users", lambda e: users)
+            publish.wait(env, 150, sleep=slept.append)
+            assert slept == [60, 60, 30]
+            # The share port down: nobody's page goes for it.
+            mp.setattr(publish, "fetch_users", lambda e: (_ for _ in ()).throw(OSError("down")))
+            publish.drop_inactive(env)
+    finally:
+        srv.shutdown()
+        srv.server_close()
+    assert sorted(d.name for d in (tmp_path / "site").iterdir()) == ["pip", "sam"]
+    assert sorted(d.name for d in (tmp_path / "out").iterdir()) == ["pip", "sam"]
+
+
+def test_data_stays_through_day_6_and_coming_back_restores_it(listed, vl):
+    t = listed.t
+    t0, mira, token, _ = removed_mira(listed, vl)
+    removed_at = t.registry.get(FRIEND).removed_at
+    for day in (1, 3, 6.9):
+        out = tenancy.reconcile(t, now=t0 + day * DAY)
+        assert out["removed"] == [] and out["purged"] == []
+    assert vl.deleted == [] and t.user_dir(mira).exists()
+    assert t.registry.get(FRIEND).removed_at == removed_at  # passes never move the clock
+    # Listed again on day 6: back with the same tenant, slug and upload password.
+    listed.file.write_text(json.dumps({FRIEND: "mira", "friend-3": "pip"}))
+    out = tenancy.reconcile(t, now=t0 + 6 * DAY)
+    assert out["restored"] == ["mira"] and out["provisioned"] == []
+    back = t.registry.get(FRIEND)
+    assert (back.status, back.removed_at, back.account_id, back.slug) == ("active", "", mira.account_id, "mira")
+    assert listed.get("/api/me", headers=as_user(FRIEND))[0] == 200
+    assert ingest_as(listed, "mira", token) == 200 and t.mcp_user(FRIEND) is not None
+    assert t.user_dir(mira).exists() and vl.deleted == []
+    # Long after the window: nothing purges someone who is back.
+    assert tenancy.reconcile(t, now=t0 + 30 * DAY)["purged"] == []
+
+
+def test_coming_back_at_the_login_restores_too(listed, vl):
+    """Listed again and logging in before the next pass: identify restores."""
+    t = listed.t
+    removed_mira(listed, vl)
+    listed.file.write_text(json.dumps({FRIEND: "mira", "friend-3": "pip"}))
+    code, _, body = listed.get("/api/me", headers=as_user(FRIEND))
+    assert code == 200 and json.loads(body)["slug"] == "mira"
+    assert t.registry.get(FRIEND).removed_at == "" and vl.deleted == []
+
+
+def test_a_switched_off_friend_stays_off_when_listed_again(listed, vl):
+    t = listed.t
+    tenancy.reconcile(t)
+    t.registry.update(FRIEND, status="disabled")  # the operator's switch
+    listed.file.write_text(json.dumps({"friend-3": "pip"}))
+    tenancy.reconcile(t)
+    assert t.registry.get(FRIEND).status == "disabled" and t.registry.get(FRIEND).removed_at
+    listed.file.write_text(json.dumps({FRIEND: "mira", "friend-3": "pip"}))
+    tenancy.reconcile(t)
+    assert t.registry.get(FRIEND).status == "disabled" and t.registry.get(FRIEND).removed_at == ""
+
+
+def test_the_purge_runs_after_the_window_across_a_restart_once(listed, env, vl, capsys):
+    t = listed.t
+    t0, mira, token, _ = removed_mira(listed, vl)
+    # A restart: a new process reads the clock from users.json.
+    e = {**env, "WOW_FRIENDS_FILE": str(listed.file)}
+    t2 = tenancy.Tenancy(e)
+    assert tenancy.reconcile(t2, now=t0 + 6 * DAY)["purged"] == [] and vl.deleted == []
+    # VictoriaLogs refuses on day 7: nothing else goes, the next pass retries.
+    t2.friends_vl = "http://127.0.0.1:9"
+    out = tenancy.reconcile(t2, now=t0 + 7 * DAY)
+    assert out["errors"] == ["mira"] and t2.registry.get(FRIEND) is not None and t2.user_dir(mira).exists()
+    t3 = tenancy.Tenancy(e)
+    out = tenancy.reconcile(t3, now=t0 + 7 * DAY + 60)
+    assert out["purged"] == ["mira"] and not out["errors"]
+    assert vl.deleted == [(str(mira.account_id), "filter=%2A")]  # their tenant, and only theirs
+    assert t3.registry.get(FRIEND) is None and not t3.user_dir(mira).exists()
+    # Idempotent: later passes (and the first process's) find nothing to do.
+    assert tenancy.reconcile(t3, now=t0 + 8 * DAY)["purged"] == []
+    assert tenancy.reconcile(t, now=t0 + 9 * DAY)["purged"] == []
+    assert len(vl.deleted) == 1 and ingest_as(listed, "mira", token) == 401
+    logs = [json.loads(x) for x in capsys.readouterr().out.splitlines() if x.startswith('{"')]
+    assert [x["reason"] for x in logs if x.get("action") == "purged"] == ["window"]
+    # Listed again after the purge: a new, empty account, never the old tenant.
+    listed.file.write_text(json.dumps({FRIEND: "mira", "friend-3": "pip"}))
+    tenancy.reconcile(t3, now=t0 + 10 * DAY)
+    assert t3.registry.get(FRIEND).account_id > mira.account_id
+
+
+def test_purge_days_0_deletes_at_once(listed, env, vl):
+    e = {**env, "WOW_FRIENDS_FILE": str(listed.file), "FRIENDS_PURGE_DAYS": "0"}
+    t = tenancy.Tenancy(e)
+    tenancy.reconcile(t)
+    mira = t.registry.get(FRIEND)
+    listed.file.write_text(json.dumps({"friend-3": "pip"}))
+    out = tenancy.reconcile(t)
+    assert out["removed"] == ["mira"] and out["purged"] == ["mira"]
+    assert vl.deleted == [(str(mira.account_id), "filter=%2A")] and t.registry.get(FRIEND) is None
+
+
+@pytest.mark.parametrize("v", ["-1", "seven", "nan"])
+def test_purge_days_must_be_a_number(env, v):
+    with pytest.raises(SystemExit, match="FRIENDS_PURGE_DAYS"):
+        tenancy.Tenancy({**env, "FRIENDS_PURGE_DAYS": v})
+
+
+def test_purge_now_skips_the_window(listed, vl, monkeypatch, capsys):
+    """A friend who asks for their data gone now: `users delete <slug> --yes`."""
+    t = listed.t
+    t0, mira, _, _ = removed_mira(listed, vl)
+    for k, v in t.env.items():
+        monkeypatch.setenv(k, v)
+    assert tenancy.cli(["list"]) == 0
+    rows = {r["slug"]: r for r in (json.loads(x) for x in capsys.readouterr().out.splitlines() if x.startswith("{"))}
+    assert rows["mira"]["status"] == "removed" and rows["mira"]["purge_at"] > rows["mira"]["removed_at"]
+    assert rows["pip"]["purge_at"] is None
+    assert tenancy.cli(["delete", "mira"]) == 0 and vl.deleted == []  # the dry run
+    assert tenancy.cli(["delete", "mira", "--yes"]) == 0
+    assert vl.deleted == [(str(mira.account_id), "filter=%2A")] and t.registry.get(FRIEND) is None
+    assert '"reason": "operator"' in capsys.readouterr().out
+    assert tenancy.reconcile(t, now=t0 + 8 * DAY)["purged"] == []  # nothing left for the window
+
+
+@pytest.mark.parametrize("content", ["{}", "{}\n", "[]", json.dumps({OWNER: "sam"}), json.dumps([OWNER])])
+def test_a_list_that_removes_everyone_is_refused(listed, vl, capsys, content):
+    """A valid list naming nobody (or only the owner) while friends are in
+    would remove all of them at once: refused, logged once, nothing changes,
+    everyone keeps their access. The old rule offboarded them all."""
+    t = listed.t
+    watch = tenancy.FriendsWatch(t, every=120)
+    watch.step(now=0)
+    listed.file.write_text(content)
+    assert watch.step(now=1) == {"skipped": True, "refused": "empty"}
+    assert watch.step(now=300) == {"skipped": True, "refused": "empty"}
+    logs = [json.loads(x) for x in capsys.readouterr().out.splitlines() if '"empty_list_refused"' in x]
+    assert len(logs) == 1 and logs[0]["level"] == "error" and logs[0]["friends"] == 2
+    assert all(not u.removed_at for u in t.registry.users()) and vl.deleted == []
+    assert listed.get("/api/me", headers=as_user(FRIEND))[0] == 200
+    assert listed.get("/api/me", headers=as_user("friend-3"))[0] == 200
+    owner = t.registry.get(OWNER)
+    assert owner.owner and owner.active
+
+
+def test_the_flag_lets_an_empty_list_through(listed, env, vl, monkeypatch, capsys):
+    t = listed.t
+    tenancy.reconcile(t)
+    listed.file.write_text("{}")
+    assert tenancy.reconcile(t)["refused"] == "empty"
+    # The CLI's one-off flag.
+    for k, v in t.env.items():
+        monkeypatch.setenv(k, v)
+    assert tenancy.cli(["reconcile"]) == 1 and "--allow-empty" in capsys.readouterr().err
+    assert tenancy.cli(["reconcile", "--allow-empty"]) == 0
+    assert sorted(u.status for u in t.registry.users() if not u.owner) == ["removed", "removed"]
+    assert vl.deleted == []  # still the window: removed, not deleted
+    # Everyone already out: an empty list is no longer "removing everyone".
+    assert tenancy.reconcile(t)["skipped"] is False
+    assert listed.get("/api/me", headers=as_user(FRIEND))[0] == 403
+
+
+def test_the_env_flag_lets_an_empty_list_through(listed, env, vl):
+    e = {**env, "WOW_FRIENDS_FILE": str(listed.file), "FRIENDS_ALLOW_EMPTY": "1"}
+    t = tenancy.Tenancy(e)
+    tenancy.reconcile(t)
+    listed.file.write_text("{}")
+    assert sorted(tenancy.reconcile(t)["removed"]) == ["mira", "pip"]
+
+
+def test_removing_some_but_not_all_is_not_refused(listed, vl):
+    """The guard is for "everyone at once" only: the window covers the rest."""
+    t = listed.t
+    tenancy.reconcile(t)
+    listed.file.write_text(json.dumps({"friend-9": "nox"}))  # both old friends out, a new one in
+    out = tenancy.reconcile(t)
+    assert sorted(out["removed"]) == ["mira", "pip"] and out["provisioned"] == ["nox"]
 
 
 @pytest.mark.parametrize("content", [None, "", "not json", "null", '{"x": "Bad Slug"}', '{"x": 1}', "[1]",
@@ -981,25 +1199,6 @@ def test_an_unusable_list_changes_nothing(listed, vl, content):
     assert tenancy.reconcile(t) == {"skipped": True}
     assert [u.sub for u in t.registry.users()] == before and vl.deleted == []
     assert all(u.active for u in t.registry.users())
-
-
-@pytest.mark.parametrize("content", ["{}", "{}\n", "[]", json.dumps({OWNER: "sam"}), json.dumps([OWNER])])
-def test_an_empty_list_removes_the_last_friends(listed, vl, content):
-    """A valid, parseable {} (Terraform with nobody left) means no friends:
-    everyone listed before is offboarded. The old rule read it as a failed
-    render and left the last friend active (outside review, 2026-11-19). A
-    list naming only the owner is the same: he is never in play."""
-    t = listed.t
-    tenancy.reconcile(t)
-    mira, pip = t.registry.get(FRIEND), t.registry.get("friend-3")
-    listed.file.write_text(content)
-    out = tenancy.reconcile(t)
-    assert not out["skipped"] and sorted(out["removed"]) == ["mira", "pip"] and not out["errors"]
-    assert t.registry.get(FRIEND) is None and t.registry.get("friend-3") is None
-    assert sorted(vl.deleted) == sorted([(str(mira.account_id), "filter=%2A"), (str(pip.account_id), "filter=%2A")])
-    assert listed.get("/api/me", headers=as_user(FRIEND))[0] == 403
-    owner = t.registry.get(OWNER)
-    assert owner.owner and owner.active and ("0", "filter=%2A") not in vl.deleted
 
 
 def test_the_owner_is_never_in_play(listed, vl):
@@ -1032,13 +1231,14 @@ def test_a_changed_list_applies_without_a_restart(listed, vl, capsys):
     assert listed.get("/api/me", headers=as_user("friend-4"))[0] == 200
     assert t.app_for(nox) in ui.prebuilt_apps(listed.app, t)
     assert '"action": "list_changed"' in capsys.readouterr().out
-    # Someone leaves: offboarded at the next look, and gone from the builder.
+    # Someone leaves: removed at the next look, and gone from the builder.
     listed.file.write_text(json.dumps({FRIEND: "mira", "friend-3": "pip"}))
     assert watch.step(now=7)["removed"] == ["nox"] and woken == [1, 1, 1]
-    assert t.registry.get("friend-4") is None
+    assert t.registry.get("friend-4").status == "removed"
     assert len(ui.prebuilt_apps(listed.app, t)) == 3  # the owner, mira, pip
-    # A full pass comes anyway (a failed offboard's retry), changing nothing.
-    assert watch.step(now=200) == {"skipped": False, "provisioned": [], "removed": [], "errors": []}
+    # A full pass comes anyway (a failed purge's retry), changing nothing.
+    assert watch.step(now=200) == {"skipped": False, "provisioned": [], "restored": [], "removed": [],
+                                   "purged": [], "errors": []}
     assert woken == [1, 1, 1]
 
 
@@ -1249,7 +1449,7 @@ def test_the_privacy_page_says_what_this_install_does():
                                        "PRIVACY_LOG_DAYS": "30"}).decode()
     assert "Visit counts (Plausible, on this server's own address)." in lab
     assert "No cookies, nothing about your game." in lab
-    assert "Backups of your events expire 30 days later." in lab
+    assert "Backups of your events expire 30 days after that deletion." in lab
     assert "ask the owner how long" not in lab.lower()
 
 
@@ -1267,11 +1467,34 @@ def test_the_privacy_page_says_how_long_logs_keep_a_request():
     kept = account.privacy_page(False, {"PRIVACY_LOG_DAYS": "14", "PRIVACY_BACKUP_DAYS": "30"}).decode()
     assert "These lines are kept 14 days." in kept
     assert "Log lines about you expire 14 days after each visit." in kept
-    assert "Backups of your events expire 30 days later." in kept
+    assert "Backups of your events expire 30 days after that deletion." in kept
     assert "ask the owner how long" not in kept.lower()
     assert "@LOGS" not in kept and "@BACKUPS@" not in kept and "@VISITS@" not in kept
     junk = account.privacy_page(False, {"PRIVACY_LOG_DAYS": "a month"}).decode()
     assert "Ask the owner how long they keep these lines." in junk
+
+
+def test_the_privacy_page_says_when_a_removed_friends_data_goes():
+    """Owner, 2026-11-22: removal stops access at once, the data goes
+    FRIENDS_PURGE_DAYS later (7 by default), or at once on request. The
+    page reads the same setting as the deletion, so it can't promise
+    another number."""
+    from wowstats import account
+
+    def how_long(env):
+        page = account.privacy_page(False, env).decode()
+        text = re.sub(r"\s+", " ", page.split("<h2>How long</h2>")[1].split("</p>")[0])
+        assert "@PURGE@" not in text
+        return text
+
+    default = how_long({})
+    assert "your access stops at once" in default and "deleted 7 days later" in default
+    assert "within those 7 days, you get everything back" in default and "right away instead" in default
+    assert "deleted 14 days later" in how_long({"FRIENDS_PURGE_DAYS": "14"})
+    assert "deleted 1 day later" in how_long({"FRIENDS_PURGE_DAYS": "1"})
+    at_once = how_long({"FRIENDS_PURGE_DAYS": "0"})
+    assert "deleted within minutes" in at_once and "days later" not in at_once
+    assert "within minutes" not in default
 
 
 def test_the_privacy_page_lists_what_the_owner_can_see():

@@ -65,10 +65,19 @@ friend; nobody gets logged out. The same pass runs every 2 minutes anyway
 
 - **A new entry** gets a tenant with that name before their first login. One without a name
   gets it at their first login.
-- **A removed entry** is switched off and offboarded on the spot: their events, settings,
-  upload password and pages go. Their next login is refused.
-- **`{}`** means nobody: every friend is offboarded.
-- **A missing or broken file** changes nothing (a typo never offboards anyone). The log says
+- **A removed entry** loses access at once: their next page, AI call and upload are
+  refused, install codes stop working, and the publisher takes their public page and
+  /zogzog/ link down within a minute. Their data stays for `FRIENDS_PURGE_DAYS` (7 days),
+  then their events, settings, upload password and state are deleted. Put them back on the
+  list before then and they're back with everything: same name, same data, same upload
+  password. `0` deletes at once.
+- **A list that removes every friend at once** (`{}`, `[]`, or only your own login while
+  friends are in) is refused: nothing changes, and one log line says
+  `empty_list_refused`. A render that came back empty by mistake would otherwise switch
+  everyone off. When you do mean it, run `wow-stats users reconcile --allow-empty` once (or
+  set `FRIENDS_ALLOW_EMPTY=1`). Removing some friends, even most of them, goes through: the
+  7-day window covers a mistake there.
+- **A missing or broken file** changes nothing (a typo never removes anyone). The log says
   why it was skipped.
 
 Each change is one log line with `"event": "friends"`:
@@ -157,11 +166,19 @@ Run these where the full view runs, with its settings (in the compose kit,
 | `wow-stats users reconcile` | Applies the friends list now (the server also picks up a change within ~10 seconds) |
 | `wow-stats users disable <name>` | Refuses their page and their AI at the next request; their site goes at the next publish. Their data stays |
 | `wow-stats users enable <name>` | Undoes `disable` |
-| `wow-stats users delete <name>` | Says what would be deleted. Add `--yes` to delete their events, state and registry entry |
+| `wow-stats users delete <name>` | Says what would be deleted. Add `--yes` to delete their events, state and registry entry now: the purge-now for a friend who asks for their data gone without waiting the 7 days |
+| `wow-stats users reconcile --allow-empty` | Applies a list that removes every friend at once (refused otherwise) |
 | `wow-stats users hosts` | The site hosts that should resolve in DNS |
 
-Removing someone from the friends list does what `delete --yes` does. An open browser session
-lasts until your login proxy's session ends: `disable` too when it must stop now.
+`list` shows `removed_at` and `purge_at` for everyone off the list: when they left and
+when their data goes. The [admin overview](admin.md) shows the same, and the server logs
+the pending deletions at each start (`"action": "purges_pending"`), each removal
+(`"removed"`, with `purge_at`) and each deletion (`"purged"`, with `"reason"`: `window`
+or `operator`).
+
+Take someone off the list and `delete --yes` them in that order: `delete` alone leaves them
+on the list, and the next pass gives them a new, empty account. `disable` is the other
+switch: off until you `enable` them, nothing ever deleted, whatever the list says.
 
 Tenant numbers are never reused, so a deleted friend's data can't show up under someone new.
 

@@ -559,11 +559,16 @@ a friend. The full view reads it at start and watches it while it runs
 (its content every 10 seconds, plus a full pass every `FRIENDS_RECONCILE_S`,
 120, that retries what failed), so a change applies without a restart: a
 listed person gets a tenant with that slug before their first
-login (or at it, if they're quicker than the pass); a person who left the list is switched off and offboarded on the
-spot (`wow-stats users delete`'s steps: their tenant's events, state,
-registry entry, ingest token; the publisher drops their site from every
-static pod at its next pass). A login that isn't listed gets no tenant. A
-valid `{}` means nobody: every friend listed before is offboarded. A
+login (or at it, if they're quicker than the pass); a person who left the list loses access
+at once (status `removed`: the web view, the MCP, `/ingest` and install codes refuse them,
+and the publisher takes their site off every static pod within a minute), and
+`FRIENDS_PURGE_DAYS` (7) later their data goes (`wow-stats users delete`'s steps: their
+tenant's events, state, registry entry, ingest token). Listed again before that, they're
+back with everything. The clock is `removed_at` in the registry, so a restart neither
+resets nor skips it; `wow-stats users delete <slug> --yes` skips it for one person. A login
+that isn't listed gets no tenant. A valid list that would remove every friend at once
+(`{}`, or only the owner's logins) is refused and logged as `empty_list_refused` unless
+`FRIENDS_ALLOW_EMPTY=1` or `wow-stats users reconcile --allow-empty`. A
 missing, unreadable or unparseable file (or one with a bad entry) changes
 nothing, and the owner is never in play. The slug comes from the list
 only: friends don't pick it, and once set it never changes (a new value in
@@ -596,6 +601,7 @@ friends list is the lock either way.
 | `WOW_OWNER_SUB` | the owner's login id; comma-separated for an owner with several logins (one linked to Battle.net): each is the owner on the web, the MCP and /admin, with one tenant, one set of data and settings and one analysis timer per character. One also on the friends list stays the owner's: nothing is made or deleted for it, and the start log names it by its place in this list (`owner_also_listed`, `position`) |
 | `WOW_OWNER_SLUG` (empty by default: set your own), `WOW_OWNER_ALIASES` | the owner's site name, and hosts that are theirs too (`wow.example.org`): all reserved for them. Pages never print it to friends: they say "the person who runs this site" |
 | `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}` (a slug may be `""`, or a plain list of subs: named from `PROXY_BATTLETAG_HEADER` at the first login), watched for changes (mount its folder, not the file); how often a full pass runs anyway. Unset: the owner only |
+| `FRIENDS_PURGE_DAYS` (7), `FRIENDS_ALLOW_EMPTY` | days between a friend leaving the list and the deletion of their data (`0`: at once; the privacy page quotes it); `1` applies a list that removes every friend at once, refused otherwise |
 | `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends |
 | `FRIENDS_VL_DELETE_KEY_FILE` | its `-deleteAuthKey`, for `wow-stats users delete` |
 | `ZOGZOG_MASTER_KEY_FILE` | 32+ random bytes, base64url: each person's zogzog key is derived from it. The owner's `ZOGZOG_KEY_FILE` only seeds their first link: after "Make a new link" their key is derived too, so the full view and the publisher agree without sharing a file |
@@ -619,11 +625,11 @@ code is the credential: single use, 15 minutes), `/ingest` with basic auth
 | `wow-stats publish` | `USERS_URL` (the full view's share port, `/users.json`) builds one site per person into `PUBLISH_DIR/<slug>/`, pushes with `?slug=`, and drops sites of people who left from every static pod (`GET /bundles` on the upload port). Needs `ANALYSIS_SHARE_TOKEN_FILE`, the full view's share token |
 | `wow-stats static` | `SITE_DOMAIN` serves `<slug>-wow.<domain>` from `SITE_DIR/<slug>/current`; `SITE_ALIASES=wow.example.org=alex`; any other host, or a site whose public page is off, is a 404 |
 | `wow-stats exporter` | `PROFILE_CHARACTERS_URL` (share port, `/profile-characters`) adds every person's characters to `PROFILE_CHARACTERS`, each labelled with its person's account (at most 12 a day per friend; a name two people send goes to the owner or to nobody). Needs `ANALYSIS_SHARE_TOKEN_FILE` too |
-| `wow-stats users list\|hosts\|reconcile\|disable\|enable\|delete <slug> [--yes]` | in the full view's pod; `reconcile` applies the friends list now; `delete` runs VictoriaLogs' delete task for the tenant, then removes the state and the registry entry (dry run without `--yes`) |
+| `wow-stats users list\|hosts\|reconcile [--allow-empty]\|disable\|enable\|delete <slug> [--yes]` | in the full view's pod; `list` shows each removed friend's `purge_at`; `reconcile` applies the friends list now; `delete` runs VictoriaLogs' delete task for the tenant, then removes the state and the registry entry (dry run without `--yes`), without waiting for `FRIENDS_PURGE_DAYS` |
 
 Revoking access: `wow-stats users disable <slug>` refuses the web view and
-the MCP at the next request. Removing the person from the friends list (or their access in your identity
-provider) refuses their next login, and the MCP at its next upstream check
+the MCP at the next request, and so does removing the person from the friends list. Removing only
+their access in your identity provider refuses their next login, and the MCP at its next upstream check
 (within the hour); an open web session lasts until the proxy's session
-expires, so disable too when it must stop now. AccountIDs are never reused.
+expires, so take them off the list too when it must stop now. AccountIDs are never reused.
 

@@ -36,9 +36,12 @@ untick it.
 
 ## Delete your data
 
-1. Ask the owner to take you off their friends list. Within minutes your events, settings,
-   goals, plans, upload password and pages are gone. Backups and logs expire on their own
-   (the app's Privacy page says when). Ask them to delete your login account too.
+1. Ask the owner to take you off their friends list. Your access stops at once and your
+   pages go offline within a minute or two. Your events, settings, goals, plans and upload
+   password are deleted 7 days later (the app's Privacy page gives this server's number),
+   so a removal by mistake can be undone. If you want it gone sooner, say so: the owner
+   can delete it right away. Backups and logs expire on their own (the Privacy page says when). Ask
+   them to delete your login account too.
 2. [Uninstall the program](getting-started.md#uninstall).
 3. Delete `WoWArchive` in your home folder if you don't want the local copy either.
 

@@ -4,7 +4,8 @@ The owner's overview (wowstats.admin) shows who uses the install without
 showing anyone's game: these few fields are all it adds to what the server
 already kept. One file per person, users/<account>/activity.json in
 WOW_STATE_DIR, overwritten in place (never a log), and deleted with the rest
-of their state folder when they leave the friends list:
+of their state folder when their data is deleted (FRIENDS_PURGE_DAYS after
+they leave the friends list):
 
   full       the last request to the full view (any page or API call)
   mcp        the last MCP call or token refresh
