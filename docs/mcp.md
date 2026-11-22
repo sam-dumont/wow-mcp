@@ -430,6 +430,7 @@ secret, refresh tokens, and the callback `https://<your host>/oauth/callback`.
 | `MCP_SIGNING_KEY_FILE` | random per start | 32+ random bytes; signs the tokens and encrypts the stored logins. Without it every restart logs every connector out |
 | `MCP_STATE_DIR` | | Client registrations and logins across restarts (encrypted, in `oauth/`) |
 | `MCP_REDIRECT_URIS`, `MCP_CIMD_HOSTS` | the client list above | Replace the lists |
+| `MCP_DCR` | `open` | `/register` for any client; `loopback`: local clients only; `off`: none, client metadata URLs (CIMD) only |
 | `MCP_ALLOWED_ORIGINS` | | Extra browser origins allowed on `/mcp` |
 | `MCP_AUTH` | `oauth` | `none` only works when `BIND` is loopback: for a laptop |
 | `ROUTE_REFERENCE_FILE` | the bundled file | Another route times file, or `off` |

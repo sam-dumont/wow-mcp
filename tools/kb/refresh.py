@@ -375,7 +375,7 @@ def read_page(fetch, p: dict) -> dict:
     if version is None:
         return {"ok": False, "why": "unreadable (not the page or topic JSON expected)"}
     if p["kind"] != "discourse":
-        return {"ok": True, "text": web.text_of(body), "version": version}
+        return {"ok": True, "text": web.text_of(body, p.get("page") or p["url"]), "version": version}
     text, failed = thread_text(fetch, p["url"], body, read_posts(p.get("known")))
     if failed:
         return {"ok": False, "why": ", ".join(failed)}

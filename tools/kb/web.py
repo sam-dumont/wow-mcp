@@ -2,8 +2,10 @@
 hash, and the GitHub calls (through `gh`) that keep one issue per change.
 
 Pages are untrusted data: their text is hashed, or handed to the model as
-data (tools/kb/refresh.py); nothing in it is run or followed. Stdlib only,
-so the watcher runs without the project's dependencies.
+data (tools/kb/refresh.py); nothing in it is run or followed. Their invisible
+characters (wowstats.text.invisible: the Tags block, bidi controls,
+zero-width ones) are stripped here, before any hash or model sees the text.
+Stdlib only, so the watcher runs without the project's dependencies.
 """
 
 from __future__ import annotations
@@ -14,10 +16,15 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from wowstats.text import invisible  # noqa: E402 - stdlib only, like this file
 
 UA = "wow-stats-kb-watch (+https://github.com/sam-dumont/wow-mcp)"
 TIMEOUT = 30
@@ -48,19 +55,29 @@ def _plain(fragment: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(b)).strip()
 
 
-def text_of(body: bytes) -> str:
+def visible(text: str, where: str = "") -> str:
+    """`text` without its invisible characters; a removal is logged with its
+    count (stderr, the job's log): someone hid text in a page."""
+    t, n = invisible.clean(text)
+    if n:
+        print(f"kb: removed {n} invisible character(s) from {where or 'a fetched text'}", file=sys.stderr)
+    return t
+
+
+def text_of(body: bytes, where: str = "") -> str:
     """A page's readable text: its main <article> (else <main>, else the
     whole page) without scripts, styles and tags, whitespace collapsed. The
     main article is the one with the most text: a page can open with
     sidebar or teaser <article>s (JudgeHype's guides do), and the first one
     is then a neighbour's headline. Stable across fetches of an unchanged
-    page (checked on Blizzard's hotfix page)."""
+    page (checked on Blizzard's hotfix page). Cleaned of invisible
+    characters after the entities are decoded (`&#x200B;` is one too)."""
     t = body.decode("utf-8", "replace")
     arts = [_plain(a) for a in re.findall(r"<article\b[^>]*>(.*?)</article>", t, re.S | re.I)]
     if arts:
-        return max(arts, key=len)
+        return visible(max(arts, key=len), where)
     m = re.search(r"<main\b[^>]*>(.*?)</main>", t, re.S | re.I)
-    return _plain(m.group(1) if m else t)
+    return visible(_plain(m.group(1) if m else t), where)
 
 
 def digest(text: str) -> str:
