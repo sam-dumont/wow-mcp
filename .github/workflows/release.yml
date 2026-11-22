@@ -353,12 +353,28 @@ jobs:
           git switch -qc "$branch"
           git commit -qam "Release $VERSION"
           gh auth setup-git
-          git push -qf origin "HEAD:refs/heads/$branch"
-          {
-            echo "The release commit for v$VERSION: the version in every file that carries it, and CHANGELOG.md's \"Unreleased\" under its heading. The release run merges it once the checks pass, then builds, tags and publishes."
-            echo
-            release notes "$VERSION"
-          } > "$RUNNER_TEMP/body.md"
+          # A branch left by an earlier run of this release (0.7.0's first
+          # run pushed it, then failed on the PR body) is this workflow's own:
+          # one bot commit "Release $VERSION" on top of main's history. Only
+          # that is replaced, and only as it was read (--force-with-lease); a
+          # branch with anything else on it stops the run for a person to look.
+          old=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+          if [ -n "$old" ]; then
+            read -r ahead subject author < <(gh api "repos/$GITHUB_REPOSITORY/compare/main...$old" \
+              --jq '"\(.ahead_by) \(.commits[-1].commit.message // "none" | split("\n")[0] | gsub(" "; "_")) \(.commits[-1].commit.author.name // "none")"')
+            if [ "$ahead" != 1 ] || [ "$subject" != "Release_$VERSION" ] || [ "$author" != "github-actions[bot]" ]; then
+              echo "::error::$branch exists and isn't this workflow's release commit ($ahead commits ahead of main, last \"${subject//_/ }\" by $author): look at it, delete it, run again."
+              exit 1
+            fi
+            echo "Replacing $branch at ${old:0:12}, left by an earlier run."
+          fi
+          git push -q --force-with-lease="refs/heads/$branch:$old" origin "HEAD:refs/heads/$branch"
+          # The body links the notes (CHANGELOG.md at the release commit, kept
+          # by the PR's ref after the squash) instead of carrying them: GitHub
+          # refuses a PR body over 65,536 characters, and 0.7.0's notes are 108 kB.
+          release pr-body "$VERSION" \
+            --changelog-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$(git rev-parse HEAD)/CHANGELOG.md" \
+            > "$RUNNER_TEMP/body.md"
           pr=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
           if [ -z "$pr" ]; then
             pr=$(gh pr create --base main --head "$branch" --title "Release $VERSION" --body-file "$RUNNER_TEMP/body.md" | grep -oE '[0-9]+$')
@@ -744,7 +760,10 @@ jobs:
         run: |
           set -euo pipefail
           {
-            uv run --no-project python tools/release/release.py notes "$VERSION"
+            # Cut to fit GitHub's 125,000-character release body, with a
+            # link to the whole section, should a series ever outgrow it.
+            uv run --no-project python tools/release/release.py notes "$VERSION" \
+              --changelog-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$TAG/CHANGELOG.md"
             echo
             echo "### Images"
             echo

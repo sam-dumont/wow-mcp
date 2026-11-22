@@ -163,3 +163,73 @@ def test_the_server_announces_a_candidate_shipper(tree):
     release.apply(tree, V("1.2.0-rc.3"), dt.date(2026, 1, 4))
     m = account._SHIPPER_VERSION.search((tree / "shipper/wow_stats.py").read_bytes())
     assert m and m.group(1) == b"1.2.0-rc.3"
+
+
+# ------------------------------------------------- GitHub's size limits
+# 0.7.0's first stable run failed: its notes (every candidate since 0.6.1,
+# 108 kB) went into the release PR's body, and GitHub refuses one over
+# 65,536 characters. The PR body now links the notes; the release body
+# carries them, cut with a link should a series ever pass 125,000.
+
+URL = "https://github.com/o/r/blob/abc123/CHANGELOG.md"
+
+
+@pytest.fixture
+def real_tree(tree):
+    """The tree with the real CHANGELOG, its current series' final applied
+    when it isn't there yet (before 0.7.0's release: the 0.7.0 that broke)."""
+    for rel in ("CHANGELOG.md", "tools/polestar-tag", "data/route-reference.json"):
+        (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(ROOT / rel, tree / rel)
+    final = release.current_version(ROOT).core
+    if release.body((tree / "CHANGELOG.md").read_text(), str(final)) is None:
+        release.apply(tree, final, dt.date(2026, 11, 22))
+    return tree, final
+
+
+def test_the_real_release_pr_body_is_short(real_tree):
+    tree, final = real_tree
+    pr = release.pr_body(tree, final, URL)
+    assert release.size(pr) < 4_000, release.size(pr)
+    assert f"v{final}" in pr and f"({URL}#" in pr
+    # The notes it links are the whole section, uncut, under the release body's limit.
+    notes = release.notes(tree, final, URL)
+    assert release.size(notes) <= release.NOTES_LIMIT < release.RELEASE_BODY_LIMIT
+    assert notes.split("\n\n", 1)[0] in pr  # the section's opening paragraph is the summary
+
+
+def test_the_pr_body_does_not_grow_with_the_notes(tree):
+    big = "\n".join(f"- Entry {i}: " + "x" * 200 for i in range(2_000))  # ~420 kB
+    (tree / "CHANGELOG.md").write_text(CHANGELOG.replace("**Second candidate fix.**", big))
+    release.apply(tree, V("1.2.0"), dt.date(2026, 1, 5))
+    pr = release.pr_body(tree, V("1.2.0"), URL)
+    assert release.size(pr) < 2_000
+    assert "**1.2.0**: 2000 entries, gathering 1.2.0-rc.1 to 1.2.0-rc.2." in pr
+    assert f"({URL}#120-2026-01-05)" in pr  # GitHub's anchor for "## 1.2.0 (2026-01-05)"
+    assert "Entry 1:" not in pr
+
+
+def test_notes_past_the_limit_stop_at_a_paragraph_and_link_the_rest(tree):
+    big = "\n\n".join(f"- Entry {i}: " + "é" * 300 for i in range(1_000))  # multibyte: bytes count
+    (tree / "CHANGELOG.md").write_text(CHANGELOG.replace("**Second candidate fix.**", big))
+    release.apply(tree, V("1.2.0"), dt.date(2026, 1, 5))
+    notes = release.notes(tree, V("1.2.0"), URL)
+    assert release.size(notes) <= release.NOTES_LIMIT
+    assert notes.endswith(f"All of them: [CHANGELOG.md]({URL}#120-2026-01-05).\n")
+    kept = notes.rsplit("\n\n**The notes stop here", 1)[0]
+    assert kept.startswith("**A new page.**") and kept.rsplit("\n\n", 1)[1].endswith("é" * 300)
+    # Under the limit nothing changes, link or not.
+    assert release.notes(tree, V("1.2.0-rc.1"), URL) == release.notes(tree, V("1.2.0-rc.1"))
+
+
+def test_the_release_workflow_links_the_notes_and_owns_its_branch():
+    yaml = pytest.importorskip("yaml")
+    jobs = yaml.safe_load((ROOT / ".github/workflows/release.yml").read_text())["jobs"]
+    prepare = next(s["run"] for s in jobs["prepare"]["steps"] if s.get("id") == "pr")
+    assert "release pr-body" in prepare and "release notes" not in prepare
+    # A leftover branch is replaced only when it is this workflow's own commit, as read.
+    assert "git push -qf" not in prepare
+    assert '--force-with-lease="refs/heads/$branch:$old"' in prepare
+    assert '"Release_$VERSION"' in prepare and "github-actions[bot]" in prepare
+    publish = " ".join(s.get("run", "") for s in jobs["publish"]["steps"])
+    assert "release.py notes \"$VERSION\" \\\n" in publish and "--changelog-url" in publish
