@@ -46,6 +46,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parents[1]))
@@ -335,7 +336,8 @@ class ServerRunner:
                  spend_file: Path | None, max_usd: float, key_cmd: str = ""):
         self.provider, self.model, self.base_url, self.key_file = provider, model, base_url, key_file
         self.prices, self.spend_file, self.max_usd, self.key_cmd = prices, spend_file, max_usd, key_cmd
-        hosted = not base_url or "api.openai.com" in base_url or provider == "anthropic"
+        # The host itself, not a substring: "api.openai.com.example" is someone else's.
+        hosted = not base_url or urlsplit(base_url).hostname == "api.openai.com" or provider == "anthropic"
         if hosted and not (key_file or key_cmd):
             raise SystemExit("--client server needs your own API key: EVAL_SERVER_KEY_CMD (a command that prints "
                              "it) or EVAL_SERVER_KEY_FILE (a file holding it), never a deployment's")
