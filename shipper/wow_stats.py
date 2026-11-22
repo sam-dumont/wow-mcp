@@ -202,16 +202,19 @@ def flush_fd(fd: int) -> None:
     """fsync, and on macOS the real one: there os.fsync leaves the data in
     the drive's own write cache, which a power cut loses; F_FULLFSYNC asks
     the drive to empty it. A filesystem that refuses it (some network
-    shares) gets the plain fsync. One place, so every flush of the
-    shipper's durability (docs/guarantees.md) is the same one."""
+    shares) gets the plain fsync, and so does a Python whose fcntl has no
+    F_FULLFSYNC (only macOS builds define it). One place, so every flush of
+    the shipper's durability (docs/guarantees.md) is the same one."""
     if sys.platform == "darwin":
         import fcntl  # not on Windows, and only needed here
 
-        try:
-            fcntl.fcntl(fd, fcntl.F_FULLFSYNC)
-            return
-        except OSError:
-            pass
+        full = getattr(fcntl, "F_FULLFSYNC", None)
+        if full is not None:
+            try:
+                fcntl.fcntl(fd, full)
+                return
+            except OSError:
+                pass
     os.fsync(fd)
 
 
