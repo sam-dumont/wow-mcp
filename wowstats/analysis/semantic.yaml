@@ -26,9 +26,10 @@
 # Five more keys turn caveats into rules the compiler enforces (review 4,
 # 2026-11-21: vs_route read the level in play's plan against no played time,
 # and one snapshot gave a money change of 0):
-# - `aggregation`: sum, ratio_of_sums, latest, endpoint_difference or max
+# - `aggregation`: sum, ratio_of_sums, latest, endpoint_difference, max
 #   (the largest in the group: a per-item fact the gear models repeat on
-#   each row of the item, or a slot's best).
+#   each row of the item, or a slot's best) or top (the value on the slot's
+#   top row: its best upgrade wearable now, its weakest worn item).
 # - `time_meaning`: what `time` is for this metric: interval_start,
 #   level_completion, snapshot_observation, quest_closure or event (a list,
 #   one per model, for a cross-model metric).
@@ -44,14 +45,15 @@
 # tests/analysis/test_semantic_evidence.py fails a metric that lacks them.
 # docs/reference/semantic-layer.md has the catalogue, generated from this file.
 #
-# One top-level key is ours, not a model: `cross_model_metrics`, ratios and
+# Two top-level keys are ours, not models: `views` (the views per grain, at
+# the end) and `cross_model_metrics`, ratios and
 # sums of metrics from two models (kills from records over combat_s from
 # timeline). BSL's own joins go from one model's rows to another's by a key;
 # a ratio of two facts grouped by any dimension they share (level, character,
 # time with its grain) is what the layer already does for every multi-model
 # question: each model aggregates on its own, the results join on the
 # group_by columns, so the ratio is computed after that join. semantic.py
-# takes the key out before BSL reads the file, checks each expression (metric
+# takes both out before BSL reads the file, checks each cross-model expression (metric
 # names, numbers, + - * / and parentheses only) and compiles it there.
 
 levels:
@@ -105,6 +107,16 @@ levels:
       description: "The route planner's seconds for the level: for this class, or the median over classes when the class isn't known."
       metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: estimated, unit: seconds,
                  caveats: "A model of a quick player who knows the route, uncalibrated. NULL when the route reference has no time for the level."}
+    longest_gap_s:
+      expr: _.longest_gap_s.max()
+      description: "The longest stretch inside the level (previous ding to this one, or to the last record for the level in play) with no Recorder session."
+      metadata: {kind: simple, aggregation: max, time_meaning: level_completion, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "Time offline, or play the Recorder missed when recorder_missed_s is above 0. Not additive: over several levels it is the longest of them. NULL for the first tracked level."}
+    recorder_missed_s:
+      expr: _.recorder_missed_s.sum()
+      description: "Played seconds in the level that no Recorder session covers: the coverage's Recorder gap for the level."
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: inferred, unit: seconds,
+                 caveats: "0 when the Recorder saw the whole level. NULL when it can't be measured: a partial split, the first tracked level, the level in play, or a level before the Recorder's first session."}
   calculated_measures:
     xp_per_hour:
       expr: _.level_xp / (_.played_s / 3600)
@@ -134,6 +146,13 @@ levels:
                  caveats: "Filter partial = 0 for whole levels: a partial split is short.",
                  eligibility: {where: "_.played_s.notnull()",
                    means: "A level with a split (the level in play has none)."}}
+    recorder_coverage:
+      expr: (_.played_s - _.recorder_missed_s) / _.played_s
+      description: "Share of the level's played time the Recorder saw: played_s minus recorder_missed_s, over played_s (1.0: every minute)."
+      metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: level_completion, evidence_basis: inferred, unit: share,
+                 caveats: "The Recorder's counts for the level (deaths, kills, quests_done, online_s) cover this share of its play: below 1, a 0 there may be play it missed. NULL when it can't be measured (see recorder_missed_s): unknown, never full.",
+                 eligibility: {where: "_.recorder_missed_s.notnull() & (_.played_s > 0)",
+                   means: "A level whose Recorder gap is measured: a whole split after the Recorder's first session."}}
     over_route_s:
       expr: _.played_s - _.planned_s
       description: "Seconds played beyond the route planner's time (negative: faster)."
@@ -589,6 +608,26 @@ upgrades:
       description: "Ways to get the upgrades: one per item and source."
       metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: estimated, unit: sources,
                  caveats: "An item with a drop and a quest counts twice; group by item_id and source to list them."}
+    best_upgrade:
+      expr: _.name.min(where=_.rank_now == 1)
+      description: "The best upgrade wearable now: the item with the biggest gain (rank_now 1), its name."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: estimated, unit: item,
+                 caveats: "Group by slot: over several slots it is the first name in alphabetical order among their best. NULL when nothing wearable now beats what is worn."}
+    best_upgrade_id:
+      expr: _.item_id.min(where=_.rank_now == 1)
+      description: "The best upgrade wearable now, its item id (its Wowhead page: item=<id>)."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: estimated, unit: item id,
+                 caveats: "Group by slot, as best_upgrade."}
+    best_upgrade_gain:
+      expr: _.gain.max(where=_.rank_now == 1)
+      description: "The best upgrade's score gain over what is worn (Polestar's points, for the scored spec)."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: estimated, unit: points,
+                 caveats: "Group by slot, as best_upgrade. Not additive: one slot's best is not another's."}
+    best_upgrade_bis_pct:
+      expr: _.bis_pct.max(where=_.rank_now == 1)
+      description: "The best upgrade's score as a percent of the best its slot can hold at this level for the scored spec."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: estimated, unit: percent,
+                 caveats: "Say it with upgrade_bis_pct_worn as the page does: '17% → 64% on your head', never as '+47%'. NULL when there is nothing to measure against."}
 
 worn:
   table: sem_gear
@@ -618,6 +657,26 @@ worn:
       description: "The worn item's score as a percent of the best its slot can hold at this level for the scored spec (100: the best)."
       metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: percent,
                  caveats: "Group by slot and item_id: over several slots it is the best of them. NULL when there is nothing to measure against."}
+    worn_item:
+      expr: _.name.min(where=_.weak_rank == 1)
+      description: "The worn item an upgrade replaces: the slot's item, or the weaker of two (rings, trinkets) by score."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: observed, unit: item,
+                 caveats: "Group by slot: over several slots it is the first name in alphabetical order among their weakest. Weaker by the scored spec's points; an item the gear data doesn't score counts as the stronger."}
+    worn_item_id:
+      expr: _.item_id.min(where=_.weak_rank == 1)
+      description: "That worn item's id (its Wowhead page: item=<id>)."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: observed, unit: item id,
+                 caveats: "Group by slot, as worn_item."}
+    worn_fit:
+      expr: _.fit.min(where=_.weak_rank == 1)
+      description: "How that worn item fits the scored spec: yes, any, spec (built for another spec of the class), class (made for another class) or unknown."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: estimated, unit: fit,
+                 caveats: "Group by slot, as worn_item. The spec is the player's WEIGHTS setting, else the talents (scored_for)."}
+    worn_item_bis_pct:
+      expr: _.bis_pct.min(where=_.weak_rank == 1)
+      description: "That worn item's score as a percent of the best its slot can hold at this level for the scored spec."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: estimated, unit: percent,
+                 caveats: "Group by slot, as worn_item. NULL when there is nothing to measure against."}
 
 cross_model_metrics:
   kills_per_combat_hour:
@@ -642,3 +701,49 @@ cross_model_metrics:
                caveats: "Levels only share level, character, class and time with records: group by one of those. Whole splits only, on both sides.",
                eligibility: {where: {records: "_.level_whole == 1", levels: "(_.played_s > 0) & (_.partial == 0)"},
                  means: "Levels with a whole split: the quest XP of those levels over their played time. The level in play and a partial split stay out of both sides."}}
+
+# Views per grain (owner, 2026-11-22: "use the semantic model all the time"):
+# one DuckDB view per entity, made by compiling the metrics above at that grain
+# (semantic.py, view_sql), never written by hand. Each model aggregates to the
+# entity, the parts join on it, so a view has one row per key: no fan-out.
+# `entity` is the grain, `metrics` its columns (each also asked on its own by
+# query_metric with group_by [entity]: tests/invariants/test_views.py
+# checks they agree), `dimensions` columns that hold one value per key in the
+# models that have them (joined on the entity only), `where` keeps the rows
+# with a key. A metric that can't be grouped by the entity is refused when
+# the catalogue is built: left out, never faked. play_sql and the judge read
+# them by name; list_metrics lists them with their columns.
+views:
+  per_level:
+    entity: level
+    description: "One row per level: time played, wall clock and the longest silence, how much of it the Recorder saw, deaths, the route plan against the play, quests and gold."
+    dimensions: [partial]
+    where: [{dimension: level, op: is not null}]
+    metrics: [played_s, calendar_s, offline_s, longest_gap_s, recorder_missed_s, recorder_coverage, online_s, deaths,
+              deaths_per_online_hour, planned_s, vs_route, split_quests, quests_done, gold_moved_copper, gold_delta_copper]
+  per_session:
+    entity: session_id
+    description: "One row per login span: its length and XP, online, active, combat and dungeon time, kills, deaths and quests."
+    dimensions: [weekday, start_hour, level_start]
+    where: [{dimension: session_id, op: is not null}]
+    metrics: [session_s, session_xp, xp_per_session_hour, online_s, active_s, combat_s, dungeon_s, kills, deaths,
+              quests_done, deaths_per_online_hour, kills_per_combat_hour]
+  per_zone:
+    entity: zone
+    description: "One row per zone the Recorder saw: online, combat and dungeon time, kills, deaths, quests and their XP."
+    where: [{dimension: zone, op: is not null}]
+    metrics: [online_s, active_s, combat_s, dungeon_s, kills, deaths, quests_done, kill_xp, quest_xp,
+              deaths_per_online_hour, kills_per_combat_hour]
+  per_dungeon:
+    entity: dungeon
+    description: "One row per dungeon: runs and their time and XP inside, trips with the travel around them and their XP an hour."
+    where: [{dimension: dungeon, op: is not null}]
+    metrics: [run_count, run_s, run_xp, run_xp_per_hour, trip_count, trip_s, trip_travel_s, trip_xp, trip_xp_per_hour,
+              trip_inside_share]
+  per_slot:
+    entity: slot
+    description: "One row per gear slot, for the spec the gear is scored for: the worn item and its fit, the best upgrade wearable now, and the two percents the page says as 'NN% → NN%' (upgrade_bis_pct_worn → best_upgrade_bis_pct)."
+    dimensions: [scored_for]
+    where: [{dimension: slot, op: is not null}]
+    metrics: [worn_items, worn_item, worn_item_id, worn_fit, worn_item_bis_pct, best_upgrade, best_upgrade_id,
+              best_upgrade_gain, best_upgrade_bis_pct, upgrade_bis_pct_worn, upgrade_sources]
