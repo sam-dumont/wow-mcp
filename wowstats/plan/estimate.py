@@ -587,12 +587,18 @@ def level_at(inp: dict, route: dict, factor: float, played_s: float) -> float | 
 # ---------------------------------------------------------------- gear options
 
 
-def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict) -> list[dict]:
+def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str | None = None) -> list[dict]:
     """Per slot, every way to an upgrade with what it costs: already in his
     bags or bank (no trip, first), a quest (on his route or not), a dungeon
     drop (the trip's time and the chance), a world drop (luck, and his own
     AH price when he scanned it, weighed against the mount savings), a
-    craft. Ranked by gain per hour where there is a time, luck last."""
+    craft. Ranked by gain per hour where there is a time, luck last.
+
+    Each option says whether its source is in `zone` (the zone the
+    character is in now; the inputs' own when not given), by the advice's
+    rule: without it a model read the zone off sessions and counted three
+    quest upgrades where `gear` marked one (eval-mcp, zone_quest_upgrade)."""
+    zone = inp.get("zone") if zone is None else zone
     trip = {dkey(d["name"]): d for d in dlist}
     ahead = {s["title"] for s in inp.get("route_ahead") or []}
     level = inp["level"]
@@ -605,7 +611,7 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict) -> list[dic
                    "available": "now" if u.get("now") else f"at {u.get('level')}",
                    # The ranking's value and who it's built for (wowstats.gearfit).
                    "value": round(u.get("value", u.get("gain")) or 0, 1),
-                   "fit": gearfit.text(u.get("fit"))}
+                   "fit": gearfit.text(u.get("fit")), "in_current_zone": gearmod.in_zone(s, zone)}
             if with_text(u):
                 row["worn_with"] = with_text(u)
             if s["kind"] in ("bags", "bank") and not partner_to_get(u):

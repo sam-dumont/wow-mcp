@@ -59,7 +59,7 @@ What you wear and every way to an upgrade.
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
 | `gear` | Gear advice from Polestar's scoring: per slot what is worn and where it stands (BiS, 2nd, or a percent of BiS), the best item at its level and the next within 3 levels, with the gain and where to get it; then the upgrades, held or in the current zone first, then the slot furthest from BiS. Say each item's `line` as is. Polestar's spec unless `spec` names another. | `spec`: A spec of the class, e.g. shadow, holy.; `limit`: Max rows (default 10). | reads |
-| `gear_options` | Per slot, every way to an upgrade with its cost: quest (on the route or not), dungeon drop (trip time at the drop chance), world drop (luck, plus the player's own AH price), craft, and any other source kind the gear data names. Slots furthest from BiS first; each item's `line` is the page's words ("70% → 91% on your chest"): say it as is. | `limit`: Max rows (default 8). | reads |
+| `gear_options` | Per slot, every way to an upgrade with its cost: quest (on the route or not), dungeon drop (trip time at the drop chance), world drop (luck, plus the player's own AH price), craft, and any other source kind the gear data names. Slots furthest from BiS first; each item's `line` is the page's words ("70% → 91% on your chest"): say it as is. `in_current_zone`: in `zone`, where the character is. | `limit`: Max rows (default 8). | reads |
 
 ## Talents
 

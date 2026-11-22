@@ -201,6 +201,33 @@ def test_mcp_lines_are_the_pages(ctx):
         assert r["line"] == page[r["item_id"]], (r["item"], r["line"], page[r["item_id"]])
 
 
+def test_one_current_zone_and_one_line_across_the_gear_tools(ctx):
+    """eval-mcp 2026-11-22 (zone_quest_upgrade): gear_options had no current
+    zone and no zone mark, so the model read the zone off sessions and
+    picked one of three Arathi quest upgrades. Now character_summary, gear
+    and gear_options say the same zone, both lists mark what is in it by the
+    same rule, and an item in both says the same line."""
+    c, _app = ctx
+    summary = T.call(c, "character_summary", {"char": D.CHAR})
+    g = T.call(c, "gear", {"char": D.CHAR, "limit": 40})
+    o = T.call(c, "gear_options", {"char": D.CHAR, "limit": 20})
+    zone = summary["zone"]
+    assert zone and g["zone"] == zone and o["zone"] == zone
+    opts = [x for s in o["slots"] for x in s["options"]]
+    assert all(isinstance(x["in_current_zone"], bool) for x in opts)
+    quests = [x for x in opts if x["kind"] == "quest"]
+    assert any(x["in_current_zone"] for x in quests) and not all(x["in_current_zone"] for x in quests)
+    for x in quests:
+        assert x["in_current_zone"] == (x["zone"] == zone), (x["item"], x["zone"])
+    lines = {x["item_id"]: x for x in opts}
+    both = [u for u in g["next_upgrades"] if u["item_id"] in lines]
+    assert both
+    for u in both:
+        assert u["line"] == lines[u["item_id"]]["line"], (u["item"], u["line"], lines[u["item_id"]]["line"])
+        if lines[u["item_id"]]["in_current_zone"]:
+            assert u["in_current_zone"], u["item"]
+
+
 def test_plan_facts_name_items_by_their_line(ctx):
     c, _app = ctx
     planmod._CACHE.clear()
