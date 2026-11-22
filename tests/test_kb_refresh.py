@@ -46,11 +46,14 @@ class Fetch:
 class GH:
     """Issues in memory, and release tags."""
 
-    def __init__(self, releases: dict):
-        self.releases, self.issues, self.n = releases, {}, 0
+    def __init__(self, releases: dict, lists: dict | None = None):
+        self.releases, self.lists, self.issues, self.n = releases, lists or {}, {}, 0
 
     def latest_release(self, repo):
         return self.releases.get(repo)
+
+    def list_releases(self, repo):
+        return self.lists.get(repo, [])
 
     def find_issue(self, marker, label):
         return next((n for n, i in self.issues.items() if i["open"] and marker in i["body"] and label in i["labels"]),
@@ -174,6 +177,23 @@ def test_only_a_plain_release_tag_reaches_the_bump(state, tag, kept):
     state["polestar"]["known"] = "v0.0.1"  # never the shipped value: a bump moves it (#153)
     fetch, gh = recorded(state, page=PAGE.encode(), polestar=tag)
     assert watch.run(state, fetch, gh, github=False)["polestar_tag"] == kept
+
+
+def test_polestar_is_its_newest_plain_release_never_its_client(state):
+    """fitzforge/polestar also releases its desktop client (client-v0.1.8,
+    2026-11-21) and pre-releases (v0.4.2): only a plain, final addon release
+    is Polestar's, even when GitHub marks another one Latest."""
+    known_hash(state, PAGE.encode())
+    state["polestar"]["known"] = "v0.0.1"
+    fetch, gh = recorded(state, page=PAGE.encode(), polestar="client-v0.1.9")
+    gh.lists[state["polestar"]["repo"]] = [
+        {"tag_name": "client-v0.1.9", "prerelease": False, "draft": False},
+        {"tag_name": "v0.4.3", "prerelease": True, "draft": False},
+        {"tag_name": "v0.4.4", "prerelease": False, "draft": True},
+        {"tag_name": "v0.4.2.1", "prerelease": False, "draft": False},
+        {"tag_name": "v0.4.2", "prerelease": True, "draft": False}]
+    out = watch.run(state, fetch, gh, github=False)
+    assert out["polestar_tag"] == "v0.4.2.1" and out["now"]["polestar"]["release"] == "v0.4.2.1"
 
 
 def test_accept_refuses_a_kind_it_could_not_read(state, tmp_path, monkeypatch):

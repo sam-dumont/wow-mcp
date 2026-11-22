@@ -134,6 +134,15 @@ class GitHub:
         except subprocess.CalledProcessError:
             return None
 
+    def list_releases(self, repo: str) -> list[dict]:
+        """The newest 30 releases, newest first: tag_name, draft, prerelease."""
+        try:
+            out = self._gh("api", f"repos/{repo}/releases?per_page=30", "--jq",
+                           "[.[] | {tag_name, draft, prerelease}]")
+            return json.loads(out or "[]")
+        except (subprocess.CalledProcessError, ValueError):
+            return []
+
 
 def keep_issue(gh, kind: str, label: str, title: str, body: str | None,
                closing: str = "Back to what the KB knows (data/kb/watch.json): nothing to review.") -> str:

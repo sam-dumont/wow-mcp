@@ -15,12 +15,22 @@ and reads no page. In order:
    conflict refuses.
 3. Push the branch (one per mode, force-pushed), open or edit its PR, the
    gates' verdict in the body.
-4. Gates passed: `gh pr merge --auto --squash --match-head-commit <sha>`.
-   The workflow token's PR starts no `ci` run, so the gates ran the suite
-   here; with no required check on main gh merges at once, and with one it
-   turns auto-merge on. Refused: the PR keeps label `kb-refused` and stays
+4. Gates passed: `gh pr merge --auto --squash --match-head-commit <sha>`,
+   then the job stays with the PR until it merges (`shepherd`): main's
+   ruleset wants the branch up to date with main, so each time main moves
+   the PR goes BEHIND and is rebased on it (`gh pr update-branch --rebase`,
+   with the App's token, so its checks run again), and auto-merge is turned
+   back on if it went off. Refused: the PR keeps label `kb-refused` and stays
    open for a person.
-5. What the issues need: in watch mode, `--why-out` ({kind: why it isn't
+5. The step ends red unless the PR merged (or there was nothing to land): a
+   refusal, a failed required check, a conflict, or no merge within
+   SHEPHERD_S. The lab's scheduler waits for the run and reports a red one
+   (its CronJob fails: CronJobNotSucceeding). Before 2026-11-22 a red PR
+   left the run green and nobody saw it (#99).
+6. An earlier run's PR still open (this run then landed nothing): the same
+   shepherding, so a PR the last run left BEHIND still merges; one labelled
+   `kb-refused` keeps the run red until a person merges or closes it.
+7. What the issues need: in watch mode, `--why-out` ({kind: why it isn't
    merged}) and `--state-out` (the watch.json the issues compare with: the
    merged one, else the base's), for `tools/kb/watch.py --github`; in the
    other modes, one issue per mode (label kb-watch), opened on a refusal and
@@ -45,6 +55,11 @@ ROOT = Path(__file__).resolve().parents[2]
 LABEL = "kb-watch"
 REFUSED = "kb-refused"
 TOKEN_VARS = ("GH_TOKEN", "GITHUB_TOKEN")
+# How long the job waits for its PR to merge: main's checks take about 6
+# minutes, plus a rebase or two when main moves meanwhile.
+SHEPHERD_S = 45 * 60
+POLL_S = 60
+FAILED = {"FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "ERROR"}
 
 
 def sh(*cmd: str, check: bool = True, env: dict | None = None) -> subprocess.CompletedProcess:
@@ -96,12 +111,78 @@ def merge(n: int, sha: str) -> tuple[str, str]:
     return "failed", f"GitHub didn't merge it (merge state {state}): {detail}"
 
 
+def required_checks() -> set[str]:
+    """The checks main's rules require (empty when they can't be read: then
+    any failed check counts)."""
+    r = gh("api", f"repos/{web.repo()}/rules/branches/main", check=False)
+    try:
+        rules = json.loads(r.stdout or "[]")
+    except ValueError:
+        return set()
+    return {c["context"] for x in rules if x.get("type") == "required_status_checks"
+            for c in (x.get("parameters") or {}).get("required_status_checks") or []}
+
+
+def pr_view(n: int) -> dict:
+    """The PR's state, merge state, auto-merge and checks. Reading the checks
+    needs the App's checks permission: without it, the state alone (a failed
+    check then shows as a PR that doesn't merge by the deadline)."""
+    r = gh("pr", "view", str(n), "--json", "state,mergeStateStatus,autoMergeRequest,statusCheckRollup", check=False)
+    if r.returncode:
+        r = gh("pr", "view", str(n), "--json", "state,mergeStateStatus,autoMergeRequest")
+    return json.loads(r.stdout)
+
+
+def update_branch(n: int) -> None:
+    gh("pr", "update-branch", str(n), "--rebase", check=False)
+
+
+def arm(n: int) -> None:
+    gh("pr", "merge", str(n), "--auto", "--squash", check=False)
+
+
+def shepherd(n: int, required: set[str], deadline_s: int = SHEPHERD_S, poll_s: int = POLL_S, view=pr_view,
+             update=update_branch, arm=arm, sleep=time.sleep, now=time.monotonic) -> tuple[str, str]:
+    """Stay with PR `n` until it merges: ('merged' | 'red' | 'stuck', why)."""
+    end = now() + deadline_s
+    state = "UNKNOWN"
+    while True:
+        v = view(n)
+        if v["state"] == "MERGED":
+            return "merged", ""
+        if v["state"] == "CLOSED":
+            return "red", f"PR #{n} was closed without merging"
+        failed = sorted({c.get("name") or c.get("context") or "?" for c in v.get("statusCheckRollup") or []
+                         if (c.get("conclusion") or c.get("state") or "").upper() in FAILED})
+        failed = [c for c in failed if not required or c in required]
+        if failed:
+            return "red", f"PR #{n}'s required checks failed: {', '.join(failed)}"
+        state = v.get("mergeStateStatus") or "UNKNOWN"
+        if state == "DIRTY":
+            return "red", f"PR #{n} conflicts with main"
+        if state == "BEHIND":
+            update(n)
+            arm(n)
+        elif not v.get("autoMergeRequest"):
+            arm(n)
+        if now() >= end:
+            return "stuck", f"PR #{n} didn't merge in {deadline_s // 60} minutes (merge state {state})"
+        sleep(poll_s)
+
+
+def exit_code(outcome: str) -> int:
+    """The step's status: red unless the PR merged or there was nothing to land."""
+    return 0 if outcome in ("merged", "nothing") else 1
+
+
 def why_text(outcome: str, n: int | None, detail: str, gates_md: str) -> str:
     pr = f"PR #{n}" if n else "The PR"
     if outcome == "refused":
         return f"{pr} is open, not merged: the gates refused it.\n\n{gates_md}"
     if outcome == "auto":
         return f"{pr} passed the gates; {detail}."
+    if outcome == "refused-open":
+        return f"{pr} from an earlier run is open with label {REFUSED}: a person merges or closes it."
     return f"{pr} passed the gates but wasn't merged: {detail}"
 
 
@@ -147,9 +228,11 @@ def main(argv: list[str] | None = None) -> int:
 
     def finish(outcome: str, n: int | None = None, detail: str = "", gates_md: str = "") -> int:
         landed = outcome == "merged"
+        if landed:  # main now holds the PR, rebased or not
+            git("fetch", "-q", "origin", "main", check=False)
+            seen["main"] = git("rev-parse", "origin/main")
         if a.state_out:
-            text = ((ROOT / state_rel).read_text(encoding="utf-8") if landed
-                    else git("show", f"{seen['main']}:{state_rel}"))
+            text = git("show", f"{seen['main']}:{state_rel}")
             Path(a.state_out).write_text(text + ("" if text.endswith("\n") else "\n"), encoding="utf-8")
         reason = "" if landed or outcome == "nothing" else why_text(outcome, n, detail, gates_md)
         if a.why_out and reason:
@@ -164,11 +247,21 @@ def main(argv: list[str] | None = None) -> int:
                                  "The next run merged.")
             print(f"issue: {did}")
         output(outcome=outcome, pr=n or "", landed=1 if landed else 0)
-        return 0
+        if exit_code(outcome):  # red: the lab's scheduler waits for this run and reports it
+            print(f"::error::{' '.join((detail or reason).split())[:400]}")
+        return exit_code(outcome)
 
     if not git("rev-list", f"{a.base}..HEAD"):
-        print("nothing committed: nothing to land")
-        return finish("nothing")
+        earlier = open_pr(a.branch)
+        if not earlier:
+            print("nothing committed: nothing to land")
+            return finish("nothing")
+        labels = json.loads(gh("pr", "view", str(earlier), "--json", "labels").stdout).get("labels") or []
+        if any(lb.get("name") == REFUSED for lb in labels):
+            return finish("refused-open", earlier, f"PR #{earlier} is open with label {REFUSED}")
+        print(f"nothing committed; PR #{earlier} from an earlier run is open: staying with it")
+        outcome, detail = shepherd(earlier, required_checks())
+        return finish(outcome, earlier, detail)
     result = json.loads(Path(a.gates).read_text(encoding="utf-8"))
     gates_md = Path(a.gates_md).read_text(encoding="utf-8") if a.gates_md else ""
     sh("gh", "auth", "setup-git")  # the push's credentials, from this step's GH_TOKEN only
@@ -202,6 +295,8 @@ def main(argv: list[str] | None = None) -> int:
         return finish("refused", n, gates_md=gates_md)
     gh("pr", "edit", str(n), "--remove-label", REFUSED, check=False)
     outcome, detail = merge(n, sha)
+    if outcome == "auto":
+        outcome, detail = shepherd(n, required_checks())
     if outcome == "merged":
         gh("api", "-X", "DELETE", f"repos/{web.repo() or ''}/git/refs/heads/{a.branch}",
            check=False)

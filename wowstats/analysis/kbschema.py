@@ -155,12 +155,15 @@ def check_file(doc: dict, allow: dict, strict_type: bool = True) -> list[str]:
     for name, r in ((doc.get("rules") or {}) if isinstance(doc, dict) else {}).items():
         errs = check(r, allow, strict_type) if isinstance(r, dict) else ["not an object"]
         out += [f"rule {name}: {e}" for e in errs]
+    shape = class_guide_shape if isinstance(doc, dict) and doc.get("lane") == "classes" else None
     for key in ("statements", "contradictions"):
         for i, r in enumerate(doc.get(key) or []):
             where = f"{key[:-1]} {r.get('id') or i}" if isinstance(r, dict) else f"{key[:-1]} {i}"
             out += [f"{where}: {e}" for e in (check(r, allow) if isinstance(r, dict) else ["not an object"])]
             if isinstance(r, dict) and not (r.get("text") or "").strip():
                 out.append(f"{where}: no text")
+            if shape and isinstance(r, dict):
+                out += [f"{where}: {e}" for e in shape(r, key)]
     # The weekly digests (wowstats.news; `digest` in a pass's own file,
     # `digests` in data/kb/news.json): each line sourced like a statement;
     # an event's day, when it has one, a real day.
@@ -187,6 +190,26 @@ def check_file(doc: dict, allow: dict, strict_type: bool = True) -> list[str]:
         if not isinstance(q, dict) or not (q.get("text") or "").strip():
             out.append(f"open question {i}: no text")
     return out
+
+
+def class_guide_shape(rec: dict, key: str) -> list[str]:
+    """What the class guide (wowstats.classguide, data/kb/research/classes.json)
+    needs of a record: its class; a statement also its topic and level range.
+    A model statement that replaced one without them (2026-11-22, #99) dropped
+    the class's 10-19 talent order from the guide."""
+    from wowstats import classguide  # the guide reads the KB, not the other way round
+
+    errs = []
+    if rec.get("class") not in classguide.CLASSES:
+        errs.append(f"class {rec.get('class')!r} is not one of the guide's classes")
+    if key == "statements":
+        if rec.get("topic") not in classguide.TOPICS:
+            errs.append(f"topic {rec.get('topic')!r} is not one of the guide's topics")
+        lv = rec.get("levels")
+        if not (isinstance(lv, list) and len(lv) == 2 and all(isinstance(x, int) for x in lv)
+                and 1 <= lv[0] <= lv[1] <= classguide.MAX_LEVEL):
+            errs.append(f"levels {lv!r} is not [from, to] within 1-{classguide.MAX_LEVEL}")
+    return errs
 
 
 def expired(rec: dict, today) -> bool:

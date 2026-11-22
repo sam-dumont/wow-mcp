@@ -11,7 +11,9 @@ against) with today's:
 - official: Blizzard's hotfix and patch-note pages (a page's normalised
   text hash; a forum thread's post count and last post, from Discourse's
   JSON);
-- polestar: the Polestar addon's latest release on GitHub;
+- polestar: the Polestar addon's newest final release on GitHub, its tag a
+  plain version (the repository also releases its desktop client,
+  `client-v*`, and pre-releases: neither is the addon);
 - addons: the latest releases of the install docs' other addons that
   publish on GitHub (the CurseForge- and Wago-only ones have no keyless
   feed: listed, not watched).
@@ -72,11 +74,23 @@ def current(state: dict, fetch, gh) -> dict:
         else:
             text = web.text_of(body)
             out["official"][p["key"]] = web.digest(text) if len(text) > 200 else None
-    out["polestar"]["release"] = gh.latest_release(state["polestar"]["repo"]) if gh else None
+    out["polestar"]["release"] = polestar_release(gh, state["polestar"]["repo"]) if gh else None
     for a in state["addons"]:
         if a.get("repo"):
             out["addons"][a["name"]] = gh.latest_release(a["repo"]) if gh else None
     return out
+
+
+def polestar_release(gh, repo: str) -> str | None:
+    """Polestar's newest final addon release: GitHub's Latest when its tag is a
+    plain version, else the newest plain-version release that is neither a
+    draft nor a pre-release. None when there is none (not a change)."""
+    tag = gh.latest_release(repo)
+    if tag and TAG.match(tag):
+        return tag
+    return next((r["tag_name"] for r in gh.list_releases(repo)
+                 if not r.get("draft") and not r.get("prerelease") and TAG.match(str(r.get("tag_name") or ""))),
+                None)
 
 
 def known(state: dict) -> dict:
