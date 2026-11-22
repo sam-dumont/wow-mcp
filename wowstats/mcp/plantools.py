@@ -254,7 +254,9 @@ def t_whats_new(ctx: T.Ctx, args: dict) -> dict:
              (f.get("last_confirmed") or "")]
     dropped = [d for r in s.get("runs") or [] if (r.get("at") or "") >= since for d in r.get("dropped") or []]
     return {"since": since, "new": new, "confirmed_again": still[:10], "dropped": dropped[:10],
-            "nudges": s.get("nudges") or [], "updated": s.get("updated"),
+            # Held lines (on findings to revalidate) apart: analysis.standing.
+            "nudges": (lines := analysis.standing(s))["nudges"], "on_hold": lines["on_hold"],
+            "updated": s.get("updated"),
             "note": "Findings are verified each night: their SQL re-run on the latest data."}
 
 

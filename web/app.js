@@ -2501,6 +2501,12 @@ function renderAnalysis(a) {
   // server's (wowstats/analysis/auto.py, kind "server").
   else if (run.at) kids.push(h('p', { class: 'sub asof', text: `As of ${day(run.at)}, by ${run.kind === 'server' || run.by === 'server' ? 'the server' : 'you'}.` }));
   if ((a.nudges || []).length) kids.push(h('h3', { text: 'What to do' }), nudgeList(a.nudges));
+  // A nudge on a finding to revalidate is held out of "What to do" until an
+  // analysis judges the finding again (wowstats/analysis standing()): one line.
+  const held = (a.on_hold || []).filter((x) => x.kind === 'nudge').length;
+  if (held) kids.push(h('p', { class: 'sub onhold', text: held > 1
+    ? `${held} steps are on hold until the next analysis judges their findings again.`
+    : '1 step is on hold until the next analysis judges its finding again.' }));
   const finding = (f) => h('li', {},
     h('div', { class: 'ftitle' }, f.title,
       // Judged under other definitions (wowstats/analysis/manifest.py): not
