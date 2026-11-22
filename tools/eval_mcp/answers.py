@@ -137,13 +137,28 @@ def best_now(t: Tools, slot: str) -> str:
 
 
 def zone_quest_upgrade_line(t: Tools) -> str:
-    ups = [u for u in t("gear", limit=40)["next_upgrades"]
-           if u.get("in_current_zone") and any(w.startswith("quest ") for w in u.get("where") or [])]
-    line = _one(ups, "quest upgrade in the current zone")["line"]
-    m = re.match(r"\s*(\d+%\s*→\s*\d+%)", line)
-    if not m:
-        raise ValueError(f"no 'NN% → NN%' in {line!r}")
-    return m.group(1)
+    """The quest upgrade in the current zone with the biggest jump, over
+    everything the gear advice lists: `gear`'s shortlist (3 a slot) and
+    `gear_options` (4 a slot, more slots). The demo has three in Arathi
+    Highlands; asking for "the one" let a model pick any (eval-mcp
+    2026-11-22: 18% → 47%, the boots gear_options lists first)."""
+    lines: dict[int, str] = {}
+    for u in t("gear", limit=40)["next_upgrades"]:
+        if u.get("in_current_zone") and any(w.startswith("quest ") for w in u.get("where") or []):
+            lines[u["item_id"]] = u["line"]
+    for s in t("gear_options", limit=20)["slots"]:
+        for o in s["options"]:
+            if (o.get("in_current_zone") and o.get("kind") == "quest"
+                    and lines.setdefault(o["item_id"], o["line"]) != o["line"]):
+                raise ValueError(f"item {o['item_id']}: {lines[o['item_id']]!r} vs {o['line']!r}")
+    pairs = {}
+    for item, line in lines.items():
+        m = re.match(r"\s*(\d+)%\s*→\s*(\d+)%", line)
+        if not m:
+            raise ValueError(f"no 'NN% → NN%' in {line!r}")
+        pairs[item] = (int(m.group(2)) - int(m.group(1)), f"{m.group(1)}% → {m.group(2)}%")
+    top = max((j for j, _ in pairs.values()), default=None)
+    return _one([p for j, p in pairs.values() if j == top], "biggest quest upgrade in the current zone")
 
 
 def next_guide_step(t: Tools) -> int:

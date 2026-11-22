@@ -895,7 +895,9 @@ def gates(at: int, level: int, sources: list[dict]) -> list[dict]:
     return out
 
 
-def _here(src: dict, zone: str | None) -> bool:
+def in_zone(src: dict, zone: str | None) -> bool:
+    """A source in the zone the character is in now: the advice's `here`,
+    gear_options' `in_current_zone`, one rule."""
     return bool(zone and src.get("zone") and src["zone"].lower() == zone.lower())
 
 
@@ -1178,7 +1180,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         if at > level + SOON_LEVELS:
             continue
         cands.append({"id": item_id, "info": info, "at": at, "sources": here_srcs,
-                      "here": any(_here(x, zone) for x in here_srcs)})
+                      "here": any(in_zone(x, zone) for x in here_srcs)})
 
     # On sale, and in no source Polestar knows (most world-drop greens).
     for item_id, s in sale.items():

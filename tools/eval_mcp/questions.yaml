@@ -68,8 +68,9 @@
 - id: zone_quest_upgrade
   area: upgrade line
   question: >-
-    One gear upgrade comes from a quest in the zone the character is in now. How does the gear
-    advice put that upgrade's standing, in the form "NN% → NN%"?
+    Among the gear upgrades that come from a quest in the zone the character is in now, take the
+    one with the biggest jump in standing (the second percentage minus the first). How does the
+    gear advice put that upgrade's standing, in the form "NN% → NN%"?
   answer: zone_quest_upgrade_line
   match: pct_line
 

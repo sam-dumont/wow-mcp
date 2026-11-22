@@ -230,6 +230,25 @@ def levels_rows(ctx: Ctx, char: str) -> list[dict]:
 # ---------------------------------------------------------------- tools
 
 
+def sheet_or_record(s: dict, r: dict) -> dict:
+    """The newer of the character sheet and the Recorder's latest xp, level
+    or zone record: where the level, the XP and the zone are read."""
+    return s if parse_t(s.get("_time")) >= parse_t(r.get("_time")) else r
+
+
+def zone_now(s: dict, r: dict) -> str | None:
+    """The zone the character is in now: one rule for character_summary,
+    gear and gear_options, so no tool's "current zone" is another's guess."""
+    return sheet_or_record(s, r).get("zone") or s.get("zone")
+
+
+def current_zone(ctx: Ctx, char: str) -> str | None:
+    st = ctx.store
+    last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, zone | sort by (_time desc) | limit 1",
+                   limit=1)
+    return zone_now(pick_sheet(sheet_rows(one_row(st), cf(char))), (last or [{}])[0])
+
+
 def t_character_summary(ctx: Ctx, args: dict) -> dict:
     char = resolve_char(ctx, args)
     st = ctx.store
@@ -245,7 +264,7 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     chars = st.logs("char:* | stats by (char) max(_time) as last_seen")
     levels = build_levels(levels_rows(ctx, char))
     s, r = pick_sheet(snap), (last or [{}])[0]
-    top = s if parse_t(s.get("_time")) >= parse_t(r.get("_time")) else r
+    top = sheet_or_record(s, r)
     level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
     xp, xp_max = opt_num(top.get("xp")), opt_num(top.get("xp_max"))
     if top is r and r.get("kind") == "level":
@@ -281,7 +300,7 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     return {
         "char": char, "title": ctx.title(char) if ctx.title else None, "level": level, "xp": xp, "xp_max": xp_max,
         "xp_pct": round(100 * xp / xp_max, 1) if xp is not None and xp_max else None,
-        "zone": top.get("zone") or s.get("zone"), "last_seen": max(s.get("_time") or "", r.get("_time") or "") or None,
+        "zone": zone_now(s, r), "last_seen": max(s.get("_time") or "", r.get("_time") or "") or None,
         "gold": gold(money), "money_copper": money,
         "time_in_level": dur(current["seconds"]) if current else None,
         "played_tracked": dur(sum(lv["seconds"] for lv in levels)) if levels else None,
@@ -859,7 +878,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     # items when this person lets them reach the model (bnet_vm_url).
     done = _views(ctx).quests_done(char)
     s, r = (snap or [{}])[0], (last or [{}])[0]
-    top = s if parse_t(s.get("_time")) >= parse_t(r.get("_time")) else r
+    top = sheet_or_record(s, r)
     level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
     sheet = gearmod.sheet(rows[0])
     sheet["worn_stats"] = worn
@@ -870,7 +889,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         market = None  # no prices is no reason to lose the advice
     try:
         a = gearmod.advise(gearmod.reference(), sheet, level=level,
-                           zone=top.get("zone") or s.get("zone"),
+                           zone=zone_now(s, r),
                            done=set(done),
                            spec=(args.get("spec") or None), limit=(lim := limit_arg(args, 10, 40)),
                            # The player's WEIGHTS, like the page, gear_options and the analysis: without
