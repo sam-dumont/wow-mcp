@@ -115,8 +115,15 @@ DONE = [{"quest_id": "1884", "n": "1"}]
 # the bank, the Hearthstone (not gear).
 BAGS = [{"_time": _t(17, 21, 40), "feed": "wow-bags", "bags": json.dumps([4768, 6948]), "bank": json.dumps([3645])}]
 
+# What the semantic layer's narrow prep reads (wowstats.analysis.pages
+# ROWS_QUERY): the same splits, runs and deaths, each with its feed.
+LAYER = ([{**r, "feed": "wow-level", "char": CHAR} for r in LEVELS]
+         + [{**r, "feed": "wow-dungeon", "char": CHAR} for r in DUNGEONS]
+         + [{**r, "feed": "wow-recorder", "kind": "death", "char": CHAR} for r in DEATHS])
+
 # (substring, rows): the first match answers. Specific before general.
 LOGS = [
+    ("feed:in(wow-level, wow-dungeon, wow-recorder", LAYER),
     ('feed:="wow-bags"', BAGS),
     ('feed:="wow-gear"', GEAR),
     ("kind:=turnin quest_id:*", DONE),

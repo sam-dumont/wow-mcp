@@ -58,10 +58,20 @@ VIEWS = {
                      "FROM route_steps GROUP BY guide, step) rs ON rs.guide = t.guide AND rs.step = t.step"),
     # level_whole: the record's level has a whole split (played time, not
     # partial), for the ratios that pair records with the level's split.
+    # elite: a kill's creature an elite, rare elite or boss (the record's
+    # classification), for the kill XP a run would pay at another level
+    # (wowstats.plan.dungeongain). run_start: the dungeon run the record
+    # falls in (start to leave), as dungeon_runs names it.
     "sem_records": ("SELECT r.*, CASE WHEN l.played_s > 0 AND l.partial = 0 THEN 1 ELSE 0 END AS level_whole, "
-                    "{ts:r.t} AS at_local, {who} FROM records r LEFT JOIN levels l ON l.level = r.level"),
+                    "CASE WHEN json_extract_string(r.extra, '$.classification') IN ('e', 'R', 'b') THEN 1 ELSE 0 "
+                    "END AS elite, (SELECT MIN(d.start_t) FROM dungeon_runs d WHERE r.t BETWEEN d.start_t AND "
+                    "d.left_t) AS run_start, {ts:r.t} AS at_local, {who} FROM records r "
+                    "LEFT JOIN levels l ON l.level = r.level"),
     "sem_sessions": "SELECT *, {ts:start_t} AS at_local, {who} FROM sessions",
-    "sem_dungeon_runs": "SELECT *, {ts:start_t} AS at_local, {who} FROM dungeon_runs",
+    # trip_id: the trip around the run (its dungeon, the run starting inside it).
+    "sem_dungeon_runs": ("SELECT d.*, (SELECT MIN(t.trip_id) FROM dungeon_trips t WHERE t.dungeon = d.name AND "
+                         "d.start_t BETWEEN t.start_t AND t.end_t) AS trip_id, {ts:d.start_t} AS at_local, {who} "
+                         "FROM dungeon_runs d"),
     "sem_dungeon_trips": "SELECT *, {ts:start_t} AS at_local, {who} FROM dungeon_trips",
     "sem_snapshots": "SELECT *, {ts:t} AS at_local, {who} FROM snapshots",
     "sem_quests": ("SELECT *, {ts:at_t} AS at_local, {who} FROM (SELECT *, COALESCE(closed_t, accepted_t) AS at_t, "

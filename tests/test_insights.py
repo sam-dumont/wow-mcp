@@ -1,12 +1,41 @@
 """wowstats.insights: the rules behind the Overview, next_moves and
 sanity_check, on rows shaped like the real Polestar_Recorder records."""
 
+from datetime import UTC, datetime
+
 from wowstats import insights
+from wowstats.analysis import pages
 from wowstats.views import Views
+
+CHAR = "Testchar-Insights"
 
 
 def row(t, kind, **kw):
     return {"_time": t, "kind": kind, "source_id": f"rec:x:{t}:{kind}", **kw}
+
+
+def _iso(t: float) -> str:
+    return datetime.fromtimestamp(t, UTC).isoformat().replace("+00:00", "Z")
+
+
+def layer(ds=(), levels=()):
+    """The semantic layer (pages.asker) on events shaped like the store's:
+    each death of `ds` a death record with its likely killer, placed at its
+    level by a session record just before it; each of `levels` a Polestar
+    split (wow-level)."""
+    rows = []
+    for i, d in enumerate(ds):
+        t, lv, k = 1794000000 + i * 3600, d.get("level") or 20, d.get("killer") or {}
+        npc_level = lv + d["level_gap"] if d.get("level_gap") is not None else k.get("level")
+        rows += [{"_time": _iso(t), "feed": "wow-recorder", "char": CHAR, "kind": "session", "level": str(lv),
+                  "source_id": f"rec:s:{i}"},
+                 {"_time": _iso(t + 60), "feed": "wow-recorder", "char": CHAR, "kind": "death", "zone": d.get("zone"),
+                  "npc_id": str(k.get("npc_id") or ""), "npc_level": str(npc_level or ""), "source_id": f"rec:d:{i}"}]
+    for i, lv in enumerate(levels):
+        rows.append({"_time": lv.get("at") or _iso(1793000000 + i * 86400), "feed": "wow-level", "char": CHAR,
+                     "level": str(lv["level"]), "seconds": str(lv["seconds"]), "xp": str(lv.get("xp") or 1000),
+                     "partial": "true" if lv.get("partial") else "false", "source_id": f"lvl:{lv['level']}"})
+    return pages.asker(CHAR, rows)
 
 
 DEATH = row("2026-11-16T19:20:22.3Z", "death", zone="Wetlands", npc_id="271351", npc_level="30",
@@ -54,7 +83,7 @@ def test_death_clusters():
     k = {"npc_id": 271351, "name": "Dragonmaw Reclaimer", "level": 30}
     ds = [{"zone": "Wetlands", "killer": k, "level_gap": 0}] * 2 + [
         {"zone": "Wetlands", "killer": {**k, "npc_id": 1, "name": "Ogre"}, "level_gap": 4}]
-    by = {c["by"]: c for c in insights.death_clusters(ds)}
+    by = {c["by"]: c for c in insights.death_clusters(layer(ds), ds)}
     assert by["zone"]["n"] == 3 and by["creature"]["n"] == 2 and by["level gap"]["gap"] == 4
 
 
@@ -212,20 +241,20 @@ def test_deaths_in_a_zone_say_what_to_change_or_stay_out():
     ds = [{"zone": "Wetlands", "level": 24, "level_gap": 4, "attackers": 1},
           {"zone": "Wetlands", "level": 25, "level_gap": 5, "attackers": 2},
           {"zone": "Wetlands", "level": 25, "level_gap": 0, "attackers": 2}]
-    c = insights.deaths_zone_claim("Wetlands", ds, 26)
+    c = insights.deaths_zone_claim("Wetlands", ds, 26, layer(ds))
     assert c["text"] == ("3 deaths in Wetlands at level 24-25: 2 to creatures 3+ levels above you (up to 5 above); "
                          "2 with more than one attacker. Next time: come back at level 30 (you are 26) and pull one "
                          "at a time.")
     assert c["deaths"] == {"n": 3, "levels": [24, 25], "above": 2, "crowd": 2, "come_back_at": 30}
     alone = [{**d, "attackers": 1} for d in ds]
-    assert insights.deaths_zone_claim("Wetlands", alone, 32) is None
+    assert insights.deaths_zone_claim("Wetlands", alone, 32, layer(alone)) is None
 
 
 def test_every_claim_cites_its_data():
     levels = [{"level": lv, "seconds": s, "xp": 1, "partial": False, "at": f"2026-11-1{lv - 20}T10:00:00Z"}
               for lv, s in ((23, 8056), (24, 8542), (25, 7030), (26, 5978), (27, 10030))]
-    tr = insights.on_track(levels, {"level": 28, "eta_s": 3600, "xp_per_hour": 1}, None, {})
-    assert tr["verdict"] is None and tr["claims"]
+    tr = insights.on_track(layer(levels=levels), {"level": 28, "eta_s": 3600, "xp_per_hour": 1})
+    assert tr["claims"]
     sc = insights.sanity_check(28, [], {"claims": []}, tr, None, [], {}, [{"points": 10}])
     assert sc["findings"][0]["text"] == "9 talent points unspent: spend them in the talent pane (N), anywhere."
     assert sc["not_possible_yet"]
@@ -305,7 +334,7 @@ def test_moves_only_name_what_the_level_can_reach():
 
 def test_numbers_are_written_one_way():
     levels = [{"level": lv, "seconds": 7200, "partial": False} for lv in range(20, 26)]
-    tr = insights.on_track(levels, {"level": 26, "eta_s": 3600, "xp_per_hour": 17398}, None, {})
+    tr = insights.on_track(layer(levels=levels), {"level": 26, "eta_s": 3600, "xp_per_hour": 17398})
     assert any("17,398 XP an hour" in c["text"] for c in tr["claims"])
     nm = insights.next_moves(26, None, {"rested_xp": 8554, "xp_max": 54500}, tr, {}, [], {})
     assert nm["moves"][0]["text"].startswith("8,554 rested XP banked (0.16 of level 26)")
@@ -316,7 +345,7 @@ def test_overview_moves_differ_and_leave_the_tiles_alone():
     nm = insights.next_moves(32, ADVICE, {"rested_xp": 10, "xp_max": 100}, {"eta_s": 60}, {}, [
         {"skill_id": 333, "name": "Enchanting", "rank": 150, "max_rank": 150}], {})
     ds = [{"zone": "Wetlands", "killer": {"npc_id": 9, "name": "Raptor"}, "level": 30, "attackers": 2}] * 3
-    sc = insights.sanity_check(32, ds, {}, {}, ADVICE, [], {}, None)
+    sc = insights.sanity_check(32, ds, {}, {}, ADVICE, [], {}, None, ask=layer(ds))
     mv = insights.overview_moves(nm, sc)
     kinds = [m["kind"] for m in mv]
     assert "rested" not in kinds and "eta" not in kinds
@@ -332,12 +361,12 @@ def test_zogzog_overview_has_no_moves_about_creatures():
     from wowstats import redact
 
     ds = [{"zone": "Wetlands", "killer": {"npc_id": 9, "name": "Raptor"}, "level_gap": 4, "level": 28}] * 3
-    sc = insights.sanity_check(30, ds, {}, {}, ADVICE, [], {}, None)
+    sc = insights.sanity_check(30, ds, {}, {}, ADVICE, [], {}, None, ask=layer(ds))
     mv = insights.overview_moves(insights.next_moves(30, ADVICE, {}, {}, {}, [], {}), sc)
     assert {"deaths_creature", "deaths_level_gap"} <= {m["kind"] for m in mv}
     assert next(m for m in mv if m["kind"] == "deaths_creature")["action"] == "Come back at level 32 (you are 30)."
     # Outgrown at 32: still in the sanity check, no longer a move.
-    sc32 = insights.sanity_check(32, ds, {}, {}, ADVICE, [], {}, None)
+    sc32 = insights.sanity_check(32, ds, {}, {}, ADVICE, [], {}, None, ask=layer(ds))
     assert {"deaths_creature", "deaths_level_gap"} <= {c["kind"] for c in sc32["findings"]}
     assert not {"deaths_creature", "deaths_level_gap"} & {m["kind"] for m in insights.overview_moves({}, sc32)}
     z = redact.zogzog("overview", {"moves": mv})
@@ -362,7 +391,7 @@ def test_zogzog_moves_keep_the_trainers_and_the_death_counts():
     ds = [{"zone": "Wetlands", "level": 25, "level_gap": 4, "attackers": 2,
            "killer": {"npc_id": 9, "name": "Raptor", "level": 29}}] * 3
     sc = insights.sanity_check(32, ds, {}, {}, None, [{"skill_id": 186, "rank": 75, "max_rank": 75}], {}, None,
-                               None, hd)
+                               None, hd, layer(ds))
     nm = insights.next_moves(32, None, hd, {}, {}, [], {})
     z = redact.zogzog("overview", {"moves": insights.overview_moves(nm, sc)})
     by = {m["kind"]: m for m in z["moves"]}

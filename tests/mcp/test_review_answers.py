@@ -51,7 +51,15 @@ H_ZONE_ACT = [{"zone": "Dun Morogh", "kind": "xp", "n": "1", "xp": "1000"}]
 H_DUNGEONS = [{"_time": _t(18, 30), "name": "The Deadmines", "level": 18, "seconds": 7, "xp": 1000,
                "source_id": f"dungeon:{HUNTER}:1"}]
 
+# The semantic layer's narrow prep (wowstats.analysis.pages ROWS_QUERY):
+# the same session, splits, run and deaths, each with its feed.
+H_LAYER = ([{**r, "feed": "wow-recorder", "char": HUNTER} for r in H_EVENTS if r["kind"] in ("session", "level")]
+           + [{**r, "feed": "wow-level", "char": HUNTER} for r in H_LEVELS]
+           + [{**r, "feed": "wow-dungeon", "char": HUNTER} for r in H_DUNGEONS]
+           + [{**r, "feed": "wow-recorder", "kind": "death", "char": HUNTER} for r in H_DEATHS])
+
 LOGS = [
+    ("feed:in(wow-level, wow-dungeon, wow-recorder", H_LAYER),
     ("stats by (char) max(_time) as last_seen", [{"char": HUNTER, "last_seen": _t(19, 40)}]),
     ('feed:="wow-character"', H_SNAP),
     ("kind:in(xp, level, zone) | fields", []),

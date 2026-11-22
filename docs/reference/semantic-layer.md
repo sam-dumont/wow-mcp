@@ -451,10 +451,13 @@ Every Recorder record except positions: kills, deaths, quests, loot and the rest
 | `kill_xp` | simple | xp | XP from kills (kill records' xp_reward). | Rested bonus included, as the game reports it. | sum; time: event; observed. |
 | `quest_xp` | simple | xp | XP from quest hand-ins (turnin records' xp_reward). | Discovery XP is apart (explore records). | sum; time: event; observed. |
 | `quest_money_copper` | simple | copper | Money quest hand-ins paid, copper. | Quest rewards only; loot, sales and costs are not in it (see gold_delta_copper). | sum; time: event; observed. |
+| `deaths_above` | simple | deaths | Deaths to a likely killer 3 or more levels above the character (death records: npc_level minus the record's level). | The killer is Polestar_Recorder's pick, likely, not certain (no combat log). A death with no pick or no level isn't counted. | sum; time: event; inferred. |
+| `level_gap_max` | simple | levels | The largest level gap between a death's likely killer and the character: npc_level minus the record's level. | Not additive: over several deaths it is the largest of them. NULL when no death of the group has a killer and a level. | max; time: event; inferred. |
+| `come_back_level` | simple | level | The highest level among the likely killers 3 or more levels above the character: the level to come back at. | Not additive: the largest of the group. NULL when no death of the group was to a creature 3+ levels above. | max; time: event; inferred. |
 | `quest_xp_share` | derived | share | Share of kill and quest XP that came from quests: quest_xp over quest_xp + kill_xp. | Leaves out discovery XP and dungeon bonus XP. | ratio_of_sums; time: event; observed. Rows: Kill and turnin records: the top is a part of the bottom. |
 | `deaths_per_100_kills` | ratio | deaths/100 kills | Deaths per 100 kills. | NULL without kills; a death to a fall or drowning counts too. | ratio_of_sums; time: event; observed. Rows: Every record of the group: deaths and kills are counted on the same records. |
 
-Group or filter by: `character`, `class`, `hour`, `kind`, `level`, `session_id`, `time`, `zone`.
+Group or filter by: `character`, `class`, `elite`, `hour`, `kind`, `level`, `npc_id`, `npc_level`, `run`, `session_id`, `time`, `zone`.
 
 ### sessions
 
@@ -481,7 +484,7 @@ Polestar's instance runs: one row per run, enter to leave.
 | `run_xp` | simple | xp | XP gained inside the instance. | Kills inside; the quests handed in after are trip XP (trip_xp). | sum; time: interval_start; observed. |
 | `run_xp_per_hour` | ratio | xp/hour | XP per hour inside: run_xp over run_s (the `dungeons` tool's xp_per_hour). | Leaves out the quest XP the run unlocks. | ratio_of_sums; time: interval_start; observed. Rows: A run with a time above 0 and its XP known. |
 
-Group or filter by: `character`, `class`, `dungeon`, `level`, `run`, `time`.
+Group or filter by: `character`, `class`, `dungeon`, `level`, `run`, `time`, `trip`.
 
 ### dungeon_trips
 
@@ -493,11 +496,19 @@ A dungeon trip: from the first pickup guide step to the last hand-in around one 
 | `trip_s` | simple | seconds | Online seconds from the trip's start to its end: pickup, travel, inside, travel back, hand-in. | Online time only: logging out mid-trip doesn't count. | sum; time: interval_start; reconstructed. |
 | `trip_inside_s` | simple | seconds | Online seconds inside the instance during the trip. | Online time, so it can differ from run_s by a few seconds. | sum; time: interval_start; reconstructed. |
 | `trip_travel_s` | simple | seconds | Online seconds getting to the instance and back to the first hand-in. | Needs guide steps for the edges: an `instance` bracket trip has 0. | sum; time: interval_start; reconstructed. |
+| `trip_pickup_s` | simple | seconds | Online seconds picking up the dungeon's quests at the start of the trip (lookup pickup guide steps). | 0 for a trip with no pickup steps (bracket instance). | sum; time: interval_start; reconstructed. |
+| `trip_travel_to_s` | simple | seconds | Online seconds from the trip's start (or the last pickup) to entering the instance. | Online time only. trip_travel_s is this plus trip_travel_back_s. | sum; time: interval_start; reconstructed. |
+| `trip_travel_back_s` | simple | seconds | Online seconds from leaving the instance to the first hand-in. | Online time only; 0 when the trip ends at the instance's door. | sum; time: interval_start; reconstructed. |
+| `trip_handin_s` | simple | seconds | Online seconds handing in the dungeon's quests at the end of the trip (lookup hand-in guide steps). | 0 for a trip with no hand-in steps. | sum; time: interval_start; reconstructed. |
+| `trip_xp_inside` | simple | xp | XP gained inside the instance during the trip (kills, and anything else that paid inside). | The XP of the run, at the level it was run: another level pays its kills differently. | sum; time: interval_start; observed. |
+| `trip_xp_quests` | simple | xp | XP from the trip's quests handed in during the trip. | A trip quest handed in a day later is not in it. | sum; time: interval_start; observed. |
+| `trip_quests_handed_in` | simple | quests | The trip's quests handed in during the trip. | Only the dungeon's own quests (the lookup guide steps'), handed in before the trip ended. | sum; time: interval_start; observed. |
+| `trip_quest_money_copper` | simple | copper | Money the trip's quest hand-ins paid, copper. | Quest rewards only; the loot's worth is not in it. | sum; time: interval_start; observed. |
 | `trip_xp` | simple | xp | XP inside the instance plus XP from the trip's quests handed in during the trip. | A trip quest handed in a day later is not in it. | sum; time: interval_start; reconstructed. |
 | `trip_xp_per_hour` | ratio | xp/hour | XP per online hour of the whole trip: trip_xp over trip_s. | The number to compare with questing XP/hour; run_xp_per_hour flatters dungeons. | ratio_of_sums; time: interval_start; reconstructed. Rows: A trip with online time. |
 | `trip_inside_share` | ratio | share | Share of the trip spent inside the instance. | 0 to 1. | ratio_of_sums; time: interval_start; reconstructed. Rows: A trip with online time. |
 
-Group or filter by: `bracket`, `character`, `class`, `dungeon`, `level`, `time`.
+Group or filter by: `bracket`, `character`, `class`, `dungeon`, `level`, `time`, `trip`, `trip_end`, `trip_loot`, `trip_start`.
 
 ### snapshots
 
@@ -595,6 +606,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `per_session` | `session_id` | `session_id`, `weekday`, `start_hour`, `level_start`, `session_s`, `session_xp`, `xp_per_session_hour`, `online_s`, `active_s`, `combat_s`, `dungeon_s`, `kills`, `deaths`, `quests_done`, `deaths_per_online_hour`, `kills_per_combat_hour` | One row per login span: its length and XP, online, active, combat and dungeon time, kills, deaths and quests. |
 | `per_zone` | `zone` | `zone`, `online_s`, `active_s`, `combat_s`, `dungeon_s`, `kills`, `deaths`, `quests_done`, `kill_xp`, `quest_xp`, `deaths_per_online_hour`, `kills_per_combat_hour` | One row per zone the Recorder saw: online, combat and dungeon time, kills, deaths, quests and their XP. |
 | `per_dungeon` | `dungeon` | `dungeon`, `run_count`, `run_s`, `run_xp`, `run_xp_per_hour`, `trip_count`, `trip_s`, `trip_travel_s`, `trip_xp`, `trip_xp_per_hour`, `trip_inside_share` | One row per dungeon: runs and their time and XP inside, trips with the travel around them and their XP an hour. |
+| `per_trip` | `trip` | `trip`, `dungeon`, `level`, `trip_start`, `trip_end`, `trip_loot`, `trip_s`, `trip_pickup_s`, `trip_travel_to_s`, `trip_inside_s`, `trip_travel_back_s`, `trip_handin_s`, `trip_xp_inside`, `trip_xp_quests`, `trip_quests_handed_in`, `trip_quest_money_copper` | One row per dungeon trip: when, at what level, its time phase by phase (pickup, travel there, inside, travel back, hand-in), its XP inside and from its quests, and what its run looted. |
 | `per_slot` | `slot` | `slot`, `scored_for`, `worn_items`, `worn_item`, `worn_item_id`, `worn_fit`, `worn_item_bis_pct`, `best_upgrade`, `best_upgrade_id`, `best_upgrade_gain`, `best_upgrade_bis_pct`, `upgrade_bis_pct_worn`, `upgrade_sources` | One row per gear slot, for the spec the gear is scored for: the worn item and its fit, the best upgrade wearable now, and the two percents the page says as 'NN% → NN%' (upgrade_bis_pct_worn → best_upgrade_bis_pct). |
 
 ### Dimensions
@@ -608,6 +620,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `dings` | gold_moves | Level-ups between the two snapshots: 0 for a move inside one level. |
 | `done_why` | quests | For 'done (inferred)': the evidence, e.g. a reward only that quest gives worn or in the bags, or Questie's completed list. NULL otherwise. |
 | `dungeon` | timeline, dungeon_runs, dungeon_trips | Dungeon name while inside a dungeon run, else NULL. |
+| `elite` | records | 1 when a kill's creature was an elite, a rare elite or a boss (classification e, R or b), else 0. |
 | `fills_empty` | upgrades | 1 when the slot is empty now. |
 | `fit` | upgrades, worn | How the item fits the scored spec: yes (built for it), any, spec (built for another spec of the class), class (made for another class), unknown. |
 | `guide` | timeline | The Polestar guide active then (the last step record), its id. NULL before the first step record. |
@@ -621,11 +634,13 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `level_accepted` | quests | Level at the accept (NULL for untimed). |
 | `level_start` | sessions | Level at the start of the span. |
 | `now` | upgrades | 1 when the character can wear it at its level now, 0 within 3 levels. |
+| `npc_id` | records | The record's creature: a kill's, or a death's likely killer as Polestar_Recorder picks it (the last hostile creature that targeted the player within 10 s). NULL for other records and for a death with no pick. |
+| `npc_level` | records | That creature's level (a kill's creature, a death's likely killer). |
 | `partial` | levels | 1 when Polestar's split began partway through the level (tracking started then), 0 for a whole level, NULL with no split (the level in play). |
 | `quest` | quests | Quest title (the records' own; "Quest <id>" when none names it). Two quests with one title group together: add quest_id. |
 | `quest_id` | quests | Quest id. |
 | `rank_now` | upgrades | The item's place in its slot among the upgrades wearable now, by gain: 1 is the biggest. NULL for an item not wearable yet. Filter rank_now <= 3 for each slot's top three. |
-| `run` | dungeon_runs | One run, named by when it started (unix seconds): group by it to list the runs one by one. |
+| `run` | records, dungeon_runs | The dungeon run the record falls in, named by when it started (unix seconds, as dungeon_runs names it), NULL outside a run. |
 | `scored_for` | worn | The spec the gear advice scores for: the player's WEIGHTS setting, else the talents. |
 | `session_id` | timeline, records, sessions | Login span (sessions). |
 | `slot` | upgrades, worn | The slot the item would go in (Head, Chest, Finger...; both rings are Finger). |
@@ -638,6 +653,10 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `step_title` | timeline | That step's title, from the route reference (NULL when the reference doesn't have it). |
 | `subzone` | timeline | Subzone text. |
 | `time` | levels, timeline, records, sessions, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves | When the level ended (the ding), local time. NULL while the level is in play. Grains: day, week, month. |
+| `trip` | dungeon_runs, dungeon_trips | The dungeon trip around the run (dungeon_trips: the same dungeon, the run starting inside the trip), NULL for a run with no trip. |
+| `trip_end` | dungeon_trips | When the trip ended (unix seconds). |
+| `trip_loot` | dungeon_trips | What the trip's run looted inside the instance: a JSON list of [item_id, count] (an observation, not a number to add). |
+| `trip_start` | dungeon_trips | When the trip started (unix seconds). |
 | `weekday` | sessions | Mon..Sun of the start, local time. |
 | `zone` | timeline, records, snapshots, quests, upgrades | Zone name, as the last zone record said (inside a dungeon, the game usually names the dungeon). |
 

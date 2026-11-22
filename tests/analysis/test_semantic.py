@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from wowstats.analysis import TABLES, drive, duck, prep, semantic
+from wowstats.analysis import TABLES, drive, duck, pages, prep, semantic
 from wowstats.analysis.sql import QueryError
 from wowstats.mcp import route, tools
 
@@ -244,8 +244,12 @@ class SeedStore:
         return [dict(r) for r in self.rows if r.get("char") == char] if self.account_id == 0 else []
 
     def logs(self, query, start=None, end=None, *a, **k):
-        feed = next((f for f in ("wow-level", "wow-dungeon") if f'feed:="{f}"' in query), None)
         char = query.split('char:="')[1].split('"')[0] if 'char:="' in query else CHAR
+        if pages.ROWS_QUERY in query:  # the layer's narrow prep (the deaths and dungeons tools)
+            return [r for r in self.mine(char) if r.get("feed") in ("wow-level", "wow-dungeon")
+                    or (r.get("feed") == "wow-recorder" and r.get("kind") in ("level", "session", "zone", "death"))
+                    or (r.get("feed") in ("wow-character", "wow-gear") and r.get("class"))]
+        feed = next((f for f in ("wow-level", "wow-dungeon") if f'feed:="{f}"' in query), None)
         return [r for r in self.mine(char) if feed and r.get("feed") == feed]
 
 
@@ -551,3 +555,46 @@ def test_the_query_process_answers_like_in_process(demo):
         assert play.run("SELECT 1 AS one")[1] == [(1,)]  # the next query still answers
     finally:
         w.close()
+
+
+# ---------------------------------------------------------------- deaths and dungeon runs (wave 2)
+
+
+@pytest.fixture(scope="module")
+def fights():
+    """The degraded-mode demo: deaths with Polestar_Recorder's likely
+    killer and its level, dungeon runs with kills inside."""
+    from tests import degraded as D
+
+    db = prep.build(D.base_rows(), D.CHAR, route.reference())
+    con = duck.mirror(db, TABLES)
+    semantic.prepare(con)
+    return {"db": db, "con": con, "layer": semantic.Layer(con), "ro": duck.ReadOnlyDuck(con)}
+
+
+def test_death_level_gaps_count_the_records(fights):
+    """deaths_above, level_gap_max and come_back_level against the death
+    records themselves, per zone: a gap is npc_level minus the record's
+    level, 3+ is above, the come-back level is the highest killer above."""
+    want = {z: (n, a or 0, g, b) for z, n, a, g, b in fights["db"].execute(
+        "SELECT zone, COUNT(*), SUM(npc_level - level >= 3), MAX(npc_level - level),"
+        " MAX(CASE WHEN npc_level - level >= 3 THEN npc_level END) FROM records WHERE kind = 'death' GROUP BY zone")}
+    got = table(ask(fights, metrics=["deaths", "deaths_above", "level_gap_max", "come_back_level"], group_by=["zone"],
+                    where=[{"dimension": "kind", "op": "=", "value": "death"}]))
+    assert {r["zone"]: (r["deaths"], r["deaths_above"], r["level_gap_max"], r["come_back_level"]) for r in got} == want
+    assert any(a for _, a, _, _ in want.values()), "the demo has a death to a creature 3+ levels above"
+
+
+def test_records_fall_in_their_dungeon_run(fights):
+    """`run` on a record is the run whose span holds it (start to leaving),
+    the run's own name in dungeon_runs: the kills of a run, by creature level."""
+    db = fights["db"]
+    want = dict(db.execute(
+        "SELECT d.start_t, COUNT(*) FROM records r JOIN dungeon_runs d ON r.t BETWEEN d.start_t AND d.left_t"
+        " WHERE r.kind = 'kill' GROUP BY d.start_t").fetchall())
+    assert want, "the demo has kills inside a run"
+    got = table(ask(fights, metrics=["kills"], group_by=["run"], where=[
+        {"dimension": "kind", "op": "=", "value": "kill"}, {"dimension": "run", "op": "is not null"}]))
+    assert {r["run"]: r["kills"] for r in got} == want
+    runs = {r["run"] for r in table(ask(fights, metrics=["run_count"], group_by=["run"]))}
+    assert set(want) <= runs

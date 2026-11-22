@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import math
 import re
-from collections import Counter, defaultdict
+from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
@@ -38,6 +38,9 @@ from .stores import (
 )
 
 Q = Callable[[str], list[dict]]
+# query_metric's arguments -> rows as dicts: the semantic layer on the
+# character's narrow prep (wowstats.analysis.pages.asker).
+Ask = Callable[..., list[dict]]
 
 # Seconds before a death that count as its fight. Polestar_Recorder's own
 # killer guess is the last hostile creature that targeted the player within
@@ -310,21 +313,47 @@ def deaths(q: Q, cf: str, levels: list[dict]) -> list[dict]:
     return out
 
 
-def death_clusters(ds: list[dict]) -> list[dict]:
+DEATH = {"dimension": "kind", "op": "=", "value": "death"}
+
+
+def death_counts(ask: Ask, *where: dict) -> dict:
+    """The deaths metric and its killer-level companions for the deaths
+    `where` picks (the semantic layer): how many, how many to a creature
+    LEVEL_GAP+ levels above (deaths_above), the largest gap, and the level
+    to come back at (the highest of those creatures)."""
+    r = (ask(metrics=["deaths", "deaths_above", "level_gap_max", "come_back_level"], where=[DEATH, *where])
+         or [{}])[0]
+    return {"n": int(r.get("deaths") or 0), "above": int(r.get("deaths_above") or 0),
+            "gap": r.get("level_gap_max"), "back": r.get("come_back_level")}
+
+
+def death_clusters(ask: Ask | None, ds: list[dict]) -> list[dict]:
     """Deaths that repeat: the same zone, the same creature, or creatures
-    well above the player's level."""
+    well above the player's level. Counted by the semantic layer (deaths by
+    zone, by likely killer and zone, deaths_above); `ds` (deaths()) names
+    the creatures and orders a tie by the earliest death. [] without the layer."""
+    if ask is None:
+        return []
+    first: dict = {}
+    for i, d in enumerate(ds):
+        first.setdefault(("zone", d.get("zone")), i)
+        if d.get("killer"):
+            first.setdefault(("npc", d["killer"]["npc_id"], d.get("zone")), i)
+    names = {d["killer"]["npc_id"]: d["killer"]["name"] for d in reversed(ds) if d.get("killer")}
     out = []
-    by_zone = Counter(d["zone"] for d in ds if d.get("zone"))
-    for z, n in by_zone.most_common():
-        if n >= CLUSTER_MIN:
-            out.append({"by": "zone", "zone": z, "n": n})
-    by_mob = Counter((d["killer"]["npc_id"], d["killer"]["name"], d.get("zone")) for d in ds if d.get("killer"))
-    for (npc, name, zone), n in by_mob.most_common():
-        if n >= CLUSTER_MIN:
-            out.append({"by": "creature", "npc_id": npc, "name": name, "zone": zone, "n": n})
-    high = [d for d in ds if (d.get("level_gap") or 0) >= LEVEL_GAP]
-    if high:
-        out.append({"by": "level gap", "n": len(high), "gap": max(d["level_gap"] for d in high)})
+    zones = [r for r in ask(metrics=["deaths"], group_by=["zone"], where=[DEATH]) if r["zone"]]
+    for r in sorted(zones, key=lambda r: (-r["deaths"], first.get(("zone", r["zone"]), len(ds)))):
+        if r["deaths"] >= CLUSTER_MIN:
+            out.append({"by": "zone", "zone": r["zone"], "n": int(r["deaths"])})
+    mobs = [r for r in ask(metrics=["deaths"], group_by=["npc_id", "zone"], where=[DEATH]) if r["npc_id"]]
+    for r in sorted(mobs, key=lambda r: (-r["deaths"], first.get(("npc", r["npc_id"], r["zone"]), len(ds)))):
+        if r["deaths"] >= CLUSTER_MIN:
+            npc = int(r["npc_id"])
+            out.append({"by": "creature", "npc_id": npc, "name": names.get(npc) or forever.npc_name(npc)
+                        or unnamed_creature(None), "zone": r["zone"], "n": int(r["deaths"])})
+    high = death_counts(ask)
+    if high["above"]:
+        out.append({"by": "level gap", "n": high["above"], "gap": high["gap"]})
     return out
 
 
@@ -375,33 +404,35 @@ ROSTER_NOTE = ("Who was in the group isn't saved by any of the addons the kit re
 # ----------------------------------------------------------------- overview
 
 
-def _route_ratio(ref, levels: list[dict], who: dict) -> list[dict]:
-    out = []
-    if not (ref and ref.available):
-        return out
-    for lv in levels:
-        if lv["partial"]:
-            continue
-        r = ref.level(lv["level"], who.get("faction"), who.get("class"))
-        if r and r.get("expected_s"):
-            out.append({"level": lv["level"], "seconds": lv["seconds"], "route_s": r["expected_s"],
-                        "ratio": round(lv["seconds"] / r["expected_s"], 2)})
-    return out
+def route_levels(ask: Ask | None) -> list[dict]:
+    """Each level's split and the route planner's time for it, from the
+    semantic layer (played_s, planned_s by level and partial): the level in
+    play has no split (partial NULL), a whole split partial 0. [] without
+    the layer."""
+    if ask is None:
+        return []
+    return [{"level": int(r["level"]), "partial": r["partial"], "seconds": None if r["played_s"] is None else int(
+        r["played_s"]), "route_s": None if not r["planned_s"] else round(r["planned_s"])}
+        for r in ask(metrics=["played_s", "planned_s"], group_by=["level", "partial"])
+        if r["level"] is not None]
 
 
-def on_track(levels: list[dict], header: dict, ref, who: dict) -> dict:
+def on_track(ask: Ask | None, header: dict) -> dict:
     """Pace against Polestar's route clock and against the player's own
-    previous levels, plus the time to the next level."""
-    done = [lv for lv in levels if not lv["partial"]]
+    previous levels, plus the time to the next level. The split times, the
+    route planner's and their ratio are the semantic layer's (played_s,
+    planned_s, vs_route: whole splits with a planned time on both sides)."""
+    levels = route_levels(ask)
+    done = [lv for lv in levels if lv["partial"] == 0]
     # The last 10 finished levels, played next to the route (the Overview's
     # chart); the pace is the last 5 of them.
-    recent = _route_ratio(ref, done[-10:], who)
+    recent = [lv for lv in done[-10:] if lv["route_s"]]
     vs_route = [r for r in recent if r["level"] in {lv["level"] for lv in done[-5:]}]
     out: dict = {"claims": [], "per_level": [{k: r[k] for k in ("level", "seconds", "route_s")} for r in recent]}
     if vs_route:
-        played = sum(r["seconds"] for r in vs_route)
-        planned = sum(r["route_s"] for r in vs_route)
-        ratio = played / planned
+        pace = ask(metrics=["vs_route", "played_s", "planned_s"],
+                   where=[{"dimension": "level", "op": "in", "values": [r["level"] for r in vs_route]}])[0]
+        played, planned, ratio = int(pace["played_s"]), round(pace["planned_s"]), pace["vs_route"]
         out.update(route_ratio=round(ratio, 2), route_levels=[r["level"] for r in vs_route],
                    played_s=played, route_s=planned)
         last = (f"The last {len(vs_route)} levels (levels {vs_route[0]['level']}-{vs_route[-1]['level']})"
@@ -424,7 +455,8 @@ def on_track(levels: list[dict], header: dict, ref, who: dict) -> dict:
             detail=f"{dur(last['seconds'])}, against a median of {dur(med)} over the 5 levels before.",
             title=f"Level {last['level']} went {word.split()[0]} than your own pace" if word != "about the same as"
             else f"Level {last['level']} went at your usual pace"))
-    cur = next((lv for lv in levels if lv["partial"] and lv["level"] == header.get("level")), None)
+    cur = next((lv for lv in levels if lv["partial"] == 1 and lv["level"] == header.get("level")), None)
+    in_play = next((lv for lv in levels if lv["level"] == header.get("level")), None)
     if header.get("eta_s"):
         out["eta_s"] = header["eta_s"]
         out["claims"].append(claim(
@@ -435,20 +467,16 @@ def on_track(levels: list[dict], header: dict, ref, who: dict) -> dict:
     # No level anywhere (no snapshot, no ding, no split): nothing to say
     # about the level in play.
     if t_in and header.get("level") and header.get("xp_max") and header.get("xp") is not None:
-        plan = ref.level(header["level"], who.get("faction"), who.get("class")) \
-            if ref and ref.available else None
+        plan = (in_play or {}).get("route_s")
         out["level_played_s"] = t_in
         share = header["xp"] / header["xp_max"]
         way = f"{share:.0%} of the way" if share >= 0.01 else "under 1% of the way"
-        tail = f"; the route plans {dur(plan['expected_s'])} for the whole level." \
-            if plan and plan.get("expected_s") else "."
+        tail = f"; the route plans {dur(plan)} for the whole level." if plan else "."
         out["claims"].append(claim(
             f"{dur(t_in)} played at level {header.get('level')} so far, {way}{tail}",
             "#levels", "Polestar_Recorder logged-in time since the ding"))
-    if cur and ref and ref.available:
-        r = ref.level(cur["level"], who.get("faction"), who.get("class"))
-        if r and r.get("expected_s") and header.get("xp_pct") is not None:
-            out["current_route_s"] = r["expected_s"]
+    if cur and cur["route_s"] and header.get("xp_pct") is not None:
+        out["current_route_s"] = cur["route_s"]
     ratio = out.get("route_ratio")
     out["verdict"] = (None if ratio is None else "on track" if ratio <= 1.5 else "behind the route"
                       if ratio <= 3 else "well behind the route")
@@ -516,9 +544,11 @@ def guide_title(guide: str | None, ref=None) -> str:
 
 
 def overview(data: dict, advice: dict | None, ds: list[dict], ref, who: dict, steps_rows: list[dict],
-             sessions: list[dict]) -> dict:
+             sessions: list[dict], ask: Ask | None = None) -> dict:
+    """The Overview's lines. `ask`: the semantic layer on the character's
+    data (wowstats.analysis.pages.asker), for the pace and the death counts."""
     hd = data.get("header") or {}
-    track = on_track(data.get("levels") or [], hd, ref, who)
+    track = on_track(ask, hd)
     follow = guide_following(data.get("steps") or {}, ref, steps_rows)
     now_claims = []
     if hd.get("zone"):
@@ -543,8 +573,9 @@ def overview(data: dict, advice: dict | None, ds: list[dict], ref, who: dict, st
     if ds:
         last = ds[-1]
         k = last.get("killer")
+        n = death_counts(ask)["n"] if ask is not None else None
         death_claims.append(claim(
-            f"{len(ds)} deaths recorded. The last, in {last.get('zone') or 'an unknown zone'}"
+            (f"{n} deaths recorded. " if n else "") + f"The last, in {last.get('zone') or 'an unknown zone'}"
             + (f": likely {k['name']} (level {k.get('level') or '?'})" if k else "") + ".",
             "#deaths", "Polestar_Recorder death record and the fight before it"))
     return {"on_track": track, "now": now_claims, "guide": follow, "upgrades": up_claims, "deaths": death_claims,
@@ -892,35 +923,44 @@ def next_moves(level: int | None, advice: dict | None, header: dict, track: dict
     return {"moves": moves, "checks": IMPLEMENTED_NEXT, "not_possible_yet": UNSUPPORTED_NEXT}
 
 
-def death_steps(ds: list[dict], level: int | None) -> tuple[list[str], list[str], int | None]:
+def death_steps(c: dict, crowd: int, level: int | None) -> tuple[list[str], list[str], int | None]:
     """What a group of deaths had in common and what to change, from counts
     only (no creature is named: /zogzog/ shows the zone's): creatures
     LEVEL_GAP+ levels above (come back at the highest one's level, while the
     character is under it), more than one attacker in most fights (pull one
-    at a time). ([why], [next steps], come-back level)."""
-    above = [d for d in ds if (d.get("level_gap") or 0) >= LEVEL_GAP and d.get("level")]
-    crowd = [d for d in ds if (d.get("attackers") or 0) >= 2]
-    back = max((d["level"] + d["level_gap"] for d in above), default=None)
+    at a time). `c`: the group's death_counts; `crowd`: how many of its
+    fights had several attackers (the fight before each death, deaths()).
+    ([why], [next steps], come-back level)."""
+    back = c["back"] if c["above"] else None
     why, todo = [], []
-    if above:
-        why.append(f"{len(above)} to creatures {LEVEL_GAP}+ levels above you (up to "
-                   f"{max(d['level_gap'] for d in above)} above)")
+    if c["above"]:
+        why.append(f"{c['above']} to creatures {LEVEL_GAP}+ levels above you (up to {c['gap']} above)")
         if back and (level is None or level < back):
             todo.append(f"come back at level {back}" + (f" (you are {level})" if level else ""))
-    if crowd and len(crowd) * 2 >= len(ds):
-        why.append(f"{len(crowd)} with more than one attacker")
+    if crowd and crowd * 2 >= c["n"]:
+        why.append(f"{crowd} with more than one attacker")
         todo.append("pull one at a time")
     return why, todo, back
 
 
-def deaths_zone_claim(zone: str, ds: list[dict], level: int | None) -> dict | None:
+def crowded(ds: list[dict]) -> int:
+    """Deaths whose fight had more than one attacker (the unit records
+    before each death: no metric holds them)."""
+    return sum(1 for d in ds if (d.get("attackers") or 0) >= 2)
+
+
+def deaths_zone_claim(zone: str, ds: list[dict], level: int | None, ask: Ask) -> dict | None:
     """Deaths that pile up in one zone, with what they had in common and
     what to change (death_steps). None when there is nothing to change any
     more (the character outgrew the zone and no fight was against several):
-    a death count with nothing to do is not a move."""
-    n = len(ds)
-    lvls = [d["level"] for d in ds if d.get("level")]
-    why, todo, back = death_steps(ds, level)
+    a death count with nothing to do is not a move. The counts are the
+    layer's; `ds` are the zone's deaths with their fights."""
+    here = {"dimension": "zone", "op": "=", "value": zone}
+    c = death_counts(ask, here)
+    n, crowd = c["n"], crowded(ds)
+    lvls = sorted(int(r["level"]) for r in ask(metrics=["deaths"], group_by=["level"], where=[DEATH, here])
+                  if r["level"])
+    why, todo, back = death_steps(c, crowd, level)
     if not todo:
         return None
     at = (f" at level {min(lvls)}" + (f"-{max(lvls)}" if max(lvls) != min(lvls) else "")) if lvls else ""
@@ -930,23 +970,24 @@ def deaths_zone_claim(zone: str, ds: list[dict], level: int | None) -> dict | No
                  detail=f"{'; '.join(why).capitalize()}.", action=" and ".join(todo).capitalize() + ".",
                  weight=1 + n / 3, zone=zone_ref(zone),
                  deaths={"n": n, "levels": [min(lvls), max(lvls)] if lvls else None,
-                         "above": sum(1 for d in ds if (d.get("level_gap") or 0) >= LEVEL_GAP),
-                         "crowd": sum(1 for d in ds if (d.get("attackers") or 0) >= 2), "come_back_at": back})
+                         "above": c["above"], "crowd": crowd, "come_back_at": back})
 
 
 def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, advice: dict | None,
                  gear_profs: list[dict], skills: dict[int, dict], talents: list[dict] | None,
-                 gear_items: list[dict] | None = None, header: dict | None = None) -> dict:
-    """What looks like a mistake in the recorded play, worst first."""
+                 gear_items: list[dict] | None = None, header: dict | None = None, ask: Ask | None = None) -> dict:
+    """What looks like a mistake in the recorded play, worst first. The
+    death counts are the semantic layer's (`ask`, death_clusters)."""
     found = []
-    for c in death_clusters(ds):
+    for c in death_clusters(ask, ds):
         if c["by"] == "zone":
-            z = deaths_zone_claim(c["zone"], [d for d in ds if d.get("zone") == c["zone"]], level)
+            z = deaths_zone_claim(c["zone"], [d for d in ds if d.get("zone") == c["zone"]], level, ask)
             if z:
                 found.append(z)
         elif c["by"] == "creature":
             mine = [d for d in ds if (d.get("killer") or {}).get("npc_id") == c["npc_id"]]
-            why, todo, _ = death_steps(mine, level)
+            why, todo, _ = death_steps(death_counts(ask, {"dimension": "npc_id", "op": "=", "value": c["npc_id"]}),
+                                       crowded(mine), level)
             found.append(claim(f"{c['n']} deaths to {c['name']} in {c.get('zone') or '?'} (likely killer)"
                                + (f": next time, {' and '.join(todo)}." if todo else "."),
                                "#deaths", "death records + the fight before each", kind="deaths_creature",
@@ -956,7 +997,7 @@ def sanity_check(level: int | None, ds: list[dict], follow: dict, track: dict, a
         else:
             deaths = f"{c['n']} death{'s' if c['n'] > 1 else ''}"
             high = [d for d in ds if (d.get("level_gap") or 0) >= LEVEL_GAP]
-            _, todo, _ = death_steps(high, level)
+            _, todo, _ = death_steps(death_counts(ask), crowded(high), level)
             todo = [x for x in todo if x.startswith("come back")]
             found.append(claim(f"{deaths} to creatures {LEVEL_GAP}+ levels above you (up to {c['gap']})"
                                + (f": {todo[0]} for that zone." if todo else "."),
