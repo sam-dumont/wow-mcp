@@ -20,7 +20,7 @@ It's a hobby project, for hobbyists who host a few friends: GPL-3.0, no warranty
 promise, and security fixes land when I can make them. If you use a friend's server, you trust that friend: they hold your data,
 and the install command comes from their server.
 
-![The Overview of the demo character Nibbet, level 34: behind the route at 2.2 times Polestar's route time, the next level in 2h 24m of play, 91% of guide steps in order, the next moves, and time per level against the route](docs/images/overview.webp)
+![The Overview of the demo character Nibbet: his pace against Polestar's route, the hours to his next level, the guide steps done in order, the next moves, and time per level against the route](docs/images/overview.webp)
 
 **[Live demo, the full page](https://sam-dumont.github.io/wow-mcp/demo/friends/)**: Nibbet-Gearholt,
 an invented Gnome priest, as his friends see him: the Overview with what to do next, the gear

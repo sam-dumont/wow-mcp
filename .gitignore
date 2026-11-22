@@ -17,3 +17,5 @@ deploy/compose/secrets/*
 eval-analysis-out/
 # make eval-mcp: the same, for the MCP check
 eval-mcp-out/
+# Local checks of the built site (screenshots for a PR), never committed
+.shots/

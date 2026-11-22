@@ -6,7 +6,7 @@ top of your page and you know which move to do first.
 The Overview is the first tab: open it before you log in. The line at the top says whether
 you're ahead of Polestar's route, on it or behind, and how much play the next level takes.
 
-![The Overview of the demo character Nibbet, level 34: behind the route at 2.2 times Polestar's time, the next level in 2h 24m of play, 91% of guide steps in order, 0.09 levels of rested XP, then the next moves and time per level](../images/overview.webp)
+![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's time, the next level in 2h 40m of play, 82% of guide steps in order, 0.09 levels of rested XP, then the next moves and time per level](../images/overview.webp)
 
 *Nibbet, the made-up priest of the [live demo](../../site/pages/demo.md).*
 
@@ -19,6 +19,12 @@ you're ahead of Polestar's route, on it or behind, and how much play the next le
 - **Guide**: the Polestar guide steps you did in order. Many "passed over" means you left the
   route the advice is built on.
 - **Rested**: your banked rested XP. "none": log out in an inn or a city.
+
+When a source missed something, the number it feeds says so in a grey line under it: "The
+Recorder missed about 2h 10m of play (level 31): deaths from then aren't counted." or
+"Equipment last read 5 hours ago: what you wear now may differ." The first goes away once the
+Recorder is on (`/psrec on`, then `/reload`); the second at Battle.net's next read, within 2
+hours. Your public page only says "Equipment may be out of date."
 
 ## Next moves
 

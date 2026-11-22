@@ -12,7 +12,8 @@
 name: pages
 on:
   # Every push to main: the demo is the product's own publisher and pages, so
-  # any change to them can change it.
+  # any change to them can change it. Until 1.0 the site is built from main,
+  # like immich-memories' docs.
   push:
     branches: [main]
   # A pull request builds the site only when the site's own sources change
@@ -23,6 +24,9 @@ on:
       - docs/**
       - site/**
       - tools/fixtures/generate.py
+      - tools/docs_values.py
+      - tools/polestar-tag
+      - data/route-reference.json
       - .github/workflows/pages.yml
   # The demo's play is shifted so its last evening is yesterday: its auction
   # house only lists what a scan saw today or yesterday, so it is rebuilt
@@ -30,6 +34,19 @@ on:
   schedule:
     - cron: "17 5 * * *"
   workflow_dispatch:
+  # Called by release.yml once a release is published, from its tag: the
+  # immich-memories pattern. release.yml publishes with GITHUB_TOKEN, whose
+  # `release: published` starts no workflow, so it calls this one itself. The
+  # release PR's merge already rebuilt the site from main; this run makes the
+  # published site the released tree whatever merged meanwhile, after the
+  # images and notes exist.
+  workflow_call:
+    inputs:
+      ref:
+        description: "The tag to build (release.yml passes v<version>)"
+        type: string
+        required: false
+        default: ""
 permissions:
   contents: read
 concurrency:
@@ -70,6 +87,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
           # Each page's "last updated" is its source's last commit
           # (site/scripts/prepare.mjs): a shallow clone dates every page today.
           fetch-depth: 0

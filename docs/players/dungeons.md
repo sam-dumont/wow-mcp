@@ -24,7 +24,7 @@ one worth running now is also the Overview's Dungeon move.
 times you ran it ("ran it 1×").
 
 **The verdict**: the short answer, like "2 quests left (18,800 XP), and 12 missing upgrades at
-98% a clear", then "~35 min for ~26k XP, 3.4× faster than your questing". Above 1×, the run
+98% a clear", then "~30 min for ~26k XP (41% of a level), 3.1× faster than your questing". Above 1×, the run
 levels you faster than questing.
 
 **Next**: the one thing to do before going in, like "Pick up A Green Sample from Shylamiir,

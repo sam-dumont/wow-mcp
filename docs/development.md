@@ -133,6 +133,14 @@ The manual's screenshots come from that demo, never from a real player:
 `docs/images/<name>.webp` (light), `<name>-dark.webp` and the link preview
 `docs/images/social.png`; commit them.
 
+A value that has a source is never typed in a page: write its name in double curly braces
+(the names and the syntax are in `tools/docs_values.py`: the Polestar version, the app's
+version, the route hours), and the build fills it from `tools/polestar-tag`, `pyproject.toml` and `data/route-reference.json`.
+`release.py apply` freezes them in the CHANGELOG's section, so a release's notes keep its own.
+`tests/test_docs_values.py` (in `make test`) fails on a typed Polestar version, route-hours
+figure, image version or seed count. GitHub shows the braces as they are: the site is the
+manual, the README carries no such value.
+
 Write the pages as plain GitHub Markdown; the site adds four things on top:
 
 - `![alt](../images/x.webp)` shows `x-dark.webp` instead in the dark theme when it exists, and
@@ -304,6 +312,15 @@ at the final.
 Before pressing for real: the A/B check below. The release runs the rest,
 browsers included.
 
+The docs site follows by itself: once the release is published, `release.yml` calls
+`pages.yml` on the new tag, which rebuilds and deploys the manual, both demos and the version
+in the header from it (immich-memories' release calls its docs workflow the same way). What it
+can't remake are the committed files. Before a stable release, retake whatever a
+change since the last one made wrong, in one docs PR: the screenshots
+(`site/scripts/screenshots.py`, `demo/lab admin-shot`, the local demo's `local-demo.webp`),
+the recorded MCP session (`site/scripts/build-demo.sh --mcp-session`) and the videos
+(`demo/record.sh`, then `npm --prefix demo/video run render -- --publish`).
+
 Write the CHANGELOG as you merge, under
 "Unreleased": what changed for a player, then "Upgrading" with every
 changed variable, port, volume or route.
@@ -332,7 +349,7 @@ waits for that run and goes red when it fails.
 - No release either on an untagged version on main (an interrupted run):
   press the button as above, the KB goes with it.
 - The notes get a "Knowledge base" section, one line: `Knowledge base
-  refresh (#12 watch): Polestar v0.4.1.1 to v0.4.2; lanes levelling.`
+  refresh (#12 watch): Polestar <old tag> to <new tag>; lanes levelling.`
   `kb.py note` builds it from the repository (`data/kb/watch.json` before
   and after, the changed lane files, a Polestar tag that is a plain
   version), never from a PR's title or body or a page's text. Whatever else

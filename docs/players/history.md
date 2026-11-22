@@ -14,6 +14,11 @@ Your level against played time (**Show dates** switches to the calendar), then o
 level with its kills, quests, date and time played. A **striped bar** is a level the tracking
 only caught part of: it doesn't count in your pace.
 
+The line above the chart says what its totals count: "1,225 kills and 88 quests handed in over
+the completed levels (levels 22–33)", then the level you're in on its own ("Level 34 so far: 93
+kills and 6 quests, not in those totals"). Your assistant gives the same three numbers
+(completed levels, current level, both together), so its count and the page's match.
+
 Find the long bars, then open those days in the Journal. The Character tab's **Where the time
 went** and **Guide steps** say which zone or step ate the time.
 
@@ -37,7 +42,7 @@ your game's model files, which the program on your computer sends after your fir
 
 ## Journal
 
-![The Journal: one entry for the morning of Fri 20 Nov, 09:40 to 10:05, level 34 in Arathi Highlands, with played time, XP, quests, deaths, gold, zones and the quest handed in, then the evenings before it](../images/journal.webp)
+![The Journal: one entry for the morning of Sat 21 Nov, 09:40 to 10:05, level 34 in Arathi Highlands, with played time, XP, quests, deaths, gold, zones and the quest handed in, then the evenings before it](../images/journal.webp)
 
 One entry per play session: when, the levels, where, played time, XP, quests, deaths, gold, the
 time per zone and the quests you handed in. Click an older entry to open it.

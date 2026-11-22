@@ -44,6 +44,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools"))
+
+import docs_values  # noqa: E402  (tools/docs_values.py: the values the public pages quote)
+
 VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?$")
 HEADING_RE = re.compile(r"^## (\S+)(?: \(\d{4}-\d{2}-\d{2}\))?[ \t]*$", re.M)
 
@@ -218,6 +222,11 @@ def apply(root: Path, version: Version, date: dt.date, kb_note: str = "") -> lis
     for name, start, end in sections(text):
         if name == "Unreleased":
             entries = text[start:end].strip()
+            # The notes keep the values this release ships with: "Polestar {{polestar_version}}"
+            # in Unreleased (filled live by the docs site) is frozen here, after the version
+            # moved above, so the section never changes when the tag moves later.
+            if docs_values.PLACEHOLDER.search(entries):
+                entries = docs_values.fill(entries, docs_values.values(root))
             if kb_note.strip():  # one line, whatever it was given
                 entries = f"{entries}\n\n### Knowledge base\n\n- {' '.join(kb_note.split())}".strip()
             if not entries and version.rc is None:

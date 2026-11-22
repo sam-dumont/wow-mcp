@@ -56,7 +56,7 @@
 <div>
 <p class="eyebrow">Dungeons</p>
 <h3>The dungeon worth running</h3>
-<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing (3.4× faster, for the demo priest in City of Dalaran).</p>
+<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing (3.1× faster, for the demo priest in City of Dalaran).</p>
 <p><a href="../../docs/players/dungeons.md">Dungeons →</a></p>
 </div>
 </div>
