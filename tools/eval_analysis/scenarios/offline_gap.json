@@ -1,0 +1,67 @@
+{
+  "name": "offline_gap",
+  "about": "A three-week break in the middle of level 33: every event from 22 October on moves 21 days later. Played time per level is the demo's.",
+  "goals": "Reach level 40 without wasting time, and know what to fix.",
+  "inject": [
+    {
+      "kind": "offline_gap",
+      "before": "2026-10-22",
+      "days": 21
+    }
+  ],
+  "truth": {
+    "expected": "Level 33 took about three weeks on the calendar but its played time is on the guide's pace: the character was away, not slow. A right analysis says there was a break and never calls level 33 slow.",
+    "must_find": [
+      {
+        "id": "names-the-break",
+        "about": "a kept line says the character was away for a while",
+        "all": [
+          [
+            "\\bbreak\\b",
+            "away from",
+            "\\boffline for\\b",
+            "days? offline",
+            "\\bpause",
+            "absence",
+            "weeks? (off|away|without)",
+            "not play",
+            "didn'?t play",
+            "days (off|away|without|between)",
+            "between (sessions|evenings) of",
+            "calendar"
+          ]
+        ]
+      }
+    ],
+    "must_not_claim": [
+      {
+        "id": "blames-pace-at-33",
+        "about": "level 33 called slow while its played time is on pace",
+        "all": [
+          [
+            "\\b33\\b"
+          ],
+          [
+            "\\bslow",
+            "longest",
+            "took (you )?(a long|long|longer|ages)",
+            "\\bbehind\\b",
+            "dragg",
+            "\\bstuck\\b",
+            "stall"
+          ]
+        ],
+        "unless": [
+          "\\bbreak\\b",
+          "\\baway from\\b",
+          "\\boffline for\\b",
+          "\\bpause",
+          "absence",
+          "calendar",
+          "not play",
+          "didn'?t play"
+        ]
+      }
+    ]
+  }
+}

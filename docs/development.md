@@ -68,6 +68,12 @@ A pull request is ready when ruff and the tests that cover the change pass,
 plus both image builds when it touches `data/`, `pyproject.toml` or the
 Dockerfile. The whole list above runs once before a release.
 
+## Evaluating the analysis
+
+A change to how the analysis reasons (its prep, passes, judge, semantic layer or prompts) gets a run of the
+seeded evaluation before the release: `make eval-analysis`, a real AI on five synthetic histories with known
+effects, graded. Not in CI: it needs a model client. See [evaluation.md](evaluation.md).
+
 ## The docs site and its demo
 
 The site (`site/`, Starlight) is built from this repository's Markdown: `README.md` stays

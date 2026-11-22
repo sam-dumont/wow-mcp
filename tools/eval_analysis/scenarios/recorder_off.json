@@ -1,0 +1,103 @@
+{
+  "name": "recorder_off",
+  "about": "The Recorder was off for four evenings (9 to 12 October, levels 26 to 30); the play itself is the demo's. Level-ups, character snapshots and gear sheets still arrive.",
+  "goals": "Reach level 40 without wasting time, and know what to fix.",
+  "inject": [
+    {
+      "kind": "recorder_off",
+      "from": "2026-10-09",
+      "to": "2026-10-12"
+    }
+  ],
+  "truth": {
+    "expected": "Levels 27 to 29 have played time and level-ups but no Recorder records at all: the evidence for those evenings is missing. A right analysis says so, and never reads the missing records as behaviour (no deaths, no kills, a safer stretch).",
+    "must_find": [
+      {
+        "id": "flags-the-missing-records",
+        "about": "a kept line says records are missing for part of the history",
+        "all": [
+          [
+            "not recorded",
+            "unrecorded",
+            "no records?\\b",
+            "without (any )?records",
+            "recorder (was )?off",
+            "missing (records|data|sessions|evenings|play)",
+            "gaps? in the (records|data|recording)",
+            "no (recorder |recorded )?data",
+            "not (logged|tracked|captured)",
+            "untracked",
+            "blind spot",
+            "coverage",
+            "records? (are|is) missing",
+            "isn'?t recorded",
+            "wasn'?t recorded",
+            "weren'?t recorded"
+          ]
+        ]
+      }
+    ],
+    "must_not_claim": [
+      {
+        "id": "reads-absence-as-safety",
+        "about": "fewer or no deaths claimed for the levels nothing was recorded at",
+        "all": [
+          [
+            "no deaths",
+            "zero deaths",
+            "died (less|fewer)",
+            "fewer deaths",
+            "never died",
+            "didn'?t die",
+            "death-free",
+            "deathless",
+            "safer",
+            "without (a )?(single )?death",
+            "0 deaths"
+          ],
+          [
+            "\\b2[7-9]\\b",
+            "level 26",
+            "oct(ober)?\\.? (9|10|11|12)\\b",
+            "10-(09|10|11|12)\\b"
+          ]
+        ],
+        "unless": [
+          "not recorded",
+          "unrecorded",
+          "no records?\\b",
+          "recorder",
+          "missing",
+          "coverage",
+          "no data"
+        ]
+      },
+      {
+        "id": "reads-missing-records-as-a-break",
+        "about": "the unrecorded evenings called time away from the game: the character played (three level-ups)",
+        "all": [
+          [
+            "took a break",
+            "\\bbreak of",
+            "on a break",
+            "away from the game",
+            "days? away",
+            "\\boffline for",
+            "didn'?t play",
+            "not play(ing|ed)? for",
+            "\\bpaused?\\b"
+          ]
+        ],
+        "unless": [
+          "not recorded",
+          "unrecorded",
+          "no records?\\b",
+          "recorder",
+          "missing",
+          "coverage",
+          "no data"
+        ]
+      }
+    ]
+  }
+}

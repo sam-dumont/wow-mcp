@@ -60,6 +60,7 @@ RULES: list[tuple[str, list[str]]] = [
     # Data files and their exporters.
     (r"^data/", [FULL]),
     (r"^tools/fixtures/", [FULL]),
+    (r"^tools/eval_analysis/", ["tests/test_eval_analysis.py"]),
     (r"^tools/", ["tests/test_audit_deps.py", "tests/test_release.py", "tests/test_release_kb.py",
                   "tests/test_workflow_guard.py"]),
     # The install steps are app data too: /start, /help/ and the shipper's

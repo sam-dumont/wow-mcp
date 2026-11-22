@@ -94,3 +94,4 @@ Look it up:
 
 - [Changelog](../CHANGELOG.md) and the [security policy](../SECURITY.md).
 - [How to contribute](../CONTRIBUTING.md) and [Development and releases](development.md).
+- [Evaluating the analysis](evaluation.md): a real AI on synthetic histories with known effects, graded.

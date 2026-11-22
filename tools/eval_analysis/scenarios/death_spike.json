@@ -1,0 +1,33 @@
+{
+  "name": "death_spike",
+  "about": "Deaths in the Wetlands at twice the rate of the rest of the history or more; everything else as the demo played it.",
+  "goals": "Reach level 40 without wasting time, and know what to fix.",
+  "inject": [
+    {
+      "kind": "death_spike",
+      "zone": "Wetlands",
+      "factor": 2.0,
+      "seed": 1
+    }
+  ],
+  "truth": {
+    "expected": "The character dies in the Wetlands at more than twice the rate of everywhere else (8 deaths in about 11 online hours, 0.73 an hour against 0.32 elsewhere; one-sided Poisson p = 0.03). A right analysis ties the deaths to the Wetlands.",
+    "must_find": [
+      {
+        "id": "ties-deaths-to-the-wetlands",
+        "about": "a kept line names the Wetlands together with deaths",
+        "all": [
+          [
+            "wetlands"
+          ],
+          [
+            "\\bdeaths?\\b",
+            "\\bdie[ds]?\\b",
+            "\\bdying\\b"
+          ]
+        ]
+      }
+    ],
+    "must_not_claim": []
+  }
+}

@@ -115,6 +115,10 @@ release candidate at a time.
   the connector's account picker, the knowledge base's patch releases.
   Screenshots retaken on the demo character.
 
+### Added
+
+- A seeded evaluation of the play analysis, for contributors: `make eval-analysis` runs the whole analysis with a real MCP client (Claude Code by default, any OpenAI-compatible endpoint by config) on five synthetic histories with a known effect injected (a death spike in one zone, four unrecorded evenings, a three-week break, a wrong-spec item, and a healthy control), then re-runs every kept query and grades the kept lines against the truth. Not in CI: hosted CI has no client. [docs/evaluation.md](docs/evaluation.md).
+
 ### Changed
 
 - The nightly recheck runs a finding only under the definitions it was judged with. Each analysis build now keeps a run manifest (the play it saw, `PREP_VERSION`, a hash of the semantic model, the reference data's versions, timezone and gaps, build time, freshness) and each finding the id of its own. When the prep version, the semantic model or the reference data changed since, the finding shows as "to revalidate" on the page and in `play_analysis`, stays out of the checked count, and `analysis_brief` lists it for the next analysis to judge again. Before, the same SQL could pass on data that meant something else.
