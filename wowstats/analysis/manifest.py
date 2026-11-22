@@ -7,8 +7,8 @@ pass while measuring something else. So every build (a driver's workspace,
 the nightly recheck) gets a manifest, and every finding keeps the id of the
 one it was judged under. The recheck compares the definitions:
 
-- the same prep version, semantic model and reference versions: recheck as
-  before;
+- the same prep version, semantic model (the definitions the finding reads)
+  and reference versions: recheck as before;
 - any of them different (or no manifest at all, a finding kept before
   0.7.0): the finding is "to revalidate". It isn't run, gains or loses
   nothing, is shown so on the page and through MCP, and stays out of the
@@ -18,7 +18,9 @@ one it was judged under. The recheck compares the definitions:
 Fields: `input` (the newest event, the event count and data_mark: which
 play the build saw), `prep_version` (prep.PREP_VERSION, bumped by hand when
 the tables' meaning changes), `semantic_hash` (semantic.yaml as loaded,
-plus the SQL views the model reads), `reference` (the bundled Polestar and
+plus the SQL views the model reads: what a finding kept before
+`semantic_reads` is compared on; one kept since compares only the
+definitions it reads, wowstats.analysis.definitions), `reference` (the bundled Polestar and
 forever-db versions the KB, the route and the gear advice come from),
 `settings` (timezone, session and trip gaps, and the gear `scoring`: the
 spec the upgrade candidates are scored for and the player's edits, review
@@ -125,13 +127,17 @@ def changed(judged: dict | None, now: dict, finding: dict | None = None) -> list
     are in, the session and trip gaps, the spec the gear is scored for) count; the input and the times are
     kept for the record, since the recheck's whole job is to run on new input.
     `finding`: the gear scoring counts only for one that reads what it fills
-    (reads_scoring): a WEIGHTS change says nothing new about online time."""
+    (reads_scoring): a WEIGHTS change says nothing new about online time; the
+    semantic model only through the definitions it reads (its
+    `semantic_reads`, wowstats.analysis.definitions), else the whole file."""
+    from . import definitions
+
     if not judged:
         return ["judged before builds kept a manifest"]
     out = []
     if judged.get("prep_version") != now["prep_version"]:
         out.append(f"prep version {judged.get('prep_version')} -> {now['prep_version']}")
-    if judged.get("semantic_hash") != now["semantic_hash"]:
+    if definitions.changed(finding, judged, now):  # only what the finding reads, when it says (definitions.py)
         out.append("the semantic model changed")
     old, new = judged.get("reference") or {}, now["reference"]
     out += [f"{k} {old.get(k)} -> {new.get(k)}" for k in sorted(set(old) | set(new)) if old.get(k) != new.get(k)]

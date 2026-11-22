@@ -723,14 +723,16 @@ def note_kb(env: dict, char: str) -> None:
 
 
 def _store_finding(env: dict, w: Workspace, run: dict, got: dict) -> bool:
-    from . import SCHEMA, data_mark, keep, load_state, manifest, save_state, score
+    from . import SCHEMA, data_mark, definitions, keep, load_state, manifest, save_state, score
 
     now = _now()
     state = load_state(env, w.char)
     kept = dict(state.get("findings") or {})
     # Judged under this build's definitions: a "to revalidate" mark from an
     # older build goes (keep replaces the finding with this one).
-    got = {**got, "manifest": w.manifest["id"]}
+    # And tied to the semantic definitions its evidence reads, not the whole
+    # semantic.yaml: an unrelated metric added later leaves it valid.
+    got = {**got, "manifest": w.manifest["id"], "semantic_reads": definitions.of(got)}
     new = keep(kept, got, now, data_mark(w.db))
     kept[got["key"]]["score"] = score(kept[got["key"]])
     save_state(env, w.char, {**state, "schema": SCHEMA, "char": w.char, "findings": kept, "updated": now,

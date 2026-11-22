@@ -549,8 +549,16 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
     it isn't tried again: a later definition change, or a failed carry-over
     still without a manifest, is "to revalidate" like any other finding.
     Without it, a friend who rarely plays would see every old finding "to
-    revalidate" for weeks, until the next analysis."""
-    from . import manifest, verify
+    revalidate" for weeks, until the next analysis.
+
+    The semantic model counts only through the definitions a finding reads
+    (`semantic_reads`, wowstats.analysis.definitions): a metric it doesn't
+    read can be added or changed and it rechecks as before. One kept before
+    that adopts its names when its build has today's whole-file hash
+    (exact), else the whole file decides, once: it is to revalidate until
+    proposed again. One whose definitions hold again (a rollback, an
+    adoption) is no longer to revalidate."""
+    from . import definitions, manifest, verify
 
     for key, f in list(kept.items()):
         if f.get("unbound_numbers"):
@@ -563,7 +571,9 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
             continue
         carry = build is not None and not f.get("manifest") and "carried_over" not in f
         if build is not None and not carry:
-            why_not = manifest.changed((builds or {}).get(f.get("manifest") or ""), build, f)
+            judged = (builds or {}).get(f.get("manifest") or "")
+            definitions.adopt(f, judged, build)
+            why_not = manifest.changed(judged, build, f)
             if why_not:
                 f["revalidate"] = {"since": (f.get("revalidate") or {}).get("since") or now, "why": why_not}
                 info["revalidate"] = info.get("revalidate", 0) + 1
@@ -578,6 +588,7 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
             f["carried_over"] = {"from": CARRIED_FROM, "to": __version__, "at": now, "held": upd is not None}
             if upd is not None:
                 upd["carried_over"], upd["manifest"], upd["last_checked"] = f["carried_over"], build["id"], now
+                upd["semantic_reads"] = definitions.of(upd)
                 upd.setdefault("support_mark", mark)  # what the old support saw is unknown: count today's as seen
                 upd.pop("revalidate", None)
                 upd.pop("miss_why", None)
@@ -595,6 +606,8 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
             continue
         gained = _support(upd, f, mark, now)
         upd.pop("miss_why", None)
+        if build is not None:  # it ran under today's manifest: its definitions hold today
+            upd.pop("revalidate", None)
         kept[key] = upd
         k = "confirmed" if gained else "still"
         info[k] = info.get(k, 0) + 1
