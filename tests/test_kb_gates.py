@@ -191,6 +191,29 @@ def test_the_instructions_gate_runs_in_the_job(tmp_path, monkeypatch):
     assert not res["ok"] and any(r.startswith("instructions: `community.json`") for r in res["refused"])
 
 
+def test_the_suite_runs_as_ci_runs_it_without_the_jobs_variables(monkeypatch):
+    """2026-11-22: the job's KB_ISSUES_OUT reached the suite, every issue test
+    got "deferred", and the gates refused every watch PR (#99) for tests CI
+    passes. The suite now runs with CI's flags and without the job's own
+    variables and file commands."""
+    for k, v in {"KB_ISSUES_OUT": "/x", "KB_SOURCES": "/y", "WHY": "/z", "GH_TOKEN": "t", "GITHUB_OUTPUT": "/o",
+                 "POLESTAR_CHECKOUT": "/p"}.items():
+        monkeypatch.setenv(k, v)
+    seen = []
+
+    def run(cmd, **kw):
+        seen.append((cmd, kw.get("env")))
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(gates.subprocess, "run", run)
+    assert gates.test_gate() == []
+    pytest_cmd, env = next((c, e) for c, e in seen if "pytest" in c)
+    assert "-n" in pytest_cmd and "not browser" in pytest_cmd
+    for _, env in seen:
+        assert env is not None and env.get("POLESTAR_CHECKOUT") == "/p"
+        assert not {"KB_ISSUES_OUT", "KB_SOURCES", "WHY", "GH_TOKEN", "GITHUB_OUTPUT"} & set(env)
+
+
 def test_base_files_read_the_committed_kb():
     base = gates.base_files("HEAD")
     assert "research/class-meta.json" in base and "rules.json" in base and "news.json" in base
@@ -242,6 +265,35 @@ def test_a_polestar_licence_change_is_refused():
     assert "forever-db/NOTICE.md" in bump.check_polestar(repo, "fitzforge/polestar", "v1.0", "v1.1")[0]
     repo.trees["v1.1"] = None  # GitHub cut the listing short: can't tell, so no
     assert "couldn't be listed" in bump.check_polestar(repo, "fitzforge/polestar", "v1.0", "v1.1")[0]
+
+
+NOTICE_OLD = ("Polestar recordings\n-------------------\nRevision: 737cdd4a253f21d6\nLicense: Polestar original work\n\n"
+              "Names taken: 309 quests, 542 NPCs, 69 objects, 486 items, 1 quest objective.\n"
+              "pfQuest\nLicense: MIT\nCopyright (c) 2017-2021 Eric Mauser (Shagu)\n")
+
+
+@pytest.mark.parametrize("new,refused", [
+    # v0.4.1.1 -> v0.4.2.1 (2026-11-21): the data notices' revision stamp and
+    # name counts moved with the data, the terms didn't. The watch refused it.
+    (NOTICE_OLD.replace("737cdd4a253f21d6", "6d7e0731b046937b").replace(
+        "542 NPCs", "543 NPCs").replace("1 quest objective.", "5 quest objectives."), False),
+    (NOTICE_OLD.replace("License: MIT", "License: GPL-3.0"), True),
+    (NOTICE_OLD.replace("2017-2021", "2017-2026"), True),
+    (NOTICE_OLD.replace("License: Polestar original work", "License: Polestar original work, all rights reserved"),
+     True),
+    (NOTICE_OLD + "New source\nLicense: CC BY-NC 4.0\n", True),
+    (NOTICE_OLD.replace("pfQuest\n", ""), True),
+])
+def test_a_data_notice_whose_revisions_and_counts_moved_is_not_a_licence_change(new, refused):
+    toc = "## SavedVariables: PolestarDB\n"
+    path = "addon/Polestar_Guides/LICENSE-DATA.txt"
+    repo = FakeRepo({(bump.POLESTAR_TOC, "v1.0"): toc, (bump.POLESTAR_TOC, "v1.1"): toc,
+                     (path, "v1.0"): NOTICE_OLD, (path, "v1.1"): new},
+                    {"v1.0": {path: "a"}, "v1.1": {path: "b"}})
+    why = bump.check_polestar(repo, "fitzforge/polestar", "v1.0", "v1.1")
+    assert bool(why) is refused, why
+    if refused:
+        assert path in why[0]
 
 
 def test_the_tag_moves_in_the_tag_file_and_the_clone_lines(tmp_path):

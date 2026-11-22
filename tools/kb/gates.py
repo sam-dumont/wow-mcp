@@ -124,6 +124,20 @@ def schema_gate(files: dict[str, dict], allow: dict) -> list[str]:
     return out
 
 
+def licence_of(t: str, r: dict, sources: dict[str, str]) -> list[str]:
+    """Why a new text breaks the licence rules: a quote over 15 words, no
+    source read in this run to check it against, or a copy of one."""
+    out = []
+    long_quotes = [q for q in verbatim.quoted_runs(t) if len(verbatim.words(q)) > verbatim.QUOTE_MAX]
+    if long_quotes:
+        out.append(f"quotes {len(verbatim.words(long_quotes[0]))} words (15 at most)")
+    read = [sources[u] for u in kbschema.urls(r) if u in sources]
+    if not read:
+        return out + ["new wording with no source read in this run to check it against"]
+    why = next((w for w in (verbatim.copied(t, s) for s in read) if w), "")
+    return out + ([why] if why else [])
+
+
 def licence_gate(base: dict[str, dict], head: dict[str, dict], sources: dict[str, str]) -> tuple[list[str], int]:
     """Refusals, and how many new texts were checked."""
     known = {text_of(r) for _, _, r in records(base)}
@@ -134,16 +148,7 @@ def licence_gate(base: dict[str, dict], head: dict[str, dict], sources: dict[str
             continue
         n += 1
         rid = r.get("id") or r.get("spec") or "?"
-        long_quotes = [q for q in verbatim.quoted_runs(t) if len(verbatim.words(q)) > verbatim.QUOTE_MAX]
-        if long_quotes:
-            out.append(f"licence: `{name}` {rid}: quotes {len(verbatim.words(long_quotes[0]))} words (15 at most)")
-        read = [sources[u] for u in kbschema.urls(r) if u in sources]
-        if not read:
-            out.append(f"licence: `{name}` {rid}: new wording with no source read in this run to check it against")
-            continue
-        why = next((w for w in (verbatim.copied(t, s) for s in read) if w), "")
-        if why:
-            out.append(f"licence: `{name}` {rid}: {why}")
+        out += [f"licence: `{name}` {rid}: {w}" for w in licence_of(t, r, sources)]
     return out, n
 
 
@@ -216,6 +221,46 @@ def multi_source_gate(base: dict[str, dict], head: dict[str, dict], allow: dict)
     return out
 
 
+def schema_of(doc: dict, key: str, r: dict, allow: dict, strict_type: bool = True) -> list[str]:
+    """The schema's refusals of one record, its lane's shape included."""
+    if key in ("statements", "contradictions"):
+        mini = {"lane": doc.get("lane"), key: [r]}
+    elif key == "builds":
+        mini = {"builds": [r]}
+    elif key == "digest":
+        mini = {"digest": {"items": [r]}}
+    else:  # a class's path: wowstats.classguide.check_path, in the suite
+        return []
+    return kbschema.check_file(mini, allow, strict_type)
+
+
+def record_problems(base: dict[str, dict], head: dict[str, dict], sources: dict[str, str],
+                    allow: dict) -> list[tuple[str, str, str]]:
+    """(file, record id, why) for every record new or changed against `base`
+    that a gate refuses: the schema with its lane's shape, the licence rules,
+    the multi-source rule, instruction-shaped text. tools/kb/vet.py drops a
+    model pass's records on these before the PR; the gates above refuse the
+    same over the whole tree."""
+    was = {(name, key, json.dumps(r, sort_keys=True)) for name, key, r in records(base)}
+    known = {text_of(r) for _, _, r in records(base)}
+    out = []
+    for name, key, r in records(head):
+        if (name, key, json.dumps(r, sort_keys=True)) in was:
+            continue
+        rid = str(r.get("id") or r.get("spec") or "?")
+        whys = [f"schema: {e}" for e in schema_of(head.get(name) or {}, key, r, allow, name != "rules.json")]
+        t = text_of(r)
+        if t and t not in known:
+            whys += [f"licence: {w}" for w in licence_of(t, r, sources)]
+        if kbschema.is_list_or_build(r, key):
+            m = kbschema.multi_source(r, allow)
+            whys += [f"multi-source: {m}"] if m else []
+        hit = next((h for _, x in strings(r) if (h := instruction_shaped(x))), "")
+        whys += [f"instructions: reads like an instruction to an assistant ({hit[:60]!r})"] if hit else []
+        out += [(name, rid, w) for w in whys]
+    return out
+
+
 def served(files: dict[str, dict], today) -> dict[str, str]:
     """{statement id: its lane} the loader serves (retired ones left out)."""
     every = [(name, r) for name, doc in files.items() if name.startswith("research/")
@@ -245,15 +290,30 @@ def churn_gate(base: dict[str, dict], head: dict[str, dict], today) -> tuple[lis
     return out, len(removed)
 
 
+# The refresh job's own variables and GitHub's file commands: the suite never
+# sees them, as CI's test job doesn't. KB_ISSUES_OUT reaching it turned every
+# issue test's "opened" into "deferred" and refused every watch PR (2026-11-22,
+# #99); a test calling a tool's main() would write the step's outputs.
+JOB_VARS = ("WHY", "MODE", "BRANCH", "BASE", "GH_REPO", "GH_TOKEN", "GITHUB_TOKEN", "GITHUB_OUTPUT", "GITHUB_ENV",
+            "GITHUB_PATH", "GITHUB_STEP_SUMMARY")
+
+
+def suite_env() -> dict[str, str]:
+    return {k: v for k, v in os.environ.items() if not k.startswith("KB_") and k not in JOB_VARS}
+
+
 def test_gate() -> list[str]:
-    """ruff, the suite and the fixtures check, as CI's test job; the failing
+    """ruff, the suite and the fixtures check, as CI's test job runs them
+    (.github/workflows/ci.yml: every core, no browser suites); the failing
     tests' names when red."""
     out = []
     steps = [("ruff", ["uv", "run", "--frozen", "ruff", "check", "."]),
-             ("pytest", ["uv", "run", "--frozen", "pytest", "-q", "-rfEs", "-p", "no:cacheprovider"]),
+             ("pytest", ["uv", "run", "--frozen", "pytest", "-q", "-rfEs", "-p", "no:cacheprovider", "-n", "auto",
+                         "-m", "not browser"]),
              ("fixtures", ["uv", "run", "--frozen", "python", "tools/fixtures/generate.py", "--check"])]
+    env = suite_env()
     for name, cmd in steps:
-        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+        r = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, env=env)
         sys.stderr.write(r.stdout[-6000:] + r.stderr[-3000:])
         if r.returncode:
             failed = re.findall(r"^(?:FAILED|ERROR) (\S+)", r.stdout, re.M)

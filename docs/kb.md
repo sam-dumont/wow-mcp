@@ -157,7 +157,7 @@ What a watch run does with each change kind, before the PR:
 
 | Kind | The job | Refused when |
 |---|---|---|
-| `polestar` | `tools/kb/bump.py polestar <tag>` checks the release, writes the tag to `tools/polestar-tag` (and the clone lines and `THIRD_PARTY.md` that name it), clones Polestar there and reruns every export that reads it (route, gear and forever references, `kb-reference.json.gz`, the class and trainer references), then `watch.py --accept polestar`. Then `bump.py regen` reruns `tools/fixtures/generate.py` and the layer pages' snapshot (`WOW_UPDATE_SNAPSHOT=1`), as a person does after a bump. The exports run Polestar's own code, without the job's OIDC or runtime token in reach. The gates' test suite runs `tests/test_gear_parity.py` against that checkout. | its `Polestar.toc` saves other tables, a LICENSE, NOTICE or COPYING file changed (THIRD_PARTY.md copies them), an export fails, or the regenerated test data moved by more than the version string (a route time, a gear score: a person reads that) |
+| `polestar` | `tools/kb/bump.py polestar <tag>` checks the release, writes the tag to `tools/polestar-tag` (and the clone lines and `THIRD_PARTY.md` that name it), clones Polestar there and reruns every export that reads it (route, gear and forever references, `kb-reference.json.gz`, the class and trainer references), then `watch.py --accept polestar`. Then `bump.py regen` reruns `tools/fixtures/generate.py` and the layer pages' snapshot (`WOW_UPDATE_SNAPSHOT=1`), as a person does after a bump. The exports run Polestar's own code, without the job's OIDC or runtime token in reach. The gates' test suite runs `tests/test_gear_parity.py` against that checkout. | its `Polestar.toc` saves other tables, a LICENSE, NOTICE or COPYING file changed (THIRD_PARTY.md copies them; a data notice line that only moved a source's `Revision:` or a count of names taken doesn't count, since every data build moves those), an export fails, or the regenerated test data moved by more than the version string (a route time, a gear score: a person reads that) |
 | `addons` | `bump.py addons` reads each new release's `.toc` and the source lines `watch.json`'s `contract` names (Questie: `Questie_Forever.toc`, and `Questie.db.char.complete = ` in `QuestieQuest.lua`, what `shipper/wow_stats.py` reads), then `watch.py --accept addons`. | a saved table is renamed or gone, or a contract line is gone |
 | `client-build` | `tools/class_reference/export.py` against the new build, `bump.py regen`, then `watch.py --accept client-build`. | the export fails, or the test data moved |
 | `official` | the model pass on the changed pages, its `refresh-<date>.json` folded into the lanes at once (`lifecycle.py --no-fetch`: a `supersedes` replaces its statement), then `watch.py --accept official --only <the pages it read>`. | the model pass isn't set up or fails, or its cost cap stopped it before a page |
@@ -165,6 +165,9 @@ What a watch run does with each change kind, before the PR:
 A release is read from the addon's repository at both tags through
 GitHub's API (files and blob hashes); its release notes are untrusted text
 and are never read. Only a plain version tag (`v1.2.3`) reaches the bump.
+Polestar's release is its newest final one with a plain tag: the repository
+also releases its desktop client (`client-v*`) and pre-releases, and neither
+is the addon.
 
 The model pass (Claude Opus 5.5) gets the changed page and the KB's
 official statements as data, and answers JSON in a fixed schema: new
@@ -174,6 +177,17 @@ refuses what the schema refuses; refused proposals are listed as open
 questions. Spend is capped per run (`KB_REFRESH_MAX_USD`, $3): the run
 stops before a call that would likely cross it.
 
+Before a pass's records are folded (`refresh-<date>.json` in watch and
+refresh mode, `meta-<date>.json` in meta mode), `tools/kb/vet.py` folds a
+copy of the KB the same way and runs the gates' per-record checks
+(`gates.record_problems`: the schema with its lane's shape, licence,
+multi-source, instruction-shaped text) on every record the fold added or
+changed. Each of the pass's records that fails leaves the pass's file: it
+is never committed, and the PR lists it under **Dropped** with the reason.
+The rest folds and goes on to the gates. Why: on 2026-11-22 (#99) the pass
+replaced two shaman class-guide records with flat ones (no class, no level
+range), the PR opened red and sat there for hours.
+
 ### The gates
 
 `tools/kb/gates.py`, against the main the run started from, on the
@@ -181,28 +195,39 @@ committed branch, in a step that holds no token:
 
 | Gate | Refuses |
 |---|---|
-| schema | any record `wowstats/analysis/kbschema.py` refuses, in every research file, `rules.json` and `news.json` |
+| schema | any record `wowstats/analysis/kbschema.py` refuses, in every research file, `rules.json` and `news.json`; in the class guide's lane (`classes.json`), also a record without one of the guide's classes, or a statement without its topic and level range (`kbschema.class_guide_shape`) |
 | licence | a new text (no record on main has it) that repeats 12 words in a row, or a fifth of its 8-word phrases, of the text the pass read for its source (`KB_SOURCES`, kept by `tools/kb/web.remember`); a new text with no source read in the run (it can't be checked); a quote over 15 words. A missing citation is a schema refusal. |
 | multi-source | a new or changed list item (a class-meta enchant, consumable or stat order) or build with one source, unless it says `single_source` at low confidence or cites an official Blizzard page (`kbschema.multi_source`; the meta pass marks its one-item list statements so) |
 | instructions | any text in the KB files (and `community.json`) shaped like an instruction to a model: "ignore the previous instructions", "you are now an assistant", "system prompt", a chat role at the start of a line, tool-call markup or JSON (`INSTRUCTION_PATTERNS`, tests in `tests/test_kb_gates.py`). The KB auto-merges and the MCP hands its text to friends' AI clients: a page that carries a prompt injection stops here, not in someone's chat. |
 | size | anything over `data/kb/budget.json` |
 | churn | more than 30 statements (`KB_CHURN_MAX`) leaving what the loader serves in one run, more than 10% of a lane (5 always allowed), or a whole lane: a broken fetch or a bad answer can't wipe a lane |
-| tests | ruff, the whole pytest suite (the MCP's 24,000-character cap, `tests/mcp/test_kb_caps.py`, among them) and the fixtures check, as CI's test job runs them |
+| tests | ruff, the whole pytest suite (the MCP's 24,000-character cap, `tests/mcp/test_kb_caps.py`, among them) and the fixtures check, as CI's test job runs them: the same extras, every core, no browser suites, and none of the job's own variables (its `KB_ISSUES_OUT` once made every issue test fail here and refuse every watch PR) |
 
 Then `tools/kb/land.py` pushes the branch (`kb-<mode>`, one per mode),
 opens or edits its PR with the gates' verdict, and:
 
-- **passed:** `gh pr merge --auto --squash --match-head-commit <sha>`. A PR
-  opened with the workflow token starts no `ci` run, which is why the gates
-  run the suite themselves; with no required check on main, gh merges at
-  once. If main moved during the run, the branch is rebased on it and the
-  gates run again first, so what merges is what was tested (a conflict is a
-  refusal).
+- **passed:** `gh pr merge --auto --squash --match-head-commit <sha>`, and
+  the job stays with the PR until it merges (`land.py shepherd`, up to 45
+  minutes). If main moved during the run, the branch is rebased on it and
+  the gates run again first, so what merges is what was tested (a conflict
+  is a refusal). Main's ruleset requires a branch up to date with main, so
+  a PR goes BEHIND each time something else merges first: the job then
+  rebases it (`gh pr update-branch --rebase`, with the App's token, so main's
+  checks run again on it) and turns auto-merge back on if it went off.
 - **refused:** the PR stays open with label `kb-refused` and the reasons;
   in watch mode each kind it carries keeps its issue with the same reasons,
   in the other modes one issue per mode (`KB <mode>: a change wasn't
   merged`). While it is open, the next run of that mode adds nothing (the
   issue says so): merge it or close it, and the next run starts again.
+
+**The run is red unless its PR merged:** a refusal, a failed required
+check, a conflict with main, or no merge within 45 minutes. The owner's
+scheduler waits for each run it starts and fails when the run does, which
+raises the lab's usual alert (two red runs in a row: `CronJobNotSucceeding`
+on Slack and the phone). A PR left open by a red run is picked up by the
+next run of its mode, which adds nothing new and stays with that PR
+instead: rebased when BEHIND, merged when green; one labelled `kb-refused`
+keeps every run red until a person merges or closes it.
 
 Once merged, a refresh goes out as a stable patch release (X.Y.Z+1) by
 itself: the KB is baked into the image, and Renovate or Dependabot only see
@@ -400,6 +425,7 @@ uv run python tools/kb/meta.py collect --items /tmp/meta.json            # what'
 uv run python tools/kb/meta.py propose --items /tmp/meta.json --dry-run  # the first prompt
 uv run python tools/kb/community.py --dry-run    # the forum threads and searches, no model
 uv run python tools/kb/lifecycle.py --dry-run --no-fetch                  # what the lifecycle would do
+uv run python tools/kb/vet.py --dropped /tmp/dropped.md         # drop a pass's failing records before the fold (KB_SOURCES)
 uv run python tools/kb/gates.py --base origin/main --no-tests   # the KB gates on your tree (add the suite: drop --no-tests)
 uv run python tools/kb/bump.py addons                            # would the new addon releases pass? (gh auth)
 ```
@@ -424,7 +450,10 @@ it in the fork itself:
    `main-only` limited to main (the job that lands declares it; the model's
    job doesn't, so its OIDC subject stays the plain ref). Turn on "Allow
    auto-merge" (Settings > General): the job merges with
-   `gh pr merge --auto` once the checks pass.
+   `gh pr merge --auto` once the checks pass, and rebases the PR itself
+   when main moves. Its run ends red when the PR doesn't merge: have your
+   scheduler wait for the run (or watch the Actions tab) so a red one
+   reaches you.
 3. **The model pass (optional).** It has no API key: GitHub's OIDC token is
    exchanged for a short-lived Anthropic token (Workload Identity
    Federation). In your Anthropic organization, make a federation rule that

@@ -13,7 +13,12 @@ from the repository at both tags (GitHub's API through `gh`):
 - for an addon with a `contract` in data/kb/watch.json, the source lines the
   shipper relies on (Questie: `Questie.db.char.complete = `);
 - for Polestar, every LICENSE, NOTICE and COPYING file (THIRD_PARTY.md copies
-  its notices: a licence change needs a person).
+  its notices: a licence change needs a person). Its data notices
+  (LICENSE-DATA.txt) carry each source's revision and the counts of names
+  taken, which move with every data build: a line that changed only there
+  (a `Revision:` line, or numbers and plurals on a line naming no licence
+  term) is not a licence change. v0.4.2.1 (2026-11-21) was refused for
+  exactly that, and the watch never took it.
 
 Release notes are never read: a release's text is untrusted, and nothing in
 it is run or followed. The tag itself goes through watch.TAG (a plain
@@ -28,6 +33,7 @@ version moved).
 from __future__ import annotations
 
 import argparse
+import difflib
 import gzip
 import json
 import os
@@ -47,6 +53,9 @@ POLESTAR_TOC = "addon/Polestar/Polestar.toc"
 LICENCE = re.compile(r"(^|/)(LICEN[CS]E|NOTICE|COPYING)[^/]*$", re.I)
 NAME = re.compile(r"[A-Za-z0-9_]+")
 SAFE = re.compile(r"[^\w./+ -]")
+# A line that names one of these is about the terms: any change to it needs a person.
+LICENCE_TERMS = re.compile(r"licen[cs]|copyright|\(c\)|©|\bgpl|\bmit\b|\bbsd|apache|\bmpl|\bcc\b|cc[ -]by|"
+                           r"creative commons|public domain|rights|permission|warrant|trademark", re.I)
 # Files that name the Polestar tag in a clone line, and THIRD_PARTY.md's "Polestar <tag>".
 CLONE = re.compile(r"(--branch )(v[\d.]+)( https://github\.com/fitzforge/polestar)")
 
@@ -113,6 +122,35 @@ def check_addon(repo_api, addon: dict, old: str, new: str) -> list[str]:
     return why
 
 
+def _shape(line: str) -> str:
+    """A line with its numbers and revision ids as one token, plurals as singulars."""
+    s = re.sub(r"[0-9a-f]*\d[0-9a-f.,-]*", "#", line.strip().lower())
+    return re.sub(r"(\w)s\b", r"\1", s)
+
+
+def _bookkeeping(a: str, b: str) -> bool:
+    """Whether a changed line only moved a source's revision or a count."""
+    key_a, key_b = (x.split(":", 1)[0].strip().lower() if ":" in x else "" for x in (a, b))
+    if key_a == key_b == "revision":
+        return True
+    return not LICENCE_TERMS.search(a + " " + b) and _shape(a) == _shape(b)
+
+
+def terms_changed(old: str, new: str) -> bool:
+    """Whether two versions of a licence or notice file differ beyond
+    bookkeeping lines (revisions, counts): a line added, removed or reworded
+    is a change."""
+    a, b = old.splitlines(), new.splitlines()
+    for op, i1, i2, j1, j2 in difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes():
+        if op == "equal":
+            continue
+        if op != "replace" or i2 - i1 != j2 - j1:
+            return True
+        if not all(_bookkeeping(x, y) for x, y in zip(a[i1:i2], b[j1:j2], strict=True)):
+            return True
+    return False
+
+
 def check_polestar(repo_api, repo: str, old: str, new: str) -> list[str]:
     why = []
     w = toc_change(repo_api, repo, POLESTAR_TOC, old, new)
@@ -122,9 +160,16 @@ def check_polestar(repo_api, repo: str, old: str, new: str) -> list[str]:
         return why + ["the licence files couldn't be listed (GitHub's tree was cut short or unreadable)"]
     la = {p: s for p, s in a.items() if LICENCE.search(p)}
     lb = {p: s for p, s in b.items() if LICENCE.search(p)}
-    changed = sorted(p for p in set(la) | set(lb) if la.get(p) != lb.get(p))
+    changed = []
+    for p in sorted(set(la) | set(lb)):
+        if la.get(p) == lb.get(p):
+            continue
+        ta, tb = (repo_api.file(repo, p, ref) if p in tree else None for ref, tree in ((old, la), (new, lb)))
+        if ta is None or tb is None or terms_changed(ta, tb):
+            changed.append(p)
     if changed:
-        why.append("licence or notice files changed (THIRD_PARTY.md copies them): "
+        why.append("licence or notice files changed beyond source revisions and counts (THIRD_PARTY.md copies "
+                   "them): "
                    + ", ".join(f"`{SAFE.sub('', p)}`" for p in changed[:20]))
     return why
 
