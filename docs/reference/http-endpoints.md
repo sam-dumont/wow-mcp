@@ -13,7 +13,7 @@ Your own page. Route it through your login, except the rows that say otherwise.
 | Path | Route | What |
 |---|---|---|
 | `/`, `/app.js`, `/app.css`, `/base.css`, `/theme.js`, `/items.js`, `/fonts/*` | through your login | the page and its files |
-| `/api/config`, `/api/chars`, `/api/char`, `/api/journal`, `/api/overview`, `/api/timeline`, `/api/snapshot`, `/api/people`, `/api/loot`, `/api/dungeons`, `/api/meta`, `/api/news`, `/api/gear`, `/api/analysis`, `/api/items`, `/api/plan`, `/api/market`, `/api/prices`, `/api/logsql`, `/api/*` | through your login | the page's JSON answers (`/api/plan` also takes a POST) |
+| `/api/config`, `/api/chars`, `/api/char`, `/api/journal`, `/api/overview`, `/api/timeline`, `/api/snapshot`, `/api/people`, `/api/loot`, `/api/dungeons`, `/api/meta`, `/api/news`, `/api/gear`, `/api/analysis`, `/api/nudge`, `/api/items`, `/api/plan`, `/api/market`, `/api/prices`, `/api/logsql`, `/api/*` | through your login | the page's JSON answers (`/api/plan` also takes a POST) |
 | `/model3d/*`, `/model3d/file/<id>`, `/api/model3d`, `/render/<char>.webp`, `/icons/<size>/<name>.jpg` | through your login | the 3D view (its frame, and the game files your shipper sent, by id), the character's picture (our still of the 3D model), the item icons |
 | `/full/` | through your login | `FULL_DOOR_PATH`: a redirect to `/`, through your login. Empty: off |
 | `/healthz` | no login | health check: `200 ok`, no login. Fine to route; probes need no credentials |

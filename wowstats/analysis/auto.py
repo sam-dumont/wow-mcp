@@ -169,6 +169,13 @@ FINAL_STEP = 'analysis_submit(pass="synthesis")'
 
 OFF_WORDS = ("off", "0", "false", "no")
 
+# The nudge (Service.nudge): how long before the server's own refresh the
+# player is asked to run it from their own assistant, which costs the host
+# nothing (owner, 2026-11-22: "be nice to me"). Hours of play, on the same
+# timer as the server's refresh: 5 with the lab's 15 asks from 10 h on.
+NUDGE_LEAD_H = 5.0
+ASK = "Using the wow connector, run the analyse prompt for {char}."  # web/app.js askText(), the same words
+
 
 def sdk_installed(module: str) -> bool:
     return importlib.util.find_spec(module) is not None
@@ -228,6 +235,7 @@ class Config:
     price_cached: float | None
     auto: bool
     stale_s: float
+    nudge_lead_s: float  # 0: no nudge
     key_file: str
     wif: dict  # our ANALYSIS_WIF_* settings, those set
     audience: str
@@ -253,6 +261,7 @@ class Config:
                    price_cached=_num(env.get("ANALYSIS_PRICE_CACHED_INPUT_PER_MTOK", "")),
                    auto=env.get("ANALYSIS_AUTO", "on").strip().lower() not in OFF_WORDS,
                    stale_s=max(0.0, _num(env.get("ANALYSIS_STALE_PLAYED_HOURS", "10")) or 0.0) * 3600,
+                   nudge_lead_s=_lead(env.get("ANALYSIS_NUDGE_LEAD", "")) * 3600,
                    key_file=env.get("ANALYSIS_API_KEY_FILE", "").strip(),
                    wif={k: v.strip() for k, v in wif.items() if v.strip()},
                    audience=env.get("ANALYSIS_WIF_AUDIENCE", "").strip() or AUDIENCES.get(provider, ""),
@@ -393,6 +402,15 @@ class Config:
         cached = self.price_cached if self.price_cached is not None else self.price_in
         return ((usage["input"] + usage["cache_write"]) * self.price_in + usage["cache_read"] * cached
                 + usage["output"] * self.price_out) / 1e6
+
+
+def _lead(v: str) -> float:
+    """ANALYSIS_NUDGE_LEAD in hours of play: unset is NUDGE_LEAD_H, off or 0 is no nudge."""
+    v = (v or "").strip().lower()
+    if v in OFF_WORDS:
+        return 0.0
+    n = _num(v)
+    return NUDGE_LEAD_H if n is None else max(0.0, n)
 
 
 def configured(env: dict) -> bool:
@@ -630,6 +648,21 @@ def played_chars(env: dict, store=None) -> list[str]:
     rows = [r for r in rows if r.get("char")]
     names = [str(r["char"]).replace(" ", "-") for r in sorted(rows, key=lambda r: str(r.get("last")), reverse=True)]
     return list(dict.fromkeys(names))
+
+
+def operator(env: dict) -> str:
+    """Who runs this install, for the nudge's "on Sam's credit": OPERATOR_NAME, else "the host"."""
+    return (env.get("OPERATOR_NAME") or "").strip()[:40] or "the host"
+
+
+def payer_is_you(env: dict) -> bool:
+    """The caller pays the server's runs: the owner of a shared install
+    (wowstats.tenancy marks their environment), or the one person of an
+    install without WOW_STATE_DIR."""
+    return env.get(OWNER_MARK) == "1" or not (env.get("WOW_STATE_DIR") or "").strip()
+
+
+OWNER_MARK = "WOW_CALLER_IS_OWNER"
 
 
 def hours(s: float) -> str:
@@ -928,14 +961,16 @@ class Service:
             self._client = self.cfg.make_client()
         return self._client
 
-    def timers(self, env: dict, store=None) -> list[dict]:
+    def timers(self, env: dict, store=None, only: str | None = None) -> list[dict]:
         """Each character's timer, the latest played first: its play since
         its own last refresh, or all its play on record when it has none,
-        against ANALYSIS_STALE_PLAYED_HOURS."""
+        against ANALYSIS_STALE_PLAYED_HOURS. `only`: that character's alone."""
         from . import last_refresh, load_state
 
         out = []
         for char in self.chars(env, store):
+            if only is not None and char != only:
+                continue
             lr = last_refresh(load_state(env, char))
             played = self.played(env, char, _epoch(lr.get("at")) if lr else None, store)
             when = "since its last refresh" if lr else "on record, never refreshed"
@@ -951,6 +986,35 @@ class Service:
         done = [t["last_refresh"] for t in chars if t["last_refresh"]]
         return {"last_refresh": max(done, key=lambda r: _epoch(r.get("at")) or 0.0) if done else None,
                 "refresh_after": hours(self.cfg.stale_s), "due": any(t["due"] for t in chars), "chars": chars}
+
+    def nudge(self, env: dict, store=None, char: str | None = None) -> dict | None:
+        """Ask the player to refresh from their own assistant before the
+        server does it on the host's provider: from ANALYSIS_NUDGE_LEAD hours
+        of play before the server's threshold, on the same timer (timers()).
+        `char`: that character only; else the one with the most play since
+        its refresh. None when the server's refresh is off (nothing would
+        bill the host), the lead is off, no character is near, or the
+        server's own refresh of theirs already runs or waits."""
+        cfg = self.cfg
+        if not (cfg.on and cfg.auto and cfg.nudge_lead_s > 0):
+            return None
+        k = self.key(env)
+        with self._lock:
+            if k and self.state(k) is not None:
+                return None
+        warn_s = max(0.0, cfg.stale_s - cfg.nudge_lead_s)
+        near = [t for t in self.timers(env, store, only=char)
+                if t["played_since_s"] > 0 and t["played_since_s"] >= warn_s]
+        if not near:
+            return None
+        near.sort(key=lambda t: -t["played_since_s"])
+        t = near[0]
+        left = max(0.0, cfg.stale_s - t["played_since_s"])
+        # Facts only: the page (web/app.js) and the MCP (wowstats.mcp.reminder) each say it their way.
+        return {"char": t["char"], "played_since_s": t["played_since_s"], "played_since": t["played_since"],
+                "server_in_s": round(left), "server_in": hours(left), "never_refreshed": not t["last_refresh"],
+                "warn_at": hours(warn_s), "refresh_after": hours(cfg.stale_s), "you_pay": payer_is_you(env),
+                "operator": operator(env), "others": len(near) - 1, "ask": ASK.format(char=t["char"])}
 
     def state(self, k: str) -> dict | None:
         """Where the player's automatic refresh stands: running, or queued at

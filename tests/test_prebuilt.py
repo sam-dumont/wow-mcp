@@ -72,7 +72,7 @@ def page_open(name: str, spec: str = "") -> list[str]:
     q = urllib.parse.quote(name)
     return ["/", "/api/config", "/api/chars", f"/api/char?name={q}", "/api/market", "/api/prices",
             f"/api/gear?name={q}" + (f"&spec={spec}" if spec else ""), f"/api/loot?name={q}",
-            f"/api/analysis?name={q}", f"/api/dungeons?name={q}", f"/api/plan?char={q}",
+            f"/api/analysis?name={q}", f"/api/nudge?name={q}", f"/api/dungeons?name={q}", f"/api/plan?char={q}",
             f"/api/overview?name={q}", f"/api/people?name={q}", f"/api/journal?name={q}",
             f"/api/timeline?name={q}"]
 

@@ -270,7 +270,7 @@ ROUTES = ["/", "/start", "/start/print", "/settings", "/api/config", "/api/chars
           urllib.parse.quote("char:Testpriest* or *"), "/api/admin/hosts"]
 PER_CHAR = ["/api/char?name={c}", "/api/journal?name={c}", "/api/overview?name={c}", "/api/timeline?name={c}",
             "/api/snapshot?name={c}&level=12", "/api/people?name={c}", "/api/loot?name={c}", "/api/gear?name={c}",
-            "/api/plan?char={c}", "/render/{c}.webp"]
+            "/api/plan?char={c}", "/api/nudge?name={c}", "/render/{c}.webp"]
 
 
 def test_friend_sees_only_their_own_data(server, vl):

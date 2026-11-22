@@ -632,6 +632,11 @@ class Tenancy:
         for k in ("MCP_PUBLIC_URL", "MCP_AUTH", "INGEST_PASSWORD", "INGEST_PASSWORD_FILE", "ANALYSIS_SHARE_PORT"):
             e[k] = ""
         e["VL_ACCOUNT_ID"] = str(u.account_id)
+        # The owner pays the server's own analysis runs: their nudge says
+        # "your own credit", a friend's names the owner (wowstats.analysis.auto).
+        from wowstats.analysis.auto import OWNER_MARK
+
+        e[OWNER_MARK] = "1" if u.owner else ""
         # The 3D view's game files the person's shipper sends: in their own
         # folder, so delete_tenant takes them too.
         e["MODEL3D_ASSETS_DIR"] = str(self.user_dir(u) / "assets")
