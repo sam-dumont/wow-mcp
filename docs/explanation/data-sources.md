@@ -55,7 +55,7 @@ nobody here has called it on Forever yet.
 | Worn items | Syndicator; without its items (not installed, or a gear event with the professions only), the API's whole set; API for random-suffix stats | yes, live (`/equipment`) | history: gear per level, after 30 days |
 | Item level (our average) | Syndicator + Polestar_ItemDB | yes, live (profile) | history |
 | Stats of items newer than our reference (a dungeon added in a patch) | the game's hotfix cache, read by the shipper | no | no API |
-| Level, class, race, faction | Polestar, Syndicator; each one they didn't send, the API's | yes, live (profile) | history: the level curve |
+| Level, class, race, faction | Polestar, Syndicator, Altoholic (level); each one they didn't send, the API's | yes, live (profile) | history: the level curve |
 | Sex | API (profile `gender`) | yes, live | - |
 | Guild | API (profile `guild`) | yes, listed | - |
 | Level splits, time per level, XP | Polestar | no | no API |
@@ -64,16 +64,19 @@ nobody here has called it on Forever yet.
 | Profession ranks | Polestar | no | no API |
 | Profession caps | Polestar Recorder skill records, else trainer tiers | no | no API |
 | Recipes known | Altoholic | no | no API |
+| Spells known, and the class's spells still to come with their level | Altoholic's spellbook; without it, an estimate from the Recorder's learn records (spells learned before it: unknown) | no | no API |
+| Character sheet stats (base stats, attack power, crit, hit rating, spell power, mp5, dodge, parry, block), lifetime honorable kills | Altoholic | `/statistics`, `/pvp-summary`: not read | no resistances anywhere: Altoholic doesn't save them |
+| Raid and dungeon lockouts, bosses killed, the weekly reset day | Altoholic | no | no API |
 | Quests done | Polestar Recorder (hand-ins, the game's "done" flags at quest givers); Questie or Altoholic; a reward only one quest gives, worn or held on any gear or bags sheet ever sent; then what the API says you wear now (read live, never kept, only adds quests); and the quests a done one needed first | yes (`/quests/completed`), not read | the history is kept past the API terms' 30 days, so it holds only addon data |
 | `/played` since level 1 | Altoholic | no | no API |
-| Gold, bags, bank | Syndicator, Polestar | no | no API |
+| Gold, bags, bank | Syndicator, Polestar; gold, XP and rested XP of every character at logout also from Altoholic | no | no API |
 | Spec pick, stat weights, tracked upgrades (the gear advice's spec: these first, the talents only as a hint) | Polestar, ForeverLevelingBiS, GearQuestForever | no (they're your settings) | no API |
 | Auction prices | Auctionator scans | no (the project reads no Auction House API) | history: price trends |
 | Legacy points earned | API (`/achievements`: each Legacy challenge is one) | yes, listed | - |
 | Legacy points spent | not shown | no | no addon saves them either |
 | Talent changes, every one | WoWSims Exporter, optional | no (your own file) | history: every change since you installed it |
 | Talent changes, last 3 weeks (without WoWSims Exporter) | API (`/specializations`, each read in vm-wow) | yes, live | - |
-| Reputations | not used | yes, listed | - |
+| Reputations | Polestar Recorder (each change it saw); Altoholic (the standing of every faction, each character it saw logged in, the Recorder's or not) | yes (`/reputations`), not read | history: Altoholic's snapshots are your own data, kept like the rest |
 
 The rule per kind: when an addon sent it, the addon's value is used and
 the API's isn't, even when the exporter read one. When no addon did, the API's fills it. An

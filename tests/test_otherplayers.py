@@ -198,7 +198,8 @@ def test_ingest_endpoint_stores_the_screened_events(run_app, fake_vl):  # noqa: 
 def test_the_two_copies_are_equal(shipper):
     """wowstats/otherplayers.py copies the shipper's allow lists and the
     code that applies them: a change to one is a change to both."""
-    for name in ("KINDS", "REC_DERIVED", "EVENT_BASE", "ANOTHER_PLAYER", "CL_KEYS", "PLAYER_KEYS", "AFFIL_MINE"):
+    for name in ("KINDS", "REC_DERIVED", "EVENT_BASE", "ANOTHER_PLAYER", "CL_KEYS", "PLAYER_KEYS", "AFFIL_MINE",
+                 "ALTO_STATS", "ALTO_KEYS"):
         assert getattr(otherplayers, name) == getattr(shipper, name), name
     for name in ("CL_LINE", "CL_GUID"):
         assert getattr(otherplayers, name).pattern == getattr(shipper, name).pattern, name

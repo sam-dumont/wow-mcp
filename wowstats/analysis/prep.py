@@ -352,12 +352,19 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "max_rank": "cap: the Recorder's newest skill record, else the trainer tier the rank sits under",
         "max_rank_from": "recorder (read in game) or tiers (a floor from the trainer tiers)"}),
     "snapshots": ("The character snapshots the shipper sends at logout and /reload (from the game's saved "
-                  "variables): money, XP and where the hearthstone is bound.", {
+                  "variables): money, XP and where the hearthstone is bound. Polestar's, the roster's, and "
+                  "Altoholic's (DataStore_Characters, for every character logged in with it, the Recorder's or "
+                  "not); an Altoholic save within 2 minutes of another with the same money and level is that "
+                  "snapshot, and only adds its rested XP and subzone.", {
         "t": "unix seconds", "time_local": "ISO time, local (meta.timezone)", "level": "level",
         "xp": "XP into the level", "xp_max": "XP the level needs", "money_copper": "money carried, copper",
         "zone": "zone", "bind": "the inn or place the hearthstone is bound to",
         "resting": "1 when the character was in a rested area (inn or city), 0 when not, NULL when unknown",
-        "online_s_since_prev": "online time (timeline) between the previous snapshot and this one"}),
+        "online_s_since_prev": "online time (timeline) between the previous snapshot and this one",
+        "rested_xp": "rested XP pool, when Altoholic saved it (NULL without Altoholic)",
+        "subzone": "subzone, when Altoholic saved it (NULL without Altoholic)",
+        "source": "polestar, altoholic, the roster's sources (folder, syndicator), or polestar,altoholic when "
+                  "both saved the same logout"}),
     "quests": ("Each quest the log held: its accept paired with its hand-in or abandon (records by quest_id, in "
                "time order), and the online time it took. A quest's time is quest_s: every online second while it "
                "was in the log, shared equally among the quests open then, so the quests' times add up to the "
@@ -425,13 +432,18 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "source_text": "this source in the gear advice's words, as the gear tool says it",
         "source_wowhead": "the source's Wowhead page (the quest, the boss, the craft's spell), when it has one",
         "slot": "the inventory slot 1-19 the gain is measured in (gear.slot): which ring or trinket it replaces"}),
-    "reps": ("Reputation changes, one row per rep record (the character's own reputation; faction names: kb "
-             "tools).", {
+    "reps": ("Reputation changes: one row per rep record (source recorder), and Altoholic's reputation "
+             "snapshots (source altoholic: a faction's first listing and each later move of its points, so a "
+             "character the Recorder never saw has its standings). The character's own reputation; faction "
+             "names: kb tools.", {
         "rec_id": "the rep record", "t": "unix seconds", "time_local": "ISO time, local (meta.timezone)",
         "session_id": "login span", "level": "level then", "zone": "zone then", "faction_id": "the game's faction id",
         "reaction": "reputation tier after it: 1 hated .. 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted",
         "rep_points": "reputation points after it, counted from the start of neutral (the game's own value)",
-        "rep_gained": "the change, points (NULL when the Recorder had no earlier value for the faction)"}),
+        "rep_gained": "the change, points (NULL when the Recorder had no earlier value for the faction; for an "
+                      "altoholic row, the move since the faction's previous Altoholic snapshot, NULL for its first "
+                      "and when recorder rows of the faction fall in between)",
+        "source": "recorder (a rep record) or altoholic (an Altoholic snapshot: rec_id, session_id and zone NULL)"}),
     "offers": ("What a quest giver showed when its window opened (offer records), one row per quest and state. "
                "The quest log the record also carries is left out: it is the log, not the offer (quests).", {
         "rec_id": "the offer record", "t": "unix seconds", "time_local": "ISO time, local (meta.timezone)",
@@ -452,10 +464,44 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "handed_in": "1 when a turnin record of the quest exists, else 0",
         "chosen": "for a choice: 1 picked at the hand-in, 0 another one picked, NULL not handed in or the pick "
                   "unknown; NULL for a reward"}),
-    "spells_known": ("The spells the Recorder saw the character learn (learn records): one row per spell. Spells "
-                     "learned before the Recorder are not here.", {
-        "spell_id": "spell id", "t": "first learned, unix seconds", "time_local": "ISO time, local (meta.timezone)",
-        "level": "level then", "zone": "zone then", "source": "learn (the Recorder's learn record)"}),
+    "spells_known": ("The character's spells: the ones the Recorder saw it learn (learn records), then "
+                     "Altoholic's spellbook (DataStore_Spells), which lists every spell known and the class's "
+                     "spells still to come with the level they open at. Without Altoholic, spells learned before "
+                     "the Recorder are not here.", {
+        "spell_id": "spell id", "t": "first learned (learn), or the spellbook save (altoholic), unix seconds",
+        "time_local": "ISO time, local (meta.timezone)",
+        "level": "level then (learn only)", "zone": "zone then (learn only)",
+        "source": "learn (the Recorder's learn record) or altoholic (Altoholic's newest spellbook)",
+        "known": "1 known, 0 listed for a later level (altoholic only)",
+        "available_level": "for known 0: the level the game opens it at"}),
+    "char_stats": ("The character sheet's stats as Altoholic saved them (DataStore_Stats), one row per save that "
+                   "changed them: base stats, melee, ranged, spell and defense, and the lifetime PvP kills. "
+                   "Empty without Altoholic. No resistances: the addon saves none.", {
+        "t": "the save, unix seconds", "time_local": "ISO time, local (meta.timezone)", "level": "level then",
+        "health_max": "maximum health", "power_type": "0 mana, 1 rage, 3 energy", "power_max": "maximum power",
+        "strength": "strength", "agility": "agility", "stamina": "stamina", "intellect": "intellect (no spirit: "
+        "the addon saves the first four stats)", "armor": "armor",
+        "melee_dmg_min": "main-hand damage, low", "melee_dmg_max": "main-hand damage, high",
+        "melee_speed": "attack speed, s", "melee_ap": "attack power", "melee_hit_rating": "hit rating (0 on most "
+        "Classic-era gear: hit is a percent there)", "melee_crit_pct": "melee crit chance, percent",
+        "expertise": "expertise", "ranged_dmg_min": "ranged damage, low", "ranged_dmg_max": "ranged damage, high",
+        "ranged_speed": "ranged speed, s", "ranged_ap": "ranged attack power", "ranged_hit_rating": "ranged hit "
+        "rating", "ranged_crit_pct": "ranged crit chance, percent", "spell_bonus_dmg": "spell damage bonus",
+        "spell_bonus_heal": "healing bonus", "spell_hit_rating": "spell hit rating", "spell_crit_pct": "spell "
+        "crit chance, percent", "spell_haste_rating": "spell haste rating", "mp5": "mana regen per 5 s",
+        "dodge_pct": "dodge chance, percent", "parry_pct": "parry chance, percent", "block_pct": "block chance, "
+        "percent", "resilience": "resilience", "honorable_kills": "lifetime honorable kills",
+        "dishonorable_kills": "lifetime dishonorable kills", "source": "altoholic"}),
+    "lockouts": ("Raid and dungeon lockouts as Altoholic saved them (DataStore_Agenda), one row per lockout "
+                 "(instance and reset time), with its bosses. Empty without Altoholic, and until the character "
+                 "has a lockout.", {
+        "instance": "instance name (with the difficulty when above normal)", "instance_id": "the game's "
+        "lockout id", "raid": "1 raid, 0 dungeon", "extended": "1 when extended", "scan_t": "the newest save "
+        "that listed it, unix s", "expires_t": "when the lockout resets, unix s", "expires_local": "the same, "
+        "local time", "active": "1 when it hadn't reset when the database was built",
+        "bosses_killed": "bosses killed in it", "bosses_total": "bosses the game lists for it",
+        "bosses": "JSON list of [boss, 1 killed / 0 not]", "weekly_reset_day": "the account's weekly reset day "
+        "(0 Sunday .. 6 Saturday)", "weekly_reset_hour": "its hour", "source": "altoholic"}),
     "flight_nodes": ("Flight paths: the nodes the game listed as known each time the flight map opened "
                      "(flightmaster records), and the flights from and to each. Node names: kb tools.", {
         "node_id": "the game's taxi node id", "first_known_t": "first flight map that listed it, unix seconds",
@@ -835,7 +881,10 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     _offers(db)
     _quest_text(db)
     _quest_rewards(db)
-    _spells_known(db)
+    _spells_known(db, rows)
+    _altoholic_reps(db, rows)
+    _char_stats(db, rows)
+    _lockouts(db, rows, now)
     _flight_nodes(db)
     _achievements(db)
     if rows:  # forever-db's chains, for a character the stores know
@@ -903,7 +952,8 @@ def _schema(db: sqlite3.Connection) -> None:
         item_id INTEGER, name TEXT, quality INTEGER, item_level INTEGER, req_level INTEGER);
     CREATE TABLE professions (skill_id INTEGER, name TEXT, rank INTEGER, max_rank INTEGER, max_rank_from TEXT);
     CREATE TABLE snapshots (t REAL, time_local TEXT, level INTEGER, xp INTEGER, xp_max INTEGER,
-        money_copper INTEGER, zone TEXT, bind TEXT, resting INTEGER, online_s_since_prev REAL);
+        money_copper INTEGER, zone TEXT, bind TEXT, resting INTEGER, online_s_since_prev REAL, rested_xp INTEGER,
+        subzone TEXT, source TEXT);
     CREATE TABLE upgrade_candidates (item_id INTEGER, name TEXT, quality INTEGER, slot_name TEXT, gain REAL,
         gain_share_pct REAL, req_level INTEGER, now INTEGER, fills_empty INTEGER, with_item_id INTEGER,
         source_kind TEXT, instance TEXT, instance_min_level INTEGER, instance_max_level INTEGER, zone TEXT, boss TEXT,
@@ -920,14 +970,25 @@ def _schema(db: sqlite3.Connection) -> None:
         money_before INTEGER, money_after INTEGER, delta_copper INTEGER, quest_copper INTEGER,
         other_copper INTEGER, dings INTEGER, online_s REAL);
     CREATE TABLE reps (rec_id INTEGER, t REAL, time_local TEXT, session_id INTEGER, level INTEGER, zone TEXT,
-        faction_id INTEGER, reaction INTEGER, rep_points INTEGER, rep_gained INTEGER);
+        faction_id INTEGER, reaction INTEGER, rep_points INTEGER, rep_gained INTEGER, source TEXT);
     CREATE TABLE offers (rec_id INTEGER, t REAL, time_local TEXT, level INTEGER, zone TEXT, subzone TEXT,
         npc_kind TEXT, npc_id INTEGER, quest_id INTEGER, state TEXT);
     CREATE TABLE quest_text (quest_id INTEGER PRIMARY KEY, t REAL, title TEXT, objective TEXT, text TEXT);
     CREATE TABLE quest_rewards (quest_id INTEGER, item_id INTEGER, count INTEGER, kind TEXT, handed_in INTEGER,
         chosen INTEGER);
     CREATE TABLE spells_known (spell_id INTEGER PRIMARY KEY, t REAL, time_local TEXT, level INTEGER, zone TEXT,
-        source TEXT);
+        source TEXT, known INTEGER, available_level INTEGER);
+    CREATE TABLE char_stats (t REAL, time_local TEXT, level INTEGER, health_max INTEGER, power_type INTEGER,
+        power_max INTEGER, strength INTEGER, agility INTEGER, stamina INTEGER, intellect INTEGER, armor INTEGER,
+        melee_dmg_min INTEGER, melee_dmg_max INTEGER, melee_speed REAL, melee_ap INTEGER, melee_hit_rating INTEGER,
+        melee_crit_pct REAL, expertise INTEGER, ranged_dmg_min INTEGER, ranged_dmg_max INTEGER, ranged_speed REAL,
+        ranged_ap INTEGER, ranged_hit_rating INTEGER, ranged_crit_pct REAL, spell_bonus_dmg INTEGER,
+        spell_bonus_heal INTEGER, spell_hit_rating INTEGER, spell_crit_pct REAL, spell_haste_rating INTEGER,
+        mp5 INTEGER, dodge_pct REAL, parry_pct REAL, block_pct REAL, resilience INTEGER, honorable_kills INTEGER,
+        dishonorable_kills INTEGER, source TEXT);
+    CREATE TABLE lockouts (instance TEXT, instance_id INTEGER, raid INTEGER, extended INTEGER, scan_t REAL,
+        expires_t REAL, expires_local TEXT, active INTEGER, bosses_killed INTEGER, bosses_total INTEGER,
+        bosses TEXT, weekly_reset_day INTEGER, weekly_reset_hour INTEGER, source TEXT);
     CREATE TABLE flight_nodes (node_id INTEGER PRIMARY KEY, first_known_t REAL, first_known_local TEXT,
         known_now INTEGER, opened_here INTEGER, flights_from INTEGER, flights_to INTEGER);
     CREATE TABLE attunement_steps (attunement TEXT, faction TEXT, step INTEGER, quest_id INTEGER, quest_name TEXT,
@@ -1172,19 +1233,47 @@ def _gear(db, rows) -> None:
                     for p in profcaps.fill([p for p in profs if isinstance(p, dict)], skills)])
 
 
+# Altoholic's sheet (DataStore_Characters) is saved at the same logout as
+# Polestar's: within this many seconds, with the same money and level, it is
+# the same snapshot, and only adds what Polestar's lacks (rested XP, the
+# subzone). Alone (no Polestar, or a logout Polestar didn't save), it is a
+# snapshot of its own.
+SAME_SNAPSHOT_S = 120
+
+
 def _snapshots(db, rows) -> None:
     snaps = sorted((r for r in rows if r.get("feed") == "wow-character" and r.get("kind") != "played"
                     and _int(r.get("money_copper")) is not None), key=lambda r: r["_t"])
-    out, prev = [], None
+    alto = [r for r in snaps if r.get("source") == "altoholic"]
+    snaps = [r for r in snaps if r.get("source") != "altoholic"]
+    kept: list[dict] = []
     for r in snaps:
+        if kept and r["_t"] == kept[-1]["_t"]:
+            continue
+        kept.append({**r, "source": r.get("source") or "polestar"})
+    for a in alto:
+        twin = next((k for k in kept if abs(k["_t"] - a["_t"]) <= SAME_SNAPSHOT_S and k.get("source") != "altoholic"
+                     and _int(k.get("money_copper")) == _int(a.get("money_copper"))
+                     and _int(k.get("level")) == _int(a.get("level"))), None)
+        if twin is None:
+            kept.append(a)
+            continue
+        for f in ("rested_xp", "subzone", "bind", "xp", "xp_max", "zone"):
+            if twin.get(f) in (None, "") and a.get(f) not in (None, ""):
+                twin[f] = a[f]
+        twin["source"] = f"{twin['source']},altoholic"
+    kept.sort(key=lambda r: r["_t"])
+    out, prev = [], None
+    for r in kept:
         if prev is not None and r["_t"] == prev:
             continue
         rest = _on(r.get("resting"))
         out.append((r["_t"], _iso(r["_t"], TZ), _int(r.get("level")), _int(r.get("xp")), _int(r.get("xp_max")),
                     _int(r.get("money_copper")), r.get("zone"), r.get("bind"), rest,
-                    _online(db, prev, r["_t"]) if prev is not None else None))
+                    _online(db, prev, r["_t"]) if prev is not None else None, _int(r.get("rested_xp")),
+                    r.get("subzone"), r.get("source")))
         prev = r["_t"]
-    db.executemany("INSERT INTO snapshots VALUES (?,?,?,?,?,?,?,?,?,?)", out)
+    db.executemany("INSERT INTO snapshots VALUES (" + ",".join("?" * 13) + ")", out)
 
 
 def _quests(db, done: dict[int, dict] | None = None) -> None:
@@ -1404,8 +1493,8 @@ def _reps(db) -> None:
         fid = _int(e.get("faction_id"))
         if fid is not None:
             out.append((rec_id, t, tl, s, lv, z, fid, _int(e.get("reaction")), _int(e.get("standing")),
-                        _int(e.get("rep_gained"))))
-    db.executemany("INSERT INTO reps VALUES (?,?,?,?,?,?,?,?,?,?)", out)
+                        _int(e.get("rep_gained")), "recorder"))
+    db.executemany("INSERT INTO reps VALUES (?,?,?,?,?,?,?,?,?,?,?)", out)
 
 
 OFFER_STATES = (("quests_available", "available"), ("quests_active", "active"), ("quests_done", "done"),
@@ -1452,12 +1541,123 @@ def _quest_rewards(db) -> None:
     db.executemany("INSERT INTO quest_rewards VALUES (?,?,?,?,?,?)", out)
 
 
-def _spells_known(db) -> None:
+def _alto(rows, kind: str) -> list[dict]:
+    """Altoholic's events of one kind (the shipper's wow-altoholic feed), oldest first."""
+    return [r for r in rows if r.get("feed") == "wow-altoholic" and r.get("kind") == kind]
+
+
+def _json_list(v) -> list:
+    """A list field as an event carries it: a list, or the JSON string the
+    store makes of a nested value."""
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            return []
+    return v if isinstance(v, list) else []
+
+
+def _level_then(db, t: float):
+    """The character's level at t: the newest record at or before it, else the first after."""
+    row = (db.execute("SELECT level FROM records WHERE level IS NOT NULL AND t <= ? ORDER BY t DESC LIMIT 1",
+                      (t,)).fetchone()
+           or db.execute("SELECT level FROM snapshots WHERE level IS NOT NULL AND t <= ? ORDER BY t DESC LIMIT 1",
+                         (t,)).fetchone())
+    return row[0] if row else None
+
+
+def _spells_known(db, rows=()) -> None:
+    """The Recorder's learn records, then Altoholic's newest spellbook: every
+    spell it lists known that the Recorder didn't see learned (learned
+    before it, or with it off), and every spell it lists for a later level
+    (known 0, available_level the level the game gives)."""
     out: dict[int, tuple] = {}
     for _r, t, tl, _s, lv, z, _sz, _n, _q, _i, sp, _k, _e in _of(db, "learn"):
         if sp is not None and sp not in out:
-            out[sp] = (sp, t, tl, lv, z, "learn")
-    db.executemany("INSERT INTO spells_known VALUES (?,?,?,?,?,?)", list(out.values()))
+            out[sp] = (sp, t, tl, lv, z, "learn", 1, None)
+    book = _alto(rows, "spells")
+    if book:
+        r = book[-1]
+        for pair in _json_list(r.get("spells")):
+            if not isinstance(pair, list) or len(pair) != 2:
+                continue
+            sp, lvl = _int(pair[0]), _int(pair[1])
+            if sp is None or lvl is None or sp in out:
+                continue
+            out[sp] = (sp, r["_t"], _iso(r["_t"], TZ), None, None, "altoholic", 1 if lvl == 0 else 0, lvl or None)
+    db.executemany("INSERT INTO spells_known VALUES (?,?,?,?,?,?,?,?)", list(out.values()))
+
+
+def _altoholic_reps(db, rows) -> None:
+    """Altoholic's reputation snapshots into reps (source altoholic): a row
+    for a faction the first time a snapshot lists it and each time its
+    points move. rep_gained is the move since the faction's previous
+    snapshot, NULL for its first, and NULL when the Recorder saw the faction
+    change in between (its own rows already count those points)."""
+    last: dict[int, tuple] = {}
+    out = []
+    for r in _alto(rows, "reps"):
+        t = r["_t"]
+        for f in _json_list(r.get("factions")):
+            if not isinstance(f, list) or len(f) != 3:
+                continue
+            fid, reaction, pts = (_int(x) for x in f)
+            if fid is None or reaction is None or pts is None:
+                continue
+            prev = last.get(fid)
+            if prev is not None and prev[1] == pts:
+                continue
+            gained = None
+            if prev is not None and not db.execute(
+                    "SELECT 1 FROM reps WHERE source = 'recorder' AND faction_id = ? AND t > ? AND t <= ? LIMIT 1",
+                    (fid, prev[0], t)).fetchone():
+                gained = pts - prev[1]
+            last[fid] = (t, pts)
+            out.append((None, t, _iso(t, TZ), None, _level_then(db, t), None, fid, reaction, pts, gained,
+                        "altoholic"))
+    db.executemany("INSERT INTO reps VALUES (?,?,?,?,?,?,?,?,?,?,?)", out)
+
+
+CHAR_STATS = ("health_max", "power_type", "power_max", "strength", "agility", "stamina", "intellect", "armor",
+              "melee_dmg_min", "melee_dmg_max", "melee_speed", "melee_ap", "melee_hit_rating", "melee_crit_pct",
+              "expertise", "ranged_dmg_min", "ranged_dmg_max", "ranged_speed", "ranged_ap", "ranged_hit_rating",
+              "ranged_crit_pct", "spell_bonus_dmg", "spell_bonus_heal", "spell_hit_rating", "spell_crit_pct",
+              "spell_haste_rating", "mp5", "dodge_pct", "parry_pct", "block_pct", "resilience",
+              "honorable_kills", "dishonorable_kills")
+_REAL_STATS = {"melee_speed", "melee_crit_pct", "ranged_speed", "ranged_crit_pct", "spell_crit_pct", "dodge_pct",
+               "parry_pct", "block_pct"}
+
+
+def _char_stats(db, rows) -> None:
+    """Altoholic's character sheet stats, one row per save that changed them."""
+    out = []
+    for r in _alto(rows, "stats"):
+        vals = [(_flt(r.get(k)) if k in _REAL_STATS else _int(r.get(k))) for k in CHAR_STATS]
+        out.append((r["_t"], _iso(r["_t"], TZ), _level_then(db, r["_t"]), *vals, "altoholic"))
+    db.executemany(f"INSERT INTO char_stats VALUES ({','.join('?' * (len(CHAR_STATS) + 4))})", out)
+
+
+def _lockouts(db, rows, now: datetime | None) -> None:
+    """Altoholic's saved instances, one row per lockout (instance and its
+    reset time), as its newest save lists it; active while it hasn't
+    expired at build time."""
+    now_t = (now or datetime.now(UTC)).timestamp()
+    seen: dict[tuple, tuple] = {}
+    for r in _alto(rows, "lockouts"):
+        day, hour = _int(r.get("weekly_reset_day")), _int(r.get("weekly_reset_hour"))
+        for lo in _json_list(r.get("lockouts")):
+            if not isinstance(lo, dict):
+                continue
+            iid, exp = _int(lo.get("instance_id")), _flt(lo.get("expires"))
+            if iid is None or exp is None:
+                continue
+            bosses = [b for b in (lo.get("bosses") or []) if isinstance(b, list) and len(b) == 2]
+            seen[(iid, lo.get("instance"), exp)] = (
+                lo.get("instance"), iid, _int(lo.get("raid")), _int(lo.get("extended")), r["_t"], exp,
+                _iso(exp, TZ), 1 if exp > now_t else 0, sum(1 for b in bosses if _int(b[1]) == 1), len(bosses),
+                json.dumps(bosses, ensure_ascii=False), day, hour, "altoholic")
+    db.executemany(f"INSERT INTO lockouts VALUES ({','.join('?' * 14)})",
+                   sorted(seen.values(), key=lambda x: (x[5], x[1])))
 
 
 def _flight_nodes(db) -> None:

@@ -268,13 +268,27 @@
       "name": "Altoholic",
       "required": false,
       "url": "https://www.curseforge.com/wow/addons/altoholic",
-      "what": "your full /played from level 1, the quests you finished before Polestar, and the recipes you know",
+      "what": "your full /played from level 1, the quests you finished before Polestar, the recipes and spells you know, and the reputations, stats, lockouts, money and XP of every character",
       "step": "Install it, then log in once with each character.",
       "then": "Log in once with each character.",
       "source": "curseforge",
       "note": null,
       "dir": "Altoholic",
-      "feeds": ["played", "quests:altoholic"]
+      "feeds": ["played", "quests:altoholic", "wow-altoholic"],
+      "adds": [
+        "Your spellbook: every spell you know and the ones still to come, with their level. Without it, the class trainer list is an estimate from the spells the Recorder saw you learn.",
+        "Reputations, even for characters the Recorder never saw. Without it, only the changes the Recorder saw.",
+        "Your character sheet stats (base stats, crit, hit rating, mp5, dodge) and your lifetime honorable kills. No resistances: Altoholic doesn't save them.",
+        "Raid and dungeon lockouts, with the bosses killed and the reset day. They fill once you have one.",
+        "Money, XP and rested XP of every character at each logout, and where its hearthstone is bound.",
+        "Your full /played from level 1, the quests you did before Polestar, and the recipes you know."
+      ],
+      "adds_note": "Nothing breaks without it: each of these falls back to the Recorder, Polestar or the class reference, and says so. It is all your own game data, so it stays as long as the rest of your history.",
+      "never": "Never read: your friends list, the calendar, your guild, its bank and its members' gear, your mail (senders, subjects, bodies) and your auctions' bidders.",
+      "settings": [
+        "Altoholic sends your average item level to your guild at each login (on by default). To stop it: in Altoholic's options, DataStore_Inventory, untick \"Broadcast my average item level to guild at logon\".",
+        "Altoholic reads the body of every mail when you open the mailbox, which marks them all read (on by default). To stop it: in Altoholic's options, DataStore_Mails, untick \"Scan mail body (marks it as read)\". wow-stats reads none of your mail either way."
+      ]
     },
     {
       "id": "questie",

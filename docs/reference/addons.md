@@ -12,9 +12,27 @@ wow-stats never ships an addon of its own. It reads the files well-known addons 
 | [Polestar Recorder](https://github.com/fitzforge/polestar/releases/latest) | required | your play sessions, zone by zone | The install command adds it: type /psrec on once in game. | `Polestar_Recorder` | play sessions, zones, deaths and loot |
 | [Syndicator](https://www.curseforge.com/wow/addons/syndicator) | optional | gear and gold on every character | Install it, then log in once with each character. | `Syndicator` | your gear and bags |
 | [Auctionator](https://www.curseforge.com/wow/addons/auctionator) | optional | prices from your own auction house scans | Install it, then scan the auction house once. | `Auctionator` | auction prices |
-| [Altoholic](https://www.curseforge.com/wow/addons/altoholic) | optional | your full /played from level 1, the quests you finished before Polestar, and the recipes you know | Install it, then log in once with each character. | `Altoholic` | quests you did before installing |
+| [Altoholic](https://www.curseforge.com/wow/addons/altoholic) | optional | your full /played from level 1, the quests you finished before Polestar, the recipes and spells you know, and the reputations, stats, lockouts, money and XP of every character | Install it, then log in once with each character. | `Altoholic` | quests you did before installing |
 | [Questie](https://www.curseforge.com/wow/addons/questie) | optional | the quests you finished before Polestar (Altoholic does it too: one of the two is enough) | Install it, then log in once with each character. | `Questie` | quests you did before installing |
 | [WoWSims Exporter](https://www.curseforge.com/wow/addons/wowsims-exporter) | optional | every talent change, for your full talent history (without it: the last 3 weeks) | Install it, then tick it in the AddOns list at character select: it starts switched off. | `WowSimsExporter` | no section of its own |
+
+## What Altoholic adds
+
+- Your spellbook: every spell you know and the ones still to come, with their level. Without it, the class trainer list is an estimate from the spells the Recorder saw you learn.
+- Reputations, even for characters the Recorder never saw. Without it, only the changes the Recorder saw.
+- Your character sheet stats (base stats, crit, hit rating, mp5, dodge) and your lifetime honorable kills. No resistances: Altoholic doesn't save them.
+- Raid and dungeon lockouts, with the bosses killed and the reset day. They fill once you have one.
+- Money, XP and rested XP of every character at each logout, and where its hearthstone is bound.
+- Your full /played from level 1, the quests you did before Polestar, and the recipes you know.
+
+Nothing breaks without it: each of these falls back to the Recorder, Polestar or the class reference, and says so. It is all your own game data, so it stays as long as the rest of your history.
+
+Never read: your friends list, the calendar, your guild, its bank and its members' gear, your mail (senders, subjects, bodies) and your auctions' bidders.
+
+### Two Altoholic settings to check
+
+- Altoholic sends your average item level to your guild at each login (on by default). To stop it: in Altoholic's options, DataStore_Inventory, untick "Broadcast my average item level to guild at logon".
+- Altoholic reads the body of every mail when you open the mailbox, which marks them all read (on by default). To stop it: in Altoholic's options, DataStore_Mails, untick "Scan mail body (marks it as read)". wow-stats reads none of your mail either way.
 
 ## With the CurseForge app (recommended)
 

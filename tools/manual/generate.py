@@ -357,6 +357,15 @@ def addons_page() -> str:
               rows),
         "",
     ]
+    for a in st["addons"]:
+        if not a.get("adds"):
+            continue
+        out += [f"## What {a['name']} adds", ""] + [f"- {text(x)}" for x in a["adds"]] + [""]
+        for x in (a.get("adds_note"), a.get("never")):
+            if x:
+                out += [text(x), ""]
+        if a.get("settings"):
+            out += [f"### Two {a['name']} settings to check", ""] + [f"- {text(x)}" for x in a["settings"]] + [""]
     for key in ("app", "manual"):
         r = routes.get(key)
         if r:

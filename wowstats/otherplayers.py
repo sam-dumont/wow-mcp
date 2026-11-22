@@ -13,6 +13,11 @@ shipper builds its events that way since 0.7.0; this screens the events a
 - `wow-player`: what the People tab, the journal and the MCP read
   (PLAYER_KEYS); `player_realm` and `map_id` are dropped.
 
+- `wow-altoholic` (0.7.0+), and `wow-character` snapshots of source
+  `altoholic`: their kind's fields (ALTO_KEYS) only. Altoholic's friends
+  list, calendar, guild and mail tables are never read by the shipper; a
+  shipper that sent any of it anyway has it dropped here.
+
 Every other feed passes unchanged. The constants and functions below are
 copies of the shipper's (shipper/wow_stats.py, a standalone stdlib script):
 tests/test_otherplayers.py keeps them equal, so change both.
@@ -144,6 +149,23 @@ def cl_fields(event: str, cols: list[str], mine: set[str]) -> dict:
     return ev
 
 
+# Altoholic's modules: shipper/wow_stats.py ALTO_STATS, ALTO_KEYS.
+ALTO_STATS = ("health_max", "power_type", "power_max", "strength", "agility", "stamina", "intellect", "armor",
+              "melee_dmg_min", "melee_dmg_max", "melee_speed", "melee_ap", "melee_hit_rating", "melee_crit_pct",
+              "expertise", "ranged_dmg_min", "ranged_dmg_max", "ranged_speed", "ranged_ap", "ranged_hit_rating",
+              "ranged_crit_pct", "spell_bonus_dmg", "spell_bonus_heal", "spell_hit_rating", "spell_crit_pct",
+              "spell_haste_rating", "mp5", "dodge_pct", "parry_pct", "block_pct", "resilience",
+              "honorable_kills", "dishonorable_kills")
+ALTO_KEYS = {
+    "spells": frozenset({"source", "at_basis", "class", "spells", "known", "future"}),
+    "reps": frozenset({"source", "at_basis", "factions", "n"}),
+    "stats": frozenset({"source", "at_basis", *ALTO_STATS}),
+    "lockouts": frozenset({"source", "at_basis", "lockouts", "n", "weekly_reset_day", "weekly_reset_hour"}),
+    "sheet": frozenset({"source", "at_basis", "level", "xp", "xp_max", "rested_xp", "money_copper", "zone",
+                        "subzone", "bind", "logged_out"}),
+}
+
+
 def _folder(name: str) -> str:
     return unicodedata.normalize("NFC", name.strip()).replace(" ", "-")
 
@@ -176,6 +198,11 @@ def allowed(ev):
             if "zone" in ev and "zone" not in fields:
                 fields["zone"] = ev["zone"]
             ev = {**ev, **fields}
+    elif feed == "wow-altoholic":
+        kind = ev.get("kind")
+        keys = ALTO_KEYS.get(kind, frozenset()) if isinstance(kind, str) and kind != "sheet" else frozenset()
+    elif feed == "wow-character" and ev.get("source") == "altoholic" and "kind" not in ev:
+        keys = ALTO_KEYS["sheet"]
     else:
         return ev
     return {k: v for k, v in ev.items() if k in EVENT_BASE or k in keys}
