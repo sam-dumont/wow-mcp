@@ -221,7 +221,12 @@ opens or edits its PR with the gates' verdict, and:
   issue says so): merge it or close it, and the next run starts again.
 
 **The run is red unless its PR merged:** a refusal, a failed required
-check, a conflict with main, or no merge within 45 minutes. The owner's
+check, a conflict with main, or no merge within 45 minutes. A watch run is
+also red when a change it saw didn't land: a kind the job's own checks
+refused (a Polestar release whose routes moved, say) keeps its `kb-watch`
+issue, and that issue alone reached nobody (Polestar v0.4.2.1, 2026-11-22).
+A refused Polestar bump puts the tree and the Polestar checkout back at the
+known tag, so the other kinds in the PR are gated against what main has. The owner's
 scheduler waits for each run it starts and fails when the run does, which
 raises the lab's usual alert (two red runs in a row: `CronJobNotSucceeding`
 on Slack and the phone). A PR left open by a red run is picked up by the

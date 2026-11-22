@@ -53,6 +53,7 @@ POLESTAR_TOC = "addon/Polestar/Polestar.toc"
 LICENCE = re.compile(r"(^|/)(LICEN[CS]E|NOTICE|COPYING)[^/]*$", re.I)
 NAME = re.compile(r"[A-Za-z0-9_]+")
 SAFE = re.compile(r"[^\w./+ -]")
+PLAIN = re.compile(r"[^\w./+ :,=-]")  # a tool's last line in an issue: no markup
 # A line that names one of these is about the terms: any change to it needs a person.
 LICENCE_TERMS = re.compile(r"licen[cs]|copyright|\(c\)|©|\bgpl|\bmit\b|\bbsd|apache|\bmpl|\bcc\b|cc[ -]by|"
                            r"creative commons|public domain|rights|permission|warrant|trademark", re.I)
@@ -221,9 +222,21 @@ def regen(old: str = "", new: str = "", root: Path = ROOT) -> list[str]:
         return {n: (root / n).read_bytes() for n in names if (root / n).is_file()}
 
     before = tracked()
-    subprocess.run(["uv", "run", "--frozen", "python", "tools/fixtures/generate.py"], cwd=root, check=True)
-    subprocess.run(["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_layer_pages.py"],
-                   cwd=root, check=True, env={**os.environ, "WOW_UPDATE_SNAPSHOT": "1"})
+    # A generator that stops on the new data is a refusal like any other, with
+    # its last line as the reason (2026-11-22, v0.4.2.1: a traceback, no reason,
+    # and the issue said the run had stopped).
+    for what, cmd, env in (
+            ("tools/fixtures/generate.py", ["uv", "run", "--frozen", "python", "tools/fixtures/generate.py"], None),
+            ("the layer pages' snapshot (tests/test_layer_pages.py)",
+             ["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_layer_pages.py"],
+             {**os.environ, "WOW_UPDATE_SNAPSHOT": "1"})):
+        try:
+            subprocess.run(cmd, cwd=root, check=True, env=env, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            sys.stderr.write((e.stdout or "")[-3000:] + (e.stderr or "")[-3000:])
+            last = ((e.stderr or "").strip() or (e.stdout or "").strip() or f"exit {e.returncode}").splitlines()[-1]
+            last = PLAIN.sub("", last)[:200]
+            return [f"{what} failed on the new data ({last}): what it derives moved, a person reads it"]
     after = tracked()
     moved = [n for n in sorted(after) if after[n] != before.get(n)
              and _normal(after[n], [old, new]) != _normal(before.get(n, b""), [old, new])]
