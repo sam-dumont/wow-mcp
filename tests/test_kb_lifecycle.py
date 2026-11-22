@@ -320,3 +320,19 @@ def test_a_page_unchanged_since_it_held_is_reverified_without_the_model():
     r = lifecycle.run(t, TODAY, Fetch({GUIDE: (200, b"<main>Rewritten guide</main>")}), client,
                       refresh.Meter(3.0), memo)
     assert len(client.prompts) == 1 and r["unchanged"] == []
+
+
+def test_a_page_that_failed_to_load_moves_no_hash_and_no_date():
+    """Codex review, 2026-11-22: a failed read is never an empty or unchanged
+    one. A 503 keeps the memo's hash and every last_verified, with no call."""
+    body = b"<main>Dungeon guide text</main>"
+    memo = {}
+    client = Client([{"id": i, "verdict": "holds", "why": ""} for i in ("d:holds", "d:wrong", "d:unsure")])
+    lifecycle.run(stale_tree(), TODAY, Fetch({GUIDE: (200, body)}), client, refresh.Meter(3.0), memo)
+    before = copy.deepcopy(memo)
+    t = stale_tree()
+    client = Client([])
+    r = lifecycle.run(t, TODAY, Fetch({GUIDE: (503, b"")}), client, refresh.Meter(3.0), memo)
+    assert client.prompts == [] and memo == before and r["unchanged"] == [] and r["reverified"] == []
+    assert sorted(r["unverified"]) == ["d:gone", "d:holds", "d:unsure", "d:wrong"]
+    assert all(s["last_verified"] == "2026-05-01" for s in t["lanes"]["dungeons"]["statements"][:4])

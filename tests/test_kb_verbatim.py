@@ -103,7 +103,10 @@ class Fetch:
 
 def test_the_refresh_pass_rewrites_a_copy_once_then_drops_it():
     state = json.loads((KB / "watch.json").read_text(encoding="utf-8"))
-    page = f"<html><body><article><p>{SOURCE}</p></article></body></html>".encode()
+    # Over 200 characters of text: a shorter body is an error page to the
+    # watcher and the pass (web.official_version), never read.
+    page = (f"<html><body><article><p>{SOURCE}</p><p>Hotfixes, November 19, 2026. More notes follow "
+            "once the realms restart.</p></article></body></html>").encode()
     copy_a = "Dungeon mobs now give no experience once they are trivial to the highest level player in the party."
     copy_b = "Fixed: dungeon mobs now give no experience once they are trivial to the highest level player."
     answers = [

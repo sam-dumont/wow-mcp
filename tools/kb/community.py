@@ -344,10 +344,13 @@ def shown(doc: dict) -> set[str]:
 
 def run(fetch, client, cap: float, today: date, searches: list[str] | None = None,
         seen: set[str] | None = None, last: list[str] | None = None) -> tuple[list[dict], dict]:
-    """This week's items and what happened (spent, searches, notes). `seen`:
+    """This week's items and what happened (spent, searches, notes; `searched`:
+    the searches to record as run, only when the model answered). `seen`:
     threads shown in an earlier week, left out of the model's input; `last`:
     the searches the model ran last time. No new thread and the same
-    searches: no model call (2026-11-22: the model reads only what changed)."""
+    searches: no model call (2026-11-22: the model reads only what changed).
+    A model that stopped or ran out of budget ran nothing: `last` stays, so
+    the next run searches again instead of skipping (Codex review, 2026-11-22)."""
     since = (today - timedelta(days=7)).isoformat()
     threads, notes = forum_threads(fetch, since)
     threads = [t for t in threads if t["id"] not in (seen or set())]
@@ -356,8 +359,9 @@ def run(fetch, client, cap: float, today: date, searches: list[str] | None = Non
         return pick([{k: v for k, v in t.items() if k != "excerpt"} | {"text": None} for t in threads], []), {
             "model": "skipped (no ANTHROPIC_* credentials): forum titles only, no Reddit", "notes": notes}
     if not threads and last is not None and list(searches) == list(last):
-        return [], {"model": "skipped: no new forum thread and the same Reddit searches as last time",
-                    "notes": notes}
+        # A forum that failed to load is retried next run; no thread from it is "none new".
+        why = "no forum thread read" if notes else "no new forum thread"
+        return [], {"model": f"skipped: {why} and the same Reddit searches as last time", "notes": notes}
     meter = refresh.Meter(cap)
     try:
         answer, results = ask(client, meter, threads, searches)
@@ -366,7 +370,10 @@ def run(fetch, client, cap: float, today: date, searches: list[str] | None = Non
         notes.append(str(e))
     items = merge(answer, threads, results, since)
     refresh.step_summary(meter, "Community (tools/kb/community.py)")
-    return items, {"spent_usd": round(meter.spent, 4), "searches": searches, "results": len(results), "notes": notes}
+    if not answer:
+        notes.append("the model gave no answer: the searches run again next time")
+    return items, {"spent_usd": round(meter.spent, 4), "searches": searches, "searched": searches if answer else None,
+                   "results": len(results), "notes": notes}
 
 
 def has_model(env=os.environ) -> bool:
@@ -399,7 +406,7 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError):
         before, doc = "", {}
     items, out = run(web.Fetcher(), client, cap, today, seen=shown(doc), last=doc.get("searched"))
-    after = json.dumps(update(doc, items, today, out.get("searches")), indent=1, ensure_ascii=False) + "\n"
+    after = json.dumps(update(doc, items, today, out.get("searched")), indent=1, ensure_ascii=False) + "\n"
     changed = after != before
     if changed:
         path.write_text(after, encoding="utf-8")

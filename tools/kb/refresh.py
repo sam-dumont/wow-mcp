@@ -4,6 +4,7 @@ pages the watcher saw change. Its output goes through the refresh job's gates
 
     uv run --group kb python tools/kb/refresh.py hotfixes known-issues
     uv run python tools/kb/refresh.py --dry-run hotfixes     # the prompt, no model call
+    uv run --group kb python tools/kb/refresh.py --handoff read.json hotfixes  # then watch.py --accept official
 
 For each changed page (a key of data/kb/watch.json's `official`), the page's
 text and the KB statements that already cite an official source go to Claude
@@ -14,6 +15,13 @@ confidence at the domain's (data/kb/sources.json), and refuses what
 wowstats.analysis.kbschema refuses. The result is written to
 data/kb/research/refresh-<date>.json, a lane like the imported ones; the
 workflow opens the PR with it.
+
+A page counts as read only once every fetch it needs came back and the model
+answered: a thread whose new post failed to load (a 503, a timeout) stays
+pending, never "nothing new". `--handoff` writes each read page's version as
+fetched for this pass (web.official_version), and `watch.py --accept official
+--handoff` records exactly that, so the checkpoint can't move past a post
+the model never saw (Codex review, 2026-11-22).
 
 Cost cap: KB_REFRESH_MAX_USD (default 3), checked before each call against
 what the calls so far cost: the run stops before a call that would likely
@@ -229,9 +237,12 @@ def call(client, meter: Meter, system: str, schema: dict, content: str, what: st
     return got if whole else got.get("statements") or []
 
 
-def ask(client, meter: Meter, page_url: str, text: str, known: list[dict], cache: bool = False) -> list[dict]:
-    return call(client, meter, SYSTEM, SCHEMA, page_block(page_url, text), page_url, prefix=known_block(known),
-                cache=cache)
+def ask(client, meter: Meter, page_url: str, text: str, known: list[dict], cache: bool = False) -> list[dict] | None:
+    """The model's proposals for one page; None when it stopped without an
+    answer (refusal, max_tokens): the page wasn't read."""
+    got = call(client, meter, SYSTEM, SCHEMA, page_block(page_url, text), page_url, prefix=known_block(known),
+               cache=cache, whole=True)
+    return got.get("statements") or [] if "statements" in got else None
 
 
 def reword(client, meter: Meter, copies: list[dict], source: str | list[str]) -> list[str]:
@@ -304,22 +315,22 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None, stat
     watched = {p["key"]: p for p in state["official"]}
     cache = sum(k in watched for k in keys) >= CACHE_MIN_PAGES
     statements, refused, skipped, read = [], [], [], []
+    versions: dict[str, str] = {}  # what each read page was when read: the accept step records these
     for key in keys:
         p = watched.get(key)
         if p is None:
             skipped.append(f"{key}: not a watched page")
             continue
         page_url = p.get("page") or p["url"]
-        status, body = fetch.get(p["url"])
-        if status != 200:
-            skipped.append(f"{key}: HTTP {status}")
+        got = read_page(fetch, p)
+        if not got["ok"]:
+            skipped.append(f"{key}: {got['why']}; left pending, the next run reads it again")
             continue
-        # A forum thread: only the posts since the last read (the rest was read then).
-        text = (thread_text(fetch, p["url"], body, read_posts(p.get("known"))) if p["kind"] == "discourse"
-                else web.text_of(body))
+        text = got["text"]
         if not text.strip():
             skipped.append(f"{key}: nothing new to read")
             read.append(key)
+            versions[key] = got["version"]
             continue
         web.remember(page_url, text)
         try:
@@ -327,6 +338,9 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None, stat
         except OverBudget as e:
             skipped.append(f"{key}: {e}")
             break
+        if props is None:
+            skipped.append(f"{key}: the model stopped without an answer; left pending")
+            continue
         kept, bad = to_records(props, page_url, key, allow, day, known_ids, source=text)
         # A copy gets one rewrite in the model's own words; a second copy is dropped.
         copies = [b for b in bad if b.get("copy")]
@@ -337,6 +351,7 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None, stat
         dropped = [c for c, t in zip(copies, texts, strict=True) if not t]
         refused += [b for b in bad if not b.get("copy")] + bad2 + dropped
         read.append(key)
+        versions[key] = got["version"]
     doc = {"schema": 2, "lane": f"refresh-{day}", "title": f"Official pages changed, {day} (model proposals)",
            "about": "Statements proposed by tools/kb/refresh.py from the official pages tools/kb/watch.py saw change. "
                     "A statement with `supersedes` replaces that one once merged. Review each against its page.",
@@ -344,7 +359,27 @@ def run(keys: list[str], client, fetch, cap: float, day: str | None = None, stat
            "open_questions": [{"id": f"refresh-{day}:refused-{i}", "text": refused_note(r)}
                               for i, r in enumerate(refused, 1)]}
     return {"doc": doc, "spent_usd": round(meter.spent, 4), "skipped": skipped, "refused": len(refused),
-            "read": read, "meter": meter}
+            "read": read, "versions": versions, "meter": meter}
+
+
+def read_page(fetch, p: dict) -> dict:
+    """One watched page as the model pass reads it: {"ok": True, "text", "version"}
+    (a forum thread: its posts past `known` only; `version`: what watch.json
+    records for what was fetched), or {"ok": False, "why"} when a fetch it
+    needs failed. A failed read is never an empty one: an empty text is
+    "nothing new", a failure leaves the page pending."""
+    status, body = fetch.get(p["url"])
+    if status != 200:
+        return {"ok": False, "why": f"HTTP {status}"}
+    version = web.official_version(p["kind"], body)
+    if version is None:
+        return {"ok": False, "why": "unreadable (not the page or topic JSON expected)"}
+    if p["kind"] != "discourse":
+        return {"ok": True, "text": web.text_of(body), "version": version}
+    text, failed = thread_text(fetch, p["url"], body, read_posts(p.get("known")))
+    if failed:
+        return {"ok": False, "why": ", ".join(failed)}
+    return {"ok": True, "text": text, "version": version}
 
 
 def read_posts(known) -> int:
@@ -359,29 +394,36 @@ def read_posts(known) -> int:
 MAX_NEW_POSTS = 40  # posts of one thread read in one run at most, the newest
 
 
-def thread_text(fetch, url: str, body: bytes, after: int) -> str:
-    """The thread's posts numbered past `after`. Discourse's topic JSON holds
-    its first 20 posts only: newer ones come one by one from
-    /posts/by_number/<topic>/<n>.json, as tools/kb/meta.py reads blue posts."""
+def thread_text(fetch, url: str, body: bytes, after: int) -> tuple[str, list[str]]:
+    """The thread's posts numbered past `after`, and the posts that failed to
+    load (empty when all came). Discourse's topic JSON holds its first 20
+    posts only: newer ones come one by one from
+    /posts/by_number/<topic>/<n>.json, as tools/kb/meta.py reads blue posts.
+    A deleted post (404/410) has nothing to read; any other failure means
+    the thread wasn't read."""
     try:
         d = json.loads(body)
         count = int(d.get("posts_count") or 0)
     except (ValueError, TypeError, AttributeError):
-        return forum_text(body, after)
+        return "", ["topic: not JSON"]
     have = {p.get("post_number") for p in (d.get("post_stream") or {}).get("posts") or []}
     missing = [n for n in range(max(after + 1, count - MAX_NEW_POSTS + 1), count + 1) if n not in have]
     base, _, rest = url.partition("/t/")
     topic = rest.split(".json")[0].split("/")[-1]
-    texts = [forum_text(body, after)]
+    texts, failed = [forum_text(body, after)], []
     for n in missing:
         status, post = fetch.get(f"{base}/posts/by_number/{topic}/{n}.json")
+        if status in web.GONE:
+            continue
         try:
-            cooked = json.loads(post).get("cooked") if status == 200 else ""
+            cooked = (json.loads(post).get("cooked") or "") if status == 200 else None
         except (ValueError, AttributeError):
-            cooked = ""
-        if cooked:
+            cooked = None
+        if cooked is None:
+            failed.append(f"post {n}: HTTP {status}" if status != 200 else f"post {n}: not JSON")
+        elif cooked:
             texts.append(web.text_of(f"<article>{cooked}</article>".encode()))
-    return "\n\n".join(t for t in texts if t)
+    return "\n\n".join(t for t in texts if t), failed
 
 
 def forum_text(body: bytes, after: int = 0) -> str:
@@ -402,6 +444,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("keys", nargs="*", help="watched page keys (data/kb/watch.json); the watcher's changed_official")
     ap.add_argument("--dry-run", action="store_true", help="print the first prompt, call no model")
     ap.add_argument("--out", default=str(KB / "research"))
+    ap.add_argument("--handoff", help="write the pages read, each at the version read, for watch.py --accept official")
     a = ap.parse_args(argv)
     keys = [w for k in a.keys for w in k.replace(",", " ").split()]
     if not keys:
@@ -419,7 +462,9 @@ def main(argv: list[str] | None = None) -> int:
     out = run(keys, anthropic.Anthropic(), web.Fetcher(), float(os.environ.get("KB_REFRESH_MAX_USD") or 3))
     step_summary(out["meter"], "Official pages, model pass (tools/kb/refresh.py)")
     doc = out["doc"]
-    print(json.dumps({k: v for k, v in out.items() if k not in ("doc", "meter")}
+    if a.handoff:
+        Path(a.handoff).write_text(json.dumps({"official": out["versions"]}, indent=1) + "\n", encoding="utf-8")
+    print(json.dumps({k: v for k, v in out.items() if k not in ("doc", "meter", "versions")}
                      | {"statements": len(doc["statements"])}))
     if doc["statements"]:
         path = Path(a.out) / f"{doc['lane']}.json"
