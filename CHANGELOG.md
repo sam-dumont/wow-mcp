@@ -37,6 +37,7 @@
 - `--replay` sent nothing from a `sent/` file whose last part a crash had cut short, not even the whole parts before it, and still exited 0. It now sends every part that reads whole, names the damaged file and how many bytes it couldn't read, and exits 1.
 - After a power cut, the shipper could lose events: it flushed the spool and `state.json` before renaming them, but not the renames themselves, and never flushed the copy in `sent/`, the spool file shortened after each upload, or a downloaded update. Each now reaches the disk before the next step counts on it (on Windows, the renames rely on NTFS: Python can't flush a folder there).
 - `--reextract` ended with a normal run that moved `state.json` on, although the restore keeps a record of its own. The next background run then skipped play that only the restore had sent. It now leaves `state.json` exactly as it was; the background run after it carries on from there.
+- The server's outbound URLs (wago.tools' tables, Wowhead's icons) now take only values of a strict shape: an icon name from a request, a build from wago.tools' answer, a table from a fixed list, each checked whole and quoted before it goes in. `fetch` reaches only the fixed hosts, plus `MODEL3D_WAGO_URL` and `ICON_URL` when you set them. An icon name ending in a newline used to pass the old check (CodeQL #42).
 
 ## 0.7.0-rc.8 (2026-11-21)
 

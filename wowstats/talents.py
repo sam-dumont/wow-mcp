@@ -44,8 +44,9 @@ import re
 import tempfile
 import threading
 import time
-import urllib.parse
 from pathlib import Path
+
+from wowstats import upstream
 
 DAY = 86400
 CLASS_CURRENCY = "3820"
@@ -53,7 +54,7 @@ LEGACY_CURRENCY = "4225"
 # TalentTab.ClassMask -> the class token the shipper and gear.py use.
 CLASS_BITS = {1: "WARRIOR", 2: "PALADIN", 4: "HUNTER", 8: "ROGUE", 16: "PRIEST", 64: "SHAMAN", 128: "MAGE",
               256: "WARLOCK", 1024: "DRUID"}
-ICON = re.compile(r"^[a-z0-9_\-]{1,80}$")
+ICON = upstream.ICON_NAME
 TABLES = ("TraitTree", "TraitNode", "TraitNodeXTraitNodeEntry", "TraitNodeEntry", "TraitDefinition",
           "TraitTreeXTraitCurrency", "TraitCurrencySource", "Talent", "TalentTab", "TraitEdge")
 # The cached catalog's shape: a catalog written by an older build of this
@@ -483,13 +484,11 @@ class Catalog:
                         self.data, self.build, self.checked = d["catalog"], d["build"], float(d["checked"])
                 if self.data and time.time() - self.checked < DAY:
                     return
-            from wowstats.upstream import Upstream, fetch
+            from wowstats.upstream import Upstream, build_of, builds_url, fetch
             from wowstats.upstream import write_file as _write
 
             try:
-                latest = json.loads(fetch(f"{self.wago}/api/builds/{urllib.parse.quote(self.product)}/latest")
-                                    or b"{}")
-                build = str(latest["version"])
+                build = build_of(fetch(builds_url(self.wago, self.product)))
                 if build != self.build or not self.data:
                     self.data = self._fetch(build, fetch, Upstream)
                     self.build = build
@@ -502,8 +501,10 @@ class Catalog:
                                                   "catalog": self.data}, separators=(",", ":")).encode())
 
     def _fetch(self, build: str, fetch, Upstream) -> dict:  # noqa: N803 - the exception class
+        from wowstats.upstream import table_url
+
         def table(name: str) -> bytes:
-            body = fetch(f"{self.wago}/db2/{name}/csv?build={urllib.parse.quote(build)}", timeout=120)
+            body = fetch(table_url(self.wago, name, build), timeout=120)
             if not body:
                 raise Upstream(f"wago.tools has no {name} table for {build}")
             return body
@@ -566,7 +567,7 @@ def catalog_from(rows) -> dict:
     # Devouring Contagion's), which left a trailing dot the icon check refused.
     icon_names = {r["ID"]: r["FileName"].rsplit(".", 1)[0].rstrip(".").lower() for r in rows("ManifestInterfaceData")
                   if r["ID"] in files}
-    icons = {s: icon_names.get(f) for s, f in fdids.items() if ICON.match(icon_names.get(f) or "")}
+    icons = {s: icon_names.get(f) for s, f in fdids.items() if ICON.fullmatch(icon_names.get(f) or "")}
     defs = {str(d) for tr in cat["trees"] for sec in tr["sections"] for nd in sec["nodes"]
             for d in nd.get("defs") or []}
     points = [r for r in rows("TraitDefinitionEffectPoints") if r.get("TraitDefinitionID") in defs]
@@ -590,12 +591,13 @@ def shared() -> Catalog:
                 cache.mkdir(parents=True, exist_ok=True)
             except OSError:
                 cache = None
-            from wowstats.upstream import PRODUCT, WAGO_URL
+            from wowstats.upstream import PRODUCT, WAGO_URL, allow
 
             off = ("off", "0", "false", "no")
             on = (env.get("WOW_TALENTS", "on").strip().lower() not in off
                   and env.get("WOW_ITEMS", "on").strip().lower() not in off)
-            _shared = Catalog(env.get("MODEL3D_WAGO_URL", WAGO_URL), env.get("MODEL3D_PRODUCT", PRODUCT), cache, on)
+            _shared = Catalog(allow(env.get("MODEL3D_WAGO_URL", WAGO_URL)), env.get("MODEL3D_PRODUCT", PRODUCT), cache,
+                              on)
         return _shared
 
 
@@ -701,7 +703,7 @@ def icon_names(*answers) -> set[str]:
 
     def walk(v):
         if isinstance(v, dict):
-            if isinstance(v.get("icon"), str) and ICON.match(v["icon"]) and "col" in v and "row" in v:
+            if isinstance(v.get("icon"), str) and ICON.fullmatch(v["icon"]) and "col" in v and "row" in v:
                 out.add(v["icon"])
             for x in v.values():
                 walk(x)
@@ -890,7 +892,7 @@ def history(cat: dict | None, cls, readings: list[dict]) -> list[dict]:
     return out[::-1]
 
 
-ICON_URL = "https://wow.zamimg.com/images/wow/icons/{size}/{name}.jpg"
+ICON_URL = "https://wow.zamimg.com/images/wow/icons/"
 ICON_SIZES = ("small", "medium", "large")
 _icons: dict[tuple[str, str], bytes | None] = {}
 
@@ -904,7 +906,13 @@ def icon_bytes(name: str, size: str = "medium") -> bytes | None:
     """A talent icon from wow.zamimg.com (the renders Wowhead serves, named
     as Forever's ManifestInterfaceData names the file), kept on disk next to
     the catalog. None for a bad name or a 404; Upstream when it's down."""
-    if not ICON.match(name or "") or size not in ICON_SIZES:
+    from wowstats.upstream import icon_url
+
+    if size not in ICON_SIZES:
+        return None
+    try:  # checked before it is a file name or a URL
+        url = icon_url(ICON_URL, size, name)
+    except ValueError:
         return None
     if (size, name) in _icons:
         return _icons[(size, name)]
@@ -918,7 +926,7 @@ def icon_bytes(name: str, size: str = "medium") -> bytes | None:
         with contextlib.suppress(OSError):
             body = f.read_bytes()
     if body is None:
-        body = fetch(ICON_URL.format(size=size, name=name))
+        body = fetch(url)
         if body is not None and f:
             with contextlib.suppress(OSError):
                 _write(f, body)
