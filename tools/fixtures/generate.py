@@ -942,7 +942,7 @@ def gear_sheet(p: Player) -> None:
     items = []
     # Drops and crafts only, besides the quest rewards the script hands in:
     # an item only a quest gives would mark that quest done (wowstats.quests).
-    base = {2: 273457, 3: 4315, 5: 6264, 6: 7000, 9: 273808, 11: 6463, 12: 1156, 13: 273298, 15: 4311}
+    base = {2: 273457, 3: 4315, 5: 6264, 6: 7000, 9: 3647, 11: 6463, 12: 1156, 13: 273298, 15: 4311}
     worn = {**base, **p.worn}
     slot_names = {1: "Head", 2: "Neck", 3: "Shoulder", 4: "Shirt", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet",
                   9: "Wrist", 10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back",
@@ -1511,10 +1511,13 @@ def build_demo(end_day: str | None = None) -> list[dict]:
     # Male (the Recorder's UnitSex 2), as his Battle.net profile says (bnet_series).
     p = DemoPlayer(game, rnd, DEMO, cls="PRIEST", race="Gnome", faction="Alliance", sex=2, level=22, xp=15555,
                    money=21000, bind="Auberdine")
-    p.worn[16] = 1312
-    # Every slot filled: his own Azure Silk Hood (the Shadow Hood on the
-    # auction house beats it), a shirt, the guild's tabard, a second trinket.
-    p.worn.update({1: 7048, 4: 2576, 14: 2919, 19: 5976})
+    p.worn[16] = 5201  # Emberstone Staff, the Deadmines' (level 18)
+    # Every slot filled: his own Silky Circlet (tailoring 100, level 20; a
+    # frost caster's, made for another class: the Shadow Hood on the auction
+    # house beats it), a shirt, the guild's
+    # tabard, a second trinket (Shadowfang Keep's, level 21). Everything he
+    # wears at 22 asks 22 or less and has a look in Forever's item tables.
+    p.worn.update({1: 253951, 4: 2576, 14: 273643, 19: 5976})
     p.fresh_steps = True  # draws nothing from the seed: the same evenings as the fixtures'
     marks = sessions_priest(p)
     sessions_demo(p, marks)
@@ -1558,7 +1561,7 @@ BNET_READ_HOUR = 6  # the exporter's daily read, UTC
 BNET_STEP = 120     # seconds between pushes (the exporter pushes every minute)
 
 
-def bnet_series(rows: list[dict], now: float, days: int = 21) -> list[dict]:
+def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] | None = None) -> list[dict]:
     """The Battle.net exporter's series for the demo character
     (wowstats.exporter.poll_profile), as VictoriaMetrics' /api/v1/import
     takes them: the profile, the look (golden3d's options), the equipment,
@@ -1585,7 +1588,9 @@ def bnet_series(rows: list[dict], now: float, days: int = 21) -> list[dict]:
         s["values"].append(value)
         s["timestamps"].append(t * 1000)
 
-    look = golden3d.build()["look"]
+    # The game files' own option and choice ids: golden3d's, or the real
+    # model's (tools/fixtures/demo3d.py look.json) when the demo draws that.
+    look = golden3d.build()["look"] if look is None else look
     recent = now - 3 * day  # the profile's series: last_over_time(...[2d]) needs the last two days
     for t in stamps:
         r = read[t]
@@ -1645,7 +1650,7 @@ def build() -> dict[str, bytes]:
     game = Game()
     p = Player(game, rnd, PRIEST, cls="PRIEST", race="Gnome", faction="Alliance", sex=3, level=22, xp=15555,
                money=21000, bind="Auberdine")
-    p.worn[16] = 1312
+    p.worn[16] = 5201  # Emberstone Staff, the Deadmines' (level 18)
     marks = sessions_priest(p)
     rows = sorted(p.out, key=lambda r: r["_time"])
     files: dict[str, bytes] = {}

@@ -21,9 +21,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "fixtures
 import golden3d  # noqa: E402
 
 # The demo character's outfit at level 34 (tools/fixtures/generate.py build_demo).
-OUTFIT = [{"slot": 1, "item_id": 7048}, {"slot": 3, "item_id": 6685}, {"slot": 4, "item_id": 2576},
+OUTFIT = [{"slot": 1, "item_id": 253951}, {"slot": 3, "item_id": 6685}, {"slot": 4, "item_id": 2576},
           {"slot": 5, "item_id": 273044}, {"slot": 6, "item_id": 7000}, {"slot": 7, "item_id": 270036},
-          {"slot": 8, "item_id": 6998}, {"slot": 9, "item_id": 273808}, {"slot": 10, "item_id": 270029},
+          {"slot": 8, "item_id": 6998}, {"slot": 9, "item_id": 3647}, {"slot": 10, "item_id": 270029},
           {"slot": 15, "item_id": 273045}, {"slot": 16, "item_id": 2816}, {"slot": 17, "item_id": 279838},
           {"slot": 18, "item_id": 7001}, {"slot": 19, "item_id": 5976}]
 PRIEST = 5
@@ -109,5 +109,5 @@ def test_look_and_helmet(tables):
     # The demo's look: the tuft (hair style 2), beard and moustache, long ears.
     assert bare["set"].get("3") is True and bare["set"].get("103") is True and bare["set"].get("702") is True
     assert bare["groups"].get("0") != 0
-    hooded = assemble(tables, [{"slot": 1, "item_id": 7048}])["recipe"]["geosets"]
+    hooded = assemble(tables, [{"slot": 1, "item_id": 253951}])["recipe"]["geosets"]
     assert hooded["groups"].get("0") == 0  # the hood hides the hair
