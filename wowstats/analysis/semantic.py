@@ -413,17 +413,23 @@ FIELDS = ("aggregation", "time_meaning", "evidence_basis", "eligibility", "min_e
 _AGG_CALL = re.compile(r"\.(sum|count|nunique|mean|min|max|argmax|argmin)\(")
 
 
-def prepare(con, tz: str | None = None) -> None:
+def prepare(con, tz: str | None = None, views: dict[str, str] | None = None) -> dict[str, str]:
     """Add the model's views to a DuckDB copy of the prep (before any query),
-    then the views per grain compiled from them (view_sql)."""
+    then the views per grain compiled from them (view_sql), and return those.
+    `views`: the views per grain another copy of the same tables compiled
+    (they read the model views only, so the timezone doesn't change them):
+    a query process (duckproc) takes its parent's rather than compiling them
+    again, a second each."""
     from . import prep
 
     zone = (tz or prep.TZ_NAME).replace("'", "''")
     for name, body in VIEWS.items():
         sql = re.sub(r"\{ts:([a-z_.0-9]+)\}", lambda m: f"timezone('{zone}', to_timestamp({m.group(1)}))", body)
         con.execute(f"CREATE VIEW {name} AS {sql.replace('{who}', _WHO)}")
-    for name, sql in view_sql(con).items():
+    per = view_sql(con) if views is None else views
+    for name, sql in per.items():
         con.execute(f"CREATE VIEW {name} AS {sql}")
+    return per
 
 
 def signature(con, models: dict | None = None) -> tuple:
@@ -894,22 +900,50 @@ def _metric(name: str, cat: dict | None = None) -> dict:
     return m
 
 
+# The compiled models per column signature, shared by every Layer at it:
+# {(sig, store): (the spec they were built from, BSL's models, {part: SQL})}.
+# Building them (from_config, 0.3 s) and compiling a model's part (BSL's
+# query and ibis' to_sql, 50 ms) depend on the column types and the
+# question's shape only, never on rows: each page, tool and recheck built and
+# compiled them again, 12,000 compiles in one test run (2026-11-22, the CI
+# test job past its 20 minutes). A reloaded semantic.yaml (spec() made
+# again) is a new entry.
+_COMPILED: dict = {}
+_COMPILED_MAX = 16  # signatures kept (one per schema in practice)
+_PARTS_MAX = 4096  # parts kept per signature (one per question shape and model)
+# compile's value tokens: random per process (a caller can't write one), the
+# same for every compile in it, so a part compiled once serves the next
+# question of that shape whatever its values.
+_NONCE = secrets.token_hex(6)
+
+
+def _compiled(sig: tuple, store: bool) -> tuple:
+    import ibis
+    from boring_semantic_layer import from_config
+
+    src = store_spec() if store else spec()
+    hit = _COMPILED.get((sig, store))
+    if hit is not None and hit[0] is src:
+        return hit
+    types = {"BIGINT": "int64", "INTEGER": "int64", "DOUBLE": "float64", "VARCHAR": "string",
+             "TIMESTAMP": "timestamp", "BOOLEAN": "boolean"}
+    tables = {name: ibis.table({c: types.get(t, "string") for c, t in cols}, name=name) for name, cols in sig}
+    # store: the store models whose tables `sig` names (read), else the prep's.
+    models = {k: v for k, v in src.items() if v["table"] in tables} if store else src
+    hit = (src, from_config(models, tables=tables), {})
+    if len(_COMPILED) >= _COMPILED_MAX:
+        _COMPILED.pop(next(iter(_COMPILED)), None)
+    _COMPILED[(sig, store)] = hit
+    return hit
+
+
 class Layer:
     """The model compiled against one character's DuckDB copy (its column
-    types), built once per workspace."""
+    types), built once per signature (_compiled)."""
 
     def __init__(self, con=None, *, sig: tuple | None = None, store: bool = False):
-        import ibis
-        from boring_semantic_layer import from_config
-
-        types = {"BIGINT": "int64", "INTEGER": "int64", "DOUBLE": "float64", "VARCHAR": "string",
-                 "TIMESTAMP": "timestamp", "BOOLEAN": "boolean"}
-        tables = {name: ibis.table({c: types.get(t, "string") for c, t in cols}, name=name)
-                  for name, cols in (sig if sig is not None else signature(con))}
-        # store: the store models whose tables `sig` names (read), else the prep's.
-        models = {k: v for k, v in store_spec().items() if v["table"] in tables} if store else spec()
+        _, self.models, self._parts = _compiled(sig if sig is not None else signature(con), store)
         self.cat = store_catalogue() if store else None
-        self.models = from_config(models, tables=tables)
 
     def _one(self, model: str, measures: list[str], label: str, q: dict, values: list, attrs=()) -> str:
         """One model's part: its metrics aggregated to the question's
@@ -936,11 +970,19 @@ class Layer:
         for op, value in timebounds.range_edges(q["since"], q["until"]):
             filters.append({"field": "time", "operator": op, "value": value})
         kw = {"time_grain": GRAINS[q["grain"]]} if q["grain"] else {}
+        dims = q["group_by"] + [a for a in attrs if a in own]
+        key = (model, tuple(dims), tuple(measures), repr(filters), repr(kw))
+        hit = self._parts.get(key)
+        if hit is not None:
+            return hit
         try:
-            dims = q["group_by"] + [a for a in attrs if a in own]
             expr = sem.query(dimensions=dims or None, measures=measures,
                              filters=filters or None, **kw)
-            return str(ibis.to_sql(expr.to_untagged(), dialect="duckdb"))
+            sql = str(ibis.to_sql(expr.to_untagged(), dialect="duckdb"))
+            if len(self._parts) >= _PARTS_MAX:
+                self._parts.clear()
+            self._parts[key] = sql
+            return sql
         except QueryError:
             raise
         except Exception as e:  # BSL's and ibis' own errors: the caller's mix doesn't fit the model
@@ -988,7 +1030,7 @@ class Layer:
                 if bad:
                     raise QueryError(f"{m['name']} can't be grouped or filtered by {bad[0]!r}: its dimensions "
                                      f"(shared by {', '.join(m['models'])}) are {', '.join(m['group_by'])}")
-        nonce = secrets.token_hex(6)
+        nonce = _NONCE
         params: dict[str, object] = {}
         tokens: dict[str, str] = {}
 

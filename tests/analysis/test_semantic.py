@@ -585,6 +585,52 @@ def test_the_query_process_answers_like_in_process(demo):
         w.close()
 
 
+def test_a_compiled_shape_serves_any_values_and_any_layer_at_its_signature(demo):
+    """A question's parts are compiled once per shape (semantic._compiled):
+    the next question of that shape, with other values or on another Layer
+    of the same columns, gets the same SQL with its own parameters and the
+    same answer as a cold compile. Another type of value is another shape;
+    a reloaded model is compiled again."""
+    q = {"metrics": ["online_s", "kills"], "group_by": ["level"],
+         "where": [{"dimension": "zone", "op": "in", "values": ["a", "b"]}], "since": "2026-01-01"}
+    semantic._COMPILED.clear()
+    cold = semantic.Layer(demo["con"]).compile(q)
+    other = {**q, "where": [{"dimension": "zone", "op": "in", "values": ["Elwynn Forest", "x'; --"]}]}
+    hot = semantic.Layer(demo["con"]).compile(other)
+    assert hot["sql"] == cold["sql"] and hot["params"] == {"p0": "Elwynn Forest", "p1": "x'; --"}
+    assert hot["columns"] == cold["columns"] and hot["definitions"] == cold["definitions"]
+    for ask_ in (other, {**other, "where": [], "since": None}):
+        warm = semantic.run(semantic.Layer(demo["con"]), demo["ro"], ask_)
+        semantic._COMPILED.clear()
+        assert semantic.run(semantic.Layer(demo["con"]), demo["ro"], ask_) == warm and warm["rows"]
+    n = semantic.Layer(demo["con"]).compile({**q, "where": [{"dimension": "level", "op": ">=", "value": 20}]})
+    assert n["sql"] != cold["sql"] and n["params"] == {"p0": 20}
+    before = semantic.Layer(demo["con"]).models
+    semantic.spec.cache_clear()  # semantic.yaml read again: a new entry, never the old parts
+    try:
+        assert semantic.Layer(demo["con"]).models is not before
+    finally:
+        semantic.spec.cache_clear()
+
+
+def test_the_query_process_takes_its_parents_views(demo):
+    """A Worker given the parent's views per grain (semantic.prepare's
+    answer) creates them as they are: the same rows as one that compiles."""
+    from wowstats.analysis import duckproc
+
+    views = semantic.prepare(duck.mirror(demo["db"], TABLES, rows=False))
+    assert views == semantic.view_sql(demo["con"])
+    q = "SELECT * FROM per_level ORDER BY level"
+    got = []
+    for v in (None, views):
+        w = duckproc.Worker(demo["db"], TABLES, views=v)
+        try:
+            got.append(duck.ReadOnlyDuck(demo["con"], tables={*TABLES, *views}, worker=w).run(q, 500))
+        finally:
+            w.close()
+    assert got[0] == got[1] and got[0][1]
+
+
 # ---------------------------------------------------------------- deaths and dungeon runs (wave 2)
 
 

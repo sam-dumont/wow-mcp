@@ -115,8 +115,7 @@ class Workspace:
         from .duckproc import Worker
 
         self.duck = mirror(self.db, TABLES, rows=False)
-        semantic.prepare(self.duck)
-        self.worker = Worker(self.db, TABLES)
+        self.worker = Worker(self.db, TABLES, views=semantic.prepare(self.duck))
         # play_sql and the judge read the views per grain (per_level...) and
         # the prep's tables; the model views (sem_*) stay query_metric's.
         readable = {*TABLES, *semantic.views()}
