@@ -104,7 +104,7 @@ def with_battlenet(done: dict[int, str], worn: Iterable[int] | None) -> dict[int
 def _int(v) -> int | None:
     try:
         n = int(float(v))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None
     return n if n > 0 else None
 

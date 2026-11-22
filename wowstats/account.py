@@ -36,6 +36,7 @@ from pathlib import Path
 from wowstats import __version__, bar, missing, source_tag_url
 from wowstats import tenancy as T
 from wowstats.admin import vtuple
+from wowstats.stores import num
 
 _HERE = Path(__file__).resolve().parent
 
@@ -655,16 +656,16 @@ class Status:
         # The shipper's own setup report (wow-setup) is not game data: it
         # arrives at the first run, before anyone played.
         game = f'{st} -feed:="{missing.SETUP_FEED}"'
-        feeds = {r.get("feed"): int(float(r.get("n") or 0))
+        feeds = {r.get("feed"): int(num(r.get("n")))
                  for r in app.views.vl(f"{game} | stats by (feed) count() as n, min(_time) as first",
                                        ("feed",), {"n": "sum", "first": "mintime"})}
         span = app.views.vl(f"{game} | stats min(_time) as first, max(_time) as last")
         first = min((r.get("first") for r in span if r.get("first")), default=None)
         # The newest event: "is it working?" on a later visit (the start page's status).
         last = max((r.get("last") for r in span if r.get("last")), default=None)
-        played = sum(int(float(r.get("n") or 0)) for r in app.views.vl(
+        played = sum(int(num(r.get("n"))) for r in app.views.vl(
             f'{st} feed:="wow-character" kind:=played | stats count() as n', (), {"n": "sum"}))
-        done = {f"quests:{r.get('source')}": int(float(r.get("n") or 0)) for r in app.views.vl(
+        done = {f"quests:{r.get('source')}": int(num(r.get("n"))) for r in app.views.vl(
             f'{st} feed:="wow-quests" | stats by (source) count() as n', ("source",), {"n": "sum"})}
         seen = {**feeds, **done, "played": played}
         out = {"events": sum(feeds.values()), "first_event": first, "last_event": last,

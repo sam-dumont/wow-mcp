@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
-from wowstats.stores import parse_t
+from wowstats.stores import opt_num, parse_t
 
 Query = Callable[[str], list[dict]]
 SETUP_FEED = "wow-setup"
@@ -115,10 +115,7 @@ def setup(q: Query) -> dict | None:
     off = ({norm(c): sorted(str(i) for i in ids) for c, ids in raw_off.items() if isinstance(ids, list)}
            if isinstance(raw_off, dict) else None)
     on = r.get("recorder_on")
-    try:
-        saved = int(float(r.get("saved_chars"))) if r.get("saved_chars") not in (None, "") else None
-    except (TypeError, ValueError):
-        saved = None
+    saved = opt_num(r.get("saved_chars"))
     return {"at": r.get("_time"), "addons": {str(k): str(v) for k, v in got.items()} if isinstance(got, dict) else {},
             "recorder_on": {"true": True, "false": False}.get(str(on).lower()), "saved_chars": saved,
             "off": off, "shipper": str(r.get("shipper") or "") or None}
