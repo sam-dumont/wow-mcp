@@ -152,7 +152,8 @@ CAPTURE_FILE = "_capture.json"
 # What a rebuild of an archived version reads (backfill, the capture manifest).
 ARCHIVED_SOURCES = re.compile(
     r"^Account/[^/]+/(SavedVariables/(Polestar|Polestar_Recorder|Auctionator|Syndicator"
-    r"|ForeverLevelingBiS|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests|Questie"
+    r"|ForeverLevelingBiS|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests"
+    r"|DataStore_Reputations|Questie"
     r"|WowSimsExporter)\.lua(\.bak)?"
     r"|[^/]+/[^/]+/SavedVariables/(Polestar|Polestar_Recorder"
     r"|GearQuestForever)\.lua(\.bak)?)$")
@@ -1561,6 +1562,265 @@ def altoholic_played(acct: Path, only: set[str] | None = None) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
+# Altoholic's other modules (optional): spellbook, reputations, the purse and
+# XP, stats and lockouts (owner, 2026-11-22)
+# ---------------------------------------------------------------------------
+
+# Read from Thaoky's source (github.com/Thaoky, the 2026-10-14 releases
+# Altoholic_Forever 1.60.005 depends on). Forever runs each module's
+# mainline branch (AddonFactory isForever implies isMainline). Every table
+# is account-wide and keyed by the character id of DataStore_CharacterIDs
+# (ds_names). Only the account's own roster is ever sent, and only the
+# fields in ALTO_KEYS; wowstats/otherplayers.py screens /ingest with a copy.
+# Never read, by design: Agenda Contacts (the friends list) and Calendar
+# (event titles other players write), the guild banks and guild members'
+# gear (Containers/Inventory _Guilds), Mails (senders, subjects, bodies),
+# Auctions (bidders), Altoholic_Sharing_Options, DataStore_GuildIDs,
+# DataStore_CharacterGuilds, Reputations' guildName and guildRep,
+# Characters' guildRankIndex and BaseInfo's gender bits.
+#
+# - DataStore_Spells.lua: DataStore_Spells_Characters[id].Spells[tab] =
+#   {n...}, one per spellbook entry (ScanSpellTab_Retail): bits 0-7 the
+#   level a not-yet-learned entry (FutureSpell) becomes available at, 0
+#   when known; bits 8 and up the spell id. englishClass ("PRIEST").
+# - DataStore_Reputations.lua: DataStore_Reputations_Characters[id]
+#   .Factions[factionID] = n (ScanSingleFaction): bits 0-2 the type (0 a
+#   normal faction; friendship and major factions, retail only, are left
+#   out), bit 3 negative, bits 4-7 the standing (1 hated .. 8 exalted),
+#   bits 8+ the points counted from the start of neutral (the game's
+#   currentStanding; negative when bit 3 is set), as the Recorder's rep
+#   records count them. A snapshot: each scan overwrites it.
+# - DataStore_Characters.lua: DataStore_Characters_Info[id] money (copper),
+#   XP, maxXP, restXP, zone, subZone, bindLocation, refreshed at login, on
+#   each money/XP/zone/hearth event and at logout.
+# - DataStore_Stats.lua: DataStore_Stats_Characters[id] (ScanStats) as
+#   "|"-joined strings: Base "str|agi|sta|int|armor" (the loop stops at 4:
+#   no spirit), Melee "min-max|speed|AP|hit rating|crit %|expertise",
+#   Ranged "min-max|speed|AP|hit rating|crit %", Spell "+damage|+healing|
+#   hit rating|crit %|haste rating|mp5", Defense "armor|0|dodge %|parry %|
+#   block %|resilience", PVP "honorable kills|dishonorable kills" (the
+#   lifetime counts), HealthMax, MaxPower "power type|max". No resistances
+#   anywhere.
+# - DataStore_Agenda.lua: DataStore_Agenda_SavedInstances[id]["<instance>|
+#   <instanceID>"] = "reset s|scan time|extended|isRaid" (API/
+#   SavedInstances.lua; expired ones are dropped by the addon) and
+#   DataStore_Agenda_BossKills[id][same key] = {"<boss>|0/1"...}; the
+#   account's DataStore_Agenda_Options WeeklyResetDay (0 Sunday) and
+#   WeeklyResetHour. Empty until a lockout exists (raids open 2026-12-09).
+
+# What each Altoholic event may carry besides EVENT_BASE (the shipper's
+# allowlist; wowstats/otherplayers.py ALTO_KEYS is the /ingest copy,
+# tests/test_otherplayers.py keeps them equal). "sheet" is the
+# wow-character snapshot with source altoholic.
+ALTO_STATS = ("health_max", "power_type", "power_max", "strength", "agility", "stamina", "intellect", "armor",
+              "melee_dmg_min", "melee_dmg_max", "melee_speed", "melee_ap", "melee_hit_rating", "melee_crit_pct",
+              "expertise", "ranged_dmg_min", "ranged_dmg_max", "ranged_speed", "ranged_ap", "ranged_hit_rating",
+              "ranged_crit_pct", "spell_bonus_dmg", "spell_bonus_heal", "spell_hit_rating", "spell_crit_pct",
+              "spell_haste_rating", "mp5", "dodge_pct", "parry_pct", "block_pct", "resilience",
+              "honorable_kills", "dishonorable_kills")
+ALTO_KEYS = {
+    "spells": frozenset({"source", "at_basis", "class", "spells", "known", "future"}),
+    "reps": frozenset({"source", "at_basis", "factions", "n"}),
+    "stats": frozenset({"source", "at_basis", *ALTO_STATS}),
+    "lockouts": frozenset({"source", "at_basis", "lockouts", "n", "weekly_reset_day", "weekly_reset_hour"}),
+    "sheet": frozenset({"source", "at_basis", "level", "xp", "xp_max", "rested_xp", "money_copper", "zone",
+                        "subzone", "bind", "logged_out"}),
+}
+
+
+def ds_names(acct: Path) -> dict[int, str]:
+    """DataStore's character id -> the character (folder form): the key in
+    DataStore_CharacterIDs.Set ("Default.<realm>.<First Last>"; Set only,
+    List indexes shift when a character is deleted), or the `name`
+    DataStore_Characters_Info saved."""
+    sv = acct / "SavedVariables"
+    names: dict[int, str] = {}
+    for d in read_sv_versions(sv / "DataStore.lua"):
+        ids = (d.get("DataStore_CharacterIDs") or {}).get("Set") if isinstance(d, dict) else None
+        for key, i in (ids.items() if isinstance(ids, dict) else ()):
+            if isinstance(i, int) and str(key).rsplit(".", 1)[-1].strip():
+                names.setdefault(i, char_of(str(key).rsplit(".", 1)[-1]))
+    for d in read_sv_versions(sv / "DataStore_Characters.lua"):
+        for i, c in _by_id(d.get("DataStore_Characters_Info") if isinstance(d, dict) else None).items():
+            if isinstance(c, dict) and isinstance(c.get("name"), str) and c["name"].strip():
+                names[i] = char_of(c["name"])
+    return names
+
+
+def _ds_rows(acct: Path, file: str, table: str, names: dict[int, str]) -> dict[str, dict]:
+    """char -> its row of one DataStore module's per-character table, from
+    the newest save (the file, else its .bak). Nothing without the file."""
+    db = next(iter(read_sv_versions(acct / "SavedVariables" / file)), None) or {}
+    out: dict[str, dict] = {}
+    for i, row in _by_id(db.get(table)).items():
+        if isinstance(row, dict) and names.get(i):
+            out[names[i]] = row
+    return out
+
+
+def _ds_time(row: dict) -> float | None:
+    t = row.get("lastUpdate")
+    return float(t) if isinstance(t, (int, float)) and not isinstance(t, bool) and 0 < t < DS_LOGGED_IN else None
+
+
+def _ds_num(v):
+    """One number of a DataStore stats string ("12", "3.50", "nil"), else None."""
+    if isinstance(v, bool):
+        return None
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    if x != x or x in (float("inf"), float("-inf")):
+        return None
+    return int(x) if x == int(x) and "." not in str(v) else round(x, 2)
+
+
+def _ds_fields(s, names: tuple) -> dict:
+    """A "|"-joined DataStore_Stats string as {name: number}; a name None skips its part."""
+    parts = s.split("|") if isinstance(s, str) else []
+    return {n: _ds_num(p) for n, p in zip(names, parts, strict=False) if n}
+
+
+def _ds_range(s, lo: str, hi: str) -> dict:
+    a, _, b = str(s).partition("-")
+    return {lo: _ds_num(a), hi: _ds_num(b)}
+
+
+def altoholic_spells(acct: Path, names: dict[int, str] | None = None) -> dict[str, dict]:
+    """char -> {class, spells: [[spell id, level]] (level 0: known, else the
+    level it becomes available at), at}."""
+    names = ds_names(acct) if names is None else names
+    out = {}
+    for char, row in _ds_rows(acct, "DataStore_Spells.lua", "DataStore_Spells_Characters", names).items():
+        best: dict[int, int] = {}
+        tabs = row.get("Spells")
+        for tab in (tabs.values() if isinstance(tabs, dict) else tabs if isinstance(tabs, list) else []):
+            for v in (tab.values() if isinstance(tab, dict) else tab if isinstance(tab, list) else []):
+                if isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0:
+                    continue
+                v = int(v)
+                sid, lvl = v >> 8, v & 0xFF
+                if sid > 0:
+                    best[sid] = min(best.get(sid, lvl), lvl)
+        if best:
+            cls = row.get("englishClass")
+            out[char] = {"class": cls if isinstance(cls, str) and cls.isalpha() else None,
+                         "spells": [[s, best[s]] for s in sorted(best)], "at": _ds_time(row)}
+    return out
+
+
+def altoholic_reps(acct: Path, names: dict[int, str] | None = None) -> dict[str, dict]:
+    """char -> {factions: [[faction id, reaction 1-8, points from neutral]], at}."""
+    names = ds_names(acct) if names is None else names
+    out = {}
+    for char, row in _ds_rows(acct, "DataStore_Reputations.lua", "DataStore_Reputations_Characters",
+                              names).items():
+        got = []
+        for fid, v in _by_id(row.get("Factions")).items():
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or v < 0:
+                continue
+            v = int(v)
+            if v & 0x7:  # friendship or major faction: retail only
+                continue
+            reaction, value = v >> 4 & 0xF, v >> 8
+            if 1 <= reaction <= 8:
+                got.append([fid, reaction, -value if v >> 3 & 1 else value])
+        if got:
+            out[char] = {"factions": sorted(got), "at": _ds_time(row)}
+    return out
+
+
+def altoholic_sheet(acct: Path, names: dict[int, str] | None = None) -> dict[str, dict]:
+    """char -> {level, xp, xp_max, rested_xp, money_copper, zone, subzone,
+    bind, logged_out, at} from DataStore_Characters_Info."""
+    names = ds_names(acct) if names is None else names
+    out = {}
+    for char, c in _ds_rows(acct, "DataStore_Characters.lua", "DataStore_Characters_Info", names).items():
+        def n(k):
+            v = c.get(k)
+            return int(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 else None
+
+        def s(k):
+            v = c.get(k)
+            return v.strip() if isinstance(v, str) and v.strip() else None
+
+        ev = {"money_copper": n("money"), "xp": n("XP"), "xp_max": n("maxXP"), "rested_xp": n("restXP"),
+              "zone": s("zone"), "subzone": s("subZone"), "bind": s("bindLocation")}
+        if all(v is None for v in ev.values()):
+            continue
+        lvl = n("BaseInfo")
+        out_ts = c.get("lastLogoutTimestamp")
+        out[char] = {**ev, "level": (lvl & 0x7F) or None if lvl is not None else None,
+                     "logged_out": isinstance(out_ts, (int, float)) and out_ts < DS_LOGGED_IN, "at": _ds_time(c)}
+    return out
+
+
+def altoholic_stats(acct: Path, names: dict[int, str] | None = None) -> dict[str, dict]:
+    """char -> {ALTO_STATS..., at} from DataStore_Stats_Characters."""
+    names = ds_names(acct) if names is None else names
+    out = {}
+    for char, c in _ds_rows(acct, "DataStore_Stats.lua", "DataStore_Stats_Characters", names).items():
+        st: dict = {"health_max": _ds_num(c.get("HealthMax"))}
+        st.update(_ds_fields(c.get("MaxPower"), ("power_type", "power_max")))
+        st.update(_ds_fields(c.get("Base"), ("strength", "agility", "stamina", "intellect", "armor")))
+        m = c.get("Melee").split("|") if isinstance(c.get("Melee"), str) else []
+        if m:
+            st.update(_ds_range(m[0], "melee_dmg_min", "melee_dmg_max"))
+            st.update(_ds_fields("|".join(m[1:]), ("melee_speed", "melee_ap", "melee_hit_rating", "melee_crit_pct",
+                                                "expertise")))
+        r = c.get("Ranged").split("|") if isinstance(c.get("Ranged"), str) else []
+        if r:
+            st.update(_ds_range(r[0], "ranged_dmg_min", "ranged_dmg_max"))
+            st.update(_ds_fields("|".join(r[1:]), ("ranged_speed", "ranged_ap", "ranged_hit_rating", "ranged_crit_pct")))
+        st.update(_ds_fields(c.get("Spell"), ("spell_bonus_dmg", "spell_bonus_heal", "spell_hit_rating",
+                                           "spell_crit_pct", "spell_haste_rating", "mp5")))
+        st.update(_ds_fields(c.get("Defense"), (None, None, "dodge_pct", "parry_pct", "block_pct", "resilience")))
+        st.update(_ds_fields(c.get("PVP"), ("honorable_kills", "dishonorable_kills")))
+        st = {k: v for k, v in st.items() if k in ALTO_STATS and v is not None}
+        if st:
+            out[char] = {**st, "at": _ds_time(c)}
+    return out
+
+
+def altoholic_lockouts(acct: Path, names: dict[int, str] | None = None) -> dict[str, dict]:
+    """char -> {lockouts: [{instance, instance_id, expires, extended, raid,
+    bosses: [[boss, killed 0/1]]}], weekly_reset_day, weekly_reset_hour, at}.
+    expires: the scan time plus the reset seconds the game gave then."""
+    names = ds_names(acct) if names is None else names
+    db = next(iter(read_sv_versions(acct / "SavedVariables" / "DataStore_Agenda.lua")), None) or {}
+    saved, kills = _by_id(db.get("DataStore_Agenda_SavedInstances")), _by_id(db.get("DataStore_Agenda_BossKills"))
+    opts = db.get("DataStore_Agenda_Options") if isinstance(db.get("DataStore_Agenda_Options"), dict) else {}
+    day, hour = opts.get("WeeklyResetDay"), opts.get("WeeklyResetHour")
+    out = {}
+    for i, inst in saved.items():
+        if not isinstance(inst, dict) or not names.get(i):
+            continue
+        got, newest = [], None
+        for key, val in inst.items():
+            name, _, iid = str(key).rpartition("|")
+            reset, scan, ext, raid = (str(val).split("|") + [None] * 4)[:4]
+            reset, scan = _ds_num(reset), _ds_num(scan)
+            if not name or not iid.isdigit() or not isinstance(reset, int) or not isinstance(scan, int):
+                continue
+            newest = max(newest or 0, scan)
+            bk = (kills.get(i) or {}) if isinstance(kills.get(i), dict) else {}
+            bosses = []
+            for _, b in sorted(_by_id(bk.get(key)).items()):
+                boss, _, k = str(b).rpartition("|")
+                if boss and k in ("0", "1"):
+                    bosses.append([boss, int(k)])
+            got.append({"instance": name, "instance_id": int(iid), "expires": scan + reset,
+                        "extended": 1 if ext == "1" else 0, "raid": 1 if raid == "1" else 0, "bosses": bosses})
+        if got:
+            out[names[i]] = {"lockouts": sorted(got, key=lambda x: (x["instance_id"], x["instance"])),
+                             "weekly_reset_day": day if isinstance(day, int) and 0 <= day <= 6 else None,
+                             "weekly_reset_hour": hour if isinstance(hour, int) and 0 <= hour <= 23 else None,
+                             "at": float(newest) if newest else None}
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Completed quests (optional): Questie and Altoholic's DataStore_Quests
 # ---------------------------------------------------------------------------
 
@@ -1856,6 +2116,60 @@ def extract_played(acct: Path, chars: dict[str, dict], state: dict, out: Out) ->
                           f"played (Altoholic), level {p['level']}",
                   "played_total_s": p["played_total_s"], "played_level_s": p["played_level_s"],
                   "level": p["level"], "logged_out": p["logged_out"]})
+
+
+def extract_altoholic(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> None:
+    """One event per character and Altoholic module each time what that
+    module saved for it changes: wow-altoholic kind spells, reps, stats and
+    lockouts, and a wow-character snapshot (source altoholic) for the purse,
+    XP and places. A module that isn't there, or holds nothing for the
+    character, sends nothing. Only ALTO_KEYS' fields go."""
+    seen = state.setdefault("altoholic", {})
+    names = ds_names(acct)
+    if not names:
+        return
+    modules = (("spells", altoholic_spells, "DataStore_Spells.lua"),
+               ("reps", altoholic_reps, "DataStore_Reputations.lua"),
+               ("stats", altoholic_stats, "DataStore_Stats.lua"),
+               ("lockouts", altoholic_lockouts, "DataStore_Agenda.lua"),
+               ("sheet", altoholic_sheet, "DataStore_Characters.lua"))
+    for kind, read, file in modules:
+        f_at, f_basis = observed(acct / "SavedVariables" / file)
+        for char, d in sorted(read(acct, names).items()):
+            if char not in chars:
+                continue
+            body = {k: v for k, v in d.items() if k != "at"}
+            digest = hashlib.sha1(json.dumps(body, sort_keys=True).encode()).hexdigest()[:12]
+            key = f"{kind}:{char}"
+            if seen.get(key) == digest:
+                continue
+            seen[key] = digest
+            # lastUpdate (or the newest lockout scan) is in the file's
+            # content: exact, whatever the rebuild; else the file's time.
+            at, basis = dated(d.get("at") or f_at, None if d.get("at") else f_basis)
+            ev = {"_time": iso(at), "char": char, "source": "altoholic", "at_basis": basis,
+                  "source_id": f"altoholic:{key}:{digest}"}
+            if kind == "sheet":
+                ev.update(feed="wow-character", _msg=f"{char}: level {d.get('level')}, "
+                          f"{(d.get('money_copper') or 0) // 10000}g in {d.get('zone')} (Altoholic)")
+            else:
+                ev.update(feed="wow-altoholic", kind=kind, _msg=f"{char}: {ALTO_MSG[kind](d)} (Altoholic)")
+            if kind == "spells":
+                body.update(known=sum(1 for _, lv in d["spells"] if lv == 0),
+                            future=sum(1 for _, lv in d["spells"] if lv > 0))
+            elif kind in ("reps", "lockouts"):
+                body["n"] = len(d["factions" if kind == "reps" else "lockouts"])
+            ev.update({k: v for k, v in body.items() if k in ALTO_KEYS[kind]})
+            out.emit({k: v for k, v in ev.items() if k in EVENT_BASE or k in ALTO_KEYS[kind]})
+
+
+ALTO_MSG = {
+    "spells": lambda d: f"{sum(1 for _, lv in d['spells'] if lv == 0)} spells known, "
+                        f"{sum(1 for _, lv in d['spells'] if lv > 0)} to learn",
+    "reps": lambda d: f"{len(d['factions'])} reputations",
+    "stats": lambda d: f"{d.get('health_max')} health, {d.get('honorable_kills')} honorable kills",
+    "lockouts": lambda d: f"{len(d['lockouts'])} lockouts",
+}
 
 
 def extract_gear(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> None:
@@ -2268,6 +2582,7 @@ def extract_tree(wtf: Path, state: dict, out: Out, live: bool = True) -> list[di
         step("inventory", extract_inventory, acct, chars, state, out)
         step("played", extract_played, acct, chars, state, out)
         step("quests", extract_quests, acct, chars, state, out)
+        step("altoholic", extract_altoholic, acct, chars, state, out)
         step("talents", extract_talents, acct, chars, state, out)
         step("auctionator", extract_auctionator, acct,
              latest or (char_of(cdirs[-1].parent.name) if cdirs else None), state, out)
@@ -3022,7 +3337,8 @@ ADDONS = [
      "url": "https://www.curseforge.com/wow/addons/auctionator", "what": "prices from your own auction house scans"},
     {"id": "altoholic", "name": "Altoholic", "dir": "Altoholic", "required": False,
      "url": "https://www.curseforge.com/wow/addons/altoholic",
-     "what": "your full /played from level 1, the quests you finished before Polestar, and the recipes you know"},
+     "what": "your full /played from level 1, the quests you finished before Polestar, the recipes and spells you "
+             "know, and the reputations, stats, lockouts, money and XP of every character"},
     {"id": "questie", "name": "Questie", "dir": "Questie", "required": False,
      "url": "https://www.curseforge.com/wow/addons/questie",
      "what": "the quests you finished before Polestar (Altoholic does it too: one of the two is enough)"},

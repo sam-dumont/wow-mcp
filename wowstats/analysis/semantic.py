@@ -110,6 +110,12 @@ VIEWS = {
                          "FROM dungeon_runs d"),
     "sem_dungeon_trips": "SELECT *, {ts:start_t} AS at_local, {who} FROM dungeon_trips",
     "sem_snapshots": "SELECT *, {ts:t} AS at_local, {who} FROM snapshots",
+    # Altoholic's character sheet stats (DataStore_Stats), one row per save.
+    "sem_char_stats": "SELECT *, {ts:t} AS at_local, {who} FROM char_stats",
+    # A lockout's time: its reset (Altoholic), else the last raid boss kill
+    # (the Recorder's estimate, which has no reset time).
+    "sem_lockouts": ("SELECT *, {ts:at_t} AS at_local, {who} FROM (SELECT *, COALESCE(expires_t, scan_t) AS at_t "
+                     "FROM lockouts)"),
     # complete_t: the newest complete record of the quest between its accept
     # (any time before, when the accept wasn't seen) and its close.
     "sem_quests": ("SELECT *, {ts:at_t} AS at_local, {who} FROM (SELECT q.*, "
@@ -258,9 +264,11 @@ REP_TIERS = ((4, "neutral"), (5, "friendly"), (6, "honored"), (7, "revered"))
 
 
 def _reps_sql() -> str:
-    """sem_reps: each rep record with the online seconds since the faction's
-    previous rep record (the window its gain was made in: NULL for the
-    faction's first) and the points to the next tier, from the KB's
+    """sem_reps: each rep record, and each of Altoholic's reputation
+    snapshots, with the online seconds since the faction's previous row of the
+    same source (the window its gain was made in: NULL for the faction's
+    first, and for an Altoholic row whose gain prep left out because the
+    Recorder's rows cover it) and the points to the next tier, from the KB's
     reputation.thresholds (NULL below neutral, at exalted, or without the
     rule)."""
     widths = ((_kb_rule("reputation.thresholds") or {}).get("value") or {})
@@ -273,10 +281,11 @@ def _reps_sql() -> str:
         edge += w
         cases.append(f"WHEN {reaction} THEN {edge}")
     nxt = f"(CASE x.reaction {' '.join(cases)} END - x.rep_points)" if cases else "CAST(NULL AS BIGINT)"
-    return ("SELECT x.*, CASE WHEN x.prev_t IS NULL THEN NULL ELSE CAST((SELECT COALESCE(SUM(tl.dur_s), 0) "
+    return ("SELECT x.*, CASE WHEN x.prev_t IS NULL OR (x.source = 'altoholic' AND x.rep_gained IS NULL) THEN NULL "
+            "ELSE CAST((SELECT COALESCE(SUM(tl.dur_s), 0) "
             "FROM timeline tl WHERE tl.t0 >= x.prev_t AND tl.t0 < x.t) AS DOUBLE) END AS online_since_s, "
             f"{nxt} AS rep_to_next, " + "{ts:x.t} AS at_local, {who} FROM (SELECT r.*, LAG(r.t) OVER "
-            "(PARTITION BY r.faction_id ORDER BY r.t, r.rec_id) AS prev_t FROM reps r) x")
+            "(PARTITION BY r.faction_id, r.source ORDER BY r.t, r.rec_id) AS prev_t FROM reps r) x")
 
 
 RIDING_SKILL = 762
@@ -354,9 +363,10 @@ def _class_spells_sql() -> str:
         "(SELECT CASE lower(regexp_replace(value, '[^A-Za-z]', '', 'g')) "
         f"{race_bit} WHEN 'skyborne' THEN (SELECT CASE lower(value) {sky_bit} END FROM meta WHERE key = 'faction') "
         "END FROM meta WHERE key = 'race') AS race_bit), "
-        # Every rank the Recorder saw learned, with its chain and rank.
+        # Every rank seen learned, with its chain and rank; Altoholic's spells
+        # still to come (known 0) are not learned.
         "got AS (SELECT r.chain, MAX(r.rank) AS rank FROM spells_known k JOIN ref r ON r.spell_id = k.spell_id "
-        "JOIN me ON r.cls = me.cls GROUP BY r.chain) "
+        "JOIN me ON r.cls = me.cls WHERE COALESCE(k.known, 1) = 1 GROUP BY r.chain) "
         "SELECT c.*, CASE WHEN c.learned = 1 THEN 'learned' WHEN c.needs_talent IS NOT NULL AND c.chain_learned = 0 "
         "THEN 'talent' WHEN c.basis = 'altoholic' OR c.spell_level > c.recorder_level THEN 'missing' "
         "ELSE 'unknown' END AS status, {who} "

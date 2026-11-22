@@ -24,7 +24,7 @@ Each optional one fills one more part of the page; a missing one leaves that par
 - **[Polestar Recorder](https://github.com/fitzforge/polestar/releases/latest)** (required): your play sessions, zone by zone. The install command adds it: type `/psrec on` once in game.
 - **[Syndicator](https://www.curseforge.com/wow/addons/syndicator)** (optional): gear and gold on every character. Install it, then log in once with each character.
 - **[Auctionator](https://www.curseforge.com/wow/addons/auctionator)** (optional): prices from your own auction house scans. Install it, then scan the auction house once.
-- **[Altoholic](https://www.curseforge.com/wow/addons/altoholic)** (optional): your full /played from level 1, the quests you finished before Polestar, and the recipes you know. Install it, then log in once with each character.
+- **[Altoholic](https://www.curseforge.com/wow/addons/altoholic)** (optional): your full /played from level 1, the quests you finished before Polestar, the recipes and spells you know, and the reputations, stats, lockouts, money and XP of every character. Install it, then log in once with each character.
 - **[Questie](https://www.curseforge.com/wow/addons/questie)** (optional): the quests you finished before Polestar (Altoholic does it too: one of the two is enough). Install it, then log in once with each character.
 - **[WoWSims Exporter](https://www.curseforge.com/wow/addons/wowsims-exporter)** (optional): every talent change, for your full talent history (without it: the last 3 weeks). Install it, then tick it in the AddOns list at character select: it starts switched off.
 

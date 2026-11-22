@@ -178,6 +178,54 @@ Altoholic_Forever depends on). Every other reader of
 `wow-character` leaves these out (`-kind:=played`): they carry no gold,
 zone or race.
 
+**`wow-character` with `source: altoholic`, no `kind`** (optional, Altoholic):
+the character sheet as DataStore_Characters saved it, one event each time it
+changes, for every character of the roster Altoholic saw logged in. Fields:
+`money_copper` (`money`), `xp`, `xp_max`, `rested_xp` (`XP`, `maxXP`,
+`restXP`), `zone`, `subzone`, `bind` (`zone`, `subZone`, `bindLocation`),
+`level` (bits 0-6 of `BaseInfo`), `logged_out`. Never `guildRankIndex` or
+`BaseInfo`'s other bits (class, race, gender). `_time` is `lastUpdate`.
+`source_id` is `altoholic:sheet:<char>:<hash>`. The readers of the sheet
+take it with Polestar's; one within 2 minutes of a Polestar sheet with the
+same money and level is that sheet (the analysis' `snapshots`).
+
+**`wow-altoholic`** (optional, Altoholic): one event per character and
+module each time what that module saved for it changes, `source: altoholic`,
+`_time` the module's `lastUpdate` for the character (lockouts: the newest
+scan). Only the account's own roster; the fields below only (the shipper's
+`ALTO_KEYS`, which `/ingest` applies too). `source_id` is
+`altoholic:<kind>:<char>:<hash>`. Format read from Thaoky's source (the
+2026-10-14 DataStore modules Altoholic_Forever 1.60.005 loads; Forever runs
+their mainline branch).
+
+- `kind: spells` (`DataStore_Spells.lua`, `Spells[tab]`): `spells`, a list
+  of `[spell id, level]`, level 0 for a known spell, else the level a spell
+  still to come opens at (bits 0-7; bits 8+ the spell id); `class`
+  (`englishClass`), `known`, `future` (the counts). Tab names aren't sent.
+- `kind: reps` (`DataStore_Reputations.lua`, `Factions`): `factions`, a list
+  of `[faction id, reaction 1-8, points from the start of neutral]` (bits 3
+  negative, 4-7 standing, 8+ points), normal factions only; `n`. Never
+  `guildName` or `guildRep`.
+- `kind: stats` (`DataStore_Stats.lua`): the "|"-joined strings as numbers:
+  `health_max`, `power_type`, `power_max`; `strength`, `agility`, `stamina`,
+  `intellect`, `armor` (Base: four stats, no spirit); `melee_dmg_min`,
+  `melee_dmg_max`, `melee_speed`, `melee_ap`, `melee_hit_rating`,
+  `melee_crit_pct`, `expertise`; the same for `ranged_*` without expertise;
+  `spell_bonus_dmg`, `spell_bonus_heal`, `spell_hit_rating`,
+  `spell_crit_pct`, `spell_haste_rating`, `mp5`; `dodge_pct`, `parry_pct`,
+  `block_pct`, `resilience` (Defense); `honorable_kills`,
+  `dishonorable_kills` (PVP, lifetime). No resistances: DataStore saves none.
+- `kind: lockouts` (`DataStore_Agenda.lua`, `SavedInstances` and
+  `BossKills`): `lockouts`, a list of `{instance, instance_id, expires
+  (scan time + reset seconds), extended, raid, bosses: [[boss, 0/1]]}`;
+  `weekly_reset_day` (0 Sunday) and `weekly_reset_hour` from the account's
+  Agenda options; `n`. Never `Contacts` or `Calendar`.
+
+A module that isn't there, or holds nothing for a character, sends nothing.
+Never read: Agenda's Contacts and Calendar, Containers' and Inventory's
+guild tables, Mails, Auctions, `Altoholic_Sharing_Options`,
+`DataStore_GuildIDs`, `DataStore_CharacterGuilds`.
+
 **`wow-gear`** (the character sheet): one event each time it changes, for
 every character of the account (its folder, Polestar's alts, Syndicator). `_time` is the character's logout snapshot in
 `PolestarDB.alts.chars` (the moment the game wrote these files), else the

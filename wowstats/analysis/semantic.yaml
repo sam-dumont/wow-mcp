@@ -739,6 +739,7 @@ snapshots:
     zone: {expr: _.zone, description: "Zone name."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    snapshot_source: {expr: _.source, description: "Who saved it: polestar, altoholic, polestar,altoholic (the same logout), or the roster's sources."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "When the snapshot was taken, local time."}
   measures:
@@ -794,6 +795,11 @@ snapshots:
       description: "Where the hearthstone is bound, on the newest snapshot."
       metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: place,
                  caveats: "The newest snapshot where it is known: a newest snapshot without it gives the one before. NULL with no snapshot in the group."}
+    rested_xp:
+      expr: _.rested_xp.argmax(_.t, where=_.rested_xp.notnull())
+      description: "The rested XP pool on the newest snapshot that has it (Altoholic's)."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: xp,
+                 caveats: "Altoholic only (DataStore_Characters): NULL without it, install it and log out once. The Recorder's xp records carry it too while it runs (rested model)."}
     resting:
       expr: _.resting.argmax(_.t)
       description: "1 when the newest snapshot was taken in a rested area (an inn or a city), else 0."
@@ -1638,10 +1644,11 @@ flight_nodes:
 
 reputation:
   table: sem_reps
-  description: "The character's reputation changes (the Recorder's rep records): one row per change, with the online time since the faction's previous one and the points to its next tier."
+  description: "The character's reputation: the Recorder's rep records (one row per change) and Altoholic's reputation snapshots (a faction's first listing and each later move of its points), with the online time since the faction's previous row of the same source and the points to its next tier."
   dimensions:
     faction_id: {expr: _.faction_id, description: "The game's faction id (its Wowhead page: faction=<id>). Its name: the KB's Faction table is a follow-up, so look the id up for now."}
     reaction: {expr: _.reaction, description: "The tier after the change: 1 hated .. 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted."}
+    rep_source: {expr: _.source, description: "recorder: a rep record (each change, as it happened). altoholic: Altoholic's snapshot at a logout (every faction, even of a character the Recorder never saw)."}
     level: {expr: _.level, is_entity: true, description: "Character level."}
     zone: {expr: _.zone, description: "Zone name."}
     session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
@@ -1655,22 +1662,22 @@ reputation:
       expr: _.rec_id.count()
       description: "Reputation changes the Recorder saw (rep records)."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: changes,
-                 caveats: "0 without the Recorder: Battle.net's reputations are out of the analysis (/psrec on, then /reload)."}
+                 caveats: "The Recorder's rep records only: Altoholic's logout snapshots are not counted here (group by rep_source for those rows). 0 without the Recorder (/psrec on, then /reload); Battle.net's reputations are out of the analysis."}
     rep_gained:
       expr: _.rep_gained.sum()
       description: "Reputation points gained (lost: negative), summed over the changes."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: points,
-                 caveats: "Group by faction_id: points of two factions don't add up to anything. A change the Recorder had no earlier value for has no gain. NULL without one (no Recorder: /psrec on, then /reload)."}
+                 caveats: "Group by faction_id: points of two factions don't add up to anything. A change the Recorder had no earlier value for has no gain. Altoholic's snapshots add the move since the faction's previous snapshot only where no rep record falls between (never counted twice). NULL without either (/psrec on, or install Altoholic)."}
     rep_standing_now:
       expr: _.rep_points.argmax(_.t)
       description: "The faction's points on its newest change, counted from the start of neutral (the game's own value: friendly from 3,000)."
       metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: points,
-                 caveats: "Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload)."}
+                 caveats: "Group by faction_id. As of the newest row: a rep record or Altoholic's logout snapshot. A character the Recorder never saw has it from Altoholic only: install Altoholic and log in once."}
     rep_reaction_now:
       expr: _.reaction.argmax(_.t)
       description: "The faction's tier on its newest change: 4 neutral, 5 friendly, 6 honored, 7 revered, 8 exalted."
       metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: tier,
-                 caveats: "Group by faction_id. As of the newest change the Recorder saw (/psrec on, then /reload)."}
+                 caveats: "Group by faction_id. As of the newest row: a rep record or Altoholic's logout snapshot. A character the Recorder never saw has it from Altoholic only: install Altoholic and log in once."}
     rep_to_next_points:
       expr: _.rep_to_next.argmax(_.t)
       description: "Points from the newest change to the faction's next tier."
@@ -1680,7 +1687,7 @@ reputation:
       expr: _.online_since_s.sum()
       description: "Online seconds between each change and the faction's change before it: the time the gains were made in."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "Every online second in between counts, whatever was done: the pace at the way the character plays. NULL for a faction's first change (the Recorder sees the next: /psrec on, then /reload)."}
+                 caveats: "Every online second in between counts, whatever was done: the pace at the way the character plays. Windows of one source each (an Altoholic window only where no rep record falls in it). NULL for a faction's first change (the Recorder sees the next: /psrec on, then /reload; or Altoholic's next logout)."}
   calculated_measures:
     rep_per_online_hour:
       expr: _.rep_gained / (_.rep_online_s / 3600)
@@ -1804,6 +1811,195 @@ riding:
       description: "What the tier's training still needs: its cost minus the money on the newest snapshot, 0 when the money covers it or the riding skill already reaches it."
       metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: copper,
                  caveats: "Group by tier. A riding rank trained before the Recorder ran has no skill record and reads untrained. NULL without a snapshot with money: log out once (the shipper reads the money at logout and /reload)."}
+
+char_stats:
+  table: sem_char_stats
+  description: "The character sheet's stats as Altoholic saved them (DataStore_Stats): one row per save that changed them. Altoholic only: no resistances (it saves none), no spirit."
+  dimensions:
+    level: {expr: _.level, is_entity: true, description: "Character level at the save."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week of the save, local time, named by its Monday (YYYY-MM-DD)."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When Altoholic saved the stats, local time."}
+  measures:
+    stat_saves:
+      expr: _.t.count()
+      description: "Altoholic saves of the character sheet's stats that changed them."
+      metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: saves,
+                 caveats: "0 without Altoholic: install it and log in once with the character. A save that changed nothing is not counted."}
+    sheet_health_max:
+      expr: _.health_max.argmax(_.t)
+      description: "Maximum health on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: health,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_power_max:
+      expr: _.power_max.argmax(_.t)
+      description: "Maximum mana, rage or energy on the character sheet (power_type: 0 mana, 1 rage, 3 energy)."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: power,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_strength:
+      expr: _.strength.argmax(_.t)
+      description: "Strength on the character sheet, gear and buffs included."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: points,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_agility:
+      expr: _.agility.argmax(_.t)
+      description: "Agility on the character sheet, gear and buffs included."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: points,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_stamina:
+      expr: _.stamina.argmax(_.t)
+      description: "Stamina on the character sheet, gear and buffs included."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: points,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_intellect:
+      expr: _.intellect.argmax(_.t)
+      description: "Intellect on the character sheet, gear and buffs included."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: points,
+                 caveats: "Altoholic's newest save. No spirit: Altoholic saves the first four stats only. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_armor:
+      expr: _.armor.argmax(_.t)
+      description: "Armor on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: points,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_attack_power:
+      expr: _.melee_ap.argmax(_.t)
+      description: "Melee attack power on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: points,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_ranged_attack_power:
+      expr: _.ranged_ap.argmax(_.t)
+      description: "Ranged attack power on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: points,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_spell_damage:
+      expr: _.spell_bonus_dmg.argmax(_.t)
+      description: "Bonus spell damage on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: points,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_healing:
+      expr: _.spell_bonus_heal.argmax(_.t)
+      description: "Bonus healing on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: points,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    sheet_mp5:
+      expr: _.mp5.argmax(_.t)
+      description: "Mana regained per 5 seconds on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: mana,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    melee_crit_pct:
+      expr: _.melee_crit_pct.argmax(_.t)
+      description: "Melee critical strike chance on the character sheet, percent."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: percent,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    ranged_crit_pct:
+      expr: _.ranged_crit_pct.argmax(_.t)
+      description: "Ranged critical strike chance on the character sheet, percent."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: percent,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    spell_crit_pct:
+      expr: _.spell_crit_pct.argmax(_.t)
+      description: "Spell critical strike chance on the character sheet, percent."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: percent,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    melee_hit_rating:
+      expr: _.melee_hit_rating.argmax(_.t)
+      description: "Melee hit rating on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: rating,
+                 caveats: "Altoholic's newest save. A rating, not a percent: Classic-era gear gives hit as a percent, which the game doesn't add to this rating, so 0 is the usual value and not proof of no hit gear. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    ranged_hit_rating:
+      expr: _.ranged_hit_rating.argmax(_.t)
+      description: "Ranged hit rating on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: rating,
+                 caveats: "Altoholic's newest save. A rating, not a percent: Classic-era gear gives hit as a percent, which the game doesn't add to this rating, so 0 is the usual value and not proof of no hit gear. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    spell_hit_rating:
+      expr: _.spell_hit_rating.argmax(_.t)
+      description: "Spell hit rating on the character sheet."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: rating,
+                 caveats: "Altoholic's newest save. A rating, not a percent: Classic-era gear gives hit as a percent, which the game doesn't add to this rating, so 0 is the usual value and not proof of no hit gear. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    dodge_pct:
+      expr: _.dodge_pct.argmax(_.t)
+      description: "Dodge chance on the character sheet, percent."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: percent,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    parry_pct:
+      expr: _.parry_pct.argmax(_.t)
+      description: "Parry chance on the character sheet, percent."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: percent,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    block_pct:
+      expr: _.block_pct.argmax(_.t)
+      description: "Block chance on the character sheet, percent."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: percent,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    honorable_kills_lifetime:
+      expr: _.honorable_kills.argmax(_.t)
+      description: "Lifetime honorable kills (the game's PvP count)."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: kills,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    dishonorable_kills_lifetime:
+      expr: _.dishonorable_kills.argmax(_.t)
+      description: "Lifetime dishonorable kills."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: kills,
+                 caveats: "Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet."}
+    honorable_kills_gained:
+      expr: _.honorable_kills.argmax(_.t) - _.honorable_kills.argmin(_.t)
+      description: "Honorable kills gained between the group's first and last Altoholic save."
+      metadata: {kind: derived, aggregation: endpoint_difference, time_meaning: snapshot_observation, evidence_basis: observed, unit: kills,
+                 caveats: "Not additive: a week's gain is not the sum of its days. NULL with fewer than two saves in the group (honorable_kills_gained_evidence counts them). NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet.",
+                 min_evidence: {count: "_.t.nunique(where=_.honorable_kills.notnull())", at_least: 2,
+                   means: "two Altoholic saves with the honorable kills, at different times"}}
+
+lockouts:
+  table: sem_lockouts
+  description: "Raid and dungeon lockouts: Altoholic's saved instances (exact: the reset time, the bosses), else an estimate from the Recorder's raid boss kills of the last 7 days."
+  dimensions:
+    instance: {expr: _.instance, description: "The instance's name (with its difficulty when above normal)."}
+    instance_id: {expr: _.instance_id, description: "The game's lockout id (Altoholic only)."}
+    lockout_active: {expr: _.active, description: "1 when the lockout hadn't reset when the data was read, else 0."}
+    lockouts_basis: {expr: _.source, description: "altoholic: Altoholic's saved instances, exact. recorder: an estimate from the Recorder's raid boss kills (reset time and lockout id unknown)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    week: {expr: _.at_local.truncate('W').date(), description: "The week the lockout resets (Altoholic) or of the last kill (Recorder), local time, named by its Monday."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When the lockout resets (Altoholic), else the last raid boss kill (the Recorder's estimate), local time."}
+  measures:
+    lockouts_active:
+      expr: _.active.sum().fill_null(0)
+      description: "Lockouts that hadn't reset when the data was read: this week's."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: lockouts,
+                 caveats: "Exact with Altoholic (lockouts_basis altoholic). Without it, an estimate from the Recorder: a raid with a boss killed in the last 7 days (the reset day unknown, five-player dungeons left out). Install Altoholic for the exact list. 0 before any raid: they open on 2026-12-09."}
+    lockouts_seen:
+      expr: _.instance.count()
+      description: "Lockouts known, past and active."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: lockouts,
+                 caveats: "Altoholic keeps a lockout until it resets; each save it shipped adds its own. Without Altoholic, the Recorder's estimate: one per raid per week of boss kills. Install Altoholic for the exact list."}
+    raid_lockouts_active:
+      expr: (_.active * _.raid).sum().fill_null(0)
+      description: "Raid lockouts that hadn't reset when the data was read."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: lockouts,
+                 caveats: "As lockouts_active: exact with Altoholic, an estimate without it (install Altoholic for the exact list)."}
+    lockout_bosses_killed:
+      expr: _.bosses_killed.sum().fill_null(0)
+      description: "Bosses killed in the lockouts of the group."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: bosses,
+                 caveats: "Group by instance. Without Altoholic, the raid bosses the Recorder saw killed (encounter records), since the Recorder ran: install Altoholic for the game's own list."}
+    lockout_bosses_left:
+      expr: (_.bosses_total - _.bosses_killed).sum()
+      description: "Bosses still alive in the lockouts of the group."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: bosses,
+                 caveats: "Group by instance. Altoholic only (the game lists every boss of a lockout): NULL without it. Install Altoholic."}
+    lockout_next_reset_t:
+      expr: _.expires_t.min(where=_.active == 1)
+      description: "When the first active lockout resets, unix seconds."
+      metadata: {kind: simple, aggregation: min, time_meaning: event, evidence_basis: observed, unit: unix_seconds,
+                 caveats: "Altoholic only: NULL without it (the Recorder's estimate has no reset time) or with no active lockout. Install Altoholic."}
+    weekly_reset_day:
+      expr: _.weekly_reset_day.argmax(_.scan_t)
+      description: "The account's weekly reset day, 0 Sunday .. 6 Saturday (Altoholic's Agenda options)."
+      metadata: {kind: simple, aggregation: latest, time_meaning: snapshot_observation, evidence_basis: observed, unit: weekday,
+                 caveats: "Altoholic only, and only once a lockout was saved: NULL before (install Altoholic)."}
 
 cross_model_metrics:
   kills_per_combat_hour:

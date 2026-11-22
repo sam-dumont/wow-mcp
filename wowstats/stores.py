@@ -423,16 +423,23 @@ def in_force(read, head: str, fields: str, parts: tuple[str, ...]) -> list[dict]
 SHEET_FIELDS = ("_time, at_basis, source_id, level, xp, xp_max, money_copper, zone, race, class, faction, "
                 "realm, resting, source")
 SHEET_PARTS = ("money_copper",)
+# Who the character is, from the newest sheet that says it: Altoholic's
+# sheet (DataStore_Characters, source altoholic) carries the purse and XP
+# but no class, race or side, and saves the same logout as Polestar's, often
+# a second later; as the newest row it must not blank them (the hero line
+# would then take Battle.net's, or none).
+SHEET_IDENTITY = ("class", "race", "faction")
 
 
 def sheet_rows(read, cf: str) -> list[dict]:
     """The character sheet's rows in force (in_force) for pick_sheet."""
-    return in_force(read, f'feed:="wow-character" {cf} -kind:=played', SHEET_FIELDS, SHEET_PARTS)
+    return in_force(read, f'feed:="wow-character" {cf} -kind:=played', SHEET_FIELDS, SHEET_PARTS + SHEET_IDENTITY)
 
 
 def pick_sheet(rows: list[dict]) -> dict:
-    """The character sheet in force; the money from the newest sheet that has it."""
-    return newest_with(rows, SHEET_PARTS)
+    """The character sheet in force; the money, class, race and side each
+    from the newest sheet that has it."""
+    return newest_with(rows, SHEET_PARTS + SHEET_IDENTITY)
 
 
 def merge_rows(rows: list[dict], keys: tuple, ops: dict) -> list[dict]:

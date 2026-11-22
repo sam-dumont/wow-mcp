@@ -489,6 +489,9 @@ installed): your characters, their levels, quests, zones, deaths, dungeons, gear
 prices you scanned. Also the names of other players your game showed you, with when and where: in
 groups, nearby in your combat logs if you turned combat logging on, and the ones you targeted. Never their
 realm or game id; your combat log names only you and the monsters.</li>
+<li>With Altoholic installed, also: your spellbook, reputations, character sheet stats and lifetime
+honorable kills, raid and dungeon lockouts, and each character's money, XP and hearthstone at logout.
+Never Altoholic's friends list, calendar, guild data or your mail.</li>
 <li>What you or your AI write down: the goals you gave the play analysis (up to 600 characters), what you
 asked a plan to work around (up to 300 characters), and the findings the analysis kept about your play.</li>
 <li>Your login's id (a number from the login service) and your page's name, set by the owner. No email address, no

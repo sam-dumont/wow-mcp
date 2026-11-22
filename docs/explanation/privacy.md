@@ -23,6 +23,11 @@ the computer you play on:
   race, class, gold and the gear it wears. Sex and guild come from Battle.net, when you set it
   up.
 - **Altoholic**, **Questie**: your `/played` from level 1, the quests finished before Polestar.
+- **Altoholic** also: the recipes and spells each character knows (and the spells still to come),
+  its reputations, its character sheet stats and lifetime honorable kills, its raid and dungeon
+  lockouts, and its money, XP, rested XP and hearthstone at each logout. Never its friends list,
+  calendar, guild tables (name, rank, bank, members' gear), mail or auction bidders: the shipper
+  doesn't read them, and the server drops any of it an older or modified shipper sends.
 - **WoWSims Exporter**: your own characters' talent builds, each time one changes. Never the
   other players it keeps in its file (the people you inspected or grouped with).
 - **Polestar Client's `sent.jsonl`**, read only: the Recorder chunks it uploaded in the last 8

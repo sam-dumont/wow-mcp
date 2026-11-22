@@ -108,7 +108,7 @@ TABLES = {
     "gear": "game", "gear_sheets": "game", "professions": "game", "snapshots": "game",
     "upgrade_candidates": "game", "reps": "game", "offers": "game", "quest_rewards": "game",
     "spells_known": "game", "flight_nodes": "game", "attunement_steps": "game", "achievements_seen": "game",
-    "quest_text": "text", "item_values": "reference", "agg_session": "game",
+    "char_stats": "game", "lockouts": "game", "quest_text": "text", "item_values": "reference", "agg_session": "game",
     "agg_level": "game", "agg_zone": "game", "agg_hour": "game", "dictionary": "doc", "record_kinds": "doc",
     "meta": "doc",
 }
