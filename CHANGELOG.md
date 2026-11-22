@@ -25,6 +25,7 @@
 - Without the Recorder, the page and the `/zogzog/` bundle said 0 deaths. They now say unknown (`null`), as your AI's `deaths` already did; the page still reads "No deaths recorded" with the Recorder's switch.
 - One character whose store read failed stopped the nightly recheck for every character after it, and the night counted as done. The others are rechecked now; the failed one keeps its last answer, and the night ends in an error.
 - A finding judged under another `WOW_TIMEZONE` (or session gap) is marked "to revalidate", like one judged under another semantic model: its hours and days meant other hours.
+- `--replay` stopped at "no WTF folder" and sent nothing on a computer without the game (not installed yet, or moved), although it only reads `sent/`. It now runs without the WoW folder.
 
 ## 0.7.0-rc.8 (2026-11-21)
 

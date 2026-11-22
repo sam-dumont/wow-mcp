@@ -171,6 +171,19 @@ def test_replay_restores_what_was_delivered(played, shipper):
     assert {p.name: p.stat().st_size for p in (arch / "sent").glob("*.gz")} == sizes
 
 
+def test_replay_needs_only_sent(played, shipper, tmp_path):
+    """--replay reads sent/ and nothing else: a PC where the game isn't
+    installed (yet), or moved, still refills the server. It used to stop
+    at "no WTF folder" and exit 0 having sent nothing (recovery drill,
+    2026-11-22)."""
+    store, arch, run = played
+    before = store.canonical()
+    shutil.rmtree(tmp_path / "wow")
+    store.lines.clear()
+    assert run("--replay") == 0
+    assert store.canonical() == before
+
+
 def test_reextract_restores_from_the_archive_alone(played, shipper):
     """sent/ lost too: --reextract reads every archived version again with
     a checkpoint of its own, and never touches the normal one."""
