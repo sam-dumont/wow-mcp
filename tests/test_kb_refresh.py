@@ -210,12 +210,24 @@ def test_accept_refuses_a_kind_it_could_not_read(state, tmp_path, monkeypatch):
     assert watch.main(["--state", str(path), "--accept", "polestar", "--release", "v1; x"]) == 3
 
 
-def test_accept_only_the_pages_the_model_read(state):
-    now = {"client-build": {"build": None}, "official": {p["key"]: f"new-{p['key']}" for p in state["official"]},
-           "polestar": {"release": None}, "addons": {}}
-    got = watch.accept(json.loads(json.dumps(state)), now, ["official"], only=["hotfixes"])
-    assert {p["key"]: p["known"] for p in got["official"]}["hotfixes"] == "new-hotfixes"
-    assert [p["known"] for p in got["official"] if p["key"] != "hotfixes"] == [
+def test_accept_official_takes_the_handoff_never_a_fresh_read(state, tmp_path, monkeypatch):
+    """Only the pages the handoff names move, to the version it names; without
+    a handoff the official accept refuses and the state stays."""
+    path = tmp_path / "watch.json"
+    path.write_text(json.dumps(state))
+    monkeypatch.setattr(watch, "current", lambda *a, **k: pytest.fail("the accept fetched upstream"))
+    assert watch.main(["--state", str(path), "--accept", "official"]) == 2
+    assert watch.main(["--state", str(path), "--accept"]) == 2
+    assert json.loads(path.read_text()) == state
+    handoff = tmp_path / "read.json"
+    handoff.write_text(json.dumps({"official": {"hotfixes": "new-hotfixes", "not-watched": "x"}}))
+    monkeypatch.setattr(watch, "current", lambda s, f, g, k=None: {
+        "client-build": {}, "official": {}, "polestar": {}, "addons": {}})
+    monkeypatch.setattr(watch.web, "GitHub", lambda repo: None)
+    assert watch.main(["--state", str(path), "--accept", "official", "--handoff", str(handoff)]) == 0
+    got = {p["key"]: p["known"] for p in json.loads(path.read_text())["official"]}
+    assert got["hotfixes"] == "new-hotfixes" and "not-watched" not in got
+    assert [v for k, v in got.items() if k != "hotfixes"] == [
         p["known"] for p in state["official"] if p["key"] != "hotfixes"]
 
 
@@ -266,7 +278,8 @@ def test_a_recorded_patch_makes_a_schema_valid_lane(state):
 def test_the_cost_cap_stops_before_the_next_call(state):
     client = Client({"statements": []}, usage={"input_tokens": 400_000, "output_tokens": 10_000})  # $1.80 a call
     pages = {p["url"]: PAGE.encode() if p["kind"] == "page" else json.dumps(
-        {"post_stream": {"posts": [{"cooked": "<p>" + "a rule " * 50 + "</p>"}]}}).encode() for p in state["official"]}
+        {"posts_count": 1, "last_posted_at": "x", "post_stream": {"posts": [
+            {"cooked": "<p>" + "a rule " * 50 + "</p>"}]}}).encode() for p in state["official"]}
     out = refresh.run([p["key"] for p in state["official"]], client, Fetch(pages), cap=3.0)
     assert len(client.requests) == 1 and any("would likely cross" in s for s in out["skipped"])
 
@@ -343,8 +356,9 @@ def test_the_workflow_holds_no_token_where_it_runs_unlocked_code():
 
 
 def forum(posts: list[str], start: int = 1) -> bytes:
-    return json.dumps({"posts_count": start + len(posts) - 1, "post_stream": {"posts": [
-        {"post_number": n, "cooked": f"<p>{t}</p>"} for n, t in enumerate(posts, start)]}}).encode()
+    return json.dumps({"posts_count": start + len(posts) - 1, "last_posted_at": "2026-11-21T00:00:00.000Z",
+                       "post_stream": {"posts": [{"post_number": n, "cooked": f"<p>{t}</p>"}
+                                                 for n, t in enumerate(posts, start)]}}).encode()
 
 
 POSTS = ["Mage frost nova radius is now 10 yards. " * 8, "Hunter pets gain loyalty twice as fast. " * 8,
@@ -496,3 +510,138 @@ def test_no_model_step_runs_in_the_version_watch():
         cond = s.get("if", "")
         assert "'watch'" not in cond, s["name"]
         assert any(w in cond for w in ("env.MODE == 'review'", "steps.pages.outputs.keys", "steps.collect.outputs.new")), s["name"]
+
+
+# ---------------------------------------------------------------- the checkpoint
+# Codex review, 2026-11-22: a thread at 20 posts got a 21st; the topic read
+# fine, post 21 answered 503, the pass saw no new text, called the thread
+# read, and the accept re-read upstream and recorded 21 posts. Post 21 was
+# never read. A failed fetch now leaves the page pending, and the accept
+# records the version the pass read, carried in its handoff.
+
+
+class NoModel:
+    """A model that must not be called."""
+
+    def __init__(self):
+        self.messages = SimpleNamespace(create=self.create)
+
+    def create(self, **kw):
+        raise AssertionError("the model was called")
+
+
+T20 = "2026-11-20T00:00:00.000Z"
+
+
+def thread_at(state, count: int, posts: dict[int, object], last: str):
+    """hotfixes-forum known at 20 posts; upstream has `count`, the first 20 in
+    the topic JSON, `posts` {n: body or (status, body)} one by one."""
+    thread = next(p for p in state["official"] if p["key"] == "hotfixes-forum")
+    thread["known"] = f"20 posts, last {T20}"
+    body = json.loads(forum([f"old post {n} " * 10 for n in range(1, 21)]))
+    body |= {"posts_count": count, "last_posted_at": last}
+    base, topic = thread["url"].split("/t/")
+    pages = {thread["url"]: json.dumps(body).encode()}
+    for n, v in posts.items():
+        pages[f"{base}/posts/by_number/{topic.removesuffix('.json')}/{n}.json"] = v
+    return thread, Fetch(pages)
+
+
+def post(text: str) -> bytes:
+    return json.dumps({"cooked": f"<p>{(text + ' ') * 6}</p>"}).encode()
+
+
+def accept(state, out, tmp_path, monkeypatch, upstream, rc: int = 0):
+    """The workflow's accept step after the pass: `watch.py --accept official
+    --handoff`, with `upstream` what a fetch would answer at that moment."""
+    path, handoff = tmp_path / "watch.json", tmp_path / "read.json"
+    path.write_text(json.dumps(state))
+    handoff.write_text(json.dumps({"official": out["versions"]}))
+    monkeypatch.setattr(watch.web, "Fetcher", lambda: upstream)
+    monkeypatch.setattr(watch.web, "GitHub", lambda repo: None)
+    assert watch.main(["--state", str(path), "--accept", "official", "--handoff", str(handoff)]) == rc
+    return json.loads(path.read_text())
+
+
+def known_of(state, key="hotfixes-forum"):
+    return next(p["known"] for p in state["official"] if p["key"] == key)
+
+
+def test_a_failed_new_post_leaves_the_thread_pending_and_the_next_run_reads_it(state, tmp_path, monkeypatch):
+    thread, fetch = thread_at(state, 21, {21: (503, b"")}, "2026-11-22T00:00:00.000Z")
+    out = refresh.run([thread["key"]], NoModel(), fetch, cap=3.0, state=state)
+    assert out["read"] == [] and out["versions"] == {} and out["doc"]["statements"] == []
+    assert out["skipped"] == ["hotfixes-forum: post 21: HTTP 503; left pending, the next run reads it again"]
+    assert not any("nothing new" in s for s in out["skipped"])
+    # Nothing read, nothing to accept (the workflow skips the step; run anyway,
+    # it refuses an empty handoff). The watch still flags the thread.
+    assert known_of(accept(state, out, tmp_path, monkeypatch, fetch, rc=3)) == f"20 posts, last {T20}"
+    assert watch.run(state, fetch, None, github=False, kinds=["official"])["changed_official"] == ["hotfixes-forum"]
+    # Next run: post 21 loads, the model reads it, the checkpoint moves to 21.
+    thread, fetch = thread_at(state, 21, {21: post("Druid travel form is learned at 20.")},
+                              "2026-11-22T00:00:00.000Z")
+    client = Client({"statements": []})
+    out = refresh.run([thread["key"]], client, fetch, cap=3.0, state=state)
+    assert out["read"] == ["hotfixes-forum"] and "Druid travel form" in client.requests[0]["messages"][0][
+        "content"][-1]["text"]
+    assert known_of(accept(state, out, tmp_path, monkeypatch, fetch)) == "21 posts, last 2026-11-22T00:00:00.000Z"
+
+
+def test_a_deleted_post_is_nothing_to_read_not_a_failure(state):
+    thread, fetch = thread_at(state, 21, {21: (404, b"")}, "2026-11-22T00:00:00.000Z")
+    out = refresh.run([thread["key"]], NoModel(), fetch, cap=3.0, state=state)
+    assert out["read"] == ["hotfixes-forum"] and out["skipped"] == ["hotfixes-forum: nothing new to read"]
+    assert out["versions"] == {"hotfixes-forum": "21 posts, last 2026-11-22T00:00:00.000Z"}
+
+
+def test_the_checkpoint_moves_only_to_the_version_the_model_read(state, tmp_path, monkeypatch):
+    """Post 22 arrives while the model reads post 21: the accept records 21,
+    and the next watch flags the thread for post 22."""
+    thread, fetch = thread_at(state, 21, {21: post("Druid travel form is learned at 20.")},
+                              "2026-11-22T00:00:00.000Z")
+    out = refresh.run([thread["key"]], Client({"statements": []}), fetch, cap=3.0, state=state)
+    _, later = thread_at(state, 22, {21: post("Druid travel form is learned at 20."),
+                                     22: post("Mage portals cost one rune.")}, "2026-11-22T06:00:00.000Z")
+    after = accept(state, out, tmp_path, monkeypatch, later)
+    assert known_of(after) == "21 posts, last 2026-11-22T00:00:00.000Z"
+    assert watch.run(after, later, None, github=False, kinds=["official"])["changed_official"] == ["hotfixes-forum"]
+    client = Client({"statements": []})
+    next_run = refresh.run(["hotfixes-forum"], client, later, cap=3.0, state=after)
+    sent = client.requests[0]["messages"][0]["content"][-1]["text"]
+    assert next_run["read"] == ["hotfixes-forum"] and "Mage portals" in sent and "Druid travel form" not in sent
+
+
+def test_a_page_is_accepted_at_the_hash_read_and_a_failed_page_stays_pending(state, tmp_path, monkeypatch):
+    url = next(p["url"] for p in state["official"] if p["key"] == "hotfixes")
+    known_hash(state, b"<article>" + b"older text " * 40 + b"</article>")
+    out = refresh.run(["hotfixes"], NoModel(), Fetch({url: (503, b"")}), cap=3.0, state=state)
+    assert out["read"] == [] and out["skipped"] == ["hotfixes: HTTP 503; left pending, the next run reads it again"]
+    # A short body (an error or challenge page) isn't the page: pending too.
+    out = refresh.run(["hotfixes"], NoModel(), Fetch({url: b"<article>Just a moment</article>"}), cap=3.0,
+                      state=state)
+    assert out["read"] == [] and "unreadable" in out["skipped"][0]
+    out = refresh.run(["hotfixes"], Client({"statements": []}), Fetch({url: PAGE.encode()}), cap=3.0, state=state)
+    edited = PAGE.replace("too fast", "far too fast").encode()
+    after = accept(state, out, tmp_path, monkeypatch, Fetch({url: edited}))
+    assert known_of(after, "hotfixes") == web.digest(web.text_of(PAGE.encode()))
+    assert watch.run(after, Fetch({url: edited}), None, github=False,
+                     kinds=["official"])["changed_official"] == ["hotfixes"]
+
+
+def test_a_model_that_stops_leaves_the_page_pending(state):
+    url = next(p["url"] for p in state["official"] if p["key"] == "hotfixes")
+    client = Client({"statements": []})
+    client.create = lambda **kw: SimpleNamespace(stop_reason="max_tokens", usage=client.usage, content=[])
+    client.messages = SimpleNamespace(create=client.create)
+    out = refresh.run(["hotfixes"], client, Fetch({url: PAGE.encode()}), cap=3.0, state=state)
+    assert out["read"] == [] and out["versions"] == {} and "stopped" in out["skipped"][0]
+
+
+def test_the_workflow_accepts_the_handoff_of_the_pass():
+    yaml = pytest.importorskip("yaml")
+    steps = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())["jobs"]["run"]["steps"]
+    run = {s.get("id") or s.get("name", ""): s.get("run", "") for s in steps}
+    handoff = '"$RUNNER_TEMP/kb-refresh-read.json"'
+    assert f"refresh.py --handoff {handoff}" in run["refresh"]
+    accept_step = run["Fold and accept what the model pass read"]
+    assert f"--accept official --handoff {handoff}" in accept_step and "--only" not in accept_step

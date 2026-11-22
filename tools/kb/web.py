@@ -67,6 +67,28 @@ def digest(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+# A post or topic Discourse answers 404/410 for was deleted: a definite
+# answer (nothing to read), unlike a 5xx, a 429 or a network error (0).
+GONE = (404, 410)
+
+
+def official_version(kind: str, body: bytes) -> str | None:
+    """What data/kb/watch.json records of an official page, from one fetched
+    body (HTTP 200): a forum thread's post count and last post (Discourse's
+    topic JSON), another page's normalised text hash. None when the body
+    can't be read that way. The watcher compares it with `known`; the model
+    pass hands the one it read to the accept step (tools/kb/refresh.py), so
+    the checkpoint is the version processed, never a later fetch."""
+    if kind == "discourse":
+        try:
+            d = json.loads(body)
+            return f"{int(d['posts_count'])} posts, last {d['last_posted_at']}"
+        except (ValueError, KeyError, TypeError):
+            return None
+    text = text_of(body)
+    return digest(text) if len(text) > 200 else None
+
+
 def remember(url: str, text: str) -> None:
     """Keep the text a model pass read for `url` (one JSON line in the file
     KB_SOURCES names, a temp path in the workflow), so the gates

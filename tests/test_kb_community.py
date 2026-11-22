@@ -281,7 +281,7 @@ def test_a_week_with_nothing_new_makes_no_model_call(no_digest):
     thread with last week's searches means no call at all."""
     first = Model(ANSWER)
     items, out = community.run(Fetch(), first, cap=1.0, today=TODAY, searches=["Onyxia's Lair"])
-    doc = community.update({}, items, TODAY, out["searches"])
+    doc = community.update({}, items, TODAY, out["searched"])
     assert doc["searched"] == ["Onyxia's Lair"] and len(first.requests) == 1
     again = Model(ANSWER)
     items, out = community.run(Fetch(), again, cap=1.0, today=TODAY, searches=["Onyxia's Lair"],
@@ -292,3 +292,17 @@ def test_a_week_with_nothing_new_makes_no_model_call(no_digest):
     community.run(Fetch(), third, cap=1.0, today=TODAY, searches=["Onyxia's Lair", "Darkmoon Faire"],
                   seen=community.shown(doc), last=doc["searched"])
     assert len(third.requests) == 1 and "<thread n=" not in third.requests[0]["messages"][0]["content"]
+
+
+def test_searches_the_model_never_ran_are_not_recorded(no_digest):
+    """Codex review, 2026-11-22: a pass stopped by its budget recorded its
+    searches as run, so next week (no new thread, same searches) skipped them.
+    Only searches the model answered are recorded."""
+    items, out = community.run(Fetch(), Model(ANSWER), cap=0.0, today=TODAY, searches=["Onyxia's Lair"])
+    assert out["searched"] is None
+    doc = community.update({"searched": ["older"]}, items, TODAY, out["searched"])
+    assert doc["searched"] == ["older"]
+    again = Model(ANSWER)
+    community.run(Fetch(), again, cap=1.0, today=TODAY, searches=["Onyxia's Lair"],
+                  seen=community.shown(doc), last=doc["searched"])
+    assert len(again.requests) == 1

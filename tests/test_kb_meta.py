@@ -311,3 +311,51 @@ def test_a_tier_list_lands_in_class_meta_or_the_lane_it_ranks():
     assert lc.lane_for({"topic": "raid tier list"}, lanes) == "raids-endgame"
     assert lc.lane_for({"topic": "dungeons"}, lanes) == "dungeons"
     assert "tier list" in meta.SYSTEM
+
+
+# Codex review, 2026-11-22: a failed fetch must never let `known` pass what
+# wasn't read (the official pass had a thread's post fail and recorded it read).
+
+
+def test_a_blue_post_that_failed_to_load_holds_the_feed_there(state):
+    fetch = feeds(state, rss(), blue_week())
+    fetch.pages[f"{FORUM}/posts/by_number/5001/254.json"] = (503, b"")
+    got = meta.collect(state, fetch, today="2026-11-23")
+    # 5001 failed; 5003 is newer, so it waits too: `known` is a high-water mark.
+    assert [i for i in got["items"] if i["source"] == "blizzard-tracker"] == []
+    assert any("topic 5001 post 254: HTTP 503" in n for n in got["notes"])
+    out = meta.run(got["items"], Client([{"statements": []}]), cap=3.0, day="2026-11-23")
+    after = meta.advance(copy.deepcopy(state), out["read"], got["baseline"])
+    assert after["meta"]["feeds"][1]["known"] == KNOWN_BLUE
+    # Next run the post loads: both come back.
+    got = meta.collect(after, feeds(after, rss(), blue_week()), today="2026-11-23")
+    assert {i["url"] for i in got["items"] if i["source"] == "blizzard-tracker"} == {
+        f"{FORUM}/t/5001/254", f"{FORUM}/t/5003/1"}
+
+
+def test_a_deleted_blue_topic_is_nothing_to_read(state):
+    fetch = feeds(state, rss(), blue_week())
+    fetch.pages[f"{FORUM}/t/5001.json"] = (404, b"")
+    got = meta.collect(state, fetch, today="2026-11-23")
+    assert [i["url"] for i in got["items"] if i["source"] == "blizzard-tracker"] == [f"{FORUM}/t/5003/1"]
+    assert got["notes"] == []
+
+
+def test_a_guide_that_failed_to_load_keeps_its_hash(state):
+    fetch = feeds(state, rss(), blue_week())
+    fetch.pages[state["meta"]["guides"][1]["url"]] = (503, b"")
+    got = meta.collect(state, fetch, today="2026-11-23")
+    assert not any(i["source"] == "guides" for i in got["items"]) and any("g-priest" in n for n in got["notes"])
+    out = meta.run(got["items"], Client([{"statements": []}]), cap=3.0, day="2026-11-23")
+    after = meta.advance(copy.deepcopy(state), out["read"], got["baseline"])
+    assert after["meta"]["guides"][1]["known"] == "old"
+
+
+def test_a_batch_the_model_stopped_on_is_not_read(state, monkeypatch):
+    monkeypatch.setattr(meta, "MAX_BATCH", 10)  # one item per call
+    client = Client([])
+    client.messages = SimpleNamespace(create=lambda **kw: SimpleNamespace(
+        stop_reason="max_tokens", usage=client.usage, content=[]))
+    out = meta.run([item(n) for n in (101, 102)], client, cap=3.0, day="2026-11-23")
+    assert out["read"] == [] and "stopped" in out["skipped"][0]
+    assert meta.advance(copy.deepcopy(state), out["read"], {})["meta"]["feeds"][0]["known"] == 100

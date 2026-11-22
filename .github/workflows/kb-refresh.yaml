@@ -331,14 +331,15 @@ jobs:
           ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
         run: |
           # shellcheck disable=SC2086 # one word per key
-          uv run --frozen python tools/kb/refresh.py $KEYS
+          uv run --frozen python tools/kb/refresh.py --handoff "$RUNNER_TEMP/kb-refresh-read.json" $KEYS
       - name: The model pass failed
         if: steps.refresh.outcome == 'failure'
         run: |
           git reset -q --hard HEAD && git clean -qfd
           jq --arg w "The model pass failed (this run's step \"Model pass\": the token exchange, the API or its answer); nothing from the pages is in the PR." \
             '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
-      # The pages the pass read are accepted (none past a cost-cap stop); its
+      # The pages the pass read are accepted (none past a cost-cap stop or a
+      # failed fetch), each at the version it read, never a fresh fetch; its
       # file folds into the lanes at once (no re-verify, no model), as the
       # tree must be what the weekly lifecycle would make of it.
       - name: Fold and accept what the model pass read
@@ -351,8 +352,7 @@ jobs:
           uv run --frozen python tools/kb/vet.py --dropped "$RUNNER_TEMP/kb-dropped.md"
           uv run --frozen python tools/kb/lifecycle.py --no-fetch --summary "$RUNNER_TEMP/refresh-summary.md"
           if [ -n "$READ" ]; then
-            # shellcheck disable=SC2086 # one word per key
-            uv run --frozen python tools/kb/watch.py --accept official --only $READ
+            uv run --frozen python tools/kb/watch.py --accept official --handoff "$RUNNER_TEMP/kb-refresh-read.json"
           fi
           git add -A
           git diff --cached --quiet || git commit -qm "Official pages: statements from the model pass"
@@ -361,7 +361,7 @@ jobs:
             case " $READ " in *" $k "*) ;; *) unread="$unread $k" ;; esac
           done
           if [ -n "$unread" ]; then
-            jq --arg w "The model pass stopped before reading:$unread (its cost cap, KB_REFRESH_MAX_USD); the next run reads them." \
+            jq --arg w "The model pass didn't read:$unread (a fetch failed, the model stopped, or its cost cap, KB_REFRESH_MAX_USD; the run's log says which); the next run reads them." \
               '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
           fi
       - name: Meta model pass
@@ -408,7 +408,7 @@ jobs:
         run: uv run --frozen python tools/kb/lifecycle.py --summary "$RUNNER_TEMP/meta-summary.md"
       - name: Remove the token and the collected text
         if: always()
-        run: rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/meta-items.json"
+        run: rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/meta-items.json" "$RUNNER_TEMP/kb-refresh-read.json"
 
       - name: Sweep
         if: env.MODE == 'sweep' && steps.open.outputs.pr == ''

@@ -2,7 +2,8 @@
 
     uv run python tools/kb/watch.py                      # print what changed
     uv run python tools/kb/watch.py --kinds versions     # the upstream versions only
-    uv run python tools/kb/watch.py --accept official [--only hotfixes]  # record today's values
+    uv run python tools/kb/watch.py --accept polestar --release v1.2  # record a checked value
+    uv run python tools/kb/watch.py --accept official --handoff read.json  # what the model pass read
     uv run python tools/kb/watch.py --github --why why.json   # the issues, at the end of a run
 
 Compares what data/kb/watch.json knows (the values the KB was last checked
@@ -27,7 +28,10 @@ for a new build. `official` is prose a model has to read: the weekly
 `review` mode checks it here (`--kinds official`, free) and runs the model
 pass (tools/kb/refresh.py) only on the pages that changed (owner,
 2026-11-22: the deterministic part as often as needed, the model once a
-week). `--accept` records what went through. `--github` runs last: a kind
+week). `--accept` records what went through: for `official`, the exact
+version each page had when the model pass read it (its `--handoff` file),
+never a fresh fetch, which could acknowledge a post that came in while the
+model was reading (Codex review, 2026-11-22). `--github` runs last: a kind
 back to its known value (the PR merged) closes its issue; a kind still
 changed keeps one issue (label kb-watch) that says why it wasn't merged
 (`--why`: {kind: reason}, written by the run's steps), or that the run
@@ -84,17 +88,7 @@ def current(state: dict, fetch, gh, kinds: list[str] | None = None) -> dict:
             out["client-build"]["build"] = None
     for p in state["official"] if "official" in kinds else []:
         status, body = fetch.get(p["url"])
-        if status != 200:
-            out["official"][p["key"]] = None
-        elif p["kind"] == "discourse":
-            try:
-                d = json.loads(body)
-                out["official"][p["key"]] = f"{d['posts_count']} posts, last {d['last_posted_at']}"
-            except (ValueError, KeyError):
-                out["official"][p["key"]] = None
-        else:
-            text = web.text_of(body)
-            out["official"][p["key"]] = web.digest(text) if len(text) > 200 else None
+        out["official"][p["key"]] = web.official_version(p["kind"], body) if status == 200 else None
     if "polestar" in kinds:
         out["polestar"]["release"] = polestar_release(gh, state["polestar"]["repo"]) if gh else None
     for a in state["addons"] if "addons" in kinds else []:
@@ -185,14 +179,13 @@ def report(state: dict, now: dict, was: dict, why: dict | None = None,
     return out
 
 
-def accept(state: dict, now: dict, kinds: list[str], only: list[str] | None = None) -> dict:
-    """Today's values into the state, for `kinds`; `only`: these official
-    page keys, not every page (the model pass read only those)."""
+def accept(state: dict, now: dict, kinds: list[str]) -> dict:
+    """The given values into the state, for `kinds`. `now["official"]` holds
+    only the pages to accept, at the version the model pass read
+    (read_handoff); a page it doesn't name keeps its `known`."""
     if "client-build" in kinds and now["client-build"]["build"]:
         state["client_build"]["known"] = now["client-build"]["build"]
     for p in state["official"]:
-        if only is not None and p["key"] not in only:
-            continue
         if "official" in kinds and now["official"].get(p["key"]):
             p["known"] = now["official"][p["key"]]
     if "polestar" in kinds and now["polestar"]["release"]:
@@ -202,6 +195,18 @@ def accept(state: dict, now: dict, kinds: list[str], only: list[str] | None = No
             a["known"] = now["addons"][a["name"]]
     state["checked"] = datetime.now(UTC).date().isoformat()
     return state
+
+
+def read_handoff(path: str, state: dict) -> dict[str, str]:
+    """{page key: version} from the model pass's handoff (tools/kb/refresh.py
+    --handoff): the pages it finished reading, each at the version it read.
+    Keys not watched and values that aren't text are left out."""
+    try:
+        got = json.loads(Path(path).read_text(encoding="utf-8")).get("official") or {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+    keys = {p["key"] for p in state["official"]}
+    return {k: v for k, v in got.items() if k in keys and isinstance(v, str) and v} if isinstance(got, dict) else {}
 
 
 def changes(state: dict, now: dict) -> dict:
@@ -235,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--github", action="store_true", help="open, edit or close the issues (GH_TOKEN)")
     ap.add_argument("--why", help="--github: a JSON file {kind: why the run didn't land it}")
     ap.add_argument("--accept", nargs="*", metavar="KIND", help="record today's values (all kinds if none given)")
-    ap.add_argument("--only", nargs="*", metavar="KEY", help="--accept official: only these page keys")
+    ap.add_argument("--handoff", help="--accept official: the model pass's file, each page at the version it read")
     ap.add_argument("--release", help="--accept polestar: this tag, not a fresh read")
     ap.add_argument("--kinds", nargs="*", metavar="KIND",
                     help="only these kinds (`versions`: client-build, polestar and addons); default all")
@@ -246,18 +251,25 @@ def main(argv: list[str] | None = None) -> int:
     watched = kinds_of(a.kinds)
     if a.accept is not None:
         kinds = kinds_of(a.accept) if a.accept else watched
-        now = current(state, web.Fetcher(), gh, kinds)
+        if "official" in kinds and not a.handoff:
+            # 2026-11-22 (Codex review): a fresh read here acknowledged posts
+            # that came in after the model read the thread, or that it never got.
+            print("official: accept what the model pass read (--handoff, from tools/kb/refresh.py), never a "
+                  "fresh read", file=sys.stderr)
+            return 2
+        now = current(state, web.Fetcher(), gh, [k for k in kinds if k != "official"])
+        if "official" in kinds:
+            now["official"] = read_handoff(a.handoff, state)
         if a.release:
             # The tag the job checked and exported (a step without GH_TOKEN can't read it again).
             now["polestar"]["release"] = a.release if TAG.match(a.release) else None
-        unread = [k for k in kinds if k != "addons" and not any(
-            v for n, v in now[k].items() if k != "official" or a.only is None or n in a.only)]
+        unread = [k for k in kinds if k != "addons" and not any(now[k].values())]
         if unread:
             # 2026-11-20: an accept that silently kept the old Polestar value
             # left the bump's PR red on a tag-file test.
             print(f"couldn't read today's value of: {', '.join(unread)}; nothing accepted", file=sys.stderr)
             return 3
-        new = accept(state, now, kinds, a.only)
+        new = accept(state, now, kinds)
         path.write_text(json.dumps(new, indent=2) + "\n", encoding="utf-8")
         return 0
     why = json.loads(Path(a.why).read_text(encoding="utf-8")) if a.why and Path(a.why).exists() else {}

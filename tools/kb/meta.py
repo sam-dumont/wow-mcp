@@ -260,23 +260,33 @@ def rss_items(feed: dict, fetch) -> tuple[list[dict], dict]:
     return out, note
 
 
-def tracked_text(feed: dict, fetch, topic: int, after: datetime) -> tuple[str, int]:
+def tracked_text(feed: dict, fetch, topic: int, after: datetime) -> tuple[str, int, str]:
     """The text of the staff posts the forum tracks in a topic, written after
-    `after`, quotes of other posts cut out (players' words); and the first
-    one's post number (0 when none)."""
+    `after`, quotes of other posts cut out (players' words); the first
+    one's post number (0 when none); and what failed to load ("" when
+    everything did). A deleted topic or post (404/410) has nothing to read;
+    any other failure means the topic wasn't read."""
     status, body = fetch.get(f"{feed['forum']}/t/{topic}.json")
+    if status in web.GONE:
+        return "", 0, ""
     try:
-        tracked = json.loads(body).get("tracked_posts") or [] if status == 200 else []
+        tracked = json.loads(body).get("tracked_posts") or [] if status == 200 else None
     except (ValueError, AttributeError):
-        tracked = []
+        tracked = None
+    if tracked is None:
+        return "", 0, f"topic {topic}: HTTP {status}" if status != 200 else f"topic {topic}: not JSON"
     texts, first = [], 0
     for t in sorted(tracked, key=lambda t: t.get("post_number") or 0)[-BLUE_POSTS:]:
         n = int(t.get("post_number") or 0)
         status, body = fetch.get(f"{feed['forum']}/posts/by_number/{topic}/{n}.json")
+        if status in web.GONE:
+            continue
         try:
-            post = json.loads(body) if status == 200 else {}
+            post = json.loads(body) if status == 200 else None
         except ValueError:
-            post = {}
+            post = None
+        if not isinstance(post, dict):
+            return "", 0, f"topic {topic} post {n}: " + (f"HTTP {status}" if status != 200 else "not JSON")
         if not post.get("staff") or not post.get("created_at"):
             continue
         if datetime.fromisoformat(post["created_at"].replace("Z", "+00:00")) <= after:
@@ -285,14 +295,16 @@ def tracked_text(feed: dict, fetch, topic: int, after: datetime) -> tuple[str, i
         if text:
             texts.append(text)
             first = first or n
-    return "\n\n".join(texts), first
+    return "\n\n".join(texts), first, ""
 
 
 def blue_items(feed: dict, fetch, today: str) -> tuple[list[dict], dict]:
     """Blizzard staff posts on the Forever forums, from Wowhead's Forever blue
     tracker (RSS) newer than `known` (the Unix time of the last item read;
     the first run reads back a week). Each topic's posts come from the
-    forum's own JSON; the item says who wrote them by role only."""
+    forum's own JSON; the item says who wrote them by role only. A topic
+    that failed to load holds the feed there: it and every later item stay
+    out, so `known` (the newest item read, advance) can't pass it."""
     status, body = fetch.get(feed["url"])
     if status != 200:
         return [], {"unread": f"{feed['key']}: HTTP {status}"}
@@ -302,7 +314,7 @@ def blue_items(feed: dict, fetch, today: str) -> tuple[list[dict], dict]:
         return [], {"unread": f"{feed['key']}: not RSS"}
     known = feed.get("known") or int((datetime.fromisoformat(today) - timedelta(days=7)).replace(
         tzinfo=UTC).timestamp())
-    out, times = [], []
+    out, times, failed = [], [], []
     for it in channel.findall("item") if channel is not None else []:
         m = BLUE_TOPIC.search(it.findtext("link") or "")
         try:
@@ -316,13 +328,21 @@ def blue_items(feed: dict, fetch, today: str) -> tuple[list[dict], dict]:
         if stamp <= known:
             continue
         topic = int(m.group(1))
-        text, n = tracked_text(feed, fetch, topic, datetime.fromtimestamp(known, UTC))
+        text, n, why = tracked_text(feed, fetch, topic, datetime.fromtimestamp(known, UTC))
+        if why:
+            failed.append((stamp, why))
+            continue
         if len(text) < 80:
             continue
         out.append({"source": feed["key"], "id": stamp, "url": f"{feed['forum']}/t/{topic}/{n}",
                     "title": " ".join((it.findtext("title") or "").split()), "author": BLUE_AUTHOR,
                     "date": when.date().isoformat(), "text": text[:MAX_ITEM]})
     note = {}
+    if failed:
+        stop, why = min(failed)
+        out = [i for i in out if i["id"] < stop]
+        note["unread"] = (f"{feed['key']}: {why}; that item and every later one are left for the next run "
+                          f"({len(failed)} failed)")
     if feed.get("known") and times and min(times) > known:
         note["gap"] = (f"{feed['key']}: the feed starts after the last item read; staff posts in between may "
                        "have left it unread")
@@ -633,6 +653,11 @@ def run(items: list[dict], client, cap: float, day: str | None = None) -> dict:
                                ", ".join(it["url"] for it in batch)[:300], whole=True)
         except refresh.OverBudget as e:
             skipped.append(f"{len(items) - len(read)} items left unread: {e}")
+            break
+        if "statements" not in got:
+            # The model stopped without an answer: this batch wasn't read, and
+            # the later ones wait too, so `known` can't pass it (advance).
+            skipped.append(f"{len(items) - len(read)} items left unread: the model stopped without an answer")
             break
         read += batch
         for it in batch:
