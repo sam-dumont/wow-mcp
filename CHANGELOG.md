@@ -26,6 +26,8 @@
 - One character whose store read failed stopped the nightly recheck for every character after it, and the night counted as done. The others are rechecked now; the failed one keeps its last answer, and the night ends in an error.
 - A finding judged under another `WOW_TIMEZONE` (or session gap) is marked "to revalidate", like one judged under another semantic model: its hours and days meant other hours.
 - `--replay` stopped at "no WTF folder" and sent nothing on a computer without the game (not installed yet, or moved), although it only reads `sent/`. It now runs without the WoW folder.
+- Your AI's `players` gave a different top 20 on each call over the same events when players tied (met as often, on as many days): the store's rows come in no set order. Ties now go to the one seen last, then by name.
+- Your AI's `zones` failed ("cannot convert float NaN to integer") when the XP records of a zone carried no XP amount: the store answers a sum over nothing as `NaN`. Every number read from the store now takes `NaN` as no number.
 
 ## 0.7.0-rc.8 (2026-11-21)
 

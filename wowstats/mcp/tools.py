@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import json
 import logging
+import math
 import os
 import re
 import time
@@ -75,16 +76,22 @@ class Ctx:
 
 
 def num(v, default=0.0) -> float:
+    """A number from a store row; `default` when there is none. VictoriaLogs
+    answers sum() or max() over rows without the field as "NaN": no number
+    (recovery drill, 2026-11-22: `zones` failed on it)."""
     try:
-        return float(v)
+        f = float(v)
     except (TypeError, ValueError):
         return default
+    return f if math.isfinite(f) else default
 
 
 def opt_num(v):
     try:
         f = float(v)
     except (TypeError, ValueError):
+        return None
+    if not math.isfinite(f):  # "NaN" from the store: no number, and no JSON for one either
         return None
     return int(f) if f.is_integer() else round(f, 2)
 
@@ -622,6 +629,11 @@ def t_players(ctx: Ctx, args: dict) -> dict:
         out.append({"player": p, "days": len(d["days"]), "grouped": d["grouped"], "sightings": d["sightings"],
                     "contexts": d["contexts"], "last_seen": m.get("last_seen"), "level": opt_num(m.get("level")),
                     "class": (classes or [None])[0], "zones": zones[:5]})
+    # Ties go to the one seen last, then by name: VictoriaLogs' stats rows
+    # come in no set order, and the top `limit` changed from call to call
+    # over the same events (recovery drill, 2026-11-22).
+    out.sort(key=lambda r: r["player"])
+    out.sort(key=lambda r: parse_t(r["last_seen"]), reverse=True)
     out.sort(key=lambda r: (-r["days"], -r["grouped"], -r["sightings"]))
     return {"char": char, "players": out[:limit], "total": len(out),
             "met_once": sum(1 for r in out if r["days"] < 2 and r["grouped"] < 2)}
