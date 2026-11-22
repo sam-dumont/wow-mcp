@@ -73,9 +73,10 @@ Dockerfile. The whole list above runs once before a release.
 
 ## Evaluating the analysis
 
-A change to how the analysis reasons (its prep, passes, judge, semantic layer or prompts) gets a run of the
-seeded evaluation before the release: `make eval-analysis`, a real AI on five synthetic histories with known
-effects, graded. Not in CI: it needs a model client. See [evaluation.md](evaluation.md).
+`make eval-analysis` is an optional tool for a change to how the analysis reasons (its prep, passes, judge,
+semantic layer or prompts): a real AI on five synthetic histories with known effects, graded. It's not a release
+step and gates nothing: the server hands every client good data, and a model that doesn't act on it is accepted.
+Not in CI: it needs a model client. See [evaluation.md](evaluation.md).
 
 ## The docs site and its demo
 
@@ -290,19 +291,10 @@ sorts below its final (`0.7.0-rc.2` < `0.7.0`). Shippers before 0.7.0 only
 read `X.Y.Z`: they log "the server names no version" every 6 hours and move
 at the final.
 
-Before pressing for real: the release eval and the A/B check below. The
-release runs the rest, browsers included.
+Before pressing for real: the A/B check below. The release runs the rest,
+browsers included.
 
-**Release eval.** `make eval-release` on your own machine, on the commit
-you'll release: the seeded evaluation ([evaluation.md](evaluation.md)) with
-Claude Sonnet through Claude Code and with the server's own runner, every
-scenario three times, all at once, three server runs at a time (about 25
-minutes, up to $12 of the server's model). The gate is Claude Sonnet: a
-scenario under two passes of three there is a reason to wait. The server's
-runner is reported beside it, and a scenario most clients miss is flagged
-in `release.md` as the brief's or the MCP's problem. Paste the batch's
-`release.md` table, per model and scenario, into "Unreleased" so it lands in
-the release notes. Never in CI. Write the CHANGELOG as you merge, under
+Write the CHANGELOG as you merge, under
 "Unreleased": what changed for a player, then "Upgrading" with every
 changed variable, port, volume or route.
 

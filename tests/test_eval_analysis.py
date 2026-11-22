@@ -493,7 +493,7 @@ def test_a_scenario_passes_the_gate_at_two_runs_of_three():
     reports += [_report("server", "death_spike", v) for v in ("fail", "error", "pass")]
     t = run.release_table(reports, 14, 6.5)
     row = next(ln for ln in t.splitlines() if ln.startswith("| death_spike"))
-    assert row == "| death_spike | 2/3 | 1/3 **below the gate** |"
+    assert row == "| death_spike | 2/3 | 1/3 **below 2/3** |"
     assert "claude (m)" in t and "$6.50" in t
 
 
@@ -503,26 +503,22 @@ def _col(col, name, verdict):
             "client": {"client": kind, "column": col, "model": "m", "seconds": 60, "calls": 1}}
 
 
-def test_a_matrix_gates_on_the_reference_client_and_flags_what_most_clients_miss():
-    """Owner, 2026-11-22: the analysis runs in the player's own AI, so the
-    release gate is one ordinary client (REFERENCE) and every other column is
-    reported. A scenario most clients miss points at what MCP hands them."""
+def test_a_matrix_flags_what_most_clients_miss():
+    """The analysis runs in the player's own AI: a scenario most clients
+    miss points at what MCP hands them, not at one model."""
     assert clients.parse("claude:claude-haiku-5-5") == ("claude", "claude-haiku-5-5")
     assert clients.parse("server", "gpt-6-luna") == ("server", "gpt-6-luna")
     with pytest.raises(SystemExit, match="unknown client"):
         clients.parse("gemini:x")
-    ref, others = run.REFERENCE, ["claude:claude-haiku-5-5", "server:gpt-6-luna", "server:glm-5.3"]
+    ref, others = "claude:claude-sonnet-5-5", ["claude:claude-haiku-5-5", "server:gpt-6-luna", "server:glm-5.3"]
     reports = [_col(ref, "death_spike", "pass"), _col(ref, "offline_gap", "pass")]
     reports += [_col(c, "death_spike", "fail") for c in others]
     reports += [_col(c, "offline_gap", v) for c, v in zip(others, ("pass", "fail", "pass"), strict=True)]
     t = run.release_table(reports)
-    assert f"{ref} (release gate)" in t.splitlines()[0] and "server:glm-5.3" in t.splitlines()[0]
-    assert run.gate(reports)  # others below the gate don't fail the release
+    assert ref in t.splitlines()[0] and "server:glm-5.3" in t.splitlines()[0] and "gate" not in t.splitlines()[0]
     assert list(run.widespread(reports)) == ["death_spike"]
-    assert "**death_spike is below the gate on 3 of 4 clients**" in t and "offline_gap is below" not in t
-    assert not run.gate([*reports, _col(ref, "recorder_off", "fail")])
-    # Without the reference in the batch, every column gates, as before.
-    assert not run.gate([_col("server", "offline_gap", "fail"), _col("claude", "offline_gap", "pass")])
+    assert "**death_spike is below 2/3 on 3 of 4 clients**" in t and "offline_gap is below" not in t
+    assert not run.gate(reports) and run.gate([_col(ref, "death_spike", "pass")])
 
 
 def test_a_server_model_named_on_the_command_line_is_priced_as_itself(tmp_path):

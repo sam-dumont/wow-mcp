@@ -68,27 +68,16 @@ A server model on another endpoint gets its own batch, with that endpoint's `EVA
 command (z.ai's `glm-5.3`; a local model on oMLX, Ollama or LM Studio, priced at 0). A local model on one GPU runs
 one request at a time: `--jobs 1 --server-jobs 1`.
 
-### Repeats and the release eval
+### Repeats
 
 A model doesn't answer the same way twice, so one run per scenario says little. `--repeats N` runs each scenario N
-times per client, and a scenario passes the gate when at least two thirds of its runs pass (2 of 3); below that, the
-table flags it. Before a release:
+times per client, and a scenario passes when at least two thirds of its runs pass (2 of 3); below that, the table
+flags it. The batch's `release.md` gives the pass rate per client and scenario.
 
-```sh
-make eval-release     # Claude Sonnet (Claude Code) and the server's runner, 5 scenarios x 3 runs each, all at once
-```
-
-The batch's `release.md` is the table for the release notes: the pass rate per model and scenario.
-
-**The gate** (owner, 2026-11-22):
-
-- The release gate is one reference client, Claude Sonnet through Claude Code (`claude:claude-sonnet-5-5`,
-  `run.REFERENCE`), at 2 of 3 or better on every scenario. It is an ordinary player's client, and runs on a login.
-- Every other client (the server's runner on any model, Haiku, GLM, a local model) is reported, not gating: quality
-  gaps between providers are accepted.
-- A scenario below the gate on most clients of a matrix (more than half, three clients at least) is a problem with
-  the brief or with what the MCP tools return, not with one model: `release.md` flags it in bold. Look at what the
-  clients were handed before blaming them.
+The evaluation is an optional tool, not a release gate (owner, 2026-11-22): the server hands every client good
+data, and a model that doesn't act on it is accepted. A scenario below two thirds on most clients of a matrix (more
+than half, three clients at least) is still worth a look: it points at the brief or at what the MCP tools return,
+not at one model, and `release.md` flags it in bold.
 
 A scenario is a whole analysis: about 25 to 40 questions, a dozen lanes, a few hundred tool calls, 7 to 13
 minutes with Claude Code. Side by side, the batch takes about as long as its slowest scenario. `--timeout-min`
@@ -170,5 +159,5 @@ and a right and a wrong answer in the shipped-truths test.
 ## Why not in CI
 
 A run needs a model client, and hosted CI has none. The scenario loader and the grader are tested in CI; the
-runs themselves are for a contributor's machine, before a release and after any change to how the analysis
-reasons. The release eval also spends real money on the server's model: never in `ci.yml`, never per pull request.
+runs themselves are for a contributor's machine, when a change to how the analysis reasons is worth a check. A
+server-runner batch also spends real money on the server's model: never in `ci.yml`, never per pull request.
