@@ -1318,7 +1318,12 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             "standing": standing_out(stand.get(slot)) if cur_id else None,
             "current": ({**_item_out(ref, cur_id, cur_info, worn_names.get(slot)),
                          "score": _r(worn.score(slot), 2), "known": cur_info is not None,
-                         "random_suffix": slot in worn.unknown} if cur_id else None),
+                         "random_suffix": slot in worn.unknown,
+                         # How the worn item fits the spec it's scored for, the
+                         # same label an upgrade carries: a Shadow circlet on a
+                         # Holy priest says so (seeded evaluation, wrong_spec_gear).
+                         "fit": gearfit.fit(ref, cur_info, cls, key, how, level, w, [], cx.points)
+                         if cur_info else None} if cur_id else None),
             "best": best, "next": nxt})
 
     # Next upgrades: Polestar's compare per item, one pick per quest's reward

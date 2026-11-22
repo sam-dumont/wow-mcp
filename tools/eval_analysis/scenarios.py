@@ -50,6 +50,7 @@ SKIP_FEEDS = ("wow-player", "wow-prices", "wow-combatlog")
 SESSION_GAP_S = 330  # the shipper's session split (tools/fixtures/generate.py shipper_shapes)
 INJECTIONS = ("death_spike", "recorder_off", "offline_gap", "wear")
 RULE_PLACES = ("any", "actions")
+RULE_KINDS = ("finding", "nudge", "pattern")
 
 
 class ScenarioError(ValueError):
@@ -94,6 +95,8 @@ def check(sc: dict, name: str) -> None:
                 raise ScenarioError(f"{name}: {rule['id']}: each group in `all` is a non-empty list")
             if rule.get("in", "any") not in RULE_PLACES:
                 raise ScenarioError(f"{name}: {rule['id']}: `in` is one of {', '.join(RULE_PLACES)}")
+            if not set(rule.get("kinds") or []) <= set(RULE_KINDS):
+                raise ScenarioError(f"{name}: {rule['id']}: `kinds` lists some of {', '.join(RULE_KINDS)}")
     if not (truth.get("must_find") or truth.get("must_not_claim")):
         raise ScenarioError(f"{name}: the truth checks nothing")
     for k, v in (sc.get("env") or {}).items():
@@ -268,14 +271,14 @@ def analysis_rows(rows: list[dict], char: str = CHAR) -> list[dict]:
 
 def prep_db(rows: list[dict], env: dict | None = None, char: str = CHAR):
     """The prep database the server would build (SQLite), for facts()."""
-    from wowstats.analysis import kb, prep, upgrades_for
+    from wowstats.analysis import advice_for, kb, prep
     from wowstats.mcp import route
 
     env = {"KB_GAME_TABLES": "off", **(env or {})}
     got = analysis_rows(rows, char)
     k = kb.shared(env)
     return prep.build([dict(r) for r in got], char, route.reference(), map_sizes=k.meta.get("ui_map"),
-                      upgrades=upgrades_for(got, char, env))
+                      advice=advice_for(got, char, env))
 
 
 def zone_rates(rows: list[dict], db=None) -> dict:
@@ -335,6 +338,9 @@ def facts(sc: dict, rows: list[dict] | None = None) -> dict:
     out["sessions"] = db.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
     out["longest_gap_days"] = round((db.execute("SELECT MAX(gap_before_s) FROM sessions").fetchone()[0] or 0) / 86400,
                                     1)
+    from wowstats.analysis import drive
+
+    out["brief_facts"] = drive.facts(db)  # what analysis_brief's start hands the client
     worn = {s: (i, n) for s, i, n in db.execute("SELECT slot_name, item_id, name FROM gear")}
     out["worn_head"] = worn.get("Head")
     out["top_upgrades"] = {}

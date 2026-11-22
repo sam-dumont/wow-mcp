@@ -142,7 +142,7 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
             loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char),
                                            (advice or {}).get("bis_by_slot"))
     db = prep.build(rows, char, route.reference(), map_sizes=knowledge.meta.get("ui_map"),
-                    upgrades=(advice or {}).get("upgrades_all") or [])
+                    advice=advice)
     try:
         scans = prices(store)
     except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail

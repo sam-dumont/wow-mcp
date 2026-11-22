@@ -52,6 +52,8 @@ def test_a_scenario_file_with_a_mistake_is_refused(tmp_path, monkeypatch):
         "no-groups": {**good, "truth": {**good["truth"], "must_find": [{"id": "x", "all": []}]}},
         "empty-group": {**good, "truth": {**good["truth"], "must_find": [{"id": "x", "all": [[]]}]}},
         "bad-place": {**good, "truth": {**good["truth"], "must_find": [{"id": "x", "all": [["a"]], "in": "all"}]}},
+        "bad-kind": {**good, "truth": {**good["truth"], "must_find": [{"id": "x", "all": [["a"]],
+                                                                        "kinds": ["comment"]}]}},
         "runner-env": {**good, "env": {"ANALYSIS_PROVIDER": "openai"}},
         "store-env": {**good, "env": {"VL_URL": "http://elsewhere"}},
         "checks-nothing": {**good, "truth": {"expected": "x", "must_find": [], "must_not_claim": []}},
@@ -130,6 +132,28 @@ def test_the_wrong_spec_item_is_worn_and_the_truth_names_the_spec_s_best(facts):
     db = scenarios.prep_db(scenarios.base_events(), sc["env"])
     circlet = db.execute("SELECT gain FROM upgrade_candidates WHERE item_id = 253981").fetchone()[0]
     assert circlet < 0.1 * f["top_upgrades"]["Head"][0]["gain"]
+
+
+def test_the_brief_names_the_break_and_the_off_spec_head_only_where_injected(facts):
+    """What analysis_brief's start hands every client (drive.facts): the
+    break shows in offline_gap alone, the circlet against Holy in
+    wrong_spec_gear alone."""
+    for n in ALL:
+        cal = facts[n]["brief_facts"]["level_calendar"]["levels"]
+        if n == "offline_gap":
+            assert [x["level"] for x in cal] == [33]
+            lv = cal[0]
+            assert lv["longest_gap_days"] > 20 and lv["played_h"] == lv["planned_h"] and lv["recorder_missed_h"] == 0
+        else:
+            assert cal == "none", n
+        gear = facts[n]["brief_facts"]["gear_fit"]
+        head = [x for x in gear["worn"] if x["slot"] == "Head"]
+        if n == "wrong_spec_gear":
+            assert gear["scored_for"].startswith("Holy")
+            assert head[0]["item"] == "Filigreed Shadow Circlet" and head[0]["fit"] == "spec"
+            assert head[0]["bis_pct"] < 25
+        else:
+            assert gear["scored_for"] == "Shadow" and all(x["item_id"] != 253981 for x in head)
 
 
 def test_the_analysis_reads_what_the_store_query_would():
@@ -233,7 +257,8 @@ def test_the_shipped_truths_grade_a_right_and_a_wrong_answer():
         "death_spike": "You died 8 times in the Wetlands, more than twice your rate anywhere else.",
         "recorder_off": "Levels 27 to 29 were not recorded: the Recorder was off, so deaths there are unknown.",
         "offline_gap": "Level 33 took three weeks on the calendar because of a break; in played time it was on pace.",
-        "wrong_spec_gear": "Replace the Filigreed Shadow Circlet with the Embalmed Shroud.",
+        "wrong_spec_gear": "Scored for Holy, the Filigreed Shadow Circlet is 12% of the best head: replace it with "
+                           "the Embalmed Shroud.",
         "healthy_control": "Your deaths are spread out: too few to call any zone dangerous.",
     }
     wrong = {
@@ -248,6 +273,36 @@ def test_the_shipped_truths_grade_a_right_and_a_wrong_answer():
     for n in ALL:
         sc = scenarios.load(n)
         for text, want in ((right[n], "pass"), (wrong[n], "fail")):
-            nudge = {"text": text, "gist": "", "where": "", "blocked_by": "", "next_step": ""}
-            v = grade.grade(sc, {"findings": {}, "nudges": [nudge], "patterns": []}, {"done": True}, [])
+            v = grade.grade(sc, _answer(text), {"done": True}, [])
             assert v["verdict"] == want, (n, text, v["checks"])
+
+
+def _answer(text: str, finding: bool = True) -> dict:
+    """One line said as a verified finding with that action, and as a nudge."""
+    nudge = {"text": text, "gist": "", "where": "", "blocked_by": "", "next_step": ""}
+    f = {"title": text, "text": "", "action": {"do": text, "where": "", "blocked_by": "", "next_step": ""}}
+    return {"findings": {"k": f} if finding else {}, "nudges": [nudge], "patterns": []}
+
+
+def test_wrong_spec_gear_needs_a_finding_that_names_the_spec():
+    """The first run's weak pass: a nudge named a Holy head upgrade, and no
+    finding said the worn circlet is wrong for the spec the gear is scored for."""
+    sc = scenarios.load("wrong_spec_gear")
+    upgrade = "Run Scarlet Monastery: Library for the Embalmed Shroud."
+    for text, finding, want in (
+            (upgrade, False, "fail"),
+            (upgrade, True, "fail"),  # a finding, but no circlet and no spec
+            ("The Filigreed Shadow Circlet is a Shadow item: get the Embalmed Shroud instead.", True, "fail"),
+            ("Your head slot is 12% of its best for Holy: get the Embalmed Shroud.", True, "pass"),
+            ("For Holy, swap the Filigreed Shadow Circlet for the Earthen Silk Hood.", True, "pass"),
+            ("For Holy, swap the Filigreed Shadow Circlet for the Earthen Silk Hood.", False, "fail")):
+        v = grade.grade(sc, _answer(text, finding), {"done": True}, [])
+        assert v["verdict"] == want, (text, finding, v["checks"])
+
+
+def test_a_rule_can_be_limited_to_findings():
+    ls = grade.lines(ANALYSIS)
+    head = {"id": "h", "all": [["embalmed shroud"]]}
+    assert grade.matches(head, ls) and not grade.matches({**head, "kinds": ["finding"]}, ls)
+    assert [m.key for m in grade.matches({"id": "w", "all": [["wetlands"]], "kinds": ["finding"]}, ls)] == [
+        "wetlands-deaths"]

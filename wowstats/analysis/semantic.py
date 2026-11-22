@@ -44,12 +44,11 @@ _NAME = re.compile(r"^[a-z][a-z0-9_]{0,40}$")
 
 # The views the model reads (semantic.yaml `table`): the prep's table with its
 # time in the player's timezone, and the character's name and class. The
-# calendar time per level needs the previous level's ding, so levels gets it here.
+# calendar time per level is the prep's own column (levels.calendar_s).
 _WHO = ("(SELECT value FROM meta WHERE key = 'char') AS character, "
         "(SELECT value FROM meta WHERE key = 'class') AS char_class")
 VIEWS = {
-    "sem_levels": ("SELECT l.*, CASE WHEN LAG(l.level) OVER w = l.level - 1 THEN l.ding_t - LAG(l.ding_t) OVER w END "
-                   "AS calendar_s, {ts:l.ding_t} AS at_local, {who} FROM levels l WINDOW w AS (ORDER BY l.level)"),
+    "sem_levels": "SELECT l.*, {ts:l.ding_t} AS at_local, {who} FROM levels l",
     # The guide's and the step's titles from the route reference (route_steps,
     # one row per guide and step: MIN only guards against a duplicate).
     "sem_timeline": ("SELECT t.*, rs.guide_title, rs.step_title, {ts:t.t0} AS at_local, {who} FROM timeline t "

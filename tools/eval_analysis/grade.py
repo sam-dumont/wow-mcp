@@ -19,7 +19,9 @@ one match in it. `unless` lists expressions that excuse a line (it says the
 records are missing, there was a break...). `in`: "any" reads every kept
 line (a finding's title, text and action; a nudge's text, gist, where,
 blocker and next step; a pattern), "actions" only what tells the player to
-do something (the nudges and the findings' actions).
+do something (the nudges and the findings' actions). `kinds` limits a rule
+to some kinds of line (["finding"]: only a finding the judge verified, never
+a nudge or a pattern line written without a query behind it).
 
 Words are a blunt instrument on purpose: the same answer grades the same
 way every time, and a miss shows the exact line. The optional judge
@@ -68,7 +70,10 @@ def _hit(patterns: list[str], text: str) -> bool:
 
 def matches(rule: dict, ls: list[Line]) -> list[Line]:
     out = []
+    kinds = rule.get("kinds")
     for ln in ls:
+        if kinds and ln.kind not in kinds:
+            continue
         text = ln.action if rule.get("in", "any") == "actions" else ln.text
         if not text:
             continue

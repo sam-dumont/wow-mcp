@@ -33,6 +33,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -101,16 +102,17 @@ def build(db, rows: list, knowledge=None, route_ref=None, now: datetime | None =
     return m
 
 
-# The tables the gear scoring fills (prep's upgrade_candidates, from
-# analysis.upgrades_for): a scoring change means something else only there.
-SCORED_TABLES = ("upgrade_candidates",)
+# The tables the gear scoring fills (from analysis.advice_for): prep's
+# upgrade_candidates, and gear's score, bis_pct and fit for the scored spec.
+# A scoring change means something else only there.
+SCORED_TABLES = ("upgrade_candidates", "gear")
 
 
 def reads_scoring(finding: dict | None) -> bool:
     """Whether a finding's query reads what the gear scoring fills. Without
     the finding (or its SQL), assume it does."""
     sql = str((finding or {}).get("sql") or "").lower()
-    return not sql or any(t in sql for t in SCORED_TABLES)
+    return not sql or any(re.search(rf"\b{t}\b", sql) for t in SCORED_TABLES)
 
 
 def changed(judged: dict | None, now: dict, finding: dict | None = None) -> list[str]:

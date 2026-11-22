@@ -221,7 +221,8 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
            S({"char": CHAR, "goals": GOALS}), _guard(t_analyse)),
     T.Tool("analysis_brief", "Analysis brief",
            "The play analysis' brief, in sections sized for small contexts: start (procedure, goals, finding rules, "
-           "where the run stands), schema, profile and kb (paged), survey, lane, followups, coverage, synthesis. "
+           "facts: long breaks inside levels and worn gear against the scored spec, where the run stands), "
+           "schema, profile and kb (paged), survey, lane, followups, coverage, synthesis. "
            "The first call opens a run; `restart` starts a new one.",
            S({"char": CHAR, "section": {"type": "string", "enum": ["start", "schema", "profile", "kb", "survey",
                                                                     "lane", "followups", "coverage", "synthesis"],

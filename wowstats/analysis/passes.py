@@ -25,7 +25,12 @@ and judges every finding (wowstats.analysis.drive):
 Every pass gets the same neutral material: the schema with the dictionary,
 the tools, the player's goals in their own words and what the pass must
 hand back. No hypothesis, no category, no earlier result (owner,
-2026-11-18: the model asks its own questions).
+2026-11-18: the model asks its own questions). The brief's `facts` are
+measurements the same for every run (a level's calendar beside its played
+time, the worn gear against the spec it's scored for), not conclusions:
+the seeded evaluation showed a client reading a three-week break as slow
+play and a Shadow item on a Holy priest as fine when those two facts sat
+only in columns it had to think of joining (docs/evaluation.md).
 """
 
 from __future__ import annotations
@@ -63,6 +68,15 @@ the SQL again and refuses the finding if they differ. The SQL must read the char
 call as evidence. Describe what the player chose to do by what it cost \
 and what it paid, never as a fault; describe interruptions neutrally and never guess why a session stopped. \
 List in `kb` the ids of the knowledge base documents a finding relies on.
+
+Two measurements to read before judging (the brief's `facts` lists where they stand out). Pace: a level's \
+pace is its played time (levels.played_s against planned_s, or the metric vs_route); its calendar time \
+(calendar_s) also counts the days the game was closed (offline_s, longest_gap_s). A finding about a slow, \
+long or stalled level accounts for the offline time first, and says when a level's calendar was mostly a \
+break; when recorder_missed_s is above 0, part of a silence was play the Recorder missed, not time away. \
+Gear: the advice scores every item for one spec (gear.scored_for: the player's setting, else the \
+talents); gear.bis_pct and gear.fit say how each worn item does for it. A finding that judges a worn item \
+names that spec, and says when the item is built for another spec or class.
 
 Every finding carries an `action`: `do` (what to do, concretely: with which item, quest, place, skill or \
 habit), `where` (in game, or when), `blocked_by` (what stands in the way: a level, gold, a skill, a group; \

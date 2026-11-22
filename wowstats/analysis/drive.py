@@ -67,7 +67,7 @@ class Workspace:
         from wowstats.mcp import route
         from wowstats.plan.facts import store_for
 
-        from . import TABLES, kb, manifest, prep, scoring_for, tables_of, upgrades_for
+        from . import TABLES, advice_for, kb, manifest, prep, scoring_for, tables_of
 
         st = store_for(env, store)
         self.store = st
@@ -78,7 +78,7 @@ class Workspace:
         self.kb = kb.shared(env)
         ref = route.reference()
         self.db = prep.build(rows, self.char, ref, map_sizes=self.kb.meta.get("ui_map"),
-                             upgrades=upgrades_for(rows, self.char, env))
+                             advice=advice_for(rows, self.char, env))
         # What this build was computed with: each finding judged here keeps its id.
         self.manifest = manifest.build(self.db, rows, self.kb, ref, scoring=scoring_for(rows, self.char, env))
         # What the tables stand on (wowstats.coverage): every play_sql and
@@ -335,7 +335,7 @@ def brief(env: dict, char: str, section: str = "start", page: int = 1, goals: st
                "procedure": passes.PROCEDURE, "finding_rules": passes.FINDING_RULES,
                "sections": {k: {"about": v, **({"pages": len(_pages(w.text(k)))} if k in ("schema", "profile", "kb")
                                                else {})} for k, v in SECTIONS.items() if k != "start"},
-               "tables": w.tables, "next": next_step(run)}
+               "tables": w.tables, "facts": facts(w.db), "next": next_step(run)}
         stale = to_revalidate(env, w.char)
         if stale:
             out["to_revalidate"] = {"findings": stale, "do": REVALIDATE_DO}
@@ -362,6 +362,51 @@ def brief(env: dict, char: str, section: str = "start", page: int = 1, goals: st
         f"- [{q['id']}] {q['question']} (answered: {q.get('answered')})" for q in run["questions"])
     return {"char": w.char, "task": passes.SYNTH_TASK, "answer_shape": passes.SYNTH_SCHEMA,
             **_paged("synthesis", listing, page)}
+
+
+# A silence this long inside a level is a break worth naming beside its pace:
+# the demo's evenings leave at most about a day between sessions.
+BREAK_S = 3 * 86400
+# Worn items listed against the spec they're scored for: built for someone
+# else, or under this share of the slot's best.
+WEAK_PCT = 25
+FACTS_ROWS = 8
+
+
+def facts(db) -> dict:
+    """Measurements every run gets in the start section, the same whatever
+    the client: the levels whose calendar holds a long silence (played
+    against calendar time), and the worn items that do least for the spec
+    the gear is scored for. Facts, not findings: the client still checks
+    them with play_sql and decides what they mean."""
+    def h(v, unit):
+        return None if v is None else round(v / unit, 1)
+
+    breaks = [{"level": lv, "played_h": h(p, 3600), "planned_h": h(pl, 3600), "calendar_days": h(c, 86400),
+               "offline_days": h(o, 86400), "longest_gap_days": h(g, 86400), "gap_from": a, "gap_to": b,
+               "recorder_missed_h": h(m, 3600)}
+              for lv, p, pl, c, o, g, a, b, m in db.execute(
+                  "SELECT level, played_s, COALESCE(planned_s, planned_median_s), calendar_s, offline_s, "
+                  "longest_gap_s, longest_gap_from_local, longest_gap_to_local, recorder_missed_s FROM levels "
+                  "WHERE longest_gap_s >= ? ORDER BY longest_gap_s DESC LIMIT ?", (BREAK_S, FACTS_ROWS))]
+    spec = (db.execute("SELECT scored_for FROM gear WHERE scored_for IS NOT NULL LIMIT 1").fetchone() or [None])[0]
+    worn = [{"slot": sl, "item": n, "item_id": i, "bis_pct": p, "fit": f, "built_for": b}
+            for sl, n, i, p, f, b in db.execute(
+                "SELECT slot_name, name, item_id, bis_pct, fit, built_for FROM gear WHERE name IS NOT NULL "
+                "AND (fit IN ('spec', 'class') OR bis_pct < ?) ORDER BY bis_pct IS NULL, bis_pct, slot LIMIT ?",
+                (WEAK_PCT, FACTS_ROWS))]
+    return {
+        "level_calendar": {
+            "about": f"levels with a silence of {BREAK_S // 86400} days or more between two sessions (levels: "
+                     "calendar_s, offline_s, longest_gap_s, recorder_missed_s): calendar time that isn't play "
+                     "unless recorder_missed_h says the Recorder missed some",
+            "levels": breaks or "none"},
+        "gear_fit": {
+            "scored_for": spec or "no gear sheet: unknown",
+            "about": f"worn items built for another spec or class (gear.fit), or under {WEAK_PCT}% of the best "
+                     "the slot can hold now for that spec (gear.bis_pct)",
+            "worn": worn or "none"},
+    }
 
 
 REVALIDATE_DO = ("Kept findings judged under other definitions (prep version, semantic model or reference data): "
