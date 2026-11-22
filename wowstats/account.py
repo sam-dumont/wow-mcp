@@ -34,9 +34,9 @@ from html import escape
 from pathlib import Path
 
 from wowstats import __version__, bar, missing, source_tag_url
-from wowstats.stores import num
 from wowstats import tenancy as T
 from wowstats.admin import vtuple
+from wowstats.stores import num
 
 _HERE = Path(__file__).resolve().parent
 

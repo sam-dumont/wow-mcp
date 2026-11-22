@@ -51,9 +51,7 @@ def _args(tool) -> dict:
 
 
 def _nan_paths(v, path="$"):
-    if isinstance(v, float) and v != v or isinstance(v, float) and v in (float("inf"), float("-inf")):
-        yield path
-    elif isinstance(v, str) and re.fullmatch(r"[+-]?(nan|inf(inity)?)", v.strip(), re.I):
+    if isinstance(v, float) and v != v or isinstance(v, float) and v in (float("inf"), float("-inf")) or isinstance(v, str) and re.fullmatch(r"[+-]?(nan|inf(inity)?)", v.strip(), re.I):
         yield path
     elif isinstance(v, dict):
         for k, x in v.items():
