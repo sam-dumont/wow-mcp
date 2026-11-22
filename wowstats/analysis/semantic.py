@@ -66,13 +66,39 @@ VIEWS = {
     # falls in (start to leave), as dungeon_runs names it. skill_id and
     # skill_rank: a skill record's own (records.extra), for the Riding rank
     # the mount goal reads.
+    # at_guide, at_step: the guide step in force at the record, a step (or
+    # skip) record's own, else the one of the online interval the record closes
+    # ((t0, t1]: the intervals of a session follow each other, so one at
+    # most). step_jump: the steps a step record passed over, counted from the
+    # guide's previous step record (picks included), 2 to 25 steps ahead
+    # (wowstats.mcp.tools t_guide_steps' rule: further is a new start).
+    # The interval is found with an ASOF join (the latest interval starting
+    # before the record, kept when it hasn't ended): one row per record by
+    # construction, and a range join here made every query joining records
+    # to another model 30 times slower (0.01 s to 0.33 s on a 10k-record
+    # history; the views per grain hit their 5 s cap in a parallel test
+    # run). run_start is a join for the same reason (a correlated subquery
+    # beside the other joins).
     "sem_records": ("SELECT r.*, CASE WHEN l.played_s > 0 AND l.partial = 0 THEN 1 ELSE 0 END AS level_whole, "
                     "CASE WHEN json_extract_string(r.extra, '$.classification') IN ('e', 'R', 'b') THEN 1 ELSE 0 "
                     "END AS elite, TRY_CAST(json_extract_string(r.extra, '$.skill_id') AS BIGINT) AS skill_id, "
-                    "TRY_CAST(json_extract_string(r.extra, '$.rank') AS BIGINT) AS skill_rank, (SELECT MIN(d.start_t) "
-                    "FROM dungeon_runs d WHERE r.t BETWEEN d.start_t AND d.left_t) AS run_start, {ts:r.t} AS at_local, "
-                    "{who} FROM records r "
-                    "LEFT JOIN levels l ON l.level = r.level"),
+                    "TRY_CAST(json_extract_string(r.extra, '$.rank') AS BIGINT) AS skill_rank, ru.run_start, "
+                    "CASE WHEN r.kind IN ('step', 'skip') THEN r.guide WHEN r.t <= tl.t1 THEN tl.guide END "
+                    "AS at_guide, "
+                    "CASE WHEN r.kind IN ('step', 'skip') THEN r.step WHEN r.t <= tl.t1 THEN tl.step END AS at_step, "
+                    "COALESCE(j.jump, 0) AS step_jump, {ts:r.t} AS at_local, {who} FROM records r "
+                    "LEFT JOIN levels l ON l.level = r.level "
+                    "ASOF LEFT JOIN timeline tl ON r.t > tl.t0 "
+                    "LEFT JOIN (SELECT rec_id, CASE WHEN COALESCE(reason, '') <> 'pick' AND d BETWEEN 2 AND 25 "
+                    "THEN d - 1 END AS jump FROM (SELECT rec_id, reason, step - LAG(step) OVER (PARTITION BY guide "
+                    "ORDER BY t, rec_id) AS d FROM records WHERE kind = 'step' AND step IS NOT NULL)) j "
+                    "ON j.rec_id = r.rec_id "
+                    "LEFT JOIN (SELECT r2.rec_id, MIN(d.start_t) AS run_start FROM records r2 JOIN dungeon_runs d "
+                    "ON r2.t BETWEEN d.start_t AND d.left_t GROUP BY r2.rec_id) ru ON ru.rec_id = r.rec_id"),
+    # The XP bar's readings with the guide step of the interval each closes.
+    "sem_xp": ("SELECT x.*, CASE WHEN x.t <= tl.t1 THEN tl.guide END AS guide, "
+               "CASE WHEN x.t <= tl.t1 THEN tl.step END AS step, {ts:x.t} AS at_local, {who} FROM xp x "
+               "ASOF LEFT JOIN timeline tl ON x.t > tl.t0"),
     "sem_sessions": "SELECT *, {ts:start_t} AS at_local, {who} FROM sessions",
     # trip_id: the trip around the run (its dungeon, the run starting inside it).
     "sem_dungeon_runs": ("SELECT d.*, (SELECT MIN(t.trip_id) FROM dungeon_trips t WHERE t.dungeon = d.name AND "
@@ -80,8 +106,14 @@ VIEWS = {
                          "FROM dungeon_runs d"),
     "sem_dungeon_trips": "SELECT *, {ts:start_t} AS at_local, {who} FROM dungeon_trips",
     "sem_snapshots": "SELECT *, {ts:t} AS at_local, {who} FROM snapshots",
-    "sem_quests": ("SELECT *, {ts:at_t} AS at_local, {who} FROM (SELECT *, COALESCE(closed_t, accepted_t) AS at_t, "
-                   "COALESCE(quest_name, 'Quest ' || CAST(quest_id AS VARCHAR)) AS quest FROM quests)"),
+    # complete_t: the newest complete record of the quest between its accept
+    # (any time before, when the accept wasn't seen) and its close.
+    "sem_quests": ("SELECT *, {ts:at_t} AS at_local, {who} FROM (SELECT q.*, "
+                   "COALESCE(q.closed_t, q.accepted_t) AS at_t, "
+                   "COALESCE(q.quest_name, 'Quest ' || CAST(q.quest_id AS VARCHAR)) AS quest, "
+                   "(SELECT MAX(c.t) FROM records c WHERE c.kind = 'complete' AND c.quest_id = q.quest_id "
+                   "AND (q.accepted_t IS NULL OR c.t >= q.accepted_t) AND (q.closed_t IS NULL OR c.t <= q.closed_t)) "
+                   "AS complete_t FROM quests q)"),
     "sem_gold_moves": "SELECT *, {ts:t0} AS at_local, {who} FROM gold_moves",
     # Each interval between two XP records where the rested pool went down,
     # with the kill XP inside it outside dungeon trips (kill_xp) and inside
@@ -549,12 +581,25 @@ def views_text() -> str:
            "Compiled from the semantic layer's metrics, one row per key (no fan-out). Each metric column is the "
            "list_metrics metric of that name, its rules included: a ratio reads its eligible rows, a metric with "
            "min_evidence is NULL below it with <name>_evidence beside it, and NULL is unknown, never 0. Join "
-           "them on their key (level, session_id, zone, dungeon, slot) with each other or a raw table."]
+           "them on their key (level, session_id, zone, dungeon, trip, guide, quest_id, slot) with each other or a raw "
+           "table."]
+    # Each column is described once, in the first view that has it: the
+    # listing has to fit the schema section's first page (12,000 characters)
+    # with the raw tables' heading after it, and per_session and per_zone
+    # repeat most of per_level's columns.
+    seen: set[str] = set()
     for v in views().values():
         out += ["", f"## {v['name']}: one row per {v['entity']}", v["description"] or ""]
+        again = []
         for c in v["columns"]:
+            if c["name"] in seen:
+                again.append(c["name"])
+                continue
+            seen.add(c["name"])
             unit = f" ({c['unit']})" if c.get("unit") else ""
             out.append(f"- {c['name']}{unit}: {c['description']}")
+        if again:
+            out.append(f"- also, as described above: {', '.join(again)}")
     return "\n".join(out)
 
 
@@ -890,3 +935,17 @@ def run(layer: Layer, ro, q: dict, max_rows: int = MAX_LIMIT) -> dict:
     if evidence:
         out["evidence"] = evidence
     return out
+
+
+def rows(layer: Layer, ro, q: dict, max_rows: int = 100_000) -> list[dict]:
+    """Every row of a question, as dicts: for the product's own readers (the
+    brief's facts, the plan's inputs, the typed tools), which need all of a
+    character's guide steps or quests where query_metric pages at
+    MAX_LIMIT. Compiled exactly like query_metric (same metrics, rules and
+    bound values), without the page limit; more than `max_rows` is refused
+    rather than cut."""
+    c = layer.compile(q, view=True)
+    cols, got, cut = ro.run(c["sql"], max_rows, c["params"])
+    if cut:
+        raise QueryError(f"more than {max_rows} rows: group or filter further")
+    return [dict(zip(cols, r, strict=True)) for r in got]

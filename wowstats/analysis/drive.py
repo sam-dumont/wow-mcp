@@ -401,27 +401,30 @@ def facts(db, layer=None, ro=None) -> dict:
     findings: the client still checks them (query_metric, play_sql) and
     decides what they mean.
 
-    The gear part reads the semantic layer (models `worn` and `upgrades`)
-    through `layer` and `ro`, the same compiled queries query_metric runs:
+    Both read the semantic layer (the levels model's calendar metrics, the
+    models `worn` and `upgrades`) through `layer` and `ro`, the same compiled
+    queries query_metric runs:
     a client gets the decision data without knowing a table (owner,
     2026-11-22: the wrong_spec_gear scenario's three Holy head upgrades were
     reachable through play_sql only). Without them, a copy of `db` of its own
     (semantic.local)."""
-    if layer is None:
-        from . import semantic
+    from . import semantic
 
+    if layer is None:
         layer, ro = semantic.local(db)
 
     def h(v, unit):
         return None if v is None else round(v / unit, 1)
 
-    breaks = [{"level": lv, "played_h": h(p, 3600), "planned_h": h(pl, 3600), "calendar_days": h(c, 86400),
-               "offline_days": h(o, 86400), "longest_gap_days": h(g, 86400), "gap_from": a, "gap_to": b,
-               "recorder_missed_h": h(m, 3600)}
-              for lv, p, pl, c, o, g, a, b, m in db.execute(
-                  "SELECT level, played_s, COALESCE(planned_s, planned_median_s), calendar_s, offline_s, "
-                  "longest_gap_s, longest_gap_from_local, longest_gap_to_local, recorder_missed_s FROM levels "
-                  "WHERE longest_gap_s >= ? ORDER BY longest_gap_s DESC LIMIT ?", (BREAK_S, FACTS_ROWS))]
+    lv = semantic.rows(layer, ro, {"metrics": ["played_s", "planned_s", "calendar_s", "offline_s", "longest_gap_s",
+                                               "longest_gap_from", "longest_gap_to", "recorder_missed_s"],
+                                   "group_by": ["level"]})
+    long = sorted((r for r in lv if (r["longest_gap_s"] or 0) >= BREAK_S),
+                  key=lambda r: (-r["longest_gap_s"], r["level"]))[:FACTS_ROWS]
+    breaks = [{"level": r["level"], "played_h": h(r["played_s"], 3600), "planned_h": h(r["planned_s"], 3600),
+               "calendar_days": h(r["calendar_s"], 86400), "offline_days": h(r["offline_s"], 86400),
+               "longest_gap_days": h(r["longest_gap_s"], 86400), "gap_from": r["longest_gap_from"],
+               "gap_to": r["longest_gap_to"], "recorder_missed_h": h(r["recorder_missed_s"], 3600)} for r in long]
     spec, worn, query = gear_fit(layer, ro)
     return {
         "level_calendar": {
@@ -473,7 +476,7 @@ def gear_fit(layer, ro) -> tuple[str | None, list[dict], dict | None]:
              "group_by": ["slot", "item_id", "item", "fit"],
              "where": [{"dimension": "slot", "op": "in", "values": sorted({r["slot"] for r in weak})},
                        {"dimension": "rank_now", "op": "<=", "value": UPGRADES_PER_SLOT + 1}],
-             "order_by": ["slot", "-upgrade_gain"]}
+             "order_by": ["slot", "-upgrade_gain", "item_id"]}
     ups = ask(**query)
     where: dict[int, list[tuple[str, str | None]]] = {}
     if ups:

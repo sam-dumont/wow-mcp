@@ -104,7 +104,11 @@ class LookupTest(unittest.TestCase):
 class ToolsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        rules = [("kind:=session", SESSION), ('feed:="wow-level"', LEVELS), ("kind:in(step, skip)", STEPS)]
+        from wowstats.analysis import drive
+
+        drive._WS.clear()  # the prep of another test's fixture character
+        rules = [("kind:=session", SESSION), ('feed:="wow-level"', LEVELS), ("kind:in(step, skip)", STEPS),
+                 *fakes.prep_rules(SESSION + STEPS)]
         cls.fake = fakes.FakeStores(logs=rules + fakes.LOGS)
         cls.ctx = tools.Ctx(store=Store(vl_url=cls.fake.url))
         route._cached = None

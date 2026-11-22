@@ -65,7 +65,10 @@ from wowstats.stores import (
 # 8: upgrade_candidates gets the inventory slot its gain is measured in, so
 # an item that fits both rings or trinkets is one row per slot it was
 # measured against (the MCP's gear reads its numbers by item and slot).
-PREP_VERSION = 8
+# 9: quests gets `failed` (a fail record closes the quest) and the quests in
+# the log accepted before tracking (objectives seen done, no accept): the
+# plan's open quests read the quests model (semantic wave 3).
+PREP_VERSION = 9
 
 # A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
 # route position starts past it when the character already stands there.
@@ -338,10 +341,11 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
                "was in the log, shared equally among the quests open then, so the quests' times add up to the "
                "online time with a quest open (nothing counted twice).", {
         "quest_row": "row number", "quest_id": "quest id", "quest_name": "title, when a record names it",
-        "status": "done (accept and hand-in seen), abandoned, open (still in the log), untimed (handed in, "
-                  "accepted before tracking began) or 'done (inferred)': still in the log but handed in with the "
-                  "Recorder off, as another source shows (done_why; the quests_done table)",
-        "accepted_t": "accept, unix s", "closed_t": "hand-in or abandon, unix s",
+        "status": "done (accept and hand-in seen), abandoned, failed (the game failed it: can't be handed in), "
+                  "open (still in the log; no accept_t when only its objectives were seen done), untimed (handed "
+                  "in, accepted before tracking began) or 'done (inferred)': still in the log but handed in with "
+                  "the Recorder off, as another source shows (done_why; the quests_done table)",
+        "accepted_t": "accept, unix s", "closed_t": "hand-in, abandon or fail, unix s",
         "accepted_local": "accept, local time", "closed_local": "hand-in or abandon, local time",
         "level_accepted": "level at the accept", "level": "level at the hand-in or abandon (else at the accept)",
         "zone": "zone of the hand-in (else of the accept)", "xp": "XP the hand-in paid",
@@ -1068,8 +1072,12 @@ def _quests(db, done: dict[int, dict] | None = None) -> None:
 
     A hand-in with no accept before it (accepted before tracking began) is
     `untimed`; an accept while the same quest is already open keeps the
-    first; an abandon closes it; what is still in the log is `open`, its
-    time counted up to the last record.
+    first; an abandon closes it; a fail closes it as `failed` (the log still
+    shows it, but it can't be handed in); what is still in the log is
+    `open`, its time counted up to the last record. Objectives seen done
+    (a complete record) with no accept before them open the quest too,
+    untimed: it was accepted before tracking began and is in the log, ready
+    to hand in (`untimed` once handed in).
 
     `done` is wowstats.quests.explain of the character's events. A quest
     still in the log that it says was handed in some other way (a reward
@@ -1083,10 +1091,11 @@ def _quests(db, done: dict[int, dict] | None = None) -> None:
                    [(q, (forever.quest(q) or {}).get("name"), e["from"], e["why"], e["t"],
                      _iso(e["t"], TZ) if e["t"] is not None else None) for q, e in sorted(done.items())])
     evs = db.execute("SELECT t, kind, quest_id, quest_name, level, zone, xp_reward, money_copper FROM records "
-                     "WHERE kind IN ('accept', 'turnin', 'abandon') AND quest_id IS NOT NULL ORDER BY t, rec_id"
-                     ).fetchall()
+                     "WHERE kind IN ('accept', 'turnin', 'abandon', 'complete', 'fail') AND quest_id IS NOT NULL "
+                     "ORDER BY t, rec_id").fetchall()
     rows: list[dict] = []
     open_: dict[int, dict] = {}
+    closed_at: dict[int, float] = {}
     for t, kind, qid, name, lv, zone, xp, money in evs:
         q = open_.get(qid)
         if kind == "accept":
@@ -1095,22 +1104,34 @@ def _quests(db, done: dict[int, dict] | None = None) -> None:
                      "level_accepted": lv, "level": lv, "zone": zone, "xp": None, "money_copper": None}
                 open_[qid] = q
                 rows.append(q)
+        elif kind == "complete":
+            # Done objectives of a quest whose accept came before tracking (or
+            # in a Recorder gap): in the log all the same. Not the complete
+            # written with the hand-in that just closed it.
+            if q is None and closed_at.get(qid) != t:
+                q = {"quest_id": qid, "quest_name": name, "status": "open", "accepted_t": None, "closed_t": None,
+                     "level_accepted": None, "level": lv, "zone": zone, "xp": None, "money_copper": None}
+                open_[qid] = q
+                rows.append(q)
         elif kind == "turnin":
+            closed_at[qid] = t
             if q is None:
                 rows.append({"quest_id": qid, "quest_name": name, "status": "untimed", "accepted_t": None,
                              "closed_t": t, "level_accepted": None, "level": lv, "zone": zone, "xp": xp,
                              "money_copper": money})
                 continue
-            q.update(status="done", closed_t=t, level=lv, zone=zone or q["zone"], xp=xp, money_copper=money,
-                     quest_name=q["quest_name"] or name)
+            q.update(status="done" if q["accepted_t"] is not None else "untimed", closed_t=t, level=lv,
+                     zone=zone or q["zone"], xp=xp, money_copper=money, quest_name=q["quest_name"] or name)
             del open_[qid]
-        elif q is not None:  # abandon
-            q.update(status="abandoned", closed_t=t, level=lv, quest_name=q["quest_name"] or name)
+        elif q is not None:  # abandon, or failed by the game
+            closed_at[qid] = t
+            q.update(status="abandoned" if kind == "abandon" else "failed", closed_t=t, level=lv,
+                     quest_name=q["quest_name"] or name)
             del open_[qid]
     for qid, q in open_.items():
         e = done.get(qid)
         if questsmod.settles_open(e, q["accepted_t"]):
-            first = e["t"] if e["t"] is not None and e["t"] >= q["accepted_t"] else None
+            first = e["t"] if e["t"] is not None and (q["accepted_t"] is None or e["t"] >= q["accepted_t"]) else None
             q.update(status=questsmod.INFERRED, closed_t=first, done_why=e["why"])
     # The time: one sweep over the timeline, quests opened as their accept passes.
     timed = sorted((q for q in rows if q["accepted_t"] is not None), key=lambda q: q["accepted_t"])

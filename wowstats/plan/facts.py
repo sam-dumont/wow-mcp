@@ -272,52 +272,81 @@ def position(db) -> dict:
     return dict(zip(keys, row, strict=True))
 
 
-def step_history(db, ref) -> list[dict]:
+def semantic_of(db, sem=None) -> tuple:
+    """(layer, read-only runner) of the semantic layer over this prep build:
+    `sem` when the caller has one, else a copy of `db` of its own
+    (wowstats.analysis.semantic.local). The plan reads its history through
+    the layer, never its own SQL (owner, 2026-11-22): extract makes the copy
+    once and hands it to each reader."""
+    if sem is not None:
+        return sem
+    from wowstats.analysis import semantic
+
+    return semantic.local(db)
+
+
+def ask(sem, **qy) -> list[dict]:
+    """Every row of one semantic-layer question (wowstats.analysis.semantic.rows)."""
+    from wowstats.analysis import semantic
+
+    return semantic.rows(*sem, qy)
+
+
+def step_history(db, ref, sem=None) -> list[dict]:
     """Every levelling-guide step he spent time on: online time without AFK
-    (timeline) against the route's planned seconds, with the step's kind."""
-    rows = q(db, "SELECT guide, step, SUM(CASE WHEN afk=0 THEN dur_s ELSE 0 END), MIN(t0) FROM timeline "
-                 "WHERE guide IS NOT NULL AND step IS NOT NULL GROUP BY guide, step ORDER BY MIN(t0)")
+    (active_s) and the XP the bar gained (xp_gained) per guide and step,
+    against the route's planned seconds, with the step's kind; in the order
+    the steps first came up (first_online_t)."""
+    rows = ask(semantic_of(db, sem), metrics=["active_s", "first_online_t", "xp_gained"], group_by=["guide", "step"],
+               where=[{"dimension": "guide", "op": "is not null"}, {"dimension": "step", "op": "is not null"}])
     kinds: dict[str, dict[int, str]] = {}
     planned: dict[str, dict[int, tuple]] = {}
     out = []
-    for g, st, act, t0 in rows:
+    for r in sorted(rows, key=lambda r: r["first_online_t"]):
+        g, st = r["guide"], int(r["step"])
         if not (LEVELING.match(g) or g.startswith("lookup/")):
             continue
         if g not in kinds:
             steps = guide_steps(ref, g)
             kinds[g] = kinds_for(g, steps)
             planned[g] = {n: (p, t) for n, p, t in steps}
-        p, title = planned[g].get(int(st), (None, None))
-        xp = one(db, "SELECT COALESCE(SUM(x.xp_gained),0) FROM xp x JOIN timeline t ON x.t > t.t0 AND x.t <= t.t1 "
-                     "WHERE t.guide=? AND t.step=?", g, st)
-        out.append({"guide": g, "step": int(st), "title": title, "kind": kinds[g].get(int(st), "dungeon" if
-                    g.startswith("lookup/") else "questing"), "planned_s": p, "actual_s": round(act or 0, 1),
-                    "xp": int(xp or 0), "t": t0})
+        p, title = planned[g].get(st, (None, None))
+        out.append({"guide": g, "step": st, "title": title, "kind": kinds[g].get(st, "dungeon" if
+                    g.startswith("lookup/") else "questing"), "planned_s": p,
+                    "actual_s": round(r["active_s"] or 0, 1), "xp": int(r["xp_gained"] or 0),
+                    "t": r["first_online_t"]})
     return out
 
 
-def open_quests(db, level: int) -> list[dict]:
-    """The quests still in his log: last seen accepted or completed, and not
-    closed as done (inferred) by the prep (wowstats.analysis.prep._quests:
+def open_quests(db, level: int, sem=None) -> list[dict]:
+    """The quests still in his log: the quests model's `open` rows (accepted,
+    or its objectives seen done, and neither handed in, abandoned, failed
+    nor closed as done (inferred) by the prep: wowstats.analysis.prep._quests,
     handed in with the Recorder off, its reward worn or Questie's list
-    saying so), so nothing tells him to go back for a quest he finished."""
+    saying so), so nothing tells him to go back for a quest he finished. In
+    the order of their last news: objectives done, else the accept."""
     from wowstats import forever
 
-    rows = q(db, """WITH ev AS (SELECT quest_id, kind, t, zone, level, ROW_NUMBER() OVER (PARTITION BY quest_id
-                 ORDER BY t DESC) rn FROM records WHERE kind IN ('accept','turnin','abandon','complete','fail')
-                 AND quest_id IS NOT NULL) SELECT quest_id, kind, t FROM ev WHERE rn=1 AND kind IN
-                 ('accept','complete') AND quest_id NOT IN (SELECT quest_id FROM quests WHERE status = ?)
-                 ORDER BY t""", quests.INFERRED)
+    sem = semantic_of(db, sem)
+    rows = ask(sem, metrics=["quest_accepted_t", "quest_complete_t"],
+               group_by=["quest_id", "quest", "zone", "level_accepted"],
+               where=[{"dimension": "status", "op": "=", "value": "open"}])
+    rows.sort(key=lambda r: (r["quest_complete_t"] or r["quest_accepted_t"] or 0, r["quest_id"]))
     out = []
-    for qid, kind, t in rows:
-        acc = db.execute("SELECT zone, level, t FROM records WHERE kind='accept' AND quest_id=? ORDER BY t DESC "
-                         "LIMIT 1", (qid,)).fetchone() or (None, None, t)
-        fq = forever.quest(qid) or {}
-        out.append({"quest_id": int(qid), "name": fq.get("name") or one(
-            db, "SELECT quest_name FROM records WHERE quest_id=? AND quest_name IS NOT NULL LIMIT 1", qid),
-            "level": fq.get("level"), "min_level": fq.get("min_level"), "zone": fq.get("zone") or acc[0],
-            "accepted_zone": acc[0], "accepted_level": acc[1], "accepted_t": acc[2], "complete": kind == "complete",
-            "last_in_zone_t": one(db, "SELECT MAX(t) FROM records WHERE zone=?", fq.get("zone") or acc[0])})
+    for r in rows:
+        fq = forever.quest(r["quest_id"]) or {}
+        timed = r["quest_accepted_t"] is not None
+        out.append({"quest_id": int(r["quest_id"]), "name": fq.get("name") or r["quest"],
+                    "level": fq.get("level"), "min_level": fq.get("min_level"),
+                    "zone": fq.get("zone") or (r["zone"] if timed else None),
+                    "accepted_zone": r["zone"] if timed else None, "accepted_level": r["level_accepted"],
+                    "accepted_t": r["quest_accepted_t"], "complete": r["quest_complete_t"] is not None})
+    zones = sorted({o["zone"] for o in out if o["zone"]})
+    seen = {z["zone"]: z["last_record_t"] for z in ask(
+        sem, metrics=["last_record_t"], group_by=["zone"],
+        where=[{"dimension": "zone", "op": "in", "values": zones}])} if zones else {}
+    for o in out:
+        o["last_in_zone_t"] = seen.get(o["zone"])
     return out
 
 
@@ -370,16 +399,6 @@ def mount_facts(knowledge) -> dict:
 
 def cite(r: dict) -> dict:
     return {k: r.get(k) for k in ("name", "source_url", "source_type", "date", "confidence", "scope")}
-
-
-def semantic_of(db) -> tuple:
-    """The semantic layer and its runner over this prep build
-    (wowstats.analysis.semantic.local): the gold, loot, rested and riding
-    readers ask it, never the tables (owner, 2026-11-22: "use the semantic
-    model all the time"). extract makes it once and hands it to each."""
-    from wowstats.analysis import semantic
-
-    return semantic.local(db)
 
 
 def metric_row(sem: tuple, q: dict) -> dict:
@@ -535,17 +554,17 @@ def played_between(db, a: tuple, b: tuple) -> float | None:
     return journal.played_between(rows, a, b)
 
 
-def ask_on(db):
+def ask_on(db, sem=None):
     """query_metric's compiler and runner on a DuckDB copy of the prep build
-    `db` (wowstats.analysis.semantic.local): `ask(**query) -> rows as dicts`.
-    One copy per call: extract() makes it once and hands it on."""
+    `db` (wowstats.analysis.semantic.local), or the copy `sem` already made:
+    `ask(**query) -> rows as dicts`. extract() makes one copy and hands it on."""
     import warnings
 
     from wowstats.analysis import semantic
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # BSL's own deprecation notes
-        layer, ro = semantic.local(db)
+        layer, ro = semantic_of(db, sem)
 
     def ask(**q) -> list[dict]:
         got = semantic.run(layer, ro, {"limit": semantic.MAX_LIMIT, **q})
@@ -825,16 +844,17 @@ def _one_per_title(rows: list[dict]) -> list[dict]:
 
 def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | None = None, state: dict | None = None,
             reviews: dict | None = None, now: float | None = None, cards=None, loot: dict | None = None,
-            bags: dict | None = None, done: dict[int, str] | None = None) -> dict:
+            bags: dict | None = None, done: dict[int, str] | None = None, sem=None) -> dict:
     """The estimator's inputs, JSON only. `done`: wowstats.quests.completed
     of the character's events; without it, the prep's quests_done table
-    (the same answer, from the events `db` was built from)."""
+    (the same answer, from the events `db` was built from). `sem`: the
+    semantic layer over `db` (semantic_of), when the caller has one."""
     from wowstats import forever
 
     now = now or time.time()
     scans = scans or {}
     cards = cards if cards is not None else card_lookup()
-    sem = semantic_of(db)
+    sem = semantic_of(db, sem)  # one copy for every reader below
     quests_done = done
     if quests_done is None:
         quests_done = dict(q(db, "SELECT quest_id, source FROM quests_done"))
@@ -874,7 +894,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     xp_table = {lv["level"]: lv["xp"] for lv in levels if lv["xp"]}
     if xp_max:
         xp_table[level] = xp_max
-    hist = step_history(db, ref)
+    hist = step_history(db, ref, sem)
     pos = position(db)
     side = meta.get("faction")
     seq = guide_sequence(ref, side, level) if side else []
@@ -905,14 +925,17 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
                                                       "DESC LIMIT ?", RECENT_SESSIONS)]
     done = [lv for lv in levels if lv["played_s"] and not lv["partial"] and lv["level"] < level][-PACE_LEVELS:]
     lo = done[0]["level"] if done else level
-    ding_lo = one(db, "SELECT MIN(t) FROM records WHERE level >= ?", lo) or 0
-    kill_xp = one(db, "SELECT COALESCE(SUM(xp_reward),0) FROM records WHERE kind='kill' AND t >= ? AND "
-                      "dungeon_trip_id IS NULL", ding_lo) or 0
-    all_xp = one(db, "SELECT COALESCE(SUM(xp_gained),0) FROM xp WHERE t >= ?", ding_lo) or 0
+    # Kill XP outside dungeons over every XP the bar gained, from level lo
+    # on (a record's level is the one it was written at, so this is the
+    # play since the first record at lo).
+    kill_xp = sum(r["kill_xp"] or 0 for r in ask(sem, metrics=["kill_xp"], where=[
+        {"dimension": "level", "op": ">=", "value": lo}, {"dimension": "dungeon_trip", "op": "is null"}]))
+    all_xp = sum(r["xp_gained"] or 0 for r in ask(sem, metrics=["xp_gained"], where=[
+        {"dimension": "level", "op": ">=", "value": lo}]))
     share_rule = knowledge.rule("quest_xp.share_by_levels_over") if knowledge is not None else None
     # A quest still in the log that only Battle.net's worn items prove done
     # (the history closes the others in the prep, wowstats.quests.settles_open).
-    oq = [o for o in open_quests(db, level) if quests_done.get(o["quest_id"]) != "battlenet"]
+    oq = [o for o in open_quests(db, level, sem) if quests_done.get(o["quest_id"]) != "battlenet"]
     for o in oq:
         o.update({k: v for k, v in quest_facts(knowledge, o["quest_id"]).items() if k != "xp"},
                  xp_full=quest_facts(knowledge, o["quest_id"])["xp"])
@@ -920,20 +943,21 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     # profession and riding trainers the data knows are left out (weapon
     # masters it can't tell); Polestar's own classTrainVisit wins (gather).
     others = trainers.not_class_trainers()
-    trainer = next((r[:2] for r in db.execute("SELECT t, level, npc_id FROM records WHERE kind='trainer' "
-                                              "ORDER BY t DESC") if r[2] not in others), None)
-    ding_even = one(db, "SELECT MAX(t) FROM records WHERE kind='level' AND level % 2 = 0")
+    visits = [r for r in ask(sem, metrics=["last_record_t"], group_by=["npc_id", "level"],
+                             where=[{"dimension": "kind", "op": "=", "value": "trainer"}]) if r["npc_id"] not in others]
+    trainer = max(((r["last_record_t"], r["level"]) for r in visits), default=None, key=lambda v: v[0])
+    ding_even = max((r["last_record_t"] for r in ask(sem, metrics=["last_record_t"], group_by=["level"], where=[
+        {"dimension": "kind", "op": "=", "value": "level"}]) if r["level"] is not None and r["level"] % 2 == 0),
+        default=None)
     profs = [dict(zip(("name", "rank", "max_rank"), r, strict=True))
              for r in q(db, "SELECT name, rank, max_rank FROM professions")]
-    prof_rate = {}
-    for p in profs:
-        sl = f"forever/professions/{(p['name'] or '').lower()}"
-        secs = one(db, "SELECT COALESCE(SUM(dur_s),0) FROM timeline WHERE guide=? AND afk=0", sl) or 0
-        ups = one(db, "SELECT COUNT(*) FROM records r JOIN timeline t ON r.t > t.t0 AND r.t <= t.t1 WHERE "
-                      "r.kind='skill' AND t.guide=?", sl) or 0
-        prof_rate[p["name"]] = {"seconds": round(secs), "skill_ups": ups}
-    ask = ask_on(db)
-    tr = trips(ask)
+    # Time on each profession's Polestar guide and the skill-ups made while it was up.
+    lines = {p["name"]: f"forever/professions/{(p['name'] or '').lower()}" for p in profs}
+    by_guide = {r["guide"]: r for r in ask(sem, metrics=["active_s", "skill_ups"], group_by=["guide"], where=[
+        {"dimension": "guide", "op": "in", "values": sorted(set(lines.values()))}])} if lines else {}
+    prof_rate = {name: {"seconds": round((by_guide.get(sl) or {}).get("active_s") or 0),
+                        "skill_ups": (by_guide.get(sl) or {}).get("skill_ups") or 0} for name, sl in lines.items()}
+    tr = trips(ask_on(db, sem))
     for t in tr:
         t["loot"] = run_loot(t, cards, scans)
     ups = upgrades(sem, (advice or {}).get("upgrades_all") or [])

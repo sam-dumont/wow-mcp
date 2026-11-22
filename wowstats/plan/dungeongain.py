@@ -240,8 +240,11 @@ def summary(g: dict) -> str | None:
         return None
     if g["run_s"]:
         g["lead"] = f"~{about_s(g['run_s'])} + quests worth ~{about_xp(quests)} XP"
-        tail = {"faster": f", {ratio(vs)} faster than your questing", "same": ", about the same as questing",
-                "slower": ", slower than questing: go for the drops only"}.get(v, "")
+        # Built for the verdict only: with no verdict (no questing pace to
+        # compare) vs is None and ratio() can't format it.
+        tail = (f", {ratio(vs)} faster than your questing" if v == "faster" else
+                {"same": ", about the same as questing",
+                 "slower": ", slower than questing: go for the drops only"}.get(v, ""))
         return f"{g['lead']}{of}{tail}"
     worth = f", what {about_s(g['questing_s'])} of your questing pays" if g.get("questing_s") else ""
     return f"Its quests pay ~{about_xp(quests)} XP{of}{worth}"

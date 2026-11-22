@@ -13,7 +13,10 @@ from wowstats.mcp.store import Store, parse_when
 class ToolsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.fake = fakes.FakeStores()
+        from wowstats.analysis import drive
+
+        drive._WS.clear()  # the prep of another test's fixture character
+        cls.fake = fakes.FakeStores(logs=fakes.PREP + fakes.LOGS)
         cls.ctx = tools.Ctx(store=Store(vl_url=cls.fake.url, vm_url=cls.fake.url))
 
     @classmethod
