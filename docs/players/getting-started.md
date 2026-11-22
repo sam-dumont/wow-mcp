@@ -149,6 +149,34 @@ Add wow-stats to your own Claude, ChatGPT or other assistant: it plans your next
 
 What the program sends: [What's shared, and with whom](privacy.md).
 
+## Optional: turn on combat logging
+
+WoW can write every fight to a file, and the program sends it with the rest. Nothing on your
+page reads it yet: it's for death recaps and dungeon and raid performance, later. Skip this
+step if you don't care about those.
+
+**Turn it on:** type `/combatlog` in chat. The game writes to the `Logs` folder next to `WTF`,
+and logging stays on until you type `/combatlog` again or exit the game
+([Warcraft Logs' guide](https://www.warcraftlogs.com/help/start)). So it's once per game
+session, not once for good.
+
+**Make it one click:** the same command turns logging off when it's already on, so a second
+press stops it. A macro that only ever turns it on is safer:
+
+1. Type `/macro`, click **New**, name it `Log`, pick any icon.
+2. Paste this line, then drag the icon to your action bar:
+   ```
+   /run LoggingCombat(true)
+   ```
+3. Press it once after you log in. Pressing it again changes nothing.
+
+`LoggingCombat` is the game's own command ([Warcraft Wiki](https://warcraft.wiki.gg/wiki/API:LoggingCombat)),
+not an addon.
+
+**What it costs:** the file grows for as long as logging is on, so an evening of play is a
+bigger upload than your addons' files. Other players in it reach the server as "another
+player", never by name ([What's shared](privacy.md)).
+
 ## Updates
 
 <!-- generated:player-update -->
