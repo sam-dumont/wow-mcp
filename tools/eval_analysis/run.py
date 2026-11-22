@@ -6,8 +6,6 @@ a real MCP client, and grade what it kept.
         [--max-usd X] [--model M] [--out DIR] [--judge]
     make eval-analysis                      # every scenario once, Claude Code
     make eval-analysis SCENARIO=death_spike
-    make eval-release                       # before a release: the reference client and the
-                                            # server's runner, 3 runs each
     ... --client claude:claude-haiku-5-5 --client server:gpt-6-luna   # a client matrix
 
 Per scenario: build its events (scenarios.py), start a throwaway server on
@@ -18,19 +16,18 @@ run per process, all of them at once by default (--jobs): a run mostly
 waits on the model, and each has its own server, client and folder.
 
 --repeats runs each scenario N times per client: a model doesn't answer the
-same way twice, so one run says little. A scenario passes the gate when at
-least two thirds of its runs pass (GATE); release.md, the table for the
-release notes, gives the rate per client and scenario.
+same way twice, so one run says little. A scenario passes when at least
+two thirds of its runs pass (GATE); release.md gives the rate per client
+and scenario.
 
 Clients: `--client kind:model` names a model per column, so one batch is a
 matrix (claude:claude-haiku-5-5, claude:claude-sonnet-5-5, server:gpt-6-luna,
 server:glm-5.3 with EVAL_SERVER_BASE_URL...). The analysis runs in the
 player's own AI: the evaluation asks whether what MCP hands a client is
-enough for the clients people use. The release gate is one column,
-REFERENCE (Claude Sonnet through Claude Code); the others are reported,
-not gating (owner, 2026-11-22: gaps between providers are accepted). A
-scenario below the gate on most clients is the brief's or the MCP's
-problem, not one model's: release.md flags it.
+enough for the clients people use. It's an optional tool, not a release
+gate (owner, 2026-11-22: "we provide good data; if a model doesn't act
+properly we accept it"). A scenario below two thirds on most clients is
+the brief's or the MCP's problem, not one model's: release.md flags it.
 
 Where it goes: --out, else `eval-analysis-out/` in this checkout (ignored by
 git; the data is synthetic), one folder per batch, then
@@ -71,9 +68,6 @@ GATE = 2 / 3
 # crossed a 4M tokens-per-minute limit within a minute: twelve of fifteen
 # stopped on a 429 (2026-11-22). Claude Code runs on a login, not a key.
 SERVER_JOBS = 3
-# The release gate's client (owner, 2026-11-22): Claude Sonnet through
-# Claude Code, a player's ordinary client. Every other column is reported.
-REFERENCE = "claude:claude-sonnet-5-5"
 
 
 def server_settings(sc: dict, state: Path) -> dict:
@@ -265,34 +259,31 @@ def gate_ok(passed: int, runs: int) -> bool:
 
 
 def release_table(reports: list[dict], wall_min: float | None = None, spent: float | None = None) -> str:
-    """The pass rate per client and scenario, for the release notes: a
-    scenario under the gate is flagged."""
+    """The pass rate per client and scenario: a scenario under two
+    thirds is flagged."""
     r8 = rates(reports)
     cols = list(dict.fromkeys(col_of(r) for r in reports))
     names = list(dict.fromkeys(r["scenario"] for r in reports))
     label = {c: c if ":" in c else next(who(r) for r in reports if col_of(r) == c) for c in cols}
-    label = {c: v + (" (release gate)" if c == REFERENCE else "") for c, v in label.items()}
     out = ["| Scenario | " + " | ".join(label[c] for c in cols) + " |", "|---|" + "---|" * len(cols)]
     for n in names:
         cells = []
         for c in cols:
             p, k = r8.get((c, n), (0, 0))
-            cells.append(f"{p}/{k}" + ("" if gate_ok(p, k) else " **below the gate**") if k else "-")
+            cells.append(f"{p}/{k}" + ("" if gate_ok(p, k) else " **below 2/3**") if k else "-")
         out.append(f"| {n} | " + " | ".join(cells) + " |")
-    out += ["", "Gate: a scenario passes when at least two thirds of its runs pass (2 of 3)."
-            + (f" The release gate is {REFERENCE}; the other clients are reported, not gating."
-               if REFERENCE in cols else "")
+    out += ["", "A scenario passes when at least two thirds of its runs pass (2 of 3)."
             + (f" Wall time {wall_min:.0f} min." if wall_min is not None else " Regraded with today's rules.")
             + (f" The server's models cost ${spent:.2f}." if spent is not None else "")]
     for n, bad in widespread(reports).items():
-        out += ["", f"**{n} is below the gate on {len(bad)} of {len(cols)} clients** ({', '.join(bad)}): most "
+        out += ["", f"**{n} is below 2/3 on {len(bad)} of {len(cols)} clients** ({', '.join(bad)}): most "
                 "clients miss it, so look at what MCP hands them (the brief, its facts, the tools' answers) "
                 "before blaming a model."]
     return "\n".join(out) + "\n"
 
 
 def widespread(reports: list[dict]) -> dict[str, list[str]]:
-    """Scenarios below the gate on most clients (more than half, three
+    """Scenarios below two thirds on most clients (more than half, three
     clients at least): a brief or MCP problem, not one model's."""
     r8 = rates(reports)
     cols = list(dict.fromkeys(col_of(r) for r in reports))
@@ -305,11 +296,8 @@ def widespread(reports: list[dict]) -> dict[str, list[str]]:
 
 
 def gate(reports: list[dict]) -> bool:
-    """The batch passes: the reference client's every scenario at the gate,
-    or, without it in the batch, every column's."""
-    r8 = rates(reports)
-    ref = {k: v for k, v in r8.items() if k[0] == REFERENCE}
-    return all(gate_ok(*v) for v in (ref or r8).values())
+    """The batch passes: every column's every scenario at two thirds."""
+    return all(gate_ok(*v) for v in rates(reports).values())
 
 
 def _one_alone(name: str, kind: str, model: str, out: Path, timeout_s: float, use_judge: bool,
