@@ -42,7 +42,7 @@ CELL = re.compile(r"rows\[(\d{1,2})\]\.([A-Za-z_][A-Za-z0-9_]*)")
 # The shared page's nudges may name small numbers typed by hand (a level,
 # "top 3"); a finding may not (CONSTANT_KINDS below).
 LITERAL_MAX = 100
-NUMBER = re.compile(r"(?<![\w.])\d+(?:[.,]\d+)?")
+NUMBER = re.compile(r"(?<![\w.])(?:\d{1,3}(?:,\d{3})+(?![\d.,])|\d+(?:[.,]\d+)?)")
 # What a number written into a finding's prose may be when the query didn't
 # measure it: declared in `constants`, each with one of these kinds.
 CONSTANT_KINDS = {
@@ -137,12 +137,69 @@ def result(ro, sql: str, params: dict | None, n: int) -> tuple[dict, list[dict]]
 
 
 def _num(text: str) -> float:
+    if re.fullmatch(r"\d{1,3}(?:,\d{3})+", text):  # 28,000: a thousands separator
+        return float(text.replace(",", ""))
     return float(text.replace(",", "."))
 
 
+# Digits the prose writes that aren't a quantity, for new proposals and kept
+# findings alike (prose_numbers): a calendar date, a clock time, an
+# identifier (a guide key like forever/alliance/30-40/01-hillsbrad, a file
+# name, item_id=6948) and an item, quest, spell or zone id. A range ("levels
+# 23-33"), a unit ("100g", "4x", "2h"), a group size ("5-player") or a
+# number dressed up ("`3`", "#3", "3/5") stays a number.
+_MONTH = (r"(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|"
+          r"apr|jun|jul|aug|sep|sept|oct|nov|dec)")
+NOT_QUANTITY = re.compile(
+    r"\b\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z?)?\b"
+    rf"|\b{_MONTH}\.?\s+\d{{1,2}}(?:st|nd|rd|th)?\b(?:,?\s+\d{{4}}\b)?"
+    rf"|\b\d{{1,2}}(?:st|nd|rd|th)?\s+(?:of\s+)?{_MONTH}\b\.?(?:,?\s+\d{{4}}\b)?"
+    rf"|\b{_MONTH}\s+\d{{4}}\b"
+    r"|(?<![\w.:])(?:[01]?\d|2[0-3]):[0-5]\d(?::[0-5]\d)?(?![\w:])|(?<=\}):[0-5]\d(?![\w:])"
+    r"|\b\d{1,2}\s*(?:am|pm)\b",
+    re.I)
+_ID_BEFORE = re.compile(r"(?:\b(?:id|ids)\s*[:=#]?|#|\b(?:item|quest|spell|npc|zone|map|achievement|faction)"
+                        r"\s*(?:id\s*)?[:#=]?)\s*$", re.I)
+_ID_LIST = re.compile(r"^\s*(?:,|and|or|&|/)\s*(?:and\s+|or\s+)?$", re.I)
+_EDGE = "()[]{}<>\"'`*\u201c\u201d\u2018\u2019,;!?"
+
+
+def _identifier(token: str) -> bool:
+    """A token that names something: it has a letter and a path, key or
+    file shape. Without a letter ("3/5", "#3", "_3_") it's a number."""
+    return re.search(r"[A-Za-z]", token) is not None and (
+        re.search(r"[/\\_=#@]|\.[A-Za-z]|[A-Za-z]:\d|^0\d+-[A-Za-z]", token) is not None or token.count("-") >= 2)
+
+
+def prose_numbers(text: str) -> list[tuple[int, int, str]]:
+    """The quantities `text` writes, as (start, end, number), outside its
+    placeholders and NOT_QUANTITY. The one tokenizer of a finding's prose,
+    for a new proposal (check) and a kept one (unbound, the migration)."""
+    text = text or ""
+    masked = NOT_QUANTITY.sub(lambda m: " " * len(m.group(0)), text)
+    masked = PLACEHOLDER.sub(lambda m: " " * len(m.group(0)), masked)
+    out, last_id = [], None
+    for m in NUMBER.finditer(masked):
+        a, b = m.start(), m.end()
+        while a > 0 and not masked[a - 1].isspace():
+            a -= 1
+        while b < len(masked) and not masked[b].isspace():
+            b += 1
+        token = masked[a:b].strip(_EDGE).rstrip(".:")
+        if _identifier(token):
+            continue
+        lead = masked[max(0, m.start() - 24):m.start()]
+        if len(m.group(0)) >= 3 and (_ID_BEFORE.search(lead) or (
+                last_id is not None and _ID_LIST.match(masked[last_id:m.start()]))):
+            last_id = m.end()
+            continue
+        out.append((m.start(), m.end(), m.group(0)))
+    return out
+
+
 def bare_numbers(text: str) -> list[str]:
-    """The numbers written into `text` outside its placeholders."""
-    return NUMBER.findall(PLACEHOLDER.sub("", text or ""))
+    """The quantities written into `text` outside its placeholders (prose_numbers)."""
+    return [n for _, _, n in prose_numbers(text)]
 
 
 def constants_of(f: dict) -> tuple[list[dict], str]:
@@ -540,6 +597,64 @@ def unbound(stored: dict) -> list[str]:
         implied = [{"value": v, "label": k} for v in typed if any(_same(v, q) for q in in_query) for k in IN_QUERY]
     cites = [str(c) for c in stored.get("kb") or [] if isinstance(c, str)]
     return list(refused_numbers(tpls, consts + implied, sql_text, params, cites, row, rows))
+
+
+# A number typed after "level" is a level: it binds to a level column only.
+_LEVEL_BEFORE = re.compile(r"\b(?:levels?|lvl)\s*$", re.I)
+# How a bound number may be written: the first of these whose rendering of
+# the result value is exactly what the prose typed.
+BIND_SPECS = (None, "int", ".0f", ".1f", ".2f")
+
+
+def bind_results(stored: dict, numbers: list[str]) -> tuple[dict[str, str], list[dict]]:
+    """A kept finding's templates with each of `numbers` that equals exactly
+    one value of its own kept result (`row`, then `rows[i]` for a later row)
+    written as that value's placeholder, so a recheck renders it again; the
+    format is the first of BIND_SPECS that renders the value as typed, so
+    today's text doesn't change. A number that matches no value, or several
+    (two columns with the same value), is left as typed, and so is one typed
+    after "level" whose only match isn't a level column ("At level 32"
+    next to an XP-per-kill of 32). Returns (the
+    templates by part, [{number, placeholder}] bound)."""
+    tpls = templates(stored)
+    row = stored.get("row") if isinstance(stored.get("row"), dict) else {}
+    rows = stored.get("rows") if isinstance(stored.get("rows"), list) else []
+    cells = [(c, v) for c, v in row.items()]
+    cells += [(f"rows[{i}].{c}", v) for i, r in enumerate(rows[1:MAX_CELL_ROWS], 1) if isinstance(r, dict)
+              for c, v in r.items()]
+    bound = []
+    for n in numbers:
+        as_level = any(_LEVEL_BEFORE.search(t[max(0, a - 12):a]) for t in tpls.values()
+                       for a, _, x in prose_numbers(t) if x == n)
+        hits = {}
+        for ref, v in cells:
+            col = CELL.fullmatch(ref).group(2) if CELL.fullmatch(ref) else ref
+            if as_level and not re.search(r"level|lvl", col, re.I):
+                continue
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not _same(float(v), _num(n)):
+                continue
+            spec = next((s for s in BIND_SPECS if fmt(v, s) == n), False)
+            if spec is not False and PLACEHOLDER.fullmatch("{" + ref + "}"):
+                hits[ref] = spec
+        if len(hits) != 1:
+            continue
+        ref, spec = next(iter(hits.items()))
+        ph = "{" + ref + (f":{spec}" if spec else "") + "}"
+        for part, t in tpls.items():
+            for a, b, x in reversed(prose_numbers(t)):
+                if x == n:
+                    t = t[:a] + ph + t[b:]
+            tpls[part] = t
+        bound.append({"number": n, "placeholder": ph})
+    return tpls, bound
+
+
+def set_templates(stored: dict, tpls: dict[str, str]) -> None:
+    """Writes templates by part (templates) back into a kept finding."""
+    stored["title_template"], stored["claim_template"] = tpls["title"], tpls["claim"]
+    act = {k.split(".", 1)[1]: t for k, t in tpls.items() if k.startswith("action.")}
+    if act:
+        stored["action_template"] = {**(stored.get("action_template") or {}), **act}
 
 
 def recheck(stored: dict, ro: ReadOnly) -> tuple[dict | None, str]:
