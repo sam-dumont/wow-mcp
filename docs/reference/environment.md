@@ -41,10 +41,12 @@ The live full view, and the old live public view.
 
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
+| `INGEST_CONCURRENCY` | ui | number, 1 or more | `4` | `8` | Uploads read and stored at once, everyone's together. Each is held whole in memory while it is screened (8 MiB at most), so this bounds what a wave of shippers sending at the same time can take. `/healthz` says `uploads_running` and `uploads_waiting`. |
 | `INGEST_DAILY_MB` | ui | megabytes | `512` | `1024` | On a shared install, how much each person may upload per UTC day. `0`: no limit. |
 | `INGEST_PASSWORD` | ui, compose | secret, 12+ characters | empty: no `/ingest` | a long random string | Turns on `POST /ingest`, where the shipper sends events, with this password. Required by the compose kit. |
 | `INGEST_PASSWORD_FILE` | ui | path | empty | `/run/secrets/ingest_password` | A file holding the ingest password. Wins over `INGEST_PASSWORD`. |
 | `INGEST_USER` | ui | text | `wow` | `wow` | The user name the shipper sends with the ingest password. |
+| `INGEST_WAIT_S` | ui | seconds | `10` | `30` | How long an upload past `INGEST_CONCURRENCY` waits for a slot before it gets a 503. The shipper keeps that file in its spool and sends it again on its next run, 5 minutes later: nothing is lost. |
 
 ## The stores
 
@@ -138,6 +140,8 @@ Kept per character, judged by the server.
 | `ANALYSIS_WIF_SERVICE_ACCOUNT_ID` | ui | id | empty: none | `svac_...` | The service account the token is exchanged for: required with `openai`, optional with `anthropic`. |
 | `ANALYSIS_WIF_TOKEN_FILE` | ui | path | empty: no federation | `/var/run/secrets/ai-token/token` | Workload identity federation, either provider: the identity token's file (a Kubernetes projected service account token), reread at each exchange as it rotates. With the provider's IDs below it comes before `ANALYSIS_API_KEY_FILE`. See [Server-side analysis](../self-host/server-analysis.md). |
 | `ANALYSIS_WIF_WORKSPACE_ID` | ui | id | empty: none | `wrkspc_...` | With `anthropic`, optional: the workspace the exchanged token works in. |
+| `ANALYSIS_WORKSPACES_MAX` | ui | number, 1 or more | `6` | `10` | How many characters' analysis workspaces stay open at once (the prep database your AI's SQL reads, 250-500 MB each with its query process). Past it the one used least recently closes; one a request is using never does. A closed one is rebuilt on the next call, a few seconds slower, with the same answers. `/healthz` says `analysis_workspaces`. |
+| `ANALYSIS_WORKSPACE_IDLE_S` | ui | seconds | `900` | `300` | An analysis workspace nobody used for this long closes and gives its memory back. `0`: only `ANALYSIS_WORKSPACES_MAX` closes them. |
 | `OPERATOR_NAME` | ui | text, 40 characters | empty: "the host" | `Sam` | Your name in the refresh nudge: "In about 5h of play the server refreshes it on Sam's credit. Be nice to Sam". You see "your own credit" on your own page. |
 
 ## The static sites (`wow-stats publish`, `wow-stats static`)

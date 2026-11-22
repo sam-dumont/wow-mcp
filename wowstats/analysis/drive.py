@@ -47,6 +47,18 @@ DRIVER: contextvars.ContextVar[dict | None] = contextvars.ContextVar("analysis_d
 CLIENT_KINDS = ("client", "server")
 
 CACHE_S = 1800  # one database for a whole run, and few reads of the store
+# Open workspaces are bounded (load estimate for the lab, 2026-11-22: about 20
+# characters on one 5 GiB pod, each workspace kept until a restart was 4-5 GB).
+# One holds the prep in SQLite here plus a child process with its DuckDB copy
+# (wowstats.analysis.duckproc): about 120 MB for the child's interpreter and
+# DuckDB, the copy under DuckDB's 256 MB memory_limit, and the SQLite build,
+# so 250-500 MB each. Six open ones stay under 3 GB and leave the rest of the
+# pod to the process, its bounded page and metric caches and one query's
+# 512 MB headroom. An idle one closes after 15 minutes: a run's passes come
+# back within that even on a slow local model, and a rebuild costs seconds.
+WORKSPACES_MAX = 6  # ANALYSIS_WORKSPACES_MAX
+WORKSPACE_IDLE_S = 900  # ANALYSIS_WORKSPACE_IDLE_S; 0: only the cap closes them
+SWEEP_EVERY_S = 60
 PAGE_CHARS = 12000
 SQL_PAGE = 40
 SQL_MAX_ROWS = 1000
@@ -59,6 +71,11 @@ MAX_QUESTIONS = 40
 RUN_FILE = "drive.json"
 _LOCK = threading.RLock()
 _WS: dict = {}
+# The workspaces the current request opened (tools.call's scope, `holding`):
+# none of them closes before the request ends.
+_HELD: contextvars.ContextVar[list | None] = contextvars.ContextVar("analysis_held", default=None)
+_limits = [WORKSPACES_MAX, WORKSPACE_IDLE_S]
+_sweeper: list = []
 
 
 class Workspace:
@@ -109,6 +126,8 @@ class Workspace:
         self._layer = None
         self.tables, self.ncols = tables_of(self.db)
         self.at = time.time()
+        self.used = time.monotonic()
+        self.users = 0  # requests holding it (`holding`)
         self._text: dict[str, str] = {}
 
     def text(self, name: str) -> str:
@@ -142,14 +161,116 @@ class Workspace:
 
 
 def workspace(env: dict, char: str, store=None) -> Workspace:
+    """The character's workspace, built when none is open (or the open one
+    is older than CACHE_S). Inside `holding` it stays open until the
+    request ends; past the cap or idle, `sweep` closes it, and the next call
+    builds it again from the same events: the same answers, only slower."""
     from wowstats.stores import tenant_of
 
     key = (tenant_of(env, store), char.lower())
+    _limits[:] = read_limits(env)
+    old = None
     with _LOCK:
         w = _WS.get(key)
         if w is None or time.time() - w.at > CACHE_S:
+            old = w
             w = _WS[key] = Workspace(env, char, store)
-        return w
+        w.used = time.monotonic()
+        held = _HELD.get()
+        if held is not None and not any(x is w for x in held):
+            held.append(w)
+            w.users += 1
+    if old is not None:
+        _close(old)
+    sweep(keep=key)
+    _start_sweeper()
+    return w
+
+
+def read_limits(env: dict) -> list[int]:
+    """[the cap, the idle seconds]; ValueError on a value that isn't a whole number."""
+    def num(name: str, raw, default: int, low: int) -> int:
+        raw = str(raw or "").strip()
+        try:
+            return max(low, int(raw)) if raw else default
+        except ValueError:
+            raise ValueError(f"{name}={raw!r}: a whole number") from None
+
+    return [num("ANALYSIS_WORKSPACES_MAX", env.get("ANALYSIS_WORKSPACES_MAX"), WORKSPACES_MAX, 1),
+            num("ANALYSIS_WORKSPACE_IDLE_S", env.get("ANALYSIS_WORKSPACE_IDLE_S"), WORKSPACE_IDLE_S, 0)]
+
+
+@contextlib.contextmanager
+def holding():
+    """One request's scope (tools.call): every workspace it opens stays open
+    until it ends, whatever the cap or the idle time say meanwhile."""
+    held: list = []
+    token = _HELD.set(held)
+    try:
+        yield
+    finally:
+        _HELD.reset(token)
+        with _LOCK:
+            now = time.monotonic()
+            for w in held:
+                w.users -= 1
+                w.used = now
+            # One CACHE_S replaced while this request held it: nobody can ask for it again.
+            orphans = [w for w in held if w.users <= 0 and not any(x is w for x in _WS.values())]
+        for w in orphans:
+            _close(w)
+        if held:
+            sweep()
+
+
+def _close(w: Workspace) -> None:
+    """Its child process (the DuckDB copy with the rows) ends now when no
+    request holds it; the rest goes with the last reference. A holder keeps
+    working: its next query starts a new child."""
+    if w.users <= 0:
+        w.worker.close()
+
+
+def sweep(now: float | None = None, keep=None) -> int:
+    """Close the idle workspaces, then the least recently used past the cap,
+    never one a request holds (nor `keep`, the one just handed out). Returns
+    how many it closed."""
+    cap, idle = _limits
+    with _LOCK:
+        now = time.monotonic() if now is None else now
+        free = sorted(((w.used, k) for k, w in _WS.items() if w.users <= 0 and k != keep), key=lambda x: x[0])
+        gone = [k for used, k in free if idle and now - used > idle]
+        over = len(_WS) - len(gone) - cap
+        gone += [k for _, k in free if k not in gone][:max(0, over)]
+        closing = [_WS.pop(k) for k in gone]
+    for w in closing:  # outside the lock: a query running on it finishes first
+        _close(w)
+    return len(closing)
+
+
+def _start_sweeper() -> None:
+    """A daemon thread that sweeps every SWEEP_EVERY_S: idle workspaces close
+    even when nobody asks for another one."""
+    with _LOCK:
+        if _sweeper and _sweeper[0].is_alive():
+            return
+
+        def loop() -> None:
+            while True:
+                time.sleep(SWEEP_EVERY_S)
+                with contextlib.suppress(Exception):  # a sweep that failed is tried again next time
+                    sweep()
+
+        t = threading.Thread(target=loop, name="analysis-sweep", daemon=True)
+        _sweeper[:] = [t]
+        t.start()
+
+
+def health() -> dict:
+    """For /healthz: counts only, no names."""
+    with _LOCK:
+        return {"analysis_workspaces": len(_WS), "analysis_workspaces_held": sum(w.users > 0 for w in _WS.values()),
+                "analysis_workspaces_max": _limits[0]}
 
 
 # ---------------------------------------------------------------- the run's state

@@ -212,6 +212,16 @@ class App:
             if len(ingest_pw) < 12:
                 raise ConfigError("INGEST_PASSWORD (or _FILE) needs 12+ characters.")
             self.ingest_expected = _basic(env.get("INGEST_USER", "wow"), ingest_pw)
+        from wowstats import ingest
+        from wowstats.analysis import drive
+
+        try:  # a wrong number stops the start, not the first upload or analysis call
+            # One gate for the process: with several people every upload
+            # comes through this (the root) App's handler.
+            self.uploads = ingest.Gate(env.get("INGEST_CONCURRENCY"), env.get("INGEST_WAIT_S"))
+            drive.read_limits(env)
+        except ValueError as e:
+            raise ConfigError(str(e)) from None
 
         self.store = store or Store(
             env.get("VL_URL", "http://victorialogs:9428"), env.get("VL_ARCHIVE_URL", ""),
@@ -892,9 +902,12 @@ def make_handler(root: App, tenancy=None):
                     # 200 while the process serves: a failing semantic layer
                     # leaves the last good answers up, marked stale, so it is
                     # a field to alert on, not a reason to restart the pod.
-                    from wowstats.analysis import pages
+                    # The open analysis workspaces and the upload gate: counts for
+                    # the lab's monitoring, no names.
+                    from wowstats.analysis import drive, pages
 
-                    body = json.dumps({"status": "ok", **pages.health()}).encode() + b"\n"
+                    body = json.dumps({"status": "ok", **pages.health(), **drive.health(),
+                                       **root.uploads.health()}).encode() + b"\n"
                     return self.send(200, body, "application/json")
                 if not full and app.public_off():  # what the static server says for a site built with it off
                     return self.not_found()
@@ -1209,6 +1222,20 @@ def make_handler(root: App, tenancy=None):
             runs once VictoriaLogs has taken the n lines, before the 200: a
             refused write leaves no upload, budget or first event behind
             (review 2026-11-21, D)."""
+            from wowstats import ingest
+
+            with root.uploads.slot() as ok:
+                if not ok:  # the shipper keeps the file and sends it on its next run (wowstats.ingest)
+                    ingest.drain(self.rfile, min(ingest.length(self.headers), INGEST_MAX_BYTES))
+                    self.close_connection = True
+                    return self.send(503, json.dumps({"error": "too many uploads at once; try again in a few "
+                                                               "minutes, nothing is lost"}).encode(),
+                                     "application/json", headers={"Retry-After": "60"})
+                return self._ingest_one(vl_url, account_id, stored)
+
+        def _ingest_one(self, vl_url: str, account_id: int, stored=None):
+            """One upload, its slot held: read whole (INGEST_MAX_BYTES at most),
+            screened, stored."""
             from wowstats import ingest
 
             body = self.read_body(INGEST_MAX_BYTES)

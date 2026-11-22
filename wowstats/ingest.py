@@ -26,13 +26,22 @@ the receiver is:
 With several people each one has a daily budget of accepted bytes
 (INGEST_DAILY_MB, 512; 0: none): past it /ingest answers 429 and the
 shipper keeps its spool for the next day (security review L7).
+
+At most INGEST_CONCURRENCY uploads (4) are read and stored at once, each
+held whole in memory (8 MiB at most, a few copies while it is screened):
+a logout wave of a dozen shippers would otherwise hold them all together.
+One more waits up to INGEST_WAIT_S (10) for a slot, then gets 503 with
+Retry-After. The shipper keeps every file that didn't get a 2xx in its
+spool and sends it again on its next run, 5 minutes later.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import re
 import threading
+import time
 from datetime import UTC, datetime, timedelta
 
 from wowstats import otherplayers
@@ -146,3 +155,64 @@ class Budget:
     def spend(self, who: str, n: int) -> None:
         with self.lock:
             self.used[who] = (datetime.now(UTC).date().isoformat(), self._today(who) + n)
+
+
+def _number(name: str, raw, default: float, low: float) -> float:
+    try:
+        v = float(default if raw in (None, "") else raw)
+    except ValueError:
+        raise ValueError(f"{name}={raw!r}: a number") from None
+    if v < low:
+        raise ValueError(f"{name}={raw!r}: at least {low:g}")
+    return v
+
+
+class Gate:
+    """How many uploads are read and stored at once (INGEST_CONCURRENCY),
+    and how long one more waits for a slot (INGEST_WAIT_S) before the 503.
+    `running` and `waiting` are for /healthz."""
+
+    def __init__(self, concurrency=None, wait_s=None):
+        self.limit = int(_number("INGEST_CONCURRENCY", concurrency, 4, 1))
+        self.wait_s = _number("INGEST_WAIT_S", wait_s, 10, 0)
+        self._slots = threading.BoundedSemaphore(self.limit)
+        self._lock = threading.Lock()
+        self.running = self.waiting = 0
+
+    @contextlib.contextmanager
+    def slot(self):
+        """Yields True with a slot held, False when none came free in time."""
+        with self._lock:
+            self.waiting += 1
+        try:
+            got = self._slots.acquire(timeout=self.wait_s) if self.wait_s else self._slots.acquire(blocking=False)
+        finally:
+            with self._lock:
+                self.waiting -= 1
+        if not got:
+            yield False
+            return
+        with self._lock:
+            self.running += 1
+        try:
+            yield True
+        finally:
+            with self._lock:
+                self.running -= 1
+            self._slots.release()
+
+    def health(self) -> dict:
+        with self._lock:
+            return {"uploads_running": self.running, "uploads_waiting": self.waiting,
+                    "uploads_max": self.limit}
+
+
+def drain(rfile, n: int, chunk: int = 1 << 16, deadline_s: float = 30.0) -> None:
+    """Read and drop an upload's body, a chunk at a time, so the sender
+    reads the answer instead of a reset connection."""
+    end = time.monotonic() + deadline_s
+    while n > 0 and time.monotonic() < end:
+        got = rfile.read(min(chunk, n))
+        if not got:
+            return
+        n -= len(got)

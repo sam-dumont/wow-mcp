@@ -1530,12 +1530,15 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     if extra:
         raise ToolError(f"unknown argument(s): {', '.join(extra)}")
     from wowstats import itemfacts
+    from wowstats.analysis import drive
     from wowstats.stores import SourceError as ViewsSourceError
 
     try:
         # The person's item facts for what the planner reads deep down
-        # (wowstats.plan.kbloot): theirs, like everything else here.
-        with itemfacts.using(itemfacts.for_env(ctx.environ()).facts()):
+        # (wowstats.plan.kbloot): theirs, like everything else here. The
+        # analysis workspaces the call opens stay open until it returns
+        # (drive.holding): the cap and the idle sweep never close one mid-call.
+        with itemfacts.using(itemfacts.for_env(ctx.environ()).facts()), drive.holding():
             out = tool.fn(ctx, args)
     except (SourceError, ViewsSourceError) as e:
         raise ToolError(stores_public_error(e, name)) from None
