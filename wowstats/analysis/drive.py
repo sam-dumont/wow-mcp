@@ -803,13 +803,19 @@ def _submit_synthesis(env, w, run, answer):
     keep_keys = [k for k in answer.get("keep") or [] if k in verified and k not in replaced]
     keep_keys += [k for k in handed if k not in keep_keys and k not in replaced]
     keep_keys += [k for k in verified if k in kept and kept[k].get("doubtful") and k not in keep_keys]
-    if not keep_keys:
-        keep_keys = [k for k in verified if k not in replaced]
+    # A finding leaves only when the synthesis says why (`drop`): one it names
+    # nowhere stays. claude-sonnet-5-5 left "Almost half the deaths are in
+    # Wetlands" out of keep with no reason, and the deaths went unsaid
+    # (2026-11-22).
+    drops = {str(d.get("key")): str(d.get("why") or "no reason given")[:160]
+             for d in answer.get("drop") or [] if isinstance(d, dict) and d.get("key") in verified}
+    unlisted = [k for k in verified if k not in keep_keys and k not in drops and k not in replaced]
+    keep_keys += unlisted
     dropped = []
     for k in list(verified):
         gone = k in replaced or (k not in keep_keys and k in run["new_keys"])
         if gone and kept.pop(k, None) is not None:
-            dropped.append(f"{k}: " + ("merged after a clash" if k in replaced else "left out of keep"))
+            dropped.append(f"{k}: " + ("merged after a clash" if k in replaced else f"dropped ({drops[k]})"))
     def cites(line):
         return list(dict.fromkeys(into.get(str(k), str(k)) for k in line.get("findings") or []))
 
@@ -857,7 +863,7 @@ def _submit_synthesis(env, w, run, answer):
                        for n in out["nudges"]],
             "patterns": [{k: p.get(k) for k in ("text", "shareable", "why_not")} for p in out["patterns"]],
             "clashes": clashes, "feasibility": feas, "dropped": out["runs"][-1]["dropped"],
-            "refused": _refusals(run)[-20:]}
+            "kept_unlisted": unlisted, "refused": _refusals(run)[-20:]}
 
 
 # ---------------------------------------------------------------- progress

@@ -369,6 +369,25 @@ def test_an_answer_with_no_finding_behind_it_goes_back_once(driven):
     assert drive.submit(env, CHAR, "lane", ok)["accepted"]
 
 
+def test_a_finding_leaves_only_when_the_synthesis_says_why(driven):
+    """claude-sonnet-5-5, death_spike (2026-11-22): the lane's verified
+    "Almost half the deaths are in Wetlands" was left out of the synthesis'
+    `keep`, with no reason anywhere, and the kept analysis never named the
+    Wetlands. Leaving a finding out is a decision: one in `drop` (with why)
+    goes, one the synthesis names nowhere stays, and the answer says so."""
+    env, drive = driven
+    other = {**finding(), "key": "sessions-count", "title": "{n} sessions", "claim": "You played {n} sessions.",
+             "expect": {"n": 4, "online": 35476}}
+    synth = {**SYNTH, "keep": ["sessions-online"], "nudges": [], "patterns": [],
+             "drop": [{"key": "sessions-count", "why": "a duplicate of sessions-online"}]}
+    res = walk(env, drive, findings=[*FINDINGS, other], synth=synth)
+    assert res["accepted"], res
+    assert res["kept"] == ["sessions-online", "xp-by-level"]  # xp-by-level: in neither list
+    assert res["kept_unlisted"] == ["xp-by-level"]
+    assert "sessions-count: dropped (a duplicate of sessions-online)" in res["dropped"]
+    assert set(analysis.load_state(env, CHAR)["findings"]) == {"sessions-online", "xp-by-level"}
+
+
 def test_a_client_run_keeps_what_reproduces(driven, rows, knowledge):
     env, drive = driven
     res = walk(env, drive)

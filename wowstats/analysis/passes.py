@@ -133,6 +133,9 @@ LINE = {"type": "object", "properties": {
     "required": ["text", "findings"], "additionalProperties": False}
 SYNTH_SCHEMA = {"type": "object", "properties": {
     "keep": {"type": "array", "items": {"type": "string"}},
+    "drop": {"type": "array", "description": "each finding of this run left out, with why; one named nowhere stays",
+             "items": {"type": "object", "properties": {"key": {"type": "string"}, "why": {"type": "string"}},
+                       "required": ["key", "why"], "additionalProperties": False}},
     "findings": {"type": "array", "items": FINDING, "maxItems": 10},
     "nudges": {"type": "array", "items": {"type": "object", "properties": {
         "text": {"type": "string",
@@ -159,7 +162,7 @@ SYNTH_SCHEMA = {"type": "object", "properties": {
         "outcome": {"type": "string", "enum": ["merged", "doubtful"]},
         "merged_key": {"type": "string", "description": "merged: the key of the new finding in `findings`"}},
         "required": ["subject", "findings", "query", "outcome"], "additionalProperties": False}}},
-    "required": ["keep", "nudges", "patterns", "clashes"], "additionalProperties": False}
+    "required": ["keep", "drop", "nudges", "patterns", "clashes"], "additionalProperties": False}
 
 SURVEY_TASK = """\
 Read the schema, the profile and the knowledge base contents (analysis_brief sections `schema`, `profile` and \
@@ -200,8 +203,9 @@ clash, run a query that reconciles them, then report it in `clashes`: either `me
 span), its key in `merged_key`; or `doubtful`, when the query doesn't settle it. Doubtful findings stay out of \
 nudges and patterns.
 
-Then list in `keep` the keys worth showing the player, most important first, dropping duplicates: this run's \
-findings left out of `keep` are dropped. You may write new findings that merge or sharpen kept ones (same \
+Then list in `keep` the keys worth showing the player, most important first, and in `drop` each finding you \
+leave out, with why (a duplicate of a kept one, contradicted by a reconciling query...): a finding named in \
+neither stays. You may write new findings that merge or sharpen kept ones (same \
 rules; they are verified again). Then write at most five nudges. A nudge is an action, not a description: \
 `text` says what to do, `where` where in game, `blocked_by` what stands in the way (empty if nothing), \
 `next_step` the first thing to do, and `gist` the same in one short line; a nudge with no next step is \
