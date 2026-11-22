@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import importlib.util
 import os
 import sys
@@ -181,17 +182,44 @@ def run_app():
 CI_ONLY = {"test_compose.py", "test_windows_e2e.py", "test_gear_parity.py"}
 
 
-def pytest_collection_modifyitems(items):
+def pytest_addoption(parser):
+    parser.addoption("--shard", default=None, metavar="K/N",
+                     help="run the K-th of N parts of the suite, whole test files each (ci.yml's test matrix)")
+
+
+def _shard_of(path: str, n: int) -> int:
+    return int(hashlib.sha1(path.encode()).hexdigest(), 16) % n + 1
+
+
+def pytest_collection_modifyitems(config, items):
     """Every test in a *browser* file carries the `browser` marker, so the
     default run (pyproject's `-m "not browser and not ci_only"`) is the fast
     suite and `-m browser` the heavy one (tools/test_changed.py picks between
-    them from the diff)."""
+    them from the diff).
+
+    `--shard K/N` keeps the test files whose path hashes to K: CI runs the
+    suite as N jobs side by side (one job on 4 cores reached its 20 minutes,
+    2026-11-22). Whole files, so a module's fixtures are built in one job
+    only; the hash of the path, so a file stays in its part as others come
+    and go (2026-11-22, N=3 on a Mac: 75 s, 164 s and 92 s)."""
     for item in items:
         name = Path(str(item.fspath)).name
         if "browser" in name:
             item.add_marker(pytest.mark.browser)
         if name in CI_ONLY:
             item.add_marker(pytest.mark.ci_only)
+    shard = config.getoption("--shard")
+    if shard:
+        k, n = (int(x) for x in shard.split("/"))
+        if not 1 <= k <= n:
+            raise pytest.UsageError(f"--shard {shard}: K from 1 to N")
+        keep, drop = [], []
+        for item in items:
+            path = Path(str(item.fspath)).resolve().relative_to(ROOT).as_posix()
+            (keep if _shard_of(path, n) == k else drop).append(item)
+        if drop:
+            config.hook.pytest_deselected(items=drop)
+            items[:] = keep
 
 
 # release.yml's browser gate sets WOW_BROWSER_GATE: there a browser test that
