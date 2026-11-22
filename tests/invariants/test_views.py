@@ -260,7 +260,11 @@ def test_list_metrics_lists_the_views_and_play_sql_reads_them_first(lab):
     assert level["one_row_per"] == "level" and "recorder_coverage" in [c["name"] for c in level["columns"]]
     desc = next(t for t in tools.TOOLS if t.name == "play_sql").description
     assert desc.index("per_level") < desc.index("raw tables")
-    schema = call(lab, "analysis_brief", {"char": D.CHAR, "section": "schema"})["text"]
+    # The schema is paged (drive.PAGE_CHARS): the views fill the first page or more.
+    first = call(lab, "analysis_brief", {"char": D.CHAR, "section": "schema"})
+    schema = first["text"] + "".join(
+        call(lab, "analysis_brief", {"char": D.CHAR, "section": "schema", "page": p})["text"]
+        for p in range(2, first["pages"] + 1))
     assert schema.startswith("# Views per grain") and schema.index("## per_slot") < schema.index("# Raw tables")
     out = call(lab, "play_sql", {"char": D.CHAR, "query": "SELECT level, recorder_coverage FROM per_level "
                                                           "WHERE level = 30"})
