@@ -46,8 +46,9 @@ the MCP tool play_analysis.
 
 Nothing from Battle.net enters the database, so the kept file holds only
 the player's own game data (kept forever, like the events themselves). The recheck runs
-nightly inside the full view's process group (start_schedule), or
-`wow-stats analyse`, and logs one JSON line per character (event
+nightly inside the full view's process group (start_schedule), for every
+person on the server one after another, each in a child process with a time
+cap, or `wow-stats analyse`, and logs one JSON line per character (event
 analysis_recheck).
 
 Environment: VL_URL, VL_ARCHIVE_URL, LOGS_FILTER, DEFAULT_CHAR (as the UI),
@@ -311,12 +312,49 @@ def load_state(env: dict, char: str) -> dict:
         return {}
     s = _read(d / STATE_FILE)
     if s:
+        migrate(s)
         return s
     legacy = _read(state_dir(env) / STATE_FILE)
     if legacy and str(legacy.get("char") or "").lower() == char.replace(" ", "-").lower():
         legacy.setdefault("goals", LEGACY_GOALS)
+        migrate(legacy)
         return legacy
     return {}
+
+
+def migrate(state: dict, now: str | None = None) -> int:
+    """Findings kept before the prose contract (verify.CONTRACT: every
+    measured number a placeholder, every other one declared) are brought
+    under it on read, nothing dropped: one whose text types a number its
+    query doesn't fill and nothing declares keeps its text, and is marked
+    to revalidate (`unbound_numbers`, `revalidate`) until an analysis
+    proposes it again. Its nudges and patterns are held meanwhile (standing).
+    Returns how many were marked; the next save keeps the migration."""
+    from . import verify
+
+    now = now or datetime.now(UTC).isoformat(timespec="seconds")
+    marked = 0
+    for f in (state.get("findings") or {}).values():
+        if not isinstance(f, dict) or f.get("contract") == verify.CONTRACT:
+            continue
+        bad = verify.unbound(f)  # a finding that meets the contract is left as it is
+        if bad:
+            f["unbound_numbers"] = bad
+            _mark_unbound(f, now)
+            marked += 1
+    return marked
+
+
+def _mark_unbound(f: dict, now: str, other: list[str] | None = None) -> None:
+    """Marks a finding with unbound numbers to revalidate, with that reason
+    first, then `other` (today's definition changes; None keeps the reasons
+    it already had)."""
+    from . import verify
+
+    old = (f.get("revalidate") or {}).get("why") or []
+    rest = [w for w in old if not str(w).startswith(verify.UNBOUND_WHY)] if other is None else other
+    f["revalidate"] = {"since": (f.get("revalidate") or {}).get("since") or now,
+                       "why": [f"{verify.UNBOUND_WHY} ({', '.join(f['unbound_numbers'])})", *rest]}
 
 
 def save_state(env: dict, char: str, state: dict) -> None:
@@ -496,6 +534,14 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
     from . import manifest, verify
 
     for key, f in list(kept.items()):
+        if f.get("unbound_numbers"):
+            # Its text says numbers nothing re-renders: rechecking the query
+            # would call stale words checked. It waits for an analysis.
+            judged = (builds or {}).get(f.get("manifest") or "") if f.get("manifest") else None
+            other = manifest.changed(judged, build, f) if build is not None and f.get("manifest") else []
+            _mark_unbound(f, now, other)
+            info["revalidate"] = info.get("revalidate", 0) + 1
+            continue
         carry = build is not None and not f.get("manifest") and "carried_over" not in f
         if build is not None and not carry:
             why_not = manifest.changed((builds or {}).get(f.get("manifest") or ""), build, f)
@@ -943,10 +989,10 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
     return {"available": True, "char": s.get("char"), "updated": s.get("updated"),
             "newest_event": s.get("newest_event"),
             "findings": [{k: f.get(k) for k in ("key", "title", "text", "action", "observation", "sql", "kb", "row",
-                                                 "doubtful", "reconciles", "relevance", "effect",
+                                                 "rows", "constants", "doubtful", "reconciles", "relevance", "effect",
                                                  "sample", "weight", "score", "confirmations", "first_seen",
-                                                 "last_confirmed", "misses", "manifest", "revalidate",
-                                                 "carried_over")}
+                                                 "last_confirmed", "last_checked", "misses", "manifest",
+                                                 "revalidate", "unbound_numbers", "carried_over")}
                          | ({"carried_note": carried_note(f)} if carried_note(f) else {})
                          for f in findings],
             # Checked: rechecked under the definitions they were judged
@@ -957,6 +1003,7 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
                                               "shareable", "verdict", "at_level", "constraints")}
                        for n in nudges],
             "patterns": patterns, "on_hold": lines["on_hold"], "time_budget": s.get("time_budget") or [],
+            "refresh": refresh_policy(env),
             "last_run": {k: last.get(k) for k in RUN_KEYS},
             "last_analysis": {k: explored_run.get(k) for k in RUN_KEYS} if explored_run else None,
             "manifest": (s.get("manifests") or {}).get(last.get("manifest") or ""),
@@ -984,32 +1031,97 @@ def due(env: dict, last_at: str | None, now: datetime | None = None) -> bool:
     return last_day < now.date() and now.hour >= int(env.get("ANALYSIS_HOUR", "4"))
 
 
-def start_schedule(env: dict, newest_event) -> threading.Thread | None:
-    """A daemon thread in the full view: checks every 10 minutes, runs
-    `wow-stats analyse` (the recheck of every character) as a child process
-    when it is due and events arrived since the last one."""
+# A person's recheck runs in its own child process, killed past this: one
+# person's history can't hold the night up for everyone after them.
+RECHECK_TIMEOUT_S = 1800
+
+
+def refresh_policy(env: dict) -> dict:
+    """How the kept findings stay current, for the page and play_analysis:
+    when the deterministic recheck runs, what it does, and when it last ran
+    for this person (their state folder's recheck.json)."""
+    from .prep import TZ
+
+    hour = int(env.get("ANALYSIS_HOUR", "4"))
+    last = {}
     d = state_dir(env)
-    if d is None:
+    if d is not None:
+        with contextlib.suppress(OSError, ValueError):
+            last = json.loads((d / SCHEDULE_FILE).read_text(encoding="utf-8"))
+    return {"recheck": "nightly", "hour": hour, "timezone": str(getattr(TZ, "key", TZ)),
+            "how": (f"Every night from {hour:02d}:00 ({getattr(TZ, 'key', TZ)}), once new play has arrived, each "
+                    "kept finding's query runs again on the latest data, without a model, and its text is "
+                    "rendered again from the result. A finding marked to revalidate isn't rechecked until an "
+                    "analysis proposes it again."),
+            "last_recheck": last.get("at") if isinstance(last, dict) else None}
+
+
+def _child_recheck(env: dict) -> int:
+    """`wow-stats analyse` for one person, in a child process with their
+    environment and a time cap. No model runs there (analysis.main)."""
+    try:
+        p = subprocess.run([sys.executable, "-m", "wowstats", "analyse"], env={**os.environ, **env},
+                           timeout=RECHECK_TIMEOUT_S, check=False)
+    except subprocess.TimeoutExpired:
+        log(f"recheck stopped after {RECHECK_TIMEOUT_S} s")
+        return -9
+    return p.returncode
+
+
+def recheck_pass(targets, run_one=None, now: datetime | None = None) -> list[dict]:
+    """One look at every person (`targets`: [(env, newest_event)], the owner
+    first), one after another: a person whose recheck is due (once a local
+    day, from ANALYSIS_HOUR) and who has played since their last one is
+    rechecked by `run_one(env)` (default: a child process, _child_recheck),
+    and their own recheck.json records it, failed or not. A person with no
+    kept analysis (and no DEFAULT_CHAR) is skipped. Returns what ran.
+    The friends' were never rechecked before 2026-11-22: the schedule ran on
+    the owner's environment only (external review, 2026-11-22)."""
+    run_one = run_one or _child_recheck
+    ran = []
+    for env, newest_event in targets:
+        d = state_dir(env)
+        if d is None:
+            continue
+        mark = d / SCHEDULE_FILE
+        try:
+            last = {}
+            with contextlib.suppress(OSError, ValueError):
+                last = json.loads(mark.read_text(encoding="utf-8"))
+            if not due(env, last.get("at"), now):
+                continue
+            if not characters(env) and not (env.get("DEFAULT_CHAR") or "").strip():
+                continue
+            newest = newest_event() if last and newest_event is not None else None
+            if last and not (newest and newest > last.get("at", "")):
+                continue
+            log(f"starting the nightly recheck in {d}")
+            code = run_one(env)
+            log(f"recheck ended ({code}) in {d}")
+            # Failed or not, the day is done: no retry loop.
+            d.mkdir(parents=True, exist_ok=True)
+            mark.write_text(json.dumps({"at": datetime.now(UTC).isoformat(timespec="seconds"), "exit": code}),
+                            encoding="utf-8")
+            ran.append({"state": str(d), "exit": code})
+        except Exception as e:  # noqa: BLE001 - one person's failure never stops the others
+            log(f"schedule: {d}: {e!r}")
+    return ran
+
+
+def start_schedule(targets) -> threading.Thread | None:
+    """A daemon thread in the full view: every 10 minutes, recheck_pass over
+    `targets()`, every person the server holds (the owner first), one at a
+    time. None when the analysis is off for the first of them (the owner,
+    or the only person)."""
+    first = next(iter(targets()), None)
+    if first is None or state_dir(first[0]) is None:
         return None
-    mark = d / SCHEDULE_FILE
 
     def loop():
         time.sleep(120)
         while True:
             try:
-                last = {}
-                with contextlib.suppress(OSError, ValueError):
-                    last = json.loads(mark.read_text(encoding="utf-8"))
-                newest = newest_event() if last else None
-                if due(env, last.get("at")) and (not last or (newest and newest > last.get("at", ""))):
-                    log("starting the nightly recheck")
-                    p = subprocess.run([sys.executable, "-m", "wowstats", "analyse"], env={**os.environ, **env},
-                                       timeout=3600, check=False)
-                    log(f"recheck ended ({p.returncode})")
-                    # Failed or not, the day is done: no retry loop.
-                    d.mkdir(parents=True, exist_ok=True)
-                    mark.write_text(json.dumps({"at": datetime.now(UTC).isoformat(timespec="seconds"),
-                                                "exit": p.returncode}), encoding="utf-8")
+                recheck_pass(targets())
             except Exception as e:  # noqa: BLE001 - the UI must stay up
                 log(f"schedule: {e!r}")
             time.sleep(600)

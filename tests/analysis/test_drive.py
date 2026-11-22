@@ -55,7 +55,7 @@ def test_the_tools_drive_a_run(env):
     bad = call("propose_finding", {"finding": {**good, "key": "levels-wrong", "expect": {"n": n + 5}}})
     assert not bad["stored"] and "re-run" in bad["why"]
     typed = call("propose_finding", {"finding": {**good, "key": "levels-typed", "claim": "You have 4210 levels."}})
-    assert not typed["stored"] and "number written" in typed["why"]
+    assert not typed["stored"] and "neither a placeholder" in typed["why"]
     assert list(load_state(env, CHAR)["findings"]) == ["levels-count"]
     # A refusal fixed on the retry stops counting as one.
     fixed = call("propose_finding", {"finding": {**good, "key": "levels-wrong"}})

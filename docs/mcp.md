@@ -203,10 +203,20 @@ date, a number above 100 typed by hand or where the character is now ("you
 are in ...") keeps it in the full view only. Text is gender-neutral: a title, claim, action, nudge or pattern
 that says he or she is refused or dropped, with the reason. The synthesis'
 answer lists every finding, nudge and pattern dropped, and why. Goals given once
-(`goals`) stay with the character. A finding's claim names its numbers as
-placeholders over the first row of its SQL; the judge refuses any number
-above 100 typed by hand, a re-run that disagrees with `expect`, a `holds`
-that fails, and lists KB ids it doesn't know. The SQL has to read the play
+(`goals`) stay with the character. A finding's title, claim and action name
+what the query measures as placeholders over its result (`{n}`,
+`{played_s:dur}` on the first row, `{rows[1].zone}` for a cell of a later
+row), rendered by the server when it keeps the finding and at every
+recheck. Any other number is declared in `constants` as `{value, label}`:
+a `level`, `top-n` or `threshold` must be written in the query's SQL (or
+bound in its `metric_query`), a `game-rule` needs a cited KB document,
+`patch`, `group-size` and `ordinal` are taken as declared. The judge
+refuses a number that is neither, a constant that equals a placeholder's
+value or contradicts it (labelled like the column the placeholder reads,
+with another value), a re-run that disagrees with `expect`, a `holds`
+that fails, and lists KB ids it doesn't know. What it can't catch: a
+number spelled in words, and a `patch`, `group-size` or `ordinal` that
+lies about its kind. The SQL has to read the play
 history: a constant (`SELECT 3 AS n`) or a query on the documentation tables
 alone re-runs to the same number whatever was played, so the judge refuses it
 and points to `query_metric`.
@@ -219,8 +229,16 @@ run), so
 `analysis_progress` lets "continue" pick up in a new chat. The full view
 reads it; `/zogzog/` gets the screened nudges only. Each night
 (`ANALYSIS_HOUR`, 4, so from 04:00 local time, `WOW_TIMEZONE`, by default) a deterministic recheck re-runs every
-kept finding on the fresh data. One that still holds stays and gets a new
-`last_checked`. It gains weight (`confirmations`, `last_confirmed`) only when
+kept finding on the fresh data, for every person on the server one after
+another (each in its own child process, 30 minutes at most), when they have
+played since their last recheck. Before 0.7.0 it ran for the owner only.
+One that still holds stays, gets a new `last_checked` and its text rendered
+again from that night's result; the page and `play_analysis` show
+`last_checked` per finding and `refresh` (the policy and the person's last
+recheck). A finding kept before the placeholder rule above whose text types
+a number its query doesn't fill and nothing declares keeps its text and is
+marked to revalidate (`unbound_numbers`), never deleted, until an analysis
+proposes it again. It gains weight (`confirmations`, `last_confirmed`) only when
 the play history changed since its last support (`support_mark`, a mark of the
 source events themselves: each one's id, observation time and revision): the
 same data checked again counts as `still`, not `confirmed`. Nothing prep or a

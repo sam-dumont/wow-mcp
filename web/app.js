@@ -2533,7 +2533,10 @@ function renderAnalysis(a) {
     h('p', { class: f.action ? 'sub' : '', text: f.text }),
     // Kept before 0.7's run manifests and checked once on today's build
     // (wowstats.analysis.recheck): say so, plainly.
-    f.carried_note ? h('p', { class: 'sub carried', text: f.carried_note }) : null);
+    f.carried_note ? h('p', { class: 'sub carried', text: f.carried_note }) : null,
+    // When its query last ran without a model (the judge or the nightly
+    // recheck): the text above shows that run's numbers.
+    f.last_checked ? h('p', { class: 'sub checked', text: `Checked against your data ${ago(f.last_checked)}.` }) : null);
   const acts = (a.findings || []).filter((f) => f.action);
   const obs = (a.findings || []).filter((f) => !f.action);
   if (acts.length) kids.push(h('h3', { text: 'Findings to act on' }), h('ol', { class: 'findings' }, acts.map(finding)));
@@ -2546,6 +2549,10 @@ function renderAnalysis(a) {
     obs.length ? h('ol', { class: 'findings' }, obs.map(finding)) : null,
     pats.length ? h('ul', { class: 'patterns' }, pats.map((t) => h('li', { text: t }))) : null));
   if ((a.time_budget || []).length) kids.push(h('h3', { text: 'Time per level' }), budgetTable(a.time_budget));
+  // How the findings stay current (wowstats/analysis refresh_policy).
+  const rf = a.refresh;
+  if (rf && (a.findings || []).length) kids.push(h('p', { class: 'sub refresh', text: rf.how
+    + (rf.last_recheck ? ` Last recheck: ${when(rf.last_recheck)}.` : ' No nightly recheck yet.') }));
   fill(body, kids);
 }
 

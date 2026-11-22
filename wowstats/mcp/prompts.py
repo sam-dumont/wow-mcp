@@ -122,7 +122,9 @@ finding. {goals}
 {goals_arg} to open one and read its procedure.
 2. Follow the passes in order: survey (read the schema, profile and kb sections, page by page if your context is \
 small, then hand in 25 to 40 open questions), the lanes the server hands you (play_sql or query_metric to look, \
-kb_search, kb_get and kb_lookup for game facts, each finding to propose_finding: fix a refused one and retry once), \
+kb_search, kb_get and kb_lookup for game facts, each finding to propose_finding with every measured number a \
+placeholder over its query ({{n}}, {{rows[1].col}}) and any other number in `constants`: fix a refused one and retry \
+once), \
 the follow-up picks, the coverage lanes, then the synthesis. Hand in each pass with analysis_submit; its answer says \
 what is next.
 3. Ask your own questions: the brief is neutral on purpose and holds no hypothesis. A game rule or fact \

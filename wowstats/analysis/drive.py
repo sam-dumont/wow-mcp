@@ -9,7 +9,8 @@ wowstats.mcp.analysistools:
               small contexts (a local model with about 32k tokens);
   sql()       one read-only SELECT on the character's prep database, paged;
   propose()   the judge: verify.check re-runs the finding's SQL, checks every
-              number (placeholders, `expect`, `holds`) and the KB ids, then
+              number (placeholders bound to the result, declared constants,
+              `expect`, `holds`) and the KB ids, then
               stores it in the character's analysis or refuses it with why;
   submit()    a pass's answer (survey questions, a lane's answers and "ask
               next", the follow-up picks, the synthesis). The server cuts
@@ -695,7 +696,9 @@ def propose(env: dict, char: str, finding: dict, store=None) -> dict:
             return {"stored": False, "why": why, "do": "fix it and propose it once more, or move on"}
         new = _store_finding(env, w, run, got)
         _save_run(env, w.char, run)
-    out = {"stored": True, "new": new, "finding": {k: got[k] for k in ("key", "title", "text", "action", "row")}}
+    out = {"stored": True, "new": new,
+           "finding": {k: got.get(k) for k in ("key", "title", "text", "action", "row", "constants")},
+           "checked_at": _now()}
     if got["observation"]:
         out["kept_as"] = ("an observation: no action, so it is shown apart from the findings to act on. Propose it "
                           "again with an action (do, where, blocked_by, next_step) if there is one")

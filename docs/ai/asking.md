@@ -74,14 +74,22 @@ Three tools do it:
 - **`query_metric`** asks for named numbers with one fixed definition each (time played per
   level, deaths per zone): [Semantic layer](../reference/semantic-layer.md).
 - **`propose_finding`** is the judge. A finding the assistant wants to keep goes in with its
-  SQL (or its `query_metric` call). The server runs it again itself, checks every number in
-  the claim against the result, and keeps the finding or refuses it with the reason. A number
-  above 100 typed by hand instead of taken from the query is refused, and so is a query that
-  doesn't read your play at all (`SELECT 3` gives 3 whatever you did).
+  SQL (or its `query_metric` call). The server runs it again itself and keeps the finding or
+  refuses it with the reason. The finding's text names its numbers as placeholders over the
+  result (`You died {n} times.`), and the server fills them in: the assistant never types a
+  measured number. Any other number has to be declared with its kind (a level or a top 3 the
+  query filters on, a patch, a game rule from the knowledge base). "You died 3 times." next to a
+  query that counts 5 is refused, and so is a query that doesn't read your play at all
+  (`SELECT 3` gives 3 whatever you did).
 
-Kept findings are re-run every night on fresh data. One that still holds stays, and gains
-weight only when you've played since it last did: the same data checked again proves nothing
-new. One that stops holding fades and goes after three or four nights.
+Kept findings are re-run every night once you've played since the last check, for everyone
+on the server (friends included), without a model. The text is filled in again from that
+night's result, so it shows the current number; the page and `play_analysis` say when each
+finding was last checked. One that still holds stays, and gains weight only when you've played
+since it last did: the same data checked again proves nothing new. One that stops holding fades
+and goes after three or four nights. A finding kept before 0.7.0 whose text types a number its
+query doesn't fill is marked "to revalidate" instead, never deleted, until your next analysis
+proposes it again.
 
 **An example on the demo.**
 

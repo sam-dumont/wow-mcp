@@ -183,7 +183,7 @@ def test_a_finding_that_reproduces_is_kept_with_rerun_text(db):
 
 @pytest.mark.parametrize("change,reason", [
     ({"expect": {"n": 5, "online": 31880}}, "on re-run"),
-    ({"claim": "You played {n} sessions, 578 minutes in all."}, "number written"),
+    ({"claim": "You played {n} sessions, 578 minutes in all."}, "neither a placeholder nor a declared constant"),
     ({"claim": "You played {n} sessions in {zones} zones."}, "doesn't return"),
     ({"holds": "n > 10"}, "holds"),
     ({"sql": "SELECT n FROM nothing"}, "failed"),

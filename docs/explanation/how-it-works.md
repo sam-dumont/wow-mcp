@@ -47,8 +47,9 @@ ever shows other players, what killed you, or where your character is right now.
 **Your AI.** The server speaks MCP, the protocol Claude, ChatGPT and a dozen other assistants
 use to call outside tools. Your assistant asks for your data and does the thinking in your own
 account, and wow-stats never sees the conversation. A finding the assistant keeps is checked
-against its saved query (the server re-runs it and compares the numbers), and you can ask to
-see that query. A host can also have the server run that analysis itself, with an AI
+against its saved query: the server re-runs it, compares the numbers and writes the measured
+ones into the finding's text itself, then does it again each night for everyone on the server.
+You can ask to see that query. A host can also have the server run that analysis itself, with an AI
 provider they pay for, once a character has 10 hours of play since its last refresh (the
 host can pick another number). Your AI never starts one of those runs:
 [Server-side analysis](../self-host/server-analysis.md).
