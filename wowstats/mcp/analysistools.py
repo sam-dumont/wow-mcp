@@ -246,11 +246,10 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
               "restart": {"type": "boolean", "description": "Drop the open run and start a new one."}}),
            _guard(t_analysis_brief), writes="replaces"),
     T.Tool("play_sql", "Query the play database",
-           "One read-only DuckDB SELECT on the character's analysis database. Read the governed views first: "
-           "per_level, per_session, per_zone, per_dungeon, per_slot (list_metrics `views`), the named metrics "
-           "one row per key; the next guide step: route_position; raw tables (analysis_brief schema) are the "
-           "fallback. DuckDB: 7/2 = 3.5, "
-           "COUNT(*) FILTER (WHERE ...). Paged (page_size up to 60), `more` when more.",
+           "One read-only DuckDB SELECT on the character's analysis database. Governed views first: per_level, "
+           "per_session, per_zone, per_dungeon, per_trip, per_guide, per_quest, per_slot (list_metrics `views`), "
+           "named metrics one row per key; the next guide step: route_position; raw tables (analysis_brief "
+           "schema) are the fallback. DuckDB: 7/2 = 3.5, COUNT(*) FILTER (WHERE ...). Paged (page_size <= 60).",
            S({"char": CHAR, "query": {"type": "string", "maxLength": 8000,
                                  "description": "One read-only DuckDB SELECT (WITH allowed): the views per "
                                                 "grain (per_level...) first, else the raw tables."},

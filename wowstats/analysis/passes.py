@@ -44,8 +44,8 @@ divides whole numbers, COUNT(*) FILTER (WHERE ...) counts a condition). The play
 they play. You run the analysis; the server keeps the run's state and judges every finding.
 
 Your tools (the wow MCP server): `play_sql` runs one read-only SELECT on the database (paged): read the \
-views per grain first (per_level, per_session, per_zone, per_dungeon, per_slot: the named metrics, one row per \
-key, top of the schema section), the raw tables when no view has what you need; \
+views per grain first (per_level, per_session, per_zone, per_dungeon, per_trip, per_guide, per_quest, per_slot: the \
+named metrics, one row per key, top of the schema section), the raw tables when no view has what you need; \
 `list_metrics` and `query_metric` answer with named metrics (each with its definition and caveats) compiled to \
 SQL, and a finding may cite a query_metric call as its evidence (metric_query) instead of SQL; `kb_search`, \
 `kb_get` and `kb_lookup` reach a knowledge base: game reference (spells, items, quests, NPCs, zones and talents, \

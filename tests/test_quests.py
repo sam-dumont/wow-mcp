@@ -328,6 +328,36 @@ def test_a_repeat_picked_up_again_stays_open():
     assert db.execute("SELECT status FROM quests ORDER BY quest_row").fetchall() == [("untimed",), ("open",)]
 
 
+def test_the_log_after_a_fail_a_late_start_and_a_same_instant_hand_in():
+    """The quests model knows what the log holds (semantic wave 3): a quest
+    the game failed is `failed`, never open (it can't be handed in); one
+    whose objectives were seen done with no accept (accepted before
+    tracking) is open, untimed, and `untimed` once handed in; a complete
+    written in the same instant as the hand-in leaves it done. The plan's
+    open quests read these rows: before, it took the newest of the quest's
+    records, and a complete and a hand-in on one timestamp could leave a
+    handed-in quest open (the demo's Willix the Importer)."""
+    from wowstats.plan import facts
+
+    db = built([rec("2026-11-10T18:00:00Z", "accept", quest_id=GIVE_GERARD_A_DRINK),
+                rec("2026-11-10T18:05:00Z", "fail", quest_id=GIVE_GERARD_A_DRINK),
+                rec("2026-11-10T19:00:00Z", "complete", quest_id=POWER_OVERWHELMING)])
+    assert db.execute("SELECT quest_id, status, accepted_t FROM quests ORDER BY quest_row").fetchall() == [
+        (GIVE_GERARD_A_DRINK, "failed", datetime(2026, 11, 10, 18, tzinfo=UTC).timestamp()),
+        (POWER_OVERWHELMING, "open", None)]
+    got = facts.open_quests(db, 33)
+    assert [(o["quest_id"], o["complete"], o["accepted_t"], o["accepted_zone"]) for o in got] == [
+        (POWER_OVERWHELMING, True, None, None)]
+    done = built([rec("2026-11-10T19:00:00Z", "complete", quest_id=POWER_OVERWHELMING),
+                  rec("2026-11-10T20:00:00Z", "turnin", quest_id=POWER_OVERWHELMING)])
+    assert done.execute("SELECT status FROM quests").fetchall() == [("untimed",)]
+    same = built([rec("2026-11-10T18:00:00Z", "accept", quest_id=POWER_OVERWHELMING),
+                  rec("2026-11-10T19:00:00Z", "turnin", quest_id=POWER_OVERWHELMING),
+                  rec("2026-11-10T19:00:00Z", "complete", quest_id=POWER_OVERWHELMING)])
+    assert same.execute("SELECT status FROM quests").fetchall() == [("done",)]
+    assert facts.open_quests(same, 33) == []
+
+
 def test_the_analysis_sees_it_done():
     """play_sql's DuckDB mirror (what the analysis queries) and the
     semantic layer's quests view carry the status and the reason."""

@@ -127,6 +127,57 @@ def test_recorder_coverage_is_a_plain_column_of_per_level(built):
     assert lv[max(lv)]["recorder_coverage"] is None  # the level in play: no split, unknown
 
 
+def test_the_step_metrics_recount_polestars_step_records(built):
+    """per_guide's step columns (records model, semantic wave 3) say what the
+    guide_steps tool said when it read the events itself: steps done
+    (picks left out), Polestar's step timer, the explicit skips plus the
+    steps a record jumped over (2 to 25 ahead of the guide's previous step
+    record, picks included), the picks. Recounted here from the prep's
+    step records with that rule."""
+    want: dict[str, dict] = {}
+    last: dict[str, int] = {}
+    for g, kind, step, reason, secs in built["db"].execute(
+            "SELECT guide, kind, step, reason, seconds FROM records WHERE kind IN ('step', 'skip') AND guide IS NOT "
+            "NULL ORDER BY t, rec_id"):
+        w = want.setdefault(g, {"steps_done": 0, "step_s": 0.0, "skipped": 0, "step_picks": 0})
+        if kind == "skip":
+            w["skipped"] += 1
+            continue
+        if reason == "pick" or step is None:
+            w["step_picks"] += 1
+            if step is not None:
+                last[g] = step
+            continue
+        w["steps_done"] += 1
+        w["step_s"] += secs or 0
+        if g in last and last[g] + 1 < step <= last[g] + 25:
+            w["skipped"] += step - last[g] - 1
+        last[g] = step
+    got = {r["guide"]: r for r in view_rows(built, "per_guide")}
+    for g, w in want.items():
+        r = got[g]
+        assert (r["steps_done"], r["steps_skipped"] + r["steps_jumped"], r["step_picks"]) == (
+            w["steps_done"], w["skipped"], w["step_picks"]), (built["name"], g)
+        assert same(r["step_s"], w["step_s"]), (built["name"], g)
+    assert built["name"] == "seed" or any(w["skipped"] for w in want.values()), "the demo jumps over steps"
+
+
+def test_the_interval_joins_keep_one_row_per_record_and_reading(built):
+    """sem_records and sem_xp take the guide step of the online interval a
+    record closes ((t0, t1]): one interval at most, so no record or XP
+    reading is lost or counted twice, and the XP by guide and step adds up
+    to the bar's whole gain inside the intervals."""
+    ro = built["ro"]
+    for model, table in (("sem_records", "records"), ("sem_xp", "xp")):
+        _, got, _ = ro.run(f"SELECT (SELECT COUNT(*) FROM {model}), (SELECT COUNT(*) FROM {table})", 1)
+        assert got[0][0] == got[0][1], (built["name"], model)
+    total = sum(r["xp_gained"] or 0 for r in semantic.rows(built["layer"], ro, {"metrics": ["xp_gained"]}))
+    _, raw, _ = ro.run("SELECT COALESCE(SUM(xp_gained), 0) FROM xp", 1)
+    assert total == raw[0][0]
+    by_step = semantic.rows(built["layer"], ro, {"metrics": ["xp_gained"], "group_by": ["guide", "step"]})
+    assert sum(r["xp_gained"] or 0 for r in by_step) == total
+
+
 def test_per_slot_says_worn_against_best_upgrade():
     """The demo priest's head: the Shadow-scored Azure Silk Hood (made for
     another class) at 17%, the Embalmed Shroud at 100% wearable now: the
@@ -203,7 +254,8 @@ def call(store, name, args):
 def test_list_metrics_lists_the_views_and_play_sql_reads_them_first(lab):
     cat = call(lab, "list_metrics", {})
     names = [v["name"] for v in cat["views"]]
-    assert names == ["per_level", "per_session", "per_zone", "per_dungeon", "per_trip", "per_slot"]
+    assert names == ["per_level", "per_session", "per_zone", "per_dungeon", "per_trip", "per_guide", "per_quest",
+                     "per_slot"]
     level = next(v for v in cat["views"] if v["name"] == "per_level")
     assert level["one_row_per"] == "level" and "recorder_coverage" in [c["name"] for c in level["columns"]]
     desc = next(t for t in tools.TOOLS if t.name == "play_sql").description

@@ -500,67 +500,76 @@ def t_zones(ctx: Ctx, args: dict) -> dict:
     return {"char": char, "zones": out[:limit], "zones_total": len(out)}
 
 
+def _ms_iso(t: float | None) -> str | None:
+    """A record's time (unix seconds) as the store writes it: UTC, milliseconds."""
+    if t is None:
+        return None
+    ms = round(t * 1000)
+    return f"{datetime.fromtimestamp(ms // 1000, UTC):%Y-%m-%dT%H:%M:%S}.{ms % 1000:03d}Z"
+
+
 def t_guide_steps(ctx: Ctx, args: dict) -> dict:
+    """Polestar's step records through the semantic layer (records model:
+    steps_done, step_s, steps_skipped, steps_jumped, step_picks), on the
+    character's prep database (wowstats.analysis.drive.workspace), never
+    its own reading of the events (owner, 2026-11-22)."""
+    from ..analysis import drive, prep, semantic
+
     char = resolve_char(ctx, args)
     start, end = time_range(args, None)
     limit = limit_arg(args, 12, 100)
     want = (args.get("guide") or "").strip().lower()
-    rows = dedupe(ctx.store.logs(f"{rec(char)} kind:in(step, skip) | fields _time, kind, guide, step, reason, "
-                                 f"duration_s, zone, source_id", start, end))
-    if want:
-        rows = [r for r in rows if want in (r.get("guide") or "").lower()]
-    rows.sort(key=lambda r: parse_t(r.get("_time")))
-    agg: dict[tuple, dict] = {}
-    guides: dict[str, dict] = {}
-    skipped = []
-    last: dict[str, int] = {}
-    for r in rows:
-        g, step = r.get("guide") or "guide", r.get("step")
-        gd = guides.setdefault(g, {"guide": g, "steps": 0, "secs": 0, "skipped": 0, "first": r.get("_time"),
-                                   "last": r.get("_time")})
-        gd["last"] = r.get("_time")
-        if r.get("kind") == "skip":
-            skipped.append({"guide": g, "steps": [opt_num(step)], "t": r.get("_time"), "how": "skipped"})
-            gd["skipped"] += 1
-            continue
-        if r.get("reason") == "pick" or opt_num(step) is None:
-            # Picking or switching guide isn't a step done (views.build_steps).
-            gd["picks"] = gd.get("picks", 0) + 1
-            if isinstance(opt_num(step), int):
-                last[g] = opt_num(step)
-            continue
-        secs = int(num(r.get("duration_s")))
-        gd["steps"] += 1
-        gd["secs"] += secs
-        a = agg.setdefault((g, str(step)), {"guide": g, "step": opt_num(step) if opt_num(step) is not None else step,
-                                            "secs": 0, "n": 0, "zone": r.get("zone")})
-        a["secs"] += secs
-        a["n"] += 1
-        s = opt_num(step)
-        if isinstance(s, int):
-            prev = last.get(g)
-            # A jump forward: the steps in between were never reached.
-            if prev is not None and prev + 1 < s <= prev + 25:
-                skipped.append({"guide": g, "steps": list(range(prev + 1, s)), "t": r.get("_time"), "how": "jumped"})
-                gd["skipped"] += s - prev - 1
-            last[g] = s
-    secs = sorted(a["secs"] for a in agg.values() if a["secs"] > 0)
-    slow = sorted(agg.values(), key=lambda a: -a["secs"])[:limit]
+    out = {"char": char, "guides": [], "slowest_steps": [], "median_step": None, "skipped": []}
+    try:
+        w = drive.workspace(ctx.environ(), char.replace(" ", "-"), ctx.store)
+    except LookupError:
+        return out  # no events yet: nothing to list
+    # The tool's UTC range as the layer's local times (its `time` is local).
+    span = {k: t.astimezone(prep.TZ).strftime("%Y-%m-%dT%H:%M:%S") for k, t in (("since", start), ("until", end))
+            if t is not None}
+
+    def ask(**q) -> list[dict]:
+        return [r for r in semantic.rows(w.layer(), w.metrics, {**q, **span})
+                if not want or want in (r["guide"] or "").lower()]
+
+    steps_only = [{"dimension": "kind", "op": "=", "value": "step"}]
+    both = [{"dimension": "kind", "op": "in", "values": ["step", "skip"]}]
+    glist = sorted(ask(metrics=["steps_done", "step_s", "step_picks", "steps_skipped", "steps_jumped",
+                                "first_record_t", "last_record_t"], group_by=["guide"], where=both),
+                   key=lambda r: r["first_record_t"])
+    guides = []
+    for g in glist:
+        guides.append({"guide": g["guide"], "steps": g["steps_done"], "secs": int(g["step_s"]),
+                       "skipped": g["steps_skipped"] + g["steps_jumped"], "first": _ms_iso(g["first_record_t"]),
+                       "last": _ms_iso(g["last_record_t"]), **({"picks": g["step_picks"]} if g["step_picks"] else {}),
+                       "dur": dur(int(g["step_s"]))})
+    steps = sorted((r for r in ask(metrics=["steps_done", "step_s", "step_zone", "first_record_t"],
+                                   group_by=["guide", "step"], where=steps_only) if r["steps_done"]),
+                   key=lambda r: (-int(r["step_s"]), r["first_record_t"]))
+    secs = sorted(int(r["step_s"]) for r in steps if int(r["step_s"]) > 0)
     ref = route.reference()
-    for a in slow:
-        a["dur"] = dur(a["secs"])
+    slow = []
+    for r in steps[:limit]:
+        a = {"guide": r["guide"], "step": r["step"], "secs": int(r["step_s"]), "n": r["steps_done"],
+             "zone": r["step_zone"], "dur": dur(int(r["step_s"]))}
         exp = ref.step_seconds(a["guide"], a["step"]) if ref.available else None
         if exp:
             a["expected"] = dur(exp)
         if ref.available and ref.step_title(a["guide"], a["step"]):
             a["title"] = ref.step_title(a["guide"], a["step"])
-    glist = sorted(guides.values(), key=lambda g: parse_t(g["first"]))
-    for g in glist:
-        g["dur"] = dur(g["secs"])
-    out = {"char": char, "guides": glist[-limit:], "slowest_steps": slow,
-           "median_step": dur(secs[len(secs) // 2]) if secs else None,
-           "skipped": skipped[-limit:][::-1]}
-    ref = route.reference()
+        slow.append(a)
+    # Each skip record, and each step record that jumped past steps (the
+    # steps in between were never reached), newest first.
+    skipped = []
+    for r in sorted(ask(metrics=["steps_skipped", "steps_jumped"], group_by=["guide", "step", "record_t"],
+                        where=both), key=lambda r: r["record_t"]):
+        t = _ms_iso(r["record_t"])
+        skipped += [{"guide": r["guide"], "steps": [r["step"]], "t": t, "how": "skipped"}] * r["steps_skipped"]
+        if r["steps_jumped"]:
+            skipped.append({"guide": r["guide"], "steps": list(range(r["step"] - r["steps_jumped"], r["step"])),
+                            "t": t, "how": "jumped"})
+    out.update(guides=guides[-limit:], slowest_steps=slow, median_step=dur(secs[len(secs) // 2]) if secs else None,
+               skipped=skipped[-limit:][::-1])
     if ref.available:
         for g in out["guides"]:
             exp = ref.guide_seconds(g["guide"])
@@ -1212,7 +1221,8 @@ TOOLS: tuple[Tool, ...] = (
          schema({"char": CHAR, "since": SINCE, "until": UNTIL, "limit": lim(15)}), t_zones),
     Tool("guide_steps", "Guide steps",
          "Polestar guide progress: per guide steps done, time and skips; the slowest steps; skipped or jumped "
-         "steps; the median step time. With a route reference, each guide's expected time.",
+         "steps; the median step time. With a route reference, each guide's expected time. What was done: the "
+         "step to do next is next_step's.",
          schema({"char": CHAR, "guide": {"type": "string", "description": "Part of a guide name to filter on."},
                  "since": SINCE, "until": UNTIL, "limit": lim(12, 100)}), t_guide_steps),
     Tool("deaths", "Deaths", "Deaths: the latest ones with zone and level, and counts per zone and per level.",

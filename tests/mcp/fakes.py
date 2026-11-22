@@ -121,6 +121,32 @@ LAYER = ([{**r, "feed": "wow-level", "char": CHAR} for r in LEVELS]
          + [{**r, "feed": "wow-dungeon", "char": CHAR} for r in DUNGEONS]
          + [{**r, "feed": "wow-recorder", "kind": "death", "char": CHAR} for r in DEATHS])
 
+
+def recorder_rows(events: list[dict]) -> list[dict]:
+    """The Recorder's events as the analysis' prep query reads them (every
+    feed of the character at once: wowstats.analysis.prep.query), for the
+    tools that read the prep through the semantic layer (guide_steps)."""
+    return [{"feed": "wow-recorder", "char": CHAR, **e} for e in events]
+
+
+def prep_rules(events: list[dict]) -> list[tuple[str, list[dict]]]:
+    """The two answers the prep's read needs: its hourly count first (the
+    event cache plans its pages from it), then the rows."""
+    rows = recorder_rows(events)
+    hours: dict[str, int] = {}
+    for r in rows:
+        h = r["_time"][:13] + ":00:00Z"
+        hours[h] = hours.get(h, 0) + 1
+    return [("-feed:wow-combatlog | stats by (_time:", [{"_time": h, "n": str(n)} for h, n in sorted(hours.items())]),
+            ("-feed:wow-combatlog", rows)]
+
+
+# The prep's read of the character's events, for the tests of the tools
+# that read the semantic layer (guide_steps): FakeStores(logs=PREP + LOGS).
+# Not in LOGS: with it every plan and page built on these fakes gains the
+# Recorder's history (and the game's names, Thrall's quests among them).
+PREP = prep_rules(EVENTS + [e for e in STEPS if e not in EVENTS])
+
 # (substring, rows): the first match answers. Specific before general.
 LOGS = [
     ("feed:in(wow-level, wow-dungeon, wow-recorder", LAYER),

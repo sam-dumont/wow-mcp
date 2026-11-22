@@ -28,8 +28,10 @@
 # and one snapshot gave a money change of 0):
 # - `aggregation`: sum, ratio_of_sums, latest, endpoint_difference, max
 #   (the largest in the group: a per-item fact the gear models repeat on
-#   each row of the item, or a slot's best) or top (the value on the slot's
-#   top row: its best upgrade wearable now, its weakest worn item).
+#   each row of the item, a slot's best, or the newest time), min (the
+#   smallest: the first time) or top (the value on the group's top row: a
+#   slot's best upgrade wearable now, its weakest worn item, the level's
+#   longest silence, a step's first record).
 # - `time_meaning`: what `time` is for this metric: interval_start,
 #   level_completion, snapshot_observation, quest_closure or event (a list,
 #   one per model, for a cross-model metric).
@@ -117,6 +119,16 @@ levels:
       description: "Played seconds in the level that no Recorder session covers: the coverage's Recorder gap for the level."
       metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: inferred, unit: seconds,
                  caveats: "0 when the Recorder saw the whole level. NULL when it can't be measured: a partial split, the first tracked level, the level in play, or a level before the Recorder's first session."}
+    longest_gap_from:
+      expr: _.longest_gap_from_local.argmax(_.longest_gap_s)
+      description: "When the longest silence (longest_gap_s) began: the end of the Recorder session before it, local time."
+      metadata: {kind: simple, aggregation: top, time_meaning: level_completion, evidence_basis: reconstructed, unit: local time,
+                 caveats: "Over several levels, the start of the longest of their silences. NULL where longest_gap_s is NULL."}
+    longest_gap_to:
+      expr: _.longest_gap_to_local.argmax(_.longest_gap_s)
+      description: "When the longest silence (longest_gap_s) ended: the start of the Recorder session after it, or the ding, local time."
+      metadata: {kind: simple, aggregation: top, time_meaning: level_completion, evidence_basis: reconstructed, unit: local time,
+                 caveats: "Over several levels, the end of the longest of their silences. NULL where longest_gap_s is NULL."}
   calculated_measures:
     xp_per_hour:
       expr: _.level_xp / (_.played_s / 3600)
@@ -215,6 +227,11 @@ timeline:
       description: "Online seconds on a flight path."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
                  caveats: "Flight paths only; boats and zeppelins are ride time, not in it."}
+    first_online_t:
+      expr: _.t0.min()
+      description: "When the group's first online interval began, unix seconds (a guide step: when it first came up)."
+      metadata: {kind: simple, aggregation: min, time_meaning: interval_start, evidence_basis: reconstructed, unit: unix seconds,
+                 caveats: "Not additive: over several groups it is the earliest. Online time only: a step shown while offline isn't seen."}
   calculated_measures:
     dungeon_share:
       expr: _.dungeon_s / _.online_s
@@ -247,11 +264,15 @@ records:
     kind: {expr: _.kind, description: "Record kind (record_kinds: kill, death, turnin, accept...)."}
     session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
     hour: {expr: _.hour_local, description: "Hour of day 0-23, local time."}
-    npc_id: {expr: _.npc_id, description: "The record's creature: a kill's, or a death's likely killer as Polestar_Recorder picks it (the last hostile creature that targeted the player within 10 s). NULL for other records and for a death with no pick."}
+    npc_id: {expr: _.npc_id, description: "The NPC the record names: a kill's creature, a trainer record's trainer, or a death's likely killer as Polestar_Recorder picks it (the last hostile creature that targeted the player within 10 s). NULL for a record that names none and for a death with no pick."}
     npc_level: {expr: _.npc_level, description: "That creature's level (a kill's creature, a death's likely killer)."}
     elite: {expr: _.elite, description: "1 when a kill's creature was an elite, a rare elite or a boss (classification e, R or b), else 0."}
     run: {expr: _.run_start, description: "The dungeon run the record falls in, named by when it started (unix seconds, as dungeon_runs names it), NULL outside a run."}
     skill_id: {expr: _.skill_id, description: "The skill line of a skill record (762: Riding; the professions' own ids), else NULL."}
+    guide: {expr: _.at_guide, description: "The Polestar guide in force at the record: a step or skip record's own (the guide it moved in), else the guide of the online interval the record closes (timeline). NULL before the first step record."}
+    step: {expr: _.at_step, description: "That guide's step number, the same way: a step or skip record's own step. Group by guide too: step numbers restart in each guide."}
+    dungeon_trip: {expr: _.dungeon_trip_id, description: "The dungeon trip the record falls in (dungeon_trips), NULL outside one: filter is null for play outside dungeons."}
+    record_t: {expr: _.t, description: "One record, named by when it was written (unix seconds): group by it to list the records one by one."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
@@ -317,6 +338,51 @@ records:
       description: "The highest rank the skill records saw: group or filter by skill_id (Riding is 762)."
       metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: rank,
                  caveats: "Only ranks the Recorder saw change: a skill learned before it ran and never raised since has no record. NULL without a skill record."}
+    skill_ups:
+      expr: _.rec_id.count(where=_.kind == 'skill')
+      description: "Skill rank changes (skill records): a profession, a weapon skill or Riding going up a point."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: skill-ups,
+                 caveats: "Every skill line together: group by guide (forever/professions/...) for the points made while a profession guide was up."}
+    steps_done:
+      expr: _.rec_id.count(where=(_.kind == 'step') & (_.reason.fill_null('') != 'pick') & _.at_step.notnull())
+      description: "Guide steps Polestar moved to (step records with a step number, the guide picks left out)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: steps,
+                 caveats: "A step shown twice (back, then next) counts twice. A step jumped over has no record: steps_jumped."}
+    step_s:
+      expr: (_.seconds * 1000).round().sum(where=(_.kind == 'step') & (_.reason.fill_null('') != 'pick') & _.at_step.notnull()).fill_null(0) / 1000
+      description: "Polestar's own step timer: the seconds since the previous step record, as the shipper computes them for each step record, summed on the step it moved to (the guide_steps tool's time), to the millisecond."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: seconds,
+                 caveats: "Wall-clock time between two step records, as the shipper reads it: a logout or a break between them counts in full. For time played on a step, active_s grouped by guide and step (timeline)."}
+    step_picks:
+      expr: _.rec_id.count(where=(_.kind == 'step') & ((_.reason.fill_null('') == 'pick') | _.at_step.isnull()))
+      description: "Guides picked or switched (step records with reason pick, or with no step number): not a step done."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: picks,
+                 caveats: "Includes a guide finished or emptied (no step number left)."}
+    steps_skipped:
+      expr: _.rec_id.count(where=_.kind == 'skip')
+      description: "Steps the player skipped in the guide (skip records)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: steps,
+                 caveats: "Explicit skips only; steps passed over by a jump forward are steps_jumped."}
+    steps_jumped:
+      expr: _.step_jump.sum(where=_.kind == 'step').fill_null(0)
+      description: "Steps passed over: a step record 2 to 25 steps past the guide's previous step record counts the steps in between."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: reconstructed, unit: steps,
+                 caveats: "Counted on the record that jumped, from the guide's previous step record (picks included) over the whole history: a jump of more than 25 is a new start, not a skip."}
+    first_record_t:
+      expr: _.t.min()
+      description: "When the group's first record was written, unix seconds."
+      metadata: {kind: simple, aggregation: min, time_meaning: event, evidence_basis: observed, unit: unix seconds,
+                 caveats: "Not additive: over several groups it is the earliest."}
+    last_record_t:
+      expr: _.t.max()
+      description: "When the group's newest record was written, unix seconds (by zone: the last time the character was there)."
+      metadata: {kind: simple, aggregation: max, time_meaning: event, evidence_basis: observed, unit: unix seconds,
+                 caveats: "Not additive: over several groups it is the newest. Only what the Recorder saw."}
+    step_zone:
+      expr: _.zone.argmin(_.t, where=(_.kind == 'step') & (_.reason.fill_null('') != 'pick') & _.at_step.notnull())
+      description: "The zone of the group's first step record (a guide step: where it first came up)."
+      metadata: {kind: simple, aggregation: top, time_meaning: event, evidence_basis: observed, unit: zone,
+                 caveats: "Group by guide and step. The zone the character was in, from the zone records; NULL without one."}
   calculated_measures:
     quest_xp_share:
       expr: _.quest_xp / (_.quest_xp + _.kill_xp)
@@ -561,7 +627,7 @@ quests:
   dimensions:
     quest: {expr: _.quest, description: "Quest title (the records' own; \"Quest <id>\" when none names it). Two quests with one title group together: add quest_id."}
     quest_id: {expr: _.quest_id, description: "Quest id."}
-    status: {expr: _.status, description: "done (accept and hand-in seen), abandoned, open (still in the log), untimed (handed in, accepted before tracking began) or 'done (inferred)' (still in the log, but handed in with the Recorder off: done_why says what shows it)."}
+    status: {expr: _.status, description: "done (accept and hand-in seen), abandoned, failed (the game failed it: still in the log, can't be handed in), open (still in the log; accepted before tracking began when only its objectives were seen done), untimed (handed in, accepted before tracking began) or 'done (inferred)' (still in the log, but handed in with the Recorder off: done_why says what shows it)."}
     done_why: {expr: _.done_why, description: "For 'done (inferred)': the evidence, e.g. a reward only that quest gives worn or in the bags, or Questie's completed list. NULL otherwise."}
     level: {expr: _.level, is_entity: true, description: "Level at the hand-in or abandon (at the accept while open)."}
     level_accepted: {expr: _.level_accepted, description: "Level at the accept (NULL for untimed)."}
@@ -573,7 +639,7 @@ quests:
   measures:
     quest_count:
       expr: _.quest_row.count()
-      description: "Quests (one per accept, or per hand-in with no accept seen)."
+      description: "Quests (one per accept, or per hand-in or objectives done with no accept seen)."
       metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: reconstructed, unit: quests,
                  caveats: "A repeatable quest counts once per accept."}
     quest_s:
@@ -611,6 +677,16 @@ quests:
       description: "quest_s of the done quests."
       metadata: {kind: simple, aggregation: sum, time_meaning: quest_closure, evidence_basis: allocated, unit: seconds,
                  caveats: "Abandoned and open quests' time is in quest_s, not here. NULL without a done quest."}
+    quest_accepted_t:
+      expr: _.accepted_t.min()
+      description: "When the quest was accepted, unix seconds: the first accept in the group."
+      metadata: {kind: simple, aggregation: min, time_meaning: quest_closure, evidence_basis: observed, unit: unix seconds,
+                 caveats: "NULL for a quest accepted before tracking began (untimed, or open with its objectives seen done). Filter status for one row of a quest taken twice."}
+    quest_complete_t:
+      expr: _.complete_t.max()
+      description: "When its objectives were last reported complete (a complete record between its accept and its close), unix seconds."
+      metadata: {kind: simple, aggregation: max, time_meaning: quest_closure, evidence_basis: observed, unit: unix seconds,
+                 caveats: "NULL while the objectives aren't done, or for a quest with nothing to collect the Recorder saw complete. For an open quest: ready to hand in."}
   calculated_measures:
     quest_xp_per_min:
       expr: _.done_quest_xp / (_.done_quest_s / 60)
@@ -744,6 +820,27 @@ loot:
       description: "Items looted, a stack counted by its size."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: items,
                  caveats: "Only what the Recorder saw; what it is worth is the item's (vendor price, the player's own scans), not here."}
+
+xp:
+  table: sem_xp
+  description: "The XP bar as the Recorder reads it every 5 minutes: each row an xp record, with the guide step in force then."
+  dimensions:
+    level: {expr: _.level, is_entity: true, description: "Character level."}
+    zone: {expr: _.zone, description: "Zone name."}
+    session_id: {expr: _.session_id, is_entity: true, description: "Login span (sessions)."}
+    hour: {expr: _.hour_local, description: "Hour of day 0-23, local time."}
+    guide: {expr: _.guide, description: "The Polestar guide of the online interval the reading closes (timeline), NULL outside one."}
+    step: {expr: _.step, description: "That guide's step number. Group by guide too: step numbers restart in each guide."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+    time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
+           description: "When the XP bar was read, local time."}
+  measures:
+    xp_gained:
+      expr: _.xp_gained.sum()
+      description: "XP the bar gained between two readings, every source together (kills, quests, discovery, rested bonus)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: xp,
+                 caveats: "Read every 5 minutes: the XP of the last minutes before a logout counts at the next reading. By guide and step: the reading's own interval, so XP made just before a step change can land on the next step."}
 
 upgrades:
   table: sem_upgrades
@@ -903,10 +1000,10 @@ views:
     description: "One row per level: time played, wall clock and the longest silence, how much of it the Recorder saw, deaths, the route plan against the play, quests, gold and its rate, loot, and the rested XP the kills used."
     dimensions: [partial]
     where: [{dimension: level, op: is not null}]
-    metrics: [played_s, calendar_s, offline_s, longest_gap_s, recorder_missed_s, recorder_coverage, online_s, deaths,
-              deaths_per_online_hour, planned_s, vs_route, split_quests, quests_done, gold_moved_copper, gold_delta_copper,
-              gold_changes, gold_move_online_s, gold_per_online_hour, looted_items, rested_used_xp, rested_kill_xp,
-              rested_per_kill_xp]
+    metrics: [played_s, calendar_s, offline_s, longest_gap_s, longest_gap_from, longest_gap_to, recorder_missed_s,
+              recorder_coverage, online_s, deaths, deaths_per_online_hour, planned_s, vs_route, split_quests, quests_done,
+              gold_moved_copper, gold_delta_copper, gold_changes, gold_move_online_s, gold_per_online_hour, looted_items,
+              rested_used_xp, rested_kill_xp, rested_per_kill_xp]
   per_session:
     entity: session_id
     description: "One row per login span: its length and XP, online, active, combat and dungeon time, kills, deaths and quests."
@@ -933,6 +1030,17 @@ views:
     where: [{dimension: trip, op: is not null}]
     metrics: [trip_s, trip_pickup_s, trip_travel_to_s, trip_inside_s, trip_travel_back_s, trip_handin_s, trip_xp_inside,
               trip_xp_quests, trip_quests_handed_in, trip_quest_money_copper]
+  per_guide:
+    entity: guide
+    description: "One row per Polestar guide: time and XP while it was up, Polestar's steps (done, skipped, jumped, picks, its own step timer), skill-ups, first and last record."
+    where: [{dimension: guide, op: is not null}]
+    metrics: [online_s, active_s, xp_gained, steps_done, step_s, steps_skipped, steps_jumped, step_picks, skill_ups,
+              first_record_t, last_record_t]
+  per_quest:
+    entity: quest_id
+    description: "One row per quest id: times in the log, shared and open time, XP, first accept and last objectives done."
+    where: [{dimension: quest_id, op: is not null}]
+    metrics: [quest_count, quest_s, quest_open_s, quest_reward_xp, quest_accepted_t, quest_complete_t]
   per_slot:
     entity: slot
     description: "One row per gear slot, for the spec the gear is scored for: the worn item and its fit, the best upgrade wearable now, and the two percents the page says as 'NN% → NN%' (upgrade_bis_pct_worn → best_upgrade_bis_pct)."
