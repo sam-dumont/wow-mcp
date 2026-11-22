@@ -127,7 +127,9 @@ def server():
         def log_message(self, *a):
             pass
 
-    httpd = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    # Every file at once, as in tests/test_golden3d_browser.py: the default
+    # backlog (5) resets some under load.
+    httpd = type("Server", (ThreadingHTTPServer,), {"request_queue_size": 128})(("127.0.0.1", 0), Handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{httpd.server_address[1]}"
 

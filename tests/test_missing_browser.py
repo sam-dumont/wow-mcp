@@ -87,11 +87,9 @@ def test_one_line_per_section_with_the_fix(live, pw, engine, width):
     try:
         wait_count(pg, "#prices p.missing", 1)
         wait_count(pg, "#advice p.missing", 1)  # inside the gear panel, drawn after it
-        # The gear panel redraws #advice once more as its data lands and the
-        # line comes back right after (see below): read once every section
-        # holds its line, not in between (failed about 1 run in 8 on main).
-        pg.wait_for_function("""() => ['levels', 'dungeons', 'gear', 'advice', 'prices'].every(
-          (id) => document.querySelector(`#${id} p.missing`))""", timeout=15000)
+        # The advice redraws #advice when its answer lands, whenever that is:
+        # the line is back before anything else runs (see below), so any
+        # moment from here reads the same lines.
         got = lines(pg)
         assert got["levels"] == ["Missing: level times, dungeon runs and gear advice. Add Polestar."]
         assert got["dungeons"] == got["levels"]  # the first kind that names the section, once
@@ -107,7 +105,14 @@ def test_one_line_per_section_with_the_fix(live, pw, engine, width):
         assert a.get_attribute("rel") == "noopener noreferrer" and a.get_attribute("target") == "_blank"
         # An emptied section: the line stands in for its own empty note.
         assert pg.locator("#gear.has-missing p.empty:visible").count() == 0
-        # A section that redraws gets its line back.
+        # A section that redraws gets its line back, before the next task
+        # runs: a frame later, a read in between found none (0.7.0 release
+        # gate, #advice redrawn by its late answer).
+        back = pg.evaluate("""() => {
+          document.querySelector('#advice').replaceChildren(document.createElement('h3'));
+          return new Promise((ok) => setTimeout(() => ok(document.querySelectorAll('#advice p.missing').length)));
+        }""")
+        assert back == 1
         pg.evaluate("() => document.querySelector('#gear').replaceChildren()")
         wait_count(pg, '#gear p.missing[data-kind="bags"]', 1)
         # Nothing cut or overflowing on a phone.

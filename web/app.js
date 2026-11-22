@@ -308,9 +308,7 @@ function missingLine(m) {
   return h('p', { class: 'missing', 'data-kind': m.id }, h('strong', { text: `Missing: ${m.what}.` }), ' ', fix);
 }
 
-let missingQueued = false;
 function markMissing() {
-  missingQueued = false;
   const list = (state.data && state.data.missing) || [];
   const want = new Map();
   for (const m of list) {
@@ -336,12 +334,12 @@ function markMissing() {
     if (head) head.after(line); else el.prepend(line);
   }
 }
-function queueMissing() {
-  if (missingQueued) return;
-  missingQueued = true;
-  requestAnimationFrame(markMissing);
-}
-new MutationObserver(queueMissing).observe(document.body, { childList: true, subtree: true });
+// Put back in the observer's own callback, which runs as soon as the
+// redrawing script ends: one frame later (requestAnimationFrame until
+// 0.7.0), anything that ran in between, a click, a reader, the release
+// gate's tests, found the section without its line. Its own changes call
+// it once more, with nothing left to do.
+new MutationObserver(markMissing).observe(document.body, { childList: true, subtree: true });
 
 // ------------------------------------------------------------ hero
 
@@ -3924,6 +3922,18 @@ async function renderNoChars() {
 }
 
 async function start() {
+  // The tabs are in the page before anything loads: a click on one while
+  // the config is on its way was lost, and the page stayed on its first tab
+  // (the 0.7.0 release gate, on a loaded runner). setTab keeps the choice in
+  // the address, which the first draw below reads.
+  for (const k of Object.keys(TABS)) $('#tab-' + k).addEventListener('click', () => setTab(k));
+  // The bar's home link (wowstats/bar.py): the first tab, without leaving
+  // the page. On /zogzog/ following ./ would drop the key in the fragment.
+  $('.bar-home').addEventListener('click', (ev) => {
+    ev.preventDefault();
+    setTab(HOME);
+    window.scrollTo({ top: 0 });
+  });
   if (SEALED) {
     // No key, or not this bundle's: the same empty page either way.
     try { state.config = await getJSON(api('config')); } catch (e) { locked(); return; }
@@ -3936,14 +3946,6 @@ async function start() {
   }
   if (!PUBLIC && feat('plan')) initPlan();
   initDebug();
-  for (const k of Object.keys(TABS)) $('#tab-' + k).addEventListener('click', () => setTab(k));
-  // The bar's home link (wowstats/bar.py): the first tab, without leaving
-  // the page. On /zogzog/ following ./ would drop the key in the fragment.
-  $('.bar-home').addEventListener('click', (ev) => {
-    ev.preventDefault();
-    setTab(HOME);
-    window.scrollTo({ top: 0 });
-  });
   let chars;
   try {
     chars = (await getJSON(api('chars'))).chars;

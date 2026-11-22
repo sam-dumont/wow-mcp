@@ -92,3 +92,29 @@ def test_unbound_numbers_say_to_revalidate_and_each_finding_says_when_checked(ur
         assert not errors, errors
     finally:
         b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_a_tab_clicked_while_the_page_loads_stays_open(url, pw, engine):
+    """The 0.7.0 release gate: on a loaded runner the test above clicked
+    Character before the page's config came back, when the tabs had no
+    click handler yet, and the page stayed on Overview. The config is held
+    here so the click always lands first."""
+    try:
+        b = getattr(pw, engine).launch()
+    except Exception as e:  # noqa: BLE001 - that browser isn't installed
+        pytest.skip(f"no {engine}: {e}")
+    pg = b.new_page(viewport={"width": 1280, "height": 900})
+    held = []
+    pg.route("**/api/config*", lambda r: held.append(r))
+    try:
+        pg.goto(url)
+        while not held:
+            pg.wait_for_timeout(50)
+        pg.click("#tab-overview")
+        held[0].continue_()
+        pg.wait_for_selector("#analysis:not([hidden]) .findings", timeout=15000)
+        assert pg.locator("#tab-overview").get_attribute("aria-selected") == "true"
+        assert pg.locator("#home").is_hidden()
+    finally:
+        b.close()
