@@ -198,12 +198,12 @@ def test_polestar_is_its_newest_plain_release_never_its_client(state):
 
 def test_accept_refuses_a_kind_it_could_not_read(state, tmp_path, monkeypatch):
     """2026-11-20: the exports step had no token, the release read as None and
-    the accept kept the old tag without a word; now it says so and fails."""
+    the accept kept the old tag without a word; now it says so and fails. The
+    accept never reads upstream itself (2026-11-22): polestar needs --release."""
     path = tmp_path / "watch.json"
     path.write_text(json.dumps(state))
-    monkeypatch.setattr(watch, "current", lambda s, f, g, k=None: {"client-build": {"build": None}, "official": {},
-                                                           "polestar": {"release": None}, "addons": {}})
-    assert watch.main(["--state", str(path), "--accept", "polestar"]) == 3
+    monkeypatch.setattr(watch, "current", lambda *a, **k: pytest.fail("the accept fetched upstream"))
+    assert watch.main(["--state", str(path), "--accept", "polestar"]) == 2
     assert json.loads(path.read_text())["polestar"]["known"] == state["polestar"]["known"]
     assert watch.main(["--state", str(path), "--accept", "polestar", "--release", "v0.4.9"]) == 0
     assert json.loads(path.read_text())["polestar"]["known"] == "v0.4.9"
@@ -645,3 +645,132 @@ def test_the_workflow_accepts_the_handoff_of_the_pass():
     assert f"refresh.py --handoff {handoff}" in run["refresh"]
     accept_step = run["Fold and accept what the model pass read"]
     assert f"--accept official --handoff {handoff}" in accept_step and "--only" not in accept_step
+
+
+# The same rule for the daily version watch: addons and client-build are
+# accepted at the release or build the bump checked, carried in its handoff.
+
+
+class Releases:
+    """GitHub's latest releases as the bump reads them; None: unreadable."""
+
+    def __init__(self, tags: dict):
+        self.tags = tags
+
+    def latest_release(self, repo):
+        return self.tags.get(repo)
+
+    def list_releases(self, repo):
+        return []
+
+
+def questie(state):
+    return next(a for a in state["addons"] if a["name"] == "Questie")
+
+
+def bump_addons(state, tmp_path, monkeypatch, tags: dict):
+    """bump.py addons as the workflow runs it, the contract check passing."""
+    bump = load("bump")
+    path, why, handoff = tmp_path / "watch.json", tmp_path / "why.json", tmp_path / "seen.json"
+    path.write_text(json.dumps(state))
+    monkeypatch.setattr(bump, "Repo", lambda: None)
+    monkeypatch.setattr(bump, "check_addon", lambda api, addon, old, new: [])
+    monkeypatch.setattr(bump.watch.web, "GitHub", lambda repo=None: Releases(tags))
+    rc = bump.main(["addons", "--state", str(path), "--why", str(why), "--handoff", str(handoff)])
+    return rc, handoff, (json.loads(why.read_text()) if why.exists() else {})
+
+
+def accept_kind(state, tmp_path, monkeypatch, kind: str, handoff: Path, rc: int = 0) -> dict:
+    """watch.py --accept <kind> --handoff, as the workflow's step after the bump."""
+    path = tmp_path / "watch.json"
+    path.write_text(json.dumps(state))
+    with monkeypatch.context() as m:
+        m.setattr(watch, "current", lambda *a, **k: pytest.fail("the accept fetched upstream"))
+        m.setattr(watch.web, "GitHub", lambda repo=None: None)
+        assert watch.main(["--state", str(path), "--accept", kind, "--handoff", str(handoff)]) == rc
+    return json.loads(path.read_text())
+
+
+def test_an_addon_release_that_failed_to_load_stays_pending(state, tmp_path, monkeypatch):
+    q = questie(state)
+    others = {a["repo"]: a["known"] for a in state["addons"] if a.get("repo") and a is not q}
+    rc, handoff, why = bump_addons(state, tmp_path, monkeypatch, others | {q["repo"]: None})
+    assert rc == 0 and json.loads(handoff.read_text()) == {"addons": {}}
+    assert "Questie" in why["addons"] and "next run" in why["addons"]
+    after = accept_kind(state, tmp_path, monkeypatch, "addons", handoff)
+    assert questie(after)["known"] == q["known"]
+    # The release reads again: the watch still flags it, the bump checks it, the accept takes it.
+    gh = Releases(others | {q["repo"]: "bundle/v12.13.0+v1.1.5"})
+    assert "addons" in watch.run(after, Fetch({}), gh, github=False, kinds=["addons"])["kinds"]
+    rc, handoff, _ = bump_addons(after, tmp_path, monkeypatch, gh.tags)
+    assert rc == 0 and questie(accept_kind(after, tmp_path, monkeypatch, "addons", handoff))["known"] == (
+        "bundle/v12.13.0+v1.1.5")
+
+
+def test_an_addon_release_out_after_the_check_waits_for_the_next_run(state, tmp_path, monkeypatch):
+    q = questie(state)
+    others = {a["repo"]: a["known"] for a in state["addons"] if a.get("repo") and a is not q}
+    rc, handoff, _ = bump_addons(state, tmp_path, monkeypatch, others | {q["repo"]: "bundle/v12.13.0+v1.1.5"})
+    assert rc == 0
+    # Upstream releases again before the accept: the accept records what was checked.
+    after = accept_kind(state, tmp_path, monkeypatch, "addons", handoff)
+    assert questie(after)["known"] == "bundle/v12.13.0+v1.1.5"
+    newer = Releases(others | {q["repo"]: "bundle/v12.14.0+v1.1.6"})
+    assert "addons" in watch.run(after, Fetch({}), newer, github=False, kinds=["addons"])["kinds"]
+
+
+def export_client(tmp_path, monkeypatch, build: str | None):
+    """tools/class_reference/export.py with its inputs stubbed: the build
+    wago.tools gives (None: unreachable). Its handoff, or None when it failed."""
+    spec = importlib.util.spec_from_file_location("class_reference_export",
+                                                  ROOT / "tools" / "class_reference" / "export.py")
+    exp = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(exp)
+    from wowstats import talents
+
+    root = tmp_path / "polestar"
+    for f in ("addon/Polestar_Guides/Guides.lua", "addon/Polestar/QoL/ClassSpells.lua",
+              "addon/Polestar/Core/ClassTrainers.lua"):
+        (root / f).parent.mkdir(parents=True, exist_ok=True)
+        (root / f).write_text("")
+    monkeypatch.setattr(talents, "shared", lambda: SimpleNamespace(get=lambda: {"x": 1} if build else None,
+                                                                   build=build or ""))
+    for name, value in (("zone_names", {}), ("spells", {}), ("talent_names", {}), ("fill_gaps", []),
+                        ("wago_rows", [])):
+        monkeypatch.setattr(exp, name, lambda *a, v=value, **k: v)
+    monkeypatch.setattr(exp, "trainers", lambda *a, **k: {c: [] for c in exp.CLASSES})
+    monkeypatch.setattr(exp.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout=""))
+    handoff = tmp_path / "client.json"
+    try:
+        exp.main(["--polestar", str(root), "--out", str(tmp_path / "class-reference.json"),
+                  "--handoff", str(handoff)])
+    except SystemExit:
+        return None
+    return handoff
+
+
+def test_a_client_build_that_failed_to_load_stays_pending(state, tmp_path, monkeypatch):
+    assert export_client(tmp_path, monkeypatch, None) is None
+    # The workflow's && chain stops there; even run, the accept has nothing processed.
+    after = accept_kind(state, tmp_path, monkeypatch, "client-build", tmp_path / "client.json", rc=3)
+    assert after["client_build"]["known"] == state["client_build"]["known"]
+
+
+def test_a_client_build_out_after_the_export_waits_for_the_next_run(state, tmp_path, monkeypatch):
+    handoff = export_client(tmp_path, monkeypatch, "1.60.2.72000")
+    after = accept_kind(state, tmp_path, monkeypatch, "client-build", handoff)
+    assert after["client_build"]["known"] == "1.60.2.72000"
+    fetch, gh = recorded(after, build="1.60.2.72111")  # wago.tools moved on meanwhile
+    assert watch.run(after, fetch, gh, github=False, kinds=["client-build"])["kinds"] == ["client-build"]
+
+
+def test_the_version_steps_accept_their_handoff():
+    yaml = pytest.importorskip("yaml")
+    steps = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())["jobs"]["run"]["steps"]
+    run = {s.get("name", ""): s.get("run", "") for s in steps}
+    addons, client = run["Addon releases, checked and accepted"], run["Client build"]
+    assert 'bump.py addons --why "$WHY" --handoff "$RUNNER_TEMP/kb-handoff-addons.json"' in addons
+    assert '--accept addons --handoff "$RUNNER_TEMP/kb-handoff-addons.json"' in addons
+    assert '--handoff "$RUNNER_TEMP/kb-handoff-client.json"' in client.split("bump.py regen")[0]
+    assert '--accept client-build --handoff "$RUNNER_TEMP/kb-handoff-client.json"' in client
+    assert all("--accept" not in r or "--handoff" in r or "--release" in r for r in run.values())

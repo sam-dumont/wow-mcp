@@ -2,7 +2,7 @@
 (.github/workflows/kb-refresh.yaml, watch mode; docs/kb.md).
 
     uv run python tools/kb/bump.py polestar v0.4.1.1 --why why.json   # check, then move the tag
-    uv run python tools/kb/bump.py addons --why why.json              # check the addons' contracts
+    uv run python tools/kb/bump.py addons --why why.json --handoff seen.json   # check the addons' contracts
 
 What an addon writes is what the shipper reads, so a release is taken when
 what we depend on is unchanged between the known tag and the new one, read
@@ -24,7 +24,11 @@ Release notes are never read: a release's text is untrusted, and nothing in
 it is run or followed. The tag itself goes through watch.TAG (a plain
 version) before it reaches this script. A refusal is written to `--why`
 ({kind: reason}), for the kind's issue; the job then leaves that kind out of
-its PR. `polestar` also writes the new tag to tools/polestar-tag and the
+its PR. `addons --handoff` writes the release each addon was checked at
+({"addons": {name: tag}}): `watch.py --accept addons --handoff` records
+exactly those, never a newer release that came out meanwhile, and an addon
+whose release couldn't be read isn't in it (it stays pending, the next run
+checks it). `polestar` also writes the new tag to tools/polestar-tag and the
 clone lines that name it; the workflow then reruns the exports, and
 `regen` the test data derived from them.
 
@@ -268,6 +272,16 @@ def refuse(path: str | None, kind: str, reasons: list[str]) -> None:
         p.write_text(json.dumps(why, indent=1) + "\n", encoding="utf-8")
 
 
+def note(path: str | None, kind: str, text: str) -> None:
+    """Why part of `kind` stays out of the PR, for its issue; not a refusal."""
+    print(text, file=sys.stderr)
+    if path:
+        p = Path(path)
+        why = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+        why[kind] = text
+        p.write_text(json.dumps(why, indent=1) + "\n", encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("kind", choices=["polestar", "addons", "regen"])
@@ -277,6 +291,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--as", dest="as_kind", default="polestar", help="regen: the kind a refusal is filed under")
     ap.add_argument("--why", help="append a refusal here ({kind: reason})")
     ap.add_argument("--state", default=str(watch.STATE))
+    ap.add_argument("--handoff", help="addons: write the release each addon was checked at, for watch.py --accept")
     a = ap.parse_args(argv)
     state = json.loads(Path(a.state).read_text(encoding="utf-8"))
     if a.kind == "regen":
@@ -301,18 +316,28 @@ def main(argv: list[str] | None = None) -> int:
             return 3
         print(json.dumps({"polestar": new, "changed": move_tag(old, new)}))
         return 0
-    reasons = []
+    reasons, checked, unread = [], {}, []
     for addon in state["addons"]:
         if not addon.get("repo"):
             continue
         new = gh.latest_release(addon["repo"])
-        if not new or new == addon["known"]:
+        if not new:
+            unread.append(addon["name"])
+            continue
+        if new == addon["known"]:
             continue
         reasons += [f"{addon['name']}: {r}" for r in check_addon(api, addon, addon["known"], new)]
+        checked[addon["name"]] = new
     if reasons:
         refuse(a.why, "addons", reasons)
         return 3
-    print("addons: what the shipper reads is unchanged")
+    if a.handoff:
+        Path(a.handoff).write_text(json.dumps({"addons": checked}, indent=1) + "\n", encoding="utf-8")
+    if unread:
+        # Not a refusal: the others land; these stay pending, with the reason on the issue.
+        note(a.why, "addons", f"The latest release of {', '.join(unread)} couldn't be read; the next run checks it.")
+    seen = ", ".join(f"{k} {v}" for k, v in checked.items()) or "none"
+    print(f"addons: what the shipper reads is unchanged (checked: {seen})")
     return 0
 
 
