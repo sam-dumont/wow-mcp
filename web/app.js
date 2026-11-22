@@ -129,7 +129,44 @@ if (SEALED) {
     if (!a || ev.defaultPrevented) return;  // a move's link: goTo already went
     ev.preventDefault();
     const t = document.getElementById(a.getAttribute('href').slice(1));
-    if (t) t.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+    if (t) jumpTo(t, 'start');
+  });
+}
+// A jump by script keeps its target in place while the page is still
+// drawing, as a browser does for a fragment link it follows itself. The
+// gear advice lands in #gear, above every section, after the page shows
+// (loadChar's late sections): a jump made before it came ended a screen
+// lower, or WebKit stopped its smooth scroll where it was (the 0.7.0
+// release gate). So the page jumps again each time the target moves, until
+// the late sections are all in or the reader scrolls by themselves.
+const LET_GO = ['wheel', 'touchstart', 'keydown', 'mousedown'];
+let unpin = null;
+function jumpTo(el, block) {
+  if (unpin) unpin();
+  let at = null;
+  const go = () => {
+    at = el.getBoundingClientRect().top + window.scrollY;
+    el.scrollIntoView({ block, behavior: reduceMotion ? 'auto' : 'smooth' });
+  };
+  const follow = () => {
+    if (el.isConnected && el.getBoundingClientRect().top + window.scrollY !== at) go();
+  };
+  go();
+  const drawing = state.drawing;
+  if (!drawing || !window.ResizeObserver) return;
+  const ro = new ResizeObserver(follow);
+  ro.observe(document.body);
+  const done = () => {
+    ro.disconnect();
+    for (const t of LET_GO) window.removeEventListener(t, done, true);
+    if (unpin === done) unpin = null;
+  };
+  for (const t of LET_GO) window.addEventListener(t, done, { capture: true, passive: true });
+  unpin = done;
+  drawing.then(() => {
+    if (unpin !== done) return;
+    follow();
+    done();
   });
 }
 let cryptoKey = null;
@@ -2869,7 +2906,7 @@ function goTo(link, tries = 0) {
     }
     return;
   }
-  el.scrollIntoView({ block: link.startsWith('#up-') ? 'center' : 'start', behavior: reduceMotion ? 'auto' : 'smooth' });
+  jumpTo(el, link.startsWith('#up-') ? 'center' : 'start');
   el.classList.remove('lit');
   void el.offsetWidth;  // restart the mark if it was already lit
   el.classList.add('lit');
@@ -3829,7 +3866,10 @@ async function loadChar(name, quiet) {
     if (state.tab === 'home') more.push(loadOverview(quiet));
     if (state.tab === 'timeline' && !quiet) more.push(loadTimeline());
     if (feat('people')) more.push(loadPeople(name));
-    state.drawn = Promise.allSettled(more);
+    const drawn = Promise.allSettled(more);
+    state.drawn = drawn;
+    state.drawing = drawn;  // null once they are all in (jumpTo)
+    drawn.then(() => { if (state.drawing === drawn) state.drawing = null; });
   } catch (e) {
     if (!quiet || !state.data) {
       fill($('#hero'), h('p', { class: 'err', text: `Couldn’t load ${name}: ${e.message}.` }));
