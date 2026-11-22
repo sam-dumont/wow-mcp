@@ -55,6 +55,10 @@ terms keep it 30 days at most, and a chat keeps a tool's answer as long as the c
 that's your call. Anything no addon records, the tools call "not known" instead of guessing.
 Whatever the assistant reads, your AI provider receives: it's in your chat.
 
+Other players' names, forum posts and news are text strangers wrote. The tools strip invisible
+characters from them (the kind that can hide instructions) and mark them `untrusted`, so your
+assistant treats them as data, never as orders.
+
 ## How numbers get checked
 
 The assistant writes the answers; the server checks the numbers. A finding it keeps is checked
@@ -133,5 +137,14 @@ up). What comes out lands on your page, and the screened parts on your zogzog li
 5. **Synthesis:** the kept findings against each other; clashes get a deciding query.
 
 </details>
+
+**Run it yourself before the server does.** When your host lets the server run the analysis,
+it does so after enough play (10 hours by default), on the host's AI credit. From 5 hours
+before that, your page shows a card above the Ask links: "Your analysis is 10h 12m of play
+old. In about 4h 48m of play the server refreshes it on the host's credit. Be nice to the host: ask
+your own assistant to run it." (your host may put their name there). **Copy** puts the prompt on your clipboard;
+paste it in your assistant's chat. × hides the card until you close the tab. Your assistant
+gets the same reminder now and then in its tool answers. No card when the server's refresh is
+off, and never on your public page or zogzog link.
 
 How it works inside: [MCP and the play analysis](../mcp.md).

@@ -21,27 +21,42 @@ The assistant calls `character_summary`:
 ```
 
 <details>
-<summary>The server answers (49 lines of JSON)</summary>
+<summary>The server answers (96 lines of JSON)</summary>
 
 ```json
 {
  "char": "Nibbet-Gearholt",
  "title": null,
  "level": 34,
- "xp": 35288,
+ "xp": 30690,
  "xp_max": 62800,
- "xp_pct": 56.2,
+ "xp_pct": 48.9,
  "zone": "Arathi Highlands",
- "last_seen": "2026-11-20T09:05:52.4Z",
- "gold": "19g 92s 30c",
- "money_copper": 199230,
+ "last_seen": "2026-11-21T09:05:41.8Z",
+ "gold": "16g 46s 75c",
+ "money_copper": 164675,
  "time_in_level": null,
- "played_tracked": "1d12h",
- "avg_last_5_levels": "3h50m",
- "xp_per_hour_last_3_levels": 11499,
- "eta_next_level": "2h23m",
- "kills": 1645,
- "quests_turned_in": 117,
+ "played_tracked": "1d9h",
+ "avg_last_5_levels": "3h38m",
+ "xp_per_hour_last_3_levels": 12074,
+ "eta_next_level": "2h39m",
+ "counts": {
+  "completed_levels": {
+   "from_level": 22,
+   "to_level": 33,
+   "kills": 1225,
+   "quests": 88
+  },
+  "current_level": {
+   "level": 34,
+   "kills": 93,
+   "quests": 6
+  },
+  "including_current_level": {
+   "kills": 1318,
+   "quests": 94
+  }
+ },
  "deaths": 12,
  "talents": {
   "spec": "Shadow",
@@ -59,7 +74,7 @@ The assistant calls `character_summary`:
     "points": 25
    }
   ],
-  "as_of": "2026-11-21T06:00:00Z",
+  "as_of": "2026-11-22T06:00:00Z",
   "source": "Battle.net"
  },
  "talents_why": null,
@@ -71,7 +86,39 @@ The assistant calls `character_summary`:
    "fix": "Add Syndicator.",
    "line": "Missing: your gear and bags. Add Syndicator."
   }
- ]
+ ],
+ "coverage": {
+  "recorder": {
+   "state": "complete",
+   "as_of": "2026-11-21T09:05:41.8Z"
+  },
+  "polestar": {
+   "state": "complete",
+   "as_of": "2026-11-20T16:56:12.7Z",
+   "parts": {
+    "money_copper": "2026-11-21T09:05:41Z"
+   }
+  },
+  "gear": {
+   "state": "unavailable",
+   "fix": "Add Syndicator.",
+   "parts": {
+    "items": "2026-11-21T09:05:20Z"
+   }
+  },
+  "quests": {
+   "state": "complete",
+   "as_of": "2026-11-21T09:05:12.8Z"
+  },
+  "prices": {
+   "state": "complete",
+   "as_of": "2026-11-20T22:00:00Z"
+  },
+  "battlenet": {
+   "state": "complete",
+   "as_of": "2026-11-22T06:00:00Z"
+  }
+ }
 }
 ```
 
@@ -86,7 +133,7 @@ The assistant calls `next_moves`:
 ```
 
 <details>
-<summary>The server answers (60 lines of JSON)</summary>
+<summary>The server answers (92 lines of JSON)</summary>
 
 ```json
 {
@@ -100,7 +147,7 @@ The assistant calls `next_moves`:
    "page_section": "#up-14"
   },
   {
-   "point": "Pick up Philanthropist's Ring (13% → 100% on your finger): quest Greater Friend of the Library (Stormwind City) (a level 35 quest: 1 above you).",
+   "point": "Pick up Philanthropist's Ring (11% → 100% on your finger): quest Greater Friend of the Library (Stormwind City) (a level 35 quest: 1 above you).",
    "from": "gear advice (Polestar's scoring)",
    "page_section": "#up-11"
   },
@@ -113,17 +160,17 @@ The assistant calls `next_moves`:
  ],
  "on_track": [
   {
-   "point": "The last 5 levels (levels 29-33) took 19h 14m; Polestar's route plans 8h 48m for them (2.2×).",
+   "point": "The last 5 levels (levels 29-33) took 18h 10m; Polestar's route plans 8h 55m for them (2.0×).",
    "from": "wow-level splits vs data/route-reference.json",
    "page_section": "#levels"
   },
   {
-   "point": "Level 33 took 2h 40m, about the same as your median of the 5 before (2h 55m).",
+   "point": "Level 33 took 1h 53m, faster than your median of the 5 before (2h 40m).",
    "from": "wow-level splits",
    "page_section": "#levels"
   },
   {
-   "point": "Level 35 in about 2h 23m of play at your recent pace (11,499 XP an hour).",
+   "point": "Level 35 in about 2h 39m of play at your recent pace (12,074 XP an hour).",
    "from": "XP left / XP an hour, last 3 levels",
    "page_section": "#levels"
   },
@@ -147,7 +194,39 @@ The assistant calls `next_moves`:
    "fix": "Add Syndicator.",
    "line": "Missing: your gear and bags. Add Syndicator."
   }
- ]
+ ],
+ "coverage": {
+  "recorder": {
+   "state": "complete",
+   "as_of": "2026-11-21T09:05:41.8Z"
+  },
+  "polestar": {
+   "state": "complete",
+   "as_of": "2026-11-20T16:56:12.7Z",
+   "parts": {
+    "money_copper": "2026-11-21T09:05:41Z"
+   }
+  },
+  "gear": {
+   "state": "unavailable",
+   "fix": "Add Syndicator.",
+   "parts": {
+    "items": "2026-11-21T09:05:20Z"
+   }
+  },
+  "quests": {
+   "state": "complete",
+   "as_of": "2026-11-21T09:05:12.8Z"
+  },
+  "prices": {
+   "state": "complete",
+   "as_of": "2026-11-20T22:00:00Z"
+  },
+  "battlenet": {
+   "state": "complete",
+   "as_of": "2026-11-22T06:00:00Z"
+  }
+ }
 }
 ```
 
@@ -162,13 +241,13 @@ The assistant calls `dungeon_options`:
 ```
 
 <details>
-<summary>The server answers (720 lines of JSON)</summary>
+<summary>The server answers (769 lines of JSON)</summary>
 
 ```json
 {
  "char": "Nibbet-Gearholt",
  "level": 34,
- "questing_xp_per_hour": 13776,
+ "questing_xp_per_hour": 15256,
  "dungeons": [
   {
    "rank": 1,
@@ -189,6 +268,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 78,
      "bis_pct_worn": 59,
      "delta_pct": 19,
+     "line": "59% → 78% on your weapons",
      "boss": "Shade of the Archmage",
      "chance": 32.7,
      "wowhead": "https://www.wowhead.com/forever/item=273052"
@@ -200,9 +280,10 @@ The assistant calls `dungeon_options`:
      "gain": 13.1,
      "req_level": 27,
      "now": true,
-     "bis_pct": 100,
-     "bis_pct_worn": 13,
-     "delta_pct": 87,
+     "bis_pct": 84,
+     "bis_pct_worn": 11,
+     "delta_pct": 73,
+     "line": "11% → 84% on your finger",
      "boss": "Arcane Anomaly",
      "chance": 31.6,
      "wowhead": "https://www.wowhead.com/forever/item=273031"
@@ -217,6 +298,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 100,
      "bis_pct_worn": 52,
      "delta_pct": 48,
+     "line": "52% → 100% on your hands",
      "boss": "Arcane Anomaly",
      "chance": 33.5,
      "wowhead": "https://www.wowhead.com/forever/item=273034"
@@ -234,6 +316,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 72,
      "bis_pct_worn": 43,
      "delta_pct": 29,
+     "line": "43% → 72% on your back",
      "quest": "A Green Sample",
      "quest_id": 92456,
      "wowhead": "https://www.wowhead.com/forever/item=279835",
@@ -249,6 +332,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 84,
      "bis_pct_worn": 60,
      "delta_pct": 24,
+     "line": "60% → 84% on your waist",
      "quest": "Power Overwhelming",
      "quest_id": 92489,
      "wowhead": "https://www.wowhead.com/forever/item=251962",
@@ -260,17 +344,17 @@ The assistant calls `dungeon_options`:
     "basis": "runs",
     "own_runs": 1,
     "level": 34,
-    "run_s": 1962,
+    "run_s": 1922,
     "time": "trip",
     "xp_kills": 6701,
     "xp_quests": 18800,
     "xp": 25501,
     "level_pct": 41,
-    "xp_per_hour": 46791,
+    "xp_per_hour": 47764,
     "kills_unknown": false,
-    "questing_xp_per_hour": 13776,
-    "vs_questing": 3.397,
-    "questing_s": 6664,
+    "questing_xp_per_hour": 15256,
+    "vs_questing": 3.131,
+    "questing_s": 6018,
     "quests": [
      {
       "quest_id": 92456,
@@ -316,38 +400,38 @@ The assistant calls `dungeon_options`:
     "...": "3 more keys"
    },
    "trip": {
-    "time_s": 1962,
+    "time_s": 1922,
     "xp": 25501,
-    "xp_per_hour": 46791,
+    "xp_per_hour": 47765,
     "kills_unknown": false,
     "from": "your 1 run(s) there",
     "n": 1,
     "phases_s": {
-     "pickup_s": 130,
+     "pickup_s": 147,
      "travel_to_s": 90,
-     "inside_s": 2532,
-     "travel_back_s": 69,
-     "handin_s": 130
+     "inside_s": 2537,
+     "travel_back_s": 40,
+     "handin_s": 116
     }
    },
    "value": {
-    "xp_per_hour": 46791,
-    "gear_per_hour": 39.8,
-    "vs_questing_xp_per_hour": 13776
+    "xp_per_hour": 47764,
+    "gear_per_hour": 40.6,
+    "vs_questing_xp_per_hour": 15256
    },
    "redo": {
     "runs": 1,
     "levels": [
      33
     ],
-    "time_s": 1962,
-    "inside_s": 1962,
+    "time_s": 1922,
+    "inside_s": 1922,
     "xp_inside": 6701,
-    "xp_per_hour_run": 46791,
-    "loot_items_per_run": 24.0,
-    "vendor_copper_per_run": 1043,
+    "xp_per_hour_run": 47764,
+    "loot_items_per_run": 25.0,
+    "vendor_copper_per_run": 1700,
     "boe_seen": [],
-    "ah_copper_per_run": 27338,
+    "ah_copper_per_run": 18768,
     "quests_left": 0,
     "instance_limit": {
      "per_hour": 5,
@@ -361,13 +445,13 @@ The assistant calls `dungeon_options`:
      }
     },
     "loop": {
-     "run_s": 1962,
+     "run_s": 1922,
      "note": "inside time only; the walk out and back in to reset isn't measured",
-     "xp_per_hour": 12295,
-     "gold_copper_per_hour": 52075,
-     "gear_per_hour": 39.8,
-     "runs_for_mount": 29,
-     "time_for_mount_s": 56898
+     "xp_per_hour": 12551,
+     "gold_copper_per_hour": 38338,
+     "gear_per_hour": 40.6,
+     "runs_for_mount": 41,
+     "time_for_mount_s": 78802
     },
     "best_item": {
      "item": "Ponderous Orb",
@@ -379,10 +463,11 @@ The assistant calls `dungeon_options`:
      "bis_pct": 78,
      "bis_pct_worn": 59,
      "delta_pct": 19,
+     "line": "59% → 78% on your weapons",
      "boss": "Shade of the Archmage",
      "chance": 32.7,
      "expected_runs": 3.1,
-     "expected_time_s": 6000,
+     "expected_time_s": 5878,
      "wowhead": "https://www.wowhead.com/forever/item=273052"
     },
     "verdict": "worth one more run",
@@ -399,16 +484,16 @@ The assistant calls `dungeon_options`:
     "reason": null,
     "numbers": {
      "level": 34,
-     "floor": 31.6,
+     "floor": 31.7,
      "from_level": 32,
      "max": 35,
      "quests_ready": 0,
      "quests_in_log": 0,
      "quest_xp_in_log": 0,
      "own_runs": 1,
-     "run_xp_per_hour": 46791,
-     "questing_xp_per_hour": 13776,
-     "vs_questing": 3.4
+     "run_xp_per_hour": 47764,
+     "questing_xp_per_hour": 15256,
+     "vs_questing": 3.1
     },
     "under_floor": false,
     "text": null
@@ -434,6 +519,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 75,
      "bis_pct_worn": 59,
      "delta_pct": 16,
+     "line": "59% → 75% on your weapons",
      "boss": "Earthcaller Halmgar",
      "chance": 48.5,
      "wowhead": "https://www.wowhead.com/forever/item=6689"
@@ -448,6 +534,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 70,
      "bis_pct_worn": 59,
      "delta_pct": 11,
+     "line": "59% → 70% on your weapons",
      "boss": "Agathelos the Raging",
      "chance": 33.5,
      "wowhead": "https://www.wowhead.com/forever/item=6691"
@@ -459,9 +546,10 @@ The assistant calls `dungeon_options`:
      "gain": 6.7,
      "req_level": 31,
      "now": true,
-     "bis_pct": 57,
-     "bis_pct_worn": 13,
-     "delta_pct": 44,
+     "bis_pct": 48,
+     "bis_pct_worn": 11,
+     "delta_pct": 37,
+     "line": "11% → 48% on your finger",
      "boss": "Charlga Razorflank",
      "chance": 34.9,
      "wowhead": "https://www.wowhead.com/forever/item=6693"
@@ -479,6 +567,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 98,
      "bis_pct_worn": 82,
      "delta_pct": 16,
+     "line": "82% → 98% on your shoulder",
      "quest": "The Crone of the Kraul",
      "quest_id": 1101,
      "wowhead": "https://www.wowhead.com/forever/item=4197",
@@ -490,17 +579,17 @@ The assistant calls `dungeon_options`:
     "basis": "runs",
     "own_runs": 1,
     "level": 34,
-    "run_s": 1833,
+    "run_s": 1870,
     "time": "trip",
-    "xp_kills": 6602,
+    "xp_kills": 8495,
     "xp_quests": 9750,
-    "xp": 16352,
-    "level_pct": 26,
-    "xp_per_hour": 32116,
+    "xp": 18245,
+    "level_pct": 29,
+    "xp_per_hour": 35123,
     "kills_unknown": false,
-    "questing_xp_per_hour": 13776,
-    "vs_questing": 2.331,
-    "questing_s": 4273,
+    "questing_xp_per_hour": 15256,
+    "vs_questing": 2.302,
+    "questing_s": 4305,
     "quests": [
      {
       "quest_id": 1142,
@@ -543,38 +632,38 @@ The assistant calls `dungeon_options`:
     "...": "3 more keys"
    },
    "trip": {
-    "time_s": 1833,
-    "xp": 16352,
-    "xp_per_hour": 32115,
+    "time_s": 1870,
+    "xp": 18245,
+    "xp_per_hour": 35124,
     "kills_unknown": false,
     "from": "your 1 run(s) there",
     "n": 1,
     "phases_s": {
-     "pickup_s": 130,
+     "pickup_s": 147,
      "travel_to_s": 90,
-     "inside_s": 2532,
-     "travel_back_s": 69,
-     "handin_s": 130
+     "inside_s": 2537,
+     "travel_back_s": 40,
+     "handin_s": 116
     }
    },
    "value": {
-    "xp_per_hour": 32116,
-    "gear_per_hour": 25.9,
-    "vs_questing_xp_per_hour": 13776
+    "xp_per_hour": 35123,
+    "gear_per_hour": 25.4,
+    "vs_questing_xp_per_hour": 15256
    },
    "redo": {
     "runs": 1,
     "levels": [
      33
     ],
-    "time_s": 1833,
-    "inside_s": 1833,
-    "xp_inside": 6602,
-    "xp_per_hour_run": 32116,
-    "loot_items_per_run": 26.0,
-    "vendor_copper_per_run": 1369,
+    "time_s": 1870,
+    "inside_s": 1870,
+    "xp_inside": 8495,
+    "xp_per_hour_run": 35123,
+    "loot_items_per_run": 14.0,
+    "vendor_copper_per_run": 1288,
     "boe_seen": [],
-    "ah_copper_per_run": 21763,
+    "ah_copper_per_run": 23178,
     "quests_left": 0,
     "instance_limit": {
      "per_hour": 5,
@@ -588,13 +677,13 @@ The assistant calls `dungeon_options`:
      }
     },
     "loop": {
-     "run_s": 1833,
+     "run_s": 1870,
      "note": "inside time only; the walk out and back in to reset isn't measured",
-     "xp_per_hour": 12966,
-     "gold_copper_per_hour": 45431,
-     "gear_per_hour": 25.9,
+     "xp_per_hour": 16354,
+     "gold_copper_per_hour": 47100,
+     "gear_per_hour": 25.4,
      "runs_for_mount": 35,
-     "time_for_mount_s": 64155
+     "time_for_mount_s": 65450
     },
     "best_item": {
      "item": "Wind Spirit Staff",
@@ -606,10 +695,11 @@ The assistant calls `dungeon_options`:
      "bis_pct": 75,
      "bis_pct_worn": 59,
      "delta_pct": 16,
+     "line": "59% → 75% on your weapons",
      "boss": "Earthcaller Halmgar",
      "chance": 48.5,
      "expected_runs": 2.1,
-     "expected_time_s": 3779,
+     "expected_time_s": 3856,
      "wowhead": "https://www.wowhead.com/forever/item=6689"
     },
     "verdict": "worth one more run",
@@ -633,8 +723,8 @@ The assistant calls `dungeon_options`:
      "quests_in_log": 1,
      "quest_xp_in_log": 7250,
      "own_runs": 1,
-     "run_xp_per_hour": 32116,
-     "questing_xp_per_hour": 13776,
+     "run_xp_per_hour": 35123,
+     "questing_xp_per_hour": 15256,
      "vs_questing": 2.3
     },
     "under_floor": false,
@@ -661,6 +751,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 48,
      "bis_pct_worn": 18,
      "delta_pct": 30,
+     "line": "18% → 48% on your feet",
      "boss": "Viscous Fallout",
      "chance": 59.3,
      "wowhead": "https://www.wowhead.com/forever/item=9454"
@@ -675,6 +766,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 100,
      "bis_pct_worn": 35,
      "delta_pct": 65,
+     "line": "35% → 100% on your wrist",
      "boss": "Electrocutioner 6000",
      "chance": 39.7,
      "wowhead": "https://www.wowhead.com/forever/item=9448"
@@ -686,9 +778,10 @@ The assistant calls `dungeon_options`:
      "gain": 13.1,
      "req_level": 29,
      "now": true,
-     "bis_pct": 100,
-     "bis_pct_worn": 13,
-     "delta_pct": 87,
+     "bis_pct": 84,
+     "bis_pct_worn": 11,
+     "delta_pct": 73,
+     "line": "11% → 84% on your finger",
      "boss": "Electrocutioner 6000",
      "chance": 31.8,
      "wowhead": "https://www.wowhead.com/forever/item=9447"
@@ -706,6 +799,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 76,
      "bis_pct_worn": 43,
      "delta_pct": 33,
+     "line": "43% → 76% on your back",
      "quest": "Data Rescue",
      "quest_id": 2930,
      "wowhead": "https://www.wowhead.com/forever/item=9605",
@@ -721,6 +815,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 63,
      "bis_pct_worn": 52,
      "delta_pct": 11,
+     "line": "52% → 63% on your hands",
      "quest": "Gyrodrillmatic Excavationators",
      "quest_id": 2928,
      "wowhead": "https://www.wowhead.com/forever/item=9609",
@@ -736,6 +831,7 @@ The assistant calls `dungeon_options`:
      "bis_pct": 91,
      "bis_pct_worn": 70,
      "delta_pct": 21,
+     "line": "70% → 91% on your chest",
      "quest": "The Grand Betrayal",
      "quest_id": 2929,
      "wowhead": "https://www.wowhead.com/forever/item=9623",
@@ -747,17 +843,17 @@ The assistant calls `dungeon_options`:
     "basis": "rules",
     "own_runs": 0,
     "level": 34,
-    "run_s": 2519,
+    "run_s": 2494,
     "time": "trip",
     "xp_kills": null,
     "xp_quests": 39016,
     "xp": null,
     "level_pct": 62,
-    "xp_per_hour": 55758,
+    "xp_per_hour": 56328,
     "kills_unknown": true,
-    "questing_xp_per_hour": 13776,
-    "vs_questing": 4.047,
-    "questing_s": 10196,
+    "questing_xp_per_hour": 15256,
+    "vs_questing": 3.692,
+    "questing_s": 9207,
     "quests": [
      {
       "quest_id": 2904,
@@ -815,24 +911,24 @@ The assistant calls `dungeon_options`:
     "...": "3 more keys"
    },
    "trip": {
-    "time_s": 2519,
+    "time_s": 2494,
     "xp": 39016,
-    "xp_per_hour": 55759,
+    "xp_per_hour": 56318,
     "kills_unknown": true,
     "from": "the knowledge base's clear time, plus the travel and quest time of your 4 dungeon trips",
     "n": 4,
     "phases_s": {
-     "pickup_s": 130,
+     "pickup_s": 147,
      "travel_to_s": 90,
-     "inside_s": 2532,
-     "travel_back_s": 69,
-     "handin_s": 130
+     "inside_s": 2537,
+     "travel_back_s": 40,
+     "handin_s": 116
     }
    },
    "value": {
     "xp_per_hour": null,
-    "gear_per_hour": 27.3,
-    "vs_questing_xp_per_hour": 13776
+    "gear_per_hour": 27.6,
+    "vs_questing_xp_per_hour": 15256
    },
    "redo": null,
    "vs_guide": {
@@ -854,7 +950,7 @@ The assistant calls `dungeon_options`:
      "quest_xp_in_log": 0,
      "own_runs": 0,
      "run_xp_per_hour": null,
-     "questing_xp_per_hour": 13776,
+     "questing_xp_per_hour": 15256,
      "vs_questing": null
     },
     "under_floor": false,
@@ -883,7 +979,39 @@ The assistant calls `dungeon_options`:
    "fix": "Add Syndicator.",
    "line": "Missing: your gear and bags. Add Syndicator."
   }
- ]
+ ],
+ "coverage": {
+  "recorder": {
+   "state": "complete",
+   "as_of": "2026-11-21T09:05:41.8Z"
+  },
+  "polestar": {
+   "state": "complete",
+   "as_of": "2026-11-20T16:56:12.7Z",
+   "parts": {
+    "money_copper": "2026-11-21T09:05:41Z"
+   }
+  },
+  "gear": {
+   "state": "unavailable",
+   "fix": "Add Syndicator.",
+   "parts": {
+    "items": "2026-11-21T09:05:20Z"
+   }
+  },
+  "quests": {
+   "state": "complete",
+   "as_of": "2026-11-21T09:05:12.8Z"
+  },
+  "prices": {
+   "state": "complete",
+   "as_of": "2026-11-20T22:00:00Z"
+  },
+  "battlenet": {
+   "state": "complete",
+   "as_of": "2026-11-22T06:00:00Z"
+  }
+ }
 }
 ```
 
@@ -911,21 +1039,21 @@ The assistant calls `plan_session`:
  "brief": "Write this plan up for the player from `facts` only: every number exactly as a fact gives it (never compute or round one), the blocks in order (time window, what, why with its source), then checkpoints, the town stop, what to skip or drop, the optional dungeon branch, the mount and where to log out; leave out a section with no facts. Short, for a phone: headings, bullets, no table wider than three ...",
  "facts": {
   "hours": "2h00",
-  "start.level": "34.6",
-  "start.xp_pct": "56%",
-  "start.rested": "8,662",
-  "start.gold": "19g 92s",
+  "start.level": "34.5",
+  "start.xp_pct": "49%",
+  "start.rested": "8,876",
+  "start.gold": "16g 46s",
   "play": "2h00",
   "stops": "0 min",
   "stops.share": "0%",
   "stops.n": "9",
-  "buffer": "16 min",
+  "buffer": "15 min",
   "pos.shown_step": "45",
   "pos.furthest_step": "66",
   "pos.anchor_step": "66",
-  "pace.questing": "2.18x",
-  "pace.questing.n": "252",
-  "...": "198 more keys"
+  "pace.questing": "2.39x",
+  "pace.questing.n": "239",
+  "...": "197 more keys"
  },
  "blocks": [
   {
@@ -970,38 +1098,38 @@ The assistant calls `plan_session`:
 Its `markdown` field, the draft the assistant starts from:
 
 > **Your next 2h00**
-> Level 34.6 now, about 34.9 at the end (22,820 XP, 4,298 of it rested). 2h00 of play, 0 min kept for unplanned stops (0% of your recent sessions).
+> Level 34.5 now, about 34.9 at the end (27,370 XP, 5,483 of it rested). 2h00 of play, 0 min kept for unplanned stops (0% of your recent sessions).
 >
 > **Blocks**
-> - **start to +33 min** · Arathi Highlands, Alterac Mountains & Swamp of Sorrows: steps 66 to 71 (Image of Archmage Modera to Ironforge) → level 34.7
->   - Polestar plans 14 min; at your pace about 33 min (the route reference times your pace per kind of step: questing 2.18x (your steps, 252 steps), town 2.44x (your steps, 38 steps))
->   - Town stop here: class trainer: last visit at level 27, you will be 34; auction house: sell the cloth and trade goods you loot (mount savings)
-> - **+33 min to +46 min** · Arathi Highlands, Alterac Mountains & Swamp of Sorrows: steps 72 to 75 (Fly to Thelsamar to Prospector Ironband) → level 34.7
->   - Polestar plans 7 min; at your pace about 13 min (the route reference times your pace per kind of step: questing 2.18x (your steps, 252 steps), travel 1.43x (your steps, 18 steps), town 2.44x (your steps, 38 steps))
-> - **+46 min to +1h32** · Desolace: steps 1 to 6 (Fly to Menethil Harbor to Kodo Graveyard) → level 34.9
->   - Polestar plans 21 min; at your pace about 46 min (the route reference times your pace per kind of step: questing 2.18x (your steps, 252 steps), travel 1.43x (your steps, 18 steps), town 2.44x (your steps, 38 steps))
-> - **+1h32 to +1h44** · Desolace: steps 7 to 11 (Hornizz Brimbuzzle to Mannoroc Coven) → level 34.9
->   - Polestar plans 6 min; at your pace about 13 min (the route reference times your pace per kind of step: questing 2.18x (your steps, 252 steps))
+> - **start to +45 min** · Arathi Highlands, Alterac Mountains & Swamp of Sorrows: steps 66 to 70 (City of Dalaran to Southshore) → level 34.7
+>   - Polestar plans 19 min; at your pace about 45 min (the route reference times your pace per kind of step: questing 2.39x (your steps, 239 steps), town 2.39x (your steps, 27 steps))
+> - **+45 min to +1h01** · Arathi Highlands, Alterac Mountains & Swamp of Sorrows: steps 71 to 73 (Bartolo Ginsetti to Ironforge) → level 34.7
+>   - Polestar plans 7 min; at your pace about 16 min (the route reference times your pace per kind of step: questing 2.39x (your steps, 239 steps), town 2.39x (your steps, 27 steps))
+>   - Town stop here: class trainer: last visit at level 28, you will be 34; auction house: sell the cloth and trade goods you loot (mount savings)
+> - **+1h01 to +1h17** · Arathi Highlands, Alterac Mountains & Swamp of Sorrows: steps 74 to 77 (Fly to Thelsamar to Prospector Ironband) → level 34.8
+>   - Polestar plans 7 min; at your pace about 16 min (the route reference times your pace per kind of step: questing 2.39x (your steps, 239 steps), travel 2.2x (your steps, 12 steps), town 2.39x (your steps, 27 steps))
+> - **+1h17 to +1h45** · Badlands: steps 1 to 9 (Into Badlands to Agmond's End) → level 34.9
+>   - Polestar plans 11 min; at your pace about 27 min (the route reference times your pace per kind of step: questing 2.39x (your steps, 239 steps))
 >
 > **Skip or drop**
 > - Supplies to Auberdine (Ashenvale): 1,450 XP now, about 6 min of your XP rate; pays 50% of its XP at your level
-> - step 45 (Faldir's Cove), about 6 min: Polestar shows it because a quest from there is still open; you are past it
-> - step 46 (Phizzlethorpe), about 9 min: Polestar shows it because a quest from there is still open; you are past it
-> - step 12 (The Valley of Bones), about 31 min: a long step at your pace
-> - step 25 (Duskwood), about 40 min: a long step at your pace
-> - step 36 (Jungle Stalkers), about 25 min: a long step at your pace
+> - step 45 (Refuge Pointe), about 8 min: Polestar shows it because a quest from there is still open; you are past it
+> - step 46 (Circle of West Binding), about 12 min: Polestar shows it because a quest from there is still open; you are past it
+> - step 66 (City of Dalaran), about 29 min: a long step at your pace
+> - step 29 (Duskwood), about 44 min: a long step at your pace
+> - step 41 (Jungle Stalkers), about 27 min: a long step at your pace
 >
 > **If you get a group**
-> - City of Dalaran: 33 min for the whole trip, about 25,501 XP (46,791 XP/h), gear +21.7 points expected (your 1 run(s) there).
+> - City of Dalaran: 32 min for the whole trip, about 25,501 XP (47,765 XP/h), gear +21.7 points expected (your 1 run(s) there).
 >
 > **Mount**
-> - Riding at 40: 100g needed, 80g 07s to go at 47s/h net: about 168h26 of play (level 59.8)
-> - loop The Stockade from the door: about 6g 25s/h (≈ 35 runs for the next mount) (your 1 run(s) there: loot at vendor price)
-> - sell the cloth and trade goods you loot on the AH: about 5g 29s/h (your loot over the last 14 days at your own Auctionator scan prices)
-> - loop City of Dalaran from the door: about 5g 20s/h (≈ 29 runs for the next mount) (your 1 run(s) there: loot at vendor price)
+> - Riding at 40: 100g needed, 83g 53s to go at 40s/h net: about 208h44 of play, past the route's last level at this rate
+> - loop The Stockade from the door: about 7g 88s/h (≈ 28 runs for the next mount) (your 1 run(s) there: loot at vendor price)
+> - loop Razorfen Kraul from the door: about 4g 71s/h (≈ 35 runs for the next mount) (your 1 run(s) there: loot at vendor price)
+> - sell the cloth and trade goods you loot on the AH: about 4g 60s/h (your loot over the last 14 days at your own Auctionator scan prices)
 >
 > **Log out**
-> - the next town on your route: step 24 (Nijel's Point) (your hearthstone is set to Refuge Pointe, off the route ahead: hearthing there means travelling back next session; log out in a rest area on the route, or set your hearth there): about 3,140 rested XP per 8 hours offline
+> - the next town on your route: step 22 (Thelsamar) (your hearthstone is set to Refuge Pointe, off the route ahead: hearthing there means travelling back next session; log out in a rest area on the route, or set your hearth there): about 3,140 rested XP per 8 hours offline
 
 ## Am I doing anything stupid?
 
@@ -1012,7 +1140,7 @@ The assistant calls `sanity_check`:
 ```
 
 <details>
-<summary>The server answers (116 lines of JSON)</summary>
+<summary>The server answers (150 lines of JSON)</summary>
 
 ```json
 {
@@ -1025,15 +1153,16 @@ The assistant calls `sanity_check`:
    "page_section": "#deaths"
   },
   {
-   "point": "10 steps took over 3× their planned time, 6h 25m more than planned. The worst: step 18 (Direforge Hill) of Wetlands & Hillsbrad Foothills, 1h 30m against 1m.",
+   "point": "9 steps took over 3× their planned time, 6h 02m more than planned. The worst: step 18 (Direforge Hill) of Wetlands & Hillsbrad Foothills, 1h 32m against 1m.",
    "from": "step durations vs the route's per-step plan",
    "page_section": "#guide"
   },
   {
-   "point": "337 guide steps recorded; 0 skipped by hand, 30 passed over (the guide jumped ahead).",
-   "from": "Polestar_Recorder step and skip records",
-   "page_section": "#guide"
-  }
+   "point": "1 death to creatures 3+ levels above you (up to 3).",
+   "from": "likely killer's level vs yours",
+   "page_section": "#deaths"
+  },
+  "... 1 more"
  ],
  "death_clusters": [
   {
@@ -1053,11 +1182,12 @@ The assistant calls `sanity_check`:
    "zone": "Darkshore",
    "n": 2,
    "wowhead": "https://www.wowhead.com/forever/npc=2181"
-  }
+  },
+  "... 1 more"
  ],
  "deaths": [
   {
-   "t": "2026-11-19T18:06:44.5Z",
+   "t": "2026-11-20T17:54:58Z",
    "zone": "Arathi Highlands",
    "level": 34,
    "killer": {
@@ -1070,11 +1200,11 @@ The assistant calls `sanity_check`:
     "wowhead": "https://www.wowhead.com/forever/npc=2554"
    },
    "attackers": 1,
-   "fight_s": 20,
+   "fight_s": null,
    "level_gap": -1
   },
   {
-   "t": "2026-11-17T18:11:50.9Z",
+   "t": "2026-11-18T18:15:54.9Z",
    "zone": "City of Dalaran",
    "level": 33,
    "killer": {
@@ -1087,11 +1217,11 @@ The assistant calls `sanity_check`:
     "wowhead": "https://www.wowhead.com/forever/npc=246008"
    },
    "attackers": 1,
-   "fight_s": 33,
+   "fight_s": 26,
    "level_gap": 1
   },
   {
-   "t": "2026-11-16T18:30:44.9Z",
+   "t": "2026-11-17T18:23:15.5Z",
    "zone": "Hillsbrad Foothills",
    "level": 32,
    "killer": {
@@ -1104,7 +1234,7 @@ The assistant calls `sanity_check`:
     "wowhead": "https://www.wowhead.com/forever/npc=2269"
    },
    "attackers": 1,
-   "fight_s": 15,
+   "fight_s": 23,
    "level_gap": -5
   },
   "... 9 more"
@@ -1129,7 +1259,39 @@ The assistant calls `sanity_check`:
    "fix": "Add Syndicator.",
    "line": "Missing: your gear and bags. Add Syndicator."
   }
- ]
+ ],
+ "coverage": {
+  "recorder": {
+   "state": "complete",
+   "as_of": "2026-11-21T09:05:41.8Z"
+  },
+  "polestar": {
+   "state": "complete",
+   "as_of": "2026-11-20T16:56:12.7Z",
+   "parts": {
+    "money_copper": "2026-11-21T09:05:41Z"
+   }
+  },
+  "gear": {
+   "state": "unavailable",
+   "fix": "Add Syndicator.",
+   "parts": {
+    "items": "2026-11-21T09:05:20Z"
+   }
+  },
+  "quests": {
+   "state": "complete",
+   "as_of": "2026-11-21T09:05:12.8Z"
+  },
+  "prices": {
+   "state": "complete",
+   "as_of": "2026-11-20T22:00:00Z"
+  },
+  "battlenet": {
+   "state": "complete",
+   "as_of": "2026-11-22T06:00:00Z"
+  }
+ }
 }
 ```
 

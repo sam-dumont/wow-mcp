@@ -304,6 +304,14 @@ at the final.
 Before pressing for real: the A/B check below. The release runs the rest,
 browsers included.
 
+The docs site follows by itself: the release PR's merge is a push to `main`, and `pages.yml`
+rebuilds and deploys the site from it (the version in its header, the changelog, both demos).
+What it can't remake are the committed files. Before a stable release, retake whatever a
+change since the last one made wrong, in one docs PR: the screenshots
+(`site/scripts/screenshots.py`, `demo/lab admin-shot`, the local demo's `local-demo.webp`),
+the recorded MCP session (`site/scripts/build-demo.sh --mcp-session`) and the videos
+(`demo/record.sh`, then `npm --prefix demo/video run render -- --publish`).
+
 Write the CHANGELOG as you merge, under
 "Unreleased": what changed for a player, then "Upgrading" with every
 changed variable, port, volume or route.

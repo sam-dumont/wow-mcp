@@ -12,7 +12,14 @@
 name: pages
 on:
   # Every push to main: the demo is the product's own publisher and pages, so
-  # any change to them can change it.
+  # any change to them can change it. A release needs nothing more: its
+  # release commit (the version, CHANGELOG's section) reaches main as a pull
+  # request the CI App's auto-merge squashes, and that push starts this
+  # workflow, so the site's version badge, the changelog and both demos move
+  # with the release (rc.8's 521b385 deployed this way). A `release:` trigger
+  # wouldn't fire: release.yml publishes with GITHUB_TOKEN, which starts no
+  # workflow. Screenshots and videos are committed files: retake them before
+  # the release (docs/development.md).
   push:
     branches: [main]
   # A pull request builds the site only when the site's own sources change

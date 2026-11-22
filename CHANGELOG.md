@@ -2,6 +2,56 @@
 
 ## Unreleased
 
+What 0.7.0 brings over 0.6.1, in short. Every change follows, then each release candidate's.
+
+**For players**
+
+- Every slot says how far it is from its best in slot (BiS): a badge on each item icon
+  (orange for BiS, purple from 85%, blue from 50%), and "70% → 91% on your chest" on every
+  upgrade, dungeon drop and quest reward.
+- Route times follow Polestar 0.4.2.2: every route to 60 is 16 to 25 hours shorter, nearly
+  all of it from level 50 (the grind steps became quests). "Ahead" and "behind the route"
+  read differently from 50 on.
+- Numbers say what they count. The climb reads "1,225 kills and 88 quests handed in over the
+  completed levels (levels 22–33)", then "Level 34 so far: 93 kills and 6 quests". Your page
+  and your AI give the same numbers.
+- A number that's missing something says so: "The Recorder missed about 2h of play (level
+  31): deaths from then aren't counted", "Equipment last read 5 hours ago". Without the
+  Recorder, deaths are unknown, never 0.
+- Your picture and "View in 3D" are drawn from your own game files. Blizzard's armory renders
+  are gone (they could show another player's character).
+- A quest you finished counts as done everywhere, even with the Recorder off. Battle.net
+  fills what your addons don't send, every 2 hours.
+- Before the server runs your play analysis on its host's AI credit, your page offers the
+  prompt to run it with your own assistant instead.
+- When a host takes you off their friends list, your access stops at once and your data goes
+  7 days later. Back on the list within those 7 days, you get everything back.
+
+**For your AI**
+
+- One computation path: the tools, `query_metric`, five ready-made tables (`per_level`,
+  `per_session`, `per_zone`, `per_dungeon`, `per_slot`) and your page all read the same
+  named metrics.
+- A finding can't state a number its query didn't give, and every kept finding is rechecked
+  each night, for every person.
+- `character_summary` swaps `kills` and `quests_turned_in` for `counts` (completed levels,
+  current level, both). `gear_options` names your current zone and marks what's there.
+- Other players' names and outside text arrive without invisible characters, marked
+  `untrusted`.
+- `dashboard_refresh` refreshes "How you play" with your own AI, at no cost to the host.
+
+**For hosts**
+
+- The server can run the play analysis itself (Anthropic, OpenAI or any compatible
+  endpoint) with a monthly cap. It stays off until you configure a provider.
+- `MCP_DCR` (`open`, `loopback`, `off`) narrows who may register an AI client.
+  `FRIENDS_PURGE_DAYS` (7) sets how long a removed friend's data waits, and a friends list
+  that would remove everyone at once is refused.
+- DuckDB and the semantic layer are core now: a failure keeps the last good answer, marked
+  out of date, and `/healthz` says `"semantic": "failing"`.
+- One-button releases, signed shipper updates, the image on Docker's hardened Python.
+  Upgrading from 0.6.x: see "Upgrading from 0.6.x" under 0.7.0-rc.8.
+
 ### Added
 
 - Text other people wrote leaves your AI's tools without invisible characters: the Unicode Tags block (which can spell hidden ASCII instructions), bidi overrides and isolates, zero-width spaces, joiners and BOMs. Emoji sequences keep their joins (a family emoji stays one emoji). It runs once, where every tool's answer leaves the server, so player names, KB statements, news and guides are all covered; the KB refresh strips the same characters from fetched pages before its model reads them, and both log how many they removed. `players` and `people` now say other players chose those names (`untrusted`), like the KB tools already did. New `MCP_DCR` (`open` by default, `loopback`, `off`) narrows who may register a client on a hosted server.
@@ -14,7 +64,7 @@
 - Taking a friend off the friends list stops their access at once (login, AI, uploads, install codes, and their public page and `/zogzog/` link within a minute) and deletes their data 7 days later instead of on the spot. Listed again within those 7 days, they're back with everything. `FRIENDS_PURGE_DAYS` sets the wait (`0`: at once), `wow-stats users delete <slug> --yes` skips it for a friend who asks, and `users list`, the admin overview and the start log show who waits and until when. A list that would remove every friend at once (`{}`, a wrongly empty render) is now refused and logged as `empty_list_refused`; `wow-stats users reconcile --allow-empty` or `FRIENDS_ALLOW_EMPTY=1` applies it. The privacy page says all of this with the install's own number.
 - The page's numbers have one computation path, the semantic layer, and kills and quests say what they count. Before, when the layer failed, the page quietly counted its numbers again with its own formulas; now DuckDB and the layer are core dependencies (the shipper never installs the package, and the renderer image leaves them out), a failure keeps the last good answer marked out of date, logs one `"event": "semantic_failed"` line, and the full view's `/healthz` says `"semantic": "failing"` to alert on. The demo's page said 1,188 kills and 94 quests where `character_summary` said 1,262 and 99: both right, one without the level in play. The page now says "over the completed levels (levels 22-31)" and adds "Level 32 so far: 74 kills and 5 quests"; `character_summary` drops `kills` and `quests_turned_in` for `counts` with `completed_levels`, `current_level` and `including_current_level`, from the same metrics (`climb_kills`, `climb_quests` by `in_play`). A level without a Polestar split now counts the Recorder's records on both sides. Findings judged before show as "to revalidate" (`PREP_VERSION` 10).
 - The knowledge base's jobs split into what needs a model and what doesn't. The daily watch now only checks upstream versions (the client build, Polestar, Questie) and lands them like Dependabot, with no model call. The model runs once a week (mode `review`, `meta` still works) and only on what a free check saw change: an official page whose text hash moved, a forum thread's new posts (not the whole thread), new news items, new community threads, and stale statements whose page changed since they last held. A quiet week makes no model call. The known statements go first in each page call, sorted and cached for an hour when three pages or more are read, and every call's `cache_creation_input_tokens` and `cache_read_input_tokens` land in the job summary. Before, nine daily runs re-sent the same ~50K tokens uncached on every page: about 1.4M tokens and 7 euros in one week.
-- Route times come from Polestar 0.4.2.1 (was 0.4.1.1), and every route to 60 is 16 to 25 hours shorter (21 on the median run). The cut is Polestar's own: the release rebuilt both factions' routes and swapped the 50-60 grind steps for quests, Mount Hyjal included; its own notes put the Horde at 106 hours instead of 121 and the Alliance at 115 instead of 130. A Gnome Priest's route goes from 109 h to 85 h, and levels 50 to 60 alone from 45 h to 23 h; levels 1 to 50 move by about an hour. So "ahead of the route" and "behind the route" read differently from 50 on. Findings judged on the old route show as "to revalidate" until the next analysis.
+- Route times come from Polestar 0.4.2.2 (was 0.4.1.1), and every route to 60 is 16 to 25 hours shorter (21 on the median run). The cut is Polestar's own: 0.4.2.1 rebuilt both factions' routes and swapped the 50-60 grind steps for quests, Mount Hyjal included; its own notes put the Horde at 106 hours instead of 121 and the Alliance at 115 instead of 130. A Gnome Priest's route goes from 109 h to 85 h, and levels 50 to 60 alone from 45 h to 23 h; levels 1 to 50 move by about an hour. So "ahead of the route" and "behind the route" read differently from 50 on. Findings judged on the old route show as "to revalidate" until the next analysis.
 - The knowledge base's watch no longer refuses a version bump because main moved under it. The bump is deterministic, so when another PR changed the same files during the run (the test data, say), the job makes it again on the current main, gates it and lands that, up to twice; before, Polestar 0.4.2.2 sat refused on a fixture conflict. The versions lane is one script now, `tools/kb/versions.sh`, run by the watch and again on a moved main.
 - The knowledge base's watch now takes a Polestar release whose route times, levels or gear numbers moved: Polestar is the source of truth. It still stops on a changed licence term, a renamed saved table, or an export or test-data generator that fails. It refused 0.4.2.1 for its shorter routes.
 - Your AI's `levels`, `zones`, `sessions` and the pace and counts in `character_summary` now read the same metrics as `query_metric` and the views, and so do the plan's inputs (each level's time and XP, the recent sessions, where the character stands now) and the analysis' time budget. Same answers on the demo data, with three exceptions: XP read without a zone of its own lands in the zone you stood in instead of "Unknown"; a zone's XP an hour divides by its exact seconds (one or two XP off before); zones with the same time are listed by name. New metrics: `zone_s`, `zone_visits`, `xp_per_zone_hour`, `ride_s`, `class_planned_s`, `guide_steps`, `flights`, the newest XP bar reading and snapshot (`bar_*`, `snapshot_last_xp_max`, `snapshot_last_zone`, `money_copper`, `bind`, `resting`), `level_now`, `level_max` and `session_records`. Without the Recorder, `levels` now sets each level beside the route for the class the character sheet names, where it used the median over every class.
