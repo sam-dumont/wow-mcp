@@ -19,3 +19,14 @@ eval-analysis-out/
 eval-mcp-out/
 # Local checks of the built site (screenshots for a PR), never committed
 .shots/
+# Blizzard's game files: the demo's real model (tools/fixtures/demo3d.py)
+# lives in the `demo-3d` release only, never in git (THIRD_PARTY.md).
+.demo3d/
+nibbet-3d.tar.gz
+nibbet-3d.tar.gz.sha256
+*.m2
+*.skin
+*.skel
+*.anim
+*.blp
+*.db2

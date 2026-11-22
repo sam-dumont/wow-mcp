@@ -1558,7 +1558,7 @@ BNET_READ_HOUR = 6  # the exporter's daily read, UTC
 BNET_STEP = 120     # seconds between pushes (the exporter pushes every minute)
 
 
-def bnet_series(rows: list[dict], now: float, days: int = 21) -> list[dict]:
+def bnet_series(rows: list[dict], now: float, days: int = 21, look: list[dict] | None = None) -> list[dict]:
     """The Battle.net exporter's series for the demo character
     (wowstats.exporter.poll_profile), as VictoriaMetrics' /api/v1/import
     takes them: the profile, the look (golden3d's options), the equipment,
@@ -1585,7 +1585,9 @@ def bnet_series(rows: list[dict], now: float, days: int = 21) -> list[dict]:
         s["values"].append(value)
         s["timestamps"].append(t * 1000)
 
-    look = golden3d.build()["look"]
+    # The game files' own option and choice ids: golden3d's, or the real
+    # model's (tools/fixtures/demo3d.py look.json) when the demo draws that.
+    look = golden3d.build()["look"] if look is None else look
     recent = now - 3 * day  # the profile's series: last_over_time(...[2d]) needs the last two days
     for t in stamps:
         r = read[t]

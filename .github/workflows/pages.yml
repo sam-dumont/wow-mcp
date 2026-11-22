@@ -111,8 +111,10 @@ jobs:
             echo "SITE_BASE=/${GITHUB_REPOSITORY#*/}"
           } >> "$GITHUB_ENV"
       # VictoriaLogs and VictoriaMetrics in Docker, the item tables from
-      # wago.tools, the made-up game files (tools/fixtures/golden3d.py) for
-      # the 3D view and the pictures: all copied into the bundle.
+      # wago.tools, the game files for the 3D view and the pictures: Nibbet's
+      # real model from the `demo-3d` release asset, checked against
+      # site/demo3d.sha256 (site/scripts/demo3d-asset.sh), else the made-up
+      # ones (tools/fixtures/golden3d.py). All copied into the bundle.
       - run: site/scripts/build-demo.sh
       # Every section of the demo shows data: a fallback fails the build.
       - run: uv run --frozen --extra render --group browser pytest -q -rs -m browser tests/test_demo_complete_browser.py

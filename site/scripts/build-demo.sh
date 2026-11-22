@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # The demo for the docs site (site/pages/demo.md): an empty VictoriaLogs and
 # VictoriaMetrics and the picture renderer for the length of the build, the
-# invented character's events and Battle.net series, made-up game files for
-# the 3D view (tools/fixtures/golden3d.py), the publisher, and the two
+# invented character's events and Battle.net series, the game files for the
+# 3D view (Nibbet's real model from the `demo-3d` release, else the made-up
+# ones of tools/fixtures/golden3d.py), the publisher, and the two
 # bundles in site/public/demo/ (Astro copies public/ as is).
 #
 #   site/scripts/build-demo.sh [--mcp-session] [YYYY-MM-DD]
@@ -67,6 +68,13 @@ else
 fi
 
 cd "$repo"
+# Nibbet's real model, from the `demo-3d` release (site/scripts/demo3d-asset.sh):
+# DEMO_3D_STORE names a store already on disk, DEMO_3D=golden keeps the
+# made-up figure. No asset: golden3d's, and the build goes on.
+if [[ -z ${DEMO_3D_STORE:-} && ${DEMO_3D:-} != golden ]]; then
+  DEMO_3D_STORE=$(site/scripts/demo3d-asset.sh "$state/demo3d")
+  export DEMO_3D_STORE
+fi
 # The renderer's token: a file the publisher reads too (RENDER_TOKEN_FILE).
 head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' >"$state/render.token"
 BIND=127.0.0.1 PORT=$render_port RENDER_TOKEN_FILE="$state/render.token" RENDER_CACHE_DIR="$state/render" \
