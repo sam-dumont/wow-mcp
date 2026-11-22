@@ -8,8 +8,8 @@ The MCP server has two ways to ask the play data a question. `play_sql` runs wha
 the assistant writes. `query_metric` asks for **named metrics**: `played_s` by `level`,
 `dungeon_s` by `zone` per week. The server writes the SQL from one model file,
 [`wowstats/analysis/semantic.yaml`](../../wowstats/analysis/semantic.yaml), and sends back the
-rows, the SQL it ran and each metric's definition and caveats. 245 metrics (11 of them across
-models), 88 dimensions, three time grains (day, week, month), and thirteen
+rows, the SQL it ran and each metric's definition and caveats. 278 metrics (11 of them across
+models), 93 dimensions, three time grains (day, week, month), and thirteen
 [views per grain](#views-per-grain) that `play_sql` reads like tables.
 
 The character page reads the same file: its time per level, XP an hour, kill and quest totals,
@@ -596,9 +596,10 @@ The character snapshots the shipper sends at logout and /reload: money, XP, bind
 | `money_copper` | simple | copper | Money on the newest snapshot, copper. | The newest snapshot where it is known: a newest snapshot without it gives the one before. NULL with no snapshot in the group. | latest; time: snapshot_observation; observed. |
 | `snapshot_last_zone` | simple | zone | Zone on the group's last snapshot. | The newest snapshot where it is known: a newest snapshot without it gives the one before. NULL with no snapshot in the group. | latest; time: snapshot_observation; observed. |
 | `bind` | simple | place | Where the hearthstone is bound, on the newest snapshot. | The newest snapshot where it is known: a newest snapshot without it gives the one before. NULL with no snapshot in the group. | latest; time: snapshot_observation; observed. |
+| `rested_xp` | simple | xp | The rested XP pool on the newest snapshot that has it (Altoholic's). | Altoholic only (DataStore_Characters): NULL without it, install it and log out once. The Recorder's xp records carry it too while it runs (rested model). | latest; time: snapshot_observation; observed. |
 | `resting` | simple | flag | 1 when the newest snapshot was taken in a rested area (an inn or a city), else 0. | The newest snapshot where it is known: a newest snapshot without it gives the one before. NULL with no snapshot in the group. | latest; time: snapshot_observation; observed. |
 
-Group or filter by: `character`, `class`, `level`, `time`, `zone`.
+Group or filter by: `character`, `class`, `level`, `snapshot_source`, `time`, `zone`.
 
 ### quests
 
@@ -948,6 +949,56 @@ The riding tiers with a sourced cost in the KB (riding.apprentice, riding.journe
 
 Group or filter by: `character`, `class`, `tier`, `tier_level`.
 
+### char_stats
+
+The character sheet's stats as Altoholic saved them (DataStore_Stats): one row per save that changed them. Altoholic only: no resistances (it saves none), no spirit.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `stat_saves` | simple | saves | Altoholic saves of the character sheet's stats that changed them. | 0 without Altoholic: install it and log in once with the character. A save that changed nothing is not counted. | sum; time: snapshot_observation; observed. |
+| `sheet_health_max` | simple | health | Maximum health on the character sheet. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_power_max` | simple | power | Maximum mana, rage or energy on the character sheet (power_type: 0 mana, 1 rage, 3 energy). | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_strength` | simple | points | Strength on the character sheet, gear and buffs included. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_agility` | simple | points | Agility on the character sheet, gear and buffs included. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_stamina` | simple | points | Stamina on the character sheet, gear and buffs included. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_intellect` | simple | points | Intellect on the character sheet, gear and buffs included. | Altoholic's newest save. No spirit: Altoholic saves the first four stats only. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_armor` | simple | points | Armor on the character sheet. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_attack_power` | simple | points | Melee attack power on the character sheet. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_ranged_attack_power` | simple | points | Ranged attack power on the character sheet. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_spell_damage` | simple | points | Bonus spell damage on the character sheet. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_healing` | simple | points | Bonus healing on the character sheet. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `sheet_mp5` | simple | mana | Mana regained per 5 seconds on the character sheet. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `melee_crit_pct` | simple | percent | Melee critical strike chance on the character sheet, percent. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `ranged_crit_pct` | simple | percent | Ranged critical strike chance on the character sheet, percent. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `spell_crit_pct` | simple | percent | Spell critical strike chance on the character sheet, percent. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `melee_hit_rating` | simple | rating | Melee hit rating on the character sheet. | Altoholic's newest save. A rating, not a percent: Classic-era gear gives hit as a percent, which the game doesn't add to this rating, so 0 is the usual value and not proof of no hit gear. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `ranged_hit_rating` | simple | rating | Ranged hit rating on the character sheet. | Altoholic's newest save. A rating, not a percent: Classic-era gear gives hit as a percent, which the game doesn't add to this rating, so 0 is the usual value and not proof of no hit gear. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `spell_hit_rating` | simple | rating | Spell hit rating on the character sheet. | Altoholic's newest save. A rating, not a percent: Classic-era gear gives hit as a percent, which the game doesn't add to this rating, so 0 is the usual value and not proof of no hit gear. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `dodge_pct` | simple | percent | Dodge chance on the character sheet, percent. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `parry_pct` | simple | percent | Parry chance on the character sheet, percent. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `block_pct` | simple | percent | Block chance on the character sheet, percent. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `honorable_kills_lifetime` | simple | kills | Lifetime honorable kills (the game's PvP count). | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `dishonorable_kills_lifetime` | simple | kills | Lifetime dishonorable kills. | Altoholic's newest save. NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | latest; time: snapshot_observation; observed. |
+| `honorable_kills_gained` | derived | kills | Honorable kills gained between the group's first and last Altoholic save. | Not additive: a week's gain is not the sum of its days. NULL with fewer than two saves in the group (honorable_kills_gained_evidence counts them). NULL without Altoholic: install it and log in once with the character (its DataStore_Stats save). No other source in the analysis has the character sheet. | endpoint_difference; time: snapshot_observation; observed. Needs two Altoholic saves with the honorable kills, at different times (else NULL; `honorable_kills_gained_evidence` counts them). |
+
+Group or filter by: `character`, `class`, `level`, `time`, `week`.
+
+### lockouts
+
+Raid and dungeon lockouts: Altoholic's saved instances (exact: the reset time, the bosses), else an estimate from the Recorder's raid boss kills of the last 7 days.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `lockouts_active` | simple | lockouts | Lockouts that hadn't reset when the data was read: this week's. | Exact with Altoholic (lockouts_basis altoholic). Without it, an estimate from the Recorder: a raid with a boss killed in the last 7 days (the reset day unknown, five-player dungeons left out). Install Altoholic for the exact list. 0 before any raid: they open on 2026-12-09. | sum; time: event; observed. |
+| `lockouts_seen` | simple | lockouts | Lockouts known, past and active. | Altoholic keeps a lockout until it resets; each save it shipped adds its own. Without Altoholic, the Recorder's estimate: one per raid per week of boss kills. Install Altoholic for the exact list. | sum; time: event; observed. |
+| `raid_lockouts_active` | simple | lockouts | Raid lockouts that hadn't reset when the data was read. | As lockouts_active: exact with Altoholic, an estimate without it (install Altoholic for the exact list). | sum; time: event; observed. |
+| `lockout_bosses_killed` | simple | bosses | Bosses killed in the lockouts of the group. | Group by instance. Without Altoholic, the raid bosses the Recorder saw killed (encounter records), since the Recorder ran: install Altoholic for the game's own list. | sum; time: event; observed. |
+| `lockout_bosses_left` | simple | bosses | Bosses still alive in the lockouts of the group. | Group by instance. Altoholic only (the game lists every boss of a lockout): NULL without it. Install Altoholic. | sum; time: event; observed. |
+| `lockout_next_reset_t` | simple | unix_seconds | When the first active lockout resets, unix seconds. | Altoholic only: NULL without it (the Recorder's estimate has no reset time) or with no active lockout. Install Altoholic. | min; time: event; observed. |
+| `weekly_reset_day` | simple | weekday | The account's weekly reset day, 0 Sunday .. 6 Saturday (Altoholic's Agenda options). | Altoholic only, and only once a lockout was saved: NULL before (install Altoholic). | latest; time: snapshot_observation; observed. |
+
+Group or filter by: `character`, `class`, `instance`, `instance_id`, `lockout_active`, `lockouts_basis`, `time`, `week`.
+
 ### Across two models
 
 Each model aggregates on its own to the question's group_by, the results join on those columns, then the expression runs on the joined row: no fan-out. They group and filter by the dimensions their models share.
@@ -1023,9 +1074,9 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `bracket` | dungeon_trips | guides (lookup guide steps bracket it) or instance (enter and leave only). |
 | `built_for` | worn | Who the item's stats are made for, in words (healers, damage casters...). |
 | `chain_step` | attunements | The quest's place in the chain, from 1 (each after the quests it needs). |
-| `character` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding | The character (one per query: the char argument). |
+| `character` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character (one per query: the char argument). |
 | `chosen` | quest_rewards | For a choice: 1 picked at the hand-in, 0 another one picked, NULL not handed in or the pick unknown; NULL for a reward. |
-| `class` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding | The character's class, from its latest session record. |
+| `class` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character's class, from its latest session record. |
 | `death_t` | records, revives | One death, named by when its death record was written (unix seconds); NULL on every other record. Group by it to list the deaths one by one (per_death). |
 | `ding_t` | levels | When the level ended, unix seconds (UTC): the Recorder's ding, else the split's own time (for a split still growing, its last update). NULL for the level in play without a split. Group by it to place a level in time. |
 | `dings` | gold_moves | Level-ups between the two snapshots: 0 for a move inside one level. |
@@ -1048,15 +1099,18 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `how` | revives | How the character came back: c at the corpse, s at a spirit healer, r resurrected by another player. NULL: no revive seen (logged out dead, or the Recorder stopped). |
 | `in_play` | levels | The climb's population: 1 for the level being played (the highest level known, with no ding out of it and no whole split), 0 for a completed level. Filter in_play = 0 for the completed levels, in_play = 1 for the current level so far; no filter counts both. |
 | `in_raid` | timeline | 1 in a raid, 0 not, from the same group record (NULL: unknown). |
-| `instance` | upgrades | Dungeon or raid of an instance drop or quest, else NULL. |
+| `instance` | upgrades, lockouts | Dungeon or raid of an instance drop or quest, else NULL. |
+| `instance_id` | lockouts | The game's lockout id (Altoholic only). |
 | `item` | upgrades, worn, sheets | Item name. |
 | `item_id` | records, loot, upgrades, worn, sheets, quest_rewards, quest_loot, loot_value | Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used. |
 | `kind` | records | Record kind (record_kinds: kill, death, turnin, accept...). |
 | `known_now` | flight_nodes | 1 when the newest flight map lists the node, else 0. |
-| `level` | levels, timeline, records, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements | Character level. |
+| `level` | levels, timeline, records, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements, char_stats | Character level. |
 | `level_accepted` | quests | Level at the accept (NULL for untimed). |
 | `level_end` | sessions | Level at the end of the span (its last record with one). |
 | `level_start` | sessions | Level at the start of the span. |
+| `lockout_active` | lockouts | 1 when the lockout hadn't reset when the data was read, else 0. |
+| `lockouts_basis` | lockouts | altoholic: Altoholic's saved instances, exact. recorder: an estimate from the Recorder's raid boss kills (reset time and lockout id unknown). |
 | `needs_talent` | class_spells | The talent the spell's first rank comes from, NULL for a trainer spell. |
 | `node_id` | flight_nodes | The game's taxi node id. Its name and place: the KB's TaxiNodes table is a follow-up, so look the id up for now. |
 | `now` | upgrades | 1 when the character can wear it at its level now, 0 within 3 levels. |
@@ -1079,6 +1133,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `skill_id` | records, professions | The skill line of a skill record (762: Riding; the professions' own ids), else NULL. |
 | `slot` | upgrades, worn, sheets | The slot the item would go in (Head, Chest, Finger...; both rings are Finger). |
 | `slot_id` | upgrades, worn, sheets | The inventory slot 1-19: which of two rings (11, 12) or trinkets (13, 14) it is measured against or worn in. |
+| `snapshot_source` | snapshots | Who saved it: polestar, altoholic, polestar,altoholic (the same logout), or the roster's sources. |
 | `source` | progress, upgrades | Which series: xp (the Recorder's XP bar readings, with online time) or snapshot (the logout and /reload character sheets, no online time). Filter on one: the two are measured apart. |
 | `source_kind` | upgrades | quest, drop, craft, bags or bank (or another kind the gear data names: reputation, vendor...). |
 | `source_wowhead` | upgrades | The source's Wowhead page (the quest, the boss, the craft's spell); NULL when it has none. |
@@ -1097,13 +1152,13 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `taken` | offers | 1 when the character accepted the quest at some point or it is known done (quests_done), else 0. |
 | `tier` | riding | The KB rule of the tier: riding.apprentice (level 40) or riding.journeyman (level 60). |
 | `tier_level` | riding | The level the tier is trained from. |
-| `time` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets, done_quests, dings, revives, zone_levels, offers, quest_loot, loot_value, flight_nodes, reputation, achievements | When the level ended (the ding), local time. NULL while the level is in play. Grains: day, week, month. |
+| `time` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets, done_quests, dings, revives, zone_levels, offers, quest_loot, loot_value, flight_nodes, reputation, achievements, char_stats, lockouts | When the level ended (the ding), local time. NULL while the level is in play. Grains: day, week, month. |
 | `trip` | dungeon_runs, dungeon_trips | The dungeon trip around the run (dungeon_trips: the same dungeon, the run starting inside the trip), NULL for a run with no trip. |
 | `trip_end` | dungeon_trips | When the trip ended (unix seconds). |
 | `trip_id` | loot, loot_value | The dungeon trip it was looted on (dungeon_trips.trip_id), NULL outside one. |
 | `trip_loot` | dungeon_trips | What the trip's run looted inside the instance: a JSON list of [item_id, count] (an observation, not a number to add). |
 | `trip_start` | dungeon_trips | When the trip started (unix seconds). |
-| `week` | timeline, records, sessions, dungeon_runs, gold_moves, loot, xp, sheets, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements | The week of the interval's start, local time, named by its Monday (YYYY-MM-DD). |
+| `week` | timeline, records, sessions, dungeon_runs, gold_moves, loot, xp, sheets, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements, char_stats, lockouts | The week of the interval's start, local time, named by its Monday (YYYY-MM-DD). |
 | `weekday` | sessions | Mon..Sun of the start, local time. |
 | `with_item_id` | upgrades | For a one-hander: the item in the other hand it is scored with (a weapon is a whole setup), NULL alone or for any other slot. |
 | `zone` | timeline, records, zone_time, snapshots, quests, rested, loot, xp, upgrades, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements | Zone name, as the last zone record said (inside a dungeon, the game usually names the dungeon). |

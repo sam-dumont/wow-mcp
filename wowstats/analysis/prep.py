@@ -493,15 +493,18 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "percent", "resilience": "resilience", "honorable_kills": "lifetime honorable kills",
         "dishonorable_kills": "lifetime dishonorable kills", "source": "altoholic"}),
     "lockouts": ("Raid and dungeon lockouts as Altoholic saved them (DataStore_Agenda), one row per lockout "
-                 "(instance and reset time), with its bosses. Empty without Altoholic, and until the character "
-                 "has a lockout.", {
+                 "(instance and reset time), with its bosses (source altoholic). Without Altoholic's lockouts, an "
+                 "estimate from the Recorder: one row per raid with a boss killed (encounter records of raid "
+                 "size), active while that kill is under 7 days old (source recorder: reset time, lockout id and "
+                 "the bosses not killed unknown).", {
         "instance": "instance name (with the difficulty when above normal)", "instance_id": "the game's "
         "lockout id", "raid": "1 raid, 0 dungeon", "extended": "1 when extended", "scan_t": "the newest save "
         "that listed it, unix s", "expires_t": "when the lockout resets, unix s", "expires_local": "the same, "
         "local time", "active": "1 when it hadn't reset when the database was built",
         "bosses_killed": "bosses killed in it", "bosses_total": "bosses the game lists for it",
         "bosses": "JSON list of [boss, 1 killed / 0 not]", "weekly_reset_day": "the account's weekly reset day "
-        "(0 Sunday .. 6 Saturday)", "weekly_reset_hour": "its hour", "source": "altoholic"}),
+        "(0 Sunday .. 6 Saturday)", "weekly_reset_hour": "its hour",
+        "source": "altoholic (exact) or recorder (the estimate)"}),
     "flight_nodes": ("Flight paths: the nodes the game listed as known each time the flight map opened "
                      "(flightmaster records), and the flights from and to each. Node names: kb tools.", {
         "node_id": "the game's taxi node id", "first_known_t": "first flight map that listed it, unix seconds",
@@ -1656,8 +1659,38 @@ def _lockouts(db, rows, now: datetime | None) -> None:
                 lo.get("instance"), iid, _int(lo.get("raid")), _int(lo.get("extended")), r["_t"], exp,
                 _iso(exp, TZ), 1 if exp > now_t else 0, sum(1 for b in bosses if _int(b[1]) == 1), len(bosses),
                 json.dumps(bosses, ensure_ascii=False), day, hour, "altoholic")
+    if not seen:
+        _lockouts_estimated(db, now_t)
+        return
     db.executemany(f"INSERT INTO lockouts VALUES ({','.join('?' * 14)})",
                    sorted(seen.values(), key=lambda x: (x[5], x[1])))
+
+
+# Without Altoholic, a raid boss killed (an encounter record, success 1, raid
+# size: five-player dungeons never lock) in the last 7 days stands for a
+# lockout: an estimate, since the reset day and the game's own lockout id are
+# Altoholic's (DataStore_Agenda) only.
+ESTIMATE_LOCKOUT_S = 7 * 86400
+
+
+def _lockouts_estimated(db, now_t: float) -> None:
+    kills: dict[str, dict] = {}
+    for _r, t, *_rest, extra in _of(db, "encounter"):
+        e = _extra(extra)
+        if _on(e.get("success")) != 1 or (_int(e.get("size")) or 0) <= 5:
+            continue
+        inst = (db.execute("SELECT name FROM dungeon_runs WHERE ? BETWEEN start_t AND COALESCE(left_t, start_t) "
+                           "ORDER BY start_t DESC LIMIT 1", (t,)).fetchone()
+                or db.execute("SELECT instance FROM timeline WHERE t0 <= ? AND instance IS NOT NULL ORDER BY t0 DESC "
+                              "LIMIT 1", (t,)).fetchone() or (None,))[0]
+        k = kills.setdefault(inst or "unknown raid", {"t": t, "bosses": set()})
+        if t - k["t"] > ESTIMATE_LOCKOUT_S:  # an older week's kills: start again
+            k.update(t=t, bosses=set())
+        k["t"] = max(k["t"], t)
+        k["bosses"].add(_int(e.get("encounter_id")))
+    out = [(inst, None, 1, None, k["t"], None, None, 1 if now_t - k["t"] < ESTIMATE_LOCKOUT_S else 0,
+            len(k["bosses"]), None, None, None, None, "recorder") for inst, k in sorted(kills.items())]
+    db.executemany(f"INSERT INTO lockouts VALUES ({','.join('?' * 14)})", out)
 
 
 def _flight_nodes(db) -> None:

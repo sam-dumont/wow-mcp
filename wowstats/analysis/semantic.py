@@ -110,6 +110,12 @@ VIEWS = {
                          "FROM dungeon_runs d"),
     "sem_dungeon_trips": "SELECT *, {ts:start_t} AS at_local, {who} FROM dungeon_trips",
     "sem_snapshots": "SELECT *, {ts:t} AS at_local, {who} FROM snapshots",
+    # Altoholic's character sheet stats (DataStore_Stats), one row per save.
+    "sem_char_stats": "SELECT *, {ts:t} AS at_local, {who} FROM char_stats",
+    # A lockout's time: its reset (Altoholic), else the last raid boss kill
+    # (the Recorder's estimate, which has no reset time).
+    "sem_lockouts": ("SELECT *, {ts:at_t} AS at_local, {who} FROM (SELECT *, COALESCE(expires_t, scan_t) AS at_t "
+                     "FROM lockouts)"),
     # complete_t: the newest complete record of the quest between its accept
     # (any time before, when the accept wasn't seen) and its close.
     "sem_quests": ("SELECT *, {ts:at_t} AS at_local, {who} FROM (SELECT q.*, "
