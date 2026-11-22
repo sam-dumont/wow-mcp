@@ -189,21 +189,45 @@ def test_reextract_restores_from_the_archive_alone(played, shipper):
     a checkpoint of its own, and never touches the normal one."""
     store, arch, run = played
     before = store.canonical()
-    state = json.loads((arch / "state.json").read_text())
-    state.pop("setup")  # when the install last reported itself: this run does again
+    state = (arch / "state.json").read_bytes()
     shutil.rmtree(arch / "sent")
     store.lines.clear()
     assert run("--reextract") == 0
     # wow-setup is this run's own report (the install as it is now), not history.
     assert {k: v for k, v in store.canonical().items() if v["feed"] != "wow-setup"} == \
         {k: v for k, v in before.items() if v["feed"] != "wow-setup"}
-    after = json.loads((arch / "state.json").read_text())
-    after.pop("setup")
-    assert after == state  # the normal checkpoint, untouched
+    assert (arch / "state.json").read_bytes() == state  # the normal checkpoint, untouched
     # The normal run after it finds nothing new.
     store.lines.clear()
     assert run() == 0
     assert store.lines == []
+
+
+def test_reextract_leaves_the_normal_checkpoint_alone(played, shipper, tmp_path):
+    """Play nobody has shipped yet, then --reextract: the recovery reads and
+    sends with its own checkpoint only (#77). state.json stays byte for
+    byte as it was, so the next background run still extracts that play
+    with the normal checkpoint. It used to end with a normal run that
+    advanced state.json (recovery drill, 2026-11-22)."""
+    store, arch, run = played
+    sv = tmp_path / "wow" / "WTF" / "Account" / "1#1" / "SavedVariables"
+    (sv / "Questie.lua").write_text(questie([7, 8, 9, 10]))
+    (sv / "Syndicator.lua").write_text(syndicator([2592, 2593]))
+    t = datetime.fromisoformat("2026-11-19T20:00:00.750").replace(tzinfo=UTC).timestamp()
+    for f in sv.iterdir():
+        os.utime(f, (t, t))
+    state = (arch / "state.json").read_bytes()
+    shutil.rmtree(arch / "sent")
+    store.lines.clear()
+    assert run("--reextract") == 0
+    assert (arch / "state.json").read_bytes() == state
+    new = {e["source_id"] for e in store.lines
+           if e["feed"] in ("wow-quests", "wow-bags") and e["_time"].startswith("2026-11-19T20:00")}
+    assert new, "the recovery sent the unshipped play"
+    # The background run after it extracts that play itself: same ids, nothing lost.
+    store.lines.clear()
+    assert run() == 0
+    assert new <= {e["source_id"] for e in store.lines}
 
 
 def test_replay_stops_on_a_refusal_and_says_so(played, shipper, monkeypatch):
