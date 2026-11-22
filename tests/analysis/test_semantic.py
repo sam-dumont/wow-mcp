@@ -367,9 +367,14 @@ def test_propose_finding_takes_a_query_metric_call(lab):
     mq = {"metrics": ["played_s", "dungeon_s"], "where": [{"dimension": "level", "op": "=", "value": 30}]}
     good = {"key": "level-30-dungeon", "title": "Level 30: {dungeon_s} s in dungeons",
             "claim": "Level 30 took {played_s} s, {dungeon_s} s of it inside a dungeon.",
-            "expect": {"played_s": 11240}, "relevance": 2, "action": None, "metric_query": mq}
+            "expect": {"played_s": 11240}, "relevance": 2, "action": None, "metric_query": mq,
+            "constants": [{"value": 30, "label": "level"}]}
     ok = call(lab[0], "propose_finding", {"char": CHAR, "finding": good})
     assert ok["stored"], ok
+    # The level is declared, not measured: without the declaration it is refused.
+    bare = call(lab[0], "propose_finding", {"char": CHAR, "finding": {**good, "key": "level-30-bare",
+                                                                     "constants": []}})
+    assert not bare["stored"] and "30 in the title is neither a placeholder" in bare["why"]
     from wowstats.analysis import load_state
 
     kept = load_state({"ANALYSIS_STATE_DIR": str(Path(__import__("os").environ["ANALYSIS_STATE_DIR"]))},

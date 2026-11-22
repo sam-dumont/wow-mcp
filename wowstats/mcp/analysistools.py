@@ -287,14 +287,15 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
                         "description": "Rows at most (default 50)."}}, ("char", "metrics")),
            _guard(t_query_metric), writes="adds"),
     T.Tool("propose_finding", "Propose a finding",
-           "Hand one finding to the judge: it re-runs the SQL (or the finding's metric_query, a query_metric "
-           "call), checks every number (placeholders, expect, holds), "
-           "the action and the knowledge base ids, then stores it in the character's analysis or says why not. "
-           "The SQL must read the play history: a constant is refused. "
-           "A finding with `action: null` is kept as an observation, shown apart.",
+           "Hand one finding to the judge: it re-runs the SQL (or metric_query), checks expect, holds, the action "
+           "and the KB ids, then stores it or says why not. Every number the query measures is a placeholder "
+           "({n}, {rows[1].gain:.1f}) the server renders; any other goes in `constants`. \"You died 3 times.\" "
+           "is refused. The SQL must read the play history. `action: null` keeps an observation.",
            S({"char": CHAR, "finding": {"type": "object", "description": "key, title, claim, sql, expect, "
                                         "relevance, action ({do, where, blocked_by, next_step} or null), and "
-                                        "optionally holds, effect, sample, kb"},
+                                        "optionally constants ([{value, label}]: label is level, top-n, "
+                                        "threshold, game-rule, patch, group-size or ordinal), holds, effect, "
+                                        "sample, kb"},
               "sql": {"type": "string", "maxLength": 8000,
                       "description": "The SQL behind the finding, re-run by the judge."},
               "metric_query": {"type": "object",

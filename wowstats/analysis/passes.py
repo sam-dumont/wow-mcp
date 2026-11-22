@@ -61,15 +61,23 @@ next step; a fact with nothing to do about it is an observation, kept apart), an
 character's name, "the character" or "you", never he or she)."""
 
 FINDING_RULES = """\
-A finding is something the data shows, with the SQL that shows it. Its `claim` is plain words for the player \
-in which every number is a placeholder naming a column of the FIRST row that `sql` returns: {col}, {col:dur} \
-(seconds as hours/minutes), {col:pct} (a ratio as a percent), {col:int}, {col:1f}. Never write a number above \
-100 yourself. `expect` holds the values of those columns exactly as your query returned them: the judge runs \
-the SQL again and refuses the finding if they differ. The SQL must read the character's tables: a constant \
-(`SELECT 3 AS n`) is refused. For common counts and times (deaths, kills, time played) prefer a query_metric \
-call as evidence. Describe what the player chose to do by what it cost \
-and what it paid, never as a fault; describe interruptions neutrally and never guess why a session stopped. \
-List in `kb` the ids of the knowledge base documents a finding relies on.
+A finding is something the data shows, with the SQL that shows it. Its `title`, `claim` and `action` are \
+plain words for the player in which every number the query measures is a placeholder naming its result: \
+{col} for a column of the FIRST row, {rows[1].col} for a cell of a later row (up to rows[19]), typed as \
+{col:dur} (seconds as hours/minutes), {col:pct} (a ratio as a percent), {col:int} or {col:.1f}. The server \
+renders them from the re-run when it keeps the finding and again every night, so the text always shows \
+today's value. Any other number you write goes in `constants`, each as {"value": 30, "label": "level"}. A \
+level, top-n or threshold is a parameter your query applies and must be written in its SQL (WHERE level = \
+30, LIMIT 3); a game-rule comes from a knowledge base document cited in `kb`; patch, group-size and ordinal \
+are declared as they are. The judge refuses a number that is neither, and a constant equal to a \
+placeholder's value or contradicting it: a count, a time or a share is never a constant. "You died {n} \
+times." with `SELECT COUNT(*) AS n ...` stands; "You died 3 times." is refused. `expect` holds the values of \
+the placeholders' columns exactly as your query returned them: the judge runs the SQL again and refuses the \
+finding if they differ. The SQL must read the character's tables: a constant (`SELECT 3 AS n`) is refused. \
+For common counts and times (deaths, kills, time played) prefer a query_metric call as evidence. Describe \
+what the player chose to do by what it cost and what it paid, never as a fault; describe interruptions \
+neutrally and never guess why a session stopped. List in `kb` the ids of the knowledge base documents a \
+finding relies on.
 
 Two measurements to read before judging (the brief's `facts` lists where they stand out). Pace: a level's \
 pace is its played time (levels.played_s against planned_s, or the metric vs_route); its calendar time \
@@ -101,6 +109,13 @@ FINDING = {
                   "while the finding holds"},
         "effect": {"type": "string", "description": "optional: the column with the played seconds concerned"},
         "sample": {"type": "string", "description": "optional: the column with the number of observations"},
+        "constants": {"type": "array", "maxItems": 12, "description": "the numbers in the text the query doesn't "
+                      "measure, each declared with its kind",
+                      "items": {"type": "object", "properties": {"value": {"type": "number"},
+                                                                 "label": {"type": "string", "enum": [
+                                                                     "level", "top-n", "threshold", "game-rule",
+                                                                     "patch", "group-size", "ordinal"]}},
+                                "required": ["value", "label"], "additionalProperties": False}},
         "relevance": {"type": "integer", "enum": [1, 2, 3]},
         "kb": {"type": "array", "items": {"type": "string"}},
         "action": {"type": ["object", "null"], "description": "what to do about it; null: an observation",

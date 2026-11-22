@@ -2,18 +2,26 @@
 text from the re-run values, and screens the lines meant for the shared
 page.
 
-A finding's numbers never come from the model's prose: its `claim` names
-the columns of its query's first row (`{col}`, `{col:dur}`...), and the
-text is filled from the re-run. `expect` is what the model saw: a re-run
-that gives other numbers drops the finding, and so does a literal number in
-the text, a placeholder its query doesn't return, or a `holds` condition
-that is false.
+A finding's measured numbers never come from the model's prose: its title,
+claim and action name the query's result instead, as typed placeholders
+(`{col}`, `{col:dur}`, `{col:.1f}` over the first row, `{rows[2].col}` for a
+cell of a later row), and the text is rendered from the re-run, at accept
+time and again at every recheck. Any other number in the prose (a level, a
+top-N, a patch) is declared in the finding's `constants`, each with its
+kind. The judge refuses a number that is neither, a constant that equals a
+placeholder's value (a measure written by hand) or contradicts it (a
+constant labelled like the column a placeholder reads, with another value),
+a placeholder its query doesn't return, a re-run that disagrees with
+`expect`, and a `holds` condition that is false (external review,
+2026-11-22: "You died 3 times." was kept next to a query that counted 5,
+because bare numbers up to 100 passed).
 
 The query must read the character's play history: `SELECT 3 AS n` re-runs
 to 3 every time, so a constant passed the re-run while saying nothing about
 the data (external review of 0.7.0-rc.5: "You died {n} times." kept with 3,
 five deaths on record). That closes this one hole only: a query that reads a
-table can still compute the wrong thing, which no re-run catches.
+table can still compute the wrong thing, which no re-run catches, and a
+number spelled in words ("three") isn't a number to the judge.
 """
 
 from __future__ import annotations
@@ -27,13 +35,37 @@ from .sql import QueryError, ReadOnly
 
 REL_TOL = 0.02
 ABS_TOL = 0.51
-PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)(?::([a-z0-9]+))?\}")
-# Literal numbers allowed in a claim's own words: small ones (levels, "top 3").
+# A placeholder: a column of the first row, or a cell of a later one
+# (rows[i].col), with an optional type (dur, pct, int, 1f or .1f).
+PLACEHOLDER = re.compile(r"\{((?:rows\[\d{1,2}\]\.)?[A-Za-z_][A-Za-z0-9_]*)(?::(\.?[a-z0-9]+))?\}")
+CELL = re.compile(r"rows\[(\d{1,2})\]\.([A-Za-z_][A-Za-z0-9_]*)")
+# The shared page's nudges may name small numbers typed by hand (a level,
+# "top 3"); a finding may not (CONSTANT_KINDS below).
 LITERAL_MAX = 100
+NUMBER = re.compile(r"(?<![\w.])\d+(?:[.,]\d+)?")
+# What a number written into a finding's prose may be when the query didn't
+# measure it: declared in `constants`, each with one of these kinds.
+CONSTANT_KINDS = {
+    "level": "a level the query filters on (\"at level 30\": WHERE level = 30)",
+    "top-n": "how many of a ranked list the query keeps (\"the top 3\": LIMIT 3)",
+    "threshold": "a cut-off the query applies (\"sessions over 2 hours\": WHERE online_s > 2 * 3600)",
+    "game-rule": "a fixed rule of the game from a knowledge base document the finding cites in `kb`",
+    "patch": "a game version or patch (\"patch 1.12\")",
+    "group-size": "a group or raid size (\"a 5-player group\")",
+    "ordinal": "a position in a sequence that isn't measured (\"the 2nd boss\")",
+}
+# These kinds are the query's own parameters: the value must be written in
+# its SQL (or bound in its metric_query). "You died 3 times." declared as
+# level 3 is refused for that: the deaths query filters on no level.
+IN_QUERY = ("level", "top-n", "threshold")
+MAX_CONSTANTS = 12
+# The rows a cell placeholder may reach (rows[0] to rows[19]).
+MAX_CELL_ROWS = 20
 KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 
 
 def fmt(v, spec: str | None) -> str:
+    spec = spec[1:] if spec and spec.startswith(".") else spec
     if v is None:
         return "n/a"
     if isinstance(v, str):
@@ -55,8 +87,140 @@ def fmt(v, spec: str | None) -> str:
     return f"{f:.2g}" if abs(f) < 1 else f"{f:.1f}"
 
 
-def render(text: str, row: dict) -> str:
-    return PLACEHOLDER.sub(lambda m: fmt(row.get(m.group(1)), m.group(2)), text or "")
+_GONE = object()
+
+
+def value(ref: str, row: dict, rows: list[dict] | None = None):
+    """A placeholder's value: `col` from the first row, `rows[i].col` from
+    row i. _GONE when the result has no such column or row."""
+    m = CELL.fullmatch(ref)
+    if m is None:
+        return row.get(ref, _GONE)
+    i = int(m.group(1))
+    have = rows if rows is not None else [row]
+    return have[i].get(m.group(2), _GONE) if i < len(have) else _GONE
+
+
+def missing(text: str, row: dict, rows: list[dict] | None = None) -> list[str]:
+    """The placeholders in `text` the result doesn't hold."""
+    return [m.group(1) for m in PLACEHOLDER.finditer(text or "") if value(m.group(1), row, rows) is _GONE]
+
+
+def cell_rows(*texts) -> int:
+    """How many rows the placeholders in `texts` reach (1: the first row only)."""
+    return max([1] + [int(c.group(1)) + 1 for t in texts for m in PLACEHOLDER.finditer(t or "")
+                      for c in [CELL.fullmatch(m.group(1))] if c])
+
+
+def render(text: str, row: dict, rows: list[dict] | None = None) -> str:
+    def one(m):
+        v = value(m.group(1), row, rows)
+        return fmt(None if v is _GONE else v, m.group(2))
+
+    return PLACEHOLDER.sub(one, text or "")
+
+
+def result(ro, sql: str, params: dict | None, n: int) -> tuple[dict, list[dict]]:
+    """The first row as a dict, and the first `n` rows when a placeholder
+    reaches past it (cells). Raises QueryError when there is no row."""
+    if n <= 1:
+        row = ro.first_row(sql, params)
+        return row, [row]
+    if params is not None:
+        cols, got, _ = ro.run(sql, min(n, MAX_CELL_ROWS), params)
+    else:
+        cols, got, _ = ro.run(sql, min(n, MAX_CELL_ROWS))
+    if not got:
+        raise QueryError("no rows")
+    rows = [dict(zip(cols, r, strict=False)) for r in got]
+    return rows[0], rows
+
+
+def _num(text: str) -> float:
+    return float(text.replace(",", "."))
+
+
+def bare_numbers(text: str) -> list[str]:
+    """The numbers written into `text` outside its placeholders."""
+    return NUMBER.findall(PLACEHOLDER.sub("", text or ""))
+
+
+def constants_of(f: dict) -> tuple[list[dict], str]:
+    """The finding's declared constants ([{value, label}]), or why they
+    can't be read."""
+    raw = f.get("constants")
+    if raw in (None, "", []):
+        return [], ""
+    if isinstance(raw, str):
+        try:
+            import json
+
+            raw = json.loads(raw)
+        except ValueError:
+            return [], "constants must be a list of {value, label}"
+    if not isinstance(raw, list) or len(raw) > MAX_CONSTANTS:
+        return [], f"constants must be a list of at most {MAX_CONSTANTS} {{value, label}}"
+    out = []
+    for c in raw:
+        if not isinstance(c, dict):
+            return [], "each constant is an object {value, label}"
+        v, label = c.get("value"), str(c.get("label") or "").strip().lower().replace("_", "-").replace(" ", "-")
+        if isinstance(v, str):
+            try:
+                v = _num(v.strip())
+            except ValueError:
+                v = None
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(float(v)):
+            return [], f"constant {c.get('value')!r}: value must be a number"
+        if label not in CONSTANT_KINDS:
+            return [], (f"constant {v:g}: label {c.get('label')!r} isn't one of {', '.join(CONSTANT_KINDS)}. A "
+                        "count, a time, a share or any other thing the data measures is a placeholder, never a "
+                        "constant")
+        out.append({"value": int(v) if float(v).is_integer() else float(v), "label": label})
+    return out, ""
+
+
+def _same(a: float, b: float) -> bool:
+    return math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
+
+
+def undeclared(text: str, constants: list[dict]) -> list[str]:
+    """The numbers in `text` that are neither a placeholder nor a declared constant."""
+    return [n for n in bare_numbers(text) if not any(_same(_num(n), float(c["value"])) for c in constants)]
+
+
+def numbers_why(parts: dict[str, str], constants: list[dict], row: dict | None = None,
+                rows: list[dict] | None = None) -> str:
+    """Why the prose's numbers can't stand ("" when every one is a
+    placeholder or a declared constant that neither equals nor contradicts
+    a placeholder). `parts`: {name: template}. Without a row, the
+    placeholder comparison is skipped (a kept finding's templates alone)."""
+    for name, text in parts.items():
+        bad = undeclared(text, constants)
+        if bad:
+            return (f"{', '.join(dict.fromkeys(bad))} in the {name} is neither a placeholder nor a declared "
+                    "constant: bind what the query measures ({col}, {col:dur}, {rows[1].col}), and declare a "
+                    "number it doesn't measure in `constants` ({value, label}: " + ", ".join(CONSTANT_KINDS) + ")")
+    if row is None:
+        return ""
+    used = [c for c in constants if any(any(_same(_num(n), float(c["value"])) for n in bare_numbers(t))
+                                        for t in parts.values())]
+    for name, text in parts.items():
+        for m in PLACEHOLDER.finditer(text or ""):
+            ref = m.group(1)
+            v = value(ref, row, rows)
+            if isinstance(v, bool) or not isinstance(v, (int, float)):
+                continue
+            col = (CELL.fullmatch(ref).group(2) if CELL.fullmatch(ref) else ref).lower().replace("_", "-")
+            for c in used:
+                shown = fmt(v, m.group(2))
+                if _same(float(v), float(c["value"])) or shown == f"{c['value']:g}":
+                    return (f"constant {c['value']:g} ({c['label']}) equals {{{ref}}} in the {name}: it is "
+                            "measured, so write the placeholder and leave it out of `constants`")
+                if c["label"] == col:
+                    return (f"constant {c['value']:g} ({c['label']}) contradicts {{{ref}}} in the {name}, which "
+                            f"the query gives as {shown}")
+    return ""
 
 
 # Owner, 2026-11-18: text about a character is gender-neutral ("the
@@ -76,7 +240,8 @@ def _words(text: str) -> int:
     return len(re.findall(r"[^\W\d_]{2,}", PLACEHOLDER.sub("x", text or "")))
 
 
-def action_of(f: dict, key: str, row: dict) -> tuple[dict | None, dict | None, str]:
+def action_of(f: dict, key: str, row: dict, rows: list[dict] | None = None
+              ) -> tuple[dict | None, dict | None, str]:
     """(rendered action, its templates, "") or (None, None, "") for an
     observation, or (None, None, why) when the action is there but not
     concrete enough to act on."""
@@ -87,22 +252,40 @@ def action_of(f: dict, key: str, row: dict) -> tuple[dict | None, dict | None, s
         return None, None, f"{key}: action must be an object (do, where, blocked_by, next_step) or null"
     tpl = {p: str(act.get(p) or "").strip()[:300] for p in ACTION_PARTS}
     for p, text in tpl.items():
-        if literal_numbers(text):
-            return None, None, f"{key}: number written into action.{p} instead of a placeholder"
-        missing = [m.group(1) for m in PLACEHOLDER.finditer(text) if m.group(1) not in row]
-        if missing:
-            return None, None, f"{key}: action.{p} names columns the query doesn't return: {', '.join(missing)}"
+        gone = missing(text, row, rows)
+        if gone:
+            return None, None, f"{key}: action.{p} names columns the query doesn't return: {', '.join(gone)}"
     if _words(tpl["do"]) < 3:
         return None, None, (f"{key}: action.do isn't concrete: say what to do and with what (an item, a quest, a "
                             "place, a skill), or send action null to keep it as an observation")
     if _words(tpl["next_step"]) < 3:
         return None, None, f"{key}: action.next_step is missing: the first thing to do, where"
-    return {p: render(t, row) for p, t in tpl.items()}, tpl, ""
+    return {p: render(t, row, rows) for p, t in tpl.items()}, tpl, ""
+
+
+def constants_why(constants: list[dict], sql_text: str, params: dict | None, cites: list[str]) -> str:
+    """Why a declared constant isn't what its kind says ("" when each is):
+    a level, top-N or threshold the query doesn't use, a game rule with no
+    knowledge base document cited."""
+    in_query = {_num(n) for n in NUMBER.findall(sql_text or "")}
+    for v in (params or {}).values():
+        vals = v if isinstance(v, (list, tuple)) else [v]
+        in_query |= {float(x) for x in vals if isinstance(x, (int, float)) and not isinstance(x, bool)}
+    for c in constants:
+        if c["label"] in IN_QUERY and not any(_same(float(c["value"]), q) for q in in_query):
+            return (f"constant {c['value']:g} ({c['label']}) isn't in the query: a {c['label']} is a parameter "
+                    "the query applies (WHERE, LIMIT), written in its SQL. A number the query counts or sums is "
+                    "a placeholder")
+        if c["label"] == "game-rule" and not cites:
+            return (f"constant {c['value']:g} (game-rule): cite in `kb` the knowledge base document the rule "
+                    "comes from")
+    return ""
 
 
 def literal_numbers(text: str) -> list[str]:
-    bare = PLACEHOLDER.sub("", text or "")
-    return [n for n in re.findall(r"(?<![\w.])\d+(?:[.,]\d+)?", bare) if float(n.replace(",", ".")) > LITERAL_MAX]
+    """Numbers above LITERAL_MAX typed into a nudge or pattern line (their
+    own rule: a finding's prose goes through numbers_why)."""
+    return [n for n in bare_numbers(text) if _num(n) > LITERAL_MAX]
 
 
 def close(a, b) -> bool:
@@ -182,6 +365,25 @@ def history_read(ro) -> set[str]:
     return {t for t in semantic.reads(read) if TABLES[t] == "game"}
 
 
+def _prose(f: dict) -> dict[str, str]:
+    """A proposal's prose by part: title, claim and the action's parts."""
+    act = f.get("action") if isinstance(f.get("action"), dict) else {}
+    if not str(act.get("do") or "").strip():  # an observation: its action is shown nowhere
+        act = {}
+    return {"title": str(f.get("title") or ""), "claim": str(f.get("claim") or ""),
+            **{f"action.{p}": str(act.get(p) or "").strip()[:300] for p in ACTION_PARTS if act.get(p)}}
+
+
+def templates(stored: dict) -> dict[str, str]:
+    """A kept finding's prose templates by part."""
+    return {"title": str(stored.get("title_template") or ""), "claim": str(stored.get("claim_template") or ""),
+            **{f"action.{p}": str(t or "") for p, t in (stored.get("action_template") or {}).items()}}
+
+
+def _rounded(row: dict) -> dict:
+    return {k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()}
+
+
 def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     """(the finding with `row` and rendered `text`, "") or (None, why)."""
     if not isinstance(f, dict):
@@ -189,26 +391,35 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     key = str(f.get("key") or "").strip().lower()
     if not KEY_RE.match(key):
         return None, f"bad key {key!r}"
+    constants, why = constants_of(f)
+    if why:
+        return None, f"{key}: {why}"
+    prose = _prose(f)
+    # Before the query: a number the prose types and nothing declares is
+    # refused whatever the query returns.
+    why = numbers_why(prose, constants)
+    if why:
+        return None, f"{key}: {why}"
     sql_text = str(f.get("sql") or "")
     params = f.get("sql_params") if isinstance(f.get("sql_params"), dict) else None
     try:
-        row = ro.first_row(sql_text, params)
+        row, rows = result(ro, sql_text, params, cell_rows(*prose.values()))
     except QueryError as e:
         return None, f"{key}: query failed on re-run: {e}"
     if not history_read(ro):
         return None, f"{key}: {NO_HISTORY}"
     for part in ("title", "claim"):
-        if literal_numbers(str(f.get(part) or "")):
-            return None, f"{key}: number written into the {part} instead of a placeholder"
-        missing = [m.group(1) for m in PLACEHOLDER.finditer(str(f.get(part) or "")) if m.group(1) not in row]
-        if missing:
-            return None, f"{key}: {part} names columns the query doesn't return: {', '.join(missing)}"
-    action, action_tpl, why = action_of(f, key, row)
+        gone = missing(prose[part], row, rows)
+        if gone:
+            return None, f"{key}: {part} names columns the query doesn't return: {', '.join(gone)}"
+    action, action_tpl, why = action_of(f, key, row, rows)
     if why:
         return None, why
-    for part, text in (("title", f.get("title")), ("claim", f.get("claim")),
-                       *((f"action.{p}", t) for p, t in (action_tpl or {}).items())):
-        if gendered(str(text or "")):
+    why = numbers_why(prose, constants, row, rows)
+    if why:
+        return None, f"{key}: {why}"
+    for part, text in prose.items():
+        if gendered(text):
             return None, (f"{key}: {part} says he or she: write \"the character\", the name or \"you\" "
                           "(for anyone else, their name)")
     exp = f.get("expect") or {}
@@ -229,15 +440,21 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     cites = [str(c) for c in f.get("kb") or [] if isinstance(c, str)]
     if kb_ids is not None:
         cites = [c for c in cites if kb_ids(c)]
+    used = [c for c in constants if any(any(_same(_num(n), float(c["value"])) for n in bare_numbers(t))
+                                        for t in prose.values())]
+    why = constants_why(used, sql_text, params, cites)
+    if why:
+        return None, f"{key}: {why}"
 
     def num_of(name):
         v = row.get(name) if isinstance(name, str) else None
         return float(v) if isinstance(v, (int, float)) else 0.0
 
+    n_rows = cell_rows(*prose.values())
     out = {
-        "key": key, "title": render(str(f.get("title") or key), row)[:120],
-        "text": render(str(f.get("claim") or ""), row)[:1200],
-        "title_template": str(f.get("title") or key)[:200], "claim_template": str(f.get("claim") or "")[:1500],
+        "key": key, "title": render(prose["title"] or key, row, rows)[:120],
+        "text": render(prose["claim"], row, rows)[:1200],
+        "title_template": (prose["title"] or key)[:200], "claim_template": prose["claim"][:1500],
         # A metric query's SQL is the compiler's, kept whole so the recheck runs it as judged.
         "sql": sql_text if params else sql_text[:6000], "sql_params": params,
         "metric_query": f.get("metric_query") if params is not None else None,
@@ -245,20 +462,40 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
         "kb": cites[:12], "effect_col": f.get("effect") if isinstance(f.get("effect"), str) else None,
         "sample_col": f.get("sample") if isinstance(f.get("sample"), str) else None,
         "relevance": max(1, min(3, int(f.get("relevance") or 1))) if str(f.get("relevance") or "1").isdigit() else 1,
-        "row": {k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()},
-        "action": action, "action_template": action_tpl, "observation": action is None,
+        "row": _rounded(row), "action": action, "action_template": action_tpl, "observation": action is None,
+        # The numbers the prose names without measuring them, with their kind.
+        "constants": used, "contract": CONTRACT,
     }
+    if n_rows > 1:
+        out["rows"] = [_rounded(r) for r in rows[:n_rows]]
     out["effect"] = abs(num_of(out["effect_col"]))
     out["sample"] = abs(num_of(out["sample_col"])) or 1.0
     return out, ""
+
+
+# The prose contract a kept finding was judged under: 2 binds every
+# measured number to the query and declares the rest (2026-11-22). A finding
+# kept before it is migrated by `unbound` (wowstats.analysis.migrate).
+CONTRACT = 2
+UNBOUND_WHY = "its text has numbers neither bound to its query nor declared"
+
+
+def unbound(stored: dict) -> list[str]:
+    """The numbers a kept finding's prose types that are neither a
+    placeholder nor one of its declared constants: [] for one that meets
+    today's contract."""
+    consts = stored.get("constants") if isinstance(stored.get("constants"), list) else []
+    return list(dict.fromkeys(n for t in templates(stored).values() for n in undeclared(t, consts)))
 
 
 def recheck(stored: dict, ro: ReadOnly) -> tuple[dict | None, str]:
     """A kept finding on today's data: the query runs, its `holds` is still
     true; the text is rendered again from today's numbers (no `expect`:
     the numbers are allowed to move)."""
+    tpls = templates(stored)
+    n_rows = cell_rows(*tpls.values())
     try:
-        row = ro.first_row(stored["sql"], stored.get("sql_params"))
+        row, rows = result(ro, stored["sql"], stored.get("sql_params"), n_rows)
     except QueryError as e:
         return None, f"query failed: {e}"
     if not history_read(ro):  # kept before the judge asked for it
@@ -269,16 +506,17 @@ def recheck(stored: dict, ro: ReadOnly) -> tuple[dict | None, str]:
                 return None, "no longer holds"
         except (ValueError, SyntaxError, ZeroDivisionError, TypeError) as e:
             return None, f"holds unreadable: {e}"
+    if any(missing(t, row, rows) for t in tpls.values()):
+        return None, "a placeholder is gone"
     tpl = stored.get("action_template") or {}
-    for text in (stored.get("title_template"), stored.get("claim_template"), *tpl.values()):
-        if any(m.group(1) not in row for m in PLACEHOLDER.finditer(text or "")):
-            return None, "a placeholder is gone"
     upd = dict(stored)
-    upd["row"] = {k: (round(v, 4) if isinstance(v, float) else v) for k, v in row.items()}
-    upd["title"] = render(stored["title_template"], row)[:120]
-    upd["text"] = render(stored["claim_template"], row)[:1200]
+    upd["row"] = _rounded(row)
+    if n_rows > 1:
+        upd["rows"] = [_rounded(r) for r in rows[:n_rows]]
+    upd["title"] = render(stored["title_template"], row, rows)[:120]
+    upd["text"] = render(stored["claim_template"], row, rows)[:1200]
     if tpl:
-        upd["action"] = {p: render(t, row) for p, t in tpl.items()}
+        upd["action"] = {p: render(t, row, rows) for p, t in tpl.items()}
     upd["effect"] = abs(float(row.get(stored.get("effect_col") or "", 0) or 0)) \
         if isinstance(row.get(stored.get("effect_col") or ""), (int, float)) else stored.get("effect", 0.0)
     upd["sample"] = abs(float(row.get(stored.get("sample_col") or "", 0) or 0)) or 1.0 \

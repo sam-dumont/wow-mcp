@@ -7,8 +7,9 @@ A small program on the computer you play on reads what the game and your addons 
 A server you run turns it into your climb: time per level against Polestar's route, where the
 hours went, how far each slot is from its best in slot and where the next upgrade drops, the
 dungeons worth running, deaths, one journal entry per play session, a plan for your next two
-hours. Claude, ChatGPT or any MCP client can ask about it, and the server re-runs the SQL behind
-every number your assistant wants to keep.
+hours. Claude, ChatGPT or any MCP client can ask about it. When your assistant keeps a finding,
+the server re-runs its SQL and writes every measured number in its text from that result, and
+again each night.
 
 It runs on your computer or a small box at home. Nothing goes anywhere else unless you set it
 up that way. (Yes, it's absolutely overkill for levelling stats: a hardened image, signed
@@ -68,9 +69,12 @@ PowerShell, a port already taken, or the sites for friends: [Try the demo](docs/
   sealed copy with a key in the link; anyone gets a public copy cut to an allow list. Neither
   ever shows other players, what killed you, or where you are now.
   [Privacy tiers](docs/explanation/privacy.md).
-- **Your assistant does the thinking**, in your own account. The server hands it data, and
-  keeps a finding only once its numbers match the query behind it, which you can inspect
-  (matching its query doesn't make the reading right). [Ask about your character](docs/ai/asking.md).
+- **Your assistant does the thinking**, in your own account. The server hands it data and
+  keeps a finding only once its query re-runs to the numbers the assistant saw. Every number
+  the query measures is written into the finding's text by the server, from the result; any
+  other number (a level, a top 3) has to be declared with its kind, and a level or a top N has
+  to be in the query. You can inspect the query; matching it doesn't make the reading right.
+  [Ask about your character](docs/ai/asking.md).
 - **Unless the host turns on the server's own analysis.** Off until the host configures an AI
   provider (Anthropic, OpenAI or any OpenAI-compatible endpoint). Then the server runs the play
   analysis itself for each character with 10 hours of play since its last refresh (the host can

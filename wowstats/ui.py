@@ -1282,6 +1282,12 @@ def prebuilt_apps(app: App, tenancy=None) -> list[App]:
     return [tenancy.app_for(u) for u in users]
 
 
+def recheck_targets(app: App, tenancy=None) -> list[tuple[dict, object]]:
+    """Whom the nightly recheck covers: every active person's environment
+    (the owner first), each with how to read their newest event."""
+    return [(a.env, lambda a=a: _newest(a)) for a in prebuilt_apps(app, tenancy)]
+
+
 def main() -> int:
     env = dict(os.environ)
     try:
@@ -1312,14 +1318,13 @@ def main() -> int:
     if app.view == "full":
         from wowstats import analysis
 
-        # The nightly recheck (no model): with several people, on the owner's
-        # App and environment only, so one process never rereads every
-        # person's history at once (vl-wow, 1 GiB). A friend's kept findings
-        # are checked again when their own client runs the analysis.
-        own = tenancy.app_for(tenancy.registry.get(tenancy.owner_sub)) if tenancy else app
-        own_env = own.env if tenancy else env
-        if analysis.start_schedule(own_env, lambda: _newest(own)) is not None:
-            print("analysis: nightly recheck on, state in " + str(analysis.state_dir(own_env)), flush=True)
+        # The nightly recheck (no model), for every person: each one's own
+        # environment, one after another, each in its own child process with
+        # a time cap, so one process never rereads every person's history
+        # at once (vl-wow, 1 GiB). Before 2026-11-22 it ran for the owner
+        # only and a friend's findings went unchecked (external review).
+        if analysis.start_schedule(lambda: recheck_targets(app, tenancy)) is not None:
+            print("analysis: nightly recheck on, for every person, one at a time", flush=True)
         from wowstats.analysis import auto
 
         # The server's own analysis (a model the host configured): each
