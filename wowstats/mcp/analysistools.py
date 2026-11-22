@@ -9,7 +9,8 @@ No model runs on the server.
   analysis_brief     the instructions, the schema, the profile and the KB's
                      contents, in sections and pages for small contexts
   play_sql           read-only SQL on the character's prep database, paged
-  list_metrics       the semantic layer's catalogue: metrics, definitions, dimensions, grains
+  list_metrics       the semantic layer's catalogue: metrics, definitions, dimensions, grains,
+                     the views per grain
   query_metric       a metric question compiled to SQL and run: rows, the SQL, the definitions
   propose_finding    the judge: re-runs the SQL (or the query_metric call), stores or refuses with why
   analysis_submit    a pass's answer; the server answers with the next step
@@ -83,6 +84,12 @@ def t_list_metrics(ctx: T.Ctx, args: dict) -> dict:
             "dimensions": [{k: d[k] for k in ("name", "description", "models") if k in d} | (
                 {"grains": d["grains"]} if "grains" in d else {}) for d in cat["dimensions"]],
             "grains": cat["grains"], "ops": cat["ops"],
+            "views": [{"name": v["name"], "one_row_per": v["entity"], "description": v["description"],
+                       "columns": [{k: c[k] for k in ("name", "unit", "description") if c.get(k)}
+                                   for c in v["columns"]]} for v in semantic.views().values()],
+            "views_how": "The views per grain are these metrics compiled at one entity each, one row per key: read "
+                         "them with play_sql (SELECT * FROM per_level WHERE level >= 30), before the raw tables. "
+                         "Each metric column follows its metric's rules (eligibility, min_evidence).",
             "how": "query_metric with metrics (names above), group_by (dimensions), where ([{dimension, op, "
                    "value}] or values for in), grain (day, week, month: groups by time), since/until "
                    "(YYYY-MM-DD), order_by (names, '-name' for descending), limit. Metrics from different "
@@ -234,22 +241,22 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
               "restart": {"type": "boolean", "description": "Drop the open run and start a new one."}}),
            _guard(t_analysis_brief), writes="replaces"),
     T.Tool("play_sql", "Query the play database",
-           "One read-only DuckDB SELECT (WITH allowed) on the character's analysis database (analysis_brief "
-           "section schema). DuckDB, not SQLite: 7/2 = 3.5 (// for whole numbers), strftime(time, fmt), "
-           "COUNT(*) FILTER (WHERE ...); no files, ATTACH or repeat/lpad/printf/replace. Paged: page_size rows "
-           "(default 40, at most 60), `more` when there's more. Named metrics: list_metrics, query_metric.",
+           "One read-only DuckDB SELECT on the character's analysis database. Read the governed views first: "
+           "per_level, per_session, per_zone, per_dungeon, per_slot (list_metrics `views`), the named metrics "
+           "one row per key; raw tables (analysis_brief section schema) are the fallback. DuckDB: 7/2 = 3.5, "
+           "COUNT(*) FILTER (WHERE ...). Paged (page_size up to 60), `more` when there's more.",
            S({"char": CHAR, "query": {"type": "string", "maxLength": 8000,
-                                 "description": "One read-only DuckDB SELECT (WITH allowed); analysis_brief "
-                                                "describes the tables."},
+                                 "description": "One read-only DuckDB SELECT (WITH allowed): the views per "
+                                                "grain (per_level...) first, else the raw tables."},
               "page": {"type": "integer", "minimum": 1, "maximum": 25,
                        "description": "Which page of the result."},
               "page_size": {"type": "integer", "minimum": 1, "maximum": 60,
                             "description": "Rows per page (default 40)."}}, ("char", "query")),
            _guard(t_play_sql), writes="adds"),
     T.Tool("list_metrics", "Metric catalogue",
-           "The semantic layer's catalogue: every named metric with its kind (simple, ratio, derived), unit, "
-           "one-line definition and caveats, the dimensions it can be grouped and filtered by, and the time "
-           "grains. Four metrics count time at a level four ways: played_s (Polestar's split), online_s (the "
+           "The semantic layer's catalogue: each named metric (kind, unit, definition, caveats, the dimensions "
+           "it groups and filters by), the time grains, and the views per grain play_sql reads (per_level...) "
+           "with their columns. Time at a level four ways: played_s (Polestar's split), online_s (the "
            "Recorder's timeline), active_s (online, AFK off) and calendar_s (ding to ding, offline included).",
            S({}), _guard(t_list_metrics)),
     T.Tool("query_metric", "Query a metric",

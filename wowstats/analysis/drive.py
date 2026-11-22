@@ -99,8 +99,11 @@ class Workspace:
         self.duck = mirror(self.db, TABLES, rows=False)
         semantic.prepare(self.duck)
         self.worker = Worker(self.db, TABLES)
-        self.ro = ReadOnlyDuck(self.duck, tables=TABLES, worker=self.worker)
-        self.judge = ReadOnlyDuck(self.duck, tables=TABLES, worker=self.worker)
+        # play_sql and the judge read the views per grain (per_level...) and
+        # the prep's tables; the model views (sem_*) stay query_metric's.
+        readable = {*TABLES, *semantic.views()}
+        self.ro = ReadOnlyDuck(self.duck, tables=readable, worker=self.worker)
+        self.judge = ReadOnlyDuck(self.duck, tables=readable, worker=self.worker)
         self.metrics = ReadOnlyDuck(self.duck, tables=None, worker=self.worker)
         self._layer = None
         self.tables, self.ncols = tables_of(self.db)
@@ -111,9 +114,18 @@ class Workspace:
         from . import prep
 
         if name not in self._text:
-            self._text[name] = {"schema": lambda: prep.schema_text(self.db), "profile": lambda: prep.profile(self.db),
+            self._text[name] = {"schema": self._schema, "profile": lambda: prep.profile(self.db),
                                 "kb": self.kb.contents}[name]()
         return self._text[name]
+
+    def _schema(self) -> str:
+        """The governed views per grain first, then the prep's tables as the
+        fallback for what no view has (owner, 2026-11-22: "use the semantic
+        model all the time")."""
+        from . import prep, semantic
+
+        return (semantic.views_text() + "\n\n# Raw tables (fallback: read a view above when it has the "
+                "column)\n\n" + prep.schema_text(self.db))
 
     def layer(self):
         """The semantic layer compiled against this copy (once, on first use)."""
@@ -311,7 +323,7 @@ def _paged(name: str, text: str, page: int) -> dict:
 
 SECTIONS = {
     "start": "the procedure, the goals, the finding rules and where the run stands",
-    "schema": "every table and column with its description (paged)",
+    "schema": "the views per grain (read first), then every table and column, with their descriptions (paged)",
     "profile": "a neutral profile of every table: counts, spans, distinct and most frequent values (paged)",
     "kb": "the knowledge base's contents: kinds and the documents that aren't single game records (paged)",
     "survey": "the survey pass: task and answer shape",
@@ -324,6 +336,8 @@ SECTIONS = {
 
 def brief(env: dict, char: str, section: str = "start", page: int = 1, goals: str | None = None,
           restart: bool = False, store=None) -> dict:
+    from . import semantic
+
     w = workspace(env, char, store)
     run = current(env, w.char, goals, restart)
     section = (section or "start").strip().lower()
@@ -335,7 +349,8 @@ def brief(env: dict, char: str, section: str = "start", page: int = 1, goals: st
                "procedure": passes.PROCEDURE, "finding_rules": passes.FINDING_RULES,
                "sections": {k: {"about": v, **({"pages": len(_pages(w.text(k)))} if k in ("schema", "profile", "kb")
                                                else {})} for k, v in SECTIONS.items() if k != "start"},
-               "tables": w.tables, "facts": facts(w.db, w.layer(), w.metrics), "next": next_step(run)}
+               "views": list(semantic.views()), "tables": w.tables, "facts": facts(w.db, w.layer(), w.metrics),
+               "next": next_step(run)}
         stale = to_revalidate(env, w.char)
         if stale:
             out["to_revalidate"] = {"findings": stale, "do": REVALIDATE_DO}
@@ -543,21 +558,26 @@ def sql(env: dict, char: str, query: str, page: int = 1, page_size: int = SQL_PA
 def _count_query(env: dict, w: Workspace, touched: set[tuple[str, str]], query: str, err: str | None) -> dict:
     """One query of the run, play_sql's or query_metric's: the counters and
     the tables and columns it read, for the coverage. A metric reads the
-    semantic layer's views (sem_*): each counts as the prep tables under it,
-    so a table read through a metric isn't left "untouched" (external review
-    of 0.7.0-rc.5). Call with _LOCK held."""
-    from .semantic import VIEWS
+    semantic layer's views (sem_*), a view per grain (per_level...) the
+    sem_* views under it: each counts as the prep tables under those, so a
+    table read through a metric or a view isn't left "untouched" (external
+    review of 0.7.0-rc.5). Call with _LOCK held."""
+    from .semantic import VIEWS, view_reads, views
 
     real = set(w.tables)
     flat: set[tuple[str, str]] = set()
     for t, c in touched:
-        if t in VIEWS:
-            for base in passes.tables_in(VIEWS[t], w.tables):
-                if not c or c in w.ro.columns(base):
-                    flat.add((base, c))
-                flat.add((base, ""))
+        if t in views():
+            under = {base for sem in view_reads(t) for base in passes.tables_in(VIEWS[sem], w.tables)}
+        elif t in VIEWS:
+            under = passes.tables_in(VIEWS[t], w.tables)
         else:
             flat.add((t, c))
+            continue
+        for base in under:
+            if not c or c in w.ro.columns(base):
+                flat.add((base, c))
+            flat.add((base, ""))
     run = current(env, w.char)
     run["queries"] += 1
     run["lane_queries"] += 1

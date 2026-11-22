@@ -40,7 +40,10 @@ def test_the_tools_drive_a_run(env):
     assert "analysis_brief" in a["instructions"] and "Gear for dungeons." in a["instructions"]
     b = call("analysis_brief", {"goals": "Gear for dungeons."})
     assert b["goals"] == "Gear for dungeons." and b["next"]["pass"] == "survey"
-    assert "levels" in call("analysis_brief", {"section": "schema"})["text"]
+    schema = call("analysis_brief", {"section": "schema"})
+    assert schema["text"].startswith("# Views per grain") and "## per_level" in schema["text"]  # the views first
+    pages = [call("analysis_brief", {"section": "schema", "page": p})["text"] for p in range(1, schema["pages"] + 1)]
+    assert any("\n## levels (" in t for t in pages)  # the raw tables after them
     q = call("play_sql", {"query": "SELECT level, played_s FROM levels ORDER BY level LIMIT 3"})
     assert q["result"].startswith("level\tplayed_s") and not q["more"]
     sql = "SELECT COUNT(*) AS n FROM levels"

@@ -8,8 +8,9 @@ The MCP server has two ways to ask the play data a question. `play_sql` runs wha
 the assistant writes. `query_metric` asks for **named metrics**: `played_s` by `level`,
 `dungeon_s` by `zone` per week. The server writes the SQL from one model file,
 [`wowstats/analysis/semantic.yaml`](../../wowstats/analysis/semantic.yaml), and sends back the
-rows, the SQL it ran and each metric's definition and caveats. 75 metrics (3 of them across
-two models), 39 dimensions, three time grains (day, week, month).
+rows, the SQL it ran and each metric's definition and caveats. 86 metrics (3 of them across
+two models), 39 dimensions, three time grains (day, week, month), and five
+[views per grain](#views-per-grain) that `play_sql` reads like tables.
 
 The character page reads the same file: its time per level, XP an hour, kill and quest totals,
 dungeon runs and deaths come out of the layer when the page's answers are built (see
@@ -321,6 +322,34 @@ item's sources (`upgrade_sources` by `item_id`, `source`, `source_wowhead`) besi
 metrics take the largest value in the group (`aggregation: max`): an item's gain is the same on
 each of its source rows, and two items for one slot are alternatives, never a sum.
 
+## Views per grain
+
+The owner's call (2026-11-22): every tool and brief fact reads through the layer. A SELECT
+the assistant writes is the one reader the layer can't hand a metric to, so the layer hands it
+views instead: `per_level`, `per_session`, `per_zone`, `per_dungeon` and `per_slot`, one row
+per key. Nobody wrote their SQL. Each is declared in `semantic.yaml` under `views` (its
+entity, its metrics, a few dimensions that hold one value per key) and compiled at startup by
+the same compiler as `query_metric`: each model aggregates to the entity, the parts join on
+it. So a view's `vs_route` is `query_metric`'s `vs_route` by level, eligibility included, and
+`gold_delta_copper` is NULL below two snapshots with `gold_delta_copper_evidence` beside it.
+
+```sql
+SELECT level, played_s, calendar_s, longest_gap_s, recorder_coverage, deaths, vs_route
+FROM per_level WHERE level BETWEEN 30 AND 33
+```
+
+`recorder_coverage` is the share of the level's played time the Recorder saw (1.0: all of
+it; NULL: can't be measured, so unknown). Read the level's deaths, kills and quests with it: a
+0 at 0.6 coverage may be play the Recorder missed. `per_slot` gives the worn item an upgrade
+replaces (the weaker ring or trinket), its fit to the scored spec, the best upgrade wearable now
+and the two numbers to say as "17% → 100% on your head" (`upgrade_bis_pct_worn` →
+`best_upgrade_bis_pct`).
+
+A metric that can't be grouped by the view's entity is refused when the catalogue loads, so a
+view never shows a number it would have had to fake. `tests/invariants/test_views.py`
+checks every column against `query_metric` at the same grain on the demo, and that no key
+comes out twice. `play_sql` lists them first; the raw tables stay as the fallback.
+
 ## Still out of reach
 
 - **Two characters in one query.** Each character is its own database. Ask twice, once per
@@ -378,10 +407,13 @@ One row per level: Polestar's split when the level is done, the ding time and th
 | `split_quests` | simple | quests | Quests handed in during the level, as Polestar's split counts them. | The split's own count; records.turnin can differ for a partial level. | sum; time: level_completion; observed. |
 | `split_kills` | simple | kills | Kills during the level, as Polestar's split counts them. | The split's own count; records.kill can differ for a partial level. | sum; time: level_completion; observed. |
 | `planned_s` | simple | seconds | The route planner's seconds for the level: for this class, or the median over classes when the class isn't known. | A model of a quick player who knows the route, uncalibrated. NULL when the route reference has no time for the level. | sum; time: level_completion; estimated. |
+| `longest_gap_s` | simple | seconds | The longest stretch inside the level (previous ding to this one, or to the last record for the level in play) with no Recorder session. | Time offline, or play the Recorder missed when recorder_missed_s is above 0. Not additive: over several levels it is the longest of them. NULL for the first tracked level. | max; time: level_completion; reconstructed. |
+| `recorder_missed_s` | simple | seconds | Played seconds in the level that no Recorder session covers: the coverage's Recorder gap for the level. | 0 when the Recorder saw the whole level. NULL when it can't be measured: a partial split, the first tracked level, the level in play, or a level before the Recorder's first session. | sum; time: level_completion; inferred. |
 | `xp_per_hour` | ratio | xp/hour | XP per played hour in the level: level_xp over played_s. | Played time from the split, so idle time in the game counts against it. | ratio_of_sums; time: level_completion; observed. Rows: A level with a split: played time above 0 and its XP known. |
 | `vs_route` | ratio | ratio | Played time over the route planner's time: 1.0 is on plan, 2.0 twice as long. | As uncalibrated as planned_s. Reads whole splits with a planned time only (eligibility): planned_s on its own is the total target, every level with a plan. NULL when no level qualifies. | ratio_of_sums; time: level_completion; estimated. Rows: A whole split (partial = 0, played time above 0) with a planned time. The level in play has no split and a partial split began partway through the level, so both stay out of both sides; planned_s on its own still counts them. |
 | `offline_share` | ratio | ratio | Share of the calendar time at a level spent offline: offline_s over calendar_s (0.9: nine days in ten the game was closed). | Says how much of a level's calendar was a break, nothing about the pace inside the game. | ratio_of_sums; time: level_completion; inferred. Rows: A whole split with both dings known: its offline time and calendar time are measured. |
 | `avg_level_s` | ratio | seconds | Average played seconds a level: played_s over split_levels (the page's "a level, over the last 5"). | Filter partial = 0 for whole levels: a partial split is short. | ratio_of_sums; time: level_completion; observed. Rows: A level with a split (the level in play has none). |
+| `recorder_coverage` | ratio | share | Share of the level's played time the Recorder saw: played_s minus recorder_missed_s, over played_s (1.0: every minute). | The Recorder's counts for the level (deaths, kills, quests_done, online_s) cover this share of its play: below 1, a 0 there may be play it missed. NULL when it can't be measured (see recorder_missed_s): unknown, never full. | ratio_of_sums; time: level_completion; inferred. Rows: A level whose Recorder gap is measured: a whole split after the Recorder's first session. |
 | `over_route_s` | derived | seconds | Seconds played beyond the route planner's time (negative: faster). | As uncalibrated as planned_s. Reads whole splits with a planned time only (eligibility): planned_s on its own is the total target, every level with a plan. NULL when no level qualifies. | sum; time: level_completion; estimated. Rows: A whole split (partial = 0, played time above 0) with a planned time. The level in play has no split and a partial split began partway through the level, so both stay out of both sides; planned_s on its own still counts them. |
 
 Group or filter by: `character`, `class`, `level`, `partial`, `time`.
@@ -520,6 +552,10 @@ The gear advice's upgrades for the spec the gear is scored for (the player's WEI
 | `upgrade_bis_pct` | simple | percent | The item's score as a percent of the best its slot can hold at this level for the scored spec (100: the best). | Say it with upgrade_bis_pct_worn as the page does: '17% → 100% on your head', never as '+83%'. NULL when there is nothing to measure against. | max; time: snapshot_observation; estimated. |
 | `upgrade_bis_pct_worn` | simple | percent | The same percent for what is worn in that slot now. | NULL for an empty slot, or when there is nothing to measure against. | max; time: snapshot_observation; estimated. |
 | `upgrade_sources` | simple | sources | Ways to get the upgrades: one per item and source. | An item with a drop and a quest counts twice; group by item_id and source to list them. | sum; time: snapshot_observation; estimated. |
+| `best_upgrade` | simple | item | The best upgrade wearable now: the item with the biggest gain (rank_now 1), its name. | Group by slot: over several slots it is the first name in alphabetical order among their best. NULL when nothing wearable now beats what is worn. | top; time: snapshot_observation; estimated. |
+| `best_upgrade_id` | simple | item id | The best upgrade wearable now, its item id (its Wowhead page: item=<id>). | Group by slot, as best_upgrade. | top; time: snapshot_observation; estimated. |
+| `best_upgrade_gain` | simple | points | The best upgrade's score gain over what is worn (Polestar's points, for the scored spec). | Group by slot, as best_upgrade. Not additive: one slot's best is not another's. | top; time: snapshot_observation; estimated. |
+| `best_upgrade_bis_pct` | simple | percent | The best upgrade's score as a percent of the best its slot can hold at this level for the scored spec. | Say it with upgrade_bis_pct_worn as the page does: '17% → 64% on your head', never as '+47%'. NULL when there is nothing to measure against. | top; time: snapshot_observation; estimated. |
 
 Group or filter by: `character`, `class`, `fills_empty`, `fit`, `instance`, `item`, `item_id`, `now`, `rank_now`, `slot`, `source`, `source_kind`, `source_wowhead`, `zone`.
 
@@ -532,6 +568,10 @@ The items worn on the newest character sheet, as the gear advice scores them for
 | `worn_items` | simple | items | Items worn. | The newest sheet only; a shirt or tabard counts when it has a name. | sum; time: snapshot_observation; observed. |
 | `worn_score` | simple | points | The worn items' score for the scored spec (Polestar's points): one item's, or the whole gear's summed over slots. | NULL for an item the gear data doesn't know. | sum; time: snapshot_observation; estimated. |
 | `worn_bis_pct` | simple | percent | The worn item's score as a percent of the best its slot can hold at this level for the scored spec (100: the best). | Group by slot and item_id: over several slots it is the best of them. NULL when there is nothing to measure against. | max; time: snapshot_observation; estimated. |
+| `worn_item` | simple | item | The worn item an upgrade replaces: the slot's item, or the weaker of two (rings, trinkets) by score. | Group by slot: over several slots it is the first name in alphabetical order among their weakest. Weaker by the scored spec's points; an item the gear data doesn't score counts as the stronger. | top; time: snapshot_observation; observed. |
+| `worn_item_id` | simple | item id | That worn item's id (its Wowhead page: item=<id>). | Group by slot, as worn_item. | top; time: snapshot_observation; observed. |
+| `worn_fit` | simple | fit | How that worn item fits the scored spec: yes, any, spec (built for another spec of the class), class (made for another class) or unknown. | Group by slot, as worn_item. The spec is the player's WEIGHTS setting, else the talents (scored_for). | top; time: snapshot_observation; estimated. |
+| `worn_item_bis_pct` | simple | percent | That worn item's score as a percent of the best its slot can hold at this level for the scored spec. | Group by slot, as worn_item. NULL when there is nothing to measure against. | top; time: snapshot_observation; estimated. |
 
 Group or filter by: `built_for`, `character`, `class`, `fit`, `item`, `item_id`, `scored_for`, `slot`.
 
@@ -544,6 +584,18 @@ Each model aggregates on its own to the question's group_by, the results join on
 | `kills_per_combat_hour` | ratio | kills/hour | `kills / (combat_s / 3600)` | Kills per hour in combat: kills (records) over combat_s (timeline). | Combat time includes fights that ended in no kill (fleeing, dying, a tapped mob). NULL without combat time. | ratio_of_sums; time: event, interval_start; reconstructed. Rows: Inside a login span the Recorder saw, on both sides. | `character`, `class`, `hour`, `level`, `session_id`, `time`, `zone` |
 | `deaths_per_online_hour` | ratio | deaths/hour | `deaths / (online_s / 3600)` | Deaths per online hour: deaths (records) over online_s (timeline). | Online time includes AFK; filter or compare with active_s. | ratio_of_sums; time: event, interval_start; reconstructed. Rows: Inside a login span the Recorder saw, on both sides. | `character`, `class`, `hour`, `level`, `session_id`, `time`, `zone` |
 | `quest_xp_per_played_hour` | ratio | xp/hour | `quest_xp / (played_s / 3600)` | XP from quest hand-ins per played hour in the level: quest_xp (records) over played_s (levels). | Levels only share level, character, class and time with records: group by one of those. Whole splits only, on both sides. | ratio_of_sums; time: event, level_completion; observed. Rows: Levels with a whole split: the quest XP of those levels over their played time. The level in play and a partial split stay out of both sides. | `character`, `class`, `level` |
+
+### Views per grain
+
+Each view is the metrics below compiled at one entity, one row per key, added to the character's DuckDB copy beside the models' views. `play_sql` reads them by name; each metric column is the metric of that name, its rules included.
+
+| View | One row per | Columns | Definition |
+|---|---|---|---|
+| `per_level` | `level` | `level`, `partial`, `played_s`, `calendar_s`, `offline_s`, `longest_gap_s`, `recorder_missed_s`, `recorder_coverage`, `online_s`, `deaths`, `deaths_per_online_hour`, `planned_s`, `vs_route`, `split_quests`, `quests_done`, `gold_moved_copper`, `gold_delta_copper`, `gold_delta_copper_evidence` | One row per level: time played, wall clock and the longest silence, how much of it the Recorder saw, deaths, the route plan against the play, quests and gold. |
+| `per_session` | `session_id` | `session_id`, `weekday`, `start_hour`, `level_start`, `session_s`, `session_xp`, `xp_per_session_hour`, `online_s`, `active_s`, `combat_s`, `dungeon_s`, `kills`, `deaths`, `quests_done`, `deaths_per_online_hour`, `kills_per_combat_hour` | One row per login span: its length and XP, online, active, combat and dungeon time, kills, deaths and quests. |
+| `per_zone` | `zone` | `zone`, `online_s`, `active_s`, `combat_s`, `dungeon_s`, `kills`, `deaths`, `quests_done`, `kill_xp`, `quest_xp`, `deaths_per_online_hour`, `kills_per_combat_hour` | One row per zone the Recorder saw: online, combat and dungeon time, kills, deaths, quests and their XP. |
+| `per_dungeon` | `dungeon` | `dungeon`, `run_count`, `run_s`, `run_xp`, `run_xp_per_hour`, `trip_count`, `trip_s`, `trip_travel_s`, `trip_xp`, `trip_xp_per_hour`, `trip_inside_share` | One row per dungeon: runs and their time and XP inside, trips with the travel around them and their XP an hour. |
+| `per_slot` | `slot` | `slot`, `scored_for`, `worn_items`, `worn_item`, `worn_item_id`, `worn_fit`, `worn_item_bis_pct`, `best_upgrade`, `best_upgrade_id`, `best_upgrade_gain`, `best_upgrade_bis_pct`, `upgrade_bis_pct_worn`, `upgrade_sources` | One row per gear slot, for the spec the gear is scored for: the worn item and its fit, the best upgrade wearable now, and the two percents the page says as 'NN% → NN%' (upgrade_bis_pct_worn → best_upgrade_bis_pct). |
 
 ### Dimensions
 

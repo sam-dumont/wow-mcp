@@ -73,20 +73,28 @@ VIEWS = {
     "sem_upgrades": ("SELECT u.*, CASE WHEN u.now = 1 THEN DENSE_RANK() OVER (PARTITION BY u.slot_name, u.now "
                      "ORDER BY u.gain DESC, u.item_id) END AS rank_now, {who} FROM upgrade_candidates u"),
     # The worn items on the newest sheet, as the gear advice scores them.
-    "sem_gear": "SELECT *, {who} FROM gear WHERE name IS NOT NULL",
+    # weak_rank 1 is the item an upgrade replaces: the slot's only one, or
+    # the weaker of two rings or trinkets (wowstats.gear.bis_badge's rule).
+    "sem_gear": ("SELECT *, ROW_NUMBER() OVER (PARTITION BY slot_name ORDER BY score ASC NULLS LAST, slot) "
+                 "AS weak_rank, {who} FROM gear WHERE name IS NOT NULL"),
 }
 CROSS_KEY = "cross_model_metrics"
+# The views per grain (semantic.yaml `views`): per_level, per_session...,
+# compiled from the metrics by view_sql and added beside VIEWS by prepare.
+VIEWS_KEY = "views"
+OURS = (CROSS_KEY, VIEWS_KEY)
 
 # The fields a metric's metadata carries beside kind, unit and caveats: the
 # caveats the compiler enforces instead of only printing (review 4, 2026-11-21).
 # aggregation: how the rows become the number (max: the largest value in
-# the group, for a per-item fact the model repeats on each of the item's rows). time_meaning: what the model's
+# the group, for a per-item fact the model repeats on each of the item's rows;
+# top: the value on the slot's top row, its best upgrade or weakest worn item). time_meaning: what the model's
 # `time` is for this metric. evidence_basis: how the number was obtained.
 # eligibility: {where, means}, the rows every side of a two-sided metric reads
 # (a predicate over the model's row; for a cross-model metric one per model).
 # min_evidence: {count, at_least, means}: fewer observations in a row than
 # at_least and the value is NULL, with the count beside it (<name>_evidence).
-AGGREGATIONS = ("sum", "ratio_of_sums", "latest", "endpoint_difference", "max")
+AGGREGATIONS = ("sum", "ratio_of_sums", "latest", "endpoint_difference", "max", "top")
 TIME_MEANINGS = ("interval_start", "level_completion", "snapshot_observation", "quest_closure", "event")
 EVIDENCE_BASES = ("observed", "reconstructed", "allocated", "inferred", "estimated")
 FIELDS = ("aggregation", "time_meaning", "evidence_basis", "eligibility", "min_evidence")
@@ -94,13 +102,47 @@ _AGG_CALL = re.compile(r"\.(sum|count|nunique|mean|min|max|argmax|argmin)\(")
 
 
 def prepare(con, tz: str | None = None) -> None:
-    """Add the model's views to a DuckDB copy of the prep (before any query)."""
+    """Add the model's views to a DuckDB copy of the prep (before any query),
+    then the views per grain compiled from them (view_sql)."""
     from . import prep
 
     zone = (tz or prep.TZ_NAME).replace("'", "''")
     for name, body in VIEWS.items():
         sql = re.sub(r"\{ts:([a-z_.0-9]+)\}", lambda m: f"timezone('{zone}', to_timestamp({m.group(1)}))", body)
         con.execute(f"CREATE VIEW {name} AS {sql.replace('{who}', _WHO)}")
+    for name, sql in view_sql(con).items():
+        con.execute(f"CREATE VIEW {name} AS {sql}")
+
+
+def signature(con) -> tuple:
+    """The model's views' columns and types on this copy: all the compiler
+    reads from it, so the key its output is cached under."""
+    cur = con.cursor()
+    return tuple((cfg["table"], tuple((c[0], c[1]) for c in cur.execute(f'DESCRIBE "{cfg["table"]}"').fetchall()))
+                 for cfg in spec().values())
+
+
+def view_sql(con) -> dict[str, str]:
+    """Each view per grain as the SQL the compiler writes for its metrics at
+    its entity (no limit, no parameters), for this copy's column types."""
+    return dict(_view_sql(signature(con)))
+
+
+@functools.lru_cache(maxsize=8)
+def _view_sql(sig: tuple) -> tuple:
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # BSL's own deprecation notes
+        layer = Layer(sig=sig)
+    out = []
+    for name, v in views().items():
+        c = layer.compile({"metrics": v["metrics"], "group_by": [v["entity"]], "where": v["where"]},
+                          attrs=v["dimensions"], view=True)
+        if c["params"]:
+            raise ValueError(f"view {name}: a view binds no value (its where tests for null only)")
+        out.append((name, c["sql"]))
+    return tuple(out)
 
 
 def local(db, tz: str | None = None):
@@ -133,7 +175,7 @@ def spec() -> dict:
     each measure it reads restricted to the eligible rows (`<measure>__for_<metric>`);
     for one with min_evidence, its evidence count (`<metric>__evidence`).
     Neither is in the catalogue: a caller can't name them."""
-    models = copy.deepcopy({k: v for k, v in _file().items() if k != CROSS_KEY})
+    models = copy.deepcopy({k: v for k, v in _file().items() if k not in OURS})
     for cfg in models.values():
         for section in ("measures", "calculated_measures"):
             for name, m in list((cfg.get(section) or {}).items()):
@@ -279,7 +321,7 @@ def _sql_of(node: ast.expr, col) -> str:
 def catalogue() -> dict:
     """list_metrics' answer: every metric with its definition, the
     dimensions it can be grouped and filtered by, and the time grains."""
-    s = {k: v for k, v in _file().items() if k != CROSS_KEY}  # as written: no generated parts
+    s = {k: v for k, v in _file().items() if k not in OURS}  # as written: no generated parts
     metrics, dims = [], {}
     for model, cfg in s.items():
         own = cfg.get("dimensions") or {}
@@ -316,6 +358,79 @@ def catalogue() -> dict:
             "grains": list(GRAINS), "ops": list(OPS)}
 
 
+@functools.cache
+def views() -> dict[str, dict]:
+    """semantic.yaml's views per grain, checked: each metric can be grouped by
+    the view's entity (else refused: a metric that can't be read at that
+    grain is left out, never faked), each dimension belongs to one of the
+    view's models, and the columns with what each one means. A metric's
+    rules (eligibility, min_evidence, time_meaning) hold in the view: it is
+    the same compiled measure."""
+    from . import TABLES
+
+    cat = catalogue()
+    by_name = {m["name"]: m for m in cat["metrics"]}
+    dims = {d["name"]: d for d in cat["dimensions"]}
+    out = {}
+    for name, v in (_file().get(VIEWS_KEY) or {}).items():
+        if not re.match(r"^per_[a-z_]{2,30}$", name) or name in VIEWS or name in TABLES:
+            raise ValueError(f"view {name}: a name per_<grain>, not a table's or a model view's")
+        entity, metrics = v.get("entity"), list(v.get("metrics") or [])
+        if entity not in dims or entity == "time":
+            raise ValueError(f"view {name}: entity {entity!r} is not a dimension (time has grains: query_metric)")
+        if not metrics or len(set(metrics)) != len(metrics):
+            raise ValueError(f"view {name}: a list of distinct metrics")
+        models: set[str] = set()
+        for n in metrics:
+            m = by_name.get(n)
+            if m is None:
+                raise ValueError(f"view {name}: {n!r} is not a metric")
+            if entity not in m["group_by"]:
+                raise ValueError(f"view {name}: {n} can't be read by {entity}: leave it out")
+            models.update(m.get("models") or [m["model"]])
+        attrs = list(v.get("dimensions") or [])
+        for a in attrs:
+            if a not in dims or a in (entity, "time") or not models & set(dims[a]["models"]):
+                raise ValueError(f"view {name}: dimension {a!r} isn't one of its models'")
+        where = [dict(w) for w in v.get("where") or []]
+        if any(w.get("op") not in ("is null", "is not null") for w in where):
+            raise ValueError(f"view {name}: where tests for null only (a view binds no value)")
+        cols = [{"name": entity, "description": dims[entity]["description"], "grain": True}]
+        cols += [{"name": a, "description": dims[a]["description"]} for a in attrs]
+        for n in metrics:
+            m = by_name[n]
+            cols.append({"name": n, **{k: m.get(k) for k in ("kind", "unit", "description", "caveats", *FIELDS)}})
+            if m.get("min_evidence"):
+                cols.append({"name": f"{n}_evidence", "unit": "observations",
+                             "description": f"How many observations {n} rests on: below "
+                                            f"{m['min_evidence']['at_least']} it is NULL (0: none, unavailable)."})
+        out[name] = {"name": name, "entity": entity, "description": v.get("description"), "metrics": metrics,
+                     "dimensions": attrs, "where": where, "models": sorted(models), "columns": cols}
+    return out
+
+
+def views_text() -> str:
+    """The views per grain for the schema listing (analysis_brief section
+    schema) and play_sql: read first, the prep's tables after them."""
+    out = ["# Views per grain (governed: read these first)", "",
+           "Compiled from the semantic layer's metrics, one row per key (no fan-out). Each metric column is the "
+           "list_metrics metric of that name, its rules included: a ratio reads its eligible rows, a metric with "
+           "min_evidence is NULL below it with <name>_evidence beside it, and NULL is unknown, never 0. Join "
+           "them on their key (level, session_id, zone, dungeon, slot) with each other or a raw table."]
+    for v in views().values():
+        out += ["", f"## {v['name']}: one row per {v['entity']}", v["description"] or ""]
+        for c in v["columns"]:
+            unit = f" ({c['unit']})" if c.get("unit") else ""
+            out.append(f"- {c['name']}{unit}: {c['description']}")
+    return "\n".join(out)
+
+
+def view_reads(name: str) -> set[str]:
+    """The model views (sem_*) a view per grain reads."""
+    spec_ = spec()
+    return {spec_[mo]["table"] for mo in views()[name]["models"]}
+
+
 def _metric(name: str) -> dict:
     m = next((x for x in catalogue()["metrics"] if x["name"] == name), None)
     if m is None:
@@ -327,22 +442,20 @@ class Layer:
     """The model compiled against one character's DuckDB copy (its column
     types), built once per workspace."""
 
-    def __init__(self, con):
+    def __init__(self, con=None, *, sig: tuple | None = None):
         import ibis
         from boring_semantic_layer import from_config
 
         types = {"BIGINT": "int64", "INTEGER": "int64", "DOUBLE": "float64", "VARCHAR": "string",
                  "TIMESTAMP": "timestamp", "BOOLEAN": "boolean"}
-        tables = {}
-        for cfg in spec().values():
-            name = cfg["table"]
-            cols = con.cursor().execute(f'DESCRIBE "{name}"').fetchall()
-            tables[name] = ibis.table({c[0]: types.get(c[1], "string") for c in cols}, name=name)
+        tables = {name: ibis.table({c: types.get(t, "string") for c, t in cols}, name=name)
+                  for name, cols in (sig if sig is not None else signature(con))}
         self.models = from_config(spec(), tables=tables)
 
-    def _one(self, model: str, measures: list[str], label: str, q: dict, values: list) -> str:
+    def _one(self, model: str, measures: list[str], label: str, q: dict, values: list, attrs=()) -> str:
         """One model's part: its metrics aggregated to the question's
-        group_by, filters on its own dimensions; columns named plainly."""
+        group_by (and a view's dimensions this model has), filters on its own
+        dimensions; columns named plainly."""
         import ibis
 
         sem = self.models[model]
@@ -365,7 +478,8 @@ class Layer:
             filters.append({"field": "time", "operator": op, "value": value})
         kw = {"time_grain": GRAINS[q["grain"]]} if q["grain"] else {}
         try:
-            expr = sem.query(dimensions=q["group_by"] or None, measures=measures,
+            dims = q["group_by"] + [a for a in attrs if a in own]
+            expr = sem.query(dimensions=dims or None, measures=measures,
                              filters=filters or None, **kw)
             return str(ibis.to_sql(expr.to_untagged(), dialect="duckdb"))
         except QueryError:
@@ -373,12 +487,15 @@ class Layer:
         except Exception as e:  # BSL's and ibis' own errors: the caller's mix doesn't fit the model
             raise QueryError(f"can't compile that: {str(e).splitlines()[0][:240]}") from None
 
-    def compile(self, q: dict) -> dict:
+    def compile(self, q: dict, attrs=(), view: bool = False) -> dict:
         """The query checked and compiled: {sql, params, columns, definitions, query}.
         One model: its aggregate. Several: each model's aggregate, joined on
         the group_by columns (a full outer join, so a level with time but no
-        kills keeps its row)."""
-        q = normalise(q)
+        kills keeps its row). For a view per grain (`view`): any number of
+        metrics, no limit, and `attrs`, dimensions grouped in the models that
+        have them and joined on group_by only (one value per key: the views'
+        test checks no key comes out twice)."""
+        q = normalise(q, max_metrics=None if view else MAX_METRICS)
         metrics = [_metric(n) for n in q["metrics"]]
         # A cross-model metric is computed after the join from the models'
         # own metrics: those go into their models' parts (unshown if not asked).
@@ -424,7 +541,7 @@ class Layer:
 
         values = [[sentinel(x) for x in w["values"]] if "values" in w else sentinel(w["value"]) if "value" in w
                   else None for w in q["where"]]
-        parts = {model: self._one(model, ms, label[model], q, values) for model, ms in by_model.items()}
+        parts = {model: self._one(model, ms, label[model], q, values, attrs) for model, ms in by_model.items()}
         for tok, ph in tokens.items():
             hits = [m for m, sql in parts.items() if tok in sql]
             if len(hits) != len(parts):
@@ -452,6 +569,11 @@ class Layer:
 
         sel = [col(d) for d in dims]
         columns = [out(d) for d in dims]
+        for a in attrs:
+            has = [i for i, mo in enumerate(names) if a in self.models[mo].get_dimensions()]
+            cells = ", ".join(f"m{i}.{_q(a)}" for i in has)
+            sel.append(f"{f'COALESCE({cells})' if len(has) > 1 else cells} AS {_q(a)}")
+            columns.append(a)
         for m in metrics:
             p = parts_of(m)
             if m["model"] == "cross":
@@ -480,8 +602,9 @@ class Layer:
             frm += f" FULL OUTER JOIN m{i} ON {on}"
         order = q["order_by"] or [(d, "asc") for d in dims]
         ob = ", ".join(f"{_q(out(n))} {d.upper()} NULLS LAST" for n, d in order)
-        sql = f"WITH {ctes}\nSELECT {', '.join(sel)}\nFROM {frm}" + (f"\nORDER BY {ob}" if ob else "") + \
-            f"\nLIMIT {int(q['limit']) + 1}"  # one row past the limit: run() says `more` from it
+        sql = f"WITH {ctes}\nSELECT {', '.join(sel)}\nFROM {frm}" + (f"\nORDER BY {ob}" if ob else "")
+        if not view:
+            sql += f"\nLIMIT {int(q['limit']) + 1}"  # one row past the limit: run() says `more` from it
         return {"sql": sql, "params": params, "columns": columns,
                 "definitions": {m["name"]: {k: m[k] for k in ("kind", "unit", "description", "caveats", *FIELDS,
                                                              "model", "models", "of", "expr") if k in m and (
@@ -526,9 +649,10 @@ def _when(v, what: str) -> str | None:
     return v
 
 
-def normalise(q: dict) -> dict:
+def normalise(q: dict, max_metrics: int | None = MAX_METRICS) -> dict:
     """The query's shape checked, names against the closed lists: a QueryError
-    says what's wrong. Values are only type-checked: they are bound later."""
+    says what's wrong. Values are only type-checked: they are bound later.
+    max_metrics None: a view per grain's own compile, every metric it lists."""
     if not isinstance(q, dict):
         raise QueryError("a query is an object: metrics, group_by, where, grain, order_by, limit")
     cat = catalogue()
@@ -544,7 +668,7 @@ def normalise(q: dict) -> dict:
             raise QueryError(f"{what}: unknown {bad[0]!r} (list_metrics names them)")
         return list(dict.fromkeys(v))
 
-    metrics = names(q.get("metrics"), "metrics", known_m, MAX_METRICS)
+    metrics = names(q.get("metrics"), "metrics", known_m, max_metrics or len(known_m))
     if not metrics:
         raise QueryError("metrics: at least one (list_metrics names them)")
     group = names(q.get("group_by"), "group_by", known_d, MAX_GROUP)

@@ -1,0 +1,218 @@
+"""The views per grain (semantic.yaml `views`: per_level, per_session,
+per_zone, per_dungeon, per_slot): compiled from the metrics, never hand SQL.
+
+Three histories: the demo seed (dev/seed.py, Testchar-Demo: no gear sheet),
+the docs site's demo character (tests/degraded.py, with its gear advice, so
+per_slot has rows) and a seeded variation of it (tests/invariants/histories.py:
+records on one millisecond across the digit boundaries). On each, every column
+of every view equals query_metric for the same metric at the view's entity,
+and no key comes out twice. Guarantee 24 in docs/guarantees.md."""
+
+from __future__ import annotations
+
+import copy
+import json
+import math
+import os
+import subprocess
+import sys
+import warnings
+from pathlib import Path
+
+import pytest
+
+from tests import degraded as D
+from tests.invariants import histories as H
+from wowstats import analysis
+from wowstats.analysis import TABLES, drive, duck, prep, semantic
+from wowstats.analysis.sql import QueryError
+from wowstats.mcp import route, tools
+
+ROOT = Path(__file__).resolve().parents[2]
+SEED_CHAR = "Testchar-Demo"
+warnings.filterwarnings("ignore", module="boring_semantic_layer")
+
+
+def _seed_rows(tmp: Path) -> list[dict]:
+    out = tmp / "seed.ndjson"
+    subprocess.run([sys.executable, str(ROOT / "dev" / "seed.py"), "--out", str(out)], check=True,
+                   capture_output=True)
+    return [json.loads(x) for x in out.read_text().splitlines() if x.strip()]
+
+
+@pytest.fixture(scope="module", params=["seed", "demo", "variant"])
+def built(request, tmp_path_factory):
+    if request.param == "seed":
+        rows = [r for r in _seed_rows(tmp_path_factory.mktemp("seed")) if r.get("char") == SEED_CHAR]
+        char = SEED_CHAR
+    elif request.param == "demo":
+        rows, char = D.base_rows(), D.CHAR
+    else:
+        rows, char = H.rows_of(7), H.CHAR
+    db = prep.build([dict(r) for r in rows], char, route.reference(), advice=analysis.advice_for(rows, char, {}))
+    con = duck.mirror(db, TABLES)
+    semantic.prepare(con)
+    return {"name": request.param, "db": db, "con": con, "layer": semantic.Layer(con), "ro": duck.ReadOnlyDuck(con)}
+
+
+def view_rows(b, name: str) -> list[dict]:
+    cols, rows, cut = b["ro"].run(f"SELECT * FROM {name}", 10_000)
+    assert not cut
+    return [dict(zip(cols, r, strict=True)) for r in rows]
+
+
+def same(a, b) -> bool:
+    if isinstance(a, float) or isinstance(b, float):
+        return a is not None and b is not None and math.isclose(a, b, rel_tol=1e-9, abs_tol=1e-9)
+    return a == b
+
+
+# ---------------------------------------------------------------- the guarantees
+
+
+def test_every_view_column_equals_query_metric_at_its_grain(built):
+    """Each metric of a view, asked alone through query_metric grouped by the
+    view's entity (with the view's where): the same value on every key. A
+    key the metric has no row for is NULL in the view (0 for an evidence
+    count), never a made-up number."""
+    checked = 0
+    for name, v in semantic.views().items():
+        got = {r[v["entity"]]: r for r in view_rows(built, name)}
+        for m in v["metrics"]:
+            ans = semantic.run(built["layer"], built["ro"], {"metrics": [m], "group_by": [v["entity"]],
+                                                             "where": v["where"], "limit": semantic.MAX_LIMIT})
+            assert not ans["more"], (name, m)
+            want = {r[0]: dict(zip(ans["columns"], r, strict=True)) for r in ans["rows"]}
+            for key, row in got.items():
+                for col in [c for c in ans["columns"] if c != v["entity"]]:
+                    expect = want[key][col] if key in want else (0 if col.endswith("_evidence") else None)
+                    assert same(row[col], expect) or row[col] is expect, (built["name"], name, key, col,
+                                                                          row[col], expect)
+                    checked += 1
+            assert set(want) <= set(got), (name, m)
+    assert checked > 200
+
+
+def test_no_fan_out_one_row_per_grain_key(built):
+    """A view has exactly one row per key of its entity: the keys any of its
+    metrics has, each once (a dimension that held two values for one key
+    would split it)."""
+    for name, v in semantic.views().items():
+        rows = view_rows(built, name)
+        keys = [r[v["entity"]] for r in rows]
+        union = set()
+        for m in v["metrics"]:
+            ans = semantic.run(built["layer"], built["ro"], {"metrics": [m], "group_by": [v["entity"]],
+                                                             "where": v["where"], "limit": semantic.MAX_LIMIT})
+            union |= {r[0] for r in ans["rows"]}
+        assert len(keys) == len(set(keys)) == len(union), (built["name"], name)
+        assert None not in union, name
+    assert built["name"] == "seed" or view_rows(built, "per_slot"), "the demo's gear gives per_slot rows"
+
+
+def test_recorder_coverage_is_a_plain_column_of_per_level(built):
+    """Played time the Recorder saw, per level: (played_s - recorder_missed_s)
+    / played_s where the gap is measured, NULL (unknown) where it isn't."""
+    lv = {r["level"]: r for r in view_rows(built, "per_level")}
+    raw = {lvl: (p, m) for lvl, p, m in built["db"].execute("SELECT level, played_s, recorder_missed_s FROM levels")}
+    measured = 0
+    for level, row in lv.items():
+        p, m = raw.get(level, (None, None))
+        if m is None or not p:
+            assert row["recorder_coverage"] is None, level
+        else:
+            assert row["recorder_coverage"] == pytest.approx((p - m) / p), level
+            measured += 1
+    assert measured >= 3
+    assert lv[max(lv)]["recorder_coverage"] is None  # the level in play: no split, unknown
+
+
+def test_per_slot_says_worn_against_best_upgrade():
+    """The demo priest's head: the Shadow-scored Azure Silk Hood (made for
+    another class) at 17%, the Embalmed Shroud at 100% wearable now: the
+    page's '17% → 100% on your head'. Rings: two worn, the weaker named."""
+    rows = D.base_rows()
+    db = prep.build([dict(r) for r in rows], D.CHAR, route.reference(), advice=analysis.advice_for(rows, D.CHAR, {}))
+    layer, ro = semantic.local(db)
+    cols, got, _ = ro.run("SELECT * FROM per_slot", 100)
+    slot = {r[0]: dict(zip(cols, r, strict=True)) for r in got}
+    head = slot["Head"]
+    assert (head["worn_item"], head["worn_fit"], head["upgrade_bis_pct_worn"]) == ("Azure Silk Hood", "class", 17)
+    assert (head["best_upgrade"], head["best_upgrade_bis_pct"]) == ("Embalmed Shroud", 100)
+    assert slot["Finger"]["worn_items"] == 2
+    weaker = db.execute("SELECT name FROM gear WHERE slot_name = 'Finger' ORDER BY score, slot LIMIT 1").fetchone()[0]
+    assert slot["Finger"]["worn_item"] == weaker
+
+
+def test_a_metric_that_cant_be_read_at_the_grain_is_refused(monkeypatch):
+    """played_s has no slot: a view asking for it fails when the catalogue
+    loads, never ships a faked column."""
+    bad = copy.deepcopy(semantic._file())
+    bad["views"]["per_slot"]["metrics"].append("played_s")
+    monkeypatch.setattr(semantic, "_file", lambda: bad)
+    semantic.views.cache_clear()
+    try:
+        with pytest.raises(ValueError, match="played_s can't be read by slot"):
+            semantic.views()
+    finally:
+        semantic.views.cache_clear()
+
+
+def test_views_hold_in_the_query_process(built):
+    """play_sql runs in a child process (wowstats.analysis.duckproc): the
+    views are there too, with the same rows."""
+    from wowstats.analysis import duckproc
+
+    w = duckproc.Worker(built["db"], TABLES)
+    try:
+        play = duck.ReadOnlyDuck(built["con"], tables={*TABLES, *semantic.views()}, worker=w)
+        for name in semantic.views():
+            assert play.run(f"SELECT * FROM {name}", 1000) == built["ro"].run(f"SELECT * FROM {name}", 1000), name
+        with pytest.raises(QueryError):
+            play.run("SELECT * FROM sem_levels")  # the model views stay query_metric's
+    finally:
+        w.close()
+
+
+# ---------------------------------------------------------------- over MCP
+
+
+class DemoStore:
+    vl_url, vl_archive_url, logs_filter, hot_days, stream = "http://unused", "", "feed:wow-*", 89, "feed:wow-*"
+    account_id = 0
+
+    def logs(self, *a, **k):
+        return []
+
+
+@pytest.fixture()
+def lab(tmp_path, monkeypatch):
+    rows = D.base_rows()
+    monkeypatch.setattr(prep, "query", lambda store, stream, char: [dict(r) for r in rows if r.get("char") == char])
+    monkeypatch.setenv("ANALYSIS_STATE_DIR", str(tmp_path))
+    monkeypatch.setenv("KB_GAME_TABLES", "off")
+    drive._WS.clear()
+    yield DemoStore()
+    drive._WS.clear()
+
+
+def call(store, name, args):
+    return tools.call(tools.Ctx(store=store, default_char=D.CHAR), name, args)
+
+
+def test_list_metrics_lists_the_views_and_play_sql_reads_them_first(lab):
+    cat = call(lab, "list_metrics", {})
+    names = [v["name"] for v in cat["views"]]
+    assert names == ["per_level", "per_session", "per_zone", "per_dungeon", "per_slot"]
+    level = next(v for v in cat["views"] if v["name"] == "per_level")
+    assert level["one_row_per"] == "level" and "recorder_coverage" in [c["name"] for c in level["columns"]]
+    desc = next(t for t in tools.TOOLS if t.name == "play_sql").description
+    assert desc.index("per_level") < desc.index("raw tables")
+    schema = call(lab, "analysis_brief", {"char": D.CHAR, "section": "schema"})["text"]
+    assert schema.startswith("# Views per grain") and schema.index("## per_slot") < schema.index("# Raw tables")
+    out = call(lab, "play_sql", {"char": D.CHAR, "query": "SELECT level, recorder_coverage FROM per_level "
+                                                          "WHERE level = 30"})
+    assert out["result"].splitlines() == ["level\trecorder_coverage", "30\t1"]
+    # Read through a view, the tables under it count as read for the run's coverage.
+    run = drive.current(dict(os.environ), prep.norm(D.CHAR))
+    assert {"levels", "records", "timeline", "snapshots"} <= set(run["touched"])

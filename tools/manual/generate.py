@@ -736,6 +736,14 @@ def block_semantic() -> str:
         out += [f"| `{m['name']}` | {m['kind']} | {cell(m['unit'])} | `{cell(m['expr'])}` | {cell(m['description'])} "
                 f"| {cell(m['caveats'])} | {rules(m)} | {', '.join(f'`{d}`' for d in m['group_by'])} |" for m in cross]
         out += [""]
+    out += ["### Views per grain", "",
+            "Each view is the metrics below compiled at one entity, one row per key, added to the character's "
+            "DuckDB copy beside the models' views. `play_sql` reads them by name; each metric column is the "
+            "metric of that name, its rules included.", "",
+            "| View | One row per | Columns | Definition |", "|---|---|---|---|"]
+    out += [f"| `{v['name']}` | `{v['entity']}` | {', '.join(f'`{c}`' for c in [x['name'] for x in v['columns']])} "
+            f"| {cell(v['description'])} |" for v in semantic.views().values()]
+    out += [""]
     out += ["### Dimensions", "", "| Dimension | Models | Definition |", "|---|---|---|"]
     out += [f"| `{d['name']}` | {', '.join(d['models'])} | {cell(d['description'])}"
             + (f" Grains: {', '.join(d['grains'])}." if d.get("grains") else "") + " |" for d in cat["dimensions"]]
