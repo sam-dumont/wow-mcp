@@ -132,7 +132,13 @@ def test_the_ui_reports_the_endpoint_and_checks_it_at_start():
 
 
 @pytest.fixture
-def lab(stores, tmp_path):
+def lab_env():
+    """Settings a test adds to the lab's (parametrize it by this name)."""
+    return {}
+
+
+@pytest.fixture
+def lab(stores, tmp_path, lab_env):
     """The endpoint with the OIDC proxy, one person (OIDC_ALLOWED_SUBS)."""
     with oidc_standin.Standin(user="owner-sub") as idp:
         (tmp_path / "secret").write_text(oidc_standin.CLIENT_SECRET)
@@ -143,7 +149,7 @@ def lab(stores, tmp_path):
                "OIDC_CLIENT_SECRET_FILE": str(tmp_path / "secret"), "OIDC_ALLOWED_SUBS": "owner-sub",
                "OIDC_REQUIRED_ROLE": "user", "OIDC_ALLOWED_ORGS": "org-owner",
                "MCP_SIGNING_KEY_FILE": str(tmp_path / "key"), "MCP_STATE_DIR": str(tmp_path / "state"),
-               "MCP_CIMD_HOSTS": "claude.ai"}
+               "MCP_CIMD_HOSTS": "claude.ai", **lab_env}
         ep = mcpmod.endpoint(env, "127.0.0.1")
         run = ep.start()
         lg = oauth_client.Login(f"http://127.0.0.1:{port}", run.url)
@@ -223,6 +229,23 @@ def test_cimd_hosts_and_redirects_are_checked(lab, capsys):
     assert r.status_code == 400
     r = lg.register(redirect_uris=["http://127.0.0.1:5555/callback"])
     assert r.status_code == 201
+
+
+@pytest.mark.parametrize("lab_env", [{"MCP_DCR": "loopback"}])
+def test_dcr_loopback_registers_local_clients_only(lab, capsys):
+    idp, run, lg = lab
+    r = lg.register(redirect_uris=["https://claude.ai/api/mcp/auth_callback"])
+    assert r.status_code == 400 and "local clients only" in r.json()["error_description"]
+    assert '"result":"registration_refused","mode":"loopback"' in capsys.readouterr().out
+    assert lg.register(redirect_uris=["http://127.0.0.1:5555/callback"]).status_code == 201
+
+
+@pytest.mark.parametrize("lab_env", [{"MCP_DCR": "off"}])
+def test_dcr_off_leaves_cimd(lab):
+    idp, run, lg = lab
+    assert lg.register(redirect_uris=["http://127.0.0.1:5555/callback"]).status_code == 400
+    lg.client_id = "https://evil.example/oauth/client.json"
+    assert lg.authorize().status_code == 400  # CIMD still checks its hosts
 
 
 def test_body_cap_and_origin(lab):

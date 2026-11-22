@@ -20,7 +20,9 @@ started from) and checks:
   `single_source` at low confidence, or an official page;
 - instructions: no text in the KB reads like an instruction aimed at an
   assistant ("ignore previous instructions", "you must now", a role or tool
-  call marker, a prompt delimiter). The MCP hands KB text to the players'
+  call marker, a prompt delimiter), and no invisible character
+  (wowstats.text.invisible: Tags block, bidi controls, zero-width ones) that
+  could hide one. The MCP hands KB text to the players'
   assistants, so model-written text that merges on its own is a stored
   prompt-injection path (security review 2026-11-20, finding 7); the MCP also
   labels it as data (wowstats.mcp.tools KB_TEXT_TOOLS);
@@ -55,6 +57,7 @@ import lifecycle  # noqa: E402, I001 (both tools/kb, beside this file)
 import web  # noqa: E402
 
 from wowstats.analysis import kbschema, verbatim  # noqa: E402
+from wowstats.text import invisible  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 KB = ROOT / "data" / "kb"
@@ -191,9 +194,14 @@ def strings(v, path: str = ""):
 
 
 def instruction_shaped(text: str) -> str:
-    """The first instruction-shaped part of `text`, "" when there is none."""
+    """The first instruction-shaped part of `text`, "" when there is none.
+    Invisible characters count as one (they can spell or hide one), and the
+    patterns read the text without them ("ig\u200bnore" is "ignore")."""
+    seen, n = invisible.clean(text)
+    if n:
+        return f"{n} invisible character(s)"
     for p in INSTRUCTION_PATTERNS:
-        m = p.search(text)
+        m = p.search(seen)
         if m:
             return m.group(0)
     return ""

@@ -163,7 +163,7 @@ def forum_threads(fetch, since: str) -> tuple[list[dict], list[str]]:
                     or t.get("archetype", "regular") != "regular" or tracked.get("post_number") == 1):
                 continue
             posted = day_of(t.get("created_at"))
-            title = " ".join(str(t.get("title") or "").split())
+            title = " ".join(web.visible(str(t.get("title") or ""), f["url"]).split())
             if not posted or posted < since or not title or not t.get("id") or USERNAME.search(title):
                 continue
             got.append({"id": f"{f['key']}:{int(t['id'])}", "source": f["key"], "title": title[:200],

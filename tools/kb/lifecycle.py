@@ -503,7 +503,7 @@ def reverify(tree: dict, today: date, fetch, client=None, meter=None, report: di
                 report["retired"].append(f"{s['id']}: every source gone")
         rows = [s for s in rows if s["id"] not in retire]
         status, body = pages.get(url, (0, b""))
-        text = web.text_of(body) if status == 200 and body else ""
+        text = web.text_of(body, url) if status == 200 and body else ""
         h = web.digest(text) if text else ""
         seen = memo.get(url) or {}
         if h and seen.get("hash") == h:

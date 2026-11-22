@@ -244,7 +244,7 @@ def rss_items(feed: dict, fetch) -> tuple[list[dict], dict]:
             continue
         nid = int(m.group(1))
         ids.append(nid)
-        title = " ".join((it.findtext("title") or "").split())
+        title = " ".join(web.visible(it.findtext("title") or "", feed["url"]).split())
         cats = {(c.text or "").strip().lower() for c in it.findall("category")}
         if nid <= known or not (feed["category"].lower() in cats or FOREVER_TITLE.search(title)):
             continue
@@ -354,7 +354,7 @@ def guide_items(guides: list[dict], fetch) -> tuple[list[dict], list[str], dict]
     out, notes, baseline = [], [], {}
     for g in guides:
         status, body = fetch.get(g["url"])
-        text = web.text_of(body) if status == 200 else ""
+        text = web.text_of(body, g["url"]) if status == 200 else ""
         if len(text) <= 200:
             notes.append(f"{g['key']}: unreadable (HTTP {status})")
             continue
