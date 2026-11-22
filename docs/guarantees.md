@@ -73,9 +73,9 @@ They don't prove:
   system's cache never goes away under them. A missing fsync shows up only as a missing call
   in `test_durability.py`.
 - **The drive's own write cache.** fsync hands the data to the drive; a drive that acknowledges
-  writes it still holds in its cache can lose them. On macOS, fsync doesn't even ask the drive
-  to empty that cache (`F_FULLFSYNC` does; the shipper doesn't use it: it's slow, and losing
-  the last run means extracting it again).
+  writes it still holds in its cache can lose them. On macOS the shipper asks the drive to empty
+  that cache (`F_FULLFSYNC`, falling back to plain fsync where the filesystem refuses it); on
+  Linux and Windows it relies on fsync doing its job.
 - **Filesystem bugs**, or a network share that refuses to flush a folder: the shipper goes on
   without it.
 - **Windows' folders.** Python can't open a folder there to flush it (`os.open` fails), and
@@ -206,14 +206,14 @@ The guarantees hold system-wide, not only where the table above checks them (own
 apply. The public view and `/zogzog/` count on their own: they are separate builds, the full
 view's answers cut to their tier's shape (`wowstats/redact.py`). Paths are under `tests/`;
 `matrix` is [`invariants/test_matrix.py`](../tests/invariants/test_matrix.py), `cov`
-`test_coverage.py`, `inc` `invariants/test_incomplete.py`, `cons`
+`test_coverage.py`, `static` `test_coverage_static.py`, `inc` `invariants/test_incomplete.py`, `cons`
 `invariants/test_consumers.py`.
 
 | Guarantee | Full view | Public view | `/zogzog/` | MCP tools | Server analysis | Nightly recheck | Exporter readers |
 |---|---|---|---|---|---|---|---|
-| **Freshness shown** | `test_coverage_browser::test_the_lines_where_they_change_the_meaning`, `test_prebuilt::test_a_store_down_keeps_the_last_answers_marked_stale` | `matrix::test_the_static_answers_say_when_they_were_built` | `matrix::test_the_static_answers_say_when_they_were_built` | `cov::test_the_mcp_answer_carries_the_coverage` (`as_of` per source), `test_talents::test_mcp_reads_the_current_talents_from_battlenet` | `test_analysis_date_browser::test_how_you_play_says_when_and_who`, `analysis/test_analysis::test_a_finding_keeps_the_build_it_was_judged_under` | n/a: writes no answer; its findings carry the build they were judged under (`invariants/test_definitions.py`) | `test_bnet_freshness.py`, `test_battlenet_fill::test_battlenet_data_is_never_shown_past_30_days` |
-| **Unknown is not zero** | `cov::test_back_in_time_deaths_without_the_recorder_are_not_recorded`, `matrix::test_deaths_without_the_recorder_are_unknown_in_every_view` | n/a: shows no count the Recorder makes (no deaths, kills or quests) | `matrix::test_deaths_without_the_recorder_are_unknown_in_every_view` | `cov::test_mcp_deaths_without_the_recorder_are_unknown`, `analysis/test_semantic_evidence::test_one_snapshot_is_an_unknown_change_not_a_zero` | `analysis/test_semantic_evidence::test_no_snapshot_is_unavailable` | n/a: re-runs the findings' SQL on the same layer as the server analysis | `test_bnet_scoping::test_what_battlenet_never_read_is_unknown_never_0_or_none`, `test_bnet_freshness::test_a_first_read_that_never_completed_shows_nothing` |
-| **Coverage attached** | `cov::test_the_page_says_what_the_recorder_missed` | **open**: not in the public shape | **open**: not in the `/zogzog/` shape | `cov::test_the_mcp_answer_carries_the_coverage` | `cov::test_query_metric_and_play_sql_carry_the_coverage` | n/a: writes findings, not answers; the answer that shows them carries it (server analysis) | `cov::test_battlenet_states` |
+| **Freshness shown** | `test_coverage_browser::test_the_lines_where_they_change_the_meaning`, `test_prebuilt::test_a_store_down_keeps_the_last_answers_marked_stale` | `matrix::test_the_static_answers_say_when_they_were_built`; a Battle.net read the full view calls old reads "Equipment may be out of date.", judged at build time and with no time (`test_coverage_browser::test_public_says_it_without_a_time`) | `matrix::test_the_static_answers_say_when_they_were_built`, `test_coverage_browser::test_zogzog_says_the_full_views_lines` ("Equipment last read 5 h ago") | `cov::test_the_mcp_answer_carries_the_coverage` (`as_of` per source), `test_talents::test_mcp_reads_the_current_talents_from_battlenet` | `test_analysis_date_browser::test_how_you_play_says_when_and_who`, `analysis/test_analysis::test_a_finding_keeps_the_build_it_was_judged_under` | n/a: writes no answer; its findings carry the build they were judged under (`invariants/test_definitions.py`) | `test_bnet_freshness.py`, `test_battlenet_fill::test_battlenet_data_is_never_shown_past_30_days` |
+| **Unknown is not zero** | `cov::test_back_in_time_deaths_without_the_recorder_are_not_recorded`, `matrix::test_deaths_without_the_recorder_are_unknown_in_every_view` | shows no count the Recorder makes (no deaths, kills or quests); a Battle.net store that didn't answer stays `unknown`, never `complete` (`static::test_unknown_stays_unknown_on_both_sites`) | `matrix::test_deaths_without_the_recorder_are_unknown_in_every_view`, `static::test_unknown_stays_unknown_on_both_sites` | `cov::test_mcp_deaths_without_the_recorder_are_unknown`, `analysis/test_semantic_evidence::test_one_snapshot_is_an_unknown_change_not_a_zero` | `analysis/test_semantic_evidence::test_no_snapshot_is_unavailable` | n/a: re-runs the findings' SQL on the same layer as the server analysis | `test_bnet_scoping::test_what_battlenet_never_read_is_unknown_never_0_or_none`, `test_bnet_freshness::test_a_first_read_that_never_completed_shows_nothing` |
+| **Coverage attached** | `cov::test_the_page_says_what_the_recorder_missed` | one state per source its page draws a line for (Battle.net), never `as_of` or `gaps` (`static::test_public_gets_a_state_never_a_time`, `static::test_public_shape_drops_the_full_coverage`) | the full view's, cut to what its lines read, and the same lines word for word (`static::test_zogzog_carries_what_the_full_views_lines_read`, `test_coverage_browser::test_zogzog_says_the_full_views_lines`) | `cov::test_the_mcp_answer_carries_the_coverage` | `cov::test_query_metric_and_play_sql_carry_the_coverage` | n/a: writes findings, not answers; the answer that shows them carries it (server analysis) | `cov::test_battlenet_states` |
 | **Source order kept** | `test_zone_time::test_a_tie_goes_to_the_later_record_by_number_not_text` | n/a: the full view's answer, cut; no order of its own | n/a: as the public view | `test_zone_time::test_a_tie_goes_to_the_later_record_by_number_not_text` | `invariants/test_arrival::test_equal_times_keep_the_recorders_order` | same test: the recheck builds through `prep.build` | n/a: metric series, one value per time |
 | **Paired eligibility** | `test_layer_pages::test_the_pages_say_the_same_numbers_from_the_layer`, `invariants/test_deaths_per_level.py` | n/a: no ratio | `invariants/test_deaths_per_level.py` (the full view's answer, cut) | `invariants/test_paired::test_both_sides_read_the_eligible_rows` | `invariants/test_paired::test_both_sides_read_the_eligible_rows`, `analysis/test_semantic_evidence::test_vs_route_pairs_the_levels_both_sides_read` | same: the same semantic layer | n/a: no ratio |
 | **Completeness** | `inc::test_the_page_refuses_rather_than_shows_a_part`, `test_bounded_reads::test_more_same_second_events_than_a_page_is_an_explicit_failure` | `test_publish::test_vm_wow_down_neither_rebuilds_nor_fails`; live, the full view's answer (`inc`) | `test_publish::test_vm_wow_down_neither_rebuilds_nor_fails`, `test_publish_cleanup::test_a_failed_build_keeps_the_site_and_leaves_no_folder` | `inc::test_every_tool_refuses_or_answers_whole`, `inc::test_a_cut_text_says_more` | `inc::test_more_is_true_exactly_when_rows_are_left_out`, `inc::test_a_dimension_outside_a_metric_is_refused` | `matrix::test_one_characters_store_failure_leaves_the_others_rechecked` | `test_bnet_freshness::test_after_an_exporter_restart_a_half_read_falls_back_to_the_last_complete_one`, `test_bnet_freshness::test_a_vm_wow_error_is_never_never_read` |
@@ -239,6 +239,12 @@ Found in review 6, fixed with their test:
   0.9 (9 deaths over 10 levels), where the page said 11 / 12. The server works it out now
   (`views.deaths_per_level`) and the page shows over how many levels.
 
+Coverage on the static sites (owner, 2026-11-22): `/zogzog/` says the full view's lines (the
+Recorder's gap by level and length, the equipment's last read); the public site says
+"Equipment may be out of date." where the full view says when, and nothing about the Recorder:
+it shows no count the Recorder makes. Its answer holds `coverage.battlenet` as a state, judged
+when the bundle is built (`wowstats.coverage.public`).
+
 Gaps the matrix found, fixed with their test (review 5):
 
 - `/api/char` and `/zogzog/` said 0 deaths for a character without the Recorder (the MCP
@@ -255,11 +261,7 @@ Gaps the matrix found, fixed with their test (review 5):
   coverage is `unavailable` as of the last read this process saw (`Store.bnet_last_read`), and
   the talents and Legacy points say the store didn't answer.
 
-Open, not fixed:
-
-- **Coverage on the public view and `/zogzog/`.** Neither shape carries it, so they never say
-  "the Recorder missed 1h" or "equipment last read 5 h ago". Adding it widens what leaves the
-  server: the owner's call.
+Open, not fixed: none today.
 
 ## Recovery drill
 

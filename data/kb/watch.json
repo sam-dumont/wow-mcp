@@ -1,24 +1,24 @@
 {
   "about": "What the knowledge base was last checked against (tools/kb/watch.py). A value here that no longer matches today's opens one issue per kind (label kb-watch). The refresh job moves it in the PR that brings the KB up to date (`tools/kb/watch.py --accept <kind>`); an addon's `contract` is what tools/kb/bump.py checks is unchanged before taking a release.",
-  "checked": "2026-11-20",
+  "checked": "2026-11-22",
   "client_build": {
     "url": "https://wago.tools/api/builds/wowf/latest",
     "page": "https://wago.tools/builds",
-    "known": "1.60.1.70959"
+    "known": "1.60.1.71037"
   },
   "official": [
     {
       "key": "hotfixes",
       "kind": "page",
       "url": "https://worldofwarcraft.blizzard.com/en-us/news/24315281",
-      "known": "45c23ae5dd69282d06b09da5f0aaf1cfce67b0a95ee56060e393a4fbbcd70377"
+      "known": "f0fbd438421d3db4092b0bc7bddaa7a2309de3f5956ab1e47c6cbfb1cfa85c5a"
     },
     {
       "key": "hotfixes-forum",
       "kind": "discourse",
       "url": "https://us.forums.blizzard.com/en/wow/t/2403040.json",
       "page": "https://us.forums.blizzard.com/en/wow/t/2403040",
-      "known": "11 posts, last 2026-11-20T04:00:55.888Z"
+      "known": "12 posts, last 2026-11-21T00:18:29.701Z"
     },
     {
       "key": "beta-development-notes",
@@ -43,7 +43,7 @@
     {
       "name": "Questie",
       "repo": "Questie/Questie",
-      "known": "bundle/v12.11.1+v1.1.3",
+      "known": "bundle/v12.12.0+v1.1.4",
       "contract": {
         "toc": "Questie_Forever.toc",
         "files": {

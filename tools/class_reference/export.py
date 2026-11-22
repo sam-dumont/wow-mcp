@@ -39,7 +39,6 @@ import json
 import re
 import subprocess
 import sys
-import urllib.parse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -85,9 +84,9 @@ def spells(lua: str) -> dict[str, dict[str, list[dict]]]:
 
 
 def wago_rows(table: str, build: str) -> list[dict]:
-    from wowstats.upstream import WAGO_URL, fetch
+    from wowstats.upstream import WAGO_URL, fetch, table_url
 
-    body = fetch(f"{WAGO_URL}/db2/{table}/csv?build={urllib.parse.quote(build)}", timeout=180)
+    body = fetch(table_url(WAGO_URL, table, build), timeout=180)
     if not body:
         raise SystemExit(f"wago.tools has no {table} for {build}")
     return list(csv.DictReader(io.StringIO(body.decode("utf-8"))))

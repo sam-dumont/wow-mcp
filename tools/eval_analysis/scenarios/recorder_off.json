@@ -10,12 +10,22 @@
     }
   ],
   "truth": {
-    "expected": "Levels 27 to 29 have played time and level-ups but no Recorder records at all: the evidence for those evenings is missing. A right analysis says so, and never reads the missing records as behaviour (no deaths, no kills, a safer stretch).",
+    "expected": "Levels 27 to 29 have played time and level-ups but no Recorder records at all: the evidence for those evenings is missing. A right analysis keeps a finding that says so, naming the Recorder's gap (or the coverage) as the reason, and never reads the missing records as behaviour (no deaths, no kills, a safer stretch).",
     "must_find": [
       {
         "id": "flags-the-missing-records",
-        "about": "a kept line says records are missing for part of the history",
+        "about": "a verified finding names the Recorder's gap (or the coverage) as the reason evidence is missing for part of the history",
+        "kinds": [
+          "finding"
+        ],
         "all": [
+          [
+            "\\brecorder\\b",
+            "\\bcoverage\\b",
+            "unrecorded",
+            "not recorded",
+            "/psrec"
+          ],
           [
             "not recorded",
             "unrecorded",
@@ -32,7 +42,16 @@
             "records? (are|is) missing",
             "isn'?t recorded",
             "wasn'?t recorded",
-            "weren'?t recorded"
+            "weren'?t recorded",
+            "\\bmissed\\b",
+            "never saw",
+            "didn'?t see",
+            "did not see",
+            "(wasn'?t|was not|isn'?t|is not) (on|running)",
+            "\\bon record\\b",
+            "\\bgaps?\\b",
+            "\\bunknown\\b",
+            "can'?t be (checked|measured|counted)"
           ]
         ]
       }

@@ -36,6 +36,7 @@ stored.
 
 from __future__ import annotations
 
+import time
 from datetime import UTC, datetime
 
 from wowstats import missing
@@ -176,6 +177,29 @@ def battlenet(bnet: dict | str | None) -> dict:
         return entry("unavailable", fix=BNET_NEVER)
     at = _iso(float(bnet["as_of"]))
     return entry("partial" if bnet.get("fallback") else "complete", at)
+
+
+# The Equipment line's threshold: one Battle.net refresh (2 h) and a bit,
+# the same as the full view's bnetStale (web/app.js).
+BNET_STALE_S = 3 * 3600
+
+
+def public(cov: dict | None, now: float | None = None) -> dict:
+    """The public view's coverage (owner, 2026-11-22): a state per source its
+    page draws a line for, never a time, a gap or a level. That is
+    Battle.net alone: the public page shows its equipment, and no count the
+    Recorder makes (no deaths, journal, kills or quests), so the Recorder's
+    state stays on the server. `partial` here is the full view's Equipment
+    line (an older complete read, or one read over BNET_STALE_S ago), judged
+    when the bundle is built: the public page can't age a time it doesn't
+    have."""
+    b = (cov or {}).get("battlenet") or {}
+    state = b.get("state") if b.get("state") in STATES else "unknown"
+    if state == "complete" and b.get("as_of"):
+        t = _ts(b["as_of"])
+        if t is not None and (time.time() if now is None else now) - t > BNET_STALE_S:
+            state = "partial"
+    return {"battlenet": state}
 
 
 def unknown() -> dict:

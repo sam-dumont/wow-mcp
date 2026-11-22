@@ -457,7 +457,8 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
     for c in chars:
         name = c["char"]
         still = put_still(b, full_app, pics, name) if "char" in files else None
-        put("char", data_path("char", name), lambda: with_still({**app.char(name), "sources": app.store.sources()},
+        put("char", data_path("char", name), lambda: with_still({**app.char(name), "sources": app.store.sources(),
+                                                                "coverage": static_coverage(full_app, tier, name)},
                                                                still))
         if "char" in files:
             copy_icons(b, talents.icon_names(app.char(name)))
@@ -495,6 +496,18 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
     if "items" in files:
         put_items(b, tier, full_app.item_cards)
     check_names(b, tier, full_app.item_cards)
+
+
+def static_coverage(full_app: ui.App, tier: str, name: str) -> dict:
+    """The coverage a bundle's character answer carries (owner, 2026-11-22):
+    /zogzog/ the full view's, so it says the same lines (its shape keeps
+    what they read); the public site a state per source and nothing else
+    (wowstats.coverage.public). Read from the full view: the public App has
+    no Battle.net store."""
+    from wowstats import coverage
+
+    cov = full_app.coverage(name)
+    return cov if tier == "zogzog" else coverage.public(cov)
 
 
 def put_picture(b: Bundle, pics: pictures.Pictures | None, name: str, level: int, ans: dict,

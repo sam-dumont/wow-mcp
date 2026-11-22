@@ -82,14 +82,19 @@ def matches(rule: dict, ls: list[Line]) -> list[Line]:
     return out
 
 
-def rerun(analysis: dict, judge) -> list[dict]:
+def rerun(analysis: dict, judge, metrics=None) -> list[dict]:
     """Each kept finding's query on `judge` (a ReadOnly over a fresh build):
-    it runs, its placeholders are still there, its values match `expect`."""
+    it runs, its placeholders are still there, its values match `expect`. A
+    finding made from a metric (`engine: duckdb`, query_metric's SQL over
+    the semantic views) re-runs on `metrics`, the reader without the table
+    list, as the server's own recheck does (analysis.recheck): the judge's
+    refuses the views, and two good findings failed on it (2026-11-22)."""
     from wowstats.analysis import verify
 
     out = []
     for k, f in sorted((analysis.get("findings") or {}).items()):
-        got, why = verify.recheck(f, judge)
+        on = metrics if f.get("engine") == "duckdb" and metrics is not None else judge
+        got, why = verify.recheck(f, on)
         if got is None:
             out.append({"key": k, "ok": False, "why": why})
             continue

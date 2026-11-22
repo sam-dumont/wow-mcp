@@ -21,7 +21,6 @@ import os
 import tempfile
 import threading
 import time
-import urllib.parse
 from pathlib import Path
 
 DAY = 86400
@@ -66,15 +65,13 @@ class Items:
                     self.build, self.checked = d["build"], float(d["checked"])
                 if self.table and time.time() - self.checked < DAY:
                     return
-            from wowstats.upstream import Upstream, fetch
+            from wowstats.upstream import Upstream, build_of, builds_url, fetch, table_url
             from wowstats.upstream import write_file as _write
 
             try:
-                latest = json.loads(fetch(f"{self.wago}/api/builds/{urllib.parse.quote(self.product)}/latest")
-                                    or b"{}")
-                build = str(latest["version"])
+                build = build_of(fetch(builds_url(self.wago, self.product)))
                 if build != self.build or not self.table:
-                    body = fetch(f"{self.wago}/db2/ItemSparse/csv?build={urllib.parse.quote(build)}", timeout=120)
+                    body = fetch(table_url(self.wago, "ItemSparse", build), timeout=120)
                     if not body:
                         raise Upstream(f"wago.tools has no ItemSparse table for {build}")
                     rows = csv.DictReader(io.StringIO(body.decode("utf-8-sig")))
@@ -105,8 +102,8 @@ def shared() -> Items:
                 cache.mkdir(parents=True, exist_ok=True)
             except OSError:
                 cache = None
-            from wowstats.upstream import PRODUCT, WAGO_URL
+            from wowstats.upstream import PRODUCT, WAGO_URL, allow
 
-            _shared = Items(env.get("MODEL3D_WAGO_URL", WAGO_URL), env.get("MODEL3D_PRODUCT", PRODUCT), cache,
+            _shared = Items(allow(env.get("MODEL3D_WAGO_URL", WAGO_URL)), env.get("MODEL3D_PRODUCT", PRODUCT), cache,
                             on=env.get("WOW_ITEMS", "on").strip().lower() not in ("off", "0", "false", "no"))
         return _shared

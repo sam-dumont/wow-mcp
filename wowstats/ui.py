@@ -83,8 +83,9 @@ STATIC = {
     "/items.js": ("items.js", "text/javascript; charset=utf-8"),
 }
 # The game's item icons (wowstats.itemcard), full view only: the pod that
-# fetches them is the one with a route to Wowhead's icon host.
-ICON_PATH = re.compile(r"^/icons/(large|medium)/([a-z0-9_\-]{1,96})\.jpg$")
+# fetches them is the one with a route to Wowhead's icon host. The name is
+# checked again (upstream.icon_url) before it goes into a URL.
+ICON_PATH = re.compile(r"/icons/(large|medium)/([a-z0-9][a-z0-9_-]{0,79})\.jpg")
 # The character's picture (wowstats.armory): our own still of its 3D model,
 # read from the static site, which the publisher fills.
 RENDER_PATH = re.compile(r"^/render/([^/]{1,80})\.webp$")
@@ -1009,7 +1010,7 @@ def make_handler(root: App, tenancy=None):
                     ids = [int(x) for x in qs.get("ids", [""])[0].split(",")[:400] if x.isdigit() and len(x) < 9]
                     return self.json(200, {"items": [{"id": int(k), **v}
                                                      for k, v in app.item_cards(ids).items()]})
-                m = ICON_PATH.match(path) if full else None
+                m = ICON_PATH.fullmatch(path) if full else None
                 if m:
                     from wowstats import itemcard
 
