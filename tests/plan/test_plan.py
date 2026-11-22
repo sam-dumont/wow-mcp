@@ -107,11 +107,11 @@ def test_dungeons_ranked_with_gear_and_redo(priest):
 
 def test_stockade_trip_inside_time_and_loot(priest):
     trip = next(t for t in priest["trips"] if "Stockade" in t["dungeon"])
-    assert trip["inside_s"] == 1354.0 and trip["loot"]["items"] == 35
+    assert trip["inside_s"] == 1376.0 and trip["loot"]["items"] == 43
     e = E.estimate(priest, 3)
     st = next(d for d in e["dungeons"] if d["name"] == "The Stockade")
     loop = st["redo"]["loop"]
-    assert loop["run_s"] == 1354 and loop["gold_copper_per_hour"] > 0 and loop["runs_for_mount"] > 0
+    assert loop["run_s"] == 1376 and loop["gold_copper_per_hour"] > 0 and loop["runs_for_mount"] > 0
     assert "reset" in loop["note"]  # the walk out and back in isn't measured: said so
     assert any("Stockade" in g["what"] for g in e["gold_options"])
 

@@ -158,7 +158,10 @@ def test_the_brief_names_the_break_and_the_off_spec_head_only_where_injected(fac
         if n == "offline_gap":
             assert [x["level"] for x in cal] == [33]
             lv = cal[0]
-            assert lv["longest_gap_days"] > 20 and lv["played_h"] == lv["planned_h"] and lv["recorder_missed_h"] == 0
+            # On the guide's pace, as test_the_offline_gap_is_calendar_time_only
+            # reads it: the plan is Polestar's and moves with its releases.
+            assert lv["longest_gap_days"] > 20 and 0.9 <= lv["played_h"] / lv["planned_h"] <= 1.1
+            assert lv["recorder_missed_h"] == 0
         else:
             assert cal == "none", n
         gear = facts[n]["brief_facts"]["gear_fit"]

@@ -26,8 +26,14 @@ version) before it reaches this script. A refusal is written to `--why`
 ({kind: reason}), for the kind's issue; the job then leaves that kind out of
 its PR. `polestar` also writes the new tag to tools/polestar-tag and the
 clone lines that name it; the workflow then reruns the exports, and
-`regen` the test data derived from them (refused when more than the
-version moved).
+`regen` the test data derived from them.
+
+Polestar is the source of truth (owner, 2026-11-22): what its release says
+(route times, levels, gear) is taken as it is, and the test data moves with
+it. Only the licence terms, a saved table, an export or a generator that
+fails stop a bump. v0.4.2.1 was refused because its routes to 60 got 16-25 h
+shorter, the release's own rebuilt 50-60 routes. A client build's regen still
+refuses test data that moved: that's a game build, not Polestar's word.
 """
 
 from __future__ import annotations
@@ -210,12 +216,12 @@ def _normal(data: bytes, versions: list[str]) -> str:
     return text
 
 
-def regen(old: str = "", new: str = "", root: Path = ROOT) -> list[str]:
+def regen(old: str = "", new: str = "", root: Path = ROOT) -> tuple[list[str], list[str]]:
     """Regenerate the fixtures and the layer pages' snapshot from the new data
     (tools/fixtures/generate.py, WOW_UPDATE_SNAPSHOT=1), as a person does
-    after a bump. Allowed only when they changed by the Polestar version
-    alone: anything else (a route time, a gear score) is a change a person
-    reads, and the bump is refused with the files named."""
+    after a bump. Returns (why a generator failed, the files that moved by
+    more than the Polestar version); `refusals` says which of them stop the
+    kind."""
     def tracked() -> dict[str, bytes]:
         names = subprocess.run(["git", "-C", str(root), "ls-files", *DERIVED], capture_output=True, text=True,
                                check=True).stdout.split()
@@ -236,12 +242,19 @@ def regen(old: str = "", new: str = "", root: Path = ROOT) -> list[str]:
             sys.stderr.write((e.stdout or "")[-3000:] + (e.stderr or "")[-3000:])
             last = ((e.stderr or "").strip() or (e.stdout or "").strip() or f"exit {e.returncode}").splitlines()[-1]
             last = PLAIN.sub("", last)[:200]
-            return [f"{what} failed on the new data ({last}): what it derives moved, a person reads it"]
+            return [f"{what} failed on the new data ({last}): fix the generator, not the data"], []
     after = tracked()
     moved = [n for n in sorted(after) if after[n] != before.get(n)
              and _normal(after[n], [old, new]) != _normal(before.get(n, b""), [old, new])]
-    return ["the regenerated test data changed beyond the Polestar version: "
-            + ", ".join(f"`{n}`" for n in moved[:10])] if moved else []
+    return [], moved
+
+
+def refusals(kind: str, failed: list[str], moved: list[str]) -> list[str]:
+    """What stops `kind` after a regen: a failed generator always; data that
+    moved only for a client build (Polestar's numbers are taken as they are)."""
+    if failed or kind == "polestar" or not moved:
+        return failed
+    return ["the regenerated test data changed: " + ", ".join(f"`{n}`" for n in moved[:10])]
 
 
 def refuse(path: str | None, kind: str, reasons: list[str]) -> None:
@@ -267,11 +280,13 @@ def main(argv: list[str] | None = None) -> int:
     a = ap.parse_args(argv)
     state = json.loads(Path(a.state).read_text(encoding="utf-8"))
     if a.kind == "regen":
-        reasons = regen(a.old, a.new)
+        failed, moved = regen(a.old, a.new)
+        reasons = refusals(a.as_kind, failed, moved)
         if reasons:
             refuse(a.why, a.as_kind, reasons)
             return 3
-        print("regenerated: only the Polestar version moved")
+        print("regenerated: " + ("moved with the new data: " + ", ".join(moved) if moved else
+                                 "only the Polestar version moved"))
         return 0
     api = Repo()
     gh = watch.web.GitHub()

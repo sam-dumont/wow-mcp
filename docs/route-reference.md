@@ -39,7 +39,7 @@ anything:
 It takes under 3 seconds and gives the same file byte for byte on every run. To redo it after a Polestar release:
 
 ```sh
-git clone --depth 1 --branch v0.4.1.1 https://github.com/fitzforge/polestar /tmp/polestar
+git clone --depth 1 --branch v0.4.2.1 https://github.com/fitzforge/polestar /tmp/polestar
 node tools/route_reference/export.mjs --polestar /tmp/polestar
 ```
 
@@ -94,7 +94,7 @@ What the export can't reproduce from Polestar's maintainer setup:
 
 - **Straight-line walks.** No navigation grid (`nav build` is 750 MB), so
   every walk is distance times a detour factor over run speed. The release's
-  baked walks (`Legs.lua`, 2690 of them) measure the real detour: 1.52 in the
+  baked walks (`Legs.lua`, 2761 of them) measure the real detour: 1.52 in the
   Eastern Kingdoms against the model's 1.35, 1.32 in Kalimdor against 1.30
   (path length over straight line, summed). Eastern Kingdoms walks run about
   13% short. Travel (walks, flights, boats) is 48% of a run's clock, so the
@@ -106,8 +106,11 @@ What the export can't reproduce from Polestar's maintainer setup:
   levels below Polestar's own calibrated level model (`data/route-levels.json`:
   Redridge left at 25 here against 27.4 there), and they catch up by 60. A
   level's time can come from a slightly different guide than in the game.
-- **170 to 230 planner warnings per run**, nearly all delivery quests whose
+- **190 to 250 planner warnings per run**, nearly all delivery quests whose
   carried item forever-db lists as an objective. They don't change the time.
 
-The full runs take 97 to 119 hours to 60 depending on class: Hunter fastest
-(98 h on average), Paladin and Warrior slowest (116 h).
+The full runs take 79 to 94 hours to 60 depending on class: Hunter fastest
+(81 h on average), Paladin slowest (92 h). Polestar 0.4.2.1 cut 16 to 25
+hours from every run against 0.4.1.1 (97 to 119 h), nearly all of it in
+levels 50 to 60: the release replaced the 50-60 grind steps with quests,
+Mount Hyjal included.
