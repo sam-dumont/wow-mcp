@@ -172,3 +172,22 @@ def test_the_raid_tier_statements_rest_on_wowhead_alone():
         assert kbschema.domain(s["source_url"]) == "www.wowhead.com" and JH in s["sources"]
         assert kbschema.origins(s, allow) == {"www.wowhead.com"}
         assert (s["single_source"], s["confidence"], s["levels"], s["aspect"]) == (True, "low", [60, 60], "standing")
+
+
+def test_a_class_guide_record_keeps_its_class_topic_and_levels(allow):
+    """2026-11-22 (#99): the model pass superseded two shaman class-guide
+    records with flat ones (no class, topic "shaman", no levels); the schema
+    passed them and only tests/test_classguide.py caught it, after the PR was
+    open. The classes lane's shape is now the schema's, so the job's check
+    before the PR (tools/kb/vet.py) and its gates refuse it too."""
+    rec = {"id": "classes:shaman:3", "doc": "CG-SHA", "class": "SHAMAN", "topic": "talents", "levels": [10, 19],
+           "title": "10-19", "text": "Thundering Strikes first.",
+           "source_url": "https://worldofwarcraft.blizzard.com/en-us/news/24315281", "source_type": "official",
+           "date": "2026-11-10", "confidence": "high", "scope": "forever", "last_verified": "2026-11-22"}
+    doc = {"lane": "classes", "statements": [rec], "contradictions": []}
+    assert kbschema.check_file(doc, allow) == []
+    flat = {k: v for k, v in rec.items() if k not in ("class", "doc", "levels", "title")} | {"topic": "shaman"}
+    errs = kbschema.check_file({**doc, "statements": [flat]}, allow)
+    assert any("class" in e for e in errs) and any("topic" in e for e in errs) and any("levels" in e for e in errs)
+    # Another lane keeps its free topics.
+    assert kbschema.check_file({**doc, "lane": "game-rules", "statements": [flat]}, allow) == []
