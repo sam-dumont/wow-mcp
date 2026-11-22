@@ -238,12 +238,17 @@ def test_replay_stops_on_a_refusal_and_says_so(played, shipper, monkeypatch):
 
 
 def test_replay_reads_a_sent_file_cut_short(played, shipper):
-    """A crash while appending leaves a truncated gzip member: what reads
-    before it still goes."""
+    """A crash while appending leaves a truncated gzip member: the whole
+    members before it still go, and the run says it couldn't read it all.
+    One file left in sent/: the others' events used to hide that this one
+    sent nothing (review 6; tests/invariants/test_sent_damage.py)."""
     store, arch, run = played
-    f = sorted((arch / "sent").glob("*.gz"))[0]
-    whole = gzip.decompress(f.read_bytes()).splitlines()
+    f, *others = sorted((arch / "sent").glob("*.gz"))
+    for o in others:
+        o.unlink()
+    whole = {json.loads(ln)["source_id"] for ln in gzip.decompress(f.read_bytes()).splitlines()}
     f.write_bytes(f.read_bytes() + gzip.compress(b'{"_time":"2026-11-18T00:00:00.000Z"')[:20])
     store.lines.clear()
-    assert run("--replay") == 0
-    assert len(store.lines) >= len(whole)
+    assert run("--replay") == 1
+    assert {e["source_id"] for e in store.lines} == whole
+    assert f"{f.name}: damaged, 20 bytes" in (arch.parent / "log").read_text()

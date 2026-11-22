@@ -2598,20 +2598,44 @@ def ship() -> None:
         log(f"ship: {f.name} sent ({len(lines)} events)")
 
 
-def sent_lines(f: Path) -> list[bytes]:
-    """The lines of one sent/ file (gzip, one member per POST). A member a
-    crash cut short ends the file: what reads before it is kept."""
-    data = b""
-    with gzip.open(f, "rb") as fh:
+GZIP_MAGIC = b"\x1f\x8b\x08"  # a gzip member's first bytes (deflate)
+
+
+def sent_lines(f: Path) -> tuple[list[bytes], int]:
+    """The lines of one sent/ file (gzip, one member per POST), and how many
+    of its bytes are no whole member. A crash in the middle of an append
+    cuts that member short, at the end of the file or, once the next run
+    sends the same spool file again, before the member that run appended.
+    Member by member, each checked whole (its CRC): a cut or damaged one is
+    skipped to the next member header, and every whole member is kept. Its
+    lines can't be counted (they're in the part that's gone), so the bytes
+    are what the caller reports. Reading the file as one stream (one 1 MiB
+    read) raised on the cut member and dropped the whole ones before it
+    (review 6)."""
+    raw = f.read_bytes()
+    view = memoryview(raw)
+    data: list[bytes] = []
+    pos = lost = 0
+    while pos < len(raw):
+        if raw[pos] == 0 and not raw[pos:].strip(b"\0"):
+            break  # zero padding after the last member: gzip itself allows it
+        d = zlib.decompressobj(wbits=31)  # one gzip member, trailer checked
         try:
-            while chunk := fh.read(1 << 20):
-                data += chunk
-        except (EOFError, OSError, zlib.error) as e:
-            log(f"replay: {f.name}: cut short ({type(e).__name__}), sending what reads before it")
-    lines = data.splitlines(keepends=True)
+            out, whole = d.decompress(view[pos:]), d.eof
+        except zlib.error:
+            out, whole = b"", False
+        if whole:
+            data.append(out)
+            pos = len(raw) - len(d.unused_data)
+            continue
+        nxt = raw.find(GZIP_MAGIC, pos + 1)
+        nxt = len(raw) if nxt < 0 else nxt
+        lost += nxt - pos
+        pos = nxt
+    lines = b"".join(data).splitlines(keepends=True)
     if lines and not lines[-1].endswith(b"\n"):
-        lines.pop()  # half a line
-    return lines
+        lines.pop()  # half a line (members end on one; this is belt and braces)
+    return lines, lost
 
 
 def replay() -> int:
@@ -2620,7 +2644,9 @@ def replay() -> int:
     that was delivered. Reads sent/, never moves or rewrites it, and never
     touches the checkpoint. The server keeps one copy per source_id, so
     what it already has costs nothing. Stops at the first refusal; run it
-    again then."""
+    again then. A damaged file (sent_lines) still sends its whole members,
+    is named in the log with the bytes it lost, and the run exits 1: a
+    restore that couldn't read everything never ends in a plain success."""
     files = sorted(SENT.glob("*.gz")) if SENT.is_dir() else []
     if not files:
         log(f"replay: nothing in {SENT}")
@@ -2632,8 +2658,16 @@ def replay() -> int:
     url, headers = settings
     cutoff = retention_cutoff()
     total = 0
+    damaged: dict[str, int] = {}
     for f in files:
-        lines = [ln for ln in sent_lines(f) if valid(ln) and not (cutoff and json.loads(ln)["_time"] < cutoff)]
+        read, lost = sent_lines(f)
+        if lost:
+            damaged[f.name] = lost
+            log(f"replay: {f.name}: damaged, {lost} bytes of {f.stat().st_size} are no whole gzip member "
+                "(a crash while it was written, or the disk). Their events are in this replay only if "
+                "a later member holds them again (the run after a crash sends the same lines again); "
+                "the rest of the file is sent")
+        lines = [ln for ln in read if valid(ln) and not (cutoff and json.loads(ln)["_time"] < cutoff)]
         done = 0
         while done < len(lines):
             part, size = [], 0
@@ -2650,6 +2684,10 @@ def replay() -> int:
             done += len(part)
         total += done
     log(f"replay: {total} events from {len(files)} files in {SENT} sent again")
+    if damaged:
+        log(f"replay: incomplete: {len(damaged)} damaged files in {SENT} ({sum(damaged.values())} bytes unreadable: "
+            f"{', '.join(damaged)}). --reextract can bring back what the WTF archive holds")
+        return 1
     return 0
 
 

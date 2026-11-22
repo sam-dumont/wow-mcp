@@ -28,6 +28,7 @@
 - `--replay` stopped at "no WTF folder" and sent nothing on a computer without the game (not installed yet, or moved), although it only reads `sent/`. It now runs without the WoW folder.
 - Your AI's `players` gave a different top 20 on each call over the same events when players tied (met as often, on as many days): the store's rows come in no set order. Ties now go to the one seen last, then by name.
 - Your AI's `zones` failed ("cannot convert float NaN to integer") when the XP records of a zone carried no XP amount: the store answers a sum over nothing as `NaN`. Every number read from the store now takes `NaN` as no number.
+- `--replay` sent nothing from a `sent/` file whose last part a crash had cut short, not even the whole parts before it, and still exited 0. It now sends every part that reads whole, names the damaged file and how many bytes it couldn't read, and exits 1.
 - `--reextract` ended with a normal run that moved `state.json` on, although the restore keeps a record of its own. The next background run then skipped play that only the restore had sent. It now leaves `state.json` exactly as it was; the background run after it carries on from there.
 
 ## 0.7.0-rc.8 (2026-11-21)

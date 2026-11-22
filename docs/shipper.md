@@ -268,7 +268,8 @@ usual install places), `archive_dir`, `wtf_archive` (default `true`),
 - `--replay`: send every event in `sent/` again, as it went the first time,
   then stop. For a new or emptied server
   ([Back up and restore](self-host/backup.md#restore)). Writes nothing on the PC
-  and doesn't need the WoW folder.
+  and doesn't need the WoW folder. A damaged file in `sent/` still sends what
+  reads whole; the log names it and the run exits 1.
 - `--reextract`: read every archived version again from scratch, with a
   record of its own, and send it all. For a server to refill when `sent/` is
   gone too. `state.json` stays byte for byte as it was.
