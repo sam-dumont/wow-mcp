@@ -10,12 +10,19 @@ read 5 hours ago from the last complete read:
 - Equipment: "Equipment last read 5 h ago ...".
 The full demo (no gap, a fresh read) shows none of them.
 
+The static sites the publisher builds from the same store (owner,
+2026-11-22): /zogzog/ says the same lines, word for word; the public site
+says "Equipment may be out of date." under the equipment and nothing with a
+time, a length or a level (it has no Deaths or journal).
+
 COVERAGE_SHOTS=<dir> also saves each line's section at 390 and 1280 px, light
 and dark, per engine."""
 
 from __future__ import annotations
 
 import os
+import re
+import threading
 import time
 from pathlib import Path
 
@@ -26,7 +33,8 @@ sync_api = pytest.importorskip("playwright.sync_api")
 from tests import degraded as D  # noqa: E402
 from tests.conftest import Running  # noqa: E402
 from tests.test_browser import wait_count  # noqa: E402
-from wowstats import coverage, ui  # noqa: E402
+from tests.test_coverage_static import Built, gap_rows, stale_read  # noqa: E402
+from wowstats import coverage, static, ui  # noqa: E402
 from wowstats import gear as gearmod  # noqa: E402
 from wowstats.mcp import tools as T  # noqa: E402
 
@@ -138,3 +146,71 @@ def test_no_line_with_nothing_missed(full, engine):
         pg.goto(f"{full.base}/?char={D.CHAR}&tab=journal")
         wait_count(pg, "#journal .jentry")
         assert pg.locator("#journal p.covnote").count() == 0
+
+
+# ---------------------------------------------------------------- the static sites
+
+
+@pytest.fixture(scope="module")
+def sites(tmp_path_factory):
+    """The publisher's two bundles over the `gap` store, served by the pod's
+    own static server; the zogzog key is a throwaway one (Built)."""
+    b = Built(tmp_path_factory.mktemp("covsites"), gap_rows(), stale_read())
+    site = static.Site({"SITE_DIR": b.env["PUBLISH_DIR"], "ZOGZOG_PATH": "/zogzog/", "BIND": "127.0.0.1", "PORT": "0"})
+    srv = static.Server(("127.0.0.1", 0), static.make_handler(site))
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    base = f"http://wow.localhost:{srv.server_address[1]}"
+    yield {"public": f"{base}/?char={D.CHAR}", "zogzog": f"{base}/zogzog/?char={D.CHAR}&tab=overview#{b.key}"}
+    srv.shutdown()
+    b.close()
+
+
+def _lines(pg) -> dict[str, str]:
+    wait_count(pg, "#deaths p.covnote", 1)
+    wait_count(pg, "#gear p.covnote", 1)
+    return {s: pg.locator(f"{s} p.covnote").inner_text() for s in ("#deaths", "#gear")}
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+@pytest.mark.parametrize("width", [1280, 390])
+@pytest.mark.parametrize("scheme", ["light", "dark"] if SHOTS else ["light"])
+def test_zogzog_says_the_full_views_lines(gap, sites, engine, width, scheme):
+    for pg in _page(engine, width, scheme):
+        pg.goto(f"{gap.base}/?char={D.CHAR}&tab=overview")
+        full = _lines(pg)
+        # One page per address: WebKit's driver crashes when a page swaps
+        # its process (another origin, or another query before the same #key).
+        pg = pg.context.browser.new_page(viewport={"width": width, "height": 1000}, color_scheme=scheme)
+        pg.goto(sites["zogzog"])
+        zz = _lines(pg)
+        assert zz == full and "(level 28)" in zz["#deaths"] and "5 h ago" in zz["#gear"], zz
+        assert pg.evaluate("() => document.documentElement.scrollWidth - window.innerWidth") <= 0
+        tag = f"{engine}-{width}-{scheme}"
+        _shot(pg, "#deaths", f"zogzog-deaths-{tag}")
+        _shot(pg, "#gear", f"zogzog-equipment-{tag}", until="#gear .dollfoot")
+        # The journal's line, on the same session as the full view's.
+        pg = pg.context.browser.new_page(viewport={"width": width, "height": 1000}, color_scheme=scheme)
+        pg.goto(sites["zogzog"].replace("tab=overview", "tab=journal"))
+        wait_count(pg, "#journal .jentry details:has(p.covnote)")
+        # A static page keeps no request open to wait on (networkidle): give
+        # the second draw (the tab, then the character) its moment.
+        pg.wait_for_timeout(800)
+        pg.locator("#journal .jentry details:has(p.covnote) summary").first.click()
+        wait_count(pg, "#journal p.covnote:visible", 1)
+        note = pg.locator("#journal p.covnote").inner_text()
+        assert note.startswith("The Recorder missed about 1h 1") and "level 28" in note
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+@pytest.mark.parametrize("width", [1280, 390])
+@pytest.mark.parametrize("scheme", ["light", "dark"] if SHOTS else ["light"])
+def test_public_says_it_without_a_time(sites, engine, width, scheme):
+    for pg in _page(engine, width, scheme):
+        pg.goto(sites["public"])
+        wait_count(pg, "#gear p.covnote", 1)
+        assert pg.locator("p.covnote").all_inner_texts() == ["Equipment may be out of date."]
+        assert pg.locator("#deaths").count() == 0 and pg.locator("#journal").count() == 0
+        text = pg.locator("body").inner_text()
+        assert not re.search(r"\bago\b|last read|missed|Recorder", text), text
+        assert pg.evaluate("() => document.documentElement.scrollWidth - window.innerWidth") <= 0
+        _shot(pg, "#gear", f"public-equipment-{engine}-{width}-{scheme}", until="#gear .dollfoot")

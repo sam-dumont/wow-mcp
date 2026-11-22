@@ -290,8 +290,16 @@ sorts below its final (`0.7.0-rc.2` < `0.7.0`). Shippers before 0.7.0 only
 read `X.Y.Z`: they log "the server names no version" every 6 hours and move
 at the final.
 
-Before pressing for real: the A/B check below. The release runs the
-rest, browsers included. Write the CHANGELOG as you merge, under
+Before pressing for real: the release eval and the A/B check below. The
+release runs the rest, browsers included.
+
+**Release eval.** `make eval-release` on your own machine, on the commit
+you'll release: the seeded evaluation ([evaluation.md](evaluation.md)) with
+Claude Code and with the server's own runner, every scenario three times,
+all at once, three server runs at a time (about 25 minutes, up to $10 of the server's model). A scenario
+under two passes of three is a reason to wait. Paste the batch's
+`release.md` table, per model and scenario, into "Unreleased" so it lands in
+the release notes. Never in CI. Write the CHANGELOG as you merge, under
 "Unreleased": what changed for a player, then "Upgrading" with every
 changed variable, port, volume or route.
 
