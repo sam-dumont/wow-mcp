@@ -736,15 +736,15 @@ def test_a_folder_from_before_moves_to_its_new_name(tmp_path):
         if run:
             (chars / folder / "drive.json").write_text('{"id": "r1"}')
 
-    old("grimble-firemaw", None, run=True)  # a run only, nothing to fold: it's this character's
+    old("testpriest-fixture", None, run=True)  # a run only, nothing to fold: it's this character's
     old("_rin-firemaw", "Ærin-Firemaw")
     assert analysis.load_state(env, "Érin-Firemaw") == {}  # not Érin's: stays
     assert (chars / "_rin-firemaw").is_dir()
     assert analysis.load_state(env, "Ærin-Firemaw")["char"] == "Ærin-Firemaw"
     assert not (chars / "_rin-firemaw").exists()
-    d = analysis.char_dir(env, "Grimble-Firemaw")
-    assert (d / "drive.json").is_file() and not (chars / "grimble-firemaw").exists()
-    assert d.name.startswith("grimble-firemaw.")
+    d = analysis.char_dir(env, "Testpriest-Fixture")
+    assert (d / "drive.json").is_file() and not (chars / "testpriest-fixture").exists()
+    assert d.name.startswith("testpriest-fixture.")
 
 
 def test_a_nudge_with_placeholders_is_rendered_again_at_the_new_level():
