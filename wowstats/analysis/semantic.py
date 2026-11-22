@@ -161,6 +161,13 @@ VIEWS = {
         "UNION ALL SELECT 'snapshot', ROW_NUMBER() OVER (ORDER BY s.t, s.rowid), s.t, s.level, s.xp, "
         "CASE WHEN s.xp_max <> 0 THEN s.level + COALESCE(s.xp, 0) / CAST(s.xp_max AS DOUBLE) "
         "ELSE CAST(s.level AS DOUBLE) END, NULL FROM snapshots s WHERE s.level IS NOT NULL) p"),
+    # Every character sheet the shipper sent (Syndicator's, wow-gear), one row
+    # per item worn on it. changed: 1 when the inventory slot held another
+    # item on the slot's previous sheet (a slot's first sheet is no change):
+    # the gear history the sheets model counts.
+    "sem_gear_sheets": ("SELECT g.*, CASE WHEN ROW_NUMBER() OVER w > 1 AND LAG(g.item_id) OVER w "
+                        "IS DISTINCT FROM g.item_id THEN 1 ELSE 0 END AS changed, {ts:g.sheet_t} AS at_local, {who} "
+                        "FROM gear_sheets g WINDOW w AS (PARTITION BY g.slot ORDER BY g.sheet_t, g.item_id)"),
     "sem_professions": "SELECT *, {who} FROM professions",
     "sem_quests_done": "SELECT *, {ts:seen_t} AS at_local, {who} FROM quests_done",
     "sem_route_position": "SELECT *, {who} FROM route_position",
@@ -606,8 +613,8 @@ def views_text() -> str:
            "Compiled from the semantic layer's metrics, one row per key (no fan-out). Each metric column is the "
            "list_metrics metric of that name, its rules included: a ratio reads its eligible rows, a metric with "
            "min_evidence is NULL below it with <name>_evidence beside it, and NULL is unknown, never 0. Join "
-           "them on their key (level, session_id, zone, dungeon, trip, guide, quest_id, slot) with each other or a raw "
-           "table."]
+           "them on their key (level, session_id, zone, dungeon, trip, guide, quest_id, death_t, week, slot) with "
+           "each other or a raw table."]
     # Each column is described once, in the first view that has it: the
     # listing has to fit the schema section's first page (12,000 characters)
     # with the raw tables' heading after it, and per_session and per_zone

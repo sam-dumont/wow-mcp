@@ -619,7 +619,6 @@ UNSUPPORTED_SANITY = [
     "bags full and vendor trash not sold: the shipper sends which items the bags hold (Syndicator), not how "
     "full they are or what each sells for",
     "flights not taken: the recorder has flights and positions, but no list of known flight paths to compare with",
-    "low-value grinding: kills don't carry their XP, so kill XP can't be split from quest XP per hour",
     "what killed you in a dungeon fight blow by blow: no combat log, only the recorder's likely killer",
 ]
 IMPLEMENTED_NEXT = [

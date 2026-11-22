@@ -401,6 +401,29 @@ def test_propose_finding_takes_a_query_metric_call(lab):
     assert info["confirmed"] == 2 and info["faded"] == 0, info
 
 
+def test_the_slice_metrics_over_mcp_keep_the_findings_contract(lab):
+    """The 0.7.0 slice's metrics reach query_metric, play_sql and
+    propose_finding: the seed's kills carry no XP, so kill XP is unknown
+    and the finding says it with placeholders; a number typed in is refused."""
+    names = {m["name"] for m in call(lab[0], "list_metrics", {})["metrics"]}
+    assert {"kills_without_xp", "kill_xp_per_online_hour", "gold_earned_copper", "gear_changes"} <= names
+    out = call(lab[0], "query_metric", {"char": CHAR, "metrics": ["kills", "kills_without_xp", "kill_xp"]})
+    head, row = out["result"].splitlines()[:2]
+    kills, without, xp = row.split("\t")
+    assert head == "kills\tkills_without_xp\tkill_xp" and kills == without and int(kills) > 0
+    weeks = call(lab[0], "play_sql", {"char": CHAR, "query": "SELECT week, kills, deaths FROM per_week ORDER BY week"})
+    assert weeks["rows"] >= 1 and weeks["result"].splitlines()[0] == "week\tkills\tdeaths"
+    mq = {"metrics": ["kills", "kills_without_xp"]}
+    good = {"key": "kills-without-xp", "title": "{kills_without_xp} kills don't say their XP",
+            "claim": "{kills_without_xp} of {kills} kills carry no XP: kill XP is unknown.",
+            "expect": {"kills_without_xp": int(without)}, "relevance": 1, "action": None, "metric_query": mq}
+    ok = call(lab[0], "propose_finding", {"char": CHAR, "finding": good})
+    assert ok["stored"], ok
+    typed = call(lab[0], "propose_finding", {"char": CHAR, "finding": {
+        **good, "key": "kills-typed", "claim": f"{int(kills) + 1} kills carry no XP."}})
+    assert not typed["stored"] and "placeholder" in typed["why"]
+
+
 def test_queries_from_several_threads_share_one_database(demo):
     """The MCP answers several calls at once, and the nightly run builds its own
     copy meanwhile: each call takes its own cursor, so none sees another's rows."""
