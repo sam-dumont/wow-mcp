@@ -198,6 +198,49 @@ def log(*parts: object) -> None:
         pass
 
 
+def fsync_dir(d: Path) -> None:
+    """Puts d's entries on the disk: a rename or a new file is a change to
+    the directory, which fsync on the file doesn't cover. Without it a
+    power cut can keep one rename and lose another (the state's and not
+    the spool's: two directories). Not on Windows: os.open can't open a
+    folder there (no O_DIRECTORY, PermissionError) and Python has no
+    portable way to flush one; NTFS journals its metadata and os.replace
+    is MoveFileEx, which is as far as it goes. A filesystem that refuses
+    (some network shares) is left as it is: the rename happened."""
+    if WINDOWS:
+        return
+    with contextlib.suppress(OSError):
+        fd = os.open(d, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+
+def fsync_path(path: Path) -> None:
+    """A file written by someone else (shutil, zipfile) to the disk."""
+    with path.open("ab") as fh:  # write access: Windows' fsync needs it
+        os.fsync(fh.fileno())
+
+
+def append_durable(path: Path, data: bytes, gz: bool = False) -> None:
+    """Appends data (as one gzip member when gz) and puts it on the disk
+    before returning, the new file's directory entry too: what calls it
+    shortens the spool next, and then this is the only copy. One fsync
+    per call."""
+    new = not path.exists()
+    with path.open("ab") as fh:
+        if gz:
+            with gzip.GzipFile(fileobj=fh, mode="wb") as dst:  # closing it ends the member, not fh
+                dst.write(data)
+        else:
+            fh.write(data)
+        fh.flush()
+        os.fsync(fh.fileno())
+    if new:
+        fsync_dir(path.parent)
+
+
 # ---------------------------------------------------------------------------
 # SavedVariables: a Lua table reader (the subset the client writes)
 # ---------------------------------------------------------------------------
@@ -601,6 +644,7 @@ class Out:
         self.fh.close()
         dest = SPOOL / (datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ") + ".ndjson")
         os.replace(self.tmp, dest)
+        fsync_dir(SPOOL)  # the rename too, before the state that counts on it
         return dest
 
     def summary(self) -> str:
@@ -2526,9 +2570,16 @@ def retention_cutoff() -> str | None:
 
 
 def rewrite(f: Path, lines: list[bytes]) -> None:
+    """The spool file shortened to what is left to send: on the disk
+    before the rename, the rename on the disk after it. A power cut that
+    kept the rename and not the data lost the events still to send."""
     tmp = f.with_name(f.name + ".rest")
-    tmp.write_bytes(b"".join(lines))
+    with tmp.open("wb") as fh:
+        fh.write(b"".join(lines))
+        fh.flush()
+        os.fsync(fh.fileno())
     os.replace(tmp, f)
+    fsync_dir(f.parent)
 
 
 def ship() -> None:
@@ -2563,13 +2614,11 @@ def ship() -> None:
                     lines.append(ln)
         if bad:
             REJECTED.mkdir(parents=True, exist_ok=True)
-            with (REJECTED / f.name).open("ab") as fh:
-                fh.write(b"".join(bad))
+            append_durable(REJECTED / f.name, b"".join(bad))
             log(f"ship: {f.name}: {len(bad)} invalid lines moved to {REJECTED}")
         if old:  # VictoriaLogs would answer 2xx and drop them: keep them here instead
             TOO_OLD.mkdir(parents=True, exist_ok=True)
-            with (TOO_OLD / f.name).open("ab") as fh:
-                fh.write(b"".join(old))
+            append_durable(TOO_OLD / f.name, b"".join(old))
             log(f"ship: {f.name}: {len(old)} events older than the receiver's retention "
                 f"({CONFIG['ship']['retention_days']} days) kept in {TOO_OLD}, not sent")
         if bad or old:
@@ -2588,8 +2637,7 @@ def ship() -> None:
                     log(f"ship: {f.name}: HTTP {code}, kept for the next run")
                 rewrite(f, lines[sent:])  # keep only what is left
                 return
-            with gzip.open(SENT / (f.name + ".gz"), "ab") as dst:  # one gzip member per POST
-                dst.write(b"".join(part))
+            append_durable(SENT / (f.name + ".gz"), b"".join(part), gz=True)  # one gzip member per POST
             sent += len(part)
             if sent < len(lines):  # a big first run: progress, and a kill resends nothing already stored
                 rewrite(f, lines[sent:])
@@ -2740,6 +2788,7 @@ def save_state(state: dict) -> None:
     if STATE.exists():
         os.replace(STATE, STATE.with_name("state.json.prev"))
     os.replace(tmp, STATE)
+    fsync_dir(STATE.parent)  # both renames: either order of losing them falls back to a whole state
 
 
 def rotate_log() -> None:
@@ -2919,10 +2968,16 @@ def install_recorder(wow: Path, fetch=_download, url: str | None = None, sha256:
     tmp = Path(tempfile.mkdtemp(prefix=".wow-stats-recorder-", dir=addons))
     try:
         z.extractall(tmp)
+        for f in (tmp / RECORDER_DIR).rglob("*"):  # a handful of files, once per install
+            if f.is_file():
+                fsync_path(f)
+        for d in [*(x for x in (tmp / RECORDER_DIR).rglob("*") if x.is_dir()), tmp / RECORDER_DIR, tmp]:
+            fsync_dir(d)
         dest, old = addons / RECORDER_DIR, tmp / "old"
         if dest.exists():
             dest.rename(old)
         (tmp / RECORDER_DIR).rename(dest)
+        fsync_dir(addons)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     return (f"Polestar Recorder {RECORDER_VERSION} installed in {addons}"
@@ -4402,11 +4457,17 @@ def apply_update(new: bytes) -> None:
     """Writes the new script next to this one, keeps this one as .prev, and
     swaps them in one rename."""
     tmp = SELF.with_name(".wow_stats.py.new")
-    tmp.write_bytes(new)
+    with tmp.open("wb") as fh:  # on the disk before the rename: an empty script after a power cut runs nothing again
+        fh.write(new)
+        fh.flush()
+        os.fsync(fh.fileno())
     if not WINDOWS:
         tmp.chmod(0o755)
-    shutil.copy2(SELF, SELF.with_name(SELF.name + ".prev"))
+    prev = SELF.with_name(SELF.name + ".prev")
+    shutil.copy2(SELF, prev)
+    fsync_path(prev)
     os.replace(tmp, SELF)
+    fsync_dir(SELF.parent)
 
 
 def check_update(state: dict, now: float | None = None) -> str | None:
