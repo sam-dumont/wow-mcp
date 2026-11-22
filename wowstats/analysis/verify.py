@@ -189,38 +189,96 @@ def undeclared(text: str, constants: list[dict]) -> list[str]:
     return [n for n in bare_numbers(text) if not any(_same(_num(n), float(c["value"])) for c in constants)]
 
 
-def numbers_why(parts: dict[str, str], constants: list[dict], row: dict | None = None,
-                rows: list[dict] | None = None) -> str:
-    """Why the prose's numbers can't stand ("" when every one is a
-    placeholder or a declared constant that neither equals nor contradicts
-    a placeholder). `parts`: {name: template}. Without a row, the
-    placeholder comparison is skipped (a kept finding's templates alone)."""
+def _undeclared_why(name: str, bad: list[str]) -> str:
+    return (f"{', '.join(dict.fromkeys(bad))} in the {name} is neither a placeholder nor a declared "
+            "constant: bind what the query measures ({col}, {col:dur}, {rows[1].col}), and declare a "
+            "number it doesn't measure in `constants` ({value, label}: " + ", ".join(CONSTANT_KINDS) + ")")
+
+
+def numbers_why(parts: dict[str, str], constants: list[dict]) -> str:
+    """Why the prose types a number that is neither a placeholder nor a
+    declared constant ("" when it doesn't). `parts`: {name: template}."""
     for name, text in parts.items():
         bad = undeclared(text, constants)
         if bad:
-            return (f"{', '.join(dict.fromkeys(bad))} in the {name} is neither a placeholder nor a declared "
-                    "constant: bind what the query measures ({col}, {col:dur}, {rows[1].col}), and declare a "
-                    "number it doesn't measure in `constants` ({value, label}: " + ", ".join(CONSTANT_KINDS) + ")")
-    if row is None:
-        return ""
-    used = [c for c in constants if any(any(_same(_num(n), float(c["value"])) for n in bare_numbers(t))
-                                        for t in parts.values())]
+            return _undeclared_why(name, bad)
+    return ""
+
+
+def used_constants(parts: dict[str, str], constants: list[dict]) -> list[dict]:
+    """The constants the prose actually types."""
+    return [c for c in constants if any(_same(_num(n), float(c["value"])) for t in parts.values()
+                                        for n in bare_numbers(t))]
+
+
+# What a query's SQL holds that isn't a numeric literal: comments, string
+# literals ('2026-11-01', '' escaped) and quoted identifiers ("col 2").
+SQL_NOT_NUMERIC = re.compile(r"--[^\n]*|/\*.*?\*/|'(?:[^']|'')*'|\"(?:[^\"]|\"\")*\"", re.S)
+SQL_NUMBER = re.compile(r"(?<![\w.])(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?(?![\w.])")
+
+
+def sql_numbers(sql_text: str, params: dict | None) -> set[float]:
+    """The numeric literals a query writes (`level = 32`, `LIMIT 3`,
+    `2 * 3600`), as numbers, plus the numbers bound in its params. A digit
+    inside a string, a comment or an identifier isn't one, and `IN (30,31)`
+    is 30 and 31."""
+    out = {float(n) for n in SQL_NUMBER.findall(SQL_NOT_NUMERIC.sub(" ", sql_text or ""))}
+    for v in (params or {}).values():
+        vals = v if isinstance(v, (list, tuple)) else [v]
+        out |= {float(x) for x in vals if isinstance(x, (int, float)) and not isinstance(x, bool)}
+    return out
+
+
+def constant_why(c: dict, parts: dict[str, str], in_query: set[float], cites: list[str],
+                 row: dict | None, rows: list[dict] | None = None) -> str:
+    """Why one constant the prose types can't stand ("" when it can): it
+    equals a placeholder's value (a measure typed by hand), contradicts one
+    (labelled like the column the placeholder reads, another value), is a
+    level, top-N or threshold the query doesn't apply (`in_query`:
+    sql_numbers), or a game rule no cited document backs. Without a row the
+    placeholder comparison is skipped."""
     for name, text in parts.items():
-        for m in PLACEHOLDER.finditer(text or ""):
+        for m in PLACEHOLDER.finditer(text or "") if row is not None else ():
             ref = m.group(1)
             v = value(ref, row, rows)
             if isinstance(v, bool) or not isinstance(v, (int, float)):
                 continue
             col = (CELL.fullmatch(ref).group(2) if CELL.fullmatch(ref) else ref).lower().replace("_", "-")
-            for c in used:
-                shown = fmt(v, m.group(2))
-                if _same(float(v), float(c["value"])) or shown == f"{c['value']:g}":
-                    return (f"constant {c['value']:g} ({c['label']}) equals {{{ref}}} in the {name}: it is "
-                            "measured, so write the placeholder and leave it out of `constants`")
-                if c["label"] == col:
-                    return (f"constant {c['value']:g} ({c['label']}) contradicts {{{ref}}} in the {name}, which "
-                            f"the query gives as {shown}")
+            shown = fmt(v, m.group(2))
+            if _same(float(v), float(c["value"])) or shown == f"{c['value']:g}":
+                return (f"constant {c['value']:g} ({c['label']}) equals {{{ref}}} in the {name}: it is "
+                        "measured, so write the placeholder and leave it out of `constants`")
+            if c["label"] == col:
+                return (f"constant {c['value']:g} ({c['label']}) contradicts {{{ref}}} in the {name}, which "
+                        f"the query gives as {shown}")
+    if c["label"] in IN_QUERY and not any(_same(float(c["value"]), q) for q in in_query):
+        return (f"constant {c['value']:g} ({c['label']}) isn't in the query: a {c['label']} is a parameter "
+                "the query applies (WHERE, LIMIT), written in its SQL. A number the query counts or sums is "
+                "a placeholder")
+    if c["label"] == "game-rule" and not cites:
+        return (f"constant {c['value']:g} (game-rule): cite in `kb` the knowledge base document the rule "
+                "comes from")
     return ""
+
+
+def refused_numbers(parts: dict[str, str], constants: list[dict], sql_text: str, params: dict | None,
+                    cites: list[str], row: dict | None, rows: list[dict] | None = None) -> dict[str, str]:
+    """{number: why} for every number the prose types that can't stand, {}
+    when each is a placeholder or a constant that passes constant_why. The
+    one rule for a new proposal (check) and a kept finding (unbound): a
+    number declared by several constants is refused when any of them is."""
+    out: dict[str, str] = {}
+    for name, text in parts.items():
+        bad = undeclared(text, constants)
+        for n in bad:
+            out.setdefault(n, _undeclared_why(name, bad))
+    in_query = sql_numbers(sql_text, params)
+    for c in used_constants(parts, constants):
+        why = constant_why(c, parts, in_query, cites, row, rows)
+        if why:
+            for n in (n for t in parts.values() for n in bare_numbers(t) if _same(_num(n), float(c["value"]))):
+                out.setdefault(n, why)
+    return out
 
 
 # Owner, 2026-11-18: text about a character is gender-neutral ("the
@@ -263,28 +321,9 @@ def action_of(f: dict, key: str, row: dict, rows: list[dict] | None = None
     return {p: render(t, row, rows) for p, t in tpl.items()}, tpl, ""
 
 
-def constants_why(constants: list[dict], sql_text: str, params: dict | None, cites: list[str]) -> str:
-    """Why a declared constant isn't what its kind says ("" when each is):
-    a level, top-N or threshold the query doesn't use, a game rule with no
-    knowledge base document cited."""
-    in_query = {_num(n) for n in NUMBER.findall(sql_text or "")}
-    for v in (params or {}).values():
-        vals = v if isinstance(v, (list, tuple)) else [v]
-        in_query |= {float(x) for x in vals if isinstance(x, (int, float)) and not isinstance(x, bool)}
-    for c in constants:
-        if c["label"] in IN_QUERY and not any(_same(float(c["value"]), q) for q in in_query):
-            return (f"constant {c['value']:g} ({c['label']}) isn't in the query: a {c['label']} is a parameter "
-                    "the query applies (WHERE, LIMIT), written in its SQL. A number the query counts or sums is "
-                    "a placeholder")
-        if c["label"] == "game-rule" and not cites:
-            return (f"constant {c['value']:g} (game-rule): cite in `kb` the knowledge base document the rule "
-                    "comes from")
-    return ""
-
-
 def literal_numbers(text: str) -> list[str]:
     """Numbers above LITERAL_MAX typed into a nudge or pattern line (their
-    own rule: a finding's prose goes through numbers_why)."""
+    own rule: a finding's prose goes through refused_numbers)."""
     return [n for n in bare_numbers(text) if _num(n) > LITERAL_MAX]
 
 
@@ -415,9 +454,12 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     action, action_tpl, why = action_of(f, key, row, rows)
     if why:
         return None, why
-    why = numbers_why(prose, constants, row, rows)
-    if why:
-        return None, f"{key}: {why}"
+    cites = [str(c) for c in f.get("kb") or [] if isinstance(c, str)]
+    if kb_ids is not None:
+        cites = [c for c in cites if kb_ids(c)]
+    refused = refused_numbers(prose, constants, sql_text, params, cites, row, rows)
+    if refused:
+        return None, f"{key}: {next(iter(refused.values()))}"
     for part, text in prose.items():
         if gendered(text):
             return None, (f"{key}: {part} says he or she: write \"the character\", the name or \"you\" "
@@ -437,14 +479,7 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
                 return None, f"{key}: holds ({cond}) is false"
         except (ValueError, SyntaxError, ZeroDivisionError, TypeError) as e:
             return None, f"{key}: holds unreadable: {e}"
-    cites = [str(c) for c in f.get("kb") or [] if isinstance(c, str)]
-    if kb_ids is not None:
-        cites = [c for c in cites if kb_ids(c)]
-    used = [c for c in constants if any(any(_same(_num(n), float(c["value"])) for n in bare_numbers(t))
-                                        for t in prose.values())]
-    why = constants_why(used, sql_text, params, cites)
-    if why:
-        return None, f"{key}: {why}"
+    used = used_constants(prose, constants)
 
     def num_of(name):
         v = row.get(name) if isinstance(name, str) else None
@@ -481,11 +516,30 @@ UNBOUND_WHY = "its text has numbers neither bound to its query nor declared"
 
 
 def unbound(stored: dict) -> list[str]:
-    """The numbers a kept finding's prose types that are neither a
-    placeholder nor one of its declared constants: [] for one that meets
-    today's contract."""
-    consts = stored.get("constants") if isinstance(stored.get("constants"), list) else []
-    return list(dict.fromkeys(n for t in templates(stored).values() for n in undeclared(t, consts)))
+    """The numbers a kept finding's prose types that can't stand: [] for one
+    that meets today's contract. A finding kept before it had no
+    `constants`, so a number its own SQL writes as a numeric literal
+    (`level = 32`, `LIMIT 3`) counts as declared, as a level, a top-N and a
+    threshold at once, and then goes through exactly the rule a new proposal
+    does (refused_numbers): one that equals or contradicts a placeholder on
+    the row it was kept with under any of those readings stays unbound, and
+    so does every number when no row was kept (owner, 2026-11-22: 883 of
+    2,202 kept findings in the eval states were flagged, mostly typed
+    levels)."""
+    consts = [c for c in stored.get("constants") or [] if isinstance(c, dict) and isinstance(c.get("label"), str)
+              and isinstance(c.get("value"), (int, float)) and not isinstance(c.get("value"), bool)]
+    tpls = templates(stored)
+    sql_text = str(stored.get("sql") or "")
+    params = stored.get("sql_params") if isinstance(stored.get("sql_params"), dict) else None
+    row = stored.get("row") if isinstance(stored.get("row"), dict) else None
+    rows = stored.get("rows") if isinstance(stored.get("rows"), list) else None
+    implied = []
+    if row is not None:
+        in_query = sql_numbers(sql_text, params)
+        typed = dict.fromkeys(_num(n) for t in tpls.values() for n in undeclared(t, consts))
+        implied = [{"value": v, "label": k} for v in typed if any(_same(v, q) for q in in_query) for k in IN_QUERY]
+    cites = [str(c) for c in stored.get("kb") or [] if isinstance(c, str)]
+    return list(refused_numbers(tpls, consts + implied, sql_text, params, cites, row, rows))
 
 
 def recheck(stored: dict, ro: ReadOnly) -> tuple[dict | None, str]:

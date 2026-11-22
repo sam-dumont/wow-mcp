@@ -238,7 +238,11 @@ again from that night's result; the page and `play_analysis` show
 recheck). A finding kept before the placeholder rule above whose text types
 a number its query doesn't fill and nothing declares keeps its text and is
 marked to revalidate (`unbound_numbers`), never deleted, until an analysis
-proposes it again. It gains weight (`confirmations`, `last_confirmed`) only when
+proposes it again. Such a finding had no `constants`, so a number its own SQL
+writes as a numeric literal (`level = 32`, `LIMIT 3`) counts as declared, as a
+level, a top-N and a threshold, and goes through the same check as a new
+proposal's constant: equal to a placeholder's value on its kept row, or
+contradicting one, it stays unbound. It gains weight (`confirmations`, `last_confirmed`) only when
 the play history changed since its last support (`support_mark`, a mark of the
 source events themselves: each one's id, observation time and revision): the
 same data checked again counts as `still`, not `confirmed`. Nothing prep or a

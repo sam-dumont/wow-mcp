@@ -202,6 +202,58 @@ def test_a_legacy_finding_with_unbound_numbers_is_flagged_never_dropped(env):
     assert again["text"] == "You died 5 times." and "unbound_numbers" not in again and "revalidate" not in again
 
 
+def _kept(claim: str, sql: str, row: dict) -> dict:
+    """A finding kept before the contract: no `constants`, its prose as typed."""
+    return {"key": "legacy", "title_template": "Deaths", "claim_template": claim, "sql": sql, "sql_params": None,
+            "row": row, "kb": [], "action_template": None}
+
+
+def test_a_legacy_number_its_own_sql_writes_counts_as_declared():
+    """Owner, 2026-11-22: 883 of 2,202 kept findings in the eval states were
+    flagged, mostly typed levels. A number the finding's own SQL writes as a
+    numeric literal is declared, under exactly the rule a new proposal meets."""
+    at32 = _kept("At level 32 you died {n} times.", DEATHS + " AND level = 32", {"n": 2})
+    assert verify.unbound(at32) == []
+    state = {"findings": {"legacy": at32}}
+    assert analysis.migrate(state) == 0 and "revalidate" not in state["findings"]["legacy"]
+    # Compared as numbers: 32.0 in the SQL declares the 32 typed in the prose.
+    assert verify.unbound({**at32, "sql": DEATHS + " AND level = 32.0"}) == []
+    # A digit in a string literal or a comment isn't a numeric literal.
+    assert verify.unbound({**at32, "sql": DEATHS + " AND zone <> 'Level 32'"}) == ["32"]
+    assert verify.unbound({**at32, "sql": DEATHS + " -- level 32"}) == ["32"]
+    # In neither the SQL nor the result: still flagged (the reviewer's prose, kept).
+    typed = _kept("You died 3 times.", DEATHS, {"n": 5})
+    assert verify.unbound(typed) == ["3"]
+    state = {"findings": {"legacy": typed}}
+    assert analysis.migrate(state) == 1 and state["findings"]["legacy"]["unbound_numbers"] == ["3"]
+    # No row kept: nothing to compare a placeholder with, so nothing is declared.
+    assert verify.unbound({**at32, "row": None}) == ["32"]
+
+
+def test_a_measure_equal_to_a_sql_literal_is_refused_on_both_paths(env):
+    """One rule (verify.refused_numbers) for a proposal and a kept finding:
+    a typed number equal to a placeholder's value is a measure, whatever the
+    SQL writes; one labelled like the column it contradicts is refused too."""
+    capped = DEATHS + " LIMIT 5"
+    assert drive.workspace(env, CHAR).judge.first_row(capped)["n"] == 5
+    claim = "You died 5 times, {n} on record."
+    new = _propose(_deaths(key="capped", claim=claim, sql=capped, constants=[{"value": 5, "label": "top-n"}]))
+    assert not new["stored"] and "equals {n}" in new["why"]
+    assert verify.unbound(_kept(claim, capped, {"n": 5})) == ["5"]
+    # The same prose and SQL with another count on the kept row stands.
+    assert verify.unbound(_kept(claim, capped, {"n": 4})) == []
+    # Read as a level, 39 contradicts {level} on the kept row: refused (a new
+    # proposal labelled level is too, test above). Every reading must pass.
+    lvl = "SELECT level, COUNT(*) AS n FROM records WHERE kind='death' AND level < 39 GROUP BY level LIMIT 1"
+    assert verify.unbound(_kept("Deaths at level {level}, none past level 39.", lvl, {"level": 20, "n": 1})) \
+        == ["39"]
+    # The reviewer's case, new: refused by the same function check() calls.
+    why = verify.refused_numbers({"claim": "You died 3 times."}, [], DEATHS, None, [], {"n": 5})
+    assert list(why) == ["3"] and "neither a placeholder nor a declared constant" in why["3"]
+    got = _propose(_deaths(claim="You died 3 times."))
+    assert not got["stored"] and "3 in the claim is neither" in got["why"]
+
+
 class Raises:
     """A model: any use of it fails the test."""
 

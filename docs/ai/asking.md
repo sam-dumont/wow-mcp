@@ -89,7 +89,8 @@ finding was last checked. One that still holds stays, and gains weight only when
 since it last did: the same data checked again proves nothing new. One that stops holding fades
 and goes after three or four nights. A finding kept before 0.7.0 whose text types a number its
 query doesn't fill is marked "to revalidate" instead, never deleted, until your next analysis
-proposes it again.
+proposes it again. A level, top-N or threshold its own query writes ("At level 32" with `level = 32`)
+doesn't count against it.
 
 **An example on the demo.**
 
