@@ -143,6 +143,27 @@ VIEWS = {
     # the weaker of two rings or trinkets (wowstats.gear.bis_badge's rule).
     "sem_gear": ("SELECT *, ROW_NUMBER() OVER (PARTITION BY slot_name ORDER BY score ASC NULLS LAST, slot) "
                  "AS weak_rank, {who} FROM gear WHERE name IS NOT NULL"),
+    # The level over time (the plan's review reads it): each XP bar reading
+    # with its level and fraction, and the online time up to it; the
+    # snapshots apart (source), with none. online_to_s: the timeline
+    # intervals, in start order, up to the first one not ended by the
+    # reading (a running total and the latest end so far per interval, the
+    # last one ended by then found with an ASOF join). The fraction is
+    # level + xp / xp_max in double precision, as the plan computed it.
+    "sem_progress": (
+        "SELECT p.*, {ts:p.t} AS at_local, {who} FROM ("
+        "SELECT 'xp' AS source, ROW_NUMBER() OVER (ORDER BY x.t, x.rowid) AS reading, x.t, x.level, x.xp, "
+        "CASE WHEN x.xp_max <> 0 THEN x.level + COALESCE(x.xp, 0) / CAST(x.xp_max AS DOUBLE) "
+        "ELSE CAST(x.level AS DOUBLE) END AS level_frac, COALESCE(o.online_to_s, 0) AS online_to_s FROM xp x "
+        "ASOF LEFT JOIN (SELECT reach, MAX(online_to_s) AS online_to_s FROM (SELECT MAX(t1) OVER w AS reach, "
+        "COALESCE(SUM(dur_s) OVER w, 0) AS online_to_s FROM timeline WINDOW w AS (ORDER BY t0, seg_id ROWS "
+        "UNBOUNDED PRECEDING)) GROUP BY reach) o ON x.t >= o.reach WHERE x.level IS NOT NULL "
+        "UNION ALL SELECT 'snapshot', ROW_NUMBER() OVER (ORDER BY s.t, s.rowid), s.t, s.level, s.xp, "
+        "CASE WHEN s.xp_max <> 0 THEN s.level + COALESCE(s.xp, 0) / CAST(s.xp_max AS DOUBLE) "
+        "ELSE CAST(s.level AS DOUBLE) END, NULL FROM snapshots s WHERE s.level IS NOT NULL) p"),
+    "sem_professions": "SELECT *, {who} FROM professions",
+    "sem_quests_done": "SELECT *, {ts:seen_t} AS at_local, {who} FROM quests_done",
+    "sem_route_position": "SELECT *, {who} FROM route_position",
 }
 CROSS_KEY = "cross_model_metrics"
 # The views per grain (semantic.yaml `views`): per_level, per_session...,

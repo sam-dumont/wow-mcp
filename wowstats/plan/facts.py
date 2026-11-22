@@ -181,13 +181,12 @@ def recorder_state(store, rows: list[dict]) -> str | None:
 # ---------------------------------------------------------------- extract
 
 
-def q(db, sql: str, *a) -> list[tuple]:
-    return db.execute(sql, a).fetchall()
-
-
-def one(db, sql: str, *a):
-    r = db.execute(sql, a).fetchone()
-    return r[0] if r else None
+def header(db) -> dict:
+    """The prep's meta table: the build's own header (character, class,
+    race, faction, the data's range), the rows the semantic layer's
+    `character` and `class` columns read too. Not a measurement: plumbing
+    (tests/test_semantic_guard.py)."""
+    return dict(db.execute("SELECT key, value FROM meta").fetchall())
 
 
 # ---------------------------------------------------------------- the semantic layer
@@ -315,16 +314,22 @@ def guide_sequence(ref, side: str, level: int) -> list[str]:
     return [g for g in seq if (_i(((ref.guides or {}).get(g) or {}).get("level_end"), 0) or 0) >= level - 1]
 
 
-def position(db) -> dict:
+# The position model's metrics (semantic.yaml `position`) under the names
+# the planner reads them by.
+POSITION = {"route_guide": "guide", "route_guide_title": "guide_title", "route_shown_step": "shown_step",
+            "route_shown_title": "shown_title", "route_reason": "reason", "route_furthest_step": "furthest_step",
+            "route_next_step": "anchor_step", "route_next_title": "anchor_title", "route_next_why": "anchor_why",
+            "route_subzone": "subzone", "route_zone": "zone"}
+
+
+def position(db, sem=None) -> dict:
     """Where the player is in Polestar's route: the prep's route_position
-    (wowstats.analysis.prep._route_position), the row play_sql reads too."""
-    row = db.execute("SELECT guide, guide_title, shown_step, shown_title, reason, furthest_step, next_step, "
-                     "next_title, next_why, subzone, zone FROM route_position").fetchone()
-    if not row:
+    (wowstats.analysis.prep._route_position) through the layer's `position`
+    model, the row play_sql reads too. {} before the first step record."""
+    row = ask(semantic_of(db, sem), metrics=list(POSITION))[0]
+    if row["route_guide"] is None:
         return {}
-    keys = ("guide", "guide_title", "shown_step", "shown_title", "reason", "furthest_step", "anchor_step",
-            "anchor_title", "anchor_why", "subzone", "zone")
-    return dict(zip(keys, row, strict=True))
+    return {mine: row[theirs] for theirs, mine in POSITION.items()}
 
 
 def semantic_of(db, sem=None) -> tuple:
@@ -545,28 +550,32 @@ def route_levels(ref, meta: dict, level: int) -> dict:
     return out
 
 
-def progress(db) -> list[dict]:
+def series(sem, source: str) -> list[dict]:
+    """The `progress` model's series (semantic.yaml), one row per reading in
+    time order: `xp` (the Recorder's XP bar) or `snapshot` (the sheets)."""
+    return ask(sem, metrics=["progress_t", "progress_level", "progress_xp", "progress_online_s"],
+               group_by=["reading", "level"], where=[{"dimension": "source", "op": "=", "value": source}],
+               order_by=["reading"])
+
+
+def progress(db, sem=None) -> list[dict]:
     """Every XP record as (t, level with the fraction, online seconds since
-    the first record): what a plan is compared with."""
-    segs = q(db, "SELECT t0, t1, dur_s FROM timeline ORDER BY t0")
-    out, on, i = [], 0.0, 0
-    for t, level, xp, xp_max in q(db, "SELECT t, level, xp, xp_max FROM xp WHERE level IS NOT NULL ORDER BY t"):
-        while i < len(segs) and segs[i][1] <= t:
-            on += segs[i][2] or 0
-            i += 1
-        out.append({"t": t, "level": round(level + (xp or 0) / xp_max, 3) if xp_max else float(level),
-                    "online_s": round(on)})
+    the first record): what a plan is compared with. The semantic layer's
+    `progress` model at the reading grain."""
+    sem = semantic_of(db, sem)
+    out = [{"t": r["progress_t"], "level": round(r["progress_level"], 3), "online_s": round(r["progress_online_s"])}
+           for r in series(sem, "xp")]
     if out:
         return out
     # No Recorder: the logout snapshots, the played time between them from
     # the level splits (played_between), so a plan by level is reviewed too.
-    snaps = q(db, "SELECT t, level, xp, xp_max FROM snapshots WHERE level IS NOT NULL ORDER BY t")
-    for t, level, xp, xp_max in snaps:
-        on = played_between(db, (snaps[0][1], snaps[0][2]), (level, xp)) or 0.0
+    snaps = series(sem, "snapshot")
+    for r in snaps:
+        on = played_between(db, (snaps[0]["level"], snaps[0]["progress_xp"]), (r["level"], r["progress_xp"])) or 0.0
         if out and on < out[-1]["online_s"]:
             continue  # a snapshot that went back (another source's older sheet): skip it
-        out.append({"t": t, "level": round(level + (xp or 0) / xp_max, 3) if xp_max else float(level),
-                    "online_s": round(on), "estimated": True})
+        out.append({"t": r["progress_t"], "level": round(r["progress_level"], 3), "online_s": round(on),
+                    "estimated": True})
     return out
 
 
@@ -744,18 +753,20 @@ def card_lookup():
         return None
 
 
-def owned(db, worn_ids: list[int], bags: dict | None) -> dict:
+def owned(db, worn_ids: list[int], bags: dict | None, sem=None) -> dict:
     """What the character has, by item ID: worn (the newest sheet), in the
     bags or the bank (the newest wow-bags), looted or got as a quest reward
     (the Recorder's records, with the first time). `inventory_known` says
     whether bags and bank were reported at all: without them, a looted item
     may be worn, held or long sold."""
+    sem = semantic_of(db, sem)
+    known = [{"dimension": "item_id", "op": "is not null"}]
     where: dict[int, dict] = {}
-    for iid, t in q(db, "SELECT item_id, MIN(t) FROM loot_items WHERE item_id IS NOT NULL GROUP BY item_id"):
-        where[int(iid)] = {"where": "looted", "t": t}
-    for iid, t in q(db, "SELECT item_id, MIN(t) FROM records WHERE kind='turnin' AND item_id IS NOT NULL "
-                        "GROUP BY item_id"):
-        where.setdefault(int(iid), {"where": "reward", "t": t})
+    for r in ask(sem, metrics=["first_looted_t"], group_by=["item_id"], where=known, order_by=["item_id"]):
+        where[int(r["item_id"])] = {"where": "looted", "t": r["first_looted_t"]}
+    for r in ask(sem, metrics=["first_record_t"], group_by=["item_id"], order_by=["item_id"],
+                 where=[*known, {"dimension": "kind", "op": "=", "value": "turnin"}]):
+        where.setdefault(int(r["item_id"]), {"where": "reward", "t": r["first_record_t"]})
     for k in ("bank", "bags"):
         for iid in (bags or {}).get(k) or []:
             where[int(iid)] = {"where": k, "t": (where.get(int(iid)) or {}).get("t")}
@@ -913,8 +924,9 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     sem = semantic_of(db, sem)  # one copy for every reader below
     quests_done = done
     if quests_done is None:
-        quests_done = dict(q(db, "SELECT quest_id, source FROM quests_done"))
-    meta = dict(q(db, "SELECT key, value FROM meta"))
+        quests_done = {r["quest_id"]: r["done_source"] for r in ask(
+            sem, metrics=["quests_known_done"], group_by=["quest_id", "done_source"], order_by=["quest_id"])}
+    meta = header(db)
     layer, ro = sem
     _LEVELS[0] = None  # a prep asked again (the tests' replays) reads its levels again
     levels = level_rows(db, layer, ro)
@@ -952,7 +964,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     if xp_max:
         xp_table[level] = xp_max
     hist = step_history(db, ref, sem)
-    pos = position(db)
+    pos = position(db, sem)
     side = meta.get("faction")
     seq = guide_sequence(ref, side, level) if side else []
     ahead: list[dict] = []
@@ -1002,8 +1014,9 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     ding_even = max((r["last_record_t"] for r in ask(sem, metrics=["last_record_t"], group_by=["level"], where=[
         {"dimension": "kind", "op": "=", "value": "level"}]) if r["level"] is not None and r["level"] % 2 == 0),
         default=None)
-    profs = [dict(zip(("name", "rank", "max_rank"), r, strict=True))
-             for r in q(db, "SELECT name, rank, max_rank FROM professions")]
+    profs = [{"name": r["profession"], "rank": r["profession_rank"], "max_rank": r["profession_max_rank"]}
+             for r in ask(sem, metrics=["profession_rank", "profession_max_rank"], group_by=["skill_id", "profession"],
+                          order_by=["skill_id"])]
     # Time on each profession's Polestar guide and the skill-ups made while it was up.
     lines = {p["name"]: f"forever/professions/{(p['name'] or '').lower()}" for p in profs}
     by_guide = {r["guide"]: r for r in ask(sem, metrics=["active_s", "skill_ups"], group_by=["guide"], where=[
@@ -1031,21 +1044,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         lv = a["levels"]
         if lv[1] >= level - 2 and lv[0] <= level + 5:
             dungeons.append({"area_id": None, "name": a["name"], "min": lv[0], "max": lv[1], "rule": a["rule"]})
-    runs = {}
-    if knowledge is not None:
-        for d in knowledge.db.execute("SELECT id, body FROM docs WHERE kind='polestar-dungeon'").fetchall():
-            with contextlib.suppress(ValueError):
-                j = json.loads(d[1])
-                if isinstance(j, dict) and j.get("faction") in (side, "Both") and side:
-                    runs[j["dungeon"]] = {"objectives": (j.get("run") or {}).get("objectives") or [],
-                                          "pickups": [p.get("quest") for p in j.get("pickups") or []],
-                                          "guide": (j.get("run") or {}).get("guide"),
-                                          "handins": [h.get("quest") for h in j.get("handins") or []],
-                                          "item_starts": [x.get("quest") for x in
-                                                          (j.get("run") or {}).get("itemStarts") or []],
-                                          "notes": {str(p.get("quest")): p.get("note") for p in j.get("pickups") or []
-                                                    if p.get("note")},
-                                          "left_out": {str(k): v for k, v in (j.get("leftOut") or {}).items()}}
+    runs = dungeon_runs_kb(knowledge, side)
     worn_ids = sorted({_i(i.get("item_id")) for i in ((advice or {}).get("slots") or [])
                        for i in [i.get("current") or {}] if i.get("item_id")})
     return {
@@ -1071,7 +1070,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         "worn_ids": worn_ids,
         # The dungeon panel's (wowstats.plan.dungeonview): every item each
         # dungeon gives him, what he has, the quests he handed in.
-        "dungeon_loot": loot or {}, "owned": owned(db, worn_ids, bags),
+        "dungeon_loot": loot or {}, "owned": owned(db, worn_ids, bags, sem),
         "dungeon_quests": dungeon_quests(knowledge, side, runs),
         "gear_score": (advice or {}).get("gear_score"),
         "quests_done": sorted(quests_done), "quests_done_from": quests.counts(quests_done),
@@ -1089,9 +1088,32 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
                    for n in standing(st)["nudges"]],
         "analysis_updated": st.get("updated"),
         "calibration": reviews or {"factor": 1.0, "n": 0},
-        "progress": progress(db),
+        "progress": progress(db, sem),
         "instance_limit": instance_limit(),
     }
+
+
+def dungeon_runs_kb(knowledge, side: str | None) -> dict[str, dict]:
+    """Polestar's dungeon run documents in the knowledge base (its own store,
+    not play data), for the character's side: each run's objectives, the
+    quests to pick up and hand in, the guide, item-started quests, notes."""
+    runs: dict[str, dict] = {}
+    if knowledge is None or not side:
+        return runs
+    for d in knowledge.db.execute("SELECT id, body FROM docs WHERE kind='polestar-dungeon'").fetchall():
+        with contextlib.suppress(ValueError):
+            j = json.loads(d[1])
+            if isinstance(j, dict) and j.get("faction") in (side, "Both"):
+                runs[j["dungeon"]] = {"objectives": (j.get("run") or {}).get("objectives") or [],
+                                      "pickups": [p.get("quest") for p in j.get("pickups") or []],
+                                      "guide": (j.get("run") or {}).get("guide"),
+                                      "handins": [h.get("quest") for h in j.get("handins") or []],
+                                      "item_starts": [x.get("quest") for x in
+                                                      (j.get("run") or {}).get("itemStarts") or []],
+                                      "notes": {str(p.get("quest")): p.get("note") for p in j.get("pickups") or []
+                                                if p.get("note")},
+                                      "left_out": {str(k): v for k, v in (j.get("leftOut") or {}).items()}}
+    return runs
 
 
 def class_train_level(rows: list[dict]) -> int | None:
