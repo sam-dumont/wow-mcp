@@ -29,6 +29,7 @@
 - Your AI's `players` gave a different top 20 on each call over the same events when players tied (met as often, on as many days): the store's rows come in no set order. Ties now go to the one seen last, then by name.
 - Your AI's `zones` failed ("cannot convert float NaN to integer") when the XP records of a zone carried no XP amount: the store answers a sum over nothing as `NaN`. Every number read from the store now takes `NaN` as no number.
 - `--replay` sent nothing from a `sent/` file whose last part a crash had cut short, not even the whole parts before it, and still exited 0. It now sends every part that reads whole, names the damaged file and how many bytes it couldn't read, and exits 1.
+- After a power cut, the shipper could lose events: it flushed the spool and `state.json` before renaming them, but not the renames themselves, and never flushed the copy in `sent/`, the spool file shortened after each upload, or a downloaded update. Each now reaches the disk before the next step counts on it (on Windows, the renames rely on NTFS: Python can't flush a folder there).
 - `--reextract` ended with a normal run that moved `state.json` on, although the restore keeps a record of its own. The next background run then skipped play that only the restore had sent. It now leaves `state.json` exactly as it was; the background run after it carries on from there.
 
 ## 0.7.0-rc.8 (2026-11-21)

@@ -26,7 +26,7 @@ on one core).
 | 9 | Sessions, levels, days and ranges follow the time rules below, on a midnight, on both DST changes, on a ding and over a 3-day break. | `test_time_rules.py`, `tests/test_timebounds.py` |
 | 10 | A finding judged under another prep version, semantic model or reference data is marked "to revalidate" with the reason, every night until judged again; a finding from before manifests is carried over once. | `test_definitions.py` |
 | 11 | A crash or a failed write at any step between the game files and the server's store (the crash points below) loses no event and stores none twice in another form: after a restart, every event a run without the crash sends is stored, every copy of one `source_id` is the same line, and the prepared facts are the same. | `test_crash.py::test_a_crash_loses_and_doubles_nothing` |
-| 12 | `/ingest` takes an upload whole or not at all: one that ends before its `Content-Length` stores nothing and isn't answered 2xx, even when every line that came is whole. The shipper's spool and `state.json` reach the disk before the rename that makes them count, the spool before the state. | `test_crash.py::test_a_cut_upload_stores_nothing`, `test_crash.py::test_the_spool_and_the_state_reach_the_disk_before_they_count` |
+| 12 | `/ingest` takes an upload whole or not at all: one that ends before its `Content-Length` stores nothing and isn't answered 2xx, even when every line that came is whole. The shipper's spool and `state.json` reach the disk before the rename that makes them count, the spool before the state, and each rename reaches its directory on the disk after it (not on Windows: [What the crash tests prove](#what-the-crash-tests-prove)). The same for the spool file shortened after a POST, the update's new script and the Recorder's files. The copy in `sent/` is on the disk after each POST, one fsync per POST, before the spool is shortened. | `test_crash.py::test_a_cut_upload_stores_nothing`, `test_crash.py::test_the_spool_and_the_state_reach_the_disk_before_they_count`, `test_durability.py` |
 | 13 | A snapshot sent again keeps its observation time: gear, bags, quest sets, character sheets and Battle.net's read. The same content seen again later is a second observation and never moves the first. | `test_evidence.py::test_a_*`, `test_bnet_a_*` |
 | 14 | A snapshot dated only approximately (`at_basis`: an archive commit, or the shipper's clock) never replaces one with an exact time; a Battle.net read cut half way never replaces the last complete one. | `test_evidence.py::test_b_*`, `test_bnet_b_d_*` |
 | 15 | Two conflicting snapshots on one second give the same answer in either arrival order, on the page, the MCP and the analysis' tables. | `test_evidence.py::test_c_*` |
@@ -51,6 +51,31 @@ I/O) at each one, on the first run and on the last of a few play days, then rest
 | Mid-append to `sent/` (after the 200) | The spool file still holds the lines and they go again, so the server has them. The copy in `sent/` keeps a member cut short, then the member the restart appends with the same lines. `--replay` skips the cut one and sends every event, and still says the file is damaged and exits 1: it can't know a later member repeats the cut one (property 20, `test_sent_damage.py::test_a_kill_mid_append_then_the_restart`). |
 | Mid-write of `state.json` | The new state is written to a temporary file and renamed in place; the old one is still whole. |
 | `state.json` cut short on the disk (a power cut that kept the rename, not the data) | The shipper goes on from the state before it (`state.json.prev`) and extracts the last run's records again. Starting over from nothing sent the snapshots of earlier days again under their ids with a later time. |
+
+## What the crash tests prove
+
+They prove what happens at the points they choose. Property 11 raises an exception the shipper
+can't catch (a kill) or fails an I/O at each crash point above: between a file's write and its
+rename, mid-upload, after the server's store and before its 200, after the 200 and before the
+checkpoint, half way through `state.json`. Two more cases build the disk a power cut can leave
+by hand: a `state.json` cut short after its rename, and a member of `sent/` cut short.
+`test_durability.py` records every `os.fsync` and rename, and checks the order: a file flushed
+before its rename, its directory flushed after it, one flush per POST for `sent/`.
+
+They don't prove:
+
+- **A real power cut.** The tests run in one process on a healthy disk, and the operating
+  system's cache never goes away under them. A missing fsync shows up only as a missing call
+  in `test_durability.py`.
+- **The drive's own write cache.** fsync hands the data to the drive; a drive that acknowledges
+  writes it still holds in its cache can lose them. On macOS, fsync doesn't even ask the drive
+  to empty that cache (`F_FULLFSYNC` does; the shipper doesn't use it: it's slow, and losing
+  the last run means extracting it again).
+- **Filesystem bugs**, or a network share that refuses to flush a folder: the shipper goes on
+  without it.
+- **Windows' folders.** Python can't open a folder there to flush it (`os.open` fails), and
+  there is no portable way to do it. The renames rely on NTFS journaling its metadata and on
+  `os.replace` being `MoveFileEx`. The files themselves are flushed as on the Mac.
 
 ## Time rules
 
@@ -134,12 +159,20 @@ Evidence properties (13 to 17), fixed in the same change as their tests:
   (`stores.newest_with`), the money too.
 - The analysis took the newest gear sheet by time, not the one the page shows.
 
-The shipper's copy in `sent/` (property 20), fixed in the same change as its test (review 6):
+The shipper's disk writes and its copy in `sent/` (properties 12 and 20, review 6), fixed in the same change as their tests:
 
 - `--replay` read a `sent/` file as one stream in 1 MiB reads. A member cut short by a crash
   raised in the read that also held the whole members before it, so a file of two whole
   members and a cut one sent nothing, and the run still exited 0 (review 6). The old test
   had other files in `sent/`, whose events hid the loss. It now reads member by member.
+- The spool and `state.json` were flushed before their renames, but the renames weren't: no
+  fsync of the folder. They sit in two folders, so a power cut could keep the state's rename
+  and lose the spool's: the state then counted on a spool file that wasn't there, and those
+  events never went.
+- The copy appended to `sent/` after each POST was never flushed. Neither was the spool file
+  shortened after a POST (written and renamed with no fsync at all: a power cut could leave it
+  empty and lose the events still to send), the update's new script (an empty script runs
+  nothing, so it can't update itself again), or the Recorder's files before the swap.
 
 ## Every consumer, every guarantee
 
