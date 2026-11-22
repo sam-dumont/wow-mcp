@@ -2,20 +2,29 @@
 a real MCP client, and grade what it kept.
 
     uv run --extra mcp --extra analysis-openai python tools/eval_analysis/run.py \\
-        [--scenario NAME ...] [--client claude|openai] [--model M] [--out DIR] [--judge]
-    make eval-analysis                      # every scenario, Claude Code
+        [--scenario NAME ...] [--client claude|openai|server ...] [--repeats N] [--jobs N]
+        [--max-usd X] [--model M] [--out DIR] [--judge]
+    make eval-analysis                      # every scenario once, Claude Code
     make eval-analysis SCENARIO=death_spike
+    make eval-release                       # before a release: both clients, 3 runs each
 
 Per scenario: build its events (scenarios.py), start a throwaway server on
 them (server.py, its own state folder), let the client run the whole
 analysis through MCP (clients.py), then re-run every kept finding's query on
 a fresh build and grade the kept lines against the truth (grade.py). One
-scenario at a time: each run is a full analysis, tens of minutes.
+run per process, all of them at once by default (--jobs): a run mostly
+waits on the model, and each has its own server, client and folder.
+
+--repeats runs each scenario N times per client: a model doesn't answer the
+same way twice, so one run says little. A scenario passes the gate when at
+least two thirds of its runs pass (GATE); release.md, the table for the
+release notes, gives the rate per client and scenario.
 
 Where it goes: --out, else `eval-analysis-out/` in this checkout (ignored by
-git; the data is synthetic). Per scenario: events.jsonl, the server's
-settings and state, transcript.jsonl (what the client did), analysis.json
-(what it kept), report.json and report.md. summary.md covers the batch.
+git; the data is synthetic), one folder per batch, then
+<client>/<scenario>/r<N>/ per run: events.jsonl, the server's settings and
+state, transcript.jsonl (what the client did), report.json and report.md.
+summary.md and release.md cover the batch.
 
 Not in CI: a run needs a model client, and hosted CI has none.
 """
@@ -24,6 +33,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import shutil
 import sys
 import time
@@ -41,6 +51,9 @@ import scenarios  # noqa: E402
 import server  # noqa: E402
 
 CLOSED_PORT_URL = "http://127.0.0.1:9"  # nothing listens: a read the scenario doesn't answer fails at once
+# A scenario passes the gate when this share of its runs pass: 2 of 3 by
+# default. Below it, the release table flags it.
+GATE = 2 / 3
 
 
 def server_settings(sc: dict, state: Path) -> dict:
@@ -79,11 +92,11 @@ def workspace(rows: list[dict], settings: dict):
 def regrade(d: Path) -> dict:
     """Grade a finished scenario folder again, with today's rules, without a
     client: the kept analysis, its events and settings are all there."""
-    sc = scenarios.load(d.name)
     old = json.loads((d / "report.json").read_text(encoding="utf-8"))
+    sc = scenarios.load(old["scenario"])
     rows = scenarios.read_events(d / "events.jsonl")
     settings = json.loads((d / "settings.json").read_text(encoding="utf-8"))
-    _, analysis = run_state(d / "state")
+    run, analysis = run_state(d / "state")
     reruns = None
     if old["client"]["done"] and analysis:
         w = workspace(rows, settings)
@@ -92,34 +105,47 @@ def regrade(d: Path) -> dict:
         finally:
             w.worker.close()
     report = {**old, **grade.grade(sc, analysis if old["client"]["done"] else None, old["client"], reruns),
-              "expected": sc["truth"]["expected"], "regraded": datetime.now(UTC).isoformat(timespec="seconds")}
+              "expected": sc["truth"]["expected"], "reached": (run or {}).get("pass"),
+              "regraded": datetime.now(UTC).isoformat(timespec="seconds")}
     (d / "report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
     (d / "report.md").write_text(markdown(report), encoding="utf-8")
     return report
 
 
-def one(name: str, client, out: Path, timeout_s: float, use_judge: bool) -> dict:
+def layout(out: Path, client: str, name: str, repeat: int = 1) -> dict:
+    """Everything one run owns, under out/<client>/<scenario>/r<N>/: nothing
+    is shared with another run going at the same time. Its server talks to
+    its own client over stdio (no port at all); VL_URL is a closed port
+    nothing ever answers."""
+    d = out / client / name / f"r{repeat}"
+    return {"dir": d, "work": d / "work", "state": d / "state", "events": d / "events.jsonl",
+            "settings": d / "settings.json", "transcript": d / "transcript.jsonl"}
+
+
+def one(name: str, client, out: Path, timeout_s: float, use_judge: bool, repeat: int = 1) -> dict:
     sc = scenarios.load(name)
-    d = out / name
+    p = layout(out, client.name, name, repeat)
+    d, state = p["dir"], p["state"]
     if d.exists():
         shutil.rmtree(d)
-    (d / "work").mkdir(parents=True)
-    state = d / "state"
+    p["work"].mkdir(parents=True)
     state.mkdir()
     rows = scenarios.build(sc)
-    scenarios.write_events(rows, d / "events.jsonl")
+    scenarios.write_events(rows, p["events"])
     settings = server_settings(sc, state)
-    (d / "settings.json").write_text(json.dumps(settings, indent=1), encoding="utf-8")
+    p["settings"].write_text(json.dumps(settings, indent=1), encoding="utf-8")
     facts = scenarios.facts(sc, rows)
-    print(f"[{name}] {len(rows)} events; running {client.name}", flush=True)
+    tag = f"{client.name}/{name}/r{repeat}"
+    print(f"[{tag}] {len(rows)} events; running", flush=True)
 
     def is_done() -> bool:
         run, _ = run_state(state)
         return bool(run) and run.get("pass") == "done"
 
-    cmd = [sys.executable, str(HERE / "server.py"), str(d / "settings.json"), str(d / "events.jsonl")]
+    cmd = [sys.executable, str(HERE / "server.py"), str(p["settings"]), str(p["events"])]
     job = clients.Job(char=scenarios.CHAR, goals=sc["goals"], server=cmd,
-                      workdir=d / "work", transcript=d / "transcript.jsonl", is_done=is_done, timeout_s=timeout_s)
+                      workdir=p["work"], transcript=p["transcript"], is_done=is_done, timeout_s=timeout_s,
+                      settings=p["settings"], events=p["events"])
     res = client.run(job).as_dict()
     run, analysis = run_state(state)
     reruns = None
@@ -130,9 +156,9 @@ def one(name: str, client, out: Path, timeout_s: float, use_judge: bool) -> dict
         finally:
             w.worker.close()
     verdict = grade.grade(sc, analysis if res["done"] else None, res, reruns)
-    report = {"scenario": name, "about": sc["about"], "expected": sc["truth"]["expected"], **verdict,
+    report = {"scenario": name, "repeat": repeat, "about": sc["about"], "expected": sc["truth"]["expected"], **verdict,
               "client": res, "facts": facts, "at": datetime.now(UTC).isoformat(timespec="seconds"),
-              "run": (run or {}).get("result"),
+              "run": (run or {}).get("result"), "reached": (run or {}).get("pass"),
               "kept": [ln.__dict__ for ln in grade.lines(analysis)] if analysis and res["done"] else []}
     if use_judge and analysis and res["done"]:
         import judge
@@ -140,7 +166,7 @@ def one(name: str, client, out: Path, timeout_s: float, use_judge: bool) -> dict
         report["judge"] = judge.judge(sc, analysis)
     (d / "report.json").write_text(json.dumps(report, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
     (d / "report.md").write_text(markdown(report), encoding="utf-8")
-    print(f"[{name}] {verdict['verdict']}", flush=True)
+    print(f"[{tag}] {verdict['verdict']} ({res['seconds'] / 60:.1f} min)", flush=True)
     return report
 
 
@@ -152,11 +178,17 @@ def _tokens(c: dict) -> str:
     return ", ".join(parts) or "unknown"
 
 
+def _tools(c: dict) -> str:
+    t = c.get("tools") or {}
+    return ", ".join(f"{k} {v}" for k, v in sorted(t.items(), key=lambda kv: -kv[1])) or "none"
+
+
 def markdown(r: dict) -> str:
     c = r["client"]
     out = [f"# {r['scenario']}: {r['verdict']}", "", r["about"], "", f"**Expected:** {r['expected']}", "",
            f"**Client:** {c['client']} ({c.get('model') or 'model unknown'}), {c['rounds']} conversation(s), "
-           f"{c['calls']} tool calls, {c['seconds'] / 60:.0f} min. **Tokens:** {_tokens(c)}."
+           f"{c['calls']} tool calls, {c['seconds'] / 60:.1f} min, reached the {r.get('reached') or '?'} pass. "
+           f"**Calls per tool:** {_tools(c)}. **Tokens:** {_tokens(c)}."
            + (f" **List-price cost the client reported:** ${c['cost_usd']} (a subscription login isn't billed "
               "it)." if c.get("cost_usd") is not None else ""),
            "", "| Check | OK | Detail |", "|---|---|---|"]
@@ -174,45 +206,134 @@ def markdown(r: dict) -> str:
 
 
 def summary(reports: list[dict]) -> str:
-    out = ["| Scenario | Verdict | Failed checks | Kept lines | Client | Minutes | Tokens |",
-           "|---|---|---|---|---|---|---|"]
+    out = ["| Scenario | Run | Verdict | Failed checks | Kept lines | Client | Minutes | Tool calls | Reached | "
+           "Cost | Tokens |", "|---|---|---|---|---|---|---|---|---|---|---|"]
     for r in reports:
         c = r["client"]
         bad = ", ".join(ch["check"] for ch in r["checks"] if not ch["ok"]) or "none"
-        out.append(f"| {r['scenario']} | {r['verdict']} | {bad} | {len(r['kept'])} | {c['client']} "
-                   f"({c.get('model') or '?'}) | {c['seconds'] / 60:.0f} | {_tokens(c)} |")
+        cost = f"${c['cost_usd']:.2f}" if c.get("cost_usd") is not None else "-"
+        out.append(f"| {r['scenario']} | {r.get('repeat', 1)} | {r['verdict']} | {bad} | {len(r['kept'])} | "
+                   f"{c['client']} ({c.get('model') or '?'}) | {c['seconds'] / 60:.1f} | {c.get('calls', 0)} | "
+                   f"{r.get('reached') or '?'} | {cost} | {_tokens(c)} |")
     return "\n".join(out) + "\n"
+
+
+def who(r: dict) -> str:
+    c = r["client"]
+    return f"{c['client']} ({c['model']})" if c.get("model") else c["client"]
+
+
+def rates(reports: list[dict]) -> dict[tuple[str, str], tuple[int, int]]:
+    """(client, scenario) -> (runs passed, runs)."""
+    out: dict[tuple[str, str], tuple[int, int]] = {}
+    for r in reports:
+        k = (r["client"]["client"], r["scenario"])
+        p, n = out.get(k, (0, 0))
+        out[k] = (p + (r["verdict"] == "pass"), n + 1)
+    return out
+
+
+def gate_ok(passed: int, runs: int) -> bool:
+    return runs > 0 and passed >= math.ceil(GATE * runs - 1e-9)
+
+
+def release_table(reports: list[dict], wall_min: float, spent: float | None = None) -> str:
+    """The pass rate per client and scenario, for the release notes: a
+    scenario under the gate is flagged."""
+    r8 = rates(reports)
+    cols = list(dict.fromkeys(r["client"]["client"] for r in reports))
+    names = list(dict.fromkeys(r["scenario"] for r in reports))
+    label = {c: next(who(r) for r in reports if r["client"]["client"] == c) for c in cols}
+    out = ["| Scenario | " + " | ".join(label[c] for c in cols) + " |", "|---|" + "---|" * len(cols)]
+    for n in names:
+        cells = []
+        for c in cols:
+            p, k = r8.get((c, n), (0, 0))
+            cells.append(f"{p}/{k}" + ("" if gate_ok(p, k) else " **below the gate**") if k else "-")
+        out.append(f"| {n} | " + " | ".join(cells) + " |")
+    out += ["", f"Gate: a scenario passes when at least {math.ceil(GATE * 3)} of 3 runs pass (two thirds). "
+            f"Wall time {wall_min:.0f} min, every run side by side."
+            + (f" The server's model cost ${spent:.2f}." if spent is not None else "")]
+    return "\n".join(out) + "\n"
+
+
+def _one_alone(name: str, kind: str, model: str, out: Path, timeout_s: float, use_judge: bool,
+               repeat: int, opts: dict) -> dict:
+    """one() in a process of its own: the grader's build points prep.query at
+    this scenario's events (server.serve_events), a process-wide seam two
+    runs must not share."""
+    return one(name, clients.make(kind, model, **opts), out, timeout_s, use_judge, repeat)
+
+
+def units(names: list[str], kinds: list[str], repeats: int) -> list[tuple[str, str, int]]:
+    """Every run of the batch: (client, scenario, repeat)."""
+    return [(k, n, i) for k in kinds for n in names for i in range(1, repeats + 1)]
+
+
+def run_all(names: list[str], kinds: list[str], model: str, out: Path, timeout_s: float, use_judge: bool,
+            jobs: int, repeats: int = 1, opts: dict | None = None) -> list[dict]:
+    """Every run, `jobs` at a time, each in its own process with its own
+    server and client (a run mostly waits on the model; the local load is one
+    small server on synthetic data). Reports in the order asked."""
+    todo = units(names, kinds, repeats)
+    opts = opts or {}
+    if jobs <= 1 or len(todo) <= 1:
+        reports = []
+        for k, n, i in todo:
+            reports.append(_one_alone(n, k, model, out, timeout_s, use_judge, i, opts))
+            (out / "summary.md").write_text(summary(reports), encoding="utf-8")
+        return reports
+    import multiprocessing
+    from concurrent.futures import ProcessPoolExecutor
+
+    with ProcessPoolExecutor(max_workers=jobs, mp_context=multiprocessing.get_context("spawn")) as ex:
+        futs = [ex.submit(_one_alone, n, k, model, out, timeout_s, use_judge, i, opts) for k, n, i in todo]
+        return [f.result() for f in futs]
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--scenario", action="append", choices=scenarios.names(), help="one scenario (repeatable); "
                     "default: all")
-    ap.add_argument("--client", default="claude", choices=("claude", "openai"))
+    ap.add_argument("--client", action="append", choices=clients.KINDS,
+                    help="claude (default), openai, server: the server's own runner (repeatable)")
     ap.add_argument("--model", default="", help="the client's model (default: the client's own)")
+    ap.add_argument("--repeats", type=int, default=1, help="runs per scenario and client (the release: 3)")
+    ap.add_argument("--jobs", type=int, default=0, help="runs at once (default: all of them)")
+    ap.add_argument("--max-usd", type=float, default=clients.MAX_USD,
+                    help=f"the batch's spend cap for the server client, checked before each call "
+                    f"(default {clients.MAX_USD:g})")
     ap.add_argument("--out", type=Path, default=ROOT / "eval-analysis-out")
-    ap.add_argument("--timeout-min", type=float, default=90.0, help="per scenario (default 90)")
+    ap.add_argument("--timeout-min", type=float, default=clients.TIMEOUT_MIN,
+                    help=f"per run (default {clients.TIMEOUT_MIN})")
     ap.add_argument("--judge", action="store_true", help="also ask a model about the wording (never the verdict)")
     ap.add_argument("--regrade", type=Path, metavar="RUN_DIR", help="grade a finished batch folder again with "
                     "today's rules (no client, no model)")
     a = ap.parse_args(argv)
     if a.regrade:
-        reports = [regrade(d) for d in sorted(a.regrade.iterdir()) if (d / "report.json").is_file()]
+        reports = [regrade(p.parent) for p in sorted(a.regrade.rglob("report.json"))]
         (a.regrade / "summary.md").write_text(summary(reports), encoding="utf-8")
         print(summary(reports))
-        return 0 if all(r["verdict"] == "pass" for r in reports) else 1
-    client = clients.make(a.client, a.model)
+        return 0 if all(gate_ok(*v) for v in rates(reports).values()) else 1
+    kinds = list(dict.fromkeys(a.client or ["claude"]))
     names = a.scenario or scenarios.names()
     out = a.out / datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out.mkdir(parents=True)
-    reports = []
+    opts = {"spend_file": out / "server-spend.json", "max_usd": a.max_usd}
+    for k in kinds:  # a missing setting fails here, before anything starts
+        clients.make(k, a.model, **opts)
     t0 = time.time()
-    for n in names:
-        reports.append(one(n, client, out, a.timeout_min * 60, a.judge))
-        (out / "summary.md").write_text(summary(reports), encoding="utf-8")
+    reports = run_all(names, kinds, a.model, out, a.timeout_min * 60, a.judge,
+                      a.jobs or len(units(names, kinds, a.repeats)), a.repeats, opts)
+    wall = (time.time() - t0) / 60
+    spent = clients.spent(opts["spend_file"]) if "server" in kinds else None
+    table = release_table(reports, wall, spent)
+    (out / "summary.md").write_text(summary(reports) + "\n" + table, encoding="utf-8")
+    (out / "release.md").write_text(table, encoding="utf-8")
     print(summary(reports))
-    print(f"{out} ({(time.time() - t0) / 60:.0f} min)")
-    return 0 if all(r["verdict"] == "pass" for r in reports) else 1
+    print(table)
+    print(f"{out} (wall time {wall:.1f} min)")
+    return 0 if all(gate_ok(*v) for v in rates(reports).values()) else 1
 
 
 if __name__ == "__main__":
