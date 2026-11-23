@@ -1,0 +1,17 @@
+{
+ "schema":1,
+ "about":"What players are saying about Forever (tools/kb/community.py): the week's top threads of the official forums' Forever discussion and r/wowforever (via web search). Per thread its title, link, day, counts and one line in our own words; no author, post text or comment. Opinions, never the source of a date or a game fact.",
+ "weeks":[
+  {
+   "week":"2026-11-23",
+   "from":"2026-11-16",
+   "items":[
+    {"id":"forums-us:2418538","source":"forums-us","title":"Exploit early, exploit often - Streamers and other players abused hotfixed gold farm. Ziqo has 4600 gold alone","url":"https://us.forums.blizzard.com/en/wow/t/exploit-early-exploit-often-streamers-and-other-players-abused-hotfixed-gold-farm-ziqo-has-4600-gold-alone/2418538","date":"2026-11-17","replies":616,"likes":2639,"text":null,"classes":[]},
+    {"id":"forums-us:2418927","source":"forums-us","title":"20+ years of WoW. This exploit might be it for me","url":"https://us.forums.blizzard.com/en/wow/t/20-years-of-wow-this-exploit-might-be-it-for-me/2418927","date":"2026-11-17","replies":505,"likes":2617,"text":null,"classes":[]},
+    {"id":"forums-us:2422516","source":"forums-us","title":"Questing is nearly 2x the XP of dungeons in the 40s — why are we disincentivizing group content?","url":"https://us.forums.blizzard.com/en/wow/t/questing-is-nearly-2x-the-xp-of-dungeons-in-the-40s-%E2%80%94-why-are-we-disincentivizing-group-content/2422516","date":"2026-11-19","replies":741,"likes":1162,"text":null,"classes":[]},
+    {"id":"forums-us:2419845","source":"forums-us","title":"The Ziqo Punishment","url":"https://us.forums.blizzard.com/en/wow/t/the-ziqo-punishment/2419845","date":"2026-11-17","replies":476,"likes":1615,"text":null,"classes":[]},
+    {"id":"forums-us:2418902","source":"forums-us","title":"Remove the gold and ban them","url":"https://us.forums.blizzard.com/en/wow/t/remove-the-gold-and-ban-them/2418902","date":"2026-11-17","replies":341,"likes":1329,"text":null,"classes":[]}
+   ]
+  }
+ ]
+}
