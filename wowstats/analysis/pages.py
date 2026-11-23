@@ -19,22 +19,20 @@ layer: its metrics are NULL where nothing was recorded.
 
 It runs when an answer is built (the full view's background builder, the
 publisher's static builds), never per page view: a page view gets the built
-answer. The prep here is narrow on purpose: the feeds the asked models read
-(ROWS_QUERY), not the whole history the analysis copies (positions, every
-record). Each model's inputs are all in it: levels (the splits, the dings,
-the session records' level and class, the sheets' class when the Recorder
-never ran, and the kill and turn-in records that count a level without a
-split), dungeon_runs (the runs), and records for deaths (the death records
-with their likely killer, and the level and zone marks that place them).
+answer. It reads the character's one analytical copy
+(wowstats.analysis.copies), the same the MCP's tools and the planner read:
+one prep of every event, one source of truth. A narrow prep of its own
+(the feeds these models read) built a few times faster but was a second
+copy of each character in memory, and its sessions had to be patched to end
+where the full prep's do (in_level_s, 2026-11-23).
 
-The answer is kept per character and per rows (a digest): the same data asked
-again (the snapshot of each level, the meta, an MCP tool calling the views)
-reuses it, and one DuckDB copy is built at a time.
+The answer is kept per copy (its character and the events it was built
+from): the same data asked again (the snapshot of each level, the meta, an
+MCP tool calling the views) reuses it.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import threading
 import time
@@ -43,37 +41,14 @@ from datetime import UTC, datetime
 
 from wowstats.stores import SemanticError, iso, opt_num, parse_t
 
-# What the pages' models read. LogsQL after the stream and character filters;
-# the feeds also at the top level, so the event cache answers it (eventcache.scope).
-# The character sheets (wow-character, wow-gear) for the class, race and side
-# of a character the Recorder never saw (the route planner's time per class);
-# a death's npc_id and npc_level for its likely killer (deaths_above...);
-# the kill and turn-in records for the climb's counts at a level without a
-# split (the level in play: climb).
-ROWS_QUERY = ("feed:in(wow-level, wow-dungeon, wow-recorder, wow-character, wow-gear) "
-              "(feed:in(wow-level, wow-dungeon) or kind:in(level, session, zone, death, kill, turnin) "
-              "or (feed:in(wow-character, wow-gear) class:*)) "
-              "| fields _time, feed, char, kind, level, zone, subzone, map_id, class, race, faction, seconds, xp, "
-              "quests, kills, partial, name, dungeon_id, left, npc_id, npc_level, source_id, rev")
 KEEP = 16
-# DuckDB copies kept open for the next question on the same rows (asker):
-# a tool and the Overview ask a few each.
-COPIES = 4
 _memo: OrderedDict = OrderedDict()
-_copies: OrderedDict = OrderedDict()
 _lock = threading.RLock()
 # The operator's view of the layer (health(), the full view's /healthz):
 # the characters whose last computation failed, with when. Names never leave
 # this module: /healthz answers without a login.
 _failing: dict[str, float] = {}
 _last_ok: float | None = None
-
-
-def _digest(char: str, rows: list[dict]) -> str:
-    h = hashlib.sha256(char.encode())
-    for r in sorted(json.dumps(r, sort_keys=True, default=str) for r in rows):
-        h.update(r.encode())
-    return h.hexdigest()
 
 
 def _failed(char: str, e: BaseException) -> SemanticError:
@@ -108,33 +83,20 @@ def health() -> dict:
     return {"semantic": "ok" if last_ok is not None else "idle"}
 
 
-def with_spans(char: str, rows: list[dict], minutes: list[dict]) -> list[dict]:
-    """ROWS_QUERY's rows plus the Recorder's first and last record of each
-    minute (stores.SESSION_BUCKETS' rows) as `span` records: the times the sessions
-    are cut from (timebounds' rule), nothing else (prep keeps them with the
-    positions). The same sessions as the page's journal and as the full
-    prep, so the time in the level is one number everywhere (in_level_s).
-    They carry `char`: prep keeps only the character's rows."""
-    out = list(rows)
-    for m in minutes:
-        if opt_num(m.get("n")):
-            for t in {m.get("t0"), m.get("t1")} - {None, ""}:
-                out.append({"_time": t, "char": char, "feed": "wow-recorder", "kind": "span",
-                            "source_id": f"span:{t}"})
-    return out
+def numbers(char: str, cp) -> dict:
+    """The page's numbers for `char` from its copy `cp`
+    (wowstats.analysis.copies.of; None: no events). Raises SemanticError
+    when the layer fails: there is no other way to count them."""
+    from . import copies
 
-
-def numbers(char: str, rows: list[dict]) -> dict:
-    """The page's numbers for `char` from `rows` (ROWS_QUERY's answer).
-    Raises SemanticError when the layer fails: there is no other way to
-    count them."""
-    key = _digest(char, rows)
+    key = ("none", char) if cp is None else (cp.key, cp.probe)
     with _lock:
         if key in _memo:
             _memo.move_to_end(key)
             return _memo[key]
     try:
-        got = _compute(asker(char, rows, key))
+        with copies.holding():
+            got = _compute(asker(char, cp))
     except SemanticError:
         raise
     except Exception as e:  # noqa: BLE001 - any layer failure is the page's failure state, said once here
@@ -147,22 +109,17 @@ def numbers(char: str, rows: list[dict]) -> dict:
     return got
 
 
-def asker(char: str, rows: list[dict], key: str | None = None):
-    """`ask(**query_metric's arguments) -> rows as dicts` on the narrow prep
-    of `rows` (ROWS_QUERY's answer for `char`): the layer's own compiler and
-    runner, for the tools and the Overview's rules that read a metric
-    (wowstats.mcp.tools deaths and dungeons, wowstats.insights). The DuckDB
-    copy is built once per rows (a digest) and kept for the next questions.
-    A failure raises SemanticError (logged, and in health())."""
+def asker(char: str, cp):
+    """`ask(**query_metric's arguments) -> rows as dicts` on the character's
+    copy `cp` (None: no events, every metric NULL): the layer's own compiler
+    and runner, for the tools and the Overview's rules that read a metric
+    (wowstats.mcp.tools deaths and dungeons, wowstats.insights). A failure
+    raises SemanticError (logged, and in health())."""
     from . import semantic
-
-    key = key or _digest(char, rows)
 
     def ask(**q) -> list[dict]:
         try:
-            layer, ro = _built(char, rows, key)
-            with _lock:
-                got = semantic.run(layer, ro, {"limit": semantic.MAX_LIMIT, **q})
+            got = (cp or _empty()).run({"limit": semantic.MAX_LIMIT, **q})
             if got["more"]:  # never a cut list: the caller would count a part as the whole
                 raise RuntimeError(f"more than {semantic.MAX_LIMIT} rows for {q.get('group_by')}")
         except SemanticError:
@@ -175,36 +132,12 @@ def asker(char: str, rows: list[dict], key: str | None = None):
     return ask
 
 
-def _built(char: str, rows: list[dict], key: str):
-    """The layer and its read-only runner on the narrow prep of `rows`."""
-    import warnings
+def _empty():
+    """A copy of an empty prep, for a character with no events: every metric
+    NULL (unknown), never 0 (copies.empty)."""
+    from . import copies
 
-    from wowstats.mcp import route
-
-    from . import TABLES, duck, prep, semantic
-
-    with _lock:
-        if key in _copies:
-            _copies.move_to_end(key)
-            return _copies[key][1:]
-        name = prep.norm(char)
-        # The views' character filter may hold another spelling of the name: the rows are this character's.
-        db = prep.build([{**r, "char": name} for r in rows], name, route.reference())
-        con = duck.mirror(db, TABLES)
-        db.close()
-        try:
-            semantic.prepare(con)
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                layer = semantic.Layer(con)
-        except Exception:
-            con.close()
-            raise
-        _copies[key] = (con, layer, duck.ReadOnlyDuck(con))
-        while len(_copies) > COPIES:
-            _, (old, *_) = _copies.popitem(last=False)
-            old.close()
-        return _copies[key][1:]
+    return copies.empty()
 
 
 def _compute(ask) -> dict:

@@ -83,9 +83,7 @@ from wowstats.stores import (
 # to the one in play, a finished level with no split nor ding included.
 # 13: levels gets in_level_s, the level in play's time so far (its Recorder
 # sessions since the last ding): one metric for the page's hero line and the
-# MCP's character_summary, which showed 2h26m and nothing (2026-11-23). The
-# pages' narrow prep takes the Recorder's minute marks (`span` records,
-# pages.with_spans) so its sessions end where the full prep's do.
+# MCP's character_summary, which showed 2h26m and nothing (2026-11-23).
 PREP_VERSION = 13
 
 # A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
@@ -809,11 +807,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
         if m is not None and k not in ("map", "poi"):
             st["map_id"] = m
         lv = level_at(t)
-        if k == "span":
-            # A time the Recorder wrote something (pages.with_spans): it
-            # bounds the sessions and nothing else, kept with the positions.
-            pos_rows.append((i, t, _iso(t, TZ), s_id, lv, None, None, None, None, None, 0, None, None))
-        elif k == "pos":
+        if k == "pos":
             x, y, spd = _flt(r.get("x")), _flt(r.get("y")), _flt(r.get("speed"))
             flags = _int(r.get("flags")) or 0
             dt = dist = None
@@ -1880,24 +1874,39 @@ def _upgrades(db, ups: list[dict]) -> None:
     db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 30) + ")", out)
 
 
-def advice_db(advice: dict, char: str, cls: str | None, upgrades: list[dict]) -> sqlite3.Connection:
+def advice_db(advice: dict, char: str, cls: str | None, upgrades: list[dict],
+              worn: list[dict] | None = None) -> sqlite3.Connection:
     """The gear advice alone as a prep build holds it: the worn items (gear,
     scored by _gear_fit), `upgrades` (upgrade_candidates, one row per item
     and source) and the character's name and class (meta), every other
-    table empty. For a tool that scores the gear live, with its own inputs
-    (the MCP's gear: the level, zone, quests done, bags, auction house), and
-    reads its numbers through the `worn` and `upgrades` models (semantic.local)."""
+    table empty. The worn items are the advice's own, or `worn` (gear rows
+    as dicts: a build's own, as prep.build scores them). For a reader that
+    scores the gear with its own inputs (the MCP's gear: the level, zone,
+    quests done, bags, auction house; the planner): the character's copy
+    takes these rows for the time of the reading (copies.Copy.scored)."""
     db = sqlite3.connect(":memory:", check_same_thread=False)
     _schema(db)
-    worn = [(_int(sl.get("slot")), sl.get("slot_name"), _int(cur.get("item_id")), cur.get("name"),
-             _int(cur.get("quality"))) for sl in advice.get("slots") or [] for cur in [sl.get("current") or {}]
-            if cur.get("item_id")]
-    db.executemany("INSERT INTO gear (slot, slot_name, item_id, name, quality) VALUES (?,?,?,?,?)", worn)
+    if worn is not None:
+        cols = [c[1] for c in db.execute("PRAGMA table_info(gear)")]
+        db.executemany(f"INSERT INTO gear VALUES ({','.join('?' * len(cols))})",
+                       [tuple(_scrub(w.get(c)) for c in cols) for w in worn])
+    else:
+        rows = [(_int(sl.get("slot")), sl.get("slot_name"), _int(cur.get("item_id")), cur.get("name"),
+                 _int(cur.get("quality"))) for sl in advice.get("slots") or [] for cur in [sl.get("current") or {}]
+                if cur.get("item_id")]
+        db.executemany("INSERT INTO gear (slot, slot_name, item_id, name, quality) VALUES (?,?,?,?,?)", rows)
     _upgrades(db, upgrades)
     _gear_fit(db, advice)
     db.executemany("INSERT INTO meta VALUES (?,?)", [("char", norm(char)), ("class", cls)])
     db.commit()
     return db
+
+
+def _scrub(v):
+    """A DuckDB value back as SQLite takes it (a Decimal, a bool)."""
+    from .duck import plain
+
+    return plain(v)
 
 
 def _gear_fit(db, advice: dict | None) -> None:

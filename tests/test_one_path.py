@@ -29,7 +29,7 @@ import pytest
 from tests import testchar
 from tests.test_layer_pages import CHAR, SeedVL, seed_rows
 from wowstats import eventcache, insights, stores, ui, views
-from wowstats.analysis import pages, semantic
+from wowstats.analysis import copies, pages, semantic
 from wowstats.mcp import tools as T
 from wowstats.mcp.store import Store as MStore
 from wowstats.stores import SemanticError
@@ -45,10 +45,9 @@ def seeded(monkeypatch, tmp_path):
     monkeypatch.setattr(MStore, "_get", lambda self, url, params, extra=None: fake(url, params))
     monkeypatch.setattr(eventcache, "_SHARED", {})
     # The layer's memory and health are per process: each test starts clean.
-    for name, empty in (("_memo", type(pages._memo)()), ("_copies", type(pages._copies)()), ("_failing", {}),
-                        ("_last_ok", None)):
+    for name, empty in (("_memo", type(pages._memo)()), ("_failing", {}), ("_last_ok", None)):
         monkeypatch.setattr(pages, name, empty)
-    monkeypatch.setattr(T, "_LAYERS", {})
+    copies.clear()  # the characters' copies are per process too
     return tmp_path
 
 
@@ -114,10 +113,10 @@ def test_health_is_ok_again_once_the_layer_answers(seeded, monkeypatch):
     real = semantic.run
     broken(monkeypatch)
     with pytest.raises(SemanticError):
-        pages.numbers(CHAR, [])
+        pages.numbers(CHAR, None)
     assert pages.health()["semantic"] == "failing"
     monkeypatch.setattr(semantic, "run", real)
-    pages.numbers(CHAR, [])
+    pages.numbers(CHAR, None)
     assert pages.health() == {"semantic": "ok"}
 
 

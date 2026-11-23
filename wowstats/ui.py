@@ -226,13 +226,14 @@ class App:
                 raise ConfigError("INGEST_PASSWORD (or _FILE) needs 12+ characters.")
             self.ingest_expected = _basic(env.get("INGEST_USER", "wow"), ingest_pw)
         from wowstats import ingest
-        from wowstats.analysis import drive
+        from wowstats.analysis import copies, drive
 
         try:  # a wrong number stops the start, not the first upload or analysis call
             # One gate for the process: with several people every upload
             # comes through this (the root) App's handler.
             self.uploads = ingest.Gate(env.get("INGEST_CONCURRENCY"), env.get("INGEST_WAIT_S"))
             drive.read_limits(env)
+            copies.cap(env)
         except ValueError as e:
             raise ConfigError(str(e)) from None
 
@@ -708,8 +709,11 @@ class App:
         self._building.answers = out
 
         def ask(what, *a):
+            from wowstats.analysis import copies
+
             try:
-                return what(*a)
+                with copies.holding():  # the copies one answer reads stay open until it's built
+                    return what(*a)
             except (FullOnly, LookupError):
                 return None
             except SourceError:
@@ -950,13 +954,19 @@ def make_handler(root: App, tenancy=None):
             self.do_GET()
 
         def do_GET(self):
-            self._route()
+            self._held_route()
 
         def do_POST(self):
-            self._route()
+            self._held_route()
 
         def do_DELETE(self):
-            self._route()
+            self._held_route()
+
+        def _held_route(self):
+            from wowstats.analysis import copies
+
+            with copies.holding():  # the copies a request reads stay open until it answers
+                self._route()
 
         def do_OPTIONS(self):  # CORS preflight on the MCP and OAuth paths; anything else 404s
             self._route()
@@ -975,14 +985,14 @@ def make_handler(root: App, tenancy=None):
                     # on, not a reason to restart the pod.
                     # The open analysis workspaces and the upload gate: counts for
                     # the lab's monitoring, no names.
-                    from wowstats.analysis import drive, pages
+                    from wowstats.analysis import copies, drive, pages
 
                     try:
                         apps = prebuilt_apps(root, tenancy)
                     except Exception:  # noqa: BLE001 - the friends list unreadable: the owner's alone
                         apps = [root]
                     body = json.dumps({"status": "ok", **pages.health(), **prebuilt.health(apps), **drive.health(),
-                                       **root.uploads.health()}).encode() + b"\n"
+                                       **copies.stats(), **root.uploads.health()}).encode() + b"\n"
                     return self.send(200, body, "application/json")
                 if not full and app.public_off():  # what the static server says for a site built with it off
                     return self.not_found()

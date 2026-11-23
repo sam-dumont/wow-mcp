@@ -108,14 +108,14 @@ def test_a_cut_text_says_more(analysis_env):
 def _fresh() -> None:
     """No answer kept from an earlier store: each run reads its own."""
     from wowstats import plan as planmod
-    from wowstats.analysis import drive
+    from wowstats.analysis import copies, drive
     from wowstats.mcp import tools as T
 
     planmod._CACHE.clear()
     T._VIEWS.clear()
     T._MISSING.clear()
     drive._WS.clear()  # a prep the healthy store built
-    T._LAYERS.clear()  # the tools' semantic layers, built from it too
+    copies.clear()  # the characters' copies, built from it too
 
 
 ARGS = {"play_sql": {"query": "SELECT COUNT(*) AS n FROM records"}, "query_metric": {"metrics": ["deaths"]},

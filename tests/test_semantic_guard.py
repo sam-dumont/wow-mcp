@@ -39,6 +39,8 @@ MODULES = {
     "wowstats/eventstore.py": "the SQLite event store: the raw events as they arrived (a store like "
                               "VictoriaLogs, read with LogsQL), never the prep or a number",
     "wowstats/analysis/kb.py": "the knowledge base's own store (documents, full-text search), not play data",
+    "wowstats/analysis/copies.py": "the one DuckDB copy per character every reader shares: opens it, keeps "
+                                   "its gear rows and swaps an advice's in and out (plumbing, no metric)",
 }
 
 # Single functions: module:qualname -> why.
@@ -54,11 +56,9 @@ FUNCTIONS = {
                                                   "layer",
     "wowstats/analysis/manifest.py:build": "the build's newest event time (meta) in the run's manifest",
     "wowstats/analysis/drive.py:Workspace.__init__": "play_sql's workspace: the copy and its read-only runners",
-    "wowstats/analysis/pages.py:_built": "the pages' copy of the prep that the layer compiles on",
     "wowstats/analysis/verify.py:banned_names": "privacy: the places and creatures a public text must never "
                                                 "name, a vocabulary rather than a fact",
     "wowstats/analysis/verify.py:banned_people": "privacy: the creatures a public text must never name",
-    "wowstats/mcp/tools.py:metrics": "query_metric's copy of the prep: the layer and its runner",
     "wowstats/mcp/plantools.py:t_kb_topics": "the knowledge base's documents, not play data",
     "wowstats/plan/facts.py:header": "the build's header (character, class, race, faction): the meta rows the "
                                      "layer's character and class columns read too",

@@ -238,6 +238,21 @@ publisher peaked at 342 MiB, VictoriaLogs at 217 MiB and `site` at 22 MiB.
 VictoriaLogs has a limit too, 1 GiB (`VL_MEM_LIMIT`); the other two have
 none.
 
+`ui` reads its own limit and splits it, so a bigger limit is used without
+another setting:
+
+| Share | What | At 1 GiB | At 2 GiB |
+|---|---|---|---|
+| The process | the app, the knowledge base, the page answers | 448 MiB | 448 MiB |
+| Copies | one DuckDB copy per character asked for, shared by the page, the MCP and the planner; the least recently used closes past the cap | 2 (`memory_limit` 144 MB each) | 5 (256 MB each) |
+| Workspaces | one query process per character your AI's SQL reads | 1 (a query may add 128 MiB) | 2 (300 MiB) |
+
+On the demo with three characters, the main tools, the page and four
+uploads, `ui` settled at 650-870 MiB at 1 GiB. Below 1 GiB the split can't
+fit a query process: keep 1 GiB as the floor. `ANALYSIS_COPIES_MAX` and
+`ANALYSIS_WORKSPACES_MAX` override the counts; `/healthz` shows
+`analysis_copies` and `analysis_workspaces`.
+
 </details>
 
 ### Battle.net data (optional)

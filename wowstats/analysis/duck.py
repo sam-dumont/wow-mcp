@@ -4,8 +4,9 @@ only, for play_sql, the judge and the semantic layer (wowstats.analysis.semantic
 The prep itself still builds in SQLite (the standard library; the plan and
 the dashboard read it there). `mirror` copies its tables into DuckDB once per
 workspace, column types from SQLite's declared types and the values actually
-stored. The rows go over as JSON text in one parameter per chunk: DuckDB parses
-it itself, about 100 times faster than executemany, and nothing touches a file.
+stored. The rows go over a part at a time, one list parameter per column:
+about as fast as DuckDB parsing JSON text, a fifth of the memory, and
+nothing touches a file.
 
 DuckDB has no authorizer, so a query is checked before it runs, on DuckDB's own
 parse tree (`json_serialize_sql`):
@@ -50,7 +51,7 @@ TOO_BIG = "the query needs more memory than a query may use: aggregate or narrow
 
 QUERY_SECONDS = 5.0
 MEMORY_LIMIT = "256MB"
-CHUNK = 20000
+CHUNK = 2000
 ENGINE = "duckdb"
 # Functions that make a value larger than anything in the database from a
 # number in the query: refused before the query runs.
@@ -71,9 +72,16 @@ def available() -> bool:
 
 
 def _config() -> dict:
+    """Locked down, and sized from the process' memory budget
+    (wowstats.analysis.budget: the container's limit; MEMORY_LIMIT and two
+    threads without one)."""
+    from .budget import current, duckdb_size
+
+    b = current()
     return {"enable_external_access": False, "autoinstall_known_extensions": False,
             "autoload_known_extensions": False, "allow_community_extensions": False,
-            "python_enable_replacements": False, "threads": 2, "memory_limit": MEMORY_LIMIT,
+            "python_enable_replacements": False, "threads": b["threads"],
+            "memory_limit": duckdb_size(b["copy_limit"]) if b["limit"] else MEMORY_LIMIT,
             "temp_directory": ""}
 
 
@@ -111,17 +119,59 @@ def mirror(db: sqlite3.Connection, tables=None, rows: bool = True):
         con.execute(f'CREATE TABLE "{t}" (' + ", ".join(f'"{c}" {ty}' for c, ty in cols) + ")")
         if not rows:
             continue
-        sel = ", ".join(f"CAST(j->>{i} AS {ty})" for i, (_, ty) in enumerate(cols))
-        ins = f'INSERT INTO "{t}" SELECT {sel} FROM (SELECT unnest(CAST(? AS JSON[])) AS j)'
         cur = db.execute(f'SELECT * FROM "{t}" ORDER BY rowid' if _has_rowid(db, t) else f'SELECT * FROM "{t}"')
-        while part := cur.fetchmany(CHUNK):
-            try:
-                text = json.dumps(part, allow_nan=False)
-            except ValueError:  # an infinity or NaN: no JSON for it, NULL in DuckDB
-                text = json.dumps([[_finite(v) for v in r] for r in part])
-            con.execute(ins, [text])
+        _insert(con, t, [ty for _, ty in cols], iter(lambda: cur.fetchmany(CHUNK), []))
     con.execute("SET lock_configuration = true")
     return con
+
+
+def _insert(con, table: str, types: list[str], parts) -> None:
+    """Rows into a DuckDB table, a part at a time, one list parameter per
+    column (DuckDB's Python binding takes a list as is), zipped back into
+    rows by unnest. One JSON text per part, parsed by DuckDB, was the first
+    way (about 100 times faster than executemany): its parse took the
+    process up 230 MB on a 9,600-row records table and the allocator kept
+    it; the columns as lists take 50 MB, as fast (2026-11-23, DuckDB 2.0.0)."""
+    sel = ", ".join(f"unnest(CAST(? AS {ty}[]))" for ty in types)
+    ins = f'INSERT INTO "{table}" SELECT {sel}'
+    for part in parts:
+        if not part:
+            continue
+        con.execute(ins, [_column(ty, c) for ty, c in zip(types, zip(*part, strict=True), strict=True)])
+
+
+def _column(ty: str, values) -> list:
+    """One column's values as its DuckDB type takes them: text for VARCHAR
+    (SQLite lets a column mix numbers and text), floats for DOUBLE, and
+    NULL for an infinity or NaN (no number for it, as before)."""
+    if ty == "VARCHAR":
+        return [None if v is None else v if isinstance(v, str) else _text(v) for v in values]
+    if ty == "DOUBLE":
+        return [None if v is None else _finite(float(v)) for v in values]
+    return list(values)
+
+
+def _text(v) -> str:
+    if isinstance(v, float):
+        return json.dumps(v) if math.isfinite(v) else None
+    if isinstance(v, bytes):
+        return v.decode("utf-8", "replace")
+    return str(v)
+
+
+def replace(con, table: str, rows: list) -> None:
+    """A table's rows replaced by `rows` (tuples in its column order), in
+    one transaction: wowstats.analysis.copies scores the gear advice in a
+    character's copy this way, and puts the copy's own rows back after."""
+    types = [r[1] for r in con.execute(f'DESCRIBE "{table}"').fetchall()]
+    con.execute("BEGIN TRANSACTION")
+    try:
+        con.execute(f'DELETE FROM "{table}"')
+        _insert(con, table, types, [rows[i:i + CHUNK] for i in range(0, len(rows), CHUNK)])
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
 
 
 def _has_rowid(db, t: str) -> bool:

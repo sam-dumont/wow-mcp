@@ -11,9 +11,14 @@
 
 - The install guide runs the released image: `WOW_STATS_IMAGE` (tag@digest, from the release notes) in `.env`, then `docker compose pull` and `docker compose up -d`. No Docker Hub login any more; building from source (`docker login dhi.io`, `--build`) moved to [Development](docs/development.md#build-the-image-yourself). The quick start, the demo, upgrading and the reverse proxy pages follow.
 - Every read, write, deletion and health check of the events goes through one module (`wowstats/eventstore.py`); the admin page's store check names the store in use.
+- One DuckDB copy per character, shared by the page, the MCP's tools, the planner and the gear advice (`wowstats/analysis/copies.py`). Before, each built its own (the tools kept 8, the page 4, the planner one per plan, the gear answer one per call), and each build left the heap about 350 MB bigger. A copy is rebuilt when the character's events change, swapped in before the old one closes when there is room, closed when it is the least recently used past `ANALYSIS_COPIES_MAX`, never under a request still reading it; one build at a time. Gear advice is scored inside that copy and taken back out.
+- The copy is filled column by column instead of parsing the rows as JSON: the records table's build went from +230 MB to +45 MB, as fast.
+- `ui` sizes itself from its container's memory limit (`/sys/fs/cgroup/memory.max`, cgroup v1 too): DuckDB's `memory_limit` and threads per copy, how many copies (`ANALYSIS_COPIES_MAX`), how many analysis workspaces (`ANALYSIS_WORKSPACES_MAX`) and what one query may add. At 1 GiB: 2 copies, 1 workspace. Without a limit the old defaults stay (4 copies, 6 workspaces). [Memory](docs/install.md#memory).
+- On the compose kit's demo (three characters, the 11 main tools, the page, 4 uploads) `ui`'s container settles at 650-870 MiB instead of 950-1,020, and the `ui` process' peak went from 804 to 711 MiB.
 
 ### Upgrading
 
+- `ANALYSIS_WORKSPACES_MAX` now defaults from `ui`'s memory limit (1 at 1 GiB, 6 without a limit): set it to keep the old 6 under a limit. New: `ANALYSIS_COPIES_MAX`.
 - Nothing to change for an install on VictoriaLogs. To move to a released image, put `WOW_STATS_IMAGE=<the release's tag@digest>` in `deploy/compose/.env` and run `docker compose pull && docker compose up -d`. Built from source, keep `WOW_STATS_IMAGE` empty and `docker compose up -d --build` as before.
 
 ### Fixed

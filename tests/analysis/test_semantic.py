@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from wowstats.analysis import TABLES, drive, duck, pages, prep, semantic
+from wowstats.analysis import TABLES, drive, duck, prep, semantic
 from wowstats.analysis.sql import QueryError
 from wowstats.mcp import route, tools
 
@@ -262,10 +262,6 @@ class SeedStore:
 
     def logs(self, query, start=None, end=None, *a, **k):
         char = query.split('char:="')[1].split('"')[0] if 'char:="' in query else CHAR
-        if pages.ROWS_QUERY in query:  # the layer's narrow prep (the deaths and dungeons tools)
-            return [r for r in self.mine(char) if r.get("feed") in ("wow-level", "wow-dungeon")
-                    or (r.get("feed") == "wow-recorder" and r.get("kind") in ("level", "session", "zone", "death"))
-                    or (r.get("feed") in ("wow-character", "wow-gear") and r.get("class"))]
         feed = next((f for f in ("wow-level", "wow-dungeon") if f'feed:="{f}"' in query), None)
         return [r for r in self.mine(char) if feed and r.get("feed") == feed]
 

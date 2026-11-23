@@ -14,7 +14,7 @@ import pytest
 
 from tests.mcp import fakes
 from wowstats import analysis, eventcache, plan, ui
-from wowstats.analysis import drive
+from wowstats.analysis import copies, drive
 from wowstats.mcp import tools
 from wowstats.mcp.store import Store
 
@@ -52,9 +52,10 @@ NOT_READERS = [("list_metrics", {}), ("kb_search", {"query": "riding"}), ("kb_ge
 def lab(tmp_path, monkeypatch):
     """The fixture's stores, every process cache empty (each answer here is
     the first of its process)."""
-    for mod, name in ((eventcache, "_SHARED"), (tools, "_LAYERS"), (tools, "_MISSING"), (tools, "_VIEWS"),
+    for mod, name in ((eventcache, "_SHARED"), (tools, "_MISSING"), (tools, "_VIEWS"),
                       (plan, "_CACHE"), (drive, "_WS")):
         monkeypatch.setattr(mod, name, {})
+    copies.clear()
     for k, v in {"ANALYSIS_STATE_DIR": str(tmp_path / "state"), "KB_GAME_TABLES": "off"}.items():
         monkeypatch.setenv(k, v)
     raw = list(fakes.RAW)
