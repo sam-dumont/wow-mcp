@@ -125,10 +125,15 @@ def checks(env: dict, report: dict | None) -> list[dict]:
     def base(k: str) -> str:
         return (env.get(k) or "").strip().rstrip("/")
 
+    from wowstats import eventstore
+
     out = []
-    todo = [("Store (VictoriaLogs)", base("VL_URL"), "/health")]
-    if base("FRIENDS_VL_URL") and base("FRIENDS_VL_URL") != base("VL_URL"):
-        todo.append(("Friends' store", base("FRIENDS_VL_URL"), "/health"))
+    events = eventstore.events_location(env)
+    out.append({"name": f"Store ({'SQLite files' if eventstore.is_sqlite(events) else 'VictoriaLogs'})",
+                **eventstore.get(events).health()})
+    if not eventstore.is_sqlite(events) and base("FRIENDS_VL_URL") and base("FRIENDS_VL_URL") != events:
+        out.append({"name": "Friends' store", **eventstore.get(base("FRIENDS_VL_URL")).health()})
+    todo = []
     if base("VM_URL"):
         todo.append(("vm-wow", base("VM_URL"), "/health"))
     if base("RENDER_FROM"):

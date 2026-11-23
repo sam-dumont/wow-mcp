@@ -1004,8 +1004,13 @@ class Views:
         q = query.strip()
         if not q or len(q) > 2000:
             raise ValueError("a LogsQL query of at most 2000 characters")
-        return self.store.vl_raw(self.store.vl_url, f"{self.stream} {q} | limit {int(limit)}",
-                                 HISTORY_START, datetime.now(UTC), limit)
+        from wowstats.eventstore import Unanswerable
+
+        try:
+            return self.store.vl_raw(self.store.vl_url, f"{self.stream} {q} | limit {int(limit)}",
+                                     HISTORY_START, datetime.now(UTC), limit)
+        except Unanswerable as e:  # the SQLite store: say what it can't answer, it's the asker's query
+            raise ValueError(str(e)) from None
 
 
 # ---------------------------------------------------------------- builders

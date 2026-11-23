@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Added
+
+- Your events can live in SQLite files instead of VictoriaLogs: `EVENTS_STORE=sqlite:<folder>`, one file per person, read by the app itself. In the compose kit, `compose.sqlite.yaml` on top of `compose.yaml` (or `COMPOSE_FILE=compose.yaml:compose.sqlite.yaml` in `.env`): one container fewer, no database memory to size. Friends get a file each in the same folder (no `FRIENDS_VL_URL`), and removing one deletes their file after the usual `FRIENDS_PURGE_DAYS`. What you give up: the archive of older days (`VL_ARCHIVE_URL` is refused), VictoriaLogs' own UI and Grafana; the page's query box answers the LogsQL the app itself uses and says so for the rest. Back it up by copying the `events` volume with `ui` and `publish` stopped. VictoriaLogs stays the default and fully supported. The two don't convert: pick before your first events. [Where your events live](docs/install.md#where-your-events-live).
+- `LOGS_FILTER` and the query box take a stream filter (`{component="wow"}`) without a trip to VictoriaLogs.
+
+### Changed
+
+- The install guide runs the released image: `WOW_STATS_IMAGE` (tag@digest, from the release notes) in `.env`, then `docker compose pull` and `docker compose up -d`. No Docker Hub login any more; building from source (`docker login dhi.io`, `--build`) moved to [Development](docs/development.md#build-the-image-yourself). The quick start, the demo, upgrading and the reverse proxy pages follow.
+- Every read, write, deletion and health check of the events goes through one module (`wowstats/eventstore.py`); the admin page's store check names the store in use.
+
+### Upgrading
+
+- Nothing to change for an install on VictoriaLogs. To move to a released image, put `WOW_STATS_IMAGE=<the release's tag@digest>` in `deploy/compose/.env` and run `docker compose pull && docker compose up -d`. Built from source, keep `WOW_STATS_IMAGE` empty and `docker compose up -d --build` as before.
+
 ### Fixed
 
 - `/admin`: the AI analysis cell showed `store: AttributeError` for every person since 0.7.0.
@@ -17,7 +31,8 @@
 
 ### Tests
 
-- Integration slices (`tests/slices`, marker `slice`, in the normal suite, about 30 s): five golden characters sent through `/ingest` into a VictoriaLogs stand-in, then read by the page API and the MCP tools. They check that one number means one thing on every surface (level, time in level, played, pace, ETA, dungeon trip lines, best upgrade per slot), that coverage and `missing` agree with what arrived, that every number in a move has a source, and that no move, raid prep or class effect of the committed snapshot (`tests/slices/golden.json`) goes away. The KB refresh runs the same snapshot as a gate (`behaviour` in `tools/kb/gates.py`): the #189 digest that took the Onyxia attunement from every level 60 would have been refused.
+- Integration slices (`tests/slices`, marker `slice`, in the normal suite, about 30 s): five golden characters sent through `/ingest` into a VictoriaLogs stand-in and into the SQLite event store, then read by the page API and the MCP tools. They check that one number means one thing on every surface (level, time in level, played, pace, ETA, dungeon trip lines, best upgrade per slot), that coverage and `missing` agree with what arrived, that every number in a move has a source, and that no move, raid prep or class effect of the committed snapshot (`tests/slices/golden.json`) goes away. The KB refresh runs the same snapshot as a gate (`behaviour` in `tools/kb/gates.py`): the #189 digest that took the Onyxia attunement from every level 60 would have been refused.
+- The degraded suite and `tests/test_logsql.py` run on both event stores; the `logsql` CI job compares the SQLite store's answers with a real VictoriaLogs', and any test fails when the SQLite store meets a query outside its subset.
 
 ## 0.8.0 (2026-11-23)
 

@@ -22,13 +22,14 @@ SKIP_TOOLS = {"propose_finding", "analysis_submit", "check_plan", "kb_get", "kb_
               "kb_search", "route_reference", "play_sql", "query_metric"}
 
 
-@pytest.fixture(scope="module", params=list(D.SCENARIOS))
+@pytest.fixture(scope="module", params=[(sc, b) for b in D.BACKENDS for sc in D.SCENARIOS],
+                ids=lambda p: f"{p[0]}-{p[1]}")
 def served(request, tmp_path_factory, monkeypatch_module):
-    sc = request.param
+    sc, backend = request.param
     monkeypatch_module.setenv("WOW_ITEMS", "off")
-    vl = D.VL(D.rows_for(sc))
     tmp = tmp_path_factory.mktemp(sc)
-    env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": vl.url, "VM_URL": vl.url,
+    stores, vl = D.store_env(backend, D.rows_for(sc), tmp)
+    env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", **stores,
            "MODEL3D": "off", "DEFAULT_CHAR": D.CHAR, "HOME": str(tmp), "ANALYSIS_STATE_DIR": str(tmp),
            "WOW_ITEMS": "off"}
     planmod._CACHE.clear()
@@ -60,7 +61,7 @@ def test_every_page_answers(served):
 
 def test_every_mcp_tool_answers(served):
     sc, env, app, pub = served
-    ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=D.CHAR, env=env)
+    ctx = T.Ctx(store=MStore.from_env(env), default_char=D.CHAR, env=env)
     for t in T.TOOLS:
         if t.name in SKIP_TOOLS:
             continue
@@ -80,7 +81,7 @@ def test_gear_without_syndicator(served):
     g = app.gear(D.CHAR, None)
     assert g["available"] and g["estimated"] and g["worn_from"] is None and "Syndicator" in g["unlock"]
     assert any(sl.get("best") for sl in g["slots"])
-    ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=D.CHAR, env=env)
+    ctx = T.Ctx(store=MStore.from_env(env), default_char=D.CHAR, env=env)
     m = T.call(ctx, "gear", {"char": D.CHAR})
     assert m["estimated"] and m["next_upgrades"] and m["unlock"] == g["unlock"]
 
@@ -95,7 +96,7 @@ def test_without_the_recorder(served):
     assert j["sessions"] and all(s["estimated"] and s["played_s"] >= 0 for s in j["sessions"])
     assert any(s["levels_gained"] for s in j["sessions"])
     assert app.snapshot(D.CHAR, 30)["counts"]
-    ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=D.CHAR, env=env)
+    ctx = T.Ctx(store=MStore.from_env(env), default_char=D.CHAR, env=env)
     s = T.call(ctx, "sessions", {"char": D.CHAR})
     assert s["estimated"] and s["sessions"] and "/psrec on" in s["unlock"]
 
@@ -104,7 +105,7 @@ def test_level_splits_alone(served):
     sc, env, app, pub = served
     if sc != "only-level-splits":
         pytest.skip("more than the splits")
-    ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=D.CHAR, env=env)
+    ctx = T.Ctx(store=MStore.from_env(env), default_char=D.CHAR, env=env)
     cs = T.call(ctx, "character_summary", {"char": D.CHAR})
     done = cs["counts"]["completed_levels"]
     assert cs["level"] and "level" in cs["from_level_splits"] and done["kills"] and done["quests"]
@@ -123,7 +124,7 @@ def test_level_splits_alone(served):
 
 
 def _ctx(env):
-    return T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=D.CHAR, env=env)
+    return T.Ctx(store=MStore.from_env(env), default_char=D.CHAR, env=env)
 
 
 @pytest.fixture(scope="module")

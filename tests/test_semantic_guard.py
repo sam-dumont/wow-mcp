@@ -36,6 +36,8 @@ MODULES = {
                                  "layer run through it)",
     "wowstats/analysis/duckproc.py": "play_sql's query process: the runner in a child process",
     "wowstats/analysis/sql.py": "play_sql's checks and its SQLite runner",
+    "wowstats/eventstore.py": "the SQLite event store: the raw events as they arrived (a store like "
+                              "VictoriaLogs, read with LogsQL), never the prep or a number",
     "wowstats/analysis/kb.py": "the knowledge base's own store (documents, full-text search), not play data",
 }
 

@@ -30,6 +30,8 @@ Someone already runs wow-stats for you and sent you a `/start` link? Skip this g
 You need the kit itself on the computer that runs the server: `git clone` this repository, or
 download the source zip of a release and unpack it anywhere. The commands below say which
 folder to run them from: "the kit's folder" is the top of it, the one with `README.md` in it.
+The server itself is a released image you pull; building it from the source instead is in
+[Development](development.md#build-the-image-yourself).
 
 ## 1. Addons
 
@@ -92,9 +94,22 @@ Copy-Item .env.example .env
 notepad .env
 ```
 
-In `.env`, set `INGEST_PASSWORD` to a password of 12 characters or more:
-the shipper uses it to send your events. Two optional lines while you're
-there:
+In `.env`, set two lines:
+
+- `INGEST_PASSWORD`: a password of 12 characters or more. The shipper uses
+  it to send your events.
+- `WOW_STATS_IMAGE`: the image to run, the latest release pinned by its
+  digest:
+
+  ```sh
+  WOW_STATS_IMAGE={{release_image}}
+  ```
+
+  The digest is the image's fingerprint: a tag can be moved to another
+  image, a digest can't. Each release's notes on GitHub carry the line for
+  that release.
+
+Optional lines while you're there:
 
 - `MODEL3D=off` and `WOW_ITEMS=off`, the **small preset**: no 3D view (the
   shipper stops sending game files), and no item names, icons or tooltip
@@ -104,17 +119,20 @@ there:
   [Disk space](#disk-space). Empty (the default): no ceiling.
 - `UI_MEM_LIMIT=2g`: more memory for `ui` than the default 1 GiB, for a
   long history, see [Memory](#memory).
+- `COMPOSE_FILE=compose.yaml:compose.sqlite.yaml` (on Windows `;` instead
+  of `:`): your events in SQLite files instead of VictoriaLogs, see
+  [Where your events live](#where-your-events-live).
 
 Save, then (both systems, still in `deploy/compose`):
 
 ```sh
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
-The first time it builds the wow-stats image from the kit (a minute or
-two) and pulls VictoriaLogs. The build's base comes from Docker's hardened
-images: run `docker login dhi.io` once before, with a free Docker Hub account. Then open <http://127.0.0.1:8080>: an empty
-page until the shipper sends something.
+The first time it downloads the wow-stats image and VictoriaLogs, a few
+hundred MB. No account or login needed. Then open <http://127.0.0.1:8080>:
+an empty page until the shipper sends something.
 
 To see a filled page first, load the demo's made-up character, Nibbet
 (he carries a DEMO DATA banner; `docker compose down -v` before your real
@@ -129,6 +147,27 @@ something else on your computer already uses 8080. Pick another port in
 `.env` (`UI_PUBLISH=127.0.0.1:18080`), run `docker compose up -d` again,
 and use that port everywhere below, the shipper's `url` too. Same for 8081
 with `SITE_PUBLISH`.
+
+### Where your events live
+
+Your game events go to VictoriaLogs by default: a log database in its own container, next to `ui`. It's what the maintainer's own
+install runs, and it stays the default. The other option is one SQLite file per person, on a
+Docker volume, read by the app itself: one container fewer, nothing to size.
+
+| | VictoriaLogs (default) | SQLite files |
+|---|---|---|
+| Containers | `victorialogs` plus the kit's three | the kit's three |
+| Memory | VictoriaLogs' own, up to 1 GiB (`VL_MEM_LIMIT`) | none of its own: `ui` reads the file |
+| Backup | its own snapshots, or the volume ([Back up and restore](self-host/backup.md)) | stop `ui` and `publish`, copy the `events` volume |
+| Friends | a second VictoriaLogs that can delete (`FRIENDS_VL_URL`) | a file each in the same volume; removing a friend deletes their file |
+| Older days elsewhere | an archive VictoriaLogs (`VL_ARCHIVE_URL`) | no archive: every day stays in the file |
+| Look inside with | VictoriaLogs' web UI, Grafana, the page's query box | the page's query box (the LogsQL the app itself uses) |
+
+To use the SQLite files, start with
+`docker compose -f compose.yaml -f compose.sqlite.yaml up -d`, or put
+`COMPOSE_FILE=compose.yaml:compose.sqlite.yaml` in `.env` (on Windows `;` instead of `:`) so
+every `docker compose` command uses both. Pick before your first events arrive: nothing moves
+your events from one to the other.
 
 ### The three ways in
 

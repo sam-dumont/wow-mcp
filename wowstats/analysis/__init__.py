@@ -791,9 +791,10 @@ def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns
 
 
 def store_of(env: dict):
+    from wowstats.eventstore import events_location
     from wowstats.stores import Store, env_account
 
-    return Store(env.get("VL_URL", "http://victorialogs:9428"), env.get("VL_ARCHIVE_URL", ""), "",
+    return Store(events_location(env), env.get("VL_ARCHIVE_URL", ""), "",
                  env.get("LOGS_FILTER", "feed:wow-*"), int(env.get("VL_ARCHIVE_AFTER_DAYS", "89")),
                  profile_vm_url="",  # no vm-wow: Battle.net data never enters the analysis
                  account_id=env_account(env))  # the person's tenant (wowstats.tenancy)

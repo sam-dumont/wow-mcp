@@ -52,7 +52,7 @@ name gets a 421, so a web page can't read yours through your browser
 Caddy gets and renews the certificates from Let's Encrypt by itself. From `deploy/compose`:
 
 ```sh
-docker compose -f compose.yaml -f compose.caddy.yaml up -d --build
+docker compose -f compose.yaml -f compose.caddy.yaml up -d
 ```
 
 The routes are in [`deploy/compose/caddy/Caddyfile`](../../deploy/compose/caddy/Caddyfile):
@@ -74,7 +74,7 @@ authority, and your devices warn until you trust it.
 2. From `deploy/compose`:
 
    ```sh
-   docker compose -f compose.yaml -f compose.traefik.yaml up -d --build
+   docker compose -f compose.yaml -f compose.traefik.yaml up -d
    ```
 
 The routes are at the end of [`deploy/compose/compose.traefik.yaml`](../../deploy/compose/compose.traefik.yaml),
@@ -89,7 +89,7 @@ nginx doesn't fetch certificates: bring one valid for both names (certbot, your 
 2. From `deploy/compose`:
 
    ```sh
-   docker compose -f compose.yaml -f compose.nginx.yaml up -d --build
+   docker compose -f compose.yaml -f compose.nginx.yaml up -d
    ```
 
 The routes are in [`deploy/compose/nginx/templates/wow.conf.template`](../../deploy/compose/nginx/templates/wow.conf.template);

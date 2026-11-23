@@ -10,17 +10,22 @@ public page that types one of these values instead (a stale copy is how the docs
 Polestar 0.4.2.1 while the data was 0.4.2.2).
 
 Sources: the Polestar tag (tools/polestar-tag, moved by the knowledge base's bump),
-the app's version (pyproject.toml, moved by the release), and the route times
-(data/route-reference.json, rebuilt by route-reference.yml with each Polestar tag).
-Standard library only: the site build runs it without the project's packages.
+the app's version (pyproject.toml, moved by the release), the route times
+(data/route-reference.json, rebuilt by route-reference.yml with each Polestar tag),
+and the released image (`{{release_image}}`, tag@digest): read from the latest
+release's notes on GitHub when the site is built (the command line; release.yml
+builds the site right after it publishes), else a placeholder that says where to
+copy it from. Standard library only: the site build runs it without the project's packages.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import statistics
 import sys
+import urllib.request
 from collections import defaultdict
 from pathlib import Path
 
@@ -43,6 +48,8 @@ def values(root: Path = ROOT) -> dict[str, str]:
     means = {c: statistics.mean(v) for c, v in by_class.items()}
     fastest, slowest = min(means, key=means.get), max(means, key=means.get)
     return {
+        "release_image": f"ghcr.io/{_repo(root).split('/')[0]}/wow-mcp:{version}"
+                         "@sha256:<digest from the release notes>",
         "polestar_version": tag.removeprefix("v"),
         "polestar_tag": tag,
         "app_version": version,
@@ -55,6 +62,32 @@ def values(root: Path = ROOT) -> dict[str, str]:
         "route_slowest_class": slowest.title(),
         "route_slowest_hours": str(_hours(means[slowest])),
     }
+
+
+def _repo(root: Path) -> str:
+    """owner/name, from wowstats.SOURCE_URL."""
+    return re.search(r'^SOURCE_URL = "https://github\.com/([^"]+)"', (root / "wowstats" / "__init__.py").read_text(),
+                     re.M)[1]
+
+
+# The "### Images" line of a release's notes (release.yml's publish job).
+RELEASE_IMAGE = re.compile(r"`(ghcr\.io/[a-z0-9_.-]+/wow-mcp:\d[^`@\s]*@sha256:[0-9a-f]{64})`")
+
+
+def latest_release_image(root: Path = ROOT, timeout: float = 10) -> str | None:
+    """The main image of the latest (non-candidate) release, tag@digest, from its
+    notes on GitHub; None when GitHub doesn't answer or the notes carry none."""
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
+    req = urllib.request.Request(f"https://api.github.com/repos/{_repo(root)}/releases/latest",
+                                 headers={"Accept": "application/vnd.github+json",
+                                          **({"Authorization": f"Bearer {token}"} if token else {})})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 - a fixed https address
+            body = json.loads(r.read()).get("body") or ""
+    except (OSError, ValueError):
+        return None
+    m = RELEASE_IMAGE.search(body)
+    return m[1] if m else None
 
 
 PLACEHOLDER = re.compile(r"\{\{\s*([a-z_]+)\s*\}\}")
@@ -72,5 +105,9 @@ def fill(text: str, vals: dict[str, str]) -> str:
 
 
 if __name__ == "__main__":
-    json.dump(values(), sys.stdout, indent=1)
+    out = values()
+    # The site build: the released image as GitHub has it now (DOCS_OFFLINE=1: the placeholder).
+    if os.environ.get("DOCS_OFFLINE") != "1":
+        out["release_image"] = latest_release_image() or out["release_image"]
+    json.dump(out, sys.stdout, indent=1)
     sys.stdout.write("\n")

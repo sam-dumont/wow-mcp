@@ -13,36 +13,39 @@ change only when you take a new version of this repository.
    Each entry ends with what you must change, under "Upgrading" when there's
    something: a renamed variable, a new volume, a route to add to your proxy. Your version:
    `docker compose exec ui wow-stats --version`.
-2. [Back up](backup.md) the events volume and `ui-state`.
+2. [Back up](backup.md) the events volume (`vl-data`, or `events` with the SQLite files) and
+   `ui-state`.
 
-## From a copy of the repository (the default)
+## From a released image (the default)
 
-From the top of your copy:
+Put the new version's `tag@digest` in `WOW_STATS_IMAGE` in `.env` (each release's notes on
+GitHub carry the line; the latest is `{{release_image}}`), then from `deploy/compose`:
 
 ```sh
-git fetch --tags
-git checkout v0.7.0
-cd deploy/compose
-docker compose up -d --build
+docker compose pull
+docker compose up -d
 ```
 
-Use the version you want instead of `v0.7.0`. With a release's source zip instead of `git`:
-unpack the new zip next to the old one, copy `deploy/compose/.env` and `deploy/compose/secrets/`
-across, and run the last two lines from the new copy. The volumes are found by name, so the
-data follows.
+Take the new copy of the repository too (`git fetch --tags && git checkout v<version>`, or the
+release's source zip): its `deploy/compose` files pin the third-party images that go with that
+version.
 
 Then check: `docker compose ps` shows every service `running` (or `healthy`), and the page
 opens with your characters.
 
-## From a released image
+## Built from source
 
-With `WOW_STATS_IMAGE` set in `.env` ([Using a released image](../development.md#using-a-released-image)),
-put the new version's `tag@digest` from its release in that line, then:
+From the top of your copy, with the new version checked out
+([Build the image yourself](../development.md#build-the-image-yourself)):
 
 ```sh
-docker compose pull ui publish site
-docker compose up -d
+git fetch --tags
+git checkout v<version>
+cd deploy/compose
+docker compose up -d --build
 ```
+
+The volumes are found by name, so the data follows.
 
 ## From 0.6.x to 0.7.0
 
@@ -118,7 +121,7 @@ PC, and from then on they follow your key.
 
 ## Going back
 
-Check out the old version and run `docker compose up -d --build` again (or put the old image
-back in `WOW_STATS_IMAGE`). The events stay readable: their format and VictoriaLogs' version
+Put the old `tag@digest` back in `WOW_STATS_IMAGE` and run `docker compose up -d` (built from
+source: check out the old version and `docker compose up -d --build`). The events stay readable: their format and VictoriaLogs' version
 only change with a note in the changelog. Plans and findings written by the newer version may
 not read in the older one: restore your `ui-state` backup if they don't.

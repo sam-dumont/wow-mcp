@@ -13,6 +13,9 @@ and every request to VictoriaLogs carries it (wowstats.stores.tenant_headers),
 so a query for one tenant can't read another's rows whatever its text. The
 owner is tenant 0 on VL_URL, as before; friends are tenants 1..n on
 FRIENDS_VL_URL, a store of their own that can delete (wowstats.tenancy.delete).
+With EVENTS_STORE=sqlite:<folder> each person is a file of their own in that
+folder (events-<account id>.sqlite; wowstats.eventstore), friends included:
+no FRIENDS_VL_URL, and a deletion removes the file.
 
 Who gets in (identify, the web view and the MCP alike): one of the owner's
 subs, or a sub on WOW_FRIENDS_FILE ({"<sub>": "<slug>"}, {"<sub>": ""} or ["<sub>"],
@@ -61,7 +64,7 @@ Environment (docs/deploy.md, "Friends"):
   PROXY_BATTLETAG_HEADER  the login's BattleTag claim, for a friend's first slug
                        (unset: slugs come from the list only)
   FRIENDS_VL_URL       the friends' VictoriaLogs; FRIENDS_VL_DELETE_KEY_FILE its
-                       -deleteAuthKey
+                       -deleteAuthKey (not used with EVENTS_STORE=sqlite:...)
   ZOGZOG_MASTER_KEY_FILE  32 random bytes, base64url: friends' zogzog keys
   PUBLIC_URL           the full view's address (install commands, the shipper's url):
                        https, or http on 127.0.0.1/localhost only
@@ -84,9 +87,7 @@ import shutil
 import threading
 import time
 import unicodedata
-import urllib.error
 import urllib.parse
-import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -555,7 +556,13 @@ class Tenancy:
         if self.owner_slug and not SLUG_RE.match(self.owner_slug):
             raise SystemExit(f"WOW_OWNER_SLUG={self.owner_slug!r}: {SLUG_RULE}")
         self.owner_aliases = [a.lower() for a in _csv(env.get("WOW_OWNER_ALIASES", ""))]
-        self.friends_vl = env.get("FRIENDS_VL_URL", "").strip().rstrip("/")
+        # The friends' event store: FRIENDS_VL_URL, or with the SQLite
+        # store the same folder as the owner's (a file per person keeps
+        # them apart, and deleting one is removing the file).
+        from wowstats.eventstore import events_location, is_sqlite
+
+        events = events_location(env)
+        self.friends_vl = events if is_sqlite(events) else env.get("FRIENDS_VL_URL", "").strip().rstrip("/")
         self.friends_file = env.get("WOW_FRIENDS_FILE", "").strip()
         self.list_unusable = False
         self.purge_s = purge_seconds(env.get("FRIENDS_PURGE_DAYS"))
@@ -872,7 +879,8 @@ class Tenancy:
 
 def delete_tenant(t: Tenancy, u: User, dry_run: bool = False) -> dict:
     """Everything of one friend: their events (a VictoriaLogs delete task
-    for their tenant, on the friends' store only), their state folder and
+    for their tenant, on the friends' store only, or their SQLite file),
+    their state folder and
     their registry entry with its ingest token and install codes. The
     bundles go at the publisher's next pass (it drops slugs that left
     users.json, on every static pod). Their MCP logins are refused from then
@@ -883,23 +891,18 @@ def delete_tenant(t: Tenancy, u: User, dry_run: bool = False) -> dict:
         raise TenancyError("the owner's tenant is never deleted this way")
     if not t.friends_vl:
         raise TenancyError("FRIENDS_VL_URL is unset")
-    from wowstats.stores import tenant_headers
+    from wowstats import eventstore
+    from wowstats.stores import SourceError
 
     key_file = (t.env.get("FRIENDS_VL_DELETE_KEY_FILE") or "").strip()
-    key = Path(key_file).read_text().strip() if key_file else ""
+    key = Path(key_file).read_text().strip() if key_file and not eventstore.is_sqlite(t.friends_vl) else ""
     out = {"slug": u.slug, "account_id": u.account_id, "dry_run": dry_run}
     if dry_run:
         return out
-    body = urllib.parse.urlencode({"filter": "*", **({"authKey": key} if key else {})}).encode()
-    req = urllib.request.Request(f"{t.friends_vl}/delete/run_task", data=body, method="POST",
-                                 headers={**tenant_headers(u.account_id),
-                                          "Content-Type": "application/x-www-form-urlencoded"})
     try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            out["delete_task"] = json.loads(r.read() or b"{}")
-    except urllib.error.HTTPError as e:
-        raise TenancyError(f"VictoriaLogs refused the delete: {e.code} {e.read(200).decode('utf-8', 'replace')}") \
-            from None
+        out["delete_task"] = eventstore.get(t.friends_vl).delete(u.account_id, auth_key=key)
+    except SourceError as e:
+        raise TenancyError(str(e)) from None
     shutil.rmtree(t.user_dir(u), ignore_errors=True)
     t.registry.remove(u.sub)
     t.forget(u.sub)

@@ -1,4 +1,5 @@
-"""Reads the stored events (VictoriaLogs) and the 30-day API gauges
+"""Reads the stored events (VictoriaLogs or the SQLite files,
+wowstats.eventstore) and the 30-day API gauges
 (VictoriaMetrics) for the MCP tools and the coach.
 
 The events go through the same path as the page (wowstats.stores.Store.vl):
@@ -23,6 +24,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from wowstats import stores as _stores
+from wowstats.eventstore import events_location
 from wowstats.stores import HISTORY_START, SourceError, env_account, iso_us
 
 QUERY_TIMEOUT = 20
@@ -96,7 +98,7 @@ class Store:
     @classmethod
     def from_env(cls, env=os.environ) -> Store:
         return cls(
-            vl_url=env.get("VL_URL", "http://victorialogs:9428").rstrip("/"),
+            vl_url=events_location(env),
             vl_archive_url=env.get("VL_ARCHIVE_URL", "").rstrip("/"),
             vm_url=env.get("VM_URL", "").rstrip("/"),
             logs_filter=env.get("LOGS_FILTER", "feed:wow-*"),

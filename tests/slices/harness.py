@@ -1,6 +1,7 @@
 """One golden character served the way a player's data really travels:
 shipper-shaped events POSTed to the app's own /ingest, stored by a
-VictoriaLogs stand-in (tests/degraded.py VL, answering with wowstats.logsql),
+VictoriaLogs stand-in (tests/degraded.py VL, answering with wowstats.logsql)
+or by the SQLite event store (wowstats.eventstore), each slice on both,
 then read back over HTTP by the page's API and in process by the MCP's tools
 (`call(ctx, ...)`), each through its own code path.
 
@@ -70,7 +71,7 @@ class Served:
 
         key = (name, json.dumps(args, sort_keys=True))
         if key not in self.calls:
-            ctx = T.Ctx(store=MStore(vl_url=self.vl.url, vm_url=self.vl.url), default_char=self.char, env=self.env)
+            ctx = T.Ctx(store=MStore.from_env(self.env), default_char=self.char, env=self.env)
             self.calls[key] = T.call(ctx, name, {"char": self.char, **args})
         return self.calls[key]
 
@@ -93,8 +94,9 @@ def ingest(base: str, rows: list[dict]) -> None:
             raise AssertionError(f"/ingest refused an upload: {e.code} {e.read()[:300]!r}") from e
 
 
-def serve(char: str, rows: list[dict], tmp: Path) -> Served:
-    """The app with an empty store, the rows sent through /ingest, ready to read."""
+def serve(char: str, rows: list[dict], tmp: Path, backend: str = "vl") -> Served:
+    """The app with an empty event store (D.BACKENDS: the VictoriaLogs
+    stand-in or the SQLite files), the rows sent through /ingest, ready to read."""
     from wowstats import plan as planmod
     from wowstats.analysis import drive
     from wowstats.mcp import tools as T
@@ -103,8 +105,8 @@ def serve(char: str, rows: list[dict], tmp: Path) -> Served:
     T._VIEWS.clear()
     T._MISSING.clear()
     drive._WS.clear()
-    vl = D.VL([])
-    env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": vl.url, "VM_URL": vl.url,
+    stores, vl = D.store_env(backend, [], tmp)
+    env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", **stores,
            "MODEL3D": "off", "DEFAULT_CHAR": char, "HOME": str(tmp / "home"), "WOW_ITEMS": "off",
            "ANALYSIS_STATE_DIR": str(tmp / "analysis"), "INGEST_PASSWORD": PW, "MCP_PUBLIC_URL": ""}
     app = ui.App(env)
@@ -113,6 +115,7 @@ def serve(char: str, rows: list[dict], tmp: Path) -> Served:
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     base = f"http://127.0.0.1:{srv.server_address[1]}"
     ingest(base, rows)
-    # What VictoriaLogs would hand back: strings, no empty fields.
+    # What VictoriaLogs would hand back: strings, no empty fields (the
+    # SQLite store stores them so itself: wowstats.eventstore.stored).
     vl.rows = [as_stored(r) for r in vl.rows]
     return Served(char, vl, app, srv, base, env)

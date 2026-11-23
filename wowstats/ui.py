@@ -1,7 +1,8 @@
 """`wow-stats ui`: the web UI, its JSON API, and the optional ingest endpoint.
 
 Stdlib only. It reads the stores (GETs), answers GETs, and when INGEST is
-set up, forwards the shipper's NDJSON to VictoriaLogs. The answers a plain
+set up, hands the shipper's NDJSON to the event store (VictoriaLogs, or the
+SQLite files: wowstats.eventstore). The answers a plain
 open asks for are built once per new data in the background and served as
 they are (wowstats.prebuilt); the rest, and all of them before the first
 build, are worked out when asked and kept in memory for CACHE_TTL seconds.
@@ -11,6 +12,8 @@ Environment (defaults suit deploy/compose):
                          the server refuses to start. One process serves one
                          view, so two deployments of the same image can't
                          leak into each other through a routing mistake.
+  EVENTS_STORE           vl (VictoriaLogs at VL_URL, the default) or sqlite:<folder>
+                         (one SQLite file per person; wowstats.eventstore)
   VL_URL                 VictoriaLogs with the events (http://victorialogs:9428)
   VL_ARCHIVE_URL         optional second VictoriaLogs holding older days:
                          ranges older than VL_ARCHIVE_AFTER_DAYS (89) are read there
@@ -49,16 +52,14 @@ import re
 import sys
 import threading
 import time
-import urllib.error
 import urllib.parse
-import urllib.request
 from datetime import UTC, datetime
 from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from wowstats import bar, guard, httpserve, insights, itemcard, itemfacts, model3d, prebuilt, redact
-from wowstats.stores import SourceError, Store, env_account, iso, parse_t, public_error, tenant_headers
+from wowstats import bar, eventstore, guard, httpserve, insights, itemcard, itemfacts, model3d, prebuilt, redact
+from wowstats.stores import SourceError, Store, env_account, iso, parse_t, public_error
 from wowstats.views import ConfigError, Views, parse_weights, settings_from_env  # noqa: F401 - parse_weights: ui.parse_weights
 
 # media-src: the manual's clips, from /start/media/ and, on the help page, as
@@ -235,8 +236,15 @@ class App:
         except ValueError as e:
             raise ConfigError(str(e)) from None
 
+        try:
+            events = eventstore.events_location(env)
+        except ValueError as e:
+            raise ConfigError(str(e)) from None
+        if eventstore.is_sqlite(events) and (env.get("VL_ARCHIVE_URL") or "").strip():
+            raise ConfigError("VL_ARCHIVE_URL is VictoriaLogs' archive of older days: with EVENTS_STORE=sqlite:... "
+                              "every day stays in the SQLite files. Unset it.")
         self.store = store or Store(
-            env.get("VL_URL", "http://victorialogs:9428"), env.get("VL_ARCHIVE_URL", ""),
+            events, env.get("VL_ARCHIVE_URL", ""),
             env.get("VM_URL", "") if view == "full" else "",  # the live public view: no market, no 3D
             env.get("LOGS_FILTER", "feed:wow-*"), int(env.get("VL_ARCHIVE_AFTER_DAYS", "89")),
             profile_vm_url=env.get("VM_URL", ""),  # the profile: allowed in public (stores.py)
@@ -1286,10 +1294,10 @@ def make_handler(root: App, tenancy=None):
 
         def _ingest(self, vl_url: str, account_id: int, stored=None):
             """The shipper's NDJSON, screened line by line (wowstats.ingest,
-            a shared receiver's rules), then handed to VictoriaLogs' jsonline
-            API (which answers 200 and stores nothing unless the content type
-            is application/stream+json), in the sender's tenant. `stored(n)`
-            runs once VictoriaLogs has taken the n lines, before the 200: a
+            a shared receiver's rules), then handed to the event store
+            (wowstats.eventstore: VictoriaLogs' jsonline API or the
+            person's SQLite file), in the sender's tenant. `stored(n)`
+            runs once the store has taken the n lines, before the 200: a
             refused write leaves no upload, budget or first event behind
             (review 2026-11-21, D)."""
             from wowstats import ingest
@@ -1318,20 +1326,12 @@ def make_handler(root: App, tenancy=None):
             if bad:  # all or nothing: the shipper keeps the file and moves bad lines aside
                 return self.json(400, {"error": f"{bad} lines are not wow-stats events"})
             if lines:
-                q = urllib.parse.urlencode({"_stream_fields": ingest.STREAM_FIELDS, "_time_field": "_time",
-                                            "_msg_field": "_msg"})
-                req = urllib.request.Request(f"{vl_url}/insert/jsonline?{q}", data=b"\n".join(lines) + b"\n",
-                                             method="POST", headers={"Content-Type": "application/stream+json",
-                                                                     **tenant_headers(account_id)})
-                vl = urllib.parse.urlsplit(vl_url)  # host and port only: a user:password@ stays out of the log
-                at = f"VictoriaLogs at {vl.hostname}{f':{vl.port}' if vl.port else ''}"  # the log's, never the reply's
-                try:
-                    with urllib.request.urlopen(req, timeout=60) as r:
-                        r.read()
-                except urllib.error.HTTPError as e:
-                    return self.json(502, {"error": public_error(f"{at} answered {e.code}", "/ingest")})
-                except (urllib.error.URLError, OSError) as e:
-                    return self.json(502, {"error": public_error(f"{at} unreachable: {e}", "/ingest")})
+                from wowstats import eventstore
+
+                try:  # the error names the store's host or folder: the log's, never the reply's
+                    eventstore.get(vl_url).append(account_id, lines)
+                except SourceError as e:
+                    return self.json(502, {"error": public_error(e, "/ingest")})
                 if stored is not None:
                     stored(len(lines))
                 prebuilt.soon()  # the page catches up with the start page's "It works"
@@ -1453,7 +1453,7 @@ def main() -> int:
     extras = [n for n, m in (("mcp", app.mcp), ("3d", app.model3d)) if m is not None]
     print(f"wow-stats ui on {app.bind}:{app.port}: view {app.view}, auth {app.auth_mode}, "
           f"hosts {', '.join(sorted(app.hosts.names)) or 'loopback and IP addresses only'}, "
-          f"ingest {'on' if app.ingest_expected else 'off'}, logs {app.store.vl_url} "
+          f"ingest {'on' if app.ingest_expected else 'off'}, events {eventstore.describe(app.store.vl_url)} "
           f"(archive {app.store.vl_archive_url or 'off'}), metrics {app.store.vm_url or 'off'}"
           + (f", with {', '.join(extras)}" if extras else ""), flush=True)
     srv.serve_forever()

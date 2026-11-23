@@ -129,3 +129,23 @@ def test_publish_reads_the_share_token_the_ui_makes():
     assert pub["environment"]["ANALYSIS_SHARE_URL"] == f"http://ui:{ui['environment']['ANALYSIS_SHARE_PORT']}/analysis.json"
     # Never published on the host.
     assert all(str(p.get("target")) != ui["environment"]["ANALYSIS_SHARE_PORT"] for p in ui.get("ports", []))
+
+
+def test_the_sqlite_variant_runs_without_victorialogs():
+    """compose.sqlite.yaml on top: no VictoriaLogs container, the event
+    store on its own volume in each service that reads it, read and write."""
+    if not shutil.which("docker"):
+        pytest.skip("no docker")
+    for profiles in ((), ("public",)):
+        flags = [x for p in profiles for x in ("--profile", p)]
+        r = subprocess.run(["docker", "compose", "--env-file", os.devnull, "-f", "compose.yaml", "-f",
+                            "compose.sqlite.yaml", *flags, "config", "--format", "json"], cwd=KIT,
+                           env=os.environ | {"INGEST_PASSWORD": "x" * 12}, capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
+        s = json.loads(r.stdout)["services"]
+        assert "victorialogs" not in s
+        for name in ("ui", "publish", *(("ui-public",) if profiles else ())):
+            assert s[name]["environment"]["EVENTS_STORE"] == "sqlite:/events", name
+            vols = {v["target"]: v for v in s[name]["volumes"]}
+            assert vols["/events"]["source"] == "events" and not vols["/events"].get("read_only"), name
+            assert "victorialogs" not in (s[name].get("depends_on") or {}), name

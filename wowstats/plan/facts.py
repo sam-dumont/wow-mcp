@@ -66,12 +66,13 @@ def store_for(env: dict, like=None):
     """The stores, with vm-wow left out on purpose (no Battle.net data; the
     callers pass Battle.net's worn item ids, read live, to gather):
     from the settings, or the logs of an existing Store (`like`)."""
+    from wowstats.eventstore import events_location
     from wowstats.stores import Store, env_account
 
     if like is not None:  # wowstats.stores.Store or the MCP's wowstats.mcp.store.Store
         return Store(like.vl_url, like.vl_archive_url, "", getattr(like, "stream", None) or like.logs_filter,
                      like.hot_days, profile_vm_url="", account_id=getattr(like, "account_id", 0))
-    return Store(env.get("VL_URL", "http://victorialogs:9428"), env.get("VL_ARCHIVE_URL", ""), "",
+    return Store(events_location(env), env.get("VL_ARCHIVE_URL", ""), "",
                  env.get("LOGS_FILTER", "feed:wow-*"), int(env.get("VL_ARCHIVE_AFTER_DAYS", "89")), profile_vm_url="",
                  account_id=env_account(env))
 

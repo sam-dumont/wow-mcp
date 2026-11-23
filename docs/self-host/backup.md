@@ -7,7 +7,7 @@ of the server's data and the player's archive, and you've seen a restore work.
 
 | Where | What | Back it up? |
 |---|---|---|
-| Volume `wow-stats_vl-data` | Every game event. The one that matters | Yes |
+| Volume `wow-stats_vl-data` (or `wow-stats_events` with the SQLite files) | Every game event. The one that matters | Yes |
 | Volume `wow-stats_ui-state` | Session plans, the AI analysis' findings, the AI logins, downloaded game tables | Yes, if you use the AI |
 | Volume `wow-stats_site-data` | The static sites and the sealed site's key | Optional: the sites rebuild by themselves; keep it to keep the key (and the links you sent) |
 | `deploy/compose/.env` and `deploy/compose/secrets/` | Your settings and secrets | Yes, somewhere safe: they're not in any volume |
@@ -55,6 +55,13 @@ doesn't survive the disk.
 
 The same three lines with `ui` instead of `victorialogs` and `wow-stats_ui-state` instead of
 `wow-stats_vl-data` keep the plans and AI logins.
+
+With the SQLite files ([Where your events live](../install.md#where-your-events-live)) there's
+no VictoriaLogs to stop: stop `ui` and `publish` (the two that open the files), copy the
+`wow-stats_events` volume the same way, start them again. A copy taken while they run can miss
+the last writes, which sit in a `-wal` file next to each database until SQLite folds them in.
+Restore the same way too: the volume back, then `docker compose up -d`. There's no archive of
+older days with this store: the backup is every event you have.
 
 ## Restore
 

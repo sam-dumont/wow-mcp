@@ -7,18 +7,17 @@ the next page for your own character. About 10 minutes.
 ## 1. Start the demo
 
 You need [Docker](https://docs.docker.com/get-docker/) running (Docker Desktop on Mac and
-Windows) and a copy of this repository: `git clone` it, or unpack a release's source zip. The
-image builds from Docker's hardened images, which need a free
-[Docker Hub](https://hub.docker.com/signup) account: log in once with `docker login dhi.io`.
+Windows) and a copy of this repository: `git clone` it, or unpack a release's source zip.
 
 From the top of your copy (Mac, Linux, or Git Bash on Windows):
 
 ```sh
-cd deploy/compose && test -f .env || echo INGEST_PASSWORD=demo-password-only > .env
-docker compose up -d --build ui && docker compose run --rm demo
+cd deploy/compose && test -f .env || printf '%s\n' INGEST_PASSWORD=demo-password-only \
+  'WOW_STATS_IMAGE={{release_image}}' > .env
+docker compose pull ui && docker compose up -d ui && docker compose run --rm demo
 ```
 
-The first run builds the image, a minute or two. It ends with
+The first run downloads the released image, a few hundred MB. It ends with
 `<N> events for Nibbet-Gearholt into http://ui:8080/ingest`, N in the tens of thousands.
 
 Open <http://127.0.0.1:8080/>: Nibbet, a made-up Gnome priest at level 34, under a DEMO DATA

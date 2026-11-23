@@ -158,6 +158,9 @@ COPY --from=builder /app/LICENSE /app/THIRD_PARTY.md /app/
 # /data owned by the runtime user: a fresh named volume mounted there takes
 # this ownership, so `publish` can write its builds and key into it.
 COPY --from=builder --chown=10001:10001 /empty/data /data
+# The same for the SQLite event store's folder (EVENTS_STORE=sqlite:/events,
+# deploy/compose/compose.sqlite.yaml): its volume is shared by ui and publish.
+COPY --from=builder --chown=10001:10001 /empty/data /events
 ENV PATH=/app/.venv/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

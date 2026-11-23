@@ -251,7 +251,8 @@ def test_logsql_answers_like_victorialogs(query, want):
 
 
 def test_queries_outside_the_subset_go_to_victorialogs():
-    for q in ("error", 'zone:~"Ell"', "* | top 3 by (zone)", "* | stats avg(secs)", "{a=\"b\"} x:1"):
+    for q in ("error", 'zone:~"Ell"', "* | top 3 by (zone)", "* | stats avg(secs)", "{a=~\"b\"} x:1",
+              "{a!=\"b\"}"):
         with pytest.raises(logsql.Unsupported):
             logsql.parse(q)
 

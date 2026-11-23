@@ -26,6 +26,40 @@ def sealed_names():
     sealed.record()
 
 
+# What the SQLite event store couldn't answer (wowstats.eventstore.Unanswerable),
+# even where the app caught it: that store has no VictoriaLogs to fall back on,
+# so every query the app issues must fit wowstats.logsql's subset.
+UNANSWERED: list[str] = []
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _record_unanswered():
+    from wowstats import eventstore
+
+    orig = eventstore.SQLiteEvents.query
+
+    def query(self, *a, **k):
+        try:
+            return orig(self, *a, **k)
+        except eventstore.Unanswerable as e:
+            UNANSWERED.append(str(e))
+            raise
+
+    eventstore.SQLiteEvents.query = query
+    yield
+    eventstore.SQLiteEvents.query = orig
+
+
+@pytest.fixture(autouse=True)
+def sqlite_answers_every_query(request):
+    """Fails the test (or the first test after a module fixture) during
+    which the SQLite store met a query outside the subset."""
+    yield
+    got, UNANSWERED[:] = list(UNANSWERED), []
+    if not request.node.get_closest_marker("unanswerable_ok"):
+        assert not got, f"the SQLite event store couldn't answer {len(got)} queries: {got[:3]}"
+
+
 @pytest.fixture(autouse=True)
 def wow_folder_is_a_fixture():
     yield

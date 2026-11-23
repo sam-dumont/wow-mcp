@@ -6,8 +6,8 @@ and (if you use Claude Code) your assistant answering from the demo data. About 
 
 You need [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on Mac and Windows,
 started once so it says "Engine running") and a copy of this repository: `git clone` it, or
-download a release's source zip and unpack it. No game and no Battle.net account (a free
-Docker Hub one, below).
+download a release's source zip and unpack it. No game, no Battle.net account, no Docker Hub
+login.
 
 ## 1. Start the page
 
@@ -20,17 +20,16 @@ cp .env.example .env
 
 Open `.env` in any text editor and set `INGEST_PASSWORD` to anything of 12 characters or more.
 Nothing starts without it, and step 2 sends the demo's events with it, the way a player's
-computer sends theirs. On a machine with no internet, or a
+computer sends theirs. Set `WOW_STATS_IMAGE={{release_image}}` too: the latest release,
+pinned by its digest. On a machine with no internet, or a
 small one, also set `MODEL3D=off` and `WOW_ITEMS=off` (no 3D view, no item icons; the
 pages still work).
 
-Then start the page. The first time builds the image from your copy, a minute or two. The
-build pulls its base from Docker's hardened images, which need a free
-[Docker Hub](https://hub.docker.com/signup) account: log in once with `docker login dhi.io`.
+Then start the page. The first time downloads the image, a few hundred MB.
 
 ```sh
-docker login dhi.io
-docker compose up -d --build ui
+docker compose pull ui
+docker compose up -d ui
 ```
 
 ## 2. Load the demo character
