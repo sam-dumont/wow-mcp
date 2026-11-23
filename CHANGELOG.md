@@ -4,6 +4,13 @@
 
 ### Fixed
 
+- The compose kit's VictoriaLogs now runs with the limits [security.md](docs/security.md) asks for: 30 s per query, 4 queries at once, 10 s in the queue, and 1 GiB of memory (`VL_MEM_LIMIT`). Until now it ran on VictoriaLogs' defaults with no memory limit.
+- The Python answers to the views' LogsQL (`wowstats/logsql.py`) now match VictoriaLogs v1.54.0 where they didn't, checked against a real VictoriaLogs in CI (`tests/test_logsql.py`): an unnamed `count()` is `count(*)`, `sum()` of no number is `NaN`, `min()` over rows without the field is empty, text sorts in natural order (item 9 before item 10), `inf`, `nan` and padded numbers aren't numbers, a row left with no field isn't answered, `<` and `'` are escaped in JSON values, and single-quoted strings go to VictoriaLogs instead of matching nothing.
+
+### Upgrading
+
+- Compose: VictoriaLogs gets a 1 GiB memory limit. It peaked at 217 MiB on a year of the demo; with a much longer history, set `VL_MEM_LIMIT=2g` in `.env` before `docker compose up -d`.
+
 - With `MCP_DCR=off` the authorization server metadata no longer advertises a `registration_endpoint`, and `/register` answers 404: a client sees up front that it needs a client metadata URL instead of trying to register and getting refused. An unknown client id at `/authorize` is no longer pointed at `/register` either. `open` and `loopback` are unchanged.
 
 ## 0.7.0 (2026-11-23)

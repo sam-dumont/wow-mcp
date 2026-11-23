@@ -3,7 +3,7 @@
 TEST_WORKERS ?= $(shell python3 -c "import os; print(max(1, (os.cpu_count() or 2) // 2))")
 BROWSER_WORKERS ?= 4
 
-.PHONY: test test-changed test-browser eval-analysis eval-mcp
+.PHONY: test test-changed test-browser test-vl eval-analysis eval-mcp
 
 # What to run before pushing: only the tests your diff can break.
 test-changed:
@@ -12,6 +12,14 @@ test-changed:
 # The whole fast suite (no browsers, nothing CI-only), in parallel.
 test:
 	uv run pytest -q -rs -n $(TEST_WORKERS)
+
+# tests/test_logsql.py: the Python LogsQL engine against a real VictoriaLogs,
+# the image the compose kit pins (a container started here, stopped after).
+VL_IMAGE := $(shell sed -n 's|^ *image: \(docker.io/victoriametrics/victoria-logs:.*\)$$|\1|p' deploy/compose/compose.yaml)
+test-vl:
+	docker run -d --rm --name wow-test-vl -p 127.0.0.1:19428:9428 $(VL_IMAGE) -retentionPeriod=100y >/dev/null
+	for _ in $$(seq 1 30); do curl -fsS http://127.0.0.1:19428/health >/dev/null 2>&1 && break; sleep 1; done
+	WOW_TEST_VL_URL=http://127.0.0.1:19428 uv run pytest -q -rs tests/test_logsql.py; s=$$?; docker stop wow-test-vl >/dev/null; exit $$s
 
 # The browser suites: once before a release, not on every change. A whole file
 # per worker, so a file's server and browser are launched once.
