@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Kill XP for a dungeon you haven't run: `dungeons` with `options` gives `gain.kill_xp`, a run's kill XP, kills and time inside at your level, labelled `estimate`, or `not_enough_data` with what's missing. Your own runs replace it (`measured`). The original dungeons come from cMaNGOS's spawn tables (85% of the packs, per wing for Scarlet Monastery, Dire Maul, Blackrock Spire and Stratholme), Ruins of Lordaeron and The Drowned City from players' logged runs, City of Dalaran from two reference runs; the six other new dungeons say not enough data yet. Classic's kill formula, elites ×2.5, five players of your level, Forever's 60% dungeon factor; no buffs. An estimate never ranks a dungeon or calls it faster than questing: the quests and the gear lead. Checked against a recorded Stockade full clear (+3%) and Dalaran's two runs (−10%): [Dungeon kill XP](docs/dungeon-xp.md).
+
 ### Changed
 
 - Every answer about a character says which data it was computed from: a top-level `as_of`, the newest event time it read, on the MCP's answers and the full view's `/api/char`. The MCP now reads a character's events through the same cache as the page instead of asking VictoriaLogs on its own, so the same `as_of` on both sides means the same data. Cached answers (the planner's, the analysis workspace, kept findings and plans) keep the `as_of` they were built from.

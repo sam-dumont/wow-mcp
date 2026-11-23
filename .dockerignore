@@ -14,6 +14,7 @@
 !data/dbd/
 !data/wowsims-talents.json
 !data/battlenet-look.json
+!data/dungeons/
 !THIRD_PARTY.md
 # The one-line installers carry the shipper; /start reads the install steps (wowstats.account).
 !shipper/
