@@ -213,7 +213,7 @@ def run_app():
 
 
 # Need docker compose, a Polestar checkout or Windows: CI's jobs and the release run them.
-CI_ONLY = {"test_compose.py", "test_windows_e2e.py", "test_gear_parity.py"}
+CI_ONLY = {"test_compose.py", "test_windows_e2e.py"}
 
 
 def pytest_addoption(parser):

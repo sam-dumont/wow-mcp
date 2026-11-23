@@ -1,9 +1,9 @@
 # Rebuilds data/route-reference.json, data/gear-reference.json and
 # data/forever-reference.json from the Polestar release named below and fails
 # when one differs from the committed file (docs/route-reference.md,
-# docs/gear-reference.md, docs/forever-reference.md), then runs
-# Polestar's own gear scoring (Gear.lua) against wowstats/gear.py on every item
-# (tests/test_gear_parity.py). It never commits: the Polestar tag lives in
+# docs/gear-reference.md, docs/forever-reference.md). The gear scoring is
+# ForeverDB.net's since 2026-11-23 (tests/test_gear_foreverdb.py, in the
+# normal suite). It never commits: the Polestar tag lives in
 # tools/polestar-tag (a file, so kb-refresh's token, which can't edit a
 # workflow, can move it), and kb-refresh bumps it with the exports in one PR
 # when the watcher sees a release; a tag moved without the exports fails here.
@@ -20,8 +20,6 @@ on:
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
-      - wowstats/gear.py
-      - tests/test_gear_parity.py
       - .github/workflows/route-reference.yml
   pull_request:
     paths:
@@ -32,8 +30,6 @@ on:
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
-      - wowstats/gear.py
-      - tests/test_gear_parity.py
       - .github/workflows/route-reference.yml
   workflow_dispatch:
 permissions:
@@ -80,10 +76,3 @@ jobs:
             fi
           done
           exit "$bad"
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-      - name: Gear scoring matches Polestar's Gear.lua, item by item
-        env:
-          LUA: lua5.4
-        run: |
-          uv sync --frozen
-          POLESTAR_CHECKOUT="$RUNNER_TEMP/polestar" uv run pytest -q -rs -m ci_only tests/test_gear_parity.py

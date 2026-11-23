@@ -256,7 +256,7 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 .wanted li b { color: var(--qt, var(--ink)); font-weight: 700; }
 .gearnote { color: var(--muted); margin: 0; max-width: 65ch; }
 
-/* gear advice: Polestar's scoring, per slot and as a list */
+/* gear advice: ForeverDB.net's weights, per slot and as a list */
 .slot .iup { display: block; color: var(--good); font-size: 13px; line-height: 1.25; }
 /* The mark is decoration: the line's text is the item line itself (upText). */
 .slot .iup::before { content: '▲ ' / ''; }
@@ -269,6 +269,9 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 .adv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; margin-bottom: 12px; }
 .adv-head .sub { flex: 1 1 100%; margin: 0; }
 .specpick { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+.specpicks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+.wcredit { font-size: 13px; color: var(--muted); }
+.wcredit a { color: inherit; }
 .specpick select, .order button {
   font: 14px var(--sans); color: var(--ink); background: var(--sunk); border: 1px solid var(--rule);
   border-radius: 4px; padding: 4px 8px;

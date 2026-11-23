@@ -355,9 +355,12 @@ ZOGZOG: dict[str, dict] = {
         "deaths": {"total": None, "by_zone": [_keys("zone", "n")]},
         "dungeons": [_keys("name", "level", "seconds", "xp", "t")]}]},
     "gear": {
-        **_keys("char", "name", "polestar", "available", "why", "at", "class", "level", "band", "min_upgrade_pct",
+        **_keys("char", "name", "polestar", "available", "why", "at", "class", "level", "min_upgrade_pct",
                 "soon_levels", "upgrades_total", "generated_at", "stale", "gear_score"),
-        "band": _keys("label", "note", "source", "upTo"),
+        # The weights' mode and whose they are: the page credits ForeverDB.net.
+        "mode": {**_keys("key", "label"), "choices": [_keys("key", "label")]},
+        "scoring": _keys("mode", "label", "note", "source", "style"),
+        "source": _keys("name", "url", "text"),
         "spec": SPEC, "weights": {}, "talents": [{}],
         "slots": [{**_keys("slot", "slot_name"), "standing": _keys("rank", "pct", "label"),
                    "current": ADVICE_ITEM, "best": UPGRADE_PAIR,

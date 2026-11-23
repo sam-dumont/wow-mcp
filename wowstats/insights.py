@@ -895,7 +895,7 @@ def next_moves(level: int | None, advice: dict | None, header: dict, track: dict
     best: dict = {}
     for u, s in sorted(reach, key=lambda us: us[1].get("kind") not in HELD_WHERE):
         best.setdefault(u.get("slot"), (u, s))
-    moves = [_upgrade_claim(u, s, _pick_text(u, s), "gear advice (Polestar's scoring)", level)
+    moves = [_upgrade_claim(u, s, _pick_text(u, s), "gear advice (ForeverDB.net's weights)", level)
              for u, s in list(best.values())[:3]]
     moves += dungeon_claims(level, reach)
     moves += profession_claims(level, gear_profs, skills, header)

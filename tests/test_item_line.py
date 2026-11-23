@@ -127,7 +127,7 @@ def test_pair_one_good_ring_reaches_100_once(ref):
     a = gear.advise(one, sheet(), level=32)
     weak, strong = _weak_first(*_pairs(a)["finger"])
     assert weak["best"]["item_id"] == 281635
-    assert (weak["best"]["bis_pct_worn"], weak["best"]["bis_pct"]) == (34, 100)
+    assert (weak["best"]["bis_pct_worn"], weak["best"]["bis_pct"]) == (13, 100)
     assert strong["best"] is None and strong["standing"]["rank"] == 1
 
 

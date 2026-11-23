@@ -57,7 +57,7 @@ What you wear and every way to an upgrade.
 
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
-| `gear` | Gear advice from Polestar's scoring: per slot what is worn and its standing (BiS, 2nd, or % of BiS), the best item at its level and the next within 3 levels, with the gain and where to get it; then the upgrades, held or in the current zone first, then the slot furthest from BiS. Say each item's `line` as is. Polestar's spec unless `spec` names another. `options`: all ways to upgrade. | `spec`: A spec of the class, e.g. shadow, holy.; `limit`: How many upgrades (with options: slots, 8 by default, 20 at most).; `options`: Instead of the advice, per slot every way to an upgrade with its cost: quest (on the route or not), dungeon drop (trip time at the drop chance), world drop (luck, the player's own AH price), craft; `in_current_zone` marks the ones in `zone`. | reads |
+| `gear` | Gear advice on ForeverDB.net's weights (credit `source`): per slot the worn item and its standing (BiS, 2nd, % of BiS), the best item now and within 3 levels, gain and source; then the upgrades, held or in this zone first, then furthest from BiS. Say each `line` as is. `spec`: another spec; `mode`: pvp or pve (Leveling by default). `options`: all ways to upgrade. | `spec`: A spec of the class, e.g. shadow, holy.; `mode`: The weights: lvl (Leveling, the default), pvp or pve (raids and dungeons at 60).; `limit`: How many upgrades (with options: slots, 8 by default, 20 at most).; `options`: Instead of the advice, per slot every way to an upgrade with its cost: quest (on the route or not), dungeon drop (trip time at the drop chance), world drop (luck, the player's own AH price), craft; `in_current_zone` marks the ones in `zone`. | reads |
 
 ## Talents
 

@@ -1151,7 +1151,7 @@ upgrades:
   measures:
     upgrade_gain:
       expr: _.gain.max()
-      description: "Score gain over what is worn in the slot (Polestar's points, for the scored spec): the biggest in the group."
+      description: "Score gain over what is worn in the slot (ForeverDB.net's weights, for the scored spec): the biggest in the group."
       metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: points,
                  caveats: "The gear advice as of the newest character sheet, scored with the weights the player chose. Not additive: two items for one slot are alternatives. Group by item_id for one item's gain."}
     upgrade_gain_share_pct:
@@ -1186,7 +1186,7 @@ upgrades:
                  caveats: "Group by slot, as best_upgrade."}
     best_upgrade_gain:
       expr: _.gain.max(where=_.rank_now == 1)
-      description: "The best upgrade's score gain over what is worn (Polestar's points, for the scored spec)."
+      description: "The best upgrade's score gain over what is worn (ForeverDB.net's weights, for the scored spec)."
       metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: estimated, unit: points,
                  caveats: "Group by slot, as best_upgrade. Not additive: one slot's best is not another's."}
     best_upgrade_bis_pct:
@@ -1216,7 +1216,7 @@ worn:
                  caveats: "The newest sheet only; a shirt or tabard counts when it has a name."}
     worn_score:
       expr: _.score.sum()
-      description: "The worn items' score for the scored spec (Polestar's points): one item's, or the whole gear's summed over slots."
+      description: "The worn items' score for the scored spec (ForeverDB.net's weights): one item's, or the whole gear's summed over slots."
       metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: estimated, unit: points,
                  caveats: "NULL for an item the gear data doesn't know."}
     worn_bis_pct:

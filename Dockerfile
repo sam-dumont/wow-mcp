@@ -46,6 +46,7 @@ COPY wowstats ./wowstats
 COPY web ./web
 COPY data/route-reference.json ./data/route-reference.json
 COPY data/gear-reference.json ./data/gear-reference.json
+COPY data/foreverdb-weights.json ./data/foreverdb-weights.json
 COPY data/kb-reference.json.gz ./data/kb-reference.json.gz
 COPY data/kb ./data/kb
 COPY data/forever-reference.json ./data/forever-reference.json
@@ -82,6 +83,7 @@ COPY wowstats ./wowstats
 COPY web ./web
 COPY data/route-reference.json ./data/route-reference.json
 COPY data/gear-reference.json ./data/gear-reference.json
+COPY data/foreverdb-weights.json ./data/foreverdb-weights.json
 COPY data/kb-reference.json.gz ./data/kb-reference.json.gz
 COPY data/kb ./data/kb
 COPY data/forever-reference.json ./data/forever-reference.json

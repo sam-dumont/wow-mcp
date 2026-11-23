@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Changed
+
+- Gear scoring is now ForeverDB.net's: the widely used community stat weights per spec, its
+  formula, and three modes: Leveling (the default: Stamina, armour and a caster's wand count
+  much more), PvP and PvE. Pick the mode on the gear page; the MCP `gear` tool takes `mode`.
+  Every score carries the credit "Weights: ForeverDB.net" with the link (page legend, `source`
+  in MCP answers). Checked against ForeverDB's own ladders: 36,690 of 36,746 scores equal,
+  the rest a tenth apart.
+- An item with no required level is wearable from its item level - 5, a quest reward from the
+  quest's level - 5 (ForeverDB's rule).
+- Polestar's level-band weights, racial multipliers and school damage cap no longer score
+  anything. Polestar still gives the items and where they come from, and your Adjust weights
+  edits still apply.
+
+### Upgrading
+
+- Every gear score, gain and "% of BiS" changes, and so do the upgrades and the dungeons
+  suggested from them. A caster levelling sees Stamina pieces and wands rise, Spirit pieces
+  drop. Nothing to do on the host: `data/foreverdb-weights.json` ships in the image.
+
+### Tests
+
+- `tests/test_gear_foreverdb.py` replaces the Polestar Lua parity test: weights, ladder
+  scores, picks and weapon setups against ForeverDB fixtures, in the normal suite. A slice
+  checks the page and the MCP agree in each mode.
+
 ## 0.9.0 (2026-11-23)
 
 What 0.9.0 brings over 0.8.0, in short. Every change follows.

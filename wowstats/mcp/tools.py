@@ -1045,6 +1045,9 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         from .plantools import t_gear_options
 
         return t_gear_options(ctx, args)
+    mode = args.get("mode") or None
+    if mode is not None and str(mode).strip().lower() not in gearmod.MODE_NAMES:
+        raise ToolError("mode is lvl (Leveling, the default), pvp or pve")
     char = resolve_char(ctx, args)
     st = ctx.store
     picked = gearmod.pick_sheet(gearmod.sheet_rows(one_row(st), cf(char)))
@@ -1092,6 +1095,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                            zone=zone_now(s, r),
                            done=set(done),
                            spec=(args.get("spec") or None), limit=(lim := limit_arg(args, 10, 40)),
+                           mode=mode,
                            # The player's WEIGHTS, like the page, gear_options and the analysis: without
                            # it this tool scored the add-on's spec (Shadow) while every other answer
                            # scored the configured one (Holy) (seeded evaluation, wrong_spec_gear).
@@ -1143,16 +1147,20 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                                       "have": p["have"], "level": p.get("level"),
                                       "where": [_src_text(s) for s in p.get("sources") or []] or None}
                                      for p in x["parts"]]} for x in a.get("weapon_setups") or []],
-        "weights_from": {k: a["band"].get(k) for k in ("label", "note", "source")} if a.get("band") else None,
+        "mode": a["mode"]["label"],
+        "weights_from": {k: (a.get("scoring") or {}).get(k) for k in ("label", "note", "source")},
+        # The weights are ForeverDB.net's: credit it with the link whenever a score is shown.
+        "source": a["source"],
         # On the auction house now: the most gain for the gold first.
         "buy_now": [_gear_item(u, up) for u in buy],
         "auction_house": _ah_summary(a.get("ah")),
         "role": sp.get("role") or "unknown: ask the player to pick a spec in settings",
-        "how": "Polestar's own scoring and weights (its addon's Gear.lua, ported), with the stats the class can't "
-               "use at zero (healing power for classes with no heals, Spirit and Intellect for warriors and "
-               "rogues, attack power for mages, priests and warlocks) and the ones the class uses but this spec "
-               "doesn't (a shadow priest's healing power) at a partial weight until the spec's 31-point talent "
-               "(level 40 at the earliest). fit on each item: for_you is yes, any, spec (built for another spec "
+        "how": "ForeverDB.net's stat weights and formula, in the mode asked (`mode`: Leveling by default, PvP, "
+               "PvE): each stat times its weight, % hit and crit lines as ratings (10 and 14 a percent), school "
+               "damage on top of spell power, weapon DPS (ranged for hunters), a wand's DPS in Leveling for "
+               "priests, mages and warlocks, armour, set bonuses shared over the set's pieces; procs and on-use "
+               "count zero. Credit `source` (name and link) whenever you show a score or a standing. "
+               "fit on each item: for_you is yes, any, spec (built for another spec "
                "of the class: fine while levelling, don't roll Need against who it's made for) or class (made "
                "for another class); who it is built for, the share of its stats wasted on "
                "it, a lower armour type, the group-loot tip (who usually gets first pick) and the best upgrade "
@@ -1170,9 +1178,8 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                "hand, e.g. an off hand already in the bags, is in together_with). weapon_setups: the best "
                "two-hander and the best main hand + off hand pair wearable now, each on its own, as levelling BiS "
                "lists rank them apart; say which setup is worn and that switching is the gain. weights_from: "
-               "where the stat weights come from; a band 'authored ... no sim' weighs Spirit, Intellect and "
-               "Stamina by formula, and another list (ForeverLevelingBiS, its own weights) can rank a "
-               "spirit-heavy piece lower: say so when an upgrade's gain is mostly those stats. Crafts say what "
+               "which of ForeverDB's tables scored it. Another list (Forever Leveling BiS, its own weights) can "
+               "rank a piece differently: say so when the player compares. Crafts say what "
                "making one takes (skill, then the recipe; materials are never checked). Quests the Recorder "
                "saw handed in are left out. An item "
                "already in the bags or the bank has that as its only `where` (equip it; the bank: take it out "
@@ -1438,11 +1445,14 @@ TOOLS: tuple[Tool, ...] = (
          schema({"item": {"type": "string", "description": "Part of an item name, or an item id."},
                  "since": SINCE, "until": UNTIL, "limit": lim(20, 100)}), t_prices),
     Tool("gear", "Gear upgrades",
-         "Gear advice from Polestar's scoring: per slot what is worn and its standing (BiS, 2nd, or % of BiS), "
-         "the best item at its level and the next within 3 levels, with the gain and where to get it; "
-         "then the upgrades, held or in the current zone first, then the slot furthest from BiS. Say each "
-         "item's `line` as is. Polestar's spec unless `spec` names another. `options`: all ways to upgrade.",
+         "Gear advice on ForeverDB.net's weights (credit `source`): per slot the worn item and its standing "
+         "(BiS, 2nd, % of BiS), the best item now and within 3 levels, gain and source; then the upgrades, "
+         "held or in this zone first, then furthest from BiS. Say each `line` as is. `spec`: another spec; "
+         "`mode`: pvp or pve (Leveling by default). `options`: all ways to upgrade.",
          schema({"char": CHAR, "spec": {"type": "string", "description": "A spec of the class, e.g. shadow, holy."},
+                 "mode": {"type": "string", "enum": ["lvl", "pvp", "pve"],
+                          "description": "The weights: lvl (Leveling, the default), pvp or pve (raids and "
+                                         "dungeons at 60)."},
                  "limit": {**lim(10, 40), "description": "How many upgrades (with options: slots, 8 by default, "
                                                          "20 at most)."},
                  "options": {"type": "boolean",

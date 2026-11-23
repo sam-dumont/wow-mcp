@@ -79,7 +79,6 @@ What skips without what:
 | browser tests | the `browser` group and its browsers |
 | `tests/test_compose.py` | `docker compose` |
 | `tests/test_windows_e2e.py` | Windows (CI runs it on `windows-latest`) |
-| `tests/test_gear_parity.py` | `POLESTAR_CHECKOUT`: a Polestar clone at the pinned tag ([docs/gear-reference.md](gear-reference.md)) |
 | `tests/test_public_scan.py`, the name check | the denylist file (below) |
 
 Optional: `pre-commit install` runs ruff, the lock and fixture checks,

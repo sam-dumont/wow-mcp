@@ -1,0 +1,2818 @@
+{
+ "schema": 1,
+ "source": {
+  "name": "ForeverDB.net",
+  "url": "https://foreverdb.net",
+  "credit": "Weights: ForeverDB.net",
+  "build": "1.60.1.71037",
+  "fetched": "2026-11-23",
+  "urls": [
+   "https://foreverdb.net/data/bis/index.json",
+   "https://foreverdb.net/data/guides.json",
+   "https://foreverdb.net/data/bis/warrior-arms.json",
+   "https://foreverdb.net/data/bis/warrior-fury.json",
+   "https://foreverdb.net/data/bis/warrior-protection.json",
+   "https://foreverdb.net/data/bis/paladin-holy.json",
+   "https://foreverdb.net/data/bis/paladin-protection.json",
+   "https://foreverdb.net/data/bis/paladin-retribution.json",
+   "https://foreverdb.net/data/bis/hunter-beast-mastery.json",
+   "https://foreverdb.net/data/bis/hunter-marksmanship.json",
+   "https://foreverdb.net/data/bis/hunter-survival.json",
+   "https://foreverdb.net/data/bis/rogue-assassination.json",
+   "https://foreverdb.net/data/bis/rogue-combat.json",
+   "https://foreverdb.net/data/bis/rogue-subtlety.json",
+   "https://foreverdb.net/data/bis/priest-discipline.json",
+   "https://foreverdb.net/data/bis/priest-holy.json",
+   "https://foreverdb.net/data/bis/priest-shadow.json",
+   "https://foreverdb.net/data/bis/shaman-elemental.json",
+   "https://foreverdb.net/data/bis/shaman-enhancement.json",
+   "https://foreverdb.net/data/bis/shaman-restoration.json",
+   "https://foreverdb.net/data/bis/mage-arcane.json",
+   "https://foreverdb.net/data/bis/mage-fire.json",
+   "https://foreverdb.net/data/bis/mage-frost.json",
+   "https://foreverdb.net/data/bis/warlock-affliction.json",
+   "https://foreverdb.net/data/bis/warlock-demonology.json",
+   "https://foreverdb.net/data/bis/warlock-destruction.json",
+   "https://foreverdb.net/data/bis/druid-balance.json",
+   "https://foreverdb.net/data/bis/druid-feral.json",
+   "https://foreverdb.net/data/bis/druid-restoration.json"
+  ],
+  "note": "The class-guide stat weights and ForeverDB's Leveling and PvP rules; Leveling is computed by tools/foreverdb_weights/export.py from PvE."
+ },
+ "rules": {
+  "quest_ahead": 5,
+  "no_req_level": "item level - 5"
+ },
+ "checks": {
+  "pve": {
+   "same": 27,
+   "differ": 0
+  },
+  "lvl": {
+   "same": 27,
+   "differ": 0
+  },
+  "pvp_rule": {
+   "same": 0,
+   "differ": 0
+  }
+ },
+ "specs": {
+  "WARRIOR": {
+   "arms": {
+    "foreverdb": "warrior/arms",
+    "role": "Melee DPS",
+    "style": "2h",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 0.65,
+     "ap": 0.5,
+     "critRating": 1.0,
+     "dps": 9.0,
+     "expertise": 1.0,
+     "haste": 0.8,
+     "hitRating": 1.4,
+     "sta": 0.1,
+     "str": 1.0
+    },
+    "lvl": {
+     "agi": 0.65,
+     "ap": 0.5,
+     "armor": 0.03,
+     "critRating": 1.0,
+     "dps": 9.0,
+     "expertise": 0.7,
+     "haste": 0.8,
+     "hitRating": 0.98,
+     "sta": 0.8,
+     "str": 1.0
+    },
+    "pvp": {
+     "agi": 0.65,
+     "ap": 0.5,
+     "armor": 0.02,
+     "critRating": 0.9,
+     "dps": 9.0,
+     "expertise": 0.8,
+     "haste": 0.8,
+     "hitRating": 1.1,
+     "sta": 0.9,
+     "str": 1.0
+    }
+   },
+   "fury": {
+    "foreverdb": "warrior/fury",
+    "role": "Melee DPS",
+    "style": "dw",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 0.7,
+     "ap": 0.5,
+     "critRating": 1.1,
+     "dps": 5.0,
+     "expertise": 1.1,
+     "haste": 0.9,
+     "hitRating": 1.6,
+     "sta": 0.1,
+     "str": 1.0
+    },
+    "lvl": {
+     "agi": 0.7,
+     "ap": 0.5,
+     "armor": 0.03,
+     "critRating": 1.1,
+     "dps": 5.0,
+     "expertise": 0.77,
+     "haste": 0.9,
+     "hitRating": 1.12,
+     "sta": 0.8,
+     "str": 1.0
+    },
+    "pvp": {
+     "agi": 0.7,
+     "ap": 0.5,
+     "armor": 0.02,
+     "critRating": 1.0,
+     "dps": 7.0,
+     "expertise": 0.88,
+     "haste": 0.9,
+     "hitRating": 1.2,
+     "sta": 0.9,
+     "str": 1.0
+    }
+   },
+   "protection": {
+    "foreverdb": "warrior/protection",
+    "role": "Tank",
+    "style": "shield",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 0.5,
+     "armor": 0.1,
+     "blockRating": 0.6,
+     "blockValue": 0.6,
+     "defense": 1.5,
+     "dodgeRating": 1.0,
+     "expertise": 0.8,
+     "hitRating": 0.8,
+     "parryRating": 0.9,
+     "sta": 1.0,
+     "stat50": 0.1,
+     "str": 0.4
+    },
+    "lvl": {
+     "agi": 0.5,
+     "armor": 0.1,
+     "blockRating": 0.6,
+     "blockValue": 0.6,
+     "defense": 1.5,
+     "dodgeRating": 1.0,
+     "expertise": 0.56,
+     "hitRating": 0.56,
+     "parryRating": 0.9,
+     "sta": 1.0,
+     "stat50": 0.1,
+     "str": 0.4
+    },
+    "pvp": {
+     "agi": 0.6,
+     "ap": 0.3,
+     "armor": 0.06,
+     "blockRating": 0.5,
+     "blockValue": 0.4,
+     "critRating": 0.5,
+     "defense": 0.5,
+     "dodgeRating": 0.7,
+     "dps": 3.0,
+     "expertise": 0.64,
+     "hitRating": 0.7,
+     "parryRating": 0.6,
+     "sta": 1.0,
+     "stat50": 0.1,
+     "str": 0.6
+    }
+   }
+  },
+  "PALADIN": {
+   "holy": {
+    "foreverdb": "paladin/holy",
+    "role": "Healer",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.6,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "heal": 1.0,
+     "int": 0.6,
+     "mp5": 1.8,
+     "spi": 0.2,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.03,
+     "critRating": 0.6,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "heal": 0.5,
+     "int": 0.6,
+     "mp5": 1.08,
+     "spi": 0.12,
+     "sta": 0.8
+    },
+    "pvp": {
+     "armor": 0.02,
+     "critRating": 0.4,
+     "dmgheal": 1.0,
+     "haste": 0.6,
+     "heal": 1.0,
+     "int": 0.7,
+     "mp5": 1.3,
+     "spi": 0.2,
+     "sta": 1.0
+    }
+   },
+   "protection": {
+    "foreverdb": "paladin/protection",
+    "role": "Tank",
+    "style": "shield",
+    "pvp_from": "guide",
+    "pve": {
+     "armor": 0.1,
+     "blockRating": 0.6,
+     "blockValue": 0.5,
+     "defense": 1.4,
+     "dmgheal": 0.6,
+     "dodgeRating": 0.9,
+     "hitRating": 0.8,
+     "int": 0.3,
+     "parryRating": 0.8,
+     "spHoly": 0.5,
+     "sta": 1.0,
+     "stat50": 0.1,
+     "str": 0.4
+    },
+    "lvl": {
+     "armor": 0.1,
+     "blockRating": 0.6,
+     "blockValue": 0.5,
+     "defense": 1.4,
+     "dmgheal": 0.6,
+     "dodgeRating": 0.9,
+     "hitRating": 0.56,
+     "int": 0.3,
+     "parryRating": 0.8,
+     "spHoly": 0.5,
+     "sta": 1.0,
+     "stat50": 0.1,
+     "str": 0.4
+    },
+    "pvp": {
+     "agi": 0.4,
+     "armor": 0.1,
+     "blockRating": 0.4,
+     "blockValue": 0.3,
+     "critRating": 0.4,
+     "defense": 0.8,
+     "dmgheal": 0.4,
+     "dodgeRating": 0.6,
+     "hitRating": 0.8,
+     "int": 0.4,
+     "parryRating": 0.5,
+     "spHoly": 0.3,
+     "sta": 1.3,
+     "stat50": 0.1,
+     "str": 0.6
+    }
+   },
+   "retribution": {
+    "foreverdb": "paladin/retribution",
+    "role": "Melee DPS",
+    "style": "2h",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 0.55,
+     "ap": 0.5,
+     "critRating": 1.0,
+     "dmgheal": 0.3,
+     "dps": 9.0,
+     "expertise": 0.9,
+     "haste": 0.7,
+     "hitRating": 1.3,
+     "int": 0.2,
+     "spHoly": 0.3,
+     "sta": 0.1,
+     "str": 1.0
+    },
+    "lvl": {
+     "agi": 0.55,
+     "ap": 0.5,
+     "armor": 0.03,
+     "critRating": 1.0,
+     "dmgheal": 0.3,
+     "dps": 9.0,
+     "expertise": 0.63,
+     "haste": 0.7,
+     "hitRating": 0.91,
+     "int": 0.2,
+     "spHoly": 0.3,
+     "sta": 0.8,
+     "str": 1.0
+    },
+    "pvp": {
+     "agi": 0.5,
+     "ap": 0.5,
+     "armor": 0.02,
+     "critRating": 1.0,
+     "dmgheal": 0.25,
+     "dps": 9.0,
+     "expertise": 0.8,
+     "haste": 0.6,
+     "hitRating": 1.2,
+     "int": 0.25,
+     "spHoly": 0.25,
+     "sta": 1.0,
+     "str": 1.0
+    }
+   }
+  },
+  "HUNTER": {
+   "beastmastery": {
+    "foreverdb": "hunter/beast-mastery",
+    "role": "Ranged DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 1.0,
+     "ap": 0.55,
+     "critRating": 0.8,
+     "dps": 4.0,
+     "haste": 0.8,
+     "hitRating": 1.2,
+     "int": 0.2,
+     "rap": 0.45,
+     "sta": 0.1
+    },
+    "lvl": {
+     "agi": 1.0,
+     "ap": 0.55,
+     "armor": 0.03,
+     "critRating": 0.8,
+     "dps": 4.0,
+     "haste": 0.8,
+     "hitRating": 0.84,
+     "int": 0.2,
+     "rap": 0.45,
+     "sta": 0.8
+    },
+    "pvp": {
+     "agi": 1.0,
+     "ap": 0.45,
+     "armor": 0.02,
+     "critRating": 0.8,
+     "dps": 3.5,
+     "haste": 0.6,
+     "hitRating": 1.0,
+     "int": 0.35,
+     "rap": 0.4,
+     "sta": 0.8
+    }
+   },
+   "marksmanship": {
+    "foreverdb": "hunter/marksmanship",
+    "role": "Ranged DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 1.0,
+     "ap": 0.34,
+     "critRating": 0.84,
+     "dps": 5.0,
+     "haste": 0.8,
+     "hitRating": 1.18,
+     "int": 0.38,
+     "mp5": 0.04,
+     "rap": 0.34,
+     "sta": 0.1
+    },
+    "lvl": {
+     "agi": 1.0,
+     "ap": 0.34,
+     "armor": 0.03,
+     "critRating": 0.84,
+     "dps": 5.0,
+     "haste": 0.8,
+     "hitRating": 0.826,
+     "int": 0.38,
+     "mp5": 0.024,
+     "rap": 0.34,
+     "sta": 0.8
+    },
+    "pvp": {
+     "agi": 1.0,
+     "ap": 0.45,
+     "armor": 0.02,
+     "critRating": 1.0,
+     "dps": 4.5,
+     "haste": 0.7,
+     "hitRating": 1.1,
+     "int": 0.35,
+     "mp5": 0.028,
+     "rap": 0.45,
+     "sta": 0.75
+    }
+   },
+   "survival": {
+    "foreverdb": "hunter/survival",
+    "role": "Melee DPS",
+    "style": "2h",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 1.0,
+     "ap": 0.55,
+     "critRating": 0.9,
+     "dps": 6.0,
+     "haste": 0.8,
+     "hitRating": 1.2,
+     "int": 0.43,
+     "parryRating": 0.4,
+     "rap": 0.1,
+     "sta": 0.15,
+     "str": 0.2
+    },
+    "lvl": {
+     "agi": 1.0,
+     "ap": 0.55,
+     "armor": 0.03,
+     "critRating": 0.9,
+     "dps": 6.0,
+     "haste": 0.8,
+     "hitRating": 0.84,
+     "int": 0.43,
+     "parryRating": 0.4,
+     "rap": 0.1,
+     "sta": 0.8,
+     "str": 0.2
+    },
+    "pvp": {
+     "agi": 1.0,
+     "ap": 0.6,
+     "armor": 0.03,
+     "critRating": 0.9,
+     "dodgeRating": 0.5,
+     "dps": 3.5,
+     "haste": 0.6,
+     "hitRating": 1.1,
+     "int": 0.25,
+     "parryRating": 0.5,
+     "rap": 0.25,
+     "sta": 0.9,
+     "str": 0.1
+    }
+   }
+  },
+  "ROGUE": {
+   "assassination": {
+    "foreverdb": "rogue/assassination",
+    "role": "Melee DPS",
+    "style": "dw",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 1.0,
+     "ap": 0.5,
+     "critRating": 1.0,
+     "dps": 3.0,
+     "expertise": 1.0,
+     "haste": 0.8,
+     "hitRating": 1.4,
+     "sta": 0.1,
+     "str": 0.55
+    },
+    "lvl": {
+     "agi": 1.0,
+     "ap": 0.5,
+     "armor": 0.02,
+     "critRating": 1.0,
+     "dps": 3.0,
+     "expertise": 0.7,
+     "haste": 0.8,
+     "hitRating": 0.98,
+     "sta": 0.8,
+     "str": 0.55
+    },
+    "pvp": {
+     "agi": 1.0,
+     "ap": 0.45,
+     "armor": 0.03,
+     "critRating": 1.0,
+     "dodgeRating": 0.3,
+     "dps": 3.0,
+     "expertise": 0.8,
+     "haste": 0.6,
+     "hitRating": 1.1,
+     "sta": 0.9,
+     "str": 0.5
+    }
+   },
+   "combat": {
+    "foreverdb": "rogue/combat",
+    "role": "Melee DPS",
+    "style": "dw",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 1.0,
+     "ap": 0.5,
+     "critRating": 0.9,
+     "dps": 3.5,
+     "expertise": 1.1,
+     "haste": 0.9,
+     "hitRating": 1.5,
+     "sta": 0.1,
+     "str": 0.55
+    },
+    "lvl": {
+     "agi": 1.0,
+     "ap": 0.5,
+     "armor": 0.02,
+     "critRating": 0.9,
+     "dps": 3.5,
+     "expertise": 0.77,
+     "haste": 0.9,
+     "hitRating": 1.05,
+     "sta": 0.8,
+     "str": 0.55
+    },
+    "pvp": {
+     "agi": 1.0,
+     "ap": 0.45,
+     "armor": 0.04,
+     "critRating": 0.9,
+     "dodgeRating": 0.5,
+     "dps": 3.5,
+     "expertise": 0.9,
+     "haste": 0.6,
+     "hitRating": 1.2,
+     "parryRating": 0.2,
+     "sta": 0.9,
+     "str": 0.5
+    }
+   },
+   "subtlety": {
+    "foreverdb": "rogue/subtlety",
+    "role": "Melee DPS",
+    "style": "dw",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 1.0,
+     "ap": 0.55,
+     "critRating": 0.8,
+     "dps": 3.0,
+     "expertise": 0.9,
+     "haste": 0.7,
+     "hitRating": 1.2,
+     "sta": 0.25,
+     "str": 0.55
+    },
+    "lvl": {
+     "agi": 1.0,
+     "ap": 0.55,
+     "armor": 0.02,
+     "critRating": 0.8,
+     "dps": 3.0,
+     "expertise": 0.63,
+     "haste": 0.7,
+     "hitRating": 0.84,
+     "sta": 0.8,
+     "str": 0.55
+    },
+    "pvp": {
+     "agi": 1.0,
+     "ap": 0.5,
+     "armor": 0.04,
+     "critRating": 0.9,
+     "dodgeRating": 0.4,
+     "dps": 3.0,
+     "expertise": 0.7,
+     "haste": 0.5,
+     "hitRating": 1.0,
+     "sta": 1.0,
+     "str": 0.5
+    }
+   }
+  },
+  "PRIEST": {
+   "discipline": {
+    "foreverdb": "priest/discipline",
+    "role": "Healer",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.5,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "heal": 1.0,
+     "int": 0.6,
+     "mp5": 1.8,
+     "spi": 0.45,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.5,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "heal": 0.5,
+     "int": 0.6,
+     "mp5": 1.08,
+     "spi": 0.27,
+     "sta": 0.8,
+     "wand": 1.5
+    },
+    "pvp": {
+     "armor": 0.03,
+     "critRating": 0.4,
+     "dmgheal": 1.0,
+     "haste": 0.5,
+     "heal": 0.9,
+     "int": 0.7,
+     "mp5": 1.2,
+     "sp": 0.3,
+     "spi": 0.3,
+     "sta": 1.0
+    }
+   },
+   "holy": {
+    "foreverdb": "priest/holy",
+    "role": "Healer",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.5,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "heal": 1.0,
+     "int": 0.5,
+     "mp5": 1.8,
+     "spi": 0.55,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.5,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "heal": 0.5,
+     "int": 0.5,
+     "mp5": 1.08,
+     "spi": 0.33,
+     "sta": 0.8,
+     "wand": 1.5
+    },
+    "pvp": {
+     "armor": 0.03,
+     "critRating": 0.4,
+     "dmgheal": 1.0,
+     "haste": 0.5,
+     "heal": 1.0,
+     "int": 0.7,
+     "mp5": 1.2,
+     "sp": 0.2,
+     "spi": 0.35,
+     "sta": 1.0
+    }
+   },
+   "shadow": {
+    "foreverdb": "priest/shadow",
+    "role": "Caster DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.5,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 1.2,
+     "int": 0.3,
+     "sp": 1.0,
+     "spShadow": 1.0,
+     "spellPen": 0.6,
+     "spi": 0.2,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.5,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 0.84,
+     "int": 0.3,
+     "sp": 1.0,
+     "spShadow": 1.0,
+     "spellPen": 0.6,
+     "spi": 0.12,
+     "sta": 0.8,
+     "wand": 1.5
+    },
+    "pvp": {
+     "armor": 0.03,
+     "critRating": 0.6,
+     "dmgheal": 1.0,
+     "haste": 0.6,
+     "hitRating": 0.8,
+     "int": 0.5,
+     "sp": 1.0,
+     "spShadow": 1.0,
+     "spellPen": 0.4,
+     "spi": 0.2,
+     "sta": 1.0
+    }
+   }
+  },
+  "SHAMAN": {
+   "elemental": {
+    "foreverdb": "shaman/elemental",
+    "role": "Caster DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.8,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 1.2,
+     "int": 0.4,
+     "mp5": 1.4,
+     "sp": 1.0,
+     "spFire": 0.35,
+     "spNature": 0.65,
+     "spi": 0.1,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.03,
+     "critRating": 0.8,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 0.84,
+     "int": 0.4,
+     "mp5": 0.84,
+     "sp": 1.0,
+     "spFire": 0.35,
+     "spNature": 0.65,
+     "spi": 0.06,
+     "sta": 0.8
+    },
+    "pvp": {
+     "armor": 0.01,
+     "critRating": 1.0,
+     "dmgheal": 1.0,
+     "haste": 0.6,
+     "hitRating": 1.0,
+     "int": 0.5,
+     "mp5": 1.0,
+     "sp": 1.0,
+     "spFire": 0.3,
+     "spNature": 0.6,
+     "spi": 0.1,
+     "sta": 1.1
+    }
+   },
+   "enhancement": {
+    "foreverdb": "shaman/enhancement",
+    "role": "Melee DPS",
+    "style": "2h",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 0.65,
+     "ap": 0.5,
+     "critRating": 1.0,
+     "dmgheal": 0.2,
+     "dps": 8.0,
+     "haste": 0.9,
+     "hitRating": 1.3,
+     "int": 0.25,
+     "sta": 0.1,
+     "str": 1.0
+    },
+    "lvl": {
+     "agi": 0.65,
+     "ap": 0.5,
+     "armor": 0.03,
+     "critRating": 1.0,
+     "dmgheal": 0.2,
+     "dps": 8.0,
+     "haste": 0.9,
+     "hitRating": 0.91,
+     "int": 0.25,
+     "sta": 0.8,
+     "str": 1.0
+    },
+    "pvp": {
+     "agi": 0.7,
+     "ap": 0.5,
+     "armor": 0.01,
+     "critRating": 1.0,
+     "dmgheal": 0.1,
+     "dps": 8.0,
+     "haste": 0.8,
+     "hitRating": 1.1,
+     "int": 0.3,
+     "sta": 1.0,
+     "stat125": 0.3,
+     "str": 1.0
+    }
+   },
+   "restoration": {
+    "foreverdb": "shaman/restoration",
+    "role": "Healer",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.5,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "heal": 1.0,
+     "int": 0.55,
+     "mp5": 2.0,
+     "spi": 0.2,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.03,
+     "critRating": 0.5,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "heal": 0.5,
+     "int": 0.55,
+     "mp5": 1.2,
+     "spi": 0.12,
+     "sta": 0.8
+    },
+    "pvp": {
+     "armor": 0.01,
+     "critRating": 0.4,
+     "dmgheal": 1.0,
+     "haste": 0.6,
+     "heal": 1.0,
+     "hitRating": 0.2,
+     "int": 0.6,
+     "mp5": 1.6,
+     "spi": 0.2,
+     "sta": 1.1
+    }
+   }
+  },
+  "MAGE": {
+   "arcane": {
+    "foreverdb": "mage/arcane",
+    "role": "Caster DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.8,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 1.1,
+     "int": 0.5,
+     "mp5": 1.2,
+     "sp": 1.0,
+     "spArcane": 0.8,
+     "spi": 0.3,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.8,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 0.77,
+     "int": 0.5,
+     "mp5": 0.72,
+     "sp": 1.0,
+     "spArcane": 0.8,
+     "spi": 0.18,
+     "sta": 0.8,
+     "wand": 1.5
+    },
+    "pvp": {
+     "armor": 0.02,
+     "critRating": 0.9,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 0.8,
+     "int": 0.6,
+     "mp5": 0.5,
+     "sp": 1.0,
+     "spArcane": 0.8,
+     "spellPen": 0.4,
+     "spi": 0.2,
+     "sta": 1.0
+    }
+   },
+   "fire": {
+    "foreverdb": "mage/fire",
+    "role": "Caster DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.9,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 1.2,
+     "int": 0.4,
+     "mp5": 1.1,
+     "sp": 1.0,
+     "spFire": 1.0,
+     "spellPen": 0.4,
+     "spi": 0.2,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.9,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 0.84,
+     "int": 0.4,
+     "mp5": 0.66,
+     "sp": 1.0,
+     "spFire": 1.0,
+     "spellPen": 0.4,
+     "spi": 0.12,
+     "sta": 0.8,
+     "wand": 1.5
+    },
+    "pvp": {
+     "armor": 0.02,
+     "critRating": 1.0,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 0.8,
+     "int": 0.5,
+     "mp5": 0.5,
+     "sp": 1.0,
+     "spFire": 0.9,
+     "spellPen": 0.4,
+     "spi": 0.2,
+     "sta": 1.0
+    }
+   },
+   "frost": {
+    "foreverdb": "mage/frost",
+    "role": "Caster DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.8,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 1.1,
+     "int": 0.4,
+     "mp5": 1.1,
+     "sp": 1.0,
+     "spFrost": 1.0,
+     "spi": 0.2,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.8,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 0.77,
+     "int": 0.4,
+     "mp5": 0.66,
+     "sp": 1.0,
+     "spFrost": 1.0,
+     "spi": 0.12,
+     "sta": 0.8,
+     "wand": 1.5
+    },
+    "pvp": {
+     "armor": 0.02,
+     "critRating": 0.8,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "hitRating": 0.9,
+     "int": 0.5,
+     "mp5": 0.5,
+     "sp": 1.0,
+     "spFrost": 0.9,
+     "spellPen": 0.4,
+     "spi": 0.2,
+     "sta": 1.0
+    }
+   }
+  },
+  "WARLOCK": {
+   "affliction": {
+    "foreverdb": "warlock/affliction",
+    "role": "Caster DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.4,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 1.2,
+     "int": 0.3,
+     "sp": 1.0,
+     "spShadow": 1.0,
+     "spellPen": 0.6,
+     "spi": 0.15,
+     "sta": 0.2
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.4,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 0.84,
+     "int": 0.3,
+     "sp": 1.0,
+     "spShadow": 1.0,
+     "spellPen": 0.6,
+     "spi": 0.09,
+     "sta": 0.8,
+     "wand": 1.5
+    },
+    "pvp": {
+     "armor": 0.02,
+     "critRating": 0.35,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 0.9,
+     "hp5": 0.3,
+     "int": 0.45,
+     "sp": 1.0,
+     "spShadow": 0.9,
+     "spellPen": 0.3,
+     "spi": 0.3,
+     "sta": 1.1
+    }
+   },
+   "demonology": {
+    "foreverdb": "warlock/demonology",
+    "role": "Caster DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.7,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 1.2,
+     "int": 0.3,
+     "sp": 1.0,
+     "spFire": 0.15,
+     "spShadow": 0.85,
+     "spi": 0.1,
+     "sta": 0.3
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.7,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 0.84,
+     "int": 0.3,
+     "sp": 1.0,
+     "spFire": 0.15,
+     "spShadow": 0.85,
+     "spi": 0.06,
+     "sta": 0.8,
+     "wand": 1.5
+    },
+    "pvp": {
+     "armor": 0.03,
+     "critRating": 0.3,
+     "dmgheal": 0.9,
+     "haste": 0.8,
+     "hitRating": 0.8,
+     "hp5": 0.35,
+     "int": 0.5,
+     "sp": 0.9,
+     "spFire": 0.15,
+     "spShadow": 0.8,
+     "spellPen": 0.25,
+     "spi": 0.3,
+     "sta": 1.3
+    }
+   },
+   "destruction": {
+    "foreverdb": "warlock/destruction",
+    "role": "Caster DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.9,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 1.2,
+     "int": 0.3,
+     "sp": 1.0,
+     "spFire": 0.9,
+     "spShadow": 0.1,
+     "spellPen": 0.5,
+     "sta": 0.15
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.9,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 0.84,
+     "int": 0.3,
+     "sp": 1.0,
+     "spFire": 0.9,
+     "spShadow": 0.1,
+     "spellPen": 0.5,
+     "sta": 0.8,
+     "wand": 1.5
+    },
+    "pvp": {
+     "armor": 0.02,
+     "critRating": 0.6,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 0.9,
+     "hp5": 0.25,
+     "int": 0.45,
+     "sp": 1.0,
+     "spFire": 0.5,
+     "spShadow": 0.8,
+     "spellPen": 0.3,
+     "spi": 0.25,
+     "sta": 1.0
+    }
+   }
+  },
+  "DRUID": {
+   "balance": {
+    "foreverdb": "druid/balance",
+    "role": "Caster DPS",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.8,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 1.2,
+     "int": 0.4,
+     "mp5": 1.2,
+     "sp": 1.0,
+     "spArcane": 0.6,
+     "spNature": 0.4,
+     "spi": 0.2,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.8,
+     "dmgheal": 1.0,
+     "haste": 0.9,
+     "hitRating": 0.84,
+     "int": 0.4,
+     "mp5": 0.72,
+     "sp": 1.0,
+     "spArcane": 0.6,
+     "spNature": 0.4,
+     "spi": 0.12,
+     "sta": 0.8
+    },
+    "pvp": {
+     "armor": 0.02,
+     "critRating": 0.9,
+     "dmgheal": 1.0,
+     "haste": 0.8,
+     "hitRating": 0.8,
+     "int": 0.6,
+     "mp5": 0.8,
+     "sp": 1.0,
+     "spArcane": 0.6,
+     "spNature": 0.4,
+     "spi": 0.1,
+     "sta": 1.0
+    }
+   },
+   "feral": {
+    "foreverdb": "druid/feral",
+    "role": "Tank",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "agi": 0.9,
+     "ap": 0.3,
+     "armor": 0.15,
+     "critRating": 0.4,
+     "defense": 1.2,
+     "dodgeRating": 1.0,
+     "expertise": 0.7,
+     "hitRating": 0.8,
+     "sta": 1.0,
+     "stat50": 0.15,
+     "str": 0.5
+    },
+    "lvl": {
+     "agi": 0.9,
+     "ap": 0.3,
+     "armor": 0.15,
+     "critRating": 0.4,
+     "defense": 1.2,
+     "dodgeRating": 1.0,
+     "expertise": 0.49,
+     "hitRating": 0.56,
+     "sta": 1.0,
+     "stat50": 0.15,
+     "str": 0.5
+    },
+    "pvp": {
+     "agi": 1.0,
+     "ap": 0.5,
+     "armor": 0.1,
+     "critRating": 0.8,
+     "defense": 0.3,
+     "dodgeRating": 0.5,
+     "expertise": 0.4,
+     "hitRating": 0.7,
+     "sta": 1.1,
+     "stat50": 0.1,
+     "str": 0.6
+    }
+   },
+   "restoration": {
+    "foreverdb": "druid/restoration",
+    "role": "Healer",
+    "style": "any",
+    "pvp_from": "guide",
+    "pve": {
+     "critRating": 0.4,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "heal": 1.0,
+     "int": 0.5,
+     "mp5": 1.8,
+     "spi": 0.5,
+     "sta": 0.1
+    },
+    "lvl": {
+     "armor": 0.02,
+     "critRating": 0.4,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "heal": 0.5,
+     "int": 0.5,
+     "mp5": 1.08,
+     "spi": 0.3,
+     "sta": 0.8
+    },
+    "pvp": {
+     "armor": 0.02,
+     "critRating": 0.4,
+     "dmgheal": 1.0,
+     "haste": 0.7,
+     "heal": 1.0,
+     "int": 0.6,
+     "mp5": 1.2,
+     "spi": 0.3,
+     "sta": 1.0
+    }
+   }
+  }
+ },
+ "sets": {
+  "6473": {
+   "ap": 2.0,
+   "int": 2.0
+  },
+  "10410": {
+   "ap": 2.0,
+   "int": 2.0
+  },
+  "10411": {
+   "ap": 2.0,
+   "int": 2.0
+  },
+  "10412": {
+   "ap": 2.0,
+   "int": 2.0
+  },
+  "10413": {
+   "ap": 2.0,
+   "int": 2.0
+  },
+  "11726": {
+   "ap": 3.33,
+   "critRating": 0.17
+  },
+  "11728": {
+   "ap": 3.33,
+   "critRating": 0.17
+  },
+  "11729": {
+   "ap": 3.33,
+   "critRating": 0.17
+  },
+  "11730": {
+   "ap": 3.33,
+   "critRating": 0.17
+  },
+  "11731": {
+   "ap": 3.33,
+   "critRating": 0.17
+  },
+  "12939": {
+   "ap": 25.0
+  },
+  "12940": {
+   "ap": 25.0
+  },
+  "13388": {
+   "dmgheal": 4.6,
+   "hitRating": 0.2
+  },
+  "13389": {
+   "dmgheal": 4.6,
+   "hitRating": 0.2
+  },
+  "13390": {
+   "dmgheal": 4.6,
+   "hitRating": 0.2
+  },
+  "13391": {
+   "dmgheal": 4.6,
+   "hitRating": 0.2
+  },
+  "13392": {
+   "dmgheal": 4.6,
+   "hitRating": 0.2
+  },
+  "14612": {
+   "ap": 2.0
+  },
+  "14614": {
+   "ap": 2.0
+  },
+  "14615": {
+   "ap": 2.0
+  },
+  "14616": {
+   "ap": 2.0
+  },
+  "14620": {
+   "defense": 0.6
+  },
+  "14621": {
+   "defense": 0.6
+  },
+  "14622": {
+   "defense": 0.6
+  },
+  "14623": {
+   "defense": 0.6
+  },
+  "14624": {
+   "defense": 0.6
+  },
+  "14626": {
+   "dmgheal": 4.6
+  },
+  "14629": {
+   "dmgheal": 4.6
+  },
+  "14631": {
+   "dmgheal": 4.6
+  },
+  "14632": {
+   "dmgheal": 4.6
+  },
+  "14633": {
+   "dmgheal": 4.6
+  },
+  "14636": {
+   "ap": 2.0,
+   "hitRating": 0.4
+  },
+  "14637": {
+   "ap": 2.0,
+   "hitRating": 0.4
+  },
+  "14638": {
+   "ap": 2.0,
+   "hitRating": 0.4
+  },
+  "14640": {
+   "ap": 2.0,
+   "hitRating": 0.4
+  },
+  "14641": {
+   "ap": 2.0,
+   "hitRating": 0.4
+  },
+  "15045": {
+   "mp5": 1.0
+  },
+  "15046": {
+   "mp5": 1.0
+  },
+  "15048": {
+   "dmgheal": 9.33
+  },
+  "15049": {
+   "dmgheal": 9.33
+  },
+  "15050": {
+   "hitRating": 0.33
+  },
+  "15051": {
+   "hitRating": 0.33
+  },
+  "15052": {
+   "hitRating": 0.33
+  },
+  "15062": {
+   "hitRating": 1.0
+  },
+  "15063": {
+   "hitRating": 1.0
+  },
+  "15066": {
+   "dmgheal": 10.0
+  },
+  "15067": {
+   "dmgheal": 10.0
+  },
+  "20041": {
+   "sta": 1.67
+  },
+  "20042": {
+   "sta": 1.67
+  },
+  "20043": {
+   "sta": 1.67
+  },
+  "20044": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20045": {
+   "sta": 1.67
+  },
+  "20046": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20047": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20048": {
+   "sta": 1.67
+  },
+  "20049": {
+   "sta": 1.67
+  },
+  "20050": {
+   "sta": 1.67
+  },
+  "20051": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20052": {
+   "sta": 1.67
+  },
+  "20053": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20054": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20055": {
+   "sta": 1.67
+  },
+  "20057": {
+   "sta": 1.67
+  },
+  "20058": {
+   "sta": 1.67
+  },
+  "20059": {
+   "sta": 1.67
+  },
+  "20060": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20061": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20295": {
+   "dmgheal": 9.33
+  },
+  "20296": {
+   "mp5": 1.0
+  },
+  "22301": {
+   "armor": 25.0,
+   "dmgheal": 2.88
+  },
+  "22302": {
+   "armor": 25.0,
+   "dmgheal": 2.88
+  },
+  "22303": {
+   "armor": 25.0,
+   "dmgheal": 2.88
+  },
+  "22304": {
+   "armor": 25.0,
+   "dmgheal": 2.88
+  },
+  "22305": {
+   "armor": 25.0,
+   "dmgheal": 2.88
+  },
+  "22306": {
+   "armor": 25.0,
+   "dmgheal": 2.88
+  },
+  "22311": {
+   "armor": 25.0,
+   "dmgheal": 2.88
+  },
+  "22313": {
+   "armor": 25.0,
+   "dmgheal": 2.88
+  },
+  "22867": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22876": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22887": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23259": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23260": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23272": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23273": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23274": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23275": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23276": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23277": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23278": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "23282": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23283": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23284": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23285": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23286": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23287": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23292": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "23293": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "23296": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23297": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23298": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23299": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23300": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23301": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23306": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "23307": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "23310": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23311": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23312": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23313": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23314": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23315": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "220840": {
+   "heal": 5.5,
+   "sta": 2.5
+  },
+  "220846": {
+   "dmgheal": 3.0,
+   "sta": 2.5
+  },
+  "220860": {
+   "ap": 5.0,
+   "sta": 2.5
+  },
+  "227139": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "227152": {
+   "heal": 7.33,
+   "sta": 3.33
+  },
+  "227170": {
+   "heal": 7.33,
+   "sta": 3.33
+  },
+  "227187": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "227198": {
+   "heal": 7.33,
+   "sta": 3.33
+  },
+  "231569": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "231578": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "231617": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "231623": {
+   "sta": 3.33
+  },
+  "231650": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "231656": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "231661": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "231676": {
+   "sta": 3.33
+  },
+  "231694": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "231700": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "271207": {
+   "int": 2.0
+  },
+  "271214": {
+   "int": 2.0
+  },
+  "272453": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272455": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272457": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272458": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272459": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272462": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272464": {
+   "sta": 3.33
+  },
+  "272467": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272469": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272470": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272471": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272472": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272473": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272474": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272475": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272476": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272477": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272478": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272479": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272480": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272481": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272484": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272485": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272486": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272487": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272488": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272489": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272490": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272491": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272492": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272495": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272496": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272548": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272549": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272552": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272553": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272562": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272563": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272564": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272565": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272568": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272569": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272606": {
+   "sta": 3.33
+  },
+  "272608": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272609": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272611": {
+   "sta": 3.33
+  },
+  "272614": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272617": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272619": {
+   "sta": 3.33
+  },
+  "272625": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272626": {
+   "sta": 3.33
+  },
+  "272627": {
+   "sta": 3.33
+  },
+  "272630": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272634": {
+   "sta": 3.33
+  },
+  "272636": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272637": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272640": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272641": {
+   "sta": 3.33
+  },
+  "272642": {
+   "sta": 3.33
+  },
+  "272643": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272647": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272648": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272649": {
+   "sta": 3.33
+  },
+  "272650": {
+   "sta": 3.33
+  },
+  "272656": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272657": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272663": {
+   "sta": 3.33
+  },
+  "272669": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272670": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272671": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272677": {
+   "sta": 3.33
+  },
+  "272678": {
+   "sta": 3.33
+  },
+  "272680": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272701": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272703": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272704": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272705": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272708": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272709": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272713": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272715": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272716": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272717": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272718": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272719": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272722": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272723": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272724": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272725": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272726": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272727": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272728": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272729": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272731": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272732": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272733": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272734": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272735": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272736": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272737": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272738": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272739": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272740": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272741": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272742": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272743": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272744": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272745": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272746": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272750": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272751": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272752": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272753": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272755": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272757": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272758": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272759": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272760": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272761": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272762": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272763": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272764": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272765": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272766": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272768": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272771": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272772": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272774": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272775": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272776": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272777": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272780": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272781": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272782": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272783": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272784": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272785": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272786": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272787": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272788": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272789": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272792": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272793": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272794": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272796": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272800": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272801": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272802": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272803": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272804": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272805": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272807": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272808": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272810": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272812": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272814": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272815": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272816": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272817": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272818": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272819": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272820": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272821": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272823": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272824": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272852": {
+   "sta": 3.33
+  },
+  "272853": {
+   "sta": 3.33
+  },
+  "272854": {
+   "sta": 3.33
+  },
+  "272855": {
+   "sta": 3.33
+  },
+  "273044": {
+   "spi": 2.0
+  },
+  "273051": {
+   "spi": 2.0
+  },
+  "273329": {
+   "sta": 3.33
+  },
+  "273330": {
+   "sta": 3.33
+  },
+  "273331": {
+   "sta": 3.33
+  },
+  "273332": {
+   "sta": 3.33
+  },
+  "273333": {
+   "sta": 3.33
+  },
+  "273334": {
+   "sta": 3.33
+  },
+  "273355": {
+   "sta": 3.33
+  },
+  "273356": {
+   "sta": 3.33
+  },
+  "273357": {
+   "sta": 3.33
+  },
+  "273358": {
+   "sta": 3.33
+  },
+  "273359": {
+   "sta": 3.33
+  },
+  "273360": {
+   "sta": 3.33
+  },
+  "273363": {
+   "sta": 3.33
+  },
+  "273365": {
+   "sta": 3.33
+  },
+  "273368": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273370": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273371": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273373": {
+   "sta": 3.33
+  },
+  "273374": {
+   "sta": 3.33
+  },
+  "273375": {
+   "sta": 3.33
+  },
+  "273380": {
+   "sta": 3.33
+  },
+  "273382": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273383": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273384": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273385": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273386": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273387": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273391": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273392": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273393": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273394": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273395": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273396": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273399": {
+   "sta": 3.33
+  },
+  "273400": {
+   "sta": 3.33
+  },
+  "273401": {
+   "sta": 3.33
+  },
+  "273402": {
+   "sta": 3.33
+  },
+  "273403": {
+   "sta": 3.33
+  },
+  "273404": {
+   "sta": 3.33
+  },
+  "273421": {
+   "sta": 3.33
+  },
+  "273422": {
+   "sta": 3.33
+  },
+  "273423": {
+   "sta": 3.33
+  },
+  "273424": {
+   "sta": 3.33
+  },
+  "273426": {
+   "sta": 3.33
+  },
+  "273427": {
+   "sta": 3.33
+  },
+  "273443": {
+   "sta": 3.33
+  },
+  "273445": {
+   "sta": 3.33
+  },
+  "273447": {
+   "sta": 3.33
+  },
+  "273448": {
+   "sta": 3.33
+  },
+  "274176": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274177": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274178": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274179": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274180": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274181": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274183": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274184": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274187": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274188": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274189": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274190": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274192": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274193": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274194": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274195": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274196": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "274197": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274198": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274199": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274202": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274203": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274204": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274205": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274206": {
+   "sta": 3.33
+  },
+  "274207": {
+   "sta": 3.33
+  },
+  "274210": {
+   "sta": 3.33
+  },
+  "274211": {
+   "sta": 3.33
+  },
+  "274212": {
+   "sta": 3.33
+  },
+  "274213": {
+   "sta": 3.33
+  },
+  "274217": {
+   "sta": 3.33
+  },
+  "274218": {
+   "sta": 3.33
+  },
+  "274219": {
+   "sta": 3.33
+  },
+  "274220": {
+   "sta": 3.33
+  },
+  "274221": {
+   "sta": 3.33
+  },
+  "274222": {
+   "sta": 3.33
+  },
+  "274226": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274227": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274230": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274231": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274232": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274233": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274244": {
+   "sta": 3.33
+  },
+  "274245": {
+   "sta": 3.33
+  },
+  "274246": {
+   "sta": 3.33
+  },
+  "274247": {
+   "sta": 3.33
+  },
+  "274256": {
+   "sta": 3.33
+  },
+  "274258": {
+   "sta": 3.33
+  },
+  "275005": {
+   "armor": 20.0,
+   "defense": 1.0
+  },
+  "275006": {
+   "armor": 20.0,
+   "defense": 1.0
+  },
+  "276741": {
+   "sta": 3.0
+  },
+  "276746": {
+   "sta": 3.0
+  },
+  "277117": {
+   "ap": 3.33,
+   "critRating": 0.17
+  },
+  "286978": {
+   "int": 2.0
+  },
+  "286979": {
+   "int": 2.0
+  },
+  "286980": {
+   "int": 2.0
+  },
+  "286987": {
+   "spi": 2.0
+  },
+  "286988": {
+   "spi": 2.0
+  },
+  "286989": {
+   "spi": 2.0
+  },
+  "287012": {
+   "armor": 20.0,
+   "defense": 1.0
+  },
+  "287013": {
+   "armor": 20.0,
+   "defense": 1.0
+  },
+  "287014": {
+   "armor": 20.0,
+   "defense": 1.0
+  },
+  "287019": {
+   "sta": 3.0
+  },
+  "287020": {
+   "sta": 3.0
+  },
+  "287021": {
+   "sta": 3.0
+  }
+ }
+}

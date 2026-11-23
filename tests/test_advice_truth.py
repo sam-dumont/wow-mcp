@@ -249,7 +249,7 @@ def test_each_weapon_setup_comes_on_its_own():
     worn = sum((s["current"] or {}).get("score") or 0 for s in a["slots"] if s["slot"] in (16, 17))
     weapon_ups = [u for u in a["upgrades_all"] if u["slot"] in (16, 17) and u["now"]]
     assert max(u["gain"] for u in weapon_ups) == pytest.approx(best - worn, abs=0.05)
-    assert a["band"]["note"]  # where the weights come from travels with the advice
+    assert a["source"]["url"] == "https://foreverdb.net"  # where the weights come from travels with the advice
 
 
 # ---------------------------------------------------------------- 4. the rest of the plan

@@ -346,7 +346,7 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "first_t": "earliest of turnin_t, loot_t and craft_t (null when no record names the item)",
         "first_level": "the character's level at first_t",
         "scored_for": "the spec the gear advice scores for (the player's WEIGHTS setting, else the talents)",
-        "score": "the item's score for that spec (Polestar's points; NULL when the item isn't known)",
+        "score": "the item's score for that spec (ForeverDB.net's weights; NULL when the item isn't known)",
         "bis_pct": "the item's score as a percent of the best the slot can hold at this level for that spec "
                    "(100: the best; NULL when there is nothing to measure against)",
         "fit": "how the item fits that spec: yes (built for it), any (fits every spec), spec (built for another "
@@ -415,11 +415,11 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
                         "purchases, training, flights and mail out",
         "dings": "level-ups strictly between the two snapshots",
         "online_s": "online time (timeline) between the two"}),
-    "upgrade_candidates": ("Every gear upgrade the player's own gear advice finds (Polestar's scoring with the "
-                           "weights the player chose, items within 3 levels), one row per item and source. Facts "
-                           "of the advice, no ranking: join on instance or zone to compare places.", {
+    "upgrade_candidates": ("Every gear upgrade the player's own gear advice finds (ForeverDB.net's weights for "
+                           "the spec the player chose, Leveling mode, items within 3 levels), one row per item and "
+                           "source. Facts of the advice, no ranking: join on instance or zone to compare places.", {
         "item_id": "item id", "name": "item name", "quality": "0 poor .. 5 legendary",
-        "slot_name": "the slot it would go in", "gain": "score gain over what is worn (Polestar's points)",
+        "slot_name": "the slot it would go in", "gain": "score gain over what is worn (ForeverDB.net's weights)",
         "gain_share_pct": "the gain as a share of the whole worn gear's score, percent",
         "req_level": "level the item (or its source) needs", "now": "1 when wearable at the current level",
         "fills_empty": "1 when the slot is empty now", "with_item_id": "for a weapon: the item it is paired with",

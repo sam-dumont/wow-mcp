@@ -59,6 +59,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from wowstats import bar, eventstore, guard, httpserve, insights, itemcard, itemfacts, model3d, prebuilt, redact
+from wowstats import gear as gearmod
 from wowstats.stores import SourceError, Store, env_account, iso, parse_t, public_error
 from wowstats.views import ConfigError, Views, parse_weights, settings_from_env  # noqa: F401 - parse_weights: ui.parse_weights
 
@@ -488,7 +489,8 @@ class App:
         """The worn slots' standing for the public doll; none when the gear
         advice can't be read (a store down): the card shows without badges."""
         try:
-            advice = self.cached(f"gear:{name}:", lambda: self.views.gear(name, None))
+            mode = gearmod.DEFAULT_MODE
+            advice = self.cached(f"gear:{name}::{mode}", lambda: self.views.gear(name, None, mode))
         except SourceError:
             return []
         return redact.worn_standing(advice)
@@ -590,9 +592,10 @@ class App:
 
         return self.cached(f"dungeons:{name}", build)
 
-    def gear(self, name: str, spec: str | None) -> dict:
+    def gear(self, name: str, spec: str | None, mode: str | None = None) -> dict:
         self._full_only()
-        return self.cached(f"gear:{name}:{spec or ''}", lambda: self.views.gear(name, spec))
+        mode = gearmod.mode_key(mode)
+        return self.cached(f"gear:{name}:{spec or ''}:{mode}", lambda: self.views.gear(name, spec, mode))
 
     def meta(self, name: str) -> dict:
         """The class's meta and the character's adherence (wowstats.classmeta),
@@ -1163,13 +1166,16 @@ def make_handler(root: App, tenancy=None):
                 if path == "/api/gear" and full:
                     name = qs.get("name", [""])[0]
                     spec = qs.get("spec", [""])[0].strip().lower() or None
+                    mode = qs.get("mode", [""])[0].strip().lower() or None
                     if not CHAR_RE.match(name):
                         return self.json(400, {"error": "bad character name"})
                     if spec is not None and not SPEC_RE.match(spec):
                         return self.json(400, {"error": "bad spec"})
+                    if mode is not None and mode not in gearmod.MODE_NAMES:
+                        return self.json(400, {"error": "bad mode: lvl, pvp or pve"})
                     if not app.known(name):
                         return self.json(404, {"error": f"no events for {name}"})
-                    return self.json(200, app.gear(name, spec))
+                    return self.json(200, app.gear(name, spec, mode))
                 if path in ("/api/overview", "/api/timeline", "/api/snapshot", "/api/people", "/api/loot",
                             "/api/dungeons", "/api/meta", "/api/talents"):
                     name = qs.get("name", [""])[0]

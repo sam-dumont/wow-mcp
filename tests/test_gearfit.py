@@ -21,7 +21,7 @@ def ref():
 
 
 def w(ref, cls, key, level):
-    return gearfit.spec_weights(ref, cls, key, level)
+    return gearfit.spec_weights(ref, cls, key)
 
 
 def score(ref, stats, cls, key, level, inv=7):
@@ -34,70 +34,57 @@ def label(ref, item_id, cls, key, level, how="picked", sources=None):
 
 
 # --- the stats each spec can use ----------------------------------------------
-
-
-@pytest.mark.parametrize("cls,key,level,stat", [
-    ("WARRIOR", "fury", 30, "spi"), ("WARRIOR", "arms", 60, "spi"), ("ROGUE", "combat", 45, "spi"),
-    ("WARRIOR", "fury", 30, "int"), ("MAGE", "frost", 30, "heal"), ("ROGUE", "combat", 30, "heal"),
-])
-def test_a_stat_the_class_cant_use_is_worth_nothing(ref, cls, key, level, stat):
-    """Level 1, against the class: zero at every level."""
-    assert w(ref, cls, key, level).get(stat, 0) == 0
+#
+# Who an item is built for reads the class guides' (PvE) weights from
+# ForeverDB.net: the same at every level.
 
 
 @pytest.mark.parametrize("cls,key,stat", [
-    ("PRIEST", "shadow", "heal"), ("DRUID", "balance", "heal"), ("PALADIN", "retribution", "heal"),
-    ("SHAMAN", "elemental", "ap"), ("DRUID", "restoration", "ap"),
+    ("WARRIOR", "fury", "spi"), ("WARRIOR", "arms", "spi"), ("ROGUE", "combat", "spi"),
+    ("WARRIOR", "fury", "int"), ("MAGE", "frost", "heal"), ("ROGUE", "combat", "heal"),
+    ("PRIEST", "shadow", "heal"), ("DRUID", "restoration", "ap"),
 ])
-def test_a_stat_the_class_uses_counts_partly_until_the_31_point_talent(ref, cls, key, stat):
-    """Level 2, the class's but not the spec's: a generalist's share before
-    the spec's 31-point talent (40 at the earliest), the spec's own after."""
-    at30, at50 = w(ref, cls, key, 30).get(stat, 0), w(ref, cls, key, 50).get(stat, 0)
-    assert at30 > at50 >= 0 and at30 >= 0.24
-    assert at50 == (gear.weights_for(ref, cls, key, 50)[0].get(stat) or 0)
-    # Talent-aware: at 45 with 20 points in the tree it hasn't the talent yet.
-    raw45 = gear.weights_for(ref, cls, key, 45)[0]
-    assert gearfit.model_weights(ref, raw45, cls, key, 45, points=20)[stat] > \
-        gearfit.model_weights(ref, raw45, cls, key, 45, points=31).get(stat, 0)
+def test_a_stat_the_spec_cant_use_is_worth_nothing(ref, cls, key, stat):
+    assert w(ref, cls, key, 30).get(stat, 0) == 0
 
 
-@pytest.mark.parametrize("cls,key,level,stat", [
-    ("PRIEST", "holy", 45, "heal"), ("HUNTER", "marksmanship", 45, "rap"), ("PALADIN", "retribution", 45, "ap"),
-    ("HUNTER", "beastmastery", 45, "spi"), ("SHAMAN", "enhancement", 45, "int"), ("DRUID", "feral", 45, "int"),
+@pytest.mark.parametrize("cls,key,stat", [
+    ("PRIEST", "holy", "heal"), ("HUNTER", "marksmanship", "rap"), ("PALADIN", "retribution", "ap"),
+    ("HUNTER", "beastmastery", "agi"), ("SHAMAN", "enhancement", "str"), ("DRUID", "feral", "agi"),
 ])
-def test_a_stat_the_spec_uses_keeps_its_weight(ref, cls, key, level, stat):
-    assert w(ref, cls, key, level)[stat] == gear.weights_for(ref, cls, key, level)[0][stat] > 0
+def test_a_stat_the_spec_uses_keeps_its_weight(ref, cls, key, stat):
+    assert w(ref, cls, key, 45)[stat] == gear.weights_for(ref, cls, key, "pve")[0][stat] > 0
 
 
-def test_healing_power_counts_for_classes_that_heal(ref):
+def test_healing_power_counts_for_healers_only(ref):
     healing = {"heal": 22}
-    assert score(ref, healing, "PRIEST", "holy", 45) > score(ref, healing, "PRIEST", "shadow", 30) \
-        > score(ref, healing, "PRIEST", "shadow", 50) > 0
-    for cls, key in (("MAGE", "frost"), ("WARLOCK", "affliction"), ("WARRIOR", "fury"), ("ROGUE", "combat")):
+    assert score(ref, healing, "PRIEST", "holy", 45) == pytest.approx(22)
+    for cls, key in (("PRIEST", "shadow"), ("MAGE", "frost"), ("WARLOCK", "affliction"), ("WARRIOR", "fury")):
         assert score(ref, healing, cls, key, 30) == 0, (cls, key)
 
 
-def test_damage_and_healing_counts_for_both(ref):
+def test_damage_and_healing_is_one_stat(ref):
+    """"+14 damage and healing" is one line, at the spec's dmgheal weight."""
     both = {"sp": 14, "heal": 14}
-    assert score(ref, both, "MAGE", "frost", 38) == pytest.approx(14 * 1.1)
-    assert score(ref, both, "PRIEST", "holy", 38) == pytest.approx(14 * 0.3 + 14 * 0.7)
-    assert score(ref, both, "PRIEST", "shadow", 50) == pytest.approx(14 * (1.0 + 0.025))
+    assert score(ref, both, "MAGE", "frost", 38) == pytest.approx(14)
+    assert score(ref, both, "PRIEST", "holy", 38) == pytest.approx(14)
+    assert score(ref, both, "PALADIN", "retribution", 38) == pytest.approx(14 * 0.3)
 
 
 def test_school_damage_counts_for_the_schools_a_spec_casts(ref):
     frost = {"spFrost": 19}
-    assert score(ref, frost, "MAGE", "frost", 50) > score(ref, frost, "MAGE", "fire", 50) > 0
-    assert score(ref, frost, "WARLOCK", "affliction", 50) == 0
-    assert score(ref, frost, "PRIEST", "holy", 50) == 0
+    assert score(ref, frost, "MAGE", "frost", 50) == pytest.approx(19)
+    for cls, key in (("MAGE", "fire"), ("WARLOCK", "affliction"), ("PRIEST", "holy")):
+        assert score(ref, frost, cls, key, 50) == 0, (cls, key)
 
 
-def test_the_advice_scores_with_the_model(ref):
-    """A shadow priest at 32 still heals himself: the healing line of a
-    healer's piece counts, at half a holy priest's weight."""
+def test_the_advice_scores_with_the_mode(ref):
+    """The page's scores use the mode's weights (Leveling by default), the
+    fit labels the guide's."""
     a = gear.advise(ref, sheet(), level=32)
-    assert a["weights"]["heal"] == pytest.approx(0.35)
-    u = next(u for u in a["upgrades"] if u["name"] == "Embalmed Shroud")
-    assert u["gain"] > 0 and u["fit"]["for_you"] == "spec"
+    assert a["mode"]["key"] == "lvl" and a["weights"]["sta"] == 0.8
+    pve = gear.advise(ref, sheet(), level=32, mode="pve")
+    assert pve["mode"]["key"] == "pve" and pve["weights"]["sta"] == 0.1
 
 
 # --- who it's built for --------------------------------------------------------
@@ -119,9 +106,6 @@ def test_healer_cloth_for_a_shadow_priest_is_fine_while_levelling(ref):
                                   "In a group, don't roll Need if someone it's made for is there.")
     at50 = label(ref, 9407, "PRIEST", "shadow", 50)
     assert at50["for_you"] == "spec" and at50["label"] == "Not made for your spec: maybe not the best for you"
-    # More of it counts at 30 than at 50.
-    assert gearfit.credit(w(ref, "PRIEST", "shadow", 30), "healonly") > \
-        gearfit.credit(w(ref, "PRIEST", "shadow", 50), "healonly")
     # A warrior: against the class.
     war = label(ref, 9407, "WARRIOR", "fury", 37)
     assert war["for_you"] == "class" and war["factor"] < at30["factor"]
@@ -143,7 +127,7 @@ def test_lower_armour_is_said_and_the_wearers_roll_first(ref):
     f = label(ref, 15064, "HUNTER", "marksmanship", 50)  # Warbear Harness: leather Agility
     assert f["armor"] == {"item": "leather", "best": "mail"}
     assert "Leather: you can wear mail" in f["notes"]
-    assert f["tip"] == "In a group, Feral druids and rogues usually get first pick"
+    assert f["tip"] == "In a group, rogues and Feral druids usually get first pick"
     rogue = label(ref, 15064, "ROGUE", "subtlety", 50)
     assert rogue["for_you"] == "yes" and rogue["tip"] is None and rogue["armor"] is None
 
@@ -167,7 +151,7 @@ def test_an_arms_warrior_wears_a_rogues_agility_piece(ref):
     """Role first: a melee Agility item is built for a warrior too, and the
     tip says who usually rolls first."""
     f = label(ref, 15064, "WARRIOR", "arms", 50)
-    assert f["for_you"] == "yes" and f["tip"] == "In a group, Feral druids and rogues usually get first pick"
+    assert f["for_you"] == "yes" and f["tip"] == "In a group, rogues and Feral druids usually get first pick"
 
 
 def test_stamina_alone_fits_anyone(ref):
@@ -210,21 +194,16 @@ def test_group_drops_for_someone_else_come_after(ref):
 
 
 def test_close_options_rank_the_on_spec_one_first(ref):
-    """Same slot, nearly the same gain: the head piece built for healers
-    gains more for a shadow priest but ranks after the one built for him,
-    and names it as the alternative, with where it comes from."""
+    """A head piece built for healers ranks at 90% of its gain for a shadow
+    priest and names the one built for him as the alternative, with where
+    it comes from; a holy priest gets it at full value."""
     a = gear.advise(ref, sheet(), level=32)
-    ups = a["upgrades"]
-    healer = next(u for u in ups if u["name"] == "Embalmed Shroud")
-    mine = next(u for u in ups if u["name"] == "Electromagnetic Gigaflux Reactivator")
-    assert healer["gain"] > mine["gain"]
-    assert ups.index(mine) < ups.index(healer)
-    assert healer["fit"]["for_you"] == "spec" and mine["fit"]["for_you"] == "yes"
+    healer = next(u for u in a["upgrades"] if u["name"] == "Filigreed Pristine Circlet")
+    assert healer["fit"]["for_you"] == "spec" and healer["value"] == pytest.approx(healer["gain"] * gearfit.OTHER, abs=0.01)
     alt = healer["fit"]["alternative"]
-    assert alt["item_id"] == mine["item_id"] and alt["sources"]
-    # The healer ranks it first, with no alternative to offer.
+    assert alt["name"] == "Filigreed Shadow Circlet" and alt["sources"]
     holy = gear.advise(ref, sheet(), level=32, spec="holy")
-    hu = next(u for u in holy["upgrades"] if u["name"] == "Embalmed Shroud")
+    hu = next(u for u in holy["upgrades"] if u["name"] == "Filigreed Pristine Circlet")
     assert hu["fit"]["for_you"] == "yes" and hu["value"] == hu["gain"]
 
 
@@ -242,10 +221,10 @@ def test_same_gain_different_fit_different_order():
 
 
 def test_the_suggested_dungeon_follows_the_spec(ref):
-    """The same character at 32: Shadow is sent to the City of Dalaran,
-    Holy to Razorfen Kraul, whose drops are built for a healer."""
+    """The same character at 32 on PvE weights: Shadow is sent to the City
+    of Dalaran, Holy to Razorfen Kraul, whose drops are built for a healer."""
     def first(spec):
-        a = gear.advise(ref, sheet(), level=32, spec=spec, every=True)
+        a = gear.advise(ref, sheet(), level=32, spec=spec, every=True, mode="pve")
         return [c["title"] for c in insights.dungeon_claims(32, [(u, {}) for u in a["upgrades_all"] if u["now"]])]
     assert first("shadow")[0] == "City of Dalaran"
     assert first("holy")[0] == "Razorfen Kraul"

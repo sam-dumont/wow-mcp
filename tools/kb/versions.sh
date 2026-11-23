@@ -67,16 +67,15 @@ if [ "$ok" = 1 ] || has client-build; then
   git clone -q --depth 1 --branch "$(tr -d '[:space:]' < tools/polestar-tag)" https://github.com/fitzforge/polestar "$ps" \
     || exit 1
   cloned=1
-  # tests/test_gear_parity.py runs in the gates with it.
+  # Exported for the gates' tests that read a Polestar checkout.
   [ -n "${GITHUB_ENV:-}" ] && printf 'POLESTAR_CHECKOUT=%s\nLUA=%s\n' "$ps" "$lua" >> "$GITHUB_ENV"
 fi
 
 if [ "$ok" = 1 ]; then
   was=$(jq -r .polestar.known data/kb/watch.json)
   # A refusal puts the tree back at the known tag, and the checkout with it:
-  # the gates' test_gear_parity reads POLESTAR_CHECKOUT, and a checkout left
-  # at the refused tag failed it (2026-11-22), which would refuse every other
-  # kind in the PR.
+  # the gates read POLESTAR_CHECKOUT, and a checkout left at the refused tag
+  # failed them (2026-11-22), which would refuse every other kind in the PR.
   back() {
     git reset -q --hard HEAD && git clean -qfd
     rm -rf "$ps" && git clone -q --depth 1 --branch "$was" https://github.com/fitzforge/polestar "$ps"

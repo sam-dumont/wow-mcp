@@ -97,7 +97,7 @@ def check(doc: dict, ref: gm.Reference | None = None) -> dict:
                     out["misses"].append({"class": cls, "spec": key, "item_id": r["item_id"], "level": lv,
                                           "why": "not wearable by the class at that level in our data"})
                     continue
-                w = gearfit.spec_weights(ref, cls, key, lv)
+                w = gearfit.spec_weights(ref, cls, key)
                 f = gearfit.fit(ref, info, cls, key, "picked", lv, w)
                 n += 1
                 scopes.add(r["scope"])
@@ -122,7 +122,7 @@ def check(doc: dict, ref: gm.Reference | None = None) -> dict:
                                             "scopes": sorted(scopes)}
     for t in doc.get("traps") or []:
         info = ref.item(t["item_id"])
-        w = gearfit.spec_weights(ref, t["class"], t["spec"], t["level"])
+        w = gearfit.spec_weights(ref, t["class"], t["spec"])
         f = gearfit.fit(ref, info, t["class"], t["spec"], "picked", t["level"], w)
         # Off-role, mostly wasted, or a lower armour type with the tip that
         # its best wearers roll first.
