@@ -1,0 +1,132 @@
+{
+ "gorvak": {
+  "class_meta": [
+   "build",
+   "spec Arms",
+   "spec Fury",
+   "spec Protection",
+   "spec class"
+  ],
+  "coming_up": [
+   "raids-open-2026-12"
+  ],
+  "effects": [
+   "raids-open-2026-12|1"
+  ],
+  "moves": [
+   "riding|Riding at level #",
+   "upgrade|21244",
+   "upgrade|21331",
+   "upgrade|21332"
+  ],
+  "next_moves": [
+   "#gear",
+   "#up-16",
+   "#up-5",
+   "#up-7"
+  ],
+  "prep": [
+   "raids-open-2026-12|prep 1",
+   "raids-open-2026-12|prep 2",
+   "raids-open-2026-12|quest Dragonkin Menace"
+  ]
+ },
+ "nibbet": {
+  "class_meta": [
+   "build",
+   "spec Discipline",
+   "spec Holy",
+   "spec Shadow"
+  ],
+  "coming_up": [],
+  "effects": [],
+  "moves": [
+   "dungeon|City of Dalaran",
+   "dungeon|Gnomeregan",
+   "riding|Riding at level #",
+   "slow_steps|# guide steps took over # their plan",
+   "upgrade|23169",
+   "upgrade|274152",
+   "upgrade|281635"
+  ],
+  "next_moves": [
+   "#advice",
+   "#gear",
+   "#levels",
+   "#up-11",
+   "#up-13",
+   "#up-2"
+  ],
+  "prep": []
+ },
+ "nibbet-bare": {
+  "class_meta": [
+   "build",
+   "spec Discipline",
+   "spec Holy",
+   "spec Shadow"
+  ],
+  "coming_up": [],
+  "effects": [],
+  "moves": [
+   "dungeon|City of Dalaran",
+   "dungeon|Gnomeregan",
+   "riding|Riding at level #",
+   "upgrade|7709",
+   "upgrade|7713",
+   "upgrade|9623"
+  ],
+  "next_moves": [
+   "#advice",
+   "#gear",
+   "#levels",
+   "#up-16",
+   "#up-5",
+   "#up-7"
+  ],
+  "prep": []
+ },
+ "nibbet-gear-no-bags": {
+  "class_meta": [
+   "build",
+   "spec Discipline",
+   "spec Holy",
+   "spec Shadow"
+  ],
+  "coming_up": [],
+  "effects": [],
+  "moves": [
+   "dungeon|City of Dalaran",
+   "dungeon|Gnomeregan",
+   "riding|Riding at level #",
+   "slow_steps|# guide steps took over # their plan",
+   "upgrade|23169",
+   "upgrade|274152",
+   "upgrade|281635"
+  ],
+  "next_moves": [
+   "#advice",
+   "#gear",
+   "#levels",
+   "#up-11",
+   "#up-13",
+   "#up-2"
+  ],
+  "prep": []
+ },
+ "tilly": {
+  "class_meta": [
+   "build",
+   "spec Frost"
+  ],
+  "coming_up": [],
+  "effects": [],
+  "moves": [
+   "upgrade|248008"
+  ],
+  "next_moves": [
+   "#up-16"
+  ],
+  "prep": []
+ }
+}

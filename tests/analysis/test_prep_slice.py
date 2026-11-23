@@ -62,7 +62,7 @@ def fixture_db():
 
 
 def test_the_prep_version_says_the_tables_moved():
-    assert prep.PREP_VERSION == 12
+    assert prep.PREP_VERSION == 13
 
 
 def test_every_new_table_is_allowed_and_every_column_described(fixture_db):

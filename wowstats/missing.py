@@ -38,7 +38,12 @@ SETUP_FEED = "wow-setup"
 # feeds by character, plus the two that are a field of a feed (quests by
 # source, Altoholic's /played); rows without a char are the account's.
 # The newest record of each (`last`) dates every source for wowstats.coverage.
-ARRIVED_Q = "feed:* | stats by (char, feed, source, kind) count() as n, max(_time) as last"
+# `ilvl`: a gear sheet with items carries their average item level; one
+# with the professions only (Polestar's, no Syndicator) doesn't: the `gear`
+# kind's signal is a sheet with items (GEAR_ITEMS), never the feed alone.
+ARRIVED_Q = ("feed:* | stats by (char, feed, source, kind) count() as n, max(_time) as last, "
+             "max(item_level) as ilvl")
+GEAR_ITEMS = "wow-gear:items"
 SETUP_Q = (f'feed:="{SETUP_FEED}" | fields _time, addons, recorder_on, saved_chars, off, shipper '
            '| sort by (_time desc) | limit 1')
 
@@ -85,6 +90,8 @@ def arrived(q: Query, last: dict | None = None) -> tuple[dict[str, set[str]], se
         if not feed or feed == SETUP_FEED:
             continue
         add(char, feed, t)
+        if feed == "wow-gear" and opt_num(r.get("ilvl")):
+            add(char, GEAR_ITEMS, t)
         if feed == "wow-quests" and r.get("source"):
             add(char, f"quests:{r['source']}", t)
         elif feed == "wow-character" and r.get("kind") == "played":
@@ -133,13 +140,29 @@ def _links(ids: list[str], known: dict[str, dict]) -> list[dict]:
 WAIT = "Log in with this character, then log out or type /reload once."
 
 
+def evident(signals: set[str]) -> set[str]:
+    """The addons whose own data arrived: an addon that is a kind's only
+    source and one of that kind's signals is there, or a quests source. It
+    is installed whatever the setup report says (an older report, a renamed
+    folder): no line tells the player to add it."""
+    out = set()
+    for k in kinds():
+        if len(k["addons"]) == 1 and any(s in signals for s in k["signals"]):
+            out.add(k["addons"][0])
+    out |= {s.split(":", 1)[1] for s in signals if s.startswith("quests:")}
+    return out
+
+
 def line_for(kind: dict, rep: dict | None, known: dict[str, dict] | None = None,
-             char: str | None = None) -> tuple[str, list[dict]]:
+             char: str | None = None, signals: set[str] | None = None) -> tuple[str, list[dict]]:
     """The fix for one missing kind on `char`, and the addons it names (for
-    links). See the module's docstring for the four cases."""
+    links). See the module's docstring for the four cases; an addon whose
+    other data arrived (evident) is installed, so only the wait is left."""
     known = known or addons()
     ids = kind["addons"]
     wait = kind.get("wait") or WAIT
+    if evident(signals or set()) & set(ids):
+        return wait, []
     if rep is None:
         return (f"{wait} Still nothing after that? Check that {_names(ids, known)} is installed "
                 "and ticked in AddOns at character select."), _links(ids, known)
@@ -161,8 +184,9 @@ def line_for(kind: dict, rep: dict | None, known: dict[str, dict] | None = None,
 
 
 def missing(signals: set[str], acct: set[str], rep: dict | None, char: str | None = None) -> list[dict]:
-    """The kinds a character lacks, in the list's order: {id, what, fix,
-    line, sections, partial, addons: [{id, name, url}]}. partial: the
+    """The kinds a character lacks, in the list's order: {id, ids, what,
+    fix, line, sections, partial, addons: [{id, name, url}]}; `ids` lists
+    the kinds one line covers (the first is `id`). partial: the
     sections still show the rest (quests done before installing); otherwise
     they are empty without it, and the line replaces their own empty note."""
     known = addons()
@@ -171,10 +195,23 @@ def missing(signals: set[str], acct: set[str], rep: dict | None, char: str | Non
         have = acct if k.get("scope") == "account" else signals
         if any(s in have for s in k["signals"]):
             continue
-        fix, named = line_for(k, rep, known, char)
-        out.append({"id": k["id"], "what": k["what"], "fix": fix, "line": f"Missing: {k['what']}. {fix}",
+        fix, named = line_for(k, rep, known, char, signals)
+        prev = out[-1] if out else None
+        if prev and prev["fix"] == fix and prev["from"] == k["addons"]:
+            # Two kinds from one addon with one fix (gear and bags, both
+            # Syndicator's) are one line: the player has one thing to do.
+            prev["ids"].append(k["id"])
+            prev["what"] = f"{prev['what']} and {k['what']}"
+            prev["line"] = f"Missing: {prev['what']}. {fix}"
+            prev["sections"] += [s for s in k["sections"] if s not in prev["sections"]]
+            prev["partial"] = prev["partial"] and bool(k.get("partial"))
+            continue
+        out.append({"id": k["id"], "ids": [k["id"]], "from": k["addons"], "what": k["what"], "fix": fix,
+                    "line": f"Missing: {k['what']}. {fix}",
                     "sections": list(k["sections"]), "partial": bool(k.get("partial")),
                     "addons": [{"id": a["id"], "name": a["name"], "url": a.get("url")} for a in named]})
+    for e in out:
+        del e["from"]
     return out
 
 

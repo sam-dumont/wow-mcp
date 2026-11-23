@@ -84,3 +84,29 @@ def test_seed_event_count_not_typed(tmp_path):
     spelled = re.compile(rf"\b{n:,}\b|\b{n}\b".replace(",", ",?"))
     hits = [name for name, text in PAGES.items() if spelled.search(text)]
     assert not hits, f"{hits} type the seed's {n} events"
+
+
+# A friend's data waits FRIENDS_PURGE_DAYS after they leave the list
+# (wowstats.tenancy.PURGE_DAYS): "7 days later (`FRIENDS_PURGE_DAYS`)",
+# "`FRIENDS_PURGE_DAYS` (7 days)", "`FRIENDS_PURGE_DAYS` (7)". The self-host
+# page said "deletes their data on the spot" for a week after the purge
+# delay came in (2026-11-23).
+PURGE = re.compile(r"(\d+)\s+days?\s+later\s+\(`FRIENDS_PURGE_DAYS`\)|`FRIENDS_PURGE_DAYS`\s+\((\d+)")
+ON_THE_SPOT = re.compile(r"(?:deletes?|deleted|goes|removes?)\s+(?:their|the)\s+data\s+(?:on the spot|at once|"
+                         r"right away|immediately)", re.I)
+
+
+@pytest.mark.parametrize("name", [n for n in PAGES if not n.startswith("CHANGELOG")])
+def test_the_purge_delay_is_the_codes(name):
+    from wowstats import tenancy
+
+    days = [m[1] or m[2] for m in PURGE.finditer(PAGES[name])]
+    assert all(d == str(tenancy.PURGE_DAYS) for d in days), \
+        f"{name} says FRIENDS_PURGE_DAYS is {days}, the code's default is {tenancy.PURGE_DAYS}"
+    assert not ON_THE_SPOT.search(PAGES[name]), \
+        f"{name} says a friend's data goes at once: it waits FRIENDS_PURGE_DAYS ({tenancy.PURGE_DAYS} days)"
+
+
+def test_the_self_host_page_names_the_purge_delay():
+    page = PAGES["docs/self-host/how-i-run-it.md"]
+    assert PURGE.search(page) and "users delete --yes" in page

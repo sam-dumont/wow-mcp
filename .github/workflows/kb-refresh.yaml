@@ -60,7 +60,9 @@
 # The gates (tools/kb/gates.py): kbschema, the licence checks (no copied run
 # of 12 words against the text the pass read, quotes of 15 words at most, a
 # citation on every record), the multi-source rule for lists and builds, the
-# size budget, a cap on how many statements one run removes, and ruff plus
+# size budget, a cap on how many statements one run removes, the golden
+# characters' behaviour (no move, raid prep or class effect of
+# tests/slices/golden.json may go away unless the PR updates it), and ruff plus
 # the whole test suite (the MCP's 24,000-character cap among them), here,
 # before the PR; the public repository's required checks run again on it.
 # tools/kb/land.py rebases on a main that moved (and gates again), opens the

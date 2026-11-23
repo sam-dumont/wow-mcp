@@ -79,7 +79,8 @@ empty part; this table is the same list.
 |---|---|---|
 | level times, dungeon runs and gear advice | Polestar | Tick Polestar in AddOns at character select, play to your next level, then log out. |
 | play sessions, zones, deaths and loot | Polestar Recorder | Type `/psrec on` once in game, then `/reload`. |
-| your gear and bags | Syndicator | Tick Syndicator in AddOns at character select, log in with this character, then log out. |
+| your gear | Syndicator | Tick Syndicator in AddOns at character select, log in with this character, then log out. |
+| your bags | Syndicator | Tick Syndicator in AddOns at character select, log in with this character, then log out. |
 | quests you did before installing | Questie or Altoholic | Log in once with it ticked in AddOns, then log out. |
 | auction prices | Auctionator | Scan the auction house with Auctionator, then log out. |
 

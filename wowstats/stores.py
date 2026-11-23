@@ -21,6 +21,8 @@ import urllib.parse
 import urllib.request
 from datetime import UTC, datetime, timedelta
 
+from wowstats import timebounds as _timebounds
+
 QUERY_TIMEOUT = 20
 ROW_LIMIT = 20000
 # Rows per request when reading events themselves (wowstats.eventcache, and
@@ -176,9 +178,9 @@ def truthy(v) -> bool:
 # A play session ends when the Recorder writes nothing for more than this. It
 # writes a record at least every 5 minutes while the game runs (its chunk
 # header), so 330 s of silence means the game was closed or the client hung.
-# One definition: the journal, the Overview and timeline, and the semantic
-# layer's sessions (wowstats.analysis.prep).
-SESSION_GAP_S = 330
+# One definition (wowstats.timebounds): the journal, the Overview and
+# timeline, and the semantic layer's sessions (wowstats.analysis.prep).
+SESSION_GAP_S = _timebounds.SESSION_GAP_S
 # What split_sessions reads: the Recorder's records per minute, with the first
 # and last record's time in each minute, so a gap is measured to the second.
 SESSION_BUCKETS = "| stats by (_time:1m) count() as n, min(_time) as t0, max(_time) as t1"

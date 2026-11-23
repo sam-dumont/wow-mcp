@@ -637,9 +637,11 @@ IMPLEMENTED_NEXT = [
     "rested XP banked",
     "time to the next level and to the end of the current guide",
 ]
-UNSUPPORTED_NEXT = [
-    "cheap auction-house wins: prices exist in the full view only, without a per-item gain model",
-]
+# Nothing today: the auction house's line went once the gear advice priced
+# what's on sale (the MCP's gear `buy_now`, the market). The slices check
+# that no line here names what a registered tool computes
+# (tests/slices/test_slices.py).
+UNSUPPORTED_NEXT: list[str] = []
 
 
 def _skills(q: Q, cf: str) -> dict[int, dict]:

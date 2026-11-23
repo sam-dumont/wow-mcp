@@ -238,6 +238,14 @@ def next_step(level: int, state: str, lo: int, verdict_value: str, quests: list[
     return {"do": "go", "where": ent["zone"] if ent else None}
 
 
+def other_sides(inp: dict, known: dict, aid: str) -> bool:
+    """Only the other side's quests: their city's dungeon (Ragefire Chasm
+    for an Alliance character), never listed for him. The panel's rule, and
+    the MCP's dungeon options' (estimate.dungeons): one list on both."""
+    d = (inp.get("dungeon_quests") or {}).get(known[aid].get("dungeon_area") or aid) or {}
+    return bool(d.get("other_side")) and not d.get("quests")
+
+
 def build(inp: dict) -> dict:
     level = inp["level"]
     who = inp.get("who") or {}
@@ -252,9 +260,8 @@ def build(inp: dict) -> dict:
         if aid:
             trips_by.setdefault(aid, []).append(t)
 
-    def theirs(aid: str) -> bool:  # only the other side's quests: their city's dungeon
-        d = (inp.get("dungeon_quests") or {}).get(known[aid].get("dungeon_area") or aid) or {}
-        return bool(d.get("other_side")) and not d.get("quests")
+    def theirs(aid: str) -> bool:
+        return other_sides(inp, known, aid)
 
     pick = set(trips_by)
     for aid, a in known.items():

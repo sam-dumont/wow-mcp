@@ -81,7 +81,12 @@ from wowstats.stores import (
 # shipper's, which lost a step when a chunk was recovered after the ones
 # that follow it; levels gets a row for every level from the lowest known
 # to the one in play, a finished level with no split nor ding included.
-PREP_VERSION = 12
+# 13: levels gets in_level_s, the level in play's time so far (its Recorder
+# sessions since the last ding): one metric for the page's hero line and the
+# MCP's character_summary, which showed 2h26m and nothing (2026-11-23). The
+# pages' narrow prep takes the Recorder's minute marks (`span` records,
+# pages.with_spans) so its sessions end where the full prep's do.
+PREP_VERSION = 13
 
 # A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
 # route position starts past it when the character already stands there.
@@ -283,7 +288,9 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
                              "for the level, 0 when none; NULL when it can't be measured)",
         "in_play": "1 for the level being played (no ding out of it, no whole split), else 0",
         "climb_kills": "kills: the split's count, else the Recorder's kill records at the level (NULL: neither)",
-        "climb_quests": "quests handed in: the split's count, else the Recorder's turn-ins at the level"}),
+        "climb_quests": "quests handed in: the split's count, else the Recorder's turn-ins at the level",
+        "in_level_s": "the level in play only: logged-in seconds of the Recorder's sessions since the last ding "
+                      "(NULL for a completed level, with no session since the ding, or no ding to start from)"}),
     "route_position": ("Where the character is in Polestar's levelling route, one row: the step to do next "
                        "(next_step) by the rule the plan and the next_step tool use. Read it for the next step; "
                        "the newest step record is only where Polestar's pointer was (it falls back to the first "
@@ -802,7 +809,11 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
         if m is not None and k not in ("map", "poi"):
             st["map_id"] = m
         lv = level_at(t)
-        if k == "pos":
+        if k == "span":
+            # A time the Recorder wrote something (pages.with_spans): it
+            # bounds the sessions and nothing else, kept with the positions.
+            pos_rows.append((i, t, _iso(t, TZ), s_id, lv, None, None, None, None, None, 0, None, None))
+        elif k == "pos":
             x, y, spd = _flt(r.get("x")), _flt(r.get("y")), _flt(r.get("speed"))
             flags = _int(r.get("flags")) or 0
             dt = dist = None
@@ -973,7 +984,7 @@ def _schema(db: sqlite3.Connection) -> None:
         kills INTEGER, partial INTEGER, planned_s REAL, planned_median_s REAL, planned_guide TEXT,
         calendar_s REAL, offline_s REAL, longest_gap_s REAL, longest_gap_from_local TEXT,
         longest_gap_to_local TEXT, recorder_missed_s REAL, in_play INTEGER, climb_kills INTEGER,
-        climb_quests INTEGER);
+        climb_quests INTEGER, in_level_s REAL);
     CREATE TABLE route_steps (guide TEXT, guide_title TEXT, step INTEGER, planned_s REAL, title TEXT);
     CREATE TABLE route_position (guide TEXT, guide_title TEXT, shown_step INTEGER, shown_title TEXT, reason TEXT,
         furthest_step INTEGER, next_step INTEGER, next_title TEXT, next_why TEXT, subzone TEXT, zone TEXT);
@@ -1119,7 +1130,7 @@ def _levels(db, rows, rec, route) -> None:
         out.append((lv, ding, _flt(s.get("seconds")), _int(s.get("xp")), _int(s.get("quests")), _int(s.get("kills")),
                     (1 if truthy(s.get("partial")) else 0) if s else None, plan, med, guide,
                     1 if lv == in_play else 0, ck, cq))
-    db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,?,?,?)", out)
+    db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,?,?,?,NULL)", out)
     _level_calendar(db, rows)
 
 
@@ -1162,6 +1173,15 @@ def _level_calendar(db, rows) -> None:
                     _iso(gap_to, TZ) if gap is not None else None, float(missed.get(lv, 0)) if whole else None, lv))
     db.executemany("UPDATE levels SET calendar_s=?, offline_s=?, longest_gap_s=?, longest_gap_from_local=?, "
                    "longest_gap_to_local=?, recorder_missed_s=? WHERE level=?", out)
+    # The level in play's time so far: its sessions since the ding out of
+    # the level before, the session rule's spans (timebounds.SESSION_GAP_S),
+    # logged-in time like a split. Unknown without that ding or a session.
+    row = db.execute("SELECT level FROM levels WHERE in_play = 1").fetchone()
+    a = dings.get(row[0] - 1) if row else None
+    if a is not None:
+        after = [(max(s0, a), s1) for s0, s1 in spans if s1 > a]
+        if after:
+            db.execute("UPDATE levels SET in_level_s=? WHERE level=?", (sum(s1 - s0 for s0, s1 in after), row[0]))
 
 
 def _route_steps(db, route) -> None:

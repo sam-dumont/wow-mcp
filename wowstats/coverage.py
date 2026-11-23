@@ -9,14 +9,17 @@ one `coverage`:
 
 Sources: `recorder` (Polestar's Recorder: sessions, zones, deaths, loot),
 `polestar` (the level splits and logout sheets), `gear` (Syndicator's gear
-and bags), `quests` (Questie or Altoholic: quests done before installing),
+sheet and bags: two kinds of wowstats.missing's list), `quests` (Questie or Altoholic: quests done before installing),
 `prices` (Auctionator, the account's) and `battlenet` (the exporter's read).
 
 States:
 - complete: it arrived, and no hole was found in it (only the Recorder's
   play and Battle.net's read are looked at for one);
 - partial: it arrived with a hole: play the Recorder missed (`gaps`), the
-  Recorder switched off now, Battle.net shown from an older complete read;
+  Recorder switched off now, Battle.net shown from an older complete read,
+  one of a source's kinds without the other (the gear sheet before the
+  bags), or a snapshot part with no kind's signal yet (a character sheet
+  before the first level split);
 - unavailable: nothing arrived (or no exporter here); `fix` is the one
   thing that brings it (wowstats.missing's list, the same the pages show);
 - unknown: the store didn't answer, so nothing can be said.
@@ -46,7 +49,10 @@ from wowstats.stores import opt_num, parse_t, split_sessions
 
 # Source -> the kind in steps.json's list (wowstats.missing): its signals
 # date the source, its fix is the one action that brings it.
-KINDS = {"recorder": "play", "polestar": "levels", "gear": "bags", "quests": "quests", "prices": "prices"}
+# A source made of two kinds (the gear sheet and the bags) is complete with
+# both, partial with one.
+KINDS = {"recorder": ("play",), "polestar": ("levels",), "gear": ("gear", "bags"), "quests": ("quests",),
+         "prices": ("prices",)}
 STATES = ("complete", "partial", "unavailable", "unknown")
 SOURCES = (*KINDS, "battlenet")
 
@@ -160,20 +166,26 @@ def build(snap: dict, char: str, gaps: list[dict] | None = None, bnet: dict | st
     no exporter, {error, as_of} or "unknown" when vm-wow didn't answer
     (bnet_of)."""
     who = missing.norm(char)
-    gone = {m["id"]: m for m in missing.for_char(snap, char)}
+    gone = {i: m for m in missing.for_char(snap, char) for i in m.get("ids") or [m["id"]]}
     last = snap.get("last") or {}
     mine, acct = last.get(who) or {}, last.get("") or {}
     rep = snap.get("setup")
     out: dict = {}
-    for src, kid in KINDS.items():
-        kind = next((k for k in missing.kinds() if k["id"] == kid), None)
-        if kind is None:
+    by_id = {k["id"]: k for k in missing.kinds()}
+    for src, kids in KINDS.items():
+        known = [by_id[k] for k in kids if k in by_id]
+        if not known:
             continue
-        if kid in gone or "nothing" in gone:
-            out[src] = entry("unavailable", fix=(gone.get(kid) or gone.get("nothing"))["fix"])
+        if "nothing" in gone:
+            out[src] = entry("unavailable", fix=gone["nothing"]["fix"])
             continue
-        at = _newest(acct if kind.get("scope") == "account" else mine, kind["signals"])
-        out[src] = entry("complete", at)
+        lacking = [k for k in known if k["id"] in gone]
+        here = [k for k in known if k["id"] not in gone]
+        if not here:
+            out[src] = entry("unavailable", fix=gone[lacking[0]["id"]]["fix"])
+            continue
+        at = _newest(acct if here[0].get("scope") == "account" else mine, [s for k in here for s in k["signals"]])
+        out[src] = entry("partial", at, fix=gone[lacking[0]["id"]]["fix"]) if lacking else entry("complete", at)
     rec = out.get("recorder")
     if rec and rec["state"] == "complete":
         if gaps:
@@ -271,10 +283,16 @@ def read_parts(read, cf: str) -> dict[str, dict[str, str]]:
 
 
 def with_parts(cov: dict, parts: dict[str, dict[str, str]]) -> dict:
-    """`cov` with each source's `parts` (parts_of), where it has any."""
+    """`cov` with each source's `parts` (parts_of), where it has any. A
+    source with a part is never unavailable: something of it arrived, so
+    it is partial, as of that part, with the fix for the rest."""
     for src, got in parts.items():
         if got and src in cov:
-            cov[src] = {**cov[src], "parts": got}
+            e = {**cov[src], "parts": got}
+            if e["state"] == "unavailable":
+                e["state"] = "partial"
+                e["as_of"] = max(got.values(), key=parse_t)
+            cov[src] = e
     return cov
 
 

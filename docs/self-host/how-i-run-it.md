@@ -176,7 +176,7 @@ mounted ConfigMap, so from my click to their page it's 2 to 3 minutes.
 
 Switching someone off is a deactivation in the console: ZITADEL refuses the login, their data
 stays. Removing the `access` metadata, or the user, takes them off the list, and wow-stats
-deletes their data on the spot.
+deletes their data 7 days later (`FRIENDS_PURGE_DAYS`), or at once with `users delete --yes`.
 
 ## Linking an account that already exists
 

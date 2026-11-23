@@ -108,6 +108,22 @@ def health() -> dict:
     return {"semantic": "ok" if last_ok is not None else "idle"}
 
 
+def with_spans(char: str, rows: list[dict], minutes: list[dict]) -> list[dict]:
+    """ROWS_QUERY's rows plus the Recorder's first and last record of each
+    minute (stores.SESSION_BUCKETS' rows) as `span` records: the times the sessions
+    are cut from (timebounds' rule), nothing else (prep keeps them with the
+    positions). The same sessions as the page's journal and as the full
+    prep, so the time in the level is one number everywhere (in_level_s).
+    They carry `char`: prep keeps only the character's rows."""
+    out = list(rows)
+    for m in minutes:
+        if opt_num(m.get("n")):
+            for t in {m.get("t0"), m.get("t1")} - {None, ""}:
+                out.append({"_time": t, "char": char, "feed": "wow-recorder", "kind": "span",
+                            "source_id": f"span:{t}"})
+    return out
+
+
 def numbers(char: str, rows: list[dict]) -> dict:
     """The page's numbers for `char` from `rows` (ROWS_QUERY's answer).
     Raises SemanticError when the layer fails: there is no other way to
@@ -205,8 +221,17 @@ def _compute(ask) -> dict:
     totals = (ask(metrics=["played_s"], where=[split]) or [{}])[0]
     runs = {r["run"]: r for r in ask(metrics=["run_s", "run_xp", "run_xp_per_hour"], group_by=["run"])}
     return {"levels": levels, "totals": totals, "runs": runs, "deaths": deaths(ask), "counts": climb(ask),
+            "in_level_s": in_level(ask),
             "avg_level_s": one("avg_level_s", done[-5:]), "avg_levels": len(done[-5:]),
             "pace_xp_per_hour": one("xp_per_hour", done[-3:])}
+
+
+def in_level(ask) -> int | None:
+    """The level in play's time so far (in_level_s): the page's hero line
+    and the MCP's character_summary. None when it can't be measured."""
+    got = ask(metrics=["in_level_s"], where=[{"dimension": "in_play", "op": "=", "value": 1}])
+    v = got[0]["in_level_s"] if got else None
+    return None if v is None else int(v)
 
 
 def climb(ask) -> dict:
@@ -272,6 +297,7 @@ def header(n: dict) -> dict:
     return {"splits_played_s": None if t.get("played_s") is None else int(t["played_s"]),
             "avg_level_s": None if n["avg_level_s"] is None else int(n["avg_level_s"]),
             "avg_levels": n["avg_levels"], "xp_per_hour": whole(n["pace_xp_per_hour"]),
+            "in_level_s": n["in_level_s"],
             # The kills and quests with their population named (climb): never one bare total.
             "counts": n["counts"]}
 
