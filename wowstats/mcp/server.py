@@ -129,16 +129,42 @@ def dcr_mode(env: dict) -> str:
     return mode
 
 
+NO_DCR = "this server doesn't take dynamic client registration: use a client that sends a client metadata URL"
+
+
 def dcr_refusal(mode: str, redirect_uris) -> str:
     """Why a registration is refused under `mode`, "" when it may go on."""
     if mode == "open":
         return ""
     if mode == "off":
-        return "this server doesn't take dynamic client registration: use a client that sends a client metadata URL"
+        return NO_DCR
     uris = [urlsplit(str(u)) for u in (redirect_uris or [])]
     if uris and all(u.scheme == "http" and (u.hostname or "").lower() in LOOPBACK_HOSTS for u in uris):
         return ""
     return "this server registers local clients only (redirects to 127.0.0.1, localhost or [::1])"
+
+
+def without_register_hint(handle):
+    """FastMCP's /authorize answers an unknown client id with "register at
+    /register" (a Link header, a `registration_endpoint` field in the JSON).
+    With registration off that sends the client to a 404: say so instead.
+    The browser's page (Client Not Registered: reconnect) stays."""
+
+    async def authorize(request):
+        response = await handle(request)
+        if "registration" not in response.headers.get("link", ""):
+            return response
+        del response.headers["link"]
+        if response.headers.get("content-type", "").startswith("application/json"):
+            body = json.loads(bytes(response.body))
+            body.pop("registration_endpoint", None)
+            body["error_description"] = f"this client isn't known here, {NO_DCR}"
+            response.body = json.dumps(body).encode()
+            response.headers["content-length"] = str(len(response.body))
+        return response
+
+    return authorize
+
 
 ORG_CLAIM = "urn:zitadel:iam:user:resourceowner:id"
 ROLES_CLAIM = "urn:zitadel:iam:org:project:roles"
@@ -616,6 +642,23 @@ def auth_from_env(s: Settings, who: Who):
             super().__init__("invalid_grant", why)
 
     class WithAudit(OIDCProxy):
+        def __init__(self, **kw):
+            super().__init__(**kw)
+            # The one switch for MCP_DCR=off: FastMCP's proxy always turns
+            # registration on; off, /register isn't served (404) and the
+            # metadata has no registration_endpoint, so a client knows before
+            # it tries that it needs a client metadata URL.
+            self.client_registration_options.enabled = dcr != "off"
+
+        def get_routes(self, mcp_path=None):
+            from starlette.routing import Route
+
+            routes = super().get_routes(mcp_path)
+            if self.client_registration_options.enabled:
+                return routes
+            return [Route(r.path, endpoint=without_register_hint(r.endpoint), methods=r.methods, name=r.name)
+                    if isinstance(r, Route) and r.path == "/authorize" else r for r in routes]
+
         async def register_client(self, client_info):
             why = dcr_refusal(dcr, client_info.redirect_uris)
             if why:
