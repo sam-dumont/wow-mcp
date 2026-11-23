@@ -247,3 +247,65 @@ def test_estimated_logouts_from_the_journal_itself():
     levels = [{"_time": "2026-11-05T11:00:00Z", "level": "27", "seconds": "3600", "xp": "1000"}]
     out = journal.by_logout(snaps, levels, [])
     assert out and out[0]["deaths"]["total"] is None
+
+
+# ---------------------------------------------------------------- a finished level with no split
+
+
+def test_a_finished_level_without_a_split_keeps_its_row():
+    """Level 32 finished with no Polestar split and no Recorder ding out of
+    it, its records still there: the prep keeps a row for it, done and
+    with nothing Polestar counted (NULL, never 0), so no total over the
+    climb skips it silently."""
+    db = prep.build(D.rows_for("split-missing"), D.CHAR)
+    got = db.execute("SELECT level, ding_t, played_s, partial, in_play FROM levels WHERE level = 32").fetchall()
+    assert got == [(32, None, None, None, 0)]
+    lv = [r[0] for r in db.execute("SELECT level FROM levels ORDER BY level")]
+    assert lv == list(range(lv[0], lv[-1] + 1)), "no level between the first and the one in play is left out"
+
+
+def test_a_finished_level_without_a_split_makes_polestar_partial():
+    cov = coverage.from_rows(D.rows_for("split-missing"), D.CHAR)
+    assert cov["polestar"]["state"] == "partial" and cov["polestar"]["gaps"] == [{"level": 32}]
+    # The level in play has no split yet by design, and the full demo has every one.
+    assert coverage.from_rows(D.base_rows(), D.CHAR)["polestar"]["state"] == "complete"
+
+
+def test_the_mcp_says_the_split_is_missing(tmp_path, monkeypatch):
+    monkeypatch.setenv("WOW_ITEMS", "off")
+    vl = D.VL(D.rows_for("split-missing"))
+    T._MISSING.clear()
+    try:
+        env = {"VL_URL": vl.url, "DEFAULT_CHAR": D.CHAR, "HOME": str(tmp_path),
+               "ANALYSIS_STATE_DIR": str(tmp_path), "WOW_ITEMS": "off"}
+        ctx = T.Ctx(store=MStore(vl_url=vl.url), default_char=D.CHAR, env=env)
+        with D.clock():
+            for tool in ("levels", "character_summary"):
+                pol = T.call(ctx, tool, {"char": D.CHAR})["coverage"]["polestar"]
+                assert pol["state"] == "partial" and pol["gaps"] == [{"level": 32}], tool
+    finally:
+        vl.close()
+        T._MISSING.clear()
+
+
+def test_deaths_in_a_window_the_recorder_never_saw_are_unknown(gap):
+    """The history starts on 2026-10-30: the week before it has no Recorder
+    record, so its deaths are unknown, never 0; the whole history has some."""
+    env, _ = gap
+    ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"]), default_char=D.CHAR, env=env)
+    d = T.call(ctx, "deaths", {"char": D.CHAR, "since": "2026-10-01", "until": "2026-10-08"})
+    assert d["total"] is None and d["by_level"] == {}
+    assert T.call(ctx, "deaths", {"char": D.CHAR})["total"] > 0
+
+
+def test_the_page_says_the_split_is_missing(tmp_path, monkeypatch):
+    monkeypatch.setenv("WOW_ITEMS", "off")
+    vl = D.VL(D.rows_for("split-missing"))
+    try:
+        env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": vl.url, "MODEL3D": "off",
+               "DEFAULT_CHAR": D.CHAR, "HOME": str(tmp_path), "ANALYSIS_STATE_DIR": str(tmp_path), "WOW_ITEMS": "off"}
+        with D.clock():
+            pol = ui.App(env).api_char(D.CHAR)["coverage"]["polestar"]
+        assert pol["state"] == "partial" and pol["gaps"] == [{"level": 32}]
+    finally:
+        vl.close()

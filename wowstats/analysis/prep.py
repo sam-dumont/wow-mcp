@@ -77,7 +77,11 @@ from wowstats.stores import (
 # indoors state; reps, offers, quest_text, quest_rewards, spells_known,
 # flight_nodes, attunement_steps, item_values, achievements_seen; and
 # loot_items.wanted_quest_id.
-PREP_VERSION = 11
+# 12: xp.xp_gained from the bar's readings in order (xp_step), never the
+# shipper's, which lost a step when a chunk was recovered after the ones
+# that follow it; levels gets a row for every level from the lowest known
+# to the one in play, a finished level with no split nor ding included.
+PREP_VERSION = 12
 
 # A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
 # route position starts past it when the character already stands there.
@@ -639,6 +643,24 @@ def input_mark(rows: list[dict]) -> str:
     return hashlib.sha256("\n".join(one).encode()).hexdigest()[:16]
 
 
+def xp_step(bar: tuple[int, int] | None, xp: int | None, xp_max: int | None):
+    """(xp_gained, the bar after) for one xp record read after `bar`, the
+    previous xp record's (xp, xp_max), in the order the game wrote them. The
+    shipper's own rule (shipper/wow_stats.py, extract_recorder), applied here
+    to the whole history: the shipper only knew the readings it had seen, so
+    a chunk recovered after the ones that follow it gave its successor no
+    delta, and the stored xp_gained stays what that run saw. The first
+    reading has no delta; a record without both numbers changes nothing."""
+    if xp is None or xp_max is None:
+        return None, bar
+    if bar is None:
+        return None, (xp, xp_max)
+    pxp, pmax = bar
+    if xp_max == pmax and xp >= pxp:
+        return xp - pxp, (xp, xp_max)
+    return max(0, pmax - pxp) + xp, (xp, xp_max)  # a level went by: the rest of the old bar plus the new one
+
+
 def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None,
           now: datetime | None = None, advice: dict | None = None, cards=None) -> sqlite3.Connection:
     """The database for one character. `route` is wowstats.mcp.route's
@@ -729,6 +751,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
           "in_raid": None, "swimming": 0, "ghost": 0, "indoors": 0}
     open_spans: dict[str, tuple[float, str | None]] = {}
     last_pos: dict | None = None
+    bar: tuple[int, int] | None = None  # the previous xp record's (xp, xp_max): xp_gained
     rec_rows, pos_rows, loot_rows, xp_rows, tl_rows, span_rows = [], [], [], [], [], []
 
     def close(kind: str, t: float, sid_: int):
@@ -790,7 +813,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
                     cols["item_id"] = _int(v)
                 elif f == "level" and k == "kill":
                     cols["npc_level"] = _int(v)
-                elif f in ("duration_s", "seconds", "on", "level"):
+                elif f in ("duration_s", "seconds", "on", "level", "xp_gained"):
                     continue
                 else:
                     extra[f] = v
@@ -810,8 +833,9 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
                     if a.isdigit():
                         loot_rows.append((i, t, int(a), _int(b) or 1, None))
             elif k == "xp":
+                gained, bar = xp_step(bar, _int(r.get("xp")), _int(r.get("xp_max")))
                 xp_rows.append((t, s_id, lv, st["zone"], lt.hour, _int(r.get("xp")), _int(r.get("xp_max")),
-                                _int(r.get("xp_gained")), _int(r.get("rested_xp"))))
+                                gained, _int(r.get("rested_xp"))))
             elif k == "step":
                 st["guide"], st["step"] = r.get("guide") or None, _int(r.get("step"))
             elif k == "group":
@@ -1041,10 +1065,15 @@ def _levels(db, rows, rec, route) -> None:
             dings.setdefault(lv - 1, r["_t"])
     who = _who(rows, rec)
     side, cls = who.get("faction"), who.get("class")
-    seen = set(splits) | set(dings)
-    cur = db.execute("SELECT MAX(level) FROM records").fetchone()[0]
-    if cur:
-        seen.add(cur)
+    # Every level from the lowest known to the highest: a finished level with
+    # neither a split nor a ding out of it (the split lost, the Recorder off
+    # at the ding) still has its row, its counts unknown (NULL), so a total
+    # over the climb never skips it as if it weren't there; the coverage says
+    # Polestar's split is missing (wowstats.coverage.polestar_gaps).
+    known = set(splits) | set(dings) | {lv for (lv,) in db.execute(
+        "SELECT DISTINCT level FROM records WHERE level IS NOT NULL")}
+    known = {lv for lv in known if lv > 0}
+    seen = set(range(min(known), max(known) + 1)) if known else set()
     # The level being played: the highest level known, unless the Recorder
     # saw the ding out of it or Polestar closed a whole split for it (a
     # partial split is one still growing). Without the Recorder or a split
