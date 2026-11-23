@@ -38,7 +38,7 @@ mcp = ["fastmcp==4.2.0", "cryptography>=46"]
 # 3D view's own viewer in a headless Chromium. Its own image target
 # (Dockerfile `renderer`), never in the main image. Pinned like the browser
 # group: each Playwright release wants its own Chromium build.
-render = ["playwright==1.65.1"]
+render = ["playwright==1.65.2"]
 # The server's own play analysis (wowstats.analysis.auto): the full view
 # plays the MCP client itself, through the provider the host configures
 # (ANALYSIS_PROVIDER). One extra per provider; only the configured one is
@@ -47,7 +47,7 @@ render = ["playwright==1.65.1"]
 analysis = ["anthropic==2.8.0"]
 # analysis-openai: OpenAI's official SDK, for any OpenAI-compatible Chat
 # Completions endpoint (OpenAI, OpenRouter, Ollama, vLLM, LM Studio...).
-analysis-openai = ["openai==3.46.0"]
+analysis-openai = ["openai==3.51.0"]
 
 [project.scripts]
 wow-stats = "wowstats.cli:main"
@@ -62,7 +62,7 @@ dev = [
 # tests/test_browser.py: the static sites in Chromium. Pinned: each
 # Playwright release wants its own browser build.
 browser = [
-    "playwright==1.65.1",
+    "playwright==1.65.2",
 ]
 # tools/audit_deps.py: known vulnerabilities in the locked dependencies (CI's
 # audit job). Its own group, so `uv sync` never installs it.
