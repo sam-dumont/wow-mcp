@@ -15,6 +15,9 @@ which wing each creature, object and quest belongs to; the kill model
 - Quests: those whose objectives are in the wing; one that needs several
   wings counts in each (`how`: "all"), one that can be done in any of them
   too (`how`: "any"); one done outside every wing ("outside") is on no line.
+  A "all" quest pays (its XP, its reward) on a wing's trip only when that
+  trip finishes it: complete in his log, or every other wing's objective
+  seen done since he took it (other_wings); else the wing lists it apart.
 - Drops: from the wing's creatures. Quest rewards follow their quests.
 - His runs: the wing whose creatures he killed (three kills in four or
   more there); a run across wings is no wing's measure.
@@ -128,6 +131,37 @@ def in_wing(name: str, qid: int, variants=()) -> bool:
     # Not in the file: a quest the forever-db export didn't zone in the
     # dungeon nor Polestar's page lists; it stays with the whole dungeon.
     return False
+
+
+def other_wings(name: str, q: dict, open_quest: dict | None, trips=()) -> list[str]:
+    """The other wings a quest of the wing `name` still needs before this
+    wing's trip finishes it (`q`: the file's entry, quest()). Empty for a
+    quest one wing finishes ("one", "any"), and for an "all" quest he has
+    complete in his log or whose other wings' objectives his trips since
+    he took it show done (a kill objective: the creature among the trip's
+    kills; an item one: the item among its loot). The game's log gives no
+    objective progress of its own, so without that evidence every other
+    wing still counts, and the quest is not one wing's to pay."""
+    hit = wing_of(name)
+    if not hit or (q or {}).get("how") != "all" or (open_quest or {}).get("complete"):
+        return []
+    w = hit[1]
+    since = (open_quest or {}).get("accepted_t")
+    seen: dict[str, set[int]] = {"kill": set(), "item": set()}
+    if open_quest and since is not None:
+        for t in trips or ():
+            if (t.get("end_t") or t.get("start_t") or 0) < since:
+                continue
+            seen["kill"] |= {int(i) for i in t.get("kill_npcs") or {}}
+            seen["item"] |= {int(x[0]) for x in t.get("loot_inside") or []}
+    if not q.get("by"):
+        return [x for x in q.get("wings") or [] if x != w]
+    left = []
+    for kind, oid, ws in q["by"]:
+        if w in ws or (kind in seen and int(oid) in seen[kind]):
+            continue
+        left += [x for x in ws if x not in left]
+    return [x for x in q.get("wings") or [] if x in left and x != w]
 
 
 def npc(name: str, npc_id) -> list[str]:

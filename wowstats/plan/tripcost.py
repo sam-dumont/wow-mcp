@@ -758,12 +758,14 @@ def dungeon_of(trips: dict, instance_map) -> dict | None:
 
 def trip(trips: dict, instance_map, *, side: str | None, level: int, race: str | None = None,
          cls: str | None = None, done: set | None = None, log: set | None = None, at=None,
-         wing: str | None = None) -> dict | None:
+         wing: str | None = None, skip: set | None = None) -> dict | None:
     """The trip for this character now: the quests and stops, and each
     part's seconds. `at`: his last known position (c, wx, wy); without it
     the trip starts at the entrance (`from`: "entrance"). `wing`: one wing's
     trip, its own quests only (the page's `wings`, trips.mjs). None when the
-    reference has nothing for the dungeon, the wing or his side."""
+    reference has nothing for the dungeon, the wing or his side. `skip`:
+    quests of the page the trip leaves out (a wing's "all" quest it doesn't
+    finish, dungeonview.gain_of)."""
     d = dungeon_of(trips, instance_map)
     if not d or side not in SIDE_BIT:
         return None
@@ -788,6 +790,8 @@ def trip(trips: dict, instance_map, *, side: str | None, level: int, race: str |
         if w is None:
             return None
         page = w["page"]
+    if skip:
+        page = [q for q in page if q not in skip]
     plan = pickup_plan(R, page, d["min"], start, ent)
     s = trip_seconds(R, plan, start, ent, page, d["min"], rules)
     s["from"] = "you" if at else "entrance"
