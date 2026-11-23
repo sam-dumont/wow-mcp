@@ -92,16 +92,17 @@ COMMANDS = {
               "How did my last session go against the plan? Call how_did_my_plan_go: each checkpoint planned vs "
               "actual, the end level, what the calibration changes. If there's no plan yet, say how to make one."),
     "gear": ("Gear", "Upgrades now, at the next level and from professions, with where to get them.", None,
-             "What gear should I go for? Call gear_options. Per slot (the slot furthest from BiS first, at most "
-             "five), the best option now and at the next levels, said as its `line` (\"70% → 91% "
+             "What gear should I go for? Call gear with options=true. Per slot (the slot furthest from BiS first, "
+             "at most five), the best option now and at the next levels, said as its `line` (\"70% → 91% "
              "on your chest\"), with its source and its cost (time, gold or luck); crafts "
              "the character can "
              "make first. A world drop is a lucky bonus, never a plan step."),
     "dungeon": ("Dungeons", "Dungeons that fit, whole-trip cost from your runs, and their gear.", None,
-                "Which dungeons are worth it for me now? Call dungeon_options. The top three that fit now: whole-trip "
-                "time and XP per hour (with how many runs back it), expected gear and the top items (boss, chance); "
-                "then for each one I've done, its verdict for one more run and for looping it. Say a dungeon needs "
-                "a group, and that instance lockouts are unknown unless the tool gives a source."),
+                "Which dungeons are worth it for me now? Call dungeons with options=true. The top three that fit "
+                "now: whole-trip time and XP per hour (with how many runs back it), expected gear and the top "
+                "items (boss, chance); then for each one I've done, its verdict for one more run and for "
+                "looping it. Say a dungeon needs a group, and that instance lockouts are unknown unless the tool "
+                "gives a source."),
     "check": ("Anything stupid?", "Mistakes in the recorded play, with the analysis' kept findings.", None,
               "Is there anything stupid I'm doing? Call sanity_check and play_analysis. At most six bullets, worst "
               "first, each with its number and where it came from; killers are 'likely'. One line on what the "

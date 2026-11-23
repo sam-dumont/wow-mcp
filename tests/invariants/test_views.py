@@ -300,11 +300,10 @@ def call(store, name, args):
 
 
 def test_list_metrics_lists_the_views_and_play_sql_reads_them_first(lab):
-    cat = call(lab, "list_metrics", {})
-    names = [v["name"] for v in cat["views"]]
+    names = list(call(lab, "list_metrics", {})["views"])
     assert names == ["per_level", "per_session", "per_zone", "per_dungeon", "per_trip", "per_guide", "per_quest",
                      "per_death", "per_week", "per_slot", "per_faction", "per_flight_node", "per_quest_giver"]
-    level = next(v for v in cat["views"] if v["name"] == "per_level")
+    level = call(lab, "list_metrics", {"names": ["per_level"]})["views"][0]
     assert level["one_row_per"] == "level" and "recorder_coverage" in [c["name"] for c in level["columns"]]
     desc = next(t for t in tools.TOOLS if t.name == "play_sql").description
     assert desc.index("per_level") < desc.index("raw tables")

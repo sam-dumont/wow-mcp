@@ -322,11 +322,12 @@ class WowTool(Tool):
 
 def annotations(spec: tools.Tool) -> ToolAnnotations:
     """What the tool does, as a client reads it before calling: read-only
-    unless it writes the person's state (tools.WRITES); a writer is
-    destructive when it can overwrite or drop what is there. Every tool used
+    unless it changes what the person keeps (tools.WRITES: an open run's
+    counters don't); a writer is destructive when it can overwrite or drop
+    what is there. Every tool used
     to say read-only, the analysis and planner writers too (review,
     2026-11-19)."""
-    if not spec.writes:
+    if spec.read_only:
         return ToolAnnotations(readOnlyHint=True, openWorldHint=spec.open_world)
     return ToolAnnotations(readOnlyHint=False, destructiveHint=spec.writes == "replaces", idempotentHint=False,
                            openWorldHint=spec.open_world)

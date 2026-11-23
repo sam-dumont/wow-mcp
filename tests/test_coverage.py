@@ -288,6 +288,40 @@ def test_the_mcp_says_the_split_is_missing(tmp_path, monkeypatch):
         T._MISSING.clear()
 
 
+def test_the_levels_tool_lists_the_level_without_a_split(tmp_path, monkeypatch):
+    """Level 32 has no split: `levels` lists it with its time and counts
+    unknown (null, never 0), and the window averages that cross it are
+    unknown too, instead of skipping it (owner, 2026-11-23)."""
+    monkeypatch.setenv("WOW_ITEMS", "off")
+    vl = D.VL(D.rows_for("split-missing"))
+    T._MISSING.clear()
+    try:
+        env = {"VL_URL": vl.url, "DEFAULT_CHAR": D.CHAR, "HOME": str(tmp_path),
+               "ANALYSIS_STATE_DIR": str(tmp_path), "WOW_ITEMS": "off"}
+        ctx = T.Ctx(store=MStore(vl_url=vl.url), default_char=D.CHAR, env=env)
+        with D.clock():
+            out = T.call(ctx, "levels", {"char": D.CHAR})
+            s = T.call(ctx, "character_summary", {"char": D.CHAR})
+        row = next(lv for lv in out["levels"] if lv["level"] == 32)
+        assert row["seconds"] is None and row["dur"] is None and row["xp"] is None, row
+        assert row["quests"] is None and row["kills"] is None and row["partial"] is False, row
+        assert [lv["level"] for lv in out["levels"]] == sorted({lv["level"] for lv in out["levels"]})
+        assert s["level"] - 1 - 32 < 3, "the fixture's window holds level 32"
+        assert s["avg_last_5_levels"] is None and s["xp_per_hour_last_3_levels"] is None, s
+        assert s["eta_next_level"] is None
+        assert out["coverage"]["polestar"]["gaps"] == [{"level": 32}]
+    finally:
+        vl.close()
+        T._MISSING.clear()
+
+
+def test_deaths_in_a_window_the_recorder_never_saw_say_so(gap):
+    env, _ = gap
+    ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"]), default_char=D.CHAR, env=env)
+    d = T.call(ctx, "deaths", {"char": D.CHAR, "since": "2026-10-01", "until": "2026-10-08"})
+    assert d["total"] is None and d["note"] == "The Recorder wasn't on for this period."
+
+
 def test_deaths_in_a_window_the_recorder_never_saw_are_unknown(gap):
     """The history starts on 2026-10-30: the week before it has no Recorder
     record, so its deaths are unknown, never 0; the whole history has some."""

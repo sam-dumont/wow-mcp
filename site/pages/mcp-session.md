@@ -8,7 +8,7 @@ items. The assistant's own reply isn't here: that part depends on your
 model, the answers don't.
 
 [Ask your assistant](../../docs/mcp.md) explains how to connect yours. The
-server has 41 tools: `analyse`, `analysis_brief`, `analysis_progress`, `analysis_submit`, `character_summary`, `check_plan`, `class_guide`, `class_meta`, `dashboard_refresh`, `deaths`, `dungeon_options`, `dungeons`, `gear`, `gear_options`, `guide_steps`, `how_did_my_plan_go`, `kb_get`, `kb_lookup`, `kb_rule`, `kb_search`, `kb_topics`, `levels`, `list_metrics`, `mount_goal`, `news`, `next_moves`, `next_step`, `people`, `plan_session`, `play_analysis`, `play_sql`, `players`, `prices`, `propose_finding`, `query_metric`, `route_reference`, `sanity_check`, `sessions`, `talent_changes`, `whats_new`, `zones`.
+server has 38 tools: `analyse`, `analysis_brief`, `analysis_progress`, `analysis_submit`, `character_summary`, `check_plan`, `class_guide`, `class_meta`, `dashboard_refresh`, `deaths`, `dungeons`, `gear`, `guide_steps`, `how_did_my_plan_go`, `kb_get`, `kb_lookup`, `kb_rule`, `kb_search`, `kb_topics`, `levels`, `list_metrics`, `mount_goal`, `news`, `next_moves`, `next_step`, `plan_session`, `play_analysis`, `play_sql`, `players`, `prices`, `propose_finding`, `query_metric`, `route_reference`, `sanity_check`, `sessions`, `talent_changes`, `whats_new`, `zones`.
 
 <!-- Written by site/scripts/mcp_session.py: rerun it, don't edit by hand. -->
 
@@ -234,10 +234,10 @@ The assistant calls `next_moves`:
 
 ## Is a dungeon worth it at my level?
 
-The assistant calls `dungeon_options`:
+The assistant calls `dungeons`:
 
 ```json
-{"char": "Nibbet-Gearholt"}
+{"char": "Nibbet-Gearholt", "options": true}
 ```
 
 <details>

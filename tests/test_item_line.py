@@ -178,10 +178,10 @@ def _rows(x, out: list) -> list[dict]:
     return out
 
 
-@pytest.mark.parametrize("tool", ["gear", "gear_options", "dungeon_options"])
-def test_mcp_item_rows_carry_the_line(ctx, tool):
+@pytest.mark.parametrize("tool, more", [("gear", {}), ("gear", {"options": True}), ("dungeons", {"options": True})])
+def test_mcp_item_rows_carry_the_line(ctx, tool, more):
     c, _app = ctx
-    rows = _rows(T.call(c, tool, {"char": D.CHAR}), [])
+    rows = _rows(T.call(c, tool, {"char": D.CHAR, **more}), [])
     assert rows, f"{tool}: no item rows on the demo"
     for r in rows:
         assert LINE.match(r.get("line") or ""), (tool, r.get("item") or r.get("name"), r.get("line"))
@@ -210,7 +210,7 @@ def test_one_current_zone_and_one_line_across_the_gear_tools(ctx):
     c, _app = ctx
     summary = T.call(c, "character_summary", {"char": D.CHAR})
     g = T.call(c, "gear", {"char": D.CHAR, "limit": 40})
-    o = T.call(c, "gear_options", {"char": D.CHAR, "limit": 20})
+    o = T.call(c, "gear", {"char": D.CHAR, "options": True, "limit": 20})
     zone = summary["zone"]
     assert zone and g["zone"] == zone and o["zone"] == zone
     opts = [x for s in o["slots"] for x in s["options"]]

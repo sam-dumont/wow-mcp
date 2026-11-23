@@ -188,8 +188,8 @@ CLIENTS: tuple[Client, ...] = (
 # test checks they exist; the page doesn't show them).
 ASKS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("Plan my next 2 hours, no dungeons.", ("plan", "plan_session", "check_plan")),
-    ("Which upgrade should I chase next, and where?", ("gear", "gear_options")),
-    ("Is another run of my last dungeon worth it?", ("dungeon", "dungeon_options", "dungeons")),
+    ("Which upgrade should I chase next, and where?", ("gear",)),
+    ("Is another run of my last dungeon worth it?", ("dungeon", "dungeons")),
 )
 
 # What the data covers, in plain words. Every tool the server lists sits in
@@ -200,8 +200,8 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("Sessions and zones", "each session, and time, XP and deaths per zone", ("sessions", "zones")),
     ("Guide steps", "time per step, skipped steps", ("guide_steps",)),
     ("Deaths", "where, at what level, what killed you", ("deaths",)),
-    ("Dungeons", "your runs, and which ones are worth it now", ("dungeons", "dungeon_options")),
-    ("Gear", "what you wear and every way to an upgrade", ("gear", "gear_options")),
+    ("Dungeons", "your runs, and which ones are worth it now", ("dungeons",)),
+    ("Gear", "what you wear and every way to an upgrade", ("gear",)),
     ("Talents", "how your talents changed, day by day", ("talent_changes",)),
     ("Gold", "your auction prices, and the next riding tier", ("prices", "mount_goal")),
     ("Plans", "session plans at your pace, and how they went",
@@ -210,7 +210,7 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
      ("analyse", "play_analysis", "whats_new", "sanity_check", "analysis_brief", "play_sql", "list_metrics",
       "query_metric", "propose_finding",
       "analysis_submit", "analysis_progress", "dashboard_refresh")),
-    ("People", "players your game showed you", ("players", "people")),
+    ("People", "players your game showed you", ("players",)),
     ("Game rules", "game facts: quests, items, NPCs, zones, rules, how to level your class and its meta",
      ("kb_search", "kb_get", "kb_lookup", "kb_rule", "kb_topics", "class_guide", "class_meta")),
     ("News", "what's new on Forever this week, and what is coming", ("news",)),
