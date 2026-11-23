@@ -216,6 +216,14 @@ def tool(searches: list[str]) -> dict:
             "allowed_domains": [REDDIT]}
 
 
+class DomainRefused(Exception):
+    """The search tool will not read the domain (HTTP 400 "not accessible to our
+    user agent", or a result block saying so): Reddit is skipped for this run."""
+
+
+_REFUSED = re.compile(r"not accessible to our user agent|domain.{0,40}(not accessible|not allowed|blocked)", re.I)
+
+
 def ask(client, meter, threads: list[dict], searches: list[str]) -> tuple[dict, dict[str, dict]]:
     """One model turn (resumed after a pause, at most 3 times): its JSON
     answer and every search result it got, by URL."""
@@ -224,14 +232,24 @@ def ask(client, meter, threads: list[dict], searches: list[str]) -> tuple[dict, 
     text = ""
     for _ in range(3):
         meter.check()
-        r = client.messages.create(model=meter.model, max_tokens=16000, system=SYSTEM, tools=[tool(searches)],
-                                   output_config={"effort": "medium"}, messages=messages)
+        try:
+            r = client.messages.create(model=meter.model, max_tokens=16000, system=SYSTEM, tools=[tool(searches)],
+                                       output_config={"effort": "medium"}, messages=messages)
+        except Exception as e:  # noqa: BLE001 (the SDK's error classes are not imported here)
+            if getattr(e, "status_code", None) == 400 and _REFUSED.search(str(e)):
+                raise DomainRefused(str(e)) from e
+            raise
         usage = _get(r, "usage")
         meter.add(usage, "community: forum lines and Reddit searches")
         searched = _get(_get(usage, "server_tool_use") or {}, "web_search_requests") or 0
         meter.spent += searched * SEARCH_COST
         content = list(_get(r, "content") or [])
         for b in content:
+            body = _get(b, "content")
+            if _get(b, "type") == "web_search_tool_result" and not isinstance(body, list) and body is not None:
+                err = f"{_get(body, 'error_code') or ''} {_get(body, 'message') or ''}"
+                if _REFUSED.search(err) or "domain" in err.lower():
+                    raise DomainRefused(err.strip())
             if _get(b, "type") == "web_search_tool_result" and isinstance(_get(b, "content"), list):
                 for res in _get(b, "content"):
                     url = str(_get(res, "url") or "")
@@ -368,6 +386,12 @@ def run(fetch, client, cap: float, today: date, searches: list[str] | None = Non
     except refresh.OverBudget as e:
         answer, results = {}, {}
         notes.append(str(e))
+    except DomainRefused as e:
+        # Same path as no credentials: forum titles kept, Reddit skipped (owner, 2026-11-23: the search tool
+        # answered HTTP 400 for reddit.com and failed the whole kb-refresh). No retry; any other error still fails.
+        answer, results = {}, {}
+        print(f"community: web search refused the Reddit domain, Reddit skipped this run ({e})", file=sys.stderr)
+        notes.append("Reddit skipped: the search tool refused the domain")
     items = merge(answer, threads, results, since)
     refresh.step_summary(meter, "Community (tools/kb/community.py)")
     if not answer:
