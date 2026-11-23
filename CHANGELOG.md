@@ -9,6 +9,10 @@
 - The compose kit's VictoriaLogs now runs with the limits [security.md](docs/security.md) asks for: 30 s per query, 4 queries at once, 10 s in the queue, and 1 GiB of memory (`VL_MEM_LIMIT`). Until now it ran on VictoriaLogs' defaults with no memory limit.
 - The Python answers to the views' LogsQL (`wowstats/logsql.py`) now match VictoriaLogs v1.54.0 where they didn't, checked against a real VictoriaLogs in CI (`tests/test_logsql.py`): an unnamed `count()` is `count(*)`, `sum()` of no number is `NaN`, `min()` over rows without the field is empty, text sorts in natural order (item 9 before item 10), `inf`, `nan` and padded numbers aren't numbers, a row left with no field isn't answered, `<` and `'` are escaped in JSON values, and single-quoted strings go to VictoriaLogs instead of matching nothing.
 
+### Changed
+
+- The words say what the code does, no more. A kept finding reads "Numbers recomputed from your data" (its SQL runs again each night; that doesn't prove the sentence true). A guide step past 3× its plan says to look at what holds it up and skip it only if no later step needs it: the code can't tell a prerequisite or travel from a detour. Tool descriptions and prompts call the judge's findings "kept", not "verified". A source's `complete` coverage is documented as "no hole found": only the Recorder and Battle.net are looked at for one.
+
 ### Upgrading
 
 - Compose: VictoriaLogs gets a 1 GiB memory limit. It peaked at 217 MiB on a year of the demo; with a much longer history, set `VL_MEM_LIMIT=2g` in `.env` before `docker compose up -d`.

@@ -935,7 +935,7 @@ def test_a_finding_kept_before_manifests_is_carried_over_once_when_it_holds(driv
     assert f["weight"] == before["weight"] and f["confirmations"] == before["confirmations"]
     a = analysis.answer(env, CHAR)
     assert a["checked"] == 1 and a["to_revalidate"] == 0
-    assert a["findings"][0]["carried_note"] == f"Checked against {__version__} data, first judged under 0.6."
+    assert a["findings"][0]["carried_note"] == f"Numbers recomputed under {__version__}, first judged under 0.6."
     # Once: the next night is an ordinary recheck, same data, same weight.
     out = recheck_night(env, rows, knowledge)
     f2, info = out["findings"]["sessions-online"], out["runs"][-1]

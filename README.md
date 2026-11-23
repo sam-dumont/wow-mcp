@@ -120,7 +120,7 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
   characters and collections through the Battle.net API and an addon.
 
 This one focuses on a self-hosted levelling history, metric definitions shared by the page and
-the AI, and findings checked against the data.
+the AI, and findings whose numbers are recomputed from the data.
 
 ## License
 

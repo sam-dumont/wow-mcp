@@ -259,7 +259,7 @@ def t_whats_new(ctx: T.Ctx, args: dict) -> dict:
             # Held lines (on findings to revalidate) apart: analysis.standing.
             "nudges": (lines := analysis.standing(s))["nudges"], "on_hold": lines["on_hold"],
             "updated": s.get("updated"),
-            "note": "Findings are verified each night: their SQL re-run on the latest data."}
+            "note": "Each night every finding's SQL runs again on the latest data and its numbers are recomputed."}
 
 
 def t_kb_search(ctx: T.Ctx, args: dict) -> dict:
@@ -369,8 +369,8 @@ PLAN_TOOLS: tuple[T.Tool, ...] = (
            "Each riding tier from the knowledge base: gold needed, gold now, net gold per hour, ETA in played hours "
            "and in levels, whether the character is behind, and priced gold options.", S({"char": CHAR}), t_mount_goal),
     T.Tool("whats_new", "New this week",
-           "The play analysis' findings new in the last days, those confirmed again, those dropped, and the "
-           "nudges.", S({"char": CHAR, "days": {"type": "integer", "minimum": 1, "maximum": 30,
+           "The play analysis' findings new in the last days, those that held again on newer play, those "
+           "dropped, and the nudges.", S({"char": CHAR, "days": {"type": "integer", "minimum": 1, "maximum": 30,
                                          "description": "How many days back."}}), t_whats_new),
     T.Tool("kb_search", "Search the knowledge base",
            "Full-text search of the knowledge base (Forever client tables, Polestar's data and guides, the "

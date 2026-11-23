@@ -92,7 +92,7 @@ def carried_note(f: dict) -> str | None:
     c = f.get("carried_over") or {}
     if not c.get("held"):
         return None
-    return f"Checked against {c.get('to')} data, first judged under {c.get('from')}."
+    return f"Numbers recomputed under {c.get('to')}, first judged under {c.get('from')}."
 
 # What a driver's SQL may read, each with where its data comes from: the
 # player's own game files (VictoriaLogs) or what the prep derives from them

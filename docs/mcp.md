@@ -49,7 +49,7 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `gear_options` | Per slot, every source kind with its cost: quest (where), dungeon (whole-trip time / drop chance), world drop (luck, AH), craft (skill needed), and any other kind a source carries; each item with `bis_pct`, `bis_pct_worn`, `delta_pct` |
 | `dungeon_options` | Dungeons ranked: fits now or opens at level N; one more run at your level now (`gain`: time, XP, share of the level, XP/h against your questing, the quests to pick up; the same line as the Overview and the Dungeons panel); expected gear per clear, top items (with `bis_pct`, `bis_pct_worn`, `delta_pct`); for done ones a redo verdict and the loop numbers |
 | `mount_goal` | Each riding tier (from `data/kb/rules.json`): gold needed, gold left, net gold per hour, ETA in played time and level, priced options to speed it up; what isn't known (the time to a level past the route's clock) is listed under `unknown` |
-| `whats_new` | Verified analysis findings new, confirmed again or dropped in the last `days` (7 by default), and the nudges |
+| `whats_new` | Analysis findings new, held again on newer play or dropped in the last `days` (7 by default), and the nudges |
 | `kb_search` | The knowledge base, full text, each hit with its source URL, type, confidence and scope (`forever` or `classic_fallback`); `scope` filters |
 | `kb_rule` | One static rule (`riding.apprentice`, `rested.accrual`...) with its value, source and `last_verified`, plus any other lane's differing version under `conflicts`, or "unknown" |
 | `kb_topics` | The research catalogue by lane (game rules, dungeons, levelling, economy and professions, PvP, raids): counts and the day each was checked; with `lane`, its documents, contradictions (with sources) and open questions |
@@ -76,7 +76,8 @@ rounded to a whole number, the same in every tool and page.
 Every answer about one character carries `coverage`: what it stood on, one
 entry per source (`recorder`, `polestar`, `gear`, `quests`, `prices`,
 `battlenet`), each `{state, as_of, gaps, fix}` with `state` one of
-`complete`, `partial` (arrived with a hole), `unavailable` (nothing arrived;
+`complete` (arrived, no hole found: only the Recorder and Battle.net are
+looked at for one), `partial` (arrived with a hole), `unavailable` (nothing arrived;
 `fix` is the one thing that brings it) or `unknown` (the store didn't
 answer). The Recorder's `gaps` are exact: a finished level whose Polestar
 split (the game's own played time) is longer than the Recorder's sessions in
@@ -178,9 +179,9 @@ you (the one most out of date) and the server's automatic-refresh timers:
 3. **follow-ups**: pick the "ask next" items worth a second round (8 at
    most); they get lanes of two.
 4. **coverage**: a table no query has read yet gets its own lane.
-5. **synthesis**: the run's verified findings, against each other. A clash
+5. **synthesis**: the run's kept findings, against each other. A clash
    gets a reconciling query (the server re-runs it) and either one merged
-   finding (verified like any) or both marked doubtful. `keep` decides what
+   finding (judged like any) or both marked doubtful. `keep` decides what
    stays; nudges carry a verdict (`now`, `at_level`, `not_relevant`) and the
    KB ids of their constraints, which the server checks against the
    character's level; the nudges meant for the shared page are screened
@@ -298,7 +299,7 @@ A finding kept before 0.7.0 has no manifest. The first recheck that sees it
 carries it over once: its SQL runs on tonight's build, and if it still holds
 it takes tonight's manifest and `carried_over` (from, to, when), gains no
 weight for it, and shows one line on the page and in `play_analysis`
-(`carried_note`: "Checked against 0.7.0 data, first judged under 0.6.").
+(`carried_note`: "Numbers recomputed under 0.7.0, first judged under 0.6.").
 If it fails it fades like any other finding, and from the next night it is
 to revalidate. Either way it is tried once: after that a definition change
 marks it to revalidate like any other.

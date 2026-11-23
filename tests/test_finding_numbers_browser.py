@@ -86,7 +86,7 @@ def test_unbound_numbers_say_to_revalidate_and_each_finding_says_when_checked(ur
         assert f"to revalidate: {verify.UNBOUND_WHY} (3)" in typed and "You died 3 times." in typed
         assert "to revalidate" not in bound and "You died 5 times." in bound
         checked = pg.locator("#analysis .findings .checked").all_inner_texts()
-        assert checked == ["Checked against your data 3 h ago."] * 2, checked
+        assert checked == ["Numbers recomputed from your data 3 h ago."] * 2, checked
         refresh = pg.locator("#analysis .refresh").inner_text()
         assert refresh.startswith("Every night from 04:00") and "No nightly recheck yet." in refresh
         assert not errors, errors

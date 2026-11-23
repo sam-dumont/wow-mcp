@@ -2669,7 +2669,7 @@ function renderAnalysis(a) {
     f.carried_note ? h('p', { class: 'sub carried', text: f.carried_note }) : null,
     // When its query last ran without a model (the judge or the nightly
     // recheck): the text above shows that run's numbers.
-    f.last_checked ? h('p', { class: 'sub checked', text: `Checked against your data ${ago(f.last_checked)}.` }) : null);
+    f.last_checked ? h('p', { class: 'sub checked', text: `Numbers recomputed from your data ${ago(f.last_checked)}.` }) : null);
   const acts = (a.findings || []).filter((f) => f.action);
   const obs = (a.findings || []).filter((f) => !f.action);
   if (acts.length) kids.push(h('h3', { text: 'Findings to act on' }), h('ol', { class: 'findings' }, acts.map(finding)));
@@ -3071,7 +3071,7 @@ function overviewTiles(ov) {
   const tile = (label, value, sub, hint, title) => h('div', { title: title || null },
     h('dt', { text: label }), h('dd', {}, value, h('span', { class: 'sub', text: sub }),
       hint ? h('span', { class: 'hint', text: hint }) : null));
-  const slow = g.over_plan_s > 0 ? `Guide steps past 3× their plan cost ${dur(g.over_plan_s)}: skip them sooner` : null;
+  const slow = g.over_plan_s > 0 ? `Guide steps past 3× their plan cost ${dur(g.over_plan_s)}: look at what held them up` : null;
   return h('dl', { class: 'facts ovtiles' },
     tile('Pace', tr.route_ratio ? fmtX(tr.route_ratio) : 'not yet',
       tr.route_ratio ? `Polestar’s route time, level${lv.length > 1 ? `s ${lv[0]}-${lv[lv.length - 1]}` : ` ${lv[0]}`}` : 'needs a finished level',
