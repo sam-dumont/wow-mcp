@@ -1971,7 +1971,7 @@ def _dungeon_trips(db, rows) -> None:
             elif kind == "turnin" and qid not in handed:
                 handed.add(qid)
                 xp_q += xpr or 0
-                if r0 <= t <= r1:
+                if r0 <= t < r1:  # one at the exit's second is the hand-in after, as below
                     xp_q_inside += xpr or 0
                 money += cop or 0
                 if iid:

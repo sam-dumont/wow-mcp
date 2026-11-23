@@ -688,6 +688,16 @@ def test_a_quest_handed_in_inside_is_quest_xp_not_run_xp():
     assert handed == 6 and xp_quests == 4950 + 5550 + 5550 + 4200 + 4400 + 5800
     assert one(db, "SELECT xp FROM dungeon_runs")[0] == 3188 + 4950  # the run itself stays Polestar's
 
+    # A hand-in on the exit's second is the one right after the run, not
+    # inside (the trip's hand-in phase starts there too).
+    for r in rows:
+        if r.get("kind") == "turnin" and r.get("quest_id") == "391":
+            r["_time"] = "2026-10-14T17:37:03.200Z"
+        elif r.get("feed") == "wow-dungeon":
+            r["xp"] = "3188"
+    db = prep.build(rows, "Testpriest-Fixture")
+    assert one(db, "SELECT xp_inside FROM dungeon_trips")[0] == 3188
+
 
 def _seed_rows(tmp_path):
     import subprocess
