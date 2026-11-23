@@ -282,3 +282,80 @@ def test_a_route_trip_replaces_the_flat_means():
     assert {k: g["trip"][k]["label"] for k in ("pickup_s", "travel_s", "handin_s", "inside_s")} == \
         {"pickup_s": "route", "travel_s": "route", "handin_s": "route", "inside_s": "estimate"}
     assert g["trip"]["from"] == "you" and g["trip"]["stops"] == {"pickup": 1, "handin": 1}
+
+
+# ---------------------------------------------------------------- his pace
+
+ROUTE = {"pickup_s": 1500, "travel_to_s": 240, "travel_back_s": 120, "handin_s": 1200, "quests": [1, 2],
+         "prereqs": [], "pickup": ["gn1"], "handin": ["tn1"], "from": "you", "xp_quests": 9000}
+
+
+def legs(planned, pickup, travel, handin):
+    """A past trip: its measured legs and what the rules planned for it."""
+    return trip(30, 3000, dungeon="Blackfathom Deeps", route_s=planned, pickup_s=pickup, travel_to_s=travel,
+                travel_back_s=0, handin_s=handin)
+
+
+def test_his_pace_from_his_trips():
+    # Owner, 2026-11-23: his trips take about twice the straight run. Summed
+    # over the trips: 9,000 s walked for 4,000 s planned.
+    trips = [legs(3000, 2000, 1000, 3000), legs(1000, 1000, 500, 1500)]
+    assert V.pace(trips) == {"factor": 2.25, "trips": 2, "label": "your pace", "raw": 2.25}
+    # Time-weighted: a 1-minute rerun walked in 11 doesn't swing it.
+    assert V.pace([*trips, legs(60, 0, 660, 0)])["factor"] == 2.38
+    # A trip the rules can't replay (no route data, no start position), or
+    # one with no legs outside (logged at the door), doesn't count.
+    assert V.pace([*trips, legs(None, 900, 0, 0), legs(500, 0, 0, 0)])["trips"] == 2
+
+
+def test_no_trips_is_the_straight_run():
+    assert V.pace([]) == V.pace(None) == {"factor": 1.0, "trips": 0, "label": "straight run"}
+    assert V.pace([legs(None, 900, 0, 900)])["trips"] == 0
+
+
+def test_the_pace_is_clamped():
+    lo, hi = V.PACE_RANGE
+    assert (lo, hi) == (1.0, 4.0)
+    quick = V.pace([legs(4000, 500, 500, 0)])
+    assert quick["factor"] == 1.0 and quick["raw"] == 0.25  # quicker than the rules: their miss, not his pace
+    slow = V.pace([legs(600, 3000, 0, 3000)])
+    assert slow["factor"] == 4.0 and slow["raw"] == 10.0
+
+
+def test_his_pace_scales_the_routes_legs_and_not_the_time_inside():
+    straight = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE)
+    p = {"factor": 2.0, "trips": 3, "label": "your pace"}
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE, pace=p)
+    t, s = g["trip"], straight["trip"]
+    assert t["inside_s"] == s["inside_s"] and t["inside_s"]["label"] == "estimate"
+    assert t["pickup_s"] == {"value": 3000, "label": "your pace"}
+    assert t["travel_s"] == {"value": 720, "label": "your pace"}
+    assert t["handin_s"] == {"value": 2400, "label": "your pace"}
+    assert g["run_s"] == straight["run_s"] + 1500 + 240 + 120 + 1200
+    assert t["pace"] == p and s["pace"] == {"factor": 1.0, "trips": 0, "label": "straight run"}
+    # The line's split says the scaled minutes, nothing more.
+    assert "(50 min pickups · " in g["summary"] and " · 40 min hand-ins)" in g["summary"]
+    assert "pace" not in g["summary"]
+    # Before his first trip: the straight run, labelled the rules'.
+    one = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE,
+              pace={"factor": 1.0, "trips": 0, "label": "straight run"})
+    assert one["trip"]["pickup_s"] == {"value": 1500, "label": "route"}
+
+
+def test_his_own_runs_there_are_his_pace_already():
+    own = trip(32, 3000, dungeon="City of Dalaran")
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=15107, route=ROUTE, runs=[own],
+            quests=[quest(1, 5000)], pace={"factor": 2.0, "trips": 3, "label": "your pace"})
+    assert g["trip"]["pickup_s"] == {"value": 900, "label": "measured"} and g["trip"]["pace"] is None
+
+
+def test_each_fixture_trip_is_replayed_at_its_start(priest):
+    # facts.trip_pace replays both of Testpriest's trips on the rules from
+    # where each started; the synthetic trips took fewer quests than the
+    # rules plan, so the pace is clamped to the straight run.
+    assert all(t["route_s"] and t["route_s"] > 0 for t in priest["trips"])
+    p = V.pace(priest["trips"])
+    assert p["trips"] == 2 and p["raw"] < 1 and p["factor"] == 1.0
+    g = V.gain_named(priest, "Gnomeregan", 12000)
+    assert g["trip"]["pace"] == {"factor": 1.0, "trips": 2, "label": "your pace"}
+    assert g["trip"]["pickup_s"]["label"] == "your pace"

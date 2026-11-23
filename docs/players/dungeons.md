@@ -29,7 +29,9 @@ run), 2.1× your questing (20 min pickups · 1h15 inside · 15 min hand-ins)". Q
 for sure with the quests; drop upgrades are the ones that can drop, with the chance one does. Above 1×, the run levels you faster than questing.
 The trip starts where you were last seen: the quests to pick up on the way (Polestar's pick-up
 rules, the same ones its "Pick up the quests" guide follows), the walk or flight to the door, the
-run, and the hand-ins after. Your own runs there replace each part with what they measured. For a
+run, and the hand-ins after, at your pace: your past trips took longer than Polestar's
+straight run (you stop, wander, come back for a forgotten hand-in), so these parts are
+stretched by how much longer, measured on your own trips. Your own runs there replace each part with what they measured. For a
 dungeon you haven't run, the time inside and the kill XP are estimates ([Dungeon kill
 XP](../dungeon-xp.md)) and count in the "×".
 

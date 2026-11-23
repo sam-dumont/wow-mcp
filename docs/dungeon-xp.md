@@ -60,7 +60,8 @@ The estimate counts in the run's XP, its "× your questing" and the ranking of
 dungeons, labelled `estimate` in `gain.trip` (until 2026-11-23 it stayed out of them,
 and a dungeon you hadn't run had no "×" at all). The pickups and
 hand-ins around it come from Polestar's pick-up and hand-in rules on your
-quests, labelled `route` ([Route reference](route-reference.md#dungeon-trips)).
+quests, at your own pace from your past trips, labelled `your pace` (`route`, the
+straight run, before your first trip; [Route reference](route-reference.md#dungeon-trips)).
 
 ## How close it gets
 

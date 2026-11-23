@@ -116,6 +116,17 @@ where the measured ones ran 18-53 min (the measure counts everything from the st
 last pickup, other quests and fights included); the measured hand-ins include quests from outside the dungeon (65 min against the model's 22
 for the Stockade).
 
+The rules time a straight run; real trips aren't one ("I pause, do other stuff, go back and
+forth, forget to hand in a quest and have to come back", 2026-11-23). So the
+line scales the pickups, travel and hand-ins by your own pace: each of your past trips is
+replayed on the rules as you stood at its start (level, quests done and in the log then,
+where you were last seen before it), and your pace is your measured legs over the planned
+ones, summed over the trips (`wowstats.plan.dungeonview.pace`). It stays between 1× and
+4×: a trip quicker than the rules is the rules' miss, and past 4× one long break would set
+every estimate. With no trip to replay it is 1×, the straight run. The time inside isn't
+scaled: your runs there, else the kill model. One character's four trips (Blackfathom Deeps,
+the Stockade, City of Dalaran twice) give 2.13× (13,406 s walked for 6,299 s planned).
+
 ## How far to trust it
 
 The clock models a quick player who knows the route. Real players are

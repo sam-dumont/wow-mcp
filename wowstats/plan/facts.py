@@ -707,6 +707,48 @@ def trips(ask) -> list[dict]:
     return out
 
 
+# Done at a trip's start: a hand-in the Recorder saw before it. A quest only
+# deduced done (the addons' lists, a reward, Battle.net, a later quest) was
+# handed in while the Recorder wasn't looking, so before any trip it saw.
+SEEN_DONE = ("turnin", "flagged")
+
+
+def trip_pace(sem, trips: list[dict], who: dict) -> None:
+    """Each trip's `route_s`: the pickups, travel and hand-ins Polestar's
+    rules plan for that same trip (dungeonview.trip_at), replayed on the
+    character as it stood at the trip's start: its level, the quests done
+    and in the log then, where it was last seen before. None when the rules
+    have no data for the dungeon. Measured over planned is his pace
+    (dungeonview.pace), which the next trips' legs are scaled by."""
+    from . import wings as W
+    from .dungeonview import trip_at
+
+    if not trips:
+        return
+    seen = {}
+    for r in ask(sem, metrics=["done_seen_t"], group_by=["quest_id", "done_source"]):
+        if r["quest_id"] is None:
+            continue
+        t = r["done_seen_t"] if r["done_source"] in SEEN_DONE else float("-inf")
+        seen[int(r["quest_id"])] = min(seen.get(int(r["quest_id"]), math.inf), t if t is not None else math.inf)
+    held = [(int(r["quest_id"]), r["quest_accepted_t"], r["quest_closed_t"])
+            for r in ask(sem, metrics=["quest_accepted_t", "quest_closed_t"], group_by=["quest_id", "status"])
+            if r["quest_id"] is not None]
+    for t in trips:
+        t0 = t.get("start_t")
+        if t0 is None:
+            t["route_s"] = None
+            continue
+        done = {q for q, at in seen.items() if at < t0}
+        log = {q for q, a, c in held if (a is None or a < t0) and (c is None or c >= t0) and q not in done}
+        where = ask(sem, metrics=["map_now", "x_now", "y_now"], until=since_local(t0))[0]
+        at = {"map_id": int(where["map_now"]), "x": float(where["x_now"]), "y": float(where["y_now"])} \
+            if where.get("map_now") is not None and where.get("x_now") is not None else None
+        plan = trip_at(W.trip_name(t), who, t.get("level_start") or 1, done, log, at)
+        t["route_s"] = round(plan["pickup_s"] + plan["travel_to_s"] + plan["travel_back_s"] + plan["handin_s"], 1) \
+            if plan and at else None
+
+
 def loot_value(db, cards, scans: dict, days: float = 14, now: float | None = None, sem: tuple | None = None) -> dict:
     """What the questing loot was worth per online hour over the last days,
     outside dungeons: at a vendor (the client's sell price) and, for what he
@@ -1041,6 +1083,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
     prof_rate = {name: {"seconds": round((by_guide.get(sl) or {}).get("active_s") or 0),
                         "skill_ups": (by_guide.get(sl) or {}).get("skill_ups") or 0} for name, sl in lines.items()}
     tr = trips(ask_on(db, sem))
+    trip_pace(sem, tr, {k: meta.get(k) for k in ("class", "race", "faction")})
     for t in tr:
         t["loot"] = run_loot(t, cards, scans)
     ups = upgrades(sem, (advice or {}).get("upgrades_all") or [])

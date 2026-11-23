@@ -882,6 +882,11 @@ quests:
       description: "When the quest was accepted, unix seconds: the first accept in the group."
       metadata: {kind: simple, aggregation: min, time_meaning: quest_closure, evidence_basis: observed, unit: unix seconds,
                  caveats: "NULL for a quest accepted before tracking began (untimed, or open with its objectives seen done). Filter status for one row of a quest taken twice."}
+    quest_closed_t:
+      expr: _.closed_t.max()
+      description: "When the quest left the log, unix seconds: the last hand-in or abandon in the group."
+      metadata: {kind: simple, aggregation: max, time_meaning: quest_closure, evidence_basis: observed, unit: unix seconds,
+                 caveats: "NULL while it is still in the log. With quest_accepted_t it says what the log held at a moment (a dungeon trip's start, wowstats.plan.facts.trip_pace)."}
     quest_complete_t:
       expr: _.complete_t.max()
       description: "When its objectives were last reported complete (a complete record between its accept and its close), unix seconds."
@@ -1328,6 +1333,11 @@ done_quests:
       description: "Quests known done, whatever the source."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: quests,
                  caveats: "A quest done before the Recorder ran is here only when another source says so; done_source reward, battlenet and inferred are deduced, not seen."}
+    done_seen_t:
+      expr: _.seen_t.min()
+      description: "When the quest was first seen done, unix seconds: the hand-in for turnin, else when the source first said so."
+      metadata: {kind: simple, aggregation: min, time_meaning: event, evidence_basis: observed, unit: unix seconds,
+                 caveats: "For a deduced source (questie, altoholic, reward, battlenet, inferred) it is when the data showed it, which can be long after the hand-in."}
 
 position:
   table: sem_route_position
