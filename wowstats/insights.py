@@ -490,7 +490,8 @@ def guide_following(steps: dict, ref, rows: list[dict]) -> dict:
             title=f"{len(over)} guide steps took over {SLOW_STEP:.0f}× their plan",
             detail=f"{dur(over_s)} more than planned in all. The worst: {what} of {guide_title(worst['guide'], ref)}, "
                    f"{dur(worst['secs'])} against {dur(worst['route_s'])}.",
-            action=f"Once a step runs past {SLOW_STEP:.0f}× its plan, skip it (the guide's skip) and move on.",
+            action=f"Once a step runs past {SLOW_STEP:.0f}× its plan, look at what holds it up: "
+                   "skip it only if no later step needs it.",
             zone=zone_ref(worst.get("zone"))))
     last = rows[-1] if rows else None
     cur = None

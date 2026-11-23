@@ -101,12 +101,12 @@ COMMANDS = {
                 "time and XP per hour (with how many runs back it), expected gear and the top items (boss, chance); "
                 "then for each one I've done, its verdict for one more run and for looping it. Say a dungeon needs "
                 "a group, and that instance lockouts are unknown unless the tool gives a source."),
-    "check": ("Anything stupid?", "Mistakes in the recorded play, with the analysis' verified findings.", None,
+    "check": ("Anything stupid?", "Mistakes in the recorded play, with the analysis' kept findings.", None,
               "Is there anything stupid I'm doing? Call sanity_check and play_analysis. At most six bullets, worst "
               "first, each with its number and where it came from; killers are 'likely'. One line on what the "
               "data can't check yet."),
-    "week": ("This week", "New or changed verified findings since last week.", None,
-             "What's new in my play this week? Call whats_new. New findings first, then those confirmed again, "
+    "week": ("This week", "New or changed findings since last week.", None,
+             "What's new in my play this week? Call whats_new. New findings first, then those that held again, "
              "then what was dropped, one line each with its number."),
     "mount": ("Mount", "Mount progress: gold needed against gold and gold per hour, with an ETA.", None,
               "Where am I with my mount? Call mount_goal. Per tier: gold needed, gold now, net gold per hour, ETA "

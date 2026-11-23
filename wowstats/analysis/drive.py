@@ -490,7 +490,7 @@ SECTIONS = {
     "lane": "the lane pass: task, finding shape and answer shape",
     "followups": "the questions lanes proposed to ask next, numbered, and the pick task (paged)",
     "coverage": "the tables no query has read yet",
-    "synthesis": "this run's verified findings, the questions asked, the synthesis task and answer shape (paged)",
+    "synthesis": "this run's kept findings, the questions asked, the synthesis task and answer shape (paged)",
 }
 
 
@@ -531,7 +531,7 @@ def brief(env: dict, char: str, section: str = "start", page: int = 1, goals: st
     if section == "coverage":
         return {"char": w.char, "task": passes.COVERAGE_TASK, "untouched": _untouched(w, run),
                 "next": next_step(run)}
-    listing = "## Verified findings of this run\n\n" + "\n\n".join(
+    listing = "## Findings the judge kept this run\n\n" + "\n\n".join(
         json.dumps(f, ensure_ascii=False) for f in run["verified"].values())
     listing += "\n\n## Questions asked\n\n" + "\n".join(
         f"- [{q['id']}] {q['question']} (answered: {q.get('answered')})" for q in run["questions"])

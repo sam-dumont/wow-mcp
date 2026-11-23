@@ -13,7 +13,8 @@ and bags), `quests` (Questie or Altoholic: quests done before installing),
 `prices` (Auctionator, the account's) and `battlenet` (the exporter's read).
 
 States:
-- complete: it arrived, and nothing stored shows a hole in it;
+- complete: it arrived, and no hole was found in it (only the Recorder's
+  play and Battle.net's read are looked at for one);
 - partial: it arrived with a hole: play the Recorder missed (`gaps`), the
   Recorder switched off now, Battle.net shown from an older complete read;
 - unavailable: nothing arrived (or no exporter here); `fix` is the one

@@ -34,7 +34,7 @@ def _analysis(kind: str) -> dict:
         {"key": "f3", "title": "Short breaks keep the pace", "text": "Breaks under ten minutes cost no XP an hour.",
          "action": {"do": "Keep breaks short", "where": "anywhere", "next_step": "Set a timer"},
          "confirmations": 1, "carried_over": {"from": "0.6", "to": "0.7.0", "at": RUNS[kind], "held": True},
-         "carried_note": "Checked against 0.7.0 data, first judged under 0.6."}],
+         "carried_note": "Numbers recomputed under 0.7.0, first judged under 0.6."}],
         "checked": 2, "to_revalidate": 1,
         "nudges": [{"text": "Train before the next zone.", "where": "Ironforge", "next_step": "Fly there"}],
         # A nudge on f2 (to revalidate): held out of "What to do" (review 6).
@@ -139,7 +139,7 @@ def test_a_carried_over_finding_says_so_in_one_line(site, pw, engine):
         pg.wait_for_selector("#analysis:not([hidden]) .findings", timeout=30000)
         notes = pg.locator("#analysis .findings .carried")
         assert notes.count() == 1
-        assert notes.inner_text() == "Checked against 0.7.0 data, first judged under 0.6."
+        assert notes.inner_text() == "Numbers recomputed under 0.7.0, first judged under 0.6."
         assert "first judged" in pg.locator("#analysis .findings > li").nth(2).inner_text()
         assert not errors, errors
     finally:

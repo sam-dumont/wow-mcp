@@ -16,7 +16,7 @@ and judges every finding (wowstats.analysis.drive):
   follow-ups the most promising "ask next" items, picked by the model,
              get a second round of lanes;
   coverage   a table no query has read yet gets a lane of its own;
-  synthesis  the run's verified findings checked against each other
+  synthesis  the run's kept findings compared with each other
              (clashes get a reconciling query, then one merged finding or
              both marked doubtful), ranked, and nudges (actions, the
              only part the shared page shows) and pattern lines (full
@@ -213,7 +213,7 @@ Tables no query has read yet get a lane of their own, with the survey's question
 neutral one). Run them like any lane."""
 
 SYNTH_TASK = """\
-Below are the verified findings of this run (each re-run by the judge) and the questions asked.
+Below are the findings the judge kept this run (each one's SQL re-run, its numbers matched) and the questions asked.
 
 First, check them against each other. Group the findings by the thing they describe (for example a place, a \
 level, an equipment slot, a session) and look for claims about the same thing that disagree. For each such \
@@ -225,7 +225,7 @@ nudges and patterns.
 Then list in `keep` the keys worth showing the player, most important first, and in `drop` each finding you \
 leave out, with why (a duplicate of a kept one, contradicted by a reconciling query...): a finding named in \
 neither stays. You may write new findings that merge or sharpen kept ones (same \
-rules; they are verified again). Then write at most five nudges. A nudge is an action, not a description: \
+rules; the judge re-runs them too). Then write at most five nudges. A nudge is an action, not a description: \
 `text` says what to do, `where` where in game, `blocked_by` what stands in the way (empty if nothing), \
 `next_step` the first thing to do, and `gist` the same in one short line; a nudge with no next step is \
 dropped. Nudges are also what the page the player shares with friends shows, whole: there a nudge that names \
@@ -263,7 +263,7 @@ How a run goes (analysis_progress says where it stands; `next` in every answer s
 2. lanes: read the section `lane` once; then for each lane the server hands you, investigate and hand it in.
 3. follow-ups: read the section `followups` (the "ask next" list), hand in your picks; their lanes follow.
 4. coverage: lanes for the tables still unread, if any.
-5. synthesis: read the section `synthesis` (this run's verified findings, paged), hand in the synthesis.
+5. synthesis: read the section `synthesis` (this run's kept findings, paged), hand in the synthesis.
 Then tell the player in a few lines what was kept, what the nudges say, and what was refused and why.
 A new chat goes on where the last stopped: call analysis_progress first."""
 

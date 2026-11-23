@@ -206,7 +206,7 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("Gold", "your auction prices, and the next riding tier", ("prices", "mount_goal")),
     ("Plans", "session plans at your pace, and how they went",
      ("plan_session", "check_plan", "how_did_my_plan_go", "next_step", "next_moves")),
-    ("Analysis", "findings about how you play, re-checked before they're kept",
+    ("Analysis", "findings about how you play, their numbers re-run before they're kept",
      ("analyse", "play_analysis", "whats_new", "sanity_check", "analysis_brief", "play_sql", "list_metrics",
       "query_metric", "propose_finding",
       "analysis_submit", "analysis_progress", "dashboard_refresh")),

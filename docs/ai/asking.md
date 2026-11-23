@@ -40,7 +40,7 @@ in Claude Code they're slash commands. Every tool and prompt:
 - **Talents**: how your talents changed, day by day.
 - **Gold**: your auction prices, and the next riding tier.
 - **Plans**: session plans at your pace, and how they went.
-- **Analysis**: findings about how you play, re-checked before they're kept.
+- **Analysis**: findings about how you play, their numbers re-run before they're kept.
 - **People**: players your game showed you.
 - **Game rules**: game facts: quests, items, NPCs, zones, rules, how to level your class and its meta.
 - **News**: what's new on Forever this week, and what is coming.
