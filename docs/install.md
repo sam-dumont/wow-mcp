@@ -199,8 +199,9 @@ demo's week (100,705 events, items and 3D off) it peaked at 472 MiB while
 the publisher built the sites, from 187 MiB on one week: 1 GiB leaves about
 twice the measured peak. A much longer history than that: raise it
 (`UI_MEM_LIMIT=2g`) and run `docker compose up -d`. In the same run the
-publisher peaked at 342 MiB, VictoriaLogs at 217 MiB and `site` at 22 MiB;
-the three have no limit.
+publisher peaked at 342 MiB, VictoriaLogs at 217 MiB and `site` at 22 MiB.
+VictoriaLogs has a limit too, 1 GiB (`VL_MEM_LIMIT`); the other two have
+none.
 
 </details>
 

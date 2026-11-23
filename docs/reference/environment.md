@@ -264,6 +264,7 @@ Read by `docker compose` in `deploy/compose`, not by a program. The other compos
 | `UI_MEM_LIMIT` | compose | size | `1g` | `2g` | The memory limit of `ui`. |
 | `UI_PUBLISH` | compose | `address:port` | `127.0.0.1:8080` | `0.0.0.0:8080` | Where the full view is published on the host. Leave it on 127.0.0.1 unless a login is set. |
 | `VL_MAX_DISK` | compose | size | `0`: no ceiling | `20GiB` | A disk ceiling for the game events. Past it VictoriaLogs deletes the oldest days, for good. |
+| `VL_MEM_LIMIT` | compose | size | `1g` | `2g` | The memory limit of `victorialogs`. |
 | `WOW_FULL_HOST` | compose | host name | required by the proxy files | `wow-full.example.org` | Your full view's and the MCP's host, for the proxy files. They also put it in `ALLOWED_HOSTS`. |
 | `WOW_SITE_HOST` | compose | host name | required by the proxy files | `wow.example.org` | The static sites' host, for `compose.caddy.yaml`, `compose.traefik.yaml` or `compose.nginx.yaml`. Point its DNS at the server. |
 | `WOW_STATS_IMAGE` | compose | image reference | `wow-stats:local`, built from the tree | `ghcr.io/<owner>/wow-mcp:<version>@sha256:<digest>` | Run a released image instead of building the tree. |

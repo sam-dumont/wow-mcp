@@ -114,7 +114,10 @@ class EventCache:
         char = scope(q.where)
         if char is None:
             return None
-        return q.run(self.rows(char))
+        try:
+            return q.run(self.rows(char))
+        except logsql.Unsupported:  # the rows themselves are outside the subset (logsql._one_kind)
+            return None
 
     # ------------------------------------------------------------ the rows
 

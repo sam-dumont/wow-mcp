@@ -27,10 +27,15 @@ image) draws the paperdoll's pictures when the publisher asks. An AI provider
 the host configures runs the play analysis on the server, on a timer
 ("The MCP seam" below). Without either, every page still works.
 
-Everything at runtime is the Python standard library, but two extras: the
-`publish` seal (pyca/cryptography) and the MCP endpoint (FastMCP, `mcp`).
-uv manages the project and the dev tools (pytest, ruff); the image holds a
-venv with the `wowstats` package and those two extras.
+The runtime is the Python standard library plus the semantic layer: DuckDB
+runs the metrics' SQL and the Boring Semantic Layer (on ibis and sqlglot)
+compiles the metric catalogue to it, since every number on a page goes
+through it. The rest are extras: the `publish` seal (pyca/cryptography), the
+MCP endpoint (FastMCP, `mcp`), and one SDK per analysis provider
+(`analysis`, `analysis-openai`). uv manages the project and the dev tools
+(pytest, ruff); the image holds a venv with the `wowstats` package and those
+four extras. The renderer's image is its own: Playwright, without DuckDB or
+the semantic layer.
 
 ## Parts
 

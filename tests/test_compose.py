@@ -18,7 +18,7 @@ def config(**env) -> dict:
     if not shutil.which("docker"):
         pytest.skip("no docker")
     clean = {k: v for k, v in os.environ.items()
-             if k not in ("ZOGZOG_PATH", "MODEL3D", "WOW_ITEMS", "VL_MAX_DISK", "UI_MEM_LIMIT", "COMPOSE_PROJECT_NAME")}
+             if k not in ("ZOGZOG_PATH", "MODEL3D", "WOW_ITEMS", "VL_MAX_DISK", "UI_MEM_LIMIT", "VL_MEM_LIMIT", "COMPOSE_PROJECT_NAME")}
     r = subprocess.run(["docker", "compose", "--env-file", os.devnull, "config", "--format", "json"], cwd=KIT,
                        env=clean | {"INGEST_PASSWORD": "x" * 12} | env, capture_output=True, text=True)
     if r.returncode and "is not a docker command" in r.stderr:
@@ -55,6 +55,18 @@ def test_disk_ceiling_is_off_unless_set():
     flag = "-retention.maxDiskSpaceUsageBytes="
     assert flag + "0" in config()["victorialogs"]["command"]
     assert flag + "20GiB" in config(VL_MAX_DISK="20GiB")["victorialogs"]["command"]
+
+
+def test_victorialogs_runs_with_the_limits_security_md_asks_for():
+    """docs/security.md accepts /api/logsql (L7) because VictoriaLogs caps the
+    cost of a query: the kit applies it."""
+    s = config()["victorialogs"]
+    for flag in ("-search.maxQueryDuration=30s", "-search.maxConcurrentRequests=4", "-search.maxQueueDuration=10s"):
+        assert flag in s["command"]
+    assert int(s["mem_limit"]) == 1 << 30
+    assert int(config(VL_MEM_LIMIT="2g")["victorialogs"]["mem_limit"]) == 2 << 30
+    security = (ROOT / "docs" / "security.md").read_text()
+    assert "-search.maxQueryDuration" in security and "-search.maxConcurrentRequests" in security
 
 
 def test_the_ui_memory_limit_has_room_over_the_measured_peak():

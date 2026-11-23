@@ -47,6 +47,15 @@ services:
       # Optional disk ceiling (VL_MAX_DISK in .env, e.g. 20GiB; 0: none).
       # Past it VictoriaLogs deletes the OLDEST days of events, for good.
       - -retention.maxDiskSpaceUsageBytes=${VL_MAX_DISK:-0}
+      # The cost cap on queries, /api/logsql's included (docs/security.md,
+      # L7): 30 s per query is plenty for every page; ui and publish send at
+      # most 2 at once each (VL_CONCURRENCY), the rest wait 10 s, then fail.
+      - -search.maxQueryDuration=30s
+      - -search.maxConcurrentRequests=4
+      - -search.maxQueueDuration=10s
+    # It peaked at 217 MiB on 55 weeks of the demo (docs/install.md,
+    # "Memory"). VictoriaLogs sizes its caches from this limit.
+    mem_limit: ${VL_MEM_LIMIT:-1g}
     volumes: [vl-data:/data]
     restart: unless-stopped
     # No published port: only ui talks to it. To look inside (the ui image has

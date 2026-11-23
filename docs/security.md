@@ -165,7 +165,8 @@ the update line once on every PC.
 - The share port's token file (`ANALYSIS_SHARE_TOKEN_FILE`) is given to the
   publisher and the exporter, and to nothing else.
 - VictoriaLogs runs with `-search.maxQueryDuration` (30s is plenty for every
-  page), `-search.maxConcurrentRequests` and a memory limit.
+  page), `-search.maxConcurrentRequests` and a memory limit. The compose kit
+  sets all three; your own deployment has to as well.
 - The renderer and the publisher share one `RENDER_TOKEN_FILE` (32+
   characters: `head -c 32 /dev/urandom | base64`).
 - On the full view: `PRIVACY_BACKUP_DAYS` set to what your backups really
