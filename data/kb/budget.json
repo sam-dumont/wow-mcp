@@ -1,25 +1,25 @@
 {
- "about": "Size caps in bytes (tools/kb/lifecycle.py, tests/test_kb_budget.py): each file and the whole of data/kb, from the sizes on 2026-11-20 plus 10%. news.json has room for its 8 weeks of digests, digest-history.json for its 52 lines, sweep.json (written by the monthly sweep) for the 805 URLs cited today. A file not listed gets `default`. Over: consolidate (merge, shorten, supersede, expire); raise a cap only for a new lane or real new coverage, and say why.",
+ "about": "Size caps in bytes (tools/kb/lifecycle.py, tests/test_kb_budget.py): each file and the whole of data/kb, from the sizes on 2026-11-20 plus 10%. news.json has room for its 8 weeks of digests, digest-history.json for its 52 lines, sweep.json (written by the monthly sweep) for the 805 URLs cited today. A file not listed gets `default`. Over: consolidate (merge, shorten, supersede, expire); raise a cap only for a new lane or real new coverage, and say why. 2026-11-23 (owner): dungeons.json and watch.json raised for the Forever dungeons coverage (PR #189) and the one-time baselines of 70 guides; classes, class-meta, game-rules and sources raised to current size plus 10% ahead of those guides' first weekly review. Total unchanged (1.9 MB used of 2.26 MB).",
  "total": 2262016,
  "default": 65536,
  "files": {
   "digest-history.json": 16384,
   "news.json": 132096,
   "professions.md": 2048,
-  "research/class-meta.json": 309248,
-  "research/classes.json": 273408,
-  "research/dungeons.json": 355328,
+  "research/class-meta.json": 318464,
+  "research/classes.json": 299008,
+  "research/dungeons.json": 410624,
   "research/economy-professions.json": 259072,
-  "research/game-rules.json": 153600,
+  "research/game-rules.json": 162816,
   "research/levelling.json": 318464,
   "research/pvp.json": 134144,
   "research/raids-endgame.json": 151552,
   "riding.md": 2048,
   "route-clock.md": 2048,
   "rules.json": 24576,
-  "sources.json": 5120,
+  "sources.json": 6144,
   "sweep.json": 158720,
-  "watch.json": 23552,
+  "watch.json": 29696,
   "xp-sources.md": 2048
  }
 }
