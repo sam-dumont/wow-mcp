@@ -92,8 +92,9 @@ every level, one journal entry per session, your look at each level
 - **No sending your data elsewhere.** It goes from your computer to the server you (or a
   friend) run, and nowhere else unless that server's host turns on the analysis below. Friends
   see what you choose to share.
-- **Your own AI does the thinking**, in your own account. A host can also have the server
-  analyse your play with an AI provider they pick, once a character has 10 hours of play since
+- **No model behind the numbers.** The page and the MCP tools work them out in code from your
+  data; your own AI reads them and writes the reply, in your own account. A host can also have
+  the server analyse your play with an AI provider they pick, once a character has 10 hours of play since
   its last refresh (their setting). Off until they set it up; the app's Privacy page says
   whether it's on.
 

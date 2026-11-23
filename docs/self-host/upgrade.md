@@ -74,6 +74,8 @@ Nothing to change for a one-person install: back up, check out `v0.7.0`, `docker
 - **The live public view** (`ui-public`) with several people: give it `USERS_URL` and
   `ANALYSIS_SHARE_TOKEN_FILE`, or it keeps showing every character in your store
   ([Add friends](friends.md)).
+- **Kept findings**: one whose text types a number its query doesn't fill (the check 0.7.0
+  added) shows as "to revalidate", never deleted, until the next analysis proposes it again.
 - **Other players' data**: 0.7.0 shippers send other players as "another player", and
   `/ingest` cuts 0.6 shippers' events the same way. What was stored before keeps what 0.6
   sent. [The event contract](../contract.md), "Stored before 0.7.0", has the LogsQL filters

@@ -241,16 +241,11 @@ jobs:
           echo '::notice::Model pass skipped, set the ANTHROPIC_* repository variables to run it (docs/kb.md).'
           jq --arg w "The model pass isn't set up (the ANTHROPIC_* repository variables, docs/kb.md): nothing read the changed pages." \
             '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
-      - name: GitHub OIDC token for Anthropic
-        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (steps.pages.outputs.keys != '' || (env.MODE == 'review' && steps.open.outputs.pr == ''))
-        run: |
-          token=$(curl -sSf -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://api.anthropic.com" | jq -r .value)
-          echo "::add-mask::$token"
-          umask 077
-          printf '%s' "$token" > "$RUNNER_TEMP/anthropic-oidc"
       # A failure here doesn't stop the other kinds: their PR still lands,
       # `official` keeps its issue with the reason, and the run ends red.
+      - name: Fresh OIDC token for the model pass
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.pages.outputs.keys != ''
+        run: tools/kb/oidc-mint.sh
       - name: Model pass
         id: refresh
         if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.pages.outputs.keys != ''
@@ -297,6 +292,9 @@ jobs:
             jq --arg w "The model pass didn't read:$unread (a fetch failed, the model stopped, or its cost cap, KB_REFRESH_MAX_USD; the run's log says which); the next run reads them." \
               '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
           fi
+      - name: Fresh OIDC token for the meta pass
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.collect.outputs.new > 0
+        run: tools/kb/oidc-mint.sh
       - name: Meta model pass
         id: meta
         if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.collect.outputs.new > 0
@@ -314,6 +312,9 @@ jobs:
         if: steps.meta.outcome == 'success'
         run: uv run --frozen python tools/kb/vet.py --dropped "$RUNNER_TEMP/kb-dropped.md"
       # Forum titles only, no Reddit, without the ANTHROPIC_* variables.
+      - name: Fresh OIDC token for community
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (env.MODE == 'review' && steps.open.outputs.pr == '')
+        run: tools/kb/oidc-mint.sh
       - name: Community, what players are saying
         id: community
         if: env.MODE == 'review' && steps.open.outputs.pr == ''
@@ -328,6 +329,9 @@ jobs:
       # After the community step, so its weeks are trimmed too. Runs without
       # the ANTHROPIC_* variables: stale statements are then only checked for
       # gone sources, the rest listed in the PR.
+      - name: Fresh OIDC token for lifecycle
+        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (env.MODE == 'review' && steps.open.outputs.pr == '')
+        run: tools/kb/oidc-mint.sh
       - name: Lifecycle (fold, expire, merge, re-verify, digests)
         id: lifecycle
         if: env.MODE == 'review' && steps.open.outputs.pr == ''

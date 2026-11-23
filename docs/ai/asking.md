@@ -5,6 +5,11 @@ ask, what the assistant can and can't see, and how to tell a checked number from
 
 ## What to ask
 
+Most answers come straight from the tools: they work out where you stand, your levels,
+sessions, dungeons, gear and plans in code, from your data, and the assistant puts them in a
+sentence. The assistant reasons on its own only in the play analysis, and there the server
+checks its numbers ([below](#how-numbers-get-checked)).
+
 Plain questions work. Name wow-stats in the first one so the assistant picks the right tools:
 "With wow-stats, ...". Three that lead somewhere:
 
@@ -91,10 +96,8 @@ on the server (friends included), without a model. The text is filled in again f
 night's result, so it shows the current number; the page and `play_analysis` say when each
 finding was last checked. One that still holds stays, and gains weight only when you've played
 since it last did: the same data checked again proves nothing new. One that stops holding fades
-and goes after three or four nights. A finding kept before 0.7.0 whose text types a number its
-query doesn't fill is marked "to revalidate" instead, never deleted, until your next analysis
-proposes it again. A level, top-N or threshold its own query writes ("At level 32" with `level = 32`)
-doesn't count against it.
+and goes after three or four nights. A level, top-N or threshold the finding's own query writes
+("At level 32" with `level = 32`) is not a typed number.
 
 **An example on the demo.**
 
