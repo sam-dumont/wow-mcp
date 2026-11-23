@@ -235,10 +235,12 @@ def climb(ask) -> dict:
 def deaths(ask, since: str | None = None, until: str | None = None) -> dict:
     """The deaths metric: in all, by zone and by level (the layer places a
     death at the level it happened, a record without a level of its own
-    included). since/until: query_metric's, local time."""
+    included). since/until: query_metric's, local time. The total is None
+    when no Recorder record falls in the window: nobody counted, never 0."""
     when = {k: v for k, v in (("since", since), ("until", until)) if v}
     death = [{"dimension": "kind", "op": "=", "value": "death"}]
-    return {"total": (ask(metrics=["deaths"], **when) or [{}])[0].get("deaths") or 0,
+    total = (ask(metrics=["deaths"], **when) or [{}])[0].get("deaths")
+    return {"total": None if total is None else int(total),
             "by_zone": {r["zone"]: r["deaths"] for r in ask(metrics=["deaths"], group_by=["zone"], where=death,
                                                             **when)},
             "by_level": {r["level"]: r["deaths"] for r in ask(metrics=["deaths"], group_by=["level"], where=death,
@@ -277,7 +279,7 @@ def header(n: dict) -> dict:
 def apply_deaths(de: dict, n: dict, rows: list[dict]) -> None:
     """The layer's death counts into views.build_deaths' answer (in place);
     `rows` are the death records newest first, for the order of the zones."""
-    de["total"] = int(n["deaths"]["total"])
+    de["total"] = n["deaths"]["total"]
     # As the page lists them: most deaths first, then the zone of the newest death.
     newest: dict[str, int] = {}
     for i, r in enumerate(rows):

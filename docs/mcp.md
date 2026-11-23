@@ -81,7 +81,8 @@ entry per source (`recorder`, `polestar`, `gear`, `quests`, `prices`,
 answer). The Recorder's `gaps` are exact: a finished level whose Polestar
 split (the game's own played time) is longer than the Recorder's sessions in
 it, `{level, from, to, off_s}`. `sessions` marks the newest session of such a
-level with `recorder_off`. `query_metric` and `play_sql` (its first page)
+level with `recorder_off`. Polestar's `gaps` are the finished levels after
+its first split that have none, `{level}`: any count over the climb misses them. `query_metric` and `play_sql` (its first page)
 carry the same value for the prepared tables, without `battlenet` and
 `prices`, which they don't hold. A count from a source that sent nothing is
 `null`, never 0: `deaths` and `character_summary` without any Recorder

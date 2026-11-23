@@ -15,6 +15,9 @@
 - A dungeon with no run of yours to measure its kill XP no longer says "slower than questing: go for the drops only" (or faster, or about the same): that compared the dungeon's quests alone with your questing, and the kills could flip it. The line keeps the time and what the quests are worth, and `dungeon_options` gives `vs_questing: null` there.
 - `query_metric`, `play_sql` and the finding judge see new data on the next request after it lands, like the page, instead of up to 30 minutes later. A request already running finishes on the data it started with.
 - The renderer keeps each person's game files in their own folder. It kept them by file id for everyone, so a file one friend's shipper sent could stand in for another's in their past-level pictures. Upgrading: the first picture after the update re-sends that person's files to the renderer once.
+- A finished level with neither a Polestar split nor a Recorder ding out of it no longer drops out of the analysis: it keeps its row (its counts unknown, never 0), and the `polestar` coverage reads `partial` with that level in `gaps`, on the page's data and every MCP answer, instead of `complete`.
+- XP gained is worked out from the bar's readings in order when the analysis prepares a character, not taken from the shipper: a Recorder chunk recovered after the ones that follow it no longer loses the XP of its step (100 → 200 → 300 counted 100 instead of 200).
+- `deaths` over a range with no Recorder record (before it was installed, or while it was off) says `total: null`, not 0.
 
 ## 0.7.0 (2026-11-23)
 

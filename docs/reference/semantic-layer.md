@@ -1116,7 +1116,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `now` | upgrades | 1 when the character can wear it at its level now, 0 within 3 levels. |
 | `npc_id` | records, offers | The NPC the record names: a kill's creature, a trainer record's trainer, or a death's likely killer as Polestar_Recorder picks it (the last hostile creature that targeted the player within 10 s). NULL for a record that names none and for a death with no pick. |
 | `npc_level` | records | That creature's level (a kill's creature, a death's likely killer). |
-| `partial` | levels | 1 when Polestar's split began partway through the level (tracking started then), 0 for a whole level, NULL with no split (the level in play). |
+| `partial` | levels | 1 when Polestar's split began partway through the level (tracking started then), 0 for a whole level, NULL with no split (the level in play, or a finished level whose split never came: the coverage's polestar gaps). |
 | `profession` | professions | The profession's name (Tailoring, Cooking...). |
 | `quest` | quests | Quest title (the records' own; "Quest <id>" when none names it). Two quests with one title group together: add quest_id. |
 | `quest_id` | quests, done_quests, offers, quest_rewards, quest_loot, attunements | Quest id. |
