@@ -6,7 +6,7 @@
 #
 # 1. plan: tools/release/release.py picks the version from pyproject.toml,
 #    CHANGELOG.md's "Unreleased" and the v* tags, and writes the notes.
-# 2. test: ci.yml in full, on the commit the run started from.
+# 2. ci: ci.yml in full, on the commit the run started from.
 #    browser: the full browser suite (Chromium and WebKit) on the release
 #    commit's tree. Only here: ci.yml and pull requests never run it.
 # 3. sign: the shipper files of the release commit, signed with the
@@ -61,6 +61,12 @@
 # A pull request that touches the build or the release tooling runs plan
 # (the dry version sha-<commit>), build and merge as a dry run. Its tests
 # are ci.yml's own run on that pull request.
+#
+# No job here may be named like one of main's required checks (test,
+# windows, image, audit, analyze, review): on a pull request the skipped job
+# reports a check of that name, GitHub counts a skipped check as passed, and
+# auto-merge went through before ci.yml's real `test` finished (PR #202,
+# 2026-11-23). Hence `ci`, not `test`, for the ci.yml call below.
 #
 # Every job carries `github.repository_id == '1464458020'` (this
 # repository): mirror.yml force-pushes main to the private CI mirror, and
@@ -203,7 +209,7 @@ jobs:
             echo "- \`ghcr.io/$owner/$RENDER_IMAGE_NAME:$VERSION\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  test:
+  ci:
     if: github.repository_id == '1464458020' && github.event_name != 'pull_request'
     uses: ./.github/workflows/ci.yml
     # ci.yml's image job logs in to dhi.io with these, and needs no other.
@@ -265,7 +271,7 @@ jobs:
   # this job's environment and only its signing step reads it. The output
   # (the statement and the signature, public) goes into the release commit.
   sign:
-    needs: [plan, test, browser]
+    needs: [plan, ci, browser]
     if: github.repository_id == '1464458020' && needs.plan.outputs.mode == 'prepare' && github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -305,7 +311,7 @@ jobs:
   # environment main-only, which only main can deploy to) opens the PR so its
   # checks run, and auto-merge squashes it when they pass.
   prepare:
-    needs: [plan, test, browser, sign]
+    needs: [plan, ci, browser, sign]
     if: github.repository_id == '1464458020' && needs.plan.outputs.mode == 'prepare' && github.event_name == 'workflow_dispatch' && !inputs.dry_run
     runs-on: ubuntu-24.04
     environment: main-only
@@ -398,14 +404,14 @@ jobs:
 
   # One leg per image and platform, each on a runner of that architecture.
   build:
-    needs: [plan, test, browser, sign, prepare]
+    needs: [plan, ci, browser, sign, prepare]
     # The tests skip on a pull request (ci.yml runs there on its own; the
     # browser suite never runs there), and
     # prepare when there's no release commit to make (a dry run, a tree that
     # already carries its version). A fork's pull request can't read the
     # dhi.io credentials the main image's base needs (ci.yml's image-fork job
     # says so on that run): no dry run there.
-    if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.plan.result == 'success' && (needs.test.result == 'success' || needs.test.result == 'skipped') && (needs.browser.result == 'success' || github.event_name == 'pull_request') && (needs.sign.result == 'success' || needs.sign.result == 'skipped') && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ github.repository_id == '1464458020' && !cancelled() && needs.plan.result == 'success' && (needs.ci.result == 'success' || needs.ci.result == 'skipped') && (needs.browser.result == 'success' || github.event_name == 'pull_request') && (needs.sign.result == 'success' || needs.sign.result == 'skipped') && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     name: build (${{ matrix.target }}, ${{ matrix.arch }})
     strategy:
       fail-fast: true
