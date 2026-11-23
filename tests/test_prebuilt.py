@@ -307,7 +307,7 @@ def test_new_item_facts_rebuild_the_answers(monkeypatch, tmp_path, shipper):
 
 
 def test_the_demo_seed_wakes_the_page(run_app, monkeypatch, tmp_path):
-    """The README's demo seeds through /ingest, so the page lists the
+    """The quick start's demo seeds through /ingest, so the page lists the
     characters right after, not at the next minute's check (the seed wrote
     to VictoriaLogs directly and the page said "No character yet" ~80 s)."""
     import os
