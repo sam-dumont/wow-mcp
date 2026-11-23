@@ -27,7 +27,8 @@ GOOD = {"recipe": w.SCENE["recipe"]}
 
 def test_renderer_takes_a_recipe_and_nothing_else():
     got = renderer.parse(json.dumps({**GOOD, "name": "Hero-Test", "level": 12, "absent": [5, 7]}).encode())
-    assert got == {"recipe": w.SCENE["recipe"], "absent": {5, 7}}, "unlisted fields are dropped, not passed on"
+    assert got == {"recipe": w.SCENE["recipe"], "absent": {5, 7}, "scope": ""}, \
+        "unlisted fields are dropped, not passed on"
     r = w.SCENE["recipe"]
     for bad in ({"recipe": {**r, "model": "100001"}}, {"recipe": {**r, "model": -1}},
                 {"recipe": {**r, "materials": [{"type": 1, "width": 99999, "height": 1, "layers": []}]}},
@@ -162,7 +163,9 @@ def test_both_bundles_carry_each_levels_picture(world):
 
     for body in r.asked:
         req = json.loads(body)
-        assert set(req) == {"recipe", "absent"}
+        # The scope keeps each person's files apart: a hash, never the account.
+        assert set(req) == {"recipe", "absent", "scope"} and req["scope"] == pictures.scope(env)
+        assert renderer.SCOPE.match(req["scope"]) and req["scope"] != env.get("VL_ACCOUNT_ID", "0")
         for s in ("Hero", "Test", *SECRETS):
             assert s.encode() not in body, (s, body)
     # One picture per look and gear: drawn once for both bundles.
