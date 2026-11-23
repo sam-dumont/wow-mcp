@@ -142,6 +142,18 @@ def plan_status(char: str, store, env: dict | None = None, battlenet: list[int] 
                        gear_inputs=gear_inputs)
 
 
+def with_as_of(name: str, fn) -> dict:
+    """fn()'s answer with `as_of`: the newest event of the character's
+    snapshot it was built from (wowstats.eventcache), the same field the MCP
+    answers carry, so the page and the AI can tell they read the same data.
+    Left out when no event was read. The public shape drops it (redact)."""
+    from wowstats import eventcache
+
+    out, seen = eventcache.computed(fn)
+    at = eventcache.as_of(seen, name)
+    return {**out, "as_of": at} if at and isinstance(out, dict) else out
+
+
 class App:
     """Everything one server process needs, read from the environment once."""
 
@@ -448,7 +460,7 @@ class App:
     # journal, overview, gear advice and people are full-view answers.
 
     def char(self, name: str) -> dict:
-        d = self.cached(f"char:{name}", lambda: self.views.char(name))
+        d = self.cached(f"char:{name}", lambda: with_as_of(name, lambda: self.views.char(name)))
         if self.render_from and isinstance(d.get("gear"), dict):
             # The live view can't know whether the publisher has drawn the
             # still yet: the page asks /render/<char>.webp and keeps the
@@ -517,7 +529,7 @@ class App:
             return self.cached(f"timeline:{name}", lambda: self.views.timeline(name))
         # The slider's stops only: the levels with a span of time, from the
         # character page's own answer (no events read at all).
-        d = self.cached(f"char:{name}", lambda: self.views.char(name))
+        d = self.cached(f"char:{name}", lambda: with_as_of(name, lambda: self.views.char(name)))
         return redact.public("timeline", {"char": name, "levels": sorted(insights.windows(d)),
                                           "generated_at": d.get("generated_at")})
 

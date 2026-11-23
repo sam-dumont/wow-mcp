@@ -145,11 +145,11 @@ def test_the_mcp_gear_tool_scores_off_hands_with_the_main_hand_worn():
 
     s = one_hander()
     level = [{"_time": fakes._t(17, 21, 40), "level": 33, "zone": "Arathi Highlands", "money_copper": 123456}]
-    logs = [('feed:="wow-gear"', [{**fakes.GEAR[0], "class": s["class"], "race": s["race"], "faction": s["faction"],
-                                    "items": json.dumps(s["items"]), "professions": json.dumps(s["professions"])}]),
-            ('feed:="wow-character"', level), ("kind:in(xp, level, zone) | fields", level),
-            *[r for r in fakes.LOGS if r[0] != 'feed:="wow-bags"']]
-    fake = fakes.FakeStores(logs=logs)
+    sheet = {**fakes.GEAR[0], "feed": "wow-gear", "class": s["class"], "race": s["race"], "faction": s["faction"],
+             "items": json.dumps(s["items"]), "professions": json.dumps(s["professions"])}
+    raw = fakes.raw_but("wow-gear", "wow-character", "wow-bags", add=(
+        sheet, {**level[0], "feed": "wow-character"}, {**level[0], "feed": "wow-recorder", "kind": "level"}))
+    fake = fakes.FakeStores(raw=raw)
     try:
         out = tools.call(tools.Ctx(store=Store(vl_url=fake.url)), "gear", {"char": fakes.CHAR, "limit": 40})
     finally:

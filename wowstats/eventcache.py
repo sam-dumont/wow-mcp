@@ -36,6 +36,8 @@ them goes to VictoriaLogs.
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import itertools
 import sys
 import threading
@@ -85,6 +87,7 @@ class _Entry:
     at: float = 0.0  # time.monotonic() of the last refresh
     short: dict[int, int] = field(default_factory=dict)  # second (epoch s) -> rows it holds, over a page
     stamp: int = 0  # which snapshot `rows` is (_STAMPS); moves only when the hourly counts did
+    newest: str | None = None  # the newest event's time in `rows` (ISO UTC, seconds): the snapshot's as_of
 
 
 class EventCache:
@@ -124,9 +127,10 @@ class EventCache:
     def rows(self, char: str) -> tuple:
         """Every cached event of the character (both spellings), refreshed
         when older than fresh_s."""
-        rows, short, _ = self._fresh(char)
+        rows, short, _, newest = self._fresh(char)
         if short:
             raise IncompleteRead({iso(_dt(s)): n for s, n in short.items()}, self.page)
+        note(char, newest)
         return rows
 
     def mark(self, char: str) -> int:
@@ -137,9 +141,9 @@ class EventCache:
         (wowstats.analysis.drive.workspace)."""
         return self._fresh(char)[2]
 
-    def _fresh(self, char: str) -> tuple[tuple, dict[int, int], int]:
-        """The entry's rows, its seconds over a page and its stamp, as one
-        refresh left them."""
+    def _fresh(self, char: str) -> tuple[tuple, dict[int, int], int, str | None]:
+        """The entry's rows, its seconds over a page, its stamp and its
+        newest event's time, as one refresh left them."""
         char = norm_char(char)
         with self._guard:
             e = self._entries.get(char)
@@ -152,7 +156,7 @@ class EventCache:
             if not (e.at and time.monotonic() - e.at < self.fresh_s):
                 self._refresh(char, e)
                 e.at = time.monotonic()
-            return e.rows, dict(e.short), e.stamp
+            return e.rows, dict(e.short), e.stamp, e.newest
 
     def _base(self, char: str) -> str:
         cf = "char:in(" + ", ".join(lq(n) for n in spellings(char)) + ")"
@@ -247,6 +251,9 @@ class EventCache:
     def _snapshot(e: _Entry) -> None:
         e.rows = tuple(r for h in sorted(e.hours) for r in e.hours[h])
         e.stamp = next(_STAMPS)
+        last = e.hours[max(e.hours)] if e.hours else ()
+        e.newest = max((parse_t(r["_time"]) for r in last if r.get("_time")), default=None)
+        e.newest = e.newest.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ") if e.newest else None
 
     def expire(self) -> None:
         """The next read of each character asks VictoriaLogs what changed,
@@ -259,6 +266,62 @@ class EventCache:
     def stats(self) -> dict:
         with self._guard:
             return {c: len(e.rows) for c, e in self._entries.items()}
+
+
+# ------------------------------------------------------------ as_of
+#
+# Which data an answer was computed from: the newest event time of each
+# character snapshot rows() handed out while it was worked out. The MCP's
+# tools.call and the page's /api/char read it (`reading`), so a model and the
+# player can tell whether they look at the same data. Recorded where the rows
+# are handed out, not guessed afterwards: a refresh between the read and the
+# answer would give a newer time than the numbers stand on.
+_SEEN: contextvars.ContextVar[dict | None] = contextvars.ContextVar("eventcache_seen", default=None)
+
+
+@contextlib.contextmanager
+def reading():
+    """{character: the newest event time of the snapshot read} for the
+    reads made inside (in this context: wowstats.views' pool copies it)."""
+    seen: dict[str, str] = {}
+    tok = _SEEN.set(seen)
+    try:
+        yield seen
+    finally:
+        _SEEN.reset(tok)
+
+
+def note(char: str, newest: str | None) -> None:
+    """Record that a snapshot whose newest event is `newest` was read
+    (rows(), and a reused analysis workspace: wowstats.analysis.drive)."""
+    seen = _SEEN.get()
+    if seen is not None and newest:
+        c = norm_char(char)
+        seen[c] = max(seen.get(c, ""), newest)
+
+
+def computed(fn):
+    """(fn(), the snapshots it read): for a cache of computed answers, which
+    keeps the second and hands it to `replay` on a hit, so a cached answer
+    says the data it was built from, not the data of the moment."""
+    with reading() as seen:
+        value = fn()
+    replay(seen)
+    return value, dict(seen)
+
+
+def replay(seen: dict[str, str]) -> None:
+    """Record again what a cached answer read (`computed`)."""
+    for c, t in seen.items():
+        note(c, t)
+
+
+def as_of(seen: dict[str, str], char: str | None = None) -> str | None:
+    """The answer's as_of: `char`'s snapshot when it names one that was
+    read, else the newest of what was read; None when no event was."""
+    if char and norm_char(char) in seen:
+        return seen[norm_char(char)]
+    return max(seen.values(), default=None)
 
 
 def _dt(s: int) -> datetime:

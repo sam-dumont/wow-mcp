@@ -4,6 +4,7 @@
 
 ### Changed
 
+- Every answer about a character says which data it was computed from: a top-level `as_of`, the newest event time it read, on the MCP's answers and the full view's `/api/char`. The MCP now reads a character's events through the same cache as the page instead of asking VictoriaLogs on its own, so the same `as_of` on both sides means the same data. Cached answers (the planner's, the analysis workspace, kept findings and plans) keep the `as_of` they were built from.
 - Your AI has 38 tools instead of 41, each answering one question: `gear` with `options` gives what `gear_options` gave (every way to an upgrade per slot, with its cost), `dungeons` with `options` what `dungeon_options` gave (the dungeons worth it now, ranked), and `players` with `groups` the dungeon runs with group size, bosses, wipes and deaths that `people` added. The `gear` and `dungeon` prompts call the new forms. The tool list a client reads at connect is 34,500 characters instead of 35,600.
 - `list_metrics` without arguments answers with an index, each model's metrics with one line each, about 29,000 characters. It was the whole catalogue, 200,000 characters: over Claude Code's limit for one tool answer, and the server's own analysis saw only the first fifth. `names`, `model` or `search` give the full definitions, 40 metrics a call.
 - `kb_get`, `kb_lookup`, `kb_search`, `play_sql` and `query_metric` are marked read-only, so a client no longer asks you to approve each lookup. They only count the call in an open analysis run.
@@ -25,6 +26,7 @@
 
 ### Upgrading
 
+- `class_meta`, `/api/meta` and the card's meta paragraph (`char.meta`) call the day their statements were last checked `checked` instead of `as_of`: `as_of` now means the data an answer read. A script that reads the old field needs the new name.
 - MCP: `gear_options`, `dungeon_options` and `people` are gone. Call `gear` with `options: true`, `dungeons` with `options: true` and `players` with `groups: true`. A saved prompt or script that names the old tools needs the new call.
 - Compose: VictoriaLogs gets a 1 GiB memory limit. It peaked at 217 MiB on a year of the demo; with a much longer history, set `VL_MEM_LIMIT=2g` in `.env` before `docker compose up -d`.
 

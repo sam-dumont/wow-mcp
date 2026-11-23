@@ -8,13 +8,26 @@ Views instance too: docs/architecture.md describes the methods they can use.
 from __future__ import annotations
 
 import concurrent.futures
+import contextvars
 import json
 import threading
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
-from wowstats import ahsource, classguide, classmeta, coverage, forever, insights, journal, profcaps, quests, talents
+from wowstats import (
+    ahsource,
+    classguide,
+    classmeta,
+    coverage,
+    eventcache,
+    forever,
+    insights,
+    journal,
+    profcaps,
+    quests,
+    talents,
+)
 from wowstats import gear as gearmod
 from wowstats.analysis import pages, prep
 from wowstats.stores import (
@@ -122,11 +135,19 @@ def card_title(cls, spec: dict | None) -> str | None:
     return out
 
 
+class ContextPool(concurrent.futures.ThreadPoolExecutor):
+    """A pool whose tasks run in the submitter's context: the reads they make
+    count for the answer that asked (wowstats.eventcache.reading, `as_of`)."""
+
+    def submit(self, fn, /, *args, **kwargs):
+        return super().submit(contextvars.copy_context().run, fn, *args, **kwargs)
+
+
 class Views:
     def __init__(self, store: Store, settings: Settings | None = None):
         self.store = store
         self.settings = settings or Settings()
-        self.pool = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+        self.pool = ContextPool(max_workers=8)
         self._aliases: dict[str, list[str]] = {}
         # The gear replay per character (wowstats.history): one per minute at
         # most, as every level's snapshot reads it.
@@ -151,6 +172,19 @@ class Views:
             self._prices = None
         if getattr(self.store, "use_cache", False):
             self.store.cache.expire()
+
+    @staticmethod
+    def _minute(cache: dict, char: str, fn):
+        """fn() kept a minute in `cache` per character, with the event
+        snapshots it read: a hit says the data it was built from (`as_of`,
+        wowstats.eventcache.computed), not the data of the moment."""
+        hit = cache.get(char)
+        if hit and time.time() - hit[0] < 60:
+            eventcache.replay(hit[2])
+            return hit[1]
+        out, seen = eventcache.computed(fn)
+        cache[char] = (time.time(), out, seen)
+        return out
 
     @property
     def stream(self) -> str:
@@ -490,16 +524,11 @@ class Views:
         """wowstats.quests.history: the Recorder, the quest addons and every
         gear and bags sheet it ever sent, so a reward sold or replaced since
         still counts. No Battle.net data, so it may be cached a minute."""
-        import time
 
-        hit = self._done.get(char)
-        if hit and time.time() - hit[0] < 60:
-            return hit[1]
         st = self.stream
         cf = self.char_filter(char)
-        out = quests.history(lambda q: self.vl(f"{st} {q}"), f'feed:="wow-recorder" {cf}', cf)
-        self._done[char] = (time.time(), out)
-        return out
+        return self._minute(self._done, char, lambda: quests.history(lambda q: self.vl(f"{st} {q}"),
+                                                                     f'feed:="wow-recorder" {cf}', cf))
 
     def gear(self, char: str, spec: str | None = None) -> dict:
         """Gear advice (wowstats.gear): per slot what is worn, the best item
@@ -711,16 +740,13 @@ class Views:
         lookup) and its gear history; cached a minute, like reconstruction.
         The publisher asks for every level in a row: rebuilt per level, these
         made a long history's build quadratic in its deaths."""
-        import time
 
-        hit = self._snap_in.get(char)
-        if hit and time.time() - hit[0] < 60:
-            return hit[1]
-        data = self.char(char)
-        ds = list(insights.deaths(self.q, self.char_filter(char), data.get("levels") or []))
-        out = (data, insights.windows(data), ds, self.gear_history(char), self.skill_records(char))
-        self._snap_in[char] = (time.time(), out)
-        return out
+        def build():
+            data = self.char(char)
+            ds = list(insights.deaths(self.q, self.char_filter(char), data.get("levels") or []))
+            return data, insights.windows(data), ds, self.gear_history(char), self.skill_records(char)
+
+        return self._minute(self._snap_in, char, build)
 
     def snapshot(self, char: str, level: int) -> dict:
         """The character as it was at `level` (the level slider)."""
@@ -774,14 +800,12 @@ class Views:
     def reconstruction(self, char: str, data: dict, gh: list[dict]):
         """(the anchored replay, its agreement with the first sheet, the
         shipped item names) or None, cached a minute."""
-        import time
+        return self._minute(self._recon, char, lambda: self._reconstruct(char, data, gh))
 
+    def _reconstruct(self, char: str, data: dict, gh: list[dict]):
         from wowstats import history
         from wowstats import items as itemsmod
 
-        hit = self._recon.get(char)
-        if hit and time.time() - hit[0] < 60:
-            return hit[1]
         base = insights.rec(self.char_filter(char))
         turnins, loots, crafts, lvls = self.pool.map(lambda q: dedupe(self.q(f"{base} {q}")), (
             history.Q_TURNIN, history.Q_LOOT, history.Q_CRAFT, "kind:=level | fields _time, level"))
@@ -805,7 +829,6 @@ class Views:
                     nm = names.get(sp.item_id)[0]
                     if nm:
                         out[2][key] = nm
-        self._recon[char] = (time.time(), out)
         return out
 
     def _bis_at(self, char: str, level: int, g: dict, data: dict) -> dict | None:

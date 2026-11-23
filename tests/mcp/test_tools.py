@@ -234,7 +234,7 @@ class GearToolTest(unittest.TestCase):
         # No Syndicator sheet: an answer, never an error (degraded mode,
         # tests/test_degraded.py): the best for the level when the class is
         # known, else why and what unlocks it.
-        fake = fakes.FakeStores(logs=[r for r in fakes.LOGS if r[1] is not fakes.GEAR])
+        fake = fakes.FakeStores(raw=fakes.raw_but("wow-gear"), logs=[r for r in fakes.LOGS if r[1] is not fakes.GEAR])
         try:
             out = tools.call(tools.Ctx(store=Store(vl_url=fake.url)), "gear", {"char": fakes.CHAR})
             self.assertIn("Syndicator", out["unlock"])

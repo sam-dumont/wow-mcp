@@ -235,15 +235,15 @@ def _same(a: set[str], b: set[str]) -> bool:
     return bool(small) and len(a & b) / small >= 0.6
 
 
-def as_of(records: list[dict], today: date | None = None) -> dict:
-    """{as_of, stale}: the newest day any of these records was checked or
+def checked(records: list[dict], today: date | None = None) -> dict:
+    """{checked, stale}: the newest day any of these records was checked or
     said (a shift's date moves it), and whether that is over STALE_DAYS ago."""
     days = [d for s in records for d in (_day(s.get("last_verified")), _day(s.get("date"))) if d]
     if not days:
-        return {"as_of": None, "stale": True}
+        return {"checked": None, "stale": True}
     newest = max(days)
     today = today or datetime.now(UTC).date()
-    return {"as_of": newest, "stale": (today - date.fromisoformat(newest)).days > STALE_DAYS}
+    return {"checked": newest, "stale": (today - date.fromisoformat(newest)).days > STALE_DAYS}
 
 
 def meta_spec(cls: str, spec: str | None) -> str | None:
@@ -282,7 +282,7 @@ def paragraph(cls_raw, spec_raw=None, level: int | None = None, today: date | No
         used.append(news[0])
     from . import news
 
-    return {"class": cls.title(), "spec": base.get("spec") or told, "text": text, **as_of(used, today),
+    return {"class": cls.title(), "spec": base.get("spec") or told, "text": text, **checked(used, today),
             "soon": news.soon_line(cls, spec or told, level, today)}
 
 
@@ -334,7 +334,7 @@ def describe(cls_raw, spec_raw=None, level: int | None = None, cite: bool = Fals
     from . import news
 
     return {
-        "class": cls.title(), "spec": told, "your_spec": spec, "level": lv, **as_of(used, today),
+        "class": cls.title(), "spec": told, "your_spec": spec, "level": lv, **checked(used, today),
         "summary": (paragraph(cls, told, lv, today) or {}).get("text"),
         "standing": standing,
         "build": {"spec": path.get("spec"), "tree": path.get("tree"), "notes": build, "target": target},

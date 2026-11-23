@@ -33,7 +33,10 @@ from wowstats.sitesettings import PageSettings
 
 CHAR_FILTER = re.compile(r'char:=?"?([A-Z][A-Za-z]+-[A-Z][A-Za-z]+)')
 RENAME = {"Testpriest": "Testfriend", "Fixture": "Otherhall", "Thrall": "Varian", "Jaina": "Tyrande", "Twig": "Pip"}
-A_MARKERS = [k.encode() for k in RENAME] + [k.lower().encode() for k in RENAME]
+# Thrall is also the game's Orgrimmar quest giver, which a Horde friend's
+# page names: the owner's Thrall is the player and the guild.
+A_MARKERS = ([k.encode() for k in RENAME if k != "Thrall"] + [k.lower().encode() for k in RENAME if k != "Thrall"]
+             + [b"Thrall-", b"thrall-", b"Thrall Company"])
 A_CHAR, B_CHAR = "Testpriest-Fixture", "Testfriend-Otherhall"
 OWNER, FRIEND, FRIENDS_ORG = "owner-sub-1", "friend-sub-2", "org-friends"
 
@@ -125,10 +128,19 @@ class TenantVL:
                   "level": 12, "class": "priest"},
                  {"_time": "2026-11-18T20:00:00Z", "feed": "wow-talents", "char": A_CHAR,
                   "talents": "02500420103--00502", "level": 33, "class": "priest"}]
-        self.rules["0"] = [("-feed:wow-combatlog | stats by (_time:1h) count() as n",
-                            [{"_time": r["_time"], "n": "1"} for r in saves]),
-                           ('feed:="wow-talents"', saves), ("-feed:wow-combatlog", saves), *self.rules["0"]]
-        assert "Testpriest" not in json.dumps(self.rules["1"])
+        # The MCP tools read through the same cache as the page: the
+        # fixture's sheet, snapshot, bags and people met are the owner's
+        # character's events too; the friend's only the people met and a
+        # session line with the class (a sheet gives its page quest givers,
+        # Thrall among them: a game name the leak check can't tell apart).
+        sheet = [r for r in fakes.RAW if r.get("feed") in ("wow-gear", "wow-character", "wow-bags", "wow-player")]
+        self.rules["0"] = [*fakes.raw_rules([*sheet, *saves], A_CHAR), ('feed:="wow-talents"', saves),
+                           *self.rules["0"]]
+        session = {"_time": "2026-11-17T20:00:00Z", "feed": "wow-recorder", "kind": "session", "class": "PRIEST",
+                   "race": "Troll", "faction": "Horde", "source_id": "rec:9:1:0"}
+        self.rules["1"] = [*fakes.raw_rules(renamed([r for r in sheet if r["feed"] == "wow-player"] + [session]),
+                                            renamed(fakes.CHAR)), *self.rules["1"]]
+        assert "Testpriest" not in json.dumps(self.rules["1"], default=lambda f: f({}))
         self.chars = {"0": {c["char"] for c in fakes.CHARS}, "1": {renamed(c["char"]) for c in fakes.CHARS}}
         self.untagged: list[str] = []
         self.inserted: dict[str, list[dict]] = {}
@@ -164,6 +176,7 @@ class TenantVL:
                         return self._send(400, b"no tenant")
                     query = q.get("query", "")
                     rows = next((r for s, r in fake.rules.get(t, []) if s in query), [])
+                    rows = rows(q) if callable(rows) else rows
                     # A character this tenant doesn't have: no rows, as the real store answers.
                     mine = fake.chars.get(t, set())
                     if any(n not in mine for n in CHAR_FILTER.findall(query)):

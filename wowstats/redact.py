@@ -101,7 +101,7 @@ CLASS_GUIDE = {
 # full view's (/api/meta). `soon`: one line when an event that concerns the
 # class at its level starts within two weeks (wowstats.news.soon_line; owner,
 # 2026-11-20), from the class, spec and level too.
-META_PARAGRAPH = {k: None for k in ("class", "spec", "text", "as_of", "stale", "soon")}
+META_PARAGRAPH = {k: None for k in ("class", "spec", "text", "checked", "stale", "soon")}
 
 PUBLIC: dict[str, dict] = {
     # What the page may turn on: nothing beyond the four parts above.

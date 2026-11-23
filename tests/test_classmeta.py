@@ -85,7 +85,7 @@ def test_paragraph_is_the_specs_summary_plus_the_newest_change(lane):
     assert p["text"].startswith("Frost is the safe way to level.")
     # The weekly pass's Nov 19 change is newer than the summary: one sentence of it.
     assert p["text"].endswith("Since Nov 19: Ice Lance now shatters.")
-    assert p["as_of"] == "2026-11-20" and p["stale"] is False
+    assert p["checked"] == "2026-11-20" and p["stale"] is False
 
 
 def test_paragraph_follows_the_characters_spec_and_falls_back_to_the_levelling_one(lane):
@@ -105,7 +105,7 @@ def test_old_knowledge_says_so(monkeypatch):
                            "last_verified": "2026-10-02"}]}
     monkeypatch.setattr(cm, "lanes", lambda: {"meta": old, "weekly": []})
     p = cm.paragraph("Rogue", "Combat", 30, TODAY)
-    assert p["as_of"] == "2026-10-02" and p["stale"] is True
+    assert p["checked"] == "2026-10-02" and p["stale"] is True
 
 
 def test_the_paragraph_reaches_zogzog_but_not_the_public_page(lane):
@@ -273,7 +273,7 @@ def test_a_newer_reviewed_weekly_summary_takes_over(monkeypatch):
              "last_verified": "2026-11-27", "text": "Frost is still first. Ice Lance carries it."}
     monkeypatch.setattr(cm, "lanes", lambda: {"meta": LANE, "weekly": [*WEEKLY, {"statements": [newer]}]})
     p = cm.paragraph("Mage", "Frost", 30, date(2026, 11, 28))
-    assert p["text"] == "Frost is still first. Ice Lance carries it." and p["as_of"] == "2026-11-27"
+    assert p["text"] == "Frost is still first. Ice Lance carries it." and p["checked"] == "2026-11-27"
     # An aspect statement is the meta's own part, not a "what changed" line.
     assert all(s["id"] != "w:9" for s in cm.shifts("MAGE", "Frost"))
 

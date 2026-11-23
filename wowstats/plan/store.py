@@ -69,7 +69,9 @@ def record(est: dict) -> dict:
                             for c in est["checkpoints"]],
             "end": {k: est["end"].get(k) for k in ("level", "gold_copper", "played_s")},
             "pace": {k: est["pace"][k]["factor"] for k in ("questing", "travel", "town", "dungeon")},
-            "facts": est.get("facts") or {}}  # for check_plan: a client's write-up against these numbers
+            "facts": est.get("facts") or {},  # for check_plan: a client's write-up against these numbers
+            # The newest event the plan's numbers stand on (wowstats.eventcache); check_plan says it.
+            **({"as_of": est["as_of"]} if est.get("as_of") else {})}
 
 
 def save(env: dict, char: str, est: dict) -> None:
