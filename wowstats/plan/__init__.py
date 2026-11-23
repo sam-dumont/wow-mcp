@@ -16,6 +16,8 @@ from __future__ import annotations
 import threading
 import time
 
+from wowstats import eventcache
+
 from . import estimate as est_mod
 from . import facts
 from . import store as plan_store
@@ -59,11 +61,12 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
         with _LOCK:
             hit = _CACHE.get(key)
             if hit and time.time() - hit[0] < CACHE_S:
+                eventcache.replay(hit[2])  # the answer says the data it was gathered from (as_of)
                 return hit[1]
-        inp = facts.gather(env, char, store=store, battlenet=bn,
-                           gear_inputs=gear_inputs() if gear_inputs is not None else None)
+        inp, seen = eventcache.computed(lambda: facts.gather(
+            env, char, store=store, battlenet=bn, gear_inputs=gear_inputs() if gear_inputs is not None else None))
         with _LOCK:
-            _CACHE[key] = (time.time(), inp)
+            _CACHE[key] = (time.time(), inp, seen)
             while len(_CACHE) > MAX_CACHED:
                 _CACHE.pop(min(_CACHE, key=lambda k: _CACHE[k][0]), None)
         return inp
@@ -79,11 +82,12 @@ def plan(env: dict, char: str | None = None, hours: float | None = None, constra
     """The plan: {markdown, writer, checked, estimate}."""
     from . import write as writer
 
-    inp = inputs(env, char, store, battlenet)
+    inp, seen = eventcache.computed(lambda: inputs(env, char, store, battlenet))
     e = est_mod.estimate(inp, hours, constraints, context)
     if not e.get("supported"):
         return {"markdown": e["message"], "writer": "estimator", "checked": True, "estimate": e}
-    plan_store.save(env, inp["who"]["char"], e)
+    at = eventcache.as_of(seen, inp["who"]["char"])
+    plan_store.save(env, inp["who"]["char"], {**e, "as_of": at} if at else e)
     return {"markdown": writer.fallback(e), "writer": "estimator", "checked": True, "estimate": e}
 
 

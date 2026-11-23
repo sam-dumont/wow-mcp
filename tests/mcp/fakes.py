@@ -95,6 +95,13 @@ DUNGEONS = [{"_time": _t(17, 20, 20), "name": "Ragefire Chasm", "dungeon_id": 38
              "xp": 4500, "source_id": f"dungeon:{CHAR}:1"}]
 MET = [{"_time": _t(17, 20, 25), "player": "Thrall-Fixture", "context": "dungeon"},
        {"_time": _t(17, 20, 26), "player": "Jaina-Fixture", "context": "seen"}]
+# The people met as raw lines, for the event cache: what PLAYER_DAYS and
+# PLAYER_INFO count (Thrall grouped three times on the 16th, then in the
+# dungeon on the 17th; Jaina seen once), MET among them.
+PLAYERS = ([{"_time": _t(16, 19, 30 + i), "player": "Thrall-Fixture", "context": "grouped", "level": 14,
+             "class": "Shaman", "zone": "The Barrens", "source_id": f"player:{i}"} for i in range(3)]
+           + [{**MET[0], "level": 15, "class": "Shaman", "zone": "Ragefire Chasm", "source_id": "player:3"},
+              {**MET[1], "level": 20, "class": "Mage", "zone": "The Barrens", "source_id": "player:4"}])
 PLAYER_DAYS = [{"player": "Thrall-Fixture", "context": "grouped", "_time": "2026-11-16T00:00:00Z", "n": "3"},
                {"player": "Thrall-Fixture", "context": "dungeon", "_time": "2026-11-17T00:00:00Z", "n": "1"},
                {"player": "Jaina-Fixture", "context": "seen", "_time": "2026-11-17T00:00:00Z", "n": "1"},
@@ -139,7 +146,15 @@ _POS = [{"_time": b["_time"], "kind": "pos", "source_id": f"rec:1:9:{i}"} for i,
 RAW = ([{**r, "feed": "wow-level", "char": CHAR} for r in LEVELS]
        + [{**r, "feed": "wow-recorder", "char": CHAR} for r in EVENTS + STEPS + _POS]
        + [{**r, "feed": "wow-recorder", "char": CHAR, "kind": "death"} for r in DEATHS]
-       + [{**r, "feed": "wow-dungeon", "char": CHAR} for r in DUNGEONS])
+       + [{**r, "feed": "wow-dungeon", "char": CHAR} for r in DUNGEONS]
+       # What the MCP tools read besides (they answer from the same event
+       # cache as the page since as_of, review 2026-11-23): the newest
+       # Recorder line, the logout snapshot, the sheet, the bags, people met.
+       + [{**r, "feed": "wow-recorder", "char": CHAR, "source_id": "rec:1:2:10"} for r in LAST_REC]
+       + [{**r, "feed": "wow-character", "char": CHAR} for r in SNAP]
+       + [{**r, "feed": "wow-gear", "char": CHAR} for r in GEAR]
+       + [{**r, "char": CHAR} for r in BAGS]
+       + [{**r, "feed": "wow-player", "char": CHAR} for r in PLAYERS])
 
 
 def _secs(t: str) -> float:
@@ -165,6 +180,12 @@ def raw_rules(raw: list[dict], char: str = CHAR) -> list[tuple]:
     base = f'char:in({json.dumps(char.replace("-", " "))}, {json.dumps(char)}) -feed:wow-prices -feed:wow-combatlog'
     return [(base + " | stats by (_time:1h) count() as n", hours), (base, rows)]
 
+
+
+def raw_but(*feeds: str, add: tuple = ()) -> list[dict]:
+    """RAW without the lines of `feeds`, plus `add` (each with its feed): a
+    test's own sheet or snapshot, which the event cache answers from."""
+    return [r for r in RAW if r.get("feed") not in feeds] + [{"char": CHAR, **r} for r in add]
 
 
 def recorder_rows(events: list[dict]) -> list[dict]:

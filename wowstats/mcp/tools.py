@@ -1622,7 +1622,7 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     extra = sorted(set(args) - allowed)
     if extra:
         raise ToolError(f"unknown argument(s): {', '.join(extra)}")
-    from wowstats import itemfacts
+    from wowstats import eventcache, itemfacts
     from wowstats.analysis import drive
     from wowstats.stores import SourceError as ViewsSourceError
 
@@ -1631,10 +1631,20 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
         # (wowstats.plan.kbloot): theirs, like everything else here. The
         # analysis workspaces the call opens stay open until it returns
         # (drive.holding): the cap and the idle sweep never close one mid-call.
-        with itemfacts.using(itemfacts.for_env(ctx.environ()).facts()), drive.holding():
+        with itemfacts.using(itemfacts.for_env(ctx.environ()).facts()), drive.holding(), \
+                eventcache.reading() as seen:
             out = tool.fn(ctx, args)
     except (SourceError, ViewsSourceError) as e:
         raise ToolError(stores_public_error(e, name)) from None
+    # Which data the answer was computed from: the newest event of the
+    # character snapshot (or analysis build) the tool read, before any
+    # footnote below reads more. None for an answer that read no events (KB,
+    # list_metrics, prices). A tool's own as_of is kept: the data a stored
+    # plan or analysis run was built from (check_plan, play_analysis,
+    # whats_new), which read no events now.
+    at = eventcache.as_of(seen, out.get("char") if isinstance(out, dict) else None)
+    if at and isinstance(out, dict) and "as_of" not in out:
+        out = {"as_of": at, **out}
     if name in KB_TOOLS and isinstance(out, dict):
         out = fit(out, KB_CHARS - FOOTNOTE_CHARS)
     if isinstance(out, dict) and not tool.writes and "missing" not in out:

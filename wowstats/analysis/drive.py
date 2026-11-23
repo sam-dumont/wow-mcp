@@ -100,9 +100,15 @@ class Workspace:
             self.mark = mark(st, self.char)
         except SourceError:
             self.mark = None
-        rows = prep.query(st, st.stream, self.char)
+        from wowstats import eventcache
+
+        with eventcache.reading() as seen:
+            rows = prep.query(st, st.stream, self.char)
         if not rows:
             raise LookupError(f"no events for {self.char}")
+        # The newest event this build stands on: every answer read from it
+        # says it (`as_of`, wowstats.mcp.tools.call), even when it's reused.
+        self.as_of = eventcache.as_of(seen, self.char)
         self.kb = kb.shared(env)
         ref = route.reference()
         self.db = prep.build(rows, self.char, ref, map_sizes=self.kb.meta.get("ui_map"),
@@ -222,6 +228,9 @@ def workspace(env: dict, char: str, store=None) -> Workspace:
         _close(old)
     sweep(keep=key)
     _start_sweeper()
+    from wowstats import eventcache
+
+    eventcache.note(w.char, w.as_of)
     return w
 
 
@@ -630,11 +639,14 @@ def gear_fit(layer, ro) -> tuple[str | None, list[dict], dict | None]:
                    or (r["worn_bis_pct"] is not None and r["worn_bis_pct"] < WEAK_PCT)),
                   key=lambda r: (r["worn_bis_pct"] is None, r["worn_bis_pct"] or 0, order.get(r["slot"], 99),
                                  r["item_id"]))[:FACTS_ROWS]
-    if not weak:
+    # A worn item the scoring has no slot for can't be compared: no upgrades
+    # to ask about (a sheet without the Recorder's history, 2026-11-23).
+    slots = sorted({r["slot"] for r in weak if r["slot"] is not None})
+    if not weak or not slots:
         return spec, [], None
     query = {"metrics": ["upgrade_gain", "upgrade_bis_pct", "upgrade_bis_pct_worn"],
              "group_by": ["slot", "item_id", "item", "fit"],
-             "where": [{"dimension": "slot", "op": "in", "values": sorted({r["slot"] for r in weak})},
+             "where": [{"dimension": "slot", "op": "in", "values": slots},
                        {"dimension": "rank_now", "op": "<=", "value": UPGRADES_PER_SLOT + 1}],
              "order_by": ["slot", "-upgrade_gain", "item_id"]}
     ups = ask(**query)
@@ -771,7 +783,7 @@ def _store_finding(env: dict, w: Workspace, run: dict, got: dict) -> bool:
     # And tied to the semantic definitions its evidence reads, not the whole
     # semantic.yaml: an unrelated metric added later leaves it valid.
     got = {**got, "manifest": w.manifest["id"], "semantic_reads": definitions.of(got)}
-    new = keep(kept, got, now, data_mark(w.db))
+    new = keep(kept, got, now, data_mark(w.db), w.as_of)
     kept[got["key"]]["score"] = score(kept[got["key"]])
     save_state(env, w.char, {**state, "schema": SCHEMA, "char": w.char, "findings": kept, "updated": now,
                              "manifests": manifest.kept(state.get("manifests"), kept, w.manifest),
@@ -1116,7 +1128,7 @@ def _submit_synthesis(env, w, run, answer):
             "seconds_total": round((datetime.now(UTC) - datetime.fromisoformat(run["started"])).total_seconds())}
     out = finish(env, w.char, {**state, "goals": run.get("goals") or state.get("goals") or ""}, kept, nudges,
                  patterns, w.db, w.kb, other_players(w.store, w.store.stream, w.char), info, info["at"],
-                 w.manifest, (w.layer(), w.metrics))
+                 w.manifest, (w.layer(), w.metrics), w.as_of)
     run["pass"] = "done"
     run["result"] = info
     return {"accepted": True, "kept": sorted(out["findings"]),

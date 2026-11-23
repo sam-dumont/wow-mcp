@@ -460,3 +460,10 @@ counts for nothing else.
   adds the players met and the gold change (the logout snapshot after the
   session against the last one before it).
 - Prices panel: `wow-prices`, full view only.
+- `as_of` (the full view's `/api/char`, and every MCP answer about one
+  character): the newest `_time` of the character's events the answer was
+  computed from, UTC to the second. The page and the MCP read one snapshot
+  of them (`wowstats/eventcache.py`), so the same `as_of` means the same
+  data. It is an event time (the table above), not when the answer was
+  built: that is `generated_at`. The public view and the static builds
+  leave it out.

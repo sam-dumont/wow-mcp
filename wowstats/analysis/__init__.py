@@ -497,11 +497,16 @@ def data_mark(db) -> str:
 MARK_PREFIX = "src:"
 
 
-def _support(f: dict, old: dict | None, mark: str | None, now: str) -> bool:
+def _support(f: dict, old: dict | None, mark: str | None, now: str, as_of: str | None = None) -> bool:
     """A finding that holds: still applicable now; better supported (weight,
     confirmations) only on data its last support didn't see. True when it
-    gained support."""
+    gained support. `as_of`: the newest event of the build it held on
+    (wowstats.eventcache), left out when unknown, never guessed."""
     f["last_checked"] = now
+    if as_of:
+        f["as_of"] = as_of
+    else:
+        f.pop("as_of", None)
     was = (old or {}).get("support_mark")
     if old is not None and mark is not None and (was == mark or (was and not str(was).startswith(MARK_PREFIX))):
         # The same play, or a mark of the old kind: what it saw can't be
@@ -519,12 +524,12 @@ def _support(f: dict, old: dict | None, mark: str | None, now: str) -> bool:
     return True
 
 
-def keep(kept: dict, got: dict, now: str, mark: str | None = None) -> bool:
+def keep(kept: dict, got: dict, now: str, mark: str | None = None, as_of: str | None = None) -> bool:
     """Store a verified finding with its bookkeeping; True when new. `mark`:
-    data_mark of the data it was judged on."""
+    data_mark of the data it was judged on, `as_of` its newest event."""
     old = kept.get(got["key"])
     got["first_seen"] = (old or {}).get("first_seen", now)
-    _support(got, old, mark, now)
+    _support(got, old, mark, now, as_of)
     got["misses"] = 0
     for mark in ("doubtful", "reconciles"):  # a clash's verdict stands until a new synthesis
         if old and mark in old and mark not in got:
@@ -534,7 +539,7 @@ def keep(kept: dict, got: dict, now: str, mark: str | None = None) -> bool:
 
 
 def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = None,
-            build: dict | None = None, builds: dict | None = None) -> None:
+            build: dict | None = None, builds: dict | None = None, as_of: str | None = None) -> None:
     """Every kept finding on today's data, in place: one that holds is still
     applicable, and gains weight only when `mark` (data_mark) moved since
     its last support; one that doesn't fades and goes under MIN_WEIGHT. A finding
@@ -592,6 +597,10 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
             f["carried_over"] = {"from": CARRIED_FROM, "to": __version__, "at": now, "held": upd is not None}
             if upd is not None:
                 upd["carried_over"], upd["manifest"], upd["last_checked"] = f["carried_over"], build["id"], now
+                if as_of:
+                    upd["as_of"] = as_of
+                else:
+                    upd.pop("as_of", None)
                 upd["semantic_reads"] = definitions.of(upd)
                 upd.setdefault("support_mark", mark)  # what the old support saw is unknown: count today's as seen
                 upd.pop("revalidate", None)
@@ -608,7 +617,7 @@ def recheck(kept: dict, ro, now: str, info: dict, duck=None, mark: str | None = 
                 kept.pop(key)
                 info["dropped"].append(f"{key}: faded ({why})")
             continue
-        gained = _support(upd, f, mark, now)
+        gained = _support(upd, f, mark, now, as_of)
         upd.pop("miss_why", None)
         if build is not None:  # it ran under today's manifest: its definitions hold today
             upd.pop("revalidate", None)
@@ -695,7 +704,8 @@ def standing(state: dict) -> dict:
 
 
 def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns: list, db, knowledge,
-           players: set[str], info: dict, now: str, build: dict | None = None, sem: tuple = (None, None)) -> dict:
+           players: set[str], info: dict, now: str, build: dict | None = None, sem: tuple = (None, None),
+           as_of: str | None = None) -> dict:
     """Screen, rank and save: shared by the nightly recheck and a driver's
     synthesis. `sem` is the caller's semantic layer and its runner, when it
     has them (else time_budget makes its own copy). A nudge or pattern stands only on findings still kept and not
@@ -767,6 +777,9 @@ def finish(env: dict, char: str, state: dict, kept: dict, nudges: list, patterns
     runs = (state.get("runs") or [])[-29:] + [info]
     from . import manifest
 
+    # as_of: the newest event of the build this run read (wowstats.eventcache),
+    # the data every answer from this state stands on; none when unknown.
+    state = {k: v for k, v in state.items() if k != "as_of"} | ({"as_of": as_of} if as_of else {})
     out = {**state, "schema": SCHEMA, "char": char, "updated": now, "newest_event": newest, "findings": kept,
            "manifests": manifest.kept(state.get("manifests"), kept, build),
            "nudges": nudges, "patterns": patterns, "runs": runs,
@@ -823,8 +836,13 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     store = None
     if rows is None or players is None:
         store = store_of(env)
+    as_of = None
     if rows is None:
-        rows = prep.query(store, store.stream, char)
+        from wowstats import eventcache
+
+        with eventcache.reading() as seen:
+            rows = prep.query(store, store.stream, char)
+        as_of = eventcache.as_of(seen, char)
     if players is None:
         players = other_players(store, store.stream, char)
     knowledge = knowledge if knowledge is not None else kb.shared(env)
@@ -838,7 +856,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     info = {"at": now, "kind": "recheck", "char": char, "manifest": build["id"], "confirmed": 0, "still": 0,
             "faded": 0, "revalidate": 0, "carried_over": 0, "dropped": []}
     recheck(kept, ReadOnly(db), now, info, duck=_duck_runner(db), mark=data_mark(db), build=build,
-            builds=state.get("manifests"))
+            builds=state.get("manifests"), as_of=as_of)
     info["seconds_total"] = round(time.time() - t0, 1)
     from . import semantic
 
@@ -848,7 +866,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     patterns = bind([p for p in state.get("patterns") or [] if isinstance(p, dict)], kept, level, info["dropped"],
                     "pattern")
     out = finish(env, char, state, kept, nudges, patterns, db, knowledge,
-                 players, info, now, build, sem)
+                 players, info, now, build, sem, as_of)
     print(json.dumps({"event": "analysis_recheck", "component": "wow", "findings": len(out["findings"]),
                       **{k: info[k] for k in ("confirmed", "still", "faded", "revalidate", "carried_over",
                                                  "seconds_total")},
@@ -1023,12 +1041,15 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
                                                        "afk_s", "planned_s")} for r in s.get("time_budget") or []]}
     explored_run = explored(runs)
     return {"available": True, "char": s.get("char"), "updated": s.get("updated"),
+            **({"as_of": s["as_of"]} if s.get("as_of") else {}),
             "newest_event": s.get("newest_event"),
             "findings": [{k: f.get(k) for k in ("key", "title", "text", "action", "observation", "sql", "kb", "row",
                                                  "rows", "constants", "doubtful", "reconciles", "relevance", "effect",
                                                  "sample", "weight", "score", "confirmations", "first_seen",
                                                  "last_confirmed", "last_checked", "misses", "manifest",
                                                  "revalidate", "unbound_numbers", "carried_over")}
+                         # The data it last held on; absent on one kept before that was recorded.
+                         | ({"as_of": f["as_of"]} if f.get("as_of") else {})
                          | ({"carried_note": carried_note(f)} if carried_note(f) else {})
                          for f in findings],
             # Checked: rechecked under the definitions they were judged

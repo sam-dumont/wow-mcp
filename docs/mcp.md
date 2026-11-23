@@ -89,6 +89,22 @@ carry the same value for the prepared tables, without `battlenet` and
 `null`, never 0: `deaths` and `character_summary` without any Recorder
 record. All of it comes from what is stored (`wowstats/coverage.py`).
 
+Every answer computed from a character's events also carries one top-level
+`as_of`: the newest event time (UTC, to the second) of the data it read. The
+MCP and the page read one character's events through the same in-process
+event cache (`wowstats/eventcache.py`), so a model and the player can check
+they look at the same snapshot: the page's `/api/char` carries the same field.
+`query_metric`, `play_sql` and the other analysis tools say the snapshot their
+workspace was built from; `mount_goal`, `next_step` and the planner's other
+answers the one their (two-minute) inputs were gathered from; `check_plan`
+the one its plan was made from; `play_analysis` and `whats_new` the one the
+last run read, and each finding the one it last held on (none for a state or
+a finding kept before this field existed: nothing is guessed). Answers that read no event
+of the character have none: the knowledge base, `list_metrics`, `prices`
+(the account's auction scans) and `market`. `coverage.*.as_of` is per source
+(when that source last sent); the top-level `as_of` is the whole snapshot's.
+`class_meta`'s day its statements were last checked is its `checked`.
+
 Each tool's annotations say what it does: read-only, except the ones that
 write the character's analysis run or plans. `play_sql`, `query_metric`,
 `kb_search`, `kb_get` and `kb_lookup` are read-only too: they only count the

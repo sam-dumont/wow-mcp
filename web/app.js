@@ -1130,8 +1130,8 @@ function metaBox() {
 function metaHead(m) {
   const who = [m.class, m.spec].filter(Boolean).join(', ');
   return h('h2', { class: 'rule-title' }, `State of the meta${who ? ': ' + who : ''}`,
-    m.as_of ? h('span', { class: 'metawhen' + (m.stale ? ' stale' : ''),
-      text: m.stale ? `as of ${metaDate(m.as_of)}, may be out of date` : `as of ${metaDate(m.as_of)}` }) : null);
+    m.checked ? h('span', { class: 'metawhen' + (m.stale ? ' stale' : ''),
+      text: m.stale ? `as of ${metaDate(m.checked)}, may be out of date` : `as of ${metaDate(m.checked)}` }) : null);
 }
 function renderMeta(d) {
   const m = d.meta;

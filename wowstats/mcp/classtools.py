@@ -105,7 +105,7 @@ META_HOW = ("score: 0-100, the weighted mean of the parts measured (talents 40, 
             "advice's scoring). enchants: the enchantable slots the meta names an enchant for at this level, "
             "enchanted or not (only when the item links say). gaps: the moves that cost the score most, each with "
             "what, where and what blocks it. meta: the knowledge base's statements with their source, date, "
-            "confidence and scope; as_of is the newest day they were checked or changed, stale past 21 days. "
+            "confidence and scope; checked is the newest day they were checked or changed, stale past 21 days. "
             "Consumables and professions are described, not measured. A tank or healer spec's talents score against "
             "the levelling build before 60 and against the role's endgame build at 60 (meta.build.target); with no "
             "sourced build the part is 'no target yet' and left out. meta.coming_up: what is coming on Forever "

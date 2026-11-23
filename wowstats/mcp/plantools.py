@@ -111,7 +111,8 @@ def t_check_plan(ctx: T.Ctx, args: dict) -> dict:
     # The player's own words from the session request, kept with the plan:
     # the write-up must keep them too, not only quote the facts' numbers.
     cons = E.parse_constraints(p.get("constraints") or "")
-    return {"char": char, "plan_made": _iso(p["made_t"]),
+    # as_of: the data the plan was made from (none for a plan kept before it was recorded).
+    return {**({"as_of": p["as_of"]} if p.get("as_of") else {}), "char": char, "plan_made": _iso(p["made_t"]),
             **write.check(str(args.get("text") or ""), p["facts"], cons, p.get("hours"))}
 
 
@@ -252,11 +253,17 @@ def t_whats_new(ctx: T.Ctx, args: dict) -> dict:
     since = (datetime.now(UTC) - timedelta(days=days)).isoformat(timespec="seconds")
     fs = [f for f in (s.get("findings") or {}).values() if not f.get("doubtful")]
     pick = ("key", "title", "text", "first_seen", "last_confirmed", "confirmations")
-    new = [{k: f.get(k) for k in pick} for f in fs if (f.get("first_seen") or "") >= since]
-    still = [{k: f.get(k) for k in pick} for f in fs if (f.get("first_seen") or "") < since <=
+    def one(f: dict) -> dict:  # as_of: the data it last held on, absent when never recorded
+        return {k: f.get(k) for k in pick} | ({"as_of": f["as_of"]} if f.get("as_of") else {})
+
+    new = [one(f) for f in fs if (f.get("first_seen") or "") >= since]
+    still = [one(f) for f in fs if (f.get("first_seen") or "") < since <=
              (f.get("last_confirmed") or "")]
     dropped = [d for r in s.get("runs") or [] if (r.get("at") or "") >= since for d in r.get("dropped") or []]
-    return {"since": since, "new": new, "confirmed_again": still[:10], "dropped": dropped[:10],
+    # as_of: the newest event the last run's build read; absent on a state
+    # kept before it was recorded (never guessed).
+    return {**({"as_of": s["as_of"]} if s.get("as_of") else {}), "since": since, "new": new,
+            "confirmed_again": still[:10], "dropped": dropped[:10],
             # Held lines (on findings to revalidate) apart: analysis.standing.
             "nudges": (lines := analysis.standing(s))["nudges"], "on_hold": lines["on_hold"],
             "updated": s.get("updated"),
