@@ -25,7 +25,7 @@ login, so an uptime checker (Uptime Kuma, Gatus, your router's) can poll it:
 curl -s http://127.0.0.1:8080/healthz
 ```
 
-prints `{"status": "ok", "semantic": "ok"}` on the full view, `ok` on the others.
+prints `{"status": "ok", "semantic": "ok", "store": "ok", ...}` on the full view, `ok` on the others.
 
 `semantic` is the one to alert on. Every number on the page comes from one place, the semantic
 layer, with no second way to count them. When it fails for a character, the page keeps showing
@@ -34,6 +34,12 @@ the last good answers, marked out of date, `semantic` reads `"failing"` (with
 line per failure: `"event": "semantic_failed"` with the character and the error. The status
 stays `200`: the process still serves, so a restart wouldn't help. In Gatus, for example:
 `[BODY].semantic != failing`.
+
+`store` is the other one. It reads `"failing"` (with `store_failed_at`) while VictoriaLogs
+doesn't answer: uploads get a `502` and the page keeps its last answers, marked out of date.
+The `ui` checks once a minute, so it turns within a minute of VictoriaLogs going down or
+coming back. Same `200`, for the same reason: restarting `ui` doesn't bring VictoriaLogs back.
+In Gatus: `[BODY].store != failing`.
 
 ## Data arriving
 

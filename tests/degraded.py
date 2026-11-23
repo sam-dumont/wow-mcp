@@ -189,7 +189,13 @@ class VL:
                     return self._send(200, json.dumps({"status": "success", "data": {"result": res}}).encode())
                 self._send(404, b"")
 
-            do_POST = do_GET
+            def do_POST(self):
+                if urllib.parse.urlsplit(self.path).path == "/insert/jsonline":  # what /ingest stores
+                    body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
+                    new = [json.loads(line) for line in body.splitlines() if line.strip()]
+                    fake.rows = sorted(fake.rows + new, key=lambda r: parse_t(r.get("_time")))
+                    return self._send(200, b"")
+                return self.do_GET()
 
         srv = type("S", (ThreadingHTTPServer,), {"request_queue_size": 64, "daemon_threads": True})
         self.httpd = srv(("127.0.0.1", 0), H)

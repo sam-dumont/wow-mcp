@@ -264,3 +264,15 @@ def test_a_chunk_recovered_late_keeps_the_xp_it_gained(shipper):
         return db.execute("SELECT COALESCE(SUM(xp_gained), 0) FROM xp").fetchone()[0]
 
     assert gained(whole) == gained(late) == 100 + 100 + 700 + 150
+    # The page's journal reads the same readings with the same rule.
+    assert journal_xp(whole) == journal_xp(late) == gained(late)
+
+
+def journal_xp(rows: list[dict]) -> int:
+    from tests.test_zone_time import Store
+
+    vl = D.VL([dict(r) for r in rows])
+    try:
+        return sum(s["xp"] for s in V.Views(Store(vl.url)).journal(ZCHAR)["sessions"])
+    finally:
+        vl.close()

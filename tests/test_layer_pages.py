@@ -8,7 +8,9 @@ themselves. tests/data/layer-pages-demo.json.gz holds those answers on the
 demo seed (dev/seed.py), taken from the views before the move (main at 3d1afb5, with
 this demo seed), then retaken once for the decided change of the session and
 route-time definitions (journal and timeline session ends, a few seconds
-each); this test builds them again and compares, number for number.
+each), and once for the Journal's XP worked out from the bar's readings
+(prep.xp_gains: the history's first reading gains nothing, -2,990 on the
+first evening); this test builds them again and compares, number for number.
 
 Rewrite the snapshot only when a change of definition is decided:
 `WOW_UPDATE_SNAPSHOT=1 uv run pytest tests/test_layer_pages.py`, then read the
