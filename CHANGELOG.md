@@ -84,6 +84,7 @@ What 0.7.0 brings over 0.6.1, in short. Every change follows, then each release 
 
 ### Fixed
 
+- Parts of the page still moved after it looked ready, on a busy computer: a section link could stop where you clicked it, a screen short of its section (Safari's engine stops a smooth scroll when content lands above it), and the Overview could draw twice and show its news empty in between. The page now marks itself busy until every answer is drawn and its fonts are in, a section link lands once the page is done, and only the last Overview asked for draws. The help page waits for its fonts the same way.
 - A tab clicked while the page was still loading was lost: the tabs only listened once the page's config had come back, so the page stayed on Overview. They listen from the start now.
 - A section's "Missing:" line was gone from the page until the next frame each time the section redrew (the gear advice landing in its panel, the minute's refresh), and anything that read the page in between found the section without it. The line is now put back before anything else runs.
 - On `/zogzog/`, a section link clicked before the gear advice came in ended a screen or more above its section: the advice lands above every section after the page shows and pushed it down, and WebKit stopped its smooth scroll where it was. The page now follows the section until everything is drawn or you scroll yourself, as a browser does for a link it follows itself. The same goes for the Overview's and the timeline's links to a section, on every page.

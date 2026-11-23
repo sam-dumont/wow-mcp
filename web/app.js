@@ -132,41 +132,120 @@ if (SEALED) {
     if (t) jumpTo(t, 'start');
   });
 }
-// A jump by script keeps its target in place while the page is still
-// drawing, as a browser does for a fragment link it follows itself. The
-// gear advice lands in #gear, above every section, after the page shows
-// (loadChar's late sections): a jump made before it came ended a screen
-// lower, or WebKit stopped its smooth scroll where it was (the 0.7.0
-// release gate). So the page jumps again each time the target moves, until
-// the late sections are all in or the reader scrolls by themselves.
+// ------------------------------------------------------------ settled
+
+// One signal for "the page is done": every answer it asked for is in and
+// drawn, its fonts are in, and no section jump is still on its way. Until
+// then the root carries data-busy (index.html starts with it). The page
+// shows before most of it: the gear advice, the findings and the news land
+// after the first paint, and the fonts swap in (font-display: swap). What
+// acts before that point, a reader's script or a test, sees the page
+// mid-change: the 0.7.0 release gate failed three runs in a row on a
+// loaded runner, each time on a different section.
+let loads = 0;  // answers asked for and not drawn yet (getJSON, fetchSealed)
+let checking = false;
+let jumping = false;
+const drawnWaiters = [];
+function busyMark() {
+  document.documentElement.toggleAttribute('data-busy', loads > 0 || checking || jumping);
+}
+function hold() {
+  loads += 1;
+  busyMark();
+  let held = true;
+  return () => {
+    if (!held) return;
+    held = false;
+    loads -= 1;
+    if (!loads) checkDrawn();
+  };
+}
+// An answer is drawn by the code that awaited it, after its fetch is done:
+// the check runs in the next task, by when that code has drawn it, or has
+// asked for the next answer it needs (the Overview's news).
+function checkDrawn() {
+  if (checking) return;
+  checking = true;
+  setTimeout(async () => {
+    // A face the new text needs starts loading at layout: lay out first.
+    void document.documentElement.offsetHeight;
+    if (!loads && document.fonts && document.fonts.status === 'loading') await document.fonts.ready;
+    checking = false;
+    if (loads) return;  // its own release checks again
+    for (const f of drawnWaiters.splice(0)) f();
+    busyMark();
+  });
+}
+// Resolves once every answer asked for so far is in and drawn.
+function whenDrawn() {
+  return loads || checking ? new Promise((r) => drawnWaiters.push(r)) : Promise.resolve();
+}
+
+// A jump by script ends with its target in place once the page is drawn, as
+// a browser does for a fragment link it follows itself. The late sections,
+// icons and fonts land above the targets (the gear advice in #gear, a
+// screen tall) and move them. The browser's scroll anchoring then holds
+// what is on screen in place, and WebKit stops a smooth scroll the anchoring
+// moves: the 0.7.0 release gate found #levels where the click had left it,
+// 459 px short, in Linux WebKit only. So the jump owns the scroll while it
+// is on (no anchoring), goes again whenever its target moves or a scroll
+// stops short, and is over only when the page is drawn and the target sits
+// where it was sent. The reader scrolling, tapping or typing takes over.
 const LET_GO = ['wheel', 'touchstart', 'keydown', 'mousedown'];
+const SMOOTH = !reduceMotion && 'onscrollend' in window;  // without scrollend, nothing says a smooth scroll is over
 let unpin = null;
 function jumpTo(el, block) {
   if (unpin) unpin();
-  let at = null;
-  const go = () => {
-    at = el.getBoundingClientRect().top + window.scrollY;
-    el.scrollIntoView({ block, behavior: reduceMotion ? 'auto' : 'smooth' });
+  // The scroll that puts the target at `block`, under the sticky bar
+  // (scroll-padding-top), within what the page can scroll.
+  const dest = () => {
+    const root = document.documentElement;
+    const r = el.getBoundingClientRect();
+    const pad = parseFloat(getComputedStyle(root).scrollPaddingTop) || 0;
+    const y = block === 'center' ? r.top - pad - (root.clientHeight - pad - r.height) / 2 : r.top - pad;
+    return Math.round(Math.max(0, Math.min(root.scrollHeight - root.clientHeight, window.scrollY + y)));
   };
-  const follow = () => {
-    if (el.isConnected && el.getBoundingClientRect().top + window.scrollY !== at) go();
+  const there = () => Math.abs(window.scrollY - dest()) <= 1;
+  let to = null;
+  let moving = false;
+  let all = false;
+  const go = (smooth = SMOOTH) => {
+    to = dest();
+    if (there()) return;
+    moving = smooth;
+    window.scrollTo({ top: to, behavior: smooth ? 'smooth' : 'auto' });
   };
-  go();
-  const drawing = state.drawing;
-  if (!drawing || !window.ResizeObserver) return;
-  const ro = new ResizeObserver(follow);
-  ro.observe(document.body);
+  const ro = window.ResizeObserver ? new ResizeObserver(() => { if (el.isConnected && dest() !== to) go(); }) : null;
   const done = () => {
-    ro.disconnect();
+    if (ro) ro.disconnect();
+    window.removeEventListener('scrollend', ended);
     for (const t of LET_GO) window.removeEventListener(t, done, true);
     if (unpin === done) unpin = null;
+    jumping = false;
+    document.documentElement.style.overflowAnchor = '';
+    busyMark();
   };
+  const settle = () => {
+    if (!el.isConnected) { done(); return; }
+    if (moving) return;  // its scrollend comes back here
+    // Stopped short: again while the page still draws; once it is drawn,
+    // straight there, so the jump ends.
+    if (!there()) go(!all && SMOOTH);
+    if (all) done();
+  };
+  function ended() { moving = false; settle(); }
+  if (ro) ro.observe(document.body);
+  window.addEventListener('scrollend', ended);
   for (const t of LET_GO) window.addEventListener(t, done, { capture: true, passive: true });
   unpin = done;
-  drawing.then(() => {
+  jumping = true;
+  document.documentElement.style.overflowAnchor = 'none';
+  busyMark();
+  go();
+  whenDrawn().then(() => {
     if (unpin !== done) return;
-    follow();
-    done();
+    all = true;
+    settle();
   });
 }
 let cryptoKey = null;
@@ -197,9 +276,14 @@ async function sealedUrl(path) {
 }
 // The decrypted bytes of the bundle's data/<path>; throws when it isn't there.
 async function fetchSealed(path) {
-  const r = await fetch(await sealedUrl(path), { credentials: 'same-origin' });
-  if (!r.ok) throw httpError(r, null);
-  return openBytes(path, await r.arrayBuffer());
+  const release = hold();
+  try {
+    const r = await fetch(await sealedUrl(path), { credentials: 'same-origin' });
+    if (!r.ok) throw httpError(r, null);
+    return await openBytes(path, await r.arrayBuffer());
+  } finally {
+    release();
+  }
 }
 // The item icons (web/items.js) are sealed data files too.
 window.wowFetchSealed = fetchSealed;
@@ -218,16 +302,21 @@ function httpError(r, body) {
 }
 async function getJSON(url) {
   if (SEALED) return JSON.parse(new TextDecoder().decode(await fetchSealed(url)));
-  const r = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
-  let body = null;
-  try { body = await r.json(); } catch (e) { body = null; }
-  if (!r.ok) {
-    // A login in front (reverse proxy, OIDC) answers a lapsed session with a
-    // redirect fetch can't follow across origins: reload so the browser logs in.
-    if (r.type === 'opaqueredirect' || r.status === 0) location.reload();
-    throw httpError(r, body);
+  const release = hold();
+  try {
+    const r = await fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+    let body = null;
+    try { body = await r.json(); } catch (e) { body = null; }
+    if (!r.ok) {
+      // A login in front (reverse proxy, OIDC) answers a lapsed session with a
+      // redirect fetch can't follow across origins: reload so the browser logs in.
+      if (r.type === 'opaqueredirect' || r.status === 0) location.reload();
+      throw httpError(r, body);
+    }
+    return body;
+  } finally {
+    release();
   }
-  return body;
 }
 window.wowGetJSON = getJSON;
 
@@ -2939,11 +3028,15 @@ function getAnalysis(name) {
   return analysisMemo.p;
 }
 
+let overviewAsked = 0;
 async function loadOverview(quiet) {
   const name = state.char;
+  const n = ++overviewAsked;
   try {
     const [ov, an] = await Promise.all([getJSON(api('overview', { name })), getAnalysis(name)]);
-    if (name !== state.char) return;
+    // Only the last one asked draws: an earlier answer landing after it
+    // would redraw the Overview, news and all, from nothing.
+    if (name !== state.char || n !== overviewAsked) return;
     state.overview = ov;
     renderOverview(ov, null, an && an.available && (!an.char || an.char === name) ? an : null);
   } catch (e) {
@@ -3292,10 +3385,12 @@ const NEWS_CAT = { opening: 'Opening', phase: 'Phase', event: 'Event', patch: 'P
   meta: 'Meta', 'known-issue': 'Known issue', pvp: 'PvP', economy: 'Economy', announcement: 'Coming' };
 async function loadNews(host, week) {
   const name = state.char;
+  const asked = (host.asked || 0) + 1;
+  host.asked = asked;
   try {
     const n = await getJSON(api('news', { name, week }));
-    if (name === state.char) renderNews(host, n);
-  } catch (e) { host.hidden = true; }
+    if (name === state.char && host.asked === asked) renderNews(host, n);  // the last week asked for
+  } catch (e) { if (host.asked === asked) host.hidden = true; }
 }
 function newsLine(it) {
   // Something to do: a dated event that concerns you (its prep is in the
@@ -3640,6 +3735,7 @@ function initPlan() {
     const out = $('#planout');
     btn.disabled = true;
     fill(out, h('p', { class: 'loading', text: 'Planning. Up to a minute.' }));
+    const release = hold();
     try {
       const r = await fetch('/api/plan', {
         method: 'POST', credentials: 'same-origin',
@@ -3654,6 +3750,7 @@ function initPlan() {
       fill(out, h('p', { class: 'err', text: `No plan: ${e.message}.` }));
     } finally {
       btn.disabled = false;
+      release();
     }
   });
 }
@@ -3726,12 +3823,14 @@ async function newsCheck() {
   if (document.visibilityState !== 'visible') return;
   news.at = Date.now();
   const name = state.char;
+  const release = hold();
   try {
     // Its own fetch, not getJSON: a lapsed login must not reload the page.
     const r = await fetch(api('char', { name }), { headers: { Accept: 'application/json' }, credentials: 'same-origin' });
     const d = r.ok ? await r.json() : null;
     if (d && name === state.char && news.shown && newsSig(d) !== news.shown) newsShow();
   } catch (e) { /* offline or logged out: the next check asks again */ }
+  release();
   newsSchedule();
 }
 
@@ -3864,10 +3963,7 @@ async function loadChar(name, quiet) {
     if (state.tab === 'home') more.push(loadOverview(quiet));
     if (state.tab === 'timeline' && !quiet) more.push(loadTimeline());
     if (feat('people')) more.push(loadPeople(name));
-    const drawn = Promise.allSettled(more);
-    state.drawn = drawn;
-    state.drawing = drawn;  // null once they are all in (jumpTo)
-    drawn.then(() => { if (state.drawing === drawn) state.drawing = null; });
+    state.drawn = Promise.allSettled(more);
   } catch (e) {
     if (!quiet || !state.data) {
       fill($('#hero'), h('p', { class: 'err', text: `Couldn’t load ${name}: ${e.message}.` }));
@@ -3992,5 +4088,7 @@ async function start() {
   });
 }
 
-start();
+// The first draw holds the page busy from its first line (index.html's
+// data-busy) to the end of start(), whichever way it ends.
+start().finally(hold());
 })();

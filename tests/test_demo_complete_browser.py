@@ -45,6 +45,8 @@ import pytest
 
 sync_api = pytest.importorskip("playwright.sync_api")
 
+from tests.test_browser import settled  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 WIDTHS = (390, 1280)
 ENGINES = [e for e in os.environ.get("WOW_DEMO_ENGINES", "chromium,webkit").split(",") if e]
@@ -209,8 +211,7 @@ def test_demo_has_no_gap(browser, base, which, width):
     assert tabs
     for tab in tabs:
         page.click(f"#{tab}")
-        page.wait_for_load_state("networkidle")
-        page.wait_for_timeout(800)
+        settled(page)
         with_still = page.eval_on_selector_all(".still", "els => els.filter(e => e.offsetParent !== null).length")
         if with_still:
             with contextlib.suppress(sync_api.TimeoutError):  # gaps() names it
@@ -291,7 +292,7 @@ def test_items_carry_the_bis_badge(browser, base, width):
     page = ctx.new_page()
     page.goto(base + "friends/")
     page.wait_for_selector("#home .move")
-    page.wait_for_timeout(800)
+    settled(page)
     for kind in ("upgrade", "dungeon"):
         card = f"#home .move.k-{kind}"
         got = badges(page, card)
@@ -303,7 +304,7 @@ def test_items_carry_the_bis_badge(browser, base, width):
         assert not re.search(r"[+−]\d+% on your ", text), text
     page.click("#tab-overview")
     page.wait_for_selector(".dg .dgdrop")
-    page.wait_for_timeout(800)
+    settled(page)
     drops = badges(page, ".dg .dgdrop")
     assert drops
     for b in drops:

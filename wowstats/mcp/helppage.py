@@ -53,7 +53,8 @@ MEDIA_AD = "help/media/"  # + the file name: a clip's associated data
 _HERE = Path(__file__).resolve().parent
 
 _SHELL = """<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="en" data-busy><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow"><meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="dark light">
 <title>{title}</title>{head}</head>

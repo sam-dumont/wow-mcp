@@ -140,8 +140,7 @@ def test_no_line_with_nothing_missed(full, engine):
     for pg in _page(engine, 1280):
         pg.goto(f"{full.base}/?char={D.CHAR}&tab=overview")
         wait_count(pg, "#deaths .body > *")
-        wait_count(pg, "#gear .dollfoot")
-        pg.wait_for_timeout(300)
+        wait_count(pg, "#gear .dollfoot")  # and settled: nothing more to draw
         assert pg.locator("p.covnote").count() == 0
         pg.goto(f"{full.base}/?char={D.CHAR}&tab=journal")
         wait_count(pg, "#journal .jentry")
@@ -191,10 +190,7 @@ def test_zogzog_says_the_full_views_lines(gap, sites, engine, width, scheme):
         # The journal's line, on the same session as the full view's.
         pg = pg.context.browser.new_page(viewport={"width": width, "height": 1000}, color_scheme=scheme)
         pg.goto(sites["zogzog"].replace("tab=overview", "tab=journal"))
-        wait_count(pg, "#journal .jentry details:has(p.covnote)")
-        # A static page keeps no request open to wait on (networkidle): give
-        # the second draw (the tab, then the character) its moment.
-        pg.wait_for_timeout(800)
+        wait_count(pg, "#journal .jentry details:has(p.covnote)")  # and the page settled: no second draw to come
         pg.locator("#journal .jentry details:has(p.covnote) summary").first.click()
         wait_count(pg, "#journal p.covnote:visible", 1)
         note = pg.locator("#journal p.covnote").inner_text()

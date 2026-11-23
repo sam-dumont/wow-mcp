@@ -5,6 +5,9 @@
 // Mac/Windows tabs and the AI app picker (remembered per viewer), in-page
 // links, copy buttons and any clips.
 // No key, a wrong key or a tampered file: "Nothing here." and nothing else.
+// The root carries data-busy (helppage.py) until the content is in and its
+// fonts too: they swap in late (font-display: swap) and move every line, so
+// the first screen measured before them is not the one a reader gets.
 (async () => {
   const main = document.getElementById('help');
   const store = {
@@ -185,4 +188,8 @@
     show(e.target);
   }), { rootMargin: '600px 0px' });
   figs.forEach((f) => near.observe(f));
-})();
+})().finally(async () => {
+  void document.documentElement.offsetHeight;  // a face the content needs starts loading at layout
+  if (document.fonts) await document.fonts.ready;
+  document.documentElement.removeAttribute('data-busy');
+});

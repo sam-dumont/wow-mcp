@@ -21,6 +21,7 @@ import pytest
 sync_api = pytest.importorskip("playwright.sync_api")
 
 from tests import degraded as D  # noqa: E402
+from tests.test_browser import settled  # noqa: E402
 from wowstats import plan as planmod  # noqa: E402
 from wowstats import ui  # noqa: E402
 
@@ -120,7 +121,7 @@ def test_dismissed_for_the_session(site, pw, engine):
         pg.reload()
         pg.click("#tab-overview")
         pg.wait_for_selector("#askbox:not([hidden]), #planbox:not([hidden])", timeout=30000)
-        pg.wait_for_timeout(500)
+        settled(pg)  # the nudge's answer in too
         assert pg.locator("#nudgebox").is_hidden()
         assert not errors, errors
     finally:
@@ -134,7 +135,7 @@ def test_no_card_below_the_threshold_and_the_first_one_said_apart(site, pw, engi
     b, pg, errors = open_page(pw, engine, url, 1280)
     try:
         pg.wait_for_selector("#planbox:not([hidden])", timeout=30000)
-        pg.wait_for_timeout(500)
+        settled(pg)  # the nudge's answer in too
         assert pg.locator("#nudgebox").is_hidden()
         state["n"] = nudge(never_refreshed=True, played_since_s=15 * H, server_in_s=0, you_pay=True)
         pg.reload()
