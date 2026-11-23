@@ -24,7 +24,8 @@ Where the numbers come from, in order:
    share at his level) in both cases.
 
 What isn't known is None, never guessed: with the kills unknown the XP is
-the quests' alone and says so.
+the quests' alone and says so, with no pace against questing (vs_questing
+None) and no verdict.
 """
 
 from __future__ import annotations
@@ -192,7 +193,9 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         "level_pct": round(shown / xp_max * 100) if xp_max and shown else None,
         "xp_per_hour": xph, "kills_unknown": xp_k is None,
         "questing_xp_per_hour": round(qx) if qx else None,
-        "vs_questing": round(xph / qx, 3) if xph and qx else None,
+        # With the kills unknown the pace is the quests' alone: no ratio to
+        # rank or judge on, the kill XP could flip it.
+        "vs_questing": round(xph / qx, 3) if xph and qx and xp_k is not None else None,
         "questing_s": round(shown / qx * 3600) if qx and shown else None,
         "quests": [{**{k: q.get(k) for k in ("quest_id", "name", "url", "xp_now", "state", "level")},
                     "starts": q.get("starts") or []} for q in todo],
@@ -239,12 +242,9 @@ def summary(g: dict) -> str | None:
     if not quests:
         return None
     if g["run_s"]:
+        # Kills unknown: no verdict. The quests alone can't say faster or
+        # slower than questing, the run's kill XP could flip it.
         g["lead"] = f"~{about_s(g['run_s'])} + quests worth ~{about_xp(quests)} XP"
-        # Built for the verdict only: with no verdict (no questing pace to
-        # compare) vs is None and ratio() can't format it.
-        tail = (f", {ratio(vs)} faster than your questing" if v == "faster" else
-                {"same": ", about the same as questing",
-                 "slower": ", slower than questing: go for the drops only"}.get(v, ""))
-        return f"{g['lead']}{of}{tail}"
+        return f"{g['lead']}{of}"
     worth = f", what {about_s(g['questing_s'])} of your questing pays" if g.get("questing_s") else ""
     return f"Its quests pay ~{about_xp(quests)} XP{of}{worth}"

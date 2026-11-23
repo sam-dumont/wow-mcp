@@ -173,7 +173,7 @@ Optional. A separate image with Chromium.
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
 | `RENDER_BUDGET_S` | publish | seconds | `60` | `60` | How long a build spends drawing. The rest wait for the next pass. |
-| `RENDER_CACHE_DIR` | render | path | a folder under `/tmp` | `/tmp/render-cache` | Where the renderer keeps the game files the publisher sent it (by file id, no names) and its token. |
+| `RENDER_CACHE_DIR` | render | path | a folder under `/tmp` | `/tmp/render-cache` | Where the renderer keeps the game files the publisher sent it (by file id, one folder per person under an opaque hash, no names) and its token. |
 | `RENDER_CACHE_MB` | render | MiB | `256` | `256` | The most disk those files may take; the least recently used go first. |
 | `RENDER_TIMEOUT_S` | publish, render | seconds | `120` in `publish`, `90` in `render` | `120` | The longest one picture may take. |
 | `RENDER_URL` | publish | URL | empty: no pictures | `http://render:8083` | The renderer that draws the paperdoll's picture (a still of the character's 3D model) and each past level's picture. |

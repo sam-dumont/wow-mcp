@@ -83,8 +83,9 @@ def test_runs_at_another_level_are_carried_by_the_creatures_killed():
     # Without the creatures' levels a run at another level can't be carried.
     g = est(level=22, runs=[trip(18, 5000)], quests=[quest(1, 3000)])
     assert g["kills_unknown"] and g["xp"] is None and g["xp_quests"] == 3000
-    assert g["summary"].startswith("~1h20 + quests worth ~3k XP (10% of a level)")
-    assert g["summary"].endswith("slower than questing: go for the drops only")
+    # Kills unknown: the quests alone can't say faster or slower than questing.
+    assert g["summary"] == "~1h20 + quests worth ~3k XP (10% of a level)"
+    assert g["vs_questing"] is None and g["lead"] == "~1h20 + quests worth ~3k XP"
 
 
 def test_without_runs_the_kb_clear_time_and_his_own_travel():
@@ -100,7 +101,7 @@ def test_without_runs_the_kb_clear_time_and_his_own_travel():
     # No trip of his anywhere: the clear alone, and what the quests are worth in questing time.
     g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, questing_xph=15107)
     assert g["time"] == "clear" and g["xp_per_hour"] == per_hour(28200, clear)
-    assert g["summary"] == "~55 min + quests worth ~28k XP (52% of a level), 2.0× faster than your questing"
+    assert g["summary"] == "~55 min + quests worth ~28k XP (52% of a level)" and g["vs_questing"] is None
     assert g["lead"] == "~55 min + quests worth ~28k XP"
 
 
@@ -208,11 +209,13 @@ def test_the_verdict_bands():
     assert faster == "Worth it: ~35 min for ~10k XP (29% of a level), 1.4× faster than your questing"
     assert G.summary({**base, "vs_questing": 1.0}) == "About the same as questing: ~35 min for ~10k XP (29% of a level)"
     assert G.summary({**base, "vs_questing": 0.5}).startswith("Slower than questing: go for the drops only. ")
-    # Without a kill estimate the time and quests lead, the verdict closes.
+    # Without a kill estimate the time and quests lead and no verdict follows:
+    # the unknown kill XP could flip it.
     nk = {**base, "xp": None, "time": "clear"}
-    assert G.summary({**nk, "vs_questing": 1.0}) == "~35 min + quests worth ~10k XP (29% of a level), about the same as questing"
-    assert G.summary({**nk, "vs_questing": 0.5}).endswith(", slower than questing: go for the drops only")
-    assert G.summary({**nk, "vs_questing": 1.5}).endswith(", 1.5× faster than your questing")
+    for vs in (None, 0.5, 1.0, 1.5):
+        g = {**nk, "vs_questing": vs}
+        assert G.summary(g) == "~35 min + quests worth ~10k XP (29% of a level)"
+        assert g["lead"] == "~35 min + quests worth ~10k XP"
     g = {**base, "vs_questing": 1.4}
     G.summary(g)
     assert g["lead"] == "Worth it:"

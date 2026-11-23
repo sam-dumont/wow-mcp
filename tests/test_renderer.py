@@ -13,6 +13,8 @@ import threading
 import urllib.error
 import urllib.request
 
+import pytest
+
 from tests import model3d_world as w
 from wowstats import assets, pictures, renderer
 
@@ -31,10 +33,14 @@ class Drawer:
         return True
 
     def render(self, req):
-        lacking = self.files.lacking(req["recipe"], req["absent"])
+        lacking = self.files.lacking(req["recipe"], req["absent"], req.get("scope", ""))
         if lacking:
             raise renderer.Lacking(lacking)
         self.drawn.append(req)
+        # What Chromium would read: the request's own scope's files.
+        self.read = {f: self.files.get(f, req.get("scope", ""))
+                     for f in assets.closure(w.character3d.needs(req["recipe"]),
+                                             lambda f: self.files.get(f, req.get("scope", "")))[0]}
         return WEBP
 
 
@@ -74,11 +80,12 @@ def test_428_names_the_files_then_the_render_goes_through(tmp_path):
         # Everything the recipe draws with that the store has went over, by id;
         # what the store doesn't have is drawn without (absent).
         have, missing = assets.closure(w.character3d.needs(w.SCENE["recipe"]), store.read)
-        assert {int(f.name) for f in d.files.root.iterdir()} == set(have)
+        assert {int(f.name) for f in (d.files.root / p.scope).iterdir()} == set(have)
         assert d.drawn[0]["absent"] == missing and {w.FX.MISSING_ITEM, w.FX.MISSING_LAYER} <= missing
-        # The next render needs nothing sent.
-        assert post(url, "/render", json.dumps({"recipe": w.SCENE["recipe"],
-                                                "absent": sorted(d.drawn[0]["absent"])}).encode())[0] == 200
+        # The next render of that person needs nothing sent; another scope's does.
+        again = {"recipe": w.SCENE["recipe"], "absent": sorted(d.drawn[0]["absent"])}
+        assert post(url, "/render", json.dumps({**again, "scope": p.scope}).encode())[0] == 200
+        assert post(url, "/render", json.dumps(again).encode())[0] == 428
     finally:
         s.shutdown()
         s.server_close()
@@ -106,6 +113,59 @@ def test_file_upload_rules(tmp_path):
         s.server_close()
 
 
+def test_one_persons_files_never_draw_anothers_picture(tmp_path):
+    """Review of ce8239e (bug 6): the renderer kept files by id alone, for
+    every person. Each person's files come from their own upload, checked for
+    their kind only, so a file one person sent stood in for another's."""
+    d = Drawer(tmp_path / "cache")
+    s, url, tf = start(tmp_path, d)
+    try:
+        store = w.fill(tmp_path / "assets")
+        have, _ = assets.closure(w.character3d.needs(w.SCENE["recipe"]), store.read)
+        tex = next(f for f in sorted(have) if store.read(f)[:4] == b"BLP2")
+        odd = store.read(tex) + b"someone else's"
+
+        def theirs(f):
+            return odd if f == tex else store.read(f)
+
+        def pics(account):
+            return pictures.Pictures({"RENDER_URL": url, "RENDER_TOKEN_FILE": str(tf), "VL_ACCOUNT_ID": account},
+                                     tmp_path / f"out-{account}", log=lambda *a: None)
+
+        a, b = pics("1"), pics("2")
+        assert a.scope != b.scope
+        assert a.get({"recipe": w.SCENE["recipe"]}, theirs) == WEBP and d.read[tex] == odd
+        sent = []
+
+        def mine(f):
+            sent.append(f)
+            return store.read(f)
+
+        assert b.get({"recipe": w.SCENE["recipe"]}, mine) == WEBP
+        assert tex in sent and d.read[tex] == store.read(tex), "drawn from the other person's file"
+        assert d.files.get(tex, a.scope) == odd and d.files.get(tex, b.scope) == store.read(tex)
+    finally:
+        s.shutdown()
+        s.server_close()
+
+
+def test_a_scope_is_hex_or_refused(tmp_path):
+    with pytest.raises(renderer.BadRequest):
+        renderer.parse(json.dumps({"recipe": w.SCENE["recipe"], "scope": "../x"}).encode())
+    assert renderer.parse(json.dumps({"recipe": w.SCENE["recipe"]}).encode())["scope"] == ""
+    d = Drawer(tmp_path / "cache")
+    s, url, _ = start(tmp_path, d)
+    model = w.files()[w.FX.CHAR_M2]
+    sha = {"X-Content-SHA256": hashlib.sha256(model).hexdigest()}
+    try:
+        assert post(url, "/file/1", model, {**sha, "X-Render-Scope": "../../etc"})[0] == 400
+        assert post(url, "/file/1", model, {**sha, "X-Render-Scope": "ab12"})[0] == 204
+        assert d.files.get(1, "ab12") == model and d.files.get(1) is None
+    finally:
+        s.shutdown()
+        s.server_close()
+
+
 def test_the_cache_keeps_to_its_budget(tmp_path):
     f = renderer.Files(tmp_path, budget=3000)
     for i in range(1, 6):
@@ -119,5 +179,5 @@ def test_the_renderer_holds_no_name_or_key(tmp_path):
     else; the request it keeps has no character, level or item name."""
     req = renderer.parse(json.dumps({"recipe": w.SCENE["recipe"], "name": "Hero-Test", "level": 12,
                                      "items": [{"name": "Test Boots"}]}).encode())
-    assert set(req) == {"recipe", "absent"}
+    assert set(req) == {"recipe", "absent", "scope"}
     assert b"Hero" not in json.dumps(req["recipe"]).encode() and b"Boots" not in json.dumps(req["recipe"]).encode()
