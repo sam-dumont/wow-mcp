@@ -472,13 +472,11 @@ def trip_value(mine: list[dict], every: dict, quests: list[dict]) -> dict:
     return {"measured": False, "n": 0, "quest_xp_left": quest_xp_left}
 
 
-def route_trip(inp: dict, name: str, quests: list[dict]) -> dict | None:
-    """The trip Polestar's pick-up and hand-in rules make for him now
-    (wowstats.plan.tripcost): from where he was last seen, on his level,
-    race, class and quests, with the XP of the quests it hands in (the
-    panel's own figure for a quest it lists, forever-db's at his level's
-    share for a prerequisite it doesn't). None without route data for the
-    dungeon (a Forever dungeon Polestar has no entrance for)."""
+def trip_at(name: str, who: dict, level: int, done, log, seen: dict | None) -> dict | None:
+    """The trip Polestar's rules make for a character in this state
+    (wowstats.plan.tripcost.trip): `who` his faction, race and class, `seen`
+    where he stands (map_id, x, y; None: the entrance). None without route
+    data for the dungeon or the wing."""
     from wowstats.mcp import route
 
     from . import tripcost
@@ -489,16 +487,30 @@ def route_trip(inp: dict, name: str, quests: list[dict]) -> dict | None:
     if not trips or not area or not area.get("map"):
         return None
     wing = W.wing_of(name)
-    who = inp.get("who") or {}
-    seen = inp.get("last_position") or {}
+    seen = seen or {}
     at = tripcost.to_world(trips, seen.get("map_id"), seen.get("x"), seen.get("y"))
+    return tripcost.trip(trips, area["map"], side=who.get("faction"), level=level, race=who.get("race"),
+                         cls=who.get("class"), done=set(done or ()), log=set(log or ()), at=at,
+                         wing=wing[1] if wing else None)
+
+
+def route_trip(inp: dict, name: str, quests: list[dict]) -> dict | None:
+    """The trip Polestar's pick-up and hand-in rules make for him now
+    (trip_at): from where he was last seen, on his level, race, class and
+    quests, with the XP of the quests it hands in (the panel's own figure
+    for a quest it lists, forever-db's at his level's share for a
+    prerequisite it doesn't). None without route data for the dungeon (a
+    Forever dungeon Polestar has no entrance for)."""
+    from wowstats.mcp import route
+
+    from . import tripcost
+
     level = inp["level"]
-    t = tripcost.trip(trips, area["map"], side=who.get("faction"), level=level, race=who.get("race"),
-                      cls=who.get("class"), done=set(inp.get("quests_done") or []),
-                      log={o["quest_id"] for o in inp.get("open_quests") or []}, at=at,
-                      wing=wing[1] if wing else None)
+    t = trip_at(name, inp.get("who") or {}, level, inp.get("quests_done") or [],
+                {o["quest_id"] for o in inp.get("open_quests") or []}, inp.get("last_position"))
     if not t:
         return None
+    trips = route.reference().trips
     rows = {i: q for q in quests for i in (q["quest_id"], *(q.get("variants") or []))}
     data = tripcost.quests_of(trips)
     xp = 0.0
@@ -510,6 +522,38 @@ def route_trip(inp: dict, name: str, quests: list[dict]) -> dict | None:
             share = E.share(inp, level, data[qid].get("level"))
             xp += data[qid]["xp"] * (share if share is not None else 1.0)
     return {**t, "xp_quests": round(xp)}
+
+
+# The player's pace on a trip's legs: his measured pickups, travel and
+# hand-ins over what Polestar's rules plan for the same trip from where it
+# started (facts.trip_pace's route_s). Owner, 2026-11-23: his trips take
+# about twice the straight run ("I pause, do other stuff, go back and forth,
+# forget to hand in a quest and have to come back"). Kept in PACE_RANGE: a
+# trip quicker than the rules' straight run is the rules' miss, not a pace
+# to plan on, and past 4x one trip's long break would set every estimate.
+PACE_RANGE = (1.0, 4.0)
+
+
+def pace(trips: list[dict]) -> dict:
+    """The factor the route's pickups, travel and hand-ins scale by: his
+    trips' measured legs over what the rules planned for them (`route_s`),
+    summed over the trips (time-weighted: a 1-minute rerun planned at 58 s
+    and walked in 11 can't set it the way a median of ratios would), in
+    PACE_RANGE. A trip counts when the rules could replay it and it had legs
+    outside (a trip logged at the door alone measured none). No such trip:
+    1, the straight run, labelled so."""
+    measured = planned = 0.0
+    n = 0
+    for t in trips or []:
+        plan = t.get("route_s")
+        legs = sum(t.get(k) or 0 for k in ("pickup_s", "travel_to_s", "travel_back_s", "handin_s"))
+        if plan and legs > 0:
+            measured, planned, n = measured + legs, planned + plan, n + 1
+    if not n:
+        return {"factor": 1.0, "trips": 0, "label": "straight run"}
+    raw = measured / planned
+    lo, hi = PACE_RANGE
+    return {"factor": round(min(hi, max(lo, raw)), 2), "trips": n, "label": "your pace", "raw": round(raw, 2)}
 
 
 def drop_odds(drops: list[dict]) -> list[dict]:
@@ -530,7 +574,8 @@ def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xp
     level = inp["level"]
     return G.estimate(level=level, xp_max=inp.get("xp_max") or E.xp_need(inp, level)[0], name=name, runs=mine,
                       others=inp.get("trips") or [], quests=quests, questing_xph=quest_xph, rule=G.kill_rule(),
-                      route=route_trip(inp, name, quests), drops=drop_odds(drops or []))
+                      route=route_trip(inp, name, quests), drops=drop_odds(drops or []),
+                      pace=pace(inp.get("trips") or []))
 
 
 def gain_named(inp: dict, name: str, quest_xph: float | None) -> dict | None:

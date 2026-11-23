@@ -422,8 +422,9 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
                                       ("the kill estimate's time inside" if g["basis"] == "kill_model" else
                                        "the knowledge base's clear time") + (
                                           ", plus the pickups, travel and hand-ins Polestar's rules plan from "
-                                           "where you are" if (g["trip"]["pickup_s"]["label"] == "route"
-                                                               or g["trip"]["travel_s"]["label"] == "route") else
+                                           "where you are" + _at_pace(g["trip"].get("pace"))
+                                           if (g["trip"]["pickup_s"]["label"] in ("route", "your pace")
+                                               or g["trip"]["travel_s"]["label"] in ("route", "your pace")) else
                                            f", plus the travel and quest time of your {ts['n']} dungeon trips"
                                            if ts["n"] and g["time"] == "trip" else "")),
                              "n": g["own_runs"] or ts["n"],
@@ -448,6 +449,15 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
     for i, e in enumerate(out, 1):
         e["rank"] = i
     return out
+
+
+def _at_pace(p: dict | None) -> str:
+    """", at your pace (2.1x the straight run, from 2 trips)": how the
+    route's legs were scaled (dungeonview.pace); nothing for the straight run."""
+    if not p or not p.get("trips"):
+        return ""
+    n = p["trips"]
+    return f", at your pace ({p['factor']:g}x the straight run, from {n} trip{'s' if n != 1 else ''})"
 
 
 def share(inp: dict, level: int, qlevel) -> float | None:

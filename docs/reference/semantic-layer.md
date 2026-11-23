@@ -608,6 +608,7 @@ Each quest the log held: its accept paired with its hand-in or abandon, and the 
 | `done_quest_xp` | simple | xp | XP of the done quests (accept and hand-in both seen). | Leaves out untimed quests, whose time is unknown. NULL without a done quest. | sum; time: quest_closure; observed. |
 | `done_quest_s` | simple | seconds | quest_s of the done quests. | Abandoned and open quests' time is in quest_s, not here. NULL without a done quest. | sum; time: quest_closure; allocated. |
 | `quest_accepted_t` | simple | unix seconds | When the quest was accepted, unix seconds: the first accept in the group. | NULL for a quest accepted before tracking began (untimed, or open with its objectives seen done). Filter status for one row of a quest taken twice. | min; time: quest_closure; observed. |
+| `quest_closed_t` | simple | unix seconds | When the quest left the log, unix seconds: the last hand-in or abandon in the group. | NULL while it is still in the log. With quest_accepted_t it says what the log held at a moment (a dungeon trip's start, wowstats.plan.facts.trip_pace). | max; time: quest_closure; observed. |
 | `quest_complete_t` | simple | unix seconds | When its objectives were last reported complete (a complete record between its accept and its close), unix seconds. | NULL while the objectives aren't done, or for a quest with nothing to collect the Recorder saw complete. For an open quest: ready to hand in. | max; time: quest_closure; observed. |
 | `quest_xp_per_min` | ratio | xp/minute | XP per minute on quests: done_quest_xp over done_quest_s. | Done quests only. Time is the shared quest_s, so a quick quest done while ten sat in the log looks quicker than it was, and one carried for days looks slower. Kill XP on the way is not in it. | ratio_of_sums; time: quest_closure; allocated. Rows: A done quest with its shared time and its XP known. |
 | `quests_open_avg` | ratio | quests | How many quests were in the log on average while these were: quest_open_s over quest_s. | 1 means one quest at a time; read it next to quest_s. | ratio_of_sums; time: quest_closure; allocated. Rows: A quest with both times (untimed quests have neither). |
@@ -755,6 +756,7 @@ The quests known done, one row per quest, with the first source that says so (wo
 | Metric | Kind | Unit | Definition | Caveats | Read as |
 |---|---|---|---|---|---|
 | `quests_known_done` | simple | quests | Quests known done, whatever the source. | A quest done before the Recorder ran is here only when another source says so; done_source reward, battlenet and inferred are deduced, not seen. | sum; time: event; observed. |
+| `done_seen_t` | simple | unix seconds | When the quest was first seen done, unix seconds: the hand-in for turnin, else when the source first said so. | For a deduced source (questie, altoholic, reward, battlenet, inferred) it is when the data showed it, which can be long after the hand-in. | min; time: event; observed. |
 
 Group or filter by: `character`, `class`, `done_source`, `quest_id`, `time`.
 

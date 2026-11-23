@@ -19,7 +19,9 @@ Where the numbers come from, each part labelled (`trip`):
 2. otherwise:
    - the pickups, the travel and the hand-ins from Polestar's pick-up and
      hand-in rules on his own quests, from where he was last seen
-     (wowstats.plan.tripcost, "route"); without route data for the dungeon,
+     (wowstats.plan.tripcost), times his own pace on his past trips
+     (dungeonview.pace, "your pace"; the straight run, "route", before his
+     first trip); without route data for the dungeon,
      the means of his other trips ("measured", the old flat mean);
    - the time inside and the kill XP from the kill estimate
      (wowstats.plan.dungeonxp: kills x the seconds a kill took in the
@@ -160,7 +162,7 @@ def ratio(x: float) -> str:
     return f"{x:.1f}×" if x >= 0.05 else "under 0.1×"
 
 
-LABEL_RANK = {"measured": 0, "route": 1, "estimate": 2}
+LABEL_RANK = {"measured": 0, "your pace": 1, "route": 1, "estimate": 2}
 
 
 def _worst(*labels: str | None) -> str:
@@ -175,7 +177,8 @@ def _ids(q: dict) -> set[int]:
 
 def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], others: list[dict],
              quests: list[dict], questing_xph: float | None, rule: dict | None = None,
-             clear: float | None = None, route: dict | None = None, drops: dict | None = None) -> dict:
+             clear: float | None = None, route: dict | None = None, drops: dict | None = None,
+             pace: dict | None = None) -> dict:
     """One more run at `level`. `runs`: his trips of this dungeon
     (facts.trips); `others`: every trip he made (their means stand in for
     the pickups and travel when there is no route); `quests`: the dungeon's
@@ -184,7 +187,9 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     make from where he stands (dungeonview.route_trip: tripcost.trip plus
     the XP of its quests), None when the reference has none; `drops`: his
     missing upgrades that drop there, each with its best chance
-    (dungeonview.drop_odds)."""
+    (dungeonview.drop_odds); `pace`: his pace on a trip's legs
+    (dungeonview.pace), which the route's pickups, travel and hand-ins are
+    scaled by, labelled "your pace" (none: the straight run, "route")."""
     if route:
         ids = set(route["quests"]) | set(route.get("prereqs") or [])
         todo = [q for q in quests if _ids(q) & ids and q["state"] != "done"]
@@ -221,9 +226,13 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         if clear:
             parts["inside_s"] = (clear, "estimate")
         if route:
-            parts["pickup_s"] = (route["pickup_s"], "route")
-            parts["travel_s"] = (route["travel_to_s"] + route["travel_back_s"], "route")
-            parts["handin_s"] = (route["handin_s"], "route")
+            # The rules time a straight run; his own trips say how much longer
+            # his take (dungeonview.pace). The time inside keeps its own logic.
+            f = (pace or {}).get("factor") or 1.0
+            lbl = "your pace" if (pace or {}).get("trips") else "route"
+            parts["pickup_s"] = (route["pickup_s"] * f, lbl)
+            parts["travel_s"] = ((route["travel_to_s"] + route["travel_back_s"]) * f, lbl)
+            parts["handin_s"] = (route["handin_s"] * f, lbl)
         elif others:
             parts["travel_s"] = (_mean(others, "travel_to_s") + _mean(others, "travel_back_s"), "measured")
             if left:
@@ -273,6 +282,8 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
                  "xp_per_hour": part(xph if xp is not None else None, _worst(xp_label, t_label)),
                  "vs_questing": {"value": vs, "label": _worst(xp_label, t_label) if vs is not None else None},
                  "from": route.get("from") if route else None,
+                 "pace": ({k: v for k, v in (pace or {"factor": 1.0, "trips": 0, "label": "straight run"}).items()
+                           if k in ("factor", "trips", "label")} if route and not runs else None),
                  "stops": {"pickup": len(route["pickup"]), "handin": len(route["handin"])} if route else None})
     out["trip"] = trip
     out["kill_xp"] = run_kills(name, level, runs, xp_k, rule) if runs else kills
