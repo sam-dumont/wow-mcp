@@ -66,7 +66,12 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
         inp, seen = eventcache.computed(lambda: facts.gather(
             env, char, store=store, battlenet=bn, gear_inputs=gear_inputs() if gear_inputs is not None else None))
         with _LOCK:
-            _CACHE[key] = (time.time(), inp, seen)
+            now = time.time()
+            # Expired entries go as soon as anything is kept: a plan's inputs
+            # hold a character's whole state, and nobody reads them again.
+            for k in [k for k, v in _CACHE.items() if now - v[0] >= CACHE_S]:
+                del _CACHE[k]
+            _CACHE[key] = (now, inp, seen)
             while len(_CACHE) > MAX_CACHED:
                 _CACHE.pop(min(_CACHE, key=lambda k: _CACHE[k][0]), None)
         return inp

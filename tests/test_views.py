@@ -33,7 +33,9 @@ def test_header_totals_come_from_the_splits():
          "xp": "29400", "quests": "11", "kills": "95", "partial": "false"},
     ]
     levels = build_levels(rows)
-    n = pages.numbers("A-B", [{**r, "feed": "wow-level", "char": "A-B"} for r in rows])
+    from wowstats.analysis import copies
+
+    n = pages.numbers("A-B", copies.build([{**r, "feed": "wow-level", "char": "A-B"} for r in rows], "A-B"))
     pages.apply_rows(levels, [], n)
     res = {"snap": [], "xp": [{"_time": "2026-11-12T14:00:00Z", "kind": "xp", "level": "24", "xp": "10",
                                "xp_max": "30000"}]}

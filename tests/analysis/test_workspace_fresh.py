@@ -15,7 +15,7 @@ import pytest
 
 from tests.test_layer_pages import CHAR, SeedVL, seed_rows
 from wowstats import eventcache, stores
-from wowstats.analysis import drive, pages
+from wowstats.analysis import copies, drive, pages
 from wowstats.mcp import tools as T
 from wowstats.mcp.store import Store as MStore
 
@@ -31,10 +31,9 @@ def seeded(monkeypatch, tmp_path):
     monkeypatch.setattr(stores, "http_get", fake)
     monkeypatch.setattr(MStore, "_get", lambda self, url, params, extra=None: fake(url, params))
     monkeypatch.setattr(eventcache, "_SHARED", {})
-    for name, empty in (("_memo", type(pages._memo)()), ("_copies", type(pages._copies)()), ("_failing", {}),
-                        ("_last_ok", None)):
+    for name, empty in (("_memo", type(pages._memo)()), ("_failing", {}), ("_last_ok", None)):
         monkeypatch.setattr(pages, name, empty)
-    monkeypatch.setattr(T, "_LAYERS", {})
+    copies.clear()  # the characters' copies are per process too
     for k, v in {"ANALYSIS_STATE_DIR": str(tmp_path), "KB_GAME_TABLES": "off"}.items():
         monkeypatch.setenv(k, v)
     drive._WS.clear()

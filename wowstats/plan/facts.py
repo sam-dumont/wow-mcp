@@ -137,15 +137,22 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
             advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet)
             loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char),
                                            (advice or {}).get("bis_by_slot"))
-    db = prep.build(rows, char, route.reference(), map_sizes=knowledge.meta.get("ui_map"),
-                    advice=advice)
     try:
         scans = prices(store)
     except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail
         scans = {}
-    inp = extract(db, knowledge, route.reference(), advice=advice, scans=scans,
-                  state=analysis.load_state(env, char), now=now, loot=loot, bags=gear.newest_bags(rows),
-                  done=quests.completed(rows, battlenet=battlenet) if battlenet else None)
+    # The character's one analytical copy (wowstats.analysis.copies), the
+    # pages' and the MCP's, with this advice scored into it while extract
+    # reads: no prep build of the plan's own.
+    from wowstats.analysis import copies
+
+    with copies.holding():
+        cp = copies.of(store, char, rows=rows)
+        with cp.scored(advice, char) as sem:
+            inp = extract(cp, knowledge, route.reference(), advice=advice, scans=scans,
+                          state=analysis.load_state(env, char), now=now, loot=loot,
+                          bags=gear.newest_bags(rows),
+                          done=quests.completed(rows, battlenet=battlenet) if battlenet else None, sem=sem)
     inp["who"]["char"] = inp["who"].get("char") or char
     # Polestar's own record of the last class trainer visit (classTrainVisit,
     # the level it was at), from the shipper's sheet: exact where the
@@ -186,7 +193,8 @@ def header(db) -> dict:
     """The prep's meta table: the build's own header (character, class,
     race, faction, the data's range), the rows the semantic layer's
     `character` and `class` columns read too. Not a measurement: plumbing
-    (tests/test_semantic_guard.py)."""
+    (tests/test_semantic_guard.py). `db`: a SQLite build or a character's
+    copy (wowstats.analysis.copies.Copy)."""
     return dict(db.execute("SELECT key, value FROM meta").fetchall())
 
 
@@ -195,9 +203,8 @@ def header(db) -> dict:
 # The pace the estimator reads (each level's played time, XP and route time,
 # the recent sessions' online, AFK and XP) is the semantic layer's metrics,
 # on a DuckDB copy of the prep (owner, 2026-11-22: "use the semantic model
-# all the time"). The levels are kept for the last prep asked: played_between
-# reads them once per snapshot.
-_LEVELS: list = [None, None]
+# all the time"). extract reads the levels once and hands them to whoever
+# needs them (played_between).
 
 
 def rows_of(layer, ro, **q) -> list[dict]:
@@ -214,8 +221,6 @@ def level_rows(db, layer=None, ro=None) -> list[dict]:
     """Every level of the prep, oldest first, with or without a split: played_s,
     level_xp (as xp), class_planned_s (as planned_s: the class's route time
     only, the estimator falls back to the route itself) and partial."""
-    if _LEVELS[0] is db:
-        return _LEVELS[1]
     if layer is None:
         layer, ro = semantic_of(db)
     # planned_s is the Recorder's route time here (estimate's level_factor
@@ -227,7 +232,6 @@ def level_rows(db, layer=None, ro=None) -> list[dict]:
            for r in rows_of(layer, ro, metrics=["played_s", "level_xp", "class_planned_s"],
                             group_by=["level", "partial"], where=[{"dimension": "level", "op": "is not null"}],
                             order_by=["level"])]
-    _LEVELS[:] = [db, out]
     return out
 
 
@@ -569,10 +573,11 @@ def series(sem, source: str) -> list[dict]:
                order_by=["reading"])
 
 
-def progress(db, sem=None) -> list[dict]:
+def progress(db, sem=None, levels: list[dict] | None = None) -> list[dict]:
     """Every XP record as (t, level with the fraction, online seconds since
     the first record): what a plan is compared with. The semantic layer's
-    `progress` model at the reading grain."""
+    `progress` model at the reading grain. `levels`: level_rows' answer,
+    when the caller has it."""
     sem = semantic_of(db, sem)
     out = [{"t": r["progress_t"], "level": round(r["progress_level"], 3), "online_s": round(r["progress_online_s"])}
            for r in series(sem, "xp")]
@@ -582,7 +587,10 @@ def progress(db, sem=None) -> list[dict]:
     # the level splits (played_between), so a plan by level is reviewed too.
     snaps = series(sem, "snapshot")
     for r in snaps:
-        on = played_between(db, (snaps[0]["level"], snaps[0]["progress_xp"]), (r["level"], r["progress_xp"])) or 0.0
+        if levels is None:
+            levels = level_rows(db, *sem)
+        on = played_between(levels, (snaps[0]["level"], snaps[0]["progress_xp"]),
+                            (r["level"], r["progress_xp"])) or 0.0
         if out and on < out[-1]["online_s"]:
             continue  # a snapshot that went back (another source's older sheet): skip it
         out.append({"t": r["progress_t"], "level": round(r["progress_level"], 3), "online_s": round(on),
@@ -590,7 +598,8 @@ def progress(db, sem=None) -> list[dict]:
     return out
 
 
-def gold_rate(db, days: float = 14, now: float | None = None, sem: tuple | None = None) -> dict:
+def gold_rate(db, days: float = 14, now: float | None = None, sem: tuple | None = None,
+              levels: list[dict] | None = None) -> dict:
     """Net gold per online hour between logout snapshots in the window: the
     moves between consecutive snapshots (gold_moves) summed, over the online
     time between them (everything earned less everything spent). The rate is
@@ -611,7 +620,8 @@ def gold_rate(db, days: float = 14, now: float | None = None, sem: tuple | None 
     if online <= 0:
         # No Recorder timeline: the played time between the two snapshots
         # from Polestar's level splits (seconds per XP of each level crossed).
-        online = played_between(db, (snap["snapshot_first_level"], snap["snapshot_first_xp"]),
+        online = played_between(levels if levels is not None else level_rows(db, *sem),
+                                (snap["snapshot_first_level"], snap["snapshot_first_xp"]),
                                 (snap["snapshot_last_level"], snap["snapshot_last_xp"])) or 0
         estimated = online > 0
         rate = net / online * 3600 if online > 0 else None
@@ -620,13 +630,13 @@ def gold_rate(db, days: float = 14, now: float | None = None, sem: tuple | None 
             "from_t": g.get("gold_first_t"), "to_t": g.get("gold_last_t"), **({"estimated": True} if estimated else {})}
 
 
-def played_between(db, a: tuple, b: tuple) -> float | None:
-    """wowstats.journal.played_between over the prep's levels (the layer's
-    played_s and level_xp: level_rows)."""
+def played_between(levels: list[dict], a: tuple, b: tuple) -> float | None:
+    """wowstats.journal.played_between over the prep's levels (level_rows:
+    the layer's played_s and level_xp)."""
     from wowstats import journal
 
     rows = [{"level": lv["level"], "seconds": lv["played_s"], "xp": lv["xp"], "partial": bool(lv["partial"])}
-            for lv in level_rows(db)]
+            for lv in levels]
     return journal.played_between(rows, a, b)
 
 
@@ -988,7 +998,6 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
             sem, metrics=["quests_known_done"], group_by=["quest_id", "done_source"], order_by=["quest_id"])}
     meta = header(db)
     layer, ro = sem
-    _LEVELS[0] = None  # a prep asked again (the tests' replays) reads its levels again
     levels = level_rows(db, layer, ro)
     # The character now: the newest XP bar reading, the newest snapshot and
     # the records' highest level and newest time (the layer's latest and max).
@@ -1141,7 +1150,8 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
                   "rested_accrual": cite(acc) | {"value": acc["value"]} if acc else None},
         "rested_burn": rested_burn(db, sem),
         "route_levels": route_levels(ref, meta, level),
-        "gold_rate": gold_rate(db, now=now, sem=sem), "loot_value": loot_value(db, cards, scans, now=now, sem=sem),
+        "gold_rate": gold_rate(db, now=now, sem=sem, levels=levels),
+        "loot_value": loot_value(db, cards, scans, now=now, sem=sem),
         # What the plan acts on: findings judged under today's definitions
         # and the nudges standing on them (analysis.standing, review 6).
         "findings": [{"key": f.get("key"), "title": f.get("title"), "text": f.get("text")}
@@ -1150,7 +1160,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
                    for n in standing(st)["nudges"]],
         "analysis_updated": st.get("updated"),
         "calibration": reviews or {"factor": 1.0, "n": 0},
-        "progress": progress(db, sem),
+        "progress": progress(db, sem, levels),
         "instance_limit": instance_limit(),
     }
 

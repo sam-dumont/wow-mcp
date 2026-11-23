@@ -35,7 +35,9 @@ def layer(ds=(), levels=()):
         rows.append({"_time": lv.get("at") or _iso(1793000000 + i * 86400), "feed": "wow-level", "char": CHAR,
                      "level": str(lv["level"]), "seconds": str(lv["seconds"]), "xp": str(lv.get("xp") or 1000),
                      "partial": "true" if lv.get("partial") else "false", "source_id": f"lvl:{lv['level']}"})
-    return pages.asker(CHAR, rows)
+    from wowstats.analysis import copies
+
+    return pages.asker(CHAR, copies.build(rows, CHAR))
 
 
 DEATH = row("2026-11-16T19:20:22.3Z", "death", zone="Wetlands", npc_id="271351", npc_level="30",

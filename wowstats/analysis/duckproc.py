@@ -42,6 +42,7 @@ import time
 import weakref
 from pathlib import Path
 
+from . import budget
 from .duck import TOO_BIG
 from .sql import MAX_ROWS, QueryError
 
@@ -50,9 +51,10 @@ try:
 except ImportError:  # Windows: no memory cap there, the parent's timeout only
     resource = None
 
-# Bytes a query may add to the loaded copy: twice DuckDB's own memory_limit
-# (256 MB), and well under the compose kit's 1 GiB for `ui`.
-QUERY_MEMORY = 512 << 20
+# Bytes a query may add to the loaded copy: the memory budget's share
+# (wowstats.analysis.budget: a quarter of what the container's limit leaves
+# the workspaces, 128-512 MiB; 512 MiB without a limit).
+QUERY_MEMORY = budget.current()["query"]
 GRACE_SECONDS = 5.0  # on top of the query's own timeout, before the parent kills the child
 START_SECONDS = 120.0  # loading a long history into the child
 REPLY_MAX = 32 << 20  # bytes of JSON an answer may take

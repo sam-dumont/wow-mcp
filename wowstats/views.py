@@ -303,8 +303,8 @@ class Views:
                                f"uniq_values(race) limit 3 as races, uniq_values(zone) limit 12 as zones",
                            ("player",), {"last_seen": "maxtime", "level": "max", "classes": "union",
                                          "races": "union", "zones": "union"}),
-            # What the semantic layer's models read for this page (wowstats.analysis.pages).
-            "layer": sub(vl, f"{st} {cf} {pages.ROWS_QUERY}"),
+            # The character's analytical copy, the semantic layer's (wowstats.analysis.copies).
+            "layer": sub(self.layer_copy, char),
         }
         res = {k: f.result() for k, f in jobs.items()}
         levels = build_levels(res["levels"])
@@ -315,7 +315,7 @@ class Views:
         # MCP's query_metric; the rows above keep the facts around them. Its
         # failure is this answer's failure (SemanticError: the last good
         # answer stays, marked stale), never numbers counted here instead.
-        layer = pages.numbers(char, pages.with_spans(char, res["layer"], res["minutes"]))
+        layer = pages.numbers(char, res["layer"])
         pages.apply_rows(levels, dungeons, layer)
         pages.apply_deaths(deaths, layer, death_rows)
         if not death_rows and not res["minutes"]:
@@ -665,16 +665,22 @@ class Views:
                 "runs": res["runs"], "sessions": res["sessions"], "steps_rows": steps_rows, "skills": skills,
                 "skill_rows": sorted(dedupe(res["skills"]), key=lambda r: parse_t(r.get("_time")))}
 
+    def layer_copy(self, char: str):
+        """The character's analytical copy (wowstats.analysis.copies), the
+        one the MCP's tools and the planner read too; None: no events."""
+        from wowstats.analysis import copies
+
+        # The view's own store: the same key as the MCP's (copies.key_of reads
+        # the stores' addresses and tenant, not the object).
+        return copies.of(self.store, char)
+
     def layer_ask(self, char: str):
-        """The semantic layer on the character's narrow prep (the rows the
-        character page's numbers read: wowstats.analysis.pages.asker), for
-        the Overview's pace and death counts. A failure raises
-        SemanticError: the Overview fails like any answer, never shows
-        its lines without the layer's counts."""
-        cf = self.char_filter(char)
-        rows = self.vl(f"{self.stream} {cf} {pages.ROWS_QUERY}")
-        minutes = self.vl(f'{self.stream} feed:="wow-recorder" {cf} {SESSION_BUCKETS}')
-        return pages.asker(char, pages.with_spans(char, rows, minutes))
+        """The semantic layer on the character's copy (the one the character
+        page's numbers read: wowstats.analysis.pages.asker), for the
+        Overview's pace and death counts. A failure raises SemanticError:
+        the Overview fails like any answer, never shows its lines without
+        the layer's counts."""
+        return pages.asker(char, self.layer_copy(char))
 
     def overview(self, char: str) -> dict:
         """The home page of a character: on track or not, what's happening

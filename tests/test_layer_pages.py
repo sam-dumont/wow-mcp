@@ -173,7 +173,12 @@ def test_the_kept_numbers_never_cross_people(tmp_path, monkeypatch):
     monkeypatch.setattr(pages, "_memo", type(pages._memo)())
     rows = [r for r in seed_rows(tmp_path) if r.get("char") == CHAR
             and (r["feed"] in ("wow-level", "wow-dungeon") or r.get("kind") in ("level", "session", "zone", "death"))]
-    mine = pages.numbers(CHAR, rows)
-    theirs = pages.numbers(CHAR, [r for r in rows if not (r["feed"] == "wow-level" and int(r["level"]) == 30)])
+    from wowstats.analysis import copies
+
+    mine_cp = copies.build(rows, CHAR, ("store-a", CHAR))
+    mine = pages.numbers(CHAR, mine_cp)
+    theirs = pages.numbers(CHAR, copies.build([r for r in rows if not (r["feed"] == "wow-level"
+                                                                        and int(r["level"]) == 30)],
+                                              CHAR, ("store-b", CHAR)))
     assert mine["levels"][30]["played_s"] == 9749 and 30 not in theirs["levels"]
-    assert pages.numbers(CHAR, rows) is mine and len(pages._memo) == 2
+    assert pages.numbers(CHAR, mine_cp) is mine and len(pages._memo) == 2

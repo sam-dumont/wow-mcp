@@ -38,7 +38,7 @@ import threading
 import time
 from datetime import UTC, datetime
 
-from . import passes
+from . import budget, passes
 
 # Who drives the analysis: a player's MCP client unless the server's own
 # runner (wowstats.analysis.auto) set it for its run. Kept on the run's
@@ -53,12 +53,13 @@ CACHE_S = 1800
 # characters on one 5 GiB pod, each workspace kept until a restart was 4-5 GB).
 # One holds the prep in SQLite here plus a child process with its DuckDB copy
 # (wowstats.analysis.duckproc): about 120 MB for the child's interpreter and
-# DuckDB, the copy under DuckDB's 256 MB memory_limit, and the SQLite build,
-# so 250-500 MB each. Six open ones stay under 3 GB and leave the rest of the
-# pod to the process, its bounded page and metric caches and one query's
-# 512 MB headroom. An idle one closes after 15 minutes: a run's passes come
-# back within that even on a slow local model, and a rebuild costs seconds.
-WORKSPACES_MAX = 6  # ANALYSIS_WORKSPACES_MAX
+# DuckDB, the copy, and the SQLite build, plus what one query may add
+# (duckproc.QUERY_MEMORY). How many fit is the memory budget's
+# (wowstats.analysis.budget: the container's limit, less the process and the
+# characters' copies; 6 without a limit). An idle one closes after 15
+# minutes: a run's passes come back within that even on a slow local model,
+# and a rebuild costs seconds.
+WORKSPACES_MAX = budget.current()["workspaces"]  # ANALYSIS_WORKSPACES_MAX
 WORKSPACE_IDLE_S = 900  # ANALYSIS_WORKSPACE_IDLE_S; 0: only the cap closes them
 SWEEP_EVERY_S = 60
 PAGE_CHARS = 12000

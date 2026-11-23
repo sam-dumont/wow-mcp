@@ -7,13 +7,13 @@ short `dur` where a person reads them. Every list is capped (`limit`).
 
 from __future__ import annotations
 
+import contextlib
 import copy
 import json
 import logging
 import math
 import os
 import re
-import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -22,7 +22,6 @@ from datetime import UTC, datetime, timedelta
 from .. import ahsource, gearfit
 from .. import gear as gearmod
 from ..stores import (
-    SESSION_BUCKETS,
     SESSION_GAP_S,
     SNAPSHOT_SORT,
     jlist,
@@ -217,17 +216,24 @@ def one_row(st: Store):
 # pace and counts, the Recorder's gaps) is a metric of the semantic layer
 # (wowstats/analysis/semantic.yaml), read from the character's prep database
 # the way query_metric reads it (owner, 2026-11-22: "use the semantic model
-# all the time"). The tools only pick, place and word the rows.
-_LAYERS: dict[tuple, tuple] = {}
-_LAYERS_LOCK = threading.Lock()
-LAYERS_KEPT = 8
+# all the time"). The tools only pick, place and word the rows. One copy
+# per character in the process, shared with the pages and the planner
+# (wowstats.analysis.copies).
 
 
 class Metrics:
-    """One character's semantic layer over a DuckDB copy of its prep."""
+    """One character's semantic layer over a DuckDB copy of its prep: the
+    character's shared copy (`copy`), or a (layer, ro) pair of a test's own."""
 
-    def __init__(self, layer, ro):
-        self.layer, self.ro = layer, ro
+    def __init__(self, layer, ro, copy=None):
+        self.layer, self.ro, self.copy = layer, ro, copy
+
+    def _run(self, q: dict) -> dict:
+        from wowstats.analysis import semantic
+
+        if self.copy is not None:
+            return self.copy.run(q)
+        return semantic.run(self.layer, self.ro, q)
 
     def ask(self, **q) -> list[dict]:
         """One query_metric question's rows as dicts. Never cut unless it
@@ -235,7 +241,7 @@ class Metrics:
         answer pages with every()."""
         from wowstats.analysis import semantic
 
-        got = semantic.run(self.layer, self.ro, {"limit": semantic.MAX_LIMIT, **q})
+        got = self._run({"limit": semantic.MAX_LIMIT, **q})
         if got["more"] and "limit" not in q:  # a limit asked for cuts on purpose
             raise RuntimeError(f"more than {semantic.MAX_LIMIT} rows for {q.get('group_by')}: page with every()")
         return [dict(zip(got["columns"], r, strict=True)) for r in got["rows"]]
@@ -250,49 +256,27 @@ class Metrics:
         where = list(q.pop("where", None) or [])
         while True:
             after = [{"dimension": key, "op": ">", "value": out[-1][key]}] if out else []
-            got = semantic.run(self.layer, self.ro, {**q, "where": where + after, "order_by": [key],
-                                                     "limit": semantic.MAX_LIMIT})
+            got = self._run({**q, "where": where + after, "order_by": [key], "limit": semantic.MAX_LIMIT})
             out += [dict(zip(got["columns"], r, strict=True)) for r in got["rows"]]
             if not got["more"]:
                 return out
+
+
+def copy_of(ctx: Ctx, char: str):
+    """The character's shared copy (wowstats.analysis.copies), None when it
+    has no events: the same one the pages and the planner read."""
+    from wowstats.analysis import copies
+    from wowstats.plan.facts import store_for
+
+    return copies.of(store_for(ctx.environ(), ctx.store), char)
 
 
 def metrics(ctx: Ctx, char: str) -> Metrics | None:
     """The character's semantic layer, from the events the analysis reads
     (wowstats.analysis.prep.query), built again when they changed. None when
     the character has no events."""
-    import warnings
-
-    from wowstats.analysis import TABLES, duck, prep, semantic
-    from wowstats.plan.facts import store_for
-
-    st = store_for(ctx.environ(), ctx.store)
-    name = prep.norm(char)
-    key = (*_store_key(ctx), name)
-    # The event cache answers from memory once read (wowstats.eventcache):
-    # the rows' count and newest time say whether the history changed.
-    rows = prep.query(st, st.stream, name)
-    probe = (prep.PREP_VERSION, len(rows), max((str(r.get("_time") or "") for r in rows), default=""))
-    with _LAYERS_LOCK:
-        hit = _LAYERS.get(key)
-        if hit is not None and hit[0] == probe:
-            return hit[1]
-    got = None
-    if rows:
-        db = prep.build(rows, name, route.reference())
-        try:
-            con = duck.mirror(db, TABLES)
-        finally:
-            db.close()
-        semantic.prepare(con)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")  # BSL's own deprecation notes
-            got = Metrics(semantic.Layer(con), duck.ReadOnlyDuck(con))
-    with _LAYERS_LOCK:
-        _LAYERS[key] = (probe, got)
-        while len(_LAYERS) > LAYERS_KEPT:
-            _LAYERS.pop(next(iter(_LAYERS)))
-    return got
+    cp = copy_of(ctx, char)
+    return None if cp is None else Metrics(cp.layer, cp.ro, cp)
 
 
 def at_utc(t) -> str | None:
@@ -753,13 +737,12 @@ def death_rows(ctx: Ctx, char: str, start: datetime | None, end: datetime | None
 
 
 def layer_ask(ctx: Ctx, char: str):
-    """query_metric's compiler and runner on the narrow prep the pages read
-    (wowstats.analysis.pages.asker): the deaths, the levels and the dungeon
-    runs, one definition with the pages and query_metric."""
+    """query_metric's compiler and runner on the character's copy, as the
+    pages ask it (wowstats.analysis.pages.asker): the deaths, the levels and
+    the dungeon runs, one definition with the pages and query_metric."""
     from wowstats.analysis import pages
 
-    return pages.asker(char, pages.with_spans(char, ctx.store.logs(f"{cf(char)} {pages.ROWS_QUERY}"),
-                                              ctx.store.logs(f"{rec(char)} {SESSION_BUCKETS}")))
+    return pages.asker(char, copy_of(ctx, char))
 
 
 def local_when(t: datetime | None) -> str | None:
@@ -979,22 +962,27 @@ def _with_text(w: dict | None) -> str | None:
             + "; ".join(_src_text(s) for s in w.get("sources") or []))
 
 
-def gear_facts(advice: dict, char: str, items: list[dict]) -> tuple[dict, dict]:
+def gear_facts(advice: dict, char: str, items: list[dict], cp=None) -> tuple[dict, dict]:
     """The gear answer's numbers read through the semantic layer's `worn`
     and `upgrades` models, over this advice as a prep build holds it
-    (prep.advice_db: the gear is scored live, with this answer's level,
-    zone, quests, bags and auction house): per worn (slot_id, item_id) its
+    scored into the character's copy `cp` (copies.Copy.scored: the gear is
+    scored live, with this answer's level, zone, quests, bags and auction
+    house; a copy of the advice alone when the character has no events): per worn (slot_id, item_id) its
     fit and who it's built for, per upgrade (item_id, slot_id) its gain,
     share of the gear and the two BiS percents. `items`: every upgrade the answer
     shows."""
-    from wowstats.analysis import prep, semantic
+    from wowstats.analysis import copies, prep, semantic
     from wowstats.plan.facts import upgrade_facts, upgrade_key
 
     ups = list({upgrade_key(u): u for u in items if u and u.get("item_id")}.values())
-    sem = semantic.local(prep.advice_db(advice, char, advice.get("class"), ups))
-    worn = {(r[0], r[1]): {"fit": r[2], "built_for": r[3]} for r in semantic.run(*sem, {
-        "metrics": ["worn_items"], "group_by": ["slot_id", "item_id", "fit", "built_for"]}, semantic.EVERY_ROW)["rows"]}
-    return worn, upgrade_facts(sem)
+    with contextlib.ExitStack() as stack:
+        if cp is None:  # no events: a copy of the advice alone, for this answer
+            cp = stack.enter_context(copies.temporary(prep.advice_db({}, char, advice.get("class"), [])))
+        sem = stack.enter_context(cp.scored(advice, char, ups, worn="advice"))
+        worn = {(r[0], r[1]): {"fit": r[2], "built_for": r[3]} for r in semantic.run(*sem, {
+            "metrics": ["worn_items"], "group_by": ["slot_id", "item_id", "fit", "built_for"]},
+            semantic.EVERY_ROW)["rows"]}
+        return worn, upgrade_facts(sem)
 
 
 def _gear_item(u: dict | None, up: dict | None = None) -> dict | None:
@@ -1118,7 +1106,8 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     sp = a["spec"]
     buy = sorted((u for u in a["upgrades"] if gearmod.on_sale(u) and u.get("now")),
                  key=lambda u: -(next(s for s in u["sources"] if s["kind"] == "ah").get("gain_per_gold") or 0))[:5]
-    worn, up = gear_facts(a, char, ups + buy + [x.get(k) for x in a["slots"] for k in ("best", "next")])
+    worn, up = gear_facts(a, char, ups + buy + [x.get(k) for x in a["slots"] for k in ("best", "next")],
+                          copy_of(ctx, char))
 
     def worn_fit(x: dict) -> dict | None:
         """The worn item's fit: for_you and built_for from the worn model, the words from the advice."""
@@ -1630,7 +1619,7 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     if extra:
         raise ToolError(f"unknown argument(s): {', '.join(extra)}")
     from wowstats import eventcache, itemfacts
-    from wowstats.analysis import drive
+    from wowstats.analysis import copies, drive
     from wowstats.stores import SourceError as ViewsSourceError
 
     try:
@@ -1638,7 +1627,7 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
         # (wowstats.plan.kbloot): theirs, like everything else here. The
         # analysis workspaces the call opens stay open until it returns
         # (drive.holding): the cap and the idle sweep never close one mid-call.
-        with itemfacts.using(itemfacts.for_env(ctx.environ()).facts()), drive.holding(), \
+        with itemfacts.using(itemfacts.for_env(ctx.environ()).facts()), drive.holding(), copies.holding(), \
                 eventcache.reading() as seen:
             out = tool.fn(ctx, args)
     except (SourceError, ViewsSourceError) as e:
