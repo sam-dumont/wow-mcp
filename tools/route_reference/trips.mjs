@@ -848,6 +848,8 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 		}
 	}
 	const codex = (f) => JSON.parse(fs.readFileSync(path.join(ps, 'data', 'codex', f), 'utf8'));
+	const wingsFile = path.join(outDir, 'dungeons', 'wings.json');
+	const wingsOf = fs.existsSync(wingsFile) ? JSON.parse(fs.readFileSync(wingsFile, 'utf8')).dungeons : {};
 	const journal = codex('journal-quests.json').quests || [];
 	const toWorld = (map, x, y) => {
 		const b = frames[map];
@@ -878,6 +880,15 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 		ids.forEach((id) => { wanted.add(id); onPage.add(id); });
 		dungeons[e.instance] = { key: e.key, area: a.area, name: a.name, min: a.min, entrance: [way.c, way.wx, way.wy],
 			...(wayA ? { entrance_A: [wayA.c, wayA.wx, wayA.wy] } : {}), page: ids };
+		// A dungeon run in wings (data/dungeons/wings.json, tools/dungeon_wings/export.py):
+		// each wing's page holds the quests whose objectives are in it, in the page's order;
+		// a quest done outside every wing is on none.
+		const w = wingsOf[String(e.instance)];
+		if (w) {
+			dungeons[e.instance].wings = Object.fromEntries(Object.keys(w.wings).map((name) => [name, {
+				page: ids.filter((id) => ((w.quests[String(id)] || {}).wings || []).includes(name)),
+			}]));
+		}
 	}
 	// The quests the rules may read: the pages, their chains and breadcrumbs.
 	const queue = [...wanted];
@@ -943,21 +954,30 @@ export function buildTrips({ ps, travel, params, frames, outDir }) {
 			const at = { c: ent[0], wx: ent[1], wy: ent[2], key: 'entrance' };
 			const player = { level: d.min, done: new Set(), log: new Set() };
 			const R = makeRules({ quests, T, side, player });
-			const plan = pickupPlan({ page: d.page, minLevel: d.min, quests, T, side, player, from: at, entrance: at });
-			const s = tripSeconds({ R, plan, from: at, entrance: at, T, page: d.page, minLevel: d.min, player, talk });
-			if (!s.quests.length) continue;
-			d.tours[side] = {
-				pickup: s.pickup, handin: s.handin, quests: s.quests.sort((a, b) => a - b),
-				pickup_s: Math.round(s.pickup_s), travel_to_s: Math.round(s.travel_to_s),
-				travel_back_s: Math.round(s.travel_back_s), handin_s: Math.round(s.handin_s),
-				breadcrumbs: plan.crumbs.map((c) => ({ id: c.id, detour_s: c.detour, far: c.far, taken: c.taken })),
+			const tour = (page) => {
+				const plan = pickupPlan({ page, minLevel: d.min, quests, T, side, player, from: at, entrance: at });
+				const s = tripSeconds({ R, plan, from: at, entrance: at, T, page, minLevel: d.min, player, talk });
+				if (!s.quests.length) return null;
+				return {
+					pickup: s.pickup, handin: s.handin, quests: s.quests.sort((a, b) => a - b),
+					pickup_s: Math.round(s.pickup_s), travel_to_s: Math.round(s.travel_to_s),
+					travel_back_s: Math.round(s.travel_back_s), handin_s: Math.round(s.handin_s),
+					breadcrumbs: plan.crumbs.map((c) => ({ id: c.id, detour_s: c.detour, far: c.far, taken: c.taken })),
+				};
 			};
+			const whole = tour(d.page);
+			if (whole) d.tours[side] = whole;
+			for (const w of Object.values(d.wings || {})) {
+				w.tours = w.tours || {};
+				const t = tour(w.page);
+				if (t) w.tours[side] = t;
+			}
 		}
 	}
 	const frameOut = {};
 	for (const m of uiMap.sort((a, b) => a.ui_map - b.ui_map)) frameOut[m.ui_map] = [m.map, m.left, m.right, m.top, m.bottom];
 	return {
-		about: 'A dungeon trip\'s quests and travel, from Polestar\'s pick-up and hand-in rules (addon/Polestar/Dungeons/Pickup.lua, Handin.lua) ported to tools/route_reference/trips.mjs: per dungeon (instance Map id) its page of quests and its entrance in world yards [continent, x north, y west]; per quest what the rules read (g: givers, e: enders, each [c, x, y, side bits, npc/object key]; gi/ei: given/taken inside only; obj_s: objectives\' seconds); the travel network (flight masters, legs, boats); the uiMap frames [continent, left, right, top, bottom]; and per side the tours with nothing done, standing at the entrance, that wowstats/plan/tripcost.py must replay.',
+		about: 'A dungeon trip\'s quests and travel, from Polestar\'s pick-up and hand-in rules (addon/Polestar/Dungeons/Pickup.lua, Handin.lua) ported to tools/route_reference/trips.mjs: per dungeon (instance Map id) its page of quests and its entrance in world yards [continent, x north, y west]; per quest what the rules read (g: givers, e: enders, each [c, x, y, side bits, npc/object key]; gi/ei: given/taken inside only; obj_s: objectives\' seconds); the travel network (flight masters, legs, boats); the uiMap frames [continent, left, right, top, bottom]; and per side the tours with nothing done, standing at the entrance, that wowstats/plan/tripcost.py must replay; a dungeon run in wings has the same page and tours per wing (wings).',
 		rules: { ...RULES, run_speed: params.runSpeed, detour: { 0: params.detour0, 1: params.detour1 }, flight_speed: params.flightSpeed,
 			flight_stop: FLIGHT_STOP, flight_overhead: params.flightOverhead, transport_wait: params.transportWait ?? 1, talk_s: talk },
 		frames: frameOut,

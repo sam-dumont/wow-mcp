@@ -79,6 +79,15 @@ def entry(name: str) -> tuple[str, dict] | None:
     return next(((n, e) for n, e in data.items() if _key(n) == k), None)
 
 
+def _wing(name: str, e: dict) -> str | None:
+    """The kill model's wing a wing's name means ("Scarlet Monastery: Library"
+    -> "Library"), None for the dungeon's own name."""
+    from . import wings
+
+    hit = wings.wing_of(name)
+    return hit[1] if hit and hit[1] in (e.get("wings") or {}) else None
+
+
 def per_kill(level: int, lmin: int, lmax: int, elite: bool, rule: dict, party: int = PARTY,
              top: int | None = None) -> float:
     """One kill's XP to each party member of `level`, the creature's level
@@ -185,6 +194,15 @@ def estimate(name: str, level: int, rule: dict | None = None) -> dict | None:
         kills = (dalaran_kills(e) or 0) / len(runs)
         out.update(xp=round(xp) if xp is not None else None, kills=round(kills),
                    inside_s=round(sum(r["inside_s"] for r in runs) / len(runs)))
+    elif e.get("wings") and _wing(name, e):
+        # One wing's line (wowstats.plan.wings): that wing's creatures only,
+        # at its own party size (Upper Blackrock Spire: ten).
+        w = _wing(name, e)
+        v = e["wings"][w]
+        party = v.get("party") or PARTY
+        xp, kills = roster(dname, e, v["mobs"], level, rule, party)
+        out.update(xp=round(xp * SHARE), kills=round(kills * SHARE), party=party, wing=w, share=SHARE,
+                   inside_s=round(kills * SHARE * spk) if spk else None)
     elif e.get("wings"):
         wings = []
         for w, v in e["wings"].items():

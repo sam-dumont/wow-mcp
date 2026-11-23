@@ -51,6 +51,7 @@ from . import dungeongain as G
 from . import estimate as E
 from . import kbloot
 from . import vsguide as V
+from . import wings as W
 
 OPENS_WITHIN = 5   # levels: a dungeon that opens this close is shown, "opens at N"
 NEXT_UP = 3        # below every dungeon: the first ones that open for his side
@@ -60,9 +61,32 @@ HIGH_GAIN_SHARE = 2.0  # percent of everything worn: a clear expected to bring t
 
 def key(name: str) -> str:
     """One name per dungeon whatever wrote it: Polestar's "Stormwind
-    Stockade", the game's "The Stockade", a wing "Scarlet Monastery: Library"."""
+    Stockade", the game's "The Stockade". A wing of a dungeon run in wings
+    (wowstats.plan.wings) keeps its wing: "Scarlet Monastery: Library" is
+    its own line; another name after a colon (Excavation Site: Wetlands) is
+    the dungeon's."""
     n = re.sub(r"^(the |stormwind )", "", (name or "").lower()).split(":")[0]
-    return re.sub(r"[^a-z]", "", n).rstrip("s")
+    base = re.sub(r"[^a-z]", "", n).rstrip("s")
+    w = W.key(name)
+    return f"{base}:{w}" if w else base
+
+
+def known_areas() -> dict[str, dict]:
+    """Every dungeon the panel can show: the game's, Forever's new ones from
+    the knowledge base, and a dungeon run in wings as one area per wing
+    ("796:Library", named "Scarlet Monastery: Library")."""
+    known = areas()
+    known.update(kb_areas(known))
+    return {wid: w for aid, a in known.items() for wid, w in W.split(aid, a)}
+
+
+def _dq(inp: dict, aid: str, area: dict) -> dict:
+    """The dungeon's quests (facts.dungeon_quests), a wing's own only."""
+    d = (inp.get("dungeon_quests") or {}).get(area.get("dungeon_area") or aid) or {}
+    if not area.get("wing"):
+        return d
+    return {**d, "quests": [q for q in d.get("quests") or []
+                            if W.in_wing(area["name"], q["quest_id"], q.get("variants") or ())]}
 
 
 def areas() -> dict[str, dict]:
@@ -175,9 +199,15 @@ def keys(places: dict, area: dict, side: str | None, done: set, open_ids: dict, 
     side: the item, whether he has it, the quests that earn it."""
     e = (places.get("entrances") or {}).get(str(area.get("map"))) or {}
     letter = {"Alliance": "A", "Horde": "H"}.get(side or "")
+    # A wing: only the key its own way in needs (the knowledge base's rule
+    # for the wing: the Scarlet Key for the Armory and the Cathedral, none
+    # for the Graveyard).
+    need = W.key_rule(area)
     out = []
     for k in e.get("keys") or []:
         if k.get("faction") and letter and k["faction"] != letter:
+            continue
+        if need is not None and not (need and (k.get("name") or "").lower() in need.lower()):
             continue
         item = k.get("item")
         out.append({"name": k.get("name"), "kind": k.get("kind"), "need": k.get("need"), "note": k.get("note"),
@@ -214,18 +244,16 @@ def build(inp: dict) -> dict:
     p = E.pace(inp)
     m = E.mounts(inp, p)
     quest_xph = E.rate(p, "questing") or (p["xp_per_hour"]["value"] or 0)
-    known = areas()
-    known.update(kb_areas(known))
+    known = known_areas()
     by_key = {key(a["name"]): aid for aid, a in known.items()}
     trips_by: dict[str, list[dict]] = {}
     for t in inp.get("trips") or []:
-        aid = by_key.get(key(t.get("dungeon")))
+        aid = by_key.get(key(W.trip_name(t)))
         if aid:
             trips_by.setdefault(aid, []).append(t)
-    dq = inp.get("dungeon_quests") or {}
 
     def theirs(aid: str) -> bool:  # only the other side's quests: their city's dungeon
-        d = dq.get(aid) or {}
+        d = (inp.get("dungeon_quests") or {}).get(known[aid].get("dungeon_area") or aid) or {}
         return bool(d.get("other_side")) and not d.get("quests")
 
     pick = set(trips_by)
@@ -259,16 +287,27 @@ def _where(owned: dict, item_id) -> str | None:
     return ((owned.get("items") or {}).get(str(item_id)) or {}).get("where")
 
 
-def drops_for(inp: dict, aid: str, top: int | None = None) -> list[dict]:
+def drops_for(inp: dict, aid: str, top: int | None = None, area: dict | None = None) -> list[dict]:
     """The dungeon's items that matter to him: every one he has (worn, held,
     looted) and every one better than what he wears, scored with his
     weights; the gain from the gear advice when it lists the item (it weighs
-    weapons as a pair)."""
+    weapons as a pair). A wing's (`area` a wing): the items its creatures
+    drop and its quests give, each drop's bosses narrowed to the wing's."""
     level = inp["level"]
     owned = inp.get("owned") or {}
     adv_gain = {u["item_id"]: u for u in inp.get("upgrades") or []}
     out = []
-    for it in (inp.get("dungeon_loot") or {}).get(aid) or []:
+    wing = (area or {}).get("name") if (area or {}).get("wing") else None
+    loot = (inp.get("dungeon_loot") or {}).get((area or {}).get("dungeon_area") or aid) or []
+    if wing:
+        mine = []
+        for it in loot:
+            drops = [d for d in it.get("drops") or [] if W.drop_in(wing, [d])]
+            qs = [q for q in it.get("quests") or [] if W.in_wing(wing, q["quest_id"])]
+            if drops or qs:
+                mine.append({**it, "drops": drops, "quests": qs})
+        loot = mine
+    for it in loot:
         where = "worn" if it.get("equipped") else _where(owned, it["item_id"])
         adv = adv_gain.get(it["item_id"]) or {}
         gain = adv.get("gain", it.get("gain"))
@@ -301,10 +340,12 @@ def drops_for(inp: dict, aid: str, top: int | None = None) -> list[dict]:
     return out
 
 
-def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = None) -> list[dict]:
+def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = None,
+               area: dict | None = None) -> list[dict]:
     """The dungeon's quests for him, with their state: handed in, in his log
     (open), or not picked up; the upgrades among their rewards (the best of
-    a pick-one reward)."""
+    a pick-one reward). A wing's (`area` a wing): its own quests, each
+    saying the other wings it needs or can be done in (`wings`)."""
     level = inp["level"]
     done = set(inp.get("quests_done") or [])
     open_ids = {o["quest_id"]: o for o in inp.get("open_quests") or []}
@@ -313,7 +354,7 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
         for qid in d["quests"]:
             rewards.setdefault(qid, []).append(d)
     out = []
-    for q in ((inp.get("dungeon_quests") or {}).get(aid) or {}).get("quests") or []:
+    for q in _dq(inp, aid, area or {}).get("quests") or []:
         # One of a repeatable hand-in's variants (facts._one_per_title): the
         # one in his log, else one he did, stands for the row.
         vs = q.get("variants") or []
@@ -346,10 +387,21 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                     "blocked": bool(need or too_low),
                     "rewards": [{k: d[k] for k in ("item_id", "name", "quality", "gain", "state", "where", "url",
                                                    *BADGE)}
-                                for d in rw[:1]], "reward_choices": len(rw)})
+                                for d in rw[:1]], "reward_choices": len(rw),
+                    **_wings_of(area, q)})
     order = {"open": 0, "new": 1, "done": 2}
     out.sort(key=lambda q: (order[q["state"]], q.get("min_level") or 0, q["quest_id"]))
     return out
+
+
+def _wings_of(area: dict | None, q: dict) -> dict:
+    """For a wing's quest, the wings it is in (wowstats.plan.wings): "all"
+    needs each of them on one trip, "any" is done in whichever."""
+    if not (area or {}).get("wing"):
+        return {}
+    w = W.quest(area["name"], q["quest_id"]) or next(
+        (W.quest(area["name"], v) for v in q.get("variants") or [] if W.quest(area["name"], v)), None) or {}
+    return {"wings": {"in": w.get("wings") or [area["wing"]], "how": w.get("how") or "one"}}
 
 
 def _how(qid: int, pre: dict, who) -> dict:
@@ -433,16 +485,18 @@ def route_trip(inp: dict, name: str, quests: list[dict]) -> dict | None:
 
     ref = route.reference()
     trips = ref.trips if ref.available else {}
-    area = next((a for a in areas().values() if key(a["name"]) == key(name)), None)
+    area = next((a for a in areas().values() if key(a["name"]) == key(name.split(":")[0])), None)
     if not trips or not area or not area.get("map"):
         return None
+    wing = W.wing_of(name)
     who = inp.get("who") or {}
     seen = inp.get("last_position") or {}
     at = tripcost.to_world(trips, seen.get("map_id"), seen.get("x"), seen.get("y"))
     level = inp["level"]
     t = tripcost.trip(trips, area["map"], side=who.get("faction"), level=level, race=who.get("race"),
                       cls=who.get("class"), done=set(inp.get("quests_done") or []),
-                      log={o["quest_id"] for o in inp.get("open_quests") or []}, at=at)
+                      log={o["quest_id"] for o in inp.get("open_quests") or []}, at=at,
+                      wing=wing[1] if wing else None)
     if not t:
         return None
     rows = {i: q for q in quests for i in (q["quest_id"], *(q.get("variants") or []))}
@@ -458,29 +512,40 @@ def route_trip(inp: dict, name: str, quests: list[dict]) -> dict | None:
     return {**t, "xp_quests": round(xp)}
 
 
-def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xph: float | None) -> dict:
+def drop_odds(drops: list[dict]) -> list[dict]:
+    """His missing upgrades that drop there and can be worn now, each with
+    its best drop chance and the quests that also give it (the estimate
+    counts those as quest upgrades when the trip takes the quest)."""
+    return [{"item_id": d["item_id"], "quests": d["quests"],
+             "chance_pct": max((x.get("chance_pct") or 0 for x in d["drops"]), default=0) or None}
+            for d in drops if d["state"] == "missing" and d["now"] and d["drops"]]
+
+
+def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xph: float | None,
+            drops: list[dict] | None = None) -> dict:
     """One more run's XP, time and pace (wowstats.plan.dungeongain), from
     the same inputs wherever it is asked: the panel, the Overview's move,
-    the MCP's dungeon_options."""
+    the MCP's dungeon_options. `drops`: the panel's (drops_for), for the
+    drop upgrades the line counts."""
     level = inp["level"]
     return G.estimate(level=level, xp_max=inp.get("xp_max") or E.xp_need(inp, level)[0], name=name, runs=mine,
                       others=inp.get("trips") or [], quests=quests, questing_xph=quest_xph, rule=G.kill_rule(),
-                      route=route_trip(inp, name, quests))
+                      route=route_trip(inp, name, quests), drops=drop_odds(drops or []))
 
 
 def gain_named(inp: dict, name: str, quest_xph: float | None) -> dict | None:
     """gain_of for a dungeon by any of its names (the planner's list, a
     move's zone): None for a name no dungeon has."""
-    known = areas()
-    known.update(kb_areas(known))
+    known = known_areas()
     aid = next((a for a, x in known.items() if key(x["name"]) == key(name)), None)
     if aid is None:
         return None
-    mine = [t for t in inp.get("trips") or [] if key(t.get("dungeon")) == key(name)]
+    area = known[aid]
+    mine = [t for t in inp.get("trips") or [] if key(W.trip_name(t)) == key(area["name"])]
     # The panel's quests exactly: the drops decide which of the quests
     # Polestar leaves out still count (one that pays an upgrade does).
-    drops = drops_for(inp, aid, known[aid]["levels"][1])
-    return gain_of(inp, known[aid]["name"], mine, quests_for(inp, aid, drops, _places()), quest_xph)
+    drops = drops_for(inp, aid, area["levels"][1], area)
+    return gain_of(inp, area["name"], mine, quests_for(inp, aid, drops, _places(), area), quest_xph, drops)
 
 
 def with_gain(moves: list[dict], panel: dict | None) -> list[dict]:
@@ -514,15 +579,16 @@ def with_gain(moves: list[dict], panel: dict | None) -> list[dict]:
 def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_xph: float, mount: dict) -> dict:
     level = inp["level"]
     lo, hi = area["levels"]
-    drops = drops_for(inp, aid, hi)
+    dungeon_aid = area.get("dungeon_area") or aid  # a wing's dungeon: its loot, zone page and area id
+    drops = drops_for(inp, aid, hi, area)
     # No loot in the client's tables or Polestar's data (Forever's newest
     # dungeons): the research notes' boss-by-boss list, unscored, each
     # item made for him or not by the words next to it (wowstats.plan.kbloot).
-    kb_drops = [] if (inp.get("dungeon_loot") or {}).get(aid) else kbloot.for_block(
+    kb_drops = [] if (inp.get("dungeon_loot") or {}).get(dungeon_aid) else kbloot.for_block(
         area["name"], (inp.get("who") or {}).get("class"), re.sub(r"\s+", "", inp.get("gear_spec") or ""), level)
     kb_fit = sum(1 for d in kb_drops if d["fit"])
     places = _places()
-    quests = quests_for(inp, aid, drops, places)
+    quests = quests_for(inp, aid, drops, places, area)
     side = (inp.get("who") or {}).get("faction")
     done = set(inp.get("quests_done") or [])
     open_ids = {o["quest_id"]: o for o in inp.get("open_quests") or []}
@@ -538,7 +604,7 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
         p_one *= 1 - min(100.0, c["chance"]) / 100.0
     p_one = 1 - p_one if any(c["chance"] for c in chances) else 0.0
     trip = trip_value(mine, every, quests)
-    gain = gain_of(inp, area["name"], mine, quests, quest_xph)
+    gain = gain_of(inp, area["name"], mine, quests, quest_xph, drops)
     state = "run" if mine else "now" if lo <= level else "soon"
     gs = inp.get("gear_score") or 0
     share = exp_gain / gs * 100 if gs > 0 else None
@@ -561,9 +627,10 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
     # The name links the dungeon's guide; the entrance, a place, its zone
     # page (a Forever dungeon the client's tables don't list: a search).
     zone_url = (f"{WOWHEAD_BASE}/search?q={urllib.parse.quote(area['name'])}" if kb_only
-                else wowhead_url("zone", aid))
+                else wowhead_url("zone", dungeon_aid))
     guides = dungeon_guides(area["name"])
-    return {"area_id": None if kb_only else int(aid), "name": area["name"], "min": lo, "max": hi, "state": state,
+    return {"area_id": None if kb_only else int(dungeon_aid), "name": area["name"], "min": lo, "max": hi,
+            "state": state, **({"dungeon": area["dungeon"], "wing": area["wing"]} if area.get("wing") else {}),
             "opens_at": lo if lo > level else None,
             "url": dungeon_url(area["name"]) or zone_url, "zone_url": zone_url, "guides": guides,
             "value": value, "verdict": verdict, "why": why,

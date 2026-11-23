@@ -269,9 +269,10 @@ def lfloat(inp: dict, level: int, xp: float) -> float:
 
 
 def dkey(name: str) -> str:
-    n = re.sub(r"^(the |stormwind )", "", (name or "").lower())
-    n = re.sub(r"[^a-z]", "", n.split(":")[0] if "scarlet" not in n else n)
-    return n.rstrip("s")
+    """dungeonview.key's rule: a wing of a dungeon run in wings keeps its wing."""
+    from .dungeonview import key
+
+    return key(name)
 
 
 def expected_best(items: list[dict]) -> float:
@@ -293,24 +294,39 @@ def expected_best(items: list[dict]) -> float:
 
 def dungeon_items(inp: dict) -> dict[str, dict]:
     """Upgrades from instance drops and dungeon quests, by instance (wing)."""
+    from . import wings
+
     out: dict[str, dict] = {}
     for u in inp.get("upgrades") or []:
         for s in u.get("sources") or []:
             if s["kind"] == "quest":  # the dungeon it's done in, not its giver's zone (forever.quest_dungeon)
-                inst = (forever.area(forever.quest_dungeon(s.get("quest_id"))) or {}).get("name")
+                aid = forever.quest_dungeon(s.get("quest_id"))
+                area = forever.area(aid) or {}
+                # A dungeon run in wings: each wing the quest is done in
+                # (wowstats.plan.wings), with the wing's range.
+                q = wings.quest(area.get("name") or "", s.get("quest_id")) if area else None
+                places = [(w["name"], w["levels"]) for _, w in wings.split(str(aid), area)
+                          if q and w["wing"] in q["wings"]] if q and area.get("levels") else []
+                if not places and area.get("name") and not (q and q["how"] == "outside"):
+                    places = [(area["name"], s.get("levels"))]
             else:
                 inst = s.get("zone") if (s.get("instance") == "dungeon" or s.get("dungeon")) else None
-            if not inst:
-                continue
-            d = out.setdefault(inst, {"name": inst, "levels": s.get("levels"), "drops": [], "quests": []})
-            row = {"item": u.get("name"), "item_id": u.get("item_id"), "slot": u.get("slot_name"),
-                   "gain": round(u.get("value", u.get("gain")) or 0, 1), "req_level": u.get("level"),
-                   "now": bool(u.get("now")), **gearmod.badge_of(u), "line": gearmod.gain_words(u)}
-            if s["kind"] == "drop":
-                d["drops"].append({**row, "boss": s.get("boss") or "trash", "chance": s.get("chance_pct")})
-            elif s["kind"] == "quest":
-                d["quests"].append({**row, "quest": s.get("name"), "quest_id": s.get("quest_id")})
+                places = [(inst, s.get("levels"))] if inst else []
+            for inst, lv in places:
+                _dungeon_item(out, inst, lv, u, s)
     return out
+
+
+def _dungeon_item(out: dict, inst: str, levels, u: dict, s: dict) -> None:
+    """One upgrade's source under its instance (or wing) in dungeon_items."""
+    d = out.setdefault(inst, {"name": inst, "levels": levels, "drops": [], "quests": []})
+    row = {"item": u.get("name"), "item_id": u.get("item_id"), "slot": u.get("slot_name"),
+           "gain": round(u.get("value", u.get("gain")) or 0, 1), "req_level": u.get("level"),
+           "now": bool(u.get("now")), **gearmod.badge_of(u), "line": gearmod.gain_words(u)}
+    if s["kind"] == "drop":
+        d["drops"].append({**row, "boss": s.get("boss") or "trash", "chance": s.get("chance_pct")})
+    elif s["kind"] == "quest":
+        d["quests"].append({**row, "quest": s.get("name"), "quest_id": s.get("quest_id")})
 
 
 def trip_stats(trips: list[dict]) -> dict:
@@ -334,7 +350,7 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
     """Every dungeon in range now or within 5 levels, valued as a whole trip
     from his own trips, with the gear it holds for him and, for those he has
     done, the value of one more run and of looping it."""
-    from . import vsguide
+    from . import vsguide, wings
     from .dungeonview import build as panel
     from .dungeonview import gain_named
     from .dungeonview import key as pkey
@@ -348,7 +364,15 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
     quest_xph = rate(p, "questing") or (p["xp_per_hour"]["value"] or 0)
     open_ids = {o["quest_id"]: o for o in inp.get("open_quests") or []}
     kb_runs = {dkey(k): v for k, v in (inp.get("dungeon_runs_kb") or {}).items()}
-    names = {dkey(d["name"]): d for d in inp.get("dungeons") or []}
+    names = {}
+    for d in inp.get("dungeons") or []:
+        # A dungeon run in wings: one entry per wing (wowstats.plan.wings).
+        aid = forever.area_id(d["name"])
+        whole = {**(forever.area(aid) or {}), "name": d["name"], "levels": [d["min"], d["max"]]}
+        split = wings.split(str(aid), whole) if wings.dungeon(d["name"]) and ":" not in d["name"] else []
+        for _, w in split or [("", None)]:
+            e = {**d, "name": w["name"], "min": w["levels"][0], "max": w["levels"][1]} if w else d
+            names[dkey(e["name"])] = e
     for inst, d in by_inst.items():  # wings and Forever's own instances the area list names once
         k = dkey(inst)
         if k not in names and d.get("levels"):
@@ -367,7 +391,7 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
         quests_open = [open_ids[qq] for qq in (run.get("objectives") or []) + (run.get("pickups") or [])
                        if qq in open_ids]
         quest_xp = sum((o.get("xp_full") or 0) * (share(inp, level, o.get("level")) or 1.0) for o in quests_open)
-        mine = [t for t in inp.get("trips") or [] if dkey(t["dungeon"]) == k]
+        mine = [t for t in inp.get("trips") or [] if dkey(wings.trip_name(t)) == k]
         v = vsguide.named(vs.get(pkey(d["name"])), d["name"])
         # His quests of it in the log count whether or not Polestar has a
         # run of it (the panel's quests: forever-db's zone, Polestar's run).

@@ -237,15 +237,20 @@ def test_the_verdict_bands():
 
 
 def test_the_line_says_the_trip_and_its_parts():
-    # The owner's example (2026-11-23), word for word.
-    t = {"pickup_s": {"value": 1500}, "inside_s": {"value": 4500}, "handin_s": {"value": 1200}}
-    g = dict(xp=54000, xp_quests=40000, run_s=7800, level_pct=99, upgrades=3, vs_questing=1.6, trip=t)
-    assert G.summary(g) == "~2h10 trip for ~54k XP + 3 upgrades, 1.6× your questing " \
-                           "(25 min pickups · 1h15 inside · 20 min hand-ins)"
-    assert g["lead"] == "~2h10 trip"
-    # One upgrade, no pickups left.
-    g = {**g, "upgrades": 1, "trip": {**t, "pickup_s": {"value": None}}}
-    assert G.summary(g) == "~2h10 trip for ~54k XP + 1 upgrade, 1.6× your questing (1h15 inside · 20 min hand-ins)"
+    # The owner's example (2026-11-23), word for word: the quests' reward
+    # upgrades first, then the drops with the chance one drops in a run.
+    t = {"pickup_s": {"value": 1200}, "inside_s": {"value": 4500}, "handin_s": {"value": 900}}
+    g = dict(xp=58000, xp_quests=40000, run_s=6900, level_pct=99, upgrades=4, drop_upgrades=9, drop_chance_pct=88,
+             vs_questing=2.1, trip=t)
+    assert G.summary(g) == "~1h55 trip for ~58k XP + 4 quest upgrades, 9 drop upgrades (88% a run), 2.1× your " \
+                           "questing (20 min pickups · 1h15 inside · 15 min hand-ins)"
+    assert g["lead"] == "~1h55 trip"
+    # One quest upgrade and no drop left, no pickups left: a part with none is left out.
+    g = {**g, "upgrades": 1, "drop_upgrades": 0, "drop_chance_pct": None, "trip": {**t, "pickup_s": {"value": None}}}
+    assert G.summary(g) == "~1h55 trip for ~58k XP + 1 quest upgrade, 2.1× your questing (1h15 inside · 15 min hand-ins)"
+    # Drops only, chance unknown.
+    g = {**g, "upgrades": 0, "drop_upgrades": 1}
+    assert G.summary(g) == "~1h55 trip for ~58k XP + 1 drop upgrade, 2.1× your questing (1h15 inside · 15 min hand-ins)"
     # Without a kill estimate the time and quests lead and no verdict follows:
     # the unknown kill XP could flip it.
     nk = dict(xp=None, xp_quests=10000, run_s=2100, level_pct=29, time="clear")

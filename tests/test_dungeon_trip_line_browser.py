@@ -1,9 +1,9 @@
 """The dungeon trip's line in a real browser (Chromium and WebKit, phone and
 desktop width) on the demo character: the Overview's dungeon move and the
 Dungeons panel say the same one line, the trip's time bold, then its XP,
-its pace against questing and its parts (owner, 2026-11-23: "~2h10 trip for
-~54k XP + 3 upgrades, 1.6× your questing (25 min pickups · 1h15 inside ·
-20 min hand-ins)").
+its pace against questing and its parts (owner, 2026-11-23: "~1h55 trip for
+~58k XP + 4 quest upgrades, 9 drop upgrades (88% a run), 2.1× your
+questing (20 min pickups · 1h15 inside · 15 min hand-ins)").
 
 Needs the `browser` group."""
 
@@ -18,7 +18,10 @@ pytest.importorskip("playwright.sync_api")
 
 from tests.test_dungeon_lines_browser import open_page, pw, site  # noqa: E402, F401
 
-LINE = re.compile(r"^~(\d+ min|\d+h\d\d) trip for ~[\d.,]+k? XP( \+ \d+ upgrades?)?, ([\d.]+×|under 0\.1×) your "
+# The upgrades (owner, 2026-11-23): the quests' first, then the drops with
+# the chance one drops in a run, a part with none left out.
+UPS = r"( \+ (\d+ quest upgrades?(, \d+ drop upgrades?( \(\d+% a run\))?)?|\d+ drop upgrades?( \(\d+% a run\))?))?"
+LINE = re.compile(r"^~(\d+ min|\d+h\d\d) trip for ~[\d.,]+k? XP" + UPS + r", ([\d.]+×|under 0\.1×) your "
                   r"questing \(((\d+ min|\d+h\d\d) (pickups|inside|hand-ins)( · )?)+\)\.$")
 
 

@@ -757,11 +757,13 @@ def dungeon_of(trips: dict, instance_map) -> dict | None:
 
 
 def trip(trips: dict, instance_map, *, side: str | None, level: int, race: str | None = None,
-         cls: str | None = None, done: set | None = None, log: set | None = None, at=None) -> dict | None:
+         cls: str | None = None, done: set | None = None, log: set | None = None, at=None,
+         wing: str | None = None) -> dict | None:
     """The trip for this character now: the quests and stops, and each
     part's seconds. `at`: his last known position (c, wx, wy); without it
-    the trip starts at the entrance (`from`: "entrance"). None when the
-    reference has nothing for the dungeon or his side."""
+    the trip starts at the entrance (`from`: "entrance"). `wing`: one wing's
+    trip, its own quests only (the page's `wings`, trips.mjs). None when the
+    reference has nothing for the dungeon, the wing or his side."""
     d = dungeon_of(trips, instance_map)
     if not d or side not in SIDE_BIT:
         return None
@@ -780,8 +782,14 @@ def trip(trips: dict, instance_map, *, side: str | None, level: int, race: str |
               "race_bit": race_bit(race, side), "class_bit": CLASS_BIT.get((cls or "").upper(), 0)}
     R = Rules(quests_of(trips), t, side, player)
     start = tuple(at) if at else ent
-    plan = pickup_plan(R, d["page"], d["min"], start, ent)
-    s = trip_seconds(R, plan, start, ent, d["page"], d["min"], rules)
+    page = d["page"]
+    if wing is not None:
+        w = (d.get("wings") or {}).get(wing)
+        if w is None:
+            return None
+        page = w["page"]
+    plan = pickup_plan(R, page, d["min"], start, ent)
+    s = trip_seconds(R, plan, start, ent, page, d["min"], rules)
     s["from"] = "you" if at else "entrance"
     s["breadcrumbs"] = plan["crumbs"]
     return s

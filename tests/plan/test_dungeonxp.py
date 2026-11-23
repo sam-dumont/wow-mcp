@@ -65,11 +65,17 @@ def test_the_estimate_shape():
 
 
 def test_a_dungeon_in_wings_has_one_number_per_wing():
-    e = D.estimate("Scarlet Monastery: Library", 36, RULE)
+    e = D.estimate("Scarlet Monastery", 36, RULE)
     assert e["per"] == "wing" and {w["wing"] for w in e["wings"]} == {"Graveyard", "Library", "Armory", "Cathedral"}
     assert e["xp"] == round(sum(w["xp"] for w in e["wings"]) / 4)
     brs = D.estimate("Blackrock Spire", 58, RULE)
     assert {w["wing"]: w["party"] for w in brs["wings"]} == {"Lower": 5, "Upper": 10}
+    mara = D.estimate("Maraudon", 50, RULE)
+    assert [w["wing"] for w in mara["wings"]] == ["Orange", "Purple", "Inner"]
+    # A wing's own line: that wing's number alone, at its own party size.
+    lib = D.estimate("Scarlet Monastery: Library", 36, RULE)
+    assert lib["wing"] == "Library" and lib["xp"] == next(w["xp"] for w in e["wings"] if w["wing"] == "Library")
+    assert D.estimate("Blackrock Spire: Upper", 58, RULE)["party"] == 10
 
 
 # ---------------------------------------------------------------- labels

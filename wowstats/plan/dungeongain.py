@@ -175,14 +175,16 @@ def _ids(q: dict) -> set[int]:
 
 def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], others: list[dict],
              quests: list[dict], questing_xph: float | None, rule: dict | None = None,
-             clear: float | None = None, route: dict | None = None) -> dict:
+             clear: float | None = None, route: dict | None = None, drops: dict | None = None) -> dict:
     """One more run at `level`. `runs`: his trips of this dungeon
     (facts.trips); `others`: every trip he made (their means stand in for
     the pickups and travel when there is no route); `quests`: the dungeon's
     quests as dungeonview.quests_for gives them; `questing_xph`: his
     questing XP per hour (estimate.rate); `route`: the trip Polestar's rules
     make from where he stands (dungeonview.route_trip: tripcost.trip plus
-    the XP of its quests), None when the reference has none."""
+    the XP of its quests), None when the reference has none; `drops`: his
+    missing upgrades that drop there, each with its best chance
+    (dungeonview.drop_odds)."""
     if route:
         ids = set(route["quests"]) | set(route.get("prereqs") or [])
         todo = [q for q in quests if _ids(q) & ids and q["state"] != "done"]
@@ -252,9 +254,11 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         "vs_questing": vs,
         "questing_s": round(shown / qx * 3600) if qx and shown else None,
         "quests": [{**{k: q.get(k) for k in ("quest_id", "name", "url", "xp_now", "state", "level")},
-                    "starts": q.get("starts") or []} for q in todo],
+                    "starts": q.get("starts") or [], **({"wings": q["wings"]} if q.get("wings") else {})}
+                   for q in todo],
         "quests_shown": SHOWN,
         "upgrades": sum(1 for q in todo if any(r.get("state") == "missing" for r in q.get("rewards") or [])),
+        **_drop_upgrades(drops or [], todo),
     }
 
     def part(v, label):
@@ -310,8 +314,30 @@ def verdict(vs: float | None) -> str | None:
     return "faster" if vs >= FASTER else "slower" if vs < SLOWER else "same"
 
 
-def _upgrades(n: int) -> str:
-    return f" + {n} upgrade{'s' if n != 1 else ''}" if n else ""
+def _drop_upgrades(drops: list[dict], todo: list[dict]) -> dict:
+    """His missing upgrades that drop there (dungeonview.drop_odds), less
+    those a quest of the trip gives for certain, and the chance at least one
+    of them drops in a run (each by its best chance; None when no chance is
+    known)."""
+    given = set().union(*(_ids(q) for q in todo)) if todo else set()
+    left = [d for d in drops if not set(d.get("quests") or []) & given]
+    miss = 1.0
+    for d in left:
+        miss *= 1 - min(100.0, d.get("chance_pct") or 0) / 100.0
+    known = any(d.get("chance_pct") for d in left)
+    return {"drop_upgrades": len(left), "drop_chance_pct": round((1 - miss) * 100) if left and known else None}
+
+
+def _upgrades(g: dict) -> str:
+    """" + 4 quest upgrades, 9 drop upgrades (88% a run)": the quests' reward
+    upgrades (certain) first, then his missing upgrades that drop there with
+    the chance one drops in a run (owner, 2026-11-23); a part with none left out."""
+    q, d = g.get("upgrades") or 0, g.get("drop_upgrades") or 0
+    parts = [f"{q} quest upgrade{'s' if q != 1 else ''}" if q else None,
+             (f"{d} drop upgrade{'s' if d != 1 else ''}"
+              + (f" ({g['drop_chance_pct']}% a run)" if g.get("drop_chance_pct") is not None else "")) if d else None]
+    parts = [p for p in parts if p]
+    return " + " + ", ".join(parts) if parts else ""
 
 
 def split(g: dict) -> str:
@@ -336,9 +362,9 @@ def summary(g: dict) -> str | None:
         parts = split(g)
         parts = f" ({parts})" if parts else ""
         if not g["xp"]:
-            return f"{g['lead']}, no XP at your level{parts}"
+            return f"{g['lead']}, no XP at your level{_upgrades(g)}{parts}"
         pace = f", {ratio(vs)} your questing" if vs is not None else ""
-        return f"{g['lead']} for ~{about_xp(g['xp'])} XP{_upgrades(g.get('upgrades') or 0)}{pace}{parts}"
+        return f"{g['lead']} for ~{about_xp(g['xp'])} XP{_upgrades(g)}{pace}{parts}"
     quests = g["xp_quests"]
     if not quests:
         return None
@@ -346,6 +372,6 @@ def summary(g: dict) -> str | None:
         # Kills unknown (no run, no kill estimate): no pace, no verdict. The
         # quests alone can't say faster or slower than questing.
         g["lead"] = f"~{about_s(g['run_s'])} + quests worth ~{about_xp(quests)} XP"
-        return f"{g['lead']}{of}"
+        return f"{g['lead']}{of}{_upgrades(g)}"
     worth = f", what {about_s(g['questing_s'])} of your questing pays" if g.get("questing_s") else ""
     return f"Its quests pay ~{about_xp(quests)} XP{of}{worth}"

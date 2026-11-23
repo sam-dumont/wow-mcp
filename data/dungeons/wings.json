@@ -1,0 +1,4518 @@
+{
+ "about": "The wings of the dungeons run in parts: each creature and object placed inside to the wing of the nearest boss, each quest to the wings its objectives are in (how: one, all = needs each, any = either, outside = none inside; by: [objective kind, target, wings], or [start|end, null, wings] for the giver or ender standing in a wing, or [kb, statement id, wings] for a quest the knowledge base places). Read by wowstats/plan/wings.py; built by tools/dungeon_wings/export.py, do not edit.",
+ "as_of": "2026-11-23",
+ "sources": {
+  "cmangos": {
+   "repo": "https://github.com/cmangos/classic-db",
+   "commit": "28ef6259c782928b08a8dc9cacf6bc02e64f2b29",
+   "file": "Full_DB/ClassicDB_1_12_1_z2815.sql.gz",
+   "licence": "GPL-3.0",
+   "what": "creature and gameobject spawns"
+  },
+  "forever_db": {
+   "what": "quests, objectives and item sources",
+   "polestar": {
+    "version": "0.4.2.2",
+    "tag": "v0.4.2.2",
+    "commit": "bf2acf45dc639adc4437405ce440b06437cc5342",
+    "license": "GPL-3.0-only",
+    "forever_db": "2026.11.1"
+   }
+  }
+ },
+ "dungeons": {
+  "189": {
+   "name": "Scarlet Monastery",
+   "area": 796,
+   "wings": {
+    "Graveyard": {
+     "name": "Scarlet Monastery: Graveyard",
+     "rule": "dungeon.sm_graveyard",
+     "bosses": [
+      3983,
+      4543
+     ]
+    },
+    "Library": {
+     "name": "Scarlet Monastery: Library",
+     "rule": "dungeon.sm_library",
+     "bosses": [
+      3974,
+      6487
+     ]
+    },
+    "Armory": {
+     "name": "Scarlet Monastery: Armory",
+     "rule": "dungeon.sm_armory",
+     "bosses": [
+      3975
+     ]
+    },
+    "Cathedral": {
+     "name": "Scarlet Monastery: Cathedral",
+     "rule": "dungeon.sm_cathedral",
+     "bosses": [
+      3976,
+      3977,
+      4542
+     ]
+    }
+   },
+   "npcs": {
+    "721": [
+     "Cathedral"
+    ],
+    "3974": [
+     "Library"
+    ],
+    "3975": [
+     "Armory"
+    ],
+    "3976": [
+     "Cathedral"
+    ],
+    "3977": [
+     "Cathedral"
+    ],
+    "3981": [
+     "Graveyard"
+    ],
+    "3983": [
+     "Graveyard"
+    ],
+    "4075": [
+     "Graveyard"
+    ],
+    "4283": [
+     "Graveyard"
+    ],
+    "4286": [
+     "Armory"
+    ],
+    "4287": [
+     "Library"
+    ],
+    "4288": [
+     "Library"
+    ],
+    "4289": [
+     "Armory"
+    ],
+    "4290": [
+     "Armory"
+    ],
+    "4291": [
+     "Library"
+    ],
+    "4292": [
+     "Armory"
+    ],
+    "4293": [
+     "Graveyard"
+    ],
+    "4294": [
+     "Cathedral"
+    ],
+    "4295": [
+     "Armory",
+     "Cathedral"
+    ],
+    "4296": [
+     "Library"
+    ],
+    "4297": [
+     "Armory"
+    ],
+    "4298": [
+     "Armory",
+     "Cathedral"
+    ],
+    "4299": [
+     "Library",
+     "Cathedral"
+    ],
+    "4300": [
+     "Cathedral"
+    ],
+    "4301": [
+     "Cathedral"
+    ],
+    "4302": [
+     "Cathedral"
+    ],
+    "4303": [
+     "Cathedral"
+    ],
+    "4304": [
+     "Library"
+    ],
+    "4306": [
+     "Graveyard"
+    ],
+    "4308": [
+     "Graveyard"
+    ],
+    "4540": [
+     "Library",
+     "Cathedral"
+    ],
+    "4542": [
+     "Cathedral"
+    ],
+    "4543": [
+     "Graveyard"
+    ],
+    "6426": [
+     "Graveyard"
+    ],
+    "6427": [
+     "Graveyard"
+    ],
+    "6487": [
+     "Library"
+    ],
+    "6488": [
+     "Graveyard"
+    ],
+    "6489": [
+     "Graveyard"
+    ],
+    "6490": [
+     "Graveyard"
+    ],
+    "6547": [
+     "Graveyard"
+    ]
+   },
+   "objects": {
+    "2041": [
+     "Library",
+     "Cathedral"
+    ],
+    "2042": [
+     "Library",
+     "Armory"
+    ],
+    "2046": [
+     "Cathedral"
+    ],
+    "19283": [
+     "Library"
+    ],
+    "19284": [
+     "Library"
+    ],
+    "20726": [
+     "Library"
+    ],
+    "21581": [
+     "Library"
+    ],
+    "21582": [
+     "Library"
+    ],
+    "97700": [
+     "Cathedral"
+    ],
+    "97701": [
+     "Cathedral"
+    ],
+    "97801": [
+     "Armory"
+    ],
+    "97802": [
+     "Armory"
+    ],
+    "97803": [
+     "Armory"
+    ],
+    "101854": [
+     "Armory"
+    ],
+    "101855": [
+     "Armory"
+    ],
+    "103664": [
+     "Library"
+    ],
+    "103820": [
+     "Armory"
+    ],
+    "103821": [
+     "Library"
+    ],
+    "104589": [
+     "Cathedral"
+    ],
+    "104591": [
+     "Cathedral"
+    ],
+    "104600": [
+     "Cathedral"
+    ],
+    "165622": [
+     "Cathedral"
+    ],
+    "165623": [
+     "Cathedral"
+    ],
+    "165624": [
+     "Cathedral"
+    ],
+    "165625": [
+     "Cathedral"
+    ],
+    "165626": [
+     "Cathedral"
+    ],
+    "165627": [
+     "Cathedral"
+    ],
+    "165628": [
+     "Cathedral"
+    ],
+    "165629": [
+     "Cathedral"
+    ],
+    "165630": [
+     "Cathedral"
+    ],
+    "165631": [
+     "Cathedral"
+    ],
+    "165632": [
+     "Cathedral"
+    ],
+    "165633": [
+     "Cathedral"
+    ],
+    "175727": [
+     "Library"
+    ],
+    "175730": [
+     "Library"
+    ],
+    "175734": [
+     "Library"
+    ],
+    "175738": [
+     "Library"
+    ],
+    "175739": [
+     "Library"
+    ],
+    "175749": [
+     "Library"
+    ],
+    "175753": [
+     "Library"
+    ],
+    "175754": [
+     "Library"
+    ],
+    "175756": [
+     "Library"
+    ],
+    "175758": [
+     "Library"
+    ],
+    "175761": [
+     "Library"
+    ],
+    "175771": [
+     "Armory"
+    ],
+    "175772": [
+     "Armory"
+    ],
+    "175773": [
+     "Armory"
+    ],
+    "175774": [
+     "Armory"
+    ],
+    "175775": [
+     "Armory"
+    ],
+    "175776": [
+     "Armory"
+    ],
+    "175777": [
+     "Armory"
+    ],
+    "175778": [
+     "Armory"
+    ],
+    "175779": [
+     "Armory"
+    ],
+    "175780": [
+     "Armory"
+    ],
+    "175781": [
+     "Armory"
+    ],
+    "176665": [
+     "Library"
+    ],
+    "176666": [
+     "Library"
+    ],
+    "176667": [
+     "Library"
+    ],
+    "176668": [
+     "Library"
+    ],
+    "176669": [
+     "Library"
+    ],
+    "176670": [
+     "Library"
+    ],
+    "176671": [
+     "Library"
+    ],
+    "176672": [
+     "Library"
+    ],
+    "176673": [
+     "Library"
+    ],
+    "176674": [
+     "Library"
+    ],
+    "176675": [
+     "Library"
+    ],
+    "176676": [
+     "Library"
+    ],
+    "176677": [
+     "Library"
+    ],
+    "176678": [
+     "Library"
+    ],
+    "176679": [
+     "Library"
+    ],
+    "176680": [
+     "Library"
+    ],
+    "176681": [
+     "Library"
+    ],
+    "176682": [
+     "Library"
+    ],
+    "176683": [
+     "Library"
+    ],
+    "176684": [
+     "Library"
+    ],
+    "176685": [
+     "Library"
+    ],
+    "176686": [
+     "Library"
+    ],
+    "176687": [
+     "Library"
+    ],
+    "176688": [
+     "Library"
+    ],
+    "176689": [
+     "Library"
+    ],
+    "176690": [
+     "Library"
+    ],
+    "176691": [
+     "Library"
+    ],
+    "176692": [
+     "Library"
+    ],
+    "176693": [
+     "Library"
+    ],
+    "181191": [
+     "Graveyard"
+    ]
+   },
+   "quests": {
+    "1048": {
+     "wings": [
+      "Library",
+      "Armory",
+      "Cathedral"
+     ],
+     "how": "all",
+     "by": [
+      [
+       "kill",
+       3977,
+       [
+        "Cathedral"
+       ]
+      ],
+      [
+       "kill",
+       3976,
+       [
+        "Cathedral"
+       ]
+      ],
+      [
+       "kill",
+       3975,
+       [
+        "Armory"
+       ]
+      ],
+      [
+       "kill",
+       3974,
+       [
+        "Library"
+       ]
+      ]
+     ]
+    },
+    "1049": {
+     "wings": [
+      "Library"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       5535,
+       [
+        "Library"
+       ]
+      ]
+     ]
+    },
+    "1050": {
+     "wings": [
+      "Library"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       5536,
+       [
+        "Library"
+       ]
+      ]
+     ]
+    },
+    "1051": {
+     "wings": [
+      "Graveyard"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       5538,
+       []
+      ],
+      [
+       "start",
+       null,
+       [
+        "Graveyard"
+       ]
+      ]
+     ]
+    },
+    "1053": {
+     "wings": [
+      "Library",
+      "Armory",
+      "Cathedral"
+     ],
+     "how": "all",
+     "by": [
+      [
+       "kill",
+       3977,
+       [
+        "Cathedral"
+       ]
+      ],
+      [
+       "kill",
+       3976,
+       [
+        "Cathedral"
+       ]
+      ],
+      [
+       "kill",
+       3975,
+       [
+        "Armory"
+       ]
+      ],
+      [
+       "kill",
+       3974,
+       [
+        "Library"
+       ]
+      ]
+     ]
+    },
+    "1113": {
+     "wings": [
+      "Graveyard",
+      "Library",
+      "Armory",
+      "Cathedral"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       5805,
+       [
+        "Graveyard",
+        "Library",
+        "Armory",
+        "Cathedral"
+       ]
+      ]
+     ]
+    },
+    "1160": {
+     "wings": [
+      "Library"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       5861,
+       [
+        "Library"
+       ]
+      ]
+     ]
+    },
+    "1951": {
+     "wings": [
+      "Library"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       7274,
+       [
+        "Library"
+       ]
+      ]
+     ]
+    },
+    "78676": {
+     "wings": [
+      "Library"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       210953,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-31:7",
+       [
+        "Library"
+       ]
+      ]
+     ]
+    },
+    "96800": {
+     "wings": [
+      "Library"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       273169,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-31:5",
+       [
+        "Library"
+       ]
+      ]
+     ]
+    }
+   }
+  },
+  "229": {
+   "name": "Blackrock Spire",
+   "area": 1583,
+   "wings": {
+    "Lower": {
+     "name": "Blackrock Spire: Lower",
+     "rule": "dungeon.lbrs",
+     "bosses": [
+      9196,
+      9236,
+      9237,
+      9568,
+      9736,
+      10596
+     ]
+    },
+    "Upper": {
+     "name": "Blackrock Spire: Upper",
+     "rule": "dungeon.ubrs",
+     "bosses": [
+      9816,
+      10363,
+      10430,
+      10899
+     ],
+     "party": 10
+    }
+   },
+   "npcs": {
+    "2110": [
+     "Lower",
+     "Upper"
+    ],
+    "4076": [
+     "Lower",
+     "Upper"
+    ],
+    "9045": [
+     "Lower",
+     "Upper"
+    ],
+    "9096": [
+     "Upper"
+    ],
+    "9097": [
+     "Lower",
+     "Upper"
+    ],
+    "9098": [
+     "Lower",
+     "Upper"
+    ],
+    "9196": [
+     "Lower"
+    ],
+    "9197": [
+     "Lower"
+    ],
+    "9198": [
+     "Lower"
+    ],
+    "9199": [
+     "Lower"
+    ],
+    "9200": [
+     "Lower"
+    ],
+    "9201": [
+     "Lower"
+    ],
+    "9216": [
+     "Lower"
+    ],
+    "9217": [
+     "Lower"
+    ],
+    "9218": [
+     "Lower"
+    ],
+    "9219": [
+     "Lower"
+    ],
+    "9236": [
+     "Lower"
+    ],
+    "9237": [
+     "Lower"
+    ],
+    "9239": [
+     "Lower"
+    ],
+    "9240": [
+     "Lower"
+    ],
+    "9241": [
+     "Lower"
+    ],
+    "9257": [
+     "Lower",
+     "Upper"
+    ],
+    "9258": [
+     "Lower"
+    ],
+    "9259": [
+     "Lower"
+    ],
+    "9260": [
+     "Lower"
+    ],
+    "9261": [
+     "Lower"
+    ],
+    "9262": [
+     "Lower"
+    ],
+    "9263": [
+     "Lower"
+    ],
+    "9264": [
+     "Lower"
+    ],
+    "9265": [
+     "Lower"
+    ],
+    "9266": [
+     "Lower"
+    ],
+    "9267": [
+     "Lower"
+    ],
+    "9268": [
+     "Lower"
+    ],
+    "9269": [
+     "Lower"
+    ],
+    "9416": [
+     "Lower"
+    ],
+    "9568": [
+     "Lower"
+    ],
+    "9583": [
+     "Lower"
+    ],
+    "9596": [
+     "Lower"
+    ],
+    "9692": [
+     "Lower"
+    ],
+    "9693": [
+     "Lower"
+    ],
+    "9696": [
+     "Lower"
+    ],
+    "9701": [
+     "Lower"
+    ],
+    "9716": [
+     "Lower"
+    ],
+    "9717": [
+     "Lower"
+    ],
+    "9718": [
+     "Lower"
+    ],
+    "9736": [
+     "Lower"
+    ],
+    "9816": [
+     "Upper"
+    ],
+    "9817": [
+     "Lower",
+     "Upper"
+    ],
+    "9818": [
+     "Lower",
+     "Upper"
+    ],
+    "9819": [
+     "Lower",
+     "Upper"
+    ],
+    "10083": [
+     "Upper"
+    ],
+    "10177": [
+     "Lower"
+    ],
+    "10220": [
+     "Lower"
+    ],
+    "10221": [
+     "Lower"
+    ],
+    "10257": [
+     "Lower"
+    ],
+    "10299": [
+     "Lower"
+    ],
+    "10316": [
+     "Upper"
+    ],
+    "10317": [
+     "Lower",
+     "Upper"
+    ],
+    "10318": [
+     "Lower",
+     "Upper"
+    ],
+    "10319": [
+     "Lower",
+     "Upper"
+    ],
+    "10363": [
+     "Upper"
+    ],
+    "10366": [
+     "Lower",
+     "Upper"
+    ],
+    "10371": [
+     "Lower",
+     "Upper"
+    ],
+    "10372": [
+     "Lower",
+     "Upper"
+    ],
+    "10374": [
+     "Lower"
+    ],
+    "10375": [
+     "Lower"
+    ],
+    "10376": [
+     "Lower"
+    ],
+    "10430": [
+     "Upper"
+    ],
+    "10509": [
+     "Upper"
+    ],
+    "10596": [
+     "Lower"
+    ],
+    "10740": [
+     "Lower"
+    ],
+    "10762": [
+     "Lower"
+    ],
+    "10799": [
+     "Lower"
+    ],
+    "10814": [
+     "Upper"
+    ],
+    "10899": [
+     "Upper"
+    ],
+    "15560": [
+     "Lower"
+    ],
+    "16044": [
+     "Lower"
+    ],
+    "16048": [
+     "Upper"
+    ]
+   },
+   "objects": {
+    "136922": [
+     "Lower"
+    ],
+    "136923": [
+     "Upper"
+    ],
+    "136925": [
+     "Upper"
+    ],
+    "136926": [
+     "Upper"
+    ],
+    "136927": [
+     "Lower"
+    ],
+    "136928": [
+     "Upper"
+    ],
+    "136929": [
+     "Upper"
+    ],
+    "136930": [
+     "Upper"
+    ],
+    "136931": [
+     "Upper"
+    ],
+    "136932": [
+     "Upper"
+    ],
+    "136933": [
+     "Upper"
+    ],
+    "136934": [
+     "Upper"
+    ],
+    "136935": [
+     "Upper"
+    ],
+    "136936": [
+     "Upper"
+    ],
+    "136937": [
+     "Upper"
+    ],
+    "136938": [
+     "Upper"
+    ],
+    "136939": [
+     "Upper"
+    ],
+    "136940": [
+     "Upper"
+    ],
+    "136941": [
+     "Upper"
+    ],
+    "136942": [
+     "Upper"
+    ],
+    "136943": [
+     "Upper"
+    ],
+    "136944": [
+     "Upper"
+    ],
+    "136945": [
+     "Lower"
+    ],
+    "136946": [
+     "Lower"
+    ],
+    "136947": [
+     "Upper"
+    ],
+    "136948": [
+     "Lower"
+    ],
+    "136949": [
+     "Upper"
+    ],
+    "136950": [
+     "Upper"
+    ],
+    "136951": [
+     "Upper"
+    ],
+    "136952": [
+     "Upper"
+    ],
+    "136954": [
+     "Lower"
+    ],
+    "136955": [
+     "Upper"
+    ],
+    "136957": [
+     "Upper"
+    ],
+    "136959": [
+     "Upper"
+    ],
+    "136961": [
+     "Upper"
+    ],
+    "136962": [
+     "Upper"
+    ],
+    "136963": [
+     "Upper"
+    ],
+    "136964": [
+     "Upper"
+    ],
+    "136965": [
+     "Upper"
+    ],
+    "136966": [
+     "Upper"
+    ],
+    "164725": [
+     "Upper"
+    ],
+    "164726": [
+     "Upper"
+    ],
+    "175124": [
+     "Upper"
+    ],
+    "175153": [
+     "Upper"
+    ],
+    "175185": [
+     "Upper"
+    ],
+    "175186": [
+     "Upper"
+    ],
+    "175187": [
+     "Upper"
+    ],
+    "175194": [
+     "Upper"
+    ],
+    "175195": [
+     "Upper"
+    ],
+    "175196": [
+     "Upper"
+    ],
+    "175197": [
+     "Upper"
+    ],
+    "175198": [
+     "Upper"
+    ],
+    "175199": [
+     "Upper"
+    ],
+    "175200": [
+     "Upper"
+    ],
+    "175244": [
+     "Upper"
+    ],
+    "175245": [
+     "Upper"
+    ],
+    "175266": [
+     "Upper"
+    ],
+    "175267": [
+     "Upper"
+    ],
+    "175268": [
+     "Upper"
+    ],
+    "175269": [
+     "Upper"
+    ],
+    "175270": [
+     "Upper"
+    ],
+    "175271": [
+     "Upper"
+    ],
+    "175272": [
+     "Upper"
+    ],
+    "175334": [
+     "Lower"
+    ],
+    "175382": [
+     "Upper"
+    ],
+    "175385": [
+     "Upper"
+    ],
+    "175528": [
+     "Upper"
+    ],
+    "175529": [
+     "Upper"
+    ],
+    "175530": [
+     "Upper"
+    ],
+    "175531": [
+     "Upper"
+    ],
+    "175532": [
+     "Upper"
+    ],
+    "175533": [
+     "Upper"
+    ],
+    "175571": [
+     "Lower"
+    ],
+    "175584": [
+     "Lower"
+    ],
+    "175607": [
+     "Lower"
+    ],
+    "175608": [
+     "Lower"
+    ],
+    "175609": [
+     "Lower"
+    ],
+    "175621": [
+     "Lower"
+    ],
+    "175705": [
+     "Upper"
+    ],
+    "175706": [
+     "Upper"
+    ],
+    "175785": [
+     "Lower"
+    ],
+    "175886": [
+     "Lower"
+    ],
+    "175946": [
+     "Upper"
+    ],
+    "175947": [
+     "Upper"
+    ],
+    "175949": [
+     "Lower"
+    ],
+    "175950": [
+     "Lower"
+    ],
+    "175970": [
+     "Upper"
+    ],
+    "176089": [
+     "Lower"
+    ],
+    "176090": [
+     "Lower"
+    ],
+    "176425": [
+     "Upper"
+    ],
+    "176426": [
+     "Upper"
+    ],
+    "176427": [
+     "Lower"
+    ],
+    "176428": [
+     "Lower"
+    ],
+    "176429": [
+     "Lower"
+    ],
+    "176430": [
+     "Lower"
+    ],
+    "176431": [
+     "Lower"
+    ],
+    "176432": [
+     "Lower"
+    ],
+    "176433": [
+     "Lower"
+    ],
+    "176434": [
+     "Lower"
+    ],
+    "176435": [
+     "Lower"
+    ],
+    "176436": [
+     "Lower"
+    ],
+    "176437": [
+     "Lower"
+    ],
+    "176438": [
+     "Lower"
+    ],
+    "176439": [
+     "Lower"
+    ],
+    "176440": [
+     "Lower"
+    ],
+    "176441": [
+     "Lower"
+    ],
+    "176442": [
+     "Lower"
+    ],
+    "176443": [
+     "Lower"
+    ],
+    "176444": [
+     "Lower"
+    ],
+    "176445": [
+     "Lower"
+    ],
+    "176446": [
+     "Lower"
+    ],
+    "176447": [
+     "Lower"
+    ],
+    "176448": [
+     "Lower"
+    ],
+    "176449": [
+     "Lower"
+    ],
+    "176450": [
+     "Lower"
+    ],
+    "176451": [
+     "Lower"
+    ],
+    "176452": [
+     "Lower"
+    ],
+    "176454": [
+     "Upper"
+    ],
+    "176455": [
+     "Lower"
+    ],
+    "176456": [
+     "Lower"
+    ],
+    "176457": [
+     "Lower"
+    ],
+    "176458": [
+     "Lower"
+    ],
+    "176459": [
+     "Upper"
+    ],
+    "176460": [
+     "Upper"
+    ],
+    "176461": [
+     "Upper"
+    ],
+    "176462": [
+     "Upper"
+    ],
+    "176463": [
+     "Upper"
+    ],
+    "179880": [
+     "Upper"
+    ],
+    "181046": [
+     "Lower"
+    ],
+    "181050": [
+     "Upper"
+    ],
+    "181096": [
+     "Lower",
+     "Upper"
+    ],
+    "181288": [
+     "Lower"
+    ],
+    "181347": [
+     "Lower"
+    ]
+   },
+   "quests": {
+    "4701": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       10220,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4724": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       10220,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4729": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12263,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-51:6",
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4734": {
+     "wings": [
+      "Upper"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "object",
+       175124,
+       [
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "4735": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "item",
+       12241,
+       []
+      ],
+      [
+       "item",
+       12287,
+       []
+      ]
+     ]
+    },
+    "4742": {
+     "wings": [
+      "Lower",
+      "Upper"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       12336,
+       [
+        "Lower"
+       ]
+      ],
+      [
+       "item",
+       12335,
+       [
+        "Lower"
+       ]
+      ],
+      [
+       "item",
+       12337,
+       [
+        "Lower"
+       ]
+      ],
+      [
+       "item",
+       12219,
+       [
+        "Lower",
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "4743": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12324,
+       []
+      ],
+      [
+       "end",
+       null,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4764": {
+     "wings": [
+      "Upper"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12352,
+       [
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "4765": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "item",
+       12437,
+       []
+      ]
+     ]
+    },
+    "4766": {
+     "wings": [],
+     "how": "outside",
+     "by": []
+    },
+    "4768": {
+     "wings": [
+      "Upper"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12358,
+       [
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "4769": {
+     "wings": [],
+     "how": "outside",
+     "by": []
+    },
+    "4788": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12740,
+       [
+        "Lower"
+       ]
+      ],
+      [
+       "item",
+       12741,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4862": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12530,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-51:6",
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4866": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       9563,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-51:6",
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4867": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12712,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4903": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       9568,
+       [
+        "Lower"
+       ]
+      ],
+      [
+       "kill",
+       9196,
+       [
+        "Lower"
+       ]
+      ],
+      [
+       "kill",
+       9237,
+       [
+        "Lower"
+       ]
+      ],
+      [
+       "item",
+       12562,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4907": {
+     "wings": [],
+     "how": "outside",
+     "by": []
+    },
+    "4974": {
+     "wings": [
+      "Upper"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12630,
+       [
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "4981": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "end",
+       null,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4982": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12345,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "4983": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12652,
+       []
+      ],
+      [
+       "start",
+       null,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "5001": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12345,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "5002": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12770,
+       []
+      ],
+      [
+       "start",
+       null,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "5047": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "item",
+       12710,
+       []
+      ]
+     ]
+    },
+    "5081": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       9237,
+       [
+        "Lower"
+       ]
+      ],
+      [
+       "kill",
+       9196,
+       [
+        "Lower"
+       ]
+      ],
+      [
+       "kill",
+       9568,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "5089": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12780,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "5102": {
+     "wings": [
+      "Upper"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       10363,
+       [
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "5127": {
+     "wings": [
+      "Upper"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12847,
+       []
+      ],
+      [
+       "item",
+       12806,
+       [
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "5160": {
+     "wings": [
+      "Lower"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12923,
+       []
+      ],
+      [
+       "start",
+       null,
+       [
+        "Lower"
+       ]
+      ]
+     ]
+    },
+    "6502": {
+     "wings": [
+      "Upper"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       16663,
+       [
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "6569": {
+     "wings": [
+      "Lower",
+      "Upper"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       16786,
+       [
+        "Lower",
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "6602": {
+     "wings": [
+      "Upper"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       16663,
+       [
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "7761": {
+     "wings": [
+      "Upper"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "end",
+       null,
+       [
+        "Upper"
+       ]
+      ]
+     ]
+    },
+    "8966": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "kill",
+       16080,
+       []
+      ],
+      [
+       "item",
+       21984,
+       []
+      ],
+      [
+       "item",
+       22049,
+       []
+      ]
+     ]
+    },
+    "8989": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "kill",
+       16080,
+       []
+      ],
+      [
+       "item",
+       22048,
+       []
+      ]
+     ]
+    },
+    "8995": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "kill",
+       16042,
+       []
+      ],
+      [
+       "item",
+       22048,
+       []
+      ]
+     ]
+    }
+   }
+  },
+  "329": {
+   "name": "Stratholme",
+   "area": 2017,
+   "wings": {
+    "Live": {
+     "name": "Stratholme: Live",
+     "rule": "dungeon.strat_live",
+     "bosses": [
+      10811,
+      10997,
+      11032
+     ]
+    },
+    "Undead": {
+     "name": "Stratholme: Undead",
+     "rule": "dungeon.strat_undead",
+     "bosses": [
+      10435,
+      10436,
+      10437,
+      10438,
+      10440
+     ]
+    }
+   },
+   "npcs": {
+    "10381": [
+     "Live",
+     "Undead"
+    ],
+    "10382": [
+     "Live",
+     "Undead"
+    ],
+    "10384": [
+     "Live",
+     "Undead"
+    ],
+    "10385": [
+     "Live",
+     "Undead"
+    ],
+    "10387": [
+     "Undead"
+    ],
+    "10390": [
+     "Live",
+     "Undead"
+    ],
+    "10391": [
+     "Live",
+     "Undead"
+    ],
+    "10393": [
+     "Live",
+     "Undead"
+    ],
+    "10398": [
+     "Undead"
+    ],
+    "10399": [
+     "Undead"
+    ],
+    "10400": [
+     "Undead"
+    ],
+    "10405": [
+     "Live",
+     "Undead"
+    ],
+    "10406": [
+     "Undead"
+    ],
+    "10407": [
+     "Undead"
+    ],
+    "10408": [
+     "Undead"
+    ],
+    "10409": [
+     "Undead"
+    ],
+    "10411": [
+     "Live",
+     "Undead"
+    ],
+    "10412": [
+     "Undead"
+    ],
+    "10413": [
+     "Undead"
+    ],
+    "10414": [
+     "Live",
+     "Undead"
+    ],
+    "10415": [
+     "Undead"
+    ],
+    "10416": [
+     "Undead"
+    ],
+    "10417": [
+     "Undead"
+    ],
+    "10418": [
+     "Live"
+    ],
+    "10419": [
+     "Live"
+    ],
+    "10420": [
+     "Live"
+    ],
+    "10421": [
+     "Live"
+    ],
+    "10422": [
+     "Live"
+    ],
+    "10423": [
+     "Live"
+    ],
+    "10424": [
+     "Live"
+    ],
+    "10425": [
+     "Live"
+    ],
+    "10426": [
+     "Live"
+    ],
+    "10435": [
+     "Undead"
+    ],
+    "10436": [
+     "Undead"
+    ],
+    "10437": [
+     "Undead"
+    ],
+    "10438": [
+     "Undead"
+    ],
+    "10440": [
+     "Undead"
+    ],
+    "10463": [
+     "Undead"
+    ],
+    "10464": [
+     "Undead"
+    ],
+    "10516": [
+     "Undead"
+    ],
+    "10558": [
+     "Live",
+     "Undead"
+    ],
+    "10809": [
+     "Undead"
+    ],
+    "10811": [
+     "Live"
+    ],
+    "10812": [
+     "Live"
+    ],
+    "10917": [
+     "Undead"
+    ],
+    "10997": [
+     "Live"
+    ],
+    "11032": [
+     "Live"
+    ],
+    "11043": [
+     "Live"
+    ],
+    "11082": [
+     "Live"
+    ],
+    "14646": [
+     "Live"
+    ],
+    "14684": [
+     "Undead"
+    ],
+    "15607": [
+     "Undead"
+    ],
+    "16046": [
+     "Live"
+    ],
+    "16100": [
+     "Undead"
+    ]
+   },
+   "objects": {
+    "175350": [
+     "Live"
+    ],
+    "175351": [
+     "Live"
+    ],
+    "175352": [
+     "Undead"
+    ],
+    "175353": [
+     "Undead"
+    ],
+    "175354": [
+     "Undead"
+    ],
+    "175355": [
+     "Undead"
+    ],
+    "175356": [
+     "Undead"
+    ],
+    "175357": [
+     "Undead"
+    ],
+    "175358": [
+     "Undead"
+    ],
+    "175359": [
+     "Undead"
+    ],
+    "175368": [
+     "Undead"
+    ],
+    "175372": [
+     "Undead"
+    ],
+    "175373": [
+     "Undead"
+    ],
+    "175374": [
+     "Undead"
+    ],
+    "175375": [
+     "Live"
+    ],
+    "175376": [
+     "Live"
+    ],
+    "175377": [
+     "Undead"
+    ],
+    "175379": [
+     "Undead"
+    ],
+    "175380": [
+     "Undead"
+    ],
+    "175381": [
+     "Undead"
+    ],
+    "175405": [
+     "Undead"
+    ],
+    "175433": [
+     "Undead"
+    ],
+    "175434": [
+     "Undead"
+    ],
+    "175435": [
+     "Live"
+    ],
+    "175436": [
+     "Live"
+    ],
+    "175437": [
+     "Live"
+    ],
+    "175438": [
+     "Undead"
+    ],
+    "175439": [
+     "Undead"
+    ],
+    "175440": [
+     "Undead"
+    ],
+    "175441": [
+     "Live"
+    ],
+    "175442": [
+     "Live"
+    ],
+    "175443": [
+     "Live"
+    ],
+    "175444": [
+     "Live"
+    ],
+    "175445": [
+     "Live"
+    ],
+    "175447": [
+     "Live"
+    ],
+    "175449": [
+     "Undead"
+    ],
+    "175450": [
+     "Undead"
+    ],
+    "175454": [
+     "Undead"
+    ],
+    "175455": [
+     "Undead"
+    ],
+    "175457": [
+     "Live"
+    ],
+    "175458": [
+     "Live"
+    ],
+    "175459": [
+     "Live"
+    ],
+    "175460": [
+     "Live"
+    ],
+    "175461": [
+     "Undead"
+    ],
+    "175462": [
+     "Undead"
+    ],
+    "175463": [
+     "Undead"
+    ],
+    "175466": [
+     "Live"
+    ],
+    "175467": [
+     "Undead"
+    ],
+    "175469": [
+     "Undead"
+    ],
+    "175470": [
+     "Undead"
+    ],
+    "175471": [
+     "Undead"
+    ],
+    "175472": [
+     "Undead"
+    ],
+    "175474": [
+     "Undead"
+    ],
+    "175477": [
+     "Undead"
+    ],
+    "175478": [
+     "Undead"
+    ],
+    "175479": [
+     "Undead"
+    ],
+    "175481": [
+     "Undead"
+    ],
+    "175483": [
+     "Live"
+    ],
+    "175484": [
+     "Live"
+    ],
+    "175737": [
+     "Live"
+    ],
+    "175741": [
+     "Live"
+    ],
+    "175748": [
+     "Live"
+    ],
+    "175749": [
+     "Live"
+    ],
+    "175753": [
+     "Live"
+    ],
+    "175754": [
+     "Live"
+    ],
+    "175756": [
+     "Live"
+    ],
+    "175761": [
+     "Live"
+    ],
+    "175762": [
+     "Live"
+    ],
+    "175796": [
+     "Undead"
+    ],
+    "175824": [
+     "Live"
+    ],
+    "175825": [
+     "Live"
+    ],
+    "175857": [
+     "Live"
+    ],
+    "175858": [
+     "Live"
+    ],
+    "175966": [
+     "Live"
+    ],
+    "175967": [
+     "Live"
+    ],
+    "175968": [
+     "Live"
+    ],
+    "175969": [
+     "Live"
+    ],
+    "176112": [
+     "Live"
+    ],
+    "176194": [
+     "Live"
+    ],
+    "176211": [
+     "Live"
+    ],
+    "176215": [
+     "Live"
+    ],
+    "176216": [
+     "Live"
+    ],
+    "176217": [
+     "Live"
+    ],
+    "176224": [
+     "Live",
+     "Undead"
+    ],
+    "176245": [
+     "Live"
+    ],
+    "176248": [
+     "Live"
+    ],
+    "176249": [
+     "Undead"
+    ],
+    "176295": [
+     "Live"
+    ],
+    "176304": [
+     "Live",
+     "Undead"
+    ],
+    "176307": [
+     "Live",
+     "Undead"
+    ],
+    "176308": [
+     "Live",
+     "Undead"
+    ],
+    "176309": [
+     "Live",
+     "Undead"
+    ],
+    "176325": [
+     "Live"
+    ],
+    "176327": [
+     "Undead"
+    ],
+    "176346": [
+     "Undead"
+    ],
+    "176349": [
+     "Live"
+    ],
+    "176350": [
+     "Undead"
+    ],
+    "176351": [
+     "Undead"
+    ],
+    "176352": [
+     "Live"
+    ],
+    "176353": [
+     "Live"
+    ],
+    "176360": [
+     "Live",
+     "Undead"
+    ],
+    "176424": [
+     "Undead"
+    ],
+    "176631": [
+     "Undead"
+    ],
+    "177287": [
+     "Live"
+    ],
+    "181048": [
+     "Live"
+    ],
+    "181071": [
+     "Undead"
+    ],
+    "181072": [
+     "Undead"
+    ],
+    "181085": [
+     "Undead"
+    ],
+    "181096": [
+     "Live"
+    ],
+    "181206": [
+     "Undead"
+    ],
+    "181288": [
+     "Live"
+    ],
+    "181348": [
+     "Live"
+    ]
+   },
+   "quests": {
+    "5122": {
+     "wings": [
+      "Live"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       12845,
+       [
+        "Live"
+       ]
+      ]
+     ]
+    },
+    "5125": {
+     "wings": [
+      "Undead"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "end",
+       null,
+       [
+        "Undead"
+       ]
+      ]
+     ]
+    },
+    "5212": {
+     "wings": [
+      "Live",
+      "Undead"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       13174,
+       [
+        "Live",
+        "Undead"
+       ]
+      ]
+     ]
+    },
+    "5213": {
+     "wings": [
+      "Undead"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       13176,
+       [
+        "Undead"
+       ]
+      ]
+     ]
+    },
+    "5214": {
+     "wings": [
+      "Live"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       13172,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-57:5",
+       [
+        "Live"
+       ]
+      ]
+     ]
+    },
+    "5243": {
+     "wings": [
+      "Live",
+      "Undead"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       13180,
+       [
+        "Live",
+        "Undead"
+       ]
+      ]
+     ]
+    },
+    "5251": {
+     "wings": [
+      "Live"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       10811,
+       [
+        "Live"
+       ]
+      ],
+      [
+       "object",
+       176245,
+       [
+        "Live"
+       ]
+      ]
+     ]
+    },
+    "5262": {
+     "wings": [
+      "Live"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       13250,
+       [
+        "Live"
+       ]
+      ]
+     ]
+    },
+    "5263": {
+     "wings": [
+      "Undead"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       13251,
+       [
+        "Undead"
+       ]
+      ]
+     ]
+    },
+    "5282": {
+     "wings": [
+      "Live"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       11122,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-57:5",
+       [
+        "Live"
+       ]
+      ]
+     ]
+    },
+    "5463": {
+     "wings": [
+      "Undead"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       13585,
+       []
+      ],
+      [
+       "end",
+       null,
+       [
+        "Undead"
+       ]
+      ]
+     ]
+    },
+    "5848": {
+     "wings": [
+      "Live"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       14679,
+       [
+        "Live"
+       ]
+      ]
+     ]
+    },
+    "6163": {
+     "wings": [
+      "Undead"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       15880,
+       [
+        "Undead"
+       ]
+      ]
+     ]
+    },
+    "7642": {
+     "wings": [
+      "Live",
+      "Undead"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       13180,
+       [
+        "Live",
+        "Undead"
+       ]
+      ],
+      [
+       "item",
+       8836,
+       []
+      ],
+      [
+       "item",
+       14047,
+       [
+        "Live",
+        "Undead"
+       ]
+      ],
+      [
+       "item",
+       12360,
+       []
+      ]
+     ]
+    },
+    "8945": {
+     "wings": [
+      "Undead"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       16031,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-58:4",
+       [
+        "Undead"
+       ]
+      ]
+     ]
+    },
+    "8968": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "kill",
+       16101,
+       []
+      ],
+      [
+       "kill",
+       16102,
+       []
+      ],
+      [
+       "item",
+       21984,
+       []
+      ],
+      [
+       "item",
+       22051,
+       []
+      ]
+     ]
+    },
+    "8991": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "kill",
+       16101,
+       []
+      ],
+      [
+       "kill",
+       16102,
+       []
+      ],
+      [
+       "item",
+       22048,
+       []
+      ]
+     ]
+    }
+   }
+  },
+  "349": {
+   "name": "Maraudon",
+   "area": 2100,
+   "wings": {
+    "Orange": {
+     "name": "Maraudon: Orange",
+     "rule": null,
+     "bosses": [
+      12258,
+      13282
+     ]
+    },
+    "Purple": {
+     "name": "Maraudon: Purple",
+     "rule": null,
+     "bosses": [
+      12225,
+      12236
+     ]
+    },
+    "Inner": {
+     "name": "Maraudon: Inner",
+     "rule": null,
+     "bosses": [
+      12201,
+      12203,
+      13596,
+      13601
+     ]
+    }
+   },
+   "npcs": {
+    "2914": [
+     "Orange",
+     "Purple",
+     "Inner"
+    ],
+    "4076": [
+     "Purple"
+    ],
+    "6145": [
+     "Inner"
+    ],
+    "11784": [
+     "Inner"
+    ],
+    "11789": [
+     "Purple",
+     "Inner"
+    ],
+    "11790": [
+     "Purple"
+    ],
+    "11791": [
+     "Purple"
+    ],
+    "11792": [
+     "Purple"
+    ],
+    "11793": [
+     "Orange",
+     "Purple"
+    ],
+    "11794": [
+     "Orange",
+     "Purple"
+    ],
+    "12201": [
+     "Inner"
+    ],
+    "12203": [
+     "Inner"
+    ],
+    "12206": [
+     "Inner"
+    ],
+    "12207": [
+     "Inner"
+    ],
+    "12216": [
+     "Purple"
+    ],
+    "12217": [
+     "Purple"
+    ],
+    "12218": [
+     "Orange",
+     "Purple"
+    ],
+    "12219": [
+     "Orange",
+     "Purple"
+    ],
+    "12220": [
+     "Orange",
+     "Purple"
+    ],
+    "12221": [
+     "Orange",
+     "Purple"
+    ],
+    "12222": [
+     "Orange",
+     "Purple"
+    ],
+    "12223": [
+     "Purple"
+    ],
+    "12224": [
+     "Purple"
+    ],
+    "12225": [
+     "Purple"
+    ],
+    "12236": [
+     "Purple"
+    ],
+    "12237": [
+     "Purple"
+    ],
+    "12242": [
+     "Purple"
+    ],
+    "12243": [
+     "Orange"
+    ],
+    "12258": [
+     "Orange"
+    ],
+    "13141": [
+     "Purple"
+    ],
+    "13142": [
+     "Purple"
+    ],
+    "13282": [
+     "Orange"
+    ],
+    "13321": [
+     "Purple",
+     "Inner"
+    ],
+    "13323": [
+     "Inner"
+    ],
+    "13596": [
+     "Inner"
+    ],
+    "13599": [
+     "Purple",
+     "Inner"
+    ],
+    "13601": [
+     "Inner"
+    ],
+    "13743": [
+     "Purple"
+    ],
+    "15556": [
+     "Inner"
+    ]
+   },
+   "objects": {
+    "1734": [
+     "Purple",
+     "Inner"
+    ],
+    "2040": [
+     "Orange",
+     "Purple",
+     "Inner"
+    ],
+    "2045": [
+     "Inner"
+    ],
+    "2047": [
+     "Purple"
+    ],
+    "142143": [
+     "Inner"
+    ],
+    "142144": [
+     "Orange",
+     "Purple",
+     "Inner"
+    ],
+    "178559": [
+     "Purple"
+    ],
+    "178560": [
+     "Purple"
+    ],
+    "178561": [
+     "Orange"
+    ],
+    "178562": [
+     "Orange"
+    ],
+    "178563": [
+     "Orange"
+    ],
+    "178564": [
+     "Orange"
+    ],
+    "178565": [
+     "Orange"
+    ],
+    "178566": [
+     "Orange"
+    ],
+    "178567": [
+     "Orange"
+    ],
+    "178568": [
+     "Orange"
+    ],
+    "178569": [
+     "Orange"
+    ],
+    "178570": [
+     "Orange"
+    ],
+    "178905": [
+     "Orange",
+     "Purple"
+    ],
+    "178964": [
+     "Purple"
+    ],
+    "178965": [
+     "Purple"
+    ]
+   },
+   "quests": {
+    "7028": {
+     "wings": [
+      "Orange",
+      "Purple",
+      "Inner"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       17684,
+       [
+        "Orange",
+        "Purple",
+        "Inner"
+       ]
+      ]
+     ]
+    },
+    "7029": {
+     "wings": [
+      "Orange"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       13696,
+       []
+      ],
+      [
+       "item",
+       17696,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-37b:2",
+       [
+        "Orange"
+       ]
+      ]
+     ]
+    },
+    "7041": {
+     "wings": [
+      "Orange"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       13696,
+       []
+      ],
+      [
+       "item",
+       17696,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-37b:2",
+       [
+        "Orange"
+       ]
+      ]
+     ]
+    },
+    "7044": {
+     "wings": [
+      "Orange",
+      "Purple"
+     ],
+     "how": "all",
+     "by": [
+      [
+       "item",
+       17703,
+       [
+        "Purple"
+       ]
+      ],
+      [
+       "item",
+       17702,
+       [
+        "Orange"
+       ]
+      ]
+     ]
+    },
+    "7046": {
+     "wings": [
+      "Purple"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "object",
+       178965,
+       [
+        "Purple"
+       ]
+      ]
+     ]
+    },
+    "7064": {
+     "wings": [
+      "Inner"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       12201,
+       [
+        "Inner"
+       ]
+      ]
+     ]
+    },
+    "7065": {
+     "wings": [
+      "Inner"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       12201,
+       [
+        "Inner"
+       ]
+      ]
+     ]
+    },
+    "7066": {
+     "wings": [
+      "Inner"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       17760,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-37:3",
+       [
+        "Inner"
+       ]
+      ]
+     ]
+    },
+    "7067": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "item",
+       17758,
+       []
+      ]
+     ]
+    },
+    "7068": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "item",
+       17756,
+       []
+      ]
+     ]
+    },
+    "7070": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "item",
+       17756,
+       []
+      ]
+     ]
+    }
+   }
+  },
+  "429": {
+   "name": "Dire Maul",
+   "area": 2557,
+   "wings": {
+    "East": {
+     "name": "Dire Maul: East",
+     "rule": "dungeon.dire_maul_east",
+     "bosses": [
+      11490,
+      11492,
+      13280,
+      14327
+     ]
+    },
+    "West": {
+     "name": "Dire Maul: West",
+     "rule": "dungeon.dire_maul_west",
+     "bosses": [
+      11486,
+      11487,
+      11488,
+      11489,
+      11496
+     ]
+    },
+    "North": {
+     "name": "Dire Maul: North",
+     "rule": "dungeon.dire_maul_north",
+     "bosses": [
+      11501,
+      14321,
+      14322,
+      14323,
+      14325,
+      14326
+     ]
+    }
+   },
+   "npcs": {
+    "721": [
+     "East"
+    ],
+    "883": [
+     "East"
+    ],
+    "1412": [
+     "East"
+    ],
+    "2914": [
+     "North"
+    ],
+    "4075": [
+     "East",
+     "North"
+    ],
+    "4076": [
+     "North"
+    ],
+    "11441": [
+     "North"
+    ],
+    "11444": [
+     "North"
+    ],
+    "11445": [
+     "North"
+    ],
+    "11446": [
+     "North"
+    ],
+    "11448": [
+     "North"
+    ],
+    "11450": [
+     "North"
+    ],
+    "11451": [
+     "East"
+    ],
+    "11452": [
+     "East"
+    ],
+    "11453": [
+     "East"
+    ],
+    "11454": [
+     "East"
+    ],
+    "11455": [
+     "East"
+    ],
+    "11456": [
+     "East"
+    ],
+    "11457": [
+     "East"
+    ],
+    "11458": [
+     "West",
+     "North"
+    ],
+    "11459": [
+     "West",
+     "North"
+    ],
+    "11461": [
+     "East"
+    ],
+    "11462": [
+     "East"
+    ],
+    "11464": [
+     "East"
+    ],
+    "11465": [
+     "East"
+    ],
+    "11466": [
+     "West"
+    ],
+    "11467": [
+     "West"
+    ],
+    "11469": [
+     "West"
+    ],
+    "11470": [
+     "West"
+    ],
+    "11471": [
+     "West"
+    ],
+    "11472": [
+     "West"
+    ],
+    "11473": [
+     "West"
+    ],
+    "11475": [
+     "West"
+    ],
+    "11476": [
+     "West"
+    ],
+    "11477": [
+     "West"
+    ],
+    "11480": [
+     "West"
+    ],
+    "11483": [
+     "West"
+    ],
+    "11484": [
+     "West"
+    ],
+    "11486": [
+     "West"
+    ],
+    "11487": [
+     "West"
+    ],
+    "11488": [
+     "West"
+    ],
+    "11489": [
+     "West"
+    ],
+    "11490": [
+     "East"
+    ],
+    "11491": [
+     "East"
+    ],
+    "11492": [
+     "East"
+    ],
+    "11496": [
+     "West"
+    ],
+    "11501": [
+     "North"
+    ],
+    "13021": [
+     "East"
+    ],
+    "13022": [
+     "East"
+    ],
+    "13036": [
+     "North"
+    ],
+    "13160": [
+     "North"
+    ],
+    "13196": [
+     "East"
+    ],
+    "13197": [
+     "East"
+    ],
+    "13276": [
+     "East"
+    ],
+    "13280": [
+     "East"
+    ],
+    "13285": [
+     "East"
+    ],
+    "13321": [
+     "East"
+    ],
+    "13916": [
+     "West"
+    ],
+    "14303": [
+     "West",
+     "North"
+    ],
+    "14308": [
+     "West"
+    ],
+    "14321": [
+     "North"
+    ],
+    "14322": [
+     "North"
+    ],
+    "14323": [
+     "North"
+    ],
+    "14324": [
+     "North"
+    ],
+    "14325": [
+     "North"
+    ],
+    "14326": [
+     "North"
+    ],
+    "14327": [
+     "East"
+    ],
+    "14338": [
+     "North"
+    ],
+    "14349": [
+     "East"
+    ],
+    "14354": [
+     "East"
+    ],
+    "14358": [
+     "West"
+    ],
+    "14361": [
+     "West"
+    ],
+    "14368": [
+     "West"
+    ],
+    "14369": [
+     "West"
+    ],
+    "14371": [
+     "West"
+    ],
+    "14381": [
+     "West"
+    ],
+    "14382": [
+     "West"
+    ],
+    "14383": [
+     "West"
+    ],
+    "14386": [
+     "North"
+    ],
+    "14398": [
+     "West"
+    ],
+    "14399": [
+     "West"
+    ],
+    "14400": [
+     "West"
+    ],
+    "14690": [
+     "West"
+    ],
+    "16032": [
+     "West"
+    ],
+    "16045": [
+     "East"
+    ]
+   },
+   "objects": {
+    "142144": [
+     "East"
+    ],
+    "142145": [
+     "East"
+    ],
+    "175404": [
+     "East"
+    ],
+    "176584": [
+     "East"
+    ],
+    "176905": [
+     "East"
+    ],
+    "176906": [
+     "East"
+    ],
+    "176907": [
+     "East"
+    ],
+    "177211": [
+     "West"
+    ],
+    "177212": [
+     "West"
+    ],
+    "177213": [
+     "East"
+    ],
+    "177215": [
+     "North"
+    ],
+    "177217": [
+     "North"
+    ],
+    "177219": [
+     "North"
+    ],
+    "177220": [
+     "East"
+    ],
+    "177221": [
+     "West"
+    ],
+    "177257": [
+     "West"
+    ],
+    "177258": [
+     "West"
+    ],
+    "177259": [
+     "West"
+    ],
+    "179485": [
+     "North"
+    ],
+    "179499": [
+     "North"
+    ],
+    "179501": [
+     "North"
+    ],
+    "179502": [
+     "East"
+    ],
+    "179503": [
+     "West"
+    ],
+    "179504": [
+     "West"
+    ],
+    "179505": [
+     "West"
+    ],
+    "179506": [
+     "West"
+    ],
+    "179511": [
+     "North"
+    ],
+    "179512": [
+     "North"
+    ],
+    "179516": [
+     "North"
+    ],
+    "179517": [
+     "West"
+    ],
+    "179544": [
+     "West"
+    ],
+    "179545": [
+     "West"
+    ],
+    "179548": [
+     "East",
+     "West",
+     "North"
+    ],
+    "179549": [
+     "North"
+    ],
+    "179550": [
+     "West"
+    ],
+    "179559": [
+     "East"
+    ],
+    "179563": [
+     "West"
+    ],
+    "179564": [
+     "North"
+    ],
+    "179668": [
+     "West"
+    ],
+    "179669": [
+     "West"
+    ],
+    "179670": [
+     "West"
+    ],
+    "179671": [
+     "West"
+    ],
+    "179672": [
+     "West"
+    ],
+    "179673": [
+     "West"
+    ],
+    "179674": [
+     "West"
+    ],
+    "179675": [
+     "West"
+    ],
+    "179681": [
+     "West"
+    ],
+    "179688": [
+     "West"
+    ],
+    "179701": [
+     "West"
+    ],
+    "181047": [
+     "East"
+    ],
+    "181096": [
+     "East"
+    ],
+    "181288": [
+     "North"
+    ],
+    "181346": [
+     "North"
+    ]
+   },
+   "quests": {
+    "1193": {
+     "wings": [
+      "East",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       15994,
+       [
+        "East",
+        "North"
+       ]
+      ],
+      [
+       "item",
+       3829,
+       []
+      ]
+     ]
+    },
+    "1318": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18336,
+       [
+        "West"
+       ]
+      ]
+     ]
+    },
+    "5518": {
+     "wings": [
+      "East",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       14048,
+       []
+      ],
+      [
+       "item",
+       8170,
+       [
+        "North"
+       ]
+      ],
+      [
+       "item",
+       14341,
+       []
+      ],
+      [
+       "item",
+       18240,
+       [
+        "East",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "5519": {
+     "wings": [
+      "East",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       14048,
+       []
+      ],
+      [
+       "item",
+       8170,
+       [
+        "North"
+       ]
+      ],
+      [
+       "item",
+       14341,
+       []
+      ],
+      [
+       "item",
+       18240,
+       [
+        "East",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "5525": {
+     "wings": [
+      "North"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18250,
+       [
+        "North"
+       ]
+      ]
+     ]
+    },
+    "5526": {
+     "wings": [
+      "East"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18540,
+       []
+      ],
+      [
+       "kb",
+       "dungeons:KB-53:5",
+       [
+        "East"
+       ]
+      ]
+     ]
+    },
+    "5528": {
+     "wings": [
+      "North"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "end",
+       null,
+       [
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7429": {
+     "wings": [
+      "North"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18250,
+       [
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7441": {
+     "wings": [
+      "East"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18261,
+       [
+        "East"
+       ]
+      ]
+     ]
+    },
+    "7461": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "kill",
+       11496,
+       [
+        "West"
+       ]
+      ],
+      [
+       "kill",
+       11486,
+       [
+        "West"
+       ]
+      ]
+     ]
+    },
+    "7462": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "end",
+       null,
+       [
+        "West"
+       ]
+      ]
+     ]
+    },
+    "7463": {
+     "wings": [
+      "East"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18299,
+       [
+        "East"
+       ]
+      ]
+     ]
+    },
+    "7481": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "object",
+       179544,
+       [
+        "West"
+       ]
+      ]
+     ]
+    },
+    "7482": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "object",
+       179544,
+       [
+        "West"
+       ]
+      ]
+     ]
+    },
+    "7483": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18332,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ],
+      [
+       "item",
+       18335,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ],
+      [
+       "item",
+       14344,
+       []
+      ],
+      [
+       "item",
+       12938,
+       []
+      ]
+     ]
+    },
+    "7484": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18333,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ],
+      [
+       "item",
+       18335,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ],
+      [
+       "item",
+       14344,
+       []
+      ],
+      [
+       "item",
+       12753,
+       []
+      ]
+     ]
+    },
+    "7485": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18334,
+       [
+        "West",
+        "North"
+       ]
+      ],
+      [
+       "item",
+       18335,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ],
+      [
+       "item",
+       14344,
+       []
+      ],
+      [
+       "item",
+       12735,
+       []
+      ]
+     ]
+    },
+    "7488": {
+     "wings": [
+      "East"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18426,
+       [
+        "East"
+       ]
+      ]
+     ]
+    },
+    "7489": {
+     "wings": [
+      "East"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18426,
+       [
+        "East"
+       ]
+      ]
+     ]
+    },
+    "7492": {
+     "wings": [],
+     "how": "outside",
+     "by": []
+    },
+    "7494": {
+     "wings": [],
+     "how": "outside",
+     "by": []
+    },
+    "7498": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18356,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7499": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18357,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7500": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18358,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7501": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18359,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7502": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18360,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7503": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18361,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7504": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18362,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7505": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18363,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7506": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18364,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7507": {
+     "wings": [
+      "East",
+      "West",
+      "North"
+     ],
+     "how": "any",
+     "by": [
+      [
+       "item",
+       18401,
+       [
+        "East",
+        "West",
+        "North"
+       ]
+      ]
+     ]
+    },
+    "7508": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18513,
+       []
+      ],
+      [
+       "end",
+       null,
+       [
+        "West"
+       ]
+      ]
+     ]
+    },
+    "7643": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "item",
+       18753,
+       []
+      ],
+      [
+       "item",
+       18775,
+       []
+      ]
+     ]
+    },
+    "7703": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       18336,
+       [
+        "West"
+       ]
+      ]
+     ]
+    },
+    "7877": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "end",
+       null,
+       [
+        "West"
+       ]
+      ]
+     ]
+    },
+    "8948": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       21983,
+       []
+      ],
+      [
+       "end",
+       null,
+       [
+        "West"
+       ]
+      ]
+     ]
+    },
+    "8949": {
+     "wings": [
+      "North"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       21982,
+       [
+        "North"
+       ]
+      ]
+     ]
+    },
+    "8950": {
+     "wings": [
+      "West"
+     ],
+     "how": "one",
+     "by": [
+      [
+       "item",
+       22224,
+       [
+        "West"
+       ]
+      ],
+      [
+       "item",
+       20520,
+       []
+      ],
+      [
+       "item",
+       14344,
+       []
+      ]
+     ]
+    },
+    "8967": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "kill",
+       16097,
+       []
+      ],
+      [
+       "item",
+       21984,
+       []
+      ],
+      [
+       "item",
+       22050,
+       []
+      ]
+     ]
+    },
+    "8990": {
+     "wings": [],
+     "how": "outside",
+     "by": [
+      [
+       "kill",
+       16097,
+       []
+      ],
+      [
+       "item",
+       22048,
+       []
+      ]
+     ]
+    }
+   }
+  }
+ }
+}

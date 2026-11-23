@@ -101,6 +101,11 @@ Codex's dungeon pages are not in the addon checkout. The per-side `tours` (stand
 entrance, at the dungeon's floor, nothing done) are what the Python must replay:
 `tests/plan/test_tripcost.py` checks every one.
 
+A dungeon run in wings (Scarlet Monastery, Dire Maul, Blackrock Spire, Stratholme,
+Maraudon) also has a page and tours per wing (`wings`): the page's quests whose objectives
+are in that wing, from `data/dungeons/wings.json`. The wings share the dungeon's entrance
+(Polestar lists one per dungeon; the wings' doors are a few hundred yards apart).
+
 Not ported: carrying a quest across stops to fit the log (Polestar's split), the
 25-quest log cap, follow-ups taken at the hand-in, exclusive quest groups and profession
 quests. A quest a dungeon page lists whose giver forever-db places nowhere is counted as
