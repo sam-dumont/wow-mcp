@@ -98,10 +98,12 @@ def test_own_runs_override_with_the_measure():
     g = G.estimate(level=20, xp_max=30000, name="The Deadmines", runs=runs, others=[], quests=[],
                    questing_xph=12000, rule=RULE)
     assert g["kill_xp"] == {"label": "measured", "xp": 5000, "inside_s": 1800, "xp_per_hour": 10000, "own_runs": 1}
-    # Not run: the estimate, apart; the line and its verdict stay the quests'.
+    # Not run: the estimate, labelled, counted in the XP and the verdict
+    # (owner, 2026-11-23).
     g = G.estimate(level=20, xp_max=30000, name="The Deadmines", runs=[], others=[], quests=[],
                    questing_xph=12000, rule=RULE)
-    assert g["kill_xp"]["label"] == "estimate" and g["kills_unknown"] and g["vs_questing"] is None
+    assert g["kill_xp"]["label"] == "estimate" and not g["kills_unknown"] and g["vs_questing"] is not None
+    assert g["xp_kills"] == g["kill_xp"]["xp"] and g["trip"]["xp_kills"]["label"] == "estimate"
 
 
 # ---------------------------------------------------------------- licences
@@ -177,8 +179,9 @@ def test_dungeon_options_carries_the_labelled_kill_xp(monkeypatch, tmp_path, pri
             assert k["label"] in ("measured", "estimate", "not_enough_data")
             if k["label"] == "estimate":
                 assert k["provenance"] and k["as_of"] and k["xp"] is not None
-                # An estimate never makes the run's XP or its pace against questing.
-                assert d["gain"]["kills_unknown"] and d["gain"]["vs_questing"] is None
+                # The estimate makes the run's XP and its pace, labelled.
+                assert not d["gain"]["kills_unknown"] and d["gain"]["xp_kills"] == k["xp"]
+                assert d["gain"]["trip"]["xp_kills"]["label"] == "estimate"
     assert any(k["label"] == "measured" for k in seen.values())
     assert any(k["label"] == "estimate" for k in seen.values())
     # The panel says the same.

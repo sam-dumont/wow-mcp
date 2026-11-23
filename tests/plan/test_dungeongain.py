@@ -69,8 +69,13 @@ def test_with_own_runs_at_the_same_level():
     assert g["level_pct"] == 33
     assert g["xp_per_hour"] == round(10000 / 4800 * 3600)
     assert g["vs_questing"] == pytest.approx(7500 / 12000, abs=0.001)
-    assert g["summary"] == "Slower than questing: go for the drops only. ~1h20 for ~10k XP (33% of a level), 0.6× your questing pace"
+    assert g["summary"] == "~1h20 trip for ~10k XP, 0.6× your questing (15 min pickups · 40 min inside · 10 min hand-ins)"
+    assert g["lead"] == "~1h20 trip"
     assert [q["quest_id"] for q in g["quests"]] == [1]
+    # His own runs: every part measured.
+    assert {k: g["trip"][k]["label"] for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "xp_kills")} == \
+        dict.fromkeys(("pickup_s", "inside_s", "handin_s", "travel_s", "xp_kills"), "measured")
+    assert g["trip"]["total_s"]["value"] == g["run_s"] and g["trip"]["xp_total"]["value"] == 10000
 
 
 def test_runs_at_another_level_are_carried_by_the_creatures_killed():
@@ -95,7 +100,12 @@ def test_without_runs_the_kill_estimates_time_and_his_own_travel():
     other = trip(30, 3000, dungeon="Blackfathom Deeps")
     inside = D.estimate("City of Dalaran", 32, RULE)["inside_s"]
     g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, others=[other], questing_xph=15107)
-    assert g["basis"] == "kill_model" and g["kills_unknown"] and g["xp_kills"] is None
+    # Owner, 2026-11-23: the kill estimate counts in the XP and the verdict, labelled.
+    kx = D.estimate("City of Dalaran", 32, RULE)["xp"]
+    assert g["basis"] == "kill_model" and not g["kills_unknown"] and g["xp_kills"] == kx
+    assert g["xp"] == 28200 + kx and g["vs_questing"] is not None
+    assert g["trip"]["xp_kills"]["label"] == "estimate" and g["trip"]["xp_total"]["label"] == "estimate"
+    assert g["trip"]["inside_s"]["label"] == "estimate" and g["trip"]["pickup_s"]["label"] == "measured"
     assert g["run_s"] == inside + 600 + 300 + 900 + 600
     assert g["kill_xp"]["inside_s"] == inside
     # Gnomeregan: ~1h15 inside by its kills, where the guide said ~40 min.
@@ -114,15 +124,15 @@ def test_without_runs_or_a_kill_estimate_the_kb_clear_time():
     other = trip(30, 3000, dungeon="Blackfathom Deeps")
     g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, others=[other], questing_xph=15107,
             clear=clear)
-    assert g["basis"] == "rules" and g["kills_unknown"] and g["xp_kills"] is None
+    assert g["basis"] == "rules" and not g["kills_unknown"]
     assert g["run_s"] == clear + 600 + 300 + 900 + 600
-    assert g["xp_quests"] == 28200 and g["level_pct"] == 52
-    assert "+ quests worth ~28k XP (52% of a level)" in g["summary"]
-    # No trip of his anywhere: the clear alone, and what the quests are worth in questing time.
-    g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, questing_xph=15107, clear=clear)
-    assert g["time"] == "clear" and g["xp_per_hour"] == per_hour(28200, clear)
-    assert g["summary"] == "~55 min + quests worth ~28k XP (52% of a level)" and g["vs_questing"] is None
-    assert g["lead"] == "~55 min + quests worth ~28k XP"
+    assert g["xp_quests"] == 28200
+    # No kill estimate (a dungeon the model has no data for): the quests alone, no verdict.
+    g = est(level=30, xp_max=54500, name="Excavation Site: Wetlands", quests=qs, questing_xph=15107)
+    assert g["kills_unknown"] and g["xp"] is None and g["vs_questing"] is None and g["level_pct"] == 52
+    assert g["time"] == "clear" and g["xp_per_hour"] == per_hour(28200, G.clear_s("Excavation Site: Wetlands"))
+    assert g["summary"] == f"~{G.about_s(g['run_s'])} + quests worth ~28k XP (52% of a level)"
+    assert g["lead"] == f"~{G.about_s(g['run_s'])} + quests worth ~28k XP"
 
 
 def per_hour(x, s):
@@ -144,7 +154,7 @@ def test_a_dungeon_below_his_level_pays_nothing_for_grey_creatures():
     g = est(level=34, runs=[trip(22, 7000, kills)])
     assert G.grey(34, RULE) == 26
     assert g["xp_kills"] == 0 and g["xp"] == 0
-    assert g["summary"] == "~55 min, no XP at your level"
+    assert g["summary"] == "~55 min trip, no XP at your level (40 min inside)"
 
 
 def test_no_quest_data():
@@ -153,7 +163,7 @@ def test_no_quest_data():
     assert g["summary"] is None and g["xp"] is None and g["run_s"] is None and g["quests"] == []
     # His runs alone still give the kills.
     g = est(runs=[trip(20, 6000)])
-    assert g["xp"] == 6000 and g["summary"] == "Slower than questing: go for the drops only. ~55 min for ~6k XP (20% of a level), 0.5× your questing pace"
+    assert g["xp"] == 6000 and g["summary"] == "~55 min trip for ~6k XP, 0.5× your questing (40 min inside)"
 
 
 def test_rounding():
@@ -224,18 +234,46 @@ def test_one_estimate_whatever_the_questing_rate_source(priest):
 def test_the_verdict_bands():
     assert (G.FASTER, G.SLOWER) == (1.2, 0.8)
     assert [G.verdict(x) for x in (None, 1.2, 1.19, 0.8, 0.79)] == [None, "faster", "same", "same", "slower"]
-    base = dict(xp=10000, xp_quests=10000, run_s=2100, level_pct=29, level=24)
-    faster = G.summary({**base, "vs_questing": 1.4})
-    assert faster == "Worth it: ~35 min for ~10k XP (29% of a level), 1.4× faster than your questing"
-    assert G.summary({**base, "vs_questing": 1.0}) == "About the same as questing: ~35 min for ~10k XP (29% of a level)"
-    assert G.summary({**base, "vs_questing": 0.5}).startswith("Slower than questing: go for the drops only. ")
+
+
+def test_the_line_says_the_trip_and_its_parts():
+    # The owner's example (2026-11-23), word for word.
+    t = {"pickup_s": {"value": 1500}, "inside_s": {"value": 4500}, "handin_s": {"value": 1200}}
+    g = dict(xp=54000, xp_quests=40000, run_s=7800, level_pct=99, upgrades=3, vs_questing=1.6, trip=t)
+    assert G.summary(g) == "~2h10 trip for ~54k XP + 3 upgrades, 1.6× your questing " \
+                           "(25 min pickups · 1h15 inside · 20 min hand-ins)"
+    assert g["lead"] == "~2h10 trip"
+    # One upgrade, no pickups left.
+    g = {**g, "upgrades": 1, "trip": {**t, "pickup_s": {"value": None}}}
+    assert G.summary(g) == "~2h10 trip for ~54k XP + 1 upgrade, 1.6× your questing (1h15 inside · 20 min hand-ins)"
     # Without a kill estimate the time and quests lead and no verdict follows:
     # the unknown kill XP could flip it.
-    nk = {**base, "xp": None, "time": "clear"}
+    nk = dict(xp=None, xp_quests=10000, run_s=2100, level_pct=29, time="clear")
     for vs in (None, 0.5, 1.0, 1.5):
         g = {**nk, "vs_questing": vs}
         assert G.summary(g) == "~35 min + quests worth ~10k XP (29% of a level)"
         assert g["lead"] == "~35 min + quests worth ~10k XP"
-    g = {**base, "vs_questing": 1.4}
-    G.summary(g)
-    assert g["lead"] == "Worth it:"
+
+
+def test_a_kill_estimate_ranks_a_dungeon():
+    # Owner, 2026-11-23: the kill estimate counts in the verdict. A dungeon
+    # whose estimated kills beat questing comes out faster.
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=1000)
+    assert g["xp_kills"] and G.verdict(g["vs_questing"]) == "faster"
+    g = est(level=32, xp_max=54500, name="City of Dalaran", questing_xph=10 ** 7)
+    assert G.verdict(g["vs_questing"]) == "slower"
+
+
+def test_a_route_trip_replaces_the_flat_means():
+    route = {"pickup_s": 1500, "travel_to_s": 240, "travel_back_s": 120, "handin_s": 1200, "quests": [1, 2],
+             "prereqs": [], "pickup": ["gn1"], "handin": ["tn1"], "from": "you", "xp_quests": 9000}
+    qs = [quest(1, 5000), quest(2, 4000, state="open"), quest(3, 7000)]
+    other = trip(30, 3000, dungeon="Blackfathom Deeps")
+    g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, others=[other], questing_xph=15107,
+            route=route)
+    inside = D.estimate("City of Dalaran", 32, RULE)["inside_s"]
+    assert g["run_s"] == inside + 1500 + 240 + 120 + 1200
+    assert g["xp_quests"] == 9000 and [q["quest_id"] for q in g["quests"]] == [1, 2]
+    assert {k: g["trip"][k]["label"] for k in ("pickup_s", "travel_s", "handin_s", "inside_s")} == \
+        {"pickup_s": "route", "travel_s": "route", "handin_s": "route", "inside_s": "estimate"}
+    assert g["trip"]["from"] == "you" and g["trip"]["stops"] == {"pickup": 1, "handin": 1}

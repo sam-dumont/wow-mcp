@@ -206,8 +206,14 @@ TRAINER = {**_keys("npc", "name", "url", "x", "y"), "zone": PLACE}
 WHO = _keys("kind", "id", "name", "url", "zone", "x", "y", "spawns", "inside")
 GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "xp", "level_pct", "xp_per_hour",
                 "kills_unknown", "questing_xp_per_hour", "vs_questing", "questing_s", "quests_shown", "summary",
-                "lead"),
-        "quests": [{**_keys("quest_id", "name", "url", "xp_now", "state", "level"), "starts": [WHO]}]}
+                "lead", "upgrades"),
+        "quests": [{**_keys("quest_id", "name", "url", "xp_now", "state", "level"), "starts": [WHO]}],
+        # The trip's parts, each with its label (measured / route / estimate).
+        # `from` says where it starts ("you", "entrance"), never the place.
+        "trip": {**{k: _keys("value", "label") for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "total_s",
+                                                         "xp_quests", "xp_kills", "xp_total", "xp_per_hour",
+                                                         "vs_questing")},
+                 "from": None, "stops": _keys("pickup", "handin")}}
 # A dungeon's quest rewards he could use (wowstats.plan.dungeonview
 # quest_rewards): the item, its gain, the quest and who gives it.
 QUEST_REWARD = {**_keys("item_id", "name", "quality", "slot_name", "gain", "gain_pct", "fills_empty", "level", "now",

@@ -1,36 +1,38 @@
 """What one more run of a dungeon pays, in the numbers a player weighs
-against questing: the XP of a run at his level now, the share of the level
-it is, how long it takes, its XP per hour against his own questing, and the
-dungeon's quests to pick up first.
+against questing: the trip's time in its parts (pickups, travel, inside,
+hand-ins), its XP from quests and kills, its XP per hour against his own
+questing, and the dungeon's quests to pick up first.
 
 One function, `estimate`, for the three places that say it: the Overview's
 dungeon move, the Dungeons panel and the MCP's dungeon_options. They agree
 because they call it with the same inputs (wowstats.plan.dungeonview).
 
-Where the numbers come from, in order:
+Where the numbers come from, each part labelled (`trip`):
 
-1. his own runs of that dungeon: the trip's time (travel there and back,
-   inside, and the pickups and hand-ins while quests are left) and the kill
-   XP inside, carried from the level he ran it at to his level now with the
-   KB's kill formula (xp.kill_formula) over the creatures he killed there.
-   Forever's dungeon bonus and the group split multiply every kill alike,
-   so they cancel in that ratio. A run at another level without the
-   creatures' levels can't be carried: its kill XP stays unknown;
-2. otherwise the kill estimate's time inside (wowstats.plan.dungeonxp:
-   its kills x the seconds a kill took in the reference runs; basis
-   "kill_model"), else the KB's clear time for the dungeon (dungeon.<name>
-   clear_min; basis "rules"), plus his own measured travel and quest time
-   from his other trips when he has some. The run's XP and its verdict stay the quests'
-   alone: kill XP from anything but his own runs is an estimate, and an
-   estimate never ranks a dungeon (owner, 2026-11-23: quests and gear
-   first). It is given apart, labelled, in `kill_xp`
-   (wowstats.plan.dungeonxp);
-3. the dungeon's quests he can do now (forever-db's XP, the KB's hand-in
-   share at his level) in both cases.
+1. his own runs of that dungeon, "measured": the trip's time (travel there
+   and back, inside, and the pickups and hand-ins while quests are left)
+   and the kill XP inside, carried from the level he ran it at to his level
+   now with the KB's kill formula (xp.kill_formula) over the creatures he
+   killed there. Forever's dungeon bonus and the group split multiply every
+   kill alike, so they cancel in that ratio. A run at another level without
+   the creatures' levels can't be carried: its kill XP stays unknown;
+2. otherwise:
+   - the pickups, the travel and the hand-ins from Polestar's pick-up and
+     hand-in rules on his own quests, from where he was last seen
+     (wowstats.plan.tripcost, "route"); without route data for the dungeon,
+     the means of his other trips ("measured", the old flat mean);
+   - the time inside and the kill XP from the kill estimate
+     (wowstats.plan.dungeonxp: kills x the seconds a kill took in the
+     reference runs, "estimate"), else the KB's clear time for the time
+     (dungeon.<name> clear_min, "estimate");
+3. the quests' XP: those the trip takes and hands in (forever-db's XP, the
+   KB's hand-in share at his level).
 
-What isn't known is None, never guessed: with the kills unknown the XP is
-the quests' alone and says so, with no pace against questing (vs_questing
-None) and no verdict.
+The kill estimate counts in the run's XP, its pace and the verdict, labelled
+(owner, 2026-11-23: it replaced the rule that an estimate never ranks a
+dungeon). What isn't known is None, never guessed: with no kill estimate
+either the XP is the quests' alone and says so, with no pace against
+questing (vs_questing None) and no verdict.
 """
 
 from __future__ import annotations
@@ -158,44 +160,86 @@ def ratio(x: float) -> str:
     return f"{x:.1f}×" if x >= 0.05 else "under 0.1×"
 
 
+LABEL_RANK = {"measured": 0, "route": 1, "estimate": 2}
+
+
+def _worst(*labels: str | None) -> str:
+    """The weakest of the labels a number is made of."""
+    known = [x for x in labels if x]
+    return max(known, key=LABEL_RANK.__getitem__) if known else "estimate"
+
+
+def _ids(q: dict) -> set[int]:
+    return {q["quest_id"], *(q.get("variants") or [])}
+
+
 def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], others: list[dict],
              quests: list[dict], questing_xph: float | None, rule: dict | None = None,
-             clear: float | None = None) -> dict:
+             clear: float | None = None, route: dict | None = None) -> dict:
     """One more run at `level`. `runs`: his trips of this dungeon
-    (facts.trips); `others`: every trip he made (their travel and quest
-    time stand in for a dungeon he never ran); `quests`: the dungeon's
+    (facts.trips); `others`: every trip he made (their means stand in for
+    the pickups and travel when there is no route); `quests`: the dungeon's
     quests as dungeonview.quests_for gives them; `questing_xph`: his
-    questing XP per hour (estimate.rate)."""
-    todo = [q for q in quests if q["state"] == "open"
-            or (q["state"] == "new" and not q.get("blocked") and (q.get("min_level") or 0) <= level)]
-    xp_q = sum(q.get("xp_now") or 0 for q in todo)
+    questing XP per hour (estimate.rate); `route`: the trip Polestar's rules
+    make from where he stands (dungeonview.route_trip: tripcost.trip plus
+    the XP of its quests), None when the reference has none."""
+    if route:
+        ids = set(route["quests"]) | set(route.get("prereqs") or [])
+        todo = [q for q in quests if _ids(q) & ids and q["state"] != "done"]
+        xp_q = float(route["xp_quests"])
+    else:
+        todo = [q for q in quests if q["state"] == "open"
+                or (q["state"] == "new" and not q.get("blocked") and (q.get("min_level") or 0) <= level)]
+        xp_q = float(sum(q.get("xp_now") or 0 for q in todo))
+    left = bool(todo or (route and route["quests"]))
+    parts: dict[str, tuple[float, str]] = {}
+    kills = None
     if runs:
         basis = "runs"
-        trips = sum(_mean(runs, k) for k in ("travel_to_s", "inside_s", "travel_back_s"))
-        run_s = trips + (_mean(runs, "pickup_s") + _mean(runs, "handin_s") if todo else 0)
+        parts["inside_s"] = (_mean(runs, "inside_s"), "measured")
+        parts["travel_s"] = (_mean(runs, "travel_to_s") + _mean(runs, "travel_back_s"), "measured")
+        if left:
+            parts["pickup_s"] = (_mean(runs, "pickup_s"), "measured")
+            parts["handin_s"] = (_mean(runs, "handin_s"), "measured")
         scaled = [kills_now(t, level, rule) for t in runs]
         known = [x for x in scaled if x is not None]
         xp_k = sum(known) / len(known) if known else None
-        time = "trip"
+        k_label = "measured"
     else:
         # Time inside: the kill estimate's (kills x seconds a kill), else the
         # KB's clear time. Owner, 2026-11-23: Gnomeregan's guide says ~40 min,
         # the model ~1h15, a real run "probably ~1h": the model is closer.
-        model = model_inside(name, level, rule) if clear is None else None
+        from . import dungeonxp
+
+        kills = dungeonxp.estimate(name, level, rule)
+        model = float(kills["inside_s"]) if clear is None and kills and kills.get("inside_s") else None
         basis = "kill_model" if model else None
         clear = (model or clear_s(name)) if clear is None else clear
         basis = basis or ("rules" if clear else None)
-        xp_k = None
-        if clear and others:
-            run_s = clear + _mean(others, "travel_to_s") + _mean(others, "travel_back_s") + (
-                _mean(others, "pickup_s") + _mean(others, "handin_s") if todo else 0)
-            time = "trip"
-        else:
-            run_s, time = clear, "clear" if clear else None
+        if clear:
+            parts["inside_s"] = (clear, "estimate")
+        if route:
+            parts["pickup_s"] = (route["pickup_s"], "route")
+            parts["travel_s"] = (route["travel_to_s"] + route["travel_back_s"], "route")
+            parts["handin_s"] = (route["handin_s"], "route")
+        elif others:
+            parts["travel_s"] = (_mean(others, "travel_to_s") + _mean(others, "travel_back_s"), "measured")
+            if left:
+                parts["pickup_s"] = (_mean(others, "pickup_s"), "measured")
+                parts["handin_s"] = (_mean(others, "handin_s"), "measured")
+        xp_k = float(kills["xp"]) if kills and kills.get("label") == "estimate" and kills.get("xp") is not None \
+            else None
+        k_label = "estimate"
+    inside = parts.get("inside_s")
+    run_s = sum(v for v, _ in parts.values()) if inside else None
+    time = ("trip" if len(parts) > 1 else "clear") if inside else None
     xp = xp_q + xp_k if xp_k is not None else None
     shown = xp if xp is not None else xp_q
     xph = per_hour(shown, run_s) if run_s and shown else None
     qx = questing_xph or None
+    vs = round(xph / qx, 3) if xph and qx and xp_k is not None else None
+    t_label = _worst(*(lbl for _, lbl in parts.values()))
+    xp_label = _worst(k_label, "route" if route else "estimate") if xp_k is not None else None
     out = {
         "basis": basis, "own_runs": len(runs), "level": level, "run_s": round(run_s) if run_s else None, "time": time,
         "xp_kills": round(xp_k) if xp_k is not None else None, "xp_quests": round(xp_q),
@@ -203,15 +247,31 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         "level_pct": round(shown / xp_max * 100) if xp_max and shown else None,
         "xp_per_hour": xph, "kills_unknown": xp_k is None,
         "questing_xp_per_hour": round(qx) if qx else None,
-        # With the kills unknown the pace is the quests' alone: no ratio to
-        # rank or judge on, the kill XP could flip it.
-        "vs_questing": round(xph / qx, 3) if xph and qx and xp_k is not None else None,
+        # With the kills unknown (no run, no kill estimate) the pace is the
+        # quests' alone: no ratio to rank or judge on.
+        "vs_questing": vs,
         "questing_s": round(shown / qx * 3600) if qx and shown else None,
         "quests": [{**{k: q.get(k) for k in ("quest_id", "name", "url", "xp_now", "state", "level")},
                     "starts": q.get("starts") or []} for q in todo],
         "quests_shown": SHOWN,
+        "upgrades": sum(1 for q in todo if any(r.get("state") == "missing" for r in q.get("rewards") or [])),
     }
-    out["kill_xp"] = run_kills(name, level, runs, xp_k, rule)
+
+    def part(v, label):
+        return {"value": round(v) if v is not None else None, "label": label if v is not None else None}
+
+    trip = {k: part(*parts[k]) if k in parts else part(None, None)
+            for k in ("pickup_s", "inside_s", "handin_s", "travel_s")}
+    trip.update({"total_s": part(run_s, t_label if run_s else None),
+                 "xp_quests": part(xp_q, "route" if route else "estimate"),
+                 "xp_kills": part(xp_k, k_label),
+                 "xp_total": part(xp, xp_label),
+                 "xp_per_hour": part(xph if xp is not None else None, _worst(xp_label, t_label)),
+                 "vs_questing": {"value": vs, "label": _worst(xp_label, t_label) if vs is not None else None},
+                 "from": route.get("from") if route else None,
+                 "stops": {"pickup": len(route["pickup"]), "handin": len(route["handin"])} if route else None})
+    out["trip"] = trip
+    out["kill_xp"] = run_kills(name, level, runs, xp_k, rule) if runs else kills
     out["summary"] = summary(out)
     return out
 
@@ -227,9 +287,8 @@ def model_inside(name: str, level: int, rule: dict | None) -> float | None:
 def run_kills(name: str, level: int, runs: list[dict], xp_k: float | None, rule: dict | None) -> dict | None:
     """A run's kill XP and time inside, labelled: "measured" from his own
     runs there (carried to his level), else the estimate for a dungeon he
-    hasn't run (wowstats.plan.dungeonxp: "estimate" or "not_enough_data").
-    Kept apart from the line above and its verdict: an estimate never
-    ranks a dungeon or says it beats questing."""
+    hasn't run (wowstats.plan.dungeonxp: "estimate" or "not_enough_data"),
+    which the run's XP and its verdict count too, labelled."""
     if runs and xp_k is not None:
         inside = _mean(runs, "inside_s")
         return {"label": "measured", "xp": round(xp_k), "inside_s": round(inside) if inside else None,
@@ -251,33 +310,41 @@ def verdict(vs: float | None) -> str | None:
     return "faster" if vs >= FASTER else "slower" if vs < SLOWER else "same"
 
 
+def _upgrades(n: int) -> str:
+    return f" + {n} upgrade{'s' if n != 1 else ''}" if n else ""
+
+
+def split(g: dict) -> str:
+    """The trip's parts as the line says them: 25 min pickups · 1h15 inside
+    · 20 min hand-ins (a part with nothing in it left out; the travel to the
+    door and back is in the total only)."""
+    t = g.get("trip") or {}
+    words = (("pickup_s", "pickups"), ("inside_s", "inside"), ("handin_s", "hand-ins"))
+    return " · ".join(f"{about_s(t[k]['value'])} {w}" for k, w in words if (t.get(k) or {}).get("value"))
+
+
 def summary(g: dict) -> str | None:
-    """The estimate in one line, the way all three places say it. g["lead"]
-    is the part shown bold: the verdict, or the time and quests."""
+    """The estimate in one line, the way all three places say it: "~2h10
+    trip for ~54k XP + 3 upgrades, 1.6× your questing (25 min pickups ·
+    1h15 inside · 20 min hand-ins)". g["lead"] is the part shown bold: the
+    trip's time, or the time and quests."""
     g["lead"] = None
     of = f" ({g['level_pct']}% of a level)" if g.get("level_pct") is not None else ""
     vs = g.get("vs_questing")
-    v = verdict(vs)
     if g["xp"] is not None and g["run_s"]:
+        g["lead"] = f"~{about_s(g['run_s'])} trip"
+        parts = split(g)
+        parts = f" ({parts})" if parts else ""
         if not g["xp"]:
-            return f"~{about_s(g['run_s'])}, no XP at your level"
-        body = f"~{about_s(g['run_s'])} for ~{about_xp(g['xp'])} XP{of}"
-        if v == "faster":
-            g["lead"] = "Worth it:"
-            return f"Worth it: {body}, {ratio(vs)} faster than your questing"
-        if v == "same":
-            g["lead"] = "About the same as questing:"
-            return f"About the same as questing: {body}"
-        if v == "slower":
-            g["lead"] = "Slower than questing:"
-            return f"Slower than questing: go for the drops only. {body}, {ratio(vs)} your questing pace"
-        return body
+            return f"{g['lead']}, no XP at your level{parts}"
+        pace = f", {ratio(vs)} your questing" if vs is not None else ""
+        return f"{g['lead']} for ~{about_xp(g['xp'])} XP{_upgrades(g.get('upgrades') or 0)}{pace}{parts}"
     quests = g["xp_quests"]
     if not quests:
         return None
     if g["run_s"]:
-        # Kills unknown: no verdict. The quests alone can't say faster or
-        # slower than questing, the run's kill XP could flip it.
+        # Kills unknown (no run, no kill estimate): no pace, no verdict. The
+        # quests alone can't say faster or slower than questing.
         g["lead"] = f"~{about_s(g['run_s'])} + quests worth ~{about_xp(quests)} XP"
         return f"{g['lead']}{of}"
     worth = f", what {about_s(g['questing_s'])} of your questing pays" if g.get("questing_s") else ""

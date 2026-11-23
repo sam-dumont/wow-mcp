@@ -17,10 +17,11 @@ NEXT_UP that open for his side. Each block has:
   numbers say how many of his runs they come from;
 - one more run at his level now (`gain`, wowstats.plan.dungeongain): time,
   XP, the share of the level, the pace against his questing, the quests to
-  take along. The Overview's dungeon move and the MCP's dungeon_options
-  show this same estimate. The kills' XP in it is only ever his own
-  measure; for a dungeon he hasn't run, `gain.kill_xp` holds the
-  estimate (wowstats.plan.dungeonxp), labelled, kept out of the verdict;
+  take along, the trip's parts from Polestar's pick-up and hand-in rules
+  on his own quests (wowstats.plan.tripcost). The Overview's dungeon move
+  and the MCP's dungeon_options show this same estimate. The kills' XP in
+  it is his own measure, else the kill estimate (wowstats.plan.dungeonxp),
+  labelled, and counted in the pace and the verdict;
 - one verdict line with its reason, and a value (high, some, none) the page
   colours the block by: XP, gear and gold together, never XP alone;
 - his past runs, newest first.
@@ -419,13 +420,52 @@ def trip_value(mine: list[dict], every: dict, quests: list[dict]) -> dict:
     return {"measured": False, "n": 0, "quest_xp_left": quest_xp_left}
 
 
+def route_trip(inp: dict, name: str, quests: list[dict]) -> dict | None:
+    """The trip Polestar's pick-up and hand-in rules make for him now
+    (wowstats.plan.tripcost): from where he was last seen, on his level,
+    race, class and quests, with the XP of the quests it hands in (the
+    panel's own figure for a quest it lists, forever-db's at his level's
+    share for a prerequisite it doesn't). None without route data for the
+    dungeon (a Forever dungeon Polestar has no entrance for)."""
+    from wowstats.mcp import route
+
+    from . import tripcost
+
+    ref = route.reference()
+    trips = ref.trips if ref.available else {}
+    area = next((a for a in areas().values() if key(a["name"]) == key(name)), None)
+    if not trips or not area or not area.get("map"):
+        return None
+    who = inp.get("who") or {}
+    seen = inp.get("last_position") or {}
+    at = tripcost.to_world(trips, seen.get("map_id"), seen.get("x"), seen.get("y"))
+    level = inp["level"]
+    t = tripcost.trip(trips, area["map"], side=who.get("faction"), level=level, race=who.get("race"),
+                      cls=who.get("class"), done=set(inp.get("quests_done") or []),
+                      log={o["quest_id"] for o in inp.get("open_quests") or []}, at=at)
+    if not t:
+        return None
+    rows = {i: q for q in quests for i in (q["quest_id"], *(q.get("variants") or []))}
+    data = tripcost.quests_of(trips)
+    xp = 0.0
+    for qid in dict.fromkeys([*t["quests"], *t["prereqs"]]):
+        q = rows.get(qid)
+        if q is not None:
+            xp += q.get("xp_now") or 0
+        elif (data.get(qid) or {}).get("xp"):
+            share = E.share(inp, level, data[qid].get("level"))
+            xp += data[qid]["xp"] * (share if share is not None else 1.0)
+    return {**t, "xp_quests": round(xp)}
+
+
 def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xph: float | None) -> dict:
     """One more run's XP, time and pace (wowstats.plan.dungeongain), from
     the same inputs wherever it is asked: the panel, the Overview's move,
     the MCP's dungeon_options."""
     level = inp["level"]
     return G.estimate(level=level, xp_max=inp.get("xp_max") or E.xp_need(inp, level)[0], name=name, runs=mine,
-                      others=inp.get("trips") or [], quests=quests, questing_xph=quest_xph, rule=G.kill_rule())
+                      others=inp.get("trips") or [], quests=quests, questing_xph=quest_xph, rule=G.kill_rule(),
+                      route=route_trip(inp, name, quests))
 
 
 def gain_named(inp: dict, name: str, quest_xph: float | None) -> dict | None:
