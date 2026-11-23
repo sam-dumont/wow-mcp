@@ -15,15 +15,15 @@
   ],
   "moves": [
    "riding|Riding at level #",
-   "upgrade|21244",
-   "upgrade|21331",
-   "upgrade|21332"
+   "upgrade|21329",
+   "upgrade|21332",
+   "upgrade|21333"
   ],
   "next_moves": [
    "#gear",
-   "#up-16",
-   "#up-5",
-   "#up-7"
+   "#up-1",
+   "#up-7",
+   "#up-8"
   ],
   "prep": [
    "raids-open-2026-12|prep 1",
@@ -47,15 +47,15 @@
    "slow_steps|# guide steps took over # their plan",
    "upgrade|23169",
    "upgrade|274152",
-   "upgrade|281635"
+   "upgrade|7713"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
-   "#up-11",
-   "#up-13",
-   "#up-2"
+   "#up-14",
+   "#up-2",
+   "#up-9"
   ],
   "prep": []
  },
@@ -70,18 +70,17 @@
   "effects": [],
   "moves": [
    "dungeon|City of Dalaran",
-   "dungeon|Gnomeregan",
+   "dungeon|Scarlet Monastery: Library",
    "riding|Riding at level #",
-   "upgrade|7709",
-   "upgrade|7713",
-   "upgrade|9623"
+   "upgrade|5248",
+   "upgrade|7709"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
    "#up-16",
-   "#up-5",
+   "#up-18",
    "#up-7"
   ],
   "prep": []
@@ -102,15 +101,15 @@
    "slow_steps|# guide steps took over # their plan",
    "upgrade|23169",
    "upgrade|274152",
-   "upgrade|281635"
+   "upgrade|7713"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
-   "#up-11",
-   "#up-13",
-   "#up-2"
+   "#up-14",
+   "#up-2",
+   "#up-9"
   ],
   "prep": []
  },
@@ -122,10 +121,14 @@
   "coming_up": [],
   "effects": [],
   "moves": [
-   "upgrade|248008"
+   "upgrade|248008",
+   "upgrade|5604",
+   "upgrade|860"
   ],
   "next_moves": [
-   "#up-16"
+   "#up-16",
+   "#up-18",
+   "#up-8"
   ],
   "prep": []
  }
