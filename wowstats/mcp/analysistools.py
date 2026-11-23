@@ -75,32 +75,98 @@ def t_play_sql(ctx: T.Ctx, args: dict) -> dict:
                      ctx.store)
 
 
+METRIC_HOW = ("query_metric with metrics (names above), group_by (dimensions), where ([{dimension, op, value}] or "
+              "values for in), grain (day, week, month: groups by time), since/until (YYYY-MM-DD), order_by "
+              "(names, '-name' for descending), limit. Metrics from different models are each aggregated, then "
+              "joined on group_by. A metric with eligibility reads only the rows it names, on every side; one "
+              "with min_evidence is NULL below that many observations, and its <name>_evidence column counts "
+              "them (0: none, unavailable).")
+TOOL_METRICS_HOW = ("The store models' metrics: what players, prices and talent_changes compute over the rows they "
+                    "read from the store for that one answer (nothing kept). Call those tools for them; "
+                    "query_metric and play_sql don't hold their rows.")
+VIEWS_HOW = ("The views per grain are these metrics compiled at one entity each, one row per key: read them with "
+             "play_sql (SELECT * FROM per_level WHERE level >= 30), before the raw tables. Each metric column "
+             "follows its metric's rules (eligibility, min_evidence).")
+# Full definitions per filtered call: 40 is about 20,000 characters. The
+# unfiltered call is an index (~30,000 characters): the whole catalogue was
+# 200,000, over Claude Code's MCP output limit and the server runner's cut
+# (analysis.auto.RESULT_CHARS), so a model saw a fifth of it (2026-11-23).
+METRICS_PER_CALL = 40
+LINE_CHARS = 110
+
+
+def _line(text: str | None) -> str:
+    """A description's first sentence, at most LINE_CHARS."""
+    import re
+
+    t = " ".join(str(text or "").split())
+    m = re.match(r"(.+?\.)(\s|$)", t)
+    t = m.group(1) if m else t
+    return t if len(t) <= LINE_CHARS else t[:LINE_CHARS - 1].rsplit(" ", 1)[0] + "…"
+
+
 def t_list_metrics(ctx: T.Ctx, args: dict) -> dict:
+    """The semantic layer's catalogue: an index without a filter, full
+    definitions for the metrics and views a filter picks."""
     from wowstats.analysis import semantic
 
     cat = semantic.catalogue()
-    return {"metrics": [{k: m[k] for k in ("name", "kind", "unit", "description", "caveats", *semantic.FIELDS,
-                                            "group_by")} for m in cat["metrics"]],
+    store = semantic.store_catalogue()["metrics"]
+    views = semantic.views()
+    names = args.get("names")
+    if names is not None and (not isinstance(names, list) or not all(isinstance(n, str) for n in names)):
+        raise T.ToolError("names is a list of metric or view names, e.g. [\"played_s\", \"per_level\"]")
+    model = str(args.get("model") or "").strip()
+    search = str(args.get("search") or "").strip().lower()
+    if not (names or model or search):
+        index: dict[str, dict] = {}
+        for m in cat["metrics"]:
+            index.setdefault(m["model"], {})[m["name"]] = _line(m["description"])
+        tool_index: dict[str, list] = {}
+        for m in store:
+            tool_index.setdefault(m["model"], []).append(m["name"])
+        return {"models": index, "tool_metrics": tool_index,
+                "views": {n: _line(v["description"]) for n, v in views.items()},
+                "dimensions": [d["name"] for d in cat["dimensions"]], "grains": cat["grains"], "ops": cat["ops"],
+                "how": "An index: each model's metrics with one line each. For full definitions (kind, unit, "
+                       "caveats, aggregation, eligibility, min_evidence, group_by) call list_metrics with names "
+                       "(metric or view names), model (one model above) or search (words in a name or "
+                       "description). " + METRIC_HOW}
+    known_models = {m["model"] for m in cat["metrics"]} | {m["model"] for m in store}
+    if model and model not in known_models:
+        raise T.ToolError(f"unknown model {model!r}: list_metrics without arguments lists the models")
+    if names:
+        known = {m["name"] for m in cat["metrics"]} | {m["name"] for m in store} | set(views)
+        bad = [n for n in names if n not in known]
+        if bad:
+            raise T.ToolError(f"unknown metric or view {', '.join(map(repr, bad))}: list_metrics without "
+                              "arguments lists them")
+
+    def keep(m: dict) -> bool:
+        return ((not names or m["name"] in names) and (not model or m["model"] == model)
+                and (not search or search in f"{m['name']} {m.get('description') or ''}".lower()))
+
+    metrics = [m for m in cat["metrics"] if keep(m)]
+    tool_metrics = [m for m in store if keep(m)]
+    picked_views = {n: v for n, v in views.items() if (names and n in names) or (
+        search and not names and not model and search in f"{n} {v['description']}".lower())}
+    more = max(0, len(metrics) - METRICS_PER_CALL)
+    metrics = metrics[:METRICS_PER_CALL]
+    dims = set().union(*(m.get("group_by") or () for m in metrics)) if metrics else set()
+    return {"metrics": [{k: m[k] for k in ("name", "model", "kind", "unit", "description", "caveats",
+                                            *semantic.FIELDS, "group_by")} for m in metrics],
+            **({"more": f"{more} more match: narrow with names or model"} if more else {}),
             "dimensions": [{k: d[k] for k in ("name", "description", "models") if k in d} | (
-                {"grains": d["grains"]} if "grains" in d else {}) for d in cat["dimensions"]],
+                {"grains": d["grains"]} if "grains" in d else {}) for d in cat["dimensions"] if d["name"] in dims],
             "grains": cat["grains"], "ops": cat["ops"],
-            "views": [{"name": v["name"], "one_row_per": v["entity"], "description": v["description"],
+            "views": [{"name": n, "one_row_per": v["entity"], "description": v["description"],
                        "columns": [{k: c[k] for k in ("name", "unit", "description") if c.get(k)}
-                                   for c in v["columns"]]} for v in semantic.views().values()],
+                                   for c in v["columns"]]} for n, v in picked_views.items()],
             "tool_metrics": [{k: m[k] for k in ("name", "model", "unit", "description", *semantic.FIELDS) if k in m}
-                             for m in semantic.store_catalogue()["metrics"]],
-            "tool_metrics_how": "The store models' metrics: what players, people, prices and talent_changes "
-                                "compute over the rows they read from the store for that one answer (nothing kept). "
-                                "Call those tools for them; query_metric and play_sql don't hold their rows.",
-            "views_how": "The views per grain are these metrics compiled at one entity each, one row per key: read "
-                         "them with play_sql (SELECT * FROM per_level WHERE level >= 30), before the raw tables. "
-                         "Each metric column follows its metric's rules (eligibility, min_evidence).",
-            "how": "query_metric with metrics (names above), group_by (dimensions), where ([{dimension, op, "
-                   "value}] or values for in), grain (day, week, month: groups by time), since/until "
-                   "(YYYY-MM-DD), order_by (names, '-name' for descending), limit. Metrics from different "
-                   "models are each aggregated, then joined on group_by. A metric with eligibility reads only "
-                   "the rows it names, on every side; one with min_evidence is NULL below that many "
-                   "observations, and its <name>_evidence column counts them (0: none, unavailable)."}
+                             for m in tool_metrics],
+            **({"tool_metrics_how": TOOL_METRICS_HOW} if tool_metrics else {}),
+            **({"views_how": VIEWS_HOW} if picked_views else {}),
+            "how": METRIC_HOW}
 
 
 def t_query_metric(ctx: T.Ctx, args: dict) -> dict:
@@ -108,7 +174,10 @@ def t_query_metric(ctx: T.Ctx, args: dict) -> dict:
 
     q = {k: _obj(args[k]) if k in ("where",) else args[k] for k in
          ("metrics", "group_by", "where", "grain", "since", "until", "order_by", "limit") if k in args}
-    return drive.metric(_env(ctx), _run_char(ctx, args), q, ctx.store)
+    out = drive.metric(_env(ctx), _run_char(ctx, args), q, ctx.store)
+    if "error" in out:  # an unknown metric, a bad filter: the call failed, so it says so (isError)
+        raise T.ToolError(out["error"])
+    return out
 
 
 def _obj(v):
@@ -257,13 +326,18 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
                        "description": "Which page of the result."},
               "page_size": {"type": "integer", "minimum": 1, "maximum": 60,
                             "description": "Rows per page (default 40)."}}, ("char", "query")),
-           _guard(t_play_sql), writes="adds"),
+           _guard(t_play_sql), writes="counts"),
     T.Tool("list_metrics", "Metric catalogue",
-           "The semantic layer's catalogue: each named metric (kind, unit, definition, caveats, the dimensions "
-           "it groups and filters by), the time grains, and the views per grain play_sql reads (per_level...) "
-           "with their columns. Time at a level four ways: played_s (Polestar's split), online_s (the "
-           "Recorder's timeline), active_s (online, AFK off) and calendar_s (ding to ding, offline included).",
-           S({}), _guard(t_list_metrics)),
+           "The semantic layer's catalogue. Without arguments: an index (each model's metrics, one line each; "
+           "the views per grain play_sql reads; dimensions, grains). With names, model or search: full "
+           "definitions (kind, unit, caveats, dimensions) and the views' columns. Time at a level: played_s "
+           "(Polestar's split), online_s (Recorder), active_s (AFK off), calendar_s (ding to ding).",
+           S({"names": {"type": "array", "items": {"type": "string"}, "maxItems": 40,
+                        "description": "Metric or view names, e.g. [\"played_s\", \"per_level\"]."},
+              "model": {"type": "string", "maxLength": 40, "description": "One model's metrics, e.g. levels."},
+              "search": {"type": "string", "maxLength": 80,
+                         "description": "Words in a metric's name or description, e.g. death."}}),
+           _guard(t_list_metrics)),
     T.Tool("query_metric", "Query a metric",
            "Named metrics (list_metrics) grouped by dimensions, filtered, cut by a time grain: the server "
            "compiles the question from the declared model and runs it read-only on the character's data. "
@@ -285,7 +359,7 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
                            "description": "Output names; prefix with - for descending, e.g. [\"-deaths\"]."},
               "limit": {"type": "integer", "minimum": 1, "maximum": 500,
                         "description": "Rows at most (default 50)."}}, ("char", "metrics")),
-           _guard(t_query_metric), writes="adds"),
+           _guard(t_query_metric), writes="counts"),
     T.Tool("propose_finding", "Propose a finding",
            "Hand one finding to the judge: it re-runs the SQL (or metric_query), checks expect, holds, the action "
            "and the KB ids, then stores it or says why not. Every number the query measures is a placeholder "
@@ -329,11 +403,11 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
            "with its source.",
            S({"char": CHAR, "ids": {"type": "array", "items": {"type": "string"}, "maxItems": 10,
                                "description": "Up to 10 kind:id strings, e.g. npc:1234, quest:56."}}, ("ids",)),
-           _guard(t_kb_get), writes="adds"),
+           _guard(t_kb_get), writes="counts"),
     T.Tool("kb_lookup", "Names for ids",
            "Names for up to 100 ids at once (kind:id: spell, item, quest, npc, zone...); null when the knowledge "
            "base doesn't have it.",
            S({"char": CHAR, "ids": {"type": "array", "items": {"type": "string"}, "maxItems": 100,
                                "description": "Up to 100 kind:id strings, e.g. npc:1234, quest:56."}}, ("ids",)),
-           _guard(t_kb_lookup), writes="adds"),
+           _guard(t_kb_lookup), writes="counts"),
 )

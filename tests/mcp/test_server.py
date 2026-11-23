@@ -47,7 +47,7 @@ def test_registry_is_tools_and_prompts(ctx):
         assert t.description == spec.description and t.title == spec.title
         assert t.input_schema == spec.input_schema
         # Read-only only for the tools that write nothing (test_annotations.py).
-        assert t.annotations.read_only_hint is (not spec.writes) and t.annotations.open_world_hint is spec.open_world
+        assert t.annotations.read_only_hint is spec.read_only and t.annotations.open_world_hint is spec.open_world
     assert [p.name for p in ps] == [p["name"] for p in prompts.PROMPTS]
     assert {a.name for a in next(p for p in ps if p.name == "coach").arguments} == {"char", "focus"}
 

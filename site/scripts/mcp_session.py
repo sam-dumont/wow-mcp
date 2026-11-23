@@ -41,7 +41,7 @@ TEXT_MAX = 400
 ASKS = [
     ("Where does Nibbet stand?", "character_summary", {}),
     ("Besides following Polestar, what should I do now?", "next_moves", {}),
-    ("Is a dungeon worth it at my level?", "dungeon_options", {}),
+    ("Is a dungeon worth it at my level?", "dungeons", {"options": True}),
     ("Plan my next two hours.", "plan_session", {"hours": 2}),
     ("Am I doing anything stupid?", "sanity_check", {}),
 ]

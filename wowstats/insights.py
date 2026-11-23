@@ -381,6 +381,15 @@ ROSTER_NOTE = ("Who was in the group isn't saved by any of the addons the kit re
                "party size, Polestar's instance runs keep the dungeon and the time, Details keeps no segments "
                "between sessions, and DungeonMaster keeps the last run's kills only. Players are named only "
                "where Polestar's own sighting list (update.probed) saw them.")
+# What each addon keeps about other players and groups (`players` with groups).
+GROUP_SOURCES = {
+    "Polestar update.probed (wow-player)": "names, last seen, zone; no class or level, never group members",
+    "Polestar_Recorder group records": "party size and raid flag, no names",
+    "Polestar_Recorder encounter records": "boss fights and wipes, no names",
+    "Polestar instanceRuns (wow-dungeon)": "dungeon, level, time, XP; no party",
+    "DungeonMaster": "the last run's kills only",
+    "Details": "no saved segments",
+}
 
 
 # ----------------------------------------------------------------- overview

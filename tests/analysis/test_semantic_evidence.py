@@ -161,7 +161,7 @@ def test_a_metric_without_its_guard_is_refused(drop, why):
 def test_list_metrics_shows_the_five_fields():
     from wowstats.mcp import analysistools
 
-    got = analysistools.t_list_metrics(None, {})
+    got = analysistools.t_list_metrics(None, {"names": ["vs_route", "gold_delta_copper", "played_s"]})
     by = {m["name"]: m for m in got["metrics"]}
     for name in ("vs_route", "gold_delta_copper", "played_s"):
         assert {"min_evidence", "eligibility", "aggregation", "time_meaning", "evidence_basis"} <= set(by[name])
