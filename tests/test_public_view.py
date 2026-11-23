@@ -430,7 +430,7 @@ def test_live_public_char_has_the_advice_standing(run_app, monkeypatch):
     """The live public view reads the standing from the gear advice; the
     advice answer itself stays a 404."""
     app = make("public")
-    monkeypatch.setattr(app.views, "gear", lambda name, spec=None: ADVICE)
+    monkeypatch.setattr(app.views, "gear", lambda name, spec=None, mode=None: ADVICE)
     srv = run_app(app)
     d = json.loads(srv.get(f"/api/char?name={CHAR}")[2])
     assert d["gear"]["standing"] == [{"slot": 1, "rank": 1, "pct": 100, "label": "BiS"},
