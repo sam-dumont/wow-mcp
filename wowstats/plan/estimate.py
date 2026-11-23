@@ -967,13 +967,15 @@ def skips(inp: dict, p: dict, long_ahead: list[dict]) -> list[dict]:
     for s in pos.get("shown_behind") or []:
         o = open_names.get((s["title"] or "").lower())
         out.append({"what": f"step {s['step']} ({s['title']})", "est_s": round(step_s(p, s["kind"], s["planned_s"])),
-                    "why": "Polestar shows it because a quest from there is still open; you are past it"
+                    "why": "Polestar shows it because a quest from there is still open; you are past it; "
+                           "skip it only if no later step needs it"
                            + ("; it is a group quest with elites" if o and o.get("elite") else "")})
     for s in long_ahead[:3]:
         o = open_names.get((s["title"] or "").lower())
         out.append({"what": f"step {s['step']} ({s['title']})", "est_s": round(s["est_s"]),
                     "why": "a long step at your pace" + ("; a group quest with elite targets" if o and o.get("elite")
-                                                         else "")})
+                                                         else "")
+                    + "; look at what holds it up, skip it only if no later step needs it"})
     return out
 
 

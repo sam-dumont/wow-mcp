@@ -307,3 +307,9 @@ def test_a_falling_xp_table_still_ends_a_gain():
     assert E.xp_need(inp, 15) == (5200, True)
     level, xp, guessed = E.add_xp(inp, 14, 0.0, 50000)
     assert level > 14 and guessed
+
+
+def test_the_skip_section_says_to_look_before_skipping(priest):
+    text = write.fallback(E.estimate(priest, 3))
+    assert "### Look at, maybe skip" in text and "Skip or drop" not in text
+    assert "skip it only if no later step needs it" in text

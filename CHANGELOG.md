@@ -12,6 +12,7 @@
 ### Changed
 
 - The words say what the code does, no more. A kept finding reads "Numbers recomputed from your data" (its SQL runs again each night; that doesn't prove the sentence true). A guide step past 3× its plan says to look at what holds it up and skip it only if no later step needs it: the code can't tell a prerequisite or travel from a detour. Tool descriptions and prompts call the judge's findings "kept", not "verified". A source's `complete` coverage is documented as "no hole found": only the Recorder and Battle.net are looked at for one.
+- The session plan's "Skip or drop" section is now "Look at, maybe skip", and the coach prompt's "What to skip" likewise: both say to look at what holds a step up and skip it only if no later step needs it.
 
 ### Upgrading
 

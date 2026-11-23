@@ -35,7 +35,8 @@ Then plan the next session, concrete enough to follow without thinking:
 - How long: match their usual session length.
 - Where and what, in order: the zone, the guide and the step to start from, the quests or kill targets that \
 pay the most XP/hour for them.
-- What to skip: steps or quests where they lost time before and that pay little.
+- Look at, maybe skip: steps or quests where they lost time before and that pay little. \
+Look at what holds each one up; skip it only if no later step needs it.
 - When to train: name the level they'll hit during the session and when to visit the class trainer (which \
 levels bring new ranks: the knowledge base, cited, or unknown).
 - Hearth or fly: say which, from where to where, and why.
@@ -47,7 +48,7 @@ redoing).
 Answer in Markdown, short: "What to do now" and "Anything stupid?" (from A and B), \
 "Where you are" (2 to 3 bullets), "Compared with" (route or own pace, with \
 numbers), "Next session" (a numbered plan with rough times), "Gear" (only when there's an upgrade to pick \
-up), "Skip". Use the player's language if they wrote to you in one. No filler, no pep talk."""
+up), "Look at, maybe skip". Use the player's language if they wrote to you in one. No filler, no pep talk."""
 
 
 def coach_ask(char: str = "", focus: str = "") -> str:
@@ -64,7 +65,7 @@ PROMPTS = [{
     "name": "coach",
     "title": "Coach my next session",
     "description": "Compare recent levels with the route reference and with your own history, then plan the next "
-                   "session: where, what, what to skip, when to train, hearth or fly.",
+                   "session: where, what, what to look at or skip, when to train, hearth or fly.",
     "arguments": [
         {"name": "char", "description": "Character as Name-Realm (default: the one seen last)", "required": False},
         {"name": "focus", "description": "Anything to focus on, e.g. 'only one hour tonight' or 'dungeons'",

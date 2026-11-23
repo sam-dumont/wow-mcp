@@ -4,7 +4,7 @@
 plan for tonight's session and you know how to change it.
 
 The planner turns "I have two hours" into a list: which guide steps, in what order, where to
-stop in town, what to skip, and where to log out, at your own pace from your last sessions.
+stop in town, what to look at or skip, and where to log out, at your own pace from your last sessions.
 It's on your own page, in the Character tab under the character sheet.
 
 ## Make a plan
@@ -22,7 +22,7 @@ Time blocks, each with what to do and why:
 - **Checkpoints**: the level you should have at the end of each block. Behind at one: drop the
   next optional step.
 - **The town stop**: when to train, sell and repair.
-- **What to skip**: the steps that cost you more than they give at your level.
+- **Look at, maybe skip**: the steps that cost you more than they give at your level. Look at what holds each one up; skip it only if no later step needs it.
 - **The dungeon branch**: the dungeon worth running if you find a group, and what it does to
   the rest of the plan.
 - **Riding**: your gold toward it and the hours still to go.
