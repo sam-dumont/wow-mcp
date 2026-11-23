@@ -716,6 +716,19 @@ class Who:
     bags: set = field(default_factory=set)  # item IDs in the bags (wow-bags)
 
 
+def _wing_area(area: dict, npc_id) -> dict | None:
+    """The wing of a dungeon run in wings a creature stands in (its first, by
+    the wings' order), as wowstats.plan.wings.split gives it; None for a
+    dungeon run whole or a creature placed in none."""
+    from wowstats.plan import wings
+
+    if not npc_id or not wings.dungeon(area.get("name") or ""):
+        return None
+    at = wings.npc(area["name"], npc_id)
+    aid = forever.area_id(area["name"])
+    return next((w for _, w in wings.split(str(aid), area) if w["wing"] in at[:1]), None)
+
+
 def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None = None) -> dict | None:
     """One source of an item in the answer's shape, or None when this
     character can't take it (the other side's quest, another race's or
@@ -755,6 +768,12 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
                 out["levels"] = a["levels"]
             if a.get("floor") is not None:  # Polestar's "For your level" starts there (wowstats.plan.vsguide)
                 out["floor"] = a["floor"]
+            # A dungeon run in wings: the wing the boss stands in, with its
+            # own range (wowstats.plan.wings), so the Overview's move names
+            # the Dungeons panel's line.
+            w = _wing_area(a, s.get("npc"))
+            if w:
+                out.update(zone=w["name"], levels=w["levels"], **({"floor": w["floor"]} if "floor" in w else {}))
         return out
     if s["kind"] == "craft":
         prof = s.get("profession")
@@ -2032,7 +2051,8 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
                     continue
                 d = by_area.setdefault(str(s["zone"]), {"drops": [], "quests": []})
                 drop = {"boss": s.get("npc_name") if s.get("npc") else None, "npc_id": s.get("npc") or None,
-                        "chance_pct": s.get("pct") or None, "wing": s.get("zone_name") or a.get("name")}
+                        "chance_pct": s.get("pct") or None,
+                        "wing": (_wing_area(a, s.get("npc")) or {}).get("name") or s.get("zone_name") or a.get("name")}
                 if drop not in d["drops"]:
                     d["drops"].append(drop)
             elif s.get("kind") == "quest":

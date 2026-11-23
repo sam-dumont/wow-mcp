@@ -41,7 +41,7 @@ Who a run kills depends on the dungeon:
 
 | Dungeons | Who a run kills | Label |
 |---|---|---|
-| The original ones | 85% of the creatures cMaNGOS's spawn table places (a run skips some packs). Scarlet Monastery, Dire Maul, Blackrock Spire and Stratholme get one number per wing; Upper Blackrock Spire counts as a 10-player raid | estimate |
+| The original ones | 85% of the creatures cMaNGOS's spawn table places (a run skips some packs). Scarlet Monastery, Dire Maul, Blackrock Spire, Stratholme and Maraudon get one number per wing (each wing is its own line, [`data/dungeons/wings.json`](../data/dungeons/wings.json)); Upper Blackrock Spire counts as a 10-player raid | estimate |
 | Ruins of Lordaeron, The Drowned City | the kills per run in players' combat logs (EG Link), skips included | estimate |
 | City of Dalaran | two reference runs at level 32, carried to your level by the formula | estimate |
 | The Hall of Thanes, Excavation Site, Krol'dok Stronghold, Alcaz Prison, Blackmaw Hold, Shaper's Terrace | too few logged runs to say | not enough data yet |
@@ -89,5 +89,7 @@ fit a zero-difference value of 11 at level 31, where Classic's table says
   file (`data/dungeons/forever-spawns/`, with its licence).
 
 `data/dungeons/` is rebuilt by `tools/dungeon_xp/export.py` (its header has
-the commands). The MCP answer carries each estimate's sources and commit
+the commands); `data/dungeons/wings.json`, which wing each creature, object
+and quest belongs to, by `tools/dungeon_wings/export.py` from the same
+cMaNGOS dump and Polestar's forever-db. The MCP answer carries each estimate's sources and commit
 (`gain.kill_xp.provenance`) and the data's date (`as_of`).

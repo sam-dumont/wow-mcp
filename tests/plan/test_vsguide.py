@@ -124,8 +124,9 @@ def test_a_wing_or_a_move_names_it_its_own_way():
 def test_the_priest_at_32_follows_polestar(priest):
     panel = D.build(priest)
     blocks = {b["name"]: b for b in panel["dungeons"]}
-    sm, rfk = blocks["Scarlet Monastery"], blocks["Razorfen Kraul"]
-    # Scarlet Monastery waits for Polestar's floor; its gear alone is no reason.
+    sm, rfk = blocks["Scarlet Monastery: Graveyard"], blocks["Razorfen Kraul"]
+    # Scarlet Monastery's Graveyard waits for Polestar's floor (the dungeon's,
+    # inside the wing's range); its gear alone is no reason.
     assert sm["verdict"] == "from level 36" and sm["value"] == "some"
     assert sm["why"] == "Polestar lists it from level 36; you're 32"
     assert sm["next"]["do"] == "level" and sm["next"]["level"] == 36
@@ -137,23 +138,33 @@ def test_the_priest_at_32_follows_polestar(priest):
     p = E.pace(priest)
     dl = E.dungeons(priest, p, E.mounts(priest, p))
     by = {d["name"]: d for d in dl}
-    assert not by["Scarlet Monastery"]["fits_now"] and not by["Scarlet Monastery: Library"]["fits_now"]
+    assert "Scarlet Monastery" not in by
+    assert not by["Scarlet Monastery: Graveyard"]["fits_now"] and not by["Scarlet Monastery: Library"]["fits_now"]
     assert by["Razorfen Kraul"]["fits_now"] and by["Razorfen Kraul"]["vs_guide"]["agrees"]
     assert dl[0]["fits_now"] and dl[0]["vs_guide"]["agrees"]
     assert E.branch(dl)["dungeon"] != "Scarlet Monastery: Library"
 
 
 def test_the_priest_with_sm_quests_ready_goes_with_the_reason(priest, monkeypatch, tmp_path):
+    # At 33, where the Library's own range starts (at 32 it opens next level
+    # and says so, the hand-in still its next step).
     inp = copy.deepcopy(priest)
     inp["open_quests"].append({"quest_id": 1050, "name": "Mythology of the Titans", "level": 38, "min_level": 28,
                                "complete": True, "xp_full": 8900})
+    early = next(b for b in D.build(inp)["dungeons"] if b["name"] == "Scarlet Monastery: Library")
+    assert early["verdict"] == "opens at 33" and early["next"]["do"] == "handin"
+    inp["level"] = 33
     panel = D.build(inp)
-    sm = next(b for b in panel["dungeons"] if b["name"] == "Scarlet Monastery")
+    sm = next(b for b in panel["dungeons"] if b["name"] == "Scarlet Monastery: Library")
     v = sm["vs_guide"]
     assert sm["value"] == "high" and sm["next"]["do"] == "handin"
     assert v["reason"].startswith("1 of your quests there is ready to hand in")
-    assert v["text"].startswith("Polestar's dungeons for level 32: ") and "Scarlet Monastery instead: 1 of your" in v[
-        "text"]
+    assert v["text"].startswith("Polestar's dungeons for level 33: ") and \
+        "Scarlet Monastery: Library instead: 1 of your" in v["text"]
+    # Mythology of the Titans is a Library quest: the Graveyard has no reason.
+    gy = next(b for b in panel["dungeons"] if b["name"] == "Scarlet Monastery: Graveyard")
+    assert gy["verdict"] == "from level 36" and 1050 not in {q["quest_id"] for q in gy["quests"]}
+    assert {q["quest_id"]: q["wings"] for q in sm["quests"]}[1050] == {"in": ["Library"], "how": "one"}
     # The Overview's move for the wing carries the same answer, in its own name.
     move = {"kind": "dungeon", "text": "Scarlet Monastery: Library (levels 30-38) drops 2 upgrades for you (...).",
             "zone": {"name": "Scarlet Monastery: Library"}, "items": []}
@@ -172,7 +183,7 @@ def test_the_priest_with_sm_quests_ready_goes_with_the_reason(priest, monkeypatc
     est = E.estimate(inp, 2)
     f = est["facts"]
     k = next(k for k, val in f.items() if k.endswith(".name") and val == "Scarlet Monastery: Library")[:-5]
-    assert f[f"{k}.vs_guide"].startswith("Polestar's dungeons for level 32")
+    assert f[f"{k}.vs_guide"].startswith("Polestar's dungeons for level 33")
     assert f[f"{k}.polestar"] == "Polestar lists it from level 36"
 
 

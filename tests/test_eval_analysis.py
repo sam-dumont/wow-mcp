@@ -193,7 +193,8 @@ def test_the_brief_hands_the_spec_s_best_head_upgrades(facts):
         assert u["line"].startswith(f"{head['bis_pct']}% → ") and u["line"].endswith("% on your head"), u
         assert u["wowhead"] == f"https://www.wowhead.com/forever/item={u['item_id']}"
         assert u["where"] and len(u["where_wowhead"]) == len(u["where"]) and u["fit"] == "yes"
-    assert ups[0]["where"] == ["drop: Fallen Champion in Scarlet Monastery: Library (dungeon, levels 30-38), 38.5%"]
+    # The Fallen Champion stands in the Graveyard (wowstats.plan.wings; Polestar's gear data said Library).
+    assert ups[0]["where"] == ["drop: Fallen Champion in Scarlet Monastery: Graveyard (dungeon, levels 30-38), 38.5%"]
 
 def test_the_analysis_reads_what_the_store_query_would():
     rows = [{"char": "Nibbet-Gearholt", "feed": "wow-recorder"}, {"char": "Nibbet Gearholt", "feed": "wow-level"},

@@ -26,22 +26,40 @@ def test_python_replays_every_reference_tour(trips):
     # tools/route_reference/trips.mjs wrote each dungeon's tour per side,
     # standing at the entrance at the dungeon's floor with nothing done: the
     # port must land on the same stops, quests and seconds.
-    seen = 0
+    # A dungeon run in wings has a tour per wing too, on that wing's quests.
+    seen = wings = 0
     for inst, dg in trips["dungeons"].items():
-        for side, letter in (("Alliance", "A"), ("Horde", "H")):
-            ref = dg["tours"].get(letter)
-            got = tc.trip(trips, inst, side=side, level=dg["min"])
-            if not ref:
-                assert not (got and got["quests"]), (dg["name"], side)
-                continue
-            seen += 1
-            assert got["pickup"] == ref["pickup"] and got["handin"] == ref["handin"], (dg["name"], side)
-            assert sorted(got["quests"]) == ref["quests"], (dg["name"], side)
-            for k in ("pickup_s", "travel_to_s", "travel_back_s", "handin_s"):
-                assert round(got[k]) == ref[k], (dg["name"], side, k)
-            assert [{k: c[k] for k in ("id", "detour_s", "far", "taken")} for c in got["breadcrumbs"]] == \
-                ref["breadcrumbs"], (dg["name"], side)
-    assert seen > 30
+        for wing, tours in [(None, dg["tours"]), *((w, v["tours"]) for w, v in (dg.get("wings") or {}).items())]:
+            for side, letter in (("Alliance", "A"), ("Horde", "H")):
+                ref = tours.get(letter)
+                got = tc.trip(trips, inst, side=side, level=dg["min"], wing=wing)
+                at = (dg["name"], wing, side)
+                if not ref:
+                    assert not (got and got["quests"]), at
+                    continue
+                seen += 1
+                wings += wing is not None
+                assert got["pickup"] == ref["pickup"] and got["handin"] == ref["handin"], at
+                assert sorted(got["quests"]) == ref["quests"], at
+                for k in ("pickup_s", "travel_to_s", "travel_back_s", "handin_s"):
+                    assert round(got[k]) == ref[k], (*at, k)
+                assert [{k: c[k] for k in ("id", "detour_s", "far", "taken")} for c in got["breadcrumbs"]] == \
+                    ref["breadcrumbs"], at
+    assert seen > 30 and wings > 20
+
+
+def test_a_wing_tour_takes_only_its_quests(trips):
+    # Scarlet Monastery's Library for the Alliance: Mythology of the Titans
+    # and Past Due are both Library quests; In the Name of the Light (Library,
+    # Armory and Cathedral) is on all three of those pages, and none of the
+    # Library's books is on the Graveyard's.
+    sm = trips["dungeons"]["189"]
+    lib = tc.trip(trips, 189, side="Alliance", level=38, wing="Library")
+    assert {1050, 96800} <= set(lib["quests"])
+    for w in ("Library", "Armory", "Cathedral"):
+        assert 1053 in sm["wings"][w]["page"]
+    assert not {1050, 96800, 1053} & set(sm["wings"]["Graveyard"]["page"])
+    assert tc.trip(trips, 189, side="Alliance", level=38, wing="Nowhere") is None
 
 
 def test_a_breadcrumb_that_costs_more_than_it_pays_is_dropped(trips):

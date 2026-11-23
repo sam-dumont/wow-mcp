@@ -229,7 +229,13 @@ def t_dungeon_options(ctx: T.Ctx, args: dict) -> dict:
                     "dungeons for the level (from a dungeon's floor, where players start it, to its top): agrees, "
                     "guide_says, we_say, the measured reason when they differ, and its numbers. Polestar is the "
                     "default: without a reason, follow it; quote the reason when offering a dungeon off its "
-                    "list. " + CITE}
+                    "list. A dungeon run in wings (Scarlet Monastery, Dire Maul, Blackrock Spire, Stratholme, "
+                    "Maraudon) is one entry per wing, 'Scarlet Monastery: Library', with that wing's level range, "
+                    "quests, kills, drops and trip; the character's runs count for a wing when its kills stayed "
+                    "there, else the wing is an estimate. A quest in several wings counts in each: gain.quests[]."
+                    "wings says where ('in') and 'how': 'all' needs each of them, 'any' is done in whichever. "
+                    "gain.upgrades counts the quests' reward upgrades, gain.drop_upgrades the missing upgrades that "
+                    "drop there, gain.drop_chance_pct the chance one drops in a run. " + CITE}
 
 
 @answers

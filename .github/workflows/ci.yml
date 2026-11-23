@@ -297,7 +297,11 @@ jobs:
           docker compose up -d ui
           for _ in $(seq 1 60); do curl -fsS http://127.0.0.1:18180/healthz >/dev/null 2>&1 && break; sleep 1; done
           docker compose run --rm demo
-          for _ in $(seq 1 30); do
+          # The character shows once the first prebuilt build with data is
+          # done: 28 s on a hosted runner (8 s on a laptop), so 30 s of polling
+          # passed on main with a second to spare. Two minutes still catches a
+          # demo that never lands.
+          for _ in $(seq 1 120); do
             chars=$(curl -fsS http://127.0.0.1:18180/api/chars || true)
             echo "$chars" | grep -q '"Nibbet-Gearholt"' && break; sleep 1
           done

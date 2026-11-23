@@ -24,13 +24,19 @@ one worth running now is also the Overview's Dungeon move.
 times you ran it ("ran it 1×").
 
 **The verdict**: the short answer, like "2 quests left (18,800 XP), and 12 missing upgrades at
-98% a clear", then the trip in one line: "~1h50 trip for ~45k XP + 3 upgrades, 1.6× your questing
-(20 min pickups · 1h15 inside · 5 min hand-ins)". Above 1×, the run levels you faster than questing.
+98% a clear", then the trip in one line: "~1h55 trip for ~58k XP + 4 quest upgrades, 9 drop upgrades (88% a
+run), 2.1× your questing (20 min pickups · 1h15 inside · 15 min hand-ins)". Quest upgrades come
+for sure with the quests; drop upgrades are the ones that can drop, with the chance one does. Above 1×, the run levels you faster than questing.
 The trip starts where you were last seen: the quests to pick up on the way (Polestar's pick-up
 rules, the same ones its "Pick up the quests" guide follows), the walk or flight to the door, the
 run, and the hand-ins after. Your own runs there replace each part with what they measured. For a
 dungeon you haven't run, the time inside and the kill XP are estimates ([Dungeon kill
 XP](../dungeon-xp.md)) and count in the "×".
+
+**Wings**: Scarlet Monastery, Dire Maul, Blackrock Spire, Stratholme and Maraudon are run in
+parts, so each part gets its own card ("Scarlet Monastery: Library"), with its own level range,
+quests, drops, key and trip. A quest that needs two wings (Into The Scarlet Monastery wants
+bosses in three) shows on each of them. Your runs count for the wing where your kills were.
 
 **Next**: the one thing to do before going in, like "Pick up A Green Sample from Shylamiir,
 then go in at Alterac Mountains 14.7, 63".

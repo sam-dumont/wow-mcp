@@ -77,6 +77,13 @@ WINGS = {
                    "Balnazzar"],
           "Undead": ["Baroness Anastari", "Nerub'enkan", "Maleki the Pallid", "Magistrate Barthilas",
                      "Ramstein the Gorger", "Baron Rivendare"]},
+    # Maraudon by its paths (owner, 2026-11-23: "for other dungeons with
+    # multiple parts do the same"). Gizlock goes Inner and Celebras Purple
+    # by where cMaNGOS places them (Gizlock 266 yd from Rotgrip, 634 from
+    # Vyletongue), though one research note lists Gizlock in the Purple.
+    349: {"Orange": ["Noxxion", "Razorlash"],
+          "Purple": ["Lord Vyletongue", "Celebras the Cursed"],
+          "Inner": ["Tinkerer Gizlock", "Rotgrip", "Landslide", "Princess Theradras"]},
 }
 # Upper Blackrock Spire was a 10-player raid in Classic: its own party size.
 WING_PARTY = {(229, "Upper"): 10}

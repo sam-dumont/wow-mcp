@@ -658,7 +658,7 @@ TRIP_METRICS = {"trip_s": "online_s", "trip_pickup_s": "pickup_s", "trip_travel_
                 "trip_quests_handed_in": "quests_handed_in", "trip_quest_money_copper": "quest_money_copper"}
 TRIP_DIMS = {"trip": "trip_id", "dungeon": "dungeon", "level": "level_start", "trip_start": "start_t",
              "trip_end": "end_t", "trip_loot": "loot_inside"}
-RUNS_PER_ASK = 20  # runs per kills question: their rows stay under query_metric's cap
+RUNS_PER_ASK = 10  # runs per kills question: their rows (one per creature) stay under query_metric's cap
 
 
 def trips(ask) -> list[dict]:
@@ -677,7 +677,7 @@ def trips(ask) -> list[dict]:
     kills: dict = {run: [] for run in first.values()}
     runs = sorted(kills)
     for i in range(0, len(runs), RUNS_PER_ASK):
-        for r in ask(metrics=["kills"], group_by=["run", "npc_level", "elite"],
+        for r in ask(metrics=["kills"], group_by=["run", "npc_id", "npc_level", "elite"],
                      where=[{"dimension": "kind", "op": "=", "value": "kill"},
                             {"dimension": "run", "op": "in", "values": runs[i:i + RUNS_PER_ASK]}]):
             kills[r["run"]].append(r)
@@ -696,6 +696,13 @@ def trips(ask) -> list[dict]:
             # level (wowstats.plan.dungeongain).
             d["kill_levels"] = [[int(k["npc_level"]), int(k["elite"])] for k in ks if k["npc_level"] is not None
                                 for _ in range(int(k["kills"]))]
+            # Each creature killed, by id: which wing of a dungeon run in
+            # wings the run stayed in (wowstats.plan.wings.run_wing).
+            npcs: dict[str, int] = {}
+            for k in ks:
+                if k.get("npc_id") is not None:
+                    npcs[str(int(k["npc_id"]))] = npcs.get(str(int(k["npc_id"])), 0) + int(k["kills"])
+            d["kill_npcs"] = dict(sorted(npcs.items(), key=lambda kv: int(kv[0])))
         out.append({k: (round(v, 1) if isinstance(v, float) else v) for k, v in d.items()})
     return out
 
