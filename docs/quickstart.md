@@ -1,6 +1,7 @@
 # Quick start
 
-**For:** anyone who wants to see wow-stats answer before reading the rest. **At the end:** the
+**For:** anyone thinking of hosting wow-stats who wants to see it answer first (a friend
+already runs it for you? [Join a friend's server](players/getting-started.md) instead). **At the end:** the
 demo character runs on your computer, a tool has answered a question about him, and you know
 the next page for your own character. About 10 minutes.
 
@@ -17,7 +18,9 @@ cd deploy/compose && test -f .env || printf '%s\n' INGEST_PASSWORD=demo-password
 docker compose pull ui && docker compose up -d ui && docker compose run --rm demo
 ```
 
-The first run downloads the released image, a few hundred MB. It ends with
+A `.env` left from an earlier try is kept as it is: check it has the `WOW_STATS_IMAGE` line,
+or `pull` looks for an image you'd build yourself. The first run downloads the released image,
+a few hundred MB. It ends with
 `<N> events for Nibbet-Gearholt into http://ui:8080/ingest`, N in the tens of thousands.
 
 Open <http://127.0.0.1:8080/>: Nibbet, a made-up Gnome priest at level 46, under a DEMO DATA

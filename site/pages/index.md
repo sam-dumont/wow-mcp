@@ -12,14 +12,14 @@
 <a class="path" href="../../docs/ai/connect.md">
 <span class="path-kicker">Connect your AI</span>
 <strong>Ask about your character</strong>
-<span>Claude, ChatGPT and a dozen other assistants can read your data and plan your next two hours.</span>
+<span>Claude, ChatGPT and a dozen other assistants can read your data and plan your next session. Nothing to install.</span>
 <span class="path-go">Connect your AI</span>
 </a>
-<a class="path" href="../../docs/self-host/demo.md">
-<span class="path-kicker">Self-host</span>
+<a class="path" href="../../docs/self-host/production.md">
+<span class="path-kicker">Host it</span>
 <strong>Run it yourself</strong>
-<span>One Docker Compose file on a small box at home, for you and your friends. Try it with made-up characters first.</span>
-<span class="path-go">Try it at home</span>
+<span>One Docker Compose file on a small box at home, for you and your friends. Try it with a made-up character in 10 minutes first.</span>
+<span class="path-go">The host guide</span>
 </a>
 </div>
 
@@ -56,7 +56,7 @@
 <div>
 <p class="eyebrow">Dungeons</p>
 <h3>The dungeon worth running</h3>
-<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing (3.1× faster, for the demo priest in City of Dalaran).</p>
+<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing (3.1× faster, for the demo priest in City of Dalaran) <!-- check: 3.1× predates the 0.8.0 trip model; the Dungeons page says 2.1×. Re-read on the rebuilt demo. -->.</p>
 <p><a href="../../docs/players/dungeons.md">Dungeons →</a></p>
 </div>
 </div>
@@ -73,7 +73,7 @@ every level, one journal entry per session, your look at each level
 ### To play on a friend's server
 
 - WoW Forever on Windows 10/11 or a Mac, logged in once.
-- [Polestar](https://github.com/fitzforge/polestar), from the CurseForge app.
+- [Polestar](https://github.com/fitzforge/polestar) and Syndicator, from the CurseForge app.
 - One command from your start page. No admin rights.
 
 ### To run your own
@@ -94,7 +94,7 @@ every level, one journal entry per session, your look at each level
   see what you choose to share.
 - **No model behind the numbers.** The page and the MCP tools work them out in code from your
   data; your own AI reads them and writes the reply, in your own account. A host can also have
-  the server analyse your play with an AI provider they pick, once a character has 10 hours of play since
+  the server analyse your play with an AI provider they pick, once a character has {{analysis_hours}} hours of play since
   its last refresh (their setting). Off until they set it up; the app's Privacy page says
   whether it's on.
 
@@ -105,6 +105,8 @@ every level, one journal entry per session, your look at each level
 
 How the pieces fit: [How it works](../../docs/explanation/how-it-works.md). Questions:
 [Questions and answers](../../docs/faq.md). The words these pages use: [Glossary](../../docs/glossary.md).
+Why a levelling log grew an MCP server and signed releases in six days:
+[How this was built](../../docs/how-this-was-built.md).
 
 <p class="fineprint">Free software under the GPL-3.0. The route times and gear scoring come from
 <a href="https://github.com/fitzforge/polestar">Polestar</a> and its contributors; other credits in

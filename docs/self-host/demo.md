@@ -120,4 +120,4 @@ Claude Code entry.
 
 - [Install it for real](../install.md): the server, the addons and the program on the
   computer you play on.
-- [Run it on a server](production.md): a homelab box with HTTPS, a login, and friends.
+- [The host guide](production.md): a homelab box with HTTPS, a login, and friends.

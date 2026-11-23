@@ -331,6 +331,14 @@ What 0.10.0 brings over 0.9.0, in short. Every change follows.
 - Gear page users who picked PvP or PvE on main since the ForeverDB change pick it once more:
   the browser's copy isn't read.
 
+### Docs
+
+- The docs lead with what you get, then three ways in: players, people using an AI assistant, hosts. The README and the home page say it in their first screen; the player and AI pages open with a three-step start.
+- The host guide (`docs/self-host/production.md`) is the hosts' front page: what you need, the three choices before your first event (where your events live, who logs in, what you share), every step in order, what's locked down for you.
+- How this was built: the six days from a levelling question to this, and why it ended up like this.
+- Fixed where the docs disagreed with the code: the start page says "It works" (not "Data arrived"), `char` is `Name-Realm`, the Overview has no "ahead of the route", People is a section of the Character tab, the Battle.net setting's wording, the SQLite store in backup, upgrade, monitoring, friends, troubleshooting and uninstall, `RENDER_TOKEN_FILE` in the environment reference, and a 0.7 to 0.8 upgrade section. A `-f` on the command line replaces `COMPOSE_FILE`: the proxy pages say so.
+- The server analysis' default timer and the friends' purge delay are filled from the code (`analysis_hours` and `purge_days` in `tools/docs_values.py`).
+
 ### Tests
 
 - `test_push_reaches_every_pod` no longer fails now and then under parallel runs: its "down pod"

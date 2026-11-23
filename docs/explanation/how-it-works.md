@@ -54,7 +54,7 @@ On top of that, optional: the play analysis. Your assistant asks its own questio
 data, and the server keeps a finding only once its query re-runs to the same numbers, writes
 the measured ones into the text itself, and checks it again each night. You can ask to see
 that query. A host can also have the server run the analysis itself, with an AI provider they
-pay for, once a character has 10 hours of play since its last refresh (the host can pick
+pay for, once a character has {{analysis_hours}} hours of play since its last refresh (the host can pick
 another number). Your AI never starts one of those runs:
 [Server-side analysis](../self-host/server-analysis.md).
 

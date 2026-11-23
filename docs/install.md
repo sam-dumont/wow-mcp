@@ -19,7 +19,7 @@ image, a 3D renderer).
 Three parts, in this order:
 
 1. [Addons](#1-addons) in the game
-2. [The server](#2-the-server): Docker, one `docker compose up -d`
+2. [The server](#2-the-server): Docker, `docker compose pull` and `up -d`
 3. [The shipper](#3-the-shipper): a small program on the computer you play on
 
 Then [troubleshooting](#4-troubleshooting), and [what's next](#next).
@@ -130,8 +130,8 @@ docker compose pull
 docker compose up -d
 ```
 
-The first time it downloads the wow-stats image and VictoriaLogs, a few
-hundred MB. No account or login needed. Then open <http://127.0.0.1:8080>:
+The first time it downloads the wow-stats image (and VictoriaLogs, unless you picked the
+SQLite files), a few hundred MB. No account or login needed. Then open <http://127.0.0.1:8080>:
 an empty page until the shipper sends something.
 
 To see a filled page first, load the demo's made-up character, Nibbet
@@ -158,7 +158,7 @@ Docker volume, read by the app itself: one container fewer, nothing to size.
 |---|---|---|
 | Containers | `victorialogs` plus the kit's three | the kit's three |
 | Memory | VictoriaLogs' own, up to 1 GiB (`VL_MEM_LIMIT`) | none of its own: `ui` reads the file |
-| Backup | its own snapshots, or the volume ([Back up and restore](self-host/backup.md)) | stop `ui` and `publish`, copy the `events` volume |
+| Backup | its own snapshots, or the volume ([Back up and restore](self-host/backup.md)) | stop `ui`, `publish` (and `ui-public` if you run it), copy the `events` volume |
 | Friends | a second VictoriaLogs that can delete (`FRIENDS_VL_URL`) | a file each in the same volume; removing a friend deletes their file |
 | Older days elsewhere | an archive VictoriaLogs (`VL_ARCHIVE_URL`) | no archive: every day stays in the file |
 | Look inside with | VictoriaLogs' web UI, Grafana, the page's query box | the page's query box (the LogsQL the app itself uses) |
@@ -213,6 +213,9 @@ To cap it, set `VL_MAX_DISK` in `.env` (`20GiB`, `500MiB`...) and run
 deletes whole days, **the oldest first**, until it fits again. Those events
 are gone for good: back up first ([Back up and restore](self-host/backup.md)).
 Empty or `0`, the default, means no ceiling.
+
+With the SQLite files, the events live in the volume `wow-stats_events`, one file per person,
+and nothing caps them: every day stays. <!-- check: SQLite's size on the long history, measured? -->
 
 The other volumes stay small: `wow-stats_site-data` (the friends' sites
 and their key, rebuilt after each play session) and `wow-stats_ui-state`
@@ -430,6 +433,6 @@ turns that into "played since level 1".
 
 - Your AI on your character: [Connect your AI](ai/connect.md). On this same computer, Claude
   Code needs one command and no login.
-- Reach it from your phone, share it with friends, add HTTPS: [Run it on a server](self-host/production.md).
+- Reach it from your phone, share it with friends, add HTTPS: [The host guide](self-host/production.md).
 - Keep it: [Back up and restore](self-host/backup.md), [Upgrade](self-host/upgrade.md).
 - Remove it: [Uninstall](self-host/uninstall.md).

@@ -11,7 +11,7 @@ your friend's server, with your own upload password.
 - **Sent:** your addons' saved files (every character), WoW's combat logs if you turned combat
   logging on, and the stats of Forever's newest items from the game's cache.
 - **About other players, only this:** the name of a player you grouped with, saw nearby or
-  targeted, with when and in which zone: what the People tab shows.
+  targeted, with when and in which zone: what the People section of the Character tab shows.
 - **Never sent:** your WoW or Battle.net password, your account name, anything outside the
   WoW folder.
 - **Kept on your computer:** a copy of everything it sent, in `WoWArchive` in your home folder.
@@ -28,7 +28,7 @@ Battle.net every 2 hours. The details, file by file: [The shipper](../shipper.md
 | Friends with your zogzog link | Your page minus the private parts: never other players, what killed you, or where you are now. |
 | Anyone, once you switch your public page on | Your characters' card, climb and dungeons. No gold, zones, journal or other players. |
 | Your AI, once you connect it | Your own data. Battle.net data only with "Battle.net data to my AI" on in Settings. |
-| The AI provider the host picked, if they turned it on | A character's play data (never Battle.net data), once it has 10 hours of play since its last analysis (the host's number). Your AI never starts that. The app's Privacy page says whether it's on. |
+| The AI provider the host picked, if they turned it on | A character's play data (never Battle.net data), once it has {{analysis_hours}} hours of play since its last analysis (the host's number). Your AI never starts that. The app's Privacy page says whether it's on. |
 
 Your zogzog link works like a password. Sent to the wrong person: Settings, **Make a new
 link**; the old one stops at the next update. To hide a character: Settings, Characters,

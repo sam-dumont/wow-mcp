@@ -110,7 +110,7 @@ conversation, not yours: [What's shared](players/privacy.md).
 
 ### Does the server run an AI on my data?
 
-Only if the host turned it on. Then, once one of your characters has 10 hours of play since its
+Only if the host turned it on. Then, once one of your characters has {{analysis_hours}} hours of play since its
 analysis was last refreshed (the host can change the number), the server has the host's AI
 provider rewrite that character's "How you play" section. Your own AI never starts one: asking
 it to refresh your analysis does the work in your account and resets the timer. The Privacy page
@@ -127,7 +127,7 @@ add it again with the same address, and connect once more. [When it doesn't work
 
 Docker, and a computer or small box that stays on: 2 vCPU and 2 GiB of RAM for one player.
 For friends and for claude.ai or ChatGPT to reach it, a domain name and HTTPS.
-[Run it on a server](self-host/production.md).
+[The host guide](self-host/production.md).
 
 ### Can I try it without the game?
 

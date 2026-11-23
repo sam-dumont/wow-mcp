@@ -54,7 +54,7 @@ Where the events and the Battle.net data live.
 
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
-| `EVENTS_STORE` | ui, publish, users | `vl` or `sqlite:<folder>` | `vl` | `sqlite:/events` | Where the game events live. `vl`: VictoriaLogs at `VL_URL`. `sqlite:<folder>`: one SQLite file per person in that folder (`events-<account>.sqlite`), no VictoriaLogs, no archive (`VL_ARCHIVE_URL` refused), friends in the same folder (no `FRIENDS_VL_URL`); back it up by copying the folder with `ui` and `publish` stopped. In the compose kit: `compose.sqlite.yaml`. |
+| `EVENTS_STORE` | ui, publish, users | `vl` or `sqlite:<folder>` | `vl` | `sqlite:/events` | Where the game events live. `vl`: VictoriaLogs at `VL_URL`. `sqlite:<folder>`: one SQLite file per person in that folder (`events-<account>.sqlite`), no VictoriaLogs, no archive (`VL_ARCHIVE_URL` refused), friends in the same folder (no `FRIENDS_VL_URL`); back it up by copying the folder with `ui`, `publish` and `ui-public` stopped. In the compose kit: `compose.sqlite.yaml`. |
 | `LOGS_FILTER` | ui, publish | LogsQL filter | `feed:wow-*` | `feed:wow-* site:home` | Selects the game events in VictoriaLogs. Add your own labels here. |
 | `VL_ACCOUNT_ID` | ui, publish | whole number | `0` | `0` | The VictoriaLogs tenant to read. Set per person by a shared install; leave it alone otherwise. |
 | `VL_ARCHIVE_AFTER_DAYS` | ui, publish | days | `89` | `89` | With `VL_ARCHIVE_URL`: days older than this are read from the archive. |
@@ -178,6 +178,7 @@ Optional. A separate image with Chromium.
 | `RENDER_CACHE_DIR` | render | path | a folder under `/tmp` | `/tmp/render-cache` | Where the renderer keeps the game files the publisher sent it (by file id, one folder per person under an opaque hash, no names) and its token. |
 | `RENDER_CACHE_MB` | render | MiB | `256` | `256` | The most disk those files may take; the least recently used go first. |
 | `RENDER_TIMEOUT_S` | publish, render | seconds | `120` in `publish`, `90` in `render` | `120` | The longest one picture may take. |
+| `RENDER_TOKEN_FILE` | publish, render | path | empty: the renderer makes one in `RENDER_CACHE_DIR/render.token` | `/run/wow-secrets/render_token` | The renderer's bearer token: the renderer checks it on every `POST /render`, the publisher sends it. Give both the same file; with `RENDER_URL` set and no token, the publisher draws no pictures. |
 | `RENDER_URL` | publish | URL | empty: no pictures | `http://render:8083` | The renderer that draws the paperdoll's picture (a still of the character's 3D model) and each past level's picture. |
 
 ## Several people on one install

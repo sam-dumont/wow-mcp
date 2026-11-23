@@ -599,7 +599,7 @@ friends list is the lock either way.
 | `WOW_OWNER_SLUG` (empty by default: set your own), `WOW_OWNER_ALIASES` | the owner's site name, and hosts that are theirs too (`wow.example.org`): all reserved for them. Pages never print it to friends: they say "the person who runs this site" |
 | `WOW_FRIENDS_FILE`, `FRIENDS_RECONCILE_S` (120) | who gets in besides the owner, `{"<sub>": "<slug>"}` (a slug may be `""`, or a plain list of subs: named from `PROXY_BATTLETAG_HEADER` at the first login), watched for changes (mount its folder, not the file); how often a full pass runs anyway. Unset: the owner only |
 | `FRIENDS_PURGE_DAYS` (7), `FRIENDS_ALLOW_EMPTY` | days between a friend leaving the list and the deletion of their data (`0`: at once; the privacy page quotes it); `1` applies a list that removes every friend at once, refused otherwise |
-| `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends |
+| `FRIENDS_VL_URL` | the friends' VictoriaLogs (one tenant each); unset: no friends, unless `EVENTS_STORE=sqlite:...` (each friend gets a file next to yours) |
 | `FRIENDS_VL_DELETE_KEY_FILE` | its `-deleteAuthKey`, for `wow-stats users delete` |
 | `ZOGZOG_MASTER_KEY_FILE` | 32+ random bytes, base64url: each person's zogzog key is derived from it. The owner's `ZOGZOG_KEY_FILE` only seeds their first link: after "Make a new link" their key is derived too, so the full view and the publisher agree without sharing a file |
 | `PUBLIC_URL`, `SITE_DOMAIN` | the full view's address (install commands, MCP), and the domain friends' sites live under (`<slug>-wow.<domain>`). `PUBLIC_URL` must be https (plain http only on 127.0.0.1 or localhost): every install and update runs what that address sends |

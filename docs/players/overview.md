@@ -4,7 +4,7 @@
 top of your page and you know which move to do first.
 
 The Overview is the first tab: open it before you log in. The line at the top says whether
-you're ahead of Polestar's route, on it or behind, and how much play the next level takes.
+you're on Polestar's route (up to 1.5× its time), behind it, or well behind it, and how much play the next level takes.
 
 ![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's time, the next level in 2h 40m of play, 82% of guide steps in order, 0.09 levels of rested XP, then the next moves and time per level](../images/overview.webp)
 

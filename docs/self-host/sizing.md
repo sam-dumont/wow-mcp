@@ -81,3 +81,4 @@ raise `UI_MEM_LIMIT` and watch `docker stats`.
 - Several people on one install, at once.
 - The 3D view on, and the renderer.
 - A fresh Windows machine running Docker Desktop.
+- The SQLite event store: every number above is VictoriaLogs'.

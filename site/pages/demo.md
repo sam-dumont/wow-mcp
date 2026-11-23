@@ -26,6 +26,12 @@ The pages are plain files on GitHub Pages, so anything that needs the server is 
 
 The dates move: every build shifts his play so his last session is the day before. The auction house only lists what was on sale today or yesterday, so a demo frozen in October would have an empty auction house.
 
+## Get this for your character
+
+- A friend runs wow-stats for you: [Join a friend's server](../../docs/players/getting-started.md), about 5 minutes.
+- Your AI on the same data: [Connect your AI](../../docs/ai/connect.md).
+- Run it yourself: [the host guide](../../docs/self-host/production.md).
+
 ## Build it yourself
 
 The demo is rebuilt from a seeded script on every change: [Development](../../docs/development.md#the-docs-site-and-its-demo).

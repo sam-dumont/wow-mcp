@@ -3,9 +3,10 @@
 **For:** everyone: players, AI users, people who run a server, and contributors. **At the
 end:** you've found the page for what you want to do.
 
-New here? The [quick start](quickstart.md) gets you from nothing to a first answer about the
-demo character in 10 minutes. [How it works](explanation/how-it-works.md) explains the parts,
-the [questions and answers](faq.md) and the [glossary](glossary.md) the rest.
+New here? [How it works](explanation/how-it-works.md) says what you get and what runs where,
+[the live demo](../site/pages/demo.md) shows it on a made-up priest, the
+[questions and answers](faq.md) and the [glossary](glossary.md) cover the rest. How it came to
+be: [How this was built](how-this-was-built.md).
 
 ## Play
 
@@ -21,7 +22,7 @@ data, and the install command comes from their server.
 3. [Something's wrong](players/troubleshooting.md): fixes by symptom.
 4. [What's shared](players/privacy.md): what your friends and the public see.
 
-## Connect your AI
+## Your AI
 
 The tools work out each answer from your data in code; your assistant picks them and writes
 the reply.
@@ -33,20 +34,22 @@ the reply.
 4. [Ask about your character](ai/asking.md): what to ask, the play analysis, and how the
    server checks the numbers.
 
-## Self-host
+## Host it
 
 A hobby project: no warranty, no support promise (GPL-3.0), security fixes when I can make
 them. Your friends trust you with their data and with the installer your server hands them.
 
 Start here:
 
-1. [Try it at home](self-host/demo.md): the demo character on your own computer, 10 minutes,
-   with the sites for friends ([quick start](quickstart.md) for the short version).
-2. [Install it for real](install.md): the server, the addons and the shipper, for yourself.
+1. [The host guide](self-host/production.md): what you need, the three choices to make before
+   your first event, and every step in order.
+2. [Quick start](quickstart.md): the demo character on your computer and a first answer from
+   your AI, 10 minutes. [Try it at home](self-host/demo.md) is the long version, with the sites
+   for friends.
+3. [Install it for real](install.md): the server, the addons and the shipper, for yourself.
 
 Set it up:
 
-- [Run it on a server](self-host/production.md): the order to set things up.
 - [Reverse proxy and HTTPS](self-host/reverse-proxy.md): Caddy, Traefik or nginx.
 - [Share your page](self-host/sharing.md): the public site, the sealed friends' site, the
   character's pictures.
@@ -55,7 +58,6 @@ Set it up:
 - [Battle.net data](self-host/battlenet.md): your own API client and the 30-day rule.
 - [Server-side analysis](self-host/server-analysis.md): the server writes "How you play" itself,
   with Anthropic, OpenAI or any OpenAI-compatible endpoint, on a timer and a monthly budget.
-- [Admin overview](self-host/admin.md): who uses the install, when, and whether its parts answer.
 - [How I run it](self-host/how-i-run-it.md): my own install as a worked example, with friends
   signing in through Battle.net.
 - [Without Docker Compose](deploy.md): Kubernetes or plain containers.
@@ -63,8 +65,9 @@ Set it up:
 Keep it running:
 
 - [When it stops](self-host/troubleshooting.md): error messages and their fixes.
+- [Admin overview](self-host/admin.md): who uses the install, when, and whether its parts answer.
 - [Back up and restore](self-host/backup.md).
-- [Upgrade](self-host/upgrade.md): between versions, 0.6 to 0.7.0 included.
+- [Upgrade](self-host/upgrade.md): between versions, and switching event stores.
 - [Monitor it](self-host/monitoring.md).
 - [Harden it](self-host/hardening.md).
 - [Uninstall](self-host/uninstall.md).
@@ -98,6 +101,7 @@ Look it up:
 
 ## Project and contributing
 
+- [How this was built](how-this-was-built.md): the six days from a levelling question to this.
 - [Changelog](../CHANGELOG.md) and the [security policy](../SECURITY.md).
 - [How to contribute](../CONTRIBUTING.md) and [Development and releases](development.md).
 - [Evaluating the analysis](evaluation.md): a real AI on synthetic histories with known effects, graded.

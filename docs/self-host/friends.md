@@ -5,7 +5,7 @@ page, sealed link and AI connection. **At the end:** you know what a shared inst
 the friends list decides who gets in, and how to add, switch off and remove someone.
 
 A one-person install is the compose kit as it comes. A shared install adds a login proxy, a
-second store and a few keys. It's the setup the start page (`/start`) and the per-person
+few keys and, on VictoriaLogs, a second store for friends. It's the setup the start page (`/start`) and the per-person
 install command exist for. Set it up once you have [HTTPS](reverse-proxy.md) and
 [the AI login](oidc.md) working for yourself.
 
@@ -15,7 +15,8 @@ install command exist for. Set it up once you have [HTTPS](reverse-proxy.md) and
   (you pick it in the friends list, or it comes from their BattleTag).
 - Their own start page with a personal install command, their own upload password, page,
   sealed `/zogzog/` link, public page (off until they switch it on) and AI connection.
-- Their own data, in their own tenant (a separate partition) of a VictoriaLogs for friends.
+- Their own data: their own tenant (a separate partition) of a VictoriaLogs for friends, or
+  their own file with the SQLite store.
   They never see each other's data, and you see theirs only by looking in the store.
 
 Send them [Join a friend's server](../players/getting-started.md) and the link to their start
@@ -32,14 +33,14 @@ page, `https://wow-full.example.org/start`.
 | A state folder on a volume | `WOW_STATE_DIR` | Who is who, each person's settings and upload password |
 | You, the owner | `WOW_OWNER_SUB` (your `sub`; two or more comma-separated if you sign in with more than one account, a Battle.net one say), `WOW_OWNER_SLUG` (your site name) | You stay on the original store, with everything you had, whichever account you sign in with. A `sub` on both your list and the friends list is yours |
 | The friends list | `WOW_FRIENDS_FILE` | Who gets in besides you (below) |
-| A VictoriaLogs for friends | `FRIENDS_VL_URL`, and its `-deleteAuthKey` in `FRIENDS_VL_DELETE_KEY_FILE` | One tenant per friend; the key lets `users delete` erase a friend's events. With the SQLite store (`EVENTS_STORE=sqlite:...`) skip both: each friend gets a file of their own next to yours, and deleting a friend removes it |
+| A VictoriaLogs for friends | `FRIENDS_VL_URL`, and its `-deleteAuthKey` in `FRIENDS_VL_DELETE_KEY_FILE` | One tenant per friend; the key lets `users delete` erase a friend's events. With the SQLite store (`EVENTS_STORE=sqlite:...`) skip both: each friend gets a file of their own next to yours, deleted `FRIENDS_PURGE_DAYS` after they leave the list |
 | A master key | `ZOGZOG_MASTER_KEY_FILE` (32 random bytes, base64url) | Each person's sealed-link key comes from it |
 | Friends' sites | `SITE_DOMAIN` (sites at `<name>-wow.<domain>`) | Install commands and links |
 | The publisher and static server, per person | `USERS_URL` and `ANALYSIS_SHARE_URL` on `publish`, `ANALYSIS_SHARE_PORT` on `ui`, `SITE_DOMAIN` on `static` | One site per person |
 | The share port's token | `ANALYSIS_SHARE_TOKEN_FILE`: `ui` makes it (0600) on first start; give the same file to `publish`, the exporter and `ui-public` if you run it, and nothing else | Every request to the share port needs it. It listens on `BIND` (`0.0.0.0` in the image) unless `ANALYSIS_SHARE_BIND` says otherwise: never publish or route it |
 | The live public view, if you run it | `USERS_URL` and `ANALYSIS_SHARE_TOKEN_FILE` on `ui-public` too | It then follows your Settings like your static site does: public page off is a 404, hidden characters aren't there. Without them it shows every character in your store |
 | An upload ceiling | `INGEST_DAILY_MB` (512 per person and day) | A friend's broken shipper can't fill your disk |
-| Battle.net for friends (optional) | `PROFILE_CHARACTERS_URL` on the exporter (`http://ui:8082/profile-characters` in the compose kit, added in an override) and the share port's token | Every friend's characters get Battle.net's copy every 2 hours, under their own account ([Battle.net data](battlenet.md)) |
+| Battle.net for friends (optional) | `PROFILE_CHARACTERS_URL` on the exporter (`http://ui:8082/profile-characters` in the compose kit: set it in `.env`) and the share port's token | Every friend's characters get Battle.net's copy every 2 hours, under their own account ([Battle.net data](battlenet.md)) |
 
 The full view refuses to start with `WOW_STATE_DIR` unless `VIEW=full`, `AUTH=proxy`, the
 proxy's trust and the MCP login are set. Caddy, nginx and Traefik recipes for the login proxy,
