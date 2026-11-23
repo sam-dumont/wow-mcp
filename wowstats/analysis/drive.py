@@ -46,7 +46,9 @@ from . import passes
 DRIVER: contextvars.ContextVar[dict | None] = contextvars.ContextVar("analysis_driver", default=None)
 CLIENT_KINDS = ("client", "server")
 
-CACHE_S = 1800  # one database for a whole run, and few reads of the store
+# One database for a whole run, and few reads of the store. The upper bound:
+# a build is replaced sooner when the character's events change (`mark`).
+CACHE_S = 1800
 # Open workspaces are bounded (load estimate for the lab, 2026-11-22: about 20
 # characters on one 5 GiB pod, each workspace kept until a restart was 4-5 GB).
 # One holds the prep in SQLite here plus a child process with its DuckDB copy
@@ -84,12 +86,20 @@ class Workspace:
     def __init__(self, env: dict, char: str, store=None):
         from wowstats.mcp import route
         from wowstats.plan.facts import store_for
+        from wowstats.stores import SourceError
 
         from . import TABLES, advice_for, kb, manifest, prep, scoring_for, tables_of
 
         st = store_for(env, store)
         self.store = st
         self.char = prep.norm(char)
+        # Before the read: an event landing in between makes the next
+        # request build again, never keeps a build that lacks it. A store
+        # that doesn't answer leaves it None: CACHE_S alone bounds this build.
+        try:
+            self.mark = mark(st, self.char)
+        except SourceError:
+            self.mark = None
         rows = prep.query(st, st.stream, self.char)
         if not rows:
             raise LookupError(f"no events for {self.char}")
@@ -159,23 +169,52 @@ class Workspace:
         return not self.kb.get([i])[0].get("missing")
 
 
+def mark(store, char: str) -> int | None:
+    """Which snapshot of the character's events the store's event cache
+    holds (wowstats.eventcache.EventCache.mark: it moves when the hourly
+    counts do); None for a store that reads without the cache."""
+    if not getattr(store, "use_cache", False):
+        return None
+    return store.cache.mark(char)
+
+
+def _outdated(w: Workspace) -> bool:
+    """The character's events changed since `w` was built: the page already
+    shows them (it reads the same cache), so the analysis must too."""
+    from wowstats.stores import SourceError
+
+    if w.mark is None:
+        return False
+    try:
+        return mark(w.store, w.char) != w.mark
+    except SourceError:  # the store didn't answer: a rebuild couldn't read either; CACHE_S still bounds it
+        return False
+
+
 def workspace(env: dict, char: str, store=None) -> Workspace:
-    """The character's workspace, built when none is open (or the open one
-    is older than CACHE_S). Inside `holding` it stays open until the
-    request ends; past the cap or idle, `sweep` closes it, and the next call
-    builds it again from the same events: the same answers, only slower."""
+    """The character's workspace, built when none is open, the open one is
+    older than CACHE_S, or the character's events changed since it was built
+    (the event cache's mark). Inside `holding` it stays open until the
+    request ends and is never swapped under it: the request keeps one
+    snapshot, the next one gets the new data. Past the cap or idle, `sweep`
+    closes it, and the next call builds it again from the same events: the
+    same answers, only slower."""
     from wowstats.stores import tenant_of
 
     key = (tenant_of(env, store), char.lower())
     _limits[:] = read_limits(env)
+    held = _HELD.get()
+    with _LOCK:
+        w = _WS.get(key)
+    # Outside the lock: asking the store can take a request to VictoriaLogs.
+    stale = w if w is not None and not (held and any(x is w for x in held)) and _outdated(w) else None
     old = None
     with _LOCK:
         w = _WS.get(key)
-        if w is None or time.time() - w.at > CACHE_S:
+        if w is None or time.time() - w.at > CACHE_S or (stale is not None and w is stale):
             old = w
             w = _WS[key] = Workspace(env, char, store)
         w.used = time.monotonic()
-        held = _HELD.get()
         if held is not None and not any(x is w for x in held):
             held.append(w)
             w.users += 1

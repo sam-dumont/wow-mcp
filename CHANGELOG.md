@@ -12,6 +12,9 @@
 - Compose: VictoriaLogs gets a 1 GiB memory limit. It peaked at 217 MiB on a year of the demo; with a much longer history, set `VL_MEM_LIMIT=2g` in `.env` before `docker compose up -d`.
 
 - With `MCP_DCR=off` the authorization server metadata no longer advertises a `registration_endpoint`, and `/register` answers 404: a client sees up front that it needs a client metadata URL instead of trying to register and getting refused. An unknown client id at `/authorize` is no longer pointed at `/register` either. `open` and `loopback` are unchanged.
+- A dungeon with no run of yours to measure its kill XP no longer says "slower than questing: go for the drops only" (or faster, or about the same): that compared the dungeon's quests alone with your questing, and the kills could flip it. The line keeps the time and what the quests are worth, and `dungeon_options` gives `vs_questing: null` there.
+- `query_metric`, `play_sql` and the finding judge see new data on the next request after it lands, like the page, instead of up to 30 minutes later. A request already running finishes on the data it started with.
+- The renderer keeps each person's game files in their own folder. It kept them by file id for everyone, so a file one friend's shipper sent could stand in for another's in their past-level pictures. Upgrading: the first picture after the update re-sends that person's files to the renderer once.
 
 ## 0.7.0 (2026-11-23)
 

@@ -36,6 +36,7 @@ them goes to VictoriaLogs.
 
 from __future__ import annotations
 
+import itertools
 import sys
 import threading
 import time
@@ -60,6 +61,9 @@ HIST_LIMIT = 100_000
 _INTERN_MAX = 40
 _NO_INTERN = frozenset({"_time", "_msg", "source_id", "items", "item_names", "talents", "professions", "wanted"})
 _DROP = frozenset({"_stream", "_stream_id"})
+# Each snapshot's number, unique in the process: a character's entry dropped
+# and read again never hands back a number an older snapshot had.
+_STAMPS = itertools.count(1)
 
 
 def norm_char(c: str) -> str:
@@ -80,6 +84,7 @@ class _Entry:
     rows: tuple = ()
     at: float = 0.0  # time.monotonic() of the last refresh
     short: dict[int, int] = field(default_factory=dict)  # second (epoch s) -> rows it holds, over a page
+    stamp: int = 0  # which snapshot `rows` is (_STAMPS); moves only when the hourly counts did
 
 
 class EventCache:
@@ -119,6 +124,22 @@ class EventCache:
     def rows(self, char: str) -> tuple:
         """Every cached event of the character (both spellings), refreshed
         when older than fresh_s."""
+        rows, short, _ = self._fresh(char)
+        if short:
+            raise IncompleteRead({iso(_dt(s)): n for s, n in short.items()}, self.page)
+        return rows
+
+    def mark(self, char: str) -> int:
+        """Which snapshot of the character's events rows() hands out now,
+        refreshed like rows(): the number moves only when a refresh found
+        the hourly counts changed (new, late or expired events). A build
+        made from rows() keeps it to know when it's out of date
+        (wowstats.analysis.drive.workspace)."""
+        return self._fresh(char)[2]
+
+    def _fresh(self, char: str) -> tuple[tuple, dict[int, int], int]:
+        """The entry's rows, its seconds over a page and its stamp, as one
+        refresh left them."""
         char = norm_char(char)
         with self._guard:
             e = self._entries.get(char)
@@ -131,9 +152,7 @@ class EventCache:
             if not (e.at and time.monotonic() - e.at < self.fresh_s):
                 self._refresh(char, e)
                 e.at = time.monotonic()
-            if e.short:
-                raise IncompleteRead({iso(_dt(s)): n for s, n in e.short.items()}, self.page)
-            return e.rows
+            return e.rows, dict(e.short), e.stamp
 
     def _base(self, char: str) -> str:
         cf = "char:in(" + ", ".join(lq(n) for n in spellings(char)) + ")"
@@ -227,6 +246,7 @@ class EventCache:
     @staticmethod
     def _snapshot(e: _Entry) -> None:
         e.rows = tuple(r for h in sorted(e.hours) for r in e.hours[h])
+        e.stamp = next(_STAMPS)
 
     def expire(self) -> None:
         """The next read of each character asks VictoriaLogs what changed,

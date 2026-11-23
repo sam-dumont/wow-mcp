@@ -8,13 +8,14 @@ this side holds nothing: no key, no store, no character name, no account.
 It gets a recipe (wowstats.character3d, the same one the 3D view draws) and
 the files it names, and answers an image:
 
-  POST /render      {"recipe": {...}, "absent": [file id, ...]}
+  POST /render      {"recipe": {...}, "absent": [file id, ...], "scope": "<hex>"}
                     -> 200 image/webp (transparent around the character)
                        428 {"files": [file id, ...]}: the files it lacks;
                            send them (POST /file/<id>), then ask again
                        400 not a render request, 503 busy (one render at a
                        time), 504 the model didn't finish
-  POST /file/<id>   one file the last 428 named, with X-Content-SHA256
+  POST /file/<id>   one file the last 428 named, with X-Content-SHA256 (and
+                    X-Render-Scope: the request's scope)
                     -> 204 kept, 400 wrong hash, 413 too large,
                        415 not a model, skin, skeleton, animation or texture
   GET  /healthz     -> 200 once Chromium runs
@@ -22,9 +23,12 @@ the files it names, and answers an image:
 The files are what the recipe names plus what those models name (their
 skin, skeleton, animations, textures: wowstats.assets.closure). `absent`
 lists the ones the publisher doesn't have either: drawn without them, as the
-3D view does. Files are kept by id under RENDER_CACHE_DIR/files, at most
-RENDER_CACHE_MB in all (the oldest used go first): a file id's content never
-changes, so the next picture of the same race costs no upload.
+3D view does. Files are kept by id under RENDER_CACHE_DIR/files/<scope>, at
+most RENDER_CACHE_MB in all (the oldest used go first), so the next picture
+of the same race costs no upload. `scope` is the person's, opaque here
+(wowstats.pictures.scope): each person's files come from their own upload
+(wowstats.assets checks a file's kind, not that it is the game's), so one
+person's file never draws another's picture. No scope: one shared folder.
 
 Chromium only ever talks to this process (a page server on 127.0.0.1 with
 the 3D view's page, its files from the cache and the request being drawn);
@@ -69,6 +73,7 @@ REV = 2
 MAX_BODY = 64 * 1024
 MAX_ASK = 400  # file ids one 428 names at most
 FILE_PATH = re.compile(r"^/file/(\d{1,10})$")
+SCOPE = re.compile(r"^[0-9a-f]{1,64}$")
 
 
 class BadRequest(ValueError):
@@ -189,21 +194,32 @@ def parse_recipe(r) -> dict:
             "animation": _int(r.get("animation", 0), 0, 2000, "animation")}
 
 
+def parse_scope(v) -> str:
+    """Whose files a request reads: "" (the shared folder) or the
+    publisher's opaque hex for one person."""
+    if v in (None, ""):
+        return ""
+    if not isinstance(v, str) or not SCOPE.match(v):
+        raise BadRequest("scope: up to 64 lowercase hex digits")
+    return v
+
+
 def parse(body: bytes) -> dict:
-    """A render request: {"recipe", "absent"}."""
+    """A render request: {"recipe", "absent", "scope"}."""
     try:
         d = json.loads(body)
     except ValueError:
         raise BadRequest("not JSON") from None
     d = _obj(d, "the request")
     absent = {_fid(x, "absent") for x in _list(d.get("absent", []), 4000, "absent")}
-    return {"recipe": parse_recipe(d.get("recipe")), "absent": absent}
+    return {"recipe": parse_recipe(d.get("recipe")), "absent": absent, "scope": parse_scope(d.get("scope"))}
 
 
 # ------------------------------------------------------------ the files
 
 class Files:
-    """Files by id on disk, at most `budget` bytes (the oldest used go first)."""
+    """Files by id on disk, one folder per scope (a person's; "" the shared
+    one), at most `budget` bytes in all (the oldest used go first)."""
 
     def __init__(self, root: Path | None, budget: int):
         self.root = root / "files" if root else Path(tempfile.mkdtemp(prefix="wow-stats-render-files-"))
@@ -211,11 +227,11 @@ class Files:
         self.budget = budget
         self.lock = threading.Lock()
 
-    def path(self, fdid: int) -> Path:
-        return self.root / str(int(fdid))
+    def path(self, fdid: int, scope: str = "") -> Path:
+        return (self.root / parse_scope(scope) if scope else self.root) / str(int(fdid))
 
-    def get(self, fdid: int) -> bytes | None:
-        p = self.path(fdid)
+    def get(self, fdid: int, scope: str = "") -> bytes | None:
+        p = self.path(fdid, scope)
         try:
             body = p.read_bytes()
             os.utime(p)  # used: the last to go
@@ -223,30 +239,33 @@ class Files:
         except OSError:
             return None
 
-    def has(self, fdid: int) -> bool:
-        return self.path(fdid).is_file()
+    def has(self, fdid: int, scope: str = "") -> bool:
+        return self.path(fdid, scope).is_file()
 
-    def put(self, fdid: int, body: bytes) -> None:
+    def put(self, fdid: int, body: bytes, scope: str = "") -> None:
         with self.lock:
-            p = self.path(fdid)
+            p = self.path(fdid, scope)
+            p.parent.mkdir(exist_ok=True)
             tmp = p.with_name(f".{p.name}.{secrets.token_hex(4)}")
             tmp.write_bytes(body)
             os.replace(tmp, p)
-            files = sorted((f for f in self.root.iterdir() if f.is_file() and not f.name.startswith(".")),
+            every = [*self.root.iterdir(), *(f for d in self.root.iterdir() if d.is_dir() for f in d.iterdir())]
+            files = sorted((f for f in every if f.is_file() and not f.name.startswith(".")),
                            key=lambda f: f.stat().st_mtime)
             used = sum(f.stat().st_size for f in files)
             for f in files:
                 if used <= self.budget:
                     break
-                if f.name == p.name:
+                if f == p:
                     continue
                 used -= f.stat().st_size
                 f.unlink(missing_ok=True)
 
-    def lacking(self, recipe: dict, absent: set[int]) -> list[int]:
-        """The files the recipe draws with that aren't here, and aren't
-        known to be absent (assets.closure over what is here)."""
-        _have, missing = assets.closure(character3d.needs(recipe), lambda f: self.get(f) if self.has(f) else None)
+    def lacking(self, recipe: dict, absent: set[int], scope: str = "") -> list[int]:
+        """The files the recipe draws with that aren't in the scope's folder,
+        and aren't known to be absent (assets.closure over what is there)."""
+        _have, missing = assets.closure(character3d.needs(recipe),
+                                        lambda f: self.get(f, scope) if self.has(f, scope) else None)
         return sorted(missing - absent)
 
 
@@ -259,6 +278,7 @@ class Pages:
     def __init__(self, files: Files, static: Path):
         self.files, self.static = files, static
         self.jobs: dict[str, dict] = {}
+        self.scope = ""  # the drawing's (one at a time): whose files Chromium reads
         pages = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -284,7 +304,7 @@ class Pages:
             if job is not None:
                 body, ctype = json.dumps(job).encode(), "application/json"
         elif path.startswith("/model3d/file/") and path[len("/model3d/file/"):].isdigit():
-            body = self.files.get(int(path[len("/model3d/file/"):]))
+            body = self.files.get(int(path[len("/model3d/file/"):]), self.scope)
         if body is None:
             h.send_response(404)
             h.send_header("Content-Length", "0")
@@ -335,7 +355,7 @@ class Renderer:
         return self.browser is not None and self.browser.is_connected()
 
     def render(self, req: dict) -> bytes:
-        lacking = self.files.lacking(req["recipe"], req["absent"])
+        lacking = self.files.lacking(req["recipe"], req["absent"], req.get("scope", ""))
         if lacking:
             raise Lacking(lacking[:MAX_ASK])
         if not self.busy.acquire(blocking=False):
@@ -352,6 +372,7 @@ class Renderer:
         p = self.pages
         refused = len(self.blocked)
         p.jobs[token] = {"recipe": req["recipe"], "models": "hd"}
+        p.scope = req.get("scope", "")
         ctx = self.browser.new_context(viewport={"width": WIDTH, "height": HEIGHT}, device_scale_factor=SCALE)
         try:
             page = ctx.new_page()
@@ -484,7 +505,11 @@ def make_handler(r, token: str):
                 return self._send(400, b"X-Content-SHA256 doesn't match the body\n")
             if assets.kind_of(body) is None:
                 return self._send(415, b"not a model, skin, skeleton, animation or texture\n")
-            r.files.put(fdid, body)
+            try:
+                scope = parse_scope(self.headers.get("X-Render-Scope") or "")
+            except BadRequest as e:
+                return self._send(400, f"{e}\n".encode())
+            r.files.put(fdid, body, scope)
             return self._send(204, b"")
 
     return Handler
