@@ -197,19 +197,33 @@ def page_with_plausible(browser, **ctx):
     return c, pg, seen, events
 
 
+BUSY = "html[data-busy]"
+
+
+def settled(pg, timeout=30.0):
+    """The page is done (web/app.js data-busy): every answer it asked for
+    is in and drawn, its fonts are in, no section jump is on its way. Read
+    a page only then: before, its late sections, its fonts and its jumps
+    are still moving it (the 0.7.0 release gate, three runs in a row)."""
+    pg.locator("html:not([data-busy])").wait_for(state="attached", timeout=timeout * 1000)
+
+
 def wait_count(pg, selector, n=None, timeout=15.0):
-    """Waits without evaluating script: the pages' CSP has no
-    'unsafe-eval', which Playwright's wait_for_function needs."""
+    """Waits until the page shows `n` of `selector` (any, without `n`) and
+    is settled, both at once: a count read while the page still draws can
+    be gone by the next line. Without evaluating script: the pages' CSP has
+    no 'unsafe-eval', which Playwright's wait_for_function needs."""
     import time
 
     end = time.monotonic() + timeout
     while time.monotonic() < end:
         k = pg.locator(selector).count()
-        if (n is None and k > 0) or (n is not None and k == n):
+        if ((n is None and k > 0) or (n is not None and k == n)) and not pg.locator(BUSY).count():
             return k
         pg.wait_for_timeout(100)
     body = pg.locator("body").inner_text()[:300].replace("\n", " | ")
-    raise AssertionError(f"{selector}: {pg.locator(selector).count()}, wanted {n if n is not None else '> 0'}; "
+    busy = " (the page still busy)" if pg.locator(BUSY).count() else ""
+    raise AssertionError(f"{selector}: {pg.locator(selector).count()}, wanted {n if n is not None else '> 0'}{busy}; "
                          f"page: {body}; errors: {errors[-8:]}")
 
 
@@ -675,7 +689,7 @@ def test_zogzog_section_links_keep_the_key(served, pw, engine):
     pg.goto(f"{base}/zogzog/#{key}")
     to_gear(pg)
     pg.locator('.sections a[href="#levels"]').click()
-    pg.wait_for_timeout(800)
+    settled(pg)  # the jump has landed: the page drawn, the target in place
     assert pg.locator("main.locked").count() == 0
     assert pg.evaluate("() => location.hash.slice(1)") == key
     assert pg.locator(".slotitm").first.is_visible()
@@ -710,9 +724,10 @@ def test_zogzog_section_link_lands_when_the_advice_comes_late(served, pw, engine
     assert len(held) == 1 and pg.locator("#advice .adv-h").count() == 0
     before = pg.locator("#gear").evaluate("(e) => e.getBoundingClientRect().height")
     pg.locator('.sections a[href="#levels"]').click()
+    assert pg.locator(BUSY).count() == 1  # the jump waits for the advice
     held[0].continue_()
-    pg.locator("#advice .adv-h").wait_for()
-    pg.wait_for_timeout(800)
+    settled(pg)
+    assert pg.locator("#advice .adv-h").count() >= 1
     grew = pg.locator("#gear").evaluate("(e) => e.getBoundingClientRect().height") - before
     assert grew > 900, grew  # the advice did push the sections down a screen
     top = pg.locator("#levels").evaluate("(e) => e.getBoundingClientRect().top")

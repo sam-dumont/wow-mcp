@@ -135,8 +135,7 @@ def test_no_line_when_the_data_is_there(live, pw, engine, monkeypatch):
     try:
         pg = b.new_page(viewport={"width": 1920, "height": 1000})
         pg.goto(f"{r.base}/?char={CHAR}&tab=overview")
-        wait_count(pg, "#levels .body > *")
-        pg.wait_for_timeout(300)
+        wait_count(pg, "#levels .body > *")  # and settled: nothing more to draw
         assert pg.locator("p.missing").count() == 0
         assert pg.locator(".has-missing").count() == 0
     finally:
