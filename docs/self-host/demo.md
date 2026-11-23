@@ -19,7 +19,8 @@ cp .env.example .env
 ```
 
 Open `.env` in any text editor and set `INGEST_PASSWORD` to anything of 12 characters or more.
-The demo doesn't use it, but nothing starts without it. On a machine with no internet, or a
+Nothing starts without it, and step 2 sends the demo's events with it, the way a player's
+computer sends theirs. On a machine with no internet, or a
 small one, also set `MODEL3D=off` and `WOW_ITEMS=off` (no 3D view, no item icons; the
 pages still work).
 
@@ -37,16 +38,16 @@ docker compose up -d --build ui
 Mac, Linux, or Git Bash on Windows:
 
 ```sh
-docker compose exec -T ui python - --vl http://victorialogs:9428 < ../../dev/seed.py
+docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest < ../../dev/seed.py
 ```
 
 PowerShell:
 
 ```powershell
-Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --vl http://victorialogs:9428
+Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest
 ```
 
-It prints one line, `<N> events into http://victorialogs:9428`, with N a few thousand (the
+It prints one line, `<N> events into http://127.0.0.1:8080/ingest`, with N a few thousand (the
 seed grows with the product, so don't expect an exact number). What to check instead: the
 page in step 3 lists five characters, and Testchar-Demo is level 32.
 

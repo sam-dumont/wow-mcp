@@ -82,6 +82,7 @@ class Prebuilt:
         self.checked_at = ""
         self.error: str | None = None
         self.public_error: str | None = None  # what readers see: no host, no store text (stores.public_error)
+        self.failed_at: float | None = None  # when a check last found a store down (health)
         self.dirty = False
         self.seconds = 0.0
         self._lock = threading.Lock()  # one build at a time per App
@@ -116,6 +117,7 @@ class Prebuilt:
                 mark = self.app.data_mark(self.mark)
             except SourceError as e:
                 self.error, self.public_error = str(e), public_error(e, "the answers' check")
+                self.failed_at = now
                 return None
             why = ("first build" if self.answers is None else "new data" if mark != self.mark
                    else "changed" if self.dirty else "daily rebuild" if now - self.built_at >= MAX_AGE_S
@@ -134,6 +136,7 @@ class Prebuilt:
             except SourceError as e:
                 # A store down mid-build: the last set stays, marked stale.
                 self.error, self.public_error = str(e), public_error(e, f"the answers' build ({why})")
+                self.failed_at = now
                 self.dirty = self.dirty or why == "changed"
                 log(f"{why}: kept the last answers: {e}")
                 return None
@@ -149,6 +152,19 @@ class Prebuilt:
                     except Exception as e:  # noqa: BLE001 - a hook's bug never fails the build
                         log(f"after the build: {e!r}")
             return why
+
+
+def health(apps) -> dict:
+    """The stores' state for /healthz, from the builder's last check of each
+    App (one small read every CHECK_S, none per probe): "failing" while a
+    store didn't answer it (VictoriaLogs down: uploads and fresh reads fail,
+    the page serves its last answers marked stale), "ok" once one answered,
+    "idle" before the first. A time, never the store's text or a name."""
+    apps = list(apps)
+    failed = [a.prebuilt.failed_at for a in apps if a.prebuilt.error]
+    if failed:
+        return {"store": "failing", "store_failed_at": iso(datetime.fromtimestamp(max(failed), UTC))}
+    return {"store": "ok" if any(a.prebuilt.checked_at for a in apps) else "idle"}
 
 
 def start(apps, every: float = CHECK_S) -> threading.Thread:

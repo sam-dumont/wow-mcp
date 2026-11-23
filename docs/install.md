@@ -121,11 +121,11 @@ To see a filled page first, load the demo's five made-up characters
 install wipes them):
 
 ```sh
-docker compose exec -T ui python - --vl http://victorialogs:9428 < ../../dev/seed.py
+docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest < ../../dev/seed.py
 ```
 
 ```powershell
-Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --vl http://victorialogs:9428
+Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest
 ```
 
 `Bind for 127.0.0.1:8080 failed: port is already allocated` means

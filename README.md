@@ -47,12 +47,12 @@ images once (`docker login dhi.io`, a free Docker Hub account), from the top of 
 this repository (Mac, Linux, or Git Bash on Windows):
 
 ```sh
-cd deploy/compose && export INGEST_PASSWORD=demo-password-only
-docker compose up -d --build ui && docker compose exec -T ui python - --vl http://victorialogs:9428 < ../../dev/seed.py
+cd deploy/compose && test -f .env || echo INGEST_PASSWORD=demo-password-only > .env
+docker compose up -d --build ui && docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest < ../../dev/seed.py
 ```
 
 The first run builds the image, a minute or two. It ends with
-`<N> events into http://victorialogs:9428`, a few thousand. Open <http://127.0.0.1:8080/>: five
+`<N> events into http://127.0.0.1:8080/ingest`, a few thousand. Open <http://127.0.0.1:8080/>: five
 made-up characters, each with a DEMO DATA banner, and Testchar-Demo at level 32. `docker compose down -v` removes it all.
 PowerShell, a port already taken, or the sites for friends: [Try the demo](docs/self-host/demo.md).
 

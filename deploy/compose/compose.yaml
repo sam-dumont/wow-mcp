@@ -3,10 +3,11 @@
 # http://127.0.0.1:8080/ingest. README.md has the three steps.
 #
 # The demo, without a game (five made-up characters), from this folder:
+#   test -f .env || echo INGEST_PASSWORD=demo-password-only > .env
 #   docker compose up -d --build ui
-#   docker compose exec -T ui python - --vl http://victorialogs:9428 < ../../dev/seed.py
+#   docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest < ../../dev/seed.py
 # PowerShell:
-#   Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --vl http://victorialogs:9428
+#   Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest
 #
 #   victorialogs     your game events (yours: kept until you delete them)
 #   ui               the web page, full view, on 127.0.0.1:8080; also takes
