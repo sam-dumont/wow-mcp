@@ -151,7 +151,7 @@ Ready-made requests. In claude.ai they're in the `+` menu; in Claude Code they'r
 
 | Prompt | What it does | Arguments |
 |---|---|---|
-| `coach` | Compare recent levels with the route reference and with your own history, then plan the next session: where, what, what to skip, when to train, hearth or fly. | `char`: Character as Name-Realm (default: the one seen last); `focus`: Anything to focus on, e.g. 'only one hour tonight' or 'dungeons' |
+| `coach` | Compare recent levels with the route reference and with your own history, then plan the next session: where, what, what to look at or skip, when to train, hearth or fly. | `char`: Character as Name-Realm (default: the one seen last); `focus`: Anything to focus on, e.g. 'only one hour tonight' or 'dungeons' |
 | `plan` | A time-boxed plan for the next hours (default 3). | `hours`: How many hours (default 3) |
 | `now` | The next 30 to 45 minutes, in three lines. | none |
 | `recap` | The last session against the plan. | none |

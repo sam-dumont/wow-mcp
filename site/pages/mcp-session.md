@@ -1111,13 +1111,13 @@ Its `markdown` field, the draft the assistant starts from:
 > - **+1h17 to +1h45** · Badlands: steps 1 to 9 (Into Badlands to Agmond's End) → level 34.9
 >   - Polestar plans 11 min; at your pace about 27 min (the route reference times your pace per kind of step: questing 2.39x (your steps, 239 steps))
 >
-> **Skip or drop**
+> **Look at, maybe skip**
 > - Supplies to Auberdine (Ashenvale): 1,450 XP now, about 6 min of your XP rate; pays 50% of its XP at your level
-> - step 45 (Refuge Pointe), about 8 min: Polestar shows it because a quest from there is still open; you are past it
-> - step 46 (Circle of West Binding), about 12 min: Polestar shows it because a quest from there is still open; you are past it
-> - step 66 (City of Dalaran), about 29 min: a long step at your pace
-> - step 29 (Duskwood), about 44 min: a long step at your pace
-> - step 41 (Jungle Stalkers), about 27 min: a long step at your pace
+> - step 45 (Refuge Pointe), about 8 min: Polestar shows it because a quest from there is still open; you are past it; skip it only if no later step needs it
+> - step 46 (Circle of West Binding), about 12 min: Polestar shows it because a quest from there is still open; you are past it; skip it only if no later step needs it
+> - step 66 (City of Dalaran), about 29 min: a long step at your pace; look at what holds it up, skip it only if no later step needs it
+> - step 29 (Duskwood), about 44 min: a long step at your pace; look at what holds it up, skip it only if no later step needs it
+> - step 41 (Jungle Stalkers), about 27 min: a long step at your pace; look at what holds it up, skip it only if no later step needs it
 >
 > **If you get a group**
 > - City of Dalaran: 32 min for the whole trip, about 25,501 XP (47,765 XP/h), gear +21.7 points expected (your 1 run(s) there).

@@ -15,9 +15,10 @@ NUM = re.compile(r"\d+(?:[.,:]\d+)*")
 
 CLIENT_BRIEF = """Write this plan up for the player from `facts` only: every number exactly as a fact gives it \
 (never compute or round one), the blocks in order (time window, what, why with its source), then checkpoints, the \
-town stop, what to skip or drop, the optional dungeon branch, the mount and where to log out; leave out a section \
-with no facts. Short, for a phone: headings, bullets, no table wider than three columns. Practical and friendly, \
-never guilt-tripping: a detour has a price, not a ban; interruptions are "unplanned stops". A game rule you add \
+town stop, what to look at or maybe skip, the optional dungeon branch, the mount and where to log out; \
+leave out a section with no facts. Short, for a phone: headings, bullets, no table wider than three columns. \
+Practical and friendly, never guilt-tripping: a detour has a price, not a ban; \
+interruptions are "unplanned stops". A game rule you add \
 needs a knowledge base source (kb_search) or is "unknown". Then call check_plan with your text: it lists any \
 number that isn't in the facts; fix those before answering."""
 
@@ -148,7 +149,7 @@ def fallback(est: dict) -> str:
         out += [f"- {f[k]}" for k in sorted(f) if k.startswith("town.errand")]
     sk = [k for k in sorted(f) if re.match(r"(skip|abandon)\d+$", k)]
     if sk:
-        out.append("\n### Skip or drop")
+        out.append("\n### Look at, maybe skip")
         out += [f"- {f[k]}" for k in sk]
     if "branch.dungeon" in f:
         out.append("\n### If you get a group")
