@@ -20,8 +20,9 @@ the newest 8 weeks; an older week keeps only its items announcing an event
 still to come (live_event), the rest goes to one line in
 data/kb/digest-history.json. Git keeps every week in full. An event
 drops off by itself: a dated one once its day is past, an undated one once
-its window ends, or UNDATED_DAYS after it was last mentioned. A newer mention
-of the same event (its `key`) replaces the older one.
+its window ends, or UNDATED_DAYS after it was last mentioned. Mentions of the
+same event (its `key`) merge (merged): a newer one moves the day, but only
+one that brings prep or effects restates what the event is.
 
 Nothing here is ours but the wording: no date is guessed (the weekly pass
 keeps a `starts` only when the item names that day), and the pages show
@@ -278,22 +279,52 @@ def _filter(it: dict, f: dict) -> bool:
 # ------------------------------------------------------------------ what's coming
 
 
-def events(today: date | None = None) -> list[dict]:
-    """Every event still to come, soonest first (undated ones last), each
-    from its newest mention: {key, name, starts, window, when, in_days,
-    changes, effects, prep, levels, roles, classes, category} plus its
-    source fields."""
-    today = _today(today)
-    latest: dict[str, tuple[str, dict]] = {}
+# When an event happens (a newer mention may move it) and what it is (only a
+# mention with something to prepare or an effect may restate it).
+WHEN = ("starts", "window", "levels", "status")
+WHAT = ("name", "changes", "prep", "effects")
+
+
+def _rich(ev: dict) -> bool:
+    return bool(ev.get("prep") or ev.get("effects"))
+
+
+def merged() -> dict[str, tuple[str, dict, dict]]:
+    """{key: (last said, source item, event)}: every mention of an event,
+    oldest first, folded into one. A mention's non-empty `starts`, `window`,
+    `levels` and `status` win; its name, changes, prep and effects only when
+    it carries prep or effects itself, or the event has none yet. An empty
+    field never erases. On 2026-11-23 a one-line re-mention of the raid
+    opening ("First raid tier opens", no prep) replaced the curated record
+    and every level-60 character lost the Onyxia attunement move. The
+    source item (its text, category, who it concerns, its citation) is the
+    mention the description came from; `said` is the latest day it was
+    mentioned (UNDATED_DAYS counts from there)."""
+    out: dict[str, tuple[str, dict, dict]] = {}
     for w in sorted(weeks(), key=lambda w: w["week"]):
         for it in w["items"]:
             ev = it.get("event")
             if not ev or not ev.get("key") or not ev.get("name"):
                 continue
-            latest[ev["key"]] = (w["week"], it)
+            day = str(_day(it.get("date")) or _day(w["week"]))
+            if ev["key"] not in out:
+                out[ev["key"]] = (day, it, dict(ev))
+                continue
+            said, src, cur = out[ev["key"]]
+            restates = _rich(ev) or not _rich(cur)
+            cur.update({k: ev[k] for k in WHEN + (WHAT if restates else ()) if ev.get(k) not in (None, "", [])})
+            out[ev["key"]] = (max(said, day), it if restates else src, cur)
+    return out
+
+
+def events(today: date | None = None) -> list[dict]:
+    """Every event still to come, soonest first (undated ones last), its
+    mentions merged by `merged`: {key, name, starts, window, when, in_days,
+    changes, effects, prep, levels, roles, classes, category} plus its
+    source fields."""
+    today = _today(today)
     out = []
-    for key, (wk, it) in latest.items():
-        ev = it["event"]
+    for key, (wk, it, ev) in merged().items():
         if ev.get("status") in ("cancelled", "done"):
             continue
         starts = _day(ev.get("starts"))
@@ -304,7 +335,7 @@ def events(today: date | None = None) -> list[dict]:
             when = _short(starts)
         else:
             end = window_end(ev.get("window"))
-            said = _day(it.get("date")) or _day(wk) or today
+            said = _day(wk) or today
             if (end and end < today) or (not end and said + timedelta(days=UNDATED_DAYS) < today):
                 continue
             n = None

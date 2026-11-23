@@ -559,7 +559,7 @@ def to_digest(props: list[dict], batch: list[dict], allow: dict, day: str, known
     statement or item names."""
     from wowstats import forever
 
-    keys = {e["key"] for e in events if e.get("key")}
+    known_ev = {e["key"]: e for e in events if e.get("key")}
     kept, refused = [], []
     for p in props:
         n = p.get("item")
@@ -614,10 +614,16 @@ def to_digest(props: list[dict], batch: list[dict], allow: dict, day: str, known
                     step["quest_id"] = int(s["quest_id"])
                 prep.append(step)
             elo, ehi = int(ev.get("level_min") or 0), int(ev.get("level_max") or 0)
-            rec["event"] = {"key": ev.get("key") if ev.get("key") in keys else slug(name), "name": name,
+            key = ev.get("key") if ev.get("key") in known_ev else slug(name)
+            rec["event"] = {"key": key, "name": name,
                             "starts": starts or None, "window": " ".join(str(ev.get("window") or "").split())[:40]
                             or None, "changes": " ".join(str(ev.get("changes") or "").split())[:280] or None,
                             **({"levels": [elo, ehi]} if 1 <= elo <= ehi <= 60 else {}), "prep": prep}
+            had = known_ev.get(key)
+            if had and (had.get("prep") or had.get("effects")) and not prep:
+                # A re-mention with nothing to prepare says when, not what:
+                # the event keeps its name and description (news.merged).
+                rec["event"].update(name=had["name"], changes=None)
         errs = kbschema.check(rec, allow)
         if errs:
             refused.append({"text": text[:200], "why": "; ".join(errs)})
