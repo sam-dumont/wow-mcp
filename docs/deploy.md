@@ -489,7 +489,7 @@ Give it nothing else: no other Secret, `automountServiceAccountToken: false`, no
 to the stores or the other pods; in from the publisher only, no way out at
 all (it needs no DNS either). It runs as uid 10001 with a read-only
 root filesystem and `/tmp` writable (Chromium's profile and the game files
-the publisher sent: `RENDER_CACHE_DIR`, `RENDER_CACHE_MB` 256). One render at
+the publisher sent, one folder per person: `RENDER_CACHE_DIR`, `RENDER_CACHE_MB` 256 in all). One render at
 a time, about 4 s at one core; measured peak 850 MB with its cache, so a
 1.5 GiB limit. The publisher sends a recipe (file ids, never a name), and
 the files it lacks when it answers 428 (`POST /file/<id>`, the same token,

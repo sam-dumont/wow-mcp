@@ -8,7 +8,9 @@ the updated model) and, when the renderer answers 428 with the files it
 lacks, those files from the person's own store (POST /file/<id>, with their
 SHA-256), then asks again. A file the store doesn't have either goes in
 the next request's `absent`, so it is drawn without it. No character name,
-no level, no item id, no account. The picture is kept under
+no level, no item id, no account: the person's files are kept apart on the
+renderer under an opaque `scope` (scope(), a hash of the tenant), so one
+person's upload never draws another's picture. The picture is kept under
 PUBLISH_DIR/pictures/<sha256 of the recipe and renderer.REV>.webp, beside
 the builds, so a level is drawn once, and a level that looks like another
 (the same gear and look) is never drawn twice.
@@ -52,6 +54,16 @@ def request(answer: dict | None) -> dict | None:
     return {"recipe": recipe} if isinstance(recipe, dict) and recipe.get("model") else None
 
 
+def scope(env: dict) -> str:
+    """Whose files the renderer keeps these under: a hash of the tenant
+    (wowstats.stores.tenant_of), never the account itself. Each person's
+    files come from their own upload, checked for their kind, not for being
+    the game's (wowstats.assets)."""
+    from wowstats.stores import tenant_of
+
+    return hashlib.sha256(f"wow-stats render scope {tenant_of(env)}".encode()).hexdigest()[:32]
+
+
 def key(req: dict, scope: str = "") -> str:
     """The picture's name: the renderer's revision and the recipe (the race,
     look and gear), plus `scope` when the picture belongs to one character
@@ -68,6 +80,7 @@ class Pictures:
             log("pictures: RENDER_URL is set but RENDER_TOKEN_FILE isn't: the renderer refuses requests without "
                 "its token, so no pictures. Set RENDER_TOKEN_FILE to a file holding the renderer's token.")
         self.on = bool(self.url and self.token)
+        self.scope = scope(env)
         self.dir = out / "pictures"
         self.budget = float(env.get("RENDER_BUDGET_S") or 60)
         self.timeout = float(env.get("RENDER_TIMEOUT_S") or 120)
@@ -145,7 +158,8 @@ class Pictures:
         absent: set[int] = set()
         try:
             for _ in range(ROUNDS):
-                code, body = self._post("/render", json.dumps({**req, "absent": sorted(absent)}).encode(),
+                code, body = self._post("/render", json.dumps({**req, "absent": sorted(absent),
+                                                                "scope": self.scope}).encode(),
                                         {"Content-Type": "application/json"})
                 if code == 428:
                     try:
@@ -161,7 +175,8 @@ class Pictures:
                             continue
                         sha = hashlib.sha256(data).hexdigest()
                         c, msg = self._post(f"/file/{fdid}", data, {"Content-Type": "application/octet-stream",
-                                                                     "X-Content-SHA256": sha})
+                                                                     "X-Content-SHA256": sha,
+                                                                     "X-Render-Scope": self.scope})
                         if c != 204:
                             absent.add(fdid)  # refused (not a game file): drawn without it
                             self.log(f"picture: the renderer refused file {fdid} ({c}): "
