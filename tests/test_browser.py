@@ -416,7 +416,8 @@ def test_no_item_shows_without_its_image(served, pw, engine, bundle, width):
         pg.evaluate("() => document.querySelectorAll('details').forEach((d) => { d.open = true; })")
         got = frames_drawn(pg, f"{engine} {bundle} {width} character")
         if bundle == "public":
-            q = [f for f in got if f["name"] == "Faerie Mantle"]
+            # The doll's label may carry its BiS standing after the name (owner, 2026-11-23).
+            q = [f for f in got if (f["name"] or "").split(", ")[0] == "Faerie Mantle"]
             assert q and all(f["src"].endswith("/inv_misc_questionmark.jpg") for f in q), q
         if bundle == "zogzog":
             wait_count(pg, "#advice .cand .itm")

@@ -765,6 +765,7 @@ function renderGear(d) {
   const open3d = box.querySelector('.doll > .stage.in3d');
   if (open3d && open3d.dataset.char === d.char && open3d.dataset.at === String(g.at || '')) {
     if (state.advice && state.advice.char === d.char) renderAdvice(state.advice);
+    if (PUBLIC) publicBadges(g);
     return;
   }
   const by = Object.fromEntries((g.items || []).map((i) => [i.slot, i]));
@@ -815,6 +816,14 @@ function renderGear(d) {
     h('div', { id: 'advice', class: 'advice', 'aria-live': 'polite' }));
   gearDrawn(g);
   if (state.advice && state.advice.char === d.char) renderAdvice(state.advice);
+  if (PUBLIC) publicBadges(g);
+}
+
+// The public view's doll badges: the character answer carries each worn
+// slot's standing (gear.standing: rank, percent, label; wowstats/redact.py)
+// and no advice, so there is no comparison to open.
+function publicBadges(g) {
+  dollBadges((g.standing || []).map((st) => ({ slot: st.slot, standing: st })));
 }
 
 // ------------------------------------------------------------ talents and Legacy points
@@ -1577,6 +1586,40 @@ function openCompare(u, anchor, a) {
 
 
 
+// The doll's BiS badges: where each worn item stands (BiS, 2nd, or its
+// share of BiS), on the icon so a phone shows it too, the label beside it
+// where there's room, and the legend under the doll when a badge shows.
+// slots: [{slot, standing}], the advice's slots or, in the public view, the
+// character answer's gear.standing (owner, 2026-11-23: the badges only,
+// never the advice). Nothing on a slot with no BiS to measure against.
+function dollBadges(slots) {
+  document.querySelectorAll('#gear .slot .ibis, #gear .bislegend').forEach((el) => el.remove());
+  let badges = 0;
+  for (const sl of slots || []) {
+    const li = document.querySelector(`#gear .slot[data-slot="${sl.slot}"]`);
+    const st = sl.standing;
+    const frame = li && li.querySelector('.ifr');
+    if (!st || !st.label || !frame || li.classList.contains('empty')) continue;
+    const short = st.rank === 1 ? 'BiS' : st.rank === 2 ? '2nd' : `${st.pct}%`;
+    const tier = bisTier(st);
+    frame.append(h('span', { class: 'ibis' + (tier ? ' t-' + tier : ''), text: short, 'aria-hidden': 'true' }));
+    badges += 1;
+    const btn = li.querySelector('.itm');
+    if (btn) {
+      // Said, not only shown; kept when the item's card names it later (items.js).
+      btn.dataset.also = st.label;
+      btn.setAttribute('aria-label', `${btn.getAttribute('aria-label').replace(/, (BiS|2nd|\d+% of BiS)$/, '')}, ${st.label}`);
+    }
+    li.title = STANDING_TITLE[st.rank] || `${st.pct}% of the best item for this slot at your level`;
+    li.querySelector('.imeta').after(h('span', { class: 'ibis ibisline' + (st.rank === 1 ? ' top' : ''), text: st.label }));
+  }
+  const doll = document.querySelector('#gear .doll');
+  if (badges && doll) {
+    doll.after(h('p', { class: 'bislegend', title: 'Each badge: how close the item is to the best for its slot at your level' },
+      h('span', { text: 'Badges:' }), BIS_LEGEND.map(([k, t]) => h('span', { class: 'bischip t-' + k, text: t }))));
+  }
+}
+
 function renderAdvice(a) {
   const box = $('#advice');
   if (!box) return;
@@ -1594,28 +1637,12 @@ function renderAdvice(a) {
   const picks = choose(a);
   // The doll: a mark on each slot with something better now; a click on
   // that slot opens the comparison (a hover keeps the plain tooltip).
-  document.querySelectorAll('#gear .slot .iup, #gear .slot .ibis, #gear .bislegend').forEach((el) => el.remove());
-  let badges = 0;
+  document.querySelectorAll('#gear .slot .iup').forEach((el) => el.remove());
   for (const sl of a.slots) {
     const li = document.querySelector(`#gear .slot[data-slot="${sl.slot}"]`);
     if (!li) continue;
-    // Where the worn item stands: BiS, 2nd, or its share of BiS, on the
-    // icon so a phone shows it too. Nothing when there's no BiS to measure.
-    const st = sl.standing;
-    const frame = li.querySelector('.ifr');
-    if (st && frame && !li.classList.contains('empty')) {
-      const short = st.rank === 1 ? 'BiS' : st.rank === 2 ? '2nd' : `${st.pct}%`;
-      const tier = bisTier(st);
-      frame.append(h('span', { class: 'ibis' + (tier ? ' t-' + tier : ''), text: short, 'aria-hidden': 'true' }));
-      badges += 1;
-      const btn = li.querySelector('.itm');
-      if (btn) btn.setAttribute('aria-label', `${btn.getAttribute('aria-label').replace(/, (BiS|2nd|\d+% of BiS)$/, '')}, ${st.label}`);
-      li.title = STANDING_TITLE[st.rank] || `${st.pct}% of the best item for this slot at your level`;
-    }
     const u = sl.best;
     if (u) li.querySelector('.imeta').after(h('span', { class: 'iup', text: upText(u, 'doll'), title: `${u.name}: click to compare` }));
-    // Beside the icon where there's room (the band on the icon says it on a phone).
-    if (st && frame && !li.classList.contains('empty')) li.querySelector('.imeta').after(h('span', { class: 'ibis ibisline' + (st.rank === 1 ? ' top' : ''), text: st.label }));
     if (li.dataset.cmp) continue;
     li.dataset.cmp = '1';
     li.addEventListener('click', (e) => {
@@ -1626,12 +1653,7 @@ function renderAdvice(a) {
       openCompare(cur.best, document.querySelector('#gear .doll'), state.advice);
     }, true);
   }
-  // What the badge colours mean, under the doll; only when a badge shows.
-  const doll = document.querySelector('#gear .doll');
-  if (badges && doll) {
-    doll.after(h('p', { class: 'bislegend', title: 'Each badge: how close the item is to the best for its slot at your level' },
-      h('span', { text: 'Badges:' }), BIS_LEGEND.map(([k, t]) => h('span', { class: 'bischip t-' + k, text: t }))));
-  }
+  dollBadges(a.slots);
   // "Automatic" drops the page's own choice: Polestar's setting, the
   // player's pick or the class default decide again.
   const auto = a.spec.source !== 'page';

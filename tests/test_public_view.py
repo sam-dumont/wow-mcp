@@ -161,7 +161,10 @@ def test_public_config_and_payload_shape(run_app):
     # Gear and professions are public (no gold in them); tracked upgrades aren't.
     g = d["gear"]
     assert set(g) == {"item_level", "armory_item_level", "armory_item_level_source", "render", "items", "professions",
-                      "items_from", "items_note"}
+                      "items_from", "items_note", "standing"}
+    # The doll's badges (owner, 2026-11-23): rank, percent and label per worn slot.
+    assert isinstance(g["standing"], list)
+    assert all(set(st) == {"slot", "rank", "pct", "label"} for st in g["standing"])
     assert g["items_from"] is None and g["items_note"] is None  # Syndicator's items: Battle.net isn't asked
     # No vm-wow here: the armory's count is ours; no static site, no picture.
     assert g["armory_item_level_source"] == "computed" and g["render"] is None
@@ -376,3 +379,61 @@ def test_live_public_view_without_users_url_shows_everyone(run_app):
     """One person, no Settings: as before."""
     srv = run_app(ui.App({"VIEW": "public", "BIND": "127.0.0.1"}, store=TwoCharStore()))
     assert sorted(c["char"] for c in json.loads(srv.get("/api/chars")[2])["chars"]) == sorted([CHAR, HIDDEN])
+
+
+# The public doll's BiS badges (owner, 2026-11-23): from the gear advice,
+# each worn slot's rank, percent and label, and nothing else of the advice.
+ADVICE = {
+    "char": CHAR, "available": True, "spec": {"key": "shadow", "label": "Shadow"}, "gear_score": 123.4,
+    "upgrades": [{"item_id": 1, "name": "Secret Upgrade", "gain": 9, "sources": [{"kind": "ah", "price_copper": 1}]}],
+    "ah": {"available": True, "money_copper": SECRET_MONEY},
+    "slots": [
+        {"slot": 1, "slot_name": "Head", "standing": {"rank": 1, "pct": 100, "label": "BiS"},
+         "current": {"item_id": 10, "name": "Worn Hat", "score": 5.0}, "best": None, "next": None},
+        {"slot": 5, "slot_name": "Chest", "standing": {"rank": None, "pct": 62, "label": "62% of BiS", "target": 8.0},
+         "current": {"item_id": 11, "name": "Worn Robe", "score": 5.0},
+         "best": {"item_id": 2, "name": "Secret Robe", "gain": 3, "bis_pct": 100, "sources": [{"kind": "drop"}]},
+         "next": {"item_id": 3, "name": "Secret Later Robe", "level": 20}},
+        # Nothing worn: no badge. No BiS to measure: no badge.
+        {"slot": 6, "slot_name": "Waist", "standing": None, "current": None,
+         "best": {"item_id": 4, "name": "Secret Belt"}, "next": None},
+        {"slot": 7, "slot_name": "Legs", "standing": None, "current": {"item_id": 12, "name": "Worn Pants"},
+         "best": None, "next": None},
+    ],
+}
+
+
+def test_worn_standing_is_the_badge_and_nothing_else():
+    from wowstats import redact
+
+    got = redact.worn_standing(ADVICE)
+    assert got == [{"slot": 1, "rank": 1, "pct": 100, "label": "BiS"},
+                   {"slot": 5, "rank": None, "pct": 62, "label": "62% of BiS"}]
+    assert redact.worn_standing(None) == [] and redact.worn_standing({"available": False, "why": "x"}) == []
+
+
+def test_public_char_carries_the_badges_but_no_advice():
+    from wowstats import redact
+
+    card = {"char": CHAR, "gear": {"item_level": 20, "items": [], "standing": [
+        {**s["standing"], "slot": s["slot"], "name": "Secret Robe", "best": s["best"], "gain": 3, "target": 8.0}
+        for s in ADVICE["slots"] if s["standing"]]}, "upgrades": ADVICE["upgrades"], "slots": ADVICE["slots"]}
+    out = redact.public("char", card)
+    assert out["gear"]["standing"] == [{"slot": 1, "rank": 1, "pct": 100, "label": "BiS"},
+                                       {"slot": 5, "rank": None, "pct": 62, "label": "62% of BiS"}]
+    blob = json.dumps(out)
+    for leak in ("Secret", "upgrades", "best", "next", "gain", "target", "sources", "bis_pct", SECRET_MONEY):
+        assert leak not in blob, leak
+
+
+def test_live_public_char_has_the_advice_standing(run_app, monkeypatch):
+    """The live public view reads the standing from the gear advice; the
+    advice answer itself stays a 404."""
+    app = make("public")
+    monkeypatch.setattr(app.views, "gear", lambda name, spec=None: ADVICE)
+    srv = run_app(app)
+    d = json.loads(srv.get(f"/api/char?name={CHAR}")[2])
+    assert d["gear"]["standing"] == [{"slot": 1, "rank": 1, "pct": 100, "label": "BiS"},
+                                     {"slot": 5, "rank": None, "pct": 62, "label": "62% of BiS"}]
+    assert b"Secret" not in srv.get(f"/api/char?name={CHAR}")[2]
+    assert srv.get(f"/api/gear?name={CHAR}")[0] == 404

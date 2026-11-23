@@ -287,7 +287,8 @@
       if (c && !(item && item.name)) {
         const n = c.n || unnamed(item, c);
         if (label) b.querySelector('.iname').textContent = n;
-        b.setAttribute('aria-label', n);
+        // The doll's BiS label (app.js dollBadges) stays after the name.
+        b.setAttribute('aria-label', b.dataset.also ? `${n}, ${b.dataset.also}` : n);
       }
       // No card, or a card without an icon: the game's question mark.
       const icon = (c && c.i) || QUESTION;
