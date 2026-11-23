@@ -143,10 +143,11 @@ def test_the_wrong_spec_item_is_worn_and_the_truth_names_the_spec_s_best(facts):
     assert sc["env"]["WEIGHTS"].endswith(":holy")
     rule = next(r for r in sc["truth"]["must_find"] if r["id"] == "head-upgrade-for-the-spec")
     assert sorted(rule["all"][0]) == sorted(u["name"].lower() for u in f["top_upgrades"]["Head"])
-    # Scored for Holy, the circlet is next to nothing over the hood it replaced.
+    # Scored for Holy, the circlet is little over the hood it replaced (1.7 against 12 for the
+    # best head on ForeverDB's Leveling weights).
     db = scenarios.prep_db(scenarios.base_events(), sc["env"])
     circlet = db.execute("SELECT gain FROM upgrade_candidates WHERE item_id = 253981").fetchone()[0]
-    assert circlet < 0.1 * f["top_upgrades"]["Head"][0]["gain"]
+    assert circlet < 0.2 * f["top_upgrades"]["Head"][0]["gain"]
 
 
 def test_the_brief_names_the_break_and_the_off_spec_head_only_where_injected(facts):
@@ -169,7 +170,7 @@ def test_the_brief_names_the_break_and_the_off_spec_head_only_where_injected(fac
         if n == "wrong_spec_gear":
             assert gear["scored_for"].startswith("Holy")
             assert head[0]["item"] == "Filigreed Shadow Circlet" and head[0]["fit"] == "spec"
-            assert head[0]["bis_pct"] < 25
+            assert head[0]["bis_pct"] < 50  # 46 on ForeverDB's Leveling weights
         else:
             assert gear["scored_for"] == "Shadow" and all(x["item_id"] != 253981 for x in head)
 
@@ -334,8 +335,8 @@ def test_wrong_spec_gear_needs_a_finding_that_names_the_spec():
             (upgrade, True, "fail"),  # a finding, but no circlet and no spec
             ("The Filigreed Shadow Circlet is a Shadow item: get the Embalmed Shroud instead.", True, "fail"),
             ("Your head slot is 12% of its best for Holy: get the Embalmed Shroud.", True, "pass"),
-            ("For Holy, swap the Filigreed Shadow Circlet for the Earthen Silk Hood.", True, "pass"),
-            ("For Holy, swap the Filigreed Shadow Circlet for the Earthen Silk Hood.", False, "fail")):
+            ("For Holy, swap the Filigreed Shadow Circlet for the Embalmed Shroud.", True, "pass"),
+            ("For Holy, swap the Filigreed Shadow Circlet for the Embalmed Shroud.", False, "fail")):
         v = grade.grade(sc, _answer(text, finding), {"done": True}, [])
         assert v["verdict"] == want, (text, finding, v["checks"])
 

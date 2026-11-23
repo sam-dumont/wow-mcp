@@ -1,10 +1,10 @@
-"""Gear advice (wowstats.gear) on the bundled data/gear-reference.json.
+"""Gear advice (wowstats.gear) on the bundled data/gear-reference.json,
+scored with ForeverDB.net's weights (data/foreverdb-weights.json).
 
-The numbers below were worked out by hand from Polestar's formulas and match
-what Polestar's own Gear.lua answers for the same character (run with
-tools/gear_reference/parity.lua; tests/test_gear_parity.py does that for
-every item when a Polestar checkout is at hand). The character is a level
-32 Gnome Priest, Shadow, wearing a two-handed staff and one trinket."""
+The numbers below are worked out by hand from ForeverDB's formula
+(tests/test_gear_foreverdb.py checks it against their own scores item by
+item). The character is a level 32 Gnome Priest, Shadow, Leveling weights,
+wearing a two-handed staff and one trinket."""
 
 import time
 
@@ -32,10 +32,9 @@ def ref():
 
 @pytest.fixture
 def priest_gear(ref):
-    w, _ = gear.weights_for(ref, "PRIEST", "shadow", 32)
-    racial = ref.gear["RACIALS"]["7"]
-    worn = gear.worn_from(ref, sheet()["items"], w, racial)
-    return w, racial, worn
+    w, _ = gear.weights_for(ref, "PRIEST", "shadow", "lvl")
+    worn = gear.worn_from(ref, sheet()["items"], w)
+    return w, worn
 
 
 def test_the_file_is_polestars(ref):
@@ -46,52 +45,43 @@ def test_the_file_is_polestars(ref):
     assert len(d["items"]) > 9000 and len(d["sources"]) > 3000
 
 
-def test_weights_at_32(ref):
-    """Shadow's level band to 32 (Polestar leveling), its formula weights:
-    health = Stamina / 10; mana = (Intellect - spell crit / Intellect per 1%
-    spell crit at 32) / 15; a melee DPS tiebreaker for a caster."""
-    w, band = gear.weights_for(ref, "PRIEST", "shadow", 32)
-    assert band["source"] == "polestar"
-    assert w["sp"] == 1 and w["spi"] == 0.9 and w["dps"] == 0.01 and w["haste"] == 4
-    assert w["health"] == pytest.approx(0.065)
-    per_crit = 59.2 * (0.2 + 0.8 * 31 / 59)
-    assert w["mana"] == pytest.approx((0.85 - 3 / per_crit) / 15)
-    assert w["mana"] == pytest.approx(0.051220646876384585)  # Polestar's Gear.lua, same level
+def test_leveling_weights(ref):
+    """Shadow's Leveling weights: ForeverDB's rule on the class guide's
+    (Stamina 0.8 x spell power 1, hit 1.2 x 0.7, Spirit 0.2 x 0.6, armour
+    0.02 for cloth, a wand's DPS 1.5), the same at every level."""
+    w, info = gear.weights_for(ref, "PRIEST", "shadow", "lvl")
+    assert info["source"] == "https://foreverdb.net" and info["mode"] == "lvl"
+    assert w["dmgheal"] == 1 and w["sta"] == 0.8 and w["hitRating"] == 0.84 and w["spi"] == 0.12
+    assert w["armor"] == 0.02 and w["wand"] == 1.5 and not w.get("dps")
+    pve, _ = gear.weights_for(ref, "PRIEST", "shadow", "pve")
+    assert pve["sta"] == 0.1 and pve["hitRating"] == 1.2 and not pve.get("wand")
 
 
 def test_hand_checked_scores(ref, priest_gear):
-    w, racial, worn = priest_gear
-    # Worn staff 1317: str 1, spi 9, sp 20, heal 20, 13.6 DPS -> 8.1 + 20 + 1 + 0.136.
-    assert worn.score(16) == pytest.approx(29.236)
-    # Staff 1155: spi 11, sp 32, heal 32, (39 + 60) / 2 / 2.8 = 17.7 DPS -> 9.9 + 32 + 1.6 + 0.177.
+    w, worn = priest_gear
+    # Worn staff 1317: 20 damage and healing, 9 Spirit x 0.12; its melee DPS counts nothing for a priest.
+    assert worn.score(16) == pytest.approx(21.08)
+    # Staff 1155: 32 damage and healing + 11 Spirit x 0.12.
     info = ref.item(1155)
-    r = gear.compare(info, 1155, worn, w, racial, False)
-    assert (r["slot"], r["score"]) == (16, pytest.approx(43.677))
+    r = gear.compare(info, 1155, worn, w, False)
+    assert (r["slot"], r["score"]) == (16, pytest.approx(33.32))
     # A two-hander replaces main hand + off hand (empty here).
-    assert r["delta"] == pytest.approx(14.441) and r["pct"] == pytest.approx(49.394582022164471)
-    # 2042, a worse staff for Shadow: a loss.
-    r = gear.compare(ref.item(2042), 2042, worn, w, racial, False)
-    assert r["delta"] == pytest.approx(-0.8215)
-    # Trinket 744 (spi 8): the empty trinket slot goes first, no percent.
-    r = gear.compare(ref.item(744), 744, worn, w, racial, False)
-    assert (r["slot"], r["delta"], r["pct"], r["empty"]) == (14, pytest.approx(7.2), None, True)
-    # Robe 2034 for the chest: +1.99, 16.3%.
-    r = gear.compare(ref.item(2034), 2034, worn, w, racial, False)
-    assert (r["slot"], r["delta"], r["pct"]) == (5, pytest.approx(1.99), pytest.approx(16.344969199178646))
+    assert r["delta"] == pytest.approx(12.24) and r["pct"] == pytest.approx(12.24 / 21.08 * 100)
+    # 2042: 48 healing and 16 damage are two lines; Shadow weighs only the damage: a loss.
+    r = gear.compare(ref.item(2042), 2042, worn, w, False)
+    assert r["delta"] == pytest.approx(16 + 1.5 + 0.72 - 21.08)
+    # Trinket 744 (8 Spirit): the empty trinket slot goes first, no percent.
+    r = gear.compare(ref.item(744), 744, worn, w, False)
+    assert (r["slot"], r["delta"], r["pct"], r["empty"]) == (14, pytest.approx(0.96), None, True)
+    # Robe 2034 for the chest (3 + 12 x 0.12 + 43 armour x 0.02) against 270261 (8 + 0.48 + 0.7): a loss.
+    r = gear.compare(ref.item(2034), 2034, worn, w, False)
+    assert (r["slot"], r["delta"]) == (5, pytest.approx(5.3 - 9.18))
 
 
-def test_racial_stat_multiplier(ref):
-    """A Gnome's Intellect counts 5% more (SpecData.lua RACIALS[7])."""
-    info = {"inv": 1, "class": 4, "subclass": 1, "stats": {"int": 10}}
-    w = {"int": 1}
-    assert gear.score_with(info, w, False, None) == 10
-    assert gear.score_with(info, w, False, ref.gear["RACIALS"]["7"]) == pytest.approx(10.5)
-
-
-def test_school_bonus_capped():
-    """Two schools of +34 are worth one +34 at the spell power weight (#1324)."""
+def test_school_bonus_adds_up():
+    """School damage counts on top of spell power, every school (ForeverDB)."""
     info = {"inv": 1, "class": 4, "subclass": 1, "stats": {"spFire": 34, "spShadow": 34}}
-    assert gear.score_with(info, {"sp": 1, "spFire": 0.6, "spShadow": 0.8}, False) == pytest.approx(34)
+    assert gear.score_with(info, {"sp": 1, "spFire": 0.6, "spShadow": 0.8}) == pytest.approx(34 * 1.4)
 
 
 def test_usability(ref):
@@ -106,8 +96,10 @@ def test_usability(ref):
 
 
 def test_adjust_edits():
+    """Polestar's Adjust weights edits: a multiple, or a plain value; a
+    "% spell hit" value is per 1%, 10 hit rating."""
     w, n = gear.adjust_apply({"sta": 0.5, "int": 1}, {"sta": {"x": 1.5}, "spellHit": {"v": 2}})
-    assert (w["sta"], w["int"], w["spellHit"], n) == (0.75, 1, 2, 2)
+    assert (w["sta"], w["int"], w["hitRating"], n) == (0.75, 1, 0.2, 2)
     assert gear.adjust_apply({"sta": 0.5}, None) == ({"sta": 0.5}, 0)
 
 
@@ -322,9 +314,9 @@ def test_worn_random_suffix_scored_on_its_likely_suffix(ref):
     back = next(s for s in a["slots"] if s["slot"] == 15)
     cur = back["current"]
     assert cur["random_suffix"] is True and cur["stats"] == {"armor": 21}  # its own stats shown, not the guess
-    w, _ = gear.weights_for(ref, "PRIEST", "shadow", 32)
+    w, _ = gear.weights_for(ref, "PRIEST", "shadow", "lvl")
     assert gear.likely_suffix(ref, ref.item(ELDERS_CLOAK), w)
-    assert cur["score"] > 5  # 0.1 on armor alone
+    assert cur["score"] > 3  # 0.42 on armor alone
     assert not any(u["item_id"] == WOOLEN_CAPE for u in a["upgrades_all"])
     assert all(u["gain_pct"] is None for u in a["upgrades_all"] if u["slot"] == 15)
 
@@ -337,22 +329,20 @@ def test_worn_random_suffix_scored_on_battlenet_stats(ref):
     """Battle.net's equipment answer for the same item: its real stats,
     a plain comparison (gain_pct back); for another item (changed since the
     daily refresh) it's ignored."""
-    real = gear.worn_stats({"back": {"item_id": ELDERS_CLOAK, "stats": {"INTELLECT": 1.0, "STAMINA": 1.0,
-                                                                         "ARMOR": 21.0}}})
-    assert real == {15: {"item_id": ELDERS_CLOAK, "stats": {"int": 1.0, "sta": 1.0}}}
-    w, _ = gear.weights_for(ref, "PRIEST", "shadow", 32)
-    racial = ref.gear["RACIALS"]["7"]
-    worn = gear.worn_from(ref, suffix_sheet()["items"], w, racial, real)
+    real = gear.worn_stats({"back": {"item_id": ELDERS_CLOAK, "stats": {"INTELLECT": 1.0, "ARMOR": 21.0}}})
+    assert real == {15: {"item_id": ELDERS_CLOAK, "stats": {"int": 1.0}}}
+    w, _ = gear.weights_for(ref, "PRIEST", "shadow", "lvl")
+    worn = gear.worn_from(ref, suffix_sheet()["items"], w, real)
     assert 15 not in worn.unknown
     assert worn.score(15) == pytest.approx(gear.score_with(
-        {**ref.item(ELDERS_CLOAK), "stats": {"armor": 21, "int": 1.0, "sta": 1.0}}, w, False, racial))
+        {**ref.item(ELDERS_CLOAK), "stats": {"armor": 21, "int": 1.0}}, w, False))
     a = gear.advise(ref, suffix_sheet(worn_stats=real), level=32, every=True)
     cur = next(s for s in a["slots"] if s["slot"] == 15)["current"]
-    assert cur["random_suffix"] is False and cur["stats"] == {"armor": 21, "int": 1.0, "sta": 1.0}
+    assert cur["random_suffix"] is False and cur["stats"] == {"armor": 21, "int": 1.0}
     cape = next(u for u in a["upgrades_all"] if u["item_id"] == WOOLEN_CAPE)  # a weak roll: the cape wins
     assert cape["gain_pct"] is not None and cape["vs_unknown"] is False
 
-    other = gear.worn_from(ref, suffix_sheet()["items"], w, racial, {15: {"item_id": 1, "stats": {"int": 9}}})
+    other = gear.worn_from(ref, suffix_sheet()["items"], w, {15: {"item_id": 1, "stats": {"int": 9}}})
     assert 15 in other.unknown
 
 
@@ -365,7 +355,7 @@ def test_candidate_random_suffix_only_for_drops(ref):
                 and k not in srcs)
     quest = next(int(k) for k, v in ref.data["items"].items() if v["quality"] == 2
                  and set(v["stats"]) <= {"armor", "dps"} and any(s["kind"] == "quest" for s in srcs.get(k, [])))
-    w, _ = gear.weights_for(ref, "PRIEST", "shadow", 32)
+    w, _ = gear.weights_for(ref, "PRIEST", "shadow", "lvl")
     assert gear.suffix_base(ref, drop, ref.item(drop))
     assert gear.item_for(ref, drop, w)["suffix"] == "likely"
     assert not gear.suffix_base(ref, quest, ref.item(quest))
@@ -410,7 +400,7 @@ def _now(*items) -> dict:
 
 
 def _standings(worn, per_slot):
-    return gear.standings(per_slot, worn, gear.WeaponSetups([], worn, {}, None, False, 32), 32)
+    return gear.standings(per_slot, worn, gear.WeaponSetups([], worn, {}, False, 32), 32)
 
 
 def test_standing_bis_second_percent():
@@ -505,7 +495,7 @@ MAIN_55 = _cand(5, 21, 90, 55)  # the level 55 weapon a level 33 can't wear
 
 
 def _setups(worn, *cands):
-    return gear.WeaponSetups(list(cands), worn, SP, None, False, 33)
+    return gear.WeaponSetups(list(cands), worn, SP, False, 33)
 
 
 def test_an_off_hand_is_scored_with_the_main_hand_worn():
@@ -559,8 +549,8 @@ def _item(inv: int, sp: float) -> dict:
 
 
 def _badge(worn, st, item_id, info):
-    return gear.bis_badge(st.get(gear.compare(info, item_id, worn, SP, None, False)["slot"]), gear.compare(
-        info, item_id, worn, SP, None, False))
+    return gear.bis_badge(st.get(gear.compare(info, item_id, worn, SP, False)["slot"]), gear.compare(
+        info, item_id, worn, SP, False))
 
 
 def test_badge_bis_item_is_100_and_the_delta_is_against_the_worn_one():
@@ -597,7 +587,7 @@ def test_badge_rings_and_trinkets_against_the_weaker_worn(pair):
     assert st[b]["pct"] == 33 and st[a]["rank"] == 1
     # A new piece replaces the weaker worn one (Gear.lua compare) and is
     # measured in that slot, from its 33%.
-    assert gear.compare(_item(inv, 8), 2, worn, SP, None, False)["slot"] == b
+    assert gear.compare(_item(inv, 8), 2, worn, SP, False)["slot"] == b
     assert _badge(worn, st, 2, _item(inv, 8)) == {"bis_pct": 67, "bis_pct_worn": 33, "delta_pct": 34}
     assert _badge(worn, st, 1, _item(inv, 12)) == {"bis_pct": 100, "bis_pct_worn": 33, "delta_pct": 67}
 
@@ -655,7 +645,7 @@ def test_badge_on_every_advice_row_and_the_dungeon_loot(ref):
 def test_words_from_worn_to_this_item():
     worn = _worn({5: 14.0})
     st = _standings(worn, {5: _now((1, 20.0))})  # BiS 20: the worn 14 is 70%
-    r = gear.compare(_item(5, 18.2), 7, worn, SP, None, False)
+    r = gear.compare(_item(5, 18.2), 7, worn, SP, False)
     u = {**gear.bis_badge(st[5], r), "slot_name": "Chest", "gain": 4.2}
     assert gear.gain_words(u) == "70% → 91% on your chest"
     assert gear.gain_words({**u, "bis_pct": 100, "delta_pct": 30}) == "70% → 100% on your chest"
@@ -664,7 +654,7 @@ def test_words_from_worn_to_this_item():
 def test_words_empty_slot():
     worn = _worn({1: 10.0})
     st = _standings(worn, {5: _now((1, 20.0))})
-    r = gear.compare(_item(5, 18.2), 7, worn, SP, None, False)
+    r = gear.compare(_item(5, 18.2), 7, worn, SP, False)
     assert r["empty"]
     assert gear.gain_words({**gear.bis_badge(st[5], r), "slot_name": "Chest"}) == "empty → 91% on your chest"
 
@@ -672,13 +662,13 @@ def test_words_empty_slot():
 def test_words_ring_pair_from_the_weaker_worn():
     worn = _worn({11: 10.0, 12: 4.0})
     st = _standings(worn, {11: _now((1, 12.0), (2, 8.0)), 12: _now((1, 12.0), (2, 8.0))})
-    r = gear.compare(_item(11, 8), 2, worn, SP, None, False)
+    r = gear.compare(_item(11, 8), 2, worn, SP, False)
     assert r["slot"] == 12  # the weaker of the two
     assert gear.gain_words({**gear.bis_badge(st[12], r), "slot_name": "Finger"}) == "33% → 67% on your finger"
     # A free ring slot is the one it fills.
     one = _worn({11: 10.0})
     st1 = _standings(one, {11: _now((1, 12.0), (2, 8.0)), 12: _now((1, 12.0), (2, 8.0))})
-    r1 = gear.compare(_item(11, 8), 2, one, SP, None, False)
+    r1 = gear.compare(_item(11, 8), 2, one, SP, False)
     assert r1["empty"]
     assert gear.gain_words({**gear.bis_badge(st1[r1["slot"]], r1), "slot_name": "Finger"}).startswith("empty → ")
 
@@ -699,7 +689,7 @@ def test_words_pair_from_the_ring_it_replaces(pair, name):
     lst = _now((1, 100.0), (2, 80.0), (3, 70.0))
     st = _standings(worn, {a: lst, b: lst})
     assert (st[b]["pct"], st[a]["pct"]) == (34, 46)
-    r = gear.compare(_item(inv, 70), 3, worn, SP, None, False)
+    r = gear.compare(_item(inv, 70), 3, worn, SP, False)
     assert r["slot"] == b
     u = {**gear.bis_badge(st[r["slot"]], r), "slot_name": name.capitalize()}
     assert gear.gain_words(u) == f"34% → 70% on your {name}"

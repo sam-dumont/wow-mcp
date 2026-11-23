@@ -15,12 +15,15 @@ your class/role' or 'this is maybe not the best for you'"):
      warlocks, ranged attack power for anyone but a hunter);
   2. not the spec's, still the class's: healing power for a priest, druid,
      shaman or paladin who doesn't heal, attack power for a druid, shaman
-     or paladin who casts or heals (SPEC_PARTIAL). It counts partially,
-     by level and talents: until the spec's 31-point talent (Shadowform at
-     40 at the earliest, KB gear-fit:capstone-at-40) a spec plays closer to
-     a generalist of its class (a shadow priest heals himself between
-     pulls), so it gets GENERALIST of the class's best weight for it; after,
-     Polestar's own weight for the spec.
+     or paladin who casts or heals (SPEC_PARTIAL). Until the spec's
+     31-point talent (Shadowform at 40 at the earliest, KB
+     gear-fit:capstone-at-40) the labels say such an item is fine while
+     levelling.
+
+The scores are ForeverDB's weights as they are (wowstats.gear.weights_for):
+this model only labels. Who an item is built for compares the specs'
+class-guide (PvE) weights: what the stats are made for, whatever mode the
+character scores in.
 
 From it, per item:
 
@@ -74,12 +77,8 @@ STAT_WORDS = {"str": "Strength", "agi": "Agility", "sta": "Stamina", "int": "Int
               "blockValue": "block value", "haste": "haste", "expertise": "expertise", "armorPen": "armor penetration"}
 MANA = ("int", "spi", "mp5", "mana")
 
-# Stats that do nothing for a spec, whatever a weight table says: (who, the
-# stats, the KB statement). The weights come from Polestar and wowsims; a
-# few carry small values here that the class can't use (a shadow priest's
-# healing power, a warrior's Spirit, an elemental shaman's attack power).
-# Level 1, against the class: (classes, stats, KB statement). Zero, at
-# every level and spec.
+# Stats that do nothing for a class, with the KB statement the labels cite:
+# (classes, stats, KB statement).
 NO_HEALS = ("WARRIOR", "ROGUE", "MAGE", "WARLOCK", "HUNTER")
 CLASS_ZERO = (
     (NO_HEALS, ("heal",), "gear-fit:class-no-heals"),
@@ -87,17 +86,12 @@ CLASS_ZERO = (
     (("MAGE", "PRIEST", "WARLOCK"), ("ap", "rap"), "gear-fit:casters-no-ap"),
     (("WARRIOR", "PALADIN", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID"), ("rap",), "gear-fit:ranged-ap"),
 )
-# Level 2, not the spec's but the class's: (stat, the roles it isn't
-# theirs for, KB statement). Partial, by level and talents.
+# Not the spec's but the class's: (stat, the roles it isn't theirs for, KB
+# statement).
 SPEC_PARTIAL = (
     ("heal", ("tank", "melee", "ranged", "caster"), "gear-fit:hybrids-heal-while-levelling"),
     ("ap", ("caster", "healer"), "gear-fit:casters-no-ap"),
 )
-# Before the spec's 31-point talent, the share of the class's best weight
-# for such a stat (its healer's healing power, its fighter's attack power).
-# A model choice, not a sourced number: half, a generalist who also does
-# the other job now and then. After the talent, Polestar's own weight.
-GENERALIST = 0.5
 # The 31-point talent's level and points when the KB has no
 # talents.points rule (gear.capstone_rule reads it).
 CAPSTONE = (40, 31)
@@ -146,31 +140,6 @@ def capstone(level: int, points: int | None = None) -> bool:
     return level >= lv and (points is None or points >= need)
 
 
-def model_weights(ref: gm.Reference, w: dict | None, cls: str, key: str | None, level: int,
-                  points: int | None = None) -> dict | None:
-    """The spec's weights in the model: what the class can't use at zero,
-    what the class uses but the spec doesn't at a partial, level- and
-    talent-aware weight (see the module's docstring). What the gear advice
-    scores with, before the player's own edits."""
-    if not w:
-        return w
-    role = role_of(cls, key)
-    out = dict(w)
-    for classes, stats, _ in CLASS_ZERO:
-        if cls in classes:
-            for s in stats:
-                if out.get(s):
-                    out[s] = 0
-    if role and not capstone(level, points):
-        for stat, roles, _ in SPEC_PARTIAL:
-            if role not in roles or stat in zeroed(cls, key):
-                continue
-            best = max((((gm.weights_for(ref, cls, k, level)[0] or {}).get(stat) or 0)
-                        for c, k in ROLES if c == cls), default=0)
-            out[stat] = max(out.get(stat) or 0, round(best * GENERALIST, 3))
-    return out
-
-
 def zeroed(cls: str, key: str | None = None) -> dict[str, str]:
     """stat -> the KB statement that says the class gets nothing from it."""
     out: dict[str, str] = {}
@@ -214,18 +183,22 @@ def parts(stats: dict) -> dict[str, float]:
 
 def _part_weight(w: dict, part: str) -> float:
     if part == "dmgheal":
-        return max(w.get("sp") or 0, w.get("heal") or 0)
+        return w.get("dmgheal") or 0
     if part == "healonly":
         return w.get("heal") or 0
     if part == "dmgonly":
         return w.get("sp") or 0
-    return w.get(part) or 0
+    if part in ("dps", "rdps"):
+        return 0
+    return gm.stat_weight(w, part)
 
 
 def credit(w: dict, part: str) -> float:
     """How much a budget point of this part is worth to the spec, against
     its best primary stat (0..1)."""
-    top = max((w.get(k) or 0) for k in ("str", "agi", "sta", "int", "spi")) or 1
+    # The spec's best primary stat per budget point, spell power and attack
+    # power counted: a caster's main stat is its spell damage.
+    top = max(_part_weight(w, k) / BUDGET[k] for k in ("str", "agi", "sta", "int", "spi", "dmgheal", "ap")) or 1
     return min(1.0, _part_weight(w, part) / BUDGET[part] / top)
 
 
@@ -246,7 +219,9 @@ def use(w: dict, stats: dict) -> tuple[float, float, list[str], bool]:
         cr = credit(w, k)
         if k != "sta":
             got += v * BUDGET[k] * cr
-        if cr < LITTLE:
+        # Stamina never "does little": the class guides weigh it low for a
+        # raid, and every mode but PvE weighs it high.
+        if cr < LITTLE and k != "sta":
             lost += v * BUDGET[k]
             little.append(k)
             none = none and _part_weight(w, k) <= 0
@@ -277,12 +252,12 @@ def _cache(ref: gm.Reference) -> dict:
     return c
 
 
-def spec_weights(ref: gm.Reference, cls: str, key: str, level: int) -> dict | None:
-    """The model's weights for any spec at a level (cached on the reference)."""
+def spec_weights(ref: gm.Reference, cls: str, key: str) -> dict | None:
+    """A spec's class-guide (PvE) weights: what its gear is made for."""
     c = _cache(ref)
-    k = ("w", cls, key, level)
+    k = ("w", cls, key)
     if k not in c:
-        c[k] = model_weights(ref, gm.weights_for(ref, cls, key, level)[0], cls, key, level)
+        c[k] = gm.weights_for(ref, cls, key, "pve")[0]
     return c[k]
 
 
@@ -312,7 +287,7 @@ def built_for(ref: gm.Reference, info: dict, level: int, armour: bool = True) ->
         usable, _, min_level = gm.usability(ref, info, cls, level)
         if not usable or min_level > max(level, info.get("req") or 0):
             continue
-        w = spec_weights(ref, cls, key, level)
+        w = spec_weights(ref, cls, key)
         if not w:
             continue
         share = use(w, info.get("stats") or {})[0]

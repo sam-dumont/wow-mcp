@@ -523,15 +523,16 @@ class Views:
         return self._minute(self._done, char, lambda: quests.history(lambda q: self.vl(f"{st} {q}"),
                                                                      f'feed:="wow-recorder" {cf}', cf))
 
-    def gear(self, char: str, spec: str | None = None) -> dict:
+    def gear(self, char: str, spec: str | None = None, mode: str | None = None) -> dict:
         """Gear advice (wowstats.gear): per slot what is worn, the best item
         at this level and the next one coming, and the upgrades in order.
-        spec: the page's choice, else Polestar's setting or the player's pick."""
+        spec: the page's choice, else Polestar's setting or the player's pick.
+        mode: the weights' mode (Leveling, PvP, PvE), Leveling by default."""
         gi = self.gear_inputs(char)
         if not gi["available"]:
             return gi
         try:
-            advice = gearmod.advise(gearmod.reference(), gi["sheet"], spec=spec, **gear_args(gi))
+            advice = gearmod.advise(gearmod.reference(), gi["sheet"], spec=spec, mode=mode, **gear_args(gi))
         except gearmod.GearError as e:
             return {**gi["base"], "available": False, "why": str(e)}
         return {**gi["base"], "available": True, "at": gi["at"], "talents": gi["sheet"].get("talents"), **advice,

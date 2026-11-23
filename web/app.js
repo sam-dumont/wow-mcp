@@ -1220,8 +1220,8 @@ async function loadMeta(name) {
 
 // ------------------------------------------------------------ gear advice
 
-// Polestar's own scoring, run by the server (/api/gear): per slot the best
-// item at this level and the next one coming, then the upgrades in order.
+// ForeverDB.net's weights, scored by the server (/api/gear): per slot the
+// best item at this level and the next one coming, then the upgrades in order.
 
 const specKey = (c) => `wow-gear-spec:${c}`;
 function savedSpec(c) {
@@ -1229,6 +1229,14 @@ function savedSpec(c) {
 }
 function saveSpec(c, v) {
   try { if (v) localStorage.setItem(specKey(c), v); else localStorage.removeItem(specKey(c)); } catch (e) { /* private mode */ }
+}
+// The weights' mode per character (Leveling when none is saved).
+const modeKey = (c) => `wow-gear-mode:${c}`;
+function savedMode(c) {
+  try { return localStorage.getItem(modeKey(c)) || ''; } catch (e) { return ''; }
+}
+function saveMode(c, v) {
+  try { if (v) localStorage.setItem(modeKey(c), v); else localStorage.removeItem(modeKey(c)); } catch (e) { /* private mode */ }
 }
 
 
@@ -1382,6 +1390,14 @@ function bisTier(st) {
   return null;
 }
 const BIS_LEGEND = [['bis', 'BiS'], ['epic', '85%+'], ['rare', '50%+']];
+// Whose weights every score and badge uses (wowstats/gear.py CREDIT): shown
+// wherever a score is, with the link.
+const WEIGHTS_CREDIT = { text: 'Weights: ForeverDB.net', url: 'https://foreverdb.net' };
+function creditEl(src, mode) {
+  const c = src && src.url ? src : WEIGHTS_CREDIT;
+  return h('span', { class: 'wcredit' }, mode ? `${mode} · ` : '',
+    h('a', { href: c.url, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer', text: c.text || WEIGHTS_CREDIT.text }));
+}
 
 // Every gear piece the page shows (owner, 2026-11-21): the doll's badge on
 // its icon, its share of the best its slot can hold at your level, and the
@@ -1592,7 +1608,7 @@ function openCompare(u, anchor, a) {
 // slots: [{slot, standing}], the advice's slots or, in the public view, the
 // character answer's gear.standing (owner, 2026-11-23: the badges only,
 // never the advice). Nothing on a slot with no BiS to measure against.
-function dollBadges(slots) {
+function dollBadges(slots, src, mode) {
   document.querySelectorAll('#gear .slot .ibis, #gear .bislegend').forEach((el) => el.remove());
   let badges = 0;
   for (const sl of slots || []) {
@@ -1616,7 +1632,8 @@ function dollBadges(slots) {
   const doll = document.querySelector('#gear .doll');
   if (badges && doll) {
     doll.after(h('p', { class: 'bislegend', title: 'Each badge: how close the item is to the best for its slot at your level' },
-      h('span', { text: 'Badges:' }), BIS_LEGEND.map(([k, t]) => h('span', { class: 'bischip t-' + k, text: t }))));
+      h('span', { text: 'Badges:' }), BIS_LEGEND.map(([k, t]) => h('span', { class: 'bischip t-' + k, text: t })),
+      creditEl(src, mode || 'Leveling')));
   }
 }
 
@@ -1653,7 +1670,7 @@ function renderAdvice(a) {
       openCompare(cur.best, document.querySelector('#gear .doll'), state.advice);
     }, true);
   }
-  dollBadges(a.slots);
+  dollBadges(a.slots, a.source, a.mode && a.mode.label);
   // "Automatic" drops the page's own choice: Polestar's setting, the
   // player's pick or the class default decide again.
   const auto = a.spec.source !== 'page';
@@ -1662,6 +1679,14 @@ function renderAdvice(a) {
     a.spec.choices.map((c) => h('option', { value: c.key, text: c.label, selected: !auto && c.key === a.spec.key })));
   sel.addEventListener('change', () => {
     saveSpec(state.char, sel.value);
+    loadAdvice(state.char);
+  });
+  // Leveling (the default), PvP or PvE: ForeverDB's three weight tables.
+  const md = a.mode || { key: 'lvl', label: 'Leveling', choices: [] };
+  const msel = h('select', { id: 'gearmode', 'aria-label': 'Weights for' },
+    (md.choices || []).map((c) => h('option', { value: c.key, text: c.label, selected: c.key === md.key })));
+  msel.addEventListener('change', () => {
+    saveMode(state.char, msel.value === 'lvl' ? '' : msel.value);
     loadAdvice(state.char);
   });
   const view = state.adviceView || 'where';
@@ -1676,7 +1701,11 @@ function renderAdvice(a) {
   const guess = a.estimated ? `Best for your level (estimated: what you wear isn’t known). ${a.unlock}` : null;
   const head = h('div', { class: 'adv-head' },
     h('div', { class: 'nuhead' }, h('h3', { class: 'adv-h', text: a.estimated ? 'Gear for your level' : 'Upgrades' }), toggle),
-    h('label', { class: 'specpick' }, h('span', { text: 'Scored for' }), sel),
+    h('div', { class: 'specpicks' },
+      h('label', { class: 'specpick' }, h('span', { text: 'Scored for' }), sel),
+      STATIC ? h('span', { class: 'specpick', text: `${md.label} weights` })
+        : h('label', { class: 'specpick' }, h('span', { text: 'Weights' }), msel),
+      creditEl(a.source)),
     h('p', { class: 'sub', text: guess || 'Click an item to compare it with what you wear.' }));
   const smalls = allUps(a).filter((u) => small(u, a));
   const shown = new Set();
@@ -1836,8 +1865,9 @@ function compactList(a, list) {
 
 async function loadAdvice(name) {
   const spec = savedSpec(name);
+  const mode = savedMode(name);
   try {
-    const a = await getJSON(api('gear', STATIC ? { name } : { name, spec }));
+    const a = await getJSON(api('gear', STATIC ? { name } : { name, spec, mode }));
     if (name === state.char) renderAdvice(a);
   } catch (e) {
     const box = $('#advice');

@@ -119,6 +119,23 @@ def test_each_slots_best_upgrade_is_the_same_on_the_gear_page_and_in_the_mcp(ser
             assert m["item_id"] in ups, f"{served.name}: move {m['title']} isn't one of the gear page's upgrades"
 
 
+@pytest.mark.parametrize("mode", ["lvl", "pvp", "pve"])
+def test_each_mode_reads_the_same_on_the_gear_page_and_in_the_mcp(served, mode):
+    """Leveling, PvP and PvE: the same mode, the same weights' credit and
+    each slot's same best item and worn standing on both surfaces."""
+    page = served.page("gear", mode=mode)
+    if not page.get("available"):
+        pytest.skip(f"{served.name}: no gear advice")
+    mcp = served.mcp("gear", mode=mode)
+    assert page["mode"]["key"] == mode and mcp["mode"] == page["mode"]["label"], served.name
+    assert page["source"]["url"] == mcp["source"]["url"] == "https://foreverdb.net"
+    mine = {s["slot_name"]: ((s.get("best") or {}).get("item_id"), (s.get("standing") or {}).get("label"))
+            for s in page.get("slots") or []}
+    theirs = {s["slot"]: ((s.get("best_now") or {}).get("item_id"), s.get("worn_standing"))
+              for s in mcp.get("slots") or []}
+    assert {k: v for k, v in mine.items() if k in theirs} == theirs, (served.name, mode)
+
+
 # ---------------------------------------------------------------- coverage and missing
 
 

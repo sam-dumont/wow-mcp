@@ -138,24 +138,20 @@ class Replay:
 
 
 class Scorer:
-    """Polestar's score for one class and spec at a given level."""
+    """The gear advice's score (ForeverDB's Leveling weights) for one class
+    and spec. The weights are the same at every level; `level` stays in the
+    signature for the replay."""
 
-    def __init__(self, ref: gm.Reference, cls: str, key: str, racial: dict | None):
-        self.ref, self.cls, self.key, self.racial = ref, cls, key, racial
-        self._w: dict[int, dict | None] = {}
+    def __init__(self, ref: gm.Reference, cls: str, key: str, mode: str = gm.DEFAULT_MODE):
+        self.ref, self.cls = ref, cls
+        self.w = gm.weights_for(ref, cls, key, mode)[0]
 
     def weights(self, level: int) -> dict | None:
-        if level not in self._w:
-            from wowstats import gearfit
-
-            self._w[level] = gearfit.model_weights(self.ref, gm.weights_for(self.ref, self.cls, self.key, level)[0],
-                                                   self.cls, self.key, level)
-        return self._w[level]
+        return self.w
 
     def score(self, item_id: int | None, level: int, slot: int) -> float:
         info = self.ref.item(item_id) if item_id else None
-        w = self.weights(level)
-        return gm.score_with(info, w, slot == gm.OFF, self.racial) if info and w else 0.0
+        return gm.score_with(info, self.w, slot == gm.OFF) if info and self.w else 0.0
 
 
 def replay(ref: gm.Reference, scorer: Scorer, acqs: list[Acq], dings: list[tuple[datetime, int]],
@@ -293,19 +289,17 @@ Q_CRAFT = "kind:=craft item_id:* | fields _time, spell_id, item_id"
 def build(ref: gm.Reference, sheet: dict, turnins: list[dict], loots: list[dict], crafts: list[dict],
           dings: list[tuple[datetime, int]], first_sheet: dict | None) -> tuple[Replay, dict | None, dict] | None:
     """The anchored replay, the agreement with the first sheet, the shipped
-    item names. None without records or a class Polestar scores."""
+    item names. None without records or a class the weights score."""
     cls = gm.class_token(sheet.get("class"))
-    if not ref.available or not cls or cls not in (ref.gear.get("WEIGHTS") or {}):
+    if not ref.available or not cls or cls not in (ref.weights.get("specs") or {}):
         return None
     rows = [r for r in turnins + loots + crafts if r.get("_time")]
     if not rows:
         return None
     start = min(parse_t(r["_time"]) for r in rows)
     key, _ = gm.resolve_spec(ref, cls, sheet)
-    race_id = gm.RACE_IDS.get(str(sheet.get("race") or "").strip().lower())
-    racial = (ref.gear.get("RACIALS") or {}).get(str(race_id)) if race_id else None
     acqs = acquisitions(ref, turnins, loots, crafts)
-    rp = replay(ref, Scorer(ref, cls, key, racial), acqs, dings, start)
+    rp = replay(ref, Scorer(ref, cls, key), acqs, dings, start)
     check = None
     if first_sheet and first_sheet.get("_time"):
         t = parse_t(first_sheet["_time"])

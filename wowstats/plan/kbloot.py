@@ -225,8 +225,7 @@ def stat_fit(info: dict, cls: str | None, spec: str | None, level: int) -> bool 
     if not gear.usability(ref, info, cls, level)[0]:
         return False
     key, how = gear.resolve_spec(ref, cls, {}, spec or None)
-    w, _ = gear.weights_for(ref, cls, key, level) if key else (None, None)
-    w = gearfit.model_weights(ref, w, cls, key, level) if w else None
+    w, _ = gear.weights_for(ref, cls, key) if key else (None, None)
     if not w:
         return None
     f = gearfit.fit(ref, info, cls, key, how, level, w)

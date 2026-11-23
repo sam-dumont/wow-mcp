@@ -293,17 +293,19 @@ def test_dalaran_quest_rewards_for_a_caster_at_30(priest):
     b = by_name(V.build(inp))["City of Dalaran"]
     rw = b["quest_rewards"]
     assert rw and all(r["gain"] > 0 for r in rw)
-    sash = next(r for r in rw if r["name"] == "Violet Sash")  # cloth, int and spell power
-    assert sash["quest"]["name"] == "Power Overwhelming" and sash["quest"]["state"] in ("new", "open")
-    assert sash["quest"]["starts"] and sash["url"].endswith("item=251962")
+    # ForeverDB's Leveling weights (Stamina first): the cloak beats his, the
+    # Violet Sash (Intellect and spell power) doesn't.
+    cloak = next(r for r in rw if r["name"] == "Vine Pruner's Cloak")
+    assert cloak["quest"]["name"] == "A Green Sample" and cloak["quest"]["state"] in ("new", "open")
+    assert cloak["quest"]["starts"] and cloak["url"].endswith("item=279835")
     # One per quest, and the quest says it pays an upgrade.
     assert len({r["quest"]["quest_id"] for r in rw}) == len(rw)
-    q = next(q for q in b["quests"] if q["quest_id"] == 92489)
+    q = next(q for q in b["quests"] if q["quest_id"] == 92456)
     assert q["rewards"] and q["rewards"][0]["state"] == "missing"
     # The Overview's dungeon move gets the same list.
     move = {"kind": "dungeon", "zone": {"name": "City of Dalaran"}, "text": "City of Dalaran drops 2 upgrades."}
     m = V.with_gain([move], V.build(inp))[0]
-    assert m["quest_rewards"] == rw and "Violet Sash" in m["text"]
+    assert m["quest_rewards"] == rw and "Vine Pruner's Cloak" in m["text"]
 
 
 def test_classic_dungeon_quests_given_outside_pay_too(priest):

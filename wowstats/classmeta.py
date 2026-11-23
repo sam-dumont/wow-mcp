@@ -12,7 +12,7 @@ Facts, sourced rules and strategy, reconciled for any character:
   statements are the recent shifts, newest first. Nothing here is an opinion
   of ours; a class or spec the KB says nothing about gets nothing.
 - the character's side is its own data: the talents (Battle.net's API,
-  wowstats.talents), the gear advice (Polestar's scoring and
+  wowstats.talents), the gear advice (ForeverDB.net's weights and
   BiS-at-level, wowstats.gear: the stat weights are in its scores) and the
   enchant ids the item links carry.
 

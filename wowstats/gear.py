@@ -1,27 +1,30 @@
-"""Gear advice: Polestar's scoring, on the server, over Polestar's gear data.
+"""Gear advice: ForeverDB.net's scoring, on the server, over Polestar's gear data.
 
 What each slot holds now, the best item the character can get at its level
 (and the next one coming within a few levels), the gain in percent, and where
 to get it: the quest and zone, the dungeon and boss, the craft and profession.
 
-The data is data/gear-reference.json, exported from a Polestar release by
-tools/gear_reference/ (docs/gear-reference.md): every equippable item's
+Two data files. data/gear-reference.json, exported from a Polestar release
+by tools/gear_reference/ (docs/gear-reference.md): every equippable item's
 stats, where leveling gear comes from (Polestar's leveling data, generated
-from ForeverLevelingBiS v0.12.0-beta, MIT), the stat weights per class, spec
-and level band (Polestar's own, blended with wowsims, MIT) and the class rules.
-GEAR_REFERENCE_FILE points at another file; `off` turns gear advice off.
+from ForeverLevelingBiS v0.12.0-beta, MIT) and the class rules (who wears
+what). data/foreverdb-weights.json, written by tools/foreverdb_weights/: the
+stat weights per class, spec and mode (Leveling, PvP, PvE) and each set
+piece's share of its set's bonuses, from ForeverDB.net (credited wherever a
+score shows: CREDIT). GEAR_REFERENCE_FILE points at another gear file;
+`off` turns gear advice off.
 
-The scoring is a port of Polestar's addon/Polestar/Gear/Gear.lua (and
-Adjust.lua, Rewards.lua): each function names the one it follows.
-tests/test_gear_parity.py runs Polestar's own Lua next to it. What the
-server can't see, it leaves out the way Polestar does when the client can't
-say: no talent ranks (Mental Dexterity in withTalentStats), no weapon
-skills (knowsWeaponSkill counts every weapon the class can train), no random
-"of the Owl" suffix stats (the client's C_Item.GetItemStats has them, the
-item table does not), and no Forever Leveling BiS. The bags and the bank
+The score is ForeverDB's (score_with): each stat times its weight, "% hit"
+and "% crit" lines as ratings (PCT_RATING), school damage on top of spell
+power, weapon DPS for the hands (ranged for hunters), a wand's DPS where the
+mode weighs it, armour, the set share; procs and on-use effects count zero.
+tests/test_gear_foreverdb.py checks it against ForeverDB's own scores. What
+the server can't see stays out: no weapon skills (every weapon the class can
+train counts), no random "of the Owl" suffix stats (the client's
+C_Item.GetItemStats has them, the item table does not). The bags and the bank
 come from the shipper's wow-bags (Syndicator): an item held there is a
-candidate like in Gear.lua refreshBags, its only source the bag or the bank
-(`held`), since getting it again is no errand.
+candidate, its only source the bag or the bank (`held`), since getting it
+again is no errand.
 """
 
 from __future__ import annotations
@@ -39,6 +42,7 @@ from wowstats import ahsource, forever, quests, stores
 _HERE = Path(__file__).resolve()
 # An installed wheel carries it as wowstats/data/; a checkout has it at the root.
 BUNDLED = (_HERE.parent / "data" / "gear-reference.json", _HERE.parents[1] / "data" / "gear-reference.json")
+WEIGHTS_FILES = (_HERE.parent / "data" / "foreverdb-weights.json", _HERE.parents[1] / "data" / "foreverdb-weights.json")
 
 # --- Gear.lua's tables -------------------------------------------------------
 
@@ -52,11 +56,22 @@ RANGED_INV = {15, 25, 26}
 MELEE_INV = {13, 17, 21, 22}
 OFFHAND_INV = {14, 22, 23}
 ANY_ARMOR_INV = {2, 11, 12, 16, 23}  # every class wears these whatever their subclass
-OFFHAND_DPS = 0.5  # off-hand weapons hit for half (weights without ohDps)
-MELEE_DPS = 0.01  # withMeleeDps: a tiebreaker for casters and Druids
-AP_PER_DPS = 14  # withMeleeDps: Feral's weapon DPS is 14x its attack power weight
-FOREVER_ONLY = ("haste", "expertise", "armorPen")  # withForeverRatings
-SCHOOLS = ("spArcane", "spFire", "spFrost", "spHoly", "spNature", "spShadow")
+OFFHAND_DPS = 0.5  # an off-hand weapon hits for half (ForeverDB: half its weapon-DPS part)
+WAND_SUBCLASS = 19
+# An item's "% hit" (or crit, dodge...) line as the rating ForeverDB scores
+# it with: 10 hit rating per 1% hit, 14 crit, 12 dodge, 15 parry, 5 block.
+PCT_RATING = {"hit": ("hitRating", 10), "spellHit": ("hitRating", 10), "crit": ("critRating", 14),
+              "spellCrit": ("critRating", 14), "dodge": ("dodgeRating", 12), "parry": ("parryRating", 15),
+              "block": ("blockRating", 5)}
+# The modes the weights come in (owner, 2026-11-23): Leveling first, the default.
+MODES = {"lvl": "Leveling", "pvp": "PvP", "pve": "PvE"}
+DEFAULT_MODE = "lvl"
+MODE_NAMES = {"lvl": "lvl", "leveling": "lvl", "levelling": "lvl", "pvp": "pvp", "pve": "pve", "raid": "pve"}
+CREDIT = {"name": "ForeverDB.net", "url": "https://foreverdb.net", "text": "Weights: ForeverDB.net"}
+# ForeverDB's availability rule: an item with no required level counts from
+# its item level minus 5; a quest reward from its quest's level minus 5.
+NO_REQ_BELOW = 5
+QUEST_AHEAD = 5
 SLOT_NAMES = {1: "Head", 2: "Neck", 3: "Shoulder", 5: "Chest", 6: "Waist", 7: "Legs", 8: "Feet", 9: "Wrist",
               10: "Hands", 11: "Finger", 12: "Finger", 13: "Trinket", 14: "Trinket", 15: "Back", 16: "Main hand",
               17: "Off hand", 18: "Ranged"}
@@ -80,6 +95,8 @@ class Reference:
     available: bool
     why: str = ""
     data: dict = field(default_factory=dict)
+    # data/foreverdb-weights.json (weights_data()).
+    weights: dict = field(default_factory=dict, repr=False)
     # likely_suffix's index, built on first use.
     peers: dict | None = field(default=None, repr=False, compare=False)
 
@@ -92,11 +109,18 @@ class Reference:
 
     def meta(self) -> dict:
         d = self.data
+        src = (self.weights or {}).get("source") or {}
         return {"polestar": (d.get("polestar") or {}).get("version"), "tag": (d.get("polestar") or {}).get("tag"),
-                "leveling": d.get("leveling"), "item_stats": d.get("item_stats")}
+                "leveling": d.get("leveling"), "item_stats": d.get("item_stats"),
+                "weights": {k: src.get(k) for k in ("name", "url", "build", "fetched")}}
+
+    def spec_weights(self, cls: str, key: str) -> dict | None:
+        """The spec's entry in the weights file: {pve, lvl, pvp, style, role, ...}."""
+        return ((self.weights.get("specs") or {}).get(cls) or {}).get(key)
 
 
 _LOCK = threading.Lock()
+_WLOCK = threading.Lock()
 _CACHE: dict[str, Reference] = {}
 
 
@@ -117,10 +141,41 @@ def reference() -> Reference:
             except (OSError, ValueError):
                 continue
             if isinstance(data, dict) and data.get("schema") == 1 and data.get("items"):
-                ref = Reference(True, data=data)
+                fdb = weights_data()
+                if fdb is None:
+                    ref = Reference(False, "no stat weights file (data/foreverdb-weights.json) in this install")
+                    break
+                ref = Reference(True, data=data, weights=fdb)
+                # Each set piece carries its share of the set's bonuses
+                # (ForeverDB: the bonus total over the set's size, on every
+                # piece whether the others are worn or not).
+                items = data["items"]
+                for iid, share in (fdb.get("sets") or {}).items():
+                    if items.get(iid):
+                        items[iid] = {**items[iid], "set": share}
                 break
         _CACHE[key] = ref
         return ref
+
+
+_WEIGHTS: list = []
+
+
+def weights_data() -> dict | None:
+    """data/foreverdb-weights.json (tools/foreverdb_weights/), read once."""
+    with _WLOCK:
+        if not _WEIGHTS:
+            got = None
+            for p in WEIGHTS_FILES:
+                try:
+                    d = json.loads(p.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if isinstance(d, dict) and d.get("schema") == 1 and d.get("specs"):
+                    got = d
+                    break
+            _WEIGHTS.append(got)
+        return _WEIGHTS[0]
 
 
 # --- class and spec ----------------------------------------------------------
@@ -213,164 +268,132 @@ def resolve_spec(ref: Reference, cls: str, sheet: dict, override: str | None = N
     return meta.get("default"), "default"
 
 
-# --- weights (Gear.lua Gear.WeightsFor, Adjust.lua Adjust.Apply) -------------
+# --- weights (ForeverDB.net; Adjust.lua Adjust.Apply for the player's edits) --
 
 
-def _with_forever_ratings(w: dict, authored: dict | None) -> dict:
-    """Gear.lua withForeverRatings: Forever's own ratings, which no band
-    weighs, from the authored table."""
-    if not authored:
-        return w
-    c = dict(w)
-    for k in FOREVER_ONLY:
-        if w.get(k) is None and authored.get(k):
-            c[k] = authored[k]
-    return c
+def mode_key(mode) -> str:
+    """'lvl', 'pvp' or 'pve' from a key or a name (Leveling, PvP, PvE);
+    Leveling for anything else."""
+    return MODE_NAMES.get(str(mode or "").strip().lower(), DEFAULT_MODE)
 
 
-def _with_formula_stats(ref: Reference, w: dict, cls: str, authored: dict | None, level: int) -> dict:
-    """Gear.lua withFormulaStats: health and mana from Stamina's and
-    Intellect's weights, haste and expertise from the band's crit and hit at
-    the spec's own ratios, armor penetration from crit and a same-level mob's
-    armor (Weights.lua Gear.ArmorShare, Gear.IntPerSpellCrit)."""
-    if not (w and authored):
-        return w
-    g = ref.gear
-    c = dict(w)
-    if (c.get("sta") or 0) > 0:
-        c["health"] = c["sta"] / g["HEALTH_PER_STA"]
-    lv = max(1, min(60, int(level)))
-    per_crit = ((g.get("INT_PER_SPELL_CRIT") or {}).get(cls) or [None] * 60)[lv - 1]
-    if per_crit and (c.get("int") or 0) > 0:
-        c["mana"] = max(0, c["int"] - (c.get("spellCrit") or 0) / per_crit) / g["MANA_PER_INT"]
-    crit, ref_crit = "crit", authored.get("crit") or 0
-    if ref_crit <= 0:
-        crit, ref_crit = "spellCrit", authored.get("spellCrit") or 0
-    if authored.get("haste") and ref_crit > 0 and (c.get(crit) or 0) > 0:
-        c["haste"] = c[crit] * authored["haste"] / ref_crit
-    if authored.get("expertise") and (authored.get("hit") or 0) > 0 and (c.get("hit") or 0) > 0:
-        c["expertise"] = c["hit"] * authored["expertise"] / authored["hit"]
-    if (authored.get("crit") or 0) > 0 and (c.get("crit") or 0) > 0:
-        # Gear.ArmorShare floors the level and clamps it to the table (1..60).
-        share = g["ARMOR_SHARE"][max(1, min(len(g["ARMOR_SHARE"]), math.floor(level))) - 1]
-        c["armorPen"] = c["crit"] * share
-    return c
+def modes_out(mode: str) -> dict:
+    """The mode as an answer carries it: its key, its name and the choices."""
+    return {"key": mode, "label": MODES[mode], "choices": [{"key": k, "label": v} for k, v in MODES.items()]}
 
 
-def _with_melee_dps(w: dict, cls: str, key: str) -> dict:
-    """Gear.lua withMeleeDps: a small melee weapon DPS weight where the spec
-    has none; Feral's is 14x its attack power weight."""
-    if not w or w.get("dps") is not None:
-        return w
-    c = dict(w)
-    c["dps"] = AP_PER_DPS * w["ap"] if (cls == "DRUID" and key == "feral" and w.get("ap")) else MELEE_DPS
-    return c
-
-
-def weights_for(ref: Reference, cls: str, key: str, level: int) -> tuple[dict | None, dict | None]:
-    """Gear.lua Gear.WeightsFor: the first band whose upTo covers the level
-    (the last band past the end), else the authored table; then the formula
-    weights and the melee DPS weight. -> weights, band info."""
-    g = ref.gear
-    authored = ((g.get("WEIGHTS") or {}).get(cls) or {}).get(key)
-    bands = ((g.get("WEIGHT_BANDS") or {}).get(cls) or {}).get(key) or []
-    if bands:
-        pick = bands[-1]
-        for b in bands:
-            if level <= b["upTo"]:
-                pick = b
-                break
-        w = _with_forever_ratings(pick["weights"], authored)
-        info = {k: pick.get(k) for k in ("upTo", "source", "label", "note")}
-    else:
-        w, info = authored, ({"upTo": 60, "source": "polestar"} if authored else None)
-    if not w:
+def weights_for(ref: Reference, cls: str, key: str, mode: str = DEFAULT_MODE) -> tuple[dict | None, dict | None]:
+    """ForeverDB's weights for the spec in this mode, ready for score_with:
+    weapon DPS counts on ranged weapons for hunters and on melee weapons for
+    everyone else (`rdps` / `dps`). The same table at every level (ForeverDB
+    has one per spec and mode). -> weights, where they come from."""
+    spec = ref.spec_weights(cls, key)
+    mode = mode_key(mode)
+    if not spec or not spec.get(mode):
         return None, None
-    return _with_melee_dps(_with_formula_stats(ref, w, cls, authored, level), cls, key), info
+    w = dict(spec[mode])
+    if cls == "HUNTER":
+        w["rdps"] = w.pop("dps", 0)
+    info = {"mode": mode, "label": f"{MODES[mode]} weights", "source": CREDIT["url"], "style": spec.get("style"),
+            "note": "ForeverDB.net's " + ("class-guide weights" if mode == "pve" else
+                                         "Leveling weights, made from the class guide's by its rule" if mode == "lvl"
+                                         else "PvP-guide weights")}
+    return w, info
+
+
+# Polestar's Adjust weights edits are on Polestar's stat names: the ones
+# whose name changed point at the weight they meant, and a plain value ({v})
+# is per 1% where Polestar's was (PCT_RATING).
+ADJUST_KEYS = {"spellHit": "hitRating", "hit": "hitRating", "crit": "critRating", "spellCrit": "critRating",
+               "dodge": "dodgeRating", "parry": "parryRating", "block": "blockRating"}
 
 
 def adjust_apply(weights: dict, edits: dict | None) -> tuple[dict, int]:
-    """Adjust.lua Adjust.Apply: the player's own edits on top, an edit being
-    a multiple of the default ({x}) or a plain value ({v}). -> weights, count."""
+    """Adjust.lua Adjust.Apply: the player's own edits in Polestar on top,
+    an edit being a multiple of the default ({x}) or a plain value ({v}).
+    -> weights, count."""
     if not isinstance(edits, dict) or not edits:
         return weights, 0
     out, n = dict(weights), 0
     for k, e in edits.items():
         if not isinstance(e, dict):
             continue
+        name = ADJUST_KEYS.get(k, k)
         if isinstance(e.get("x"), (int, float)):
-            out[k] = (weights.get(k) or 0) * e["x"]
+            out[name] = (weights.get(name) or 0) * e["x"]
         else:
-            out[k] = e.get("v") if isinstance(e.get("v"), (int, float)) else 0
+            v = e.get("v") if isinstance(e.get("v"), (int, float)) else 0
+            out[name] = v / PCT_RATING[k][1] if k in PCT_RATING else v
         n += 1
     return out, n
 
 
-# --- scoring (Gear.lua scoreWith, racialBonus, usability) --------------------
+# --- scoring (ForeverDB's formula) --------------------------------------------
 
 
-def _weapon_share(info: dict, w: dict) -> float:
-    """Gear.lua weaponShare."""
-    melee, ranged = w.get("dps") or 0, w.get("rdps") or 0
-    top = max(melee, ranged)
-    if top <= 0:
-        return 1
-    return (ranged if info["inv"] in RANGED_INV else melee) / top
+def stat_weight(w: dict, k: str) -> float:
+    """The weight of one point of an item stat: a "% hit" line counts as its
+    rating (PCT_RATING)."""
+    if k in PCT_RATING:
+        r, per = PCT_RATING[k]
+        return (w.get(r) or 0) * per
+    return w.get(k) or 0
 
 
-def _racial_bonus(info: dict, w: dict, as_offhand: bool, racial: dict | None) -> float:
-    """Gear.lua racialBonus."""
-    if not racial:
-        return 0
+def score_with(info: dict, w: dict, as_offhand: bool = False) -> float:
+    """ForeverDB's score: each stat times its weight. Weapon DPS on the
+    weapons the weights say (ranged for hunters, `rdps`; melee for the
+    rest, `dps`), an off-hand weapon's at half; a wand's DPS times the wand
+    weight. "+X damage and healing" (spell power equal to healing in the
+    item table) is one stat, `dmgheal`; school damage counts on top, never
+    capped. The set share (reference()) counts on every piece. Procs and
+    on-use effects aren't in the item table: zero."""
+    st = info["stats"]
+    sp, heal = st.get("sp") or 0, st.get("heal") or 0
     s = 0.0
-    wc = racial.get("weaponCrit")
-    if wc and info["class"] == 2 and not as_offhand and str(info.get("subclass")) in (wc.get("subclasses") or {}):
-        s += ((w.get("crit") or 0) + (w.get("spellCrit") or 0)) * wc["pct"] * _weapon_share(info, w)
-    for k, mult in (racial.get("statMult") or {}).items():
-        v = info["stats"].get(k)
-        if v:
-            s += (w.get(k) or 0) * v * (mult - 1)
+    for k, v in st.items():
+        if k == "dps":
+            if info.get("class") == 2 and info.get("subclass") == WAND_SUBCLASS:
+                s += (w.get("wand") or 0) * v
+            elif info["inv"] in RANGED_INV:
+                s += (w.get("rdps") or 0) * v
+            elif info["inv"] in MELEE_INV:
+                s += (w.get("dps") or 0) * v * (OFFHAND_DPS if as_offhand else 1)
+        elif k in ("sp", "heal") and sp == heal:
+            continue
+        else:
+            s += stat_weight(w, k) * v
+    if sp and sp == heal:
+        s += (w.get("dmgheal") or 0) * sp
+    for k, v in (info.get("set") or {}).items():
+        s += (w.get(k) or 0) * v
     return s
 
 
-def _school_cap(w: dict, top: float) -> float:
-    """Gear.lua schoolCap."""
-    w_top = w.get("sp") or 0
-    for k in SCHOOLS:
-        w_top = max(w_top, w.get(k) or 0)
-    return w_top * top
+def available_level(info: dict) -> int:
+    """ForeverDB's level an item counts from: its required level, else its
+    item level minus 5 (no item asks for more than the content it drops in)."""
+    if info.get("req"):
+        return int(info["req"])
+    return max(1, int(info.get("ilvl") or 0) - NO_REQ_BELOW) if info.get("ilvl") else 1
 
 
-def score_with(info: dict, w: dict, as_offhand: bool, racial: dict | None = None) -> float:
-    """Gear.lua scoreWith: each stat times its weight; weapon DPS by kind;
-    spell school bonuses capped at the largest single one; racial traits."""
-    s, school, top = 0.0, 0.0, 0
-    for k, v in info["stats"].items():
-        if k == "dps":
-            if info["inv"] in RANGED_INV:
-                s += (w.get("rdps") or 0) * v
-            elif info["inv"] in MELEE_INV:
-                wd = (w.get("ohDps") or (w.get("dps") or 0) * OFFHAND_DPS) if as_offhand else (w.get("dps") or 0)
-                s += wd * v
-        elif k in SCHOOLS:
-            school += (w.get(k) or 0) * v
-            top = max(top, v)
-        else:
-            s += (w.get(k) or 0) * v
-    if school > 0:
-        school = min(school, _school_cap(w, top))
-    return s + school + _racial_bonus(info, w, as_offhand, racial)
+def behind_pct(best: float, alt: float) -> int:
+    """ForeverDB's "-N% vs best": 0 when as good, else at least 1."""
+    if best <= 0 or alt >= best - EPS:
+        return 0
+    return max(1, math.floor((best - alt) / best * 100 + 0.5))
 
 
 def usability(ref: Reference, info: dict, cls: str, level: int) -> tuple[bool, str | None, int]:
-    """Gear.lua usability -> usable, reason, the level it can first be worn.
-    Without the client's weapon skills, every weapon the class can train
-    counts (knowsWeaponSkill's own fallback); Dual Wield from the level the
-    class trains it."""
+    """Gear.lua usability -> usable, reason, the level it counts from
+    (available_level: ForeverDB's rule). Without the client's weapon skills,
+    every weapon the class can train counts (knowsWeaponSkill's own
+    fallback); Dual Wield from the level the class trains it."""
     g = ref.gear
     prof = (g.get("PROFICIENCY") or {}).get(cls)
     meta = (g.get("CLASSES") or {}).get(cls)
-    min_level = info.get("req") or 0
+    min_level = available_level(info)
     if not (prof and meta):
         return True, None, min_level
     allow = info.get("allow") or 0
@@ -425,8 +448,7 @@ class Worn:
         return self.scores.get(slot, 0)
 
 
-def worn_from(ref: Reference, items: list[dict], w: dict, racial: dict | None,
-              real: dict | None = None) -> Worn:
+def worn_from(ref: Reference, items: list[dict], w: dict, real: dict | None = None) -> Worn:
     """real: {slot: {"item_id", "stats"}}, what Battle.net's equipment
     answer says each worn item really has (worn_stats()); a random-suffix
     item is scored on those when they're for the same item, else on its
@@ -447,7 +469,7 @@ def worn_from(ref: Reference, items: list[dict], w: dict, racial: dict | None,
                 worn.unknown.add(slot)
         worn.ids[slot] = int(it["item_id"])
         worn.infos[slot] = info
-        worn.scores[slot] = score_with(info, w, slot == OFF, racial) if info else 0
+        worn.scores[slot] = score_with(info, w, slot == OFF) if info else 0
     return worn
 
 
@@ -611,8 +633,7 @@ def random_suffix(name, info: dict | None) -> bool:
                 and not (set(info["stats"]) - _FIXED))
 
 
-def options(info: dict, item_id: int, worn: Worn, w: dict, racial: dict | None, dual: bool,
-            every_slot: bool = False) -> list[dict]:
+def options(info: dict, item_id: int, worn: Worn, w: dict, dual: bool, every_slot: bool = False) -> list[dict]:
     """Gear.lua compare's choices for a candidate: [{slot, old, new, empty}].
     Rings and trinkets replace the weaker of the two (a unique item only its
     own copy); a two-hander is weighed against main hand + off hand; a
@@ -623,7 +644,7 @@ def options(info: dict, item_id: int, worn: Worn, w: dict, racial: dict | None, 
     inv = info["inv"]
     slots = SLOTS_OF[inv]
     as_off = inv in OFFHAND_INV
-    score = score_with(info, w, as_off, racial)
+    score = score_with(info, w, as_off)
     out = []
 
     def opt(slot, old, new, empty):
@@ -657,7 +678,7 @@ def options(info: dict, item_id: int, worn: Worn, w: dict, racial: dict | None, 
             else:
                 opt(MAIN, worn.score(MAIN), score, MAIN not in worn.ids)
         if inv in OFFHAND_INV or (inv == 13 and dual):
-            as_off_score = score if inv in OFFHAND_INV else score_with(info, w, True, racial)
+            as_off_score = score if inv in OFFHAND_INV else score_with(info, w, True)
             if two_hander:
                 opt(OFF, worn.score(MAIN), as_off_score, False)
             else:
@@ -671,16 +692,16 @@ def options(info: dict, item_id: int, worn: Worn, w: dict, racial: dict | None, 
     return out
 
 
-def compare(info: dict, item_id: int, worn: Worn, w: dict, racial: dict | None, dual: bool) -> dict:
+def compare(info: dict, item_id: int, worn: Worn, w: dict, dual: bool) -> dict:
     """Gear.lua compare: the option with the largest gain (the first on a tie)."""
     # The last slot wearing this very item (a pair of the same dagger: the off hand).
     worn_at = [s for s in SLOTS_OF[info["inv"]] if worn.ids.get(s) == item_id]
     if worn_at:
         s = worn_at[-1]
         return {"slot": s, "old": worn.score(s), "new": worn.score(s), "delta": 0, "pct": 0,
-                "equipped": True, "empty": False, "score": score_with(info, w, info["inv"] in OFFHAND_INV, racial)}
+                "equipped": True, "empty": False, "score": score_with(info, w, info["inv"] in OFFHAND_INV)}
     best = None
-    for o in options(info, item_id, worn, w, racial, dual):
+    for o in options(info, item_id, worn, w, dual):
         if best is None or o["delta"] > best["delta"]:
             best = o
     return {**best, "equipped": False}
@@ -876,15 +897,19 @@ def buyable(info: dict, level: int) -> bool:
     armor or weapon damage: a random-suffix base ("of the Owl" lives in the
     link, and the ID's price is the cheapest suffix listed). Not an item
     with no required level in the item table (Forever's own items, many
-    endgame ones) above the character's level: an item never asks for more
-    than its item level, so only up to his own is it surely wearable."""
+    endgame ones) before the level it counts from (available_level)."""
     if (info.get("quality") or 0) >= 2 and not (set(info.get("stats") or {}) - _FIXED):
         return False
-    return bool(info.get("req")) or (info.get("ilvl") or 0) <= level
+    return bool(info.get("req")) or available_level(info) <= level
 
 
 def _source_level(src: dict) -> int:
-    return src.get("req_level") or 0 if src["kind"] == "quest" else 0
+    """ForeverDB's quest rule: a reward counts once its quest is at most
+    QUEST_AHEAD levels above (the game lets some be taken ten levels early,
+    nobody does them there), and never before the quest can be taken."""
+    if src["kind"] != "quest":
+        return 0
+    return max(src.get("req_level") or 0, (src.get("level") or 0) - QUEST_AHEAD)
 
 
 def gates(at: int, level: int, sources: list[dict]) -> list[dict]:
@@ -1035,45 +1060,41 @@ class _Ctx:
     key: str
     how: str
     w: dict
-    band: dict | None
+    scoring: dict | None
     adjusted: int
-    racial: dict | None
     dual: bool
     min_upgrade: float
     who: Who
     worn: Worn
     worn_names: dict
     points: int | None = None  # talent points in the spec's tree (gearfit.capstone)
+    mode: str = DEFAULT_MODE
+    style: str = "any"  # ForeverDB's weapon style for the spec (WeaponSetups)
 
 
 def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: str | None,
-             weights: str | None) -> _Ctx:
+             weights: str | None, mode: str | None = None) -> _Ctx:
     """What advise() and instance_loot() score with: the class, the spec's
-    weights (with the player's edits), the racial traits, what is worn."""
+    weights in the mode (with the player's edits), what is worn."""
     if not ref.available:
         raise GearError(ref.why)
     cls = class_token(sheet.get("class"))
-    if not cls or cls not in (ref.gear.get("WEIGHTS") or {}):
-        raise GearError("no class on the character sheet yet" if not cls else f"Polestar has no weights for {cls}")
+    if not cls or cls not in (ref.weights.get("specs") or {}):
+        raise GearError("no class on the character sheet yet" if not cls else f"no stat weights for {cls}")
     if not level:
         raise GearError("no level for this character yet")
     level = int(level)
     key, how = resolve_spec(ref, cls, sheet, spec, weights)
-    w, band = weights_for(ref, cls, key, level)
+    mode = mode_key(mode)
+    w, scoring = weights_for(ref, cls, key, mode)
     if w is None:
-        raise GearError(f"Polestar has no weights for {cls} {key}")
-    # The stats the class can't use count zero (a warrior's Spirit), the
-    # ones only this spec doesn't use count partially until its 31-point
-    # talent (a shadow priest's healing power): wowstats.gearfit. The
-    # player's own edits still come on top.
+        raise GearError(f"no stat weights for {cls} {key}")
     from wowstats import gearfit
 
     points = gearfit.spec_points(ref, cls, key, sheet)
-    w = gearfit.model_weights(ref, w, cls, key, level, points)
     adjust = (sheet.get("gear_adjust") or {}).get(key) if isinstance(sheet.get("gear_adjust"), dict) else None
     w, adjusted = adjust_apply(w, adjust)
     race_id = RACE_IDS.get(str(sheet.get("race") or "").strip().lower())
-    racial = (ref.gear.get("RACIALS") or {}).get(str(race_id)) if race_id else None
     prof = (ref.gear.get("PROFICIENCY") or {}).get(cls)
     dual = can_dual_wield(prof, level)
     min_upgrade = sheet.get("min_upgrade")
@@ -1084,9 +1105,10 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
               done=set(done or ()), zone=zone, recipes=recipe_lists(sheet.get("recipes")))
 
     items = [i for i in sheet.get("items") or [] if isinstance(i, dict)]
-    worn = worn_from(ref, items, w, racial, sheet.get("worn_stats"))
+    worn = worn_from(ref, items, w, sheet.get("worn_stats"))
     worn_names = {i.get("slot"): i.get("name") for i in items}
-    return _Ctx(cls, level, key, how, w, band, adjusted, racial, dual, min_upgrade, who, worn, worn_names, points)
+    return _Ctx(cls, level, key, how, w, scoring, adjusted, dual, min_upgrade, who, worn, worn_names, points, mode,
+                (scoring or {}).get("style") or "any")
 
 
 def recipe_lists(rows) -> dict[str, set]:
@@ -1149,7 +1171,7 @@ def held_where(held: dict | None) -> dict[int, str]:
 
 def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, done: set | None = None,
            spec: str | None = None, limit: int = 25, weights: str | None = None, every: bool = False,
-           held: dict | None = None, market: dict | None = None) -> dict:
+           held: dict | None = None, market: dict | None = None, mode: str | None = None) -> dict:
     """The gear advice for one character.
 
     sheet: the newest wow-gear event (items, class, race, faction, spec,
@@ -1161,10 +1183,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     {"kind": "bank"}: equip it, or take it out of the bank first. market:
     wowstats.ahsource.gather(): an item on sale now gets an "ah" source (one
     with no other source the character can use becomes a candidate too),
-    with its price against his gold; the answer gets `ah`."""
-    cx = _context(ref, sheet, level, zone, done, spec, weights)
-    cls, level, key, how, w, band, adjusted = cx.cls, cx.level, cx.key, cx.how, cx.w, cx.band, cx.adjusted
-    racial, dual, min_upgrade, who, worn = cx.racial, cx.dual, cx.min_upgrade, cx.who, cx.worn
+    with its price against his gold; the answer gets `ah`. mode: the
+    weights' mode, Leveling (the default), PvP or PvE (mode_key)."""
+    cx = _context(ref, sheet, level, zone, done, spec, weights, mode)
+    cls, level, key, how, w, scoring, adjusted = cx.cls, cx.level, cx.key, cx.how, cx.w, cx.scoring, cx.adjusted
+    dual, min_upgrade, who, worn = cx.dual, cx.min_upgrade, cx.who, cx.worn
     worn_names = cx.worn_names
 
     # Every item this character can get, with its best option (compare) and
@@ -1253,14 +1276,14 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     # hand; a one-hand piece with what the other hand wears, and against a
     # worn two-hander with the best other hand the character holds or can
     # get and wear now (Gear.lua pairs it with the best piece in the bags).
-    setups = WeaponSetups(cands, worn, w, racial, dual, level, worn_names)
+    setups = WeaponSetups(cands, worn, w, dual, level, worn_names, cx.style)
 
     # Per slot: the best now and the best coming within SOON_LEVELS.
     per_slot: dict[int, dict] = {}
     for c in cands:
         if c["info"]["inv"] in WEAPON_INV:
             continue
-        for o in options(c["info"], c["id"], worn, w, racial, dual, every_slot=True):
+        for o in options(c["info"], c["id"], worn, w, dual, every_slot=True):
             if worn.ids.get(o["slot"]) == c["id"]:
                 continue
             bucket = "now" if c["at"] <= level else "soon"
@@ -1268,14 +1291,16 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             slot[bucket].append((o["delta"], -c["id"], c, o))
 
     def pick(slot: int, bucket: str, exclude: frozenset = frozenset()):
-        ranked = [t for t in sorted((per_slot.get(slot) or {}).get(bucket) or [], key=lambda t: (t[0], t[1]),
-                                    reverse=True) if t[2]["id"] not in exclude]
+        # ForeverDB's order: the score, then the higher item level, then the lower ID.
+        ranked = [t for t in sorted((per_slot.get(slot) or {}).get(bucket) or [],
+                                    key=lambda t: (t[0], t[2]["info"].get("ilvl") or 0, t[1]), reverse=True)
+                  if t[2]["id"] not in exclude]
         if not ranked or ranked[0][0] <= 0:
             return ranked[0] if ranked else None
         # Among the close ones, the one built for the spec (gearfit's factor):
         # only those within the largest factor can change places.
         close = [t for t in ranked if t[0] >= ranked[0][0] * gearfit.CLASS * gearfit.GROUP]
-        return max(close, key=lambda t: (t[0] * fit_of(t[2])["factor"], t[0], t[1]))
+        return max(close, key=lambda t: (t[0] * fit_of(t[2])["factor"], t[0], t[2]["info"].get("ilvl") or 0, t[1]))
 
     picks: dict[tuple, tuple | None] = {}
     for bucket in ("now", "soon"):
@@ -1355,7 +1380,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         if c["info"]["inv"] in WEAPON_INV:
             r = setups.compare(c)
         else:
-            r = compare(c["info"], c["id"], worn, w, racial, dual)
+            r = compare(c["info"], c["id"], worn, w, dual)
         if r is None or r.get("equipped") or r["delta"] <= 0:
             continue
         if c["at"] <= level and not is_upgrade(r, c["at"], level, min_upgrade):
@@ -1429,7 +1454,10 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                  "role": gearfit.known_role(ref, cls, key, how),
                  "why": spec_why(ref, cls, key, label, how, sheet, adjusted)},
         "weights": {k: _r(v, 4) for k, v in sorted(w.items()) if v},
-        "band": band, "min_upgrade_pct": min_upgrade, "soon_levels": SOON_LEVELS,
+        # Leveling, PvP or PvE (owner, 2026-11-23), and whose weights they are:
+        # every score shown credits ForeverDB.net.
+        "mode": modes_out(cx.mode), "scoring": scoring, "source": dict(CREDIT),
+        "min_upgrade_pct": min_upgrade, "soon_levels": SOON_LEVELS,
         # Each setup's best on its own, wearable now: what a BiS list per
         # setup shows next to the one best setup the upgrades rank.
         "weapon_setups": weapon_setups,
@@ -1468,8 +1496,8 @@ def _single(pool: dict[int, float], cur: float | None) -> dict | None:
 def _rank(above: int, cur: float, target: float) -> dict:
     if above == 0 or cur >= target - EPS:
         return {"rank": 1, "pct": 100, "target": target}
-    # Never "100%" for something that isn't BiS.
-    pct = min(99, round(cur / target * 100)) if target > 0 else 0
+    # ForeverDB's "-N% vs best": never "100%" for something that isn't BiS.
+    pct = 100 - behind_pct(target, cur) if target > 0 else 0
     return {"rank": 2 if above == 1 else None, "pct": pct, "target": target}
 
 
@@ -1600,7 +1628,7 @@ def _bis_new(r: dict) -> float | None:
 
 def _share(new: float, target: float) -> int:
     # Never "100%" for something that isn't BiS (as _rank).
-    return 100 if new >= target - EPS else min(99, round(new / target * 100))
+    return 100 - behind_pct(target, new)
 
 
 def bis_gain(st: dict | None, r: dict) -> dict | None:
@@ -1766,9 +1794,9 @@ class WeaponSetups:
     two-hander together with an off-hand piece). Each part is an item the
     character can get (a candidate) or the one it wears."""
 
-    def __init__(self, cands: list[dict], worn: Worn, w: dict, racial, dual: bool, level: int,
-                 names: dict | None = None):
-        self.worn, self.level, self.names = worn, level, names or {}
+    def __init__(self, cands: list[dict], worn: Worn, w: dict, dual: bool, level: int,
+                 names: dict | None = None, style: str = "any"):
+        self.worn, self.level, self.names, self.style = worn, level, names or {}, style
         main = worn.infos.get(MAIN)
         self.worn_two = bool(main and main["inv"] == 17)
         self.current = worn.score(MAIN) + worn.score(OFF)
@@ -1776,11 +1804,11 @@ class WeaponSetups:
         for c in cands:
             inv = c["info"]["inv"]
             if inv == 17:
-                self.parts.append({"c": c, "role": "two", "score": score_with(c["info"], w, False, racial)})
+                self.parts.append({"c": c, "role": "two", "score": score_with(c["info"], w, False)})
             if inv in MAIN_INV:
-                self.parts.append({"c": c, "role": "main", "score": score_with(c["info"], w, False, racial)})
-            if inv in (14, 23) or (inv == 22 and dual) or (inv == 13 and dual):
-                self.parts.append({"c": c, "role": "off", "score": score_with(c["info"], w, True, racial)})
+                self.parts.append({"c": c, "role": "main", "score": score_with(c["info"], w, False)})
+            if self._off_ok(c["info"], dual):
+                self.parts.append({"c": c, "role": "off", "score": score_with(c["info"], w, True)})
         # What is worn can stay.
         if worn.ids.get(MAIN):
             role = "two" if self.worn_two else "main"
@@ -1789,6 +1817,19 @@ class WeaponSetups:
             self.kept = {}
         if worn.ids.get(OFF):
             self.kept["off"] = {"c": None, "role": "off", "score": worn.score(OFF), "id": worn.ids[OFF]}
+
+    def _off_ok(self, info: dict, dual: bool) -> bool:
+        """What the spec holds in the off hand (ForeverDB's styles): a
+        dual-wielder a weapon, a shield tank a shield, anyone else whatever
+        it can hold."""
+        inv = info["inv"]
+        if not (inv in (14, 23) or (inv in (13, 22) and dual)):
+            return False
+        if self.style == "dw":
+            return info.get("class") == 2
+        if self.style == "shield":
+            return inv == 14 and info.get("subclass") == 6
+        return True
 
     def _pool(self, role: str, max_at: int, exclude: int | None = None) -> list[dict]:
         out = [p for p in self.parts if p["role"] == role and p["c"]["at"] <= max_at and p["c"]["id"] != exclude
@@ -1799,18 +1840,29 @@ class WeaponSetups:
 
     def _best(self, role: str, max_at: int, exclude: int | None = None) -> dict | None:
         pool = self._pool(role, max_at, exclude)
-        return max(pool, key=lambda p: (p["score"], p["c"] is None), default=None)
+        # ForeverDB's order on a tie: the higher item level, then the lower ID.
+        return max(pool, key=lambda p: (p["score"], p["c"] is None, (p["c"] or {}).get("info", {}).get("ilvl") or 0,
+                                        -(_pid(p) or 0)), default=None)
 
     def best_setup(self, max_at: int) -> dict | None:
-        """The best whole setup with parts available by level max_at."""
+        """The best whole setup with parts available by level max_at,
+        ForeverDB's way: the best two-hander against the best main hand and
+        the best other off hand (an off-hand weapon at half its damage), a tie to the
+        two-hander; a dual-wielder or a shield tank takes the pair whenever
+        it has both hands, a two-hand spec the two-hander whenever it has one."""
         two = self._best("two", max_at)
-        best = {"total": two["score"], "main": two, "off": None} if two else None
-        for m in self._pool("main", max_at):
-            o = self._best("off", max_at, exclude=_pid(m))
-            total = m["score"] + (o["score"] if o else 0)
-            if best is None or total > best["total"]:
-                best = {"total": total, "main": m, "off": o}
-        return best
+        two = {"total": two["score"], "main": two, "off": None} if two else None
+        # The best main hand, then the best off hand that isn't that item.
+        m = self._best("main", max_at)
+        o = self._best("off", max_at, exclude=_pid(m)) if m else None
+        pair = {"total": m["score"] + (o["score"] if o else 0), "main": m, "off": o} if m else None
+        if two is None or pair is None:
+            return two or pair
+        if self.style == "2h":
+            return two
+        if self.style in ("dw", "shield") and pair["off"] is not None:
+            return pair
+        return two if two["total"] >= pair["total"] else pair
 
     def by_kind(self, max_at: int) -> dict:
         """The best two-hander and the best main hand + off hand pair, each
@@ -1998,7 +2050,7 @@ def spec_why(ref: Reference, cls: str, key: str, label: str, how: str, sheet: di
     return f"Scored for {label} because {why}."
 
 
-def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None) -> dict | None:
+def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None, mode: str | None = None) -> dict | None:
     """advise() from one character's stored events as the analysis' prep
     reads them (wowstats.analysis.prep.query): the newest sheet, the level
     and zone of the newest record, the quests seen handed in, the newest
@@ -2011,14 +2063,15 @@ def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None) ->
         return None
     sh, level, zone, done = got
     return advise(reference(), sh, level=level, zone=zone, done=done, weights=weights, every=True,
-                  held=newest_bags(rows))
+                  held=newest_bags(rows), mode=mode)
 
 
 # --- what each dungeon holds for one character -------------------------------
 
 
 def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None = None,
-                  weights: str | None = None, bis: dict | None = None) -> dict[str, list[dict]]:
+                  weights: str | None = None, bis: dict | None = None,
+                  mode: str | None = None) -> dict[str, list[dict]]:
     """Every item a dungeon gives this character, by the dungeon's area ID:
     its bosses' drops (with the chance) and the rewards of its own quests
     (the quests whose zone is the dungeon), each scored with the character's
@@ -2032,7 +2085,7 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
     (bis_badge); a one-hander, scored alone here, has none."""
     from wowstats import gearfit
 
-    cx = _context(ref, sheet, level, None, None, spec, weights)
+    cx = _context(ref, sheet, level, None, None, spec, weights, mode)
     quests = ref.data.get("quests") or {}
     out: dict[str, list[dict]] = {}
     for sid, srcs in (ref.data.get("sources") or {}).items():
@@ -2074,8 +2127,8 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
                                                                     "choices")})
         if not by_area:
             continue
-        r = compare(info, item_id, cx.worn, cx.w, cx.racial, cx.dual)
-        at = max([min_level] + [q.get("req_level") or 0 for d in by_area.values() for q in d["quests"]])
+        r = compare(info, item_id, cx.worn, cx.w, cx.dual)
+        at = max([min_level] + [_source_level({"kind": "quest", **q}) for d in by_area.values() for q in d["quests"]])
         vs = {r["slot"]} | ({OFF} if info["inv"] == 17 else set())
         # A dungeon item its quests don't give is a group drop: the factor
         # for an item others usually roll for first (wowstats.gearfit).
@@ -2120,12 +2173,13 @@ def newest_sheet(rows: list[dict], battlenet=None) -> tuple[dict, int, str | Non
     return sheet(g, who), int(_num(lv.get("level"))), (zone or {}).get("zone"), done
 
 
-def instance_loot_rows(rows: list[dict], weights: str | None = None, bis: dict | None = None) -> dict[str, list[dict]]:
+def instance_loot_rows(rows: list[dict], weights: str | None = None, bis: dict | None = None,
+                       mode: str | None = None) -> dict[str, list[dict]]:
     """instance_loot() from stored events; {} without a sheet or a level.
     bis: the advice's `bis_by_slot`, for the badges."""
     got = newest_sheet(rows)
     if got is None:
         return {}
     sh, level, _, _ = got
-    return instance_loot(reference(), sh, level=level, weights=weights, bis=bis)
+    return instance_loot(reference(), sh, level=level, weights=weights, bis=bis, mode=mode)
 

@@ -172,16 +172,16 @@ def test_the_interval_joins_keep_one_row_per_record_and_reading(built):
 
 def test_per_slot_says_worn_against_best_upgrade():
     """The demo priest's head: the Shadow-scored Silky Circlet (made for
-    another class) at 21%, the Embalmed Shroud at 100% wearable now: the
-    page's '21% → 100% on your head'. Rings: two worn, the weaker named."""
+    another class) at 36% on ForeverDB's Leveling weights, the Filigreed Shadow Circlet
+    at 100% wearable now: the page's '36% → 100% on your head'. Rings: two worn, the weaker named."""
     rows = D.base_rows()
     db = prep.build([dict(r) for r in rows], D.CHAR, route.reference(), advice=analysis.advice_for(rows, D.CHAR, {}))
     layer, ro = semantic.local(db)
     cols, got, _ = ro.run("SELECT * FROM per_slot", 100)
     slot = {r[0]: dict(zip(cols, r, strict=True)) for r in got}
     head = slot["Head"]
-    assert (head["worn_item"], head["worn_fit"], head["upgrade_bis_pct_worn"]) == ("Silky Circlet", "class", 21)
-    assert (head["best_upgrade"], head["best_upgrade_bis_pct"]) == ("Embalmed Shroud", 100)
+    assert (head["worn_item"], head["worn_fit"], head["upgrade_bis_pct_worn"]) == ("Silky Circlet", "class", 36)
+    assert (head["best_upgrade"], head["best_upgrade_bis_pct"]) == ("Filigreed Shadow Circlet", 100)
     assert slot["Finger"]["worn_items"] == 2
     weaker = db.execute("SELECT name FROM gear WHERE slot_name = 'Finger' ORDER BY score, slot LIMIT 1").fetchone()[0]
     assert slot["Finger"]["worn_item"] == weaker
