@@ -30,8 +30,9 @@ keeps that older time, so an answer can say "the bank as of a week ago"
 Everything is derived from what is stored, never assumed: `as_of` is the
 newest record, a gap is a finished level whose Polestar split (the game's
 played time) is longer than the Recorder's sessions in it (without Polestar
-the Recorder reads complete, as far as anyone can tell). Nothing new is
-stored.
+the Recorder reads complete, as far as anyone can tell). Polestar's own gap
+is a finished level after its first split with no split at all
+(polestar_gaps): `partial`, its `gaps` [{level}]. Nothing new is stored.
 """
 
 from __future__ import annotations
@@ -110,6 +111,20 @@ def recorder_gaps(spans: list[tuple[float, float]], levels: list[dict]) -> list[
     return out
 
 
+def polestar_gaps(split_levels, reached) -> list[dict]:
+    """Finished levels Polestar has no split for, oldest first: [{level}].
+
+    Polestar writes a split at each ding (docs/contract.md), so every level
+    after its first split and before `reached` (the highest level known, the
+    one in play) has one once Polestar was on; one without it was lost, and
+    any count over the climb misses that level. The levels before its first
+    split are before it was installed, and the level in play has none yet."""
+    have = {int(n) for n in split_levels if n is not None}
+    if not have or reached is None:
+        return []
+    return [{"level": lv} for lv in range(min(have) + 1, int(reached)) if lv not in have]
+
+
 def attach(gaps: list[dict], spans: list[tuple[float, float]]) -> dict[int, dict]:
     """{index of a span: {off_s, levels}}: each gap goes to the newest
     Recorder session inside its level's window (the one a player reads
@@ -134,9 +149,11 @@ def _newest(times: dict, sigs) -> str | None:
     return max(got, key=parse_t) if got else None
 
 
-def build(snap: dict, char: str, gaps: list[dict] | None = None, bnet: dict | str | None = None) -> dict:
+def build(snap: dict, char: str, gaps: list[dict] | None = None, bnet: dict | str | None = None,
+          splits_missing: list[dict] | None = None) -> dict:
     """The coverage of one character from missing.snapshot (what arrived,
-    when, the setup report), the Recorder's gaps (recorder_gaps) and the
+    when, the setup report), the Recorder's gaps (recorder_gaps), the
+    finished levels without a Polestar split (polestar_gaps) and the
     Battle.net state: a dict from Store.bnet_state ({as_of epoch, fallback}),
     {} when the exporter never read the character, None when this server has
     no exporter, {error, as_of} or "unknown" when vm-wow didn't answer
@@ -162,6 +179,9 @@ def build(snap: dict, char: str, gaps: list[dict] | None = None, bnet: dict | st
             out["recorder"] = entry("partial", rec.get("as_of"), gaps, RECORDER_OFF_FIX)
         elif rep and rep.get("recorder_on") is False:
             out["recorder"] = entry("partial", rec.get("as_of"), fix=RECORDER_OFF_FIX)
+    pol = out.get("polestar")
+    if pol and pol["state"] == "complete" and splits_missing:
+        out["polestar"] = entry("partial", pol.get("as_of"), splits_missing)
     out["battlenet"] = battlenet(bnet)
     return out
 
@@ -279,7 +299,14 @@ def from_rows(rows: list[dict], char: str) -> dict:
     rec = [{"n": 1, "t0": r["_time"], "t1": r["_time"]} for r in rows if r.get("feed") == "wow-recorder"
            and r.get("_time")]
     levels = [r for r in rows if r.get("feed") == "wow-level"]
-    out = with_parts(build(snap, char, recorder_gaps(split_sessions(rec), levels)), parts_of(rows))
+    # The highest level known, as the prep reads it: the Recorder's session
+    # and ding records (a kill's `level` is the creature's), and the splits.
+    reached = max((n for r in rows if r.get("feed") == "wow-recorder" and r.get("kind") in ("session", "level")
+                   and (n := opt_num(r.get("level"))) is not None), default=None)
+    split_lv = [opt_num(r.get("level")) for r in levels]
+    reached = max((n for n in [reached, *split_lv] if n is not None), default=None)
+    out = with_parts(build(snap, char, recorder_gaps(split_sessions(rec), levels),
+                           splits_missing=polestar_gaps(split_lv, reached)), parts_of(rows))
     out.pop("battlenet", None)
     out.pop("prices", None)
     return out

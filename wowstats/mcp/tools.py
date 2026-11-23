@@ -722,10 +722,13 @@ def t_deaths(ctx: Ctx, args: dict) -> dict:
     start, end = time_range(args, None)
     limit = limit_arg(args, 15)
     rows = death_rows(ctx, char, start, end)
-    if not rows and not ctx.store.logs(f"{rec(char)} | limit 1 | fields _time", limit=1):
-        # Deaths come from the Recorder only: none of its records, no count.
-        return {"char": char, "total": None, "recent": [], "by_zone": [], "by_level": {},
-                "note": "unknown, not 0: the Recorder sent nothing for this character (coverage.recorder)"}
+    if not rows and not ctx.store.logs(f"{rec(char)} | limit 1 | fields _time", start, end, limit=1):
+        # Deaths come from the Recorder only: none of its records in the
+        # range (it was off, or not installed yet), no count.
+        out = {"char": char, "total": None, "recent": [], "by_zone": [], "by_level": {}}
+        if (start is None and end is None) or not ctx.store.logs(f"{rec(char)} | limit 1 | fields _time", limit=1):
+            out["note"] = "unknown, not 0: the Recorder sent nothing for this character (coverage.recorder)"
+        return out
     rows.sort(key=lambda r: parse_t(r.get("_time")), reverse=True)
     n = pages.deaths(layer_ask(ctx, char), local_when(start), local_when(end))
     # Most deaths first, then the zone of the newest death (as the page lists them).
@@ -733,7 +736,7 @@ def t_deaths(ctx: Ctx, args: dict) -> dict:
     for i, r in enumerate(rows):
         newest.setdefault(r.get("zone") or "Unknown", i)
     by_zone = {(z or "Unknown"): int(c) for z, c in n["by_zone"].items()}
-    return {"char": char, "total": int(n["total"]),
+    return {"char": char, "total": n["total"],
             "recent": [{"t": r.get("_time"), "zone": r.get("zone"), "level": opt_num(r.get("level")),
                         "record": (r.get("_msg") or "")[:120] or None} for r in rows[:limit]],
             "by_zone": [{"zone": z, "n": c} for z, c in sorted(
@@ -1620,6 +1623,25 @@ def recorder_gaps(ctx: Ctx, char: str) -> tuple[list[tuple[float, float]], list[
     return _cached((*_store_key(ctx), "gaps", char), read)
 
 
+def splits_missing(ctx: Ctx, char: str) -> list[dict]:
+    """The finished levels without a Polestar split (wowstats.coverage.
+    polestar_gaps), from the layer: the prep has a row for every level from
+    the lowest known to the one in play, split_levels 0 where none came."""
+
+    def read() -> list[dict]:
+        m = metrics(ctx, char)
+        if m is None:
+            return []
+        lv = m.ask(metrics=["split_levels"], group_by=["level"], where=[
+            {"dimension": "level", "op": "is not null"}], order_by=["level"])
+        from wowstats import coverage
+
+        return coverage.polestar_gaps([r["level"] for r in lv if r["split_levels"]],
+                                      max((r["level"] for r in lv), default=None))
+
+    return _cached((*_store_key(ctx), "splits", char), read)
+
+
 def _utc_s(t) -> str | None:
     return None if t is None else datetime.fromtimestamp(float(t), tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -1635,7 +1657,7 @@ def coverage_for(ctx: Ctx, char: str) -> dict | None:
     from wowstats.stores import SourceError as ViewsSourceError
     def build() -> dict:
         cov = coverage.build(_snapshot(ctx), char, recorder_gaps(ctx, char)[1],
-                             coverage.bnet_of(_views(ctx).store, char))
+                             coverage.bnet_of(_views(ctx).store, char), splits_missing(ctx, char))
         coverage.with_parts(cov, coverage.read_parts(one_row(ctx.store), cf(char)))
         if ctx.store.vm_url and not bnet_vm_url(ctx):
             cov["battlenet"] = coverage.entry("unavailable", fix=BNET_AI_OFF)

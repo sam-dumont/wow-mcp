@@ -233,3 +233,34 @@ def test_equal_times_keep_the_recorders_order(seed):
     expect = sorted(rec, key=lambda r: (parse_t(r["_time"]), *record_order(r)))
     assert len(got) == len(expect)
     assert [t for _, t in got] == [parse_t(r["_time"]).timestamp() for r in expect]
+
+
+# ---------------------------------------------------------------- XP deltas
+
+
+def test_a_chunk_recovered_late_keeps_the_xp_it_gained(shipper):
+    """The bar reads 100, 200, 300 in chunks 1-3, then fills, a level goes
+    by and it reads 150 of the next bar. Chunks 2 and 3 shipped first and
+    chunk 1 recovered in a later run: the shipper could only count 200 -> 300
+    for the first two (its delta comes from the reading it saw before), and
+    a re-extraction gives the same. The prep reads the bar's own readings in
+    order, so both schedules give the 100 + 100 + 700 + 150 of the one run."""
+    from tests.test_zone_time import chunk
+
+    t0 = 1794900000
+    ch = {("CID", 1): chunk(1, t0, ["session\t0\tCID", "xp\t10\t100\t1000\t0"]),
+          ("CID", 2): chunk(2, t0 + 300, ["session\t0\tCID", "xp\t10\t200\t1000\t0"]),
+          ("CID", 3): chunk(3, t0 + 600, ["session\t0\tCID", "xp\t10\t300\t1000\t0",
+                                          "xp\t100\t1000\t1000\t0", "level\t101\t13\t1\t5000",
+                                          "xp\t200\t150\t1200\t0"])}
+    whole = ship(shipper, [ch])
+    late = ship(shipper, [{k: ch[k] for k in (("CID", 2), ("CID", 3))}, {("CID", 1): ch[("CID", 1)]}])
+    assert {r["source_id"] for r in late} == {r["source_id"] for r in whole}
+    shipped = sum(int(r.get("xp_gained") or 0) for r in late if r["kind"] == "xp")
+    assert shipped < 1050, "the shipper's own deltas lose the late chunk's step"
+
+    def gained(rows):
+        db = prep.build([dict(r) for r in rows], ZCHAR)
+        return db.execute("SELECT COALESCE(SUM(xp_gained), 0) FROM xp").fetchone()[0]
+
+    assert gained(whole) == gained(late) == 100 + 100 + 700 + 150

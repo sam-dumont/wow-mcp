@@ -53,10 +53,17 @@ EVENTS = [
     {"_time": _t(16, 19, 10), "kind": "step", "guide": "Durotar 10-12", "step": 4, "duration_s": 300,
      "zone": "Durotar", "source_id": "rec:1:1:2"},
     {"_time": _t(16, 19, 20), "kind": "kill", "zone": "Durotar", "level": 12, "source_id": "rec:1:1:3"},
-    {"_time": _t(16, 19, 21), "kind": "xp", "zone": "Durotar", "level": 12, "xp_gained": 120, "source_id": "rec:1:1:4"},
+    # The XP bar's readings (the prep works the gains out from them in
+    # order; xp_gained is what the shipper saw): 1000, 1120, 1970 of 2010,
+    # then 860 of the next bar after the ding.
+    {"_time": _t(16, 19, 19), "kind": "xp", "zone": "Durotar", "level": 12, "xp": 1000, "xp_max": 2010,
+     "source_id": "rec:1:1:30"},
+    {"_time": _t(16, 19, 21), "kind": "xp", "zone": "Durotar", "level": 12, "xp": 1120, "xp_max": 2010,
+     "xp_gained": 120, "source_id": "rec:1:1:4"},
     {"_time": _t(16, 19, 40), "kind": "turnin", "zone": "Durotar", "quest_id": 1884, "level": 12,
      "source_id": "rec:1:1:5"},
-    {"_time": _t(16, 19, 41), "kind": "xp", "zone": "Durotar", "level": 12, "xp_gained": 850, "source_id": "rec:1:1:6"},
+    {"_time": _t(16, 19, 41), "kind": "xp", "zone": "Durotar", "level": 12, "xp": 1970, "xp_max": 2010,
+     "xp_gained": 850, "source_id": "rec:1:1:6"},
     {"_time": _t(16, 20, 1), "kind": "death", "zone": "Durotar", "level": 12, "source_id": "rec:1:1:7"},
     {"_time": _t(16, 20, 5), "kind": "taxi", "zone": "Durotar", "duration_s": 240, "source_id": "rec:1:1:8"},
     {"_time": _t(17, 20, 3), "kind": "zone", "zone": "The Barrens", "duration_s": 5400, "source_id": "rec:1:2:1"},
@@ -67,7 +74,8 @@ EVENTS = [
     {"_time": _t(17, 20, 50), "kind": "step", "guide": "Barrens 12-15", "step": 6, "duration_s": 400,
      "zone": "The Barrens", "source_id": "rec:1:2:4"},
     {"_time": _t(17, 21, 0), "kind": "level", "level": 14, "zone": "The Barrens", "source_id": "rec:1:2:5"},
-    {"_time": _t(17, 21, 5), "kind": "xp", "zone": "The Barrens", "level": 14, "xp_gained": 900,
+    {"_time": _t(17, 21, 5), "kind": "xp", "zone": "The Barrens", "level": 14, "xp": 860, "xp_max": 2500,
+     "xp_gained": 900,
      "source_id": "rec:1:2:6"},
 ]
 STEPS = [e for e in EVENTS if e["kind"] in ("step", "skip")] + [
