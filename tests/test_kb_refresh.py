@@ -381,9 +381,15 @@ def test_the_cached_prefix_is_the_same_across_pages_and_runs(state):
     assert len(keys) >= refresh.CACHE_MIN_PAGES
     for p in state["official"]:
         p["known"] = ""  # every post of every thread is new
+    # Days no KB record can carry: the known statements come from the real data/kb, whose ids and dates
+    # name the weeks the job ran (2026-11-23's review put "meta-2026-11-23:..." in it and broke a
+    # check that used that day), so only a day before the KB existed tells the run's day leaking apart.
+    days = ("2000-01-03", "2000-01-10")
+    kb = "".join(f.read_text(encoding="utf-8") for f in (ROOT / "data" / "kb").rglob("*") if f.is_file())
+    assert not [d for d in days if d in kb]
     first, second = Client({"statements": []}), Client({"statements": []})
-    refresh.run(keys, first, Fetch(all_pages(state)), cap=30.0, day="2026-11-23", state=state)
-    refresh.run(keys, second, Fetch(all_pages(state)), cap=30.0, day="2026-11-30", state=state)
+    refresh.run(keys, first, Fetch(all_pages(state)), cap=30.0, day=days[0], state=state)
+    refresh.run(keys, second, Fetch(all_pages(state)), cap=30.0, day=days[1], state=state)
     calls = page_calls(first) + page_calls(second)
     assert len(calls) == 2 * len(keys)
     prefixes = {r["messages"][0]["content"][0]["text"] for r in calls}
@@ -391,7 +397,7 @@ def test_the_cached_prefix_is_the_same_across_pages_and_runs(state):
     prefix = prefixes.pop()
     assert all(r["messages"][0]["content"][0]["cache_control"] == {"type": "ephemeral", "ttl": "1h"} for r in calls)
     assert prefix.startswith("<known_statements>") and "<page" not in prefix
-    assert "2026-11-23" not in prefix and "2026-11-30" not in prefix
+    assert days[0] not in prefix and days[1] not in prefix
     # Sorted, so file order can't move it; the system prompt is constant too.
     listed = json.loads(prefix.split("\n")[1])
     assert [k["id"] for k in listed] == sorted(k["id"] for k in listed)
