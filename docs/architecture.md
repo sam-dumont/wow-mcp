@@ -60,7 +60,7 @@ the semantic layer.
 | `wowstats/mcp/` | The tools and prompts, and the MCP endpoint on FastMCP (`server.py`: `/mcp` and the OIDC proxy that logs claude.ai, ChatGPT and Claude Code in through your identity provider, on `MCP_PORT`). `docs/mcp.md`. |
 | `wowstats/plan/` | Session plans: `facts.py` gathers game data (never the Battle.net store), `estimate.py` computes every number, `store.py` keeps plans and compares them with what happened, `write.py` the checks on a client's write-up, `http.py` the full view's plan box. No model. |
 | `wowstats/plan/dungeonview.py`, `wowstats/links.py` | The Dungeons panel of the full view and `/zogzog/`: one block per dungeon in reach (drops for the character's weights, obtained or missing; quests; what a trip is worth; a verdict on the whole value), from the planner's inputs, with Forever links to Wowhead. |
-| `wowstats/plan/dungeongain.py` | One more run of a dungeon: XP at the character's level now (its own runs there, kill XP carried by the KB's `xp.kill_formula` over the creatures it killed; else the quests alone), the time (its runs, else the KB's clear time plus its own travel), the share of the level, XP per hour against its own questing, the quests to pick up. One estimate for the Overview's dungeon move, the Dungeons panel and the MCP's `dungeon_options`. |
+| `wowstats/plan/dungeongain.py` | One more run of a dungeon: XP at the character's level now (its own runs there, kill XP carried by the KB's `xp.kill_formula` over the creatures it killed; else the quests alone), the time (its runs, else the KB's clear time plus its own travel), the share of the level, XP per hour against its own questing, the quests to pick up. One estimate for the Overview's dungeon move, the Dungeons panel and the MCP's `dungeons` (`options`). |
 | `wowstats/analysis/drive.py`, `auto.py`, `providers.py` | The play analysis, driven over MCP by the user's own model, or by the server's (`auto.py`, on its timer, through `providers.py`: Anthropic, OpenAI or any OpenAI-compatible endpoint) when the host configured one: the brief in pages, read-only SQL, the judge (`verify.check`), the pass state machine (survey, lanes, follow-ups, coverage, synthesis) with the clash and feasibility checks. `passes.py` holds the instructions; `__init__.py` the per-character state, the nightly recheck and the shared page's lines; `manifest.py` what each build was computed with, so the recheck knows when a finding needs judging again. |
 | `wowstats/mcp/plantools.py`, `analysistools.py`, `helppage.py` | The plan, KB and analysis tools on the MCP; the sealed `/help/` page built from the registry. |
 | `data/route-reference.json` | Polestar's route clock (GPL-3.0), packaged as `wowstats/data/`. `docs/route-reference.md`; remade by `tools/route_reference/`. |
@@ -263,6 +263,24 @@ person's "Battle.net data to my AI" setting (their own data to their own
 assistant); a one-person install never serves
 `market` and gives the rest to the owner, who set `VM_URL`. `tests/route/test_market_gating.py` holds that line, and the
 analysis' allowlist (`wowstats/analysis/TABLES`) has no Battle.net source.
+
+## The semantic layer
+
+Every number the page and the MCP show goes through one model file,
+`wowstats/analysis/semantic.yaml` ([Semantic layer](reference/semantic-layer.md)). The tables
+under it are DuckDB, a columnar engine made for these GROUP BYs and the dialect the layer
+compiles to; they were SQLite before the layer. The compiler is
+[Boring Semantic Layer](https://github.com/boringdata/boring-semantic-layer) (MIT): measures,
+dimensions, time grains and ratios in YAML, compiled to SQL through ibis and sqlglot. Only the
+compiler runs here (no ibis backend, so no pandas or pyarrow in the image). The others looked
+at:
+
+- **dbt MetricFlow** (Apache-2.0): the reference design, but 0.214 caps Python at 3.14 and
+  the image runs 3.15. It also wants a dbt manifest and a time spine table.
+- **Cube**: a Node server next to the app, heavier than the whole image.
+- **Malloy**: its own query language to learn, and the Python package was last released in
+  September 2024.
+- **Wren Engine**: pulls pandas, pyarrow and boto3.
 
 ## Data retention
 

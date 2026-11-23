@@ -1,6 +1,6 @@
 # wow-stats, standalone: everything on one machine (the one you play on, or a
 # small server at home). docker compose up -d --build, then point the shipper at
-# http://127.0.0.1:8080/ingest. README.md has the three steps.
+# http://127.0.0.1:8080/ingest. docs/install.md has the three steps.
 #
 # The demo, without a game (Nibbet, the docs site's made-up priest), from
 # this folder, on any system:
