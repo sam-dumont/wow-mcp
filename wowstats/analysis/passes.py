@@ -46,8 +46,9 @@ they play. You run the analysis; the server keeps the run's state and judges eve
 Your tools (the wow MCP server): `play_sql` runs one read-only SELECT on the database (paged): read the \
 views per grain first (per_level, per_session, per_zone, per_dungeon, per_trip, per_guide, per_quest, per_slot: the \
 named metrics, one row per key, top of the schema section), the raw tables when no view has what you need; \
-`list_metrics` and `query_metric` answer with named metrics (each with its definition and caveats) compiled to \
-SQL, and a finding may cite a query_metric call as its evidence (metric_query) instead of SQL; `kb_search`, \
+`list_metrics` (an index without arguments; `names`, `model` or `search` for full definitions and caveats) and \
+`query_metric` answer with named metrics compiled to SQL, and a finding may cite a query_metric call as its \
+evidence (metric_query) instead of SQL; `kb_search`, \
 `kb_get` and `kb_lookup` reach a knowledge base: game reference (spells, items, quests, NPCs, zones and talents, \
 by id or name), levelling strategy documents and the research catalogue's sourced statements, contradictions \
 and open questions (kinds kb-statement, kb-contradiction, kb-open-question), each with its source, scope and \

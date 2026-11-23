@@ -139,14 +139,14 @@ def best_now(t: Tools, slot: str) -> str:
 def zone_quest_upgrade_line(t: Tools) -> str:
     """The quest upgrade in the current zone with the biggest jump, over
     everything the gear advice lists: `gear`'s shortlist (3 a slot) and
-    `gear_options` (4 a slot, more slots). The demo has three in Arathi
+    `gear` with options (4 a slot, more slots). The demo has three in Arathi
     Highlands; asking for "the one" let a model pick any (eval-mcp
-    2026-11-22: 18% → 47%, the boots gear_options lists first)."""
+    2026-11-22: 18% → 47%, the boots gear_options listed first)."""
     lines: dict[int, str] = {}
     for u in t("gear", limit=40)["next_upgrades"]:
         if u.get("in_current_zone") and any(w.startswith("quest ") for w in u.get("where") or []):
             lines[u["item_id"]] = u["line"]
-    for s in t("gear_options", limit=20)["slots"]:
+    for s in t("gear", options=True, limit=20)["slots"]:
         for o in s["options"]:
             if (o.get("in_current_zone") and o.get("kind") == "quest"
                     and lines.setdefault(o["item_id"], o["line"]) != o["line"]):
@@ -176,7 +176,7 @@ def next_guide_step(t: Tools) -> int:
 
 
 def top_dungeon(t: Tools) -> str:
-    return _one([d for d in t("dungeon_options")["dungeons"] if d.get("rank") == 1], "rank 1 dungeon")["name"]
+    return _one([d for d in t("dungeons", options=True)["dungeons"] if d.get("rank") == 1], "rank 1 dungeon")["name"]
 
 
 def killer_name(t: Tools, npc_id: int) -> str:

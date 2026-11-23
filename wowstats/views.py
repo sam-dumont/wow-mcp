@@ -889,15 +889,7 @@ class Views:
         runs = insights.dungeon_runs(self.q, self.char_filter(char))
         players = data.get("players") or {}
         return {"char": char, "players": players, "runs": runs, "roster_note": insights.ROSTER_NOTE,
-                "sources": {
-                    "Polestar update.probed (wow-player)": "names, last seen, zone; no class or level, never "
-                                                           "group members",
-                    "Polestar_Recorder group records": "party size and raid flag, no names",
-                    "Polestar_Recorder encounter records": "boss fights and wipes, no names",
-                    "Polestar instanceRuns (wow-dungeon)": "dungeon, level, time, XP; no party",
-                    "DungeonMaster": "the last run's kills only",
-                    "Details": "no saved segments",
-                }}
+                "sources": insights.GROUP_SOURCES}
 
     # ------------------------------------------------------------ journal
 

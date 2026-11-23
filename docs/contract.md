@@ -356,7 +356,7 @@ probe list (`context: seen`: players you targeted or moused over) and the
 combat log (`grouped`, or `combat` for a player your log saw nearby, once
 per player per 10 minutes): `player` (`Name-Surname`, the character-folder
 form), `context`, `source`, `zone` when known. The People tab, the journal's
-"players met" and the MCP's `players` and `people` read these; nothing else about another
+"players met" and the MCP's `players` reads these; nothing else about another
 player is sent (`PLAYER_KEYS`): no realm, no GUID, no position. Shippers
 before 0.7.0 also sent `player_realm` and `map_id`; `/ingest` drops them.
 Player names are fields, never stream fields. Full view only.

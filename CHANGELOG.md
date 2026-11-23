@@ -2,10 +2,19 @@
 
 ## Unreleased
 
+### Changed
+
+- Your AI has 38 tools instead of 41, each answering one question: `gear` with `options` gives what `gear_options` gave (every way to an upgrade per slot, with its cost), `dungeons` with `options` what `dungeon_options` gave (the dungeons worth it now, ranked), and `players` with `groups` the dungeon runs with group size, bosses, wipes and deaths that `people` added. The `gear` and `dungeon` prompts call the new forms. The tool list a client reads at connect is 34,500 characters instead of 35,600.
+- `list_metrics` without arguments answers with an index, each model's metrics with one line each, about 29,000 characters. It was the whole catalogue, 200,000 characters: over Claude Code's limit for one tool answer, and the server's own analysis saw only the first fifth. `names`, `model` or `search` give the full definitions, 40 metrics a call.
+- `kb_get`, `kb_lookup`, `kb_search`, `play_sql` and `query_metric` are marked read-only, so a client no longer asks you to approve each lookup. They only count the call in an open analysis run.
+
 ### Fixed
 
 - The analysis judge refuses a `{n:pct}` or `{n:dur}` placeholder on a value whose unit it doesn't fit (a count shown as "2%", kills shown as a duration), when the unit is known: a `metric_query`'s metric, or a raw query's column from a view per grain. The refusal says which format fits.
 - Knowledge base statements take their `source_type` from their URL (`data/kb/sources.json`), not from the model: 353 records changed, mostly Wowhead and ForeverDB guide pages and kami-labs.fr that said `datamined` and are now `guide`. The KB jobs write it the same way, and a record whose type differs from its URL's is refused.
+- A character name that isn't one of yours is now an error naming your characters, instead of "Nothing arrived yet" as if it existed and hadn't played. One of yours with nothing arrived yet still answers. An unknown metric in `query_metric` or `list_metrics` is an error too: both used to come back as a normal answer.
+- `levels` lists a finished level with no Polestar split, its time, XP and counts unknown (null, never 0), and `character_summary`'s `avg_last_5_levels` and `xp_per_hour_last_3_levels` are unknown while their window holds such a level, instead of averaging the others.
+- `deaths` over a range the Recorder never saw says "The Recorder wasn't on for this period." next to `total: null`.
 - The compose kit's VictoriaLogs now runs with the limits [security.md](docs/security.md) asks for: 30 s per query, 4 queries at once, 10 s in the queue, and 1 GiB of memory (`VL_MEM_LIMIT`). Until now it ran on VictoriaLogs' defaults with no memory limit.
 - The Python answers to the views' LogsQL (`wowstats/logsql.py`) now match VictoriaLogs v1.54.0 where they didn't, checked against a real VictoriaLogs in CI (`tests/test_logsql.py`): an unnamed `count()` is `count(*)`, `sum()` of no number is `NaN`, `min()` over rows without the field is empty, text sorts in natural order (item 9 before item 10), `inf`, `nan` and padded numbers aren't numbers, a row left with no field isn't answered, `<` and `'` are escaped in JSON values, and single-quoted strings go to VictoriaLogs instead of matching nothing.
 
@@ -15,6 +24,7 @@
 
 ### Upgrading
 
+- MCP: `gear_options`, `dungeon_options` and `people` are gone. Call `gear` with `options: true`, `dungeons` with `options: true` and `players` with `groups: true`. A saved prompt or script that names the old tools needs the new call.
 - Compose: VictoriaLogs gets a 1 GiB memory limit. It peaked at 217 MiB on a year of the demo; with a much longer history, set `VL_MEM_LIMIT=2g` in `.env` before `docker compose up -d`.
 
 - With `MCP_DCR=off` the authorization server metadata no longer advertises a `registration_endpoint`, and `/register` answers 404: a client sees up front that it needs a client metadata URL instead of trying to register and getting refused. An unknown client id at `/authorize` is no longer pointed at `/register` either. `open` and `loopback` are unchanged.

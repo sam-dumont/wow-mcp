@@ -89,7 +89,8 @@ def test_query_metric_counts_like_play_sql(env):
     assert any(c.startswith("records.") for c in drive.current(env, CHAR)["columns"])
     assert all(not c.startswith("sem_") for c in drive.current(env, CHAR)["columns"])
     # A refused one counts as a query, like play_sql's, and touches nothing.
-    assert "error" in call("query_metric", {"metrics": ["no_such_metric"]})
+    with pytest.raises(tools.ToolError, match="no_such_metric"):  # an error the client sees as one (isError)
+        call("query_metric", {"metrics": ["no_such_metric"]})
     assert call("analysis_progress", {})["run"]["queries"] == 2
 
 

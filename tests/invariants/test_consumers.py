@@ -129,7 +129,7 @@ def mcp_numbers(call, char: str) -> dict:
                    for lv in call("levels", char=char)["levels"]],
         "dungeons": sorted((d["name"], d["level"], d["seconds"], d["xp"]) for d in call("dungeons", char=char)["runs"]),
         "sessions": sorted((s["start"], s["end"]) for s in sessions),
-        "spec": call("gear_options", char=char)["spec"],
+        "spec": call("gear", char=char, options=True)["spec"],
         "counts": call("character_summary", char=char)["counts"],
     }
 
