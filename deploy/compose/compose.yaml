@@ -2,12 +2,11 @@
 # small server at home). docker compose up -d --build, then point the shipper at
 # http://127.0.0.1:8080/ingest. README.md has the three steps.
 #
-# The demo, without a game (five made-up characters), from this folder:
+# The demo, without a game (Nibbet, the docs site's made-up priest), from
+# this folder, on any system:
 #   test -f .env || echo INGEST_PASSWORD=demo-password-only > .env
 #   docker compose up -d --build ui
-#   docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest < ../../dev/seed.py
-# PowerShell:
-#   Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest
+#   docker compose run --rm demo
 #
 #   victorialogs     your game events (yours: kept until you delete them)
 #   ui               the web page, full view, on 127.0.0.1:8080; also takes
@@ -19,6 +18,7 @@
 #   ui-public        optional (profile "public"): the old dynamic public view
 #   victoriametrics  optional (profile "exporter"): Battle.net API data, 23 days
 #   exporter         optional (profile "exporter"): polls the Battle.net API
+#   demo             one-off (profile "demo"): loads the demo character
 #
 # Third-party images are pinned by digest; bump them on purpose.
 name: wow-stats
@@ -214,6 +214,22 @@ services:
       # every character in your store.
     ports:
       - "${PUBLIC_PUBLISH:-127.0.0.1:8082}:8080"
+
+  # The demo character (dev/seed.py: tools/fixtures/generate.py's build_demo,
+  # the docs site's demo), sent to the ui's /ingest the way a player's shipper
+  # sends theirs. The generator isn't in the image: it reads this copy of the
+  # repository, mounted read-only. `docker compose run --rm demo`, then gone.
+  demo:
+    <<: *wow-stats
+    profiles: [demo]
+    restart: "no"
+    depends_on: [ui]
+    entrypoint: ["python", "/src/dev/seed.py"]
+    command: ["--ingest", "http://ui:8080/ingest"]
+    environment:
+      INGEST_PASSWORD: ${INGEST_PASSWORD:?set INGEST_PASSWORD in .env (12+ characters)}
+    volumes:
+      - ../..:/src:ro
 
   victoriametrics:
     image: docker.io/victoriametrics/victoria-metrics:v1.156.0@sha256:da8a90ac0912f16589be2b96a6441a2fca4bca415c83783d972d92e3b5b66970

@@ -131,8 +131,8 @@ For friends and for claude.ai or ChatGPT to reach it, a domain name and HTTPS.
 
 ### Can I try it without the game?
 
-Yes: [Try it at home](self-host/demo.md) runs the server with five made-up characters in about
-10 minutes. Or open [the live demo](../site/pages/demo.md), nothing to install.
+Yes: [Try it at home](self-host/demo.md) runs the server with a made-up character in about 10
+minutes, the same one as [the live demo](../site/pages/demo.md), which needs nothing installed.
 
 ### How do I update it?
 

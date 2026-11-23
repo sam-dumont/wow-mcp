@@ -1,9 +1,9 @@
 """The views per grain (semantic.yaml `views`: per_level, per_session,
 per_zone, per_dungeon, per_trip, per_slot): compiled from the metrics, never hand SQL.
 
-Three histories: the demo seed (dev/seed.py, Testchar-Demo: no gear sheet),
-the docs site's demo character (tests/degraded.py, with its gear advice, so
-per_slot has rows) and a seeded variation of it (tests/invariants/histories.py:
+Three histories: Testchar (tests/testchar.py: written by hand, no gear
+sheet), the demo character (tools/fixtures/generate.py, as tests/degraded.py
+serves it, with its gear advice, so per_slot has rows) and a seeded variation of it (tests/invariants/histories.py:
 records on one millisecond across the digit boundaries). On each, every column
 of every view equals query_metric for the same metric at the view's entity,
 and no key comes out twice. Guarantee 24 in docs/guarantees.md."""
@@ -11,17 +11,15 @@ and no key comes out twice. Guarantee 24 in docs/guarantees.md."""
 from __future__ import annotations
 
 import copy
-import json
 import math
 import os
-import subprocess
-import sys
 import warnings
 from pathlib import Path
 
 import pytest
 
 from tests import degraded as D
+from tests import testchar
 from tests.invariants import histories as H
 from wowstats import analysis
 from wowstats.analysis import TABLES, drive, duck, prep, semantic
@@ -34,17 +32,10 @@ SEED_CHAR = "Testchar-Demo"
 warnings.filterwarnings("ignore", module="boring_semantic_layer")
 
 
-def _seed_rows(tmp: Path) -> list[dict]:
-    out = tmp / "seed.ndjson"
-    subprocess.run([sys.executable, str(ROOT / "dev" / "seed.py"), "--out", str(out)], check=True,
-                   capture_output=True)
-    return [json.loads(x) for x in out.read_text().splitlines() if x.strip()]
-
-
 @pytest.fixture(scope="module", params=["seed", "demo", "variant"])
 def built(request, tmp_path_factory):
     if request.param == "seed":
-        rows = [r for r in _seed_rows(tmp_path_factory.mktemp("seed")) if r.get("char") == SEED_CHAR]
+        rows = [r for r in testchar.rows() if r.get("char") == SEED_CHAR]
         char = SEED_CHAR
     elif request.param == "demo":
         rows, char = D.base_rows(), D.CHAR

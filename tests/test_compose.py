@@ -14,12 +14,13 @@ ROOT = Path(__file__).resolve().parent.parent
 KIT = ROOT / "deploy" / "compose"
 
 
-def config(**env) -> dict:
+def config(*profiles: str, **env) -> dict:
     if not shutil.which("docker"):
         pytest.skip("no docker")
     clean = {k: v for k, v in os.environ.items()
              if k not in ("ZOGZOG_PATH", "MODEL3D", "WOW_ITEMS", "VL_MAX_DISK", "UI_MEM_LIMIT", "VL_MEM_LIMIT", "COMPOSE_PROJECT_NAME")}
-    r = subprocess.run(["docker", "compose", "--env-file", os.devnull, "config", "--format", "json"], cwd=KIT,
+    flags = [x for p in profiles for x in ("--profile", p)]
+    r = subprocess.run(["docker", "compose", "--env-file", os.devnull, *flags, "config", "--format", "json"], cwd=KIT,
                        env=clean | {"INGEST_PASSWORD": "x" * 12} | env, capture_output=True, text=True)
     if r.returncode and "is not a docker command" in r.stderr:
         pytest.skip("no docker compose")
@@ -78,10 +79,19 @@ def test_the_ui_memory_limit_has_room_over_the_measured_peak():
     assert "472 MiB" in docs and "1 GiB" in docs and "UI_MEM_LIMIT" in docs
 
 
-def test_the_demo_seed_survives_windows_powershells_pipe():
-    """PowerShell 5.1 pipes text to a native command as ASCII: the seed the
-    README pipes into the ui container must stay ASCII."""
-    (ROOT / "dev" / "seed.py").read_bytes().decode("ascii")
+def test_the_demo_service_loads_the_demo_through_the_uis_ingest():
+    """One line on every system (`docker compose run --rm demo`): the image
+    has no generator, so the service reads this repository, read-only, and
+    sends the docs site's demo character to /ingest as a shipper would."""
+    assert "demo" not in config()  # a profile: never started by `up`
+    d = config("demo")["demo"]
+    assert d["entrypoint"] == ["python", "/src/dev/seed.py"]
+    assert d["command"] == ["--ingest", "http://ui:8080/ingest"]
+    assert d["environment"]["INGEST_PASSWORD"] == "x" * 12
+    (src,) = [v for v in d["volumes"] if v["target"] == "/src"]
+    assert src["type"] == "bind" and src["read_only"] is True and Path(src["source"]) == ROOT
+    assert d["read_only"] is True and d["user"] == "10001:10001" and d["restart"] == "no"
+    assert (ROOT / "dev" / "seed.py").is_file() and (ROOT / "tools" / "fixtures" / "generate.py").is_file()
 
 
 def kit_app(**env):

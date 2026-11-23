@@ -167,9 +167,16 @@ host or address.
   the code that derives the planner's inputs: `uv run python
   tools/fixtures/generate.py`, read the diff, commit both. CI runs it with
   `--check`.
-- **The demo** is `dev/seed.py`: five made-up characters with a DEMO DATA
-  banner. Its header has the commands; the compose kit's header has the
-  two-line version.
+- **The demo** has one source: `build_demo` in `tools/fixtures/generate.py`,
+  Nibbet. The docs site's demo publishes him (above); the local demo,
+  `dev/seed.py`, sends the same events marked `demo: true` (a DEMO DATA
+  banner) to a store or a ui's `/ingest`, and the compose kit's `demo`
+  service runs it (`docker compose run --rm demo`). Its header has the
+  commands and what the local demo lacks next to the site's.
+- **Histories with gaps on purpose** are test fixtures, never the demo:
+  `tests/degraded.py` (the demo with a source taken away) and
+  `tests/testchar.py` (Testchar and four others, written by hand: no gear
+  sheet, an alt with nothing, Syndicator-only characters).
 - **The scan** (`tests/test_public_scan.py`) checks the shapes in git (no
   e-mail address, no private IP, no token-looking string) and, when a
   denylist file exists, every name in it. The denylist is never committed:
@@ -180,9 +187,8 @@ host or address.
 ## CI in a fork
 
 `.github/workflows/ci.yml` runs on GitHub-hosted runners with no secret: the
-tests on Linux, the Windows installer test, the demo seed through
-PowerShell's pipe (5.1 and 7), both images with smoke tests (read-only
-root, uid 10001), and the `audit` job (below). A fork gets all of it as is.
+tests on Linux, the Windows installer test, both images with smoke tests (read-only
+root, uid 10001) and the compose kit's demo end to end, and the `audit` job (below). A fork gets all of it as is.
 
 Three more workflows run only while the repository is public, because a
 private repository needs GitHub Advanced Security for them. Elsewhere they

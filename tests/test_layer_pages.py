@@ -5,12 +5,15 @@ totals, dungeon runs and deaths from the semantic layer (one definition for
 the pages and the MCP's query_metric), every answer a plain open of the page
 asks for must still say what it said when the views counted those numbers
 themselves. tests/data/layer-pages-demo.json.gz holds those answers on the
-demo seed (dev/seed.py), taken from the views before the move (main at 3d1afb5, with
+demo seed (dev/seed.py), first taken from the views before the move (main at 3d1afb5, with
 this demo seed), then retaken once for the decided change of the session and
 route-time definitions (journal and timeline session ends, a few seconds
 each), and once for the Journal's XP worked out from the bar's readings
 (prep.xp_gains: the history's first reading gains nothing, -2,990 on the
-first evening); this test builds them again and compares, number for number.
+first evening). When the local demo became the docs site's character (the
+Testchar seed moved to tests/testchar.py) the snapshot was retaken on him,
+from the code that had just passed on the old one. This test builds them
+again and compares, number for number.
 
 Rewrite the snapshot only when a change of definition is decided:
 `WOW_UPDATE_SNAPSHOT=1 uv run pytest tests/test_layer_pages.py`, then read the
@@ -39,9 +42,14 @@ warnings.filterwarnings("ignore", module="boring_semantic_layer")
 VOLATILE = {"generated_at", "stale"}
 
 
+# The local demo (dev/seed.py: the docs site's demo character), on a fixed last evening.
+CHAR = "Nibbet-Gearholt"
+END = "2026-11-18"
+
+
 def seed_rows(tmp: Path) -> list[dict]:
     out = tmp / "seed.ndjson"
-    subprocess.run([sys.executable, str(ROOT / "dev" / "seed.py"), "--out", str(out)], check=True,
+    subprocess.run([sys.executable, str(ROOT / "dev" / "seed.py"), "--out", str(out), "--end-day", END], check=True,
                    capture_output=True)
     return [json.loads(x) for x in out.read_text().splitlines() if x.strip()]
 
@@ -74,7 +82,7 @@ def answers(home: Path) -> dict:
     out: dict = {}
     for view in ("full", "public"):
         app = ui.App({"VIEW": view, "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": "http://vl.invalid",
-                      "MODEL3D": "off", "DEFAULT_CHAR": "Testchar-Demo", "HOME": str(home / view)})
+                      "MODEL3D": "off", "WOW_ITEMS": "off", "DEFAULT_CHAR": CHAR, "HOME": str(home / view)})
         names = [c["char"] for c in app.views.chars()]
         for name in sorted(names):
             out[f"{view}:char:{name}"] = app.api_char(name)
@@ -126,9 +134,9 @@ def test_the_pages_say_the_same_numbers_from_the_layer(seed_vl, monkeypatch):
     problems = diff(want, got)
     assert not problems, "\n".join(problems[:40])
     # The answers hold real numbers, not an empty page that matches an empty page.
-    char = got["full:char:Testchar-Demo"]
-    assert char["levels"] and char["header"]["xp_per_hour"] and char["deaths"]["total"] == 8
-    assert char["dungeons"] and got["public:char:Testchar-Demo"]["levels"]
+    char = got[f"full:char:{CHAR}"]
+    assert char["levels"] and char["header"]["xp_per_hour"] and char["deaths"]["total"] == 12
+    assert char["dungeons"] and got[f"public:char:{CHAR}"]["levels"]
 
 
 def test_the_pages_take_the_layers_numbers(seed_vl, monkeypatch):
@@ -147,10 +155,10 @@ def test_the_pages_take_the_layers_numbers(seed_vl, monkeypatch):
     monkeypatch.setattr(pages, "_memo", type(pages._memo)())
     monkeypatch.setattr(pages, "_compute", doubled)
     app = ui.App({"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": "http://vl.invalid",
-                  "MODEL3D": "off", "DEFAULT_CHAR": "Testchar-Demo", "HOME": str(seed_vl)})
-    d = app.api_char("Testchar-Demo")
+                  "MODEL3D": "off", "WOW_ITEMS": "off", "DEFAULT_CHAR": CHAR, "HOME": str(seed_vl)})
+    d = app.api_char(CHAR)
     lv30 = next(lv for lv in d["levels"] if lv["level"] == 30)
-    assert lv30["seconds"] == 2 * 11240 and d["deaths"]["total"] == 108
+    assert lv30["seconds"] == 2 * 9749 and d["deaths"]["total"] == 112
 
 
 def test_the_kept_numbers_never_cross_people(tmp_path, monkeypatch):
@@ -159,9 +167,9 @@ def test_the_kept_numbers_never_cross_people(tmp_path, monkeypatch):
     from wowstats.analysis import pages
 
     monkeypatch.setattr(pages, "_memo", type(pages._memo)())
-    rows = [r for r in seed_rows(tmp_path) if r.get("char") == "Testchar-Demo"
+    rows = [r for r in seed_rows(tmp_path) if r.get("char") == CHAR
             and (r["feed"] in ("wow-level", "wow-dungeon") or r.get("kind") in ("level", "session", "zone", "death"))]
-    mine = pages.numbers("Testchar-Demo", rows)
-    theirs = pages.numbers("Testchar-Demo", [r for r in rows if not (r["feed"] == "wow-level" and r["level"] == 30)])
-    assert mine["levels"][30]["played_s"] == 11240 and 30 not in theirs["levels"]
-    assert pages.numbers("Testchar-Demo", rows) is mine and len(pages._memo) == 2
+    mine = pages.numbers(CHAR, rows)
+    theirs = pages.numbers(CHAR, [r for r in rows if not (r["feed"] == "wow-level" and int(r["level"]) == 30)])
+    assert mine["levels"][30]["played_s"] == 9749 and 30 not in theirs["levels"]
+    assert pages.numbers(CHAR, rows) is mine and len(pages._memo) == 2

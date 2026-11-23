@@ -97,7 +97,8 @@ flowchart LR
 
 ## Examples on the demo
 
-All on `Testchar-Demo` from [the demo](../self-host/demo.md) (made-up data). Rows trimmed.
+All on `Nibbet-Gearholt` from [the demo](../self-host/demo.md) (made-up data), his last evening on
+2026-11-18 (`dev/seed.py --end-day 2026-11-18`; yours ends yesterday, so the dates move). Rows trimmed.
 
 **Dungeon time per zone, per week:**
 
@@ -108,12 +109,12 @@ All on `Testchar-Demo` from [the demo](../self-host/demo.md) (made-up data). Row
 
 | zone | week | dungeon_s |
 |---|---|---|
-| Desolace | 2026-11-09 | 2663 |
-| Stranglethorn Vale | 2026-11-16 | 2598 |
-| Stonetalon Mountains | 2026-11-09 | 1995 |
+| Blackfathom Deeps | 2026-10-26 | 4980 |
+| City of Dalaran | 2026-11-09 | 1922 |
+| Razorfen Kraul | 2026-11-16 | 1870 |
 
-(The demo's dungeon runs keep the outdoor zone name; in the game the zone usually becomes the
-dungeon. Group by `dungeon` for the dungeon itself.)
+(Inside a dungeon the zone is the dungeon. Group by `dungeon` to name the dungeon whatever the
+zone says.)
 
 **XP per played hour, by level** (a ratio: `level_xp` over `played_s`):
 
@@ -124,28 +125,30 @@ dungeon. Group by `dungeon` for the dungeon itself.)
 
 | level | xp_per_hour | level_xp | played_s |
 |---|---|---|---|
-| 30 | 17615.66 | 55000 | 11240 |
+| 30 | 17503.33 | 47400 | 9749 |
 
 **Where the deaths happen:**
 
 ```json
 {"metrics": ["deaths", "kills", "deaths_per_100_kills"], "group_by": ["zone"],
- "order_by": ["-deaths"], "limit": 3}
+ "order_by": ["-deaths", "zone"], "limit": 3}
 ```
 
 | zone | deaths | kills | deaths_per_100_kills |
 |---|---|---|---|
-| Stranglethorn Vale | 3 | 281 | 1.068 |
-| Wetlands | 1 | 151 | 0.662 |
-| Ashenvale | 1 | 93 | 1.075 |
+| Wetlands | 3 | 424 | 0.708 |
+| Darkshore | 2 | 98 | 2.041 |
+| Arathi Highlands | 1 | 116 | 0.862 |
 
 **Same metric, two grains.** `"grain": "day"` gives one row a day; `"grain": "week"` adds them
 up (the test suite checks that the weeks sum to the days):
 
 | week | online_s |
 |---|---|
-| 2026-11-09 | 75162 |
-| 2026-11-16 | 16591 |
+| 2026-10-26 | 20769 |
+| 2026-11-02 | 61334 |
+| 2026-11-09 | 35242 |
+| 2026-11-16 | 12624 |
 
 **Against the route planner** (a ratio, `played_s / planned_s`, over whole splits only):
 
@@ -155,26 +158,27 @@ up (the test suite checks that the weeks sum to the days):
 
 | level | played_s | planned_s | vs_route |
 |---|---|---|---|
-| 22 | 6420 | 8454 |  |
-| 23 | 7310 | 4632 | 1.578 |
-| 24 | 8520 | 5300 | 1.608 |
+| 22 | 2963 | 3754 |  |
+| 23 | 14229 | 4731 | 3.008 |
+| 24 | 6379 | 5465 | 1.167 |
 
 Level 22 is the demo's first tracked level: its split began partway through, so it has no
-`vs_route`. 6,420 s against a whole level's 8,454 s would say "faster than plan" for a level
-nobody timed from the start.
+`vs_route`. 2,963 s against a whole level's 3,754 s would say "faster than plan" for a level
+nobody timed from the start. Level 23 holds his 83-minute Blackfathom Deeps run.
 
-**Which quest paid the most XP per minute** (`quest_xp_per_min`, done quests only):
+**The quests that took the most play, and what they paid a minute** (`quest_xp_per_min`, done
+quests only):
 
 ```json
 {"metrics": ["quest_xp_per_min", "done_quest_xp", "done_quest_s", "quest_wall_s"],
- "group_by": ["quest"], "order_by": ["-quest_xp_per_min"], "limit": 3}
+ "group_by": ["quest"], "order_by": ["-done_quest_s"], "limit": 3}
 ```
 
 | quest | quest_xp_per_min | done_quest_xp | done_quest_s | quest_wall_s |
 |---|---|---|---|---|
-| Demo quest 951 | 1219.3 | 3221 | 158.5 | 317 |
-| Demo quest 409 | 1211.1 | 3724 | 184.5 | 369 |
-| Demo quest 505 | 1042.7 | 3128 | 180 | 540 |
+| Blackfathom Villainy | 207.3 | 7850 | 2272.6 | 5071 |
+| Heart of Disruption | 782.6 | 9400 | 720.7 | 2162 |
+| Starving Arcane | 782.6 | 9400 | 720.7 | 2162 |
 
 **Time per guide step**, with the step's name from the route reference:
 
@@ -185,9 +189,9 @@ nobody timed from the start.
 
 | guide_title | step | step_title | online_s |
 |---|---|---|---|
-| Wetlands, Ashenvale, Ironforge & Stormwind City | 64 | Shael'dryn | 1892 |
-| Wetlands, Ashenvale, Ironforge & Stormwind City | 100 | Jorgen and Elling Trias | 1476 |
-| Wetlands & Hillsbrad Foothills | 30 | Prospector Whelgar | 1226 |
+| Wetlands & Hillsbrad Foothills | 17 | The Dark Iron War | 5522 |
+| Wetlands & Hillsbrad Foothills | 30 | Dragonmaw Retreat | 4084 |
+| Wetlands & Hillsbrad Foothills | 37 | Howin Kindfeather | 3501 |
 
 **Kills per hour of combat** (`kills` from the records over `combat_s` from the timeline):
 
@@ -197,9 +201,9 @@ nobody timed from the start.
 
 | level | kills_per_combat_hour | kills | combat_s |
 |---|---|---|---|
-| 22 | 64.8 | 96 | 5330 |
-| 23 | 69.7 | 121 | 6253 |
-| 24 | 84.2 | 175 | 7486 |
+| 22 | 147.1 | 33 | 808 |
+| 23 | 145.3 | 127 | 3147 |
+| 24 | 160.7 | 23 | 515 |
 
 ## Time on a quest
 
@@ -207,13 +211,13 @@ A quest's time is `quest_s`: every online second while the quest sat in the log,
 equally among the quests open in that second**. Two quests open for an hour get 30 minutes
 each.
 
-The obvious answers are wrong. Wall time from accept to hand-in (`quest_wall_s`) counts the
-nights in between: Demo quest 1018 was picked up at 23:22 and handed in the next evening,
-73,560 s of wall time for 3,186 s of shared play. Online time while open (`quest_open_s`)
-counts the same second once per open quest: on the demo the quests hold about 2 at a time, so
-it adds up to 172,284 s, nearly twice the 91,753 s played that week.
+The obvious answers are wrong. Wall time from accept to hand-in (`quest_wall_s`) counts
+everything in between, the nights too: Blackfathom Villainy sat in the log 5,071 s for 2,273 s
+of shared play. Online time while open (`quest_open_s`) counts the same second once per open
+quest: on the demo the log holds about 1.4 quests at a time, so it adds up to 165,616 s, more
+than the 129,969 s he played in all.
 
-Shared, the times add up: on the demo `quest_s` sums to 86,283 s, the online time with at least
+Shared, the times add up: on the demo `quest_s` sums to 116,166 s, the online time with at least
 one quest in the log, nothing counted twice (a test checks it). What it can't know is which
 quest you were working on: a quest that sits in the log while you finish three others takes
 its share of their time, so one carried for days looks slow. `quests_open_avg` says how crowded
@@ -231,11 +235,12 @@ So the layer has `unexplained_gold_delta`: between two logout snapshots, how muc
 moved minus the quest money handed in between them. That's loot coin, vendor and auction sales
 and mail in, less repairs, purchases, training, flights and mail out, all together. It is never
 "repairs". A move counts in the level of its first snapshot; filter `dings = 0` for the moves
-inside one level. On the demo the rest is the flights: -86 copper at 22, -116 at 24.
+inside one level. On the demo, level 23's purse moved 7,283 copper inside the level, 1,300 of
+it quest money: 5,983 copper the layer can't name.
 
 `gold_delta_copper` (last snapshot minus first, per group) needs two snapshots with money at
-different times. By day on the demo, 2026-11-15 has one: its delta is empty and
-`gold_delta_copper_evidence` says 1. The days around it have 2 or 3.
+different times. By day on the demo most days have one: their delta is empty and
+`gold_delta_copper_evidence` says 1. 2026-11-13 has two.
 
 [Accountant Classic](https://www.curseforge.com/wow/addons/accountant-classic) (GPL-2.0, lists
 Forever) saves money in and out per source (training, taxi, trade, auction
@@ -273,9 +278,9 @@ Now the page takes them from the layer:
 DuckDB runs when the answers are built (the full view's background builder after new data,
 the publisher's static builds), once per character and data, never for a page view. It reads
 only the feeds those metrics need (level splits, dungeon runs, and the Recorder's level,
-session, zone and death records), not the whole history the analysis copies. On the demo every
-answer says exactly what it said before the move (`tests/test_layer_pages.py`, against a
-snapshot taken before).
+session, zone and death records), not the whole history the analysis copies. Every answer said
+exactly what it said before the move (`tests/test_layer_pages.py`, against a snapshot taken
+before, on the demo of the day), and the test keeps them there.
 
 Two definitions the page used to have its own way of are now the layer's, in shared code
 rather than through DuckDB:
@@ -303,11 +308,11 @@ metrics it feeds are NULL, and the page says what's unknown.
 `climb_kills` and `climb_quests` count Polestar's split for a level that has one (it counts the
 whole level), else the Recorder's records at that level. `in_play` picks the population:
 
-| Population | Filter | Demo (Testchar, level 32) |
+| Population | Filter | Demo (Nibbet, level 34) |
 |---|---|---|
-| The completed levels | `in_play = 0` | 1,188 kills, 94 quests (levels 22-31) |
-| The current level so far | `in_play = 1` | 74 kills, 5 quests |
-| Including the current level | none | 1,262 kills, 99 quests |
+| The completed levels | `in_play = 0` | 1,225 kills, 88 quests (levels 22-33) |
+| The current level so far | `in_play = 1` | 93 kills, 6 quests |
+| Including the current level | none | 1,318 kills, 94 quests |
 
 The page's climb says "over the completed levels" and puts the current level's so far beside
 it. The MCP's `character_summary` returns all three under `counts`: `completed_levels`,

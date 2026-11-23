@@ -334,6 +334,6 @@ def test_the_demo_seed_wakes_the_page(run_app, monkeypatch, tmp_path):
         assert prebuilt.WAKE.wait(10), "the seed didn't wake the builder"
         assert app.prebuilt.check() == "new data"
         chars = [c["char"] for c in body_of(srv, "/api/chars")["chars"]]
-        assert "Testchar-Demo" in chars and len(chars) == 5, chars
+        assert chars == ["Nibbet-Gearholt"], chars  # the docs site's demo character, alone
     finally:
         store.close()

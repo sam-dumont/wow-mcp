@@ -32,7 +32,7 @@ with the address sees: his card, gear, climb and dungeons.
 
 1. **[Join a friend's server](docs/players/getting-started.md)**: someone runs it for you and
    sent you a link. Nothing from this repository needed.
-2. **[Try the demo](docs/self-host/demo.md)**: Docker and five made-up characters on your
+2. **[Try the demo](docs/self-host/demo.md)**: Docker and a made-up character on your
    computer, about 10 minutes, no game needed.
 3. **[Track my character](docs/install.md)**: run the server, add the addons and the small
    program on the computer you play on.
@@ -48,12 +48,14 @@ this repository (Mac, Linux, or Git Bash on Windows):
 
 ```sh
 cd deploy/compose && test -f .env || echo INGEST_PASSWORD=demo-password-only > .env
-docker compose up -d --build ui && docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest < ../../dev/seed.py
+docker compose up -d --build ui && docker compose run --rm demo
 ```
 
 The first run builds the image, a minute or two. It ends with
-`<N> events into http://127.0.0.1:8080/ingest`, a few thousand. Open <http://127.0.0.1:8080/>: five
-made-up characters, each with a DEMO DATA banner, and Testchar-Demo at level 32. `docker compose down -v` removes it all.
+`<N> events for Nibbet-Gearholt into http://ui:8080/ingest`, tens of thousands. Open
+<http://127.0.0.1:8080/>: Nibbet, a made-up Gnome priest at level 34 with a DEMO DATA banner, the
+same character as the [docs site's demo](https://sam-dumont.github.io/wow-mcp/demo/).
+`docker compose down -v` removes it all.
 PowerShell, a port already taken, or the sites for friends: [Try the demo](docs/self-host/demo.md).
 
 ## How it fits together

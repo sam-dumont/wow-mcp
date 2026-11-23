@@ -66,7 +66,7 @@ From `deploy/compose`:
    On Windows, put any 30 random letters in `secrets\vm_merge_key`.
 2. In `.env`: uncomment `VM_URL=http://victoriametrics:8428`, set `BNET_REGION` (`eu` or
    `us`), and your characters as their WTF folders name them:
-   `PROFILE_CHARACTERS=Testchar-Demo,Testalt-Demo`. With friends on the install, every
+   `PROFILE_CHARACTERS=Nibbet-Gearholt,Name-Surname`. With friends on the install, every
    friend's characters can be read too, under their own account: uncomment
    `PROFILE_CHARACTERS_URL=http://ui:8082/profile-characters`. The kit's `exporter` reads the
    ui's share token from `ui-state` (read-only), the same way `publish` does.

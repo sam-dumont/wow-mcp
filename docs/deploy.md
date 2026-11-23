@@ -65,7 +65,7 @@ needed, so a long history comes back whole rather than cut.
 | `LOGS_FILTER` | `feed:wow-*` | LogsQL filter that selects the events (add your own labels here) |
 | `VM_URL` | empty | VictoriaMetrics the exporter pushes to. With `VIEW=public` only the character profile is read from it (the look, Battle.net's item level, the talents: the card shows them); no market or prices, which are never public |
 | `DEFAULT_CHAR` | empty (latest seen) | `Name-Surname` |
-| `WEIGHTS` | empty | the spec each character's gear is scored for, over what its add-ons say: `Testchar-Demo:shadow,Name-Surname:holy` (a spec key or name of the class). The page's own selector still wins. The card shows it next to the talents, which stay as the game has them |
+| `WEIGHTS` | empty | the spec each character's gear is scored for, over what its add-ons say: `Nibbet-Gearholt:shadow,Name-Surname:holy` (a spec key or name of the class). The page's own selector still wins. The card shows it next to the talents, which stay as the game has them |
 | `PRICE_DAYS` | `90` | days of Auctionator scans in the prices panel |
 | `CACHE_TTL` | `45` | seconds an answer worked out when asked is kept in memory. The answers a plain open asks for are built in the background once per new data instead (docs/architecture.md, "Caching") |
 | `VL_CONCURRENCY` | `2` | VictoriaLogs requests this process runs at once, all callers together (docs/architecture.md, "Caching") |
