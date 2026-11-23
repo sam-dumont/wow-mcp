@@ -225,6 +225,61 @@ def test_events_come_from_the_newest_mention_and_past_ones_drop_off(weeks):
     assert "Hardcore" not in [e["name"] for e in news.events(date(2027, 3, 21))]
 
 
+RAID_FX = [{"classes": ["WARRIOR"], "text": "Battle Shout reaches the whole raid.",
+            "statements": ["raids-endgame:KB-02:15"]}]
+
+
+def test_a_sparse_later_mention_moves_the_day_but_never_erases_the_prep(monkeypatch):
+    # 2026-11-23: a one-line re-mention ("First raid tier opens", no prep, no
+    # effects) replaced the curated raid opening; every level 60 lost the
+    # Onyxia attunement move.
+    rich = ev_item(5, "Raid opening", starts="2026-12-16", prep=ONYXIA_PREP)
+    rich["event"]["effects"] = RAID_FX
+    sparse = ev_item(5, "First raid tier opens", starts="2026-12-09", date_="2026-11-22")
+    weekly = [{"digest": {"week": "2026-11-19", "items": [rich]}},
+              {"digest": {"week": "2026-11-23", "items": [sparse]}}]
+    monkeypatch.setattr(cm, "lanes", lambda: {"meta": {}, "weekly": weekly})
+    raid = next(e for e in news.events(TODAY) if e["key"] == "k5")
+    assert raid["name"] == "Raid opening" and raid["changes"] == "Raid opening changes things."
+    assert raid["prep"] == ONYXIA_PREP and raid["effects"] == RAID_FX
+    assert raid["starts"] == "2026-12-09"  # the newer day still wins
+    assert news.prep_gaps(TANK60, today=TODAY)[0]["title"].startswith("Before Raid opening (9 Dec)")
+    # A newer mention that brings prep of its own restates the event; its empty effects erase nothing.
+    renamed = ev_item(5, "Raids open", starts="2026-12-09", date_="2026-11-22", prep=ONYXIA_PREP[:1])
+    weekly[1]["digest"]["items"] = [renamed]
+    raid = next(e for e in news.events(TODAY) if e["key"] == "k5")
+    assert raid["name"] == "Raids open" and raid["prep"] == ONYXIA_PREP[:1] and raid["effects"] == RAID_FX
+
+
+def test_the_writer_keeps_a_sparse_re_mention_to_when(monkeypatch):
+    known = [{"key": "k5", "name": "Raid opening", "prep": ONYXIA_PREP, "effects": []},
+             {"key": "k6", "name": "Hardcore", "prep": [], "effects": []}]
+    batch = [item(301, "The first raid tier opens on December 9, and crafted tier stats are out.")]
+    ev = {"name": "First raid tier opens", "key": "k5", "starts": "2026-12-09", "window": "",
+          "changes": "Three raids launch.", "level_min": 60, "level_max": 60, "prep": []}
+    hc = {**ev, "name": "Hardcore rules", "key": "k6", "starts": "", "changes": "Permadeath."}
+    kept, _ = meta.to_digest([entry(1, "announcement", "Tier stats", "Crafted tier stats are out.", ev),
+                              entry(1, "announcement", "Hardcore", "Hardcore is coming.", hc)],
+                             batch, ALLOW, "2026-11-23", {"dungeons:KB-04:3"}, known, {})
+    assert kept[0]["event"] == {"key": "k5", "name": "Raid opening", "starts": "2026-12-09", "window": None,
+                                "changes": None, "levels": [60, 60], "prep": []}
+    # An event with nothing curated yet takes the newer wording as before.
+    assert kept[1]["event"]["name"] == "Hardcore rules" and kept[1]["event"]["changes"] == "Permadeath."
+
+
+def test_main_news_gives_a_level_60_the_onyxia_attunement_first():
+    # The real data/kb/news.json, read through the plan layer (classmeta.adherence).
+    char = {"char": "X", "header": {"class": "Warrior", "level": 60, "faction": "Alliance", "race": "Human"},
+            "spec": {"name": "Protection"}, "talents": None}
+    prep = cm.adherence(char, None, date(2026, 11, 23))["prep"]
+    first = prep[0]
+    assert first["title"].startswith("Before Barrow Deeps") and "Onyxia attunement" in first["title"]
+    assert first["quest"]["name"] == "Dragonkin Menace" and first["quest"]["url"].endswith("quest=4182")
+    raid = next(e for e in news.upcoming(date(2026, 11, 23), char={"class": "Warrior", "level": 60})
+                if e["key"] == "raids-open-2026-12")
+    assert raid["for_you"] == ["Battle Shout reaches the whole raid."]
+
+
 def test_an_announced_event_with_no_date_says_so_and_brings_no_prep(weeks):
     hc = next(e for e in news.upcoming(TODAY, char=LOW20) if e["name"] == "Hardcore")
     assert hc["starts"] is None and hc["in_days"] is None and hc["when"] == "announced for winter 2026, no date"
