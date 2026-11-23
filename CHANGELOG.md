@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+
+- `/admin`: the AI analysis cell showed `store: AttributeError` for every person since 0.7.0.
+  It handed the timer the page's store, which can't run the timer's query; it now reads
+  through the MCP's store, like the server's own runs. The server's runs and the nightly
+  recheck were not affected. A broken cell now shows the error's message, not only its type.
+
 ## 0.8.0 (2026-11-23)
 
 What 0.8.0 brings over 0.7.0, in short. Every change follows.

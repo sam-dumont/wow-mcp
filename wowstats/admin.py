@@ -291,17 +291,32 @@ def analysis_row(t: T.Tenancy, u: T.User, row: dict) -> dict | None:
     out = {"chars": [], "refresh_after": auto.hours(svc.cfg.stale_s), "due": False, "at": None, "by": None,
            "last_try": svc.last_try(env) or None, "month": auto.mine(env, svc.spend)}
     try:
-        tm = svc.timer(env, t.app_for(u).store)
+        # No store passed: the timer reads through the MCP's store (its
+        # `logs`), built from the person's environment. The page's App.store
+        # (wowstats.stores.Store) has no `logs`: passing it made this cell an
+        # AttributeError for everyone from 0.7.0 to 0.8.0.
+        tm = svc.timer(env)
         last = tm["last_refresh"] or {}
         chars = [{"char": c["char"], "played_since": c["played_since"], "due": c["due"],
                   "refreshed": c["last_refresh"] is not None} for c in tm["chars"]]
         out.update(chars=chars, due=tm["due"], at=last.get("at"), by=last.get("by"))
     except Exception as e:  # noqa: BLE001 - one store down: that cell says so
-        out["error"] = type(e).__name__
+        out["error"] = error_text(e)
     line = last_try_line(out["last_try"])
     if line:
         row["stale"].append(line)
     return out
+
+
+ERROR_CHARS = 200
+
+
+def error_text(e: Exception) -> str:
+    """The exception's type and message, cut to ERROR_CHARS: the type alone
+    ("AttributeError") said nothing about what broke. Escaped where shown."""
+    msg = " ".join(str(e).split())
+    s = f"{type(e).__name__}: {msg}" if msg else type(e).__name__
+    return s if len(s) <= ERROR_CHARS else s[:ERROR_CHARS - 1] + "…"
 
 
 def last_try_line(lt: dict | None) -> str:

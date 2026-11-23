@@ -19,7 +19,9 @@ import pytest
 
 from tests.mcp import fakes
 from tests.test_tenancy import (  # noqa: F401 - fixtures
+    A_CHAR,
     A_MARKERS,
+    B_CHAR,
     FRIEND,
     OWNER,
     RENAME,
@@ -279,3 +281,78 @@ def test_versions_order_release_candidates():
     v = admin.vtuple
     assert v("0.6.1") < v("0.7.0-rc.1") < v("0.7.0-rc.2") < v("0.7.0") < v("v0.7.1")
     assert v("0.7.0rc1") is None and v("0.7") is None and v(None) is None
+
+
+# ------------------------------------------------- the AI analysis timers
+
+def recorder(store, tenant: str, char: str, t0: str, minutes: int) -> None:
+    """`minutes` of Recorder play from t0 in the fake store, where the
+    timer's two reads (wowstats.analysis.auto: played_chars, played_since)
+    find it: the characters' latest record straight from VictoriaLogs, the
+    one character's sessions through the event cache, from its raw events."""
+    from datetime import timedelta
+
+    from wowstats.stores import iso, parse_t
+
+    start = parse_t(t0)
+    rows = [{"_time": iso(start + timedelta(minutes=m, seconds=s)), "feed": "wow-recorder", "kind": "tick"}
+            for m in range(minutes) for s in (0, 30, 59)]
+    store.rules[tenant] = [*fakes.raw_rules(rows, char), ("max(_time) as last", [{"char": char, "last": rows[-1]["_time"]}]),
+                           *store.rules[tenant]]
+
+
+@pytest.fixture
+def analysis_on(env, tmp_path, monkeypatch):  # noqa: F811
+    """The server's own analysis configured (OpenAI, a key file, 15 h, like
+    the lab), the process' service made from it, with no provider: nothing
+    here reaches one. The timer's reads are the real ones, on the real
+    App and Tenancy: no fake store, no injected played/chars."""
+    from wowstats.analysis import auto
+
+    key = tmp_path / "analysis.key"
+    key.write_text("not-a-real-key\n")
+    monkeypatch.setattr(auto, "sdk_installed", lambda module: True)
+    e = {**env, "ANALYSIS_PROVIDER": "openai", "ANALYSIS_MODEL": "gpt-test", "ANALYSIS_API_KEY_FILE": str(key),
+         "ANALYSIS_STALE_PLAYED_HOURS": "15", "ANALYSIS_MONTHLY_BUDGET": "100"}
+    svc = auto.Service(e, client=object())
+    assert svc.cfg.on, svc.cfg.why_off()
+    monkeypatch.setattr(auto, "_SERVICE", svc)
+    return svc
+
+
+def test_the_analysis_cell_reads_each_persons_timer_on_the_real_store(server, vl, analysis_on):  # noqa: F811
+    """0.7.0 to 0.8.0: the cell handed the timer the page's store, which has
+    no `logs`, and showed "store: AttributeError" for every person. On the
+    real App and Tenancy both the owner's and a friend's timers read."""
+    friend_ready(server)
+    recorder(vl, "0", A_CHAR, "2026-11-20T18:00:00Z", 90)
+    recorder(vl, "1", B_CHAR, "2026-11-21T18:00:00Z", 30)
+    people = {p["slug"]: p for p in overview(server)["people"]}
+    for slug, char, played in (("sam", A_CHAR, "1 h 29"), ("mira", B_CHAR, "0 h 29")):
+        a = people[slug]["analysis"]
+        assert "error" not in a, (slug, a.get("error"))
+        assert a["chars"] == [{"char": char, "played_since": played, "due": False, "refreshed": False}], slug
+        assert a["refresh_after"] == "15 h 00" and a["due"] is False
+    page = server.get("/admin", headers=as_user(OWNER))[2]
+    assert b"store: AttributeError" not in page
+
+
+def test_the_schedulers_due_check_reads_the_same_timer(server, vl, analysis_on):  # noqa: F811
+    """The worker's due check (Service.run_job) on a person's real
+    environment: it reads the play time, it doesn't skip on a read error."""
+    recorder(vl, "0", A_CHAR, "2026-11-20T18:00:00Z", 90)
+    owner = server.t.registry.get(OWNER)
+    r = analysis_on.run_job(server.t.env_for(owner))
+    assert r["started"] is False
+    assert r["skipped"].startswith("not due: ") and f"{A_CHAR}: 1 h 29 of play" in r["skipped"], r
+
+
+def test_a_broken_timer_shows_its_message_escaped_and_cut(server, analysis_on, monkeypatch):  # noqa: F811
+    def boom(e, store=None):
+        raise RuntimeError("<b>bad</b> " + "x" * 500)
+
+    monkeypatch.setattr(analysis_on, "timer", boom)
+    a = {p["slug"]: p for p in overview(server)["people"]}["sam"]["analysis"]
+    assert a["error"].startswith("RuntimeError: <b>bad</b> x") and len(a["error"]) == admin.ERROR_CHARS
+    page = server.get("/admin", headers=as_user(OWNER))[2]
+    assert b"store: RuntimeError: &lt;b&gt;bad&lt;/b&gt; x" in page and b"<b>bad</b>" not in page
