@@ -5,6 +5,8 @@
 ### Added
 
 - Kill XP for a dungeon you haven't run: `dungeons` with `options` gives `gain.kill_xp`, a run's kill XP, kills and time inside at your level, labelled `estimate`, or `not_enough_data` with what's missing. Your own runs replace it (`measured`). The original dungeons come from cMaNGOS's spawn tables (85% of the packs, per wing for Scarlet Monastery, Dire Maul, Blackrock Spire and Stratholme), Ruins of Lordaeron and The Drowned City from players' logged runs, City of Dalaran from two reference runs; the six other new dungeons say not enough data yet. Classic's kill formula, elites ×2.5, five players of your level, Forever's 60% dungeon factor; no buffs. An estimate never ranks a dungeon or calls it faster than questing: the quests and the gear lead. Checked against a recorded Stockade full clear (+3%) and Dalaran's two runs (−10%): [Dungeon kill XP](docs/dungeon-xp.md).
+- The Dungeons panel shows a run's kill XP under "What a trip is worth", after the quests and the gear: measured on your runs, an estimate, or not enough data yet. One line at the top says what Forever's dungeons are for: their quests and gear, not running the same one over and over.
+- A dungeon you haven't run takes its time from its kills (kills × the seconds a kill took in the reference runs) instead of a guide's clear time, in the panel's line, the Overview's move and `dungeons` with `options` (basis `kill_model`). Gnomeregan at 34 goes from ~40 min to ~1h15 inside; a real run takes about an hour. Your own runs still replace it.
 
 ### Changed
 

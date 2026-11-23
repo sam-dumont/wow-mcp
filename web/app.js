@@ -2478,6 +2478,8 @@ function dungeonTrip(b) {
     facts.push(fact('Gear a clear', b.missing_now ? `${b.chance_one_per_clear_pct}%` : 'none',
       b.missing_now ? dropsOne(b.missing_now) : 'nothing missing at your level'));
   }
+  const kx = killXpFact(b.gain && b.gain.kill_xp);
+  if (kx) facts.push(kx);
   if (t.measured) {
     facts.push(fact('Loot a run', coins(t.vendor_copper),
       [t.ah_copper ? `${Math.round(t.ah_copper / 100) / 100}g at your AH prices` : null, t.quest_money_copper ? 'plus quest money' : null].filter(Boolean).join(', ')));
@@ -2486,6 +2488,18 @@ function dungeonTrip(b) {
     h('h4', { text: 'What a trip is worth' }),
     h('dl', { class: 'dgfacts' }, facts),
   );
+}
+
+// A run's kill XP (wowstats/plan/dungeongain.py run_kills): after the
+// quests and the gear, and always said as what it is: measured on his runs,
+// an estimate, or not enough data yet. Where it comes from stays in the data.
+function killXpFact(k) {
+  if (!k) return null;
+  if (k.label === 'not_enough_data') return fact('Kill XP a run', 'not enough data yet', 'your first run here measures it');
+  if (k.xp == null) return null;
+  const inside = k.inside_s ? `, ~${dur(Math.max(300, Math.round(k.inside_s / 300) * 300))} inside` : '';
+  const what = k.label === 'measured' ? `measured on your runs${inside}` : `estimate${k.per === 'wing' ? ' for a wing' : ''}${inside}`;
+  return fact('Kill XP a run', `~${fmtK(k.label === 'measured' ? k.xp : Math.round(k.xp / 100) * 100)}`, what);
 }
 
 function dungeonHistory(b) {
@@ -2578,6 +2592,7 @@ function renderDungeonPanel(d) {
     return;
   }
   fill(body,
+    h('p', { class: 'sub dgnote', text: "Forever's dungeons are worth it for their quests and gear, not for running the same one over and over." }),
     h('div', { class: 'dgs' }, d.dungeons.map((b) => dungeonBlock(b, d))));
 }
 
