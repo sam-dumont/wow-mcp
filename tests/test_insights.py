@@ -267,16 +267,6 @@ def test_an_empty_character_has_no_claims():
     assert ov["now"] == [] and ov["guide"]["claims"] == [] and ov["deaths"] == [] and ov["upgrades"] == []
 
 
-def test_recorder_played_counts_logged_in_time_only():
-    from wowstats.views import recorder_played
-
-    # Chunks roll every 300 s while the game runs; a longer silence is offline.
-    t = ["2026-11-17T12:00:00Z", "2026-11-17T12:05:00Z", "2026-11-17T12:10:02Z",  # 602 s on
-         "2026-11-17T18:00:00Z", "2026-11-17T18:04:00Z"]  # logged out for hours, then 240 s
-    assert recorder_played(t) == 842
-    assert recorder_played([]) is None
-
-
 def test_guide_picks_are_not_steps():
     from wowstats.views import build_steps
 

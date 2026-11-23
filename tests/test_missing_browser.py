@@ -73,7 +73,7 @@ def test_the_server_says_what_is_missing(live):
     got = {m["id"]: m["line"] for m in json.loads(body)["missing"]}
     assert got == {
         "levels": "Missing: level times, dungeon runs and gear advice. Add Polestar.",
-        "bags": "Missing: your gear and bags. Add Syndicator.",
+        "gear": "Missing: your gear and your bags. Add Syndicator.",
         "quests": "Missing: quests you did before installing. Add Questie or Altoholic.",
         "prices": "Missing: auction prices. Add Auctionator.",
     }
@@ -93,13 +93,13 @@ def test_one_line_per_section_with_the_fix(live, pw, engine, width):
         got = lines(pg)
         assert got["levels"] == ["Missing: level times, dungeon runs and gear advice. Add Polestar."]
         assert got["dungeons"] == got["levels"]  # the first kind that names the section, once
-        assert got["gear"] == ["Missing: your gear and bags. Add Syndicator."]
+        assert got["gear"] == ["Missing: your gear and your bags. Add Syndicator."]
         assert got["advice"] == got["levels"]  # the advice, inside the gear panel, is its own section
         assert got["prices"] == ["Missing: auction prices. Add Auctionator."]
         assert all(len(v) == 1 for v in got.values()), got
         assert "zones" not in got and "deaths" not in got  # the Recorder's data is there
         # The addon's name is its link, opened like every outside link.
-        a = pg.locator('#gear p.missing[data-kind="bags"] a')
+        a = pg.locator('#gear p.missing[data-kind="gear"] a')
         assert a.inner_text() == "Syndicator"
         assert a.get_attribute("href") == "https://www.curseforge.com/wow/addons/syndicator"
         assert a.get_attribute("rel") == "noopener noreferrer" and a.get_attribute("target") == "_blank"
@@ -114,7 +114,7 @@ def test_one_line_per_section_with_the_fix(live, pw, engine, width):
         }""")
         assert back == 1
         pg.evaluate("() => document.querySelector('#gear').replaceChildren()")
-        wait_count(pg, '#gear p.missing[data-kind="bags"]', 1)
+        wait_count(pg, '#gear p.missing[data-kind="gear"]', 1)
         # Nothing cut or overflowing on a phone.
         over = pg.evaluate("() => document.documentElement.scrollWidth - window.innerWidth")
         assert over <= 0, over

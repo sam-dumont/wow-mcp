@@ -1353,10 +1353,23 @@ class DemoPlayer(Player):
         self._sheet = key
         gear_sheet(self)
 
+    def bags(self) -> None:
+        """Syndicator's bags as the shipper sends them (extract_inventory):
+        the item ids he looted and doesn't wear, one event each time the set
+        changes. No bank: he never opened it, so it stays unknown."""
+        worn = set(self.worn.values())
+        held = sorted({int(part.split(":")[0]) for r in self.out if r.get("kind") == "loot"
+                       for part in str(r.get("items") or "").split(";") if part.split(":")[0].isdigit()} - worn)
+        if held == getattr(self, "_bags", None):
+            return
+        self._bags = held
+        self.other("wow-bags", bags=held, source_id=f"bags:{self.char}:{len(held)}:{int(self.t)}")
+
     def logout(self) -> None:
         super().logout()
         self.t -= 1
         self.gear_sheet()
+        self.bags()
         self.t += 1
 
 
@@ -1583,11 +1596,12 @@ def build_demo(end_day: str | None = None) -> list[dict]:
     p.t = end - 30
     p.other("wow-quests", kind="completed", source="questie", quest_ids=done, n=len(done),
             source_id=f"quests:{DEMO}:questie")
-    # The shipper's setup report: every addon but Syndicator, so the pages
-    # show one "Missing:" line (the bags), as a friend's would: the demo's
-    # one example of a degraded source, said so on its page.
+    # The shipper's setup report: every addon the demo's events come from,
+    # Syndicator included (it sends his gear sheets and bags). The degraded
+    # cases are tests/degraded.py's, never the demo.
     p.other("wow-setup", addons={"polestar": "0.4.1", "recorder": "0.4.1", "auctionator": "11.0.5",
-                                 "questie": "11.18.0", "altoholic": "11.1.0", "wowsims": "1.2.3"},
+                                 "questie": "11.18.0", "altoholic": "11.1.0", "syndicator": "1.9.2",
+                                 "wowsims": "1.2.3"},
             recorder_on=True, saved_chars=1)
     p.out[-1].pop("char", None)
     rows = shipper_shapes(sorted(p.out, key=lambda r: r["_time"]))

@@ -22,6 +22,7 @@ from datetime import UTC, datetime, timedelta
 from .. import ahsource, gearfit
 from .. import gear as gearmod
 from ..stores import (
+    SESSION_BUCKETS,
     SESSION_GAP_S,
     SNAPSHOT_SORT,
     jlist,
@@ -432,14 +433,19 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
     n_deaths = int(rec_n.get("deaths") or 0)
     money = opt_num(s.get("money_copper")) if s.get("money_copper") not in (None, "") else opt_num(
         r.get("money_copper"))
-    tracked = (m.ask(metrics=["played_s"], where=[SPLIT]) or [{}])[0].get("played_s") if levels else None
+    splits = (m.ask(metrics=["played_s"], where=[SPLIT]) or [{}])[0].get("played_s") if levels else None
+    # The level in play's time so far: the layer's in_level_s on the page's
+    # own prep (pages.in_level), so the page and this answer say one number;
+    # played is the splits plus it, as the page's hero line counts it.
+    in_level = None if current else pages.in_level(layer_ask(ctx, char))
+    tracked = (splits or 0) + (in_level or 0) if levels else None
     avg5 = one_metric(m, "avg_level_s", window(5)) if done and window(5) else None
     return {
         "char": char, "title": ctx.title(char) if ctx.title else None, "level": level, "xp": xp, "xp_max": xp_max,
         "xp_pct": round(100 * xp / xp_max, 1) if xp is not None and xp_max else None,
         "zone": zone_now(s, r), "last_seen": max(s.get("_time") or "", r.get("_time") or "") or None,
         "gold": gold(money), "money_copper": money,
-        "time_in_level": dur(current["seconds"]) if current else None,
+        "time_in_level": dur(current["seconds"] if current else in_level),
         "played_tracked": dur(tracked),
         "avg_last_5_levels": dur(avg5),
         "xp_per_hour_last_3_levels": xph, "eta_next_level": dur(eta),
@@ -752,7 +758,8 @@ def layer_ask(ctx: Ctx, char: str):
     runs, one definition with the pages and query_metric."""
     from wowstats.analysis import pages
 
-    return pages.asker(char, ctx.store.logs(f"{cf(char)} {pages.ROWS_QUERY}"))
+    return pages.asker(char, pages.with_spans(char, ctx.store.logs(f"{cf(char)} {pages.ROWS_QUERY}"),
+                                              ctx.store.logs(f"{rec(char)} {SESSION_BUCKETS}")))
 
 
 def local_when(t: datetime | None) -> str | None:

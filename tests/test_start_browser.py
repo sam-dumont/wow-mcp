@@ -75,6 +75,7 @@ SETUP = {"polestar": "1.4.2", "recorder": "0.9.1", "syndicator": "0.6", "questie
 def preflight_rules(char: str, recorder_on: bool | str = True) -> list:
     """The setup report and what arrived per character, for status.setup and status.missing."""
     arrived = [{"char": char, "feed": f, "n": "5"} for f in ("wow-level", "wow-recorder", "wow-bags")]
+    arrived += [{"char": char, "feed": "wow-gear", "n": "5", "ilvl": "40"}]  # Syndicator's sheet, with items
     arrived += [{"char": char, "feed": "wow-quests", "source": "questie", "n": "120"},
                 {"char": char, "feed": "wow-character", "kind": "played", "n": "4"}]
     return [("stats by (char, feed, source, kind)", arrived),
@@ -92,6 +93,7 @@ def alt_rules() -> list:
     alt played a minute (the Recorder's data, bags, no level split, no quest).
     Questie is installed but unticked on both; Syndicator unticked on the alt."""
     main = [{"char": MAIN, "feed": f, "n": "5"} for f in ("wow-level", "wow-dungeon", "wow-recorder", "wow-bags")]
+    main += [{"char": MAIN, "feed": "wow-gear", "n": "5", "ilvl": "40"}]  # Syndicator's sheet, with items
     main += [{"char": MAIN, "feed": "wow-quests", "source": "altoholic", "n": "120"}, {"feed": "wow-prices", "n": "9"}]
     alt = [{"char": ALT, "feed": f, "n": "2"} for f in ("wow-recorder", "wow-gear", "wow-character")]
     rep = {"addons": json.dumps({**SETUP, "auctionator": "349"}), "recorder_on": "true", "saved_chars": "2",
@@ -475,7 +477,7 @@ def test_the_addon_gaps_name_the_character_and_never_blame_an_installed_addon(si
             f"Missing for {ALT}: level times, dungeon runs and gear advice. Play to your next level, then log out.",
             f"Missing for {ALT}: quests you did before installing. Finish a quest with this character, "
             "then log out or type /reload once.",
-            f"Missing for {ALT}: your gear and bags. Syndicator is installed but not ticked for this character: "
+            f"Missing for {ALT}: your gear and your bags. Syndicator is installed but not ticked for this character: "
             "tick it in AddOns at character select, then log in.",
         ]
         assert MAIN not in pg.locator("#f-addons ul.gaps").inner_text()

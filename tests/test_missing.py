@@ -15,7 +15,7 @@ from wowstats.mcp import tools
 from wowstats.mcp.store import Store
 
 HERO, ALT = "Hero-Realm", "Alt-Realm"
-EVERYTHING = ["wow-level", "wow-dungeon", "wow-recorder", "wow-bags", "wow-gear", "wow-character", "wow-prices"]
+EVERYTHING = ["wow-level", "wow-dungeon", "wow-recorder", "wow-bags", "wow-gear:items", "wow-character", "wow-prices"]
 
 
 def store(feeds: dict[str, list[str]], quests: dict[str, list[str]] | None = None, setup: dict | None = None,
@@ -23,7 +23,11 @@ def store(feeds: dict[str, list[str]], quests: dict[str, list[str]] | None = Non
     """q(query) -> rows, as VictoriaLogs answers each of missing's queries."""
     def q(query: str) -> list[dict]:
         if query == missing.ARRIVED_Q:
-            return ([{"char": c, "feed": f, "n": "3"} for c, fs in feeds.items() for f in fs]
+            # "wow-gear:items" is a gear sheet with items (Syndicator's): it
+            # carries their average item level. A bare "wow-gear" is Polestar's
+            # professions-only sheet.
+            return ([{"char": c, "feed": f.split(":")[0], "n": "3", **({"ilvl": "40"} if ":" in f else {})}
+                     for c, fs in feeds.items() for f in fs]
                     + [{"char": c, "feed": "wow-quests", "source": s, "kind": "completed", "n": "1"}
                        for c, ss in (quests or {}).items() for s in ss]
                     + [{"feed": f, "n": "1"} for f in account]
@@ -55,7 +59,7 @@ def test_each_missing_source_one_line_with_its_fix():
     q = store({HERO: ["wow-level", "wow-dungeon", "wow-gear", "wow-character"]}, setup=rep)
     assert lines(q) == {
         "play": "Missing: play sessions, zones, deaths and loot. Type /psrec on once in game, then /reload.",
-        "bags": "Missing: your gear and bags. Add Syndicator.",
+        "gear": "Missing: your gear and your bags. Add Syndicator.",
         "quests": "Missing: quests you did before installing. Add Questie or Altoholic.",
         "prices": "Missing: auction prices. Scan the auction house with Auctionator, then log out.",
     }
@@ -72,13 +76,13 @@ def test_a_recorder_never_switched_on_gets_the_same_fix_as_off():
 
 def test_no_polestar_no_level_times_or_gear_advice():
     rep = {"addons": {"recorder": "1", "syndicator": "1"}, "recorder_on": True}
-    q = store({HERO: ["wow-recorder", "wow-bags", "wow-gear"]}, {HERO: ["altoholic"]}, rep, account=["wow-prices"])
+    q = store({HERO: ["wow-recorder", "wow-bags", "wow-gear:items"]}, {HERO: ["altoholic"]}, rep, account=["wow-prices"])
     assert lines(q) == {"levels": "Missing: level times, dungeon runs and gear advice. Add Polestar."}
 
 
 def test_installed_and_ticked_but_nothing_yet_says_what_brings_it():
     rep = {"addons": {**ALL_ADDONS}, "recorder_on": True, "off": {}}
-    q = store({HERO: ["wow-level", "wow-recorder", "wow-bags"]}, {}, rep, account=["wow-prices"])
+    q = store({HERO: ["wow-level", "wow-recorder", "wow-bags", "wow-gear:items"]}, {}, rep, account=["wow-prices"])
     assert lines(q) == {"quests": "Missing: quests you did before installing. Finish a quest with this character, "
                                   "then log out or type /reload once."}
 
@@ -88,7 +92,7 @@ def test_a_fresh_alt_with_polestar_ticked_plays_to_its_next_level():
     played 28 seconds has no level split and no quest yet. Questie is
     installed but unticked on both, Altoholic ticked."""
     rep = {"addons": {**ALL_ADDONS}, "recorder_on": True, "off": {HERO: ["questie"], ALT: ["questie"]}}
-    q = store({HERO: EVERYTHING, ALT: ["wow-recorder", "wow-bags", "wow-gear", "wow-character"]},
+    q = store({HERO: EVERYTHING, ALT: ["wow-recorder", "wow-bags", "wow-gear:items", "wow-character"]},
               {HERO: ["altoholic"]}, rep)
     assert lines(q, HERO) == {}
     assert lines(q, ALT) == {
@@ -108,14 +112,14 @@ def test_installed_but_not_ticked_for_this_character_says_so():
     assert lines(q, ALT) == {
         "levels": "Missing: level times, dungeon runs and gear advice. Polestar is installed but not ticked for "
                   "this character: tick it in AddOns at character select, then log in.",
-        "bags": "Missing: your gear and bags. Syndicator is installed but not ticked for this character: "
+        "gear": "Missing: your gear and your bags. Syndicator is installed but not ticked for this character: "
                 "tick it in AddOns at character select, then log in.",
         "quests": "Missing: quests you did before installing. Questie and Altoholic are installed but not ticked "
                   "for this character: tick one in AddOns at character select, then log in.",
     }
     # One of the two ticked is enough: then it's the wait, not the tick.
     rep["off"][ALT] = ["questie"]
-    assert lines(store({ALT: ["wow-level", "wow-recorder", "wow-bags"]}, {}, rep, account=["wow-prices"]), ALT) == {
+    assert lines(store({ALT: ["wow-level", "wow-recorder", "wow-bags", "wow-gear:items"]}, {}, rep, account=["wow-prices"]), ALT) == {
         "quests": "Missing: quests you did before installing. Finish a quest with this character, "
                   "then log out or type /reload once."}
 
@@ -124,13 +128,13 @@ def test_not_installed_keeps_the_install_advice():
     rep = {"addons": {"polestar": "1", "recorder": "1"}, "recorder_on": True, "off": {}}
     q = store({HERO: ["wow-level", "wow-recorder"]}, {}, rep)
     got = lines(q)
-    assert got["bags"] == "Missing: your gear and bags. Add Syndicator."
+    assert got["gear"] == "Missing: your gear and your bags. Add Syndicator."
     assert got["quests"] == "Missing: quests you did before installing. Add Questie or Altoholic."
 
 
 def test_prices_are_the_accounts_not_each_characters():
     rep = {"addons": ALL_ADDONS, "recorder_on": True}
-    q = store({HERO: EVERYTHING, ALT: ["wow-level", "wow-recorder", "wow-bags"]},
+    q = store({HERO: EVERYTHING, ALT: ["wow-level", "wow-recorder", "wow-bags", "wow-gear:items"]},
               {HERO: ["questie"], ALT: ["questie"]}, rep)
     assert lines(q, ALT) == {}
 
@@ -164,7 +168,7 @@ def test_spellings_are_one_character():
 
 
 def test_the_lines_carry_their_sections_and_addon_links():
-    q = store({HERO: ["wow-level", "wow-recorder", "wow-bags"]}, setup={"addons": {"polestar": "1"}},
+    q = store({HERO: ["wow-level", "wow-recorder", "wow-bags", "wow-gear:items"]}, setup={"addons": {"polestar": "1"}},
               account=["wow-prices"])
     m = {x["id"]: x for x in missing.for_char(missing.snapshot(q), HERO)}["quests"]
     assert m["sections"] == ["dungeons", "moves"] and m["partial"] is True
@@ -174,14 +178,14 @@ def test_the_lines_carry_their_sections_and_addon_links():
 
 def test_the_start_page_gets_the_setup_and_each_gap_once():
     rep = {"addons": {"polestar": "0.4.1.1", "recorder": "0.4.1.1"}, "recorder_on": True}
-    q = store({HERO: ["wow-level", "wow-recorder"], ALT: ["wow-level", "wow-recorder", "wow-bags"]}, setup=rep)
+    q = store({HERO: ["wow-level", "wow-recorder"], ALT: ["wow-level", "wow-recorder", "wow-bags", "wow-gear:items"]}, setup=rep)
     out = missing.for_account(missing.snapshot(q))
     assert out["setup"] == {"at": "2026-11-19T10:00:00Z", "addons": rep["addons"], "recorder_on": True,
                             "saved_chars": 1, "off": None, "shipper": None}
     by = {m["id"]: m for m in out["missing"]}
-    assert by["bags"]["chars"] == [HERO] and by["quests"]["chars"] == [ALT, HERO]
+    assert by["gear"]["chars"] == [HERO] and by["quests"]["chars"] == [ALT, HERO]
     # The account page names whose gap it is, except the account's own.
-    assert by["bags"]["line"] == f"Missing for {HERO}: your gear and bags. Add Syndicator."
+    assert by["gear"]["line"] == f"Missing for {HERO}: your gear and your bags. Add Syndicator."
     assert by["quests"]["who"] == f"{ALT} and {HERO}"
     assert by["prices"]["line"] == "Missing: auction prices. Add Auctionator." and by["prices"]["who"] == ""
 
@@ -192,9 +196,9 @@ def test_the_start_page_splits_a_kind_by_fix():
               {HERO: ["questie"], ALT: ["questie"]}, rep, account=["wow-prices"])
     got = sorted(m["line"] for m in missing.for_account(missing.snapshot(q))["missing"])
     assert got == [
-        f"Missing for {ALT}: your gear and bags. Syndicator is installed but not ticked for this character: "
+        f"Missing for {ALT}: your gear and your bags. Syndicator is installed but not ticked for this character: "
         "tick it in AddOns at character select, then log in.",
-        f"Missing for {HERO}: your gear and bags. Log in with this character, then log out or type /reload once.",
+        f"Missing for {HERO}: your gear and your bags. Log in with this character, then log out or type /reload once.",
     ]
 
 
@@ -215,9 +219,9 @@ def ctx():
 
 def test_mcp_answers_say_what_they_cant_see(ctx):
     out = tools.call(ctx, "levels", {"char": fakes.CHAR})
-    assert [m["id"] for m in out["missing"]] == ["bags", "quests", "prices"]
-    assert out["missing"][0] == {"id": "bags", "what": "your gear and bags", "fix": "Add Syndicator.",
-                                 "line": "Missing: your gear and bags. Add Syndicator."}
+    assert [m["id"] for m in out["missing"]] == ["gear", "quests", "prices"]
+    assert out["missing"][0] == {"id": "gear", "what": "your gear and your bags", "fix": "Add Syndicator.",
+                                 "line": "Missing: your gear and your bags. Add Syndicator."}
     # An account-wide tool: the account's gaps, each with the characters it concerns.
     out = tools.call(ctx, "prices", {})
     assert {m["id"] for m in out["missing"]} >= {"prices"} and all("chars" in m for m in out["missing"])

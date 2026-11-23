@@ -21,7 +21,7 @@ The assistant calls `character_summary`:
 ```
 
 <details>
-<summary>The server answers (97 lines of JSON)</summary>
+<summary>The server answers (91 lines of JSON)</summary>
 
 ```json
 {
@@ -36,8 +36,8 @@ The assistant calls `character_summary`:
  "last_seen": "2026-11-22T09:05:41.8Z",
  "gold": "16g 46s 75c",
  "money_copper": 164675,
- "time_in_level": null,
- "played_tracked": "1d9h",
+ "time_in_level": "2h26m",
+ "played_tracked": "1d12h",
  "avg_last_5_levels": "3h38m",
  "xp_per_hour_last_3_levels": 12074,
  "eta_next_level": "2h39m",
@@ -80,14 +80,7 @@ The assistant calls `character_summary`:
  },
  "talents_why": null,
  "other_characters": [],
- "missing": [
-  {
-   "id": "bags",
-   "what": "your gear and bags",
-   "fix": "Add Syndicator.",
-   "line": "Missing: your gear and bags. Add Syndicator."
-  }
- ],
+ "missing": [],
  "coverage": {
   "recorder": {
    "state": "complete",
@@ -101,10 +94,11 @@ The assistant calls `character_summary`:
    }
   },
   "gear": {
-   "state": "unavailable",
-   "fix": "Add Syndicator.",
+   "state": "complete",
+   "as_of": "2026-11-22T09:05:20Z",
    "parts": {
-    "items": "2026-11-22T09:05:20Z"
+    "items": "2026-11-22T09:05:20Z",
+    "bags": "2026-11-20T17:47:25Z"
    }
   },
   "quests": {
@@ -134,7 +128,7 @@ The assistant calls `next_moves`:
 ```
 
 <details>
-<summary>The server answers (92 lines of JSON)</summary>
+<summary>The server answers (84 lines of JSON)</summary>
 
 ```json
 {
@@ -184,18 +178,9 @@ The assistant calls `next_moves`:
   "profession trainer visits due",
   "... 2 more"
  ],
- "not_possible_yet": [
-  "cheap auction-house wins: prices exist in the full view only, without a per-item gain model"
- ],
+ "not_possible_yet": [],
  "note": "Each point says what it was computed from. Gains are Polestar's gear points.",
- "missing": [
-  {
-   "id": "bags",
-   "what": "your gear and bags",
-   "fix": "Add Syndicator.",
-   "line": "Missing: your gear and bags. Add Syndicator."
-  }
- ],
+ "missing": [],
  "coverage": {
   "recorder": {
    "state": "complete",
@@ -209,10 +194,11 @@ The assistant calls `next_moves`:
    }
   },
   "gear": {
-   "state": "unavailable",
-   "fix": "Add Syndicator.",
+   "state": "complete",
+   "as_of": "2026-11-22T09:05:20Z",
    "parts": {
-    "items": "2026-11-22T09:05:20Z"
+    "items": "2026-11-22T09:05:20Z",
+    "bags": "2026-11-20T17:47:25Z"
    }
   },
   "quests": {
@@ -242,7 +228,7 @@ The assistant calls `dungeons`:
 ```
 
 <details>
-<summary>The server answers (770 lines of JSON)</summary>
+<summary>The server answers (764 lines of JSON)</summary>
 
 ```json
 {
@@ -399,7 +385,7 @@ The assistant calls `dungeons`:
       "wowhead": "https://www.wowhead.com/forever/quest=92489"
      }
     ],
-    "...": "3 more keys"
+    "...": "8 more keys"
    },
    "trip": {
     "time_s": 1922,
@@ -583,15 +569,15 @@ The assistant calls `dungeons`:
     "level": 34,
     "run_s": 1870,
     "time": "trip",
-    "xp_kills": 8495,
+    "xp_kills": 3636,
     "xp_quests": 9750,
-    "xp": 18245,
-    "level_pct": 29,
-    "xp_per_hour": 35123,
+    "xp": 13386,
+    "level_pct": 21,
+    "xp_per_hour": 25770,
     "kills_unknown": false,
     "questing_xp_per_hour": 15256,
-    "vs_questing": 2.302,
-    "questing_s": 4305,
+    "vs_questing": 1.689,
+    "questing_s": 3159,
     "quests": [
      {
       "quest_id": 1142,
@@ -631,12 +617,12 @@ The assistant calls `dungeons`:
       "wowhead": "https://www.wowhead.com/forever/quest=1221"
      }
     ],
-    "...": "3 more keys"
+    "...": "8 more keys"
    },
    "trip": {
     "time_s": 1870,
-    "xp": 18245,
-    "xp_per_hour": 35124,
+    "xp": 13386,
+    "xp_per_hour": 25770,
     "kills_unknown": false,
     "from": "your 1 run(s) there",
     "n": 1,
@@ -649,7 +635,7 @@ The assistant calls `dungeons`:
     }
    },
    "value": {
-    "xp_per_hour": 35123,
+    "xp_per_hour": 25770,
     "gear_per_hour": 25.4,
     "vs_questing_xp_per_hour": 15256
    },
@@ -660,8 +646,8 @@ The assistant calls `dungeons`:
     ],
     "time_s": 1870,
     "inside_s": 1870,
-    "xp_inside": 8495,
-    "xp_per_hour_run": 35123,
+    "xp_inside": 3636,
+    "xp_per_hour_run": 25770,
     "loot_items_per_run": 14.0,
     "vendor_copper_per_run": 1288,
     "boe_seen": [],
@@ -681,7 +667,7 @@ The assistant calls `dungeons`:
     "loop": {
      "run_s": 1870,
      "note": "inside time only; the walk out and back in to reset isn't measured",
-     "xp_per_hour": 16354,
+     "xp_per_hour": 7000,
      "gold_copper_per_hour": 47100,
      "gear_per_hour": 25.4,
      "runs_for_mount": 35,
@@ -725,9 +711,9 @@ The assistant calls `dungeons`:
      "quests_in_log": 1,
      "quest_xp_in_log": 7250,
      "own_runs": 1,
-     "run_xp_per_hour": 35123,
+     "run_xp_per_hour": 25770,
      "questing_xp_per_hour": 15256,
-     "vs_questing": 2.3
+     "vs_questing": 1.7
     },
     "under_floor": false,
     "text": null
@@ -842,20 +828,20 @@ The assistant calls `dungeons`:
    ],
    "quests_open": [],
    "gain": {
-    "basis": "rules",
+    "basis": "kill_model",
     "own_runs": 0,
     "level": 34,
-    "run_s": 2494,
+    "run_s": 7109,
     "time": "trip",
-    "xp_kills": null,
-    "xp_quests": 39016,
-    "xp": null,
-    "level_pct": 62,
-    "xp_per_hour": 56328,
-    "kills_unknown": true,
+    "xp_kills": 12046,
+    "xp_quests": 38582,
+    "xp": 50628,
+    "level_pct": 81,
+    "xp_per_hour": 25636,
+    "kills_unknown": false,
     "questing_xp_per_hour": 15256,
-    "vs_questing": null,
-    "questing_s": 9207,
+    "vs_questing": 1.68,
+    "questing_s": 11947,
     "quests": [
      {
       "quest_id": 2904,
@@ -908,16 +894,16 @@ The assistant calls `dungeons`:
       ],
       "wowhead": "https://www.wowhead.com/forever/quest=2923"
      },
-     "... 9 more"
+     "... 7 more"
     ],
-    "...": "3 more keys"
+    "...": "8 more keys"
    },
    "trip": {
-    "time_s": 2494,
-    "xp": 39016,
-    "xp_per_hour": 56318,
-    "kills_unknown": true,
-    "from": "the knowledge base's clear time, plus the travel and quest time of your 4 dungeon trips",
+    "time_s": 7109,
+    "xp": 50628,
+    "xp_per_hour": 25638,
+    "kills_unknown": false,
+    "from": "the kill estimate's time inside, plus the pickups, travel and hand-ins Polestar's rules plan from where you are, at your pace (1x the straight run, from 2 trips)",
     "n": 4,
     "phases_s": {
      "pickup_s": 147,
@@ -928,8 +914,8 @@ The assistant calls `dungeons`:
     }
    },
    "value": {
-    "xp_per_hour": null,
-    "gear_per_hour": 28.9,
+    "xp_per_hour": 25636,
+    "gear_per_hour": 10.1,
     "vs_questing_xp_per_hour": 15256
    },
    "redo": null,
@@ -960,7 +946,7 @@ The assistant calls `dungeons`:
    },
    "...": "1 more keys"
   },
-  "... 7 more"
+  "... 9 more"
  ],
  "instance_limit": {
   "per_hour": 5,
@@ -973,15 +959,8 @@ The assistant calls `dungeons`:
    "scope": "forever"
   }
  },
- "note": "A dungeon needs a group: offer it as an option. 'gain' is one more run at the character's level now, the same estimate the Overview and the Dungeons panel show (its 'summary' is their line): from the character's own runs there (basis 'runs': trip time, kill XP carried to the current level by the kill formula over the creatures killed), else the knowledge base's clear time plus the character's own  ...",
- "missing": [
-  {
-   "id": "bags",
-   "what": "your gear and bags",
-   "fix": "Add Syndicator.",
-   "line": "Missing: your gear and bags. Add Syndicator."
-  }
- ],
+ "note": "A dungeon needs a group: offer it as an option. 'gain' is one more run at the character's level now, the same estimate the Overview and the Dungeons panel show (its 'summary' is their line): from the character's own runs there (basis 'runs': trip time, kill XP carried to the current level by the kill formula over the creatures killed), else the kill estimate's time inside and kill XP (basis 'kill_ ...",
+ "missing": [],
  "coverage": {
   "recorder": {
    "state": "complete",
@@ -995,10 +974,11 @@ The assistant calls `dungeons`:
    }
   },
   "gear": {
-   "state": "unavailable",
-   "fix": "Add Syndicator.",
+   "state": "complete",
+   "as_of": "2026-11-22T09:05:20Z",
    "parts": {
-    "items": "2026-11-22T09:05:20Z"
+    "items": "2026-11-22T09:05:20Z",
+    "bags": "2026-11-20T17:47:25Z"
    }
   },
   "quests": {
@@ -1044,7 +1024,7 @@ The assistant calls `plan_session`:
   "hours": "2h00",
   "start.level": "34.5",
   "start.xp_pct": "49%",
-  "start.rested": "8,314",
+  "start.rested": "9,007",
   "start.gold": "16g 46s",
   "play": "2h00",
   "stops": "0 min",
@@ -1056,7 +1036,7 @@ The assistant calls `plan_session`:
   "pos.anchor_step": "66",
   "pace.questing": "2.39x",
   "pace.questing.n": "239",
-  "...": "197 more keys"
+  "...": "215 more keys"
  },
  "blocks": [
   {
@@ -1129,7 +1109,7 @@ Its `markdown` field, the draft the assistant starts from:
 > - Riding at 40: 100g needed, 83g 53s to go at 40s/h net: about 208h44 of play, past the route's last level at this rate
 > - loop The Stockade from the door: about 7g 88s/h (≈ 28 runs for the next mount) (your 1 run(s) there: loot at vendor price)
 > - loop Razorfen Kraul from the door: about 4g 71s/h (≈ 35 runs for the next mount) (your 1 run(s) there: loot at vendor price)
-> - sell the cloth and trade goods you loot on the AH: about 4g 60s/h (your loot over the last 14 days at your own Auctionator scan prices)
+> - sell the cloth and trade goods you loot on the AH: about 4g 68s/h (your loot over the last 14 days at your own Auctionator scan prices)
 >
 > **Log out**
 > - the next town on your route: step 22 (Thelsamar) (your hearthstone is set to Refuge Pointe, off the route ahead: hearthing there means travelling back next session; log out in a rest area on the route, or set your hearth there): about 3,140 rested XP per 8 hours offline
@@ -1143,7 +1123,7 @@ The assistant calls `sanity_check`:
 ```
 
 <details>
-<summary>The server answers (149 lines of JSON)</summary>
+<summary>The server answers (143 lines of JSON)</summary>
 
 ```json
 {
@@ -1254,14 +1234,7 @@ The assistant calls `sanity_check`:
   "what killed you in a dungeon fight blow by blow: no combat log, only the recorder's likely killer"
  ],
  "note": "Killers are likely, not certain: there is no combat log, only Polestar_Recorder's death record (the last hostile creature that targeted the player within 10 s) and the units and combat before it.",
- "missing": [
-  {
-   "id": "bags",
-   "what": "your gear and bags",
-   "fix": "Add Syndicator.",
-   "line": "Missing: your gear and bags. Add Syndicator."
-  }
- ],
+ "missing": [],
  "coverage": {
   "recorder": {
    "state": "complete",
@@ -1275,10 +1248,11 @@ The assistant calls `sanity_check`:
    }
   },
   "gear": {
-   "state": "unavailable",
-   "fix": "Add Syndicator.",
+   "state": "complete",
+   "as_of": "2026-11-22T09:05:20Z",
    "parts": {
-    "items": "2026-11-22T09:05:20Z"
+    "items": "2026-11-22T09:05:20Z",
+    "bags": "2026-11-20T17:47:25Z"
    }
   },
   "quests": {

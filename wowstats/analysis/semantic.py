@@ -480,11 +480,29 @@ def local(db, tz: str | None = None):
     return layer, duck.ReadOnlyDuck(con)
 
 
+# Constants the model's prose names, filled in when it is read: one session
+# rule for every text that states it (the descriptions said 330 s while a
+# page counted 315, 2026-11-23).
+PROSE = {"{SESSION_GAP_S}": lambda: str(int(timebounds.SESSION_GAP_S))}
+
+
+def _filled(v):
+    if isinstance(v, str):
+        for k, f in PROSE.items():
+            v = v.replace(k, f()) if k in v else v
+        return v
+    if isinstance(v, dict):
+        return {k: _filled(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_filled(x) for x in v]
+    return v
+
+
 @functools.cache
 def _file() -> dict:
     from boring_semantic_layer.io import read_yaml_file
 
-    return read_yaml_file(str(MODEL_FILE))
+    return _filled(read_yaml_file(str(MODEL_FILE)))
 
 
 @functools.cache

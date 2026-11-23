@@ -43,6 +43,25 @@ runs it too (below). The whole fast suite, in parallel: `make test`. Tests marke
 release: `-m ci_only`. Tests run in parallel with pytest-xdist, so none may lean
 on another or on a fixed port or path: servers bind port 0, state lives in `tmp_path`.
 
+## The integration slices
+
+`tests/slices` (marker `slice`, part of `make test` and CI's suite, about 30 s) sends five golden
+characters (`tests/slices/characters.py`: the demo, the demo before Syndicator scanned its bags, a
+level 60 who just dinged, a fresh level 10 with no split, the demo without the Recorder and
+Syndicator) through the app's own `/ingest` into a VictoriaLogs stand-in, then reads them back
+through the page's HTTP API and the MCP's tools. The tests are contracts between those surfaces,
+not one module's internals: one number means one thing everywhere, coverage and the "Missing:"
+lines agree with what arrived, every number in a move has a source, and no move, raid prep or class
+effect of the committed snapshot goes away. A change that drops one on purpose updates the snapshot
+in the same pull request:
+
+```sh
+uv run python -m tests.slices.golden --check   # what went away, what is new
+uv run python -m tests.slices.golden --write   # take the current behaviour as the snapshot
+```
+
+The knowledge base's refresh runs the same check as its `behaviour` gate ([kb.md](kb.md)).
+
 ## The checks
 
 ```sh

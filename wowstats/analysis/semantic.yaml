@@ -116,6 +116,11 @@ levels:
       description: "Quests handed in over the climb: Polestar's split count for a level with a split, else the Recorder's turn-in records at that level (the level in play, or Polestar off). Pick the population with in_play: 0 the completed levels, 1 the current level so far, no filter both."
       metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: quests,
                  caveats: "Always say the population: the completed levels (in_play = 0) or including the current level. A level without a split counts only what the Recorder saw while it was on. NULL for a level neither counted."}
+    in_level_s:
+      expr: _.in_level_s.sum()
+      description: "Time in the level in play so far: logged-in seconds of the Recorder's sessions since the ding out of the level before (the page's and character_summary's time in the level)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: reconstructed, unit: seconds,
+                 caveats: "The level in play only (in_play = 1): NULL for a completed level (its split is played_s), with no Recorder session since the ding, or when no ding says when the level began. A silence over {SESSION_GAP_S} s ends a session, so a crash can drop a few minutes."}
     planned_s:
       expr: _.planned_s.coalesce(_.planned_median_s).sum()
       description: "The route planner's seconds for the level: for this class, or the median over classes when the class isn't known."
@@ -216,7 +221,7 @@ timeline:
       expr: _.dur_s.sum()
       description: "Time at a level, way 2: online seconds the Recorder saw, every interval between two records of a login span."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "A silence over 330 s ends a span, so a crash or a long loading screen can drop a few minutes."}
+                 caveats: "A silence over {SESSION_GAP_S} s ends a span, so a crash or a long loading screen can drop a few minutes."}
     active_s:
       expr: _.dur_s.sum(where=_.afk == 0).fill_null(0)
       description: "Time at a level, way 3: online seconds with the AFK flag off."
@@ -543,7 +548,7 @@ records:
 
 sessions:
   table: sem_sessions
-  description: "Login spans: a silence of more than 330 s between Recorder records ends one."
+  description: "Login spans: a silence of more than {SESSION_GAP_S} s between Recorder records ends one."
   dimensions:
     session_id: {expr: _.session_id, is_entity: true, description: "Login span number, in time order."}
     weekday: {expr: _.weekday_local, description: "Mon..Sun of the start, local time."}
@@ -562,7 +567,7 @@ sessions:
       expr: _.session_id.count()
       description: "Login spans."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: sessions,
-                 caveats: "A /reload doesn't split a span; a crash longer than 330 s does."}
+                 caveats: "A /reload doesn't split a span; a crash longer than {SESSION_GAP_S} s does."}
     session_s:
       expr: _.duration_s.sum()
       description: "Seconds from a span's first record to its last."

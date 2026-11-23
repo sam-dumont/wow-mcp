@@ -30,6 +30,12 @@ started from) and checks:
 - churn: statements the loader would no longer serve, against the base: at
   most CHURN_MAX in all and CHURN_SHARE of any lane (never a whole lane), so
   a broken fetch or a bad model answer can't wipe a lane;
+- behaviour: the golden characters' moves, raid prep, class effects, plan
+  and class meta (tests/slices/golden.py) served from this tree, against the
+  snapshot the branch commits (tests/slices/golden.json): a key that went
+  away is refused unless the same PR updates the snapshot. #189 merged a
+  digest whose sparse re-mention took the Onyxia attunement from every level
+  60, and every gate passed (2026-11-23);
 - tests (unless --no-tests): ruff, the whole pytest suite (the MCP's
   24,000-character cap, tests/mcp/test_kb_caps.py, among them) and the
   fixtures check, as CI's test job runs them.
@@ -47,6 +53,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -306,6 +313,28 @@ JOB_VARS = ("WHY", "MODE", "BRANCH", "BASE", "GH_REPO", "GH_TOKEN", "GITHUB_TOKE
             "GITHUB_PATH", "GITHUB_STEP_SUMMARY")
 
 
+GOLDEN = "tests/slices/golden.json"
+
+
+def behaviour_gate(base_ref: str) -> tuple[list[str], dict]:
+    """The golden characters' behaviour on this tree against the committed
+    snapshot (tests/slices/golden.py --check, in a child with the suite's
+    environment). ([refusals], {"gone", "added", "snapshot_updated"})."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "behaviour.json"
+        r = subprocess.run(["uv", "run", "--frozen", "python", "-m", "tests.slices.golden", "--check", "--json",
+                            str(out)], cwd=ROOT, capture_output=True, text=True, env=suite_env())
+        got = json.loads(out.read_text(encoding="utf-8")) if out.exists() else None
+    head = (ROOT / GOLDEN).read_text(encoding="utf-8") if (ROOT / GOLDEN).exists() else None
+    info = {"gone": len((got or {}).get("gone") or []), "added": len((got or {}).get("added") or []),
+            "snapshot_updated": head != git_show(base_ref, GOLDEN)}
+    if got is None:
+        sys.stderr.write(r.stdout[-3000:] + r.stderr[-3000:])
+        return [f"behaviour: the golden characters couldn't be served ({(r.stderr or r.stdout).strip()[-200:]})"], info
+    return [f"behaviour: {g} went away (on purpose: update {GOLDEN} in this PR, "
+            "`uv run python -m tests.slices.golden --write`)" for g in got["gone"]], info
+
+
 def suite_env() -> dict[str, str]:
     return {k: v for k, v in os.environ.items() if not k.startswith("KB_") and k not in JOB_VARS}
 
@@ -331,7 +360,7 @@ def test_gate() -> list[str]:
     return out
 
 
-def run(base_ref: str, sources_path: str | None, tests: bool, kb_dir: Path = KB) -> dict:
+def run(base_ref: str, sources_path: str | None, tests: bool, kb_dir: Path = KB, behaviour: bool = True) -> dict:
     today = datetime.now(UTC).date()
     allow = kbschema.load_allow(kb_dir / "sources.json")
     base, head = base_files(base_ref), head_files(kb_dir)
@@ -347,17 +376,24 @@ def run(base_ref: str, sources_path: str | None, tests: bool, kb_dir: Path = KB)
     refused += [f"size: {o}" for o in lifecycle.over_budget(kb_dir)]
     ch, removed = churn_gate(base, head, today)
     refused += ch
+    # The golden characters read the repository's own KB: only when that is the one checked.
+    beh, seen = behaviour_gate(base_ref) if behaviour and kb_dir == KB else ([], {})
+    refused += beh
     if tests:
         refused += test_gate()
     return {"ok": not refused, "refused": refused,
             "counts": {"new_texts_checked": checked, "statements_removed": removed, "sources_read": len(sources),
-                       "tests": tests}}
+                       "tests": tests, "behaviour": seen}}
 
 
 def markdown(result: dict) -> str:
     c = result["counts"]
     head = (f"New texts checked against their source: {c['new_texts_checked']}; statements leaving the KB: "
             f"{c['statements_removed']}; tests run: {'yes' if c['tests'] else 'no'}.")
+    b = c.get("behaviour") or {}
+    if b:
+        head += (f" Golden characters: {b.get('gone', 0)} keys went away, {b.get('added', 0)} new"
+                 f"{' (snapshot updated in this PR)' if b.get('snapshot_updated') else ''}.")
     if result["ok"]:
         return f"**Gates: passed.** {head}\n"
     return f"**Gates: refused.** {head}\n\n" + "\n".join(f"- {r}" for r in result["refused"][:60]) + "\n"
@@ -367,7 +403,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--base", required=True, help="the git ref to compare with (the main the run started from)")
     ap.add_argument("--sources", default=os.environ.get("KB_SOURCES"), help="the texts the model passes read")
-    ap.add_argument("--no-tests", action="store_true", help="the KB gates only")
+    ap.add_argument("--no-tests", action="store_true", help="the KB gates only (the behaviour gate included)")
     ap.add_argument("--out", help="write the result here (JSON)")
     ap.add_argument("--markdown", help="write the result here (Markdown, for the PR and the issue)")
     a = ap.parse_args(argv)

@@ -8,6 +8,16 @@
   It handed the timer the page's store, which can't run the timer's query; it now reads
   through the MCP's store, like the server's own runs. The server's runs and the nightly
   recheck were not affected. A broken cell now shows the error's message, not only its type.
+- The time in your current level is one number: the page said 2h26m, the MCP's `character_summary` said nothing and its time played left the level out. Both now read `in_level_s`, the Recorder's sessions since your last ding (a new semantic-layer metric), and time played is your level splits plus that. One session rule everywhere: a silence over 330 s ends a session (the page counted 315).
+- Gear coverage no longer says "unavailable, add Syndicator" when your gear sheet is there. The gear sheet and the bags are two kinds now (`Missing: your bags` alone, with the wait, when only the bags are late; one line for both when Syndicator is missing), a source with any part on record is at least `partial` (a character sheet before your first ding too), and no line tells you to add an addon whose data already arrived.
+- `dungeons` with `options` no longer lists the other side's city dungeon (Ragefire Chasm for an Alliance character): same list as the Dungeons panel.
+- `next_moves` no longer says auction-house wins are out of reach: the gear advice prices what's on sale.
+- The self-host page said a friend's data goes the moment they leave the list: it goes 7 days later (`FRIENDS_PURGE_DAYS`), or at once with `users delete --yes`.
+- The demo sends Syndicator's bags and lists Syndicator in its setup, as a player with it would.
+
+### Tests
+
+- Integration slices (`tests/slices`, marker `slice`, in the normal suite, about 30 s): five golden characters sent through `/ingest` into a VictoriaLogs stand-in, then read by the page API and the MCP tools. They check that one number means one thing on every surface (level, time in level, played, pace, ETA, dungeon trip lines, best upgrade per slot), that coverage and `missing` agree with what arrived, that every number in a move has a source, and that no move, raid prep or class effect of the committed snapshot (`tests/slices/golden.json`) goes away. The KB refresh runs the same snapshot as a gate (`behaviour` in `tools/kb/gates.py`): the #189 digest that took the Onyxia attunement from every level 60 would have been refused.
 
 ## 0.8.0 (2026-11-23)
 

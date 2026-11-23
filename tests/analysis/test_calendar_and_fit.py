@@ -76,6 +76,27 @@ def test_each_level_carries_its_calendar_offline_time_and_longest_silence():
     assert gap12 == 14 * DAY - (10 * DAY + 3600)  # from the ding to the next login
 
 
+def test_the_level_in_play_counts_its_logged_in_time_since_the_ding():
+    # in_level_s: the hero line's "time in this level" and character_summary's,
+    # one number (2026-11-23: the page said 2h26m, the MCP nothing). Level 12's
+    # one evening since its ding is 1 h; the four days before it are offline.
+    got = {r[0]: r[1] for r in build().execute("SELECT level, in_level_s FROM levels")}
+    assert got == {10: None, 11: None, 12: 3600}
+
+
+def test_the_pages_minute_marks_give_the_same_time_in_level():
+    # The pages' narrow prep has no xp records, only the Recorder's first and
+    # last record of each minute (pages.with_spans): the same sessions.
+    from wowstats.analysis import pages
+
+    full = history()
+    marks = [r for r in full if r["feed"] != "wow-recorder" or r["kind"] == "level"]
+    minutes = [{"t0": r["_time"], "t1": r["_time"], "n": "1"} for r in full
+               if r["feed"] == "wow-recorder" and r["kind"] != "level"]
+    db = build(pages.with_spans(CHAR, marks, minutes))
+    assert db.execute("SELECT in_level_s FROM levels WHERE in_play = 1").fetchone()[0] == 3600
+
+
 def test_the_semantic_layer_reads_the_prep_s_calendar():
     from wowstats.analysis import TABLES, duck, semantic
 

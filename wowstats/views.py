@@ -315,7 +315,7 @@ class Views:
         # MCP's query_metric; the rows above keep the facts around them. Its
         # failure is this answer's failure (SemanticError: the last good
         # answer stays, marked stale), never numbers counted here instead.
-        layer = pages.numbers(char, res["layer"])
+        layer = pages.numbers(char, pages.with_spans(char, res["layer"], res["minutes"]))
         pages.apply_rows(levels, dungeons, layer)
         pages.apply_deaths(deaths, layer, death_rows)
         if not death_rows and not res["minutes"]:
@@ -342,14 +342,7 @@ class Views:
         deaths["per_level"] = (None if deaths["total"] is None else
                                deaths_per_level(deaths["by_level"], climb, spans,
                                                 coverage.recorder_gaps(spans, res["levels"])))
-        # The level being played has no split yet: its played time so far
-        # comes from the Recorder, which is logged-in time like the splits.
-        current_s = None
-        if climb:
-            since = climb[-1]["t"]
-            buckets = vl(f"{rec} _time:>{since} | stats by (_time:10s) count() as n", ("_time",), {"n": "sum"})
-            current_s = recorder_played([b.get("_time") for b in buckets])
-        header = build_header(char, levels, res, gear, current_s, pages.header(layer))
+        header = build_header(char, levels, res, gear, pages.header(layer))
         header.update(played_total(res["played"], levels, header))
         fill_from_battlenet(header, self.bnet_profile(char))
         cat = talents.shared().get()
@@ -678,8 +671,10 @@ class Views:
         the Overview's pace and death counts. A failure raises
         SemanticError: the Overview fails like any answer, never shows
         its lines without the layer's counts."""
-        rows = self.vl(f"{self.stream} {self.char_filter(char)} {pages.ROWS_QUERY}")
-        return pages.asker(char, rows)
+        cf = self.char_filter(char)
+        rows = self.vl(f"{self.stream} {cf} {pages.ROWS_QUERY}")
+        minutes = self.vl(f'{self.stream} feed:="wow-recorder" {cf} {SESSION_BUCKETS}')
+        return pages.asker(char, pages.with_spans(char, rows, minutes))
 
     def overview(self, char: str) -> dict:
         """The home page of a character: on track or not, what's happening
@@ -1025,31 +1020,13 @@ def build_levels(rows: list[dict]) -> list[dict]:
             for lvl, r in sorted(pick_splits(rows).items())]
 
 
-# Polestar_Recorder rolls its chunk every 300 s while the game is running
-# (Recorder.lua CHUNK_SECONDS, checked every 5 s), and each chunk opens with
-# a `session` record: a longer silence means the game was closed. Summing the
-# gaps up to that is logged-in time, the same thing Polestar's level splits
-# count (QoL/XP.lua ticks from login to logout). Checked on real data: level
-# 31 of the owner's main gives 9369 s from the Recorder and 9369 s in the split.
-OFFLINE_GAP_S = 315
-
-
-def recorder_played(times: list) -> int | None:
-    """Logged-in seconds covered by these record times (any resolution down
-    to the 10 s buckets the page asks for)."""
-    ts = sorted(parse_t(t).timestamp() for t in times if t)
-    if not ts:
-        return None
-    return int(sum(b - a for a, b in zip(ts, ts[1:], strict=False) if b - a <= OFFLINE_GAP_S))
-
-
 def gear_args(gi: dict) -> dict:
     """advise()'s keyword arguments from Views.gear_inputs (the sheet apart)."""
     return {k: gi[k] for k in ("level", "zone", "done", "weights", "held", "market")}
 
 
 def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = None,
-                 current_s: int | None = None, layer: dict | None = None) -> dict:
+                 layer: dict | None = None) -> dict:
     """The hero line. `layer`: the semantic layer's numbers for it
     (wowstats.analysis.pages.header), used as they are: the only way the
     pace, the averages and the counts are computed."""
@@ -1077,6 +1054,9 @@ def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = N
     xph = layer.get("xp_per_hour")
     avg_s, avg_n = layer.get("avg_level_s"), layer.get("avg_levels") or 0
     splits_s = layer.get("splits_played_s")
+    # The level in play has no split yet: its time so far is the layer's
+    # in_level_s (its Recorder sessions since the ding), the MCP's own.
+    current_s = layer.get("in_level_s")
     # Polestar writes a split when a level ends, so the level being played has
     # none yet; `partial` means the recording started partway into that level.
     current = next((lv for lv in levels if lv["level"] == level), None)

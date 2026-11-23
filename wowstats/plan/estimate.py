@@ -352,7 +352,7 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
     done, the value of one more run and of looping it."""
     from . import vsguide, wings
     from .dungeonview import build as panel
-    from .dungeonview import gain_named
+    from .dungeonview import gain_named, known_areas, other_sides
     from .dungeonview import key as pkey
 
     level = inp["level"]
@@ -377,10 +377,12 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
         k = dkey(inst)
         if k not in names and d.get("levels"):
             names[k] = {"name": inst, "min": d["levels"][0], "max": d["levels"][1]}
+    known = known_areas()
+    theirs = {pkey(a["name"]) for aid, a in known.items() if other_sides(inp, known, aid)}
     out = []
     for k, d in names.items():
         lo, hi = d["min"], d["max"]
-        if hi < level - 2 or lo > level + 5:
+        if hi < level - 2 or lo > level + 5 or pkey(d["name"]) in theirs:
             continue
         gear = [g for inst, v in by_inst.items() if dkey(inst) == k for g in v["drops"]]
         qrew = [g for inst, v in by_inst.items() if dkey(inst) == k for g in v["quests"]]
