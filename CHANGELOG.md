@@ -2,26 +2,59 @@
 
 ## Unreleased
 
+What 0.8.0 brings over 0.7.0, in short. Every change follows.
+
+**For players**
+
+- Dungeons are planned as whole trips: pickups, travel, time inside and hand-ins, from where
+  you were last seen, at your own pace. "~1h55 trip for ~58k XP + 4 quest upgrades, 9 drop
+  upgrades (88% a run), 2.1× your questing".
+- Dungeons run in parts get one line per wing: Scarlet Monastery, Dire Maul, Blackrock Spire,
+  Stratholme and Maraudon.
+- A dungeon you haven't run gets a kill XP estimate and a time from its kills, labelled
+  `estimate`. Your own runs replace both.
+- The public page shows the BiS badge on each worn item, as the full view does.
+- One demo, the docs site's Nibbet, loaded with `docker compose run --rm demo`.
+
+**For your AI**
+
+- 38 tools instead of 41, one question each: `gear_options`, `dungeon_options` and `people`
+  became `gear`, `dungeons` and `players` with `options`/`groups`. See "Upgrading".
+- `list_metrics` without arguments is a 29,000-character index instead of 200,000.
+- Every answer about a character carries `as_of`, the newest event it read, and the MCP reads
+  through the page's cache: same `as_of`, same data.
+- A character or metric name that doesn't exist is an error, not an empty answer.
+
+**For hosts**
+
+- The compose kit's VictoriaLogs runs with query limits and a 1 GiB memory cap.
+- `/healthz` says when VictoriaLogs stops answering.
+- The renderer keeps each person's game files apart.
+
 ### Added
 
-- Kill XP for a dungeon you haven't run: `dungeons` with `options` gives `gain.kill_xp`, a run's kill XP, kills and time inside at your level, labelled `estimate`, or `not_enough_data` with what's missing. Your own runs replace it (`measured`). The original dungeons come from cMaNGOS's spawn tables (85% of the packs, per wing for Scarlet Monastery, Dire Maul, Blackrock Spire and Stratholme), Ruins of Lordaeron and The Drowned City from players' logged runs, City of Dalaran from two reference runs; the six other new dungeons say not enough data yet. Classic's kill formula, elites ×2.5, five players of your level, Forever's 60% dungeon factor; no buffs. An estimate never ranks a dungeon or calls it faster than questing: the quests and the gear lead. Checked against a recorded Stockade full clear (+3%) and Dalaran's two runs (−10%): [Dungeon kill XP](docs/dungeon-xp.md).
+- Kill XP for a dungeon you haven't run: `dungeons` with `options` gives `gain.kill_xp`, a run's kill XP, kills and time inside at your level, labelled `estimate`, or `not_enough_data` with what's missing. Your own runs replace it (`measured`). The original dungeons come from cMaNGOS's spawn tables (85% of the packs, per wing for Scarlet Monastery, Dire Maul, Blackrock Spire and Stratholme), Ruins of Lordaeron and The Drowned City from players' logged runs, City of Dalaran from two reference runs; the six other new dungeons say not enough data yet. Classic's kill formula, elites ×2.5, five players of your level, Forever's 60% dungeon factor; no buffs. The estimate counts in the run's XP, its "× your questing" and the dungeon ranking, labelled. Checked against a recorded Stockade full clear (+3%) and Dalaran's two runs (−10%): [Dungeon kill XP](docs/dungeon-xp.md).
 - The Dungeons panel shows a run's kill XP under "What a trip is worth", after the quests and the gear: measured on your runs, an estimate, or not enough data yet. One line at the top says what Forever's dungeons are for: their quests and gear, not running the same one over and over.
-- A dungeon you haven't run takes its time from its kills (kills × the seconds a kill took in the reference runs) instead of a guide's clear time, in the panel's line, the Overview's move and `dungeons` with `options` (basis `kill_model`). Gnomeregan at 34 goes from ~40 min to ~1h15 inside; a real run takes about an hour. Your own runs still replace it.
-
-- A dungeon's pickups, travel and hand-ins run at your pace: each of your past trips is replayed on Polestar's rules as you stood at its start, and your measured legs over the planned ones (summed over your trips, kept between 1× and 4×) stretch the next trip's. The line's split says the stretched minutes; `gain.trip.pace` gives `{factor, trips, label}` and those parts are labelled `your pace`. No trip yet: 1×, the straight run. Time inside is unchanged. One player's four trips: 2.13×. Semantic layer: `quest_closed_t` (quests) and `done_seen_t` (done_quests).
-
 - Dungeons run in parts get one line per wing, in the Dungeons panel, the Overview's move and `dungeons` with `options`: Scarlet Monastery (Graveyard, Library, Armory, Cathedral), Dire Maul (East, West, North), Blackrock Spire (Lower, Upper), Stratholme (Live, Undead) and Maraudon (Orange, Purple, Inner). Each wing has its own level range, quests (the ones whose objectives are in it; a quest that needs several wings counts in each and `gain.quests[].wings` says so), pickups and hand-ins, kill XP, drops and keys. Your runs count for a wing when your kills stayed there; otherwise the wing is an estimate. A handful of quests done outside every wing (deliveries, outdoor steps) are on no wing's line.
-- A dungeon's line counts both kinds of upgrades: "~1h55 trip for ~58k XP + 4 quest upgrades, 9 drop upgrades (88% a run), 2.1× your questing (20 min pickups · 1h15 inside · 15 min hand-ins)". Quest upgrades are the trip's quest rewards you'd wear; drop upgrades are your missing upgrades that drop there, with the chance one drops in a run. A part with nothing in it is left out.
+- A dungeon's pickups, travel and hand-ins run at your pace: each of your past trips is replayed on Polestar's rules as you stood at its start, and your measured legs over the planned ones (summed over your trips, kept between 1× and 4×) stretch the next trip's. The line's split says the stretched minutes; `gain.trip.pace` gives `{factor, trips, label}` and those parts are labelled `your pace`. No trip yet: 1×, the straight run. Time inside is unchanged. One player's four trips: 2.13×. Semantic layer: `quest_closed_t` (quests) and `done_seen_t` (done_quests).
+- `/healthz` on the full view says when VictoriaLogs doesn't answer: `"store": "failing"` with `store_failed_at`, still `200`, like `semantic` ([Monitor it](docs/self-host/monitoring.md)). It said `ok` while uploads and fresh reads failed.
 
 ### Changed
 
-- A dungeon's line says the whole trip, from where you were last seen: "~1h50 trip for ~45k XP + 3 upgrades, 1.6× your questing (20 min pickups · 1h15 inside · 5 min hand-ins)". The pickups, travel and hand-ins follow Polestar's pick-up and hand-in rules on your own quests (done, in the log) instead of the mean of your other trips; your runs there still replace each part. The kill XP estimate now counts in the XP, the "× your questing" and the dungeon ranking, labelled `estimate`. `dungeons` with `options` gives each part as `gain.trip` with its label (`measured`, `route` or `estimate`): [Route reference](docs/route-reference.md#dungeon-trips).
+- A dungeon's line says the whole trip, from where you were last seen, and counts both kinds of upgrades: "~1h55 trip for ~58k XP + 4 quest upgrades, 9 drop upgrades (88% a run), 2.1× your questing (20 min pickups · 1h15 inside · 15 min hand-ins)". The pickups, travel and hand-ins follow Polestar's pick-up and hand-in rules on your own quests (done, in the log) instead of the mean of your other trips; your runs there still replace each part. Quest upgrades are the trip's quest rewards you'd wear; drop upgrades are your missing upgrades that drop there, with the chance one drops in a run. A part with nothing in it is left out. `dungeons` with `options` gives each part as `gain.trip` with its label (`measured`, `route`, `your pace` or `estimate`): [Route reference](docs/route-reference.md#dungeon-trips).
+- A dungeon you haven't run takes its time from its kills (kills × the seconds a kill took in the reference runs) instead of a guide's clear time, in the panel's line, the Overview's move and `dungeons` with `options` (basis `kill_model`). Gnomeregan at 34 goes from ~40 min to ~1h15 inside; a real run takes about an hour. Your own runs still replace it.
+- A dungeon with neither a run of yours nor a kill estimate no longer says "slower than questing: go for the drops only" (or faster, or about the same): that compared the dungeon's quests alone with your questing, and the kills could flip it. The line keeps the time and what the quests are worth, and `vs_questing` is `null` there.
 - The public page shows the BiS badge on each worn item of the paperdoll (BiS, 2nd, or its share like 62%) and the badge legend under it, as the full view and `/zogzog/` do. Privacy: what's newly public is, per worn slot, the badge's rank, percent and label (`char.gear.standing`, [privacy table](docs/explanation/privacy.md)). Nothing else of the gear advice: no upgrades, no best item, no where to get it, no comparison on click.
 - Every answer about a character says which data it was computed from: a top-level `as_of`, the newest event time it read, on the MCP's answers and the full view's `/api/char`. The MCP now reads a character's events through the same cache as the page instead of asking VictoriaLogs on its own, so the same `as_of` on both sides means the same data. Cached answers (the planner's, the analysis workspace, kept findings and plans) keep the `as_of` they were built from.
+- `query_metric`, `play_sql` and the finding judge see new data on the next request after it lands, like the page, instead of up to 30 minutes later. A request already running finishes on the data it started with.
 - Your AI has 38 tools instead of 41, each answering one question: `gear` with `options` gives what `gear_options` gave (every way to an upgrade per slot, with its cost), `dungeons` with `options` what `dungeon_options` gave (the dungeons worth it now, ranked), and `players` with `groups` the dungeon runs with group size, bosses, wipes and deaths that `people` added. The `gear` and `dungeon` prompts call the new forms. The tool list a client reads at connect is 34,500 characters instead of 35,600.
 - `list_metrics` without arguments answers with an index, each model's metrics with one line each, about 29,000 characters. It was the whole catalogue, 200,000 characters: over Claude Code's limit for one tool answer, and the server's own analysis saw only the first fifth. `names`, `model` or `search` give the full definitions, 40 metrics a call.
 - `kb_get`, `kb_lookup`, `kb_search`, `play_sql` and `query_metric` are marked read-only, so a client no longer asks you to approve each lookup. They only count the call in an open analysis run.
+- The words say what the code does, no more. A kept finding reads "Numbers recomputed from your data" (its SQL runs again each night; that doesn't prove the sentence true). A guide step past 3× its plan says to look at what holds it up and skip it only if no later step needs it: the code can't tell a prerequisite or travel from a detour. Tool descriptions and prompts call the judge's findings "kept", not "verified". A source's `complete` coverage is documented as "no hole found": only the Recorder and Battle.net are looked at for one.
+- The session plan's "Skip or drop" section is now "Look at, maybe skip", and the coach prompt's "What to skip" likewise: both say to look at what holds a step up and skip it only if no later step needs it.
 - One demo. The local demo (`dev/seed.py`) loads Nibbet, the docs site's made-up priest, from the same generator (`tools/fixtures/generate.py`), instead of five hand-written characters (Testchar, Testalt and three dressed for the 3D view) that had no class, race, gear or talents. In the compose kit it is one line on every system, `docker compose run --rm demo`; the piped `python - < dev/seed.py` is gone. What it lacks next to the site's demo (Battle.net, the 3D view, the pictures) is listed in [Try the demo](docs/self-host/demo.md).
+- The demo's characters show up on the page seconds after the seed, not 80 seconds later: the seed sends through `/ingest` like a shipper (`--ingest`), which wakes the page.
+- With `MCP_DCR=off` the authorization server metadata no longer advertises a `registration_endpoint`, and `/register` answers 404: a client sees up front that it needs a client metadata URL instead of trying to register and getting refused. An unknown client id at `/authorize` is no longer pointed at `/register` either. `open` and `loopback` are unchanged.
 
 ### Fixed
 
@@ -29,15 +62,13 @@
 - The analysis judge refuses a `{n:pct}` or `{n:dur}` placeholder on a value whose unit it doesn't fit (a count shown as "2%", kills shown as a duration), when the unit is known: a `metric_query`'s metric, or a raw query's column from a view per grain. The refusal says which format fits.
 - Knowledge base statements take their `source_type` from their URL (`data/kb/sources.json`), not from the model: 353 records changed, mostly Wowhead and ForeverDB guide pages and kami-labs.fr that said `datamined` and are now `guide`. The KB jobs write it the same way, and a record whose type differs from its URL's is refused.
 - A character name that isn't one of yours is now an error naming your characters, instead of "Nothing arrived yet" as if it existed and hadn't played. One of yours with nothing arrived yet still answers. An unknown metric in `query_metric` or `list_metrics` is an error too: both used to come back as a normal answer.
-- `levels` lists a finished level with no Polestar split, its time, XP and counts unknown (null, never 0), and `character_summary`'s `avg_last_5_levels` and `xp_per_hour_last_3_levels` are unknown while their window holds such a level, instead of averaging the others.
-- `deaths` over a range the Recorder never saw says "The Recorder wasn't on for this period." next to `total: null`.
+- A finished level with no Polestar split keeps its row: `levels` lists it with its time, XP and counts unknown (null, never 0), the analysis keeps it instead of dropping it when no Recorder ding came out of it either, and the `polestar` coverage reads `partial` with that level in `gaps`, on the page's data and every MCP answer, instead of `complete`. `character_summary`'s `avg_last_5_levels` and `xp_per_hour_last_3_levels` are unknown while their window holds such a level, instead of averaging the others.
+- XP gained is worked out from the bar's readings in order, by the analysis and the Journal alike, not taken from the shipper: a Recorder chunk recovered after the ones that follow it no longer loses the XP of its step (100 → 200 → 300 counted 100 instead of 200), and the Journal shows the same XP as your AI.
+- `deaths` over a range with no Recorder record (before it was installed, or while it was off) says `total: null`, not 0, and "The Recorder wasn't on for this period."
+- The renderer keeps each person's game files in their own folder. It kept them by file id for everyone, so a file one friend's shipper sent could stand in for another's in their past-level pictures.
 - The compose kit's VictoriaLogs now runs with the limits [security.md](docs/security.md) asks for: 30 s per query, 4 queries at once, 10 s in the queue, and 1 GiB of memory (`VL_MEM_LIMIT`). Until now it ran on VictoriaLogs' defaults with no memory limit.
 - The Python answers to the views' LogsQL (`wowstats/logsql.py`) now match VictoriaLogs v1.54.0 where they didn't, checked against a real VictoriaLogs in CI (`tests/test_logsql.py`): an unnamed `count()` is `count(*)`, `sum()` of no number is `NaN`, `min()` over rows without the field is empty, text sorts in natural order (item 9 before item 10), `inf`, `nan` and padded numbers aren't numbers, a row left with no field isn't answered, `<` and `'` are escaped in JSON values, and single-quoted strings go to VictoriaLogs instead of matching nothing.
-
-### Changed
-
-- The words say what the code does, no more. A kept finding reads "Numbers recomputed from your data" (its SQL runs again each night; that doesn't prove the sentence true). A guide step past 3× its plan says to look at what holds it up and skip it only if no later step needs it: the code can't tell a prerequisite or travel from a detour. Tool descriptions and prompts call the judge's findings "kept", not "verified". A source's `complete` coverage is documented as "no hole found": only the Recorder and Battle.net are looked at for one.
-- The session plan's "Skip or drop" section is now "Look at, maybe skip", and the coach prompt's "What to skip" likewise: both say to look at what holds a step up and skip it only if no later step needs it.
+- The README's demo writes `INGEST_PASSWORD` to `.env` instead of exporting it, so every later `docker compose` command works in a new terminal too (the Claude Code line in [Try the demo](docs/self-host/demo.md) failed there).
 
 ### Upgrading
 
@@ -45,18 +76,7 @@
 - MCP: `gear_options`, `dungeon_options` and `people` are gone. Call `gear` with `options: true`, `dungeons` with `options: true` and `players` with `groups: true`. A saved prompt or script that names the old tools needs the new call.
 - Compose: VictoriaLogs gets a 1 GiB memory limit. It peaked at 217 MiB on a year of the demo; with a much longer history, set `VL_MEM_LIMIT=2g` in `.env` before `docker compose up -d`.
 - The demo: `docker compose run --rm demo` replaces `docker compose exec -T ui python - --ingest ... < ../../dev/seed.py` and its PowerShell form. `docker compose down -v` removes the old demo characters with the rest.
-
-- With `MCP_DCR=off` the authorization server metadata no longer advertises a `registration_endpoint`, and `/register` answers 404: a client sees up front that it needs a client metadata URL instead of trying to register and getting refused. An unknown client id at `/authorize` is no longer pointed at `/register` either. `open` and `loopback` are unchanged.
-- A dungeon with no run of yours to measure its kill XP no longer says "slower than questing: go for the drops only" (or faster, or about the same): that compared the dungeon's quests alone with your questing, and the kills could flip it. The line keeps the time and what the quests are worth, and `dungeon_options` gives `vs_questing: null` there.
-- `query_metric`, `play_sql` and the finding judge see new data on the next request after it lands, like the page, instead of up to 30 minutes later. A request already running finishes on the data it started with.
-- The renderer keeps each person's game files in their own folder. It kept them by file id for everyone, so a file one friend's shipper sent could stand in for another's in their past-level pictures. Upgrading: the first picture after the update re-sends that person's files to the renderer once.
-- A finished level with neither a Polestar split nor a Recorder ding out of it no longer drops out of the analysis: it keeps its row (its counts unknown, never 0), and the `polestar` coverage reads `partial` with that level in `gaps`, on the page's data and every MCP answer, instead of `complete`.
-- XP gained is worked out from the bar's readings in order when the analysis prepares a character, not taken from the shipper: a Recorder chunk recovered after the ones that follow it no longer loses the XP of its step (100 → 200 → 300 counted 100 instead of 200).
-- `deaths` over a range with no Recorder record (before it was installed, or while it was off) says `total: null`, not 0.
-- The Journal works XP out from the bar's readings with the analysis' own rule, so after a Recorder chunk recovered late it shows the same XP as your AI instead of less.
-- The demo's characters show up on the page seconds after the seed, not 80 seconds later: the seed sends through `/ingest` like a shipper (`--ingest`), which wakes the page.
-- The README's demo writes `INGEST_PASSWORD` to `.env` instead of exporting it, so every later `docker compose` command works in a new terminal too (the Claude Code line in [Try the demo](docs/self-host/demo.md) failed there).
-- `/healthz` on the full view says when VictoriaLogs doesn't answer: `"store": "failing"` with `store_failed_at`, still `200`, like `semantic` ([Monitor it](docs/self-host/monitoring.md)). It said `ok` while uploads and fresh reads failed.
+- The renderer: the first picture after the update re-sends that person's files to the renderer once.
 
 ## 0.7.0 (2026-11-23)
 
