@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+What 0.9.0 brings over 0.8.0, in short. Every change follows.
+
+**For players**
+
+- The time in your current level is one number everywhere: the page and your AI both count
+  the Recorder's sessions since your last ding, and time played includes it.
+- Gear coverage stops asking for Syndicator when your gear sheet is already there.
+
+**For your AI**
+
+- `character_summary` gives the time in your current level, and time played counts it.
+- `dungeons` with `options` no longer lists the other side's city dungeon, and `next_moves`
+  prices auction-house upgrades instead of calling them out of reach.
+
+**For hosts**
+
+- The install guide runs the released image (`WOW_STATS_IMAGE`, tag@digest): no Docker Hub
+  login, no build.
+- Events can live in SQLite files instead of VictoriaLogs (`EVENTS_STORE`,
+  `compose.sqlite.yaml`): one container fewer. VictoriaLogs stays the default.
+- `ui` sizes its memory from its container's limit and keeps one DuckDB copy per character:
+  650-870 MiB on the demo instead of 950-1,020.
+- `/admin`'s AI analysis cell works again (`store: AttributeError` since 0.7.0).
+
 ### Added
 
 - Your events can live in SQLite files instead of VictoriaLogs: `EVENTS_STORE=sqlite:<folder>`, one file per person, read by the app itself. In the compose kit, `compose.sqlite.yaml` on top of `compose.yaml` (or `COMPOSE_FILE=compose.yaml:compose.sqlite.yaml` in `.env`): one container fewer, no database memory to size. Friends get a file each in the same folder (no `FRIENDS_VL_URL`), and removing one deletes their file after the usual `FRIENDS_PURGE_DAYS`. What you give up: the archive of older days (`VL_ARCHIVE_URL` is refused), VictoriaLogs' own UI and Grafana; the page's query box answers the LogsQL the app itself uses and says so for the rest. Back it up by copying the `events` volume with `ui` and `publish` stopped. VictoriaLogs stays the default and fully supported. The two don't convert: pick before your first events. [Where your events live](docs/install.md#where-your-events-live).
@@ -16,11 +40,6 @@
 - `ui` sizes itself from its container's memory limit (`/sys/fs/cgroup/memory.max`, cgroup v1 too): DuckDB's `memory_limit` and threads per copy, how many copies (`ANALYSIS_COPIES_MAX`), how many analysis workspaces (`ANALYSIS_WORKSPACES_MAX`) and what one query may add. At 1 GiB: 2 copies, 1 workspace. Without a limit the old defaults stay (4 copies, 6 workspaces). [Memory](docs/install.md#memory).
 - On the compose kit's demo (three characters, the 11 main tools, the page, 4 uploads) `ui`'s container settles at 650-870 MiB instead of 950-1,020, and the `ui` process' peak went from 804 to 711 MiB.
 
-### Upgrading
-
-- `ANALYSIS_WORKSPACES_MAX` now defaults from `ui`'s memory limit (1 at 1 GiB, 6 without a limit): set it to keep the old 6 under a limit. New: `ANALYSIS_COPIES_MAX`.
-- Nothing to change for an install on VictoriaLogs. To move to a released image, put `WOW_STATS_IMAGE=<the release's tag@digest>` in `deploy/compose/.env` and run `docker compose pull && docker compose up -d`. Built from source, keep `WOW_STATS_IMAGE` empty and `docker compose up -d --build` as before.
-
 ### Fixed
 
 - `/admin`: the AI analysis cell showed `store: AttributeError` for every person since 0.7.0.
@@ -33,6 +52,12 @@
 - `next_moves` no longer says auction-house wins are out of reach: the gear advice prices what's on sale.
 - The self-host page said a friend's data goes the moment they leave the list: it goes 7 days later (`FRIENDS_PURGE_DAYS`), or at once with `users delete --yes`.
 - The demo sends Syndicator's bags and lists Syndicator in its setup, as a player with it would.
+
+### Upgrading
+
+- `ANALYSIS_WORKSPACES_MAX` now defaults from `ui`'s memory limit: 1 at 1 GiB, 6 without a limit. Set it to keep the old 6 under a limit. New: `ANALYSIS_COPIES_MAX` (2 at 1 GiB, 4 without a limit).
+- Nothing to change for an install on VictoriaLogs. The SQLite event store is opt-in (`EVENTS_STORE=sqlite:<folder>`, or `compose.sqlite.yaml` on top of `compose.yaml`) and doesn't convert: an install that switches starts with no events, so pick it before your first ones.
+- To move to a released image, put `WOW_STATS_IMAGE=<the release's tag@digest>` in `deploy/compose/.env` and run `docker compose pull && docker compose up -d`. Built from source, keep `WOW_STATS_IMAGE` empty and `docker compose up -d --build` as before.
 
 ### Tests
 
