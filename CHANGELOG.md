@@ -12,6 +12,7 @@
 
 ### Fixed
 
+- A dungeon run's kill XP (`dungeon_trips.xp_inside`, `trip_xp_inside`, the dungeons page's kill XP) no longer holds the quests handed in inside the instance. Polestar's run XP is the bar's gain inside, so a quest turned in to an NPC in there (Blackfathom Deeps' In Search of Thaelrid) counted as kill XP and again as quest XP.
 - The analysis judge refuses a `{n:pct}` or `{n:dur}` placeholder on a value whose unit it doesn't fit (a count shown as "2%", kills shown as a duration), when the unit is known: a `metric_query`'s metric, or a raw query's column from a view per grain. The refusal says which format fits.
 - Knowledge base statements take their `source_type` from their URL (`data/kb/sources.json`), not from the model: 353 records changed, mostly Wowhead and ForeverDB guide pages and kami-labs.fr that said `datamined` and are now `guide`. The KB jobs write it the same way, and a record whose type differs from its URL's is refused.
 - A character name that isn't one of yours is now an error naming your characters, instead of "Nothing arrived yet" as if it existed and hadn't played. One of yours with nothing arrived yet still answers. An unknown metric in `query_metric` or `list_metrics` is an error too: both used to come back as a normal answer.
