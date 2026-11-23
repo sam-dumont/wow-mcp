@@ -1,0 +1,36 @@
+# The kit without VictoriaLogs: your events in SQLite files (one per person)
+# on the `events` volume, one container fewer and no database memory to
+# size. On top of compose.yaml, from this folder:
+#   docker compose -f compose.yaml -f compose.sqlite.yaml up -d
+# or once in .env: COMPOSE_FILE=compose.yaml:compose.sqlite.yaml
+# What you give up (the archive, VictoriaLogs' own UI and Grafana) and how to
+# back it up: docs/install.md, "Where your events live".
+services:
+  victorialogs:
+    # Never started: no profile of the kit turns this one on.
+    profiles: [victorialogs]
+
+  ui:
+    depends_on: !reset []
+    environment:
+      EVENTS_STORE: sqlite:/events
+    volumes:
+      - events:/events
+
+  publish:
+    depends_on: !reset []
+    environment:
+      EVENTS_STORE: sqlite:/events
+    # Read and write: SQLite readers share a lock file next to the data.
+    volumes:
+      - events:/events
+
+  ui-public:
+    depends_on: !reset []
+    environment:
+      EVENTS_STORE: sqlite:/events
+    volumes:
+      - events:/events
+
+volumes:
+  events:

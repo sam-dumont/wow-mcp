@@ -4,7 +4,9 @@ One character's events are read once into wowstats.eventcache; every
 endpoint's query is then answered here instead of by VictoriaLogs. Only
 what the code asks is supported: anything else raises Unsupported and the
 caller asks VictoriaLogs (wowstats.stores.Store.vl), so an unusual query is
-slower, never wrong.
+slower, never wrong. The SQLite event store (wowstats.eventstore) answers
+every query with this engine and has no VictoriaLogs to ask: there the app's
+queries must all fit (tests/test_eventstore.py).
 
 Answers are shaped like VictoriaLogs' (tests/test_logsql.py asks both
 engines the same queries over the same rows, in the version the compose kit
@@ -14,11 +16,13 @@ is NaN), `_time` buckets as 2026-11-12T10:38:00Z, row_max and uniq_values as
 JSON strings, text in natural order (item 9 before item 10). Where
 VictoriaLogs' own answer depends on how it stored the rows, the engine
 leaves it to VictoriaLogs: a field mixing numbers and text in a sort, min,
-max or row_max raises Unsupported when it runs.
+max or row_max raises Unsupported when it runs (under `lenient()`, the
+SQLite store's, it is ordered as numbers where both are, else as text).
 
 Filters: `field:=v`, `field:in(a, b)`, `field:*`, `field:word`, `field:pre*`,
 `_time:>T`, `_time:>=T`, `_time:<T`, `_time:[T1, T2]`, `_time:30d`, `-x`,
-`!x`, `not x`, `(a or b)`, `a and b`. Pipes: `fields`, `sort by (f [desc])`,
+`!x`, `not x`, `(a or b)`, `a and b`, and the stream filter `{f="v", g="w"}`
+(LOGS_FILTER's `{component="wow"}`). Pipes: `fields`, `sort by (f [desc])`,
 `limit`/`head`, `uniq by (...)`, `stats [by (f, _time:1m)] count(),
 count_uniq(f), sum(f), min(f), max(f), uniq_values(f) [limit N],
 row_max(f, a, ...)`.
@@ -26,6 +30,8 @@ row_max(f, a, ...)`.
 
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import functools
 import json
 import math
@@ -40,9 +46,25 @@ class Unsupported(ValueError):
     """Outside the subset: ask VictoriaLogs."""
 
 
+_LENIENT: contextvars.ContextVar[bool] = contextvars.ContextVar("logsql_lenient", default=False)
+
+
+@contextlib.contextmanager
+def lenient():
+    """Inside, a field mixing numbers and text is ordered anyway (_cmp:
+    as numbers where both values are, else as text) instead of raising
+    Unsupported: the SQLite store has no VictoriaLogs to leave it to."""
+    tok = _LENIENT.set(True)
+    try:
+        yield
+    finally:
+        _LENIENT.reset(tok)
+
+
 # ------------------------------------------------------------------ lexing
 
 _WORD = re.compile(r"[^\s(),|:]+")
+_FIELD = re.compile(r"[A-Za-z_][A-Za-z0-9_.]*")
 _TIME = re.compile(r"[^\s(),|\[\]]+")
 
 
@@ -262,7 +284,8 @@ def _parse_and(lx: _Lex):
     while not lx.done() and lx.peek() != ")" and not lx.at_keyword("or"):
         if lx.keyword("and"):
             continue
-        xs.append(_parse_unary(lx))
+        x = _parse_unary(lx)
+        xs.extend(x.xs if isinstance(x, _Stream) else [x])
     if not xs:
         raise Unsupported("empty filter")
     return xs[0] if len(xs) == 1 else And(xs)
@@ -277,9 +300,34 @@ def _parse_unary(lx: _Lex):
         return x
     if lx.eat("*"):
         return And([])
-    if lx.peek() == "{":
-        raise Unsupported("stream filter")
+    if lx.eat("{"):
+        return _parse_stream(lx)
     return _parse_term(lx)
+
+
+def _parse_stream(lx: _Lex):
+    """`{f="v", g="w"}`: exact values of stream fields, which are fields of
+    every row too (`f:="v" g:="w"`). Only `=`: no regexp, no `!=`."""
+    terms = []
+    while not lx.eat("}"):
+        lx.ws()
+        m = _FIELD.match(lx.s, lx.i)
+        if not m:
+            raise Unsupported("stream filter")
+        lx.i = m.end()
+        if not lx.eat("=") or lx.peek() in ("~", "!"):
+            raise Unsupported("stream filter other than f=\"v\"")
+        terms.append(Term(m.group(0), "eq", (lx.value(),)))
+        if not lx.eat(","):
+            lx.need("}")
+            break
+    if not terms:
+        raise Unsupported("empty stream filter")
+    return _Stream(terms)
+
+
+class _Stream(And):
+    """A stream filter's terms: part of the filter's top-level AND."""
 
 
 def _parse_term(lx: _Lex) -> Term:
@@ -439,6 +487,8 @@ def _one_kind(vals) -> None:
     on how it stored the values (v1.54 sorted 100, 1_000, 12abc; its min of
     -3, " 6", 1.5 was 1.5). No answer here can match: it's VictoriaLogs'
     to give (Unsupported, at run time). Empty values don't count."""
+    if _LENIENT.get():
+        return
     kinds = {_isnum(v) for v in vals if v not in (None, "")}
     if len(kinds) > 1:
         raise Unsupported("numbers and text in one field")

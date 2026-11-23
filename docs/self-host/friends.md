@@ -32,7 +32,7 @@ page, `https://wow-full.example.org/start`.
 | A state folder on a volume | `WOW_STATE_DIR` | Who is who, each person's settings and upload password |
 | You, the owner | `WOW_OWNER_SUB` (your `sub`; two or more comma-separated if you sign in with more than one account, a Battle.net one say), `WOW_OWNER_SLUG` (your site name) | You stay on the original store, with everything you had, whichever account you sign in with. A `sub` on both your list and the friends list is yours |
 | The friends list | `WOW_FRIENDS_FILE` | Who gets in besides you (below) |
-| A VictoriaLogs for friends | `FRIENDS_VL_URL`, and its `-deleteAuthKey` in `FRIENDS_VL_DELETE_KEY_FILE` | One tenant per friend; the key lets `users delete` erase a friend's events |
+| A VictoriaLogs for friends | `FRIENDS_VL_URL`, and its `-deleteAuthKey` in `FRIENDS_VL_DELETE_KEY_FILE` | One tenant per friend; the key lets `users delete` erase a friend's events. With the SQLite store (`EVENTS_STORE=sqlite:...`) skip both: each friend gets a file of their own next to yours, and deleting a friend removes it |
 | A master key | `ZOGZOG_MASTER_KEY_FILE` (32 random bytes, base64url) | Each person's sealed-link key comes from it |
 | Friends' sites | `SITE_DOMAIN` (sites at `<name>-wow.<domain>`) | Install commands and links |
 | The publisher and static server, per person | `USERS_URL` and `ANALYSIS_SHARE_URL` on `publish`, `ANALYSIS_SHARE_PORT` on `ui`, `SITE_DOMAIN` on `static` | One site per person |
@@ -68,7 +68,8 @@ friend; nobody gets logged out. The same pass runs every 2 minutes anyway
 - **A removed entry** loses access at once: their next page, AI call and upload are
   refused, install codes stop working, and the publisher takes their public page and
   /zogzog/ link down within a minute. Their data stays for `FRIENDS_PURGE_DAYS` (7 days),
-  then their events, settings, upload password and state are deleted. Put them back on the
+  then their events (their tenant's delete task, or their SQLite file), settings, upload
+  password and state are deleted. Put them back on the
   list before then and they're back with everything: same name, same data, same upload
   password. `0` deletes at once.
 - **A list that removes every friend at once** (`{}`, `[]`, or only your own login while

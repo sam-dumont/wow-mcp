@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from wowstats import logsql
+from wowstats import eventstore, logsql
 from wowstats.stores import parse_t
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -205,3 +205,22 @@ class VL:
     def close(self) -> None:
         self.httpd.shutdown()
         self.httpd.server_close()
+
+
+# The event stores every app test runs on (wowstats.eventstore): this
+# stand-in for VictoriaLogs, and the SQLite files, which answer every query
+# with wowstats.logsql and nothing else.
+BACKENDS = ("vl", "sqlite")
+
+
+def store_env(backend: str, rows: list[dict], tmp: Path, metrics: dict | None = None) -> tuple[dict, VL]:
+    """({VL_URL, VM_URL, and EVENTS_STORE for sqlite}, the stand-in) with
+    `rows` stored in `backend`. The stand-in also answers VM_URL (metrics)
+    for both; with sqlite it holds no events."""
+    vl = VL(rows if backend == "vl" else [], metrics)
+    env = {"VL_URL": vl.url, "VM_URL": vl.url}
+    if backend == "sqlite":
+        where = "sqlite:" + str(tmp / "events")
+        eventstore.get(where).append(0, rows)
+        env["EVENTS_STORE"] = where
+    return env, vl

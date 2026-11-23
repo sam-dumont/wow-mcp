@@ -54,6 +54,7 @@ Where the events and the Battle.net data live.
 
 | Variable | Read by | Type | Default | Example | What it does |
 |---|---|---|---|---|---|
+| `EVENTS_STORE` | ui, publish, users | `vl` or `sqlite:<folder>` | `vl` | `sqlite:/events` | Where the game events live. `vl`: VictoriaLogs at `VL_URL`. `sqlite:<folder>`: one SQLite file per person in that folder (`events-<account>.sqlite`), no VictoriaLogs, no archive (`VL_ARCHIVE_URL` refused), friends in the same folder (no `FRIENDS_VL_URL`); back it up by copying the folder with `ui` and `publish` stopped. In the compose kit: `compose.sqlite.yaml`. |
 | `LOGS_FILTER` | ui, publish | LogsQL filter | `feed:wow-*` | `feed:wow-* site:home` | Selects the game events in VictoriaLogs. Add your own labels here. |
 | `VL_ACCOUNT_ID` | ui, publish | whole number | `0` | `0` | The VictoriaLogs tenant to read. Set per person by a shared install; leave it alone otherwise. |
 | `VL_ARCHIVE_AFTER_DAYS` | ui, publish | days | `89` | `89` | With `VL_ARCHIVE_URL`: days older than this are read from the archive. |
@@ -188,8 +189,8 @@ Off until `WOW_STATE_DIR` is set. [Add friends](../self-host/friends.md).
 | `FRIENDS_ALLOW_EMPTY` | ui, users | `1` or empty | empty: refused | `1` | Apply a friends list that would remove every friend at once (one that names nobody while friends are in). Without it such a list changes nothing and logs `empty_list_refused`: a wrongly empty render can't switch everyone off. For one pass, prefer `wow-stats users reconcile --allow-empty`. |
 | `FRIENDS_PURGE_DAYS` | ui, users | days (fractions allowed) | `7` | `7` | How long a friend taken off the list keeps their data, switched off: listed again within it, they get everything back; after it, their events, state and registry entry are deleted. The clock is kept in the registry, so a restart neither resets nor skips it. `0`: deleted at once. The privacy page quotes it. `wow-stats users delete <slug> --yes` skips the wait for one person. |
 | `FRIENDS_RECONCILE_S` | ui | seconds | `120` | `120` | How often the friends list gets a full pass anyway (a change to the file applies sooner, within about 10 seconds); it retries what failed. |
-| `FRIENDS_VL_DELETE_KEY_FILE` | ui, users | path | empty | `/run/secrets/vl_delete_key` | That VictoriaLogs' `-deleteAuthKey`, so a friend's events can be deleted. |
-| `FRIENDS_VL_URL` | ui, publish, users | URL | empty: no friends | `http://vl-friends:9428` | The friends' VictoriaLogs, one tenant each. |
+| `FRIENDS_VL_DELETE_KEY_FILE` | ui, users | path | empty | `/run/secrets/vl_delete_key` | That VictoriaLogs' `-deleteAuthKey`, so a friend's events can be deleted. Not used with `EVENTS_STORE=sqlite:...` (the deletion removes the file). |
+| `FRIENDS_VL_URL` | ui, publish, users | URL | empty: no friends | `http://vl-friends:9428` | The friends' VictoriaLogs, one tenant each. Not used with `EVENTS_STORE=sqlite:...`: friends get a file each next to yours. |
 | `ITEM_FACTS_URL` | publish | URL | set per person from `USERS_URL` | `http://ui:8082/items/alex/` | Where the publisher reads one person's item facts: the full view's share port. Set by the publisher itself with several people; leave it unset. |
 | `MODEL3D_ASSETS_URL` | publish | URL | set per person from `USERS_URL` | `http://ui:8082/assets/alex/` | Where the publisher reads one person's 3D files: the full view's share port. Set by the publisher itself with several people; leave it unset. |
 | `PRIVACY_BACKUP_DAYS` | ui | days | empty: the privacy page says to ask the owner | `30` | How long your backups keep events, as the privacy page tells your friends. |
@@ -267,7 +268,7 @@ Read by `docker compose` in `deploy/compose`, not by a program. The other compos
 | `VL_MEM_LIMIT` | compose | size | `1g` | `2g` | The memory limit of `victorialogs`. |
 | `WOW_FULL_HOST` | compose | host name | required by the proxy files | `wow-full.example.org` | Your full view's and the MCP's host, for the proxy files. They also put it in `ALLOWED_HOSTS`. |
 | `WOW_SITE_HOST` | compose | host name | required by the proxy files | `wow.example.org` | The static sites' host, for `compose.caddy.yaml`, `compose.traefik.yaml` or `compose.nginx.yaml`. Point its DNS at the server. |
-| `WOW_STATS_IMAGE` | compose | image reference | `wow-stats:local`, built from the tree | `ghcr.io/<owner>/wow-mcp:<version>@sha256:<digest>` | Run a released image instead of building the tree. |
+| `WOW_STATS_IMAGE` | compose | image reference | empty: `wow-stats:local`, built from the tree | `ghcr.io/<owner>/wow-mcp:<version>@sha256:<digest>` | The released image to run, tag and digest from the release notes (the install guide's way). Empty: built from the tree (`docker compose up -d --build`). |
 
 ## Tests and development
 

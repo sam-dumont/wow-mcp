@@ -8,7 +8,8 @@
 #   docker compose up -d --build ui
 #   docker compose run --rm demo
 #
-#   victorialogs     your game events (yours: kept until you delete them)
+#   victorialogs     your game events (yours: kept until you delete them);
+#                    compose.sqlite.yaml on top keeps them in SQLite files instead
 #   ui               the web page, full view, on 127.0.0.1:8080; also takes
 #                    the shipper's events on POST /ingest
 #   publish          the static sites for friends, rebuilt after each play
@@ -24,9 +25,9 @@
 name: wow-stats
 
 x-wow-stats: &wow-stats
-  # Built from this tree by default (docker compose up -d --build). A
-  # released image instead: WOW_STATS_IMAGE in .env, then docker compose
-  # pull (docs/development.md, "Using a released image").
+  # A released image: WOW_STATS_IMAGE in .env, then docker compose pull
+  # (docs/install.md). Empty: built from this tree (docker compose up -d
+  # --build; docs/development.md, "Build the image yourself").
   image: ${WOW_STATS_IMAGE:-wow-stats:local}
   build:
     context: ../..

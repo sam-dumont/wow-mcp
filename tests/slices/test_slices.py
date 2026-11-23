@@ -1,6 +1,6 @@
 """Integration slices: a few golden characters (tests/slices/characters.py)
 sent the way a player's shipper sends them (POST /ingest), stored by a
-VictoriaLogs stand-in, then read by the page's HTTP API and by the MCP's
+VictoriaLogs stand-in and, again, by the SQLite event store, then read by the page's HTTP API and by the MCP's
 tools, each through its own path. The assertions are contracts between the
 surfaces, never one module's internals:
 
@@ -41,13 +41,15 @@ from . import harness as H
 pytestmark = [pytest.mark.slice, pytest.mark.usefixtures("demo_clock")]
 
 
-@pytest.fixture(scope="module", params=list(C.GOLDEN))
+@pytest.fixture(scope="module", params=[(g, b) for b in D.BACKENDS for g in C.GOLDEN],
+                ids=lambda p: f"{p[0]}-{p[1]}")
 def served(request, tmp_path_factory, monkeypatch_module):
     monkeypatch_module.setenv("WOW_ITEMS", "off")
-    char, build = C.GOLDEN[request.param]
+    name, backend = request.param
+    char, build = C.GOLDEN[name]
     rows = build()
-    s = H.serve(char, rows, tmp_path_factory.mktemp(request.param))
-    s.name, s.rows = request.param, rows
+    s = H.serve(char, rows, tmp_path_factory.mktemp(name), backend)
+    s.name, s.rows = name, rows
     yield s
     s.close()
 

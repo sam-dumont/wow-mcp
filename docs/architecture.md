@@ -46,6 +46,7 @@ the semantic layer.
 | `wowstats/ui.py` | The HTTP server: config checks, logins, routing, the in-memory cache, `/ingest`. |
 | `wowstats/prebuilt.py` | The page's answers, built in the background once per new data and served as they are ("Caching" below). |
 | `wowstats/stores.py` | Reads from VictoriaLogs (LogsQL) and VictoriaMetrics (PromQL), plus the helpers that merge and dedupe rows (newest `_time` per `source_id`, then highest `rev`). Every VictoriaLogs request goes through one gate (`VL_GATE`). |
+| `wowstats/eventstore.py` | Where the events live: VictoriaLogs' HTTP API, or one SQLite file per person (`EVENTS_STORE=sqlite:<folder>`) answered by `wowstats/logsql.py`. Every read, write (`/ingest`), deletion and health check of the events goes through it. |
 | `wowstats/eventcache.py`, `wowstats/logsql.py` | One character's events kept in the process and refreshed by the hour that changed; the views' LogsQL answered over them ("Caching" below). |
 | `wowstats/views.py` | Builds each JSON answer from the stores: characters, header, climb, levels, zones, guide steps, dungeons, deaths, players, flights, prices, market. Treats `Name Surname` and `Name-Surname` as one character. |
 | `wowstats/journal.py` | Splits the play history into sessions (more than 330 s without a Recorder record, the semantic layer's rule: `stores.split_sessions`) and builds one journal entry per session. |
@@ -291,7 +292,7 @@ character the API doesn't know gets its race's default look.
 
 | Store | Holds | Retention |
 |---|---|---|
-| VictoriaLogs | the shipper's events (the player's own game files) | as long as the player wants (compose: 100 years) |
+| VictoriaLogs (or the SQLite files) | the shipper's events (the player's own game files) | as long as the player wants (compose: 100 years; the files: until deleted) |
 | VictoriaMetrics | the exporter's Battle.net data, characters' looks included | 23 days, daily force-merge, never copied (Blizzard's API terms allow 30) |
 | shipper archive | git history of WTF, sent files | on the player's PC, until they delete it |
 

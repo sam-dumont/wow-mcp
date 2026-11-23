@@ -1,5 +1,7 @@
 """wowstats.logsql against a real VictoriaLogs: the same rows, the same
-queries, the same answers.
+queries, the same answers. And the SQLite event store (wowstats.eventstore),
+which answers with that engine alone: the same cases on it, and its answers
+against VictoriaLogs' when one is there.
 
 The event cache answers most queries in Python (wowstats.logsql); every
 other test's "VictoriaLogs" is that same engine, so without this file it is
@@ -9,8 +11,9 @@ pipe the engine supports is asked of both: VictoriaLogs directly, and the
 cache (the production path: wowstats.stores.Store.vl, read once, answered in
 Python).
 
-Needs a VictoriaLogs: WOW_TEST_VL_URL=http://127.0.0.1:9428 (`make
-test-vl` starts one in Docker). Skipped without it; CI's `logsql` job runs it
+The VictoriaLogs cases need one: WOW_TEST_VL_URL=http://127.0.0.1:9428 (`make
+test-vl` starts one in Docker). Skipped without it (the SQLite ones run
+anyway); CI's `logsql` job runs them
 against a container of the pinned image, where a missing one fails
 (WOW_TEST_VL_REQUIRED=1). Nothing else of the store is touched: the rows
 go to a random tenant (AccountID).
@@ -31,7 +34,7 @@ from pathlib import Path
 import pytest
 
 from tests import testchar
-from wowstats import logsql, stores
+from wowstats import eventstore, logsql, stores
 from wowstats.stores import HISTORY_START
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -52,7 +55,7 @@ def _reachable() -> bool:
 
 if os.environ.get("WOW_TEST_VL_REQUIRED") == "1":  # CI's logsql job: never a silent skip
     assert _reachable(), f"no VictoriaLogs at {VL_URL!r}"
-pytestmark = pytest.mark.skipif(not _reachable(), reason="no VictoriaLogs: set WOW_TEST_VL_URL (make test-vl)")
+NO_VL = pytest.mark.skipif(not _reachable(), reason="no VictoriaLogs: set WOW_TEST_VL_URL (make test-vl)")
 
 # The three rows of the hand-checked cases (GOLDEN below), first recorded
 # against v1.54.0 by hand in tests/test_bounded_reads.py.
@@ -93,9 +96,7 @@ def _post(path: str, body: bytes, tenant: int, **params) -> None:
     urllib.request.urlopen(req, timeout=60).read()
 
 
-@pytest.fixture(scope="module")
-def store(tmp_path_factory):
-    tenant = random.randint(1_000_000, 2_000_000_000)
+def all_rows() -> list[dict]:
     # Testchar's hand-written history (tests/testchar.py): the cases below
     # name its zones and its records' exact times.
     rows = testchar.rows()
@@ -104,6 +105,15 @@ def store(tmp_path_factory):
     for char, extra in ((GOLDEN_CHAR, GOLDEN_ROWS), (EDGE_CHAR, EDGE_ROWS)):
         for i, r in enumerate(extra):
             rows.append({"feed": "wow-test", "char": char, "_msg": f"{char} {i}", "source_id": f"{char}:{i}", **r})
+    return rows
+
+
+@pytest.fixture(scope="module")
+def vl_store():
+    if not _reachable():
+        pytest.skip("no VictoriaLogs: set WOW_TEST_VL_URL (make test-vl)")
+    tenant = random.randint(1_000_000, 2_000_000_000)
+    rows = all_rows()
     _post("/insert/jsonline", "\n".join(json.dumps(r) for r in rows).encode(), tenant,
           _stream_fields=STREAM_FIELDS, _time_field="_time", _msg_field="_msg")
     urllib.request.urlopen(urllib.request.Request(f"{VL_URL}/internal/force_flush", data=b"", method="POST"),
@@ -111,6 +121,21 @@ def store(tmp_path_factory):
     s = stores.Store(VL_URL, account_id=tenant)
     assert len(s.vl_raw(s.vl_url, "*", HISTORY_START, datetime.now(UTC), 100_000)) == len(rows)
     return s
+
+
+@pytest.fixture(scope="module")
+def sqlite_store(tmp_path_factory):
+    """The same rows in the SQLite event store, tenant 7."""
+    where = "sqlite:" + str(tmp_path_factory.mktemp("events"))
+    rows = all_rows()
+    assert eventstore.get(where).append(7, rows) == len(rows)
+    return stores.Store(where, account_id=7)
+
+
+@pytest.fixture(scope="module", params=["vl", "sqlite"])
+def store(request):
+    """Each case on both stores: VictoriaLogs (when there is one) and SQLite."""
+    return request.getfixturevalue(f"{request.param}_store")
 
 
 def scoped(char: str, q: str) -> str:
@@ -257,6 +282,13 @@ CASES = [
     (EDGE_CHAR, "* | stats by (kind) min(name) as lo, max(name) as hi, row_max(name, tag) as r", False),
 ]
 
+# The stream filter (LOGS_FILTER `{component="wow"}`): the cache never sees
+# it (the reader strips its own stream filter), the SQLite store does.
+STREAM_CASES = [
+    '{feed="wow-recorder"} kind:=xp | stats count() as n',
+    '{component="wow", feed="wow-recorder"} | stats by (kind) count() as n',
+]
+
 # The hand-checked cases (tests/test_bounded_reads.py, which keeps them
 # offline), on their three rows.
 GOLDEN = [
@@ -279,6 +311,23 @@ GOLDEN = [
 @pytest.mark.parametrize(("char", "query", "ordered"), CASES, ids=[f"{c}: {q}" for c, q, _ in CASES])
 def test_same_answer_as_victorialogs(store, char, query, ordered):
     want, got = both(store, scoped(char, query))
+    same(want, got, ordered)
+
+
+def _strip(rows: list[dict]) -> list[dict]:
+    return [{k: v for k, v in r.items() if k not in ("_stream", "_stream_id")} for r in rows]
+
+
+@NO_VL
+@pytest.mark.parametrize(("char", "query", "ordered"),
+                         CASES + [(GOLDEN_CHAR, q, "sort by" in q) for q in GOLDEN]
+                         + [(DEMO, q, False) for q in STREAM_CASES],
+                         ids=[f"{c}: {q}" for c, q, _ in CASES] + GOLDEN + STREAM_CASES)
+def test_sqlite_answers_like_victorialogs(vl_store, sqlite_store, char, query, ordered):
+    """The SQLite store's own answer (no cache in between) is VictoriaLogs'."""
+    q = scoped(char, query)
+    want = _strip(vl_store.vl_raw(vl_store.vl_url, q, HISTORY_START, datetime.now(UTC), 100_000))
+    got = sqlite_store.vl_raw(sqlite_store.vl_url, q, HISTORY_START, datetime.now(UTC), 100_000)
     same(want, got, ordered)
 
 
@@ -343,14 +392,26 @@ def test_row_max_on_a_tie_picks_one_of_the_tied_rows(store, char, func):
 def test_numbers_and_text_in_one_field_go_to_victorialogs(store, query):
     """VictoriaLogs orders a field mixing numbers and text by how it stored
     them (v1.54: 100 before 1_000 before 12abc, and min(-3, " 6", 1.5) was
-    1.5): the cache doesn't guess, VictoriaLogs answers."""
+    1.5): the cache doesn't guess, VictoriaLogs answers. The SQLite store
+    has no VictoriaLogs: it answers anyway (logsql.lenient)."""
     q = scoped(EDGE_CHAR, query)
     assert store.cache.answer(q) is None
     assert store.vl(q)
 
 
+OUTSIDE = ("error", 'zone:~"Vale"', "* | top 3 by (zone)", "* | stats avg(xp)", "level:>20",
+           "kind:='xp' | fields _time", "kind:=`xp` | fields _time", "* | stats row_max(_time) as last")
+
+
 def test_outside_the_subset_goes_to_victorialogs(store):
     """What the engine refuses, the cache refuses: Store.vl asks VictoriaLogs."""
-    for q in ("error", 'zone:~"Vale"', "* | top 3 by (zone)", "* | stats avg(xp)", "level:>20",
-              "kind:='xp' | fields _time", "kind:=`xp` | fields _time", "* | stats row_max(_time) as last"):
+    for q in OUTSIDE:
         assert store.cache.answer(scoped(DEMO, q)) is None, q
+
+
+@pytest.mark.unanswerable_ok
+def test_outside_the_subset_the_sqlite_store_says_so(sqlite_store):
+    """No VictoriaLogs behind the SQLite store: a refusal, never a guess."""
+    for q in OUTSIDE:
+        with pytest.raises(eventstore.Unanswerable):
+            sqlite_store.vl(scoped(DEMO, q))

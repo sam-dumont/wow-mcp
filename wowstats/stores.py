@@ -568,9 +568,10 @@ def hour_pages(buckets: list[int], counts: dict[int, int], step: int, page: int)
 
 
 class Store:
-    """VictoriaLogs (plus, optionally, an archive VictoriaLogs for older
-    days) and VictoriaMetrics, read only. Without VL_ARCHIVE_URL there is one
-    store and it holds the whole history."""
+    """The events (VictoriaLogs, plus optionally an archive VictoriaLogs for
+    older days, or the SQLite files: wowstats.eventstore; `vl_url` is
+    either's location) and VictoriaMetrics, read only. Without
+    VL_ARCHIVE_URL there is one store and it holds the whole history."""
 
     def __init__(self, vl_url: str, vl_archive_url: str = "", vm_url: str = "", logs_filter: str = "feed:wow-*",
                  hot_days: int = 89, profile_vm_url: str | None = None, account_id: int = 0):
@@ -578,6 +579,9 @@ class Store:
         # The VictoriaLogs tenant every logs request carries (tenant_headers).
         self.account_id = int(account_id)
         self.vl_archive_url = vl_archive_url.rstrip("/")
+        if self.vl_archive_url and self.vl_url.startswith("sqlite:"):
+            raise ValueError("VL_ARCHIVE_URL is VictoriaLogs' archive: the SQLite event store keeps every day in "
+                             "its files (unset it)")
         self.vm_url = vm_url.rstrip("/")
         # Battle.net's character profile only (the look, the item level,
         # the talents): the owner allowed it in public (2026-11-18), so the
@@ -597,13 +601,12 @@ class Store:
     # ------------------------------------------------------------ logs
 
     def vl_raw(self, base: str, query: str, start: datetime, end: datetime, limit: int = ROW_LIMIT) -> list[dict]:
-        """One request, through the process' gate (VL_GATE), in this
-        person's tenant (tenant_headers)."""
-        with VL_GATE:
-            body = http_get(f"{base}/select/logsql/query", {
-                "query": query, "start": iso_us(start), "end": iso_us(end), "limit": str(limit),
-            }, headers=tenant_headers(self.account_id))
-        return [json.loads(line) for line in body.splitlines() if line.strip()]
+        """One request to the event store at `base` (wowstats.eventstore:
+        VictoriaLogs through the process' gate, VL_GATE, or a SQLite file),
+        in this person's tenant."""
+        from . import eventstore
+
+        return eventstore.get(base).query(self.account_id, query, start, end, limit)
 
     def vl_paged(self, base: str, query: str, start: datetime, end: datetime, limit: int = ROW_LIMIT) -> list[dict]:
         """Like vl_raw, but an answer that fills the row limit is read again

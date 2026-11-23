@@ -157,5 +157,6 @@ markers = [
     "browser: drives Chromium/WebKit through Playwright (files named *browser*; tests/conftest.py)",
     "ci_only: needs docker compose, a Polestar checkout or Windows; CI and releases run it (tests/conftest.py)",
     "slice: an integration slice: golden characters through /ingest, the page API and the MCP (tests/slices)",
+    "unanswerable_ok: asks the SQLite event store a query outside the subset on purpose (tests/conftest.py)",
     "real_home: reads the machine's own HOME (the shipper's HOME is a temp dir otherwise; tests/conftest.py)",
 ]

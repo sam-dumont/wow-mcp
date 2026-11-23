@@ -19,6 +19,7 @@ import re
 import threading
 import time
 import urllib.parse
+from datetime import UTC, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -1782,3 +1783,35 @@ def test_a_battletag_never_names_or_provisions_an_owner_login(two_logins):
     assert t.registry.get(ALIAS) is None
     data = json.loads(Path(t.registry.path).read_text())
     assert data["next_account"] == before and [u.account_id for u in t.registry.users()] == [0]
+
+
+def test_sqlite_store_keeps_each_person_in_a_file_and_deletes_it(env, run_app, tmp_path):
+    """EVENTS_STORE=sqlite:<folder>: no FRIENDS_VL_URL, each person a file
+    of their own in the one folder; a friend's upload lands in theirs, the
+    owner's reads never see it, and the deletion removes the file."""
+    from wowstats import eventstore
+
+    folder = tmp_path / "events"
+    e = {**env, "EVENTS_STORE": f"sqlite:{folder}", "FRIENDS_VL_URL": ""}
+    app = ui.App(e)
+    t = ui.tenancy_of(e, app)
+    r = run_app(app)
+    r.srv.RequestHandlerClass = ui.make_handler(app, t)
+    r.t = t
+    friend_ready(r)
+    u = t.registry.get(FRIEND)
+    _, token = t.registry.redeem(t.registry.new_code(u.sub))
+    auth = "Basic " + base64.b64encode(f"mira:{token}".encode()).decode()
+    line = {"_time": "2026-11-17T15:14:03Z", "feed": "wow-level", "char": B_CHAR, "level": 3, "partial": True}
+    code, _, body = r.get("/ingest", headers={"Authorization": auth}, method="POST", data=json.dumps(line).encode())
+    assert code == 200, body
+    mine = folder / f"events-{u.account_id}.sqlite"
+    assert mine.exists() and not (folder / "events-0.sqlite").exists()
+    code, _, body = r.get(f"/api/char?name={B_CHAR}", headers=as_user(OWNER))
+    assert code == 404
+    rows = eventstore.get(f"sqlite:{folder}").query(u.account_id, "*", datetime(2004, 11, 23, tzinfo=UTC),
+                                                    datetime.now(UTC), 10)
+    assert rows == [{"_time": "2026-11-17T15:14:03Z", "char": B_CHAR, "component": "wow", "feed": "wow-level",
+                     "level": "3", "partial": "true", "_msg": f"wow-level {B_CHAR}"}]
+    out = tenancy.delete_tenant(t, u)
+    assert out["delete_task"]["deleted_files"] and not mine.exists()

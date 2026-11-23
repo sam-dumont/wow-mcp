@@ -3,12 +3,9 @@
 **For:** self-hosters on Kubernetes or any setup other than the compose kit. **At the end:** you know each command of the image, its port, its health check and its settings.
 
 For Kubernetes or any setup other than `deploy/compose`. One image,
-`ghcr.io/<owner>/wow-mcp:<version>` (the names are set in
-`.github/workflows/release.yml`; or build it: `docker login dhi.io` once
-with a free Docker Hub account, then `docker build .`), and these
-commands. While the package is private, the cluster pulls it with a token
-that has `read:packages` (an `imagePullSecrets` entry; docs/development.md,
-"Using a released image").
+`{{release_image}}` for the latest release (each release's notes carry its
+`tag@digest`; or build it yourself: [Development](development.md#build-the-image-yourself)),
+and these commands.
 
 | Command | Port | Health | Serves |
 |---|---|---|---|

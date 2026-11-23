@@ -29,7 +29,7 @@ complete, and <out>/current is swapped to it in one rename; older builds
 are removed. A failed build removes its own folder; one a killed run left
 behind goes at the next run, once nothing in it changed for STALE_BUILD_S
 (sweep_builds). The static server (wowstats.static) reads
-<out>/current. Environment: as `wow-stats ui` (VL_URL, VL_ARCHIVE_URL,
+<out>/current. Environment: as `wow-stats ui` (EVENTS_STORE, VL_URL, VL_ARCHIVE_URL,
 VM_URL, MODEL3D_CACHE_DIR...), plus PUBLISH_DIR, PUBLISH_INTERVAL (600),
 ZOGZOG_PATH (/zogzog/, empty: no zogzog bundle), ZOGZOG_KEY_FILE,
 ZOGZOG_LINK_BASE (the site's address, for `zogzog-key link`),
@@ -933,9 +933,14 @@ def user_env(env: dict, u: dict) -> dict:
     if share:
         e["ANALYSIS_SHARE_URL"] = share + ("&" if "?" in share else "?") + urllib.parse.urlencode({"slug": slug})
     if u.get("store") != "owner":
-        if not (env.get("FRIENDS_VL_URL") or "").strip():
+        from wowstats.eventstore import events_location, is_sqlite
+
+        # The SQLite store keeps friends in the owner's folder, a file each
+        # (VL_ACCOUNT_ID above picks theirs): no store of their own to name.
+        friends = events_location(env) if is_sqlite(events_location(env)) else (env.get("FRIENDS_VL_URL") or "").strip()
+        if not friends:
             raise PublishError("FRIENDS_VL_URL is unset")
-        e.update({"VL_URL": env["FRIENDS_VL_URL"], "VL_ARCHIVE_URL": "", "DEFAULT_CHAR": "", "WEIGHTS": "",
+        e.update({"VL_URL": friends, "VL_ARCHIVE_URL": "", "DEFAULT_CHAR": "", "WEIGHTS": "",
                   "HELP_KEY_FILE": "", "ZOGZOG_KEY_FILE": ""})
     return e
 

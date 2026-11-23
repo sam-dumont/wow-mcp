@@ -136,7 +136,8 @@ minutes, the same one as [the live demo](../site/pages/demo.md), which needs not
 
 ### How do I update it?
 
-Back up, check out the new version, `docker compose up -d --build`. Your data lives in Docker
+Back up, put the new release's `tag@digest` in `WOW_STATS_IMAGE`, then `docker compose pull`
+and `docker compose up -d`. Your data lives in Docker
 volumes, which an upgrade doesn't touch; the changelog's "Upgrading" notes say when there's
 more to do.
 [Upgrade](self-host/upgrade.md) and the [changelog](../CHANGELOG.md).

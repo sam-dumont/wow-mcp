@@ -48,8 +48,8 @@ on another or on a fixed port or path: servers bind port 0, state lives in `tmp_
 `tests/slices` (marker `slice`, part of `make test` and CI's suite, about 30 s) sends five golden
 characters (`tests/slices/characters.py`: the demo, the demo before Syndicator scanned its bags, a
 level 60 who just dinged, a fresh level 10 with no split, the demo without the Recorder and
-Syndicator) through the app's own `/ingest` into a VictoriaLogs stand-in, then reads them back
-through the page's HTTP API and the MCP's tools. The tests are contracts between those surfaces,
+Syndicator) through the app's own `/ingest`, once into a VictoriaLogs stand-in and once into the
+SQLite event store, then reads them back through the page's HTTP API and the MCP's tools. The tests are contracts between those surfaces,
 not one module's internals: one number means one thing everywhere, coverage and the "Missing:"
 lines agree with what arrived, every number in a move has a source, and no move, raid prep or class
 effect of the committed snapshot goes away. A change that drops one on purpose updates the snapshot
@@ -67,7 +67,7 @@ The knowledge base's refresh runs the same check as its `behaviour` gate ([kb.md
 ```sh
 uv run ruff check .
 make test                   # the fast suite on half the cores; no browsers, nothing CI-only
-docker login dhi.io         # once: the main image's base needs a free Docker Hub account
+docker login dhi.io         # once: the main image's base needs a free Docker Hub account (to build it)
 docker build -t wow-stats:dev .
 docker build --target renderer -t wow-stats-render:dev .
 ```
@@ -488,26 +488,39 @@ uv run python tools/ab/ab.py diff baseline rc
   Docker runs `--image` with the image's own platform, emulated if needed;
   name a multi-platform image by its platform's manifest digest.
 
-## Using a released image
+## Build the image yourself
 
-Pin by digest: `ghcr.io/<owner>/wow-mcp:X.Y.Z@sha256:...`, from the release
-run's summary.
+The install guide runs a released image (`WOW_STATS_IMAGE` in `deploy/compose/.env`). To run
+your own changes instead, leave `WOW_STATS_IMAGE` empty and build from the tree:
 
-While the package is private, every pull needs a token with
-`read:packages` (a classic personal access token, or a GitHub App token
-with that permission):
+```sh
+docker login dhi.io                # once: the base needs a free Docker Hub account
+cd deploy/compose
+docker compose up -d --build
+```
 
-- **Docker / compose**: `docker login ghcr.io -u <user>` with the token as
-  the password (from stdin, never on the command line). Then in
-  `deploy/compose/.env`: `WOW_STATS_IMAGE=ghcr.io/<owner>/wow-mcp:X.Y.Z@sha256:...`,
-  and `docker compose pull ui publish site && docker compose up -d`.
-- **Kubernetes**: a `kubernetes.io/dockerconfigjson` Secret for `ghcr.io`
-  with that token, named in each pod's `imagePullSecrets`. The variables,
-  ports and mounts are in [docs/deploy.md](deploy.md).
+The main image's base is `dhi.io/python` (Docker's hardened images), which takes no anonymous
+pulls, hence the login. Without compose: `docker build .`, and `docker build --target renderer .`
+for the renderer. A shipper file you change needs your own signature before the build
+([Signing your own build](self-host/upgrade.md#signing-your-own-build)).
 
-Without `WOW_STATS_IMAGE` the compose kit builds the image from the tree
-(`docker compose up -d --build`). That build pulls the base from dhi.io, so
-it needs `docker login dhi.io` once, with a free Docker Hub account.
+## The event stores
+
+Every read, write and deletion of the events goes through `wowstats/eventstore.py`:
+VictoriaLogs' HTTP API (`EVENTS_STORE=vl`, the default) or one SQLite file per person
+(`EVENTS_STORE=sqlite:<folder>`). The SQLite store answers every query with `wowstats/logsql.py`
+and nothing else, so a query outside that subset is an error there, never a fallback:
+
+- `tests/test_eventstore.py` fails on any VictoriaLogs route or tenant header used outside
+  `eventstore.py`;
+- every test fails when the SQLite store met a query it couldn't answer, even one the app caught
+  (`tests/conftest.py`, marker `unanswerable_ok` for the tests that ask one on purpose);
+- the degraded suite, the slices and `tests/test_logsql.py` run on both stores, and the
+  `logsql` CI job compares the SQLite store's own answers with a real VictoriaLogs'
+  (`make test-vl` locally).
+
+A new query in the app that the engine doesn't support fails those tests on SQLite: add it to
+the engine (and a case to `tests/test_logsql.py`), or write the query with what it supports.
 
 ## Verifying an image
 
