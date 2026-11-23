@@ -28,8 +28,8 @@ FROM ghcr.io/astral-sh/uv:0.13@sha256:d3b601f0c7b118bc1753febf7c41cc80981df67844
 # takes no anonymous pulls: `docker login dhi.io` with a free Docker Hub
 # account (docs/development.md). The -dev variant (bash, apt) only builds the
 # venv; both carry the same python-3.15 package at /usr/bin/python3.15.
-FROM dhi.io/python:3.15-debian13-dev@sha256:3ba5300d40d7b20ed83d4968a66dc1e92d3c53bc86c5305eec3a08cf85165ee3 AS build-base
-FROM dhi.io/python:3.15-debian13@sha256:5f3efbd860ff18cf93c93e5812e300a17e6e06d35be4f973581f3129addeccac AS base
+FROM dhi.io/python:3.15-debian13-dev@sha256:e52e8a325d11080c04be94b02f9e7df64370ca8a866b5a75fcb56e17bcf11c0d AS build-base
+FROM dhi.io/python:3.15-debian13@sha256:76e89381500bad12fdaba7333bca42a96e4f1a72e3bf5ef753bbe5258cc77ac8 AS base
 # The renderer stays on Debian slim: Playwright's Chromium wants Debian's
 # libraries, pinned below by a snapshot date. The Python minor moves on
 # purpose, not with the weekly digest bumps (.github/dependabot.yml).
