@@ -89,7 +89,7 @@ For your AI assistant. Off until `MCP_PUBLIC_URL` is set. [Connect your AI](../a
 | `MCP_ALLOWED_ORIGINS` | ui | comma list of origins | empty | `https://inspector.example.org` | Extra browser origins allowed to call `/mcp`. |
 | `MCP_AUTH` | ui | `oauth` or `none` | `oauth` | `none` | `none` (no login) only works on a loopback `BIND`. |
 | `MCP_CIMD_HOSTS` | ui | comma list of hosts | Claude, ChatGPT/Codex, opencode, VS Code, Copilot CLI, Zed, Goose | `claude.ai` | Replaces the list of hosts whose client documents (a URL as client id) are fetched. |
-| `MCP_DCR` | ui | `open`, `loopback` or `off` | `open` | `loopback` | Who may register a client at `/register`: anyone, local clients only (every redirect on 127.0.0.1, localhost or [::1]), or nobody (client metadata URLs only, from `MCP_CIMD_HOSTS`). |
+| `MCP_DCR` | ui | `open`, `loopback` or `off` | `open` | `loopback` | Who may register a client at `/register`: anyone, local clients only (every redirect on 127.0.0.1, localhost or [::1]), or nobody (client metadata URLs only, from `MCP_CIMD_HOSTS`; no `/register` and no `registration_endpoint` in the metadata). |
 | `MCP_LOGIN` | ui | `oidc` | `oidc` | `oidc` | The only value. The old `password` login is gone: the server refuses to start with it. |
 | `MCP_PORT` | ui | port | `8090` | `8090` | The MCP endpoint's own port, on `BIND`. `/mcp` and the login paths are served there, never on `PORT`. |
 | `MCP_PUBLIC_URL` | ui, publish, compose | https URL ending in `/mcp` | empty: no MCP endpoint | `https://wow.example.org/mcp` | Turns on the MCP endpoint (full view only) and names the address clients use. The help page shows it too. |

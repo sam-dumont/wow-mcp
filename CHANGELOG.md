@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- With `MCP_DCR=off` the authorization server metadata no longer advertises a `registration_endpoint`, and `/register` answers 404: a client sees up front that it needs a client metadata URL instead of trying to register and getting refused. An unknown client id at `/authorize` is no longer pointed at `/register` either. `open` and `loopback` are unchanged.
+
 ## 0.7.0 (2026-11-23)
 
 What 0.7.0 brings over 0.6.1, in short. Every change follows, then each release candidate's.

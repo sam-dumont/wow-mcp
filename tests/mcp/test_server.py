@@ -240,10 +240,27 @@ def test_dcr_loopback_registers_local_clients_only(lab, capsys):
     assert lg.register(redirect_uris=["http://127.0.0.1:5555/callback"]).status_code == 201
 
 
+@pytest.mark.parametrize(("lab_env", "advertised"), [({}, True), ({"MCP_DCR": "loopback"}, True),
+                                                     ({"MCP_DCR": "off"}, False)])
+def test_registration_endpoint_only_when_dcr_takes_someone(lab, advertised):
+    idp, run, lg = lab
+    meta = lg.http.get(f"{lg.base}/.well-known/oauth-authorization-server").json()
+    assert ("registration_endpoint" in meta) is advertised and meta["client_id_metadata_document_supported"]
+    prm = lg.http.get(f"{lg.base}/.well-known/oauth-protected-resource/mcp").json()
+    assert not {k for k in prm if "regist" in k}
+
+
 @pytest.mark.parametrize("lab_env", [{"MCP_DCR": "off"}])
 def test_dcr_off_leaves_cimd(lab):
     idp, run, lg = lab
-    assert lg.register(redirect_uris=["http://127.0.0.1:5555/callback"]).status_code == 400
+    assert lg.register(redirect_uris=["http://127.0.0.1:5555/callback"]).status_code == 404
+    # A client id from before (or a typo) isn't sent to /register either.
+    lg.client_id = "stale-dcr-client"
+    r = lg.authorize()
+    assert r.status_code == 400 and "link" not in r.headers
+    body = r.json()
+    assert "registration_endpoint" not in body and "client metadata URL" in body["error_description"]
+    assert "Client Not Registered" in lg.http.get(r.request.url, headers={"Accept": "text/html"}).text
     lg.client_id = "https://evil.example/oauth/client.json"
     assert lg.authorize().status_code == 400  # CIMD still checks its hosts
 

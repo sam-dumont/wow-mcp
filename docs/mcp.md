@@ -432,7 +432,10 @@ What the server does:
   VS Code, Copilot CLI, Zed, Goose by default); a refused one is logged.
   Others register (`/register`): the whole registration is refused if one
   redirect isn't in `MCP_REDIRECT_URIS` (the web callbacks of claude.ai,
-  ChatGPT, VS Code and Cursor, plus loopback on any port).
+  ChatGPT, VS Code and Cursor, plus loopback on any port). With
+  `MCP_DCR=off` there is no `/register` (404) and the authorization server
+  metadata has no `registration_endpoint`, so a client knows up front that it
+  needs a client metadata URL.
   `/help/` lists the clients and how to add each.
 - PKCE S256, a consent page before the first login of each client, tokens
   bound to this `/mcp` URL. The login asks the provider for its account
@@ -470,7 +473,7 @@ secret, refresh tokens, and the callback `https://<your host>/oauth/callback`.
 | `MCP_SIGNING_KEY_FILE` | random per start | 32+ random bytes; signs the tokens and encrypts the stored logins. Without it every restart logs every connector out |
 | `MCP_STATE_DIR` | | Client registrations and logins across restarts (encrypted, in `oauth/`) |
 | `MCP_REDIRECT_URIS`, `MCP_CIMD_HOSTS` | the client list above | Replace the lists |
-| `MCP_DCR` | `open` | `/register` for any client; `loopback`: local clients only; `off`: none, client metadata URLs (CIMD) only |
+| `MCP_DCR` | `open` | `/register` for any client; `loopback`: local clients only; `off`: none, client metadata URLs (CIMD) only: no `/register` and no `registration_endpoint` in the metadata |
 | `MCP_ALLOWED_ORIGINS` | | Extra browser origins allowed on `/mcp` |
 | `MCP_AUTH` | `oauth` | `none` only works when `BIND` is loopback: for a laptop |
 | `ROUTE_REFERENCE_FILE` | the bundled file | Another route times file, or `off` |

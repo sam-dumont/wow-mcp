@@ -88,7 +88,7 @@ needed, so a long history comes back whole rather than cut.
 | `MCP_SIGNING_KEY_FILE` | random per start | 32+ random bytes: signs the tokens and encrypts the stored logins. Without it every restart logs every client out |
 | `MCP_STATE_DIR` | memory only | client registrations and logins, encrypted, in `<dir>/oauth/` |
 | `MCP_REDIRECT_URIS`, `MCP_CIMD_HOSTS` | the built-in client lists (docs/mcp.md) | replace the lists of allowed redirects and of hosts whose client documents (CIMD) are fetched |
-| `MCP_DCR` | `open` | dynamic client registration (`/register`): `open` to any client, `loopback` only for local clients (every redirect on 127.0.0.1, localhost or [::1]), `off` for none (CIMD only, narrowed by `MCP_CIMD_HOSTS`) |
+| `MCP_DCR` | `open` | dynamic client registration (`/register`): `open` to any client, `loopback` only for local clients (every redirect on 127.0.0.1, localhost or [::1]), `off` for none (CIMD only, narrowed by `MCP_CIMD_HOSTS`; `/register` answers 404 and the metadata has no `registration_endpoint`) |
 | `MCP_ALLOWED_ORIGINS` | empty | extra browser origins allowed on `/mcp` |
 | `MODEL3D` | `on` | the "View in 3D" toggle on the paperdoll (full view, and the static sites `publish` builds); drawn from the game files the person's shipper sends, nothing downloaded; `off` removes it and its routes, and the shipper stops sending them |
 | `WOW_ITEMS` | `on` | item names, icons and tooltip cards from Forever's tables on wago.tools (`ui` and `publish`); `off`: none of it is fetched, the pages show what the events carry. `MODEL3D=off` with `WOW_ITEMS=off` is the small preset: no upstream downloads at all, a cold cache and no internet still publish |
