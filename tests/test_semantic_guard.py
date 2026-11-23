@@ -41,6 +41,8 @@ MODULES = {
 
 # Single functions: module:qualname -> why.
 FUNCTIONS = {
+    "wowstats/analysis/lineage.py:_parse": "parses a finding's SQL with DuckDB's parser (json_serialize_sql) on an "
+                                           "empty in-memory database: reads no data, gives each column's unit",
     "wowstats/analysis/__init__.py:tables_of": "which tables hold rows and their column count: the run's "
                                                "coverage denominator, not a fact",
     "wowstats/analysis/__init__.py:data_mark": "the build's input mark (meta): which events a finding was "

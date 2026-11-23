@@ -463,7 +463,8 @@ def history_read(ro) -> set[str]:
 
 # The formats that write a unit, and the semantic layer's units they fit
 # (owner, 2026-11-23: "{n:pct}" was kept on a plain count, rendered "2%").
-# A value whose unit nothing declares keeps the format it was given.
+# A value whose unit the judge can't tell gets neither: an alias used to
+# lose it (`played_s AS n` kept as "7100%", pre-release check 2026-11-23).
 FORMAT_UNITS = {
     "pct": ({"percent", "share", "ratio", "xp/xp"}, "a share (0 to 1) or a percent",
             "select the share itself (one count over another) as a column"),
@@ -471,12 +472,12 @@ FORMAT_UNITS = {
 }
 
 
-def column_units(metric_query, read) -> dict[str, str]:
-    """{column: unit} for what the evidence declares: the metrics a
-    metric_query names (and their `_evidence` counts), else the columns of
-    the views per grain the raw query read (`read`: the runner's last_read),
-    which are those metrics again. {} when neither applies."""
-    from . import semantic
+def column_units(metric_query, sql: str) -> dict[str, str | None]:
+    """{column: unit, None when unknown} for what the evidence returns: the
+    metrics a metric_query names (and their `_evidence` counts), else each
+    column of the raw query as its expression gives it (lineage.units: an
+    alias, a cast, a sum or a ratio keep the unit of the columns they read)."""
+    from . import lineage, semantic
 
     if isinstance(metric_query, dict):
         units = {m["name"]: m.get("unit") for m in semantic.catalogue()["metrics"]}
@@ -484,22 +485,26 @@ def column_units(metric_query, read) -> dict[str, str]:
         for n in metric_query.get("metrics") or []:
             out[n] = units.get(n)
             out[f"{n}_evidence"] = "observations"
-        return {k: v for k, v in out.items() if v}
-    per = semantic.views()
-    return {c["name"]: c["unit"] for v in sorted(set(read or ()) & set(per))
-            for c in per[v]["columns"] if c.get("unit")}
+        return out
+    return lineage.units(sql)
 
 
-def units_why(parts: dict[str, str], units: dict[str, str]) -> str:
-    """Why a placeholder's format doesn't fit its column's unit ("" when
-    every one fits or the unit is unknown)."""
+def units_why(parts: dict[str, str], units: dict[str, str | None]) -> str:
+    """Why a placeholder's format doesn't fit its column's unit, or the unit
+    can't be told ("" when every one fits)."""
     for name, text in parts.items():
         for m in PLACEHOLDER.finditer(text or ""):
             spec = (m.group(2) or "").lstrip(".")
             ref = m.group(1)
             col = CELL.fullmatch(ref).group(2) if CELL.fullmatch(ref) else ref
+            if spec not in FORMAT_UNITS:
+                continue
             unit = units.get(col)
-            if spec not in FORMAT_UNITS or unit is None or unit in FORMAT_UNITS[spec][0]:
+            if unit is None:
+                return (f"{{{ref}:{spec}}} in the {name} formats {col}, and the judge can't tell its unit from "
+                        f"the query: {spec} is for {FORMAT_UNITS[spec][1]}. Write {{{ref}}} (or {{{ref}:int}}), "
+                        f"or {FORMAT_UNITS[spec][2]} (a column of a per_* view, a *_s column, or one over another)")
+            if unit in FORMAT_UNITS[spec][0]:
                 continue
             fits = [s for s, (us, *_) in FORMAT_UNITS.items() if unit in us]
             fix = f"write {{{ref}:{fits[0]}}}" if fits else f"write {{{ref}}} (or {{{ref}:int}})"
@@ -564,8 +569,7 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     refused = refused_numbers(prose, constants, sql_text, params, cites, row, rows)
     if refused:
         return None, f"{key}: {next(iter(refused.values()))}"
-    why = units_why(prose, column_units(f.get("metric_query") if params is not None else None,
-                                        getattr(ro, "last_read", None)))
+    why = units_why(prose, column_units(f.get("metric_query") if params is not None else None, sql_text))
     if why:
         return None, f"{key}: {why}"
     for part, text in prose.items():

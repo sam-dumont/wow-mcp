@@ -174,7 +174,7 @@ CASES = [
     (DEMO, "_time:>2026-11-12T17:50:00Z kind:=xp | stats count() as n, min(_time) as t", False),
     (DEMO, "_time:<2026-11-12T18:00:00Z kind:=xp | stats count() as n, max(_time) as t", False),
     (DEMO, "_time:<=2026-11-12T18:00:00Z kind:=xp | stats count() as n, max(_time) as t", False),
-    (DEMO, "_time:<=2026-11-12T18:00 kind:=xp | stats count() as n, max(_time) as t", False),
+    (DEMO, "_time:<=2026-11-12T18:00Z kind:=xp | stats count() as n, max(_time) as t", False),
     (DEMO, "_time:[2026-11-13T00:00:00Z, 2026-11-13T23:59:59Z] | stats by (kind) count() as n", False),
     (DEMO, "_time:(2026-11-12T17:50:00Z, 2026-11-12T19:00:00Z) kind:=xp | fields _time, xp", False),
     (DEMO, '_time:["2026-11-12T17:50:00Z", "2026-11-12T19:00:00Z"] kind:=xp | fields _time, xp', False),
