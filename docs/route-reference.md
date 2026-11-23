@@ -59,6 +59,7 @@ passes its checks. By hand: change the file, rerun the exports, commit.
 | `guides.<id>` | Seconds for the guide, its levels, and `steps`: `[step, seconds, title]`, steps counted from 1 like the addon's |
 | `routes[]` | One per race and class: total seconds and `dings` as `[level, seconds since level 1]` |
 | `bias` | The walk measurement below |
+| `trips` | A dungeon trip's quests and travel, for the dungeon's line: each dungeon's page of quests and entrance, what Polestar's pick-up and hand-in rules read per quest, the flight and boat network, and the reference tours. See [Dungeon trips](#dungeon-trips) |
 | `places` | Where things are, for the Dungeons panel: `npc` and `object` (quest givers and enders) as `[uiMap, x, y]` plus the spawn count when there are several, `zones` (uiMap id to the guides' zone name), `entrances` (per instance Map id) and their `keys`. See below |
 
 Guide ids are Polestar's (`forever/alliance/05-duskwood`), the `guide` the
@@ -82,6 +83,33 @@ Alliance's own way in sits under `A` where it differs. The flight path next to
 an entrance is TravelData.lua's nearest taxi node of each side on that map, a
 straight line on the map. Meeting stones aren't there: no source we read ties
 a stone to its dungeon.
+
+## Dungeon trips
+
+`trips` holds what Polestar's "Pick up the quests" and "Hand in the quests" guides
+(`addon/Polestar/Dungeons/Pickup.lua`, `Handin.lua`) need, and
+`tools/route_reference/trips.mjs` ports their rules: which quests to take (the class,
+race and side ones that apply, their open prerequisites first, a breadcrumb only when its
+detour is under 300 s), the order of the stops (nearest next, cheapest insertion, then
+moving runs of one to three stops), and the travel between them (walk, or walk + flights
+and boats + walk, Polestar's TravelCost). `wowstats/plan/tripcost.py` replays the same
+rules at runtime on the player's own quests (done, in the log) from where they were last
+seen (the semantic layer's `map_now`, `x_now`, `y_now`).
+
+A dungeon's page is forever-db's quests zoned in it plus Polestar's journal list, as the
+Codex's dungeon pages are not in the addon checkout. The per-side `tours` (standing at the
+entrance, at the dungeon's floor, nothing done) are what the Python must replay:
+`tests/plan/test_tripcost.py` checks every one.
+
+Not ported: carrying a quest across stops to fit the log (Polestar's split), the
+25-quest log cap, follow-ups taken at the hand-in, exclusive quest groups and profession
+quests. A quest a dungeon page lists whose giver forever-db places nowhere is counted as
+given inside, like those whose giver only spawns in the instance.
+
+Against one character's recorded trips (2026-11-23), the model's pickups ran 11-25 min
+where the measured ones ran 18-53 min (the measure counts everything from the start to the
+last pickup, other quests and fights included); the measured hand-ins include quests from outside the dungeon (65 min against the model's 22
+for the Stockade).
 
 ## How far to trust it
 

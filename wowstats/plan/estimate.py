@@ -385,8 +385,9 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
                  "quest_xp_open": round(quest_xp)}
         # One more run, the same estimate the Overview's move and the
         # Dungeons panel show (wowstats.plan.dungeongain): his runs there,
-        # else the KB's clear time and his own travel; the kills' XP only
-        # from his runs there, never from other dungeons.
+        # else the kill estimate's time inside and Polestar's pick-up and
+        # hand-in rules on his quests (wowstats.plan.tripcost); the kill
+        # estimate counts in the XP and the ranking, labelled.
         g = gain_named(inp, d["name"], quest_xph)
         entry["gain"] = g
         if g and g["run_s"]:
@@ -396,8 +397,11 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
                              "from": (f"your {g['own_runs']} run(s) there" if g["basis"] == "runs" else
                                       ("the kill estimate's time inside" if g["basis"] == "kill_model" else
                                        "the knowledge base's clear time") + (
-                                          f", plus the travel and quest time of your {ts['n']} dungeon trips"
-                                          if ts["n"] and g["time"] == "trip" else "")),
+                                          ", plus the pickups, travel and hand-ins Polestar's rules plan from "
+                                           "where you are" if (g["trip"]["pickup_s"]["label"] == "route"
+                                                               or g["trip"]["travel_s"]["label"] == "route") else
+                                           f", plus the travel and quest time of your {ts['n']} dungeon trips"
+                                           if ts["n"] and g["time"] == "trip" else "")),
                              "n": g["own_runs"] or ts["n"],
                              "phases_s": {kk: round(ts[kk]) for kk in ("pickup_s", "travel_to_s", "inside_s",
                                                                        "travel_back_s", "handin_s")}

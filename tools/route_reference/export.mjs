@@ -3,9 +3,16 @@
 // expected time and each step's, and per level the expected time to ding,
 // written to data/route-reference.json.
 //
-//   node tools/route_reference/export.mjs --polestar <checkout> [--out FILE] [--lua BIN] [--verbose]
+//   node tools/route_reference/export.mjs --polestar <checkout> [--out FILE] [--lua BIN] [--verbose] [--check]
 //
-// --verbose prints each run's planner warnings, grouped.
+// --verbose prints each run's planner warnings, grouped. --check writes
+// nothing: it fails when the file it would write differs from FILE's bytes
+// (the same checkout writes the same bytes).
+//
+// Also the dungeon trips (`trips`, tools/route_reference/trips.mjs): which
+// quests Polestar's pick-up and hand-in guides take and the travel between
+// them. They read data/forever-reference.json (tools/forever_reference) for
+// the dungeons' areas.
 //
 // <checkout> is a clone of fitzforge/polestar at a release tag. Nothing in it
 // is built: Polestar's planner (tools/lib/planner/timeline.js, through the
@@ -36,6 +43,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { buildTrips } from './trips.mjs';
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SYNTH = 9000000; // synthetic map ids, one per continent, for forever-db's world-yard spawns
 const SYNTH_HALF = 40000;
@@ -52,6 +61,7 @@ function args(argv) {
 		else if (k === '--out') o.out = argv[++i];
 		else if (k === '--lua') o.lua = argv[++i];
 		else if (k === '--verbose') o.verbose = true;
+		else if (k === '--check') o.check = true;
 		else throw new Error(`unknown argument ${k}`);
 	}
 	if (!o.polestar) throw new Error('usage: export.mjs --polestar <checkout> [--out FILE] [--lua BIN]');
@@ -549,9 +559,20 @@ function main() {
 			guides: guideOut,
 			routes,
 			places: places(ps, ref, geo, zones, travel, guides),
+			trips: buildTrips({ ps, travel, params, frames: ref.forever, outDir: path.join(HERE, '..', '..', 'data') }),
 		};
+		const text = `${JSON.stringify(doc)}\n`;
+		if (o.check) {
+			const have = fs.existsSync(o.out) ? fs.readFileSync(o.out, 'utf8') : '';
+			if (have !== text) {
+				process.stderr.write(`${o.out} is not what this checkout exports: run without --check and commit it\n`);
+				process.exit(1);
+			}
+			process.stderr.write(`${o.out}: up to date\n`);
+			return;
+		}
 		fs.mkdirSync(path.dirname(path.resolve(o.out)), { recursive: true });
-		fs.writeFileSync(o.out, `${JSON.stringify(doc)}\n`);
+		fs.writeFileSync(o.out, text);
 		process.stderr.write(`wrote ${o.out}: ${Object.keys(guideOut).length} guides, ${runs.length} runs, ${fs.statSync(o.out).size} bytes\n`);
 	})();
 }

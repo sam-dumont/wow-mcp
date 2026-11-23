@@ -332,6 +332,16 @@ def position(db, sem=None) -> dict:
     return {mine: row[theirs] for theirs, mine in POSITION.items()}
 
 
+def last_position(db, sem=None) -> dict | None:
+    """Where the character was last seen on a map (the newest record with a
+    position, the layer's map_now/x_now/y_now): a dungeon trip starts there
+    (wowstats.plan.tripcost). None before any positioned record."""
+    row = ask(semantic_of(db, sem), metrics=["map_now", "x_now", "y_now"])[0]
+    if row.get("map_now") is None or row.get("x_now") is None:
+        return None
+    return {"map_id": int(row["map_now"]), "x": round(float(row["x_now"]), 1), "y": round(float(row["y_now"]), 1)}
+
+
 def semantic_of(db, sem=None) -> tuple:
     """(layer, read-only runner) of the semantic layer over this prep build:
     `sem` when the caller has one, else a copy of `db` of its own
@@ -1055,7 +1065,8 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         "zone": (pos or {}).get("zone") or (snap[5] if snap else None), "subzone": (pos or {}).get("subzone"),
         "bind": snap[6] if snap else None, "gold_copper": snap[4] if snap else None,
         "professions": profs, "profession_rate": prof_rate,
-        "open_quests": oq, "position": pos, "route_ahead": ahead, "step_history": hist,
+        "open_quests": oq, "position": pos, "last_position": last_position(db, sem), "route_ahead": ahead,
+        "step_history": hist,
         "levels": levels, "xp_table": {str(k): v for k, v in xp_table.items()},
         "sessions": sessions, "kill_xp_share": round(kill_xp / all_xp, 3) if all_xp else None,
         "kill_xp_levels": [lo, level],

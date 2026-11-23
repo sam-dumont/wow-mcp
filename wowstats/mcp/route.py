@@ -67,6 +67,8 @@ class Reference:
     legacy_levels: dict = field(default_factory=dict)  # hand-made file: level -> seconds
     # Where quest givers stand and dungeons open (tools/route_reference/export.mjs `places`).
     places: dict = field(default_factory=dict)
+    # A dungeon trip's quests and travel (export.mjs `trips`, wowstats.plan.tripcost).
+    trips: dict = field(default_factory=dict)
 
     # ------------------------------------------------------------ guides
 
@@ -218,7 +220,8 @@ def _load(path: Path) -> Reference:
                          bias=data.get("bias"), levels=data.get("levels") or {},
                          guides={str(k): v for k, v in (data.get("guides") or {}).items() if isinstance(v, dict)},
                          routes=[r for r in data.get("routes") or [] if isinstance(r, dict)],
-                         places=data.get("places") if isinstance(data.get("places"), dict) else {})
+                         places=data.get("places") if isinstance(data.get("places"), dict) else {},
+                         trips=data.get("trips") if isinstance(data.get("trips"), dict) else {})
     return Reference(True, source=str(data.get("source", ""))[:200],
                      guides={str(k): v for k, v in (data.get("guides") or {}).items() if isinstance(v, dict)},
                      legacy_levels={str(k): int(v) for k, v in (data.get("levels") or {}).items()
