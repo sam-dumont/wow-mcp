@@ -3,8 +3,9 @@
 **For:** everyone: players, AI users, people who run a server, and contributors. **At the
 end:** you've found the page for what you want to do.
 
-New here? [How it works](explanation/how-it-works.md) in five minutes, the
-[questions and answers](faq.md), or the [glossary](glossary.md) for a word you don't know.
+New here? The [quick start](quickstart.md) gets you from nothing to a first answer about the
+demo character in 10 minutes. [How it works](explanation/how-it-works.md) explains the parts,
+the [questions and answers](faq.md) and the [glossary](glossary.md) the rest.
 
 ## Play
 
@@ -22,12 +23,15 @@ data, and the install command comes from their server.
 
 ## Connect your AI
 
+The tools work out each answer from your data in code; your assistant picks them and writes
+the reply.
+
 1. [Connect your AI](ai/connect.md): Claude, ChatGPT, Claude Code and a dozen more clients.
-2. [Ask about your character](ai/asking.md): what to ask, and how the server checks the
-   numbers.
-3. [Tools and prompts](reference/mcp-tools.md): every tool your assistant can call.
-4. [Semantic layer](reference/semantic-layer.md): the named metrics, what each one counts, and
+2. [Tools and prompts](reference/mcp-tools.md): every tool your assistant can call.
+3. [Semantic layer](reference/semantic-layer.md): the named metrics, what each one counts, and
    how to check an answer.
+4. [Ask about your character](ai/asking.md): what to ask, the play analysis, and how the
+   server checks the numbers.
 
 ## Self-host
 
@@ -36,7 +40,8 @@ them. Your friends trust you with their data and with the installer your server 
 
 Start here:
 
-1. [Try it at home](self-host/demo.md): the demo character on your own computer, 10 minutes.
+1. [Try it at home](self-host/demo.md): the demo character on your own computer, 10 minutes,
+   with the sites for friends ([quick start](quickstart.md) for the short version).
 2. [Install it for real](install.md): the server, the addons and the shipper, for yourself.
 
 Set it up:

@@ -52,6 +52,7 @@ const SECTIONS = [
         ],
       },
     } },
+    { src: "docs/quickstart.md", slug: "quick-start", label: "Quick start" },
     { src: "docs/explanation/how-it-works.md", slug: "how-it-works", label: "How it works" },
     { src: "docs/faq.md", slug: "faq", label: "Questions and answers" },
     { src: "docs/glossary.md", slug: "glossary", label: "Glossary" },

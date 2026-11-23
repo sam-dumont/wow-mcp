@@ -45,15 +45,18 @@ ever shows other players, what killed you, or where your character is right now.
 [What's shared](../players/privacy.md).
 
 **Your AI.** The server speaks MCP, the protocol Claude, ChatGPT and a dozen other assistants
-use to call outside tools. Your assistant asks for your data and does the thinking in your own
-account, and wow-stats never sees the conversation. A finding the assistant keeps is checked
-against its saved query: the server re-runs it, compares the numbers and writes the measured
-ones into the finding's text itself, then does it again each night for everyone on the server.
-You can ask to see that query. A host can also have the server run that analysis itself, with an AI
-provider they pay for, once a character has 10 hours of play since its last refresh (the
-host can pick another number). Your AI never starts one of those runs:
+use to call outside tools. The tools work out each answer in code from your data, the same
+numbers as your page: where you stand, time per level, your sessions, the dungeon worth a run,
+your next upgrade, a plan for the next hours. Your assistant picks them and writes the reply in
+your own account; wow-stats never sees the conversation. [Connect your AI](../ai/connect.md).
+
+On top of that, optional: the play analysis. Your assistant asks its own questions of your
+data, and the server keeps a finding only once its query re-runs to the same numbers, writes
+the measured ones into the text itself, and checks it again each night. You can ask to see
+that query. A host can also have the server run the analysis itself, with an AI provider they
+pay for, once a character has 10 hours of play since its last refresh (the host can pick
+another number). Your AI never starts one of those runs:
 [Server-side analysis](../self-host/server-analysis.md).
-[Connect your AI](../ai/connect.md).
 
 **Battle.net data, optional.** With your own Battle.net API client, the server also fetches,
 every 2 hours, your character's look, talents and worn gear (the 3D view and your character's picture use
@@ -65,5 +68,5 @@ retention. [Battle.net data](../self-host/battlenet.md).
 
 - A friend sent you a link: [Join a friend's server](../players/getting-started.md).
 - You want to see it first: [the live demo](../../site/pages/demo.md), a made-up priest.
-- You want to run it: [Try it at home](../self-host/demo.md), 10 minutes with Docker.
+- You want to run it: the [quick start](../quickstart.md), 10 minutes with Docker.
 - The parts in detail, for the curious: [Architecture](../architecture.md).

@@ -2,20 +2,22 @@
 
 **For:** self-hosters and contributors who want the details behind the MCP. **At the end:** you know how the tools, the plans, the play analysis and the login work inside. To connect only: [Connect your AI](ai/connect.md).
 
-The full view can answer questions from your own assistant: "why was level
-12 so slow?", "plan my next hour", "analyse how I play". Add `/mcp` as a
-connector in claude.ai (web, desktop, phone), Claude Code, ChatGPT or any
-MCP client, and the model calls the tools below itself, in your own account.
-Nothing to pay beyond your plan.
+The full view serves MCP tools at `/mcp`: add it as a connector in claude.ai
+(web, desktop, phone), Claude Code, ChatGPT or any MCP client. Most tools
+compute their answer in code from the character's events, the same numbers
+the page shows: no model runs on the server for them, and the same data gives
+the same answer. The client's model picks the tools and writes the reply, in
+your own account, at no cost beyond your plan.
 
-**The reasoning is your client's.** The server prepares the
-data, holds the analysis' state and judges every number: a kept finding is
-one whose numbers match its saved query on a re-run, and the query is kept
-with it for you to read. That checks the numbers, not the reading. The one
-exception is opt-in: a host who configures an AI provider has the server
-run the analysis itself after `ANALYSIS_STALE_PLAYED_HOURS` of play without
-a refresh ([Server-side analysis](self-host/server-analysis.md)); no MCP
-call starts one. The character page's **Ask Claude** and **Ask ChatGPT** links
+**The analysis is the client's too.** The `analyse` prompt has the client's
+model ask its own questions of the data; the server prepares the data, holds
+the run's state and judges every number: a kept finding is one whose numbers
+match its saved query on a re-run, and the query is kept with it for you to
+read. That checks the numbers, not the reading. The one exception is opt-in:
+a host who configures an AI provider has the server run the analysis itself
+after `ANALYSIS_STALE_PLAYED_HOURS` of play without a refresh
+([Server-side analysis](self-host/server-analysis.md)); no MCP call starts
+one. The character page's **Ask Claude** and **Ask ChatGPT** links
 open a new chat (`https://claude.ai/new?q=`, `https://chatgpt.com/?prompt=`: ChatGPT's `?q=` would send it at once) with
 one instruction typed in, "Using the wow connector, run the analyse prompt
 for <character>.", and nothing else: no data in the link, nothing sent
@@ -25,6 +27,9 @@ It is off in `VIEW=public`: every path below answers 404 there. In the
 full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 
 ## Tools
+
+The same list, generated from the server's registry with every argument:
+[Tools and prompts](reference/mcp-tools.md).
 
 | Tool | What it answers |
 | --- | --- |

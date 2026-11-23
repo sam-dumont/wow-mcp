@@ -9,8 +9,8 @@ most of it waiting for downloads. If you tried [the demo](self-host/demo.md), it
 server, without the made-up characters.
 
 It's a hobby project, for hobbyists hosting a few friends: GPL-3.0, no warranty, no support
-promise. It's also overkill for a levelling stats page (an OAuth server, a hardened image and a
-3D renderer for one character's climb), so expect a few more moving parts than the job needs.
+promise. Expect a few more moving parts than a stats page needs (an OAuth server, a hardened
+image, a 3D renderer).
 
 > Every step below was run on a Mac (Apple silicon) from a clean home folder. On Windows the
 > shipper's install is tested on every change; the Docker steps follow Docker's and

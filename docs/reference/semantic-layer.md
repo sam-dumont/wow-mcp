@@ -8,8 +8,8 @@ The MCP server has two ways to ask the play data a question. `play_sql` runs wha
 the assistant writes. `query_metric` asks for **named metrics**: `played_s` by `level`,
 `dungeon_s` by `zone` per week. The server writes the SQL from one model file,
 [`wowstats/analysis/semantic.yaml`](../../wowstats/analysis/semantic.yaml), and sends back the
-rows, the SQL it ran and each metric's definition and caveats. 278 metrics (11 of them across
-models), 94 dimensions, three time grains (day, week, month), and thirteen
+rows, the SQL it ran and each metric's definition and caveats. Every metric and dimension is
+in [the catalogue](#the-catalogue) below, with three time grains (day, week, month) and the
 [views per grain](#views-per-grain) that `play_sql` reads like tables.
 
 The character page reads the same file: its time per level, XP an hour, kill and quest totals,
@@ -35,19 +35,9 @@ Two more things come free with it. Every answer carries the SQL that made it, so
 judge) can re-run it. And the values you filter on are bound as parameters (`$p0`, `$p1`): a
 zone called `Westfall'; DROP TABLE levels; --` is just a zone that matches nothing.
 
-The tables underneath moved from SQLite to DuckDB for this: a columnar engine made for
-exactly these GROUP BYs, and the dialect the layer compiles to.
-The layer itself is [Boring Semantic Layer](https://github.com/boringdata/boring-semantic-layer)
-(MIT): measures, dimensions, time grains and ratios in a YAML file, compiled to SQL through ibis
-and sqlglot. Only the compiler runs here (no ibis backend, so no pandas or pyarrow in the image).
-The others I looked at:
-
-- **dbt MetricFlow** (Apache-2.0): the reference design, but 0.214 caps Python at
-  3.14 and the image runs 3.15. It also wants a dbt manifest and a time spine table.
-- **Cube**: a Node server next to the app, heavier than the whole image.
-- **Malloy**: its own query language to learn, and the Python package was last released in
-  September 2024.
-- **Wren Engine**: pulls pandas, pyarrow and boto3.
+The layer is [Boring Semantic Layer](https://github.com/boringdata/boring-semantic-layer)
+(MIT), compiled to DuckDB SQL. Why that one and not dbt MetricFlow or Cube:
+[Architecture](../architecture.md#the-semantic-layer).
 
 ## How a question runs
 
@@ -262,8 +252,7 @@ refuse the others.
 
 ## The pages read it too
 
-The character page's numbers used to be counted by the page's own code, next to the layer's.
-Now the page takes them from the layer:
+The character page takes these numbers from the layer:
 
 | On the page | Metric |
 |---|---|
@@ -278,20 +267,16 @@ Now the page takes them from the layer:
 DuckDB runs when the answers are built (the full view's background builder after new data,
 the publisher's static builds), once per character and data, never for a page view. It reads
 only the feeds those metrics need (level splits, dungeon runs, and the Recorder's level,
-session, zone and death records), not the whole history the analysis copies. Every answer said
-exactly what it said before the move (`tests/test_layer_pages.py`, against a snapshot taken
-before, on the demo of the day), and the test keeps them there.
+session, zone and death records), not the whole history the analysis copies.
+`tests/test_layer_pages.py` pins every answer on the demo.
 
-Two definitions the page used to have its own way of are now the layer's, in shared code
-rather than through DuckDB:
+Two definitions the page and the layer share in plain code rather than through DuckDB:
 
 - **Sessions**: more than 330 s without a Recorder record ends one, for the journal, the
   Overview, the timeline, the MCP's `sessions` tool and the layer's `sessions`
-  (`stores.split_sessions`). It used to be 20 minutes or a login on the page, 20 minutes on 5
-  minute buckets in the MCP.
+  (`stores.split_sessions`).
 - **The route's time for a level**: the class's median over the side's starting races, else
   the median over classes, for the Overview's pace, the MCP and `planned_s` (`Route.level`).
-  The page used to take your race's own run when the route export had one.
 
 The hero line's gold is the purse at the last logout, a fact rather than a metric.
 
@@ -351,7 +336,7 @@ each of its source rows, and two items for one slot are alternatives, never a su
 
 ## Views per grain
 
-The owner's call (2026-11-22): every tool and brief fact reads through the layer. A SELECT
+Every tool and brief fact reads through the layer. A SELECT
 the assistant writes is the one reader the layer can't hand a metric to, so the layer hands it
 views instead: `per_level`, `per_session`, `per_zone`, `per_dungeon`, `per_trip`, `per_guide`,
 `per_quest`, `per_death`, `per_week`, `per_slot`, `per_faction`, `per_flight_node` and
@@ -404,18 +389,17 @@ A `query_metric` call counts in the analysis run like a `play_sql` query: it add
 query count, and the tables under the metrics it read count as read, so the coverage round
 doesn't send a lane back to a table the metrics already covered.
 
-## play_sql speaks DuckDB now
+## play_sql's dialect
 
-Same tables, same columns, same row cap and timeout. The dialect differs from SQLite in a few
-places that matter:
+`play_sql` runs DuckDB. Where it differs from SQLite:
 
 - `/` divides as decimals: `7/2` is 3.5. Use `//` for whole numbers.
 - A comparison doesn't sum: `COUNT(*) FILTER (WHERE kind = 'kill')` or
   `SUM(CAST(kind = 'kill' AS INT))`, not `SUM(kind = 'kill')`.
 - `strftime` takes the time first: `strftime(to_timestamp(t), '%H')`.
 
-Findings kept before the switch were written for SQLite: the nightly recheck keeps running
-those on SQLite, so none of them breaks.
+Findings kept while `play_sql` ran SQLite are still rechecked on SQLite, so none of them
+breaks.
 
 ## The catalogue
 
