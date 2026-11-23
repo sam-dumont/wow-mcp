@@ -8,19 +8,21 @@ This is the project's history, from its first commit on 18 November 2026 to vers
 {{app_version}}, the one these docs describe. For what it does today, read
 [How it works](explanation/how-it-works.md); for the code, [Architecture](architecture.md).
 
-<!-- check: the opening question. The logs only say "started levelling in WoW Forever and wanted the numbers". Put your own words here if you remember them. -->
-I started levelling a character in WoW Forever in November 2026 and wanted to know two boring
-things: am I slow, and where did the hours go? [Polestar](https://github.com/fitzforge/polestar)
+I started levelling in WoW Forever and wanted the numbers: am I slow, and where did the hours
+go? [Polestar](https://github.com/fitzforge/polestar)
 already had the route and a clock. What it didn't have was my history: time per level against
 the route, which dungeons were worth the trip, what to wear next. I run a homelab with a
 Kubernetes cluster, a log database and a couple of MCP servers, so the answer came out
 homelab-shaped.
 
-<!-- check: 17 versions = 0.1.0, 0.2.0-0.2.4, 0.3.0-0.3.1, 0.4.0-0.4.3, 0.5.0, 0.6.0, 0.6.1, 0.7.0, 0.8.0 (tags of both repos); PRs = 167 private + 203 public at 2026-11-23 -->
-It took six days: 17 versions, 8 release candidates and about 370 pull requests between
-18 and 23 November. I wrote very little of the code by hand. Claude Code sessions did, often
-four or five agents in parallel, while I read the plans, made the calls and played the game
-that produced the test data. <!-- check: is that how you want the AI part told? -->
+I wrote very little of the code by hand. Claude Code sessions wrote the code, often four or
+five agents in parallel, while I read the plans, made the calls and played the game that
+produced the test data.
+
+The work ran as many small pull requests, each through the same checks before it merged:
+about 370 between 18 and 23 November. That's how the work was cut, and says nothing about
+whether it's any good. What says more is further down: the review rounds and what they found,
+and the tests that caught bugs on their first run.
 
 ## 18 November: a Mac, a folder and a log database
 
@@ -47,7 +49,7 @@ Three rules from that first day are still here:
   became a static bundle built by its own service, served by a pod with no network access.
 
 0.2.0 came that afternoon with the static sites: the public one, and `/zogzog/`, a sealed copy
-for friends whose key sits in the link. <!-- check: say where the name "zogzog" comes from, or leave it unexplained? -->
+for friends whose key sits in the link.
 0.3.0 came that evening with the first play analysis: a **Coach** button that ran a model on
 the server, on the player's own API key.
 
@@ -59,7 +61,9 @@ check that one never sees the other's names, on every page, tool and built site.
 
 The same release took the model off the server: the Coach button, the nightly model run and a
 340 MB image of Claude Code's CLI went. Your own assistant drives the analysis over MCP now, and
-the server re-runs every finding's query before keeping it. <!-- check: the reason. My reading: a model on the server means the host pays for everyone's tokens and sees everyone's prompts. -->
+the server re-runs every finding's query before keeping it. With the model on the server, the
+host paid for everyone's tokens and saw everyone's prompts. Neither was a good deal for a
+friend's install.
 
 Real data found the first load problem: the homelab's WoW store was killed for running out of
 memory three times on the 18th. One cache per character took a page load from
@@ -69,9 +73,10 @@ Dungeon advice learned to follow Polestar. At level 32 it said Scarlet Monastery
 Polestar said Razorfen Kraul, and my ruling was "we need a REASON why it deviates from the
 guide". It still says why whenever it disagrees.
 
-That evening 0.5.0 became the public edition, here in sam-dumont/wow-mcp: images for amd64 and
-arm64 with their provenance and signatures, the demo's made-up characters, and nothing that
-names a private server. <!-- check: the public repo started from a fresh export, not the private history? --> A security review the same day made every deployment shape fail closed:
+That evening 0.5.0 became the public edition, here in sam-dumont/wow-mcp. It started fresh
+instead of carrying the private history over: that history was a bit of a mess, and I wanted a
+clean point in time to start from. Images for amd64 and arm64 with their provenance and
+signatures, the demo's made-up characters, and nothing that names a private server. A security review the same day made every deployment shape fail closed:
 the server refuses to start without a login and a list of the host names it answers to.
 
 ## 20 November: development moves to the public repository
@@ -121,10 +126,20 @@ checked against a recorded Stockade clear (+3%) and two City of Dalaran runs (âˆ
 went from 41 tools to 38, one question each.
 
 The last change before these docs: your events can live in one SQLite file per person instead
-of VictoriaLogs. One container fewer and nothing to size, for a host with a handful of
-players. VictoriaLogs stays the default. <!-- check: the reason for adding SQLite -->
+of VictoriaLogs. VictoriaLogs was already in my homelab, so I reused it, but it's not the
+most common or convenient thing for anyone else to run. SQLite makes it a one-container install:
+nothing to size, a folder to back up. VictoriaLogs stays the default.
 
-Then this rewrite of the docs, for 1.0. <!-- check: what 1.0 means to you (frozen tools and env vars? the upgrade promise?) and its date -->
+The same day, integration slices went in: five made-up characters sent through the real upload
+path, then read back through the page and the MCP tools, checking that one number means one
+thing on every surface. On their first run they caught four bugs that the other tests had
+missed, among them the page and the MCP disagreeing on the time spent in the current level,
+and the dungeon list offering Alliance characters the Horde city's dungeon.
+
+Then this rewrite of the docs, for 1.0. 1.0 means stable-ish: the tools your AI calls and the
+settings you put in `.env` stay put, and anything that does change gets an upgrade note in the
+[changelog](../CHANGELOG.md). It's a hobby project, so that's an intention, not a guarantee. It
+ships when it's ready.
 
 ## Why it ended up like this
 
