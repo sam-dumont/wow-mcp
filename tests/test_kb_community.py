@@ -306,3 +306,43 @@ def test_searches_the_model_never_ran_are_not_recorded(no_digest):
     community.run(Fetch(), again, cap=1.0, today=TODAY, searches=["Onyxia's Lair"],
                   seen=community.shown(doc), last=doc["searched"])
     assert len(again.requests) == 1
+
+
+class Refusing(Model):
+    def __init__(self, exc):
+        super().__init__(ANSWER)
+        self.exc = exc
+
+    def create(self, **kw):
+        raise self.exc
+
+
+class HTTPError(Exception):
+    def __init__(self, status, msg):
+        super().__init__(msg)
+        self.status_code = status
+
+
+def test_a_refused_reddit_domain_skips_reddit_and_keeps_forum_lines(no_digest, capsys):
+    """2026-11-23: web_search answered 400 'not accessible to our user agent' for reddit.com."""
+    exc = HTTPError(400, "The following domains are not accessible to our user agent: ['reddit.com']")
+    items, out = community.run(Fetch(), Refusing(exc), cap=1.0, today=TODAY, searches=["Onyxia's Lair"])
+    assert items and all(it.get("source") != "reddit" for it in items)
+    assert out["searched"] is None and any("Reddit skipped" in n for n in out["notes"])
+    assert "Reddit skipped" in capsys.readouterr().err
+
+
+def test_a_refusal_inside_a_result_block_skips_reddit_too(no_digest):
+    err = SimpleNamespace(type="web_search_tool_result_error", error_code="domain_not_accessible", message="")
+    model = Model(ANSWER, results=err)
+    items, out = community.run(Fetch(), model, cap=1.0, today=TODAY, searches=["Onyxia's Lair"])
+    assert items and out["searched"] is None
+
+
+def test_any_other_api_error_still_fails(no_digest):
+    with pytest.raises(HTTPError):
+        community.run(Fetch(), Refusing(HTTPError(400, "max_tokens too large")), cap=1.0, today=TODAY,
+                      searches=["x"])
+    with pytest.raises(HTTPError):
+        community.run(Fetch(), Refusing(HTTPError(500, "not accessible to our user agent")), cap=1.0,
+                      today=TODAY, searches=["x"])
