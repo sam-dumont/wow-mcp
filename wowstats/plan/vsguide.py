@@ -89,7 +89,8 @@ def measured(quests: list[dict], gain: dict | None) -> tuple[str | None, dict]:
     own runs there beating his questing XP an hour. (text, numbers); text
     None when nothing measured beats following Polestar."""
     ready = [q for q in quests if q.get("state") == "open" and q.get("complete")]
-    log = [q for q in quests if q.get("state") == "open"]
+    # A wing's "all" quest its trip doesn't finish is no reason to go there.
+    log = [q for q in quests if q.get("state") == "open" and not (q.get("wings") or {}).get("other_wings")]
     xp_log = sum(q.get("xp_now") or 0 for q in log)
     g = gain or {}
     runs = g.get("own_runs") or 0

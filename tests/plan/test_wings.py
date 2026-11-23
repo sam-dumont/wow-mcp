@@ -79,7 +79,8 @@ def test_the_panel_has_one_line_per_wing(priest):
     # Its own quests; a quest of three wings on each of them, saying so.
     lq = {q["quest_id"]: q for q in lib["quests"]}
     assert 1050 in lq and 1050 not in {q["quest_id"] for q in gy["quests"]}
-    assert lq[1053]["wings"] == {"in": ["Library", "Armory", "Cathedral"], "how": "all"}
+    assert lq[1053]["wings"] == {"in": ["Library", "Armory", "Cathedral"], "how": "all",
+                                 "other_wings": ["Armory", "Cathedral"]}
     assert 1053 in {q["quest_id"] for q in cath["quests"]}
     # Its own drops: the Graveyard's bosses' items stay in the Graveyard.
     gy_bosses = {d["npc_id"] for x in gy["drops"] for d in x["drops"] if d.get("npc_id")}
@@ -124,3 +125,59 @@ def test_a_run_counts_for_the_wing_its_kills_stayed_in(priest):
     assert blocks["Scarlet Monastery: Library"]["state"] == "run"
     assert blocks["Scarlet Monastery: Library"]["gain"]["basis"] == "runs"
     assert blocks["Scarlet Monastery: Graveyard"]["gain"]["basis"] != "runs"
+
+
+def _sm_at_38(priest, open_quests, trips=()):
+    """The external review's case: level 38, In the Name of the Light (1053)
+    in the log after its breadcrumb (1052), no runs of his own."""
+    inp = copy.deepcopy(priest)
+    inp.update(level=38, trips=list(trips), open_quests=open_quests)
+    inp["quests_done"] = list((set(inp["quests_done"]) | {1052}) - {1053})
+    return {w: D.gain_named(inp, f"Scarlet Monastery: {w}", 20_000) for w in ("Armory", "Library", "Cathedral")}
+
+
+def test_a_quest_of_every_wing_pays_only_the_trip_that_finishes_it(priest):
+    # 1053 needs a boss in each of the Library, the Armory and the
+    # Cathedral: one wing's trip doesn't finish it, so none of them is paid
+    # its 4,700 XP, its reward or its hand-in. Each still lists it apart.
+    g = _sm_at_38(priest, [{"quest_id": 1053, "complete": False, "accepted_t": 1.0}])
+    for w, x in g.items():
+        assert 1053 not in {q["quest_id"] for q in x["quests"]}, w
+        (wait,) = x["quests_needing_other_wings"]
+        assert wait["quest_id"] == 1053 and wait["xp_now"] == 4700
+        assert wait["other_wings"] == [o for o in ("Library", "Armory", "Cathedral") if o != w]
+    assert g["Armory"]["xp_quests"] == 0 and g["Cathedral"]["xp_quests"] == 0
+    assert not g["Armory"]["trip"]["stops"]["handin"]
+    # Complete in his log: whichever wing he goes to, the hand-in pays.
+    g = _sm_at_38(priest, [{"quest_id": 1053, "complete": True, "accepted_t": 1.0}])
+    for w, x in g.items():
+        assert 1053 in {q["quest_id"] for q in x["quests"]}, w
+        assert "quests_needing_other_wings" not in x
+    assert g["Armory"]["xp_quests"] == 4700
+
+
+def test_the_last_wing_of_an_all_quest_is_paid_once_the_others_are_seen_done(priest):
+    # Loksey (3974, Library) and Mograine and Whitemane (3976, 3977,
+    # Cathedral) killed on trips since he took it: the Armory's Herod (3975)
+    # finishes it, so the Armory's trip pays it; the other two still wait.
+    since = 1_000.0
+    trips = [{**copy.deepcopy(priest["trips"][0]), "dungeon": "Scarlet Monastery", "start_t": since + 10,
+              "end_t": since + 20, "kill_npcs": {"3974": 1, "3976": 1, "3977": 1}}]
+    g = _sm_at_38(priest, [{"quest_id": 1053, "complete": False, "accepted_t": since}], trips)
+    assert 1053 in {q["quest_id"] for q in g["Armory"]["quests"]}
+    assert g["Armory"]["xp_quests"] == 4700 and "quests_needing_other_wings" not in g["Armory"]
+    assert g["Library"]["quests_needing_other_wings"][0]["other_wings"] == ["Armory"]
+    # The same kills before he took it say nothing about this quest.
+    g = _sm_at_38(priest, [{"quest_id": 1053, "complete": False, "accepted_t": since + 30}], trips)
+    assert 1053 not in {q["quest_id"] for q in g["Armory"]["quests"]}
+
+
+def test_a_quest_any_wing_finishes_stays_on_each(priest):
+    # Twisted Evils (7028): Theradric crystal carvings in any Maraudon wing.
+    inp = copy.deepcopy(priest)
+    inp.update(level=46, trips=[], open_quests=[{"quest_id": 7028, "complete": False, "accepted_t": 1.0}])
+    for w in ("Orange", "Purple"):
+        b = D.gain_named(inp, f"Maraudon: {w}", 20_000)
+        assert 7028 in {q["quest_id"] for q in b["quests"]}, w
+        # Legends of Maraudon (7044) needs both wings' items: it waits.
+        assert {q["quest_id"] for q in b.get("quests_needing_other_wings") or []} == {7044}

@@ -388,20 +388,33 @@ def quests_for(inp: dict, aid: str, drops: list[dict], places: dict | None = Non
                     "rewards": [{k: d[k] for k in ("item_id", "name", "quality", "gain", "state", "where", "url",
                                                    *BADGE)}
                                 for d in rw[:1]], "reward_choices": len(rw),
-                    **_wings_of(area, q)})
+                    **_wings_of(area, q, state, open_ids.get(qid), inp.get("trips") or ())})
     order = {"open": 0, "new": 1, "done": 2}
     out.sort(key=lambda q: (order[q["state"]], q.get("min_level") or 0, q["quest_id"]))
     return out
 
 
-def _wings_of(area: dict | None, q: dict) -> dict:
+def _wings_of(area: dict | None, q: dict, state: str = "new", open_quest: dict | None = None,
+              trips=()) -> dict:
     """For a wing's quest, the wings it is in (wowstats.plan.wings): "all"
-    needs each of them on one trip, "any" is done in whichever."""
+    needs each of them, "any" is done in whichever. `other_wings`: for an
+    "all" quest not done, the wings it still needs before this wing's trip
+    finishes it (W.other_wings); a quest with some is not this wing's to
+    pay (waits_on_other_wings)."""
     if not (area or {}).get("wing"):
         return {}
     w = W.quest(area["name"], q["quest_id"]) or next(
         (W.quest(area["name"], v) for v in q.get("variants") or [] if W.quest(area["name"], v)), None) or {}
-    return {"wings": {"in": w.get("wings") or [area["wing"]], "how": w.get("how") or "one"}}
+    out = {"in": w.get("wings") or [area["wing"]], "how": w.get("how") or "one"}
+    if out["how"] == "all" and state != "done":
+        out["other_wings"] = W.other_wings(area["name"], w, open_quest, trips)
+    return {"wings": out}
+
+
+def waits_on_other_wings(q: dict) -> bool:
+    """A wing's "all" quest its trip doesn't finish: its XP, reward and
+    hand-in belong to no single wing's trip (_wings_of)."""
+    return bool((q.get("wings") or {}).get("other_wings"))
 
 
 def _how(qid: int, pre: dict, who) -> dict:
@@ -420,7 +433,7 @@ def quest_rewards(drops: list[dict], quests: list[dict]) -> list[dict]:
     out = []
     for q in quests:
         rw = [d for d in drops if q["quest_id"] in d["quests"] and d["state"] == "missing"]
-        if q["state"] == "done" or not rw:
+        if q["state"] == "done" or not rw or waits_on_other_wings(q):
             continue
         best = max(rw, key=lambda d: d.get("value", d["gain"]) or 0)
         out.append({**{k: best[k] for k in ("item_id", "name", "quality", "slot_name", "gain", "gain_pct",
@@ -439,7 +452,7 @@ def trip_value(mine: list[dict], every: dict, quests: list[dict]) -> dict:
     """A trip's numbers: his own runs of this dungeon when he has some (n
     says how many), else his trips elsewhere for the time only. XP per run
     is measured or absent; the quests' XP is the game's own (forever-db)."""
-    left = [q for q in quests if q["state"] != "done"]
+    left = [q for q in quests if q["state"] != "done" and not waits_on_other_wings(q)]
     quest_xp_left = sum(q["xp_now"] or 0 for q in left)
     if mine:
         n = len(mine)
@@ -472,11 +485,12 @@ def trip_value(mine: list[dict], every: dict, quests: list[dict]) -> dict:
     return {"measured": False, "n": 0, "quest_xp_left": quest_xp_left}
 
 
-def trip_at(name: str, who: dict, level: int, done, log, seen: dict | None) -> dict | None:
+def trip_at(name: str, who: dict, level: int, done, log, seen: dict | None, skip=()) -> dict | None:
     """The trip Polestar's rules make for a character in this state
     (wowstats.plan.tripcost.trip): `who` his faction, race and class, `seen`
-    where he stands (map_id, x, y; None: the entrance). None without route
-    data for the dungeon or the wing."""
+    where he stands (map_id, x, y; None: the entrance), `skip` quests the
+    trip leaves out (a wing's "all" quest it doesn't finish). None without
+    route data for the dungeon or the wing."""
     from wowstats.mcp import route
 
     from . import tripcost
@@ -491,10 +505,10 @@ def trip_at(name: str, who: dict, level: int, done, log, seen: dict | None) -> d
     at = tripcost.to_world(trips, seen.get("map_id"), seen.get("x"), seen.get("y"))
     return tripcost.trip(trips, area["map"], side=who.get("faction"), level=level, race=who.get("race"),
                          cls=who.get("class"), done=set(done or ()), log=set(log or ()), at=at,
-                         wing=wing[1] if wing else None)
+                         wing=wing[1] if wing else None, skip=set(skip))
 
 
-def route_trip(inp: dict, name: str, quests: list[dict]) -> dict | None:
+def route_trip(inp: dict, name: str, quests: list[dict], skip=()) -> dict | None:
     """The trip Polestar's pick-up and hand-in rules make for him now
     (trip_at): from where he was last seen, on his level, race, class and
     quests, with the XP of the quests it hands in (the panel's own figure
@@ -507,7 +521,7 @@ def route_trip(inp: dict, name: str, quests: list[dict]) -> dict | None:
 
     level = inp["level"]
     t = trip_at(name, inp.get("who") or {}, level, inp.get("quests_done") or [],
-                {o["quest_id"] for o in inp.get("open_quests") or []}, inp.get("last_position"))
+                {o["quest_id"] for o in inp.get("open_quests") or []}, inp.get("last_position"), skip)
     if not t:
         return None
     trips = route.reference().trips
@@ -572,10 +586,20 @@ def gain_of(inp: dict, name: str, mine: list[dict], quests: list[dict], quest_xp
     the MCP's dungeon_options. `drops`: the panel's (drops_for), for the
     drop upgrades the line counts."""
     level = inp["level"]
-    return G.estimate(level=level, xp_max=inp.get("xp_max") or E.xp_need(inp, level)[0], name=name, runs=mine,
-                      others=inp.get("trips") or [], quests=quests, questing_xph=quest_xph, rule=G.kill_rule(),
-                      route=route_trip(inp, name, quests), drops=drop_odds(drops or []),
-                      pace=pace(inp.get("trips") or []))
+    # A wing's "all" quest its trip doesn't finish: out of the trip (no
+    # XP, no reward, no hand-in), listed apart for the MCP.
+    wait = [q for q in quests if waits_on_other_wings(q)]
+    here = [q for q in quests if not waits_on_other_wings(q)]
+    skip = {i for q in wait for i in (q["quest_id"], *(q.get("variants") or []))}
+    g = G.estimate(level=level, xp_max=inp.get("xp_max") or E.xp_need(inp, level)[0], name=name, runs=mine,
+                   others=inp.get("trips") or [], quests=here, questing_xph=quest_xph, rule=G.kill_rule(),
+                   route=route_trip(inp, name, here, skip), drops=drop_odds(drops or []),
+                   pace=pace(inp.get("trips") or []))
+    if wait:
+        g["quests_needing_other_wings"] = [
+            {"quest_id": q["quest_id"], "name": q["name"], "url": q.get("url"), "state": q["state"],
+             "xp_now": q.get("xp_now"), "other_wings": q["wings"]["other_wings"]} for q in wait]
+    return g
 
 
 def gain_named(inp: dict, name: str, quest_xph: float | None) -> dict | None:

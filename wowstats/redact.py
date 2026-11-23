@@ -208,6 +208,9 @@ GAIN = {**_keys("own_runs", "level", "run_s", "time", "xp_kills", "xp_quests", "
                 "kills_unknown", "questing_xp_per_hour", "vs_questing", "questing_s", "quests_shown", "summary",
                 "lead", "upgrades"),
         "quests": [{**_keys("quest_id", "name", "url", "xp_now", "state", "level"), "starts": [WHO]}],
+        # A wing's quests its trip doesn't finish (game data: the wings it still needs).
+        "quests_needing_other_wings": [{**_keys("quest_id", "name", "url", "xp_now", "state"),
+                                        "other_wings": [None]}],
         # The trip's parts, each with its label (measured / route / estimate).
         # `from` says where it starts ("you", "entrance"), never the place.
         "trip": {**{k: _keys("value", "label") for k in ("pickup_s", "inside_s", "handin_s", "travel_s", "total_s",
