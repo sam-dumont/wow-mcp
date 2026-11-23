@@ -7,8 +7,8 @@ and which dungeons don't have one yet.
 
 Forever's dungeons are worth running for their quests and their gear. Their
 kill XP is small on purpose, and the rules stop you from farming the same
-one: so wow-stats gives the kill XP apart from the quests and the drops,
-always labelled for what it is.
+one: so the Dungeons panel lists the quests and the drops first and the
+kill XP after them, always labelled for what it is.
 
 ## The rules it follows
 
@@ -48,7 +48,9 @@ Who a run kills depends on the dungeon:
 
 Time inside is kills × the seconds a kill took in the reference runs:
 13.5 s in the original dungeons (the Stockade's full clear), 23 s in the new
-ones (Dalaran's two runs).
+ones (Dalaran's two runs). The run's line in the panel and the Overview uses
+that time too, where a guide's clear time often reads short (Gnomeregan: the
+guide's 40 min against ~1h15 here, and about an hour on a real run).
 
 **Once you've run a dungeon, your own runs replace all of this** (label
 `measured`): your kill XP inside, minus the quests you handed in there,

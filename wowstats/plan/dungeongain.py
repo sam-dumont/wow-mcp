@@ -16,9 +16,11 @@ Where the numbers come from, in order:
    Forever's dungeon bonus and the group split multiply every kill alike,
    so they cancel in that ratio. A run at another level without the
    creatures' levels can't be carried: its kill XP stays unknown;
-2. otherwise the KB's clear time for the dungeon (dungeon.<name>
-   clear_min), plus his own measured travel and quest time from his other
-   trips when he has some. The run's XP and its verdict stay the quests'
+2. otherwise the kill estimate's time inside (wowstats.plan.dungeonxp:
+   its kills x the seconds a kill took in the reference runs; basis
+   "kill_model"), else the KB's clear time for the dungeon (dungeon.<name>
+   clear_min; basis "rules"), plus his own measured travel and quest time
+   from his other trips when he has some. The run's XP and its verdict stay the quests'
    alone: kill XP from anything but his own runs is an estimate, and an
    estimate never ranks a dungeon (owner, 2026-11-23: quests and gear
    first). It is given apart, labelled, in `kill_xp`
@@ -176,8 +178,13 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
         xp_k = sum(known) / len(known) if known else None
         time = "trip"
     else:
-        clear = clear_s(name) if clear is None else clear
-        basis = "rules" if clear else None
+        # Time inside: the kill estimate's (kills x seconds a kill), else the
+        # KB's clear time. Owner, 2026-11-23: Gnomeregan's guide says ~40 min,
+        # the model ~1h15, a real run "probably ~1h": the model is closer.
+        model = model_inside(name, level, rule) if clear is None else None
+        basis = "kill_model" if model else None
+        clear = (model or clear_s(name)) if clear is None else clear
+        basis = basis or ("rules" if clear else None)
         xp_k = None
         if clear and others:
             run_s = clear + _mean(others, "travel_to_s") + _mean(others, "travel_back_s") + (
@@ -207,6 +214,14 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
     out["kill_xp"] = run_kills(name, level, runs, xp_k, rule)
     out["summary"] = summary(out)
     return out
+
+
+def model_inside(name: str, level: int, rule: dict | None) -> float | None:
+    """A run's time inside by the kill estimate (wowstats.plan.dungeonxp)."""
+    from . import dungeonxp
+
+    e = dungeonxp.estimate(name, level, rule)
+    return float(e["inside_s"]) if e and e.get("inside_s") else None
 
 
 def run_kills(name: str, level: int, runs: list[dict], xp_k: float | None, rule: dict | None) -> dict | None:

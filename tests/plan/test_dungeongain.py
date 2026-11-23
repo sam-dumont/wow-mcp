@@ -16,6 +16,7 @@ from wowstats.analysis import kb
 from wowstats.mcp import plantools, tools
 from wowstats.plan import dungeongain as G
 from wowstats.plan import dungeonview as V
+from wowstats.plan import dungeonxp as D
 from wowstats.plan import estimate as E
 
 DATA = Path(__file__).resolve().parent.parent / "data"
@@ -88,18 +89,37 @@ def test_runs_at_another_level_are_carried_by_the_creatures_killed():
     assert g["vs_questing"] is None and g["lead"] == "~1h20 + quests worth ~3k XP"
 
 
-def test_without_runs_the_kb_clear_time_and_his_own_travel():
+def test_without_runs_the_kill_estimates_time_and_his_own_travel():
+    # Owner, 2026-11-23: the kill estimate's time inside, not the guide's clear.
+    qs = [quest(1, 9400), quest(2, 9400), quest(3, 9400, state="open")]
+    other = trip(30, 3000, dungeon="Blackfathom Deeps")
+    inside = D.estimate("City of Dalaran", 32, RULE)["inside_s"]
+    g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, others=[other], questing_xph=15107)
+    assert g["basis"] == "kill_model" and g["kills_unknown"] and g["xp_kills"] is None
+    assert g["run_s"] == inside + 600 + 300 + 900 + 600
+    assert g["kill_xp"]["inside_s"] == inside
+    # Gnomeregan: ~1h15 inside by its kills, where the guide said ~40 min.
+    g = est(level=34, xp_max=54500, name="Gnomeregan", quests=qs, questing_xph=15107)
+    assert g["basis"] == "kill_model" and g["run_s"] == D.estimate("Gnomeregan", 34, RULE)["inside_s"]
+    assert g["run_s"] > G.clear_s("Gnomeregan") or G.clear_s("Gnomeregan") is None
+
+
+def test_without_runs_or_a_kill_estimate_the_kb_clear_time():
     qs = [quest(1, 9400), quest(2, 9400), quest(3, 9400, state="open")]
     clear = G.clear_s("City of Dalaran")
     assert clear == 56 * 60  # the recorded median, ahead of a guide's range
+    assert G.clear_s("Excavation Site: Wetlands") and D.estimate("Excavation Site: Wetlands", 30, RULE)["xp"] is None
+    g = est(level=30, name="Excavation Site: Wetlands")
+    assert g["basis"] == "rules" and g["run_s"] == G.clear_s("Excavation Site: Wetlands")
     other = trip(30, 3000, dungeon="Blackfathom Deeps")
-    g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, others=[other], questing_xph=15107)
+    g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, others=[other], questing_xph=15107,
+            clear=clear)
     assert g["basis"] == "rules" and g["kills_unknown"] and g["xp_kills"] is None
     assert g["run_s"] == clear + 600 + 300 + 900 + 600
     assert g["xp_quests"] == 28200 and g["level_pct"] == 52
     assert "+ quests worth ~28k XP (52% of a level)" in g["summary"]
     # No trip of his anywhere: the clear alone, and what the quests are worth in questing time.
-    g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, questing_xph=15107)
+    g = est(level=32, xp_max=54500, name="City of Dalaran", quests=qs, questing_xph=15107, clear=clear)
     assert g["time"] == "clear" and g["xp_per_hour"] == per_hour(28200, clear)
     assert g["summary"] == "~55 min + quests worth ~28k XP (52% of a level)" and g["vs_questing"] is None
     assert g["lead"] == "~55 min + quests worth ~28k XP"
@@ -113,9 +133,9 @@ def per_hour(x, s):
 
 def test_a_dungeon_above_his_level_counts_only_the_quests_he_can_take():
     qs = [quest(1, 5000, min_level=24), quest(2, 4000, min_level=28), quest(3, 3000, blocked=True)]
-    g = est(level=25, name="Razorfen Downs", quests=qs)
+    g = est(level=25, name="Alcaz Prison", quests=qs)
     assert [q["quest_id"] for q in g["quests"]] == [1]
-    assert g["xp_quests"] == 5000 and g["run_s"] is None  # no clear time in the KB, no run
+    assert g["xp_quests"] == 5000 and g["run_s"] is None  # no clear time in the KB, no kill estimate, no run
     assert g["summary"] == "Its quests pay ~5k XP (17% of a level), what 25 min of your questing pays"
 
 
@@ -129,7 +149,7 @@ def test_a_dungeon_below_his_level_pays_nothing_for_grey_creatures():
 
 def test_no_quest_data():
     # Nothing ran, no quests, no clear time: nothing to say, nothing made up.
-    g = est(name="Scarlet Monastery")
+    g = est(name="Blackmaw Hold")
     assert g["summary"] is None and g["xp"] is None and g["run_s"] is None and g["quests"] == []
     # His runs alone still give the kills.
     g = est(runs=[trip(20, 6000)])

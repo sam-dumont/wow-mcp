@@ -394,7 +394,8 @@ def dungeons(inp: dict, p: dict, mount: dict) -> list[dict]:
             entry["trip"] = {"time_s": g["run_s"], "xp": xp_trip, "xp_per_hour": per_hour(xp_trip, g["run_s"]),
                              "kills_unknown": g["kills_unknown"],
                              "from": (f"your {g['own_runs']} run(s) there" if g["basis"] == "runs" else
-                                      "the knowledge base's clear time" + (
+                                      ("the kill estimate's time inside" if g["basis"] == "kill_model" else
+                                       "the knowledge base's clear time") + (
                                           f", plus the travel and quest time of your {ts['n']} dungeon trips"
                                           if ts["n"] and g["time"] == "trip" else "")),
                              "n": g["own_runs"] or ts["n"],
