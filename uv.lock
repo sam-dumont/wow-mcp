@@ -2506,7 +2506,7 @@ wheels = [
 
 [[package]]
 name = "wow-stats"
-version = "0.7.0rc8"
+version = "0.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "boring-semantic-layer" },
