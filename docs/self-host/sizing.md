@@ -56,8 +56,8 @@ layer at build time: a forced build of both demo sites, run outside Docker on ma
 The long history wasn't re-run with DuckDB: give `publish` 512 MiB if you set a limit, `ui`
 1 GiB (the compose default), and check `docker stats` after the first `analysis_brief`.
 
-The compose kit caps `ui` at 1 GiB (`UI_MEM_LIMIT`), about twice its measured peak; the others
-run without a limit. A history much longer than a year, or item cards on with a long history:
+The compose kit caps `ui` at 1 GiB (`UI_MEM_LIMIT`), about twice its measured peak, and
+VictoriaLogs at 1 GiB (`VL_MEM_LIMIT`, peak 217 MiB); the others run without a limit. A history much longer than a year, or item cards on with a long history:
 raise `UI_MEM_LIMIT` and watch `docker stats`.
 
 ## Disk

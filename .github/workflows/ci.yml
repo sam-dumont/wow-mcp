@@ -83,6 +83,41 @@ jobs:
       - run: uv run python tools/fixtures/generate.py --check
       - run: for f in web/*.js web/model3d/model3d.js web/model3d/view.js; do node --check "$f"; done
 
+  # wowstats/logsql.py answers most of the views' LogsQL in Python; every
+  # other test's "VictoriaLogs" is that same engine. Here both answer the
+  # same queries over the same rows, VictoriaLogs being the image the compose
+  # kit pins, with its flags (both read from compose.yaml, so a bump there
+  # is tested here). A step rather than `services:`, which can't pass flags:
+  # VictoriaLogs' default 7-day retention would drop the test rows on arrival.
+  logsql:
+    if: github.repository_id == '1464458020'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: VictoriaLogs, as the compose kit runs it
+        run: |
+          set -eu
+          image=$(sed -n 's|^ *image: \(docker.io/victoriametrics/victoria-logs:.*@sha256:.*\)$|\1|p' deploy/compose/compose.yaml)
+          test -n "$image"
+          mapfile -t flags < <(sed -n 's|^ *- \(-search\.[A-Za-z]*=[^ ]*\)$|\1|p' deploy/compose/compose.yaml)
+          test "${#flags[@]}" -ge 3
+          docker run -d --name vl -p 127.0.0.1:9428:9428 "$image" -retentionPeriod=100y "${flags[@]}"
+          for _ in $(seq 1 30); do curl -fsS http://127.0.0.1:9428/health >/dev/null 2>&1 && break; sleep 1; done
+          curl -fsS http://127.0.0.1:9428/health || { docker logs vl; exit 1; }
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --frozen
+      # WOW_TEST_VL_REQUIRED: an unreachable VictoriaLogs fails here, never skips.
+      - run: uv run pytest -q -rs tests/test_logsql.py
+        env:
+          WOW_TEST_VL_URL: http://127.0.0.1:9428
+          WOW_TEST_VL_REQUIRED: "1"
+
   audit:
     if: github.repository_id == '1464458020'
     runs-on: ubuntu-24.04
