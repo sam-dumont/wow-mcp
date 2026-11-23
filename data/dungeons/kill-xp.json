@@ -1,0 +1,6513 @@
+{
+ "about": "Who a dungeon run kills, for the kill-XP estimate of a dungeon not run yet (wowstats/plan/dungeonxp.py). Built by tools/dungeon_xp/export.py; do not edit.",
+ "as_of": "2026-11-23",
+ "mob_columns": {
+  "spawns": [
+   "npc_id",
+   "name",
+   "level_min",
+   "level_max",
+   "elite",
+   "boss",
+   "spawns"
+  ],
+  "logged_runs": [
+   "npc_id",
+   "name",
+   "level_min",
+   "level_max",
+   "boss",
+   "kills_per_run"
+  ]
+ },
+ "sources": {
+  "cmangos": {
+   "repo": "https://github.com/cmangos/classic-db",
+   "commit": "28ef6259c782928b08a8dc9cacf6bc02e64f2b29",
+   "file": "Full_DB/ClassicDB_1_12_1_z2815.sql.gz",
+   "licence": "GPL-3.0",
+   "what": "creature_template (levels, rank), creature, creature_spawn_entry and the pools: the creatures placed in each original dungeon"
+  },
+  "eg_link": {
+   "repo": "https://github.com/JIVESCORP/eg-link-output-wowf",
+   "commit": "5d76a9e5bbba33b97a98774103ccc607ad2463c1",
+   "licence": "CC BY 4.0",
+   "credit": "Data from Efficient Games (https://efficient.games), licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/).",
+   "what": "levels seen and kills per logged run (combatLog.deaths / encounters.runs) in the new Forever dungeons"
+  },
+  "forever_spawns": {
+   "repo": "https://github.com/advocaite/TrinityCore",
+   "branch": "forever",
+   "commit": "25be61f58f48b6e7bc8eda1146af8e1c73c82470",
+   "licence": "GPL-2.0-only",
+   "file": "data/dungeons/forever-spawns/forever-spawns.json",
+   "what": "rank and placed count of the new dungeons' creatures, read at run time"
+  },
+  "reference_runs": {
+   "what": "one character's runs, anonymised: level, party size, kill XP and time inside",
+   "licence": "GPL-3.0-only (ours)"
+  }
+ },
+ "dungeons": {
+  "Blackfathom Deeps": {
+   "map": 48,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     4798,
+     "Fallenroot Shadowstalker",
+     23,
+     24,
+     1,
+     0,
+     14.0
+    ],
+    [
+     4799,
+     "Fallenroot Hellcaller",
+     24,
+     25,
+     1,
+     0,
+     11.0
+    ],
+    [
+     4805,
+     "Blackfathom Sea Witch",
+     23,
+     24,
+     1,
+     0,
+     30.0
+    ],
+    [
+     4807,
+     "Blackfathom Myrmidon",
+     22,
+     23,
+     1,
+     0,
+     27.0
+    ],
+    [
+     4809,
+     "Twilight Acolyte",
+     24,
+     25,
+     1,
+     0,
+     3.0
+    ],
+    [
+     4810,
+     "Twilight Reaver",
+     25,
+     26,
+     1,
+     0,
+     11.0
+    ],
+    [
+     4811,
+     "Twilight Aquamancer",
+     25,
+     26,
+     1,
+     0,
+     7.0
+    ],
+    [
+     4812,
+     "Twilight Loreseeker",
+     24,
+     25,
+     1,
+     0,
+     9.0
+    ],
+    [
+     4813,
+     "Twilight Shadowmage",
+     26,
+     27,
+     1,
+     0,
+     7.0
+    ],
+    [
+     4814,
+     "Twilight Elementalist",
+     26,
+     27,
+     1,
+     0,
+     6.0
+    ],
+    [
+     4815,
+     "Murkshallow Snapclaw",
+     22,
+     23,
+     1,
+     0,
+     7.0
+    ],
+    [
+     4818,
+     "Blindlight Murloc",
+     22,
+     23,
+     1,
+     0,
+     10.0
+    ],
+    [
+     4819,
+     "Blindlight Muckdweller",
+     25,
+     25,
+     1,
+     0,
+     5.0
+    ],
+    [
+     4820,
+     "Blindlight Oracle",
+     25,
+     25,
+     1,
+     0,
+     5.0
+    ],
+    [
+     4821,
+     "Skittering Crustacean",
+     22,
+     23,
+     1,
+     0,
+     11.0
+    ],
+    [
+     4822,
+     "Snapping Crustacean",
+     23,
+     24,
+     1,
+     0,
+     18.0
+    ],
+    [
+     4823,
+     "Barbed Crustacean",
+     25,
+     26,
+     1,
+     0,
+     3.0
+    ],
+    [
+     4824,
+     "Aku'mai Fisher",
+     23,
+     24,
+     1,
+     0,
+     6.0
+    ],
+    [
+     4825,
+     "Aku'mai Snapjaw",
+     26,
+     27,
+     1,
+     0,
+     7.0
+    ],
+    [
+     4827,
+     "Deep Pool Threshfin",
+     24,
+     25,
+     1,
+     0,
+     8.0
+    ],
+    [
+     4829,
+     "Aku'mai",
+     28,
+     28,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4830,
+     "Old Serra'kis",
+     26,
+     26,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4831,
+     "Lady Sarevess",
+     25,
+     25,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4832,
+     "Twilight Lord Kelris",
+     27,
+     27,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4887,
+     "Ghamoo-ra",
+     25,
+     25,
+     1,
+     1,
+     1.0
+    ],
+    [
+     6243,
+     "Gelihast",
+     26,
+     26,
+     1,
+     1,
+     1.0
+    ],
+    [
+     12902,
+     "Lorgus Jett",
+     26,
+     26,
+     1,
+     1,
+     1.0
+    ]
+   ]
+  },
+  "Blackrock Depths": {
+   "map": 230,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     8889,
+     "Anvilrage Overseer",
+     48,
+     49,
+     1,
+     0,
+     4.0
+    ],
+    [
+     8890,
+     "Anvilrage Warden",
+     49,
+     50,
+     1,
+     0,
+     35.0
+    ],
+    [
+     8891,
+     "Anvilrage Guardsman",
+     50,
+     51,
+     1,
+     0,
+     57.0
+    ],
+    [
+     8892,
+     "Anvilrage Footman",
+     51,
+     52,
+     1,
+     0,
+     55.0
+    ],
+    [
+     8893,
+     "Anvilrage Soldier",
+     52,
+     53,
+     1,
+     0,
+     38.0
+    ],
+    [
+     8894,
+     "Anvilrage Medic",
+     52,
+     53,
+     1,
+     0,
+     31.0
+    ],
+    [
+     8895,
+     "Anvilrage Officer",
+     53,
+     54,
+     1,
+     0,
+     20.0
+    ],
+    [
+     8896,
+     "Shadowforge Peasant",
+     52,
+     54,
+     0,
+     0,
+     42.0
+    ],
+    [
+     8897,
+     "Doomforge Craftsman",
+     52,
+     54,
+     0,
+     0,
+     24.0
+    ],
+    [
+     8898,
+     "Anvilrage Marshal",
+     54,
+     55,
+     1,
+     0,
+     12.0
+    ],
+    [
+     8899,
+     "Doomforge Dragoon",
+     54,
+     55,
+     1,
+     0,
+     16.0
+    ],
+    [
+     8900,
+     "Doomforge Arcanasmith",
+     54,
+     55,
+     0,
+     0,
+     23.0
+    ],
+    [
+     8901,
+     "Anvilrage Reservist",
+     54,
+     55,
+     0,
+     0,
+     244.0
+    ],
+    [
+     8902,
+     "Shadowforge Citizen",
+     54,
+     56,
+     0,
+     0,
+     16.0
+    ],
+    [
+     8903,
+     "Anvilrage Captain",
+     55,
+     56,
+     1,
+     0,
+     2.0
+    ],
+    [
+     8904,
+     "Shadowforge Senator",
+     55,
+     56,
+     0,
+     0,
+     40.0
+    ],
+    [
+     8905,
+     "Warbringer Construct",
+     53,
+     54,
+     1,
+     0,
+     12.0
+    ],
+    [
+     8906,
+     "Ragereaver Golem",
+     54,
+     55,
+     1,
+     0,
+     3.5
+    ],
+    [
+     8907,
+     "Wrath Hammer Construct",
+     55,
+     56,
+     1,
+     0,
+     3.5
+    ],
+    [
+     8908,
+     "Molten War Golem",
+     55,
+     56,
+     1,
+     0,
+     5.8
+    ],
+    [
+     8909,
+     "Fireguard",
+     50,
+     52,
+     1,
+     0,
+     11.0
+    ],
+    [
+     8910,
+     "Blazing Fireguard",
+     52,
+     54,
+     1,
+     0,
+     19.0
+    ],
+    [
+     8911,
+     "Fireguard Destroyer",
+     54,
+     56,
+     1,
+     0,
+     45.0
+    ],
+    [
+     8912,
+     "Twilight's Hammer Torturer",
+     50,
+     51,
+     1,
+     0,
+     24.0
+    ],
+    [
+     8913,
+     "Twilight Emissary",
+     52,
+     53,
+     1,
+     0,
+     18.0
+    ],
+    [
+     8914,
+     "Twilight Bodyguard",
+     53,
+     54,
+     1,
+     0,
+     5.0
+    ],
+    [
+     8915,
+     "Twilight's Hammer Ambassador",
+     54,
+     55,
+     0,
+     0,
+     12.0
+    ],
+    [
+     8916,
+     "Arena Spectator",
+     52,
+     54,
+     0,
+     0,
+     24.0
+    ],
+    [
+     8920,
+     "Weapon Technician",
+     54,
+     56,
+     0,
+     0,
+     20.0
+    ],
+    [
+     8921,
+     "Bloodhound",
+     49,
+     50,
+     0,
+     0,
+     96.0
+    ],
+    [
+     8922,
+     "Bloodhound Mastiff",
+     54,
+     55,
+     0,
+     0,
+     6.0
+    ],
+    [
+     8983,
+     "Golem Lord Argelmach",
+     57,
+     57,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9016,
+     "Bael'Gar",
+     54,
+     54,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9017,
+     "Lord Incendius",
+     55,
+     55,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9018,
+     "High Interrogator Gerstahn",
+     52,
+     52,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9019,
+     "Emperor Dagran Thaurissan",
+     59,
+     59,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9024,
+     "Pyromancer Loregrain",
+     52,
+     52,
+     0,
+     1,
+     1.0
+    ],
+    [
+     9025,
+     "Lord Roccor",
+     51,
+     51,
+     0,
+     1,
+     1.0
+    ],
+    [
+     9033,
+     "General Angerforge",
+     57,
+     57,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9041,
+     "Warder Stilgiss",
+     56,
+     56,
+     0,
+     1,
+     1.0
+    ],
+    [
+     9056,
+     "Fineous Darkvire",
+     54,
+     54,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9156,
+     "Ambassador Flamelash",
+     57,
+     57,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9319,
+     "Houndmaster Grebmar",
+     52,
+     52,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9499,
+     "Plugger Spazzring",
+     55,
+     55,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9543,
+     "Ribbly Screwspigot",
+     53,
+     53,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9938,
+     "Magmus",
+     57,
+     57,
+     1,
+     1,
+     1.0
+    ],
+    [
+     9956,
+     "Shadowforge Flame Keeper",
+     54,
+     55,
+     0,
+     0,
+     12.0
+    ]
+   ]
+  },
+  "Blackrock Spire": {
+   "map": 229,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "wings": {
+    "Lower": {
+     "mobs": [
+      [
+       9045,
+       "Scarshield Acolyte",
+       54,
+       55,
+       1,
+       0,
+       4.0
+      ],
+      [
+       9097,
+       "Scarshield Legionnaire",
+       54,
+       55,
+       1,
+       0,
+       19.0
+      ],
+      [
+       9098,
+       "Scarshield Spellbinder",
+       54,
+       55,
+       1,
+       0,
+       10.0
+      ],
+      [
+       9196,
+       "Highlord Omokk",
+       59,
+       59,
+       1,
+       1,
+       1.0
+      ],
+      [
+       9197,
+       "Spirestone Battle Mage",
+       57,
+       58,
+       1,
+       0,
+       3.0
+      ],
+      [
+       9198,
+       "Spirestone Mystic",
+       55,
+       56,
+       1,
+       0,
+       3.0
+      ],
+      [
+       9199,
+       "Spirestone Enforcer",
+       54,
+       55,
+       1,
+       0,
+       2.7
+      ],
+      [
+       9200,
+       "Spirestone Reaver",
+       55,
+       56,
+       1,
+       0,
+       5.85
+      ],
+      [
+       9201,
+       "Spirestone Ogre Magus",
+       54,
+       55,
+       1,
+       0,
+       5.7
+      ],
+      [
+       9216,
+       "Spirestone Warlord",
+       57,
+       58,
+       1,
+       0,
+       6.0
+      ],
+      [
+       9236,
+       "Shadow Hunter Vosh'gajin",
+       58,
+       58,
+       1,
+       1,
+       1.0
+      ],
+      [
+       9237,
+       "War Master Voone",
+       59,
+       59,
+       1,
+       1,
+       1.0
+      ],
+      [
+       9239,
+       "Smolderthorn Mystic",
+       55,
+       56,
+       1,
+       0,
+       8.0
+      ],
+      [
+       9240,
+       "Smolderthorn Shadow Priest",
+       55,
+       56,
+       1,
+       0,
+       19.0
+      ],
+      [
+       9241,
+       "Smolderthorn Headhunter",
+       56,
+       57,
+       1,
+       0,
+       10.0
+      ],
+      [
+       9257,
+       "Scarshield Warlock",
+       54,
+       55,
+       1,
+       0,
+       6.0
+      ],
+      [
+       9258,
+       "Scarshield Raider",
+       55,
+       56,
+       1,
+       0,
+       6.0
+      ],
+      [
+       9259,
+       "Firebrand Grunt",
+       56,
+       57,
+       1,
+       0,
+       18.5
+      ],
+      [
+       9260,
+       "Firebrand Legionnaire",
+       57,
+       58,
+       1,
+       0,
+       3.0
+      ],
+      [
+       9261,
+       "Firebrand Darkweaver",
+       56,
+       57,
+       1,
+       0,
+       14.0
+      ],
+      [
+       9262,
+       "Firebrand Invoker",
+       56,
+       57,
+       1,
+       0,
+       12.0
+      ],
+      [
+       9263,
+       "Firebrand Dreadweaver",
+       57,
+       58,
+       1,
+       0,
+       3.0
+      ],
+      [
+       9264,
+       "Firebrand Pyromancer",
+       57,
+       58,
+       1,
+       0,
+       3.0
+      ],
+      [
+       9265,
+       "Smolderthorn Shadow Hunter",
+       56,
+       57,
+       1,
+       0,
+       5.0
+      ],
+      [
+       9266,
+       "Smolderthorn Witch Doctor",
+       56,
+       57,
+       1,
+       0,
+       8.0
+      ],
+      [
+       9267,
+       "Smolderthorn Axe Thrower",
+       55,
+       56,
+       1,
+       0,
+       9.0
+      ],
+      [
+       9268,
+       "Smolderthorn Berserker",
+       57,
+       58,
+       1,
+       0,
+       7.0
+      ],
+      [
+       9269,
+       "Smolderthorn Seer",
+       56,
+       57,
+       1,
+       0,
+       10.0
+      ],
+      [
+       9416,
+       "Scarshield Worg",
+       53,
+       54,
+       0,
+       0,
+       12.0
+      ],
+      [
+       9568,
+       "Overlord Wyrmthalak",
+       60,
+       60,
+       1,
+       1,
+       1.0
+      ],
+      [
+       9583,
+       "Bloodaxe Veteran",
+       58,
+       59,
+       1,
+       0,
+       12.35
+      ],
+      [
+       9692,
+       "Bloodaxe Raider",
+       57,
+       58,
+       1,
+       0,
+       7.0
+      ],
+      [
+       9693,
+       "Bloodaxe Evoker",
+       58,
+       59,
+       1,
+       0,
+       7.0
+      ],
+      [
+       9696,
+       "Bloodaxe Worg",
+       56,
+       57,
+       0,
+       0,
+       14.0
+      ],
+      [
+       9701,
+       "Spire Scorpid",
+       58,
+       58,
+       0,
+       0,
+       6.0
+      ],
+      [
+       9716,
+       "Bloodaxe Warmonger",
+       57,
+       58,
+       1,
+       0,
+       15.35
+      ],
+      [
+       9717,
+       "Bloodaxe Summoner",
+       57,
+       58,
+       1,
+       0,
+       8.0
+      ],
+      [
+       9736,
+       "Quartermaster Zigris",
+       59,
+       59,
+       0,
+       1,
+       1.0
+      ],
+      [
+       9817,
+       "Blackhand Dreadweaver",
+       59,
+       60,
+       1,
+       0,
+       1.0
+      ],
+      [
+       9818,
+       "Blackhand Summoner",
+       59,
+       60,
+       1,
+       0,
+       1.0
+      ],
+      [
+       9819,
+       "Blackhand Veteran",
+       59,
+       60,
+       1,
+       0,
+       2.0
+      ],
+      [
+       10177,
+       "Spire Scarab",
+       58,
+       58,
+       0,
+       0,
+       14.0
+      ],
+      [
+       10220,
+       "Halycon",
+       59,
+       59,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10221,
+       "Bloodaxe Worg Pup",
+       52,
+       53,
+       0,
+       0,
+       10.0
+      ],
+      [
+       10317,
+       "Blackhand Elite",
+       60,
+       61,
+       1,
+       0,
+       2.0
+      ],
+      [
+       10318,
+       "Blackhand Assassin",
+       60,
+       61,
+       1,
+       0,
+       5.0
+      ],
+      [
+       10319,
+       "Blackhand Iron Guard",
+       60,
+       61,
+       1,
+       0,
+       6.0
+      ],
+      [
+       10366,
+       "Rage Talon Dragon Guard",
+       60,
+       61,
+       1,
+       0,
+       6.0
+      ],
+      [
+       10371,
+       "Rage Talon Captain",
+       62,
+       62,
+       1,
+       0,
+       1.0
+      ],
+      [
+       10372,
+       "Rage Talon Fire Tongue",
+       60,
+       61,
+       1,
+       0,
+       3.0
+      ],
+      [
+       10374,
+       "Spire Spider",
+       57,
+       58,
+       1,
+       0,
+       6.9
+      ],
+      [
+       10375,
+       "Spire Spiderling",
+       55,
+       56,
+       0,
+       0,
+       12.0
+      ],
+      [
+       10596,
+       "Mother Smolderweb",
+       59,
+       59,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10762,
+       "Blackhand Thug",
+       60,
+       60,
+       1,
+       0,
+       2.0
+      ]
+     ]
+    },
+    "Upper": {
+     "mobs": [
+      [
+       9045,
+       "Scarshield Acolyte",
+       54,
+       55,
+       1,
+       0,
+       10.0
+      ],
+      [
+       9096,
+       "Rage Talon Dragonspawn",
+       58,
+       59,
+       1,
+       0,
+       21.0
+      ],
+      [
+       9097,
+       "Scarshield Legionnaire",
+       54,
+       55,
+       1,
+       0,
+       29.0
+      ],
+      [
+       9098,
+       "Scarshield Spellbinder",
+       54,
+       55,
+       1,
+       0,
+       9.0
+      ],
+      [
+       9257,
+       "Scarshield Warlock",
+       54,
+       55,
+       1,
+       0,
+       3.0
+      ],
+      [
+       9817,
+       "Blackhand Dreadweaver",
+       59,
+       60,
+       1,
+       0,
+       18.7
+      ],
+      [
+       9818,
+       "Blackhand Summoner",
+       59,
+       60,
+       1,
+       0,
+       17.0
+      ],
+      [
+       9819,
+       "Blackhand Veteran",
+       59,
+       60,
+       1,
+       0,
+       26.0
+      ],
+      [
+       10083,
+       "Rage Talon Flamescale",
+       58,
+       59,
+       1,
+       0,
+       10.0
+      ],
+      [
+       10316,
+       "Blackhand Incarcerator",
+       59,
+       60,
+       0,
+       0,
+       7.0
+      ],
+      [
+       10317,
+       "Blackhand Elite",
+       60,
+       61,
+       1,
+       0,
+       12.0
+      ],
+      [
+       10318,
+       "Blackhand Assassin",
+       60,
+       61,
+       1,
+       0,
+       4.0
+      ],
+      [
+       10319,
+       "Blackhand Iron Guard",
+       60,
+       61,
+       1,
+       0,
+       12.0
+      ],
+      [
+       10363,
+       "General Drakkisath",
+       62,
+       62,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10366,
+       "Rage Talon Dragon Guard",
+       60,
+       61,
+       1,
+       0,
+       2.0
+      ],
+      [
+       10371,
+       "Rage Talon Captain",
+       62,
+       62,
+       1,
+       0,
+       4.0
+      ],
+      [
+       10372,
+       "Rage Talon Fire Tongue",
+       60,
+       61,
+       1,
+       0,
+       5.0
+      ],
+      [
+       10430,
+       "The Beast",
+       62,
+       62,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10814,
+       "Chromatic Elite Guard",
+       59,
+       60,
+       1,
+       0,
+       2.0
+      ],
+      [
+       10899,
+       "Goraluk Anvilcrack",
+       61,
+       61,
+       1,
+       0,
+       1.0
+      ]
+     ],
+     "party": 10
+    }
+   }
+  },
+  "Dire Maul": {
+   "map": 429,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "wings": {
+    "East": {
+     "mobs": [
+      [
+       11451,
+       "Wildspawn Satyr",
+       55,
+       56,
+       1,
+       0,
+       14.0
+      ],
+      [
+       11452,
+       "Wildspawn Rogue",
+       56,
+       57,
+       1,
+       0,
+       8.0
+      ],
+      [
+       11453,
+       "Wildspawn Trickster",
+       56,
+       57,
+       1,
+       0,
+       7.0
+      ],
+      [
+       11454,
+       "Wildspawn Betrayer",
+       55,
+       56,
+       1,
+       0,
+       7.0
+      ],
+      [
+       11455,
+       "Wildspawn Felsworn",
+       55,
+       56,
+       1,
+       0,
+       6.0
+      ],
+      [
+       11456,
+       "Wildspawn Shadowstalker",
+       56,
+       56,
+       1,
+       0,
+       8.0
+      ],
+      [
+       11457,
+       "Wildspawn Hellcaller",
+       56,
+       57,
+       1,
+       0,
+       4.0
+      ],
+      [
+       11461,
+       "Warpwood Guardian",
+       57,
+       58,
+       1,
+       0,
+       10.0
+      ],
+      [
+       11462,
+       "Warpwood Treant",
+       54,
+       55,
+       1,
+       0,
+       13.0
+      ],
+      [
+       11464,
+       "Warpwood Tangler",
+       55,
+       56,
+       1,
+       0,
+       7.0
+      ],
+      [
+       11465,
+       "Warpwood Stomper",
+       57,
+       58,
+       1,
+       0,
+       5.0
+      ],
+      [
+       11490,
+       "Zevrim Thornhoof",
+       57,
+       57,
+       1,
+       1,
+       1.0
+      ],
+      [
+       11492,
+       "Alzzin the Wildshaper",
+       58,
+       58,
+       1,
+       1,
+       1.0
+      ],
+      [
+       13021,
+       "Warpwood Crusher",
+       56,
+       56,
+       1,
+       0,
+       13.0
+      ],
+      [
+       13022,
+       "Whip Lasher",
+       54,
+       54,
+       0,
+       0,
+       122.36
+      ],
+      [
+       13196,
+       "Phase Lasher",
+       54,
+       55,
+       1,
+       0,
+       10.0
+      ],
+      [
+       13197,
+       "Fel Lash",
+       56,
+       56,
+       1,
+       0,
+       8.5
+      ],
+      [
+       13276,
+       "Wildspawn Imp",
+       56,
+       56,
+       0,
+       0,
+       20.0
+      ],
+      [
+       13280,
+       "Hydrospawn",
+       57,
+       57,
+       1,
+       1,
+       1.0
+      ],
+      [
+       13285,
+       "Death Lash",
+       57,
+       58,
+       1,
+       0,
+       12.5
+      ],
+      [
+       14327,
+       "Lethtendris",
+       57,
+       57,
+       1,
+       1,
+       1.0
+      ],
+      [
+       14349,
+       "Pimgib",
+       56,
+       56,
+       1,
+       0,
+       1.0
+      ]
+     ]
+    },
+    "West": {
+     "mobs": [
+      [
+       11458,
+       "Petrified Treant",
+       57,
+       59,
+       1,
+       0,
+       19.0
+      ],
+      [
+       11459,
+       "Ironbark Protector",
+       57,
+       59,
+       1,
+       0,
+       7.0
+      ],
+      [
+       11466,
+       "Highborne Summoner",
+       55,
+       55,
+       1,
+       0,
+       18.0
+      ],
+      [
+       11467,
+       "Tsu'zee",
+       59,
+       59,
+       1,
+       0,
+       0.25
+      ],
+      [
+       11469,
+       "Eldreth Seether",
+       58,
+       59,
+       1,
+       0,
+       12.0
+      ],
+      [
+       11471,
+       "Eldreth Apparition",
+       57,
+       58,
+       1,
+       0,
+       13.75
+      ],
+      [
+       11472,
+       "Eldreth Spirit",
+       57,
+       58,
+       1,
+       0,
+       15.0
+      ],
+      [
+       11473,
+       "Eldreth Spectre",
+       58,
+       59,
+       1,
+       0,
+       8.0
+      ],
+      [
+       11475,
+       "Eldreth Phantasm",
+       58,
+       59,
+       1,
+       0,
+       11.0
+      ],
+      [
+       11476,
+       "Skeletal Highborne",
+       57,
+       58,
+       0,
+       0,
+       19.0
+      ],
+      [
+       11477,
+       "Rotting Highborne",
+       58,
+       59,
+       0,
+       0,
+       17.0
+      ],
+      [
+       11480,
+       "Arcane Aberration",
+       59,
+       60,
+       1,
+       0,
+       16.0
+      ],
+      [
+       11483,
+       "Mana Remnant",
+       57,
+       59,
+       1,
+       0,
+       24.0
+      ],
+      [
+       11484,
+       "Residual Monstrosity",
+       59,
+       60,
+       1,
+       0,
+       9.0
+      ],
+      [
+       11486,
+       "Prince Tortheldrin",
+       60,
+       61,
+       1,
+       1,
+       1.0
+      ],
+      [
+       11487,
+       "Magister Kalendris",
+       60,
+       60,
+       1,
+       1,
+       1.0
+      ],
+      [
+       11488,
+       "Illyanna Ravenoak",
+       60,
+       60,
+       1,
+       1,
+       1.0
+      ],
+      [
+       11489,
+       "Tendris Warpwood",
+       60,
+       60,
+       1,
+       1,
+       1.0
+      ],
+      [
+       11496,
+       "Immol'thar",
+       61,
+       61,
+       1,
+       1,
+       1.0
+      ],
+      [
+       14303,
+       "Petrified Guardian",
+       57,
+       59,
+       1,
+       0,
+       8.0
+      ],
+      [
+       14308,
+       "Ferra",
+       60,
+       60,
+       1,
+       0,
+       1.0
+      ],
+      [
+       14398,
+       "Eldreth Darter",
+       58,
+       59,
+       1,
+       0,
+       9.0
+      ],
+      [
+       14399,
+       "Arcane Torrent",
+       59,
+       60,
+       1,
+       0,
+       10.0
+      ],
+      [
+       14400,
+       "Arcane Feedback",
+       59,
+       60,
+       0,
+       0,
+       38.0
+      ]
+     ]
+    },
+    "North": {
+     "mobs": [
+      [
+       11446,
+       "Gordok Spirit",
+       60,
+       60,
+       1,
+       0,
+       13.0
+      ],
+      [
+       11458,
+       "Petrified Treant",
+       57,
+       59,
+       1,
+       0,
+       2.0
+      ],
+      [
+       11459,
+       "Ironbark Protector",
+       57,
+       59,
+       1,
+       0,
+       1.0
+      ],
+      [
+       11501,
+       "King Gordok",
+       62,
+       62,
+       1,
+       1,
+       1.0
+      ],
+      [
+       13036,
+       "Gordok Mastiff",
+       57,
+       59,
+       0,
+       0,
+       66.33
+      ],
+      [
+       13160,
+       "Carrion Swarmer",
+       57,
+       58,
+       0,
+       0,
+       70.0
+      ],
+      [
+       14303,
+       "Petrified Guardian",
+       57,
+       59,
+       1,
+       0,
+       2.0
+      ],
+      [
+       14321,
+       "Guard Fengus",
+       59,
+       59,
+       1,
+       1,
+       1.0
+      ],
+      [
+       14322,
+       "Stomper Kreeg",
+       59,
+       59,
+       1,
+       1,
+       1.0
+      ],
+      [
+       14323,
+       "Guard Slip'kik",
+       59,
+       59,
+       1,
+       1,
+       1.0
+      ],
+      [
+       14324,
+       "Cho'Rush the Observer",
+       60,
+       60,
+       1,
+       1,
+       1.0
+      ],
+      [
+       14325,
+       "Captain Kromcrush",
+       61,
+       61,
+       1,
+       1,
+       1.0
+      ],
+      [
+       14326,
+       "Guard Mol'dar",
+       59,
+       59,
+       1,
+       1,
+       1.0
+      ],
+      [
+       14386,
+       "Wandering Eye of Kilrogg",
+       60,
+       60,
+       0,
+       0,
+       2.0
+      ]
+     ]
+    }
+   }
+  },
+  "Gnomeregan": {
+   "map": 90,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     6206,
+     "Caverndeep Burrower",
+     25,
+     27,
+     1,
+     0,
+     32.17
+    ],
+    [
+     6207,
+     "Caverndeep Ambusher",
+     25,
+     27,
+     0,
+     0,
+     5.0
+    ],
+    [
+     6211,
+     "Caverndeep Reaver",
+     27,
+     28,
+     1,
+     0,
+     17.67
+    ],
+    [
+     6212,
+     "Dark Iron Agent",
+     32,
+     33,
+     1,
+     0,
+     33.7
+    ],
+    [
+     6218,
+     "Irradiated Slime",
+     27,
+     28,
+     1,
+     0,
+     6.33
+    ],
+    [
+     6219,
+     "Corrosive Lurker",
+     28,
+     29,
+     1,
+     0,
+     6.33
+    ],
+    [
+     6220,
+     "Irradiated Horror",
+     28,
+     29,
+     1,
+     0,
+     6.33
+    ],
+    [
+     6222,
+     "Leprous Technician",
+     29,
+     30,
+     0,
+     0,
+     24.0
+    ],
+    [
+     6223,
+     "Leprous Defender",
+     28,
+     29,
+     1,
+     0,
+     9.0
+    ],
+    [
+     6224,
+     "Leprous Machinesmith",
+     29,
+     30,
+     0,
+     0,
+     26.0
+    ],
+    [
+     6225,
+     "Mechano-Tank",
+     29,
+     30,
+     1,
+     0,
+     7.0
+    ],
+    [
+     6226,
+     "Mechano-Flamewalker",
+     30,
+     31,
+     1,
+     0,
+     8.0
+    ],
+    [
+     6227,
+     "Mechano-Frostwalker",
+     31,
+     32,
+     1,
+     0,
+     8.0
+    ],
+    [
+     6229,
+     "Crowd Pummeler 9-60",
+     32,
+     32,
+     1,
+     1,
+     1.0
+    ],
+    [
+     6230,
+     "Peacekeeper Security Suit",
+     30,
+     31,
+     1,
+     0,
+     4.0
+    ],
+    [
+     6232,
+     "Arcane Nullifier X-21",
+     32,
+     33,
+     1,
+     0,
+     12.0
+    ],
+    [
+     6233,
+     "Mechanized Sentry",
+     28,
+     29,
+     1,
+     0,
+     30.0
+    ],
+    [
+     6234,
+     "Mechanized Guardian",
+     31,
+     32,
+     1,
+     0,
+     12.0
+    ],
+    [
+     6235,
+     "Electrocutioner 6000",
+     32,
+     32,
+     1,
+     1,
+     1.0
+    ],
+    [
+     6329,
+     "Irradiated Pillager",
+     25,
+     26,
+     1,
+     0,
+     34.17
+    ],
+    [
+     6391,
+     "Holdout Warrior",
+     29,
+     30,
+     1,
+     0,
+     8.5
+    ],
+    [
+     6392,
+     "Holdout Medic",
+     29,
+     30,
+     1,
+     0,
+     3.5
+    ],
+    [
+     6407,
+     "Holdout Technician",
+     29,
+     30,
+     1,
+     0,
+     2.0
+    ],
+    [
+     7079,
+     "Viscous Fallout",
+     30,
+     30,
+     1,
+     1,
+     1.0
+    ],
+    [
+     7603,
+     "Leprous Assistant",
+     28,
+     29,
+     0,
+     0,
+     92.0
+    ],
+    [
+     7800,
+     "Mekgineer Thermaplugg",
+     34,
+     34,
+     1,
+     1,
+     1.0
+    ],
+    [
+     7849,
+     "Mobile Alert System",
+     25,
+     25,
+     0,
+     0,
+     5.0
+    ],
+    [
+     7897,
+     "Alarm-a-bomb 2600",
+     20,
+     20,
+     0,
+     0,
+     1.0
+    ]
+   ]
+  },
+  "Maraudon": {
+   "map": 349,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     11784,
+     "Theradrim Guardian",
+     47,
+     48,
+     1,
+     0,
+     7.0
+    ],
+    [
+     11789,
+     "Deep Borer",
+     46,
+     48,
+     0,
+     0,
+     98.0
+    ],
+    [
+     11790,
+     "Putridus Satyr",
+     43,
+     44,
+     1,
+     0,
+     16.0
+    ],
+    [
+     11791,
+     "Putridus Trickster",
+     44,
+     45,
+     1,
+     0,
+     22.0
+    ],
+    [
+     11792,
+     "Putridus Shadowstalker",
+     42,
+     44,
+     1,
+     0,
+     7.0
+    ],
+    [
+     11793,
+     "Celebrian Dryad",
+     45,
+     46,
+     1,
+     0,
+     6.0
+    ],
+    [
+     11794,
+     "Sister of Celebrian",
+     46,
+     47,
+     1,
+     0,
+     12.0
+    ],
+    [
+     12201,
+     "Princess Theradras",
+     51,
+     51,
+     1,
+     1,
+     1.0
+    ],
+    [
+     12203,
+     "Landslide",
+     50,
+     50,
+     1,
+     1,
+     1.0
+    ],
+    [
+     12206,
+     "Primordial Behemoth",
+     48,
+     49,
+     1,
+     0,
+     16.0
+    ],
+    [
+     12207,
+     "Thessala Hydra",
+     46,
+     47,
+     1,
+     0,
+     11.0
+    ],
+    [
+     12216,
+     "Poison Sprite",
+     42,
+     43,
+     0,
+     0,
+     34.0
+    ],
+    [
+     12217,
+     "Corruptor",
+     42,
+     43,
+     0,
+     0,
+     27.0
+    ],
+    [
+     12218,
+     "Vile Larva",
+     45,
+     47,
+     0,
+     0,
+     56.0
+    ],
+    [
+     12219,
+     "Barbed Lasher",
+     44,
+     45,
+     1,
+     0,
+     17.0
+    ],
+    [
+     12220,
+     "Constrictor Vine",
+     45,
+     46,
+     1,
+     0,
+     54.0
+    ],
+    [
+     12221,
+     "Noxious Slime",
+     46,
+     47,
+     1,
+     0,
+     27.0
+    ],
+    [
+     12222,
+     "Creeping Sludge",
+     45,
+     46,
+     1,
+     0,
+     24.0
+    ],
+    [
+     12223,
+     "Cavern Lurker",
+     45,
+     46,
+     1,
+     0,
+     6.35
+    ],
+    [
+     12224,
+     "Cavern Shambler",
+     46,
+     47,
+     1,
+     0,
+     5.35
+    ],
+    [
+     12225,
+     "Celebras the Cursed",
+     49,
+     49,
+     1,
+     1,
+     1.0
+    ],
+    [
+     12236,
+     "Lord Vyletongue",
+     47,
+     47,
+     1,
+     1,
+     1.0
+    ],
+    [
+     12258,
+     "Razorlash",
+     48,
+     48,
+     1,
+     1,
+     1.0
+    ],
+    [
+     13141,
+     "Deeprot Stomper",
+     43,
+     44,
+     1,
+     0,
+     12.0
+    ],
+    [
+     13142,
+     "Deeprot Tangler",
+     44,
+     45,
+     1,
+     0,
+     10.0
+    ],
+    [
+     13282,
+     "Noxxion",
+     48,
+     48,
+     1,
+     1,
+     1.0
+    ],
+    [
+     13323,
+     "Subterranean Diemetradon",
+     46,
+     48,
+     1,
+     0,
+     31.0
+    ],
+    [
+     13596,
+     "Rotgrip",
+     50,
+     50,
+     1,
+     1,
+     1.0
+    ],
+    [
+     13599,
+     "Stolid Snapjaw",
+     46,
+     47,
+     0,
+     0,
+     26.0
+    ],
+    [
+     13601,
+     "Tinkerer Gizlock",
+     50,
+     50,
+     1,
+     1,
+     1.0
+    ],
+    [
+     13743,
+     "Corrupt Force of Nature",
+     44,
+     44,
+     0,
+     0,
+     3.0
+    ]
+   ]
+  },
+  "Ragefire Chasm": {
+   "map": 389,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     11318,
+     "Ragefire Trogg",
+     13,
+     15,
+     1,
+     0,
+     29.0
+    ],
+    [
+     11319,
+     "Ragefire Shaman",
+     13,
+     15,
+     1,
+     0,
+     14.0
+    ],
+    [
+     11320,
+     "Earthborer",
+     13,
+     14,
+     1,
+     0,
+     11.0
+    ],
+    [
+     11321,
+     "Molten Elemental",
+     13,
+     15,
+     1,
+     0,
+     13.0
+    ],
+    [
+     11322,
+     "Searing Blade Cultist",
+     13,
+     15,
+     1,
+     0,
+     29.0
+    ],
+    [
+     11323,
+     "Searing Blade Enforcer",
+     13,
+     15,
+     1,
+     0,
+     22.0
+    ],
+    [
+     11324,
+     "Searing Blade Warlock",
+     13,
+     15,
+     1,
+     0,
+     10.0
+    ],
+    [
+     11517,
+     "Oggleflint",
+     16,
+     16,
+     1,
+     1,
+     1.0
+    ],
+    [
+     11518,
+     "Jergosh the Invoker",
+     16,
+     16,
+     1,
+     1,
+     1.0
+    ],
+    [
+     11519,
+     "Bazzalan",
+     16,
+     16,
+     1,
+     1,
+     1.0
+    ],
+    [
+     11520,
+     "Taragaman the Hungerer",
+     16,
+     16,
+     1,
+     1,
+     1.0
+    ]
+   ]
+  },
+  "Razorfen Downs": {
+   "map": 129,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     7327,
+     "Withered Warrior",
+     34,
+     35,
+     1,
+     0,
+     5.0
+    ],
+    [
+     7328,
+     "Withered Reaver",
+     35,
+     36,
+     1,
+     0,
+     11.0
+    ],
+    [
+     7329,
+     "Withered Quilguard",
+     35,
+     36,
+     1,
+     0,
+     18.0
+    ],
+    [
+     7332,
+     "Withered Spearhide",
+     34,
+     35,
+     1,
+     0,
+     7.0
+    ],
+    [
+     7333,
+     "Withered Battle Boar",
+     34,
+     34,
+     0,
+     0,
+     8.0
+    ],
+    [
+     7334,
+     "Battle Boar Horror",
+     37,
+     37,
+     0,
+     0,
+     2.0
+    ],
+    [
+     7335,
+     "Death's Head Geomancer",
+     35,
+     36,
+     1,
+     0,
+     5.0
+    ],
+    [
+     7337,
+     "Death's Head Necromancer",
+     36,
+     37,
+     1,
+     0,
+     10.0
+    ],
+    [
+     7341,
+     "Skeletal Frostweaver",
+     37,
+     38,
+     1,
+     0,
+     6.0
+    ],
+    [
+     7342,
+     "Skeletal Summoner",
+     39,
+     40,
+     1,
+     0,
+     6.0
+    ],
+    [
+     7343,
+     "Splinterbone Skeleton",
+     35,
+     35,
+     0,
+     0,
+     28.0
+    ],
+    [
+     7344,
+     "Splinterbone Warrior",
+     37,
+     38,
+     0,
+     0,
+     18.7
+    ],
+    [
+     7345,
+     "Splinterbone Captain",
+     39,
+     40,
+     1,
+     0,
+     2.0
+    ],
+    [
+     7346,
+     "Splinterbone Centurion",
+     38,
+     39,
+     0,
+     0,
+     30.0
+    ],
+    [
+     7347,
+     "Boneflayer Ghoul",
+     38,
+     39,
+     1,
+     0,
+     17.0
+    ],
+    [
+     7348,
+     "Thorn Eater Ghoul",
+     37,
+     38,
+     1,
+     0,
+     11.0
+    ],
+    [
+     7352,
+     "Frozen Soul",
+     37,
+     38,
+     1,
+     0,
+     8.0
+    ],
+    [
+     7353,
+     "Freezing Spirit",
+     39,
+     40,
+     1,
+     0,
+     7.0
+    ],
+    [
+     7354,
+     "Ragglesnout",
+     40,
+     40,
+     1,
+     0,
+     0.3
+    ],
+    [
+     7357,
+     "Mordresh Fire Eye",
+     39,
+     39,
+     1,
+     1,
+     1.0
+    ],
+    [
+     7358,
+     "Amnennar the Coldbringer",
+     41,
+     41,
+     1,
+     1,
+     1.0
+    ],
+    [
+     8567,
+     "Glutton",
+     40,
+     40,
+     1,
+     1,
+     1.0
+    ]
+   ]
+  },
+  "Razorfen Kraul": {
+   "map": 47,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     4420,
+     "Overlord Ramtusk",
+     32,
+     32,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4421,
+     "Charlga Razorflank",
+     33,
+     33,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4422,
+     "Agathelos the Raging",
+     33,
+     33,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4424,
+     "Aggem Thorncurse",
+     30,
+     30,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4427,
+     "Ward Guardian",
+     31,
+     31,
+     1,
+     0,
+     2.0
+    ],
+    [
+     4428,
+     "Death Speaker Jargba",
+     30,
+     30,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4435,
+     "Razorfen Warrior",
+     24,
+     25,
+     1,
+     0,
+     2.0
+    ],
+    [
+     4436,
+     "Razorfen Quilguard",
+     25,
+     26,
+     1,
+     0,
+     10.0
+    ],
+    [
+     4437,
+     "Razorfen Warden",
+     25,
+     26,
+     1,
+     0,
+     7.0
+    ],
+    [
+     4440,
+     "Razorfen Totemic",
+     29,
+     29,
+     1,
+     0,
+     4.0
+    ],
+    [
+     4442,
+     "Razorfen Defender",
+     27,
+     28,
+     1,
+     0,
+     19.0
+    ],
+    [
+     4511,
+     "Agam'ar",
+     24,
+     25,
+     1,
+     0,
+     15.0
+    ],
+    [
+     4512,
+     "Rotting Agam'ar",
+     28,
+     28,
+     1,
+     0,
+     3.0
+    ],
+    [
+     4514,
+     "Raging Agam'ar",
+     25,
+     26,
+     1,
+     0,
+     15.0
+    ],
+    [
+     4515,
+     "Death's Head Acolyte",
+     28,
+     29,
+     1,
+     0,
+     2.0
+    ],
+    [
+     4516,
+     "Death's Head Adept",
+     27,
+     28,
+     1,
+     0,
+     9.0
+    ],
+    [
+     4517,
+     "Death's Head Priest",
+     26,
+     27,
+     1,
+     0,
+     4.0
+    ],
+    [
+     4518,
+     "Death's Head Sage",
+     29,
+     30,
+     1,
+     0,
+     7.0
+    ],
+    [
+     4519,
+     "Death's Head Seer",
+     28,
+     29,
+     1,
+     0,
+     5.0
+    ],
+    [
+     4520,
+     "Razorfen Geomancer",
+     25,
+     26,
+     1,
+     0,
+     4.0
+    ],
+    [
+     4522,
+     "Razorfen Dustweaver",
+     28,
+     29,
+     1,
+     0,
+     3.0
+    ],
+    [
+     4523,
+     "Razorfen Groundshaker",
+     27,
+     28,
+     1,
+     0,
+     7.0
+    ],
+    [
+     4525,
+     "Razorfen Earthbreaker",
+     30,
+     31,
+     1,
+     0,
+     4.7
+    ],
+    [
+     4530,
+     "Razorfen Handler",
+     25,
+     26,
+     1,
+     0,
+     4.0
+    ],
+    [
+     4531,
+     "Razorfen Beast Trainer",
+     28,
+     29,
+     1,
+     0,
+     2.0
+    ],
+    [
+     4532,
+     "Razorfen Beastmaster",
+     30,
+     31,
+     1,
+     0,
+     3.0
+    ],
+    [
+     4538,
+     "Kraul Bat",
+     30,
+     31,
+     1,
+     0,
+     13.0
+    ],
+    [
+     4539,
+     "Greater Kraul Bat",
+     32,
+     32,
+     1,
+     0,
+     6.7
+    ],
+    [
+     4541,
+     "Blood of Agamaggan",
+     27,
+     27,
+     1,
+     0,
+     5.0
+    ],
+    [
+     4623,
+     "Quilguard Champion",
+     30,
+     31,
+     1,
+     0,
+     17.0
+    ],
+    [
+     4625,
+     "Death's Head Ward Keeper",
+     15,
+     15,
+     0,
+     0,
+     2.0
+    ],
+    [
+     6035,
+     "Razorfen Stalker",
+     28,
+     29,
+     1,
+     0,
+     4.0
+    ],
+    [
+     6168,
+     "Roogug",
+     28,
+     28,
+     1,
+     1,
+     1.0
+    ]
+   ]
+  },
+  "Scarlet Monastery": {
+   "map": 189,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "wings": {
+    "Graveyard": {
+     "mobs": [
+      [
+       3983,
+       "Interrogator Vishas",
+       32,
+       32,
+       1,
+       1,
+       1.0
+      ],
+      [
+       4283,
+       "Scarlet Sentry",
+       30,
+       31,
+       1,
+       0,
+       2.0
+      ],
+      [
+       4293,
+       "Scarlet Scryer",
+       30,
+       31,
+       1,
+       0,
+       4.0
+      ],
+      [
+       4306,
+       "Scarlet Torturer",
+       30,
+       31,
+       1,
+       0,
+       12.0
+      ],
+      [
+       4308,
+       "Unfettered Spirit",
+       31,
+       32,
+       0,
+       0,
+       42.7
+      ],
+      [
+       4543,
+       "Bloodmage Thalnos",
+       34,
+       34,
+       1,
+       1,
+       1.0
+      ],
+      [
+       6426,
+       "Anguished Dead",
+       31,
+       33,
+       1,
+       0,
+       13.0
+      ],
+      [
+       6427,
+       "Haunting Phantasm",
+       32,
+       33,
+       1,
+       0,
+       6.0
+      ],
+      [
+       6547,
+       "Suffering Victim",
+       25,
+       25,
+       0,
+       0,
+       2.0
+      ]
+     ]
+    },
+    "Library": {
+     "mobs": [
+      [
+       3974,
+       "Houndmaster Loksey",
+       34,
+       34,
+       1,
+       1,
+       1.0
+      ],
+      [
+       4287,
+       "Scarlet Gallant",
+       33,
+       34,
+       1,
+       0,
+       21.0
+      ],
+      [
+       4288,
+       "Scarlet Beastmaster",
+       34,
+       35,
+       1,
+       0,
+       4.0
+      ],
+      [
+       4291,
+       "Scarlet Diviner",
+       34,
+       35,
+       1,
+       0,
+       16.0
+      ],
+      [
+       4296,
+       "Scarlet Adept",
+       33,
+       34,
+       1,
+       0,
+       4.0
+      ],
+      [
+       4299,
+       "Scarlet Chaplain",
+       34,
+       36,
+       1,
+       0,
+       8.0
+      ],
+      [
+       4304,
+       "Scarlet Tracking Hound",
+       33,
+       34,
+       1,
+       0,
+       7.0
+      ],
+      [
+       4540,
+       "Scarlet Monk",
+       35,
+       36,
+       1,
+       0,
+       17.0
+      ],
+      [
+       6487,
+       "Arcanist Doan",
+       37,
+       37,
+       1,
+       1,
+       1.0
+      ]
+     ]
+    },
+    "Armory": {
+     "mobs": [
+      [
+       3975,
+       "Herod",
+       40,
+       40,
+       1,
+       1,
+       1.0
+      ],
+      [
+       4286,
+       "Scarlet Soldier",
+       35,
+       36,
+       1,
+       0,
+       17.0
+      ],
+      [
+       4289,
+       "Scarlet Evoker",
+       36,
+       37,
+       1,
+       0,
+       4.0
+      ],
+      [
+       4290,
+       "Scarlet Guardsman",
+       36,
+       37,
+       1,
+       0,
+       7.0
+      ],
+      [
+       4292,
+       "Scarlet Protector",
+       36,
+       37,
+       1,
+       0,
+       11.0
+      ],
+      [
+       4295,
+       "Scarlet Myrmidon",
+       37,
+       38,
+       1,
+       0,
+       13.0
+      ],
+      [
+       4297,
+       "Scarlet Conjuror",
+       35,
+       36,
+       1,
+       0,
+       1.0
+      ],
+      [
+       4298,
+       "Scarlet Defender",
+       37,
+       38,
+       1,
+       0,
+       13.0
+      ]
+     ]
+    },
+    "Cathedral": {
+     "mobs": [
+      [
+       3976,
+       "Scarlet Commander Mograine",
+       42,
+       42,
+       1,
+       0,
+       1.0
+      ],
+      [
+       3977,
+       "High Inquisitor Whitemane",
+       42,
+       42,
+       1,
+       1,
+       1.0
+      ],
+      [
+       4294,
+       "Scarlet Sorcerer",
+       37,
+       38,
+       1,
+       0,
+       8.0
+      ],
+      [
+       4295,
+       "Scarlet Myrmidon",
+       37,
+       38,
+       1,
+       0,
+       14.0
+      ],
+      [
+       4298,
+       "Scarlet Defender",
+       37,
+       38,
+       1,
+       0,
+       10.0
+      ],
+      [
+       4299,
+       "Scarlet Chaplain",
+       34,
+       36,
+       1,
+       0,
+       5.0
+      ],
+      [
+       4300,
+       "Scarlet Wizard",
+       38,
+       39,
+       1,
+       0,
+       11.0
+      ],
+      [
+       4301,
+       "Scarlet Centurion",
+       38,
+       39,
+       1,
+       0,
+       22.0
+      ],
+      [
+       4302,
+       "Scarlet Champion",
+       39,
+       40,
+       1,
+       0,
+       9.0
+      ],
+      [
+       4303,
+       "Scarlet Abbot",
+       39,
+       40,
+       1,
+       0,
+       5.0
+      ],
+      [
+       4540,
+       "Scarlet Monk",
+       35,
+       36,
+       1,
+       0,
+       9.0
+      ],
+      [
+       4542,
+       "High Inquisitor Fairbanks",
+       40,
+       40,
+       1,
+       1,
+       1.0
+      ]
+     ]
+    }
+   }
+  },
+  "Scholomance": {
+   "map": 289,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     10432,
+     "Vectus",
+     60,
+     60,
+     1,
+     1,
+     1.0
+    ],
+    [
+     10433,
+     "Marduk Blackpool",
+     58,
+     58,
+     1,
+     1,
+     1.0
+    ],
+    [
+     10469,
+     "Scholomance Adept",
+     58,
+     59,
+     1,
+     0,
+     17.0
+    ],
+    [
+     10470,
+     "Scholomance Neophyte",
+     57,
+     58,
+     1,
+     0,
+     17.0
+    ],
+    [
+     10471,
+     "Scholomance Acolyte",
+     57,
+     58,
+     1,
+     0,
+     14.0
+    ],
+    [
+     10472,
+     "Scholomance Occultist",
+     58,
+     59,
+     1,
+     0,
+     5.0
+    ],
+    [
+     10476,
+     "Scholomance Necrolyte",
+     57,
+     58,
+     1,
+     0,
+     10.0
+    ],
+    [
+     10477,
+     "Scholomance Necromancer",
+     58,
+     59,
+     1,
+     0,
+     15.0
+    ],
+    [
+     10478,
+     "Splintered Skeleton",
+     59,
+     60,
+     1,
+     0,
+     5.0
+    ],
+    [
+     10480,
+     "Unstable Corpse",
+     58,
+     59,
+     0,
+     0,
+     21.0
+    ],
+    [
+     10481,
+     "Reanimated Corpse",
+     58,
+     59,
+     0,
+     0,
+     24.0
+    ],
+    [
+     10485,
+     "Risen Aberration",
+     57,
+     58,
+     0,
+     0,
+     46.0
+    ],
+    [
+     10486,
+     "Risen Warrior",
+     59,
+     61,
+     1,
+     0,
+     2.0
+    ],
+    [
+     10487,
+     "Risen Protector",
+     58,
+     60,
+     1,
+     0,
+     4.0
+    ],
+    [
+     10488,
+     "Risen Construct",
+     58,
+     61,
+     1,
+     0,
+     12.0
+    ],
+    [
+     10489,
+     "Risen Guard",
+     57,
+     59,
+     1,
+     0,
+     12.0
+    ],
+    [
+     10491,
+     "Risen Bonewarder",
+     58,
+     59,
+     1,
+     0,
+     4.0
+    ],
+    [
+     10495,
+     "Diseased Ghoul",
+     58,
+     59,
+     1,
+     0,
+     29.0
+    ],
+    [
+     10498,
+     "Spectral Tutor",
+     58,
+     60,
+     1,
+     0,
+     7.0
+    ],
+    [
+     10499,
+     "Spectral Researcher",
+     58,
+     60,
+     1,
+     0,
+     7.0
+    ],
+    [
+     10500,
+     "Spectral Teacher",
+     58,
+     61,
+     1,
+     0,
+     3.0
+    ],
+    [
+     10502,
+     "Lady Illucia Barov",
+     60,
+     60,
+     1,
+     1,
+     1.0
+    ],
+    [
+     10503,
+     "Jandice Barov",
+     61,
+     61,
+     1,
+     1,
+     1.0
+    ],
+    [
+     10504,
+     "Lord Alexei Barov",
+     60,
+     60,
+     1,
+     1,
+     1.0
+    ],
+    [
+     10505,
+     "Instructor Malicia",
+     60,
+     60,
+     1,
+     1,
+     1.0
+    ],
+    [
+     10507,
+     "The Ravenian",
+     60,
+     60,
+     1,
+     1,
+     1.0
+    ],
+    [
+     10508,
+     "Ras Frostwhisper",
+     62,
+     62,
+     1,
+     1,
+     1.0
+    ],
+    [
+     10678,
+     "Plagued Hatchling",
+     57,
+     59,
+     0,
+     0,
+     22.0
+    ],
+    [
+     10901,
+     "Lorekeeper Polkelt",
+     60,
+     60,
+     1,
+     1,
+     1.0
+    ],
+    [
+     11257,
+     "Scholomance Handler",
+     59,
+     60,
+     1,
+     0,
+     5.0
+    ],
+    [
+     11261,
+     "Doctor Theolen Krastinov",
+     60,
+     60,
+     1,
+     1,
+     1.0
+    ],
+    [
+     11551,
+     "Necrofiend",
+     58,
+     60,
+     1,
+     0,
+     3.0
+    ],
+    [
+     11582,
+     "Scholomance Dark Summoner",
+     58,
+     59,
+     1,
+     0,
+     6.0
+    ],
+    [
+     11622,
+     "Rattlegore",
+     61,
+     61,
+     1,
+     1,
+     1.0
+    ],
+    [
+     14861,
+     "Blood Steward of Kirtonos",
+     61,
+     61,
+     1,
+     0,
+     1.0
+    ]
+   ]
+  },
+  "Shadowfang Keep": {
+   "map": 33,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     2529,
+     "Son of Arugal",
+     24,
+     25,
+     1,
+     0,
+     8.0
+    ],
+    [
+     3851,
+     "Shadowfang Whitescalp",
+     18,
+     19,
+     1,
+     0,
+     7.0
+    ],
+    [
+     3853,
+     "Shadowfang Moonwalker",
+     19,
+     20,
+     1,
+     0,
+     14.0
+    ],
+    [
+     3854,
+     "Shadowfang Wolfguard",
+     20,
+     21,
+     1,
+     0,
+     1.0
+    ],
+    [
+     3855,
+     "Shadowfang Darksoul",
+     20,
+     21,
+     1,
+     0,
+     12.0
+    ],
+    [
+     3857,
+     "Shadowfang Glutton",
+     21,
+     22,
+     1,
+     0,
+     4.0
+    ],
+    [
+     3859,
+     "Shadowfang Ragetooth",
+     23,
+     24,
+     1,
+     0,
+     8.0
+    ],
+    [
+     3861,
+     "Bleak Worg",
+     18,
+     19,
+     1,
+     0,
+     8.0
+    ],
+    [
+     3862,
+     "Slavering Worg",
+     18,
+     19,
+     1,
+     0,
+     9.0
+    ],
+    [
+     3863,
+     "Lupine Horror",
+     24,
+     25,
+     1,
+     0,
+     7.0
+    ],
+    [
+     3864,
+     "Fel Steed",
+     19,
+     20,
+     1,
+     0,
+     1.5
+    ],
+    [
+     3865,
+     "Shadow Charger",
+     20,
+     21,
+     1,
+     0,
+     1.5
+    ],
+    [
+     3866,
+     "Vile Bat",
+     22,
+     23,
+     1,
+     0,
+     1.0
+    ],
+    [
+     3868,
+     "Blood Seeker",
+     23,
+     24,
+     1,
+     0,
+     1.0
+    ],
+    [
+     3873,
+     "Tormented Officer",
+     23,
+     24,
+     1,
+     0,
+     5.7
+    ],
+    [
+     3875,
+     "Haunted Servitor",
+     20,
+     21,
+     1,
+     0,
+     19.0
+    ],
+    [
+     3877,
+     "Wailing Guardsman",
+     21,
+     22,
+     1,
+     0,
+     10.0
+    ],
+    [
+     3886,
+     "Razorclaw the Butcher",
+     22,
+     22,
+     1,
+     1,
+     1.0
+    ],
+    [
+     3887,
+     "Baron Silverlaine",
+     24,
+     24,
+     1,
+     1,
+     1.0
+    ],
+    [
+     3914,
+     "Rethilgore",
+     20,
+     20,
+     1,
+     1,
+     1.0
+    ],
+    [
+     3927,
+     "Wolf Master Nandos",
+     25,
+     25,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4274,
+     "Fenrus the Devourer",
+     25,
+     25,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4275,
+     "Archmage Arugal",
+     26,
+     26,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4278,
+     "Commander Springvale",
+     24,
+     24,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4279,
+     "Odo the Blindwatcher",
+     24,
+     24,
+     1,
+     1,
+     1.0
+    ],
+    [
+     5058,
+     "Wolfguard Worg",
+     20,
+     21,
+     0,
+     0,
+     1.0
+    ],
+    [
+     10000,
+     "Arugal",
+     26,
+     26,
+     1,
+     0,
+     1.0
+    ]
+   ]
+  },
+  "Stratholme": {
+   "map": 329,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "wings": {
+    "Live": {
+     "mobs": [
+      [
+       10381,
+       "Ravaged Cadaver",
+       56,
+       57,
+       1,
+       0,
+       12.0
+      ],
+      [
+       10382,
+       "Mangled Cadaver",
+       55,
+       56,
+       1,
+       0,
+       21.0
+      ],
+      [
+       10384,
+       "Spectral Citizen",
+       55,
+       56,
+       1,
+       0,
+       8.5
+      ],
+      [
+       10385,
+       "Ghostly Citizen",
+       56,
+       57,
+       1,
+       0,
+       2.5
+      ],
+      [
+       10390,
+       "Skeletal Guardian",
+       55,
+       56,
+       0,
+       0,
+       28.0
+      ],
+      [
+       10391,
+       "Skeletal Berserker",
+       56,
+       57,
+       0,
+       0,
+       28.0
+      ],
+      [
+       10405,
+       "Plague Ghoul",
+       57,
+       58,
+       1,
+       0,
+       5.4
+      ],
+      [
+       10411,
+       "Eye of Naxxramas",
+       55,
+       57,
+       0,
+       0,
+       2.0
+      ],
+      [
+       10414,
+       "Patchwork Horror",
+       57,
+       58,
+       1,
+       0,
+       2.0
+      ],
+      [
+       10418,
+       "Crimson Guardsman",
+       57,
+       58,
+       1,
+       0,
+       17.5
+      ],
+      [
+       10419,
+       "Crimson Conjuror",
+       57,
+       58,
+       1,
+       0,
+       15.5
+      ],
+      [
+       10420,
+       "Crimson Initiate",
+       57,
+       58,
+       1,
+       0,
+       8.0
+      ],
+      [
+       10421,
+       "Crimson Defender",
+       58,
+       59,
+       1,
+       0,
+       7.5
+      ],
+      [
+       10422,
+       "Crimson Sorcerer",
+       58,
+       59,
+       1,
+       0,
+       8.0
+      ],
+      [
+       10423,
+       "Crimson Priest",
+       58,
+       59,
+       1,
+       0,
+       3.5
+      ],
+      [
+       10424,
+       "Crimson Gallant",
+       59,
+       60,
+       1,
+       0,
+       13.5
+      ],
+      [
+       10425,
+       "Crimson Battle Mage",
+       59,
+       60,
+       1,
+       0,
+       6.5
+      ],
+      [
+       10426,
+       "Crimson Inquisitor",
+       59,
+       60,
+       1,
+       0,
+       5.0
+      ],
+      [
+       10558,
+       "Hearthsinger Forresten",
+       57,
+       57,
+       0,
+       1,
+       0.25
+      ],
+      [
+       10811,
+       "Archivist Galford",
+       60,
+       60,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10812,
+       "Grand Crusader Dathrohan",
+       62,
+       62,
+       1,
+       0,
+       1.0
+      ],
+      [
+       10997,
+       "Cannon Master Willey",
+       60,
+       60,
+       1,
+       1,
+       1.0
+      ],
+      [
+       11032,
+       "Malor the Zealous",
+       60,
+       60,
+       1,
+       1,
+       1.0
+      ],
+      [
+       11043,
+       "Crimson Monk",
+       58,
+       60,
+       1,
+       0,
+       6.0
+      ],
+      [
+       11082,
+       "Stratholme Courier",
+       57,
+       57,
+       1,
+       0,
+       1.0
+      ]
+     ]
+    },
+    "Undead": {
+     "mobs": [
+      [
+       10381,
+       "Ravaged Cadaver",
+       56,
+       57,
+       1,
+       0,
+       18.0
+      ],
+      [
+       10382,
+       "Mangled Cadaver",
+       55,
+       56,
+       1,
+       0,
+       14.0
+      ],
+      [
+       10384,
+       "Spectral Citizen",
+       55,
+       56,
+       1,
+       0,
+       3.0
+      ],
+      [
+       10385,
+       "Ghostly Citizen",
+       56,
+       57,
+       1,
+       0,
+       8.0
+      ],
+      [
+       10387,
+       "Vengeful Phantom",
+       56,
+       57,
+       0,
+       0,
+       4.0
+      ],
+      [
+       10390,
+       "Skeletal Guardian",
+       55,
+       56,
+       0,
+       0,
+       25.0
+      ],
+      [
+       10391,
+       "Skeletal Berserker",
+       56,
+       57,
+       0,
+       0,
+       20.0
+      ],
+      [
+       10398,
+       "Thuzadin Shadowcaster",
+       58,
+       59,
+       1,
+       0,
+       14.0
+      ],
+      [
+       10399,
+       "Thuzadin Acolyte",
+       59,
+       60,
+       0,
+       0,
+       16.0
+      ],
+      [
+       10400,
+       "Thuzadin Necromancer",
+       60,
+       61,
+       1,
+       0,
+       17.0
+      ],
+      [
+       10405,
+       "Plague Ghoul",
+       57,
+       58,
+       1,
+       0,
+       27.4
+      ],
+      [
+       10406,
+       "Ghoul Ravener",
+       58,
+       59,
+       1,
+       0,
+       17.0
+      ],
+      [
+       10407,
+       "Fleshflayer Ghoul",
+       59,
+       60,
+       1,
+       0,
+       10.0
+      ],
+      [
+       10408,
+       "Rockwing Gargoyle",
+       57,
+       58,
+       1,
+       0,
+       3.33
+      ],
+      [
+       10409,
+       "Rockwing Screecher",
+       58,
+       59,
+       1,
+       0,
+       3.33
+      ],
+      [
+       10411,
+       "Eye of Naxxramas",
+       55,
+       57,
+       0,
+       0,
+       1.0
+      ],
+      [
+       10412,
+       "Crypt Crawler",
+       58,
+       59,
+       1,
+       0,
+       7.0
+      ],
+      [
+       10413,
+       "Crypt Beast",
+       59,
+       60,
+       1,
+       0,
+       6.0
+      ],
+      [
+       10414,
+       "Patchwork Horror",
+       57,
+       58,
+       1,
+       0,
+       1.0
+      ],
+      [
+       10416,
+       "Bile Spewer",
+       59,
+       60,
+       1,
+       0,
+       4.0
+      ],
+      [
+       10417,
+       "Venom Belcher",
+       60,
+       61,
+       1,
+       0,
+       9.0
+      ],
+      [
+       10435,
+       "Magistrate Barthilas",
+       58,
+       58,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10436,
+       "Baroness Anastari",
+       59,
+       59,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10437,
+       "Nerub'enkan",
+       60,
+       60,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10438,
+       "Maleki the Pallid",
+       61,
+       61,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10440,
+       "Baron Rivendare",
+       62,
+       62,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10463,
+       "Shrieking Banshee",
+       57,
+       58,
+       1,
+       0,
+       9.0
+      ],
+      [
+       10464,
+       "Wailing Banshee",
+       58,
+       59,
+       1,
+       0,
+       6.0
+      ],
+      [
+       10516,
+       "The Unforgiven",
+       57,
+       57,
+       1,
+       1,
+       1.0
+      ],
+      [
+       10558,
+       "Hearthsinger Forresten",
+       57,
+       57,
+       0,
+       1,
+       0.75
+      ]
+     ]
+    }
+   }
+  },
+  "Sunken Temple": {
+   "map": 109,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     5226,
+     "Murk Worm",
+     47,
+     48,
+     1,
+     0,
+     17.5
+    ],
+    [
+     5228,
+     "Saturated Ooze",
+     47,
+     48,
+     1,
+     0,
+     10.0
+    ],
+    [
+     5256,
+     "Atal'ai Warrior",
+     48,
+     49,
+     1,
+     0,
+     11.33
+    ],
+    [
+     5259,
+     "Atal'ai Witch Doctor",
+     49,
+     50,
+     1,
+     0,
+     19.0
+    ],
+    [
+     5267,
+     "Unliving Atal'ai",
+     48,
+     49,
+     1,
+     0,
+     8.33
+    ],
+    [
+     5270,
+     "Atal'ai Corpse Eater",
+     49,
+     50,
+     1,
+     0,
+     8.33
+    ],
+    [
+     5271,
+     "Atal'ai Deathwalker",
+     50,
+     51,
+     1,
+     0,
+     14.0
+    ],
+    [
+     5273,
+     "Atal'ai High Priest",
+     50,
+     51,
+     1,
+     0,
+     3.0
+    ],
+    [
+     5291,
+     "Hakkari Frostwing",
+     49,
+     50,
+     1,
+     0,
+     3.0
+    ],
+    [
+     5708,
+     "Spawn of Hakkar",
+     51,
+     51,
+     1,
+     0,
+     1.0
+    ],
+    [
+     5709,
+     "Shade of Eranikus",
+     55,
+     55,
+     1,
+     1,
+     1.0
+    ],
+    [
+     5710,
+     "Jammal'an the Prophet",
+     54,
+     54,
+     1,
+     1,
+     1.0
+    ],
+    [
+     5711,
+     "Ogom the Wretched",
+     53,
+     53,
+     1,
+     0,
+     1.0
+    ],
+    [
+     5719,
+     "Morphaz",
+     52,
+     52,
+     1,
+     1,
+     1.0
+    ],
+    [
+     5722,
+     "Hazzas",
+     53,
+     53,
+     1,
+     1,
+     1.0
+    ],
+    [
+     8257,
+     "Oozeling",
+     40,
+     40,
+     0,
+     0,
+     5.0
+    ],
+    [
+     8311,
+     "Slime Maggot",
+     45,
+     46,
+     0,
+     0,
+     75.0
+    ],
+    [
+     8318,
+     "Atal'ai Slave",
+     46,
+     47,
+     0,
+     0,
+     24.0
+    ],
+    [
+     8336,
+     "Hakkari Sapper",
+     49,
+     50,
+     1,
+     0,
+     3.0
+    ],
+    [
+     8384,
+     "Deep Lurker",
+     47,
+     49,
+     1,
+     0,
+     22.5
+    ]
+   ]
+  },
+  "The Deadmines": {
+   "map": 36,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     598,
+     "Defias Miner",
+     17,
+     18,
+     0,
+     0,
+     48.0
+    ],
+    [
+     622,
+     "Goblin Engineer",
+     18,
+     19,
+     1,
+     0,
+     6.0
+    ],
+    [
+     634,
+     "Defias Overseer",
+     17,
+     18,
+     1,
+     0,
+     6.0
+    ],
+    [
+     636,
+     "Defias Blackguard",
+     19,
+     20,
+     1,
+     0,
+     4.0
+    ],
+    [
+     639,
+     "Edwin VanCleef",
+     21,
+     21,
+     0,
+     1,
+     1.0
+    ],
+    [
+     641,
+     "Goblin Woodcarver",
+     18,
+     19,
+     1,
+     0,
+     13.0
+    ],
+    [
+     642,
+     "Sneed's Shredder",
+     20,
+     20,
+     1,
+     0,
+     1.0
+    ],
+    [
+     644,
+     "Rhahk'Zor",
+     19,
+     19,
+     1,
+     0,
+     1.0
+    ],
+    [
+     645,
+     "Cookie",
+     20,
+     20,
+     1,
+     1,
+     1.0
+    ],
+    [
+     646,
+     "Mr. Smite",
+     20,
+     20,
+     1,
+     1,
+     1.0
+    ],
+    [
+     647,
+     "Captain Greenskin",
+     20,
+     20,
+     1,
+     1,
+     1.0
+    ],
+    [
+     657,
+     "Defias Pirate",
+     19,
+     20,
+     1,
+     0,
+     20.5
+    ],
+    [
+     1725,
+     "Defias Watchman",
+     16,
+     17,
+     1,
+     0,
+     2.0
+    ],
+    [
+     1729,
+     "Defias Evoker",
+     17,
+     18,
+     1,
+     0,
+     6.0
+    ],
+    [
+     1731,
+     "Goblin Craftsman",
+     18,
+     19,
+     1,
+     0,
+     13.0
+    ],
+    [
+     1732,
+     "Defias Squallshaper",
+     19,
+     20,
+     1,
+     0,
+     20.5
+    ],
+    [
+     1763,
+     "Gilnid",
+     20,
+     20,
+     1,
+     1,
+     1.0
+    ],
+    [
+     3947,
+     "Goblin Shipbuilder",
+     19,
+     20,
+     1,
+     0,
+     16.0
+    ],
+    [
+     4416,
+     "Defias Strip Miner",
+     18,
+     19,
+     0,
+     0,
+     27.0
+    ],
+    [
+     4417,
+     "Defias Taskmaster",
+     18,
+     19,
+     1,
+     0,
+     4.5
+    ],
+    [
+     4418,
+     "Defias Wizard",
+     18,
+     19,
+     1,
+     0,
+     3.5
+    ]
+   ]
+  },
+  "The Stockade": {
+   "map": 34,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     1663,
+     "Dextren Ward",
+     26,
+     26,
+     1,
+     1,
+     1.0
+    ],
+    [
+     1666,
+     "Kam Deepfury",
+     27,
+     27,
+     1,
+     1,
+     1.0
+    ],
+    [
+     1696,
+     "Targorr the Dread",
+     24,
+     24,
+     1,
+     1,
+     1.0
+    ],
+    [
+     1706,
+     "Defias Prisoner",
+     23,
+     24,
+     1,
+     0,
+     22.17
+    ],
+    [
+     1707,
+     "Defias Captive",
+     23,
+     24,
+     1,
+     0,
+     20.67
+    ],
+    [
+     1708,
+     "Defias Inmate",
+     24,
+     25,
+     1,
+     0,
+     20.5
+    ],
+    [
+     1711,
+     "Defias Convict",
+     24,
+     25,
+     1,
+     0,
+     8.33
+    ],
+    [
+     1715,
+     "Defias Insurgent",
+     25,
+     26,
+     1,
+     0,
+     16.13
+    ],
+    [
+     1716,
+     "Bazil Thredd",
+     29,
+     29,
+     1,
+     1,
+     1.0
+    ],
+    [
+     1717,
+     "Hamhock",
+     28,
+     28,
+     1,
+     1,
+     1.0
+    ]
+   ],
+   "reference": {
+    "what": "full_clear",
+    "runs": [
+     {
+      "level": 31,
+      "party": 5,
+      "kill_xp": [
+       2738,
+       2850
+      ],
+      "inside_s": 1292,
+      "kills": 96
+     }
+    ]
+   }
+  },
+  "Uldaman": {
+   "map": 70,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     2748,
+     "Archaedas",
+     47,
+     47,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4847,
+     "Shadowforge Relic Hunter",
+     39,
+     40,
+     1,
+     0,
+     5.0
+    ],
+    [
+     4848,
+     "Shadowforge Darkcaster",
+     43,
+     44,
+     1,
+     0,
+     2.0
+    ],
+    [
+     4849,
+     "Shadowforge Archaeologist",
+     43,
+     44,
+     1,
+     0,
+     2.0
+    ],
+    [
+     4850,
+     "Stonevault Cave Lurker",
+     38,
+     39,
+     1,
+     0,
+     14.0
+    ],
+    [
+     4851,
+     "Stonevault Rockchewer",
+     36,
+     37,
+     1,
+     0,
+     19.0
+    ],
+    [
+     4852,
+     "Stonevault Oracle",
+     37,
+     38,
+     1,
+     0,
+     23.0
+    ],
+    [
+     4853,
+     "Stonevault Geomancer",
+     43,
+     44,
+     1,
+     0,
+     9.0
+    ],
+    [
+     4854,
+     "Grimlok",
+     45,
+     45,
+     1,
+     1,
+     1.0
+    ],
+    [
+     4855,
+     "Stonevault Brawler",
+     43,
+     44,
+     1,
+     0,
+     17.0
+    ],
+    [
+     4857,
+     "Stone Keeper",
+     46,
+     46,
+     1,
+     0,
+     4.0
+    ],
+    [
+     4860,
+     "Stone Steward",
+     44,
+     44,
+     1,
+     0,
+     11.0
+    ],
+    [
+     4861,
+     "Shrike Bat",
+     38,
+     39,
+     1,
+     0,
+     8.0
+    ],
+    [
+     4863,
+     "Jadespine Basilisk",
+     39,
+     40,
+     1,
+     0,
+     4.0
+    ],
+    [
+     6910,
+     "Revelosh",
+     40,
+     40,
+     1,
+     1,
+     1.0
+    ],
+    [
+     7011,
+     "Earthen Rocksmasher",
+     42,
+     43,
+     0,
+     0,
+     28.0
+    ],
+    [
+     7012,
+     "Earthen Sculptor",
+     42,
+     43,
+     0,
+     0,
+     10.0
+    ],
+    [
+     7022,
+     "Venomlash Scorpid",
+     39,
+     40,
+     1,
+     0,
+     4.0
+    ],
+    [
+     7023,
+     "Obsidian Sentinel",
+     42,
+     42,
+     1,
+     0,
+     1.0
+    ],
+    [
+     7030,
+     "Shadowforge Geologist",
+     40,
+     41,
+     1,
+     0,
+     3.0
+    ],
+    [
+     7076,
+     "Earthen Guardian",
+     44,
+     45,
+     0,
+     0,
+     6.0
+    ],
+    [
+     7077,
+     "Earthen Hallshaper",
+     44,
+     45,
+     0,
+     0,
+     12.0
+    ],
+    [
+     7078,
+     "Cleft Scorpid",
+     35,
+     36,
+     0,
+     0,
+     30.0
+    ],
+    [
+     7175,
+     "Stonevault Ambusher",
+     35,
+     35,
+     0,
+     0,
+     8.0
+    ],
+    [
+     7206,
+     "Ancient Stone Keeper",
+     44,
+     44,
+     1,
+     1,
+     1.0
+    ],
+    [
+     7290,
+     "Shadowforge Sharpshooter",
+     43,
+     44,
+     1,
+     0,
+     2.0
+    ],
+    [
+     7291,
+     "Galgann Firehammer",
+     45,
+     45,
+     1,
+     1,
+     1.0
+    ],
+    [
+     7309,
+     "Earthen Custodian",
+     44,
+     45,
+     0,
+     0,
+     32.0
+    ],
+    [
+     7320,
+     "Stonevault Mauler",
+     44,
+     45,
+     1,
+     0,
+     9.0
+    ],
+    [
+     7321,
+     "Stonevault Flameweaver",
+     44,
+     45,
+     1,
+     0,
+     6.0
+    ],
+    [
+     7396,
+     "Earthen Stonebreaker",
+     44,
+     45,
+     0,
+     0,
+     24.0
+    ],
+    [
+     7397,
+     "Earthen Stonecarver",
+     44,
+     45,
+     0,
+     0,
+     7.0
+    ],
+    [
+     7405,
+     "Deadly Cleft Scorpid",
+     42,
+     43,
+     0,
+     0,
+     10.0
+    ],
+    [
+     10120,
+     "Vault Warder",
+     45,
+     45,
+     1,
+     0,
+     4.0
+    ]
+   ]
+  },
+  "Wailing Caverns": {
+   "map": 43,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     3636,
+     "Deviate Ravager",
+     18,
+     19,
+     1,
+     0,
+     14.0
+    ],
+    [
+     3637,
+     "Deviate Guardian",
+     18,
+     19,
+     1,
+     0,
+     14.0
+    ],
+    [
+     3640,
+     "Evolving Ectoplasm",
+     17,
+     18,
+     1,
+     0,
+     12.0
+    ],
+    [
+     3653,
+     "Kresh",
+     20,
+     20,
+     1,
+     1,
+     1.0
+    ],
+    [
+     3669,
+     "Lord Cobrahn",
+     20,
+     20,
+     1,
+     1,
+     1.0
+    ],
+    [
+     3670,
+     "Lord Pythas",
+     21,
+     21,
+     1,
+     1,
+     1.0
+    ],
+    [
+     3673,
+     "Lord Serpentis",
+     21,
+     21,
+     1,
+     1,
+     1.0
+    ],
+    [
+     3674,
+     "Skum",
+     21,
+     21,
+     1,
+     1,
+     1.0
+    ],
+    [
+     3840,
+     "Druid of the Fang",
+     19,
+     20,
+     1,
+     0,
+     62.7
+    ],
+    [
+     5048,
+     "Deviate Adder",
+     18,
+     19,
+     1,
+     0,
+     7.0
+    ],
+    [
+     5053,
+     "Deviate Crocolisk",
+     18,
+     19,
+     0,
+     0,
+     14.0
+    ],
+    [
+     5055,
+     "Deviate Lasher",
+     19,
+     20,
+     0,
+     0,
+     52.0
+    ],
+    [
+     5056,
+     "Deviate Dreadfang",
+     20,
+     21,
+     1,
+     0,
+     13.0
+    ],
+    [
+     5755,
+     "Deviate Viper",
+     19,
+     20,
+     1,
+     0,
+     8.0
+    ],
+    [
+     5756,
+     "Deviate Venomwing",
+     20,
+     21,
+     1,
+     0,
+     11.0
+    ],
+    [
+     5761,
+     "Deviate Shambler",
+     19,
+     20,
+     1,
+     0,
+     22.0
+    ],
+    [
+     5775,
+     "Verdan the Everliving",
+     21,
+     21,
+     1,
+     1,
+     1.0
+    ],
+    [
+     8886,
+     "Deviate Python",
+     18,
+     19,
+     0,
+     0,
+     11.0
+    ]
+   ]
+  },
+  "Zul'Farrak": {
+   "map": 209,
+   "label": "estimate",
+   "basis": "spawns",
+   "source": "cmangos",
+   "mobs": [
+    [
+     5648,
+     "Sandfury Shadowcaster",
+     43,
+     44,
+     1,
+     0,
+     19.67
+    ],
+    [
+     5649,
+     "Sandfury Blood Drinker",
+     44,
+     45,
+     1,
+     0,
+     46.5
+    ],
+    [
+     5650,
+     "Sandfury Witch Doctor",
+     44,
+     45,
+     1,
+     0,
+     47.0
+    ],
+    [
+     7246,
+     "Sandfury Shadowhunter",
+     45,
+     46,
+     1,
+     0,
+     41.03
+    ],
+    [
+     7247,
+     "Sandfury Soul Eater",
+     45,
+     46,
+     1,
+     0,
+     3.5
+    ],
+    [
+     7267,
+     "Chief Ukorz Sandscalp",
+     48,
+     48,
+     1,
+     1,
+     1.0
+    ],
+    [
+     7268,
+     "Sandfury Guardian",
+     45,
+     46,
+     1,
+     0,
+     4.0
+    ],
+    [
+     7269,
+     "Scarab",
+     44,
+     46,
+     0,
+     0,
+     69.4
+    ],
+    [
+     7272,
+     "Theka the Martyr",
+     45,
+     46,
+     1,
+     1,
+     1.0
+    ],
+    [
+     7274,
+     "Sandfury Executioner",
+     46,
+     46,
+     1,
+     0,
+     1.0
+    ],
+    [
+     7795,
+     "Hydromancer Velratha",
+     46,
+     46,
+     1,
+     1,
+     1.0
+    ],
+    [
+     7797,
+     "Ruuzlu",
+     46,
+     46,
+     1,
+     0,
+     1.0
+    ],
+    [
+     8095,
+     "Sul'lithuz Sandcrawler",
+     45,
+     47,
+     1,
+     0,
+     22.0
+    ],
+    [
+     8120,
+     "Sul'lithuz Abomination",
+     47,
+     47,
+     1,
+     0,
+     2.0
+    ],
+    [
+     8127,
+     "Antu'sul",
+     48,
+     48,
+     1,
+     1,
+     1.0
+    ],
+    [
+     8130,
+     "Sul'lithuz Hatchling",
+     30,
+     35,
+     1,
+     0,
+     3.0
+    ]
+   ]
+  },
+  "Ruins of Lordaeron": {
+   "map": 2999,
+   "label": "estimate",
+   "basis": "logged_runs",
+   "source": "eg_link",
+   "mobs": [
+    [
+     250483,
+     "Witherfang",
+     17,
+     17,
+     1,
+     1.0
+    ],
+    [
+     250484,
+     "Spider",
+     15,
+     16,
+     0,
+     9.14
+    ],
+    [
+     250488,
+     "Tarantula",
+     17,
+     17,
+     0,
+     0.71
+    ],
+    [
+     250618,
+     "Skeleton",
+     15,
+     16,
+     0,
+     3
+    ],
+    [
+     250619,
+     "Broodwidow",
+     16,
+     16,
+     0,
+     0.14
+    ],
+    [
+     250620,
+     "Shrieking Banshee",
+     16,
+     16,
+     0,
+     3.14
+    ],
+    [
+     250622,
+     "Ragged Ghoul",
+     15,
+     16,
+     0,
+     17.86
+    ],
+    [
+     250623,
+     "Mangled Cadaver",
+     16,
+     16,
+     0,
+     1.43
+    ],
+    [
+     250624,
+     "Skeletal Mage",
+     16,
+     17,
+     0,
+     8.14
+    ],
+    [
+     250625,
+     "Broodling",
+     14,
+     14,
+     0,
+     8.14
+    ],
+    [
+     250626,
+     "Skeletal Soldier",
+     15,
+     15,
+     0,
+     19.86
+    ],
+    [
+     250627,
+     "Ghoul",
+     16,
+     16,
+     0,
+     39
+    ],
+    [
+     250630,
+     "Plague Ghoul",
+     16,
+     16,
+     0,
+     2
+    ],
+    [
+     250631,
+     "The Abandoned",
+     18,
+     18,
+     1,
+     1.0
+    ],
+    [
+     250649,
+     "Mindless Undead",
+     16,
+     16,
+     0,
+     9.86
+    ],
+    [
+     250650,
+     "Wailing Banshee",
+     16,
+     16,
+     0,
+     0.29
+    ],
+    [
+     250651,
+     "Vengeful Citizen",
+     14,
+     15,
+     0,
+     1.14
+    ],
+    [
+     250654,
+     "Ghostly Citizen",
+     14,
+     15,
+     0,
+     2.14
+    ],
+    [
+     250656,
+     "Fallen Berserker",
+     16,
+     17,
+     0,
+     2.0
+    ],
+    [
+     250657,
+     "Rath'mael",
+     20,
+     20,
+     1,
+     1.0
+    ],
+    [
+     250660,
+     "The Baron",
+     17,
+     17,
+     1,
+     1.0
+    ],
+    [
+     250689,
+     "Living Monstrosity",
+     16,
+     17,
+     0,
+     1.71
+    ],
+    [
+     250735,
+     "Venom Lurker",
+     16,
+     16,
+     0,
+     5.29
+    ],
+    [
+     255109,
+     "Flesh Golem",
+     15,
+     16,
+     0,
+     3.43
+    ],
+    [
+     255964,
+     "Fallen Necromancer",
+     15,
+     17,
+     0,
+     6.0
+    ],
+    [
+     256035,
+     "Viktor the Vile",
+     19,
+     19,
+     1,
+     1.0
+    ],
+    [
+     256040,
+     "Deep Widow",
+     15,
+     16,
+     0,
+     6.29
+    ],
+    [
+     256097,
+     "Bjork",
+     19,
+     19,
+     1,
+     1.0
+    ]
+   ]
+  },
+  "The Drowned City": {
+   "map": null,
+   "label": "estimate",
+   "basis": "logged_runs",
+   "source": "eg_link",
+   "mobs": [
+    [
+     250187,
+     "Bladetooth Frenzy",
+     35,
+     36,
+     0,
+     9.0
+    ],
+    [
+     258792,
+     "Risen Sentry",
+     37,
+     38,
+     0,
+     13.0
+    ],
+    [
+     258797,
+     "Champion of the Deep",
+     38,
+     39,
+     0,
+     9.25
+    ],
+    [
+     258799,
+     "Brinescale Explorer",
+     37,
+     38,
+     0,
+     18.25
+    ],
+    [
+     258804,
+     "Brinescale Sorceress",
+     37,
+     38,
+     0,
+     12.25
+    ],
+    [
+     258818,
+     "Chasm Crawler",
+     36,
+     37,
+     0,
+     11.5
+    ],
+    [
+     258849,
+     "Saltscale Muckdweller",
+     37,
+     38,
+     0,
+     29.5
+    ],
+    [
+     258897,
+     "Makrura Snapper",
+     36,
+     37,
+     0,
+     3.5
+    ],
+    [
+     258905,
+     "Zul'Alai",
+     37,
+     37,
+     1,
+     1.0
+    ],
+    [
+     258924,
+     "Var'Taka",
+     38,
+     38,
+     1,
+     1.0
+    ],
+    [
+     259979,
+     "Saltseer Murderer",
+     37,
+     38,
+     0,
+     16.75
+    ],
+    [
+     259981,
+     "Saltseer Cultist",
+     37,
+     38,
+     0,
+     6.25
+    ],
+    [
+     259987,
+     "Saltseer Manhunter",
+     37,
+     38,
+     0,
+     12.25
+    ],
+    [
+     260042,
+     "Captain Dreadrise",
+     38,
+     38,
+     1,
+     1.0
+    ],
+    [
+     260096,
+     "Brinescale Priestess",
+     37,
+     37,
+     0,
+     2.0
+    ],
+    [
+     260202,
+     "Deathless Marrow",
+     39,
+     39,
+     1,
+     1.0
+    ],
+    [
+     260243,
+     "Min'loth the Serpent",
+     40,
+     40,
+     1,
+     1.0
+    ],
+    [
+     260353,
+     "Saltseer Coroner",
+     37,
+     38,
+     0,
+     2.5
+    ],
+    [
+     263055,
+     "Crab",
+     1,
+     1,
+     0,
+     9.75
+    ],
+    [
+     263061,
+     "Toad",
+     1,
+     1,
+     0,
+     2.5
+    ],
+    [
+     263064,
+     "Snake",
+     1,
+     1,
+     0,
+     3.5
+    ],
+    [
+     263196,
+     "Profane Necromancer",
+     37,
+     38,
+     0,
+     8.75
+    ],
+    [
+     263229,
+     "Drowned Spirit",
+     37,
+     38,
+     0,
+     4.5
+    ],
+    [
+     263886,
+     "Primeval Elemental",
+     38,
+     38,
+     1,
+     0.75
+    ],
+    [
+     263899,
+     "Undying Offering",
+     37,
+     38,
+     0,
+     4.5
+    ],
+    [
+     264177,
+     "Gill",
+     37,
+     37,
+     0,
+     0.25
+    ],
+    [
+     268300,
+     "Mindless Gorger",
+     37,
+     38,
+     0,
+     31.5
+    ],
+    [
+     268321,
+     "Bound Elemental",
+     37,
+     38,
+     0,
+     2.5
+    ],
+    [
+     268462,
+     "Mana-Rich Frenzy",
+     35,
+     36,
+     0,
+     2.5
+    ],
+    [
+     268476,
+     "Deathless Sorcerer",
+     39,
+     39,
+     0,
+     1.0
+    ],
+    [
+     268477,
+     "Deathless Watcher",
+     39,
+     39,
+     0,
+     1.0
+    ],
+    [
+     268478,
+     "Deathless Guardian",
+     39,
+     39,
+     0,
+     1.0
+    ]
+   ]
+  },
+  "City of Dalaran": {
+   "map": 2959,
+   "label": "estimate",
+   "basis": "reference_runs",
+   "source": "eg_link",
+   "mobs": [
+    [
+     245999,
+     "Arcane Anomaly",
+     30,
+     30,
+     1,
+     1.0
+    ],
+    [
+     246003,
+     "Fel Ancient",
+     32,
+     32,
+     1,
+     1.0
+    ],
+    [
+     246008,
+     "Mana Devourer",
+     31,
+     31,
+     1,
+     1.0
+    ],
+    [
+     246016,
+     "Arcanic Enigma",
+     30,
+     30,
+     1,
+     1.0
+    ],
+    [
+     246017,
+     "Unstable Sentinel",
+     31,
+     31,
+     1,
+     1.0
+    ],
+    [
+     246600,
+     "Mana Echo",
+     29,
+     30,
+     0,
+     5.0
+    ],
+    [
+     246602,
+     "Mana Fiend",
+     26,
+     27,
+     0,
+     18.0
+    ],
+    [
+     246664,
+     "Fragmented Sentry",
+     30,
+     30,
+     0,
+     9.0
+    ],
+    [
+     246683,
+     "Mana Phantom",
+     28,
+     28,
+     0,
+     7.0
+    ],
+    [
+     246888,
+     "Arcane Elemental",
+     26,
+     26,
+     0,
+     4.0
+    ],
+    [
+     246890,
+     "Arcane Manaling",
+     27,
+     28,
+     0,
+     21.0
+    ],
+    [
+     246931,
+     "Mana Wraith",
+     27,
+     28,
+     0,
+     2.0
+    ],
+    [
+     246990,
+     "Phantasm",
+     26,
+     26,
+     0,
+     3
+    ],
+    [
+     246992,
+     "Arcane Echo",
+     29,
+     29,
+     0,
+     2.0
+    ],
+    [
+     246993,
+     "Mana Stalker",
+     29,
+     30,
+     0,
+     3.0
+    ],
+    [
+     247001,
+     "Saturated Remnant",
+     29,
+     30,
+     0,
+     4
+    ],
+    [
+     247003,
+     "Seeking Remnant",
+     29,
+     29,
+     0,
+     4.0
+    ],
+    [
+     247016,
+     "Suffused Treant",
+     26,
+     26,
+     0,
+     12.0
+    ],
+    [
+     247032,
+     "Lyn the Ignored",
+     31,
+     31,
+     1,
+     1.0
+    ],
+    [
+     247126,
+     "Atrexis the Grave Knight",
+     29,
+     29,
+     1,
+     1.0
+    ],
+    [
+     255065,
+     "Risen Terror",
+     27,
+     28,
+     0,
+     2.0
+    ],
+    [
+     255066,
+     "Fallen Mage",
+     29,
+     29,
+     0,
+     7.0
+    ],
+    [
+     255068,
+     "Mindless Horror",
+     28,
+     28,
+     0,
+     4.0
+    ],
+    [
+     255069,
+     "Fallen Warrior",
+     29,
+     29,
+     0,
+     6.0
+    ],
+    [
+     255070,
+     "Skeletal Warder",
+     29,
+     29,
+     0,
+     2.0
+    ],
+    [
+     255071,
+     "Sewer Fiend",
+     24,
+     25,
+     0,
+     2.0
+    ],
+    [
+     255072,
+     "Dark Caster",
+     28,
+     29,
+     0,
+     2.0
+    ],
+    [
+     269134,
+     "Kirin Tor Necromancer",
+     29,
+     29,
+     0,
+     8.0
+    ],
+    [
+     269475,
+     "Mana Phantom",
+     28,
+     28,
+     0,
+     2.0
+    ]
+   ],
+   "reference": {
+    "what": "runs",
+    "bosses_each_run": true,
+    "trash_once_across": true,
+    "runs": [
+     {
+      "level": 32,
+      "party": 5,
+      "kill_xp": 6870,
+      "inside_s": 3836
+     },
+     {
+      "level": 32,
+      "party": 5,
+      "kill_xp": 5258,
+      "inside_s": 1996
+     }
+    ]
+   }
+  },
+  "The Hall of Thanes": {
+   "map": 3065,
+   "label": "not_enough_data",
+   "unlock": "One logged run so far; two more logged runs would give a spread."
+  },
+  "Excavation Site: Wetlands": {
+   "map": 2998,
+   "label": "not_enough_data",
+   "unlock": "The four logs look like one run seen by several players; two more runs from other groups."
+  },
+  "Krol'dok Stronghold": {
+   "map": null,
+   "label": "not_enough_data",
+   "unlock": "Half the XP is in waves that grow with time spent; three more runs with their duration, to count waves per minute."
+  },
+  "Alcaz Prison": {
+   "map": null,
+   "label": "not_enough_data",
+   "unlock": "Two runs by a single player; runs from a second player."
+  },
+  "Blackmaw Hold": {
+   "map": null,
+   "label": "not_enough_data",
+   "unlock": "No logged run yet; any logged run."
+  },
+  "Shaper's Terrace": {
+   "map": null,
+   "label": "not_enough_data",
+   "unlock": "No logged run yet; any logged run."
+  }
+ }
+}
