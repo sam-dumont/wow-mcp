@@ -34,20 +34,17 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `zones` | Time, XP and deaths per zone, XP per hour |
 | `guide_steps` | Time per guide step, steps you jumped or skipped, and the guide's expected time on Polestar's route |
 | `deaths` | Deaths by zone and what killed you |
-| `dungeons` | Runs, length, XP per hour |
-| `players` | People you grouped with, how often |
+| `dungeons` | Runs, length, XP per hour. With `options`: dungeons ranked, fits now or opens at level N; one more run at your level now (`gain`: time, XP, share of the level, XP/h against your questing, the quests to pick up; the same line as the Overview and the Dungeons panel); expected gear per clear, top items (with `bis_pct`, `bis_pct_worn`, `delta_pct`); for done ones a redo verdict and the loop numbers |
+| `players` | People you grouped with, how often. With `groups`: also the dungeon runs with group size, bosses, wipes and deaths. No addon saves who was in a group, and the tool says so |
 | `prices` | Your own Auctionator scans (feed `wow-prices`) |
-| `gear` | Per slot what is worn, the best item at this level and the next within 3 levels, then the next upgrades with where to get them, the slot furthest from BiS first; Polestar's scoring for the character's spec (or the one asked for). Each item carries the page's badge: `bis_pct` (its share of the slot's best at this level, 100 is BiS), `bis_pct_worn` (the worn one's, null for an empty slot) and `delta_pct`. [Gear reference](gear-reference.md) |
+| `gear` | Per slot what is worn, the best item at this level and the next within 3 levels, then the next upgrades with where to get them, the slot furthest from BiS first; Polestar's scoring for the character's spec (or the one asked for). Each item carries the page's badge: `bis_pct` (its share of the slot's best at this level, 100 is BiS), `bis_pct_worn` (the worn one's, null for an empty slot) and `delta_pct`. [Gear reference](gear-reference.md). With `options`: per slot, every source kind with its cost: quest (where), dungeon (whole-trip time / drop chance), world drop (luck, AH), craft (skill needed), and any other kind a source carries; each item with `bis_pct`, `bis_pct_worn`, `delta_pct` |
 | `route_reference` | Expected time per level, per guide and per step on Polestar's route (see "Route times") |
 | `next_moves` | "Besides following Polestar, what should I do now?" Upgrades in reach (with the same `bis_pct`, `bis_pct_worn`, `delta_pct` as `gear`), dungeons that drop them, profession trainer visits due, rested XP, time to the next level; each point with the data it came from |
 | `sanity_check` | "Is there anything stupid I'm doing?" Death clusters (zone, creature, level gap) with the likely killer, guide steps far over plan, steps passed over, upgrades not taken, a capped profession, unspent talent points, slow levels; each finding with its data |
-| `people` | Players seen (Polestar's sightings) and dungeon runs with group size, bosses, wipes and deaths. No addon saves who was in a group, and the tool says so |
 | `plan_session` | A time-boxed plan for the next `hours` (0.5 to 8), with `constraints` in plain text ("no dungeons", "level tailoring") and `context` (`levelling`; `max-level-pve` and `pvp` answer "not supported yet" with KB pointers). Returns the estimator's `facts` (every number), its own `markdown`, the `blocks` and a `brief` for the client's model. See "Session plans" |
 | `check_plan` | A write-up of the latest plan against its facts and the player's own constraints: lists every number in the text that no fact holds, and every sentence that breaks a constraint from `plan_session` (an activity ruled out, such as "no dungeons", or more time than the plan has), naming it |
 | `how_did_my_plan_go` | The latest plans against what happened: per checkpoint, the online time planned and needed; the calibration factor the next plans use. Deterministic |
 | `next_step` | The next 30 to 45 minutes: the first block of a short plan, the town errands, what to drop |
-| `gear_options` | Per slot, every source kind with its cost: quest (where), dungeon (whole-trip time / drop chance), world drop (luck, AH), craft (skill needed), and any other kind a source carries; each item with `bis_pct`, `bis_pct_worn`, `delta_pct` |
-| `dungeon_options` | Dungeons ranked: fits now or opens at level N; one more run at your level now (`gain`: time, XP, share of the level, XP/h against your questing, the quests to pick up; the same line as the Overview and the Dungeons panel); expected gear per clear, top items (with `bis_pct`, `bis_pct_worn`, `delta_pct`); for done ones a redo verdict and the loop numbers |
 | `mount_goal` | Each riding tier (from `data/kb/rules.json`): gold needed, gold left, net gold per hour, ETA in played time and level, priced options to speed it up; what isn't known (the time to a level past the route's clock) is listed under `unknown` |
 | `whats_new` | Analysis findings new, held again on newer play or dropped in the last `days` (7 by default), and the nudges |
 | `kb_search` | The knowledge base, full text, each hit with its source URL, type, confidence and scope (`forever` or `classic_fallback`); `scope` filters |
@@ -61,7 +58,7 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `analyse` | The `analyse` prompt as a tool (ChatGPT has no prompts): the procedure and where the run stands |
 | `analysis_brief` | The play analysis' brief in sections sized for a 32k context: `start`, `schema`, `profile` and `kb` (paged, 12,000 characters a page), `survey`, `lane`, `followups`, `coverage`, `synthesis` |
 | `play_sql` | One read-only SELECT on that database, paged (40 rows by default, 60 at most, 1,000 deep, 6,000 characters a page). It runs in a child process with 512 MB over the data and the query's timeout: a query past either fails alone, with a plain error, and the server carries on |
-| `list_metrics` | The semantic layer's catalogue: every named metric with its kind, unit, definition and caveats, the dimensions and the time grains ([Semantic layer](reference/semantic-layer.md)) |
+| `list_metrics` | The semantic layer's catalogue ([Semantic layer](reference/semantic-layer.md)). Without arguments an index that fits a client's output limit: each model's metrics with one line each, the views per grain, the dimension names and the time grains. With `names`, `model` or `search`: each metric's kind, unit, definition, caveats and dimensions, and the views' columns (40 metrics a call) |
 | `query_metric` | Named metrics grouped, filtered and cut by day, week or month; the server writes the SQL from the model file and returns the rows, that SQL with its bound parameters and each metric's definition |
 | `propose_finding` | The judge: re-runs the finding's SQL (or its `metric_query`), checks every number, `expect`, `holds` and KB ids, then stores it for the character or refuses it with the reason |
 | `analysis_submit` | Hands in a pass (`survey`, `lane`, `pick`, `synthesis`); the server checks it and answers with the next step |
@@ -70,7 +67,10 @@ full view the MCP is off too until `MCP_PUBLIC_URL` is set.
 | `dashboard_refresh` | Refreshes the caller's play analysis on the client: their own model runs it, so it costs the server nothing and starts nothing there ([Server-side analysis](self-host/server-analysis.md)). Picks the character whose analysis is most out of date (or `char`) and returns `analyse`'s answer for it, plus `do` (analysis_brief, the passes, then analysis_submit, which refreshes the dashboard and resets that character's timer) and `then`, the caller's other characters with play since their refresh, one run each. Under `server_automatic_refresh`, the server's automatic refreshes only: each character's play since its refresh against the threshold, the last refresh and who did it, whether an automatic refresh of theirs runs or waits, `last_try` (how the last one ended), `budget` (`scope: "install"`: every person's runs this month against the one cap) and `yours` (`scope: "you"`: the caller's own runs, cost and tokens) |
 
 Every tool takes `char` (default: `DEFAULT_CHAR`, else the character seen
-last). Time ranges take `7d`, `36h`, `2w` or an ISO date. Rates per hour are
+last). A name that isn't one of yours is an error (`isError`) naming your
+characters; a character of yours with nothing arrived yet is not, and says so
+under `missing`. An unknown metric in `query_metric` or `list_metrics` is an
+error too. Time ranges take `7d`, `36h`, `2w` or an ISO date. Rates per hour are
 rounded to a whole number, the same in every tool and page.
 
 Every answer about one character carries `coverage`: what it stood on, one
@@ -91,8 +91,10 @@ record. All of it comes from what is stored (`wowstats/coverage.py`).
 
 Each tool's annotations say what it does: read-only, except the ones that
 write the character's analysis run or plans. `play_sql`, `query_metric`,
-`kb_search`, `kb_get` and `kb_lookup` only add to a run's coverage (with `char`, during a
-run); `analysis_brief` (a new run, `restart`, new goals), `propose_finding`
+`kb_search`, `kb_get` and `kb_lookup` are read-only too: they only count the
+call in a run's coverage (with `char`, during a run), bookkeeping you never
+see as a change, so a client doesn't ask you to approve a lookup;
+`analysis_brief` (a new run, `restart`, new goals), `propose_finding`
 (a finding under a kept key), `analysis_submit` and `plan_session` can
 replace what is kept, so they are marked destructive. `dashboard_refresh`
 reads only: it hands the run to the caller's own model and starts nothing on
@@ -128,8 +130,8 @@ the client's model writes them up.
 | `plan` | `hours` (3) | `plan_session`, `check_plan` | "start to +47 min · Southshore, steps 40 to 42 → 32.3; Polestar plans 21 min, at your pace about 47 min (questing 1.86x over 143 steps)" ... "about 32.9 at the end" |
 | `now` | | `next_step` | "start to +27 min · steps 40 to 41 (Southshore to Bartolo Ginsetti) → 32.2; class trainer: last visit at level 31" |
 | `recap` | | `how_did_my_plan_go` | "no plan to compare yet: make one (plan_session), play past its first checkpoint, then ask again" |
-| `gear` | | `gear_options` | "Off hand: Orb of Mystic Insight +33.1, craft, you can make it now; Traitor's Finger +32.6, a quest in Desolace" |
-| `dungeon` | | `dungeon_options` | "1. City of Dalaran (28-35), +43.2 gear per clear, Ponderous Orb 33% ... The Stockade: worth looping for gold toward the mount, about 6g 93s/h (≈ 39 runs)" |
+| `gear` | | `gear` (`options`) | "Off hand: Orb of Mystic Insight +33.1, craft, you can make it now; Traitor's Finger +32.6, a quest in Desolace" |
+| `dungeon` | | `dungeons` (`options`) | "1. City of Dalaran (28-35), +43.2 gear per clear, Ponderous Orb 33% ... The Stockade: worth looping for gold toward the mount, about 6g 93s/h (≈ 39 runs)" |
 | `check` | | `sanity_check`, analysis findings | death clusters, steps passed over, upgrades not taken |
 | `week` | | `whats_new` | "no play analysis yet" |
 | `analyse` | `char`, `goals` | the analysis tools, pass by pass | see "The play analysis" |

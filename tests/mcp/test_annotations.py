@@ -23,16 +23,17 @@ DATA = Path(__file__).resolve().parent.parent / "data"
 CHAR = fakes.CHAR
 
 # Kept by hand: a new tool fails here until someone says what it does.
-# "adds": only adds (a counter, a record); "replaces": can overwrite or drop.
+# "counts": only counts the call in an open run (annotated read-only, 2026-11-23);
+# "replaces": can overwrite or drop.
 WRITERS = {
     "analysis_brief": "replaces",  # opens a run; restart drops the open one; goals replace the kept ones
-    "play_sql": "adds",  # counts the query and the tables in the run's coverage
-    "query_metric": "adds",  # the same bookkeeping as play_sql
+    "play_sql": "counts",  # counts the query and the tables in the run's coverage
+    "query_metric": "counts",  # the same bookkeeping as play_sql
     "propose_finding": "replaces",  # a finding with a kept key replaces it
     "analysis_submit": "replaces",  # the synthesis replaces the kept findings
-    "kb_get": "adds",  # with char: counts a KB call in the open run
-    "kb_lookup": "adds",
-    "kb_search": "adds",
+    "kb_get": "counts",  # with char: counts a KB call in the open run
+    "kb_lookup": "counts",
+    "kb_search": "counts",
     "plan_session": "replaces",  # keeps the plan check_plan reads; the oldest drop past 30
 }
 # Writes after the call returns, in the background. None since
@@ -41,8 +42,8 @@ WRITERS = {
 LATER: set[str] = set()
 OPEN_WORLD: set[str] = set()
 READ_ONLY = {"list_metrics", "character_summary", "levels", "sessions", "zones", "guide_steps", "deaths", "dungeons", "players",
-             "prices", "gear", "next_moves", "sanity_check", "people", "route_reference", "market", "play_analysis",
-             "check_plan", "how_did_my_plan_go", "next_step", "gear_options", "dungeon_options", "mount_goal",
+             "prices", "gear", "next_moves", "sanity_check", "route_reference", "market", "play_analysis",
+             "check_plan", "how_did_my_plan_go", "next_step", "mount_goal",
              "whats_new", "kb_rule", "kb_topics", "analyse", "analysis_progress", "dashboard_refresh", "class_guide", "class_meta", "news", "talent_changes"}
 ALL = (*tools.TOOLS, tools.MARKET)
 
@@ -65,8 +66,8 @@ def test_the_server_lists_each_tools_own_annotations():
     ann["market"] = server.annotations(tools.MARKET)
     for name, a in ann.items():
         w = WRITERS.get(name, "")
-        assert a.read_only_hint is (not w), name
-        if w:
+        assert a.read_only_hint is (w in ("", "counts")), name
+        if w == "replaces":
             assert a.destructive_hint is (w == "replaces"), name
             assert a.idempotent_hint is False, name
         assert a.open_world_hint is (name in OPEN_WORLD), name
@@ -119,8 +120,8 @@ CALLS = [
     ("check_plan", {"text": "No dungeons."}),
     ("how_did_my_plan_go", {}),
     ("next_step", {}),
-    ("gear_options", {}),
-    ("dungeon_options", {}),
+    ("gear", {"options": True}),
+    ("dungeons", {"options": True}),
     ("mount_goal", {}),
     ("kb_rule", {"name": "riding.apprentice"}),
     ("kb_topics", {}),
@@ -131,7 +132,7 @@ CALLS = [
     ("news", {}),
     ("character_summary", {}), ("levels", {}), ("sessions", {"since": "2026-11-01"}), ("zones", {}),
     ("guide_steps", {}), ("deaths", {}), ("dungeons", {}), ("players", {}), ("prices", {}), ("gear", {}),
-    ("next_moves", {}), ("sanity_check", {}), ("people", {}), ("route_reference", {}), ("market", {}),
+    ("next_moves", {}), ("sanity_check", {}), ("players", {"groups": True}), ("route_reference", {}), ("market", {}),
     ("dashboard_refresh", {}),
 ]
 

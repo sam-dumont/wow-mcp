@@ -1,7 +1,8 @@
 """The planner's MCP tools (wowstats.plan) and the knowledge base's.
 
-plan_session, how_did_my_plan_go, next_step, gear_options,
-dungeon_options, mount_goal, whats_new: the session planner's numbers,
+plan_session, how_did_my_plan_go, next_step, mount_goal, whats_new, and
+the answers behind `gear` and `dungeons` with options (t_gear_options,
+t_dungeon_options): the session planner's numbers,
 from game data only (the planner never reads vm-wow). kb_search and
 kb_rule, kb_topics: the one knowledge base the analysis and the planner
 read, every statement with where it comes from and when it was checked.
@@ -165,7 +166,7 @@ def t_gear_options(ctx: T.Ctx, args: dict) -> dict:
     zone = T.current_zone(ctx, T.resolve_char(ctx, args))
     slots = E.gear_options(inp, p, dl, m, zone=zone)
     return {"char": inp["who"]["char"], "level": inp["level"], "zone": zone, "spec": inp.get("gear_spec"),
-            "slots": slots[:int(args.get("limit") or 8)],
+            "slots": slots[:T.limit_arg(args, 8, 20)],
             "kinds": sorted({o["kind"] for s in slots for o in s["options"]}),
             "note": "Gains are Polestar's gear points for this character's class and spec. bis_pct is the item's share "
                     "of its slot's best at this level (100 = BiS), bis_pct_worn the worn one's (null: an empty slot), "
@@ -352,19 +353,6 @@ PLAN_TOOLS: tuple[T.Tool, ...] = (
     T.Tool("next_step", "Next 45 minutes",
            "The first 45 minutes of a plan: the block(s), why, a town stop if it falls there, the two quests "
            "most worth dropping.", S({"char": CHAR}), t_next_step),
-    T.Tool("gear_options", "Gear options per slot",
-           "Per slot, every way to an upgrade with its cost: quest (on the route or not), dungeon drop (trip time "
-           "at the drop chance), world drop (luck, plus the player's own AH price), craft, and any other "
-           "source kind the gear data names. Slots furthest from BiS first; each item's `line` is the page's "
-           "words (\"70% → 91% on your chest\"): say it as is. `in_current_zone`: in `zone`, where the character is.",
-           S({"char": CHAR, "limit": T.lim(8, 20)}),
-           t_gear_options),
-    T.Tool("dungeon_options", "Dungeons worth it",
-           "Dungeons in range now or soon, ranked: one more run at the character's level now (time, XP, share "
-           "of the level, XP/h against its questing, quests to pick up; the Overview's line), expected gear "
-           "per clear with the top items (boss, drop chance, bis_pct); for the ones it did, one more run and looping "
-           "it (gold per hour, runs for the mount).",
-           S({"char": CHAR}), t_dungeon_options),
     T.Tool("mount_goal", "Mount progress",
            "Each riding tier from the knowledge base: gold needed, gold now, net gold per hour, ETA in played hours "
            "and in levels, whether the character is behind, and priced gold options.", S({"char": CHAR}), t_mount_goal),
@@ -385,7 +373,7 @@ PLAN_TOOLS: tuple[T.Tool, ...] = (
               "limit": T.lim(8, 25),
               "char": {**CHAR, "description": "During an analysis run: the character, so the call counts in its "
                                               "coverage."}},
-             ("query",)), t_kb_search, writes="adds"),
+             ("query",)), t_kb_search, writes="counts"),
     T.Tool("kb_rule", "A static game rule",
            "One static rule the code uses (e.g. riding.apprentice, rested.accrual), with its value, source and "
            "last_verified; `conflicts` holds any other lane's differing version. Lists the known names when the "

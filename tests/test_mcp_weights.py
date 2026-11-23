@@ -60,8 +60,9 @@ def _fresh():
 
 def _mcp(env: dict) -> dict:
     ctx = T.Ctx(store=MStore(vl_url=env["VL_URL"], vm_url=env["VM_URL"]), default_char=D.CHAR, env=env)
-    return {name: T.call(ctx, name, {"char": D.CHAR})
-            for name in ("gear_options", "dungeon_options", "next_step", "gear")}
+    calls = {"gear_options": ("gear", {"options": True}), "dungeon_options": ("dungeons", {"options": True}),
+             "next_step": ("next_step", {}), "gear": ("gear", {})}
+    return {key: T.call(ctx, name, {"char": D.CHAR, **more}) for key, (name, more) in calls.items()}
 
 
 def _ui(env: dict) -> dict:

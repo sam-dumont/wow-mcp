@@ -66,7 +66,7 @@ def one(rows: list[dict]) -> dict:
 def test_the_new_metrics_are_listed_with_their_contract():
     from wowstats.mcp import analysistools
 
-    got = {m["name"]: m for m in analysistools.t_list_metrics(None, {})["metrics"]}
+    got = {m["name"]: m for m in analysistools.t_list_metrics(None, {"names": sorted(NEW)})["metrics"]}
     for name in NEW:
         m = got[name]
         assert m["description"] and m["caveats"] and m["unit"], name

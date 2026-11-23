@@ -295,7 +295,8 @@ def test_xp_per_hour_by_level_over_mcp(lab):
     assert float(xph) == pytest.approx(55000 / (11240 / 3600), rel=1e-3)
     assert out["params"] == {"p0": 30} and out["definitions"]["xp_per_hour"]["kind"] == "ratio"
     cat = call(lab[0], "list_metrics", {})
-    assert {"played_s", "online_s", "active_s", "calendar_s"} <= {m["name"] for m in cat["metrics"]}
+    assert {"played_s", "online_s", "active_s", "calendar_s"} <= set(cat["models"]["levels"]) | set(
+        cat["models"]["timeline"])
 
 
 def test_a_money_change_says_why_it_is_empty_over_mcp(lab):
@@ -310,7 +311,8 @@ def test_a_money_change_says_why_it_is_empty_over_mcp(lab):
     assert ev["at_least"] == 2 and ev["measured"] + ev["unknown"] + ev["unavailable"] == out["rows"]
     for row in json_rows(out):
         assert (row[1] == "") == (row[2] < 2), row
-    cat = {m["name"]: m for m in call(lab[0], "list_metrics", {})["metrics"]}
+    cat = {m["name"]: m for m in call(lab[0], "list_metrics", {"names": ["gold_delta_copper", "vs_route"]})[
+        "metrics"]}
     assert cat["gold_delta_copper"]["min_evidence"]["at_least"] == 2
     assert cat["vs_route"]["eligibility"]["where"]
 
@@ -405,7 +407,7 @@ def test_the_slice_metrics_over_mcp_keep_the_findings_contract(lab):
     """The 0.7.0 slice's metrics reach query_metric, play_sql and
     propose_finding: the seed's kills carry no XP, so kill XP is unknown
     and the finding says it with placeholders; a number typed in is refused."""
-    names = {m["name"] for m in call(lab[0], "list_metrics", {})["metrics"]}
+    names = {n for ms in call(lab[0], "list_metrics", {})["models"].values() for n in ms}
     assert {"kills_without_xp", "kill_xp_per_online_hour", "gold_earned_copper", "gear_changes"} <= names
     out = call(lab[0], "query_metric", {"char": CHAR, "metrics": ["kills", "kills_without_xp", "kill_xp"]})
     head, row = out["result"].splitlines()[:2]
