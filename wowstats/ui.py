@@ -468,7 +468,21 @@ class App:
             d = {**d, "gear": {**d["gear"], "render": {"ext": "webp"}}}
         if self.view == "full":
             return d
+        if isinstance(d.get("gear"), dict):
+            # The doll's BiS badges (owner, 2026-11-23): the worn slots'
+            # standing from the gear advice, cut to rank, percent and label
+            # (redact.worn_standing). The advice itself stays full-view only.
+            d = {**d, "gear": {**d["gear"], "standing": self.worn_standing(name)}}
         return redact.char(d, *self.views.route_levels(d))
+
+    def worn_standing(self, name: str) -> list[dict]:
+        """The worn slots' standing for the public doll; none when the gear
+        advice can't be read (a store down): the card shows without badges."""
+        try:
+            advice = self.cached(f"gear:{name}:", lambda: self.views.gear(name, None))
+        except SourceError:
+            return []
+        return redact.worn_standing(advice)
 
     def missing(self, name: str) -> list[dict]:
         """What name's pages can't show yet and the fix (wowstats.missing);

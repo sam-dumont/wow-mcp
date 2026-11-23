@@ -14,6 +14,10 @@ Four things, for every character (owner, 2026-11-18, after v0.2.0 showed
 3. the dungeons: which one, when, at what level;
 4. the level snapshots: the gear (and the 3D look) at each past level.
 
+Plus each worn slot's BiS standing on the paperdoll (owner, 2026-11-23):
+the badge only, its rank, percent and label (wowstats.gear.standing_out),
+never the gear advice behind it (the upgrades, what to wear, where to get it).
+
 Plus one state under the equipment: whether it may be out of date
 (wowstats.coverage.public; owner, 2026-11-22), never when it was read.
 
@@ -34,7 +38,8 @@ this list.
 from __future__ import annotations
 
 # Every item's badge (wowstats.gear.bis_badge): its share of BiS and the
-# change from the worn one. /zogzog/ only: the public view has no advice.
+# change from the worn one. /zogzog/ only: the public view has no advice,
+# only the worn slots' standing (STANDING).
 from wowstats.gear import BADGE
 
 SCALAR = (str, int, float, bool, type(None))
@@ -45,6 +50,9 @@ ITEM = {k: None for k in ("slot", "slot_name", "item_id", "name", "quality", "it
 # player. A bundle holds the cards of the items its own answers name.
 CARD = {**{k: None for k in ("id", "n", "q", "i", "b", "u", "s", "t", "ar", "sp", "dps", "rl", "il", "set", "de")},
         "w": [None], "g": [None]}
+# A worn slot's standing against BiS (wowstats.gear.standing_out), the
+# doll's badge: public since 2026-11-23 (owner), numbers and the label only.
+STANDING = {k: None for k in ("slot", "rank", "pct", "label")}
 PROFESSION = {k: None for k in ("skill_id", "name", "rank", "max_rank", "max_rank_from")}
 # A past level's item: from a sheet ("exact") or the gear replay ("likely",
 # wowstats.history). Public: how it was got, not where or from whom.
@@ -125,7 +133,9 @@ PUBLIC: dict[str, dict] = {
                  # Battle.net's items when Syndicator sent none, and the line that says so.
                  "items_from": None, "items_note": None,
                  "render": {"ext": None, "pending": None}, "items": [ITEM],
-                 "professions": [PROFESSION]},
+                 "professions": [PROFESSION],
+                 # The doll's badges: each worn slot's standing (worn_standing).
+                 "standing": [STANDING]},
         "spec": SPEC_CARD, "talents": TALENTS, "legacy": LEGACY, "class_guide": CLASS_GUIDE,
         # Whether the equipment may be out of date (wowstats.coverage.public):
         # a state, never when it was read (owner, 2026-11-22).
@@ -442,6 +452,19 @@ def zogzog(what: str, value: dict) -> dict:
 
 
 TIERS = {"public": public, "zogzog": zogzog}
+
+
+def worn_standing(advice: dict | None) -> list[dict]:
+    """The worn slots' standing against BiS from a gear advice answer
+    (wowstats.gear.advise: slots[].standing), for the public doll's badges
+    (owner, 2026-11-23). Nothing else of the advice: the shape (STANDING)
+    keeps the slot, rank, percent and label."""
+    out = []
+    for sl in (advice or {}).get("slots") or []:
+        st = sl.get("standing") if isinstance(sl, dict) else None
+        if isinstance(st, dict) and sl.get("current"):
+            out.append(shape({**st, "slot": sl.get("slot")}, STANDING))
+    return out
 
 
 def char(d: dict, route: dict[int, int] | None = None, route_source: str | None = None) -> dict:

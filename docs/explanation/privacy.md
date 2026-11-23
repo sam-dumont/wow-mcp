@@ -67,6 +67,7 @@ apart.
 | Which sections the page turns on | `config` | yes | yes | yes |
 | The character list | `chars` | yes | yes | yes: names and levels |
 | The character card and the climb: level, race, class, item level, equipment, professions, talents, your class at this level, played time per level against Polestar's route, dungeons cleared | `char` | yes | yes, plus gold, guild, zones, guide steps, flights and deaths as counts per zone and level, and a short state of the meta for your class and spec (plus one line when an event for your class and level is under two weeks away) | yes: the card, the climb, and which dungeon, when, at what level. No zones, gold or guild |
+| BiS standing per worn slot: the paperdoll's badge (BiS, 2nd or its share of BiS) and the badge legend, without the advice behind it | `char.gear.standing` | yes | yes, with the gear advice | yes |
 | The level slider and timeline | `timeline` | yes | yes, deaths without their killer | the level stops only |
 | A past level: its gear and picture | `snapshot` | yes | yes, plus time, zones and where each item came from | its gear and picture |
 | Item tooltips | `items` | yes | yes | yes |

@@ -217,7 +217,8 @@ def test_rebuilds_only_on_new_events(site):
 
 
 # The public bundle, key by key: Sam's list of 2026-11-18 (the card, the
-# climb, the dungeons, the level snapshots), written out here on its own
+# climb, the dungeons, the level snapshots; the doll's BiS badges since
+# 2026-11-23), written out here on its own
 # rather than read from redact.PUBLIC, so widening one without the other
 # fails. "a[]" is a list's items, "a.b" an object's key.
 ITEM = ("slot", "slot_name", "item_id", "name", "quality", "item_level", "req_level", "enchant_id", "enchant")
@@ -269,6 +270,8 @@ ALLOWED = {
              *keys("levels[].", ("level", "seconds", "partial", "route_s")),
              *keys("dungeons[].", ("name", "level", "t")),
              "gear.item_level", "gear.items", "gear.professions", *keys("gear.items[].", ITEM),
+             # Each worn slot's BiS standing, the doll's badge (owner, 2026-11-23).
+             "gear.standing", *keys("gear.standing[].", ("slot", "rank", "pct", "label")),
              "gear.armory_item_level", "gear.armory_item_level_source", "gear.render", "gear.render.asset",
              "gear.render.refreshed", "gear.render.ext", "gear.items_from", "gear.items_note",
              *keys("gear.professions[].", ("skill_id", "name", "rank", "max_rank", "max_rank_from")), *TALENT_KEYS,

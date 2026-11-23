@@ -333,3 +333,37 @@ def test_items_carry_the_bis_badge(browser, base, width):
         if tier and doll[tier]:
             assert b["bg"] == doll[tier][0], (b, doll[tier])
     ctx.close()
+
+
+def doll_state(page) -> dict:
+    """The doll's badges by slot, from the page's own drawing."""
+    page.wait_for_selector("#gear .slot .ifr .ibis", state="attached", timeout=15000)
+    return dict(page.eval_on_selector_all("#gear .slot[data-slot]", """els => els.map(e => [
+      e.dataset.slot, (e.querySelector('.ifr .ibis') || {}).textContent || null])"""))
+
+
+@pytest.mark.parametrize("width", WIDTHS)
+def test_public_doll_shows_the_bis_badges(browser, base, width):
+    """Owner, 2026-11-23: the public page's paperdoll shows each worn slot's
+    BiS badge and the legend, the same as the friends' page, and none of
+    the advice (no upgrade line under a slot, no Upgrades box)."""
+    ctx = browser.new_context(viewport={"width": width, "height": 844 if width < 600 else 900})
+    page = ctx.new_page()
+    page.goto(base + "friends/")
+    friends = doll_state(page)
+    page.goto(base)
+    page.wait_for_selector(".tabs [role=tab]")
+    public = doll_state(page)
+    assert any(public.values()) and public == friends, (public, friends)
+    for tab in page.eval_on_selector_all(".tabs [role=tab]", "els => els.map(e => e.id)"):
+        page.click(f"#{tab}")
+        if page.locator("#gear .doll").is_visible():
+            break
+    settled(page)
+    for b in badges(page, "#gear .slot"):
+        check_badge(b)
+    assert page.locator("#gear .bislegend").is_visible()
+    assert page.locator("#gear .bislegend .bischip").all_text_contents() == ["BiS", "85%+", "50%+"]
+    assert not page.locator("#gear .slot .iup").count()
+    assert not page.locator("#advice").inner_text().strip()
+    ctx.close()
