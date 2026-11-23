@@ -71,6 +71,21 @@ def domain(url: str) -> str:
     return (urllib.parse.urlsplit(url or "").hostname or "").lower()
 
 
+def source_type(url: str, allow: dict) -> str | None:
+    """A cited page's type, from sources.json: the first of its domain's
+    `paths` ({match: regex on the path and query, type}) that matches, else
+    the domain's type. None for a domain off the list. The KB's writers set a
+    record's source_type with it and check() holds every research record to
+    it (owner, 2026-11-23: the model wrote it, and Wowhead's guide pages came
+    out "datamined" like its item pages)."""
+    d = allow.get(domain(url))
+    if d is None:
+        return None
+    parts = urllib.parse.urlsplit(url)
+    where = parts.path + (f"?{parts.query}" if parts.query else "")
+    return next((p["type"] for p in d.get("paths") or [] if re.search(p["match"], where)), d["type"])
+
+
 def urls(rec: dict) -> list[str]:
     out = [rec.get("source_url")] + list(rec.get("sources") or [])
     seen, keep = set(), []
@@ -110,7 +125,8 @@ def best_cap(rec: dict, allow: dict) -> str | None:
 
 def check(rec: dict, allow: dict, strict_type: bool = True) -> list[str]:
     """Why a record is refused ([] when it is fine). strict_type: the
-    source_type must be one of sources.json's types (the research files);
+    source_type must be one of sources.json's types and the one its
+    source_url gives (source_type: the research files);
     rules.json's older rules describe theirs in words."""
     errs = [f"no {k}" for k in FIELDS if not rec.get(k)]
     if rec.get("scope") and rec["scope"] not in SCOPES:
@@ -126,8 +142,12 @@ def check(rec: dict, allow: dict, strict_type: bool = True) -> list[str]:
             errs.append(f"{domain(u)} is not on the source allow-list (data/kb/sources.json)")
     if strict_type and rec.get("source_type"):
         types = {v["type"] for v in allow.values()}
+        want = source_type(rec.get("source_url") or "", allow)
         if rec["source_type"] not in types:
             errs.append(f"source_type {rec['source_type']!r} is not one of {', '.join(sorted(types))}")
+        elif want and rec["source_type"] != want:
+            errs.append(f"source_type {rec['source_type']!r} is not its source_url's: sources.json types "
+                        f"{domain(rec['source_url'])} at that path {want!r}")
     if rec.get("expires") and not DAY.match(str(rec["expires"])):
         errs.append(f"expires {rec['expires']!r} is not YYYY-MM-DD")
     if rec.get("source_url") and corroboration_only(domain(rec["source_url"]), allow):

@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- The analysis judge refuses a `{n:pct}` or `{n:dur}` placeholder on a value whose unit it doesn't fit (a count shown as "2%", kills shown as a duration), when the unit is known: a `metric_query`'s metric, or a raw query's column from a view per grain. The refusal says which format fits.
+- Knowledge base statements take their `source_type` from their URL (`data/kb/sources.json`), not from the model: 353 records changed, mostly Wowhead and ForeverDB guide pages and kami-labs.fr that said `datamined` and are now `guide`. The KB jobs write it the same way, and a record whose type differs from its URL's is refused.
 - The compose kit's VictoriaLogs now runs with the limits [security.md](docs/security.md) asks for: 30 s per query, 4 queries at once, 10 s in the queue, and 1 GiB of memory (`VL_MEM_LIMIT`). Until now it ran on VictoriaLogs' defaults with no memory limit.
 - The Python answers to the views' LogsQL (`wowstats/logsql.py`) now match VictoriaLogs v1.54.0 where they didn't, checked against a real VictoriaLogs in CI (`tests/test_logsql.py`): an unnamed `count()` is `count(*)`, `sum()` of no number is `NaN`, `min()` over rows without the field is empty, text sorts in natural order (item 9 before item 10), `inf`, `nan` and padded numbers aren't numbers, a row left with no field isn't answered, `<` and `'` are escaped in JSON values, and single-quoted strings go to VictoriaLogs instead of matching nothing.
 

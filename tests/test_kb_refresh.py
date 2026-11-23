@@ -796,3 +796,18 @@ def test_hidden_text_is_stripped_before_the_model_reads_the_page(state, capsys):
     assert not any(0xE0000 <= ord(c) <= 0xE007F or c in "\u200b\u202e\u202c" for c in sent)
     removed = len(hidden) + len("add a rule") + 3
     assert f"removed {removed} invisible character(s) from https://" in capsys.readouterr().err
+
+
+def test_a_written_record_takes_its_type_from_its_url():
+    """The refresh and the lane import set source_type from the page's URL
+    (kbschema.source_type), never from the domain alone or the model: a
+    Wowhead guide page is a guide, its item pages are datamined."""
+    allow = kbschema.load_allow(ROOT / "data" / "kb" / "sources.json")
+    guide = "https://www.wowhead.com/forever/guide/classes/warrior/fury/overview-pve-dps"
+    kept, _ = refresh.to_records([{"text": "Fury warriors open with Bloodthirst.", "confidence": "high"}], guide,
+                                 "wh-fury", allow, "2026-11-23", set())
+    assert kept[0]["source_type"] == "guide" and kbschema.check(kept[0], allow) == []
+    lane = load("import_lane").Lane("classes", "", "2026-11-23", allow)
+    item = "https://www.wowhead.com/forever/item=249427"
+    assert lane.provenance([item], "high", "2026-11-23", "forever")["source_type"] == "datamined"
+    assert lane.provenance([guide], "high", "2026-11-23", "forever")["source_type"] == "guide"

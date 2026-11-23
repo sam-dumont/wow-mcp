@@ -191,3 +191,45 @@ def test_a_class_guide_record_keeps_its_class_topic_and_levels(allow):
     assert any("class" in e for e in errs) and any("topic" in e for e in errs) and any("levels" in e for e in errs)
     # Another lane keeps its free topics.
     assert kbschema.check_file({**doc, "lane": "game-rules", "statements": [flat]}, allow) == []
+
+
+# A statement's source_type comes from its source_url (owner, 2026-11-23):
+# the model wrote it, and Wowhead's guide pages came out "datamined" like
+# its item pages. sources.json types the domain, and `paths` a part of it.
+@pytest.mark.parametrize("url,want", [
+    ("https://www.wowhead.com/forever/guide/classes/warrior/fury/overview-pve-dps", "guide"),
+    ("https://www.wowhead.com/forever/profession-leveling-guides/first-aid", "guide"),
+    ("https://www.wowhead.com/classic/guide/classic-auction-house-economy", "guide"),
+    ("https://www.wowhead.com/forever/item=249427", "datamined"),
+    ("https://www.wowhead.com/forever/spell=8690/hearthstone", "datamined"),
+    ("https://www.wowhead.com/forever/quest=93680", "datamined"),
+    ("https://www.wowhead.com/forever/zones/battlegrounds", "datamined"),
+    ("https://www.wowhead.com/news=383858/enhancement-shaman-class-changes-now-live", "press"),
+    ("https://www.wowhead.com/forever/news/auction-house-minimum-deposit-reduced-to-1-copper-383917", "press"),
+    ("https://www.wowhead.com/forever/blue-tracker/news/eu/24303313", "press"),
+    ("https://kami-labs.fr/en/tier-list-wow-forever/", "guide"),
+    ("https://foreverdb.net/dungeon/2959-city-of-dalaran", "datamined"),
+    ("https://foreverdb.net/class/Paladin/talents", "datamined"),
+    ("https://foreverdb.net/class/Mage/pve", "guide"),
+    ("https://foreverdb.net/guide/leveling-hunter", "guide"),
+    ("https://foreverdb.net/professions/best", "guide"),
+    ("https://news.blizzard.com/en-us/article/1", "official"),
+    ("https://example.org/x", None),
+])
+def test_source_type_comes_from_the_url(allow, url, want):
+    assert kbschema.source_type(url, allow) == want
+
+
+def test_a_source_type_its_url_doesnt_give_is_refused(allow):
+    assert kbschema.check(rec_(), allow) == []
+    errs = kbschema.check(rec_(source_type="datamined"), allow)
+    assert any("source_type 'datamined'" in e and "guide" in e for e in errs)
+
+
+def test_every_path_rule_is_well_formed(allow):
+    import re
+
+    types = set(json.loads((DATA / "sources.json").read_text())["types"])
+    for d, v in allow.items():
+        for p in v.get("paths") or []:
+            assert p["type"] in types and re.compile(p["match"]), d

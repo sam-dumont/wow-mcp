@@ -36,7 +36,11 @@ archive of what was retired.
 A rule, statement or contradiction carries:
 
 - `source_url` (https, an allow-listed domain), and `sources` for more;
-- `source_type`: official, datamined, guide, press, community or commercial;
+- `source_type`: official, datamined, guide, press, community or commercial,
+  the one `data/kb/sources.json` gives its `source_url` (a domain's type, or a
+  `paths` rule for part of it: Wowhead's news is press, its item, spell, NPC and
+  quest pages datamined, its guides guide). The KB jobs write it from the URL,
+  never from the model, and a record whose type differs is refused;
 - `date`: when the source said it;
 - `confidence`: high, medium or low, never above the best of its sources'
   `max_confidence` (a booster site alone is low);

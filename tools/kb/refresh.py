@@ -287,7 +287,7 @@ def to_records(props: list[dict], page_url: str, page_key: str, allow: dict, day
         text = " ".join(str(p.get("text") or "").split())[:600]
         conf = p.get("confidence") if p.get("confidence") in kbschema.CONFIDENCE else "low"
         rec = {"id": f"refresh-{day}:{page_key}-{n}", "topic": str(p.get("topic") or "")[:80], "text": text,
-               "source_url": page_url, "source_type": dom["type"] if dom else "", "date": day,
+               "source_url": page_url, "source_type": kbschema.source_type(page_url, allow) or "", "date": day,
                "confidence": kbschema.cap(conf, dom["max_confidence"]) if dom else conf, "scope": "forever",
                "last_verified": day, "origin": "model proposal from the official page"}
         sup = str(p.get("supersedes") or "").strip()

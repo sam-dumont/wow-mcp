@@ -461,6 +461,53 @@ def history_read(ro) -> set[str]:
     return {t for t in semantic.reads(read) if TABLES[t] == "game"}
 
 
+# The formats that write a unit, and the semantic layer's units they fit
+# (owner, 2026-11-23: "{n:pct}" was kept on a plain count, rendered "2%").
+# A value whose unit nothing declares keeps the format it was given.
+FORMAT_UNITS = {
+    "pct": ({"percent", "share", "ratio", "xp/xp"}, "a share (0 to 1) or a percent",
+            "select the share itself (one count over another) as a column"),
+    "dur": ({"seconds"}, "a duration in seconds", "select the time in seconds as a column"),
+}
+
+
+def column_units(metric_query, read) -> dict[str, str]:
+    """{column: unit} for what the evidence declares: the metrics a
+    metric_query names (and their `_evidence` counts), else the columns of
+    the views per grain the raw query read (`read`: the runner's last_read),
+    which are those metrics again. {} when neither applies."""
+    from . import semantic
+
+    if isinstance(metric_query, dict):
+        units = {m["name"]: m.get("unit") for m in semantic.catalogue()["metrics"]}
+        out = {}
+        for n in metric_query.get("metrics") or []:
+            out[n] = units.get(n)
+            out[f"{n}_evidence"] = "observations"
+        return {k: v for k, v in out.items() if v}
+    per = semantic.views()
+    return {c["name"]: c["unit"] for v in sorted(set(read or ()) & set(per))
+            for c in per[v]["columns"] if c.get("unit")}
+
+
+def units_why(parts: dict[str, str], units: dict[str, str]) -> str:
+    """Why a placeholder's format doesn't fit its column's unit ("" when
+    every one fits or the unit is unknown)."""
+    for name, text in parts.items():
+        for m in PLACEHOLDER.finditer(text or ""):
+            spec = (m.group(2) or "").lstrip(".")
+            ref = m.group(1)
+            col = CELL.fullmatch(ref).group(2) if CELL.fullmatch(ref) else ref
+            unit = units.get(col)
+            if spec not in FORMAT_UNITS or unit is None or unit in FORMAT_UNITS[spec][0]:
+                continue
+            fits = [s for s, (us, *_) in FORMAT_UNITS.items() if unit in us]
+            fix = f"write {{{ref}:{fits[0]}}}" if fits else f"write {{{ref}}} (or {{{ref}:int}})"
+            return (f"{{{ref}:{spec}}} in the {name} formats {col}, which is in {unit}: {spec} is for "
+                    f"{FORMAT_UNITS[spec][1]}. {fix[0].upper()}{fix[1:]}, or {FORMAT_UNITS[spec][2]}")
+    return ""
+
+
 def _prose(f: dict) -> dict[str, str]:
     """A proposal's prose by part: title, claim and the action's parts."""
     act = f.get("action") if isinstance(f.get("action"), dict) else {}
@@ -517,6 +564,10 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     refused = refused_numbers(prose, constants, sql_text, params, cites, row, rows)
     if refused:
         return None, f"{key}: {next(iter(refused.values()))}"
+    why = units_why(prose, column_units(f.get("metric_query") if params is not None else None,
+                                        getattr(ro, "last_read", None)))
+    if why:
+        return None, f"{key}: {why}"
     for part, text in prose.items():
         if gendered(text):
             return None, (f"{key}: {part} says he or she: write \"the character\", the name or \"you\" "

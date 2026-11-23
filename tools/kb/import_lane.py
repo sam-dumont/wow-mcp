@@ -160,7 +160,7 @@ class Lane:
         ok = self.keep(urls)
         if not ok:
             return None
-        rec = {"source_url": ok[0], "sources": ok, "source_type": self.allow[kbschema.domain(ok[0])]["type"],
+        rec = {"source_url": ok[0], "sources": ok, "source_type": kbschema.source_type(ok[0], self.allow),
                "date": (date or self.dates.get(ok[0]) or f"undated (read {self.as_of})").strip(),
                "confidence": conf or "low", "scope": scope, "last_verified": self.as_of}
         top = kbschema.best_cap(rec, self.allow)

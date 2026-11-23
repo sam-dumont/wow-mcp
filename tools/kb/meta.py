@@ -372,18 +372,20 @@ def collect(state: dict, fetch, today: str | None = None) -> dict:
     today = today or datetime.now(UTC).date().isoformat()
     meta = state["meta"]
     items, notes = [], []
+    allow = kbschema.load_allow(KB / "sources.json")
     for feed in meta["feeds"]:
         got, note = (rss_items(feed, fetch) if feed["kind"] == "rss" else blue_items(feed, fetch, today))
         for it in got:
-            it.update(source_type=feed["source_type"], max_confidence=feed["max_confidence"],
-                      date=it["date"] or today)
+            # The page's own type (sources.json), the feed's for a page off the list.
+            it.update(source_type=kbschema.source_type(it["url"], allow) or feed["source_type"],
+                      max_confidence=feed["max_confidence"], date=it["date"] or today)
         items += sorted(got, key=lambda i: i["id"])
         notes += list(note.values())
     got, gnotes, baseline = guide_items(meta.get("guides") or [], fetch)
-    allow = kbschema.load_allow(KB / "sources.json")
     for it in got:
         dom = allow.get(kbschema.domain(it["url"]), {})
-        it.update(source_type=dom.get("type", "guide"), max_confidence=dom.get("max_confidence", "low"), date=today)
+        it.update(source_type=kbschema.source_type(it["url"], allow) or "guide",
+                  max_confidence=dom.get("max_confidence", "low"), date=today)
     return {"items": items + got, "notes": notes + gnotes, "baseline": baseline, "day": today}
 
 
