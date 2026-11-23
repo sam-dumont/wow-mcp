@@ -490,6 +490,21 @@ records:
       description: "Level on the group's newest record that carries one."
       metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: level,
                  caveats: "NULL with no record in the group."}
+    map_now:
+      expr: _.map_id.argmax(_.t, where=_.x.notnull())
+      description: "The uiMapID on the group's newest record with a map position: where the character was last seen (the dungeon trip's start, wowstats.plan.tripcost)."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: uimap,
+                 caveats: "Read it with x_now and y_now. NULL with no positioned record in the group; inside an instance the map is the instance's."}
+    x_now:
+      expr: _.x.argmax(_.t, where=_.x.notnull())
+      description: "The map x (percent) on that same newest positioned record."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: percent,
+                 caveats: "Read it with map_now."}
+    y_now:
+      expr: _.y.argmax(_.t, where=_.x.notnull())
+      description: "The map y (percent) on that same newest positioned record."
+      metadata: {kind: simple, aggregation: latest, time_meaning: event, evidence_basis: observed, unit: percent,
+                 caveats: "Read it with map_now."}
     explore_xp:
       expr: _.xp_reward.sum(where=_.kind == 'explore').fill_null(0)
       description: "XP from discovering places (explore records' xp_reward): the third source beside kill_xp and quest_xp."

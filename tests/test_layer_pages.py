@@ -12,8 +12,10 @@ each), and once for the Journal's XP worked out from the bar's readings
 (prep.xp_gains: the history's first reading gains nothing, -2,990 on the
 first evening). When the local demo became the docs site's character (the
 Testchar seed moved to tests/testchar.py) the snapshot was retaken on him,
-from the code that had just passed on the old one. This test builds them
-again and compares, number for number.
+from the code that had just passed on the old one, and once more for the
+dungeon trip's line (owner, 2026-11-23: the trip from where he stands, the
+kill estimate counted; only the Overview's dungeon moves' `gain` and text
+changed). This test builds them again and compares, number for number.
 
 Rewrite the snapshot only when a change of definition is decided:
 `WOW_UPDATE_SNAPSHOT=1 uv run pytest tests/test_layer_pages.py`, then read the

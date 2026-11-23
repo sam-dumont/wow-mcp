@@ -11,7 +11,7 @@ one worth running now is also the Overview's Dungeon move.
 ## What to do with it
 
 1. Start with the dungeon of the Overview's Dungeon move. Comparing two cards: take the one
-   with more upgrades and the higher "faster than your questing".
+   with more upgrades and the higher "× your questing".
 2. Do its **Next** line first: the quests picked up before you go add their XP and rewards
    to the same run.
 3. Back from a run, `/reload`: the run, its loot and its time land on the card within
@@ -24,8 +24,13 @@ one worth running now is also the Overview's Dungeon move.
 times you ran it ("ran it 1×").
 
 **The verdict**: the short answer, like "2 quests left (18,800 XP), and 12 missing upgrades at
-98% a clear", then "~30 min for ~26k XP (41% of a level), 3.1× faster than your questing". Above 1×, the run
-levels you faster than questing.
+98% a clear", then the trip in one line: "~1h50 trip for ~45k XP + 3 upgrades, 1.6× your questing
+(20 min pickups · 1h15 inside · 5 min hand-ins)". Above 1×, the run levels you faster than questing.
+The trip starts where you were last seen: the quests to pick up on the way (Polestar's pick-up
+rules, the same ones its "Pick up the quests" guide follows), the walk or flight to the door, the
+run, and the hand-ins after. Your own runs there replace each part with what they measured. For a
+dungeon you haven't run, the time inside and the kill XP are estimates ([Dungeon kill
+XP](../dungeon-xp.md)) and count in the "×".
 
 **Next**: the one thing to do before going in, like "Pick up A Green Sample from Shylamiir,
 then go in at Alterac Mountains 14.7, 63".

@@ -56,7 +56,11 @@ guide's 40 min against ~1h15 here, and about an hour on a real run).
 `measured`): your kill XP inside, minus the quests you handed in there,
 carried to your current level, and your own time.
 
-The estimate never ranks a dungeon and never says it beats your questing.
+The estimate counts in the run's XP, its "× your questing" and the ranking of
+dungeons, labelled `estimate` in `gain.trip` (until 2026-11-23 it stayed out of them,
+and a dungeon you hadn't run had no "×" at all). The pickups and
+hand-ins around it come from Polestar's pick-up and hand-in rules on your
+quests, labelled `route` ([Route reference](route-reference.md#dungeon-trips)).
 
 ## How close it gets
 
