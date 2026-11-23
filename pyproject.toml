@@ -104,6 +104,11 @@ packages = ["wowstats"]
 # WoWDBDefs' definitions of the client tables the 3D view reads, trimmed to Forever's builds (CC BY-SA 4.0,
 # THIRD_PARTY.md: tools/model3d_dbd.py), read by wowstats/db2.py.
 "data/dbd" = "wowstats/data/dbd"
+# Who a dungeon run kills, for the kill-XP estimate (tools/dungeon_xp/export.py, THIRD_PARTY.md): cMaNGOS
+# classic-db (GPL-3.0) and EG Link (CC BY 4.0) in kill-xp.json; advocaite/TrinityCore's forever branch in
+# forever-spawns/ under its own GPL-2.0-only licence, a separate file the program reads. Read by
+# wowstats/plan/dungeonxp.py.
+"data/dungeons" = "wowstats/data/dungeons"
 # WoWSims Exporter's talent order per class (MIT, THIRD_PARTY.md: tools/wowsims_talents.py), read by
 # wowstats/wowsims.py to read the addon's saved talent string.
 "data/wowsims-talents.json" = "wowstats/data/wowsims-talents.json"

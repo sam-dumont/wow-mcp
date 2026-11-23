@@ -18,8 +18,11 @@ Where the numbers come from, in order:
    creatures' levels can't be carried: its kill XP stays unknown;
 2. otherwise the KB's clear time for the dungeon (dungeon.<name>
    clear_min), plus his own measured travel and quest time from his other
-   trips when he has some. Kill XP stays unknown: no source gives a
-   dungeon's creatures, and Forever's dungeon XP isn't Classic's;
+   trips when he has some. The run's XP and its verdict stay the quests'
+   alone: kill XP from anything but his own runs is an estimate, and an
+   estimate never ranks a dungeon (owner, 2026-11-23: quests and gear
+   first). It is given apart, labelled, in `kill_xp`
+   (wowstats.plan.dungeonxp);
 3. the dungeon's quests he can do now (forever-db's XP, the KB's hand-in
    share at his level) in both cases.
 
@@ -201,8 +204,24 @@ def estimate(*, level: int, xp_max: int | None, name: str, runs: list[dict], oth
                     "starts": q.get("starts") or []} for q in todo],
         "quests_shown": SHOWN,
     }
+    out["kill_xp"] = run_kills(name, level, runs, xp_k, rule)
     out["summary"] = summary(out)
     return out
+
+
+def run_kills(name: str, level: int, runs: list[dict], xp_k: float | None, rule: dict | None) -> dict | None:
+    """A run's kill XP and time inside, labelled: "measured" from his own
+    runs there (carried to his level), else the estimate for a dungeon he
+    hasn't run (wowstats.plan.dungeonxp: "estimate" or "not_enough_data").
+    Kept apart from the line above and its verdict: an estimate never
+    ranks a dungeon or says it beats questing."""
+    if runs and xp_k is not None:
+        inside = _mean(runs, "inside_s")
+        return {"label": "measured", "xp": round(xp_k), "inside_s": round(inside) if inside else None,
+                "xp_per_hour": per_hour(xp_k, inside) if inside else None, "own_runs": len(runs)}
+    from . import dungeonxp
+
+    return dungeonxp.estimate(name, level, rule)
 
 
 # The verdict against his own questing: at or above FASTER it's worth the

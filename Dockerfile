@@ -54,6 +54,7 @@ COPY data/class-reference.json ./data/class-reference.json
 COPY data/dbd ./data/dbd
 COPY data/wowsims-talents.json ./data/wowsims-talents.json
 COPY data/battlenet-look.json ./data/battlenet-look.json
+COPY data/dungeons ./data/dungeons
 COPY THIRD_PARTY.md ./THIRD_PARTY.md
 COPY shipper ./shipper
 COPY docs/videos/steps.json ./docs/videos/steps.json
@@ -89,6 +90,7 @@ COPY data/class-reference.json ./data/class-reference.json
 COPY data/dbd ./data/dbd
 COPY data/wowsims-talents.json ./data/wowsims-talents.json
 COPY data/battlenet-look.json ./data/battlenet-look.json
+COPY data/dungeons ./data/dungeons
 COPY THIRD_PARTY.md ./THIRD_PARTY.md
 COPY shipper ./shipper
 COPY docs/videos/steps.json ./docs/videos/steps.json

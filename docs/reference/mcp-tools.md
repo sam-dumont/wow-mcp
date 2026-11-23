@@ -49,7 +49,7 @@ Your runs, and which ones are worth it now.
 
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
-| `dungeons` | Dungeon runs: name, level, duration, XP and XP/hour, newest first. With `options`: dungeons in range now or soon, ranked: one more run at the character's level now (time, XP, share of the level, XP/h against questing, quests to pick up), expected gear per clear with the top items; for the ones it did, looping it (gold per hour, runs for the mount). | `since`: Start of the range: 7d, 36h, 2w, or an ISO date (UTC).; `until`: End of the range, same forms as since. Default: now.; `limit`: Max rows (default 20).; `options`: The dungeons worth running now, ranked, instead of past runs. | reads |
+| `dungeons` | Dungeon runs: name, level, duration, XP and XP/hour, newest first. With `options`: dungeons in range now or soon, ranked: one more run at the character's level now (time, XP, share of the level, XP/h against questing, quests to pick up, kill XP measured or estimated), expected gear per clear with the top items; for the ones it did, looping it (gold per hour, runs for the mount). | `since`: Start of the range: 7d, 36h, 2w, or an ISO date (UTC).; `until`: End of the range, same forms as since. Default: now.; `limit`: Max rows (default 20).; `options`: The dungeons worth running now, ranked, instead of past runs. | reads |
 
 ## Gear
 
