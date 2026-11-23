@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- The analysis judge refuses a `{n:pct}` or `{n:dur}` placeholder on a value whose unit it doesn't fit (a count shown as "2%", kills shown as a duration), when the unit is known: a `metric_query`'s metric, or a raw query's column from a view per grain. The refusal says which format fits.
+- Knowledge base statements take their `source_type` from their URL (`data/kb/sources.json`), not from the model: 353 records changed, mostly Wowhead and ForeverDB guide pages and kami-labs.fr that said `datamined` and are now `guide`. The KB jobs write it the same way, and a record whose type differs from its URL's is refused.
 - The compose kit's VictoriaLogs now runs with the limits [security.md](docs/security.md) asks for: 30 s per query, 4 queries at once, 10 s in the queue, and 1 GiB of memory (`VL_MEM_LIMIT`). Until now it ran on VictoriaLogs' defaults with no memory limit.
 - The Python answers to the views' LogsQL (`wowstats/logsql.py`) now match VictoriaLogs v1.54.0 where they didn't, checked against a real VictoriaLogs in CI (`tests/test_logsql.py`): an unnamed `count()` is `count(*)`, `sum()` of no number is `NaN`, `min()` over rows without the field is empty, text sorts in natural order (item 9 before item 10), `inf`, `nan` and padded numbers aren't numbers, a row left with no field isn't answered, `<` and `'` are escaped in JSON values, and single-quoted strings go to VictoriaLogs instead of matching nothing.
 
@@ -19,6 +21,9 @@
 - A dungeon with no run of yours to measure its kill XP no longer says "slower than questing: go for the drops only" (or faster, or about the same): that compared the dungeon's quests alone with your questing, and the kills could flip it. The line keeps the time and what the quests are worth, and `dungeon_options` gives `vs_questing: null` there.
 - `query_metric`, `play_sql` and the finding judge see new data on the next request after it lands, like the page, instead of up to 30 minutes later. A request already running finishes on the data it started with.
 - The renderer keeps each person's game files in their own folder. It kept them by file id for everyone, so a file one friend's shipper sent could stand in for another's in their past-level pictures. Upgrading: the first picture after the update re-sends that person's files to the renderer once.
+- A finished level with neither a Polestar split nor a Recorder ding out of it no longer drops out of the analysis: it keeps its row (its counts unknown, never 0), and the `polestar` coverage reads `partial` with that level in `gaps`, on the page's data and every MCP answer, instead of `complete`.
+- XP gained is worked out from the bar's readings in order when the analysis prepares a character, not taken from the shipper: a Recorder chunk recovered after the ones that follow it no longer loses the XP of its step (100 → 200 → 300 counted 100 instead of 200).
+- `deaths` over a range with no Recorder record (before it was installed, or while it was off) says `total: null`, not 0.
 
 ## 0.7.0 (2026-11-23)
 

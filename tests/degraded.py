@@ -103,6 +103,12 @@ SCENARIOS = {
     # then on again): level 28's split is longer than the Recorder saw.
     "recorder-gap": lambda rows: [r for r in rows if r["feed"] != "wow-recorder" or not (
         parse_t(GAP[0]) <= parse_t(r["_time"]) < parse_t(GAP[1]))],
+    # Level 32 finished with neither Polestar's split nor the Recorder's ding
+    # out of it (the split lost, the Recorder off at the ding): its records
+    # are there, the level in play is 34.
+    "split-missing": lambda rows: [r for r in rows if not (
+        r["feed"] == "wow-level" and str(r.get("level")) == "32"
+        or r["feed"] == "wow-recorder" and r.get("kind") == "level" and str(r.get("level")) == "33")],
     # Syndicator installed at SWITCH.
     "syndicator-later-before": lambda rows: _setup(_before(_drop(rows, "wow-gear", "wow-bags")),
                                                    drop_addons=("syndicator",)),

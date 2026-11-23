@@ -42,14 +42,14 @@ def test_players_breaks_ties_the_same_way_whatever_order_the_store_answers():
 
 
 def test_zones_reads_a_sum_over_no_values_as_nothing():
-    # XP bar readings without xp_gained (an older Recorder) and kills: the
+    # One XP bar reading (no change to measure: no xp_gained) and kills: the
     # zone's XP sums no values, so it is 0 and its XP an hour unknown.
     def at(m):
         return f"2026-11-20T18:{m:02d}:00.000Z"
 
     raw = ([{"_time": at(0), "feed": "wow-recorder", "kind": "zone", "zone": "Durotar", "source_id": "rec:1:1:0"}]
            + [{"_time": at(1 + i), "feed": "wow-recorder", "kind": "xp", "level": 5, "xp": 100 * i, "xp_max": 2000,
-               "zone": "Durotar", "source_id": f"rec:1:1:{1 + i}"} for i in range(3)]
+               "zone": "Durotar", "source_id": f"rec:1:1:{1 + i}"} for i in range(1)]
            + [{"_time": at(5 + i), "feed": "wow-recorder", "kind": "kill", "level": 4, "zone": "Durotar",
                "source_id": f"rec:1:1:{5 + i}"} for i in range(4)])
     fake = fakes.FakeStores(logs=[], metrics=[], raw=raw, char="Me-Realm")

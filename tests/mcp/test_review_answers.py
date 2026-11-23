@@ -51,10 +51,13 @@ H_ZONE_ACT = [{"zone": "Dun Morogh", "kind": "xp", "n": "1", "xp": "1000"}]
 H_DUNGEONS = [{"_time": _t(18, 30), "name": "The Deadmines", "level": 18, "seconds": 7, "xp": 1000,
                "source_id": f"dungeon:{HUNTER}:1"}]
 # The same events raw, for the prep behind the semantic layer (levels,
-# zones, sessions, the summary): the XP bar's last reading, 1000 XP in Dun
-# Morogh at 19:40, ends the session 7 s after the zone record.
-H_XP = [{"_time": _t(19, 40), "kind": "xp", "level": 10, "xp": 100, "xp_max": 7600, "xp_gained": 1000,
-         "zone": "Dun Morogh", "source_id": "rec:9:1:10"}]
+# zones, sessions, the summary): the XP bar's last two readings, 1000 XP in
+# Dun Morogh by 19:40 (the prep works the gain out from them), the last one
+# ending the session 7 s after the zone record.
+H_XP = [{"_time": "2026-11-18T19:39:54.000Z", "kind": "xp", "level": 10, "xp": 100, "xp_max": 7600,
+         "zone": "Dun Morogh", "source_id": "rec:9:1:11"},
+        {"_time": _t(19, 40), "kind": "xp", "level": 10, "xp": 1100, "xp_max": 7600, "xp_gained": 1000,
+         "zone": "Dun Morogh", "source_id": "rec:9:1:12"}]
 # Position records every 5 minutes keep it one session (H_BUCKETS).
 H_POS = [{"_time": _t(19, m), "kind": "pos", "source_id": f"rec:9:1:{20 + m}"} for m in range(0, 45, 5)]
 RAW = ([{**r, "feed": "wow-recorder"} for r in H_EVENTS + H_ZONES + H_XP + H_POS]
