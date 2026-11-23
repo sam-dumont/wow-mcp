@@ -664,6 +664,29 @@ def test_a_dungeon_trip_spans_the_lookup_guides():
     outside = db.execute("SELECT COUNT(*) FROM records WHERE dungeon_trip_id IS NULL").fetchone()[0]
     assert inside > 0 and outside > 0
     assert db.execute("SELECT COUNT(*) FROM timeline WHERE dungeon_trip_id = 1").fetchone()[0] > 0
+    assert t["xp_inside"] == 3188  # Polestar's run XP: no quest was handed in inside
+
+
+def test_a_quest_handed_in_inside_is_quest_xp_not_run_xp():
+    """The same trip with one of its quests handed in to an NPC inside the
+    instance (as Blackfathom Deeps' In Search of Thaelrid is): Polestar's run
+    XP holds the turn-in, and xp_inside counted it as kill XP while
+    xp_quests counted it again."""
+    raw = gzip.decompress((Path(__file__).parent / "stockade_trip.jsonl.gz").read_bytes()).decode()
+    rows = [json.loads(x) for x in raw.splitlines()]
+    for r in rows:
+        if r.get("kind") == "turnin" and r.get("quest_id") == "391":
+            r["_time"] = "2026-10-14T17:30:00.000Z"  # inside: entered 17:14:07, left 17:37:03
+            for k in ("map_id", "x", "y"):  # no position in an instance
+                r.pop(k)
+        elif r.get("feed") == "wow-dungeon":
+            r["xp"] = str(3188 + 4950)  # the bar's gain inside, the hand-in included
+    db = prep.build(rows, "Testpriest-Fixture")
+    xp_inside, xp_quests, handed = db.execute(
+        "SELECT xp_inside, xp_quests, quests_handed_in FROM dungeon_trips").fetchone()
+    assert xp_inside == 3188
+    assert handed == 6 and xp_quests == 4950 + 5550 + 5550 + 4200 + 4400 + 5800
+    assert one(db, "SELECT xp FROM dungeon_runs")[0] == 3188 + 4950  # the run itself stays Polestar's
 
 
 def _seed_rows(tmp_path):

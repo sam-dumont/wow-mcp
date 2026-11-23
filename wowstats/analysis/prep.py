@@ -317,7 +317,8 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "handin_s": "from there to the end", "online_s": "online time start to end",
         "afk_s": "timeline time with afk=1 inside the trip",
         "xp_kills_inside": "sum of kill records' xp_reward inside the instance",
-        "xp_inside": "XP gained inside (dungeon_runs.xp)",
+        "xp_inside": "XP gained inside (dungeon_runs.xp) less the quests handed in inside, which are in "
+                     "xp_quests: the run's kill XP (and anything else that paid inside)",
         "xp_quests": "sum of xp_reward over the trip's quests handed in during the trip",
         "quest_ids": "JSON list: quests with objective progress, completion or a hand-in inside the instance, "
                      "or accepted as a pickup guide step advanced",
@@ -1960,7 +1961,7 @@ def _dungeon_trips(db, rows) -> None:
                                     or (kind == "accept" and start <= t <= r0
                                         and any(0 <= a - t <= 3 for a in auto_t))):
                 qset.add(qid)
-        rewards, money, xp_q, handed = [], 0, 0, set()
+        rewards, money, xp_q, xp_q_inside, handed = [], 0, 0, 0, set()
         acc_last = hand_first = None
         for _, t, kind, _, _, qid, xpr, iid, cop, _ in recs:
             if qid not in qset or not start <= t <= end:
@@ -1970,6 +1971,8 @@ def _dungeon_trips(db, rows) -> None:
             elif kind == "turnin" and qid not in handed:
                 handed.add(qid)
                 xp_q += xpr or 0
+                if r0 <= t <= r1:
+                    xp_q_inside += xpr or 0
                 money += cop or 0
                 if iid:
                     rewards.append(iid)
@@ -1982,6 +1985,11 @@ def _dungeon_trips(db, rows) -> None:
                           "ORDER BY item_id", (r0, r1)).fetchall()
         xk = db.execute("SELECT COALESCE(SUM(xp_reward), 0) FROM records WHERE kind = 'kill' AND t >= ? AND t <= ?",
                         (r0, r1)).fetchone()[0]
+        # Polestar's run XP is the bar's gain inside, so a quest handed in to
+        # an NPC inside the instance (Blackfathom Deeps' In Search of
+        # Thaelrid) is in it too. That XP is the trip's quest XP (xp_quests):
+        # counted in both, the run read as kill XP it never paid.
+        xp_kills = None if xp_in is None else max(0, xp_in - xp_q_inside)
         afk = db.execute("SELECT COALESCE(SUM(MIN(t1, ?) - MAX(t0, ?)), 0) FROM timeline WHERE afk = 1 AND "
                          "t1 > ? AND t0 < ?", (end, start, start, end)).fetchone()[0]
         lvs = db.execute("SELECT level FROM records WHERE t <= ? AND level IS NOT NULL ORDER BY t DESC LIMIT 1",
@@ -1993,7 +2001,7 @@ def _dungeon_trips(db, rows) -> None:
                       _local(start).isoformat(timespec="seconds"), _local(end).isoformat(timespec="seconds"),
                       "guides" if pick_t or hand_t else "instance", _online(db, start, pick_end),
                       _online(db, pick_end, r0), _online(db, r0, r1), _online(db, r1, back_end),
-                      _online(db, back_end, end), _online(db, start, end), afk, xk, xp_in, xp_q,
+                      _online(db, back_end, end), _online(db, start, end), afk, xk, xp_kills, xp_q,
                       json.dumps(sorted(qset)), len(handed), json.dumps([list(x) for x in loot]),
                       sum(x[1] for x in loot), json.dumps(rewards),
                       json.dumps(sorted({x for x in items if x in worn})), money,
