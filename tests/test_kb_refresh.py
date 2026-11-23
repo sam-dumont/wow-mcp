@@ -504,6 +504,7 @@ def test_no_model_step_runs_in_the_version_watch():
     pages = next(s for s in steps if s.get("id") == "pages")
     assert "'watch'" not in pages["if"] and "env.MODE == 'review'" in pages["if"]
     model = [s for s in steps if any(k.startswith("ANTHROPIC") for k in s.get("env") or {})
+             or "oidc-mint.sh" in s.get("run", "")  # the token minted right before each model step
              or "anthropic-oidc" in s.get("run", "") and "rm -f" not in s.get("run", "")]
     assert len(model) >= 5
     for s in model:
