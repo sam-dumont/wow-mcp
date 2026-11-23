@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Kill XP for a dungeon you haven't run: `dungeons` with `options` gives `gain.kill_xp`, a run's kill XP, kills and time inside at your level, labelled `estimate`, or `not_enough_data` with what's missing. Your own runs replace it (`measured`). The original dungeons come from cMaNGOS's spawn tables (85% of the packs, per wing for Scarlet Monastery, Dire Maul, Blackrock Spire and Stratholme), Ruins of Lordaeron and The Drowned City from players' logged runs, City of Dalaran from two reference runs; the six other new dungeons say not enough data yet. Classic's kill formula, elites ×2.5, five players of your level, Forever's 60% dungeon factor; no buffs. An estimate never ranks a dungeon or calls it faster than questing: the quests and the gear lead. Checked against a recorded Stockade full clear (+3%) and Dalaran's two runs (−10%): [Dungeon kill XP](docs/dungeon-xp.md).
+
 ### Changed
 
 - Every answer about a character says which data it was computed from: a top-level `as_of`, the newest event time it read, on the MCP's answers and the full view's `/api/char`. The MCP now reads a character's events through the same cache as the page instead of asking VictoriaLogs on its own, so the same `as_of` on both sides means the same data. Cached answers (the planner's, the analysis workspace, kept findings and plans) keep the `as_of` they were built from.
@@ -12,6 +16,7 @@
 
 ### Fixed
 
+- A dungeon run's kill XP (`dungeon_trips.xp_inside`, `trip_xp_inside`, the dungeons page's kill XP) no longer holds the quests handed in inside the instance. Polestar's run XP is the bar's gain inside, so a quest turned in to an NPC in there (Blackfathom Deeps' In Search of Thaelrid) counted as kill XP and again as quest XP.
 - The analysis judge refuses a `{n:pct}` or `{n:dur}` placeholder on a value whose unit it doesn't fit (a count shown as "2%", kills shown as a duration), when the unit is known: a `metric_query`'s metric, or a raw query's column from a view per grain. The refusal says which format fits.
 - Knowledge base statements take their `source_type` from their URL (`data/kb/sources.json`), not from the model: 353 records changed, mostly Wowhead and ForeverDB guide pages and kami-labs.fr that said `datamined` and are now `guide`. The KB jobs write it the same way, and a record whose type differs from its URL's is refused.
 - A character name that isn't one of yours is now an error naming your characters, instead of "Nothing arrived yet" as if it existed and hadn't played. One of yours with nothing arrived yet still answers. An unknown metric in `query_metric` or `list_metrics` is an error too: both used to come back as a normal answer.

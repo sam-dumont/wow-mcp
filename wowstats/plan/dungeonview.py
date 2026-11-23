@@ -18,8 +18,9 @@ NEXT_UP that open for his side. Each block has:
 - one more run at his level now (`gain`, wowstats.plan.dungeongain): time,
   XP, the share of the level, the pace against his questing, the quests to
   take along. The Overview's dungeon move and the MCP's dungeon_options
-  show this same estimate. Forever's dungeon XP isn't Classic's, so the
-  kills' XP is only ever his own measure there;
+  show this same estimate. The kills' XP in it is only ever his own
+  measure; for a dungeon he hasn't run, `gain.kill_xp` holds the
+  estimate (wowstats.plan.dungeonxp), labelled, kept out of the verdict;
 - one verdict line with its reason, and a value (high, some, none) the page
   colours the block by: XP, gear and gold together, never XP alone;
 - his past runs, newest first.

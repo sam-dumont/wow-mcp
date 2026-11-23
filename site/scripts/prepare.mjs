@@ -115,6 +115,7 @@ const SECTIONS = [
     { src: "docs/gear-reference.md", label: "Gear upgrades" },
     { src: "docs/route-reference.md", label: "Route times" },
     { src: "docs/forever-reference.md", label: "Forever reference" },
+    { src: "docs/dungeon-xp.md", label: "Dungeon kill XP" },
     { src: "docs/kb.md", label: "The knowledge base" },
   ] },
   { dir: "explain", label: "Under the hood", pages: [
