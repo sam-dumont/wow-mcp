@@ -54,6 +54,8 @@ CHECKED_FIXED = {
     "https://www.wowhead.com/forever", "https://www.wowhead.com", "https://claude.ai/new?q=",
     "https://chatgpt.com/?prompt=", "https://www.curseforge.com/download/app", "https://polestar.guide/client",
     "https://docs.astral.sh/uv/",
+    # The weights' credit (web/app.js WEIGHTS_CREDIT): the site tools/foreverdb_weights reads.
+    "https://foreverdb.net",
     # wowstats/account.py's pinned uv, UV_URL: fetched and checked against UV_SHA256.
     "https://github.com/astral-sh/uv/releases/download/",
     *CHECKED_ADDONS.values(),
