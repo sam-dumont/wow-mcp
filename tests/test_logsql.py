@@ -22,8 +22,6 @@ import gzip
 import json
 import os
 import random
-import subprocess
-import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -32,6 +30,7 @@ from pathlib import Path
 
 import pytest
 
+from tests import testchar
 from wowstats import logsql, stores
 from wowstats.stores import HISTORY_START
 
@@ -97,10 +96,9 @@ def _post(path: str, body: bytes, tenant: int, **params) -> None:
 @pytest.fixture(scope="module")
 def store(tmp_path_factory):
     tenant = random.randint(1_000_000, 2_000_000_000)
-    out = tmp_path_factory.mktemp("seed") / "seed.ndjson"
-    subprocess.run([sys.executable, str(ROOT / "dev" / "seed.py"), "--out", str(out)], check=True,
-                   capture_output=True)
-    rows = [json.loads(line) for line in out.read_text().splitlines() if line.strip()]
+    # Testchar's hand-written history (tests/testchar.py): the cases below
+    # name its zones and its records' exact times.
+    rows = testchar.rows()
     with gzip.open(ROOT / "tests" / "data" / "analysis-events.jsonl.gz") as f:
         rows += [json.loads(line) for line in f]
     for char, extra in ((GOLDEN_CHAR, GOLDEN_ROWS), (EDGE_CHAR, EDGE_ROWS)):

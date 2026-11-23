@@ -98,9 +98,9 @@ doesn't count against it.
 
 **An example on the demo.**
 
-On the demo data (see [Try the demo](../self-host/demo.md)), ask "Which level took
-longest, and how much of it was in a dungeon?" about `Testchar-Demo`. The assistant runs a
-query like this one through `play_sql`:
+On the demo data (see [Try the demo](../self-host/demo.md)), ask "Of the levels with a
+dungeon run, which took longest, and how much of it was inside?" about `Nibbet-Gearholt`. The
+assistant runs a query like this one through `play_sql`:
 
 ```sql
 SELECT l.level, l.played_s,
@@ -108,14 +108,15 @@ SELECT l.level, l.played_s,
          WHERE t.level = l.level AND t.instance IS NOT NULL) AS dungeon_s,
        (SELECT group_concat(DISTINCT instance) FROM timeline t
          WHERE t.level = l.level AND t.instance IS NOT NULL) AS dungeons
-FROM levels l ORDER BY l.played_s DESC LIMIT 1
+FROM levels l
+WHERE EXISTS (SELECT 1 FROM timeline t WHERE t.level = l.level AND t.instance IS NOT NULL)
+ORDER BY l.played_s DESC LIMIT 1
 ```
 
-and gets level 30: 11,240 seconds played (3 h 07 min), 2,667 seconds of it in Scarlet
-Monastery: Library. The `dungeons` tool gives the run itself as 2,650 seconds (44 min), about
-24% of the level. The two dungeon numbers differ by 17 seconds because the timeline keeps a
-segment's state until the next record. Ask the assistant to show its query and the rows it
-got: the numbers above are what the demo returns.
+and gets level 23: 14,229 seconds played (3 h 57 min), 1,578 seconds of it in Blackfathom
+Deeps. The `dungeons` tool gives the run itself as 4,980 seconds (83 min): he dinged 24
+inside, so most of the run counts for level 24. Ask the assistant to show its query and the
+rows it got: the numbers above are what the demo returns.
 
 </details>
 

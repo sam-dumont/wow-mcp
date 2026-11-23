@@ -36,7 +36,7 @@ them. Your friends trust you with their data and with the installer your server 
 
 Start here:
 
-1. [Try it at home](self-host/demo.md): five made-up characters on your computer, 10 minutes.
+1. [Try it at home](self-host/demo.md): the demo character on your own computer, 10 minutes.
 2. [Install it for real](install.md): the server, the addons and the shipper, for yourself.
 
 Set it up:

@@ -13,13 +13,12 @@ import warnings
 
 import pytest
 
-from tests.test_layer_pages import SeedVL, seed_rows
+from tests.test_layer_pages import CHAR, SeedVL, seed_rows
 from wowstats import eventcache, stores
 from wowstats.analysis import drive, pages
 from wowstats.mcp import tools as T
 from wowstats.mcp.store import Store as MStore
 
-CHAR = "Testchar-Demo"
 warnings.filterwarnings("ignore", module="boring_semantic_layer")
 DEATH = {"_time": "2026-11-17T20:10:00.000Z", "feed": "wow-recorder", "char": CHAR, "_msg": "death Duskwood",
          "source_id": "rec:test:fresh:1", "kind": "death", "zone": "Duskwood", "map_id": 1431, "level": 32,

@@ -1,8 +1,10 @@
 """The semantic layer (wowstats.analysis.semantic) and its DuckDB engine
-(wowstats.analysis.duck), on the demo seed (dev/seed.py: made-up characters).
+(wowstats.analysis.duck), on the local demo (dev/seed.py: the docs site's
+made-up character, Nibbet-Gearholt).
 
-The reference answer: Testchar-Demo's slowest level is 30, 11,240 s played
-(Polestar's split), 2,650 s of it in Scarlet Monastery: Library."""
+The reference answer: his level 23 took 14,229 s played (Polestar's split),
+his slowest is 32, and his Blackfathom Deeps run, entered at 23, lasted
+4,980 s (generate.BFD_SECONDS)."""
 
 from __future__ import annotations
 
@@ -20,14 +22,15 @@ from wowstats.analysis.sql import QueryError
 from wowstats.mcp import route, tools
 
 ROOT = Path(__file__).resolve().parents[2]
-CHAR = "Testchar-Demo"
+CHAR = "Nibbet-Gearholt"
+END = "2026-11-18"
 warnings.filterwarnings("ignore", module="boring_semantic_layer")
 
 
 @pytest.fixture(scope="module")
 def seed(tmp_path_factory):
     out = tmp_path_factory.mktemp("seed") / "seed.ndjson"
-    subprocess.run([sys.executable, str(ROOT / "dev" / "seed.py"), "--out", str(out)], check=True,
+    subprocess.run([sys.executable, str(ROOT / "dev" / "seed.py"), "--out", str(out), "--end-day", END], check=True,
                    capture_output=True)
     return [json.loads(x) for x in out.read_text().splitlines() if x.strip()]
 
@@ -40,6 +43,20 @@ def demo(seed):
     semantic.prepare(con)
     return {"db": db, "con": con, "layer": semantic.Layer(con), "ro": duck.ReadOnlyDuck(con),
             "play": duck.ReadOnlyDuck(con, tables=TABLES)}
+
+
+@pytest.fixture(scope="module")
+def testchar():
+    """Testchar (tests/testchar.py): a story written by hand, for the checks
+    that count on it (each quest accepted as the one two before is handed
+    in, the gold moved by flights alone)."""
+    from tests import testchar as tc
+
+    char = "Testchar-Demo"
+    db = prep.build([r for r in tc.rows() if r.get("char") == char], char, route.reference())
+    con = duck.mirror(db, TABLES)
+    semantic.prepare(con)
+    return {"db": db, "con": con, "layer": semantic.Layer(con), "ro": duck.ReadOnlyDuck(con)}
 
 
 def ask(demo, **q):
@@ -87,11 +104,11 @@ def test_the_catalogue_page_is_generated_from_the_model():
 def test_the_reference_answer(demo):
     rows = {r["level"]: r for r in table(ask(demo, metrics=["played_s", "online_s", "active_s", "calendar_s"],
                                              group_by=["level"]))}
-    assert rows[30]["played_s"] == 11240
-    assert max(rows, key=lambda lv: rows[lv]["played_s"] or 0) == 30
-    lib = table(ask(demo, metrics=["run_s"], group_by=["dungeon"],
-                    where=[{"dimension": "dungeon", "op": "=", "value": "Scarlet Monastery: Library"}]))
-    assert lib == [{"dungeon": "Scarlet Monastery: Library", "run_s": 2650}]
+    assert rows[23]["played_s"] == 14229
+    assert max(rows, key=lambda lv: rows[lv]["played_s"] or 0) == 32
+    bfd = table(ask(demo, metrics=["run_s"], group_by=["dungeon"],
+                    where=[{"dimension": "dungeon", "op": "=", "value": "Blackfathom Deeps"}]))
+    assert bfd == [{"dungeon": "Blackfathom Deeps", "run_s": 4980}]
 
 
 def test_metrics_of_two_models_aggregate_apart_then_join(demo):
@@ -147,11 +164,11 @@ def test_since_and_until_cut_on_local_days(demo):
 def test_filter_values_are_bound_never_written(demo):
     evil = "Westfall'); DROP TABLE levels; --"
     got = ask(demo, metrics=["online_s"], group_by=["zone"],
-              where=[{"dimension": "zone", "op": "in", "values": [evil, "Stranglethorn Vale"]},
+              where=[{"dimension": "zone", "op": "in", "values": [evil, "Duskwood"]},
                      {"dimension": "level", "op": ">=", "value": 30}])
-    assert evil not in got["sql"] and "Stranglethorn" not in got["sql"] and "$p0" in got["sql"]
-    assert got["params"] == {"p0": evil, "p1": "Stranglethorn Vale", "p2": 30}
-    assert [r["zone"] for r in table(got)] == ["Stranglethorn Vale"]
+    assert evil not in got["sql"] and "Duskwood" not in got["sql"] and "$p0" in got["sql"]
+    assert got["params"] == {"p0": evil, "p1": "Duskwood", "p2": 30}
+    assert [r["zone"] for r in table(got)] == ["Duskwood"]
     assert demo["db"].execute("SELECT COUNT(*) FROM levels").fetchone()[0] > 0
     assert demo["ro"].first_row("SELECT COUNT(*) AS n FROM levels")["n"] > 0
 
@@ -208,8 +225,8 @@ def test_play_sql_reads_the_tables_and_nothing_else(demo, sql):
 
 def test_play_sql_answers_like_before(demo):
     """The numbers the SQLite engine gave, in DuckDB's dialect."""
-    cols, rows, cut = demo["play"].run("SELECT level, played_s FROM levels WHERE level = 30")
-    assert (cols, rows, cut) == (["level", "played_s"], [(30, 11240.0)], False)
+    cols, rows, cut = demo["play"].run("SELECT level, played_s FROM levels WHERE level = 23")
+    assert (cols, rows, cut) == (["level", "played_s"], [(23, 14229.0)], False)
     row = demo["play"].first_row("SELECT COUNT(*) FILTER (WHERE kind = 'kill') AS kills, 7/2 AS d, 7//2 AS i, "
                                  "1.5 AS dec FROM records")
     assert row == {"kills": demo["db"].execute("SELECT COUNT(*) FROM records WHERE kind='kill'").fetchone()[0],
@@ -287,13 +304,13 @@ def test_dungeon_time_per_zone_per_week_over_mcp(lab):
 def test_xp_per_hour_by_level_over_mcp(lab):
     out = call(lab[0], "query_metric", {"char": CHAR, "metrics": ["xp_per_hour", "level_xp", "played_s"],
                                         "group_by": ["level"], "where": [{"dimension": "level", "op": "=",
-                                                                          "value": 30}]})
+                                                                          "value": 23}]})
     head, row = out["result"].splitlines()[:2]
     assert head == "level\txp_per_hour\tlevel_xp\tplayed_s"
     level, xph, xp, played = row.split("\t")
-    assert (level, xp, played) == ("30", "55000", "11240")
-    assert float(xph) == pytest.approx(55000 / (11240 / 3600), rel=1e-3)
-    assert out["params"] == {"p0": 30} and out["definitions"]["xp_per_hour"]["kind"] == "ratio"
+    assert (level, xp, played) == ("23", "29400", "14229")
+    assert float(xph) == pytest.approx(29400 / (14229 / 3600), rel=1e-3)
+    assert out["params"] == {"p0": 23} and out["definitions"]["xp_per_hour"]["kind"] == "ratio"
     cat = call(lab[0], "list_metrics", {})
     assert {"played_s", "online_s", "active_s", "calendar_s"} <= set(cat["models"]["levels"]) | set(
         cat["models"]["timeline"])
@@ -327,7 +344,7 @@ def test_levels_and_dungeons_tools_agree_with_the_layer(lab):
     for lv in levels:
         got = layer[lv["level"]]
         assert (round(got[1]), got[2]) == (lv["seconds"], lv["xp"]), lv["level"]
-    assert next(lv for lv in levels if lv["level"] == 30)["seconds"] == 11240
+    assert next(lv for lv in levels if lv["level"] == 23)["seconds"] == 14229
     runs = call(lab[0], "dungeons", {"char": CHAR})["runs"]
     by_name = {r[0]: r for r in json_rows(call(lab[0], "query_metric", {
         "char": CHAR, "metrics": ["run_s", "run_xp", "run_xp_per_hour"], "group_by": ["dungeon"]}))}
@@ -336,7 +353,7 @@ def test_levels_and_dungeons_tools_agree_with_the_layer(lab):
         got = by_name[r["name"]]
         assert (round(got[1]), got[2]) == (r["seconds"], r["xp"]), r["name"]
         assert round(got[3]) == r["xp_per_hour"], r["name"]
-    assert by_name["Scarlet Monastery: Library"][1] == 2650
+    assert by_name["Blackfathom Deeps"][1] == 4980
 
 
 def json_rows(out):
@@ -352,16 +369,16 @@ def test_a_friend_cant_query_the_owners_character(lab):
     """The owner's workspace is built first (and cached); the friend, in
     another tenant, naming the owner's character gets nothing of it."""
     mine = call(lab[0], "query_metric", {"char": CHAR, "metrics": ["played_s"], "group_by": ["level"]})
-    assert "11240" in mine["result"]
+    assert "9749" in mine["result"]
     for name, args in (("query_metric", {"char": CHAR, "metrics": ["played_s"], "group_by": ["level"]}),
                        ("play_sql", {"char": CHAR, "query": "SELECT level, played_s FROM levels"}),
                        ("propose_finding", {"char": CHAR, "finding": {
-                           "key": "x", "title": "{played_s}", "claim": "{played_s} s", "expect": {"played_s": 11240},
+                           "key": "x", "title": "{played_s}", "claim": "{played_s} s", "expect": {"played_s": 9749},
                            "metric_query": {"metrics": ["played_s"], "where": [
                                {"dimension": "level", "op": "=", "value": 30}]}}})):
         out = call(lab[1], name, args)
         body = json.dumps(out)
-        assert "11240" not in body and "Library" not in body, (name, body[:300])
+        assert "9749" not in body and "Blackfathom" not in body, (name, body[:300])
         assert out.get("answer", "x") is None or "error" in out or out.get("stored") is False, (name, out)
 
 
@@ -369,7 +386,7 @@ def test_propose_finding_takes_a_query_metric_call(lab):
     mq = {"metrics": ["played_s", "dungeon_s"], "where": [{"dimension": "level", "op": "=", "value": 30}]}
     good = {"key": "level-30-dungeon", "title": "Level 30: {dungeon_s} s in dungeons",
             "claim": "Level 30 took {played_s} s, {dungeon_s} s of it inside a dungeon.",
-            "expect": {"played_s": 11240}, "relevance": 2, "action": None, "metric_query": mq,
+            "expect": {"played_s": 9749}, "relevance": 2, "action": None, "metric_query": mq,
             "constants": [{"value": 30, "label": "level"}]}
     ok = call(lab[0], "propose_finding", {"char": CHAR, "finding": good})
     assert ok["stored"], ok
@@ -403,10 +420,20 @@ def test_propose_finding_takes_a_query_metric_call(lab):
     assert info["confirmed"] == 2 and info["faded"] == 0, info
 
 
-def test_the_slice_metrics_over_mcp_keep_the_findings_contract(lab):
+@pytest.fixture()
+def testchar_lab(lab):
+    """Testchar (tests/testchar.py), whose kills carry no XP, in tenant 0."""
+    from tests import testchar
+
+    lab[0].rows = testchar.rows()
+    return lab
+
+
+def test_the_slice_metrics_over_mcp_keep_the_findings_contract(testchar_lab):
     """The 0.7.0 slice's metrics reach query_metric, play_sql and
-    propose_finding: the seed's kills carry no XP, so kill XP is unknown
+    propose_finding: Testchar's kills carry no XP, so kill XP is unknown
     and the finding says it with placeholders; a number typed in is refused."""
+    lab, CHAR = testchar_lab, "Testchar-Demo"  # noqa: N806
     names = {n for ms in call(lab[0], "list_metrics", {})["models"].values() for n in ms}
     assert {"kills_without_xp", "kill_xp_per_online_hour", "gold_earned_copper", "gear_changes"} <= names
     out = call(lab[0], "query_metric", {"char": CHAR, "metrics": ["kills", "kills_without_xp", "kill_xp"]})
@@ -440,15 +467,16 @@ def test_queries_from_several_threads_share_one_database(demo):
     with ThreadPoolExecutor(4) as pool:
         got = list(pool.map(one, range(16)))
     other = duck.mirror(demo["db"], TABLES)
-    assert got == [11240] * 16
-    assert other.execute("SELECT played_s FROM levels WHERE level = 30").fetchone()[0] == 11240
+    assert got == [9749] * 16
+    assert other.execute("SELECT played_s FROM levels WHERE level = 30").fetchone()[0] == 9749
 
 
 # ---------------------------------------------------------------- the four former gaps
 
 
-def test_quests_pair_accept_and_hand_in(demo):
-    """The demo picks each quest up when the one two before it is handed in:
+def test_quests_pair_accept_and_hand_in(testchar):
+    demo = testchar
+    """Testchar picks each quest up when the one two before it is handed in:
     every hand-in after level 22's first two has its accept; one abandoned,
     one still open."""
     db = demo["db"]
@@ -504,9 +532,10 @@ def test_guide_and_step_with_the_routes_titles(demo):
     assert any(r["guide_title"] for r in guides)
 
 
-def test_unexplained_gold_per_level(demo):
+def test_unexplained_gold_per_level(testchar):
+    demo = testchar
     """The purse's moves between snapshots, less the quest money the records
-    saw: on the demo, the rest is the flights (80-260 copper each)."""
+    saw: on Testchar, the rest is the flights (80-260 copper each)."""
     db = demo["db"]
     rows = table(ask(demo, metrics=["gold_moved_copper", "gold_quest_copper", "unexplained_gold_delta"],
                      group_by=["level"], where=[{"dimension": "dings", "op": "=", "value": 0}]))

@@ -1501,6 +1501,53 @@ def shipper_shapes(rows: list[dict]) -> list[dict]:
     return out
 
 
+# The demo's other players (made up), as the shipper sends them: a sighting
+# per 10 minutes in a group from the combat log, and Polestar's version
+# probe's "seen" (shipper/wow_stats.py). The People tab lists who comes back.
+DEMO_GROUPS = {"Blackfathom Deeps": ("Brindlewick", "Mirelle", "Ostrik", "Hollen"),
+               "Stormwind Stockade": ("Brindlewick", "Mirelle", "Pellam", "Quenby"),
+               "City of Dalaran": ("Mirelle", "Ravvik", "Sefa", "Tamsin"),
+               "Razorfen Kraul": ("Brindlewick", "Ravvik", "Corvatha", "Hollen")}
+DEMO_SEEN = ("Wendra", "Fallowmere", "Ostrik", "Jessamy", "Thornby", "Ulvar")
+
+
+def demo_players(rows: list[dict]) -> list[dict]:
+    """The wow-player events for build_demo's rows, drawn from their own
+    seed: the rest of the demo stays as it was."""
+    rnd = random.Random(SEED + 3)
+    out = []
+
+    def ev(t: float, player: str, ctx: str, source: str, zone: str | None) -> None:
+        sid = f"player:{source}:{player}:{int(t)}"
+        out.append({"_time": iso(t), "feed": "wow-player", "char": DEMO, "source_id": sid,
+                    "_msg": f"{ctx} {player}" + (f" in {zone}" if zone else ""), "player": player, "context": ctx,
+                    "source": "combatlog" if source == "combatlog" else "polestar-probe", "zone": zone})
+
+    for r in rows:
+        if r["feed"] != "wow-dungeon":
+            continue
+        t0, t1 = _epoch(r["_time"]), _epoch(r["left"])
+        for mate in DEMO_GROUPS.get(r["name"], ()):
+            for b in range(int(t0 // 600 * 600), int(t1), 600):
+                ev(max(b, t0) + 5, mate, "grouped", "combatlog", r["name"])
+    zones = sorted((_epoch(r["_time"]), r["zone"]) for r in rows
+                   if r["feed"] == "wow-recorder" and r.get("kind") == "zone" and r.get("zone"))
+    days: dict = {}  # each play day's first login (a session record comes at every /reload too)
+    for r in rows:
+        if r["feed"] == "wow-recorder" and r.get("kind") == "session":
+            t = _epoch(r["_time"])
+            day = datetime.fromtimestamp(t, TZ).date()
+            days[day] = min(days.get(day, (t, t))[0], t), max(days.get(day, (t, t))[1], t)
+    last = {datetime.fromtimestamp(_epoch(r["_time"]), TZ).date(): _epoch(r["_time"])
+            for r in rows if r["feed"] == "wow-recorder"}  # rows are in time order: each day's last record
+    for i, (day, (t, _)) in enumerate(sorted(days.items())):
+        for player in (DEMO_SEEN[i % 3], DEMO_SEEN[3 + i % 3]):
+            at = min(t + rnd.randint(600, 3000), last[day] - 60)
+            zone = next((z for zt, z in reversed(zones) if zt <= at), None)
+            ev(at, player, "seen", "probe", zone)
+    return out
+
+
 def build_demo(end_day: str | None = None) -> list[dict]:
     """The demo character's events, shifted by whole days so its last
     session is on `end_day` (YYYY-MM-DD; default: as generated)."""
@@ -1544,6 +1591,7 @@ def build_demo(end_day: str | None = None) -> list[dict]:
             recorder_on=True, saved_chars=1)
     p.out[-1].pop("char", None)
     rows = shipper_shapes(sorted(p.out, key=lambda r: r["_time"]))
+    rows = sorted(rows + demo_players(rows), key=lambda r: r["_time"])
     if end_day:
         last = datetime.fromtimestamp(end, TZ).date()
         shift = (date.fromisoformat(end_day) - last).days * 86400

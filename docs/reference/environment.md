@@ -22,7 +22,7 @@ The live full view, and the old live public view.
 | `BASIC_AUTH_USER` | ui | text | empty | `me` | The user name for `AUTH=basic`. |
 | `BIND` | ui, static, render | address | `0.0.0.0` in the image, `127.0.0.1` outside it | `127.0.0.1` | The address the server listens on. |
 | `CACHE_TTL` | ui, publish | seconds | `45` | `45` | How long an answer worked out when asked stays in memory. A plain open of the page gets the answers built in the background once per new data instead. |
-| `DEFAULT_CHAR` | ui, publish | `Name-Surname` | empty: the character seen last | `Testchar-Demo` | The character the page and the MCP tools open on. |
+| `DEFAULT_CHAR` | ui, publish | `Name-Surname` | empty: the character seen last | `Nibbet-Gearholt` | The character the page and the MCP tools open on. |
 | `FULL_DOOR_PATH` | ui | path | `/full/` | empty | The login door of the full view on a shared host: it answers with a redirect to `/`. Empty turns it off, for a full view on its own host. |
 | `PORT` | ui, static, render | port | `8080` (`8083` for `render`) | `8080` | The port the server listens on. |
 | `PRICE_DAYS` | ui, publish | days | `90` | `30` | Days of Auctionator scans in the prices panel. |
@@ -32,7 +32,7 @@ The live full view, and the old live public view.
 | `PUBLISHED_ON` | ui | address:port | empty | `127.0.0.1:8080` | Where the container's port is published on the host. A loopback address lets `AUTH=open` run inside the container. The compose kit sets it from `UI_PUBLISH` and `PUBLIC_PUBLISH`. |
 | `RENDER_FROM` | ui | URL | empty: no picture, the 3D toggle | `http://site:8080` | Where the full view gets a character's picture: the publisher's still of the 3D model, in the static site's bundles. Set it to the static site's address. |
 | `VIEW` | ui | `full` or `public` | `full` on a loopback `BIND`, else required | `public` | Which view this process serves. One process serves one view, so a routing mistake can't hand the full view to an outsider. |
-| `WEIGHTS` | ui, publish | comma list of `Name-Surname:spec` | empty: what the addons say | `Testchar-Demo:shadow` | The spec each character's gear is scored for. The page's own selector still wins. |
+| `WEIGHTS` | ui, publish | comma list of `Name-Surname:spec` | empty: what the addons say | `Nibbet-Gearholt:shadow` | The spec each character's gear is scored for. The page's own selector still wins. |
 | `WOW_TIMEZONE` | ui, publish | IANA timezone | `Europe/Brussels` | `America/New_York` | The player's timezone, for the hours and weekdays the analysis reads. |
 
 ## Uploads from the shipper
@@ -224,7 +224,7 @@ Optional. Needs your own API client. [Battle.net data](../self-host/battlenet.md
 | `BNET_TOKEN_NAMESPACES` | exporter | comma list | derived from the region | `dynamic-eu` | The namespaces read for the WoW Token price. |
 | `HTTP_TIMEOUT` | exporter | seconds | `60` | `60` | Timeout of one API call. |
 | `LISTEN_PORT` | exporter | port | `9464` | `9464` | The exporter's own port: `/healthz` and its own health metrics on `/metrics`, never Blizzard's data. |
-| `PROFILE_CHARACTERS` | exporter, compose | comma list of `Name-Surname` | empty | `Testchar-Demo,Testalt-Demo` | Your characters, as their WTF folders name them: their look, level, gear and talents are read every 2 hours. |
+| `PROFILE_CHARACTERS` | exporter, compose | comma list of `Name-Surname` | empty | `Nibbet-Gearholt,Name-Surname` | Your characters, as their WTF folders name them: their look, level, gear and talents are read every 2 hours. |
 | `PROFILE_INTERVAL` | exporter | seconds | `7200` | `7200` | Seconds between profile reads, on the clock (7200: 00:00, 02:00... UTC, whenever the exporter started). A character the list names for the first time is read within 5 minutes anyway, once. |
 | `REALM_INTERVAL` | exporter | seconds | `300` | `300` | Seconds between ruleset status reads. |
 | `TOKEN_INTERVAL` | exporter | seconds | `1200` | `1200` | Seconds between WoW Token reads. |

@@ -180,20 +180,6 @@ jobs:
       - run: uv run pytest -v -rs -m ci_only tests/test_windows_e2e.py
         env:
           WOW_STATS_WINDOWS_E2E: "1"
-      # The README's PowerShell demo line pipes dev/seed.py into Python
-      # (in the ui container there): the same pipe here, in Windows
-      # PowerShell 5.1 and PowerShell 7, with --out instead of a store.
-      - name: The demo seed through PowerShell's pipe
-        shell: pwsh
-        run: |
-          foreach ($ps in 'powershell', 'pwsh') {
-            $out = Join-Path $env:RUNNER_TEMP "seed-$ps.ndjson"
-            & $ps -NoProfile -Command "Get-Content dev\seed.py -Raw | uv run python - --out '$out'"
-            if ($LASTEXITCODE) { throw "${ps}: the piped seed failed ($LASTEXITCODE)" }
-            $n = (Get-Content $out | Measure-Object -Line).Lines
-            if ($n -lt 1000) { throw "${ps}: only $n events" }
-            Write-Host "${ps}: $n events"
-          }
 
   # A fork's pull request can't read the dhi.io credentials (secrets stay out
   # of forks' runs), so it can't pull the main image's base: the image job
@@ -295,6 +281,28 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$fport/full/")" = 403
           test "$(curl -s -o /dev/null -w '%{http_code}' -H "X-Forwarded-User: owner" "http://127.0.0.1:$fport/full/")" = 403
           docker rm -f ui-public ui-full
+      # docs/self-host/demo.md's steps, with this image: the kit's ui, then
+      # `docker compose run --rm demo` (the repository mounted read-only,
+      # the docs site's demo character through /ingest), and the page lists him.
+      - name: The compose kit's demo, end to end
+        working-directory: deploy/compose
+        env:
+          WOW_STATS_IMAGE: wow-stats:ci
+          INGEST_PASSWORD: demo-password-only
+          MODEL3D: "off"
+          WOW_ITEMS: "off"
+          UI_PUBLISH: 127.0.0.1:18180
+        run: |
+          set -eu
+          docker compose up -d ui
+          for _ in $(seq 1 60); do curl -fsS http://127.0.0.1:18180/healthz >/dev/null 2>&1 && break; sleep 1; done
+          docker compose run --rm demo
+          for _ in $(seq 1 30); do
+            chars=$(curl -fsS http://127.0.0.1:18180/api/chars || true)
+            echo "$chars" | grep -q '"Nibbet-Gearholt"' && break; sleep 1
+          done
+          echo "$chars" | grep -q '"Nibbet-Gearholt"' || { echo "$chars"; docker compose logs ui; exit 1; }
+          docker compose down -v
       - name: Smoke test (several people, FastMCP on 8090 behind the tests' OIDC stand-in)
         run: |
           set -eu

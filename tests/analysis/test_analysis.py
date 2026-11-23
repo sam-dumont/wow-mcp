@@ -672,7 +672,7 @@ def _seed_rows(tmp_path):
 
     out = tmp_path / "seed.ndjson"
     root = Path(__file__).resolve().parents[2]
-    subprocess.run([sys.executable, str(root / "dev" / "seed.py"), "--out", str(out)], check=True,
+    subprocess.run([sys.executable, str(root / "dev" / "seed.py"), "--out", str(out), "--end-day", "2026-11-18"], check=True,
                    capture_output=True)
     return [json.loads(x) for x in out.read_text().splitlines() if x.strip()]
 
@@ -683,18 +683,19 @@ def test_time_per_level_matches_the_splits(tmp_path, session_levels):
     of it in a dungeon?"): the timeline's time per level is Polestar's split.
     Level 22's evening was booked as 23 when the seed's session records had
     no level and the first mark was the ding to 23 (2026-11-19)."""
-    rows = [r for r in _seed_rows(tmp_path) if r.get("char") == "Testchar-Demo"]
+    char = "Nibbet-Gearholt"
+    rows = [r for r in _seed_rows(tmp_path) if r.get("char") == char]
     if not session_levels:  # records that start mid-level, no session level: the ding alone says it
         rows = [{k: v for k, v in r.items() if not (r.get("kind") == "session" and k == "level")} for r in rows]
-    db = prep.build(rows, "Testchar-Demo", route.reference())
+    db = prep.build(rows, char, route.reference())
     online = dict(db.execute("SELECT level, SUM(dur_s) FROM timeline GROUP BY level"))
     splits = {int(r["level"]): int(r["seconds"]) for r in rows if r["feed"] == "wow-level"}
     for level, secs in splits.items():
         assert abs(online.get(level, 0) - secs) <= 120, (level, online.get(level), secs)
     slowest = max(splits, key=splits.get)
-    assert slowest == 30 and max(online, key=online.get) == 30
-    inside = one(db, "SELECT SUM(dur_s) FROM timeline WHERE level = 30 AND instance IS NOT NULL")[0]
-    assert abs(inside - 2650) <= 60  # Scarlet Monastery: Library, 44 min
+    assert slowest == 32 and max(online, key=online.get) == 32
+    inside = one(db, "SELECT SUM(dur_s) FROM timeline WHERE level = 31 AND instance IS NOT NULL")[0]
+    assert abs(inside - 1376) <= 60  # Stormwind Stockade, 23 min
 
 
 def test_play_sql_keeps_every_digit():

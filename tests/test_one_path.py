@@ -10,7 +10,7 @@ External review, 2026-11-22 (pinned to a856e2d):
    stale), one JSON log line and a field on /healthz, never other numbers.
 2. On the seeded demo the page said 1,188 kills and 94 quests (the completed
    levels) and the MCP's character_summary 1,262 and 99 (the current level
-   too). Both are right; neither said so. One definition now (pages.climb),
+   too; that demo was Testchar, tests/testchar.py now). Both are right; neither said so. One definition now (pages.climb),
    each population named, the same numbers on both sides.
 """
 
@@ -26,7 +26,8 @@ from pathlib import Path
 
 import pytest
 
-from tests.test_layer_pages import SeedVL, seed_rows
+from tests import testchar
+from tests.test_layer_pages import CHAR, SeedVL, seed_rows
 from wowstats import eventcache, insights, stores, ui, views
 from wowstats.analysis import pages, semantic
 from wowstats.mcp import tools as T
@@ -34,7 +35,6 @@ from wowstats.mcp.store import Store as MStore
 from wowstats.stores import SemanticError
 
 ROOT = Path(__file__).resolve().parents[1]
-CHAR = "Testchar-Demo"
 warnings.filterwarnings("ignore", module="boring_semantic_layer")
 
 
@@ -54,7 +54,7 @@ def seeded(monkeypatch, tmp_path):
 
 def app(home: Path, view: str = "full") -> ui.App:
     return ui.App({"VIEW": view, "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": "http://vl.invalid",
-                   "MODEL3D": "off", "DEFAULT_CHAR": CHAR, "HOME": str(home / view)})
+                   "MODEL3D": "off", "WOW_ITEMS": "off", "DEFAULT_CHAR": CHAR, "HOME": str(home / view)})
 
 
 def broken(monkeypatch):
@@ -73,7 +73,7 @@ def test_a_semantic_failure_keeps_the_last_good_answer_stale_and_says_so(seeded,
     a = app(seeded)
     assert a.prebuilt.check() == "first build"
     good = a.api_char(CHAR)
-    assert good["header"]["counts"]["completed_levels"]["kills"] == 1188 and not good.get("stale")
+    assert good["header"]["counts"]["completed_levels"]["kills"] == 1225 and not good.get("stale")
     assert pages.health() == {"semantic": "ok"}
 
     broken(monkeypatch)
@@ -121,10 +121,13 @@ def test_health_is_ok_again_once_the_layer_answers(seeded, monkeypatch):
     assert pages.health() == {"semantic": "ok"}
 
 
-def test_a_missing_source_still_gets_partial_answers_from_the_layer(seeded):
+def test_a_missing_source_still_gets_partial_answers_from_the_layer(seeded, monkeypatch):
     """Degraded mode stays: a character without Polestar's splits (Testgun,
-    dressed for the 3D view) gets the layer's answer, with the numbers
-    nobody recorded left unknown."""
+    tests/testchar.py) gets the layer's answer, with the numbers nobody
+    recorded left unknown."""
+    fake = SeedVL([r for r in testchar.rows() if r.get("char") == "Testgun-Demo"])
+    monkeypatch.setattr(stores, "http_get", fake)
+    monkeypatch.setattr(MStore, "_get", lambda self, url, params, extra=None: fake(url, params))
     d = app(seeded).api_char("Testgun-Demo")
     assert not d.get("stale") and d["levels"] == []
     assert d["header"]["counts"]["completed_levels"] is None
@@ -173,9 +176,9 @@ def test_both_consumers_name_each_population_and_agree(seeded):
     assert "kills" not in mcp and "quests_turned_in" not in mcp  # no bare total to confuse
     assert mcp["counts"] == page
     assert page == {
-        "completed_levels": {"from_level": 22, "to_level": 31, "kills": 1188, "quests": 94},
-        "current_level": {"level": 32, "kills": 74, "quests": 5},
-        "including_current_level": {"kills": 1262, "quests": 99},
+        "completed_levels": {"from_level": 22, "to_level": 33, "kills": 1225, "quests": 88},
+        "current_level": {"level": 34, "kills": 93, "quests": 6},
+        "including_current_level": {"kills": 1318, "quests": 94},
     }
     # The parts add up: one definition, two populations.
     for k in ("kills", "quests"):

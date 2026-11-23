@@ -259,7 +259,7 @@ IMAGES = {
     **{f"{n}{d}.webp": "site/scripts/screenshots.py" for n in SHOTS for d in ("", "-dark")},
     "social.png": "site/scripts/screenshots.py",
     "admin.webp": "demo/browser/admin_shot.py",
-    # By hand, from the local demo's made-up Testchar (docs/self-host/demo.md).
+    # By hand, from the local demo (docs/self-host/demo.md): Nibbet, made up, at 1100x713.
     "local-demo.webp": "dev/seed.py",
     # Drawn by hand: no data in it.
     "how-it-works.svg": "docs/images/how-it-works.svg",

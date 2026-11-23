@@ -4,8 +4,8 @@ layer): skill_rank, the snapshots' first and last level and XP, the gold
 moves' online time, changes, window edges and rate, the rested intervals,
 looted_items and upgrade_gain_share_pct.
 
-On the three histories of test_views (the dev seed, the docs site's demo
-character with its gear advice, a seeded variation), each metric equals the
+On the three histories of test_views (Testchar, tests/testchar.py; the docs
+site's demo character with its gear advice; a seeded variation), each metric equals the
 SQL its reader ran before (or what the contract changed: rested_per_kill_xp
 and gold_per_online_hour read their eligible rows on both sides), and asking
 it by level fans nothing out: one row per level, and an additive metric's
@@ -19,8 +19,9 @@ import warnings
 import pytest
 
 from tests import degraded as D
+from tests import testchar
 from tests.invariants import histories as H
-from tests.invariants.test_views import SEED_CHAR, _seed_rows
+from tests.invariants.test_views import SEED_CHAR
 from wowstats import analysis
 from wowstats.analysis import prep, semantic
 from wowstats.analysis.kb import RIDING
@@ -35,7 +36,7 @@ NEW = ["skill_rank", "snapshot_first_level", "snapshot_first_xp", "snapshot_last
 @pytest.fixture(scope="module", params=["seed", "demo", "variant"])
 def built(request, tmp_path_factory):
     if request.param == "seed":
-        rows = [r for r in _seed_rows(tmp_path_factory.mktemp("seed")) if r.get("char") == SEED_CHAR]
+        rows = [r for r in testchar.rows() if r.get("char") == SEED_CHAR]
         char = SEED_CHAR
     elif request.param == "demo":
         rows, char = D.base_rows(), D.CHAR

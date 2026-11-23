@@ -116,8 +116,12 @@ jobs:
       # site/demo3d.sha256 (site/scripts/demo3d-asset.sh), else the made-up
       # ones (tools/fixtures/golden3d.py). All copied into the bundle.
       - run: site/scripts/build-demo.sh
-      # Every section of the demo shows data: a fallback fails the build.
-      - run: uv run --frozen --extra render --group browser pytest -q -rs -m browser tests/test_demo_complete_browser.py
+      # Every section of the demo shows data: a fallback fails the build. The
+      # local demo too (dev/seed.py through a ui's /ingest), but for the three
+      # parts the compose kit doesn't run (docs/self-host/demo.md).
+      - run: >-
+          uv run --frozen --extra render --group browser pytest -q -rs -m browser
+          tests/test_demo_complete_browser.py tests/test_local_demo_complete_browser.py
         env:
           WOW_DEMO_DIR: site/public/demo
           WOW_DEMO_ENGINES: chromium

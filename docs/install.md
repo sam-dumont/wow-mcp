@@ -116,16 +116,12 @@ two) and pulls VictoriaLogs. The build's base comes from Docker's hardened
 images: run `docker login dhi.io` once before, with a free Docker Hub account. Then open <http://127.0.0.1:8080>: an empty
 page until the shipper sends something.
 
-To see a filled page first, load the demo's five made-up characters
-(they carry a DEMO DATA banner; `docker compose down -v` before your real
-install wipes them):
+To see a filled page first, load the demo's made-up character, Nibbet
+(he carries a DEMO DATA banner; `docker compose down -v` before your real
+install wipes him), on any system:
 
 ```sh
-docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest < ../../dev/seed.py
-```
-
-```powershell
-Get-Content ..\..\dev\seed.py -Raw | docker compose exec -T ui python - --ingest http://127.0.0.1:8080/ingest
+docker compose run --rm demo
 ```
 
 `Bind for 127.0.0.1:8080 failed: port is already allocated` means

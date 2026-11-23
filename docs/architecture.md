@@ -73,7 +73,7 @@ the semantic layer.
 | `wowstats/gear.py` | Gear advice: Polestar's scoring (`Gear.lua`, `Weights.lua`, `Adjust.lua`) ported, per character, spec and level; behind `/api/gear` (both views) and the MCP `gear` tool. |
 | `web/` | The pages: `index.html`, `app.js`, `app.css`, and `base.css` + `theme.js`, which every page loads (fonts, palettes, the header from `wowstats/bar.py`, the theme switch); no build step, no third-party code. Fonts are vendored in `web/fonts` (Cinzel, Alegreya, Alegreya Sans: SIL Open Font License, the licence files next to them) and served by the UI itself, so the CSP stays `font-src 'self'`. The crest, slot glyphs and frames are drawn in `app.js` and `app.css`: no game art. Packaged inside the wheel as `wowstats/web`. |
 | `deploy/compose/` | The standalone kit. |
-| `dev/seed.py` | Made-up data (`demo: true`, Testchar/Testalt) for working on the page. |
+| `dev/seed.py` | The demo: the docs site's made-up character (`tools/fixtures/generate.py`, `build_demo`), marked `demo: true`, into a store or a ui's `/ingest`; the compose kit's `demo` service runs it. |
 
 ## Two views, one per process
 

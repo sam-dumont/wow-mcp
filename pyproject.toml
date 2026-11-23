@@ -136,9 +136,8 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 ignore = ["SIM108", "B023"]
 
 [tool.ruff.lint.per-file-ignores]
-# The shipper and the seed are scripts with long data lines; tests hold fixtures.
+# The shipper is a script with long data lines; tests hold fixtures.
 "shipper/wow_stats.py" = ["E501", "E731", "SIM105", "SIM115"]
-"dev/seed.py" = ["E501"]
 "tests/*" = ["E501"]
 
 [tool.pytest.ini_options]
