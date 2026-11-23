@@ -49,8 +49,14 @@ on:
         default: ""
 permissions:
   contents: read
+# Keyed on what is built: the tag when release.yml calls this, else the ref.
+# In a called workflow github.ref is the caller's (refs/heads/main), so keyed
+# on it alone the release's call cancelled the release commit's own push run,
+# and every release commit showed a cancelled pages run (0.8.0, 2026-11-23).
+# The two build the same tree, so whichever deploys last is right; the deploy
+# job's pages-deploy group below runs them one at a time.
 concurrency:
-  group: pages-${{ github.ref }}
+  group: pages-${{ inputs.ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
