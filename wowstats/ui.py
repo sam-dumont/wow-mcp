@@ -936,13 +936,18 @@ def make_handler(root: App, tenancy=None):
             try:
                 if path == "/healthz" and self.command in ("GET", "HEAD"):
                     # 200 while the process serves: a failing semantic layer
-                    # leaves the last good answers up, marked stale, so it is
-                    # a field to alert on, not a reason to restart the pod.
+                    # or a store that doesn't answer leaves the last good
+                    # answers up, marked stale, so each is a field to alert
+                    # on, not a reason to restart the pod.
                     # The open analysis workspaces and the upload gate: counts for
                     # the lab's monitoring, no names.
                     from wowstats.analysis import drive, pages
 
-                    body = json.dumps({"status": "ok", **pages.health(), **drive.health(),
+                    try:
+                        apps = prebuilt_apps(root, tenancy)
+                    except Exception:  # noqa: BLE001 - the friends list unreadable: the owner's alone
+                        apps = [root]
+                    body = json.dumps({"status": "ok", **pages.health(), **prebuilt.health(apps), **drive.health(),
                                        **root.uploads.health()}).encode() + b"\n"
                     return self.send(200, body, "application/json")
                 if not full and app.public_off():  # what the static server says for a site built with it off

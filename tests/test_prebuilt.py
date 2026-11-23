@@ -155,9 +155,21 @@ def test_a_store_down_keeps_the_last_answers_marked_stale(full, run_app):
     # the owner's overview keeps the detail.
     assert d["stale"] is True and "request" in d["error"] and "unreachable" not in d["error"] and d["header"]
     assert "unreachable" in app.prebuilt.error
+    # /healthz stays 200 (a restart wouldn't bring the store back) and says
+    # so in a field to alert on, like `semantic`; no store text, no name.
+    h = body_of(srv, "/healthz")
+    assert (h["status"], h["store"]) == ("ok", "failing") and h["store_failed_at"]
+    assert "unreachable" not in json.dumps(h) and CHAR not in json.dumps(h)
     store.down = False
     app.prebuilt.check()
     assert "stale" not in body_of(srv, f"/api/char?name={CHAR}")
+    h = body_of(srv, "/healthz")
+    assert h["store"] == "ok" and "store_failed_at" not in h
+
+
+def test_healthz_says_idle_before_the_first_check(full, run_app):
+    app, _ = full
+    assert body_of(run_app(app), "/healthz")["store"] == "idle"
 
 
 def test_before_the_first_build_answers_are_worked_out_when_asked(full, run_app):
@@ -292,3 +304,36 @@ def test_new_item_facts_rebuild_the_answers(monkeypatch, tmp_path, shipper):
     app.item_facts.store.put_items(list(facts_of(shipper).values()), itemfacts.has_reference)
     assert app.prebuilt.check(now=1002.0) == "new data"
     assert app.prebuilt.check(now=1003.0) is None
+
+
+def test_the_demo_seed_wakes_the_page(run_app, monkeypatch, tmp_path):
+    """The README's demo seeds through /ingest, so the page lists the
+    characters right after, not at the next minute's check (the seed wrote
+    to VictoriaLogs directly and the page said "No character yet" ~80 s)."""
+    import os
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    from tests import degraded as D
+
+    monkeypatch.setattr(prebuilt, "INGEST_WAKE_S", 0.3)
+    store = D.VL([])
+    try:
+        pw = "demo-password-only"
+        app = ui.App({"VIEW": "full", "BIND": "127.0.0.1", "VL_URL": store.url, "INGEST_PASSWORD": pw,
+                      "MODEL3D": "off", "WOW_ITEMS": "off", "HOME": str(tmp_path)})
+        srv = run_app(app)
+        assert app.prebuilt.check() == "first build"
+        assert body_of(srv, "/api/chars")["chars"] == []
+        prebuilt.WAKE.clear()
+        seed = Path(__file__).resolve().parents[1] / "dev" / "seed.py"
+        r = subprocess.run([sys.executable, str(seed), "--ingest", srv.base + "/ingest"], capture_output=True,
+                           text=True, timeout=120, env={**os.environ, "INGEST_PASSWORD": pw})
+        assert r.returncode == 0, r.stderr
+        assert prebuilt.WAKE.wait(10), "the seed didn't wake the builder"
+        assert app.prebuilt.check() == "new data"
+        chars = [c["char"] for c in body_of(srv, "/api/chars")["chars"]]
+        assert "Testchar-Demo" in chars and len(chars) == 5, chars
+    finally:
+        store.close()

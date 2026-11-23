@@ -13,7 +13,6 @@ from datetime import UTC, datetime
 from wowstats.stores import SESSION_GAP_S, num, opt_num, parse_t, split_sessions, zone_time
 
 GAP_S = SESSION_GAP_S
-BUCKET_S = 60  # the XP query's buckets (Views.journal: stats by (_time:1m))
 
 
 def _ts(s) -> float | None:
@@ -45,16 +44,8 @@ def build(minutes: list[dict], xp: list[dict], events: list[dict], dungeons: lis
                 return s
         return None
 
-    def find_minute(t: float | None):
-        # The XP comes summed per minute (the bucket's start), the sessions
-        # to the second: a bucket belongs to the session it overlaps, or a
-        # session's first partial minute loses its XP.
-        if t is None:
-            return None
-        return next((s for s in sessions if s["start"] < t + BUCKET_S and t < s["end"] + 1), None)
-
-    for r in xp:
-        s = find_minute(_ts(r.get("_time")))
+    for r in xp:  # one row per XP reading that gained any (prep.xp_gains)
+        s = find(_ts(r.get("_time")))
         if s:
             s["xp"] += int(num(r.get("xp")))
     for r in sorted(events, key=lambda e: parse_t(e.get("_time"))):

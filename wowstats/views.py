@@ -16,7 +16,7 @@ from datetime import UTC, datetime, timedelta
 
 from wowstats import ahsource, classguide, classmeta, coverage, forever, insights, journal, profcaps, quests, talents
 from wowstats import gear as gearmod
-from wowstats.analysis import pages
+from wowstats.analysis import pages, prep
 from wowstats.stores import (
     FLIGHT_RECORDS,
     HISTORY_START,
@@ -910,8 +910,9 @@ class Views:
         jobs = {
             # Activity per minute: the session boundaries (stores.split_sessions).
             "minutes": sub(vl, f"{rec} {SESSION_BUCKETS}", ("_time",), SESSION_BUCKET_OPS),
-            "xp": sub(vl, f"{rec} kind:=xp xp_gained:* | uniq by (_time, source_id, xp_gained) "
-                          f"| stats by (_time:1m) sum(xp_gained) as xp", ("_time",), {"xp": "sum"}),
+            # The bar's readings, not the shipper's xp_gained: a chunk recovered
+            # late left that short (prep.xp_gains, the analysis' own rule).
+            "xp": sub(vl, f"{rec} kind:=xp | fields _time, xp, xp_max, source_id, rev"),
             "events": sub(vl, f"{rec} kind:in(session, level, zone, turnin, death) "
                               f"| fields _time, kind, login, level, zone, quest_id, quest_name, "
                               f"source_id"),
@@ -923,8 +924,9 @@ class Views:
                              f"xp, source_id"),
         }
         res = {k: f.result() for k, f in jobs.items()}
+        xp = [{"_time": r.get("_time"), "xp": gained} for r, gained in prep.xp_gains(res["xp"])]
         sessions = journal.build(
-            minutes=res["minutes"], xp=res["xp"], events=dedupe(res["events"]),
+            minutes=res["minutes"], xp=xp, events=dedupe(res["events"]),
             dungeons=dedupe(res["dungeons"]), players=dedupe(res["players"]), snaps=dedupe(res["snaps"]),
             own=char)
         # Before the Recorder's first record (or without it): one entry per

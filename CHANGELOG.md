@@ -24,6 +24,10 @@
 - A finished level with neither a Polestar split nor a Recorder ding out of it no longer drops out of the analysis: it keeps its row (its counts unknown, never 0), and the `polestar` coverage reads `partial` with that level in `gaps`, on the page's data and every MCP answer, instead of `complete`.
 - XP gained is worked out from the bar's readings in order when the analysis prepares a character, not taken from the shipper: a Recorder chunk recovered after the ones that follow it no longer loses the XP of its step (100 → 200 → 300 counted 100 instead of 200).
 - `deaths` over a range with no Recorder record (before it was installed, or while it was off) says `total: null`, not 0.
+- The Journal works XP out from the bar's readings with the analysis' own rule, so after a Recorder chunk recovered late it shows the same XP as your AI instead of less.
+- The demo's characters show up on the page seconds after the seed, not 80 seconds later: the seed sends through `/ingest` like a shipper (`--ingest`), which wakes the page.
+- The README's demo writes `INGEST_PASSWORD` to `.env` instead of exporting it, so every later `docker compose` command works in a new terminal too (the Claude Code line in [Try the demo](docs/self-host/demo.md) failed there).
+- `/healthz` on the full view says when VictoriaLogs doesn't answer: `"store": "failing"` with `store_failed_at`, still `200`, like `semantic` ([Monitor it](docs/self-host/monitoring.md)). It said `ok` while uploads and fresh reads failed.
 
 ## 0.7.0 (2026-11-23)
 

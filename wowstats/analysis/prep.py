@@ -661,6 +661,19 @@ def xp_step(bar: tuple[int, int] | None, xp: int | None, xp_max: int | None):
     return max(0, pmax - pxp) + xp, (xp, xp_max)  # a level went by: the rest of the old bar plus the new one
 
 
+def xp_gains(rows: list[dict]) -> list[tuple[dict, int]]:
+    """(record, xp_gained) for each of one character's xp records that
+    gained any: the readings once each (dedupe), in the order the game wrote
+    them, through xp_step. What build's xp table holds, for a reader that
+    has the readings but no prepared database (the page's journal)."""
+    out, bar = [], None
+    for r in sorted(dedupe(rows), key=lambda r: (parse_t(r.get("_time")), *record_order(r))):
+        gained, bar = xp_step(bar, _int(r.get("xp")), _int(r.get("xp_max")))
+        if gained:
+            out.append((r, gained))
+    return out
+
+
 def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None,
           now: datetime | None = None, advice: dict | None = None, cards=None) -> sqlite3.Connection:
     """The database for one character. `route` is wowstats.mcp.route's

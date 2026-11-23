@@ -57,13 +57,14 @@ def test_build_session_entry():
     assert s["xp"] == 1500
 
 
-def test_a_sessions_first_partial_minute_keeps_its_xp():
-    """XP comes summed per minute, sessions to the second: a session that
-    starts at 15:28:42 owns the 15:28 bucket (0.7.0's A/B check found a
-    login's XP dropped). Two sessions never share a minute (330 s apart)."""
+def test_a_sessions_first_reading_keeps_its_xp():
+    """XP comes one row per reading at its own time (prep.xp_gains), the
+    sessions to the second: a reading on a session's first record counts
+    (0.7.0's A/B check found a login's XP dropped when it came per minute),
+    one between two sessions counts for neither."""
     mins = [bucket("2026-11-19T15:28:42", "2026-11-19T15:28:53", n=9),
             bucket("2026-11-19T15:40:10", "2026-11-19T15:41:30")]
-    xp = [{"_time": z("2026-11-19T15:28:00"), "xp": "590"}, {"_time": z("2026-11-19T15:40:00"), "xp": "10"},
+    xp = [{"_time": z("2026-11-19T15:28:42"), "xp": "590"}, {"_time": z("2026-11-19T15:40:10"), "xp": "10"},
           {"_time": z("2026-11-19T15:35:00"), "xp": "7"}]  # between the two: no session's
     new, old = journal.build(mins, xp, [], [], [], [])
     assert (old["start"], old["xp"]) == ("2026-11-19T15:28:42Z", 590)

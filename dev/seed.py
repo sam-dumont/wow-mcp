@@ -13,6 +13,12 @@ banner on them, so nobody mistakes this for a real character.
     uv run dev/seed.py --out events.ndjson   # write the events, send nothing (demo/stack/seed_friend.py)
     VL_URL=http://127.0.0.1:9428 uv run wow-stats ui     # http://127.0.0.1:8080
 
+--ingest URL sends them through a running ui's /ingest instead (user wow, or
+INGEST_USER; password INGEST_PASSWORD, from the environment), the shipper's
+way: the page lists the characters seconds later, where a write straight to
+VictoriaLogs waits for the ui's next check, a minute or more. The compose
+kit's demo does that from inside the ui container, which has the password.
+
 (VictoriaLogs' default retention, 7 days, drops older events on arrival.)
 Testchar-Demo goes 22 -> 32 over six evenings; Testalt-Demo is a level 11
 alt with almost nothing, to see the empty states. Invented numbers.
@@ -24,7 +30,9 @@ lacks, drawn from Forever's own tables) and Testsky-Demo (a Skyborne priest
 whose sex was never saved).
 """
 
+import base64
 import json
+import os
 import random
 import sys
 import urllib.request
@@ -32,6 +40,7 @@ from datetime import UTC, datetime, timedelta
 
 VL = sys.argv[sys.argv.index("--vl") + 1] if "--vl" in sys.argv else "http://127.0.0.1:9428"
 VM = sys.argv[sys.argv.index("--vm") + 1] if "--vm" in sys.argv else "http://127.0.0.1:8428"
+INGEST = sys.argv[sys.argv.index("--ingest") + 1] if "--ingest" in sys.argv else ""
 CHAR = "Testchar-Demo"
 ALT = "Testalt-Demo"
 rnd = random.Random(1117)
@@ -340,13 +349,27 @@ if "--out" in sys.argv:
         f.write(body + b"\n")
     print(f"{len(events)} events written")
     sys.exit(0)
-req = urllib.request.Request(
-    f"{VL}/insert/jsonline?_stream_fields=feed&_time_field=_time&_msg_field=_msg",
-    # Without this content type VictoriaLogs answers 200 and stores nothing.
-    data=body, method="POST", headers={"Content-Type": "application/stream+json"})
-urllib.request.urlopen(req, timeout=30).read()
-urllib.request.urlopen(urllib.request.Request(f"{VL}/internal/force_flush", data=b"", method="POST"), timeout=30).read()
-print(f"{len(events)} events into {VL}")
+if INGEST:
+    pw = os.environ.get("INGEST_PASSWORD", "")
+    if not pw:
+        sys.exit("--ingest: set INGEST_PASSWORD (the ui's upload password)")
+    auth = "Basic " + base64.b64encode(f"{os.environ.get('INGEST_USER') or 'wow'}:{pw}".encode()).decode()
+    lines = body.split(b"\n")
+    # /ingest takes 8 MiB a post: 2,000 events are well under it.
+    for i in range(0, len(lines), 2000):
+        urllib.request.urlopen(urllib.request.Request(
+            INGEST, data=b"\n".join(lines[i:i + 2000]) + b"\n", method="POST",
+            headers={"Content-Type": "application/x-ndjson", "Authorization": auth}), timeout=60).read()
+    print(f"{len(events)} events into {INGEST}")
+else:
+    req = urllib.request.Request(
+        f"{VL}/insert/jsonline?_stream_fields=feed&_time_field=_time&_msg_field=_msg",
+        # Without this content type VictoriaLogs answers 200 and stores nothing.
+        data=body, method="POST", headers={"Content-Type": "application/stream+json"})
+    urllib.request.urlopen(req, timeout=30).read()
+    urllib.request.urlopen(urllib.request.Request(f"{VL}/internal/force_flush", data=b"", method="POST"),
+                           timeout=30).read()
+    print(f"{len(events)} events into {VL}")
 
 if "--metrics" in sys.argv:
     # Shaped like the exporter pushes them: Retail's token (Forever has none),
