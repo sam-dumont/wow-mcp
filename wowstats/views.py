@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from wowstats import (
+    ahshared,
     ahsource,
     classguide,
     classmeta,
@@ -69,6 +70,7 @@ class Settings:
     default_char: str = ""
     price_days: int = 90
     weights: dict = field(default_factory=dict)  # WEIGHTS: character -> spec the gear is scored for
+    ah_shared: str = ""  # AH_SHARED_STORE: the install's shared auction scans (wowstats.ahshared)
     extra: dict = field(default_factory=dict)
 
 
@@ -99,7 +101,8 @@ def settings_from_env(env: dict, view: str = "full") -> Settings:
     Settings, its `weights` stayed empty, and its gear_options scored the
     add-on's spec while the page scored the configured one."""
     return Settings(view=view, default_char=env.get("DEFAULT_CHAR", ""),
-                    price_days=int(env.get("PRICE_DAYS", "90")), weights=parse_weights(env.get("WEIGHTS", "")))
+                    price_days=int(env.get("PRICE_DAYS", "90")), weights=parse_weights(env.get("WEIGHTS", "")),
+                    ah_shared=ahshared.location(env))
 
 
 def norm_char(c: str) -> str:
@@ -239,11 +242,13 @@ class Views:
         return out
 
     def price_rows(self) -> list[dict]:
-        """The player's own Auctionator scans (wow-prices), one row per item,
-        auction house (realm, faction) and scan day over price_days, at least
-        the Auction House source's window: the price list and the gear
-        advice share this one read per eventcache.FRESH_S (prices are the
-        account's, not one character's, so not in the event cache)."""
+        """The Auctionator scans (wow-prices), one row per item, auction
+        house (ruleset, faction) and scan day over price_days, at least the
+        Auction House source's window: the price list and the gear advice
+        share this one read per eventcache.FRESH_S (prices are the
+        account's, not one character's, so not in the event cache). With
+        several people on the install, the shared scans of this person's
+        own houses (wowstats.ahshared): anyone's newest scan counts."""
         from wowstats.eventcache import FRESH_S
 
         with self._prices_lock:
@@ -252,12 +257,11 @@ class Views:
             days = max(self.settings.price_days, ahsource.WINDOW_DAYS)
             # Within a day the shipper only sends wider numbers (rev+1), so
             # min/max over every rev is the latest rev's value.
-            rows = self.vl(f'{self.stream} feed:="wow-prices" _time:{days}d | stats by (item_key, scan_day, realm, '
-                           f"faction) min(price_copper) as lo, max(price_high_copper) as hi, max(available) as av, "
-                           f"max(item_name) as name, max(item_id) as item_id, max(_time) as t",
-                           ("item_key", "scan_day", "realm", "faction"),
-                           {"lo": "min", "hi": "max", "av": "max", "name": "max", "item_id": "max", "t": "maxtime"},
-                           limit=200000)
+            rows = ahshared.scans(self.store, self.settings.ah_shared,
+                                  "min(price_copper) as lo, max(price_high_copper) as hi, max(available) as av, "
+                                  "max(item_name) as name, max(item_id) as item_id, max(_time) as t",
+                                  {"lo": "min", "hi": "max", "av": "max", "name": "max", "item_id": "max",
+                                   "t": "maxtime"}, start=datetime.now(UTC) - timedelta(days=days))
             self._prices = (time.monotonic(), rows)
             return rows
 
@@ -1449,13 +1453,13 @@ def build_prices(rows: list[dict]) -> dict:
         if not key or not day or lo is None:
             continue
         days.add(day)
-        it = items.setdefault((r.get("realm") or "", key), {
+        it = items.setdefault((r.get("ruleset") or "", key), {
             "item_key": key, "item_id": opt_num(r.get("item_id")), "name": r.get("name") or None,
-            "realm": r.get("realm") or None, "series": []})
+            "ruleset": r.get("ruleset") or None, "series": []})
         if r.get("name") and not it["name"]:
             it["name"] = r["name"]
-        # One point a day: a realm's two faction houses (the legacy keys) are
-        # one realm here, the lowest of them.
+        # One point a day: a ruleset's houses (its faction's and the
+        # neutral one) are one ruleset here, the lowest of them.
         pt = next((p for p in it["series"] if p["day"] == day), None)
         if pt is None:
             it["series"].append({"day": day, "lo": lo, "hi": opt_num(r.get("hi")), "available": opt_num(r.get("av"))})

@@ -20,9 +20,9 @@ import math
 import re
 import statistics
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
-from wowstats import quests, trainers
+from wowstats import ahshared, quests, trainers
 from wowstats.analysis.prep import TRAVEL  # the route position's rule, one copy
 from wowstats.gear import BADGE
 from wowstats.stores import parse_t
@@ -85,15 +85,17 @@ def last_seen(store) -> str:
     return max(rows, key=lambda r: r.get("last_seen") or "")["char"].replace(" ", "-")
 
 
-def prices(store, days: int = 30) -> dict[int, dict]:
-    """The player's own Auctionator scans: per item, the newest day's lowest
-    buyout (copper), and the day."""
+def prices(store, days: int = 30, shared: str = "") -> dict[int, dict]:
+    """The Auctionator scans (the player's own, or the install's shared
+    scans of their houses: wowstats.ahshared): per item, the newest day's
+    lowest buyout (copper), and the day."""
     from wowstats import storemodels
-    from wowstats.stores import dedupe
 
-    rows = store.vl(f'{store.stream} feed:="wow-prices" _time:{days}d | fields _time, item_id, item_name, '
-                    f"price_copper, rev, source_id")
-    got = storemodels.prices([r for r in dedupe(rows) if _i(r.get("item_id")) is not None])
+    rows = ahshared.scans(store, shared, "min(price_copper) as price_copper, max(item_name) as item_name, "
+                          "max(item_id) as item_id, max(_time) as t",
+                          {"price_copper": "min", "item_name": "max", "item_id": "max", "t": "maxtime"},
+                          start=datetime.now(UTC) - timedelta(days=days))
+    got = storemodels.prices([{**r, "_time": r.get("t")} for r in rows if _i(r.get("item_id")) is not None])
     return {_i(d["item_id"]): {"t": d["price_latest_t"], "copper": _i(d["price_latest_copper"]),
                                "name": d["price_item"]} for d in got.values()}
 
@@ -138,7 +140,7 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
             loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char),
                                            (advice or {}).get("bis_by_slot"), mode=mode)
     try:
-        scans = prices(store)
+        scans = prices(store, shared=ahshared.location(env))
     except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail
         scans = {}
     # The character's one analytical copy (wowstats.analysis.copies), the

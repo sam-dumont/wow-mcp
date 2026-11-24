@@ -865,9 +865,10 @@ def _players(ctx: Ctx, char: str, args: dict) -> dict:
 
 
 def t_prices(ctx: Ctx, args: dict) -> dict:
-    """The player's own Auctionator scans (feed wow-prices: one event per
-    item and scan day, re-sent with a higher `rev` while the day's numbers
-    move). Kept as long as the player wants: nothing from Blizzard's API."""
+    """The Auctionator scans (feed wow-prices: one event per item and scan
+    day, re-sent with a higher `rev` while the day's numbers move): the
+    player's own, or on a shared install anyone's scans of the character's
+    ruleset and faction (wowstats.ahshared). Nothing from Blizzard's API."""
     start, end = time_range(args, 30)
     limit = limit_arg(args, 20, 100)
     want = (args.get("item") or "").strip().lower()
@@ -876,12 +877,15 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
     # (rev+1), so min/max over every rev is the newest rev's. Raw events
     # failed live: a full scan puts thousands on one instant, more than a
     # read may return (2026-11-24).
-    rows = ctx.store.stats('feed:="wow-prices" | stats by (item_key, scan_day, realm, faction) '
-                           "min(price_copper) as price_copper, max(price_high_copper) as price_high_copper, "
-                           "max(item_name) as item_name, max(item_id) as item_id, max(_time) as t",
-                           ("item_key", "scan_day", "realm", "faction"),
-                           {"price_copper": "min", "price_high_copper": "max", "item_name": "max",
-                            "item_id": "max", "t": "maxtime"}, start, end)
+    # Several people on the install: the shared scans of this person's own
+    # houses (ruleset, faction), anyone's newest (wowstats.ahshared).
+    from wowstats import ahshared
+
+    rows = ahshared.scans(ctx.store.events, ahshared.location(ctx.environ()),
+                          "min(price_copper) as price_copper, max(price_high_copper) as price_high_copper, "
+                          "max(item_name) as item_name, max(item_id) as item_id, max(_time) as t",
+                          {"price_copper": "min", "price_high_copper": "max", "item_name": "max",
+                           "item_id": "max", "t": "maxtime"}, start, end)
     from wowstats import storemodels
 
     out = []
@@ -1289,7 +1293,7 @@ def _views(ctx: Ctx):
     # score the same spec as the page's (review-3).
     settings = views.settings_from_env(ctx.environ(), "full")
     key = (s.vl_url, s.vl_archive_url, s.logs_filter, s.hot_days, s.account_id, bnet,
-           tuple(sorted(settings.weights.items())), settings.default_char, settings.price_days)
+           tuple(sorted(settings.weights.items())), settings.default_char, settings.price_days, settings.ah_shared)
     if key not in _VIEWS:
         st = stores.Store(s.vl_url, s.vl_archive_url, "", s.logs_filter, s.hot_days, profile_vm_url=bnet,
                           account_id=s.account_id)
@@ -1458,9 +1462,9 @@ TOOLS: tuple[Tool, ...] = (
                  "groups": {"type": "boolean",
                             "description": "Add the dungeon runs with what the addons kept of each group."}}),
          t_players),
-    Tool("prices", "Own auction scans",
-         "Prices from the player's own Auctionator scans: latest, min and max over the range, change since the "
-         "first scan.",
+    Tool("prices", "Auction scans",
+         "Prices from Auctionator scans of the character's ruleset and faction (the player's own, or on a shared "
+         "server anyone's): latest, min and max over the range, change since the first scan.",
          schema({"item": {"type": "string", "description": "Part of an item name, or an item id."},
                  "since": SINCE, "until": UNTIL, "limit": lim(20, 100)}), t_prices),
     Tool("gear", "Gear upgrades",
