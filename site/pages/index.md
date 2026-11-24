@@ -27,7 +27,7 @@
 
 <div class="feature">
 
-![The Next moves box of the demo priest: Gnomeregan with the quests to pick up first, the quest rewards and drops you could use, each with its badge and a line like "70% → 91% on your chest", then an upgrade from Razorfen Kraul](../../docs/images/next-moves.webp)
+![The Next moves box of the demo priest: City of Dalaran, a 30-minute trip at 3.1× your questing, with the quest to pick up first, the quest reward and drops you could use, each with its badge and a line like "32% → 100% on your hands", then a trinket upgrade and the guide steps that took over 3× their plan](../../docs/images/next-moves.webp)
 
 <div>
 <p class="eyebrow">Before you log in</p>
@@ -39,7 +39,7 @@
 
 <div class="feature flip">
 
-![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, each with its badge and its slot's share before and after (17% → 100%), the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../../docs/images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Tailoring crafts within reach of skill 141, each with its badge and its slot's share before and after (17% → 100%), then a vendor in Arathi Highlands with prices, then quests in Stormwind City](../../docs/images/upgrades.webp)
 
 <div>
 <p class="eyebrow">Gear</p>

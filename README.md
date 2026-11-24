@@ -8,7 +8,7 @@ over MCP.
 **[Live demo](https://sam-dumont.github.io/wow-mcp/demo/friends/)** · **[Docs](https://sam-dumont.github.io/wow-mcp/)** ·
 **[Quick start](docs/quickstart.md)** · **[How this was built](docs/how-this-was-built.md)**
 
-![The Overview of the demo character Nibbet: his pace against Polestar's route, the hours to his next level, the guide steps done in order, the next moves, and time per level against the route](docs/images/overview.webp)
+![The Overview of the demo character Nibbet: the pace against Polestar's route, the hours to the next level, the guide steps done in order, the next moves, and time per level against the route](docs/images/overview.webp)
 
 ## What you get
 
