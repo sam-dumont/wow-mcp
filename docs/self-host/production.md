@@ -12,7 +12,30 @@ history and with the installer your server hands them.
 It's a hobby project: GPL-3.0, no warranty, no support promise, and security fixes land when I
 can make them. These pages describe version {{app_version}}.
 
-<!-- TODO(media): one picture of the kit: ui, publish, site, the optional exporter and renderer, and the two event stores side by side. -->
+The kit, with what's optional dashed:
+
+```mermaid
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
+flowchart LR
+  shipper["<b>The shipper</b><br/><i>on each player's computer</i>"]
+  ai["<b>Your AI</b><br/><i>MCP</i>"]
+  ui["<b>ui</b><br/><i>the page, /ingest, /mcp</i>"]
+  store[("<b>Events</b><br/><i>VictoriaLogs, or SQLite files</i>")]
+  publish["<b>publish</b><br/><i>friends' sites, after each session</i>"]
+  site["<b>site</b><br/><i>static files</i>"]
+  render["<b>renderer</b><br/><i>the character's picture</i>"]
+  exporter["<b>exporter</b><br/><i>Battle.net API</i>"]
+  vm[("<b>victoriametrics</b><br/><i>23 days</i>")]
+  shipper -- "POST /ingest" --> ui
+  ai --> ui
+  ui <--> store
+  store --> publish --> site
+  publish -.-> render
+  exporter -.-> vm -.-> ui
+  vm -.-> publish
+  classDef opt stroke-dasharray: 5 5
+  class render,exporter,vm opt
+```
 
 ## What you need
 
