@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Writes a fresh GitHub ID token for Anthropic's workload identity
 # federation to $RUNNER_TEMP/anthropic-oidc. GitHub's ID tokens live about
-# five minutes, so every step that talks to Anthropic mints its own right
-# before it starts: one token minted at the top of the job was refused (401)
-# by the community step 6 minutes later. A single step may run longer, as
-# the SDK exchanges the token once and caches the access token it gets back.
+# five minutes and the SDK re-reads the file at every exchange (the access
+# token it gets back lives ten): a token minted at the top of the job was
+# refused (401) by the community step 6 minutes later (2026-11-23). Run the
+# model through tools/kb/with-oidc.sh, which mints before the command and
+# again every few minutes while it runs; never call this by itself.
+# The file is replaced atomically, so a read never sees half a token.
 set -eu
 set -o pipefail
 # The ID-token endpoint answers 504 now and then (2026-11-23): without pipefail
@@ -22,4 +24,5 @@ done
 [ -n "$token" ] || { echo "oidc-mint: no ID token after 5 attempts" >&2; exit 1; }
 echo "::add-mask::$token"
 umask 077
-printf '%s' "$token" > "$RUNNER_TEMP/anthropic-oidc"
+printf '%s' "$token" > "$RUNNER_TEMP/anthropic-oidc.new"
+mv "$RUNNER_TEMP/anthropic-oidc.new" "$RUNNER_TEMP/anthropic-oidc"

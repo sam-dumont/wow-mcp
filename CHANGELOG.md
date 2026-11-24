@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fixed
+
+- The knowledge-base refresh no longer fails a model step on an expired identity token. GitHub's ID
+  token lives about five minutes and the SDK re-reads it at each exchange, so the weekly review's
+  community step got a 401 six minutes after the mint. Every model step now runs under
+  `tools/kb/with-oidc.sh`, which mints first and again every three minutes while it runs; a test
+  fails any step that sets `ANTHROPIC_IDENTITY_TOKEN_FILE` without it.
+
 ### Changed
 
 - Where gear comes from is ForeverDB.net's addon data now (GPL-3.0 with an attribution term, bundled in
