@@ -64,7 +64,7 @@ you can call the tools without naming it). Answer this question about that chara
 not from general game knowledge:
 
 {question}
-
+{clock}
 The answer is one short value (a name, a number, Yes or No). When the tools show they don't have it (the \
 data is missing, or the character or item is unknown), the value is NONE: never guess. Read-only: never ask \
 the player anything. End your reply with one last line in exactly this form, with the value alone after the colon:
@@ -79,8 +79,13 @@ def load_coverage(path: Path = HERE / "coverage.yaml") -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-def command(q: dict, mcp_config: Path, model: str, binary: str = "claude") -> list[str]:
-    return [binary, "-p", PROMPT.format(question=q["question"].strip()), "--model", model,
+def command(q: dict, mcp_config: Path, model: str, binary: str = "claude", now: str = "") -> list[str]:
+    # The tools run on the demo's frozen clock (server.py), the model on the
+    # wall clock: without the tools' date it read "now" as days after the
+    # data and answered NONE (zone_now, 2026-11-24, six days after the demo).
+    clock = (f"\nThe tools' clock reads {now}: 'now' and 'today' mean that moment, whatever date you were "
+             "given elsewhere.\n") if now else ""
+    return [binary, "-p", PROMPT.format(question=q["question"].strip(), clock=clock), "--model", model,
             "--output-format", "stream-json", "--verbose",
             "--mcp-config", str(mcp_config), "--strict-mcp-config", "--tools", "",
             "--allowedTools", f"mcp__{SERVER}", "--permission-prompts", "none",
@@ -122,8 +127,8 @@ def ask(q: dict, want: dict, workdir: Path, vl_url: str, now: str, model: str, t
     t0 = time.time()
     error = ""
     try:
-        p = subprocess.run(command(q, cfg, model), cwd=workdir, env=client_env(), capture_output=True, text=True,
-                           timeout=timeout_s, stdin=subprocess.DEVNULL)
+        p = subprocess.run(command(q, cfg, model, now=now), cwd=workdir, env=client_env(), capture_output=True,
+                           text=True, timeout=timeout_s, stdin=subprocess.DEVNULL)
         stream = p.stdout
         if p.returncode != 0 and not stream.strip():
             error = f"claude exited {p.returncode}: {p.stderr.strip()[-300:]}"

@@ -98,7 +98,7 @@ Not in CI: it needs a model client. See [evaluation.md](evaluation.md).
 
 ## The MCP check
 
-`make eval-mcp` puts 70 questions about the demo character to Claude Haiku, through this checkout's MCP
+`make eval-mcp` puts 71 questions about the demo character to Claude Haiku, through this checkout's MCP
 tools and nothing else: one `claude -p` per question, six at a time, 3 minutes each. Each answer is one short
 value computed from the demo data (`tools/eval_mcp/answers.py`, or the value a probe reads), and the grade is an
 exact or normalized match, no model involved. A question passes when the answer is right, the run called the
@@ -115,7 +115,7 @@ The questions (`tools/eval_mcp/questions.yaml`) come in 15 groups, each with a p
 | multi | 5 | "2 hours tonight", "am I slower than usual and why", the gold left for riding |
 | hedge | 3 | riding and Tailoring trainers from game data only; "the data can't tell" for an unknown recipe |
 | plan | 2 | `plan_session` then `check_plan`; no plan to review yet |
-| market | 3 | own auction scans; the WoW Token without Battle.net is NONE |
+| market | 4 | own auction scans, the upgrade on sale; the WoW Token without Battle.net is NONE |
 | people | 3 | players seen; no invented group members or classes |
 | kb | 7 | rules, names, sources, lanes, the meta, the class guide, the news |
 | degraded | 7 | no Recorder, no Auctionator, no Syndicator, Polestar alone: say NONE and name the one addon to add |
@@ -135,9 +135,9 @@ answer found through `play_sql` alone: that data has no typed path yet.
   mark text other people wrote as untrusted, and hold the question's answer. The same test fails when an MCP tool
   has no probe and no reason in `tools/eval_mcp/coverage.yaml`, or when an argument or situation listed there
   (`gear:mode=pvp`, `deaths:since`, `scenario:no-recorder`, `error`...) has no probe. About a minute and a half.
-- **By hand, with a model** (`make eval-mcp`, your Claude Code login): the 70 questions to Haiku, six at a
+- **By hand, with a model** (`make eval-mcp`, your Claude Code login): the 71 questions to Haiku, six at a
   time. A full run takes about 5 minutes and Claude Code counts about $0.20 for it (what the API would charge;
-  on a Claude plan it is not a bill). On 2026-11-24: 67 of 70 in 273 s, $0.16. `--max-usd` (default 2) stops
+  on a Claude plan it is not a bill). On 0.10.0 (2026-11-24): 67 of 71 in 117 s, $0.20. `--max-usd` (default 2) stops
   starting questions past that. Not in CI, not a release gate.
 
 `make eval-mcp EVAL_ARGS="--coverage"` prints which questions probe each tool and which tools are left out, and why

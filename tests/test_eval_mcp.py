@@ -339,6 +339,9 @@ def test_the_model_gets_this_server_and_nothing_else(tmp_path):
     assert "--strict-mcp-config" in cmd and cmd[cmd.index("--tools") + 1] == ""
     assert cmd[cmd.index("--allowedTools") + 1] == "mcp__wow"
     assert "ANTHROPIC_API_KEY" not in run.client_env()
+    # The tools' frozen clock, so "now" isn't read against the wall clock.
+    dated = run.command({"question": "How many?"}, tmp_path / "mcp.json", "haiku", now="2026-11-18T10:05:41+00:00")
+    assert "The tools' clock reads 2026-11-18T10:05:41+00:00" in dated[2] and "clock" not in cmd[2]
 
 
 def test_the_table_flags_play_sql_only():
