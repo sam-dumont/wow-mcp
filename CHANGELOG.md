@@ -112,6 +112,9 @@
 
 ### Tests
 
+- `test_push_reaches_every_pod` no longer fails now and then under parallel runs: its "down pod"
+  is a port held by a bound, non-listening socket, so no other test worker can take it and the
+  push always gets a refused connection.
 - The MCP check grows from 10 easy lookups to 70 questions in 15 groups: multi-tool questions
   ("2 hours tonight", "am I slower than usual"), every gear mode and another spec, hedges on
   riding and trainers, plans checked with `check_plan`, prices, people, the knowledge base,

@@ -8,6 +8,7 @@ import io
 import json
 import re
 import shutil
+import socket
 import threading
 import urllib.error
 import urllib.request
@@ -557,12 +558,19 @@ def test_push_reaches_every_pod(site, tmp_path, monkeypatch):
     # One pod down doesn't keep the other waiting; the error still shows.
     up_b2.shutdown()
     up_b2.server_close()
+    # The dead pod's port must stay refused: under xdist another worker can
+    # bind a freed port. A socket bound and never listening is held for the
+    # rest of the test, so connecting is refused and nobody else can take it.
+    dead = socket.socket()
+    dead.bind(("127.0.0.1", 0))
+    ports[1] = dead.getsockname()[1]
     shutil.rmtree(tmp_path / "pod-a")
     a3, up_a3 = upload_server(tmp_path, "pod-a3")
     ports[0] = up_a3.server_address[1]
     with redirect_stdout(io.StringIO()), pytest.raises(OSError):
         publish.push(env, cur.resolve())
     assert a3.live() == cur.resolve().name
+    dead.close()
     for up in (up_a, up_a3):
         up.shutdown()
         up.server_close()
