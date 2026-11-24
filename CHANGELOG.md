@@ -13,6 +13,8 @@ What comes after 0.10.0, in short. Every change follows.
 - A dungeon's quests count toward the run they came from, wherever you hand them in. City of
   Dalaran's two hand-ins at the Silverpine grate were Silverpine's quest XP; now they're
   Dalaran's, and its trips read about a third faster.
+- With ForeverDB_Helper installed, each dungeon run says who was in the party: names, level,
+  class and role. Money in the analysis tools reads as 16g 72s 10c, not raw copper.
 
 ### Added
 
@@ -34,8 +36,24 @@ What comes after 0.10.0, in short. Every change follows.
   `next_moves` read the trips with them. The analysis gets `dungeon_quest` and `trip_quest` on
   records and quests, `dungeon_quest_xp`, `zone_quest_xp` and `zone_quest_xp_per_online_hour` in
   `per_zone`, and `trip_quests_outside`, `trip_xp_quests_outside` in `per_trip` and `per_dungeon`.
+- Who you grouped with. The shipper reads ForeverDB_Helper's journal (optional, from ForeverDB.net;
+  not in the install list), which names each groupmate once a day when they join your party:
+  `wow-player` events with `source: foreverdb-helper`, context `dungeon` inside an instance, else
+  `grouped`, with their level, class, race and role (new field `role`: tank, healer, damage). Never
+  their realm or guild, nor the rest of the journal. Each dungeon run on the People view and each
+  past run on the Dungeons panel lists its party, matched from the moment you joined the group
+  (the Recorder's group records) to the run's end (the combat log's groupmates count too), so a second run with the same party still finds
+  the names. When the Recorder counted more players than the journal named, the run says "2 of 4
+  names known". MCP `players` with `groups` returns the same `party` per run; `sessions`'
+  `grouped_with` picks the names up too. Friends' and public views never show a party.
+- A `<metric>_gold` column (at the end of the row) for every metric counted in copper in
+  `query_metric`, and every `*_copper` column in `play_sql`: 167210 reads `16g 72s 10c`. An analysis had divided by 1000 and
+  reported 167.2g for 16g 72s. Findings write money with `{col:gold}`.
 
 ### Fixed
+
+- MCP: `sessions` and `dungeons` now say other players chose the names in them (`untrusted`), like
+  `players`.
 
 - The MCP check gives the model the tools' clock. The tools run on the demo's frozen day, the
   model on today's date, so "where is the character now?" read six-day-old data as stale and

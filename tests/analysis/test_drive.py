@@ -175,3 +175,31 @@ def test_a_kept_constant_fades_on_the_recheck(env):
               "title_template": "Deaths", "claim_template": "You died {n} times."}
     upd, why = verify.recheck(stored, w.judge)
     assert upd is None and "no play history" in why
+
+
+def test_money_in_copper_gets_a_gold_column(env):
+    """2026-11-24: an analysis divided 167210 copper by 1000 and wrote
+    "167.2g" for 16g 72s. Every metric counted in copper carries its gold text."""
+    got = call("query_metric", {"metrics": ["quest_money_copper"]})
+    head, first = got["result"].split("\n")[:2]
+    cols, cells = head.split("\t"), first.split("\t")
+    assert cols[-1] == "quest_money_copper_gold"
+    copper, text = cells[cols.index("quest_money_copper")], cells[-1]
+    assert text == tools.gold(int(copper)) and "g " in text or "s " in text
+    q = call("play_sql", {"query": "SELECT money_copper FROM records WHERE money_copper > 0 LIMIT 1"})
+    assert q["result"].split("\n")[0] == "money_copper\tmoney_copper_gold"
+    # The SQL and the finding keep the copper; `{col:gold}` writes it as the game does.
+    assert "_gold" not in got["sql"]
+
+
+def test_gold_columns_shape():
+    cols, rows = drive.with_gold(["day", "m", "r"], [("d1", 167210, 1.5), ("d2", None, 2)],
+                                 {"m": {"unit": "copper"}, "r": {"unit": "copper/hour"}})
+    assert cols == ["day", "m", "r", "m_gold", "r_gold"]
+    assert rows == [("d1", 167210, 1.5, "16g 72s 10c", "0s 1c/hour"), ("d2", None, 2, None, "0s 2c/hour")]
+    assert drive.with_gold(["n"], [(1,)], {"n": {"unit": "kills"}}) == (["n"], [(1,)])
+    from wowstats.analysis import verify
+
+    assert verify.fmt(167210, "gold") == "16g 72s 10c"
+    assert verify.units_why({"claim": "{money_copper:gold}"}, {"money_copper": "copper"}) == ""
+    assert "money" in verify.units_why({"claim": "{n:gold}"}, {"n": "seconds"})

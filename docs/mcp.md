@@ -64,7 +64,7 @@ The same list, generated from the server's registry with every argument:
 | `analysis_brief` | The play analysis' brief in sections sized for a 32k context: `start`, `schema`, `profile` and `kb` (paged, 12,000 characters a page), `survey`, `lane`, `followups`, `coverage`, `synthesis` |
 | `play_sql` | One read-only SELECT on that database, paged (40 rows by default, 60 at most, 1,000 deep, 6,000 characters a page). It runs in a child process with 512 MB over the data and the query's timeout: a query past either fails alone, with a plain error, and the server carries on |
 | `list_metrics` | The semantic layer's catalogue ([Semantic layer](reference/semantic-layer.md)). Without arguments an index that fits a client's output limit: each model's metrics with one line each, the views per grain, the dimension names and the time grains. With `names`, `model` or `search`: each metric's kind, unit, definition, caveats and dimensions, and the views' columns (40 metrics a call) |
-| `query_metric` | Named metrics grouped, filtered and cut by day, week or month; the server writes the SQL from the model file and returns the rows, that SQL with its bound parameters and each metric's definition |
+| `query_metric` | Named metrics grouped, filtered and cut by day, week or month; the server writes the SQL from the model file and returns the rows, that SQL with its bound parameters and each metric's definition. A metric counted in copper also gets a `<metric>_gold` column (16g 72s 10c), so nobody converts by hand |
 | `propose_finding` | The judge: re-runs the finding's SQL (or its `metric_query`), checks every number, `expect`, `holds` and KB ids, then stores it for the character or refuses it with the reason |
 | `analysis_submit` | Hands in a pass (`survey`, `lane`, `pick`, `synthesis`); the server checks it and answers with the next step |
 | `analysis_progress` | Where the run stands (pass, lanes, queries, tables untouched, proposed, verified, refused with why), the next step, the last run and the nightly recheck |
@@ -244,8 +244,8 @@ that says he or she is refused or dropped, with the reason. The synthesis'
 answer lists every finding, nudge and pattern dropped, and why. Goals given once
 (`goals`) stay with the character. A finding's title, claim and action name
 what the query measures as placeholders over its result (`{n}`,
-`{played_s:dur}` on the first row, `{rows[1].zone}` for a cell of a later
-row), rendered by the server when it keeps the finding and at every
+`{played_s:dur}` on the first row, `{money_copper:gold}` for money as
+16g 72s 10c, `{rows[1].zone}` for a cell of a later row), rendered by the server when it keeps the finding and at every
 recheck. Any other number is declared in `constants` as `{value, label}`:
 a `level`, `top-n` or `threshold` must be written in the query's SQL (or
 bound in its `metric_query`), a `game-rule` needs a cited KB document,

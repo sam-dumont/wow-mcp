@@ -390,10 +390,15 @@ to the default per option. Shippers before 0.7.0 could send `looks`
 on `wow-character` (Narcissus's barber shop): still stored, read by nothing.
 
 **`wow-player`**: one event per sighting of another player, from Polestar's
-probe list (`context: seen`: players you targeted or moused over) and the
+probe list (`context: seen`: players you targeted or moused over), the
 combat log (`grouped`, or `combat` for a player your log saw nearby, once
-per player per 10 minutes): `player` (`Name-Surname`, the character-folder
-form), `context`, `source`, `zone` when known. The People tab, the journal's
+per player per 10 minutes) and ForeverDB_Helper's journal (optional,
+`source: foreverdb-helper`: each groupmate once a day, `dungeon` inside a
+dungeon or raid, else `grouped`): `player` (`Name-Surname`, the
+character-folder form), `context`, `source`, `zone` when known; from
+ForeverDB_Helper also `dungeon` (the instance's name), `level`, `class`,
+`race` and `role` (`tank`, `healer`, `damage`). The journal's realm, guild,
+map id and group size are never sent. The People tab, the journal's
 "players met" and the MCP's `players` reads these; nothing else about another
 player is sent (`PLAYER_KEYS`): no realm, no GUID, no position. Shippers
 before 0.7.0 also sent `player_realm` and `map_id`; `/ingest` drops them.

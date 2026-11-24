@@ -153,7 +153,7 @@ CAPTURE_FILE = "_capture.json"
 ARCHIVED_SOURCES = re.compile(
     r"^Account/[^/]+/(SavedVariables/(Polestar|Polestar_Recorder|Auctionator|Syndicator"
     r"|ForeverLevelingBiS|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests"
-    r"|DataStore_Reputations|DataStore_Currencies|Questie|ForeverDB"
+    r"|DataStore_Reputations|DataStore_Currencies|Questie|ForeverDB|ForeverDB_Helper"
     r"|WowSimsExporter)\.lua(\.bak)?"
     r"|[^/]+/[^/]+/SavedVariables/(Polestar|Polestar_Recorder"
     r"|GearQuestForever)\.lua(\.bak)?)$")
@@ -2354,6 +2354,75 @@ def extract_foreverdb(acct: Path, chars: dict[str, dict], state: dict, out: Out)
         out.emit({k: v for k, v in ev.items() if k in EVENT_BASE or k in FDB_KEYS})
 
 
+# ForeverDB_Helper (ForeverDB.net's companion addon, 1.7+, optional): its
+# journal, ForeverDBHelperDB.journal["<first name>-<realm>"].entries, gets a
+# `k = "player"` entry for each party or raid member on GROUP_ROSTER_UPDATE,
+# once per player per day (Journal.lua captureGroup). The only addon that
+# saves who you grouped with. Sent as wow-player, PLAYER_KEYS only: the name,
+# level, class, race, role, the zone and, inside a dungeon or raid, that
+# instance. Never the entry's realm, guild, map id or group size, and nothing
+# else of the journal (notes, gold ledger, sessions).
+FDBH_ROLES = {"TANK": "tank", "HEALER": "healer", "DAMAGER": "damage"}
+
+
+def _lua_list(v) -> list:
+    """A Lua array as read_sv keeps it ({1: ..., 2: ...}), in order."""
+    if not isinstance(v, dict):
+        return []
+    return [v[k] for k in sorted(k for k in v if isinstance(k, int))]
+
+
+def _str(v) -> str | None:
+    return v if isinstance(v, str) and v else None
+
+
+def extract_foreverdb_groups(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> None:
+    """One wow-player event per groupmate ForeverDB_Helper's journal names,
+    for the roster's characters: context `dungeon` inside an instance, else
+    `grouped`; source `foreverdb-helper`. A journal is keyed by the first
+    name only (UnitName on Forever): one that matches two characters of the
+    roster is skipped rather than guessed."""
+    seen = state.setdefault("fdbh_players", [])
+    done = set(seen)
+    by_first: dict[str, list[str]] = {}
+    for c in chars:
+        by_first.setdefault(c.split("-")[0], []).append(c)
+    for db in read_sv_versions(acct / "SavedVariables" / "ForeverDB_Helper.lua"):
+        journal = (db.get("ForeverDBHelperDB") or {}).get("journal")
+        if not isinstance(journal, dict):
+            continue
+        for key, book in journal.items():
+            mine = by_first.get(char_of(str(key).split("-")[0]), [])
+            if len(mine) != 1 or not isinstance(book, dict):
+                continue
+            char = mine[0]
+            for e in _lua_list(book.get("entries")):
+                if not isinstance(e, dict) or e.get("k") != "player" or not _str(e.get("name")):
+                    continue
+                t, level = e.get("t"), e.get("level")
+                if not isinstance(t, (int, float)) or isinstance(t, bool):
+                    continue
+                player = player_of(e["name"])[0]
+                if not valid_char(player) or player in chars:
+                    continue
+                sid = f"player:foreverdb-helper:{player}:{int(t)}"
+                if sid in done:
+                    continue
+                done.add(sid)
+                seen.append(sid)
+                inst = e.get("instance") is True
+                zone = _str(e.get("zone"))
+                ctx = "dungeon" if inst else "grouped"
+                ev = {"_time": iso(t), "feed": "wow-player", "char": char, "source_id": sid,
+                      "_msg": f"{ctx} {player}" + (f" in {zone}" if zone else ""),
+                      "player": player, "context": ctx, "source": "foreverdb-helper", "zone": zone,
+                      "dungeon": zone if inst else None,
+                      "level": level if isinstance(level, int) and not isinstance(level, bool) else None,
+                      "class": _str(e.get("class")), "race": _str(e.get("race")),
+                      "role": FDBH_ROLES.get(e.get("role"))}
+                out.emit({k: v for k, v in ev.items() if v is not None and (k in EVENT_BASE or k in PLAYER_KEYS)})
+
+
 ALTO_MSG = {
     "spells": lambda d: f"{sum(1 for _, lv in d['spells'] if lv == 0)} spells known, "
                         f"{sum(1 for _, lv in d['spells'] if lv > 0)} to learn",
@@ -2611,7 +2680,7 @@ PLAYER_BUCKET_S = 600
 # tests/test_otherplayers.py keeps the two equal.
 ANOTHER_PLAYER = "another player"
 CL_KEYS = frozenset({"event", "zone", "source_name", "dest_name"})
-PLAYER_KEYS = frozenset({"player", "context", "zone", "level", "class", "race", "dungeon", "source"})
+PLAYER_KEYS = frozenset({"player", "context", "zone", "level", "class", "race", "dungeon", "role", "source"})
 
 
 def cl_standard(cols: list[str]) -> bool:
@@ -2775,6 +2844,7 @@ def extract_tree(wtf: Path, state: dict, out: Out, live: bool = True) -> list[di
         step("quests", extract_quests, acct, chars, state, out)
         step("altoholic", extract_altoholic, acct, chars, state, out)
         step("foreverdb", extract_foreverdb, acct, chars, state, out)
+        step("foreverdb-groups", extract_foreverdb_groups, acct, chars, state, out)
         step("talents", extract_talents, acct, chars, state, out)
         step("auctionator", extract_auctionator, acct,
              latest or (char_of(cdirs[-1].parent.name) if cdirs else None), state, out)

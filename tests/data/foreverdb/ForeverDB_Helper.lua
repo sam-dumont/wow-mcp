@@ -1,0 +1,95 @@
+
+ForeverDBHelperDB = {
+["schema"] = 1,
+["journal"] = {
+["Testpriest-"] = {
+["entries"] = {
+{
+["map"] = 1434,
+["guild"] = "Made Up Guild",
+["zone"] = "Stranglethorn Vale",
+["id"] = 118,
+["t"] = 1795529263,
+["name"] = "Strangerfoo Madeup",
+["groupSize"] = 2,
+["level"] = 32,
+["role"] = "DAMAGER",
+["k"] = "player",
+["classFile"] = "ROGUE",
+["raceToken"] = "Human",
+["lv"] = 35,
+["race"] = "Human",
+["class"] = "Rogue",
+},
+{
+["action"] = "logout",
+["zone"] = "Eastern Kingdoms",
+["id"] = 167,
+["duration"] = 3334,
+["balance"] = 163549,
+["k"] = "session",
+["startAt"] = 1795529043,
+["lv"] = 35,
+["t"] = 1795532377,
+},
+{
+["map"] = 1581,
+["zone"] = "The Deadmines",
+["id"] = 170,
+["t"] = 1795600000,
+["name"] = "Strangerbar Madeup-Otherrealm",
+["realm"] = "Otherrealm",
+["instance"] = true,
+["groupSize"] = 5,
+["level"] = 19,
+["role"] = "HEALER",
+["k"] = "player",
+["classFile"] = "PRIEST",
+["raceToken"] = "Dwarf",
+["lv"] = 20,
+["race"] = "Dwarf",
+["class"] = "Priest",
+},
+{
+["map"] = 1581,
+["zone"] = "The Deadmines",
+["id"] = 171,
+["t"] = 1795600004,
+["name"] = "Testhunter Fixture",
+["instance"] = true,
+["groupSize"] = 5,
+["level"] = 20,
+["k"] = "player",
+["lv"] = 20,
+},
+{
+["k"] = "note",
+["id"] = 172,
+["t"] = 1795600100,
+["text"] = "a private note Strangerqux",
+},
+},
+["snap"] = {
+["group"] = {
+["strangerbar madeup-otherrealm"] = "Strangerbar Madeup-Otherrealm",
+},
+["groupAt"] = 1795600004,
+},
+["played"] = {
+["total"] = 17805.283,
+},
+},
+["Unknownchar-"] = {
+["entries"] = {
+{
+["k"] = "player",
+["t"] = 1795600000,
+["name"] = "Strangerzed Madeup",
+},
+},
+},
+},
+["runs"] = {
+},
+["seq"] = 236,
+}

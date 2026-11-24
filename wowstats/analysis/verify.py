@@ -76,6 +76,10 @@ def fmt(v, spec: str | None) -> str:
         h, m = divmod(abs(s) // 60, 60)
         sign = "-" if s < 0 else ""
         return f"{sign}{h}h{m:02d}" if h else f"{sign}{m} min" if m else f"{sign}{abs(s)} s"
+    if spec == "gold":  # copper as the game writes money: 16g 72s 10c
+        from wowstats.mcp.tools import gold
+
+        return gold(f)
     if spec == "pct":
         return f"{f * 100:.0f}%" if abs(f) <= 1.5 else f"{f:.0f}%"
     if spec == "int":
@@ -469,6 +473,7 @@ FORMAT_UNITS = {
     "pct": ({"percent", "share", "ratio", "xp/xp"}, "a share (0 to 1) or a percent",
             "select the share itself (one count over another) as a column"),
     "dur": ({"seconds"}, "a duration in seconds", "select the time in seconds as a column"),
+    "gold": ({"copper"}, "an amount of money in copper", "select the copper amount as a column"),
 }
 
 

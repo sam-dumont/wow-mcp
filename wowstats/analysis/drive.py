@@ -774,7 +774,9 @@ def sql(env: dict, char: str, query: str, page: int = 1, page_size: int = SQL_PA
         run = _count_query(env, w, set(w.ro.touched), query, err)
     if err is not None:
         return {"error": err}
-    got = rows[skip:]
+    from .lineage import units
+
+    cols, got = with_gold(cols, rows[skip:], {c: {"unit": u} for c, u in units(query).items()})
     text, short = as_text_cut(cols, got, False, SQL_CHARS)
     out = {"result": text, "page": page, "rows": len(got), "more": bool(cut) or short}
     if cut:
@@ -880,6 +882,34 @@ def _with_metric_query(w: Workspace, finding):
     return {**finding, "sql": c["sql"], "sql_params": c["params"], "metric_query": c["query"]}, None
 
 
+GOLD_UNITS = {"copper": "", "copper/hour": "/hour"}
+
+
+def with_gold(cols: list[str], rows: list[tuple], definitions: dict) -> tuple[list[str], list[tuple]]:
+    """A `<metric>_gold` text column, at the end, for each metric counted in copper
+    (16g 72s 10c), so no reader converts by hand: an analysis divided
+    167210 copper by 1000 and wrote "167.2g" for 16g 72s (2026-11-24).
+    `definitions`: {column: {"unit": ...}} (query_metric's definitions, or
+    play_sql's units from lineage). Shown only: the SQL, the judge and a
+    finding's placeholders keep the copper (`{col:gold}` writes it the same
+    way)."""
+    from wowstats.mcp.tools import gold
+
+    money = {i: GOLD_UNITS[(definitions.get(c) or {}).get("unit")] for i, c in enumerate(cols)
+             if (definitions.get(c) or {}).get("unit") in GOLD_UNITS}
+    if not money:
+        return cols, rows
+
+    def gold_of(i, v):
+        g = gold(v)
+        return None if g is None else g + money[i]
+
+    # Appended, so every column keeps its place: a reader counting columns
+    # (the `_evidence` beside its metric) reads the same row.
+    return cols + [f"{cols[i]}_gold" for i in money], [tuple(r) + tuple(gold_of(i, r[i]) for i in money)
+                                                       for r in rows]
+
+
 def metric(env: dict, char: str, query: dict, store=None) -> dict:
     """query_metric: the semantic layer's answer, with its SQL and definitions."""
     from . import semantic
@@ -896,7 +926,8 @@ def metric(env: dict, char: str, query: dict, store=None) -> dict:
         _count_query(env, w, set(w.metrics.touched), (got or {}).get("sql") or "", err)
     if err is not None:
         return {"error": err}
-    text, short = as_text_cut(got["columns"], [tuple(r) for r in got["rows"]], got["more"], SQL_CHARS)
+    cols, rows = with_gold(got["columns"], [tuple(r) for r in got["rows"]], got["definitions"])
+    text, short = as_text_cut(cols, rows, got["more"], SQL_CHARS)
     out = {"char": w.char, "result": text, "rows": len(got["rows"]), "more": got["more"] or short,
            "query": got["query"], "definitions": got["definitions"],
            "sql": got["sql"], "params": got["params"],

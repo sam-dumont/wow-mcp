@@ -135,3 +135,33 @@ def test_store_metrics_carry_the_contract():
         assert m["source"] == "store"
     prep = {m["name"] for m in semantic.catalogue()["metrics"]}
     assert not prep & {m["name"] for m in cat["metrics"]}
+
+
+def test_run_party_names_from_the_grouped_stretch():
+    """Who was in each run (owner, 2026-11-24): the groupmates ForeverDB_Helper
+    named from the moment the character joined the party to the run's end.
+    It names each once a day: a second run with the same party finds them
+    from the first, and the Recorder's size says how many are missing."""
+    runs = [{"_time": "2026-11-01T10:00:00Z", "name": "Deadmines", "level": 18, "seconds": 1800, "xp": 9000},
+            {"_time": "2026-11-01T11:00:00Z", "name": "Deadmines", "level": 19, "seconds": 1800, "xp": 9000},
+            {"_time": "2026-11-01T15:00:00Z", "name": "Wailing Caverns", "level": 19, "seconds": 1800, "xp": 7000}]
+    groups = [{"_time": "2026-11-01T09:40:00Z", "kind": "group", "size": "1"},
+              {"_time": "2026-11-01T09:50:00Z", "kind": "group", "size": "4"},
+              {"_time": "2026-11-01T12:00:00Z", "kind": "group", "size": "0"},
+              {"_time": "2026-11-01T14:55:00Z", "kind": "group", "size": "2"}]
+    mate = {"context": "dungeon", "level": 18, "class": "Priest", "race": "Dwarf", "role": "healer"}
+    players = [{**mate, "_time": "2026-11-01T09:40:02Z", "player": "Strangerbar-Madeup"},
+               {**mate, "_time": "2026-11-01T09:50:01Z", "player": "Strangerfoo-Madeup", "context": "grouped"},
+               {**mate, "_time": "2026-11-01T09:00:00Z", "player": "Earlier-Group"},
+               {**mate, "_time": "2026-11-01T10:05:00Z", "player": "Seennearby-Madeup", "context": "seen"},
+               {**mate, "_time": "2026-11-01T14:55:03Z", "player": "Strangerbar-Madeup", "level": 19}]
+    wc, dm2, dm1 = storemodels.run_groups(runs, groups, players)
+    names = lambda r: [p["player"] for p in r["party"]]  # noqa: E731
+    assert names(dm1) == names(dm2) == ["Strangerbar-Madeup", "Strangerfoo-Madeup"]
+    assert dm1["party"][0] == {"player": "Strangerbar-Madeup", "level": 18, "class": "Priest", "race": "Dwarf",
+                               "role": "healer"}
+    assert dm1["names_known"] == "2 of 4 names known"
+    # The party broke up at 12:00: the afternoon run has its own.
+    assert names(wc) == ["Strangerbar-Madeup"] and wc["party"][0]["level"] == 19 and wc["names_known"] == "1 of 2 names known"
+    # No names, no "0 of N".
+    assert storemodels.run_groups(runs, groups)[0]["names_known"] is None

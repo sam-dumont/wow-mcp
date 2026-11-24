@@ -374,7 +374,8 @@ def death_clusters(ask: Ask, ds: list[dict]) -> list[dict]:
 def dungeon_runs(q: Q, cf: str) -> list[dict]:
     """Each dungeon run (wow-dungeon) joined to the recorder records inside
     it: party size (group records), boss fights and wipes (encounter), and
-    deaths. Who was in the party: no published addon saves it."""
+    deaths; and who was in the party, from the groupmates ForeverDB_Helper's
+    journal or the combat log named (wow-player, storemodels.run_party)."""
     runs = _sorted(q(f'feed:="wow-dungeon" {cf} | fields _time, name, dungeon_id, level, seconds, xp, '
                      f"source_id"))
     if not runs:
@@ -385,17 +386,47 @@ def dungeon_runs(q: Q, cf: str) -> list[dict]:
     # one before it plus any change inside.
     rows = _sorted(q(f"{rec(cf)} kind:in(group, encounter, death) _time:[{iso(lo - timedelta(hours=6))}, {iso(hi)}] "
                      f"| fields _time, kind, size, raid, encounter_id, success, npc_id, npc_name, source_id"))
+    players = _sorted(q(f'feed:="wow-player" {cf} player:* context:in(grouped, dungeon) '
+                        f"_time:[{iso(lo - timedelta(hours=6))}, {iso(hi)}] "
+                        f"| fields _time, player, context, level, class, race, role, source_id"))
     from wowstats import storemodels
 
-    return storemodels.run_groups(runs, rows)
+    return storemodels.run_groups(runs, rows, players)
 
 
-ROSTER_NOTE = ("Who was in the group isn't saved by any of the addons the kit reads: Polestar_Recorder keeps the "
-               "party size, Polestar's instance runs keep the dungeon and the time, Details keeps no segments "
-               "between sessions, and DungeonMaster keeps the last run's kills only. Players are named only "
-               "where Polestar's own sighting list (update.probed) saw them.")
+def with_parties(panel: dict, runs: list[dict]) -> dict:
+    """The Dungeons panel (wowstats.plan.dungeonview) with each past trip's
+    party: the parties of the runs (dungeon_runs) that began inside the
+    trip, from its start to its end (`total_s`, else `inside_s`). Full view
+    only: the friends' and public tiers list no `party` (wowstats.redact)."""
+    if not runs:
+        return panel
+    spans = [(parse_t(r["t"]), r) for r in runs if r.get("party")]
+    for d in panel.get("dungeons") or []:
+        for h in d.get("history") or []:
+            t0 = parse_t(h.get("t"))
+            t1 = t0 + timedelta(seconds=max(num(h.get("total_s")), num(h.get("inside_s"))) + 60)
+            mates: dict[str, dict] = {}
+            known = None
+            for t, r in spans:
+                if t0 - timedelta(seconds=60) <= t <= t1:
+                    mates.update({p["player"]: p for p in r["party"]})
+                    known = known or r.get("names_known")
+            if mates:
+                h["party"] = sorted(mates.values(), key=lambda p: p["player"])
+                h["names_known"] = known
+    return panel
+
+
+ROSTER_NOTE = ("Who was in the group comes from ForeverDB_Helper (optional, from ForeverDB.net), whose journal "
+               "names each groupmate once a day, and from the combat log when it was on. Without either, no addon "
+               "the kit reads saves names: Polestar_Recorder keeps the party size, Polestar's instance runs the "
+               "dungeon and the time. \"N of M names known\": the Recorder counted more players than were named.")
 # What each addon keeps about other players and groups (`players` with groups).
 GROUP_SOURCES = {
+    "ForeverDB_Helper journal (wow-player, optional)": "each groupmate's name, level, class, race and role, "
+                                                       "once a day; the zone or dungeon",
+    "Combat log (wow-player, when it's on)": "groupmates' names, once per player per 10 minutes",
     "Polestar update.probed (wow-player)": "names, last seen, zone; no class or level, never group members",
     "Polestar_Recorder group records": "party size and raid flag, no names",
     "Polestar_Recorder encounter records": "boss fights and wipes, no names",
