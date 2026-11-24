@@ -51,17 +51,15 @@ GOLD_DAYS = 30
 RIDING_SKILL = 762
 _ID = re.compile(r"^\d+$")
 
-# The LogsQL pipes, after the stream filter. Prices are account-wide (no
-# character filter); one read, the day counts come from its rows.
 # The scans read: the newest day and the two before it, enough to tell a
-# full scan's day from a search's (on_sale).
+# full scan's day from a search's (on_sale). The scans themselves are the
+# price list's read (wowstats.views.price_rows: one stats row per item,
+# house and scan day); a full scan puts thousands of items on one instant,
+# more than a raw read may return.
 WINDOW_DAYS = FRESH_DAYS + 2
-Q_ITEMS = (f'feed:="wow-prices" _time:{WINDOW_DAYS}d | stats by (realm, faction, item_key, scan_day) '
-           f"min(price_copper) as lo, max(available) as av, max(_time) as t")
+# The LogsQL pipes, after the stream filter.
 Q_MONEY = 'feed:="wow-character" {cf} -kind:=played money_copper:* | fields _time, level, money_copper'
 Q_SKILLS = "{rec} kind:=skill | fields _time, skill_id, rank, max_rank, source_id"
-
-ITEMS_KEYS, ITEMS_OPS = ("realm", "faction", "item_key", "scan_day"), {"lo": "min", "av": "max", "t": "maxtime"}
 
 
 def _age_days(t, now: float) -> int | None:
@@ -170,30 +168,25 @@ def mount_left(money: int | None, skills: list[dict], book: list[dict] | None = 
     return None
 
 
-def queries(cf: str, rec: str, items: bool = True) -> dict[str, tuple]:
-    """The reads market() needs, as (LogsQL pipe after the stream filter,
-    stats keys, merge ops), so a caller can run them side by side. items:
-    False for a caller that has the scans already (the full view's price
-    list read, wowstats.views.price_rows: same rows, a wider window)."""
-    q = {"money": (Q_MONEY.format(cf=cf), (), None), "skills": (Q_SKILLS.format(rec=rec), (), None),
-         **{k: (v, (), None) for k, v in riding.queries(cf, rec).items()}}
-    return {"items": (Q_ITEMS, ITEMS_KEYS, ITEMS_OPS), **q} if items else q
+def queries(cf: str, rec: str) -> dict[str, tuple]:
+    """The reads market() needs besides the scans, as (LogsQL pipe after the
+    stream filter, stats keys, merge ops), so a caller can run them side by
+    side."""
+    return {"money": (Q_MONEY.format(cf=cf), (), None), "skills": (Q_SKILLS.format(rec=rec), (), None),
+            **{k: (v, (), None) for k, v in riding.queries(cf, rec).items()}}
 
 
 def market(res: dict, *, faction: str | None, money: int | None,
            now: float | None = None) -> dict:
-    """advise()'s `market` from the answers to queries()."""
+    """advise()'s `market` from the answers to queries(), with the scans
+    (wowstats.views.price_rows, any window from WINDOW_DAYS up) as
+    res["items"]."""
     now = now or time.time()
     # Only the scans' window: a wider read (the price list's) holds older days.
     recent = [r for r in res.get("items") or [] if (a := _age_days(r.get("t"), now)) is not None and a < WINDOW_DAYS]
     sale = on_sale(recent, faction, now)
     return {**sale, "money_copper": money, "gold_per_level_copper": gold_per_level(res.get("money") or [], now),
             "mount": mount_left(money, res.get("skills") or [], res.get("riding_book"), res.get("riding_learn"))}
-
-
-def gather(run, **kw) -> dict:
-    """market() with run(query, keys, ops) answering each read in turn."""
-    return market({k: run(*q) for k, q in queries(kw.pop("cf"), kw.pop("rec")).items()}, **kw)
 
 
 def notice_none() -> str:

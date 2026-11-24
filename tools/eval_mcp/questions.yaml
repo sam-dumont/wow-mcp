@@ -593,6 +593,20 @@
   probes:
     - {tool: prices, args: {limit: 200}, path: "items[*].item_id", holds: any}
 
+- id: ah_upgrade
+  group: market
+  persona: trader
+  difficulty: hard
+  question: >-
+    Which gear upgrade for the character is on sale in its latest auction house scan, ready to
+    buy and wear now? Give its item id, or NONE if there is none.
+  answer: ah_upgrade
+  match: number
+  tools: [gear]
+  probes:
+    - {tool: gear, path: "buy_now[*].item_id", holds: any}
+    - {tool: gear, path: auction_house.last_scan_days_ago, equals: 0}
+
 - id: token_price
   group: market
   persona: trader

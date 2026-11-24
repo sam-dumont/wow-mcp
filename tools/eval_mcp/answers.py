@@ -49,6 +49,13 @@ def server_env(vl_url: str, state_dir: str) -> dict:
             "WOW_TIMEZONE": "Europe/Brussels", "FASTMCP_CHECK_FOR_UPDATES": "off"}
 
 
+def store(rows: list[dict]) -> D.VL:
+    """The stand-in store for a server.py: on the demo's time like the
+    server, so a relative read (`_time:3d`, the auction scans) counts back
+    from the same "now" as the server's own windows."""
+    return D.VL(rows, clock=D.ticking())
+
+
 # ---------------------------------------------------------------- from the events
 
 
@@ -93,9 +100,10 @@ class Tools:
     store at `vl_url`, with its own frozen clock and nothing but
     server_env. One process and one session per Tools; close() ends them.
 
-    In process (the server built here, on this process's clock and imports)
-    the gear advice saw an auction scan the model's server never showed
-    (eval-mcp 2026-11-24): the check now reads the server the model reads."""
+    Its store comes from store(), on the demo's time like the server: on
+    the wall clock the store answered the server's relative reads
+    (`_time:3d`, the auction scans) from another "now", and the gear advice
+    showed no scan (eval-mcp 2026-11-24)."""
 
     def __init__(self, vl_url: str, state_dir: str, now: str | None = None):
         import threading
@@ -362,6 +370,15 @@ def priciest_item(t: Tools) -> int:
     return _one([i["item_id"] for i in items if i["latest_copper"] == top], "priciest item")
 
 
+def ah_upgrade(t: Tools) -> int:
+    """The one gear upgrade the newest auction scan has on sale, which the
+    gear advice offers to buy (`buy_now`)."""
+    g = t("gear")
+    if not (g.get("auction_house") or {}).get("last_scan_day"):
+        raise ValueError(f"gear sees no auction scan: {g.get('auction_house')!r}")
+    return _one([u["item_id"] for u in g.get("buy_now") or []], "upgrade on sale")
+
+
 def biggest_lane(t: Tools) -> str:
     lanes = t("kb_topics")["lanes"]
     top = max(v.get("statements") or 0 for v in lanes.values())
@@ -474,6 +491,7 @@ MAKERS: dict[str, Callable[[Ctx], object]] = {
     "tailoring_capped": lambda c: tailoring_capped(c.t),
     "check_plan_number": lambda c: check_plan_number(c.t, "You will gain 999,999 XP and reach level 41."),
     "priciest_item": lambda c: priciest_item(c.t),
+    "ah_upgrade": lambda c: ah_upgrade(c.t),
     "biggest_lane": lambda c: biggest_lane(c.t),
     "missing_fix_addon": lambda c: missing_fix_addon(c.t),
     "player_names": lambda c: player_names(c.full),
@@ -517,7 +535,7 @@ def compute(questions: list[dict] | None = None) -> dict[str, dict]:
         with tempfile.TemporaryDirectory(prefix="eval-mcp-answers-") as state:
             for s in {*scenarios(questions), "full"}:
                 rows = rows_for(s)
-                vl = D.VL(rows)
+                vl = store(rows)
                 servers[s] = (rows, vl, Tools(vl.url, str(Path(state) / s)))
             full = servers["full"][2]
             for q in questions:
