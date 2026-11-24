@@ -1217,7 +1217,8 @@ def extract_polestar(acct: Path, char_dirs: list[Path], sessions, char_ids, stat
 
 # ---------------------------------------------------------------------------
 # Gear and professions: Syndicator (equipped items), Polestar (profession
-# ranks; their caps come from the Recorder's skill records, server side),
+# ranks), DataStore_Crafts (each profession's rank and cap, when Altoholic
+# is installed; else the server reads the cap from the Recorder),
 # GearQuestForever (tracked upgrades). Talents and the look come from
 # Battle.net's API only (the exporter), never from a local file.
 # ---------------------------------------------------------------------------
@@ -1319,6 +1320,9 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
             for sid, rank in (c.get("profs") or {}).items():
                 if isinstance(sid, int) and isinstance(rank, (int, float)):
                     profs[sid] = {"skill_id": sid, "name": PROFESSIONS.get(sid), "rank": int(rank)}
+    for sid, cap in profession_caps(acct, char).items():
+        p = profs.setdefault(sid, {"skill_id": sid, "name": PROFESSIONS.get(sid), "rank": cap["rank"]})
+        p.update(rank=max(p["rank"], cap["rank"]), cap=cap["cap"], cap_at=cap["cap_at"])
     professions = sorted((p for p in profs.values() if p["name"]), key=lambda p: (-(p["rank"] or 0), p["name"]))
 
     cls = det.get("className")
@@ -1364,6 +1368,52 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
             **({"class_train_level": int(visit)} if isinstance(visit, (int, float)) and visit > 0 else {})}
 
 
+def datastore_crafts(acct: Path, char: str) -> dict | None:
+    """The character's row of DataStore_Crafts (Altoholic's data store), or
+    None. Its characters are keyed "Default.<realm>.<Name>" (DataStore.lua);
+    one character can hold two keys (one with an empty realm,
+    "Default..<Name>", seen 2026-11-23): the row DataStore updated last wins."""
+    sv = acct / "SavedVariables"
+    ids = next(iter(read_sv_versions(sv / "DataStore.lua")), None) or {}
+    crafts = next(iter(read_sv_versions(sv / "DataStore_Crafts.lua")), None) or {}
+    keys = ((ids.get("DataStore_CharacterIDs") or {}).get("Set")) or {}
+    rows = crafts.get("DataStore_Crafts_Characters") or {}
+    mine = [rows.get(v) for k, v in keys.items() if isinstance(k, str) and char_of(k.rsplit(".", 1)[-1]) == char]
+    mine = [c for c in mine if isinstance(c, dict)]
+    return max(mine, key=lambda c: c.get("lastUpdate") if isinstance(c.get("lastUpdate"), int | float) else 0,
+               default=None)
+
+
+def profession_caps(acct: Path, char: str) -> dict[int, dict]:
+    """skill id -> {rank, cap, cap_at} from DataStore_Crafts: the game's own
+    skill list (GetProfessions + GetProfessionInfo), rescanned at every login
+    and skill-up and saved at logout. Ranks[slot] = rank + (max rank << 16),
+    Indices = {profession name: slot} (DataStore_Crafts_Retail.lua
+    SetProfessionRank); cap_at is the row's lastUpdate (unix seconds).
+    The cap is the point: Polestar saves the rank only, and Polestar
+    Recorder writes a skill record only when the list changes while it
+    records, so a trainer visit it didn't see left an Expert enchanter
+    told to train Expert (2026-11-24). Names are the English ones of
+    PROFESSIONS: another client language finds none, and the server falls
+    back to the Recorder and the trainer tiers."""
+    c = datastore_crafts(acct, char)
+    if not c:
+        return {}
+    by_name = {n.lower(): sid for sid, n in PROFESSIONS.items()}
+    ranks = c.get("Ranks") or {}
+    ranks = ranks if isinstance(ranks, dict) else dict(enumerate(ranks, 1))
+    at = c.get("lastUpdate")
+    out = {}
+    for name, slot in (c.get("Indices") or {}).items():
+        sid, v = by_name.get(str(name).lower()), ranks.get(slot)
+        if sid is None or not isinstance(v, int) or v <= 0:
+            continue
+        rank, cap = v & 0xFFFF, v >> 16
+        if cap:
+            out[sid] = {"rank": rank, "cap": cap, "cap_at": int(at) if isinstance(at, int | float) else None}
+    return out
+
+
 def recipes_of(acct: Path, char: str) -> list[dict]:
     """The recipes the character knows, per profession, from DataStore_Crafts
     (Altoholic's data store): [{profession, known: [spell IDs], seen}].
@@ -1372,12 +1422,7 @@ def recipes_of(acct: Path, char: str) -> list[dict]:
     (DataStore_Crafts_Retail.lua _GetRecipeInfo). A profession whose window
     was never opened lists none and is left out: unknown, not "unlearned".
     Its characters are keyed "Default.<realm>.<Name>" (DataStore.lua)."""
-    sv = acct / "SavedVariables"
-    ids = next(iter(read_sv_versions(sv / "DataStore.lua")), None) or {}
-    crafts = next(iter(read_sv_versions(sv / "DataStore_Crafts.lua")), None) or {}
-    keys = ((ids.get("DataStore_CharacterIDs") or {}).get("Set")) or {}
-    cid = next((v for k, v in keys.items() if isinstance(k, str) and char_of(k.rsplit(".", 1)[-1]) == char), None)
-    c = (crafts.get("DataStore_Crafts_Characters") or {}).get(cid) if cid is not None else None
+    c = datastore_crafts(acct, char)
     profs = (c or {}).get("Professions") or {}
     out = []
     for p in (profs.values() if isinstance(profs, dict) else profs):

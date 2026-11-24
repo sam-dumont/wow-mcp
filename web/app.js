@@ -3312,14 +3312,17 @@ function moveEl(mv, nowZone) {
     const have = sk.money_copper != null && sk.cost_copper
       ? h('span', { text: sk.money_copper >= sk.cost_copper ? `You have ${coinText(sk.money_copper)}: enough.`
         : `You have ${coinText(sk.money_copper)}; ${coinText(sk.cost_copper - sk.money_copper)} to go.` }) : null;
-    why = [ts.length ? trainersEl(ts, nowZone)
+    // A cap not read in game this login (the Recorder's last record or the
+    // trainer tier): what it last saw, said before the trainer.
+    why = [mv.detail ? h('span', { text: mv.detail }) : null,
+      ts.length ? trainersEl(ts, nowZone)
         : h('span', {}, 'Trainer location not in our data: ', sk.search_url ? whRef({ url: sk.search_url, name: 'search Wowhead' }) : null),
       needs.length ? h('span', { text: `Needs ${needs.join(' and ')}.` }) : null,
       // Where a price comes from stays in the data; a caveat that changes
       // what to bring stays, in a few words.
       sk.cost_copper ? h('span', { text: `Costs ${coinText(sk.cost_copper)}${/reputation/i.test(sk.cost_scope || '') ? ' (less with reputation)' : ''}.` }) : null,
       have,
-      // A cap read before you last played: how to refresh it.
+      // A cap not read in game: how to get it read.
       mv.action ? h('span', { class: 'mact', text: mv.action }) : null];
   } else if (mv.kind === 'deaths_zone' && mv.zone) {
     what = h('span', { class: 'mtitle' }, mv.title.replace(mv.zone.name, '').trim() + ' ', whRef(mv.zone));

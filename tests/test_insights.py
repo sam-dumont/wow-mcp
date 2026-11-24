@@ -91,12 +91,13 @@ def test_death_clusters():
 
 def test_profession_capped_at_its_tier():
     """Where to train, for the character's side, what it needs and costs,
-    from Polestar's guides: never invented. The cap is the Recorder's skill
-    record (the game's skill list when it changed)."""
+    from Polestar's guides: never invented. The cap is the game's skill list
+    (DataStore_Crafts on the sheet), so the move says it flat out."""
     hd = {"faction": "Alliance", "race": "Gnome"}
     skills = {333: {"rank": 150, "max_rank": 150, "t": "2026-01-02T10:00:00.000Z"},
               197: {"rank": 119, "max_rank": 150, "t": "2026-01-02T10:00:00.000Z"}}
-    c = insights.profession_claims(32, [{"skill_id": 333, "name": "Enchanting", "rank": 150},
+    c = insights.profession_claims(32, [{"skill_id": 333, "name": "Enchanting", "rank": 150, "cap": 150,
+                                         "cap_at": 1767348000},
                                         {"skill_id": 197, "name": "Tailoring", "rank": 119}], skills, hd)
     assert len(c) == 1 and c[0]["link"] == "#gear" and c[0]["title"] == "Train Expert Enchanting"
     assert c[0]["action"] is None and not c[0]["skill"]["may_be_stale"]
@@ -108,6 +109,7 @@ def test_profession_capped_at_its_tier():
     assert [t["name"] for t in sk["trainers"]] == ["Kitta Firewind"]  # Hgarth is the Horde's
     assert sk["trainers"][0]["url"] == "https://www.wowhead.com/forever/npc=11072"
     assert sk["trainers"][0]["zone"]["url"] == "https://www.wowhead.com/forever/zone=12"
+    assert c[0]["detail"] is None
     horde = insights.profession_claims(32, [{"skill_id": 333, "rank": 150}], skills, {"faction": "Horde"})
     assert [t["name"] for t in horde[0]["skill"]["trainers"]] == ["Hgarth"]
 
@@ -120,27 +122,54 @@ def test_profession_cap_from_the_tiers_hedges():
     p = {"skill_id": 164, "name": "Blacksmithing", "rank": 148, "max_rank": 300,
          "max_rank_at": "2026-01-02T10:00:00.000Z"}
     c = insights.profession_claims(30, [p], {}, {"faction": "Horde"})
-    assert c[0]["title"] == "Train Expert Blacksmithing" and c[0]["skill"]["may_be_stale"]
+    assert c[0]["title"] == "Train Expert Blacksmithing, if not done yet" and c[0]["skill"]["may_be_stale"]
     assert c[0]["skill"]["max_rank"] == 150
     assert c[0]["text"].startswith("Blacksmithing 148/150 if you haven't trained Expert yet: skill-ups stop at 150 "
                                    "until you do. ")
-    assert c[0]["action"] == "Trained Expert already? The cap shows once Polestar Recorder sees your next " \
-                             "Blacksmithing skill-up."
+    assert c[0]["detail"] == ("Blacksmithing 148/150 if you haven't trained Expert yet: skill-ups stop at 150 "
+                              "until you do.")
+    assert c[0]["action"] == "Trained Expert already? With Altoholic installed the cap is read at each login; " \
+                             "else it shows at your next Blacksmithing skill-up."
     assert c[0]["text"].endswith(c[0]["action"])
     assert "CharacterExport" not in c[0]["cite"]
 
 
 def test_profession_recorder_cap_wins_unless_the_rank_passed_it():
-    """The Recorder's cap stands while it covers the rank; a rank above it
-    (trained while the Recorder was off) falls back to the tiers."""
+    """The Recorder's cap stands while it covers the rank, but it only saw
+    what changed while it recorded, so the move hedges with the day it last
+    saw it; a rank above it (trained while the Recorder was off) falls back
+    to the tiers."""
     p = {"skill_id": 197, "name": "Tailoring", "rank": 150}
     trained = {197: {"rank": 151, "max_rank": 225, "t": "2026-01-02T11:00:00.000Z"}}
     assert insights.profession_claims(30, [p], trained, {"faction": "Alliance"}) == []
     behind = {197: {"rank": 140, "max_rank": 150, "t": "2026-01-01T09:00:00.000Z"}}
     c = insights.profession_claims(30, [p], behind, {"faction": "Alliance"})
-    assert c[0]["title"] == "Train Expert Tailoring" and not c[0]["skill"]["may_be_stale"]
+    assert c[0]["title"] == "Train Expert Tailoring, if not done yet" and c[0]["skill"]["may_be_stale"]
+    assert c[0]["detail"] == ("Tailoring 150/150 when Polestar Recorder last saw it (1 Jan): if you haven't "
+                              "trained Expert since, skill-ups stop at 150 until you do.")
     passed = {197: {"rank": 140, "max_rank": 150, "t": "2026-01-01T09:00:00.000Z"}}
     assert insights.profession_claims(30, [{**p, "rank": 160}], passed, {"faction": "Alliance"}) == []
+
+
+def test_an_expert_the_recorder_missed_gets_no_train_expert():
+    """2026-11-24: an Expert enchanter (150/225 in game) was told to train
+    Expert. The Recorder writes a skill record only when the skill list
+    changes while it records (its login baseline is silent), so its last
+    record stayed 150/150 from before the trainer visit. The game's own
+    list on the sheet (DataStore_Crafts, read at each login) says 225: no
+    move. Shapes as stored: the Recorder's record and the shipper's sheet."""
+    rec = {333: {"rank": 150, "max_rank": 150, "t": "2026-01-01T14:28:40.400Z"}}
+    sheet = [{"skill_id": 333, "name": "Enchanting", "rank": 150, "cap": 225, "cap_at": 1767650000}]
+    hd = {"faction": "Alliance", "race": "Gnome"}
+    assert insights.profession_claims(34, sheet, rec, hd) == []
+    from wowstats import profcaps
+
+    assert profcaps.fill(sheet, rec)[0] | {"cap": None, "cap_at": None} == {
+        "skill_id": 333, "name": "Enchanting", "rank": 150, "max_rank": 225, "max_rank_from": "game",
+        "cap": None, "cap_at": None}
+    # The Recorder newer and higher (Expert trained after the login scan):
+    # caps only go up, the higher wins.
+    assert profcaps.cap_of(150, {"rank": 150, "max_rank": 225}, {"cap": 150, "cap_at": 1}) == (150, 225, "recorder")
 
 
 def test_profcaps_fill_says_where_each_cap_comes_from():
@@ -216,7 +245,7 @@ def test_profession_ranks_gates_and_price_come_from_the_kb(monkeypatch):
     _rules(monkeypatch, profession_tiers={"value": tiers}, profession_training_cost={"value": {"2": 777}})
     c = insights.profession_claims(11, [{"skill_id": 202, "rank": 75, "max_rank": 75}], {}, {"faction": "Horde"})
     sk = c[0]["skill"]
-    assert c[0]["title"] == "Train Journeyman Engineering"
+    assert c[0]["title"] == "Train Journeyman Engineering, if not done yet"
     # The guide's Journeyman Engineering price is Classic Era's: the KB's wins; its level gate (10) stays the guide's.
     assert (sk["need_level"], sk["need_skill"], sk["cost_copper"]) == (10, 60, 777)
     assert "needs level 10 (met)" in c[0]["text"] and "7 silver 77 copper" in c[0]["text"]

@@ -234,6 +234,31 @@ def test_the_shipper_reads_known_recipes_from_datastore(shipper, tmp_path):
     assert gear.recipe_lists(s["recipes"]) == {"tailoring": {SHADOW_CIRCLET_SPELL}}
 
 
+def test_the_shipper_reads_profession_caps_from_datastore(shipper, tmp_path):
+    """DataStore_Crafts keeps each profession's rank and cap as one number
+    (rank + cap << 16, Ranks[slot], Indices = {name: slot}), rescanned at
+    each login: the cap the Recorder can miss. A character saved under two
+    keys: the row updated last wins. The case of 2026-11-24: Enchanting
+    150/225 in game while the Recorder's last record said 150/150."""
+    acct = tmp_path / "acct"
+    sv = acct / "SavedVariables"
+    sv.mkdir(parents=True)
+    (sv / "DataStore.lua").write_text(
+        'DataStore_CharacterIDs = {\n["Set"] = {\n["Default.Test Realm.Caster Fixture"] = 1,\n'
+        '["Default..Caster Fixture"] = 2,\n},\n}\n')
+    old = f"{{\n[\"lastUpdate\"] = 1700000000,\n[\"Indices\"] = {{\n[\"Enchanting\"] = 2,\n}},\n" \
+          f"[\"Ranks\"] = {{\n{140 + (150 << 16)},\n{140 + (150 << 16)},\n}},\n}}"
+    new = f"{{\n[\"lastUpdate\"] = 1700050000,\n[\"Indices\"] = {{\n[\"Tailoring\"] = 1,\n[\"Enchanting\"] = 2,\n" \
+          f"[\"Cooking\"] = 3,\n}},\n[\"Ranks\"] = {{\n{119 + (150 << 16)},\n{150 + (225 << 16)},\n" \
+          f"{130 + (225 << 16)},\n}},\n}}"
+    (sv / "DataStore_Crafts.lua").write_text(f"DataStore_Crafts_Characters = {{\n{old},\n{new},\n}}\n")
+    assert shipper.profession_caps(acct, "Caster-Fixture") == {
+        197: {"rank": 119, "cap": 150, "cap_at": 1700050000},
+        333: {"rank": 150, "cap": 225, "cap_at": 1700050000},
+        185: {"rank": 130, "cap": 225, "cap_at": 1700050000}}
+    assert shipper.profession_caps(acct, "Someone-Else") == {}
+
+
 # ---------------------------------------------------------------- 3. the BiS cross-check
 
 

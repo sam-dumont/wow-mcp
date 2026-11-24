@@ -1201,9 +1201,11 @@ def build_gear(row: dict) -> dict | None:
 
     for i in items:
         i["enchant"] = itemcard.shared().enchant(i["enchant_id"]) if i.get("enchant_id") else None
-    # The rank only: the cap an old sheet carries came from CharacterExport-
-    # Forever (dropped 2026-11-20); Views.char sets it (wowstats.profcaps).
-    profs = [clean(p, ("skill_id", "rank"), ("name",))
+    # The rank, and the cap DataStore_Crafts read in game (`cap`, `cap_at`);
+    # an old sheet's `max_rank` came from CharacterExport-Forever (dropped
+    # 2026-11-20) and isn't read. Views.char sets the cap (wowstats.profcaps).
+    profs = [{**clean(p, ("skill_id", "rank"), ("name",)),
+              **{k: opt_num(p[k]) for k in ("cap", "cap_at") if p.get(k) is not None}}
              for p in jlist(row.get("professions")) if isinstance(p, dict)]
     wanted = [clean(w, ("item_id", "item_level", "req_level", "level"), ("slot_name", "name"))
               for w in jlist(row.get("wanted")) if isinstance(w, dict)]
