@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.0 (2026-11-24)
+
 ### Fixed
 
 - The knowledge-base refresh no longer fails a model step on an expired identity token. GitHub's ID

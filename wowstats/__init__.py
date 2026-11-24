@@ -1,6 +1,6 @@
 """wow-stats: a WoW Forever leveling log (web UI, ingest, Battle.net exporter)."""
 
-__version__ = "0.9.0"
+__version__ = "0.10.0"
 
 # Where this program's source lives (GPL-3.0-only). Binary recipients (the
 # images, the one-line shipper installers) are pointed at the tag that built
