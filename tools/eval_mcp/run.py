@@ -1,24 +1,36 @@
-"""The MCP check: ten questions about the demo character, each with one
-short answer, put to Claude Haiku through the wow MCP tools alone. If Haiku
-finds the answer, the tools are clear enough. Graded by exact or normalized
-match (grading.py), never by a model. Light and free on a Claude plan; the
-seeded analysis evaluation (tools/eval_analysis) is the heavy one.
+"""The MCP check: questions about the demo character (questions.yaml, about
+seventy, grouped by what they test), each with one short answer, put to
+Claude Haiku through the wow MCP tools alone. If Haiku finds the answer by
+the expected tools and says nothing it mustn't, the tools are clear enough.
+Graded by exact or normalized match (grading.py), never by a model. Light
+and free on a Claude plan; the seeded analysis evaluation (tools/eval_analysis)
+is the heavy one.
 
-    uv run --extra mcp python tools/eval_mcp/run.py [--only ID ...] [--model haiku] [--timeout 180]
+    uv run --extra mcp python tools/eval_mcp/run.py [--only ID ...] [--group G ...]
+        [--model haiku] [--jobs 6] [--max-usd 2] [--timeout 180]
+    uv run --extra mcp python tools/eval_mcp/run.py --coverage   # the coverage matrix, no model
     make eval-mcp
 
-Starts the demo's store once (tests/degraded.py VL, the docs site's demo
-character), then one `claude -p` per question, all at once, each with only
-this checkout's MCP server (--strict-mcp-config, no built-in tools), its own
-state folder and the demo's frozen clock (server.py). The expected answers
-are computed from the same data first (answers.py).
+Starts one store per scenario the questions use (tests/degraded.py VL: the
+docs site's demo character, with sources taken away for the degraded ones,
+plus answers.py's injected player), then one `claude -p` per question,
+`--jobs` at a time, each with only this checkout's MCP server
+(--strict-mcp-config, no built-in tools), its own state folder and the
+demo's frozen clock (server.py). The expected answers are computed from the
+same data first (answers.py). `--max-usd` stops starting questions once the
+runs so far cost that much (Claude Code's own figure; on a Claude plan it is
+what the API would have charged, not a bill).
 
-Out: a table of question, expected, got, pass, tools used and seconds, on
-stdout and in eval-mcp-out/<batch>/summary.md (ignored by git; the data is
-synthetic), plus each question's transcript. A question answered through
+A question passes when its ANSWER line grades right, the run called one tool
+of each entry of its route (`tools`), and the reply says nothing in
+`forbid` / `forbid_answers`. Out: a table per question and a score per group,
+on stdout and in eval-mcp-out/<batch>/summary.md (ignored by git; the data
+is synthetic), plus each question's transcript. A question answered through
 play_sql alone is flagged: the answer has no typed path.
 
-Not in CI and not a release gate: it needs Claude Code and a login.
+Not in CI and not a release gate: it needs Claude Code and a login. Its
+deterministic half (the probes, the coverage) runs in CI as
+tests/test_eval_mcp.py.
 """
 
 from __future__ import annotations
@@ -29,7 +41,9 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
 import time
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
@@ -51,21 +65,18 @@ not from general game knowledge:
 
 {question}
 
-The answer is one short value (a name, a number, Yes or No). Read-only: never ask the player anything. \
-End your reply with one last line in exactly this form, with the value alone after the colon:
+The answer is one short value (a name, a number, Yes or No). When the tools show they don't have it (the \
+data is missing, or the character or item is unknown), the value is NONE: never guess. Read-only: never ask \
+the player anything. End your reply with one last line in exactly this form, with the value alone after the colon:
 ANSWER: <value>"""
 
 
 def load_questions(path: Path = HERE / "questions.yaml") -> list[dict]:
-    qs = yaml.safe_load(path.read_text(encoding="utf-8"))
-    ids = [q["id"] for q in qs]
-    if len(set(ids)) != len(ids):
-        raise SystemExit(f"{path}: duplicate ids")
-    for q in qs:
-        missing = {"id", "question", "answer", "match"} - set(q)
-        if missing:
-            raise SystemExit(f"{path}: {q.get('id')} lacks {sorted(missing)}")
-    return qs
+    return answers.load_questions(path)
+
+
+def load_coverage(path: Path = HERE / "coverage.yaml") -> dict:
+    return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
 def command(q: dict, mcp_config: Path, model: str, binary: str = "claude") -> list[str]:
@@ -84,7 +95,23 @@ def client_env() -> dict:
     return e
 
 
-def ask(q: dict, expected, workdir: Path, vl_url: str, now: str, model: str, timeout_s: int) -> dict:
+def judge(q: dict, want: dict, stream: str, error: str = "") -> dict:
+    """One run's verdict from its transcript: answer, route, forbidden."""
+    calls, result, meta = grading.tools_used(stream, SERVER)
+    if meta.get("connected") is False:
+        error = error or "the MCP server did not connect"
+    got = grading.final_answer(result)
+    answer_ok = grading.grade(got, want["answer"], q["match"], q.get("tolerance", 0), q.get("also") or ())
+    missed = grading.routed(calls, q.get("tools"))
+    bad = grading.forbidden(result, got, q, want.get("forbid_answers"))
+    return {"id": q["id"], "group": q.get("group", ""), "difficulty": q.get("difficulty", ""),
+            "question": q["question"].strip(), "expected": want["answer"], "got": got,
+            "answer_ok": answer_ok, "route_missed": missed, "forbidden": bad,
+            "pass": answer_ok and not missed and not bad, "tools": calls, "sql_only": grading.sql_only(calls),
+            "error": error, "cost_usd": meta.get("cost_usd")}
+
+
+def ask(q: dict, want: dict, workdir: Path, vl_url: str, now: str, model: str, timeout_s: int) -> dict:
     workdir.mkdir(parents=True, exist_ok=True)
     settings = workdir / "settings.json"
     settings.write_text(json.dumps({**answers.server_env(vl_url, str(workdir / "state")), "EVAL_NOW": now}),
@@ -103,16 +130,8 @@ def ask(q: dict, expected, workdir: Path, vl_url: str, now: str, model: str, tim
     except subprocess.TimeoutExpired as e:
         stream = e.stdout if isinstance(e.stdout, str) else (e.stdout or b"").decode(errors="replace")
         error = f"timed out after {timeout_s} s"
-    seconds = round(time.time() - t0, 1)
     (workdir / "transcript.jsonl").write_text(stream or "", encoding="utf-8")
-    calls, result, meta = grading.tools_used(stream, SERVER)
-    if meta.get("connected") is False:
-        error = error or "the MCP server did not connect"
-    got = grading.final_answer(result)
-    ok = grading.grade(got, expected, q["match"], q.get("tolerance", 0))
-    return {"id": q["id"], "area": q.get("area", ""), "question": q["question"].strip(), "expected": expected,
-            "got": got, "pass": ok, "tools": calls, "sql_only": grading.sql_only(calls),
-            "seconds": seconds, "error": error, "cost_usd": meta.get("cost_usd")}
+    return {**judge(q, want, stream or "", error), "seconds": round(time.time() - t0, 1)}
 
 
 def cell(v) -> str:
@@ -120,58 +139,134 @@ def cell(v) -> str:
 
 
 def table(results: list[dict]) -> str:
-    rows = ["| question | expected | got | pass | tools used | s |", "|---|---|---|---|---|---|"]
+    rows = ["| question | group | expected | got | pass | tools used | s |", "|---|---|---|---|---|---|---|"]
     for r in results:
         tools = ", ".join(dict.fromkeys(r["tools"])) or "none"
         if r["sql_only"]:
             tools += " **(play_sql only)**"
         got = r["got"] if r["got"] is not None else (r["error"] or "no ANSWER line")
-        rows.append(f"| {cell(r['id'])} | {cell(r['expected'])} | {cell(got)} | {'yes' if r['pass'] else 'NO'} "
-                    f"| {cell(tools)} ({len(r['tools'])}) | {r['seconds']:.0f} |")
+        why = []
+        if not r.get("answer_ok", r["pass"]):
+            why.append("wrong answer")
+        if r.get("route_missed"):
+            why.append("never called " + " / ".join(r["route_missed"]))
+        why += r.get("forbidden") or []
+        verdict = "yes" if r["pass"] else "NO" + (f" ({'; '.join(why)})" if why else "")
+        rows.append(f"| {cell(r['id'])} | {cell(r.get('group'))} | {cell(r['expected'])} | {cell(got)} | "
+                    f"{cell(verdict)} | {cell(tools)} ({len(r['tools'])}) | {r['seconds']:.0f} |")
     return "\n".join(rows)
 
 
-def summary(results: list[dict], model: str, wall_s: float) -> str:
+def by_group(results: list[dict]) -> str:
+    n, ok = defaultdict(int), defaultdict(int)
+    for r in results:
+        n[r.get("group") or "-"] += 1
+        ok[r.get("group") or "-"] += bool(r["pass"])
+    return ", ".join(f"{g} {ok[g]}/{n[g]}" for g in sorted(n))
+
+
+def summary(results: list[dict], model: str, wall_s: float, skipped: list[str] = ()) -> str:
     n = sum(r["pass"] for r in results)
     sql = [r["id"] for r in results if r["sql_only"]]
     any_sql = [r["id"] for r in results if "play_sql" in r["tools"]]
-    return "\n".join([
-        f"# MCP check: {n}/{len(results)} with {model}", "",
-        f"Wall time {wall_s:.0f} s. play_sql only: {', '.join(sql) or 'none'}. "
-        f"Used play_sql at all: {', '.join(any_sql) or 'none'}.", "", table(results), ""])
+    cost = sum(float(r.get("cost_usd") or 0) for r in results)
+    lines = [f"# MCP check: {n}/{len(results)} with {model}", "",
+             f"Wall time {wall_s:.0f} s, ${cost:.2f} as Claude Code counts it. By group: {by_group(results)}.", "",
+             f"play_sql only: {', '.join(sql) or 'none'}. Used play_sql at all: {', '.join(any_sql) or 'none'}."]
+    if skipped:
+        lines += ["", f"Not run (cost cap reached): {', '.join(skipped)}."]
+    return "\n".join(lines + ["", table(results), ""])
+
+
+# ---------------------------------------------------------------- coverage (no model)
+
+
+def probe_modes(q: dict) -> set[str]:
+    """What a question's probes hit, in coverage.yaml's words."""
+    out = {f"group:{q.get('group')}", f"scenario:{q.get('scenario', 'full')}"}
+    for p in q.get("probes") or []:
+        out.add(p["tool"])
+        if p.get("error"):
+            out.add("error")
+        for k, v in (p.get("args") or {}).items():
+            out.add(f"{p['tool']}:{k}")
+            if isinstance(v, (str, int, float, bool)):
+                out.add(f"{p['tool']}:{k}={v}")
+    return out
+
+
+def coverage_matrix(questions: list[dict], tool_names: list[str], uncovered: dict) -> str:
+    """Markdown: each MCP tool, the questions that probe it, the ones that
+    route a model to it."""
+    probed, routed = defaultdict(list), defaultdict(list)
+    for q in questions:
+        for t in dict.fromkeys(p["tool"] for p in q.get("probes") or []):
+            probed[t].append(q["id"])
+        for t in dict.fromkeys(x for r in q.get("tools") or [] for x in r.split("|")):
+            routed[t].append(q["id"])
+    rows = ["| tool | probed by | a model may answer with it | |", "|---|---|---|---|"]
+    for t in tool_names:
+        note = f"not evaluated: {uncovered[t].split('. ')[0].rstrip('.')}" if t in uncovered else ""
+        rows.append(f"| {t} | {len(probed[t])} | {len(routed[t])} | {note} |")
+    return "\n".join(rows)
+
+
+def tool_names() -> list[str]:
+    from wowstats.mcp import tools
+
+    return [t.name for t in tools.TOOLS + (tools.MARKET,)]
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--only", action="append", default=[], help="one question id (repeatable)")
+    ap.add_argument("--group", action="append", default=[], help="one group (repeatable)")
     ap.add_argument("--model", default=os.environ.get("EVAL_MCP_MODEL", "haiku"))
+    ap.add_argument("--jobs", type=int, default=6, help="questions at once (default 6)")
+    ap.add_argument("--max-usd", type=float, default=float(os.environ.get("EVAL_MCP_MAX_USD", "2")),
+                    help="stop starting questions past this cost (default 2)")
     ap.add_argument("--timeout", type=int, default=180, help="seconds per question (default 180)")
     ap.add_argument("--out", type=Path, default=None)
+    ap.add_argument("--coverage", action="store_true", help="print the coverage matrix and stop (no model)")
     a = ap.parse_args(argv)
+    qs = [q for q in load_questions() if (not a.only or q["id"] in a.only) and (not a.group or q["group"] in a.group)]
+    if a.coverage:
+        print(coverage_matrix(qs, tool_names(), load_coverage()["uncovered"]))
+        return 0
     if not shutil.which("claude"):
         raise SystemExit("claude not found: install Claude Code")
-    qs = [q for q in load_questions() if not a.only or q["id"] in a.only]
     if not qs:
-        raise SystemExit(f"no question matches {a.only}")
+        raise SystemExit(f"no question matches {a.only or a.group}")
 
-    expected = answers.compute()
-    rows = answers.D.rows_for("full")
-    vl = answers.D.VL(rows)
+    expected = answers.compute(qs)
+    stores = {s: answers.D.VL(answers.rows_for(s)) for s in answers.scenarios(qs)}
     now = answers.D.now().isoformat()
     batch = a.out or OUT / datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     batch.mkdir(parents=True, exist_ok=True)
+    spent, skipped, lock = [0.0], [], threading.Lock()
+
+    def one(q: dict) -> dict | None:
+        with lock:
+            if spent[0] >= a.max_usd:
+                skipped.append(q["id"])
+                return None
+        r = ask(q, expected[q["id"]], batch / q["id"], stores[q.get("scenario", "full")].url, now, a.model,
+                a.timeout)
+        with lock:
+            spent[0] += float(r.get("cost_usd") or 0)
+        return r
+
     t0 = time.time()
     try:
-        with ThreadPoolExecutor(max_workers=len(qs)) as pool:
-            futs = [pool.submit(ask, q, expected[q["answer"]], batch / q["id"], vl.url, now, a.model, a.timeout)
-                    for q in qs]
-            results = [f.result() for f in futs]
+        with ThreadPoolExecutor(max_workers=max(1, a.jobs)) as pool:
+            results = [r for r in pool.map(one, qs) if r is not None]
     finally:
-        vl.close()
+        for vl in stores.values():
+            vl.close()
     wall = time.time() - t0
-    text = summary(results, a.model, wall)
+    text = summary(results, a.model, wall, skipped)
     (batch / "summary.md").write_text(text, encoding="utf-8")
-    (batch / "results.json").write_text(json.dumps({"model": a.model, "wall_s": round(wall, 1),
+    (batch / "results.json").write_text(json.dumps({"model": a.model, "wall_s": round(wall, 1), "skipped": skipped,
                                                     "results": results}, ensure_ascii=False, indent=1),
                                         encoding="utf-8")
     print(text)

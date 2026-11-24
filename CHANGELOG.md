@@ -89,6 +89,17 @@
 
 ### Tests
 
+- The MCP check grows from 10 easy lookups to 70 questions in 15 groups: multi-tool questions
+  ("2 hours tonight", "am I slower than usual"), every gear mode and another spec, hedges on
+  riding and trainers, plans checked with `check_plan`, prices, people, the knowledge base,
+  missing addons, unknown names, an injected player name and French. A run passes a question
+  only when the answer is right, the expected tools were called and nothing forbidden was said
+  (a long shot as the gear pick, an invented count). `--jobs`, `--max-usd`, `--group`,
+  `--coverage`.
+- Its deterministic half runs in CI: `tests/test_eval_mcp.py` runs every question's probes on
+  the fixture server without a model, and fails when an MCP tool has no probe and no reason in
+  `tools/eval_mcp/coverage.yaml`, or a listed mode (`gear:mode=pvp`, `deaths:since`,
+  `scenario:no-recorder`...) has none.
 - `tests/test_workflow_guard.py` checks the pull-request workflows against main's required
   checks (`.github/required-checks.txt`, kept equal to the ruleset by hand): no reusable-workflow
   call job named like a required check, and each required check made by exactly one job (#202's

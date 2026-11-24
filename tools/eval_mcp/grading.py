@@ -1,6 +1,7 @@
 """The MCP check's grader: the model's final line against the expected
 answer, by exact or normalized match, never a model's opinion. Also which
-tools a run used, and whether it got there through play_sql alone.
+tools a run used (against the question's route), what the reply must not
+say, and whether it got there through play_sql alone.
 """
 
 from __future__ import annotations
@@ -60,9 +61,21 @@ def yesno(s: str) -> str | None:
     return {"yes": "yes", "no": "no", "true": "yes", "false": "no"}.get(w)
 
 
-def grade(got: str | None, expected, match: str, tolerance: float = 0) -> bool:
+_PAREN = re.compile(r"\s*\([^)]*\)$")
+NONE_WORDS = ("none", "unknown", "no data", "n/a")
+_NONE = re.compile(r"(?:" + "|".join(re.escape(w) for w in NONE_WORDS) + r")(?![\w/])")
+
+
+def says_none(s: str) -> bool:
+    """The model says the data can't tell (the prompt asks for NONE)."""
+    return _NONE.match(norm(s)) is not None
+
+
+def grade(got: str | None, expected, match: str, tolerance: float = 0, also=()) -> bool:
     if got is None or str(got).strip() == "":
         return False
+    if match == "none":
+        return says_none(got)
     if match == "number":
         g = number(got)
         return g is not None and abs(g - float(expected)) <= float(tolerance) + 1e-9
@@ -71,8 +84,27 @@ def grade(got: str | None, expected, match: str, tolerance: float = 0) -> bool:
     if match == "pct_line":
         return pct_pair(got) is not None and pct_pair(got) == pct_pair(str(expected))
     if match == "text":
-        return norm(got) == norm(str(expected))
+        want = {norm(str(x)) for x in (expected, *also)}
+        return norm(got) in want or norm(_PAREN.sub("", str(got))) in want
     raise ValueError(f"unknown match {match!r}")
+
+
+def routed(calls: list[str], route: list[str] | None) -> list[str]:
+    """The route's entries ("a|b") none of whose tools the run called."""
+    return [r for r in route or [] if not set(r.split("|")) & set(calls)]
+
+
+def forbidden(reply: str, got: str | None, q: dict, forbid_answers=()) -> list[str]:
+    """What the reply says that it must not: a `forbid` regex anywhere in
+    it, or a final answer that is one of the telling wrong ones."""
+    out = [f"says /{rx}/" for rx in q.get("forbid") or [] if re.search(rx, reply or "")]
+    if got is not None and not says_none(got):
+        for bad in forbid_answers or []:
+            how = ("number" if re.fullmatch(r"[\d.,]+", str(bad)) else
+                   "yesno" if yesno(str(bad)) else "text")
+            if grade(got, bad, how):
+                out.append(f"answered {bad!r}")
+    return out
 
 
 def tools_used(stream: str, server: str) -> tuple[list[str], str, dict]:

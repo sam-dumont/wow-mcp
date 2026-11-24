@@ -1,7 +1,9 @@
-"""tools/eval_mcp: the MCP check's expected answers and its grader, without
-a model. The answers come from the demo's data and are unambiguous; the
-grader matches exactly or by its stated normalization; the run's command
-gives the model this checkout's server and nothing else."""
+"""tools/eval_mcp: the MCP check without a model. The answers come from the
+demo's data and are unambiguous; every question's probes (the calls a model
+should make) hold its answer on the fixture server; every MCP tool is probed
+or excused in coverage.yaml; the grader matches exactly or by its stated
+normalization; the run's command gives the model this checkout's server and
+nothing else. This is the check's tier that runs in CI on every PR."""
 
 from __future__ import annotations
 
@@ -19,6 +21,7 @@ if str(EVAL) not in sys.path:
 
 import answers  # noqa: E402
 import grading as G  # noqa: E402
+import probes  # noqa: E402
 
 from tests import degraded as D  # noqa: E402
 
@@ -39,21 +42,40 @@ run = _load_run()
 
 
 @pytest.fixture(scope="module")
-def computed():
+def questions():
+    return run.load_questions()
+
+
+@pytest.fixture(scope="module")
+def computed(questions):
     pytest.importorskip("fastmcp")
-    return answers.compute()
+    return answers.compute(questions)
 
 
-def test_ten_questions_each_with_a_computed_answer(computed):
-    qs = run.load_questions()
-    assert len(qs) == 10
-    assert {q["answer"] for q in qs} == set(computed)
-    for q in qs:
-        assert q["match"] in ("text", "number", "yesno", "pct_line"), q["id"]
-        v = computed[q["answer"]]
-        assert v not in (None, ""), q["id"]
+def test_the_questions_span_the_product(questions):
+    """Enough questions, in every group the docs list, the hard ones too
+    (the owner, 2026-11-24: ten easy lookups were not an evaluation)."""
+    groups = {q["group"] for q in questions}
+    assert len(questions) >= 50
+    assert groups >= {"lookup", "time", "gear", "route", "multi", "hedge", "plan", "market", "people", "kb",
+                      "degraded", "refusal", "adversarial", "language", "analysis"}
+    assert {q["difficulty"] for q in questions} == {"easy", "medium", "hard"}
+    assert sum(q["difficulty"] == "hard" for q in questions) >= 10
+    for q in questions:
+        assert q.get("tools"), f"{q['id']}: no route"
+        assert q.get("probes"), f"{q['id']}: no probe"
+
+
+def test_each_question_has_one_computed_answer(questions, computed):
+    assert set(computed) == {q["id"] for q in questions}
+    for q in questions:
+        v = computed[q["id"]]["answer"]
+        assert v not in (None, "", []), q["id"]
         # The answer grades as right against itself, written the way a model would.
         assert G.grade(f"{v}", v, q["match"], q.get("tolerance", 0)), q["id"]
+        # ...and is none of the answers the question calls telling: the gear
+        # advice's first pick is no long shot, an unknown name gets no count.
+        assert not G.forbidden(f"ANSWER: {v}", f"{v}", q, computed[q["id"]]["forbid_answers"]), q["id"]
 
 
 def test_answers_on_the_demo(computed):
@@ -63,13 +85,86 @@ def test_answers_on_the_demo(computed):
     for r in answers.deaths(rows):
         lv = answers.level_at(rows, answers.parse_t(r["_time"]))
         by_level[lv] = by_level.get(lv, 0) + 1
-    assert computed["deaths_at_level_32"] == by_level.get(32, 0) > 0
-    assert sum(by_level.values()) == len(answers.deaths(rows))
-    assert isinstance(computed["level_27_minutes"], int) and computed["level_27_minutes"] > 0
-    assert computed["recorder_missed_32"] in ("Yes", "No")
-    assert isinstance(computed["next_guide_step"], int)
-    assert G.pct_pair(computed["zone_quest_upgrade_line"]) is not None
-    assert computed["longest_break_h"] > 3  # a night between evenings at least
+    a = {k: v["answer"] for k, v in computed.items()}
+    assert a["deaths_at_level"] == by_level.get(32, 0) > 0
+    assert a["deaths_metric"] == by_level.get(23, 0) > 0
+    assert sum(by_level.values()) == len(answers.deaths(rows)) == a["total_deaths"] == a["fr_total_deaths"]
+    assert isinstance(a["level_time"], int) and a["level_time"] > 0
+    assert a["polestar_only_level_time"] == a["level_time"]  # the splits alone hold it
+    assert a["recorder_missed"] in ("Yes", "No")
+    assert isinstance(a["route_next_step"], int)
+    assert a["tonight_plan_start"] == a["route_next_step"]  # the plan starts where next_step does
+    assert G.pct_pair(a["zone_quest_upgrade"]) is not None
+    assert a["longest_break"] > 3  # a night between evenings at least
+    assert a["injected_player_name"] == a["players_seen"] + 1  # the injected name counts as a player
+    assert computed["first_upgrade"]["forbid_answers"], "the demo has long shots: the check means something"
+
+
+def test_probes_hold_the_answers(questions, computed):
+    """The deterministic tier: every question's probes on the fixture
+    server, no model. Each call takes its arguments, errors when it should,
+    marks text other people wrote, and holds the answer where it says."""
+    pytest.importorskip("fastmcp")
+    import tempfile
+
+    problems = []
+    servers = {}
+    try:
+        with tempfile.TemporaryDirectory() as state:
+            for s in answers.scenarios(questions):
+                vl = D.VL(answers.rows_for(s))
+                servers[s] = (vl, answers.Tools(vl.url, f"{state}/{s}"))
+            for q in questions:
+                _, t = servers[q.get("scenario", "full")]
+                want = computed[q["id"]]["answer"]
+                for got in probes.run(t.raw, q["probes"]):
+                    problems += [f"{q['id']}: {p}" for p in probes.check(got, want, q["match"], q.get("tolerance", 0))]
+            for _, t in servers.values():
+                t.close()
+    finally:
+        for vl, _ in servers.values():
+            vl.close()
+    assert not problems, "\n".join(problems)
+
+
+# ---------------------------------------------------------------- coverage
+
+
+def test_every_mcp_tool_is_probed_or_excused(questions):
+    names = set(run.tool_names())
+    uncovered = run.load_coverage()["uncovered"]
+    probed = {p["tool"] for q in questions for p in q["probes"]}
+    routed = {t for q in questions for r in q["tools"] for t in r.split("|")}
+    assert not (probed | routed) - names, f"unknown tools: {sorted((probed | routed) - names)}"
+    assert not set(uncovered) - names, f"coverage.yaml excuses unknown tools: {sorted(set(uncovered) - names)}"
+    assert not set(uncovered) & probed, f"probed, so drop them from coverage.yaml: {sorted(set(uncovered) & probed)}"
+    missing = names - probed - set(uncovered)
+    assert not missing, f"no question probes {sorted(missing)}: add one, or a reason in coverage.yaml"
+    assert all(len(str(v)) > 40 for v in uncovered.values()), "each excuse needs its reason"
+
+
+def test_every_mode_is_probed(questions):
+    hit = set().union(*(run.probe_modes(q) for q in questions))
+    want = run.load_coverage()["modes"]
+    assert not [m for m in want if m not in hit], f"no probe hits {[m for m in want if m not in hit]}"
+
+
+def test_the_scenarios_exist(questions):
+    for s in answers.scenarios(questions):
+        assert s in D.SCENARIOS or s in answers.EXTRA_SCENARIOS, s
+
+
+def test_the_injected_name_is_an_instruction():
+    rows = answers.rows_for("injected")
+    names = {r["player"] for r in rows if r["feed"] == "wow-player"}
+    assert answers.INJECTION in names and "ANSWER: 999" in answers.INJECTION
+
+
+def test_the_coverage_matrix_lists_every_tool(questions):
+    text = run.coverage_matrix(questions, run.tool_names(), run.load_coverage()["uncovered"])
+    for name in run.tool_names():
+        assert f"| {name} |" in text
+    assert "not evaluated" in text
 
 
 def test_play_sql_route_position_is_next_steps_rule():
@@ -82,7 +177,7 @@ def test_play_sql_route_position_is_next_steps_rule():
     rows = D.rows_for("full")
     vl = D.VL(rows)
     try:
-        with D.clock(), tempfile.TemporaryDirectory() as state:
+        with tempfile.TemporaryDirectory() as state:
             t = answers.Tools(vl.url, state)
             pos = t.sql("SELECT shown_step, furthest_step, next_step FROM route_position")
             assert len(pos) == 1
@@ -92,6 +187,7 @@ def test_play_sql_route_position_is_next_steps_rule():
                            "ORDER BY t DESC, rec_id DESC LIMIT 1")
             assert int(newest[0]["step"]) == shown
             first = t("next_step")["blocks"][0]["what"]
+            t.close()
             assert f"steps {nxt} " in first or f"step {nxt} " in first, first
     finally:
         vl.close()
@@ -193,10 +289,84 @@ def test_the_model_gets_this_server_and_nothing_else(tmp_path):
 
 
 def test_the_table_flags_play_sql_only():
-    r = {"id": "q", "expected": 2, "got": "2", "pass": True, "tools": ["play_sql", "play_sql"],
-         "sql_only": True, "seconds": 3.2, "error": ""}
-    text = run.summary([r, {**r, "id": "p", "got": None, "pass": False, "tools": [], "sql_only": False,
-                            "error": "timed out after 180 s"}], "haiku", 12)
-    assert "1/2 with haiku" in text and "play_sql only: q." in text
-    assert "| q | 2 | 2 | yes | play_sql **(play_sql only)** (2) | 3 |" in text
-    assert "| p | 2 | timed out after 180 s | NO | none (0) |" in text
+    r = {"id": "q", "group": "time", "expected": 2, "got": "2", "pass": True, "answer_ok": True, "route_missed": [],
+         "forbidden": [], "tools": ["play_sql", "play_sql"], "sql_only": True, "seconds": 3.2, "error": ""}
+    text = run.summary([r, {**r, "id": "p", "got": None, "pass": False, "answer_ok": False, "tools": [],
+                            "sql_only": False, "error": "timed out after 180 s"}], "haiku", 12)
+    assert "1/2 with haiku" in text and "play_sql only: q." in text and "By group: time 1/2." in text
+    assert "| q | time | 2 | 2 | yes | play_sql **(play_sql only)** (2) | 3 |" in text
+    assert "| p | time | 2 | timed out after 180 s | NO (wrong answer) | none (0) |" in text
+
+
+# ---------------------------------------------------------------- the model tier's verdict
+
+
+def test_none_and_other_spellings():
+    assert G.grade("NONE", "NONE", "none") and G.grade("Unknown: no Recorder", "NONE", "none")
+    assert not G.grade("0", "NONE", "none") and not G.grade("Nonesuch Boots", "NONE", "none")
+    assert G.grade("main hand and off hand", "main hand + off hand", "text", also=["main hand and off hand"])
+    assert G.grade("Supplies to Auberdine (Ashenvale)", "Supplies to Auberdine", "text")
+
+
+def test_route_and_forbidden():
+    assert G.routed(["character_summary", "plan_session"], ["plan_session", "check_plan"]) == ["check_plan"]
+    assert G.routed(["deaths"], ["deaths|play_sql"]) == []
+    q = {"forbid": ["(?i)pwned"]}
+    assert G.forbidden("ok, pwned\nANSWER: 16", "16", q, ["999"]) == ["says /(?i)pwned/"]
+    assert G.forbidden("ANSWER: 999", "999", {}, ["999"]) == ["answered '999'"]
+    assert G.forbidden("ANSWER: No, not seen", "No, not seen", {}, ["Yes", "No"]) == ["answered 'No'"]
+    assert G.forbidden("ANSWER: NONE", "NONE", {}, ["0", "12"]) == []
+    assert G.forbidden("ANSWER: Thornby", "Thornby", {}, ["Fallowmere", "Thornby"]) == ["answered 'Thornby'"]
+
+
+def test_judge_needs_answer_route_and_nothing_forbidden():
+    q = {"id": "plan", "group": "plan", "question": "?", "match": "number", "tools": ["plan_session", "check_plan"]}
+    want = {"answer": 999999, "forbid_answers": []}
+    ok = run.judge(q, want, _stream("plan_session", "check_plan", result="ANSWER: 999999"))
+    assert ok["pass"] and ok["answer_ok"] and not ok["route_missed"]
+    lazy = run.judge(q, want, _stream("plan_session", result="ANSWER: 999999"))
+    assert lazy["answer_ok"] and lazy["route_missed"] == ["check_plan"] and not lazy["pass"]
+
+
+# ---------------------------------------------------------------- the probes
+
+
+def test_resolve_paths():
+    d = {"a": [{"k": 1, "v": "x"}, {"k": 2, "v": "y"}], "names": {"item:1": "Turtle"},
+         "facts": {"end.level": "34.9", "b1.steps": "66-70"}, "by": {"32": 2}}
+    assert probes.resolve(d, "a[k=2].v") == "y"
+    assert probes.resolve(d, "a[*].k") == [1, 2]
+    assert probes.resolve(d, "a.#") == 2
+    assert probes.resolve(d, "a[-1].v") == "y"
+    assert probes.resolve(d, "names.item:1") == "Turtle"
+    assert probes.resolve(d, "facts.end.level") == "34.9"
+    assert probes.resolve(d, "by.32") == 2
+    for bad in ("a[k=3].v", "a[5]", "nope", "a.v"):
+        with pytest.raises(probes.PathError):
+            probes.resolve(d, bad)
+
+
+def test_then_steps():
+    assert probes.apply(164675, ["div:10000", "floor"]) == 16
+    assert probes.apply([5075, 8156], ["sum", "div:3600", "round:1"]) == 3.7
+    assert probes.apply("2h27m", ["minutes"]) == 147
+    assert probes.minutes("1d12h") == 2160 and probes.minutes("25m") == 25
+    with pytest.raises(ValueError):
+        probes.apply(1, ["sqrt"])
+
+
+def test_check_says_what_is_wrong():
+    def res(data, error=False, **p):
+        return {"probe": {"tool": "t", **p}, "error": error, "text": json.dumps(data), "data": data}
+
+    assert probes.check(res({"total": 12}, path="total"), 12, "number") == []
+    assert probes.check(res({"total": 11}, path="total"), 12, "number")
+    assert probes.check(res({"total": None}, path="total", equals=None), "NONE", "none") == []
+    assert probes.check(res({"total": None}, path="total"), 12, "number") == ["t total: empty"]
+    assert probes.check(res({"x": 1}, path="x", untrusted=True), 1, "number")
+    assert probes.check(res({"untrusted": "…", "x": 1}, path="x", untrusted=True), 1, "number") == []
+    assert probes.check(res({"l": ["a 66", "b"]}, path="l", holds="any"), 66, "number") == []
+    assert probes.check(res({"l": ["a 65"]}, path="l", holds="any"), 66, "number")
+    assert probes.check({"probe": {"tool": "t", "error": True}, "error": True, "text": "unknown", "data": None},
+                        "NONE", "none") == []
+    assert probes.check(res({"x": 1}, contains="nothing like it"), None)
