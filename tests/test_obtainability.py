@@ -119,7 +119,7 @@ def test_standings_come_from_the_recorder_and_altoholic():
     assert reps == {54: (6, 10171), 576: (5, 4100)} and rank == 0
     assert gear.standings_of([]) == (None, None)
     pvp = {"kind": "pvp", "rank": 3, "your_rank": 0, "met": False}
-    assert gear.source_text(pvp) == "PvP: rank 3 reward (you have no PvP rank: 0 honorable kills)"
+    assert gear.source_text(pvp) == "PvP: rank 3 reward (rank 3 needed, you have no PvP rank)"
 
 
 # --- the weekly watch
