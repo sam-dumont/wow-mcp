@@ -264,6 +264,11 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
         '["gen:priest:1317:MainHand:13:shadow:Alliance"] = {\n["status"] = "completed",\n},\n},\n'
         '["specPick"] = {\n["PRIEST"] = "shadow",\n},\n}\n')
     (cdir / "VulcanSimBench.lua").write_text('VulcanSimBenchCharDB = {\n["last"] = "FSX1:tal=5-0-18#00000000",\n}\n')
+    # Altoholic's copy of the game's skill list: Tailoring trained to Expert.
+    (sv / "DataStore.lua").write_text('DataStore_CharacterIDs = {\n["Set"] = {\n["Default.PvE.Hero Test"] = 1,\n},\n}\n')
+    (sv / "DataStore_Crafts.lua").write_text(
+        'DataStore_Crafts_Characters = {\n{\n["lastUpdate"] = 1794928600,\n'
+        f'["Indices"] = {{\n["Tailoring"] = 1,\n}},\n["Ranks"] = {{\n{119 + (225 << 16)},\n}},\n}},\n}}\n')
     got = []
     out = shipper.Out(dry=True)
     out.emit = got.append
@@ -281,10 +286,11 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     # field (the shirt) is none, a link without one (the staff) unknown.
     assert [i["enchant_id"] for i in g["items"]] == [66, 0, None]
     assert g["item_level"] == 29.5  # the shirt doesn't count
-    # Polestar's ranks only: CharacterExport's 120/225 is not read.
+    # Polestar's ranks, with DataStore_Crafts' cap where it has one;
+    # CharacterExport's 120/225 is not read.
     assert g["professions"] == [
         {"skill_id": 185, "name": "Cooking", "rank": 130},
-        {"skill_id": 197, "name": "Tailoring", "rank": 119}]
+        {"skill_id": 197, "name": "Tailoring", "rank": 119, "cap": 225, "cap_at": 1794928600}]
     assert g["wanted"] == [{"item_id": 12998, "name": "Magician's Mantle", "item_level": None, "req_level": None,
                             "slot_name": "Shoulder", "level": 25}]
     assert (g["spec"], g["class"]) == ("Shadow", "PRIEST")

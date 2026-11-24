@@ -689,16 +689,19 @@ def profession_claims(level: int | None, gear_profs: list[dict], skills: dict[in
                       header: dict | None = None) -> list[dict]:
     """A profession at its cap: the next rank, who trains it for the
     character's side and where, what it needs (each requirement met or not)
-    and what it costs, with whose price it is. The cap is the Recorder's
-    when it has one, else the trainer tier the rank sits under
-    (wowstats.profcaps); a tier cap is a floor, so that move hedges."""
+    and what it costs, with whose price it is. The cap is the game's skill
+    list (DataStore_Crafts) or the Recorder's record, else the trainer tier
+    the rank sits under (wowstats.profcaps). Only the game's list says what
+    the character has now: the Recorder misses a training it didn't see and
+    a tier cap is a floor, so those moves say "if" and what they last saw."""
     out = []
     faction = (header or {}).get("faction")
     profs = {int(p["skill_id"]): p for p in gear_profs or [] if p.get("skill_id")}
     tiers = next_tiers()
     for sid, p in profs.items():
-        rank, cap, src = profcaps.cap_of(opt_num(p.get("rank")), (skills or {}).get(sid))
-        stale = src != "recorder"
+        rec = (skills or {}).get(sid)
+        rank, cap, src = profcaps.cap_of(opt_num(p.get("rank")), rec, p)
+        stale = src != "game"
         tier = tiers.get(cap)
         if not tier or level is None or rank < cap - 5:
             continue
@@ -713,19 +716,23 @@ def profession_claims(level: int | None, gear_profs: list[dict], skills: dict[in
         needs = (f"needs level {need_level} ({'met' if level_ok else f'you are {level}'})" if need_level
                  else "needs no character level")
         where = _trainer_text(ts) if ts else "trainer location not in our data"
-        head = (f"{prof} {rank}/{cap} if you haven't trained {name} yet: skill-ups stop at {cap} until you do."
-                if stale else f"Capped at {cap}: skill-ups are wasted until you train {name} {prof}.")
+        seen = parse_t((rec or {}).get("t")) if src == "recorder" else None
+        seen = seen if seen and seen.year > 2000 else None
+        head = (f"Capped at {cap}: skill-ups are wasted until you train {name} {prof}." if not stale
+                else f"{prof} {rank}/{cap} when Polestar Recorder last saw it ({seen:%-d %b}): if you haven't "
+                     f"trained {name} since, skill-ups stop at {cap} until you do." if seen
+                else f"{prof} {rank}/{cap} if you haven't trained {name} yet: skill-ups stop at {cap} until you do.")
         text = (f"{head} {where}; {needs}"
                 + (f"; {_coins(cost)} ({scope})" if cost else "; price not in our data") + ".")
-        refresh = (f"Trained {name} already? The cap shows once Polestar Recorder sees your next {prof} "
-                   f"skill-up.") if stale else None
+        refresh = (f"Trained {name} already? With Altoholic installed the cap is read at each login; else it "
+                   f"shows at your next {prof} skill-up.") if stale else None
         out.append(claim(text + (f" {refresh}" if refresh else ""), "#gear",
-                         "the rank in wow-gear (Polestar), the cap from the Recorder's skill records or else the "
-                         "trainer tier; ranks, gates and price: the "
+                         "the rank in wow-gear (Polestar), the cap from the game's skill list (DataStore_Crafts), "
+                         "else the Recorder's skill records, else the trainer tier; ranks, gates and price: the "
                          "knowledge base's profession.tiers and profession.training_cost; trainers: "
                          "Polestar's profession guides (data/trainers-reference.json)",
-                         kind="profession", title=f"Train {name} {prof}", weight=3 if level_ok else 1.5,
-                         skill_id=sid, action=refresh,
+                         kind="profession", title=f"Train {name} {prof}" + (", if not done yet" if stale else ""),
+                         weight=3 if level_ok else 1.5, skill_id=sid, action=refresh, detail=head if stale else None,
                          skill={"skill_id": sid, "name": prof, "rank": rank, "max_rank": cap, "next": name,
                                 "need_level": need_level, "level_ok": level_ok, "need_skill": need_rank,
                                 "skill_ok": skill_ok, "cost_copper": cost, "cost_scope": scope, "trainers": ts,

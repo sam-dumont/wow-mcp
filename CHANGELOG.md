@@ -38,6 +38,16 @@
   Shadow priest now reads "Built for your spec" on caster pieces that carry some healing.
 - An upgrade has to gain at least 1% over what you wear, for everyone.
 
+### Fixed
+
+- Next moves told an Expert enchanter to "Train Expert Enchanting". Polestar Recorder writes a
+  skill record only when the skill list changes while it records, so a trainer visit it didn't
+  see never reached us and its last record (150/150) stood. The shipper now also reads each
+  profession's cap from Altoholic's `DataStore_Crafts` (the game's own list, rescanned at every
+  login) and the higher cap wins. Without Altoholic, the move says what it last saw and when
+  ("Enchanting 150/150 when Polestar Recorder last saw it (17 Nov): if you haven't trained
+  Expert since...") and its title ends "if not done yet", on the page too.
+
 ### Removed
 
 - Every Polestar weight from the gear scores: its level-band weights, racial multipliers,
@@ -50,6 +60,10 @@
 
 ### Upgrading
 
+- Profession caps from Altoholic come with the new shipper (it updates itself) and its next
+  character sheet, sent after a logout or `/reload`. Until then a trained rank the Recorder
+  missed still shows, hedged. The sheet's professions gain `cap` and `cap_at`
+  (docs/contract.md).
 - Every gear score, gain and "% of BiS" changes, and so do the upgrades and the dungeons
   suggested from them. A caster levelling sees Stamina pieces and wands rise, Spirit pieces
   drop. Nothing to do on the host: `data/foreverdb-weights.json` ships in the image.

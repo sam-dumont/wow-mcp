@@ -243,9 +243,15 @@ the newer time.
   there).
 - `item_level`: the average over the equipped items, shirt and tabard left out.
 - `professions`: `skill_id`, `name`, `rank`, from
-  `PolestarDB.alts.chars[...].profs` (saved at logout). No cap: the server
-  takes it from the Recorder's `skill` records (`max_rank`), else from the
-  trainer tiers (wowstats/profcaps.py). Shippers before 0.7.0 also sent
+  `PolestarDB.alts.chars[...].profs` (saved at logout). With Altoholic
+  installed (shippers after 0.9.0), also `cap` and `cap_at`: the cap from
+  `DataStore_Crafts.lua`'s `Ranks` (rank + cap << 16, the game's skill list
+  rescanned at each login and skill-up) and that row's `lastUpdate` (unix
+  seconds); a profession only DataStore knows is added. The server takes the
+  highest cap that covers the rank, this one or the Recorder's `skill`
+  records (`max_rank`), else the trainer tiers (wowstats/profcaps.py); only
+  `cap` says what the character has now, so a move built on the others
+  hedges. Shippers before 0.7.0 also sent
   `max_rank` and `max_rank_at` from CharacterExport-Forever: still stored,
   read by nothing.
 - `wanted`: the upgrades the player tracks in GearQuestForever (the

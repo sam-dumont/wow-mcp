@@ -359,8 +359,11 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "item_level": "item level", "req_level": "required level"}),
     "professions": ("Professions on the newest sheet (ranks from Polestar).", {
         "skill_id": "skill line id", "name": "name", "rank": "rank",
-        "max_rank": "cap: the Recorder's newest skill record, else the trainer tier the rank sits under",
-        "max_rank_from": "recorder (read in game) or tiers (a floor from the trainer tiers)"}),
+        "max_rank": "cap: the highest of the game's skill list (Altoholic) and the Recorder's newest skill "
+                    "record, else the trainer tier the rank sits under",
+        "max_rank_from": "game (the game's skill list at the last login, a fact), recorder (the last change the "
+                         "Recorder saw: a training it didn't see is missing) or tiers (a floor from the trainer "
+                         "tiers)"}),
     "snapshots": ("The character snapshots the shipper sends at logout and /reload (from the game's saved "
                   "variables): money, XP and where the hearthstone is bound. Polestar's, the roster's, and "
                   "Altoholic's (DataStore_Characters, for every character logged in with it, the Recorder's or "

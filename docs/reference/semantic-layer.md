@@ -741,12 +741,12 @@ Group or filter by: `character`, `class`, `item`, `item_id`, `level`, `sheet`, `
 
 ### professions
 
-The professions on the newest character sheet, with their ranks (Polestar's, the cap filled from the Recorder's skill records).
+The professions on the newest character sheet, with their ranks (Polestar's; the cap from the game's skill list through Altoholic, else the Recorder's skill records).
 
 | Metric | Kind | Unit | Definition | Caveats | Read as |
 |---|---|---|---|---|---|
 | `profession_rank` | simple | skill points | The profession's skill rank on the newest sheet. | Group by profession: over several it is the highest. The newest sheet only. | max; time: snapshot_observation; observed. |
-| `profession_max_rank` | simple | skill points | The rank the profession can reach before its next trainer (the cap). | Group by profession. From the newest skill record when the sheet's own cap is older. | max; time: snapshot_observation; observed. |
+| `profession_max_rank` | simple | skill points | The rank the profession can reach before its next trainer (the cap). | Group by profession. The highest of the sheet's cap (Altoholic's copy of the game's list) and the Recorder's newest skill record that still covers the rank, else the trainer tier (a floor). | max; time: snapshot_observation; observed. |
 
 Group or filter by: `character`, `class`, `profession`, `skill_id`.
 
