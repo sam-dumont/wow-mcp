@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+What 0.10.0 brings over 0.9.0, in short. Every change follows.
+
+**For players**
+
+- Gear is scored with ForeverDB.net's stat weights, for Leveling, PvP or PvE (your pick, kept
+  per character). Polestar's weights are gone from the scores.
+- Every upgrade says where to get it and how hard that is: easy, some effort, hard or long
+  shot. A rare drop never becomes the pick; an auction house listing makes anything easy.
+- Reputation and PvP rank gear checks what you hold ("16,500 rep to go", "rank 3 needed").
+- Next moves stop telling you to train what you already know (professions and riding).
+
+**For your AI**
+
+- `gear` with `options` scores in the mode you ask, and `prices` and `gear` read a full
+  auction scan again (over 5,000 items on one second broke them).
+
+**For hosts**
+
+- Auction scans are shared between friends on one install, per ruleset and faction, prices
+  only, kept 90 days. Run `wow-stats users ah-share` once after the upgrade.
+- The MCP check grows from 10 questions to 70, and its tool-routing half runs in CI.
+
 ### Fixed
 
 - The knowledge-base refresh no longer fails a model step on an expired identity token. GitHub's ID
@@ -19,6 +41,34 @@
   items ForeverDB's weights no longer pick, and ForeverDB.net's credit link is allowed next to
   Wowhead (its licence asks for it wherever its data shows) while every other outside link still
   fails.
+- A full Auctionator scan writes every item at the scan day's midnight. Once that was more than
+  5,000 items at one instant, the MCP `prices` tool refused to answer ("one second holds more
+  records than a read can return") and `gear` lost the auction house without a word
+  (`auction_house: null`, no "buy it" upgrades). The MCP now reads the scans the way the gear
+  page does: one stats row per item, auction house and scan day. `gear` takes the page's own
+  price read. The page and `next_moves` already did.
+- The MCP check's stand-in store answered `_time:3d` on the wall clock while its stdio server ran
+  on the demo's clock, so the gear advice showed no scan there. The store now runs on the
+  server's clock, and the auction upgrade question is back.
+- The daily KB watch no longer moves an addon or Polestar back to an older release while the
+  newer one still exists; when the newer release is really gone, the commit says so. The KB
+  watch tests no longer break when a watch PR moves `data/kb/watch.json` (#211).
+- Next moves told an Expert enchanter to "Train Expert Enchanting". Polestar Recorder writes a
+  skill record only when the skill list changes while it records, so a trainer visit it didn't
+  see never reached us and its last record (150/150) stood. The shipper now also reads each
+  profession's cap from Altoholic's `DataStore_Crafts` (the game's own list, rescanned at every
+  login) and the higher cap wins. Without Altoholic, the move says what it last saw and when
+  ("Enchanting 150/150 when Polestar Recorder last saw it (17 Nov): if you haven't trained
+  Expert since...") and its title ends "if not done yet", on the page too.
+- Riding had the same blind spot: with no Polestar Recorder record of the Riding skill, next
+  moves and the mount goal took riding as not trained, so a training the Recorder didn't see
+  read "not learned". Riding now also comes from Altoholic's spellbook (`DataStore_Spells`,
+  read at each login: Apprentice Riding is spell 33388) and the Recorder's learn records; the
+  highest rank wins. Past level 40 with nothing seeing riding, the move says so and when it
+  last looked ("No riding in your spellbook as Altoholic last read it (23 Nov) nor in Polestar
+  Recorder's records: if you haven't trained Apprentice Riding yet..."), its title ends "if not
+  trained yet", and `mount_goal` marks the tier `may_be_trained`. The gear page's riding share
+  and the semantic layer's `riding` model (new `riding_rank`) read the same.
 
 ### Changed
 
@@ -105,37 +155,6 @@
   weights in the mode you score in, not always PvE. Leveling halves a healer's healing, so a
   Shadow priest now reads "Built for your spec" on caster pieces that carry some healing.
 - An upgrade has to gain at least 1% over what you wear, for everyone.
-
-### Fixed
-
-- A full Auctionator scan writes every item at the scan day's midnight. Once that was more than
-  5,000 items at one instant, the MCP `prices` tool refused to answer ("one second holds more
-  records than a read can return") and `gear` lost the auction house without a word
-  (`auction_house: null`, no "buy it" upgrades). The MCP now reads the scans the way the gear
-  page does: one stats row per item, auction house and scan day. `gear` takes the page's own
-  price read. The page and `next_moves` already did.
-- The MCP check's stand-in store answered `_time:3d` on the wall clock while its stdio server ran
-  on the demo's clock, so the gear advice showed no scan there. The store now runs on the
-  server's clock, and the auction upgrade question is back.
-- The daily KB watch no longer moves an addon or Polestar back to an older release while the
-  newer one still exists; when the newer release is really gone, the commit says so. The KB
-  watch tests no longer break when a watch PR moves `data/kb/watch.json` (#211).
-- Next moves told an Expert enchanter to "Train Expert Enchanting". Polestar Recorder writes a
-  skill record only when the skill list changes while it records, so a trainer visit it didn't
-  see never reached us and its last record (150/150) stood. The shipper now also reads each
-  profession's cap from Altoholic's `DataStore_Crafts` (the game's own list, rescanned at every
-  login) and the higher cap wins. Without Altoholic, the move says what it last saw and when
-  ("Enchanting 150/150 when Polestar Recorder last saw it (17 Nov): if you haven't trained
-  Expert since...") and its title ends "if not done yet", on the page too.
-- Riding had the same blind spot: with no Polestar Recorder record of the Riding skill, next
-  moves and the mount goal took riding as not trained, so a training the Recorder didn't see
-  read "not learned". Riding now also comes from Altoholic's spellbook (`DataStore_Spells`,
-  read at each login: Apprentice Riding is spell 33388) and the Recorder's learn records; the
-  highest rank wins. Past level 40 with nothing seeing riding, the move says so and when it
-  last looked ("No riding in your spellbook as Altoholic last read it (23 Nov) nor in Polestar
-  Recorder's records: if you haven't trained Apprentice Riding yet..."), its title ends "if not
-  trained yet", and `mount_goal` marks the tier `may_be_trained`. The gear page's riding share
-  and the semantic layer's `riding` model (new `riding_rank`) read the same.
 
 ### Removed
 
