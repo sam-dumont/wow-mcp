@@ -74,7 +74,9 @@ STAT_WORDS = {"str": "Strength", "agi": "Agility", "sta": "Stamina", "int": "Int
               "spNature": "Nature damage", "spShadow": "Shadow damage", "crit": "critical strike",
               "hit": "hit", "spellCrit": "spell critical strike", "spellHit": "spell hit", "mp5": "mana regen",
               "hp5": "health regen", "defense": "Defense", "dodge": "dodge", "parry": "parry", "block": "block",
-              "blockValue": "block value", "haste": "haste", "expertise": "expertise", "armorPen": "armor penetration"}
+              "blockValue": "block value", "haste": "haste", "expertise": "expertise", "armorPen": "armor penetration",
+              "hitRating": "hit", "critRating": "critical strike", "dodgeRating": "dodge", "parryRating": "parry",
+              "blockRating": "block", "rangedHit": "ranged hit", "spellPen": "spell penetration"}
 MANA = ("int", "spi", "mp5", "mana")
 
 # Stats that do nothing for a class, with the KB statement the labels cite:
@@ -105,7 +107,11 @@ BUDGET = {"str": 1, "agi": 1, "sta": 1, "int": 1, "spi": 1, "ap": 0.5, "rap": 0.
           "healonly": 0.45, "dmgonly": 0.86, "spArcane": 0.7, "spFire": 0.7, "spFrost": 0.7, "spHoly": 0.7,
           "spNature": 0.7, "spShadow": 0.7, "crit": 14, "hit": 10, "spellCrit": 14, "spellHit": 8, "mp5": 2.5,
           "hp5": 2.5, "defense": 1.2, "dodge": 12, "parry": 15, "block": 5, "blockValue": 0.65, "haste": 10,
-          "expertise": 10, "armorPen": 0.14}
+          "expertise": 10, "armorPen": 0.14,
+          # The game's items carry ratings (10 hit rating = 1% hit): a rating
+          # point is a tenth of a percent's budget, and so on.
+          "hitRating": 1, "critRating": 1, "dodgeRating": 1, "parryRating": 1, "blockRating": 1, "rangedHit": 1,
+          "spellPen": 0.8}
 # A stat "does little" for a spec when its weight per budget point is under
 # this share of the spec's best primary stat weight.
 LITTLE = 0.1

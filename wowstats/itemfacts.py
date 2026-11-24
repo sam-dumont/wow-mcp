@@ -354,7 +354,8 @@ def default_dir(env: dict) -> Path:
 
 
 def has_reference(item_id: int) -> bool:
-    """Polestar's gear data has the item (and its stats): it wins."""
+    """The bundled gear data has the item (and its stats, from the game's
+    own tables): it wins."""
     from wowstats import gear
 
     ref = gear.reference()

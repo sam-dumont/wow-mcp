@@ -72,6 +72,34 @@ def test_every_mcp_tool_answers(served):
         assert out, f"{sc}: {t.name} answered nothing"
 
 
+def test_every_gear_score_credits_foreverdb(served):
+    """Owner, 2026-11-24: "Their link every time as we reverse engineered
+    the tables". Every MCP answer that shows a gear score, standing, BiS or
+    upgrade gain (wowstats.gear.scored) links ForeverDB.net, and the gear
+    page's answer carries the link it shows (tests/test_credit_surfaces.py
+    checks the page's code)."""
+    from wowstats import gear as G
+
+    sc, env, app, pub = served
+    ctx = T.Ctx(store=MStore.from_env(env), default_char=D.CHAR, env=env)
+    seen = []
+    for t in T.TOOLS:
+        if t.name in SKIP_TOOLS:
+            continue
+        args = {"char": D.CHAR} if "char" in t.input_schema["properties"] else {}
+        if t.name == "plan_session":
+            args["hours"] = 2
+        out = T.call(ctx, t.name, args)
+        if G.scored({k: v for k, v in out.items() if k != "score_source"}):
+            seen.append(t.name)
+            assert out["score_source"]["url"] == "https://foreverdb.net", f"{sc}: {t.name}"
+    if sc == "full":
+        assert {"gear", "next_moves", "plan_session"} <= set(seen), seen
+    g = app.gear(D.CHAR, None)
+    if g.get("available"):
+        assert g["source"]["url"] == "https://foreverdb.net"
+
+
 def test_gear_without_syndicator(served):
     """No Syndicator sheet: the best items for the level, said to be an
     estimate, with the one action that turns it into upgrades."""

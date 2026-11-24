@@ -15,15 +15,15 @@
   ],
   "moves": [
    "riding|Riding at level #",
+   "upgrade|21273",
    "upgrade|21329",
-   "upgrade|21332",
-   "upgrade|21333"
+   "upgrade|21332"
   ],
   "next_moves": [
    "#gear",
    "#up-1",
-   "#up-7",
-   "#up-8"
+   "#up-16",
+   "#up-7"
   ],
   "prep": [
    "raids-open-2026-12|prep 1",
@@ -46,8 +46,7 @@
    "riding|Riding at level #",
    "slow_steps|# guide steps took over # their plan",
    "upgrade|23169",
-   "upgrade|274152",
-   "upgrade|7713"
+   "upgrade|274152"
   ],
   "next_moves": [
    "#advice",
@@ -70,7 +69,7 @@
   "effects": [],
   "moves": [
    "dungeon|City of Dalaran",
-   "dungeon|Scarlet Monastery: Library",
+   "dungeon|Razorfen Kraul",
    "riding|Riding at level #",
    "upgrade|5248",
    "upgrade|7709"
@@ -100,8 +99,7 @@
    "riding|Riding at level #",
    "slow_steps|# guide steps took over # their plan",
    "upgrade|23169",
-   "upgrade|274152",
-   "upgrade|7713"
+   "upgrade|274152"
   ],
   "next_moves": [
    "#advice",
@@ -121,8 +119,8 @@
   "coming_up": [],
   "effects": [],
   "moves": [
-   "upgrade|248008",
    "upgrade|5604",
+   "upgrade|6215",
    "upgrade|860"
   ],
   "next_moves": [

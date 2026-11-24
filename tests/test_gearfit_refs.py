@@ -34,7 +34,11 @@ def test_agreement_with_the_reference_tables():
     n = sum(s["n"] for s in specs.values())
     assert n > 700
     assert sum(s["built"] for s in specs.values()) / n >= 0.80
-    assert sum(s["top3"] for s in specs.values()) / n >= 0.90
+    # 0.85 since the items come from the game's tables (2026-11-24, 726 of
+    # 845): Forever re-itemised some of the tables' picks (Freezing Band 21
+    # Frost damage in Classic, 13 in Forever; Hypnotic Blade lost its 44
+    # spell power), and 85 more picks have data now.
+    assert sum(s["top3"] for s in specs.values()) / n >= 0.85
     for name, s in specs.items():
         # 7 for the priests since 2026-11-23: three of their low-bracket
         # picks have no level requirement and ForeverDB's rule makes them

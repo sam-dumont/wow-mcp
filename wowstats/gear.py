@@ -1,18 +1,24 @@
-"""Gear advice: ForeverDB.net's scoring, on the server, over Polestar's gear data.
+"""Gear advice: ForeverDB.net's scoring, on the server, over the game's own
+item data.
 
 What each slot holds now, the best item the character can get at its level
 (and the next one coming within a few levels), the gain in percent, and where
 to get it: the quest and zone, the dungeon and boss, the craft and profession.
 
-Two data files. data/gear-reference.json, exported from a Polestar release
-by tools/gear_reference/ (docs/gear-reference.md): every equippable item's
-stats, where leveling gear comes from (Polestar's leveling data, generated
-from ForeverLevelingBiS v0.12.0-beta, MIT) and the class rules (who wears
-what). data/foreverdb-weights.json, written by tools/foreverdb_weights/: the
-stat weights per class, spec and mode (Leveling, PvP, PvE) and each set
-piece's share of its set's bonuses, from ForeverDB.net (credited wherever a
-score shows: CREDIT). GEAR_REFERENCE_FILE points at another gear file;
-`off` turns gear advice off.
+Three data files. data/game-items.json, written by tools/game_items/ from the
+Forever client's tables (docs/gear-reference.md): every weapon's and armour
+piece's stats, level, slot and class rules, worked out the way the game does
+(owner, 2026-11-24: "can we get them from the game data instead? We do that
+already for 3D"). data/gear-reference.json, exported from a Polestar release
+by tools/gear_reference/: where gear comes from (its quests, drops and
+crafts; Polestar's leveling data, generated from ForeverLevelingBiS
+v0.12.0-beta, MIT) and the class rules (who wears what); its own item table
+isn't read. The quest rewards it leaves out come from forever-db
+(data/forever-reference.json `gear_quests`). data/foreverdb-weights.json,
+written by tools/foreverdb_weights/: the stat weights per class, spec and
+mode (Leveling, PvP, PvE) and each set piece's share of its set's bonuses,
+from ForeverDB.net (credited wherever a score shows: CREDIT).
+GEAR_REFERENCE_FILE points at another gear file; `off` turns gear advice off.
 
 The score is ForeverDB's (score_with): each stat times its weight, "% hit"
 and "% crit" lines as ratings (PCT_RATING), school damage on top of spell
@@ -28,8 +34,8 @@ again is no errand.
 
 Nothing of Polestar's scoring is read (owner, 2026-11-24: "Ignore polestar
 entirely for bis"): no weights or gear settings of its own, in the data file
-or from the player's SavedVariables. Polestar's data gives the items, their
-sources and the class rules only.
+or from the player's SavedVariables. Polestar's data gives the sources and
+the class rules only.
 """
 
 from __future__ import annotations
@@ -48,6 +54,7 @@ _HERE = Path(__file__).resolve()
 # An installed wheel carries it as wowstats/data/; a checkout has it at the root.
 BUNDLED = (_HERE.parent / "data" / "gear-reference.json", _HERE.parents[1] / "data" / "gear-reference.json")
 WEIGHTS_FILES = (_HERE.parent / "data" / "foreverdb-weights.json", _HERE.parents[1] / "data" / "foreverdb-weights.json")
+ITEMS_FILES = (_HERE.parent / "data" / "game-items.json", _HERE.parents[1] / "data" / "game-items.json")
 
 # --- Gear.lua's tables -------------------------------------------------------
 
@@ -105,6 +112,8 @@ class Reference:
     weights: dict = field(default_factory=dict, repr=False)
     # likely_suffix's index, built on first use.
     peers: dict | None = field(default=None, repr=False, compare=False)
+    # unsourced()'s list, built on first use.
+    nowhere: list | None = field(default=None, repr=False, compare=False)
 
     @property
     def gear(self) -> dict:
@@ -151,17 +160,82 @@ def reference() -> Reference:
                 if fdb is None:
                     ref = Reference(False, "no stat weights file (data/foreverdb-weights.json) in this install")
                     break
-                ref = Reference(True, data=data, weights=fdb)
-                # Each set piece carries its share of the set's bonuses
-                # (ForeverDB: the bonus total over the set's size, on every
-                # piece whether the others are worn or not).
-                items = data["items"]
-                for iid, share in (fdb.get("sets") or {}).items():
-                    if items.get(iid):
-                        items[iid] = {**items[iid], "set": share}
+                game = game_items()
+                if game is None:
+                    ref = Reference(False, "no item data file (data/game-items.json) in this install")
+                    break
+                ref = Reference(True, data=with_game_items(data, game, fdb), weights=fdb)
                 break
         _CACHE[key] = ref
         return ref
+
+
+def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
+    """Polestar's gear data with the items from the game's own tables
+    (owner, 2026-11-24: "can we get them from the game data instead?"):
+    data/game-items.json, tools/game_items/export.py. Every item's stats,
+    level, slot and class rules are the client's; Polestar's item table
+    isn't read. Polestar still says where gear comes from (its quest,
+    drop and craft sources) and who wears what (`gear`), and forever-db's
+    quest rewards (data/forever-reference.json `gear_quests`) add the quests
+    Polestar's sources leave out. Each set piece carries its share of the
+    set's bonuses as ForeverDB lists it (the bonus total over the set's size,
+    on every piece whether the others are worn or not)."""
+    items: dict[str, dict] = {}
+    names: dict[str, str] = dict(polestar.get("names") or {})
+    sets = fdb.get("sets") or {}
+    era_only: list[str] = []
+    old = polestar.get("items") or {}
+    for iid, e in (game.get("items") or {}).items():
+        names[iid] = e["name"]
+        items[iid] = {k: v for k, v in e.items() if k not in ("name", "dmg", "from")}
+        # Who may wear it: the client's class mask, else Polestar's. The
+        # client leaves about 50 class items open to every class (Tier 3, Atiesh,
+        # the Zul'Gurub bracers: the server enforces those), Polestar knows.
+        if not e.get("allow") and (old.get(iid) or {}).get("allow"):
+            items[iid]["allow"] = old[iid]["allow"]
+        if e.get("from") == "era":
+            era_only.append(iid)
+        if iid in sets:
+            items[iid]["set"] = sets[iid]
+    sources = {iid: list(ss) for iid, ss in (polestar.get("sources") or {}).items() if iid in items}
+    quests = dict(polestar.get("quests") or {})
+    for qid, (side, races, classes, rewards, choices) in (forever.data().get("gear_quests") or {}).items():
+        mine = [str(x) for x in (*rewards, *choices) if str(x) in items]
+        if not mine:
+            continue
+        if qid not in quests:
+            fq = forever.quest(qid) or {}
+            quests[qid] = {"name": fq.get("name"), "level": fq.get("level") or 0, "req": fq.get("min_level") or 0,
+                           "side": side if side in (1, 2) else 3, "zone_name": fq.get("zone"), "race": races,
+                           "class": classes, "dungeon": forever.quest_dungeon(qid) is not None,
+                           "choices": list(choices), "items": list(rewards), "from": "forever-db"}
+        for iid in mine:
+            got = sources.setdefault(iid, [])
+            if not any(x.get("kind") == "quest" and str(x.get("quest")) == qid for x in got):
+                got.append({"kind": "quest", "quest": int(qid)})
+    return {**polestar, "items": items, "names": names, "sources": sources, "quests": quests,
+            "era_only": era_only, "item_stats": {k: v for k, v in (game.get("source") or {}).items() if k != "tables"}}
+
+
+_GAME: list = []
+
+
+def game_items() -> dict | None:
+    """data/game-items.json (tools/game_items/export.py), read once."""
+    with _WLOCK:
+        if not _GAME:
+            got = None
+            for p in ITEMS_FILES:
+                try:
+                    d = json.loads(p.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if isinstance(d, dict) and d.get("schema") == 1 and d.get("items"):
+                    got = d
+                    break
+            _GAME.append(got)
+        return _GAME[0]
 
 
 _WEIGHTS: list = []
@@ -308,7 +382,10 @@ def weights_for(ref: Reference, cls: str, key: str, mode: str = DEFAULT_MODE) ->
 
 def stat_weight(w: dict, k: str) -> float:
     """The weight of one point of an item stat: a "% hit" line counts as its
-    rating (PCT_RATING)."""
+    rating (PCT_RATING); hit that only works with a bow, gun or crossbow
+    (`rangedHit`) counts for a hunter alone (`rdps`: weights_for)."""
+    if k == "rangedHit":
+        return (w.get("hitRating") or 0) if "rdps" in w else 0
     if k in PCT_RATING:
         r, per = PCT_RATING[k]
         return (w.get(r) or 0) * per
@@ -347,8 +424,11 @@ def score_with(info: dict, w: dict, as_offhand: bool = False) -> float:
 
 def available_level(info: dict) -> int:
     """ForeverDB's level an item counts from: its required level, else its
-    item level minus 5 (no item asks for more than the content it drops in)."""
-    if info.get("req"):
+    item level minus 5 (no item asks for more than the content it drops in).
+    Required level 1 is no requirement: Forever's own items say 1 where
+    Classic's say 0 (Marshdweller's Pants, item level 55: ForeverDB lists it
+    from 50)."""
+    if (info.get("req") or 0) > 1:
         return int(info["req"])
     return max(1, int(info.get("ilvl") or 0) - NO_REQ_BELOW) if info.get("ilvl") else 1
 
@@ -1121,6 +1201,32 @@ def held_where(held: dict | None) -> dict[int, str]:
     return out
 
 
+# Names of items that were never meant to be worn (test, placeholder and
+# creature-only rows the client's tables keep).
+_NOT_LOOT = re.compile(r"^\(?OLD|^(?i:monster|deprecated|qa ?test|\[ph|placeholder|unused|test(?!ament))"
+                       r"|(?i:\b(test|debug)\b)")
+
+
+def unsourced(ref: Reference) -> list[tuple[int, dict]]:
+    """Gear with stats and no source we know (owner, 2026-11-24: shown in the
+    BiS like ForeverDB does, "where: unknown", never as an upgrade to go and
+    get): uncommon or better, not a random-suffix base (its stats are a
+    guess), not a placeholder, and in Forever's own client (an item only
+    Classic Era describes may not exist there)."""
+    if ref.nowhere is None:
+        sources = ref.data.get("sources") or {}
+        era = set(ref.data.get("era_only") or ())
+        names = ref.data.get("names") or {}
+        out = []
+        for sid, info in (ref.data.get("items") or {}).items():
+            if (sid in sources or sid in era or not 2 <= (info.get("quality") or 0) <= 5 or not info.get("stats")
+                    or _NOT_LOOT.search(names.get(sid) or "") or suffix_base(ref, int(sid), info)):
+                continue
+            out.append((int(sid), info))
+        ref.nowhere = out
+    return ref.nowhere
+
+
 def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, done: set | None = None,
            spec: str | None = None, limit: int = 25, weights: str | None = None, every: bool = False,
            held: dict | None = None, market: dict | None = None, mode: str | None = None) -> dict:
@@ -1242,6 +1348,26 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             slot = per_slot.setdefault(o["slot"], {"now": [], "soon": []})
             slot[bucket].append((o["delta"], -c["id"], c, o))
 
+    # The BiS also counts gear nobody says where to get (unsourced): its own
+    # bucket, so it never becomes an upgrade or a pick. Weapons stay out (a
+    # setup needs both hands' sources to mean anything).
+    unknown_hands: list[tuple[float, int, dict, int]] = []
+    for item_id, info in unsourced(ref):
+        if item_id in holding:
+            continue
+        usable, _, at = usability(ref, info, cls, level)
+        if not usable or at > level:
+            continue
+        if info["inv"] in WEAPON_INV:
+            if info["inv"] in (13, 17, 21):  # a two-hander, or a main hand with the best off hand there is
+                unknown_hands.append((score_with(info, w), item_id, info, at))
+            continue
+        c = {"id": item_id, "info": info, "at": at, "sources": [], "here": False}
+        for o in options(info, item_id, worn, w, dual, every_slot=True):
+            if worn.ids.get(o["slot"]) != item_id:
+                per_slot.setdefault(o["slot"], {"now": [], "soon": []}).setdefault("unknown", []).append(
+                    (o["delta"], -item_id, c, o))
+
     def pick(slot: int, bucket: str, exclude: frozenset = frozenset()):
         # ForeverDB's order: the score, then the higher item level, then the lower ID.
         ranked = [t for t in sorted((per_slot.get(slot) or {}).get(bucket) or [],
@@ -1274,6 +1400,12 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     # Where each worn item stands against the best the slot can hold now
     # (owner, 2026-11-21: "show bis or second or a percentage of bis").
     stand.update(standings(per_slot, worn, setups, level))
+    # The weapons' BiS counts the unsourced setup too, like every other slot.
+    hands_unknown = _unknown_hands(ref, unknown_hands, setups, level)
+    if hands_unknown and stand.get(MAIN):
+        # It beats every known setup, so the worn one moves down one place.
+        above = 1 if stand[MAIN]["rank"] == 1 else 2
+        stand[MAIN] = stand[OFF] = _rank(above, setups.current, hands_unknown["score"])
     weapon_rows = {"now": setups.row("now", out), "soon": setups.row("soon", out)}
 
     def part_out(p: dict | None) -> dict | None:
@@ -1312,6 +1444,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             nxt = soon if soon and soon[3]["delta"] > 0 and (not now or soon[3]["new"] > now[3]["new"]) else None
             nxt = out(nxt[2], nxt[3]) if nxt else None
         slots_out.append({
+            # The slot's BiS when it is gear nobody says where to get: shown
+            # with "where": "unknown", never as an upgrade (unsourced).
+            "bis_unknown": (hands_unknown if slot == MAIN
+                            else None if slot == OFF
+                            else _unknown_bis(ref, per_slot.get(slot), slot, worn, picks.get((slot, "now")))),
             "slot": slot, "slot_name": SLOT_NAMES[slot],
             "standing": standing_out(stand.get(slot)) if cur_id else None,
             "current": ({**_item_out(ref, cur_id, cur_info, worn_names.get(slot)),
@@ -1431,6 +1568,47 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
 EPS = 1e-6
 
 
+def _unknown_bis(ref: Reference, slot_pool: dict | None, slot: int, worn: Worn, now: tuple | None) -> dict | None:
+    """The best unsourced item for the slot, when it beats both what is worn
+    and the best item with a source: {item, score, "where": "unknown"}."""
+    other = {worn.ids.get(x) for pair in PAIRS if slot in pair for x in pair if x != slot}
+    rows = [t for t in (slot_pool or {}).get("unknown") or () if t[2]["id"] not in other]
+    if not rows:
+        return None
+    top = max(rows, key=lambda t: (t[3]["new"], t[2]["info"].get("ilvl") or 0, t[1]))
+    known = max(worn.score(slot) if slot in worn.ids else 0.0, now[3]["new"] if now else 0.0)
+    if top[3]["new"] <= known + EPS:
+        return None
+    return {**_item_out(ref, top[2]["id"], top[2]["info"]), "score": _r(top[3]["new"], 2), "level": top[2]["at"],
+            "where": "unknown", "sources": []}
+
+
+def _unknown_hands(ref: Reference, hands: list, setups: WeaponSetups, level: int) -> dict | None:
+    """The weapons' unsourced BiS: a two-hander, or a main hand with the
+    best off hand the character can get, when it beats both the worn setup
+    and the best setup with a source. Its score is the whole setup's."""
+    kinds = setups.by_kind(level)
+    pair = kinds.get("pair")
+    off = pair[2]["score"] if pair and pair[2] else 0.0
+    best = None
+    for sc, item_id, info, at in hands:
+        total = sc if info["inv"] == 17 else sc + off
+        if best is None or (total, info.get("ilvl") or 0, -item_id) > (best[0], best[2].get("ilvl") or 0, -best[1]):
+            best = (total, item_id, info, at)
+    known = max([setups.current, *(k[0] for k in kinds.values())])
+    if best is None or best[0] <= known + EPS:
+        return None
+    total, item_id, info, at = best
+    return {**_item_out(ref, item_id, info), "score": _r(total, 2), "level": at, "where": "unknown", "sources": [],
+            "setup": "two-hander" if info["inv"] == 17 else "main hand + off hand"}
+
+
+def _bis_pool(slot: dict | None) -> list:
+    """What a slot's BiS is measured against: everything wearable now, gear
+    with no known source too (advise's "unknown" bucket)."""
+    return [*((slot or {}).get("now") or ()), *((slot or {}).get("unknown") or ())]
+
+
 def _single(pool: dict[int, float], cur: float | None) -> dict | None:
     """One slot: BiS is the best score among what is worn and every item
     the character can wear now; the rank counts the items above the worn one."""
@@ -1463,7 +1641,7 @@ def _pair(a: int, b: int, per_slot: dict, worn: Worn) -> dict[int, dict | None]:
     started from it while the doll said the replaced ring was the 40% one."""
     pool: dict[int, float] = {}
     for slot in (a, b):
-        for _d, _i, c, o in (per_slot.get(slot) or {}).get("now") or []:
+        for _d, _i, c, o in _bis_pool(per_slot.get(slot)):
             pool[c["id"]] = max(pool.get(c["id"], 0.0), o["new"])
     pool = {i: v for i, v in pool.items() if i not in (worn.ids.get(a), worn.ids.get(b))}
     if not pool:
@@ -1543,7 +1721,7 @@ def standings(per_slot: dict, worn: Worn, setups: WeaponSetups, level: int) -> d
             out[slot] = None
             continue
         pool: dict[int, float] = {}
-        for _d, _i, c, o in (per_slot.get(slot) or {}).get("now") or []:
+        for _d, _i, c, o in _bis_pool(per_slot.get(slot)):
             pool[c["id"]] = max(pool.get(c["id"], 0.0), o["new"])
         out[slot] = _single(pool, cur)
     for a, b in PAIRS:
@@ -1671,6 +1849,33 @@ def gain_words(u: dict) -> str:
     slot = "weapons" if name in ("Main hand", "Off hand") else name.lower()
     worn = u.get("bis_pct_worn")
     return f"{'empty' if worn is None else f'{worn}%'} → {u['bis_pct']}% on your {slot}"
+
+
+# What marks an answer as carrying a gear score (scored): a badge or BiS
+# field, or the words gain_words writes.
+SCORE_KEYS = frozenset({"bis_pct", "bis_pct_worn", "gear_score", "bis_by_slot", "bis_unknown", "gain_points",
+                        "upgrade_gain"})
+_SCORE_WORDS = re.compile(r"\d+% → \d+% on your|empty → \d+% on your|\d+% of BiS|\+\d+(\.\d)? points")
+
+
+def scored(tree) -> bool:
+    """Whether an answer shows a gear score anywhere (a badge, a standing, a
+    BiS, an upgrade's gain): then it credits ForeverDB.net (owner,
+    2026-11-24: "Their link every time as we reverse engineered the
+    tables"). wowstats.mcp.tools.call adds `score_source` to such answers."""
+    stack = [tree]
+    while stack:
+        v = stack.pop()
+        if isinstance(v, dict):
+            for k, x in v.items():
+                if k in SCORE_KEYS or (k == "standing" and isinstance(x, dict) and "pct" in x):
+                    return True
+                stack.append(x)
+        elif isinstance(v, list):
+            stack.extend(v)
+        elif isinstance(v, str) and _SCORE_WORDS.search(v):
+            return True
+    return False
 
 
 def bis_by_slot(stand: dict[int, dict | None]) -> dict[str, dict]:

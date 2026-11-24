@@ -59,7 +59,9 @@ SHORT = (("str", "Strength"), ("agi", "Agility"), ("sta", "Stamina"), ("int", "I
          ("spArcane", "Arcane Spell Damage"), ("spFire", "Fire Spell Damage"), ("spFrost", "Frost Spell Damage"),
          ("spHoly", "Holy Spell Damage"), ("spNature", "Nature Spell Damage"), ("spShadow", "Shadow Spell Damage"),
          ("mp5", "Mana per 5 sec."), ("hp5", "Health per 5 sec."), ("defense", "Defense"),
-         ("blockValue", "Block Value"))
+         ("blockValue", "Block Value"), ("hitRating", "Hit Rating"), ("rangedHit", "Ranged Hit Rating"),
+         ("critRating", "Crit Rating"), ("dodgeRating", "Dodge Rating"), ("parryRating", "Parry Rating"),
+         ("blockRating", "Block Rating"), ("spellPen", "Spell Penetration"))
 ARMOUR_NAME = {v: k for k, v in ARMOUR.items()}
 # A capitalised word in brackets is the boss unless it names a kind of item.
 NOT_A_BOSS = re.compile(r"/|\b(?:neck|ring|trinket|cloak|shield|off-hand|wand|staff|mace|sword|axe|dagger|bow|gun|"
@@ -192,8 +194,8 @@ def item_id(name: str) -> int | None:
 
 
 def info_of(iid: int | None) -> dict | None:
-    """The item's facts: Polestar's gear data when it has them (it wins),
-    else the player's own (wowstats.itemfacts)."""
+    """The item's facts: the bundled gear data when it has them (the game's
+    own tables: it wins), else the player's own (wowstats.itemfacts)."""
     from wowstats import gear
 
     if not iid:

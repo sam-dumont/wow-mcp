@@ -1,5 +1,7 @@
-"""Gear advice (wowstats.gear) on the bundled data/gear-reference.json,
-scored with ForeverDB.net's weights (data/foreverdb-weights.json).
+"""Gear advice (wowstats.gear) on the bundled data: the items from the
+game's own tables (data/game-items.json), where they come from from
+Polestar's gear data and forever-db, scored with ForeverDB.net's weights
+(data/foreverdb-weights.json).
 
 The numbers below are worked out by hand from ForeverDB's formula
 (tests/test_gear_foreverdb.py checks it against their own scores item by
@@ -59,17 +61,19 @@ def test_leveling_weights(ref):
 
 def test_hand_checked_scores(ref, priest_gear):
     w, worn = priest_gear
-    # Worn staff 1317: 20 damage and healing, 9 Spirit x 0.12; its melee DPS counts nothing for a priest.
-    assert worn.score(16) == pytest.approx(21.08)
-    # Staff 1155: 32 damage and healing + 11 Spirit x 0.12.
+    # Worn staff 1317, as Forever's client has it (no spell power since
+    # Forever re-itemised it; Polestar's Classic numbers said 20): 9 Spirit x
+    # 0.12, 1 Strength x 0; its melee DPS counts nothing for a priest.
+    assert worn.score(16) == pytest.approx(1.08)
+    # Staff 1155: 11 Spirit x 0.12.
     info = ref.item(1155)
     r = gear.compare(info, 1155, worn, w, False)
-    assert (r["slot"], r["score"]) == (16, pytest.approx(33.32))
+    assert (r["slot"], r["score"]) == (16, pytest.approx(1.32))
     # A two-hander replaces main hand + off hand (empty here).
-    assert r["delta"] == pytest.approx(12.24) and r["pct"] == pytest.approx(12.24 / 21.08 * 100)
-    # 2042: 48 healing and 16 damage are two lines; Shadow weighs only the damage: a loss.
+    assert r["delta"] == pytest.approx(0.24) and r["pct"] == pytest.approx(0.24 / 1.08 * 100)
+    # 2042: 5 Intellect x 0.3 + 6 Spirit x 0.12.
     r = gear.compare(ref.item(2042), 2042, worn, w, False)
-    assert r["delta"] == pytest.approx(16 + 1.5 + 0.72 - 21.08)
+    assert r["delta"] == pytest.approx(1.5 + 0.72 - 1.08)
     # Trinket 744 (8 Spirit): the empty trinket slot goes first, no percent.
     r = gear.compare(ref.item(744), 744, worn, w, False)
     assert (r["slot"], r["delta"], r["pct"], r["empty"]) == (14, pytest.approx(0.96), None, True)

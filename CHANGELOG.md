@@ -4,6 +4,23 @@
 
 ### Changed
 
+- Gear items come from the game's own tables now, not Polestar's item table: Forever's client
+  tables and its hotfixes (`data/game-items.json`, `tools/game_items/export.py`), the way the
+  3D view reads them. 17,908 weapons and armour pieces, 1,186 more than before, with Forever's
+  numbers (Staff of the Shade: 37 Shadow damage, not Classic's 21). Scored from them, 36,674 of
+  ForeverDB.net's 36,746 ladder scores match.
+- Where gear comes from adds forever-db's quest rewards (the quest database Polestar bundles):
+  172 more items with a quest to get them from.
+- The BiS counts gear nobody says where to get, like ForeverDB does: the gear page lists it as
+  "BiS with no known source", the answers as `bis_unknown` with `"where": "unknown"`. It is
+  never an upgrade to go and get. Standings and "N% → M%" lines measure against it.
+- Required level 1 counts as none (ForeverDB's rule): Forever's own items count from their item
+  level - 5.
+- Hit that only works with a bow, gun or crossbow counts for hunters only.
+- Every MCP answer that shows a gear score, standing, BiS or upgrade carries `score_source`, the
+  ForeverDB.net link, and every place on the page that shows one links it (next moves, the
+  comparison, dungeons, level snapshots).
+
 - Gear scoring is now ForeverDB.net's: the widely used community stat weights per spec, its
   formula, and three modes: Leveling (the default: Stamina, armour and a caster's wand count
   much more), PvP and PvE. Pick the mode on the gear page; the MCP `gear` tool takes `mode`.
