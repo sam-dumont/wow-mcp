@@ -43,7 +43,7 @@ def test_the_lock_maps_stay_bounded(monkeypatch):
 
     from wowstats.plan import facts
 
-    monkeypatch.setattr(facts, "gather", lambda env, char, store=None, battlenet=None, gear_inputs=None: {})
+    monkeypatch.setattr(facts, "gather", lambda env, char, store=None, battlenet=None, gear_inputs=None, mode=None: {})
     plan._CACHE.clear()
     k = len(plan._KEY_LOCKS)
     for i in range(500):

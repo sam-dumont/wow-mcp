@@ -147,7 +147,8 @@ def test_a_patch_notes_change_opens_one_issue_and_names_the_page(state):
     known_hash(state, b"<article>" + b"older text " * 40 + b"</article>")
     fetch, gh = recorded(state, page=PAGE.encode())
     out = watch.run(state, fetch, gh, github=True)
-    assert out["did"] == {"client-build": "none", "official": "opened", "polestar": "none", "addons": "none"}
+    assert out["did"] == {"client-build": "none", "official": "opened", "polestar": "none", "addons": "none",
+                          "foreverdb": "none"}
     assert out["changed_official"] == ["hotfixes"] and len(gh.issues) == 1
 
 
@@ -825,8 +826,11 @@ def test_the_version_steps_accept_their_handoff():
     assert '--accept addons --handoff "$tmp/kb-handoff-addons.json"' in addons
     assert '--handoff "$tmp/kb-handoff-client.json"' in client.split("bump.py regen")[0]
     assert '--accept client-build --handoff "$tmp/kb-handoff-client.json"' in client
+    fdb = lane[lane.index("if has foreverdb; then"):]
+    assert 'bump.py foreverdb --why "$WHY" --handoff "$tmp/kb-handoff-foreverdb.json"' in fdb
+    assert '--accept foreverdb --handoff "$tmp/kb-handoff-foreverdb.json"' in fdb
     accepts = [ln for ln in lane.splitlines() if "--accept" in ln]
-    assert len(accepts) == 3 and all("--handoff" in ln or "--release" in ln for ln in accepts)
+    assert len(accepts) == 4 and all("--handoff" in ln or "--release" in ln for ln in accepts)
     yaml = pytest.importorskip("yaml")
     steps = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())["jobs"]["run"]["steps"]
     run = [s.get("run", "") for s in steps]

@@ -202,7 +202,8 @@ jobs:
       # --- The versions lane (tools/kb/versions.sh): addon releases checked
       # and accepted, a Polestar release checked, its tag moved, the exports
       # rerun and the test data regenerated, a client build's class reference
-      # rerun. One commit per kind; a refused kind gets its reason in $WHY.
+      # rerun, ForeverDB.net's data downloaded, checked and exported. One commit
+      # per kind; a refused kind gets its reason in $WHY.
       # GH_TOKEN (read-only) for the checks only: the script drops it, and
       # the job's OIDC and runtime tokens, before it runs Polestar's code.
       # `land` runs the same script again on the current main when main
@@ -349,7 +350,8 @@ jobs:
         if: always()
         run: |
           rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/meta-items.json" "$RUNNER_TEMP/kb-refresh-read.json" \
-            "$RUNNER_TEMP/kb-handoff-addons.json" "$RUNNER_TEMP/kb-handoff-client.json"
+            "$RUNNER_TEMP/kb-handoff-addons.json" "$RUNNER_TEMP/kb-handoff-client.json" \
+            "$RUNNER_TEMP/kb-handoff-foreverdb.json"
 
       - name: Sweep
         if: env.MODE == 'sweep' && steps.open.outputs.pr == ''
@@ -402,6 +404,8 @@ jobs:
                 echo
                 echo "Official statements come from tools/kb/refresh.py (model pass, \$${SPENT:-0} of a \$${KB_REFRESH_MAX_USD} cap); each cites its page."
                 cat "$RUNNER_TEMP/refresh-summary.md" 2>/dev/null || true
+                # What ForeverDB's data moved (tools/kb/bump.py foreverdb --summary).
+                cat "$RUNNER_TEMP/kb-foreverdb.md" 2>/dev/null || true
               } > "$body" ;;
           esac
           # The model's records tools/kb/vet.py kept out of the PR, and why.

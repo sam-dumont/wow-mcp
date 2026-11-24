@@ -5,49 +5,20 @@
   "url": "https://foreverdb.net",
   "credit": "Weights: ForeverDB.net",
   "build": "1.60.1.71037",
-  "fetched": "2026-11-23",
+  "fetched": "2026-11-24",
+  "data_version": "2026-11-24.dc84de8f",
   "urls": [
-   "https://foreverdb.net/data/bis/index.json",
-   "https://foreverdb.net/data/guides.json",
-   "https://foreverdb.net/data/bis/warrior-arms.json",
-   "https://foreverdb.net/data/bis/warrior-fury.json",
-   "https://foreverdb.net/data/bis/warrior-protection.json",
-   "https://foreverdb.net/data/bis/paladin-holy.json",
-   "https://foreverdb.net/data/bis/paladin-protection.json",
-   "https://foreverdb.net/data/bis/paladin-retribution.json",
-   "https://foreverdb.net/data/bis/hunter-beast-mastery.json",
-   "https://foreverdb.net/data/bis/hunter-marksmanship.json",
-   "https://foreverdb.net/data/bis/hunter-survival.json",
-   "https://foreverdb.net/data/bis/rogue-assassination.json",
-   "https://foreverdb.net/data/bis/rogue-combat.json",
-   "https://foreverdb.net/data/bis/rogue-subtlety.json",
-   "https://foreverdb.net/data/bis/priest-discipline.json",
-   "https://foreverdb.net/data/bis/priest-holy.json",
-   "https://foreverdb.net/data/bis/priest-shadow.json",
-   "https://foreverdb.net/data/bis/shaman-elemental.json",
-   "https://foreverdb.net/data/bis/shaman-enhancement.json",
-   "https://foreverdb.net/data/bis/shaman-restoration.json",
-   "https://foreverdb.net/data/bis/mage-arcane.json",
-   "https://foreverdb.net/data/bis/mage-fire.json",
-   "https://foreverdb.net/data/bis/mage-frost.json",
-   "https://foreverdb.net/data/bis/warlock-affliction.json",
-   "https://foreverdb.net/data/bis/warlock-demonology.json",
-   "https://foreverdb.net/data/bis/warlock-destruction.json",
-   "https://foreverdb.net/data/bis/druid-balance.json",
-   "https://foreverdb.net/data/bis/druid-feral.json",
-   "https://foreverdb.net/data/bis/druid-restoration.json"
+   "https://foreverdb.net/downloads/addon-data/GearFinder.lua?v=a4cd206a64",
+   "https://foreverdb.net/downloads/addon-data/GearSources.lua?v=2d4a9f0abf"
   ],
-  "note": "The class-guide stat weights and ForeverDB's Leveling and PvP rules; Leveling is computed by tools/foreverdb_weights/export.py from PvE."
+  "licence": "GPL-3.0 with an attribution term (data/foreverdb/LICENSE.txt)",
+  "note": "ForeverDB's addon weights (GearFinder.lua) and set shares (GearSources.lua gfExtra); Leveling is computed by tools/foreverdb_weights/export.py from PvE by their rule."
  },
  "rules": {
   "quest_ahead": 5,
   "no_req_level": "item level - 5"
  },
  "checks": {
-  "pve": {
-   "same": 27,
-   "differ": 0
-  },
   "lvl": {
    "same": 27,
    "differ": 0
@@ -417,7 +388,7 @@
      "haste": 0.7,
      "hitRating": 1.1,
      "int": 0.35,
-     "mp5": 0.028,
+     "mp5": 0.03,
      "rap": 0.45,
      "sta": 0.75
     }
@@ -1507,6 +1478,74 @@
    "critRating": 0.33,
    "sta": 1.67
   },
+  "20150": {
+   "sta": 1.67
+  },
+  "20154": {
+   "sta": 1.67
+  },
+  "20158": {
+   "sta": 1.67
+  },
+  "20159": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20163": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20167": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20171": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20175": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20176": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20177": {
+   "sta": 1.67
+  },
+  "20181": {
+   "sta": 1.67
+  },
+  "20184": {
+   "sta": 1.67
+  },
+  "20186": {
+   "sta": 1.67
+  },
+  "20190": {
+   "sta": 1.67
+  },
+  "20194": {
+   "sta": 1.67
+  },
+  "20195": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20199": {
+   "critRating": 0.33,
+   "sta": 1.67
+  },
+  "20204": {
+   "sta": 1.67
+  },
+  "20208": {
+   "sta": 1.67
+  },
+  "20212": {
+   "sta": 1.67
+  },
   "20295": {
    "dmgheal": 9.33
   },
@@ -1545,15 +1584,107 @@
    "armor": 25.0,
    "dmgheal": 2.88
   },
+  "22843": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "22855": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "22856": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22858": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22864": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22865": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
   "22867": {
    "ap": 6.67,
+   "sta": 3.33
+  },
+  "22868": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22872": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22873": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22874": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "22875": {
+   "agi": 3.33,
    "sta": 3.33
   },
   "22876": {
    "ap": 6.67,
    "sta": 3.33
   },
+  "22879": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22880": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "22881": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "22884": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
   "22887": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23243": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23244": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23251": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "23252": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "23255": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23256": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "23257": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "23258": {
    "ap": 6.67,
    "sta": 3.33
   },
@@ -1693,6 +1824,14 @@
    "ap": 5.0,
    "sta": 2.5
   },
+  "220861": {
+   "ap": 5.0,
+   "sta": 2.5
+  },
+  "227133": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
   "227139": {
    "dmgheal": 3.83,
    "sta": 3.33
@@ -1717,8 +1856,16 @@
    "ap": 6.67,
    "sta": 3.33
   },
+  "231575": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
   "231578": {
    "agi": 3.33,
+   "sta": 3.33
+  },
+  "231613": {
+   "dmgheal": 3.83,
    "sta": 3.33
   },
   "231617": {
@@ -1726,6 +1873,9 @@
    "sta": 3.33
   },
   "231623": {
+   "sta": 3.33
+  },
+  "231633": {
    "sta": 3.33
   },
   "231650": {
@@ -1741,6 +1891,10 @@
    "sta": 3.33
   },
   "231676": {
+   "sta": 3.33
+  },
+  "231688": {
+   "ap": 6.67,
    "sta": 3.33
   },
   "231694": {
@@ -1884,6 +2038,146 @@
    "agi": 3.33,
    "sta": 3.33
   },
+  "272498": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272499": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272500": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272501": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272504": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272506": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272507": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272508": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272509": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272510": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272513": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272514": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272515": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272516": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272517": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272519": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272520": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272523": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272525": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272526": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272527": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272528": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272529": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272530": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272531": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272532": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272533": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272534": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272536": {
+   "agi": 3.33,
+   "sta": 3.33
+  },
+  "272538": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272539": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272542": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272543": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272544": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
+  "272545": {
+   "ap": 6.67,
+   "sta": 3.33
+  },
   "272548": {
    "dmgheal": 3.83,
    "sta": 3.33
@@ -1897,6 +2191,30 @@
    "sta": 3.33
   },
   "272553": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272554": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272556": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272558": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272559": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272560": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272561": {
    "dmgheal": 3.83,
    "sta": 3.33
   },
@@ -1921,6 +2239,30 @@
    "sta": 3.33
   },
   "272569": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272570": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272572": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272574": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272575": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272576": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "272577": {
    "dmgheal": 3.83,
    "sta": 3.33
   },
@@ -2439,6 +2781,48 @@
   "273334": {
    "sta": 3.33
   },
+  "273336": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273337": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273340": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273341": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273342": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273343": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273344": {
+   "sta": 3.33
+  },
+  "273345": {
+   "sta": 3.33
+  },
+  "273348": {
+   "sta": 3.33
+  },
+  "273349": {
+   "sta": 3.33
+  },
+  "273350": {
+   "sta": 3.33
+  },
+  "273351": {
+   "sta": 3.33
+  },
   "273355": {
    "sta": 3.33
   },
@@ -2553,6 +2937,48 @@
   "273404": {
    "sta": 3.33
   },
+  "273405": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273406": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273407": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273408": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273410": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273411": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "273413": {
+   "sta": 3.33
+  },
+  "273414": {
+   "sta": 3.33
+  },
+  "273415": {
+   "sta": 3.33
+  },
+  "273416": {
+   "sta": 3.33
+  },
+  "273418": {
+   "sta": 3.33
+  },
+  "273419": {
+   "sta": 3.33
+  },
   "273421": {
    "sta": 3.33
   },
@@ -2569,6 +2995,24 @@
    "sta": 3.33
   },
   "273427": {
+   "sta": 3.33
+  },
+  "273429": {
+   "sta": 3.33
+  },
+  "273431": {
+   "sta": 3.33
+  },
+  "273433": {
+   "sta": 3.33
+  },
+  "273434": {
+   "sta": 3.33
+  },
+  "273435": {
+   "sta": 3.33
+  },
+  "273436": {
    "sta": 3.33
   },
   "273443": {
@@ -2739,6 +3183,30 @@
    "dmgheal": 3.83,
    "sta": 3.33
   },
+  "274236": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274237": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274238": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274239": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274240": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
+  "274241": {
+   "dmgheal": 3.83,
+   "sta": 3.33
+  },
   "274244": {
    "sta": 3.33
   },
@@ -2749,6 +3217,24 @@
    "sta": 3.33
   },
   "274247": {
+   "sta": 3.33
+  },
+  "274250": {
+   "sta": 3.33
+  },
+  "274251": {
+   "sta": 3.33
+  },
+  "274252": {
+   "sta": 3.33
+  },
+  "274253": {
+   "sta": 3.33
+  },
+  "274254": {
+   "sta": 3.33
+  },
+  "274255": {
    "sta": 3.33
   },
   "274256": {

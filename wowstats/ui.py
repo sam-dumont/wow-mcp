@@ -43,6 +43,7 @@ Environment (defaults suit deploy/compose):
 from __future__ import annotations
 
 import base64
+import contextlib
 import hmac
 import importlib
 import ipaddress
@@ -556,7 +557,10 @@ class App:
                 # run (XP, time, pace, quests): one estimate, both places.
                 from wowstats.plan import dungeonview
 
-                ov["moves"] = dungeonview.with_gain(ov["moves"], self.dungeons(name))
+                # A store that can't answer the panel leaves the moves without
+                # its estimate, never the Overview without its moves.
+                with contextlib.suppress(SourceError):
+                    ov["moves"] = dungeonview.with_gain(ov["moves"], self.dungeons(name))
             return ov
 
         return self.cached(f"overview:{name}", build)

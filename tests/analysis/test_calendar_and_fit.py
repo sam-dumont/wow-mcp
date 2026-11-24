@@ -206,11 +206,12 @@ def test_the_brief_hands_the_best_upgrades_for_a_weak_slot():
     shroud = ups[0]
     assert shroud["line"] == "17% → 100% on your head" and shroud["gain_points"] == 27.17 and shroud["fit"] == "yes"
     assert shroud["wowhead"] == "https://www.wowhead.com/forever/item=7691"
-    # Both sources, in the gear tool's words, each with its page; a craft says what blocks it.
-    assert sorted(zip(shroud["where"], shroud["where_wowhead"], strict=True)) == [
-        ("drop: Fallen Champion in Scarlet Monastery: Library (dungeon, levels 30-38), 38.5%",
-         "https://www.wowhead.com/forever/npc=6488"),
+    # The easiest source, in the gear tool's words, with its page: the quest
+    # over a 38.5% drop (both easy: a hand-in is sure). The drop is a
+    # query_metric call away (upgrade_sources by item_id); a craft says what blocks it.
+    assert list(zip(shroud["where"], shroud["where_wowhead"], strict=True)) == [
         ("quest Divino-matic Rod (Tanaris)", "https://www.wowhead.com/forever/quest=2768")]
+    assert shroud["effort"] == "easy"
     assert ups[1]["where"][0].startswith("craft: Tailoring 150; ")
     # The query it hands over is a query_metric call: re-run, it lists the same items.
     from wowstats.analysis import semantic

@@ -3,7 +3,8 @@
 # upstream version that moved becomes a commit on HEAD, with no model:
 # addon releases (their contracts checked), a Polestar release (checked, the
 # tag moved, the exports rerun, the test data regenerated), a client build
-# (the class reference rerun). tools/kb/bump.py has the checks and their
+# (the class reference rerun), ForeverDB.net's data (downloaded, checked,
+# both exports rerun). tools/kb/bump.py has the checks and their
 # reasons; a refused kind gets its reason in $WHY and no commit.
 #
 #   WHY=why.json GH_TOKEN=... tools/kb/versions.sh
@@ -108,6 +109,23 @@ if has client-build; then
     git reset -q --hard HEAD && git clean -qfd
     # bump.py regen wrote its own reason; this one only when it didn't.
     why '."client-build" //= $w' "The class reference export failed against the new build (tools/kb/versions.sh)."
+  fi
+fi
+
+# ForeverDB's data, in this phase: a download over plain HTTPS needs no token,
+# and nothing in it runs (tools/foreverdb_sources/lua.py reads it as text).
+# After the other kinds, so its regen sees their data too.
+if has foreverdb; then
+  if uvp tools/kb/bump.py foreverdb --why "$WHY" --handoff "$tmp/kb-handoff-foreverdb.json" \
+      --summary "$tmp/kb-foreverdb.md" \
+    && uvp tools/kb/bump.py regen --as foreverdb --why "$WHY" \
+    && uvp tools/kb/bump.py golden --as foreverdb --why "$WHY" \
+    && uvp tools/kb/watch.py --accept foreverdb --handoff "$tmp/kb-handoff-foreverdb.json"; then
+    git add -A && git commit -qm "ForeverDB.net data: item sources and stat weights"
+  else
+    git reset -q --hard HEAD && git clean -qfd
+    : > "$tmp/kb-foreverdb.md"
+    why '.foreverdb //= $w' "The ForeverDB export failed on the new data (tools/kb/versions.sh)."
   fi
 fi
 

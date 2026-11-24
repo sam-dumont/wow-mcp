@@ -130,7 +130,10 @@ def test_a_cheap_boe_upgrade_is_on_the_list(ref):
     a = gear.advise(ref, sheet(), level=14, market=market({SPELLBINDER_VEST: sale(3100)}), every=True)
     u = next(u for u in a["upgrades_all"] if u["item_id"] == SPELLBINDER_VEST)
     s = ah_of(u)
-    assert [x["kind"] for x in u["sources"]] == ["ah"] and u["gates"] == []
+    # Buying it first: the auction house makes it easy (ForeverDB's two
+    # world-drop sightings, no rate, come after).
+    assert [x["kind"] for x in u["sources"]] == ["ah", "drop", "drop"] and u["gates"] == []
+    assert u["effort"] == "easy"
     assert s["price_copper"] == 3100 and s["seen_days_ago"] == 0 and s["listed"] == 2
     assert s["gain_per_gold"] == pytest.approx(u["gain"] / 0.31, abs=0.01)
     assert s["gold_share_pct"] == pytest.approx(2.5) and s["affordable"] and s["cheap"]

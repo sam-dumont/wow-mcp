@@ -635,5 +635,11 @@
         "known": "1db09a2080e9934e245ea3b0cac70dba0c8d1be1e6c900953c5c7877f10d1b5a"
       }
     ]
+  },
+  "foreverdb": {
+    "manifest": "https://foreverdb.net/downloads/addon-manifest.json",
+    "page": "https://foreverdb.net",
+    "known": "3be9bb14e060eea0",
+    "taken": "2026-11-24"
   }
 }

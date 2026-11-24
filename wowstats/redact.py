@@ -254,7 +254,14 @@ SOURCE = _keys("kind", "quest_id", "name", "zone", "level", "req_level", "dungeo
                "chance_pct", "instance", "profession", "skill", "spell_id", "your_rank",
                "can_make", "skill_ok", "known", "pattern_item_id", "floor", "price_copper", "seen_day",
                "seen_days_ago", "listed", "gain_per_gold", "gold_share_pct", "affordable", "mount_share_pct",
-               "cheap") | {"levels": [None], "part": [None]}
+               "cheap",
+               # ForeverDB's sources (wowstats.gear foreverdb_sources): game data and
+               # how sure it is, nothing about the character.
+               "via", "label", "basis", "kills", "world", "rare", "standing", "faction_id", "rank",
+               "container_item_id", "object", "map", "x", "y",
+               # How hard it is (wowstats.gear source_effort) and a drop's expected runs.
+               "effort", "expected_runs") | {"levels": [None], "part": [None],
+                                                                  "levels_drop": [None]}
 AH = {**_keys("available", "scan_day", "scan_days_ago", "on_sale", "upgrades_on_sale", "money_copper",
               "cheap_under_copper", "notice"), "mount": _keys("name", "level", "need_copper", "left_copper")}
 # `stats`: the item's stats as the scoring reads them (game data), for the
@@ -269,7 +276,7 @@ FIT = {**_keys("for_you", "label", "built_for", "wasted_pct", "tip", "factor"), 
                        "sources": [SOURCE]}}
 # No "here" (in the zone the character is in now).
 UPGRADE = {**ADVICE_ITEM, **_keys("level", "slot", "slot_name", "gain", "gain_pct", "gain_share_pct",
-                                  "fills_empty", "now", "vs_unknown", "setup_score", "value", *BADGE),
+                                  "fills_empty", "now", "vs_unknown", "setup_score", "value", "effort", *BADGE),
            "sources": [SOURCE],
            "bis": _keys("from_pct", "to_pct"),
            "gates": [_keys("kind", "profession", "need", "have")], "fit": FIT}
