@@ -43,21 +43,23 @@
   "coming_up": [],
   "effects": [],
   "moves": [
-   "dungeon|City of Dalaran",
-   "dungeon|Razorfen Kraul",
-   "riding|Riding at level #",
+   "deaths_level_gap|# deaths to creatures #+ levels above you",
+   "dungeon|Maraudon: Purple",
+   "dungeon|Razorfen Downs",
+   "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
-   "upgrade|21119",
-   "upgrade|286995",
-   "upgrade|286998"
+   "upgrade|10771",
+   "upgrade|1980",
+   "upgrade|21118",
+   "upgrade|2549"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
+   "#up-12",
    "#up-14",
-   "#up-2",
-   "#up-9"
+   "#up-6"
   ],
   "prep": []
  },
@@ -71,11 +73,10 @@
   "coming_up": [],
   "effects": [],
   "moves": [
-   "dungeon|City of Dalaran",
-   "dungeon|Razorfen Kraul",
-   "riding|Riding at level #",
-   "upgrade|7708",
-   "upgrade|7709"
+   "dungeon|Maraudon: Orange",
+   "dungeon|Razorfen Downs",
+   "riding|Riding at level # if not trained yet",
+   "upgrade|2549"
   ],
   "next_moves": [
    "#advice",
@@ -83,7 +84,7 @@
    "#levels",
    "#up-16",
    "#up-18",
-   "#up-7"
+   "#up-5"
   ],
   "prep": []
  },
@@ -97,21 +98,22 @@
   "coming_up": [],
   "effects": [],
   "moves": [
-   "dungeon|City of Dalaran",
-   "dungeon|Razorfen Kraul",
-   "riding|Riding at level #",
+   "deaths_level_gap|# deaths to creatures #+ levels above you",
+   "dungeon|Maraudon: Purple",
+   "dungeon|Razorfen Downs",
+   "riding|Riding at level # if not trained yet",
    "slow_steps|# guide steps took over # their plan",
-   "upgrade|21119",
-   "upgrade|286995",
-   "upgrade|286998"
+   "upgrade|1980",
+   "upgrade|21118",
+   "upgrade|2549"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#levels",
+   "#up-12",
    "#up-14",
-   "#up-2",
-   "#up-9"
+   "#up-17"
   ],
   "prep": []
  },

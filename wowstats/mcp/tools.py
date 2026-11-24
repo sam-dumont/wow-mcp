@@ -1169,6 +1169,13 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     sheet = gearmod.sheet(rows[0])
     sheet["worn_stats"] = worn
     try:
+        # The standings the page reads (Views.gear_inputs): without them every
+        # reputation gate was unknown here, a Friendly cape a hard pick, and
+        # this tool's best back differed from the page's (Nibbet at 46).
+        sheet["reps"], sheet["pvp_rank"] = gearmod.standings_of(gearmod.standing_rows(st.logs, cf(char)))
+    except SourceError:
+        sheet["reps"], sheet["pvp_rank"] = None, None
+    try:
         # The scans are the page's own read (Views.price_rows: one stats row
         # per item and scan day). Read as raw rows here, a full Auctionator
         # scan (thousands of items at one instant, the scan day's midnight)

@@ -15,6 +15,8 @@ What comes after 0.10.0, in short. Every change follows.
   Dalaran's, and its trips read about a third faster.
 - With ForeverDB_Helper installed, each dungeon run says who was in the party: names, level,
   class and role. Money in the analysis tools reads as 16g 72s 10c, not raw copper.
+- The 3D character moves now and then (a swing, a cast, a channel) instead of standing still.
+- The demo's Nibbet is a level 46 Shadow priest with Shadowform and a staff that glows as in the game.
 
 ### Added
 
@@ -50,11 +52,46 @@ What comes after 0.10.0, in short. Every change follows.
   `query_metric`, and every `*_copper` column in `play_sql`: 167210 reads `16g 72s 10c`. An analysis had divided by 1000 and
   reported 167.2g for 16g 72s. Findings write money with `{col:gold}`.
 
+- The 3D view comes alive: the character stands, and every 8 to 20 seconds swings its weapon
+  (the swing its weapon type uses: a staff's two-handed one), casts, channels or roars, then stands
+  again. Only animations the model has play; none while you turn it, for 3 seconds after, under
+  reduced motion, in a hidden tab, or in the still pictures. Emotes (talk, bow, cheer) wait for
+  the shipper to send their animation files, which live outside the model.
+- With a two-hander the paperdoll's off hand shows that weapon greyed, as the game's character
+  pane does, instead of "Empty".
+
+### Changed
+
+- The demo's Nibbet is a level 46 Shadow priest. Thirteen more evenings take him from 34 to 46
+  through Arathi, Badlands, Stranglethorn, Dustwallow, Feralas, Tanaris and the Hinterlands, with
+  Scarlet Monastery's four wings, Razorfen Downs, Uldaman and Zul'Farrak, and end at the Stormwind
+  trainers. Every worn item is a drop, quest reward or his own craft that a level 46 could have, at
+  63% of the best for his level on average (ForeverDB's Shadow Leveling weights), four slots at
+  their best. One is made for another class: the Fiery Cord he tailored (Fire spell power) where
+  the Black Cord would score more than twice as high. He holds the Dreamstaff he enchanted himself
+  and a White Obsidian Wand from Uldaman, and a Talisman of Arathor from Refuge Pointe's
+  quartermaster. His talents are 37 points of Shadow, Shadowform at 40.
+  The auction house lists two upgrades at his level next to the Shadoweave Shoulders. The
+  generator refuses gear from content Forever hasn't opened: every worn item needs a source
+  ForeverDB saw in Forever or the Forever client has, or one in Polestar's drop tables (the
+  Gurubashi Arena's Arena Master, Classic data only, can't be worn).
+- The demo's real 3D model moves to the `demo-3d-2` release (`site/demo3d.sha256` pins the new
+  archive): `demo-3d-1` has none of his new gear. Until that release exists the demo draws
+  golden3d's figure.
+
 ### Fixed
 
 - MCP: `sessions` and `dungeons` now say other players chose the names in them (`untrusted`), like
   `players`.
-
+- The Upgrades list no longer fails to load ("Couldn't load gear advice") when an item's only
+  auction house listing is older than yesterday: the Auction House group's total read the fresh
+  listing, which such an item doesn't have.
+- The MCP `gear` tool reads the character's reputations and PvP rank, as the gear page does.
+  Without them every reputation gate was unknown, a Friendly quartermaster's cape a hard pick, and
+  the tool's best item for a slot could differ from the page's.
+- A weapon's own glow (its ItemVisual from the game data) is drawn only on the attachment points
+  its model has. The Dreamstaff's visual names five points, the staff has four: the fifth glow sat
+  in the hand.
 - The MCP check gives the model the tools' clock. The tools run on the demo's frozen day, the
   model on today's date, so "where is the character now?" read six-day-old data as stale and
   answered NONE (`zone_now`). The docs count 71 questions (4 in market).

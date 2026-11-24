@@ -344,11 +344,13 @@ def test_levels_and_dungeons_tools_agree_with_the_layer(lab):
     runs = call(lab[0], "dungeons", {"char": CHAR})["runs"]
     by_name = {r[0]: r for r in json_rows(call(lab[0], "query_metric", {
         "char": CHAR, "metrics": ["run_s", "run_xp", "run_xp_per_hour"], "group_by": ["dungeon"]}))}
-    assert len(runs) == len(by_name) == 4
-    for r in runs:
-        got = by_name[r["name"]]
-        assert (round(got[1]), got[2]) == (r["seconds"], r["xp"]), r["name"]
-        assert round(got[3]) == r["xp_per_hour"], r["name"]
+    # Eleven runs in eight dungeons: Scarlet Monastery's four wings are four runs.
+    assert len(runs) == 11 and len(by_name) == 8
+    for name, got in by_name.items():
+        mine = [r for r in runs if r["name"] == name]
+        assert (round(got[1]), got[2]) == (sum(r["seconds"] for r in mine), sum(r["xp"] for r in mine)), name
+        if len(mine) == 1:
+            assert round(got[3]) == mine[0]["xp_per_hour"], name
     assert by_name["Blackfathom Deeps"][1] == 4980
 
 

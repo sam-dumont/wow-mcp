@@ -45,12 +45,12 @@ It plays Nibbet-Gearholt's evenings, the made-up character of the
 them to the page the way a player's computer sends theirs. It prints one line,
 `<N> events for Nibbet-Gearholt into http://ui:8080/ingest`, with N in the tens of thousands
 (the demo grows with the product, so don't expect an exact number). What to check instead: the
-page in step 3 lists Nibbet at level 34.
+page in step 3 lists Nibbet at level 46.
 
 ## 3. Look around
 
-Open <http://127.0.0.1:8080/>: **Nibbet**, a Gnome priest who goes from level 22 to 34 over
-nearly three weeks of evenings, with four dungeon runs, his gear, talents and professions, Questie's
+Open <http://127.0.0.1:8080/>: **Nibbet**, a Gnome priest who goes from level 22 to 46 over
+four weeks of evenings, with eleven dungeon runs, his gear, talents and professions, Questie's
 quest list and two days of auction house scans, under a DEMO DATA banner.
 
 ![The Overview of the demo character Nibbet, a level 34 Gnome priest under the DEMO DATA banner: behind the route at 2.0 times Polestar's route time, level 35 in 2h 40m of play, 91% of guide steps in order, 0.09 levels rested, and Gnomeregan as the next move](../images/local-demo.webp)

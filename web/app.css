@@ -221,6 +221,8 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 .slot .iname { display: block; font-weight: 700; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: color-mix(in srgb, var(--qt, var(--ink)) var(--qmix), #000); }
 .slot .imeta { display: block; color: var(--muted); font-size: 14px; line-height: 1.25; }
 .slot.empty .iname { color: var(--muted); font-weight: 500; font-style: italic; }
+.slot.twohand .ifr img { filter: grayscale(1); opacity: .55; }
+.slot.twohand .iname { color: var(--muted); font-weight: 500; }
 .q0 { --q: var(--q0); --qt: var(--q0); }
 .q1 { --q: #D9D2C2; --qt: var(--q1); }
 .q2 { --q: var(--q2); --qt: var(--q2); }

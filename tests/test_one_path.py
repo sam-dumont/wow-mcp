@@ -72,7 +72,7 @@ def test_a_semantic_failure_keeps_the_last_good_answer_stale_and_says_so(seeded,
     a = app(seeded)
     assert a.prebuilt.check() == "first build"
     good = a.api_char(CHAR)
-    assert good["header"]["counts"]["completed_levels"]["kills"] == 1225 and not good.get("stale")
+    assert good["header"]["counts"]["completed_levels"]["kills"] == 2255 and not good.get("stale")
     assert pages.health() == {"semantic": "ok"}
 
     broken(monkeypatch)
@@ -175,9 +175,9 @@ def test_both_consumers_name_each_population_and_agree(seeded):
     assert "kills" not in mcp and "quests_turned_in" not in mcp  # no bare total to confuse
     assert mcp["counts"] == page
     assert page == {
-        "completed_levels": {"from_level": 22, "to_level": 33, "kills": 1225, "quests": 88},
-        "current_level": {"level": 34, "kills": 93, "quests": 6},
-        "including_current_level": {"kills": 1318, "quests": 94},
+        "completed_levels": {"from_level": 22, "to_level": 45, "kills": 2255, "quests": 141},
+        "current_level": {"level": 46, "kills": 101, "quests": 5},
+        "including_current_level": {"kills": 2356, "quests": 146},
     }
     # The parts add up: one definition, two populations.
     for k in ("kills", "quests"):

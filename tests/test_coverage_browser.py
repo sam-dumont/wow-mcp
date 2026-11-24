@@ -113,7 +113,7 @@ def test_the_lines_where_they_change_the_meaning(gap, engine, width, scheme):
         assert "(level 28)" in pg.locator("#deaths p.covnote").inner_text()
         # Per level over the levels the Recorder saw whole: 28 out of both sides (review 6).
         per = pg.locator("#deaths dl.sum div:has(dt:text-is('Per level')) dd").inner_text()
-        assert per == "0.9 over 10 levels recorded whole", per
+        assert per == "0.9 over 22 levels recorded whole", per
         wait_count(pg, "#gear p.covnote", 1)
         assert pg.locator("#gear p.covnote").inner_text() == "Equipment last read 5 h ago: what you wear now may differ."
         over = pg.evaluate("() => document.documentElement.scrollWidth - window.innerWidth")

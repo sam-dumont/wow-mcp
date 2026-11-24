@@ -10,6 +10,8 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from wowstats import ingest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "fixtures"))
@@ -29,10 +31,13 @@ def test_demo_events(tmp_path):
     feeds = Counter(r["feed"] for r in rows)
     assert {"wow-recorder", "wow-level", "wow-dungeon", "wow-gear", "wow-prices", "wow-quests", "wow-setup"} <= set(
         feeds)
-    runs = {r["name"]: int(r["level"]) for r in rows if r["feed"] == "wow-dungeon"}
-    assert runs == {"Blackfathom Deeps": 23, "Stormwind Stockade": 31, "City of Dalaran": 33, "Razorfen Kraul": 33}
+    runs = [(r["name"], int(r["level"])) for r in rows if r["feed"] == "wow-dungeon"]
+    assert runs == [("Blackfathom Deeps", 23), ("Stormwind Stockade", 31), ("City of Dalaran", 33),
+                    ("Razorfen Kraul", 33), ("Scarlet Monastery", 35), ("Scarlet Monastery", 35),
+                    ("Scarlet Monastery", 38), ("Scarlet Monastery", 38), ("Razorfen Downs", 40),
+                    ("Uldaman", 43), ("Zul'Farrak", 45)]
     snaps = [r for r in rows if r["feed"] == "wow-character"]
-    assert snaps[-1]["level"] == "34" and snaps[0]["level"] == "23"  # the first logout, after a level
+    assert snaps[-1]["level"] == "46" and snaps[0]["level"] == "23"  # the first logout, after a level
     # Shifted so the last evening is END, the scans with it: the upgrade is
     # listed on the newest scan day only (the auction house's "on sale now").
     last = max(r["_time"] for r in rows if r["feed"] == "wow-recorder")
@@ -57,3 +62,44 @@ def test_demo_events(tmp_path):
 
 def test_demo_is_reproducible():
     assert generate.jsonl(generate.build_demo(END)) == generate.jsonl(generate.build_demo(END))
+
+
+def test_demo_gear_at_46():
+    """Nibbet at 46 (sessions_demo_46): a Shadow priest whose every piece is
+    something a level-46 character got from a dungeon, a quest or his own
+    trade, scored by the product's own Shadow weights (Leveling) at 60-70%
+    of the best his level can hold on average, a few pieces BiS."""
+    from wowstats import gear
+
+    rows = generate.build_demo(END)
+    sheet = [r for r in rows if r["feed"] == "wow-gear"][-1]
+    items = json.loads(sheet["items"])
+    assert all((it.get("req_level") or 0) <= 46 for it in items)
+    a = gear.advise_rows(rows)
+    pct = {s["slot"]: s["standing"]["pct"] for s in a["slots"] if s.get("standing") and s["slot"] != 17}
+    assert len(pct) == 16
+    avg = sum(pct.values()) / len(pct)
+    assert 60 <= avg <= 70, (avg, pct)
+    assert sum(1 for v in pct.values() if v == 100) >= 3
+    # His weapon is the Dreamstaff (his own enchanting, which glows in game);
+    # the wand stays in the ranged slot.
+    worn = {int(it["slot"]): int(it["item_id"]) for it in items}
+    assert worn[16] == 249454 and 17 not in worn and worn[18] == 274425
+    # Talents: all 37 points in Shadow, Shadowform among them.
+    talents = [r for r in rows if r["feed"] == "wow-talents"][-1]
+    assert talents["level"] == "46" and talents["spec"] == "Shadow"
+    build = generate.talent_build(46, True)
+    assert sum(build.values()) == 37 and build["Shadowform"] == 1
+    assert generate.wowsims_string(build).startswith("--")
+
+
+def test_every_worn_item_comes_from_something_live_in_forever():
+    """build_demo refuses gear from content Forever hasn't opened (in_forever,
+    by ForeverDB's labels and Polestar's drop tables): the Gurubashi Arena's
+    Arena Master, ForeverDB's Classic data only, sat in his trinket slot."""
+    generate.in_forever(generate.build_demo(END))
+    arena = {"feed": "wow-gear", "items": json.dumps([{"item_id": 18706, "name": "Arena Master", "slot": 13}])}
+    with pytest.raises(ValueError, match="Arena Master"):
+        generate.in_forever([arena])
+    # The shirt and the tabard are worn for the look: no source asked.
+    generate.in_forever([{"feed": "wow-gear", "items": [{"item_id": 5976, "slot": 19}]}])

@@ -74,7 +74,7 @@ def test_the_join_prices_the_upgrades_as_the_gear_advice_does(demo):
                                            "FROM ah_upgrades")}
     ups = {r[0] for r in db.execute("SELECT item_id FROM upgrade_candidates")}
     priced = {r[0] for r in db.execute("SELECT item_id FROM ah_prices WHERE item_key = CAST(item_id AS TEXT)")}
-    assert set(got) == ups & priced == {4323, 9779, 9786}
+    assert set(got) == ups & priced == {1980, 10025, 10028}
     with D.clock():
         import time
 
@@ -89,13 +89,13 @@ def test_the_join_prices_the_upgrades_as_the_gear_advice_does(demo):
 def test_one_query_answers_the_cheapest_upgrade_on_the_ah(demo):
     out = semantic.rows(demo["layer"], demo["ro"], drive.AH_QUERY)
     assert [(r["item"], r["ah_upgrade_price_copper"]) for r in out] == [
-        ("Bandit Cloak", 1854), ("Raider's Cloak", 2113), ("Shadow Hood", 14500)]
-    assert out[0]["slot"] == "Back" and out[0]["effort_elsewhere"] == "hard"
+        ("Shadoweave Shoulders", 38500), ("Shadoweave Mask", 42500), ("Underworld Band", 245500)]
+    assert out[0]["slot"] == "Shoulder" and out[0]["effort_elsewhere"] == "some effort"
     # And a price over time, by item: two scan days give a change.
     p = semantic.rows(demo["layer"], demo["ro"], {"metrics": ["ah_price_latest_copper", "ah_price_change_copper"],
                                                   "group_by": ["item_id"],
-                                                  "where": [{"dimension": "item_id", "op": "=", "value": 9779}]})
-    assert p == [{"item_id": 9779, "ah_price_latest_copper": 1854, "ah_price_change_copper": 11,
+                                                  "where": [{"dimension": "item_id", "op": "=", "value": 1980}]})
+    assert p == [{"item_id": 1980, "ah_price_latest_copper": 245500, "ah_price_change_copper": 500,
                   "ah_price_change_copper_evidence": 2}]
 
 

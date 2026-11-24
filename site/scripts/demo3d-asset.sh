@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The demo's real 3D model: Nibbet's game files from the `demo-3d` release
-# (tag demo-3d-1, built by tools/fixtures/demo3d.py), never from git.
+# (tag demo-3d-2, built by tools/fixtures/demo3d.py), never from git.
 #
 #   site/scripts/demo3d-asset.sh <dest dir>
 #
@@ -15,7 +15,7 @@ set -euo pipefail
 
 dest=${1:?usage: demo3d-asset.sh <dest dir>}
 repo=$(cd "$(dirname "$0")/../.." && pwd)
-url=${DEMO_3D_URL:-https://github.com/${GITHUB_REPOSITORY:-sam-dumont/wow-mcp}/releases/download/demo-3d-1/nibbet-3d.tar.gz}
+url=${DEMO_3D_URL:-https://github.com/${GITHUB_REPOSITORY:-sam-dumont/wow-mcp}/releases/download/demo-3d-2/nibbet-3d.tar.gz}
 pin=$(awk 'NR==1{print $1}' "$repo/site/demo3d.sha256")
 
 warn() {

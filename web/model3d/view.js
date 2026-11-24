@@ -116,7 +116,9 @@
     delete document.documentElement.dataset.state;
     // Another level's gear: the same frame and viewer, a new recipe.
     if (handle) await handle.redraw(recipe);
-    else handle = await M3D.draw(canvas, recipe, get, {});
+    // Now and then another animation (m3d/draw.js Idle); never in the
+    // renderer's pictures, which stay on Stand.
+    else handle = await M3D.draw(canvas, recipe, get, { idle: !RENDER });
     status.hidden = true;
     document.documentElement.dataset.state = 'drawn';
     tell({ ok: true, missing: handle.missing.length });

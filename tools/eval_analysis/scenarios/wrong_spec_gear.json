@@ -1,20 +1,20 @@
 {
   "name": "wrong_spec_gear",
   "about": "The server scores this character's gear for Holy (WEIGHTS), and the character just put on the Filigreed Shadow Circlet: a Shadow item, a fair upgrade for Shadow and next to nothing for Holy.",
-  "goals": "Reach level 40 without wasting time, and know what to fix.",
+  "goals": "Reach level 50 without wasting time, and know what to fix.",
   "env": {"WEIGHTS": "Nibbet-Gearholt:holy"},
   "inject": [
     {"kind": "wear", "slot": 1, "item": 253981}
   ],
   "truth": {
-    "expected": "Scored for Holy, the worn Filigreed Shadow Circlet is a weak head piece: the gear advice's best head upgrades are the Embalmed Shroud, the Filigreed Pristine Circlet and the Holy Shroud. A right analysis keeps a finding that names the worn circlet (or the head slot) and the Holy spec it's scored for, points the head slot at one of those upgrades, and never tells the player to get or keep a Shadow head item.",
+    "expected": "Scored for Holy, the worn Filigreed Shadow Circlet is a weak head piece: the gear advice's best head upgrades are Cassandra's Grace, the Dreamweave Circlet and the Red Mageweave Headband. A right analysis keeps a finding that names the worn circlet (or the head slot) and the Holy spec it's scored for, points the head slot at one of those upgrades, and never tells the player to get or keep a Shadow head item.",
     "must_find": [
       {"id": "names-the-off-spec-head", "about": "a verified finding names the worn circlet (or the head slot) and the spec the gear is scored for",
        "kinds": ["finding"],
        "all": [["filigreed shadow circlet", "shadow circlet", "\\bcirclet\\b", "\\bhead\\b"], ["\\bholy\\b"]]},
       {"id": "head-upgrade-for-the-spec", "about": "a kept action names one of the three best head upgrades for the configured spec",
        "in": "actions",
-       "all": [["embalmed shroud", "filigreed pristine circlet", "holy shroud"]]}
+       "all": [["cassandra's grace", "dreamweave circlet", "red mageweave headband"]]}
     ],
     "must_not_claim": [
       {"id": "recommends-a-shadow-head", "about": "an action that tells the player to get or keep a Shadow head item",

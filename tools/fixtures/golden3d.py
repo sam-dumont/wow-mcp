@@ -344,14 +344,30 @@ ITEMS: dict[int, tuple[str, tuple]] = {
     1317: ("staff", ((112, 80, 52), (140, 220, 120))),
     2816: ("mace", ((90, 80, 100), (150, 60, 200))),
     279838: ("rod", ((60, 70, 140), (180, 140, 255))),
-    4323: ("helm", ((60, 50, 70), None)),                # Shadow Hood: on the auction house today
+    4323: ("helm", ((60, 50, 70), None)),                # Shadow Hood: on the auction house at 34
     253951: ("helm", ((60, 110, 190), None)),            # Silky Circlet: his own tailoring
     2576: ("shirt", ((236, 232, 220), None)),            # White Linen Shirt
     5976: ("tabard", ((40, 90, 60), (220, 190, 80))),    # Guild Tabard: green, a gold band
     TEST_HELM: ("helm", ((150, 40, 40), None)),
     TEST_SHIELD: ("shield", ((150, 150, 160), (200, 60, 40))),
     7001: ("wand", ((0, 0, 0), None)),                   # a wand in the ranged slot: never drawn
+    # His outfits on the way to 46 (generate.py sessions_demo_46).
+    7684: ("shoulders", ((120, 30, 40), (200, 170, 90))),  # Bloodmage Mantle
+    10028: ("shoulders", ((50, 40, 70), None)),          # Shadoweave Shoulders: on the auction house today
+    7720: ("helm", ((230, 225, 215), (170, 30, 40))),    # Whitemane's Chapeau
+    10762: ("robe", ((40, 50, 80), (150, 190, 230))),    # Robes of the Lich
+    10771: ("belt", ((70, 30, 40), (200, 160, 70))),     # Deathmage Sash
+    7709: ("trousers", ((90, 100, 60), None)),           # Blighted Leggings
+    254007: ("boots", ((30, 28, 34), (90, 70, 120))),    # Black Slippers: his own tailoring
+    4744: ("wrists", ((60, 80, 150), None)),             # Arcane Runed Bracers
+    254027: ("gloves", ((30, 28, 34), None)),            # Black Handwraps: his own tailoring
+    254041: ("belt", ((150, 40, 30), (230, 140, 40))),              # Fiery Cord: his own, the fire one
+    10776: ("cloak", ((200, 200, 210), None)),           # Silky Spider Cape
+    249454: ("staff", ((70, 60, 110), (170, 140, 255))),  # Dreamstaff: his own enchanting, and it glows
+    274425: ("wand", ((0, 0, 0), None)),                 # White Obsidian Wand: never drawn
 }
+# The made-up items that glow, as their real ones do (ItemDisplayInfo.ItemVisual).
+GLOWS = {279838, 249454}
 # Item (class, subclass, inventory type) for the made-up test items; the
 # others' come from the repository's item data (wowstats.gear).
 TEST_ITEMS = {TEST_HELM: (4, 4, 1), TEST_SHIELD: (4, 6, 14)}
@@ -505,6 +521,8 @@ def build() -> dict:
                               _b((-0.06, -0.06, 0.86), (0.06, 0.06, 0.98))],
                             attachments=[(1, 0, (0.0, 0.0, 0.92))])
                 d["ModelResourcesID"], d["ModelMaterialResourcesID"] = [res, 0], [mat, 0]
+                if item in GLOWS:
+                    d["ItemVisual"] = rid(950)
             elif kind == "mace":
                 res = model([_b((-0.02, -0.02, -0.05), (0.02, 0.02, 0.22)),
                               _b((-0.05, -0.05, 0.22), (0.05, 0.05, 0.32))],

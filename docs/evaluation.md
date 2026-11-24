@@ -89,7 +89,7 @@ Every scenario runs at once by default (`--jobs`), each in a process of its own 
 folder: a run mostly waits on the model, and its local load is one small server on synthetic data. For each
 scenario, `tools/eval_analysis/run.py`:
 
-1. builds the history: the docs site's demo character (Nibbet-Gearholt, levels 22 to 34 over twenty evenings,
+1. builds the history: the docs site's demo character (Nibbet-Gearholt, levels 22 to 46 over thirty-three evenings,
    `tools/fixtures/generate.py --demo`) with one effect injected (`scenarios.py`);
 2. starts wow-stats' own MCP server over stdio on those events, with a throwaway state folder and nothing else:
    no VictoriaLogs (its address is a closed local port), no provider settings (`server.py`);

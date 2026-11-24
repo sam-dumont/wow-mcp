@@ -265,21 +265,21 @@
   match: text
   tools: [gear|play_sql]
   probes:
-    - {tool: gear, path: "slots[*].worn_fit.for_you", holds: some, contains: "for_you\":\"class"}
+    - {tool: gear, path: "slots[*].worn_fit", holds: some, contains: "for_you\":\"class"}
 
-- id: best_feet
+- id: best_waist
   group: gear
   persona: gearer
   difficulty: easy
   question: >-
     For the spec its gear is scored for, what is the best item the character can wear in its
-    feet slot at its current level? Give the item's name.
-  answer: best_feet_now
+    waist slot at its current level? Give the item's name.
+  answer: best_waist_now
   match: text
   tools: [gear]
   probes:
-    - {tool: gear, path: "slots[slot=Feet].best_now.item"}
-    - {tool: gear, args: {mode: lvl}, path: "slots[slot=Feet].best_now.item"}
+    - {tool: gear, path: "slots[slot=Waist].best_now.item"}
+    - {tool: gear, args: {mode: lvl}, path: "slots[slot=Waist].best_now.item"}
 
 - id: zone_quest_upgrade
   group: gear
@@ -293,8 +293,9 @@
   match: pct_line
   tools: [gear]
   probes:
-    - {tool: gear, args: {limit: 40}, path: "next_upgrades[*].line", holds: any}
-    - {tool: gear, args: {options: true, limit: 20}, path: "slots[*].options", holds: some}
+    # The demo's (Stormwind at 46) is an off hand, which gear's shortlist leaves to its options.
+    - {tool: gear, args: {limit: 40}, path: "next_upgrades[*].line", holds: some}
+    - {tool: gear, args: {options: true, limit: 20}, path: "slots[*].options[*].line", holds: any}
 
 # Bloodmage Mantle (an easy 43% drop, +2.4) since 2026-11-24, not Green Silken
 # Shoulders (+2.0, a Tailoring 165 craft the character can't make at 141):
@@ -314,16 +315,16 @@
   probes:
     - {tool: gear, args: {mode: pve}, path: "slots[slot=Shoulder].best_now.item"}
 
-- id: pvp_chest
+- id: pvp_wrist
   group: gear
   persona: gearer
   difficulty: medium
-  question: Scored for PvP, what is the best chest item the character can wear now? Give the item's name.
+  question: Scored for PvP, what is the best wrist item the character can wear now? Give the item's name.
   answer: probe
   match: text
   tools: [gear]
   probes:
-    - {tool: gear, args: {mode: pvp}, path: "slots[slot=Chest].best_now.item"}
+    - {tool: gear, args: {mode: pvp}, path: "slots[slot=Wrist].best_now.item"}
 
 - id: other_spec_head
   group: gear
@@ -603,8 +604,8 @@
   persona: trader
   difficulty: hard
   question: >-
-    Which gear upgrade for the character is on sale in its latest auction house scan, ready to
-    buy and wear now? Give its item id, or NONE if there is none.
+    Of the gear upgrades for the character on sale in its latest auction house scan, ready to
+    buy and wear now, which is the cheapest? Give its item id, or NONE if there is none.
   answer: ah_upgrade
   match: number
   tools: [gear]
@@ -728,12 +729,12 @@
   group: kb
   persona: leveller
   difficulty: medium
-  question: Which talent does the character's class guide pick at level 35? Give the talent's name.
+  question: Which talent does the character's class guide pick at level 44? Give the talent's name.
   answer: probe
   match: text
   tools: [class_guide]
   probes:
-    - {tool: class_guide, path: "now.talent_picks[level=35].talent"}
+    - {tool: class_guide, path: "now.talent_picks[level=44].talent"}
 
 - id: news_count
   group: kb

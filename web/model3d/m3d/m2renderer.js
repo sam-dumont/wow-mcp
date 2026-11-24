@@ -474,6 +474,58 @@
 			return idx;
 		}
 
+		// Every sequence of an AnimationData id (its variations), in order.
+		animation_indices(anim_id) {
+			const anims = (this.skelLoader || this.m2).animations || [];
+			const out = [];
+			anims.forEach((a, i) => {
+				if (a.id === anim_id)
+					out.push(i);
+			});
+			return out;
+		}
+
+		// A sequence's length in seconds (0 when it has none).
+		animation_duration(index) {
+			const a = ((this.skelLoader || this.m2).animations || [])[index];
+			return a ? a.duration / 1000 : 0;
+		}
+
+		// Whether a sequence can be played: its data is in the model (or
+		// skeleton) itself, or its .anim file comes through `fetch` (the
+		// caller's, quiet about a file that doesn't come: the shipper sends
+		// the .anim files of Stand and HandsClosed only). A loaded .anim is
+		// kept, so playAnimation finds it.
+		async prepareAnimation(index, fetch) {
+			let source = this.skelLoader || this.m2;
+			const a = (source.animations || [])[index];
+			if (!a)
+				return false;
+			let source_index = index;
+			if (this.childSkelLoader) {
+				const child = (this.childSkelLoader.animations || []).findIndex(
+					(c) => c.id === a.id && c.variationIndex === a.variationIndex);
+				if (child >= 0) {
+					source = this.childSkelLoader;
+					source_index = child;
+				}
+			}
+			const list = source.animations || [];
+			let r = list[source_index];
+			let guard = 0;
+			while (r && (r.flags & 0x40) === 0x40 && guard++ < list.length)
+				r = list[r.aliasNext];
+			if (!r)
+				return false;
+			if ((r.flags & 0x20) === 0x20)
+				return true;
+			if (!source.loadAnimsForIndex || !source.animFileIDs)
+				return false;
+			if (source.animFiles && source.animFiles.has(source_index))
+				return true;
+			return !!(await source.loadAnimsForIndex(source_index, fetch));
+		}
+
 		// Plays an AnimationData id (falls back to Stand, 0). Resolves to
 		// false when the model has neither.
 		async playAnimationById(anim_id) {
