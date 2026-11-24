@@ -845,9 +845,7 @@ def t_dungeons(ctx: Ctx, args: dict) -> dict:
         # groupmates' sources gave, from joining the group to the run's end).
         from wowstats import insights
 
-        v = _views(ctx)
-        v.chars()
-        party = {parse_t(p["t"]): p for p in insights.dungeon_runs(v.q, v.char_filter(char))}
+        party = {parse_t(p["t"]): p for p in insights.dungeon_runs(lambda q: ctx.store.logs(q), cf(char))}
         for r in runs:
             p = party.get(parse_t(r["t"])) or {}
             if p.get("party"):
