@@ -24,6 +24,10 @@
   friends' store; a deleted friend's past prices stay in it, since nothing there says who scanned
   them ([Shared auction scans](docs/self-host/friends.md#shared-auction-scans)).
 
+- The shared auction scans keep 90 days (`PRICE_DAYS`), then older rows are pruned once a day
+  (a delete task on the friends' VictoriaLogs, a `DELETE` on the SQLite file). A deleted friend's
+  anonymous prices are still not deleted.
+
 - Where gear comes from is ForeverDB.net's addon data now (GPL-3.0 with an attribution term, bundled in
   `data/foreverdb/`): 7,577 items with quests, vendors and their price, boss drops with the chance players
   measured and over how many kills, rares, crafts, reputation, PvP and containers. Each source says how

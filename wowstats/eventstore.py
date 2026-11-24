@@ -130,10 +130,12 @@ class VictoriaLogs:
         except (urllib.error.URLError, OSError) as e:
             raise SourceError(f"{at} unreachable: {e}") from None
 
-    def delete(self, tenant: int, auth_key: str = "") -> dict:
-        """Every event of the tenant: a delete task (VictoriaLogs needs
-        -delete.enable, and -deleteAuthKey when `auth_key` is given)."""
-        body = urllib.parse.urlencode({"filter": "*", **({"authKey": auth_key} if auth_key else {})}).encode()
+    def delete(self, tenant: int, auth_key: str = "", before: datetime | None = None) -> dict:
+        """Every event of the tenant, or only those older than `before`: a
+        delete task (VictoriaLogs needs -delete.enable, and -deleteAuthKey
+        when `auth_key` is given)."""
+        flt = "*" if before is None else f"_time:<{iso_us(before)}"
+        body = urllib.parse.urlencode({"filter": flt, **({"authKey": auth_key} if auth_key else {})}).encode()
         req = urllib.request.Request(f"{self.url}/delete/run_task", data=body, method="POST",
                                      headers={**tenant_headers(tenant),
                                               "Content-Type": "application/x-www-form-urlencoded"})
@@ -318,8 +320,15 @@ class SQLiteEvents:
             raise Unanswerable(f"LogsQL outside what the SQLite store answers ({e}): {q[:200]}") from None
         return out[:max(0, int(limit))]
 
-    def delete(self, tenant: int, auth_key: str = "") -> dict:
-        """Every event of the person: their file, gone."""
+    def delete(self, tenant: int, auth_key: str = "", before: datetime | None = None) -> dict:
+        """Every event of the person: their file, gone. With `before`, only
+        the rows older than it."""
+        if before is not None:
+            with self._conn(tenant, create=False) as con:
+                if con is None:
+                    return {"deleted_rows": 0}
+                cur = con.execute("DELETE FROM events WHERE t_us < ?", (_us(before),))
+                return {"deleted_rows": cur.rowcount}
         gone = []
         for suffix in ("", "-wal", "-shm"):
             p = Path(f"{self.path(tenant)}{suffix}")

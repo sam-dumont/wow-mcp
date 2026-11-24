@@ -146,3 +146,43 @@ def test_gear_keeps_to_the_characters_ruleset():
     got = ahsource.market({"items": rows, "money": [{"_time": t, "level": "20", "money_copper": "5", "realm": "Normal"}]}, faction="Alliance",
                           money=None, now=now.timestamp())
     assert got["scan"]["ruleset"] == "Normal" and all(1000 <= i < 1060 for i in got["items"])
+
+
+def test_prune_drops_scans_older_than_price_days_on_sqlite(lab):
+    loc, _, upload = lab
+    old = DAY - timedelta(days=ahshared.PRICE_DAYS + 5)
+    upload(ADA, character(ADA, "Normal", "Alliance"),
+           price(ADA, "Normal", 2589, 15, "Alliance") | {"_time": old.isoformat().replace("+00:00", "Z")},
+           price(ADA, "Normal", 2592, 40, "Alliance"))
+    assert len(shared_rows(loc)) == 2
+    assert eventstore.get(loc).delete(ahshared.ACCOUNT, before=datetime.now(UTC) - timedelta(days=90)) == {
+        "deleted_rows": 1}
+    (left,) = shared_rows(loc)
+    assert left["item_key"] == "2592"
+    assert eventstore.get(loc).delete(999, before=datetime.now(UTC)) == {"deleted_rows": 0}
+
+
+def test_prune_daily_runs_once_a_day_and_a_friends_deletion_leaves_it(lab, monkeypatch):
+    loc, people, upload = lab
+    upload(ADA, character(ADA, "Normal", "Alliance"), price(ADA, "Normal", 2592, 40, "Alliance"))
+    monkeypatch.setattr(ahshared, "_last_prune", 0.0)
+    assert ahshared.prune_daily(loc) is True
+    assert ahshared.prune_daily(loc) is False  # the same day
+    eventstore.get(loc).delete(people[ADA].account_id)  # a friend's deletion
+    assert len(shared_rows(loc)) == 1
+
+
+def test_prune_without_a_delete_api_logs_once_and_skips(monkeypatch):
+    from wowstats.stores import SourceError
+
+    class Refusing:
+        def delete(self, *a, **k):
+            raise SourceError("VictoriaLogs refused the delete: 400")
+
+    monkeypatch.setattr(eventstore, "get", lambda loc: Refusing())
+    monkeypatch.setattr(ahshared, "_warned", False)
+    said = []
+    for _ in range(2):
+        monkeypatch.setattr(ahshared, "_last_prune", 0.0)
+        assert ahshared.prune_daily("http://vl:9428", log=said.append) is False
+    assert len(said) == 1 and "not pruned" in said[0]

@@ -101,7 +101,8 @@ def settings_from_env(env: dict, view: str = "full") -> Settings:
     Settings, its `weights` stayed empty, and its gear_options scored the
     add-on's spec while the page scored the configured one."""
     return Settings(view=view, default_char=env.get("DEFAULT_CHAR", ""),
-                    price_days=int(env.get("PRICE_DAYS", "90")), weights=parse_weights(env.get("WEIGHTS", "")),
+                    price_days=int(env.get("PRICE_DAYS", str(ahshared.PRICE_DAYS))),
+                    weights=parse_weights(env.get("WEIGHTS", "")),
                     ah_shared=ahshared.location(env))
 
 

@@ -74,7 +74,12 @@ from wowstats import (
 )
 from wowstats import gear as gearmod
 from wowstats.stores import SourceError, Store, env_account, iso, parse_t, public_error
-from wowstats.views import ConfigError, Views, parse_weights, settings_from_env  # noqa: F401 - parse_weights: ui.parse_weights
+from wowstats.views import (  # noqa: F401 - parse_weights: ui.parse_weights
+    ConfigError,
+    Views,
+    parse_weights,
+    settings_from_env,
+)
 
 # media-src: the manual's clips, from /start/media/ and, on the help page, as
 # blob: URLs of the clips it decrypts (wowstats.mcp.helppage).
@@ -1489,7 +1494,14 @@ def main() -> int:
                   f"{env.get('FRIENDS_RECONCILE_S') or '120'} s)", flush=True)
     # The answers a plain open asks for, built in the background once per new
     # data (wowstats.prebuilt): each person's, the owner first.
-    prebuilt.start(lambda: prebuilt_apps(app, tenancy))
+    from wowstats import ahshared
+
+    def chore():
+        # The shared auction scans keep PRICE_DAYS days (wowstats.ahshared).
+        if tenancy is not None and tenancy.friends_vl:
+            ahshared.prune_daily(tenancy.friends_vl, (tenancy.env.get("FRIENDS_VL_DELETE_KEY_FILE") or "").strip())
+
+    prebuilt.start(lambda: prebuilt_apps(app, tenancy), chore=chore)
     if app.mcp is not None:
         # FastMCP on its own port (wowstats.mcp): a bad OIDC issuer stops the
         # start here, like a bad setting.
