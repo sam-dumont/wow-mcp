@@ -2,8 +2,8 @@
 Testpriest's answer (tests/data/gear-priest.json.gz, the full view's
 answer on a synthetic sheet, tools/fixtures/generate.py): the display rule
 (at most 3 candidates in view per slot), the comparison on a slot click, the
-real gate of a crafted item, and Wowhead as the only outside link, never
-loaded.
+real gate of a crafted item, and Wowhead plus ForeverDB.net's credit as
+the only outside links, never loaded.
 
 Same setup as tests/test_browser.py (needs the `browser` group)."""
 
@@ -27,6 +27,7 @@ from wowstats.plan import facts  # noqa: E402
 
 DATA = Path(__file__).parent / "data"
 WOWHEAD = re.compile("^" + re.escape(links.WOWHEAD_BASE) + r"/(item|quest|npc|spell|zone|object)=\d+$")
+FOREVERDB = "https://foreverdb.net/"  # its credit link, as the browser resolves it
 
 
 def answer(name: str) -> dict:
@@ -46,7 +47,7 @@ def site(tmp_path_factory):
     mp.setattr(itemcard, "shared", lambda: Catalog())
     mp.setenv("WOW_ITEMS", "off")
     gear = answer("gear-priest.json.gz")
-    mp.setattr(ui.App, "gear", lambda self, name, spec: gear)
+    mp.setattr(ui.App, "gear", lambda self, name, spec, mode=None: gear)
     env = {"VL_URL": "http://vl.invalid", "MODEL3D": "off", "PUBLISH_DIR": str(tmp / "site"),
            "ZOGZOG_KEY_FILE": str(tmp / "zogzog.key"), "MODEL3D_CACHE_DIR": str(tmp / "cache")}
     out = io.StringIO()
@@ -153,22 +154,33 @@ def test_slot_click_opens_the_comparison(site, pw, engine, width):
         b.close()
 
 
+def crafted_gated(gear: dict) -> dict:
+    """A slot's next piece gated by both a level and a crafting skill (Icy
+    Cloak until the #208 regen, Black Handwraps after it): taken from the
+    fixture, so a regenerated answer keeps the test on the same shape."""
+    return next(s["next"] for s in gear["slots"]
+                if s.get("next") and sorted(g["kind"] for g in s["next"]["gates"]) == ["level", "skill"])
+
+
 @pytest.mark.parametrize("engine", ["chromium", "webkit"])
-def test_icy_cloak_shows_its_real_gate(site, pw, engine):
-    url, _ = site
+def test_a_crafted_piece_shows_its_real_gate(site, pw, engine):
+    url, gear = site
+    item = crafted_gated(gear)
+    lv = next(g for g in item["gates"] if g["kind"] == "level")
+    sk = next(g for g in item["gates"] if g["kind"] == "skill")
     b, pg, _ = open_page(pw, engine, url, 1920)
     try:
         pg.locator("#advice .order button", has_text="By where you get it").click()
         pg.evaluate("() => document.querySelectorAll('#advice details').forEach((d) => { d.open = true; })")
-        row = pg.locator("#advice .cand", has_text="Icy Cloak")
+        row = pg.locator("#advice .cand", has_text=item["name"])
         assert row.count() == 1
         pill = row.locator(".pill")
-        assert pill.inner_text() == "Level 35 + Tailoring 200"
+        assert pill.inner_text() == f"Level {lv['need']} + {sk['profession']} {sk['need']}"
         # The skill the fixture seeds moves with the generated data (105, then 109
         # after the Polestar 0.4.2.1 regen): the title must agree with itself.
-        m = re.search(r"Tailoring reaches 200 \(you have (\d+), (\d+) to go\)", pill.get_attribute("title"))
+        m = re.search(rf"{sk['profession']} reaches {sk['need']} \(you have (\d+), (\d+) to go\)", pill.get_attribute("title"))
         assert m, pill.get_attribute("title")
-        assert 0 < int(m[1]) < 200 and int(m[1]) + int(m[2]) == 200
+        assert 0 < int(m[1]) < sk["need"] and int(m[1]) + int(m[2]) == sk["need"]
     finally:
         b.close()
 
@@ -185,12 +197,17 @@ def test_character_tab_links_wowhead_only(site, pw, engine):
         links = pg.locator("#gear a[href], #advice a[href], .cmp a[href]").evaluate_all(
             "els => els.map(a => [a.href, a.target, a.rel, a.getAttribute('referrerpolicy')])")
         assert links, "no outside link at all"
+        # Besides Wowhead, only ForeverDB.net's credit: its licence asks for the
+        # link wherever its data shows (data/foreverdb/LICENSE.txt, GPL-3.0
+        # section 7(b); web/app.js SOURCE_CREDIT, WEIGHTS_CREDIT).
+        credits = [h for h, *_ in links if h == FOREVERDB]
+        assert credits, "ForeverDB.net's data shows without its credit link"
         for href, target, rel, ref in links:
-            assert WOWHEAD.match(href), href
+            assert WOWHEAD.match(href) or href == FOREVERDB, href
             assert target == "_blank" and set(rel.split()) == {"noopener", "noreferrer"} and ref == "no-referrer"
-        kinds = {WOWHEAD.match(h).group(1) for h, *_ in links}
+        kinds = {WOWHEAD.match(h).group(1) for h, *_ in links if h != FOREVERDB}
         assert {"item", "quest", "npc"} <= kinds, kinds
-        assert not [u for u in seen if "wowhead" in u], "Wowhead is linked, never loaded"
+        assert not [u for u in seen if "wowhead" in u or "foreverdb" in u], "Wowhead and ForeverDB are linked, never loaded"
     finally:
         b.close()
 
@@ -199,12 +216,13 @@ def test_character_tab_links_wowhead_only(site, pw, engine):
 @pytest.mark.parametrize("scheme", ["dark", "light"])
 def test_each_upgrade_says_who_it_is_built_for(site, pw, engine, scheme):
     """Every upgrade row carries its fit line (wowstats/gearfit.py): Testpriest
-    is Shadow at 32, so Embalmed Shroud, a healer's head piece, reads as not
-    made for his spec but fine while levelling (he still heals himself
-    before Shadowform), and its comparison names the head piece built for
-    him and where it comes from. WOW_SHOTS=<dir> saves the list and the
-    comparison."""
+    is Shadow at 32, so a healer's piece (Embalmed Shroud until the #208
+    regen; the fixture's first one now) reads as not made for his spec but
+    fine while levelling (he still heals himself before Shadowform), and its
+    comparison names the piece built for him instead. WOW_SHOTS=<dir> saves
+    the list and the comparison."""
     url, gear = site
+    off = next(u for u in gear["upgrades"] if u["fit"]["for_you"] == "spec" and u["fit"].get("alternative"))
     try:
         b = getattr(pw, engine).launch()
     except Exception as e:  # browsers not installed
@@ -217,7 +235,7 @@ def test_each_upgrade_says_who_it_is_built_for(site, pw, engine, scheme):
         pg.locator("#advice details.upmore").evaluate_all("els => els.forEach(e => e.open = true)")
         rows = pg.locator("#advice li.cand")
         assert rows.count() and rows.count() == pg.locator("#advice li.cand .fit").count()
-        shroud = pg.locator("#advice li.cand", has_text="Embalmed Shroud").first
+        shroud = pg.locator("#advice li.cand", has_text=off["name"]).first
         line = shroud.locator(".fit").inner_text()
         assert line.startswith("Not made for your spec. Fine while levelling") and "don't roll Need" in line, line
         assert pg.locator("#advice li.cand .fit.yes", has_text="Built for your spec").count() >= 10
@@ -232,7 +250,7 @@ def test_each_upgrade_says_who_it_is_built_for(site, pw, engine, scheme):
         shroud.locator(".candmain .itm").click()
         wait_count(pg, ".cmp", 1)
         alt = pg.locator(".cmp .fitalt").inner_text()
-        assert alt.startswith("Built for your spec instead: ") and "Electromagnetic Gigaflux Reactivator" in alt, alt
+        assert alt.startswith("Built for your spec instead: ") and off["fit"]["alternative"]["name"] in alt, alt
         if shots:
             pg.locator(".cmp").screenshot(path=f"{shots}/fit-compare-{engine}-{scheme}.png")
     finally:

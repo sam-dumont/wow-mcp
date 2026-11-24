@@ -1313,6 +1313,13 @@ function sourceGroup(s) {
 }
 
 // 12g 40s: gold and silver, copper only under a gold (wowstats/ahsource.py price_text).
+// A level range as "a-b", or null. The full view sends null for no range,
+// /zogzog/'s redactor ([None] list specs, wowstats/redact.py) an empty list:
+// every page reads ranges through this, so neither prints "undefined-undefined".
+function levelRange(lv) {
+  return Array.isArray(lv) && lv.length === 2 && lv[0] != null && lv[1] != null
+    ? `${lv[0]}-${lv[1]}` : null;
+}
 function priceText(copper) {
   const g = Math.floor(copper / 10000), sv = Math.floor((copper % 10000) / 100), c = copper % 100;
   return [g ? `${fmtNum(g)}g` : '', sv ? `${sv}s` : '', c && !g ? `${c}c` : ''].filter(Boolean).join(' ') || '0c';
@@ -1372,7 +1379,7 @@ function sourceEl(sr, level, ah) {
     // 1 / p in kills: what a drop rate means at the keyboard (owner, 2026-11-24).
     const kills = runs > 1 ? ` (about ${runs.toLocaleString('en')} kills)` : '';
     if (sr.world) {
-      const lv = sr.levels_drop ? ` from level ${sr.levels_drop[0]}-${sr.levels_drop[1]} creatures` : '';
+      const lv = levelRange(sr.levels_drop) ? ` from level ${levelRange(sr.levels_drop)} creatures` : '';
       return h('span', { class: 'src' }, `World drop${lv}`, sr.zone ? `, seen in ${sr.zone}` : '', chanceText(sr), kills, basisEl(sr), buy);
     }
     if (!(sr.instance || sr.dungeon)) {
@@ -1877,7 +1884,7 @@ function byWhere(a, list) {
   const ranked = [...groups.values()].sort((x, y) => (y.kind === 'held') - (x.kind === 'held') || y.rank - x.rank);
   return h('ol', { class: 'srcgroups' }, ranked.map((g) => h('li', { class: 'srcgroup' },
     h('div', { class: 'sghead' }, h('h4', {}, g.title),
-      g.levels && g.levels.length === 2 ? h('span', { class: 'sub', text: `levels ${g.levels[0]}-${g.levels[1]}` }) : null,
+      levelRange(g.levels) ? h('span', { class: 'sub', text: `levels ${levelRange(g.levels)}` }) : null,
       h('span', { class: 'sgval', text: g.label })),
     ...groupRows(g, a))));
 }
@@ -3299,7 +3306,7 @@ const MOVE_KIND = {
 function sourceLine(src) {
   if (!src) return null;
   const z = src.zone;
-  const lv = z && z.levels ? ` (levels ${z.levels[0]}-${z.levels[1]})` : '';
+  const lv = z && levelRange(z.levels) ? ` (levels ${levelRange(z.levels)})` : '';
   const block = src.blocker ? h('span', { class: 'mblock', text: ` (${src.blocker})` }) : null;
   const how = basisEl(src);
   if (src.kind === 'quest' && src.quest) return h('span', {}, 'Quest ', whRef(src.quest), z ? [' in ', whRef(z)] : null, how, block);
@@ -3343,7 +3350,7 @@ function moveEl(mv, nowZone) {
       sourceLine(mv.source), creditEl()];
   } else if (mv.kind === 'dungeon' && mv.zone) {
     const its = mv.items || [];
-    what = h('span', {}, whRef(mv.zone), mv.zone.levels ? h('span', { class: 'pill', text: `levels ${mv.zone.levels[0]}-${mv.zone.levels[1]}` }) : null);
+    what = h('span', {}, whRef(mv.zone), levelRange(mv.zone.levels) ? h('span', { class: 'pill', text: `levels ${levelRange(mv.zone.levels)}` }) : null);
     why = [vsGuide(mv.vs_guide, true), gainLine(mv.gain), gainQuests(mv.gain), moveRewards(mv.quest_rewards),
       h('span', { text: `Drops ${its.length} upgrade${its.length === 1 ? '' : 's'} you could wear now` + (mv.blocker ? ` (${mv.blocker}):` : ':') }),
       h('ul', { class: 'ditems' }, its.slice(0, 3).map((it) => h('li', {}, itemWithLink(it),

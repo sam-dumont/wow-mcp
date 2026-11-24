@@ -9,6 +9,16 @@
   community step got a 401 six minutes after the mint. Every model step now runs under
   `tools/kb/with-oidc.sh`, which mints first and again every three minutes while it runs; a test
   fails any step that sets `ANTHROPIC_IDENTITY_TOKEN_FILE` without it.
+- /zogzog/ no longer prints "levels undefined-undefined" on a drop with no level range (a world drop,
+  an open-world rare). Its redactor sends an absent range as an empty list where the full view sends
+  none, and the page only checked that one was there. Every level range on the page now goes through
+  one reader that shows nothing unless both ends are known.
+- The release's browser tests caught up with 0.10.0's gear: the fake gear answers take the scoring
+  mode the server passes since the three modes (the live page's gear tab got a 500 and drew no
+  upgrade), the gate and fit checks take their items from the regenerated fixture instead of two
+  items ForeverDB's weights no longer pick, and ForeverDB.net's credit link is allowed next to
+  Wowhead (its licence asks for it wherever its data shows) while every other outside link still
+  fails.
 
 ### Changed
 
