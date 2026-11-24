@@ -94,11 +94,46 @@ def current(state: dict, fetch, gh, kinds: list[str] | None = None) -> dict:
         status, body = fetch.get(p["url"])
         out["official"][p["key"]] = web.official_version(p["kind"], body) if status == 200 else None
     if "polestar" in kinds:
-        out["polestar"]["release"] = polestar_release(gh, state["polestar"]["repo"]) if gh else None
+        ps = state["polestar"]
+        out["polestar"]["release"] = (forward(gh, ps["repo"], ps["known"], polestar_release(gh, ps["repo"]))
+                                      if gh else None)
     for a in state["addons"] if "addons" in kinds else []:
         if a.get("repo"):
-            out["addons"][a["name"]] = gh.latest_release(a["repo"]) if gh else None
+            out["addons"][a["name"]] = addon_release(gh, a) if gh else None
     return out
+
+
+def version_key(tag: str | None) -> tuple[int, ...]:
+    """A tag's numbers in order (`bundle/v12.13.0+v1.1.5` is 12, 13, 0, 1, 1, 5)."""
+    return tuple(int(n) for n in re.findall(r"\d+", tag or ""))
+
+
+def older(tag: str | None, than: str | None) -> bool:
+    a, b = version_key(tag), version_key(than)
+    return bool(a and b) and a < b
+
+
+def forward(gh, repo: str, known: str | None, latest: str | None) -> str | None:
+    """`latest`, never a version back from `known` while known's release still
+    exists: then `known` (no change). 2026-11-24: wowsims/exporter's v3.2.11
+    release went away (the tag stayed), GitHub's Latest fell back to v3.2.10
+    and the watch moved `known` back without a word (#211). A known release
+    that is gone (404) lets the older one through: it is what people can
+    install now, and the bump says so in its commit (`moved_back`)."""
+    if older(latest, known) and not gh.release_gone(repo, known):
+        return known
+    return latest
+
+
+def addon_release(gh, addon: dict) -> str | None:
+    """The release of an addon the watch and the bump compare with its `known`."""
+    return forward(gh, addon["repo"], addon.get("known"), gh.latest_release(addon["repo"]))
+
+
+def moved_back(state: dict, checked: dict[str, str]) -> list[str]:
+    """What a step takes that is older than what the KB knew, said in its commit."""
+    return [f"{a['name']} back to {checked[a['name']]} ({a['known']}'s release is gone upstream)"
+            for a in state["addons"] if a["name"] in checked and older(checked[a["name"]], a.get("known"))]
 
 
 def polestar_release(gh, repo: str) -> str | None:

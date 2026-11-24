@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -75,6 +76,14 @@ def state():
     return json.loads((ROOT / "data" / "kb" / "watch.json").read_text())
 
 
+def later(tag: str, n: int = 1) -> str:
+    """`tag` with its last number up by `n`: a release strictly newer than the
+    committed `known`, whatever the daily watch PRs move it to (#211 moved
+    Questie's to the very tag a test called "new", and the test went red)."""
+    m = list(re.finditer(r"\d+", tag))[-1]
+    return f"{tag[:m.start()]}{int(m.group()) + n}{tag[m.end():]}"
+
+
 def recorded(state, build=None, page=None, polestar=None):
     """Today's inputs as recorded: everything equal to what the KB knows, unless given."""
     pages = {state["client_build"]["url"]: json.dumps({"version": build or state["client_build"]["known"]}).encode()}
@@ -119,15 +128,16 @@ def test_a_no_op_opens_nothing(state):
 
 def test_a_build_bump_opens_one_issue_then_edits_it_then_closes_it(state):
     known_hash(state, PAGE.encode())
-    fetch, gh = recorded(state, build="1.60.2.71234", page=PAGE.encode())
+    b1, b2 = later(state["client_build"]["known"]), later(state["client_build"]["known"], 2)
+    fetch, gh = recorded(state, build=b1, page=PAGE.encode())
     assert watch.run(state, fetch, gh, github=True)["did"]["client-build"] == "opened"
     assert len(gh.issues) == 1
     i = gh.issues[1]
-    assert i["title"] == watch.TITLES["client-build"] and "`1.60.2.71234`" in i["body"] and i["labels"] == ["kb-watch"]
-    fetch, _ = recorded(state, build="1.60.2.71300", page=PAGE.encode())
+    assert i["title"] == watch.TITLES["client-build"] and f"`{b1}`" in i["body"] and i["labels"] == ["kb-watch"]
+    fetch, _ = recorded(state, build=b2, page=PAGE.encode())
     assert watch.run(state, fetch, gh, github=True)["did"]["client-build"] == "edited"
-    assert len(gh.issues) == 1 and "`1.60.2.71300`" in gh.issues[1]["body"]
-    state["client_build"]["known"] = "1.60.2.71300"  # the PR that updates the KB accepted it
+    assert len(gh.issues) == 1 and f"`{b2}`" in gh.issues[1]["body"]
+    state["client_build"]["known"] = b2  # the PR that updates the KB accepted it
     fetch, _ = recorded(state, page=PAGE.encode())
     assert watch.run(state, fetch, gh, github=True)["did"]["client-build"] == "closed"
     assert not gh.issues[1]["open"]
@@ -151,7 +161,7 @@ def test_an_unreadable_source_is_not_a_change(state):
 
 def test_a_polestar_release_opens_its_own_issue(state):
     known_hash(state, PAGE.encode())
-    fetch, gh = recorded(state, page=PAGE.encode(), polestar="v0.5.0")
+    fetch, gh = recorded(state, page=PAGE.encode(), polestar=later(state["polestar"]["known"]))
     assert watch.run(state, fetch, gh, github=True)["did"]["polestar"] == "opened"
     assert [i["title"] for i in gh.issues.values()] == [watch.TITLES["polestar"]]
 
@@ -162,12 +172,13 @@ def test_a_change_the_run_couldnt_land_says_why(state, monkeypatch):
     known_hash(state, PAGE.encode())
     monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
     monkeypatch.setenv("GITHUB_RUN_ID", "42")
-    fetch, gh = recorded(state, page=PAGE.encode(), polestar="v0.5.0", build="1.60.2.71234")
+    tag = later(state["polestar"]["known"])
+    fetch, gh = recorded(state, page=PAGE.encode(), polestar=tag, build=later(state["client_build"]["known"]))
     out = watch.run(state, fetch, gh, github=True, why={"polestar": "The gates refused PR #9: tests failed."})
     bodies = {i["title"]: i["body"] for i in gh.issues.values()}
     assert "## Why it isn't merged\nThe gates refused PR #9: tests failed." in bodies[watch.TITLES["polestar"]]
     assert "https://github.com/o/r/actions/runs/42" in bodies[watch.TITLES["client-build"]]
-    assert out["kinds"] == ["client-build", "polestar"] and out["polestar_tag"] == "v0.5.0"
+    assert out["kinds"] == ["client-build", "polestar"] and out["polestar_tag"] == tag
 
 
 @pytest.mark.parametrize("tag, kept", [("v0.4.1.1", "v0.4.1.1"), ("v1.2", "v1.2"), ("v1.2; rm -rf /", ""),
@@ -661,8 +672,8 @@ def test_the_workflow_accepts_the_handoff_of_the_pass():
 class Releases:
     """GitHub's latest releases as the bump reads them; None: unreadable."""
 
-    def __init__(self, tags: dict):
-        self.tags = tags
+    def __init__(self, tags: dict, gone: set | None = None):
+        self.tags, self.gone = tags, gone or set()
 
     def latest_release(self, repo):
         return self.tags.get(repo)
@@ -670,19 +681,22 @@ class Releases:
     def list_releases(self, repo):
         return []
 
+    def release_gone(self, repo, tag):
+        return tag in self.gone
+
 
 def questie(state):
     return next(a for a in state["addons"] if a["name"] == "Questie")
 
 
-def bump_addons(state, tmp_path, monkeypatch, tags: dict):
+def bump_addons(state, tmp_path, monkeypatch, tags: dict, gone: set | None = None):
     """bump.py addons as the workflow runs it, the contract check passing."""
     bump = load("bump")
     path, why, handoff = tmp_path / "watch.json", tmp_path / "why.json", tmp_path / "seen.json"
     path.write_text(json.dumps(state))
     monkeypatch.setattr(bump, "Repo", lambda: None)
     monkeypatch.setattr(bump, "check_addon", lambda api, addon, old, new: [])
-    monkeypatch.setattr(bump.watch.web, "GitHub", lambda repo=None: Releases(tags))
+    monkeypatch.setattr(bump.watch.web, "GitHub", lambda repo=None: Releases(tags, gone))
     rc = bump.main(["addons", "--state", str(path), "--why", str(why), "--handoff", str(handoff)])
     return rc, handoff, (json.loads(why.read_text()) if why.exists() else {})
 
@@ -702,28 +716,57 @@ def test_an_addon_release_that_failed_to_load_stays_pending(state, tmp_path, mon
     q = questie(state)
     others = {a["repo"]: a["known"] for a in state["addons"] if a.get("repo") and a is not q}
     rc, handoff, why = bump_addons(state, tmp_path, monkeypatch, others | {q["repo"]: None})
-    assert rc == 0 and json.loads(handoff.read_text()) == {"addons": {}}
+    assert rc == 0 and json.loads(handoff.read_text())["addons"] == {}
     assert "Questie" in why["addons"] and "next run" in why["addons"]
     after = accept_kind(state, tmp_path, monkeypatch, "addons", handoff)
     assert questie(after)["known"] == q["known"]
     # The release reads again: the watch still flags it, the bump checks it, the accept takes it.
-    gh = Releases(others | {q["repo"]: "bundle/v12.13.0+v1.1.5"})
+    new = later(q["known"])
+    gh = Releases(others | {q["repo"]: new})
     assert "addons" in watch.run(after, Fetch({}), gh, github=False, kinds=["addons"])["kinds"]
     rc, handoff, _ = bump_addons(after, tmp_path, monkeypatch, gh.tags)
-    assert rc == 0 and questie(accept_kind(after, tmp_path, monkeypatch, "addons", handoff))["known"] == (
-        "bundle/v12.13.0+v1.1.5")
+    assert rc == 0 and questie(accept_kind(after, tmp_path, monkeypatch, "addons", handoff))["known"] == new
 
 
 def test_an_addon_release_out_after_the_check_waits_for_the_next_run(state, tmp_path, monkeypatch):
     q = questie(state)
     others = {a["repo"]: a["known"] for a in state["addons"] if a.get("repo") and a is not q}
-    rc, handoff, _ = bump_addons(state, tmp_path, monkeypatch, others | {q["repo"]: "bundle/v12.13.0+v1.1.5"})
+    new = later(q["known"])
+    rc, handoff, _ = bump_addons(state, tmp_path, monkeypatch, others | {q["repo"]: new})
     assert rc == 0
     # Upstream releases again before the accept: the accept records what was checked.
     after = accept_kind(state, tmp_path, monkeypatch, "addons", handoff)
-    assert questie(after)["known"] == "bundle/v12.13.0+v1.1.5"
-    newer = Releases(others | {q["repo"]: "bundle/v12.14.0+v1.1.6"})
+    assert questie(after)["known"] == new
+    newer = Releases(others | {q["repo"]: later(new)})
     assert "addons" in watch.run(after, Fetch({}), newer, github=False, kinds=["addons"])["kinds"]
+
+
+def test_an_addon_never_moves_back_while_its_newer_release_exists(state, tmp_path, monkeypatch):
+    """2026-11-24 (#211): wowsims/exporter's v3.2.11 release went away (its tag
+    stayed) and GitHub's Latest fell back to v3.2.10. While the known release
+    still exists an older Latest is no change; once it is gone the older one
+    lands, and the commit says so."""
+    q = questie(state)
+    back = q["known"]
+    q["known"] = later(back)
+    tags = {a["repo"]: a["known"] for a in state["addons"] if a.get("repo") and a is not q} | {q["repo"]: back}
+    assert watch.run(state, Fetch({}), Releases(tags), github=False, kinds=["addons"])["kinds"] == []
+    rc, handoff, _ = bump_addons(state, tmp_path, monkeypatch, tags)
+    assert rc == 0 and json.loads(handoff.read_text())["addons"] == {}
+    # The known release is gone upstream: the older one is what people install now.
+    gone = {q["known"]}
+    assert watch.run(state, Fetch({}), Releases(tags, gone), github=False, kinds=["addons"])["kinds"] == ["addons"]
+    rc, handoff, _ = bump_addons(state, tmp_path, monkeypatch, tags, gone)
+    seen = json.loads(handoff.read_text())
+    assert rc == 0 and seen["addons"] == {"Questie": back}
+    assert f"Questie back to {back} ({q['known']}'s release is gone upstream)" in seen["message"]
+    assert questie(accept_kind(state, tmp_path, monkeypatch, "addons", handoff))["known"] == back
+
+
+def test_versions_compare_by_their_numbers():
+    assert watch.older("v3.2.10", "v3.2.11") and not watch.older("v3.2.11", "v3.2.10")
+    assert watch.older("bundle/v12.12.0+v1.1.4", "bundle/v12.13.0+v1.1.5")
+    assert not watch.older("main", "v1.0") and not watch.older(None, "v1.0")
 
 
 def export_client(tmp_path, monkeypatch, build: str | None):
@@ -764,10 +807,11 @@ def test_a_client_build_that_failed_to_load_stays_pending(state, tmp_path, monke
 
 
 def test_a_client_build_out_after_the_export_waits_for_the_next_run(state, tmp_path, monkeypatch):
-    handoff = export_client(tmp_path, monkeypatch, "1.60.2.72000")
+    build = later(state["client_build"]["known"])
+    handoff = export_client(tmp_path, monkeypatch, build)
     after = accept_kind(state, tmp_path, monkeypatch, "client-build", handoff)
-    assert after["client_build"]["known"] == "1.60.2.72000"
-    fetch, gh = recorded(after, build="1.60.2.72111")  # wago.tools moved on meanwhile
+    assert after["client_build"]["known"] == build
+    fetch, gh = recorded(after, build=later(build))  # wago.tools moved on meanwhile
     assert watch.run(after, fetch, gh, github=False, kinds=["client-build"])["kinds"] == ["client-build"]
 
 
