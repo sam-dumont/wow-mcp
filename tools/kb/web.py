@@ -19,6 +19,7 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -172,6 +173,16 @@ class GitHub:
             return self._gh("api", f"repos/{repo}/releases/latest", "--jq", ".tag_name").strip() or None
         except subprocess.CalledProcessError:
             return None
+
+    def release_gone(self, repo: str, tag: str) -> bool:
+        """True only when GitHub says `tag` has no release (404: deleted, or
+        back to a draft, which a read token can't see). Any other failure is
+        False: an unreadable answer never moves a version back."""
+        try:
+            self._gh("api", f"repos/{repo}/releases/tags/{urllib.parse.quote(tag, safe='')}", "--jq", ".id")
+            return False
+        except subprocess.CalledProcessError as e:
+            return "HTTP 404" in (e.stderr or "")
 
     def list_releases(self, repo: str) -> list[dict]:
         """The newest 30 releases, newest first: tag_name, draft, prerelease."""

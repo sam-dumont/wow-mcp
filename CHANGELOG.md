@@ -40,6 +40,9 @@
 
 ### Fixed
 
+- The daily KB watch no longer moves an addon or Polestar back to an older release while the
+  newer one still exists; when the newer release is really gone, the commit says so. The KB
+  watch tests no longer break when a watch PR moves `data/kb/watch.json` (#211).
 - Next moves told an Expert enchanter to "Train Expert Enchanting". Polestar Recorder writes a
   skill record only when the skill list changes while it records, so a trainer visit it didn't
   see never reached us and its last record (150/150) stood. The shipper now also reads each

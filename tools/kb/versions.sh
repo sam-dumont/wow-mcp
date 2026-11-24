@@ -47,7 +47,8 @@ if [ "${1:-check}" = check ]; then
   # Each accept records what its step processed (a handoff), never a fresh read.
   if has addons && uvp tools/kb/bump.py addons --why "$WHY" --handoff "$tmp/kb-handoff-addons.json"; then
     uvp tools/kb/watch.py --accept addons --handoff "$tmp/kb-handoff-addons.json" || exit 1
-    git add -A && git commit -qm "Addon releases: what the shipper reads is unchanged"
+    git add -A && git commit -qm "$(jq -r '.message // "Addon releases: what the shipper reads is unchanged"' \
+      "$tmp/kb-handoff-addons.json")"
   fi
   ok=0
   if has polestar && [ -n "$tag" ] && uvp tools/kb/bump.py polestar "$tag" --why "$WHY"; then
