@@ -59,6 +59,12 @@ Syndicator).
 value, plus "Gear a clear": the chance a clear drops one of your upgrades ("17%: chance one of
 your 3 upgrades drops").
 
+**Who was with you**: under each of your runs, the players in your party, with their level,
+class and role. The names come from the combat log when it was on, or from ForeverDB_Helper
+(ForeverDB.net's addon) if you use it; without either the game saves no names. "2 of 4 names
+known" means the party had more players than were named. Only you see them: friends' links and
+the public page leave the party out.
+
 **XP a trip** counts the dungeon's quests with the run they came from, even when you hand them in
 outside: City of Dalaran's at the Silverpine grate, the Stockade's in Stormwind. It says how many
 ("includes 2 quests turned in outside"). A quest handed in more than a day after the run, or

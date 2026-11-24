@@ -47,6 +47,10 @@ def test_options_and_groups_answer_what_the_old_tools_did(lab):  # noqa: F811
     p = tools.call(ctx, "players", {"char": CHAR, "groups": True})
     assert {"players", "dungeon_runs", "rosters", "sources"} <= set(p) and p["untrusted"]
     assert "dungeon_runs" not in tools.call(ctx, "players", {"char": CHAR})
+    # Who was in each run: the same party on both tools, marked as other people's text.
+    run = p["dungeon_runs"][0]
+    assert run["party"] and {"player", "level", "class", "role"} <= set(run["party"][0])
+    assert runs["runs"][0]["party"] == run["party"] and runs["untrusted"]
 
 
 def test_options_score_in_the_mode_asked(lab, monkeypatch):  # noqa: F811

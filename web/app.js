@@ -2663,7 +2663,8 @@ function dungeonHistory(b) {
       h('div', {}, day(r.t), r.level ? h('span', { class: 'tag', text: `level ${r.level}` }) : null),
       h('div', { class: 'r sub', text: [`${dur(r.inside_s)} inside`, r.xp_kills ? `${fmtK(r.xp_kills)} XP kills` : null,
         r.xp_quests ? `${fmtK(r.xp_quests)} quests` : null,
-        r.quests_outside ? `${r.quests_outside} turned in outside` : null].filter(Boolean).join(', ') })))));
+        r.quests_outside ? `${r.quests_outside} turned in outside` : null].filter(Boolean).join(', ') }),
+      partyLine(r)))));
 }
 
 // Wowhead's guide for the dungeon, or one per wing (Scarlet Monastery).

@@ -839,8 +839,22 @@ def t_dungeons(ctx: Ctx, args: dict) -> dict:
                                   "xp_per_hour": None if tr["trip_xp_per_hour"] is None
                                   else round(tr["trip_xp_per_hour"])}} if tr else {})})
     runs.sort(key=lambda d: parse_t(d["t"]), reverse=True)
+    runs = runs[:limit]
+    if runs:
+        # Who was in each party (insights.dungeon_runs: the names the
+        # groupmates' sources gave, from joining the group to the run's end).
+        from wowstats import insights
+
+        v = _views(ctx)
+        v.chars()
+        party = {parse_t(p["t"]): p for p in insights.dungeon_runs(v.q, v.char_filter(char))}
+        for r in runs:
+            p = party.get(parse_t(r["t"])) or {}
+            if p.get("party"):
+                r["party"] = p["party"]
+                r["names_known"] = p.get("names_known")
     total = (ask(metrics=["run_count"], **when) or [{}])[0].get("run_count")
-    return {"char": char, "runs": runs[:limit], "total": int(total or 0)}
+    return {"char": char, "runs": runs, "total": int(total or 0)}
 
 
 def t_players(ctx: Ctx, args: dict) -> dict:
@@ -1503,9 +1517,9 @@ TOOLS: tuple[Tool, ...] = (
     Tool("deaths", "Deaths", "Deaths: the latest ones with zone and level, and counts per zone and per level.",
          schema({"char": CHAR, "since": SINCE, "until": UNTIL, "limit": lim(15)}), t_deaths),
     Tool("dungeons", "Dungeons",
-         "Dungeon runs, newest first: level, time, XP and XP/h inside, and `trip` (quest XP, quests turned in "
-         "outside, trip XP/h). With `options`: dungeons in range now or soon, ranked: one more run now (time, XP, "
-         "share of the level, XP/h against questing, quests to pick up, kill XP), gear per clear; for ones it "
+         "Dungeon runs, newest first: level, time, XP and XP/h inside, `trip` (quest XP, quests turned in "
+         "outside, trip XP/h) and `party` (who was in it, when known). With `options`: dungeons in range now "
+         "or soon, ranked: one more run now (time, XP, share of the level, XP/h against questing, quests to pick up, kill XP), gear per clear; for ones it "
          "did, looping it (gold/h, runs for the mount).",
          schema({"char": CHAR, "since": SINCE, "until": UNTIL, "limit": lim(20),
                  "options": {"type": "boolean",
