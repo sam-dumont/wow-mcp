@@ -2615,6 +2615,13 @@ function dungeonTrip(b) {
     const parts = [['inside', t.inside_s], ['travel', t.travel_s], ['quests', t.quests_s]]
       .filter(([, sec]) => sec > 0).map(([k, sec]) => `${k} ${dur(sec)}`);
     facts.push(fact('Your trips there', dur(t.total_s), parts.join(', ')));
+    // The trip's XP with its quests, the ones handed in outside after the run
+    // included (City of Dalaran's at the Silverpine grate): said, so the
+    // number reads as the trip's and not the instance's alone.
+    if (t.xp_per_run) {
+      facts.push(fact('XP a trip', fmtK(t.xp_per_run), [t.xp_per_hour ? `${fmtK(t.xp_per_hour)} XP an hour` : null,
+        t.quests_outside ? `includes ${plural(t.quests_outside, 'quest')} turned in outside` : null].filter(Boolean).join(', ')));
+    }
   }
   if (!b.drops.length && (b.kb_drops || []).length) {
     facts.push(fact('Gear a clear', b.kb_fit ? plural(b.kb_fit, 'drop') : 'none', b.kb_fit ? 'made for you' : 'none made for you'));
@@ -2655,7 +2662,8 @@ function dungeonHistory(b) {
     h('ul', { class: 'list' }, b.history.map((r) => h('li', {},
       h('div', {}, day(r.t), r.level ? h('span', { class: 'tag', text: `level ${r.level}` }) : null),
       h('div', { class: 'r sub', text: [`${dur(r.inside_s)} inside`, r.xp_kills ? `${fmtK(r.xp_kills)} XP kills` : null,
-        r.xp_quests ? `${fmtK(r.xp_quests)} quests` : null].filter(Boolean).join(', ') })))));
+        r.xp_quests ? `${fmtK(r.xp_quests)} quests` : null,
+        r.quests_outside ? `${r.quests_outside} turned in outside` : null].filter(Boolean).join(', ') })))));
 }
 
 // Wowhead's guide for the dungeon, or one per wing (Scarlet Monastery).

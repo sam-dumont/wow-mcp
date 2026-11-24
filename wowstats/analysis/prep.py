@@ -219,7 +219,11 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "count": "craft: items made", "extra": "the record's other fields, JSON (use json_extract)",
         "dungeon_trip_id": "dungeon_trips.trip_id when the record falls inside a trip, else NULL",
         "zone_visit": "zone records: 1 an arrival, 0 no visit (a zone a flight crossed, or the game's zone text "
-                      "flickering back within 3 s: stores.zone_time); NULL for other kinds"}),
+                      "flickering back within 3 s: stores.zone_time); NULL for other kinds",
+        "trip_quest_id": "on a turnin: the dungeon trip whose quest XP it counts toward (dungeon_trips.xp_quests), "
+                         "wherever it was handed in; NULL for a hand-in that is its zone's quest XP",
+        "dungeon_quest": "the dungeon (instance map, dungeon_runs.dungeon_id) the record's quest belongs to "
+                         "(data/dungeons/quests.json), else NULL"}),
     "positions": ("Position records: the Recorder writes one after the player moves 25 yd (2 s apart at most "
                   "often) or 4 yd after 20 s. Without movement no record is written.", {
         "rec_id": "row number in time order, shared with records", "t": "unix seconds",
@@ -329,7 +333,8 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
     "dungeon_trips": ("A dungeon trip as the Polestar lookup guides bracket it: from the first step of "
                       "lookup/pickup/<dungeon> to the last step of lookup/handin/<dungeon> around one run "
                       "(dungeon_runs), steps chained while each comes within 2 hours of the next; the instance's "
-                      "enter and leave when no guide step is there. Times are online time (timeline). records and "
+                      "enter and leave when no guide step is there, and on to a dungeon quest's hand-in after it "
+                      "that chains the same way before the next run. Times are online time (timeline). records and "
                       "timeline carry dungeon_trip_id for rows inside a trip.", {
         "trip_id": "trip number (records.dungeon_trip_id, timeline.dungeon_trip_id)", "dungeon": "dungeon name",
         "dungeon_id": "instance id", "level_start": "level at the trip's start", "start_t": "start, unix s",
@@ -343,7 +348,9 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "xp_kills_inside": "sum of kill records' xp_reward inside the instance",
         "xp_inside": "XP gained inside (dungeon_runs.xp) less the quests handed in inside, which are in "
                      "xp_quests: the run's kill XP (and anything else that paid inside)",
-        "xp_quests": "sum of xp_reward over the trip's quests handed in during the trip",
+        "xp_quests": "sum of xp_reward over the trip's quests handed in during the trip, and over the dungeon's "
+                     "own quests (data/dungeons/quests.json) handed in after it anywhere: the nearest run of that "
+                     "dungeon before the hand-in, within a day, the quest taken before the run ended",
         "quest_ids": "JSON list: quests with objective progress, completion or a hand-in inside the instance, "
                      "or accepted as a pickup guide step advanced",
         "quests_handed_in": "how many of them were handed in during the trip",
@@ -353,7 +360,10 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "quest_money_copper": "money paid by the trip's hand-ins",
         "gold_before_copper": "money on the last logout snapshot before the start, if any",
         "gold_after_copper": "money on the first snapshot after the end, if any",
-        "steps": "JSON list of the guide steps used, as guide#step"}),
+        "steps": "JSON list of the guide steps used, as guide#step",
+        "quests_outside": "the dungeon's quests handed in outside the instance after the run and counted here "
+                          "(the nearest run of that dungeon before the hand-in, within a day): in quests_handed_in",
+        "xp_quests_outside": "their XP, in xp_quests"}),
     "gear": ("The equipped items on the newest character sheet, with the records that name the same item.", {
         "slot": "inventory slot 1-19", "slot_name": "slot", "item_id": "item id", "name": "item name",
         "quality": "0 poor .. 5 legendary", "item_level": "item level", "req_level": "required level",
@@ -416,7 +426,10 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "done_why": "for 'done (inferred)': the evidence (a reward only this quest gives worn, in the bags or "
                     "bank; Questie's or Altoholic's completed list; the game's flag; a later quest that needs it); "
                     "closed_t is when that evidence was first seen after the accept, NULL when unknown (its time "
-                    "then runs to the last record, as an open quest's)"}),
+                    "then runs to the last record, as an open quest's)",
+        "dungeon_id": "the dungeon (instance map) the quest belongs to, data/dungeons/quests.json; NULL for a "
+                      "quest of no dungeon",
+        "trip_id": "the dungeon trip its hand-in counted toward (dungeon_trips.xp_quests), else NULL"}),
     "quests_done": ("Every quest the character has done, whatever saw it: the Recorder's hand-ins, the game's "
                     "flags, Questie's and Altoholic's completed lists, rewards only that quest gives held at any "
                     "snapshot, and the quests those need first. The one answer the planner and the pages use; "
@@ -969,7 +982,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
         if t1:
             span_rows.append(("instance", t0, t1, t1 - t0, None, name))
 
-    db.executemany("INSERT INTO records VALUES (" + ",".join("?" * 30) + ",NULL,?)", rec_rows)
+    db.executemany("INSERT INTO records VALUES (" + ",".join("?" * 30) + ",NULL,?,NULL,NULL)", rec_rows)
     db.executemany("INSERT INTO positions VALUES (" + ",".join("?" * 13) + ")", pos_rows)
     db.executemany("INSERT INTO loot_items VALUES (?,?,?,?,?)", loot_rows)
     db.executemany("INSERT INTO xp VALUES (?,?,?,?,?,?,?,?,?)", xp_rows)
@@ -1022,7 +1035,7 @@ def _schema(db: sqlite3.Connection) -> None:
         x REAL, y REAL, quest_id INTEGER, quest_name TEXT, npc_id INTEGER, npc_kind TEXT, npc_level INTEGER,
         item_id INTEGER, spell_id INTEGER, xp_reward INTEGER, money_copper INTEGER, on_flag INTEGER, guide TEXT,
         step INTEGER, reason TEXT, seconds REAL, count INTEGER, extra TEXT, dungeon_trip_id INTEGER,
-        zone_visit INTEGER);
+        zone_visit INTEGER, trip_quest_id INTEGER, dungeon_quest INTEGER);
     CREATE INDEX records_kind ON records(kind, t);
     CREATE INDEX records_t ON records(t);
     CREATE TABLE positions (rec_id INTEGER PRIMARY KEY, t REAL, time_local TEXT, session_id INTEGER,
@@ -1058,7 +1071,8 @@ def _schema(db: sqlite3.Connection) -> None:
         inside_s REAL, travel_back_s REAL, handin_s REAL, online_s REAL, afk_s REAL, xp_kills_inside INTEGER,
         xp_inside INTEGER, xp_quests INTEGER, quest_ids TEXT, quests_handed_in INTEGER, loot_inside TEXT,
         loot_inside_n INTEGER, rewards TEXT, still_worn TEXT, quest_money_copper INTEGER,
-        gold_before_copper INTEGER, gold_after_copper INTEGER, steps TEXT);
+        gold_before_copper INTEGER, gold_after_copper INTEGER, steps TEXT, quests_outside INTEGER,
+        xp_quests_outside INTEGER);
     CREATE TABLE gear (slot INTEGER, slot_name TEXT, item_id INTEGER, name TEXT, quality INTEGER,
         item_level INTEGER, req_level INTEGER, sheet_t REAL, turnin_quest_id INTEGER, turnin_t REAL, loot_t REAL,
         craft_t REAL, vendor_seen INTEGER, first_t REAL, first_level INTEGER, scored_for TEXT, score REAL,
@@ -1078,7 +1092,7 @@ def _schema(db: sqlite3.Connection) -> None:
     CREATE TABLE quests (quest_row INTEGER PRIMARY KEY, quest_id INTEGER, quest_name TEXT, status TEXT,
         accepted_t REAL, closed_t REAL, accepted_local TEXT, closed_local TEXT, level_accepted INTEGER,
         level INTEGER, zone TEXT, xp INTEGER, money_copper INTEGER, wall_s REAL, open_online_s REAL,
-        quest_s REAL, done_why TEXT);
+        quest_s REAL, done_why TEXT, dungeon_id INTEGER, trip_id INTEGER);
     CREATE TABLE quests_done (quest_id INTEGER PRIMARY KEY, quest_name TEXT, source TEXT, why TEXT, seen_t REAL,
         seen_local TEXT);
     CREATE TABLE gold_moves (t0 REAL, t1 REAL, time_local TEXT, level INTEGER, level_end INTEGER,
@@ -1593,7 +1607,11 @@ def _quests(db, done: dict[int, dict] | None = None) -> None:
                     _iso(c, TZ) if c else None, q["level_accepted"], q["level"], q["zone"], q["xp"],
                     q["money_copper"], (c - a) if a is not None and c is not None else None,
                     q.get("open_online_s"), q.get("quest_s"), q.get("done_why")))
-    db.executemany("INSERT INTO quests VALUES (" + ",".join("?" * 17) + ")", out)
+    db.executemany("INSERT INTO quests VALUES (" + ",".join("?" * 17) + ",NULL,NULL)", out)
+    # The dungeon a quest belongs to, and the trip its hand-in counted toward.
+    db.execute("UPDATE quests SET dungeon_id = (SELECT MAX(r.dungeon_quest) FROM records r WHERE r.quest_id = "
+               "quests.quest_id), trip_id = (SELECT MAX(r.trip_quest_id) FROM records r WHERE r.kind = 'turnin' "
+               "AND r.quest_id = quests.quest_id AND r.t = quests.closed_t)")
 
 
 def _gold_moves(db) -> None:
@@ -2178,9 +2196,21 @@ def _online(db, t0: float, t1: float) -> float:
 
 def _dungeon_trips(db, rows) -> None:
     """dungeon_trips: one row per dungeon run, widened to the Polestar lookup
-    guides' pickup and hand-in steps around it. Observable facts only."""
+    guides' pickup and hand-in steps around it. Observable facts only.
+
+    A dungeon quest's hand-in (wowstats.dungeonquests: the quest belongs to
+    the dungeon in Forever's data) counts toward the nearest run of that
+    dungeon before it, within a day, wherever it was made: City of
+    Dalaran's at the Silverpine grate, the Deadmines' in Westfall. The trip's
+    end follows such a hand-in when it chains (TRIP_GAP_S) and comes before
+    the next run; a later one adds its XP only (`xp_quests_outside`). The
+    records carry the trip (`trip_quest_id`) so a zone's quest XP can leave
+    it out."""
+    from wowstats import dungeonquests
+
     runs = db.execute("SELECT name, dungeon_id, level, start_t, COALESCE(left_t, start_t + COALESCE(seconds, 0)), "
                       "xp FROM dungeon_runs ORDER BY start_t").fetchall()
+    _dungeon_quest_marks(db)
     if not runs:
         return
     recs = db.execute("SELECT rec_id, t, kind, guide, step, quest_id, xp_reward, item_id, money_copper, reason "
@@ -2189,6 +2219,16 @@ def _dungeon_trips(db, rows) -> None:
     snaps = sorted((r["_t"], _int(r.get("money_copper"))) for r in rows
                    if r.get("feed") == "wow-character" and _int(r.get("money_copper")) is not None)
     worn = {r[0] for r in db.execute("SELECT item_id FROM gear WHERE item_id IS NOT NULL")}
+    accepts: dict[int, list[float]] = {}
+    for _, t, kind, _, _, qid, *_ in recs:
+        if kind == "accept" and qid is not None:
+            accepts.setdefault(qid, []).append(t)
+    # Which run each dungeon quest's hand-in counts toward, decided once for
+    # every run: a hand-in belongs to one trip only.
+    owner = dungeonquests.attribute(
+        [(i, did, r0, r1) for i, (_, did, _, r0, r1, _) in enumerate(runs)],
+        [(r[0], r[1], r[5]) for r in recs if r[2] == "turnin" and r[5] is not None
+         and dungeonquests.dungeons_of(r[5])], accepts)
 
     def chain(ts: list[float], anchor: float, backwards: bool) -> list[float]:
         out, edge = [], anchor
@@ -2199,7 +2239,7 @@ def _dungeon_trips(db, rows) -> None:
             edge = t
         return sorted(out)
 
-    trips = []
+    trips, counted = [], {}
     for i, (name, did, lv, r0, r1, xp_in) in enumerate(runs):
         s = slug(name)
         prev_end = max((x[4] for x in runs[:i] if slug(x[0]) == s), default=float("-inf"))
@@ -2212,10 +2252,15 @@ def _dungeon_trips(db, rows) -> None:
                         if g == f"lookup/handin/{s}" and tb.within(t, r1, next_start)], r1, False)
         start = pick_t[0] if pick_t else r0
         end = hand_t[-1] if hand_t else r1
+        # The dungeon quests handed in after the run that count toward it: the
+        # trip runs on to them while they chain and come before the next run.
+        mine = sorted((t, rid) for rid, t, kind, *_ in recs if owner.get(rid) == i)
+        end = max([end, *chain([t for t, _ in mine if t > end and t < next_start], end, False)])
         used = [f"{g}#{st if st is not None else ''}" for t, g, st, _ in steps
                 if g in (f"lookup/pickup/{s}", f"lookup/handin/{s}") and start <= t <= end]
         # The trip's quests: worked on inside (objective progress, completion,
-        # a hand-in), or accepted as a pickup guide step advanced (within 3 s).
+        # a hand-in), or accepted as a pickup guide step advanced (within 3 s),
+        # and the dungeon quests whose hand-in counts toward this run.
         auto_t = [t for t, g, st, why in steps if g == f"lookup/pickup/{s}" and why in ("auto", "done")
                   and start <= t <= r0]
         qset = set()
@@ -2225,21 +2270,31 @@ def _dungeon_trips(db, rows) -> None:
                                         and any(0 <= a - t <= 3 for a in auto_t))):
                 qset.add(qid)
         rewards, money, xp_q, xp_q_inside, handed = [], 0, 0, 0, set()
+        xp_out, n_out = 0, 0
         acc_last = hand_first = None
-        for _, t, kind, _, _, qid, xpr, iid, cop, _ in recs:
-            if qid not in qset or not start <= t <= end:
+        for rid, t, kind, _, _, qid, xpr, iid, cop, _ in recs:
+            if kind == "turnin" and rid in owner:
+                ours = owner[rid] == i  # a dungeon quest: the attribution alone decides
+            else:
+                ours = qid in qset and start <= t <= end
+            if not ours:
                 continue
-            if kind == "accept" and t <= r0:
+            if kind == "accept" and t <= r0 and start <= t:
                 acc_last = t
             elif kind == "turnin" and qid not in handed:
+                qset.add(qid)
                 handed.add(qid)
+                counted[rid] = i + 1
                 xp_q += xpr or 0
                 if r0 <= t < r1:  # one at the exit's second is the hand-in after, as below
                     xp_q_inside += xpr or 0
+                elif rid in owner:
+                    xp_out += xpr or 0
+                    n_out += 1
                 money += cop or 0
                 if iid:
                     rewards.append(iid)
-                if t >= r1 and hand_first is None:
+                if t >= r1 and t <= end and hand_first is None:
                     hand_first = t
         pick_end = min(acc_last if acc_last is not None else (pick_t[-1] if pick_t else start), r0)
         back_end = hand_first if hand_first is not None else (hand_t[0] if hand_t else r1)
@@ -2268,11 +2323,22 @@ def _dungeon_trips(db, rows) -> None:
                       json.dumps(sorted(qset)), len(handed), json.dumps([list(x) for x in loot]),
                       sum(x[1] for x in loot), json.dumps(rewards),
                       json.dumps(sorted({x for x in items if x in worn})), money,
-                      before[-1] if before else None, after[0] if after else None, json.dumps(used)))
-    db.executemany("INSERT INTO dungeon_trips VALUES (" + ",".join("?" * 29) + ")", trips)
+                      before[-1] if before else None, after[0] if after else None, json.dumps(used), n_out, xp_out))
+    db.executemany("INSERT INTO dungeon_trips VALUES (" + ",".join("?" * 31) + ")", trips)
     for x in trips:
         db.execute("UPDATE records SET dungeon_trip_id = ? WHERE t >= ? AND t <= ?", (x[0], x[4], x[5]))
         db.execute("UPDATE timeline SET dungeon_trip_id = ? WHERE t0 >= ? AND t0 < ?", (x[0], x[4], x[5]))
+    db.executemany("UPDATE records SET trip_quest_id = ? WHERE rec_id = ?", [(v, k) for k, v in counted.items()])
+
+
+def _dungeon_quest_marks(db) -> None:
+    """records.dungeon_quest: the dungeon (instance map) a quest record's
+    quest belongs to (wowstats.dungeonquests), NULL for any other."""
+    from wowstats import dungeonquests
+
+    ids = [r[0] for r in db.execute("SELECT DISTINCT quest_id FROM records WHERE quest_id IS NOT NULL")]
+    db.executemany("UPDATE records SET dungeon_quest = ? WHERE quest_id = ?",
+                   [(ms[0], q) for q in ids for ms in [dungeonquests.dungeons_of(q)] if ms])
 
 
 def _who(rows, rec) -> dict:

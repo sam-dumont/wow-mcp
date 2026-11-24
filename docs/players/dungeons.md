@@ -59,6 +59,12 @@ Syndicator).
 value, plus "Gear a clear": the chance a clear drops one of your upgrades ("17%: chance one of
 your 3 upgrades drops").
 
+**XP a trip** counts the dungeon's quests with the run they came from, even when you hand them in
+outside: City of Dalaran's at the Silverpine grate, the Stockade's in Stormwind. It says how many
+("includes 2 quests turned in outside"). A quest handed in more than a day after the run, or
+picked up after it, stays with the zone you handed it in
+([how](../dungeon-xp.md#quests-handed-in-outside)).
+
 </details>
 
 ## Next

@@ -1,7 +1,8 @@
-# Rebuilds data/route-reference.json, data/gear-reference.json and
-# data/forever-reference.json from the Polestar release named below and fails
-# when one differs from the committed file (docs/route-reference.md,
-# docs/gear-reference.md, docs/forever-reference.md). The gear scoring is
+# Rebuilds data/route-reference.json, data/gear-reference.json,
+# data/forever-reference.json and data/dungeons/quests.json from the Polestar
+# release named below and fails when one differs from the committed file
+# (docs/route-reference.md, docs/gear-reference.md, docs/forever-reference.md,
+# docs/dungeon-xp.md). The gear scoring is
 # ForeverDB.net's since 2026-11-23 (tests/test_gear_foreverdb.py, in the
 # normal suite). It never commits: the Polestar tag lives in
 # tools/polestar-tag (a file, so kb-refresh's token, which can't edit a
@@ -16,20 +17,24 @@ on:
       - tools/route_reference/**
       - tools/gear_reference/**
       - tools/forever_reference/**
+      - tools/dungeon_quests/**
       - tools/polestar-tag
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
+      - data/dungeons/quests.json
       - .github/workflows/route-reference.yml
   pull_request:
     paths:
       - tools/route_reference/**
       - tools/gear_reference/**
       - tools/forever_reference/**
+      - tools/dungeon_quests/**
       - tools/polestar-tag
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
+      - data/dungeons/quests.json
       - .github/workflows/route-reference.yml
   workflow_dispatch:
 permissions:
@@ -65,6 +70,8 @@ jobs:
           # Stdlib Python; reads forever-db from the checkout and Forever's
           # AreaTable, Map and GroupFinderActivity from wago.tools.
           python3 tools/forever_reference/export.py --polestar "$RUNNER_TEMP/polestar"
+          # Reads forever-reference.json, so after it.
+          python3 tools/dungeon_quests/export.py --polestar "$RUNNER_TEMP/polestar"
       - name: The committed files are the export
         run: |
           bad=0
@@ -75,4 +82,9 @@ jobs:
               bad=1
             fi
           done
+          if ! git diff --quiet -- data/dungeons/quests.json; then
+            git diff --stat -- data/dungeons/quests.json
+            echo "::error::data/dungeons/quests.json is not the export of Polestar $POLESTAR_TAG: run tools/dungeon_quests/export.py (docs/dungeon-xp.md) and commit the result"
+            bad=1
+          fi
           exit "$bad"

@@ -812,14 +812,32 @@ def t_dungeons(ctx: Ctx, args: dict) -> dict:
     ask = layer_ask(ctx, char)
     when = {k: v for k, v in (("since", local_when(start)), ("until", local_when(end))) if v}
     got = {r["run"]: r for r in ask(metrics=["run_s", "run_xp", "run_xp_per_hour"], group_by=["run"], **when)}
+    # The trip around each run (its first run only): the quests' XP with it,
+    # the dungeon's own quests handed in outside after the run included
+    # (City of Dalaran's at the Silverpine grate), and the trip's XP an hour.
+    trip_of: dict = {}
+    for r in ask(metrics=["run_count"], group_by=["trip", "run"]):
+        if r["trip"] is not None and (r["trip"] not in trip_of or r["run"] < trip_of[r["trip"]]):
+            trip_of[r["trip"]] = r["run"]
+    trips = {trip_of[r["trip"]]: r for r in ask(
+        metrics=["trip_s", "trip_xp", "trip_xp_quests", "trip_quests_outside", "trip_xp_quests_outside",
+                 "trip_xp_per_hour"], group_by=["trip"]) if r["trip"] in trip_of}
     runs = []
     for r in rows:
-        n = got.get(parse_t(r.get("_time")).timestamp()) or {}
+        at = parse_t(r.get("_time")).timestamp()
+        n = got.get(at) or {}
         secs = int(n.get("run_s") or 0)
+        tr = trips.get(at)
         runs.append({"t": r.get("_time"), "name": r.get("name") or f"dungeon {r.get('dungeon_id', '?')}",
                      "level": opt_num(r.get("level")), "dur": dur(secs), "seconds": secs,
                      "xp": int(n.get("run_xp") or 0),
-                     "xp_per_hour": None if n.get("run_xp_per_hour") is None else round(n["run_xp_per_hour"])})
+                     "xp_per_hour": None if n.get("run_xp_per_hour") is None else round(n["run_xp_per_hour"]),
+                     **({"trip": {"dur": dur(int(tr["trip_s"] or 0)), "xp": int(tr["trip_xp"] or 0),
+                                  "quest_xp": int(tr["trip_xp_quests"] or 0),
+                                  "quests_outside": int(tr["trip_quests_outside"] or 0),
+                                  "quest_xp_outside": int(tr["trip_xp_quests_outside"] or 0),
+                                  "xp_per_hour": None if tr["trip_xp_per_hour"] is None
+                                  else round(tr["trip_xp_per_hour"])}} if tr else {})})
     runs.sort(key=lambda d: parse_t(d["t"]), reverse=True)
     total = (ask(metrics=["run_count"], **when) or [{}])[0].get("run_count")
     return {"char": char, "runs": runs[:limit], "total": int(total or 0)}
@@ -1485,10 +1503,10 @@ TOOLS: tuple[Tool, ...] = (
     Tool("deaths", "Deaths", "Deaths: the latest ones with zone and level, and counts per zone and per level.",
          schema({"char": CHAR, "since": SINCE, "until": UNTIL, "limit": lim(15)}), t_deaths),
     Tool("dungeons", "Dungeons",
-         "Dungeon runs: name, level, duration, XP and XP/hour, newest first. With `options`: dungeons in range "
-         "now or soon, ranked: one more run at the character's level now (time, XP, share of the level, XP/h "
-         "against questing, quests to pick up, kill XP measured or estimated), expected gear per clear with the "
-         "top items; for the ones it did, looping it (gold per hour, runs for the mount).",
+         "Dungeon runs, newest first: level, time, XP and XP/h inside, and `trip` (quest XP, quests turned in "
+         "outside, trip XP/h). With `options`: dungeons in range now or soon, ranked: one more run now (time, XP, "
+         "share of the level, XP/h against questing, quests to pick up, kill XP), gear per clear; for ones it "
+         "did, looping it (gold/h, runs for the mount).",
          schema({"char": CHAR, "since": SINCE, "until": UNTIL, "limit": lim(20),
                  "options": {"type": "boolean",
                              "description": "The dungeons worth running now, ranked, instead of past runs."}}),
