@@ -98,6 +98,14 @@ What comes after 0.10.0, in short. Every change follows.
 
 ### Fixed
 
+- A character you upload for the first time is on the page and in the MCP the moment the upload
+  is in. The page said "no events for X" (and the MCP "unknown character") until a restart or a
+  cache ran out: the answers built before the upload, the page's 45-second cache, the MCP's
+  minute-long character list and the event cache's 30 seconds all still held the list without
+  it. New events of a character you already had were late the same way. Each upload now moves
+  the store's write generation (VictoriaLogs and SQLite alike), every one of those caches checks
+  it, and the server asks VictoriaLogs to make the rows searchable right away
+  (`/internal/force_flush`) instead of waiting for its own flush.
 - Your own character plays the 3D view's emotes, not only the demo. The server asked the shipper
   for the animation files of Stand and the closed hands only, and Forever's HD gnome keeps its six
   emotes in headerless `.anim` files, which the server refused (415) even when asked. Now one list,

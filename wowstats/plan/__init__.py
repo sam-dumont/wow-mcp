@@ -49,6 +49,7 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
     that didn't ask for it. And the spec the gear is scored for (WEIGHTS):
     the page and the MCP once shared an entry whichever of them filled it,
     each with its own spec (review-3)."""
+    from wowstats.eventstore import events_location, generation, generation_of
     from wowstats.stores import tenant_of
     from wowstats.views import parse_weights
 
@@ -61,10 +62,13 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
            scoring, mode)
     with _LOCK:
         lock = _KEY_LOCKS[hash(key) % len(_KEY_LOCKS)]
+    # The events' write generation (wowstats.eventstore): inputs gathered
+    # before an upload this process took are out of date however young.
+    gen = generation_of(store) if store is not None else generation(events_location(env), tenant_of(env))
     with lock:
         with _LOCK:
             hit = _CACHE.get(key)
-            if hit and time.time() - hit[0] < CACHE_S:
+            if hit and time.time() - hit[0] < CACHE_S and hit[3] == gen:
                 eventcache.replay(hit[2])  # the answer says the data it was gathered from (as_of)
                 return hit[1]
         inp, seen = eventcache.computed(lambda: facts.gather(
@@ -76,7 +80,7 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
             # hold a character's whole state, and nobody reads them again.
             for k in [k for k, v in _CACHE.items() if now - v[0] >= CACHE_S]:
                 del _CACHE[k]
-            _CACHE[key] = (now, inp, seen)
+            _CACHE[key] = (now, inp, seen, gen)
             while len(_CACHE) > MAX_CACHED:
                 _CACHE.pop(min(_CACHE, key=lambda k: _CACHE[k][0]), None)
         return inp
