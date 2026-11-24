@@ -98,6 +98,9 @@ packages = ["wowstats"]
 # notes written from open sources, each with its source; read by wowstats/analysis/kb.py.
 "data/kb-reference.json.gz" = "wowstats/data/kb-reference.json.gz"
 "data/kb" = "wowstats/data/kb"
+# ForeverDB.net's API data (vendors, quest givers; credited: docs/gear-reference.md), fetched at release time
+# and bundled (tools/foreverdb_api/export.py; only the README in git), read by wowstats/fdbapi.py.
+"data/foreverdb" = "wowstats/data/foreverdb"
 # Forever's quest names and instances (forever-db GPL-3.0, client tables as facts: docs/forever-reference.md),
 # read by wowstats/forever.py.
 "data/forever-reference.json" = "wowstats/data/forever-reference.json"

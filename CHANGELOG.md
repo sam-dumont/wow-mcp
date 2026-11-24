@@ -4,6 +4,16 @@
 
 ### Changed
 
+- Gear sold by a vendor says who sells it, where they stand and the price: "Sold by Avette
+  Fellwood in Duskwood (73.1, 44.6), 48s 61c", Merchant's Favor offers too, the other side's
+  vendors left out. Quest rewards say who gives the quest and where ("from Sentinel Arynia
+  Cloudsbreak in Teldrassil (38.3, 34.4)"). Both come from ForeverDB.net's API, fetched when a
+  release is built and bundled into the image (`data/foreverdb/api.json`); wherever they show,
+  the page and the MCP link "Data from ForeverDB.net" (`data_credit` in MCP answers). Items our
+  client files lack, or only Classic Era describes, take the Forever client's row from the API.
+  Drops and quest rewards are not in the API: an item that only drops keeps its old sources
+  (Staff of the Shade still says "where: unknown").
+
 - Gear items come from the game's own tables now, not Polestar's item table: Forever's client
   tables and its hotfixes (`data/game-items.json`, `tools/game_items/export.py`), the way the
   3D view reads them. 17,908 weapons and armour pieces, 1,186 more than before, with Forever's

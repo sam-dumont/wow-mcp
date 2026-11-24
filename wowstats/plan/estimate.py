@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 import re
 
-from wowstats import forever, gearfit
+from wowstats import ahsource, forever, gearfit
 from wowstats import gear as gearmod
 from wowstats.rates import per_hour
 
@@ -689,7 +689,12 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str |
                 # skill and the recipe (wowstats.gear.craft_status).
                 row.update(kind="craft", source=f"{s.get('profession')} {s.get('skill')}", can_make=s.get("can_make"),
                            cost=gearmod.craft_status(s))
-            else:  # an open-ended kind (reputation, PvP rank, vendor...): shown as the data names it
+            elif s["kind"] == "vendor":
+                row.update(kind="vendor", source=gearmod.vendor_text(s),
+                           cost=(f"{s['favor']} Merchant's Favor" if s.get("favor") else
+                                 ahsource.price_text(s["price_copper"]) if s.get("price_copper") is not None
+                                 else "see the vendor"))
+            else:  # an open-ended kind (reputation, PvP rank...): shown as the data names it
                 row.update(kind=s["kind"], source=s.get("name") or s.get("zone") or s["kind"],
                            cost=s.get("cost") or "see the source")
             slots.setdefault(u.get("slot_name") or "?", []).append(row)
@@ -1156,6 +1161,8 @@ def src_text(s: dict) -> str:
         return f"in your {s['kind']}"
     if s["kind"] == "craft":
         return f"craft: {s.get('profession')} {s.get('skill')}; {gearmod.craft_status(s)}"
+    if s["kind"] == "vendor":
+        return f"sold by {gearmod.vendor_text(s)}"
     return s.get("name") or s["kind"]
 
 

@@ -12,7 +12,10 @@ Three sources, kept apart:
 - **Where they come from**: [Polestar](https://github.com/fitzforge/polestar)'s
   gear data (`data/gear-reference.json`: drops, crafts, quests), plus the
   quest rewards of forever-db, the quest database Polestar bundles
-  (`data/forever-reference.json` `gear_quests`).
+  (`data/forever-reference.json` `gear_quests`), plus the vendors and quest
+  givers of [ForeverDB.net](https://foreverdb.net)'s API, fetched at release
+  time (`data/foreverdb/api.json`, below). Wherever those show, the page and
+  the MCP say "Data from ForeverDB.net" with the link.
 - **How much each item is worth**: the community stat weights per spec, in
   the set [ForeverDB.net](https://foreverdb.net) publishes, with its formula
   and its Leveling and PvP rules (`data/foreverdb-weights.json`). Every
@@ -122,9 +125,46 @@ has no vendors and next to no gear drops (its `item_source` is quest items),
 so drops and vendors still come from Polestar alone.
 
 Coverage on 2026-11-24: of the 1,339 items ForeverDB's ladders pick at
-levels 1-60 for the five checked specs, 595 have a source we know. The
-1,186 items Polestar's table lacked have none yet. The ForeverDB API (by
-key, in CI) would close most of that gap; it's not in yet.
+levels 1-60 for the five checked specs, 591 have a source from Polestar and
+forever-db (`tools/foreverdb_api/coverage.py`). Vendors from the API add the
+ones a vendor sells; the release run prints the new count in its summary.
+Drops and quest rewards stay where they were: the API has no loot tables and
+no quest rewards (below).
+
+### Vendors and quest givers: the ForeverDB.net API
+
+`tools/foreverdb_api/export.py` asks [ForeverDB.net's API](https://foreverdb.net/developers)
+for what neither the client nor the GPL data has, and writes
+`data/foreverdb/api.json`:
+
+- **Vendors**: every vendor, where they stand (zone and map coordinates),
+  their side, the faction whose reputation makes them cheaper, and what they
+  sell with the price, Merchant's Favor offers too. A weapon or armour piece
+  a vendor sells gets a `vendor` source: "Sold by Avette Fellwood in Duskwood
+  (73.1, 44.6), 48s 61c". The other side's vendors are left out.
+- **Quest givers**: who gives and who takes each quest, and where they stand.
+  A quest source gets `giver` and `turn_in`: "from Sentinel Arynia
+  Cloudsbreak in Teldrassil (38.3, 34.4)".
+- **Items the client files miss**: which weapon and armour IDs the Forever
+  client has. An item our game-items file lacks, or fills from Classic Era,
+  takes the API's copy of the Forever client's row. A row from the client
+  files is never replaced.
+
+It runs in the release workflow (`foreverdb` job) with the project's key, and
+the image bundles the file. It is never committed, and nothing at runtime
+needs the key: ForeverDB asks developers to "fetch the data yourself and
+bundle it with your releases". A checkout or a fork's image has no file and
+works as before on Polestar's and forever-db's sources.
+
+What the API doesn't have, measured with the key on 2026-11-24: an item's
+drops (no loot table on items, dungeons or creatures: `/dungeons/{id}` lists
+the bosses and three "notable" items), quest rewards (`/quests` has givers,
+chains and levels, no rewards), and clear times. ForeverDB's own item pages
+say where an item drops, with Classic's drop rate; the API doesn't serve it.
+Staff of the Shade and Earthen Rod, the two "where: unknown" picks of a level
+34 Shadow priest, are drops, so the API can't place them.
+
+How many requests, and refreshing it: [development.md](development.md#foreverdbnet-api-data).
 
 ### Gear with no known source
 

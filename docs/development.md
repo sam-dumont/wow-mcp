@@ -267,6 +267,35 @@ pass, an Anthropic federation rule: [docs/kb.md](kb.md), "Running the
 refresh job in your own repository". Until then it runs only when you start
 it by hand, and its model pass skips with a notice.
 
+## ForeverDB.net API data
+
+`data/foreverdb/api.json` (vendors, quest givers, which items the Forever
+client has: docs/gear-reference.md) is fetched by the release workflow's
+`foreverdb` job with the repository secret `FOREVERDB_API_KEY`, and bundled
+into the runtime image. It is gitignored: never commit it.
+
+- **Cost**: the API takes no batches (one ID per request) and serves no
+  ETag or Last-Modified, so a full fetch is about 1,300 requests: 127 item
+  pages, 1,067 vendors, 46 quest pages and a few more. At the free tier's 30
+  a minute that is about 45 minutes; the daily quota is 5,000 per account,
+  every key together, errors included.
+- **Cache**: `.cache/foreverdb-api/<build>/`, one file per request, kept in
+  the Actions cache. A release on a game build already fetched costs one
+  request (`/meta`). A run that hits the quota stops cleanly (exit 3) with
+  what it got cached; the next run resumes.
+- **Failing soft**: no fetch, then the last good file from the cache with a
+  warning; no last good file, then no file and a warning. The release goes
+  on; the gear advice then has Polestar's and forever-db's sources only.
+- **By hand** (the key in the environment only, never on a command line
+  that gets logged):
+
+      FOREVERDB_API_KEY=... uv run python tools/foreverdb_api/export.py --cache .cache/foreverdb-api
+      uv run python tools/foreverdb_api/export.py --check
+      uv run python tools/foreverdb_api/coverage.py   # BiS picks with a known source, with and without it
+
+  `--max-calls N` and `--parts vendors,quests,sample` fetch a sample. A fork
+  without a key builds without the file.
+
 ## Releasing
 
 One button: **Actions > release > Run workflow**, branch `main`. Four inputs:

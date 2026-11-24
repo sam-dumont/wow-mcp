@@ -50,6 +50,11 @@ game's question mark (`inv_misc_questionmark`), never an empty frame.
 | `gear_quests`: every quest with a gear reward, as `[side, race mask, class mask, [rewards], [choices]]`: where gear comes from when Polestar's sources don't say (`wowstats/gear.py` `with_game_items`) | forever-db's `quest.jsonl` and `quest_reward.jsonl` | GPL-3.0, with CC BY 4.0 and MIT parts (`THIRD_PARTY.md`) |
 | `areas`: zone names, dungeon or raid (with its instance Map id), level range | Forever's client tables AreaTable, Map and GroupFinderActivity on wago.tools, at forever-db's `clientBuild`; level caps from Polestar's `data/codex/levels.json` (`max`), the same rule its Codex uses | Game data © Blizzard Entertainment, used as facts |
 
+Who gives and takes each quest, and where they stand, comes from
+ForeverDB.net's API at release time instead (`data/foreverdb/api.json`,
+`wowstats/fdbapi.py`, docs/gear-reference.md): forever-db has the quests,
+not their NPCs' places.
+
 Only areas a quest or a drop names are kept. The level range is the Group
 Finder's normal-difficulty row for the dungeon's map; an instance whose area
 sits on its continent's map (Blackrock Spire) is found through `Map.AreaTableID`.

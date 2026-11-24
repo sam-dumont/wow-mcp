@@ -21,6 +21,8 @@
 #    starts none), and auto-merge squashes it once they pass. A tree that
 #    already carries an untagged version (an interrupted run, a release PR
 #    merged by hand) skips this step and releases that version as it is.
+#    foreverdb: ForeverDB.net's API data, fetched with the project's key and
+#    bundled into the runtime image (the job's comment says how it fails soft).
 # 4. build and merge: both images, both platforms, from the merged commit,
 #    pushed as ghcr.io/<owner>/$IMAGE_NAME:<version> and
 #    $RENDER_IMAGE_NAME:<version> (the env block below, the one place the
@@ -402,9 +404,83 @@ jobs:
           done
           echo "::error::#$pr not merged after 50 minutes"; exit 1
 
+  # ForeverDB.net's API data (tools/foreverdb_api/export.py: vendors, quest
+  # givers, which items the Forever client has), fetched with the project's
+  # key and bundled into the runtime image (data/foreverdb/api.json, never
+  # committed; ForeverDB asks for exactly that). Only on the release button,
+  # dry runs included: never on a pull request, never in a fork (no secret).
+  # The cache keeps one file per request per game build, so an unchanged
+  # build costs one request and a new one about 1,300 (45 minutes at the free
+  # tier's 30 a minute); a run the daily quota stops saves what it got and
+  # the next one resumes. Fails soft: no fetch, then the last good file from
+  # the cache with a warning, else no file and a warning (the gear advice
+  # then has Polestar's and forever-db's sources alone). Never fails the
+  # release.
+  foreverdb:
+    needs: plan
+    if: github.repository_id == '1464458020' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The game build ForeverDB serves
+        id: build
+        env:
+          FOREVERDB_API_KEY: ${{ secrets.FOREVERDB_API_KEY }}
+        run: |
+          b=$(python3 tools/foreverdb_api/export.py --build-only 2>/dev/null) || b=unknown
+          echo "build=$b" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/foreverdb-api
+          key: foreverdb-api-${{ steps.build.outputs.build }}-${{ github.run_id }}
+          restore-keys: |
+            foreverdb-api-${{ steps.build.outputs.build }}-
+            foreverdb-api-
+      - name: Fetch (or the last good file)
+        env:
+          FOREVERDB_API_KEY: ${{ secrets.FOREVERDB_API_KEY }}
+        run: |
+          mkdir -p .cache/foreverdb-api
+          if python3 tools/foreverdb_api/export.py --cache .cache/foreverdb-api --out data/foreverdb/api.json \
+              && python3 tools/foreverdb_api/export.py --check data/foreverdb/api.json; then
+            cp data/foreverdb/api.json .cache/foreverdb-api/last-good.json
+          elif [ -f .cache/foreverdb-api/last-good.json ]; then
+            cp .cache/foreverdb-api/last-good.json data/foreverdb/api.json
+            echo "::warning::ForeverDB.net fetch incomplete: the image bundles the last good file"
+          else
+            rm -f data/foreverdb/api.json
+            echo "::warning::No ForeverDB.net data: the image ships without vendors and quest givers"
+          fi
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if: always()
+        with:
+          path: .cache/foreverdb-api
+          key: foreverdb-api-${{ steps.build.outputs.build }}-${{ github.run_id }}
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        if: hashFiles('data/foreverdb/api.json') != ''
+      - name: Coverage of ForeverDB's best-in-slot picks
+        if: hashFiles('data/foreverdb/api.json') != ''
+        continue-on-error: true
+        run: |
+          { echo '### ForeverDB.net data'; echo '```'; uv run --frozen python tools/foreverdb_api/coverage.py; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: hashFiles('data/foreverdb/api.json') != ''
+        with:
+          name: foreverdb-api
+          path: data/foreverdb/api.json
+          retention-days: 7
+
   # One leg per image and platform, each on a runner of that architecture.
   build:
-    needs: [plan, ci, browser, sign, prepare]
+    needs: [plan, ci, browser, sign, prepare, foreverdb]
     # The tests skip on a pull request (ci.yml runs there on its own; the
     # browser suite never runs there), and
     # prepare when there's no release commit to make (a dry run, a tree that
@@ -442,6 +518,15 @@ jobs:
         with:
           persist-credentials: false
           ref: ${{ env.SHA }}
+      # ForeverDB.net's data from the foreverdb job, into the runtime image.
+      # Missing (a pull request's dry build, a failed fetch): the image is
+      # built without it.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: matrix.target == 'runtime' && needs.foreverdb.result == 'success'
+        continue-on-error: true
+        with:
+          name: foreverdb-api
+          path: data/foreverdb
       # A release image serves only a signed shipper: installed shippers
       # refuse an update without the signature (docs/shipper.md).
       - name: The shipper's release signature

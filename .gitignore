@@ -30,3 +30,6 @@ nibbet-3d.tar.gz.sha256
 *.anim
 *.blp
 *.db2
+# ForeverDB.net's API data: fetched by the release workflow with the project's key and
+# bundled into the image, never committed (data/foreverdb/README.md).
+data/foreverdb/api.json

@@ -19,7 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
-from .. import ahsource, gearfit
+from .. import ahsource, fdbapi, gearfit
 from .. import gear as gearmod
 from ..stores import (
     SESSION_GAP_S,
@@ -1677,12 +1677,20 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
         out = fit(out)  # footnotes over their share: the whole answer still stays under KB_CHARS
     if name in OUTSIDER_TEXT_TOOLS and isinstance(out, dict):
         out = {OUTSIDER_FIELD: OUTSIDER_NOTE, **out}
-    # Every gear score, standing or BiS an answer shows links ForeverDB.net,
-    # whose tables we reverse-engineered (owner, 2026-11-24): one place, so
-    # no tool can forget it.
+    return strip_invisible(name, credited(out))
+
+
+def credited(out):
+    """The answer with ForeverDB.net's links where they belong, in one place
+    so no tool can forget them: every gear score, standing or BiS links it
+    (`score_source`: their weights, whose tables we reverse-engineered;
+    owner, 2026-11-24), and every vendor or quest giver from their API
+    (`data_credit`: the API's terms, wowstats.fdbapi)."""
     if isinstance(out, dict) and "score_source" not in out and gearmod.scored(out):
         out = {**out, "score_source": dict(gearmod.CREDIT)}
-    return strip_invisible(name, out)
+    if isinstance(out, dict) and "data_credit" not in out and fdbapi.uses(out):
+        out = {**out, "data_credit": dict(fdbapi.CREDIT)}
+    return out
 
 
 def strip_invisible(name: str, out):

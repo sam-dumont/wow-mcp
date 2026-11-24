@@ -48,7 +48,7 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wowstats import ahsource, forever, quests, stores
+from wowstats import ahsource, fdbapi, forever, quests, stores
 
 _HERE = Path(__file__).resolve()
 # An installed wheel carries it as wowstats/data/; a checkout has it at the root.
@@ -126,7 +126,7 @@ class Reference:
         d = self.data
         src = (self.weights or {}).get("source") or {}
         return {"polestar": (d.get("polestar") or {}).get("version"), "tag": (d.get("polestar") or {}).get("tag"),
-                "leveling": d.get("leveling"), "item_stats": d.get("item_stats"),
+                "leveling": d.get("leveling"), "item_stats": d.get("item_stats"), "foreverdb_api": fdbapi.source(),
                 "weights": {k: src.get(k) for k in ("name", "url", "build", "fetched")}}
 
     def spec_weights(self, cls: str, key: str) -> dict | None:
@@ -186,7 +186,15 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
     sets = fdb.get("sets") or {}
     era_only: list[str] = []
     old = polestar.get("items") or {}
-    for iid, e in (game.get("items") or {}).items():
+    # Items the game-items file fills from Classic Era, or lacks, that the
+    # Forever client has after all: the ForeverDB API's copy of the
+    # Forever client's row (data/foreverdb/api.json `stats`, wowstats.fdbapi).
+    api_rows = (fdbapi.data().get("stats") or {})
+    rows = dict(game.get("items") or {})
+    for iid, e in api_rows.items():
+        if (iid not in rows or rows[iid].get("from") == "era") and e.get("stats") and e.get("name"):
+            rows[iid] = {**e, "from": "foreverdb"}
+    for iid, e in rows.items():
         names[iid] = e["name"]
         items[iid] = {k: v for k, v in e.items() if k not in ("name", "dmg", "from")}
         # Who may wear it: the client's class mask, else Polestar's. The
@@ -214,6 +222,11 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
             got = sources.setdefault(iid, [])
             if not any(x.get("kind") == "quest" and str(x.get("quest")) == qid for x in got):
                 got.append({"kind": "quest", "quest": int(qid)})
+    # Vendors (ForeverDB.net's API, at release time): what each sells and
+    # where they stand. Polestar and forever-db have none.
+    for iid in items:
+        for offer in fdbapi.sales(iid):
+            sources.setdefault(iid, []).append({"kind": "vendor", **offer})
     return {**polestar, "items": items, "names": names, "sources": sources, "quests": quests,
             "era_only": era_only, "item_stats": {k: v for k, v in (game.get("source") or {}).items() if k != "tables"}}
 
@@ -826,10 +839,19 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
         if s["quest"] in who.done:
             return None
         fq = forever.quest(s["quest"]) or {}
-        return {"kind": "quest", "quest_id": s["quest"], "name": q.get("name") or fq.get("name"),
-                "zone": q.get("zone_name") or fq.get("zone"), "part": fq.get("part"),
-                "level": q.get("level"), "req_level": q.get("req"), "dungeon": bool(q.get("dungeon")),
-                "choices": len(q.get("choices") or [])}
+        out = {"kind": "quest", "quest_id": s["quest"], "name": q.get("name") or fq.get("name"),
+               "zone": q.get("zone_name") or fq.get("zone"), "part": fq.get("part"),
+               "level": q.get("level"), "req_level": q.get("req"), "dungeon": bool(q.get("dungeon")),
+               "choices": len(q.get("choices") or [])}
+        # Who gives it and who takes it, where they stand (ForeverDB.net's API).
+        api = fdbapi.quest(s["quest"]) or {}
+        for k, e in (("giver", api.get("starts")), ("turn_in", api.get("ends"))):
+            e = fdbapi.end(e)
+            if e:
+                out[k] = e
+        return out
+    if s["kind"] == "vendor":
+        return vendor_source(s, who)
     if s["kind"] == "drop":
         # Whether the zone is a dungeon or a raid, and its level range as the
         # game's Group Finder gives it (data/forever-reference.json): Forever's
@@ -867,6 +889,34 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
                 "your_rank": rank, "skill_ok": skill_ok, "known": known, "pattern_item_id": pattern,
                 "can_make": bool(skill_ok and known is True)}
     return None
+
+
+def vendor_source(s: dict, who: Who | None) -> dict | None:
+    """A vendor offer in the answer's shape (ForeverDB.net's API): who sells
+    it, where they stand, the price in copper (or the Merchant's Favor and the
+    reputation rank it needs), whether players saw it in Forever. None for
+    the other side's vendor."""
+    v = fdbapi.vendor(s.get("vendor")) or {}
+    if who is not None and who.side and v.get("side") in (1, 2) and v["side"] != who.side:
+        return None
+    out = {"kind": "vendor", "npc_id": s.get("vendor"), "name": v.get("name"), "title": v.get("title"),
+           **fdbapi.place(v.get("at")), "price_copper": s.get("price"), "favor": s.get("favor"),
+           "rank": s.get("rank"), "limited": s.get("limited"),
+           "reputation": (v.get("rep") or {}).get("name"), "seen_in_forever": bool(s.get("seen", v.get("seen"))),
+           "data_source": fdbapi.MARK}
+    return {k: x for k, x in out.items() if x is not None}
+
+
+def vendor_text(s: dict) -> str:
+    """'Corina Steele in Elwynn Forest (41.6, 65.8), 5s 36c'."""
+    at = fdbapi.spot(s)
+    if s.get("favor"):
+        cost = f"{s['favor']} Merchant's Favor" + (f", {s['rank']}" if s.get("rank") else "")
+    elif s.get("price_copper") is not None:
+        cost = ahsource.price_text(s["price_copper"])
+    else:
+        cost = ""
+    return f"{s.get('name') or 'a vendor'}{at}" + (f", {cost}" if cost else "")
 
 
 def craft_status(s: dict) -> str:
@@ -927,6 +977,8 @@ def _same(x: dict):
         return ("quest", x.get("name") or x.get("quest_id"))
     if x["kind"] == "drop":
         return ("drop", x.get("boss") or "", x.get("zone") or "")
+    if x["kind"] == "vendor":
+        return ("vendor", x.get("npc_id"), bool(x.get("favor")))
     return ("craft", x.get("profession"), x.get("spell_id") or x.get("skill"))
 
 
@@ -1811,6 +1863,10 @@ def source_text(s: dict) -> str:
         where = ", ".join(x for x in (s.get("zone"), f"req {s['req_level']}" if s.get("req_level") else None,
                                       "dungeon quest" if s.get("dungeon") else None,
                                       f"one of {s['choices']} rewards" if (s.get("choices") or 0) > 1 else None) if x)
+        g = s.get("giver")
+        if g and g.get("name"):
+            name = s.get("name") or s.get("quest_id")
+            return f"quest {name} ({where}), from {g['name']}{fdbapi.spot(g)} {fdbapi.TAG}"
         return f"quest {s.get('name') or s.get('quest_id')} ({where})"
     if s["kind"] == "drop":
         chance = f", {s['chance_pct']}%" if s.get("chance_pct") else ""
@@ -1823,6 +1879,8 @@ def source_text(s: dict) -> str:
         share = f", {s['gold_share_pct']:g}% of your gold" if s.get("gold_share_pct") is not None else ""
         return (f"auction house: {ahsource.price_text(s['price_copper'])}{share}, "
                 f"{ahsource.seen_text(s.get('seen_days_ago'))}{' (cheap)' if s.get('cheap') else ''}")
+    if s["kind"] == "vendor":
+        return f"vendor: {vendor_text(s)} {fdbapi.TAG}"
     if s["kind"] != "craft":  # a kind the gear data names that has no words here (reputation, vendor...)
         return f"{s['kind']}: {s.get('name') or s.get('zone') or '?'}"
     return f"craft: {s.get('profession')} {s.get('skill')}; {craft_status(s)}"
@@ -1833,6 +1891,7 @@ def source_link(s: dict) -> str | None:
     from wowstats.links import wowhead_url
 
     kind, i = {"quest": ("quest", s.get("quest_id")), "drop": ("npc", s.get("npc_id")),
+               "vendor": ("npc", s.get("npc_id")),
                "craft": ("spell", s.get("spell_id"))}.get(s.get("kind"), (None, None))
     return wowhead_url(kind, i) if kind and isinstance(i, int) and i > 0 else None
 

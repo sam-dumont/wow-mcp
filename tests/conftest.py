@@ -15,6 +15,9 @@ ROOT = Path(__file__).resolve().parent.parent
 # WoW folder outside a temp directory, never the real install of the machine
 # running the tests (2026-11-20).
 os.environ["NO_REAL_WOW"] = "1"
+# No ForeverDB.net API data (data/foreverdb/api.json, a release-time file) in
+# tests unless one sets its own: a checkout with a fetched copy tests the same.
+os.environ.setdefault("FOREVERDB_DATA_FILE", "off")
 
 
 @pytest.fixture(scope="session", autouse=True)

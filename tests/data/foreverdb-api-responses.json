@@ -1,0 +1,592 @@
+{
+ "dungeons?limit=100&offset=0": {
+  "data": [
+   {
+    "announced": true,
+    "id": 33,
+    "kind": "dungeon",
+    "level": 18,
+    "levelRange": [
+     20,
+     30
+    ],
+    "loot": {
+     "classicOnly": 0,
+     "clientClues": 0,
+     "seenInForever": 241
+    },
+    "name": "Shadowfang Keep",
+    "newInForever": false,
+    "notAnnouncedReason": null,
+    "players": 5,
+    "status": "classic",
+    "url": "https://foreverdb.net/dungeon/33-shadowfang-keep"
+   },
+   {
+    "announced": true,
+    "id": 2959,
+    "kind": "dungeon",
+    "level": 28,
+    "levelRange": [
+     28,
+     35
+    ],
+    "loot": {
+     "classicOnly": 0,
+     "clientClues": 6,
+     "seenInForever": 69
+    },
+    "name": "City of Dalaran",
+    "newInForever": true,
+    "notAnnouncedReason": null,
+    "players": 5,
+    "status": "forever",
+    "url": "https://foreverdb.net/dungeon/2959-city-of-dalaran"
+   }
+  ],
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373",
+   "limit": 100,
+   "next": null,
+   "offset": 0,
+   "total": 2
+  }
+ },
+ "items/2549": {
+  "data": {
+   "betaEvent": false,
+   "bonding": "Binds when equipped",
+   "class": "Weapon",
+   "classId": 2,
+   "damage": {
+    "max": 70,
+    "min": 46,
+    "school": "Physical"
+   },
+   "disenchant": {
+    "results": [
+     {
+      "chancePercent": 100,
+      "itemId": 11084,
+      "max": 1,
+      "min": 1,
+      "name": "Large Glimmering Shard"
+     }
+    ],
+    "skill": null,
+    "source": "Classic data (CMaNGOS), not confirmed in Forever"
+   },
+   "disenchantable": true,
+   "effects": [],
+   "icon": "https://foreverdb.net/icons/135162.webp",
+   "id": 2549,
+   "inventoryType": "Two-Hand",
+   "inventoryTypeId": 17,
+   "itemLevel": 27,
+   "liveClient": {
+    "betaBuild": "1.60.1.70450",
+    "change": "changed",
+    "changes": [
+     {
+      "beta": "null",
+      "field": "look",
+      "live": "63964",
+      "rank": null
+     }
+    ],
+    "sinceBuild": "1.60.1.70862",
+    "type": "item"
+   },
+   "name": "Staff of the Shade",
+   "quality": "Rare",
+   "qualityId": 3,
+   "requiredLevel": 22,
+   "sellPrice": 5062,
+   "speculation": false,
+   "speculationReasons": [],
+   "speed": 2.6,
+   "stats": [
+    {
+     "stat": "Stamina",
+     "statId": 7,
+     "value": 15
+    },
+    {
+     "stat": "Shadow Damage Done",
+     "statId": 88,
+     "value": 37
+    }
+   ],
+   "subclass": "Staff",
+   "subclassId": 10,
+   "unique": false,
+   "url": "https://foreverdb.net/item/2549"
+  },
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373"
+  }
+ },
+ "items?class=2&limit=100&offset=0": {
+  "data": [
+   {
+    "class": "Weapon",
+    "classId": 2,
+    "id": 2549,
+    "inventoryType": "Two-Hand",
+    "inventoryTypeId": 17,
+    "itemLevel": 27,
+    "name": "Staff of the Shade",
+    "quality": "Rare",
+    "qualityId": 3,
+    "requiredLevel": 22,
+    "subclass": "Staff",
+    "subclassId": 10,
+    "url": "https://foreverdb.net/item/2549"
+   },
+   {
+    "classId": 2,
+    "id": 11304,
+    "inventoryTypeId": 15,
+    "itemLevel": 19,
+    "name": "Fine Longbow",
+    "qualityId": 2,
+    "requiredLevel": 14,
+    "subclassId": 2
+   }
+  ],
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373",
+   "limit": 100,
+   "next": null,
+   "offset": 0,
+   "total": 2
+  }
+ },
+ "items?class=4&limit=100&offset=0": {
+  "data": [
+   {
+    "betaEvent": false,
+    "class": "Armor",
+    "classId": 4,
+    "icon": "https://foreverdb.net/icons/132723.webp",
+    "id": 1489,
+    "inventoryType": "Chest",
+    "inventoryTypeId": 5,
+    "itemLevel": 25,
+    "name": "Gloomshroud Armor",
+    "quality": "Rare",
+    "qualityId": 3,
+    "requiredLevel": 20,
+    "speculation": false,
+    "speculationReasons": [],
+    "subclass": "Leather",
+    "subclassId": 2,
+    "url": "https://foreverdb.net/item/1489"
+   },
+   {
+    "classId": 4,
+    "id": 2381,
+    "inventoryTypeId": 7,
+    "itemLevel": 5,
+    "name": "Tarnished Chain Leggings",
+    "qualityId": 1,
+    "requiredLevel": 1,
+    "subclassId": 3
+   },
+   {
+    "classId": 4,
+    "id": 2383,
+    "inventoryTypeId": 8,
+    "itemLevel": 5,
+    "name": "Tarnished Chain Boots",
+    "qualityId": 1,
+    "requiredLevel": 1,
+    "subclassId": 3
+   },
+   {
+    "classId": 4,
+    "id": 2384,
+    "inventoryTypeId": 9,
+    "itemLevel": 5,
+    "name": "Tarnished Chain Bracers",
+    "qualityId": 1,
+    "requiredLevel": 1,
+    "subclassId": 3
+   }
+  ],
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373",
+   "limit": 100,
+   "next": null,
+   "offset": 0,
+   "total": 4
+  }
+ },
+ "merchants-favor": {
+  "data": {
+   "currency": {
+    "id": 3402,
+    "name": "Merchant's Favor"
+   },
+   "vendors": [
+    {
+     "faction": "Alliance",
+     "location": {
+      "uiMapId": 1433,
+      "x": 10.6,
+      "y": 71.4,
+      "zone": "Redridge Mountains"
+     },
+     "mapUrl": "https://foreverdb.net/maps/1433?pin=10.6,71.4,Tamelyn%20Aldridge",
+     "name": "Tamelyn Aldridge",
+     "npcId": 256389,
+     "recipesFor": null,
+     "sells": [
+      {
+       "favor": 200,
+       "icon": "https://foreverdb.net/icons/7941108.webp",
+       "itemId": 262765,
+       "name": "Azeroth Commerce Authority Tabard",
+       "quality": "Common",
+       "reputation": "Exalted",
+       "url": "https://foreverdb.net/item/262765"
+      }
+     ]
+    }
+   ]
+  },
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373"
+  }
+ },
+ "meta": {
+  "data": {
+   "articles": 320,
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "build": "1.60.1.71037",
+   "dungeons": 47,
+   "itemSets": 545,
+   "items": 23808,
+   "levelCap": 60,
+   "notAffiliated": "ForeverDB is not affiliated with Blizzard Entertainment.",
+   "quests": 6718,
+   "sources": "The WoW Forever client's data, what ForeverDB players' addons saw in the game (labelled), Blizzard's posts, and Classic data where Forever's isn't known yet (labelled).",
+   "spells": 32141,
+   "vendors": 1067
+  },
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373"
+  }
+ },
+ "quests?limit=100&offset=0": {
+  "data": [
+   {
+    "category": "Ashenvale",
+    "chain": {
+     "next": [
+      {
+       "name": "The Hunt Completed",
+       "questId": 247,
+       "relation": "Chain link",
+       "source": "Classic data (CMaNGOS)",
+       "url": "https://foreverdb.net/quest/247"
+      }
+     ],
+     "previous": [
+      {
+       "name": "The Ashenvale Hunt",
+       "questId": 6383,
+       "relation": "Complete first",
+       "source": "Classic data (CMaNGOS)",
+       "url": "https://foreverdb.net/quest/6383"
+      }
+     ],
+     "questLine": null
+    },
+    "ends": {
+     "id": 12696,
+     "instance": null,
+     "location": {
+      "source": "seen in WoW Forever",
+      "uiMapId": 1440,
+      "x": 73.8,
+      "y": 61.5,
+      "zone": "Ashenvale"
+     },
+     "name": "Senani Thunderheart",
+     "others": [],
+     "players": 32,
+     "source": "seen in WoW Forever",
+     "type": "npc"
+    },
+    "id": 2,
+    "knownInForever": true,
+    "level": 30,
+    "levelSource": null,
+    "name": "Sharptalon's Claw",
+    "requiredLevel": 20,
+    "requiredLevelSource": null,
+    "side": "h",
+    "source": "forever",
+    "starts": {
+     "id": 16305,
+     "instance": null,
+     "location": null,
+     "name": "Sharptalon's Claw",
+     "others": [],
+     "source": "Classic data (CMaNGOS)",
+     "type": "item"
+    },
+    "updated": "2026-11-24",
+    "url": "https://foreverdb.net/quest/2-sharptalons-claw",
+    "zone": {
+     "m": 1440,
+     "n": "Ashenvale",
+     "slug": "ashenvale"
+    }
+   },
+   {
+    "category": "Teldrassil",
+    "chain": {
+     "next": [
+      {
+       "name": "Teldrassil",
+       "questId": 940,
+       "relation": "Complete first",
+       "source": "Classic data (CMaNGOS)",
+       "url": "https://foreverdb.net/quest/940"
+      },
+      {
+       "name": "Darkness in the Glade",
+       "players": 5,
+       "questId": 98392,
+       "relation": "Offered after",
+       "source": "seen in WoW Forever",
+       "url": "https://foreverdb.net/quest/98392"
+      }
+     ],
+     "previous": [],
+     "questLine": null
+    },
+    "ends": {
+     "id": 3519,
+     "instance": null,
+     "location": {
+      "source": "seen in WoW Forever",
+      "uiMapId": 1438,
+      "x": 38.3,
+      "y": 34.4,
+      "zone": "Teldrassil"
+     },
+     "name": "Sentinel Arynia Cloudsbreak",
+     "others": [],
+     "players": 21,
+     "source": "seen in WoW Forever",
+     "type": "npc"
+    },
+    "id": 937,
+    "knownInForever": true,
+    "level": 11,
+    "levelSource": null,
+    "name": "The Enchanted Glade",
+    "requiredLevel": 6,
+    "requiredLevelSource": null,
+    "side": "a",
+    "source": "forever",
+    "starts": {
+     "id": 3519,
+     "instance": null,
+     "location": {
+      "source": "seen in WoW Forever",
+      "uiMapId": 1438,
+      "x": 38.3,
+      "y": 34.4,
+      "zone": "Teldrassil"
+     },
+     "name": "Sentinel Arynia Cloudsbreak",
+     "others": [],
+     "players": 24,
+     "source": "seen in WoW Forever",
+     "type": "npc"
+    },
+    "updated": "2026-11-22",
+    "url": "https://foreverdb.net/quest/937-the-enchanted-glade",
+    "zone": {
+     "m": 1438,
+     "n": "Teldrassil",
+     "slug": "teldrassil"
+    }
+   }
+  ],
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373",
+   "limit": 100,
+   "next": null,
+   "offset": 0,
+   "total": 2
+  }
+ },
+ "vendors/1104": {
+  "data": {
+   "id": 1104,
+   "mapId": 1426,
+   "name": "Grundel Harkin",
+   "reputationFaction": {
+    "id": 47,
+    "name": "Ironforge"
+   },
+   "seenInForever": true,
+   "sells": [
+    {
+     "classicData": false,
+     "itemId": 2381,
+     "limited": false,
+     "limitedStockCount": null,
+     "name": "Tarnished Chain Leggings",
+     "price": 75,
+     "pricePerItem": 75.0,
+     "seenInForever": true,
+     "stack": 1
+    },
+    {
+     "classicData": false,
+     "itemId": 2383,
+     "limited": false,
+     "limitedStockCount": null,
+     "name": "Tarnished Chain Boots",
+     "price": 57,
+     "pricePerItem": 57.0,
+     "seenInForever": true,
+     "stack": 1
+    },
+    {
+     "classicData": false,
+     "itemId": 2384,
+     "limited": false,
+     "limitedStockCount": null,
+     "name": "Tarnished Chain Bracers",
+     "price": 37,
+     "pricePerItem": 37.0,
+     "seenInForever": true,
+     "stack": 1
+    }
+   ],
+   "side": "Alliance",
+   "source": "Seen in WoW Forever by ForeverDB players",
+   "title": "Armorer",
+   "x": 28.7,
+   "y": 67.9,
+   "zone": "Dun Morogh"
+  },
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373"
+  }
+ },
+ "vendors/228": {
+  "data": {
+   "id": 228,
+   "mapId": 1431,
+   "name": "Avette Fellwood",
+   "reputationFaction": {
+    "id": 72,
+    "name": "Stormwind"
+   },
+   "seenInForever": true,
+   "sells": [
+    {
+     "classicData": false,
+     "itemId": 11304,
+     "limited": true,
+     "limitedStockCount": 2,
+     "name": "Fine Longbow",
+     "price": 4861,
+     "pricePerItem": 4861.0,
+     "seenInForever": true,
+     "stack": 1
+    }
+   ],
+   "side": "Alliance",
+   "source": "Seen in WoW Forever by ForeverDB players",
+   "title": "Bowyer",
+   "x": 73.1,
+   "y": 44.6,
+   "zone": "Duskwood"
+  },
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373"
+  }
+ },
+ "vendors?limit=100&offset=0": {
+  "data": [
+   {
+    "id": 228,
+    "mapId": 1431,
+    "name": "Avette Fellwood",
+    "reputationFaction": {
+     "id": 72,
+     "name": "Stormwind"
+    },
+    "seenInForever": true,
+    "side": "Alliance",
+    "source": "Seen in WoW Forever by ForeverDB players",
+    "title": "Bowyer",
+    "x": 73.1,
+    "y": 44.6,
+    "zone": "Duskwood"
+   },
+   {
+    "id": 1104,
+    "mapId": 1426,
+    "name": "Grundel Harkin",
+    "reputationFaction": {
+     "id": 47,
+     "name": "Ironforge"
+    },
+    "seenInForever": true,
+    "side": "Alliance",
+    "source": "Seen in WoW Forever by ForeverDB players",
+    "title": "Armorer",
+    "x": 28.7,
+    "y": 67.9,
+    "zone": "Dun Morogh"
+   }
+  ],
+  "meta": {
+   "attribution": "Data from ForeverDB.net (https://foreverdb.net). You must credit ForeverDB.net, with a visible link to https://foreverdb.net, wherever you show this data.",
+   "attributionRequired": true,
+   "build": "1.60.1.71037",
+   "client": "dev-0373",
+   "limit": 100,
+   "next": null,
+   "offset": 0,
+   "total": 2
+  }
+ }
+}

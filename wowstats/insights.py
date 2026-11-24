@@ -129,7 +129,12 @@ def source_ref(s: dict, level: int | None = None) -> dict:
     qid = s.get("quest_id")
     return {"kind": s.get("kind"), "boss": s.get("boss"), "profession": s.get("profession"),
             "quest": {"id": qid, "name": s.get("name"), "url": wowhead_url("quest", qid)} if qid else None,
-            "zone": zone_ref(s.get("zone"), s.get("levels")), "blocker": blocker(s, level)}
+            "zone": zone_ref(s.get("zone"), s.get("levels")), "blocker": blocker(s, level),
+            # A vendor (ForeverDB.net's API): who and where they stand; the
+            # page credits it (data_source).
+            **({"vendor": {"id": s.get("npc_id"), "name": s.get("name"), "url": wowhead_url("npc", s.get("npc_id")),
+                           "x": s.get("x"), "y": s.get("y")}, "data_source": s.get("data_source")}
+               if s.get("kind") == "vendor" else {})}
 
 
 def blocker(s: dict, level: int | None) -> str | None:
@@ -596,6 +601,8 @@ def _where(s: dict) -> str:
         return f"drops from {s.get('boss') or s.get('name')}" + (f" in {s['zone']}" if s.get("zone") else "")
     if s.get("kind") == "craft":
         return f"crafted ({s.get('profession') or 'a profession'}; {gearmod.craft_status(s)})"
+    if s.get("kind") == "vendor":
+        return f"sold by {gearmod.vendor_text(s)}"
     return s.get("kind") or "source unknown"
 
 

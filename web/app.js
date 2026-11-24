@@ -1296,6 +1296,7 @@ const ahOf = (u) => ((u && u.sources) || []).find((s) => s.kind === 'ah' && ahAg
 function primarySource(u) {
   const srcs = u.sources || [];
   return srcs.find((s) => HELD[s.kind]) || srcs.find((s) => s.kind === 'quest') || srcs.find((s) => s.kind === 'craft' && s.can_make)
+    || srcs.find((s) => s.kind === 'vendor')
     || srcs.slice().sort((x, y) => (y.chance_pct || 0) - (x.chance_pct || 0)).find((s) => s.kind === 'drop')
     || ahOf(u) || srcs[0] || null;
 }
@@ -1306,6 +1307,7 @@ function sourceGroup(s) {
   if (s.kind === 'drop' && (s.instance || s.dungeon)) return { key: 'd:' + s.zone, title: s.zone, kind: 'dungeon', levels: s.levels };
   if (s.kind === 'drop') return { key: 'world', title: 'World drops', kind: 'world' };
   if (s.kind === 'quest') return { key: 'q:' + (s.zone || '?'), title: `Quests in ${s.zone || 'an unknown zone'}`, kind: 'quest' };
+  if (s.kind === 'vendor') return { key: 'v:' + (s.zone || '?'), title: `Vendors in ${s.zone || 'an unknown zone'}`, kind: 'vendor' };
   return { key: 'c:' + s.profession, title: `${s.profession} crafts`, kind: 'craft' };
 }
 
@@ -1338,6 +1340,25 @@ function craftStatus(sr) {
   return steps.join(', ');
 }
 
+// Vendors and quest givers come from ForeverDB.net's API (wowstats/fdbapi.py
+// CREDIT): its link wherever they show.
+const DATA_CREDIT = { text: 'Data from ForeverDB.net', url: 'https://foreverdb.net' };
+function dataCreditEl() {
+  return h('span', { class: 'wcredit dcredit' }, ' · ',
+    h('a', { href: DATA_CREDIT.url, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer', text: DATA_CREDIT.text }));
+}
+// Where an NPC stands: the zone and the map coordinates.
+function spotText(p) {
+  if (!p) return '';
+  const xy = p.x != null && p.y != null ? ` (${p.x.toFixed(1)}, ${p.y.toFixed(1)})` : '';
+  return p.zone ? ` in ${p.zone}${xy}` : xy;
+}
+// A vendor's price: gold, or Merchant's Favor and the reputation rank it needs.
+function vendorCost(sr) {
+  if (sr.favor) return `${fmtNum(sr.favor)} Merchant's Favor${sr.rank ? ` at ${sr.rank}` : ''}`;
+  return sr.price_copper != null ? priceText(sr.price_copper) : '';
+}
+
 // One source in words, with its link and the numbers that decide a trip.
 // ah: the item's auction house listing, for "or buy it" after another source.
 function sourceEl(sr, level, ah) {
@@ -1345,9 +1366,19 @@ function sourceEl(sr, level, ah) {
   if (sr.kind === 'ah') return ahEl(sr);
   if (sr.kind === 'quest') {
     const chain = sr.part && sr.part.length === 2 && sr.part[1] > 1 ? ` · ${sr.part[0]} of ${sr.part[1]}` : '';
+    const g = sr.giver;
     return h('span', { class: 'src' }, 'Quest ', wh('quest', sr.quest_id, sr.name || `quest ${sr.quest_id}`),
       chain, sr.zone ? `, ${sr.zone}` : '', sr.req_level ? `, level ${sr.req_level}` : '',
-      sr.choices > 1 ? `, one of ${sr.choices} rewards` : '');
+      sr.choices > 1 ? `, one of ${sr.choices} rewards` : '',
+      g && g.name ? [', from ', g.type === 'npc' ? wh('npc', g.id, g.name) : g.name, spotText(g)] : '',
+      g ? dataCreditEl() : null);
+  }
+  if (sr.kind === 'vendor') {
+    const cost = vendorCost(sr);
+    return h('span', { class: 'src' }, 'Sold by ', wh('npc', sr.npc_id, sr.name || 'a vendor'), spotText(sr),
+      cost ? [', ', h('b', { class: 'ahprice', text: cost })] : '', sr.limited ? ' (limited stock)' : '',
+      sr.reputation && !sr.favor ? h('span', { class: 'sub', text: ` (cheaper with ${sr.reputation} reputation)` }) : null,
+      dataCreditEl());
   }
   if (sr.kind === 'drop') {
     const runs = sr.chance_pct ? Math.max(1, Math.round(100 / sr.chance_pct)) : null;
@@ -3257,6 +3288,11 @@ function sourceLine(src) {
   if (src.kind === 'quest' && src.quest) return h('span', {}, 'Quest ', whRef(src.quest), z ? [' in ', whRef(z)] : null, block);
   if (src.kind === 'drop') return h('span', {}, `Drops from ${src.boss || 'a creature'}`, z ? [' in ', whRef(z), lv] : null, block);
   if (src.kind === 'craft') return h('span', { text: `You can make it with ${src.profession || 'a profession'}` });
+  if (src.kind === 'vendor' && src.vendor) {
+    const v = src.vendor;
+    return h('span', {}, 'Sold by ', whLink(v.url, v.name || 'a vendor'), z ? [' in ', whRef(z)] : null,
+      v.x != null && v.y != null ? ` (${v.x.toFixed(1)}, ${v.y.toFixed(1)})` : '', block, dataCreditEl());
+  }
   if (HELD[src.kind]) return h('span', { text: HELD[src.kind] });
   return null;
 }
