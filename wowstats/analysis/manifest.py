@@ -103,11 +103,12 @@ def build(db, rows: list, knowledge=None, route_ref=None, now: datetime | None =
 
 
 # The prep tables the gear scoring fills (from analysis.advice_for): prep's
-# upgrade_candidates, and gear's score, bis_pct and fit for the scored spec.
+# upgrade_candidates (and ah_upgrades, its items on the auction house), and
+# gear's score, bis_pct and fit for the scored spec.
 # A scoring change means something else only there. A query reads them
 # directly or through any view over them (sem_upgrades, sem_gear, per_slot,
 # a metric_query's compiled SQL): semantic.reads resolves which.
-SCORED_TABLES = ("upgrade_candidates", "gear")
+SCORED_TABLES = ("upgrade_candidates", "gear", "ah_upgrades")
 
 
 def reads_scoring(finding: dict | None) -> bool:

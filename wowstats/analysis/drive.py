@@ -89,7 +89,7 @@ class Workspace:
         from wowstats.plan.facts import store_for
         from wowstats.stores import SourceError
 
-        from . import TABLES, advice_for, kb, manifest, prep, scoring_for, tables_of
+        from . import TABLES, advice_for, kb, manifest, prep, prices_for, scoring_for, tables_of
 
         st = store_for(env, store)
         self.store = st
@@ -113,7 +113,7 @@ class Workspace:
         self.kb = kb.shared(env)
         ref = route.reference()
         self.db = prep.build(rows, self.char, ref, map_sizes=self.kb.meta.get("ui_map"),
-                             advice=advice_for(rows, self.char, env))
+                             advice=advice_for(rows, self.char, env), prices=prices_for(st, env))
         # What this build was computed with: each finding judged here keeps its id.
         self.manifest = manifest.build(self.db, rows, self.kb, ref, scoring=scoring_for(rows, self.char, env))
         # What the tables stand on (wowstats.coverage): every play_sql and
@@ -602,6 +602,7 @@ def facts(db, layer=None, ro=None) -> dict:
                "gap_to": r["longest_gap_to"], "recorder_missed_h": h(r["recorder_missed_s"], 3600)} for r in long]
     spec, worn, query = gear_fit(layer, ro)
     return {
+        "auction_house": ah_line(layer, ro),
         "level_calendar": {
             "about": f"levels with a silence of {BREAK_S // 86400} days or more between two sessions (levels: "
                      "calendar_s, offline_s, longest_gap_s, recorder_missed_s): calendar time that isn't play "
@@ -618,6 +619,30 @@ def facts(db, layer=None, ro=None) -> dict:
             "worn": worn or "none",
             **({"query": query} if query else {})},
     }
+
+
+# The upgrades on sale now, cheapest first: the brief's one line on the
+# auction house points at it, the rest is a query away (owner, 2026-11-24:
+# "which upgrades are cheapest on the AH" went unanswered).
+AH_QUERY = {"metrics": ["ah_upgrade_price_copper", "ah_upgrade_gain", "ah_upgrade_gain_per_gold"],
+            "group_by": ["item", "item_id", "slot", "effort_elsewhere"],
+            "where": [{"dimension": "on_sale", "op": "=", "value": 1}], "order_by": ["ah_upgrade_price_copper"]}
+
+
+def ah_line(layer, ro) -> str:
+    """One line on the auction house: how old the newest scan is and how
+    many upgrades it prices, with the query that lists them."""
+    from . import semantic
+
+    a = semantic.rows(layer, ro, {"metrics": ["ah_scan_age_days", "ah_items_priced"]})
+    if not a or not a[0].get("ah_items_priced"):
+        return "no Auctionator scan of the character's auction houses in the price window"
+    u = semantic.rows(layer, ro, {"metrics": ["ah_upgrades_priced", "ah_upgrades_on_sale"]})[0]
+    age = a[0]["ah_scan_age_days"]
+    return (f"newest scan {age} day{'' if age == 1 else 's'} old, {a[0]['ah_items_priced']} items priced; "
+            f"{u['ah_upgrades_priced'] or 0} upgrades priced, {u['ah_upgrades_on_sale'] or 0} on sale now "
+            f"(models auction, ah_upgrades). Cheapest on sale: query_metric "
+            f"{json.dumps(AH_QUERY, separators=(',', ':'))}")
 
 
 def _num(v):

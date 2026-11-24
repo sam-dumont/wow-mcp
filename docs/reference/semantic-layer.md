@@ -725,6 +725,39 @@ The items worn on the newest character sheet, as the gear advice scores them for
 
 Group or filter by: `built_for`, `character`, `class`, `fit`, `item`, `item_id`, `scored_for`, `slot`, `slot_id`.
 
+### auction
+
+The Auctionator scans of the auction houses that sell to the character (its ruleset, its side's house and the neutral one): one row per item, house and scan day over the price window (PRICE_DAYS, 90 by default). Prices only: no row says who scanned.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `ah_price_latest_copper` | simple | copper | The lowest buyout for one on the item's newest scan day, copper (the lower of two houses scanned that day). | Group by item_id. What was listed that day, not what sold: an auction lasts 24 h at most, so a price older than a day may be gone. ah_scan_age_days says how old. | top; time: snapshot_observation; observed. |
+| `ah_scan_age_days` | simple | days | Whole days from the newest scan in the group to the analysis' build (0: today). | Ungrouped: how old the newest scan is. NULL without a scan. | min; time: snapshot_observation; observed. |
+| `ah_listed_latest` | simple | items | The most listed on the item's newest scan day. | Group by item_id. Auctionator's count for the day; NULL when the scan didn't keep it. | top; time: snapshot_observation; observed. |
+| `ah_price_min_copper` | simple | copper | The lowest of the days' lowest buyouts in the group, copper. | Over the scan days in the window only. | min; time: snapshot_observation; observed. |
+| `ah_price_max_copper` | simple | copper | The highest of the days' lowest buyouts in the group, copper. | Over the scan days in the window only. | max; time: snapshot_observation; observed. |
+| `ah_price_change_copper` | derived | copper | The lowest buyout on the newest scan day minus on the first, copper. | Two days only, never a trend. Group by item_id and house: across houses it compares two auction houses. NULL with one scan day: ah_price_change_copper_evidence counts them. | endpoint_difference; time: snapshot_observation; observed. Needs two scan days (else NULL; `ah_price_change_copper_evidence` counts them). |
+| `ah_scan_days` | simple | days | Scan days in the group. | Only the days someone opened the auction house with Auctionator. | count_distinct; time: snapshot_observation; observed. |
+| `ah_items_priced` | simple | items | Items with a price in the group (Auctionator's keys). | A random-suffix key counts apart from its item. | count_distinct; time: snapshot_observation; observed. |
+
+Group or filter by: `character`, `class`, `house`, `item`, `item_id`, `item_key`, `scan_day`.
+
+### ah_upgrades
+
+The gear advice's upgrades with an auction house price: one row per item and slot, with its newest price, whether the gear advice calls it on sale now, its score per gold and the easiest other way to get it. 'The cheapest upgrades on the AH' and 'is X worth buying' in one query.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `ah_upgrade_price_copper` | simple | copper | The upgrade's price, copper: on sale now when on_sale, else its newest scan day's lowest buyout. | Group by item_id. Filter on_sale = 1 for what can be bought now; a price with on_sale 0 is older than the house's newest full scan or than yesterday. | min; time: snapshot_observation; observed. |
+| `ah_upgrade_gain` | simple | points | The upgrade's score gain over what is worn (upgrade_candidates' gain). | Not additive: two items for one slot are alternatives. Group by item_id. | max; time: snapshot_observation; estimated. |
+| `ah_upgrade_gain_per_gold` | simple | points per gold | Score gain per gold of its price: the best buy first. | Group by item_id. Cheap items with a small gain rank high: read it with ah_upgrade_gain. | max; time: snapshot_observation; estimated. |
+| `ah_upgrade_listed` | simple | items | The most listed on the day of the price. | NULL when the scan didn't keep the count. | max; time: snapshot_observation; observed. |
+| `ah_upgrade_min_price_copper` | simple | copper | The lowest the upgrade's days' lowest buyouts went in the price window, copper. | Against ah_upgrade_price_copper: whether today's price is high for it. | min; time: snapshot_observation; observed. |
+| `ah_upgrades_priced` | simple | items | Upgrades with an auction house price. | An item that fits two slots counts once. | count_distinct; time: snapshot_observation; observed. |
+| `ah_upgrades_on_sale` | simple | items | Upgrades on sale now (on_sale 1). | 0 with a scan older than yesterday: scan again to see what is for sale. | count_distinct; time: snapshot_observation; observed. |
+
+Group or filter by: `character`, `class`, `effort_elsewhere`, `fit`, `item`, `item_id`, `now`, `on_sale`, `scan_day`, `slot`, `slot_id`, `source_elsewhere`.
+
 ### sheets
 
 Every character sheet the shipper sent (Syndicator, feed wow-gear): one row per item worn on a sheet, so the gear over time, level by level.
@@ -1071,9 +1104,9 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `bracket` | dungeon_trips | guides (lookup guide steps bracket it) or instance (enter and leave only). |
 | `built_for` | worn | Who the item's stats are made for, in words (healers, damage casters...). |
 | `chain_step` | attunements | The quest's place in the chain, from 1 (each after the quests it needs). |
-| `character` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character (one per query: the char argument). |
+| `character` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, auction, ah_upgrades, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character (one per query: the char argument). |
 | `chosen` | quest_rewards | For a choice: 1 picked at the hand-in, 0 another one picked, NULL not handed in or the pick unknown; NULL for a reward. |
-| `class` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character's class, from its latest session record. |
+| `class` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, auction, ah_upgrades, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character's class, from its latest session record. |
 | `death_t` | records, revives | One death, named by when its death record was written (unix seconds); NULL on every other record. Group by it to list the deaths one by one (per_death). |
 | `ding_t` | levels | When the level ended, unix seconds (UTC): the Recorder's ding, else the split's own time (for a split still growing, its last update). NULL for the level in play without a split. Group by it to place a level in time. |
 | `dings` | gold_moves | Level-ups between the two snapshots: 0 for a move inside one level. |
@@ -1083,24 +1116,27 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `dungeon` | timeline, dungeon_runs, dungeon_trips | Dungeon name while inside a dungeon run, else NULL. |
 | `dungeon_trip` | records | The dungeon trip the record falls in (dungeon_trips), NULL outside one: filter is null for play outside dungeons. |
 | `effort` | upgrades | How hard this source is: easy (a quest, a vendor, the auction house, a craft you make, a drop of 25% or more), some effort (a drop of 8-25%, a reputation within reach), hard (a rarer drop, a world drop, a raid). Long shots are never upgrades. |
+| `effort_elsewhere` | ah_upgrades | The easiest other source's effort (easy, some effort, hard): buying beats an easy quest only when the quest is out of the way. NULL when the auction house is the only way. |
 | `elite` | records | 1 when a kill's creature was an elite, a rare elite or a boss (classification e, R or b), else 0. |
 | `end_t` | sessions | When the span ended, unix seconds (UTC): its last record. |
 | `faction` | attunements | Alliance or Horde: the character's side, both when it isn't known. |
 | `faction_id` | reputation | The game's faction id (its Wowhead page: faction=<id>). Its name: the KB's Faction table is a follow-up, so look the id up for now. |
 | `fills_empty` | upgrades | 1 when the slot is empty now. |
-| `fit` | upgrades, worn | How the item fits the scored spec: yes (built for it), any, spec (built for another spec of the class), class (made for another class), unknown. |
+| `fit` | upgrades, worn, ah_upgrades | How the item fits the scored spec: yes (built for it), any, spec (built for another spec of the class), class (made for another class), unknown. |
 | `group_size` | timeline | The group then, from the session's last group record: 0 solo, 1-4 the other party members, or a raid's size with the character. NULL before the session's first group record: unknown, never solo. |
 | `guide` | timeline, records, xp | The Polestar guide active then (the last step record), its id. NULL before the first step record. |
 | `guide_title` | timeline | That guide's title, from the route reference (NULL when the reference doesn't have the guide). |
 | `handed_in` | quest_rewards | 1 when a turnin record of the quest exists, else 0. |
 | `hour` | timeline, records, xp | Hour of day 0-23, local time. |
+| `house` | auction | The auction house: ruleset and side (Alliance, Horde or Neutral). |
 | `how` | revives | How the character came back: c at the corpse, s at a spirit healer, r resurrected by another player. NULL: no revive seen (logged out dead, or the Recorder stopped). |
 | `in_play` | levels | The climb's population: 1 for the level being played (the highest level known, with no ding out of it and no whole split), 0 for a completed level. Filter in_play = 0 for the completed levels, in_play = 1 for the current level so far; no filter counts both. |
 | `in_raid` | timeline | 1 in a raid, 0 not, from the same group record (NULL: unknown). |
 | `instance` | upgrades, lockouts | Dungeon or raid of an instance drop or quest, else NULL. |
 | `instance_id` | lockouts | The game's lockout id (Altoholic only). |
-| `item` | upgrades, worn, sheets | Item name. |
-| `item_id` | records, loot, upgrades, worn, sheets, quest_rewards, quest_loot, loot_value | Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used. |
+| `item` | upgrades, worn, auction, ah_upgrades, sheets | Item name. |
+| `item_id` | records, loot, upgrades, worn, auction, ah_upgrades, sheets, quest_rewards, quest_loot, loot_value | Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used. |
+| `item_key` | auction | Auctionator's key: the item id, or gr:<id>:<suffix> for one random suffix. |
 | `kind` | records | Record kind (record_kinds: kill, death, turnin, accept...). |
 | `known_now` | flight_nodes | 1 when the newest flight map lists the node, else 0. |
 | `level` | levels, timeline, records, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements, char_stats | Character level. |
@@ -1111,9 +1147,10 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `lockouts_basis` | lockouts | altoholic: Altoholic's saved instances, exact. recorder: an estimate from the Recorder's raid boss kills (reset time and lockout id unknown). |
 | `needs_talent` | class_spells | The talent the spell's first rank comes from, NULL for a trainer spell. |
 | `node_id` | flight_nodes | The game's taxi node id. Its name and place: the KB's TaxiNodes table is a follow-up, so look the id up for now. |
-| `now` | upgrades | 1 when the character can wear it at its level now, 0 within 3 levels. |
+| `now` | upgrades, ah_upgrades | 1 when the character can wear it at its level now, 0 within 3 levels. |
 | `npc_id` | records, offers | The NPC the record names: a kill's creature, a trainer record's trainer, or a death's likely killer as Polestar_Recorder picks it (the last hostile creature that targeted the player within 10 s). NULL for a record that names none and for a death with no pick. |
 | `npc_level` | records | That creature's level (a kill's creature, a death's likely killer). |
+| `on_sale` | ah_upgrades | 1 when the gear advice lists it on sale now: seen in the house's newest full scan, today or yesterday. 0: the price is older. |
 | `partial` | levels | 1 when Polestar's split began partway through the level (tracking started then), 0 for a whole level, NULL with no split (the level in play, or a finished level whose split never came: the coverage's polestar gaps). |
 | `profession` | professions | The profession's name (Tailoring, Cooking...). |
 | `quest` | quests | Quest title (the records' own; "Quest <id>" when none names it). Two quests with one title group together: add quest_id. |
@@ -1126,14 +1163,16 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `rep_source` | reputation | recorder: a rep record (each change, as it happened). altoholic: Altoholic's snapshot at a logout (every faction, even of a character the Recorder never saw). |
 | `reward_kind` | quest_rewards | choice (one of several to pick) or reward (given with the quest). |
 | `run` | records, dungeon_runs | The dungeon run the record falls in, named by when it started (unix seconds, as dungeon_runs names it), NULL outside a run. |
+| `scan_day` | auction, ah_upgrades | The scan day, YYYY-MM-DD: group by it for the price day by day. |
 | `scored_for` | worn | The spec the gear advice scores for: the player's WEIGHTS setting, else the talents. |
 | `session_id` | timeline, records, sessions, zone_time, rested, loot, xp, dings, revives, zone_levels, quest_loot, loot_value, reputation | Login span (sessions). |
 | `sheet` | sheets | One sheet, named by when it was saved (unix seconds): group by it to list the sheets one by one. |
 | `skill_id` | records, professions | The skill line of a skill record (762: Riding; the professions' own ids), else NULL. |
-| `slot` | upgrades, worn, sheets | The slot the item would go in (Head, Chest, Finger...; both rings are Finger). |
-| `slot_id` | upgrades, worn, sheets | The inventory slot 1-19: which of two rings (11, 12) or trinkets (13, 14) it is measured against or worn in. |
+| `slot` | upgrades, worn, ah_upgrades, sheets | The slot the item would go in (Head, Chest, Finger...; both rings are Finger). |
+| `slot_id` | upgrades, worn, ah_upgrades, sheets | The inventory slot 1-19: which of two rings (11, 12) or trinkets (13, 14) it is measured against or worn in. |
 | `snapshot_source` | snapshots | Who saved it: polestar, altoholic, polestar,altoholic (the same logout), or the roster's sources. |
 | `source` | progress, upgrades | Which series: xp (the Recorder's XP bar readings, with online time) or snapshot (the logout and /reload character sheets, no online time). Filter on one: the two are measured apart. |
+| `source_elsewhere` | ah_upgrades | That source in the gear advice's words. |
 | `source_kind` | upgrades | quest, drop, craft, bags or bank (or another kind the gear data names: reputation, vendor...). |
 | `source_wowhead` | upgrades | The source's Wowhead page (the quest, the boss, the craft's spell); NULL when it has none. |
 | `spell` | class_spells | The spell's name (the game client's). |

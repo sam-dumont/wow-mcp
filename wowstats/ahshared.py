@@ -206,6 +206,22 @@ def scans(own, loc: str, agg: str, ops: dict, start: datetime | None = None, end
     return rows
 
 
+# The one read of the scans the price list, the gear advice's Auction House
+# source and the analysis' ah_prices share: one stats row per item, house and
+# scan day. Within a day the shipper only sends wider numbers (rev+1), so
+# min/max over every rev is the latest rev's value. Grouped by item and house
+# only: no row says who scanned.
+PRICE_AGG = ("min(price_copper) as lo, max(price_high_copper) as hi, max(available) as av, "
+             "max(item_name) as name, max(item_id) as item_id, max(_time) as t")
+PRICE_OPS = {"lo": "min", "hi": "max", "av": "max", "name": "max", "item_id": "max", "t": "maxtime"}
+
+
+def price_rows(own, loc: str, start: datetime | None = None) -> list[dict]:
+    """The scans as the price list reads them (scans() with PRICE_AGG):
+    item_key, scan_day, ruleset, faction, lo, hi, av, name, item_id, t."""
+    return scans(own, loc, PRICE_AGG, PRICE_OPS, start=start)
+
+
 def backfill(loc: str, people: list[tuple[str, object]], out=sys.stdout) -> dict:
     """Every person's stored scans into the shared space: [(who, their
     Store)]. One row per item, house and scan day (its lowest and highest

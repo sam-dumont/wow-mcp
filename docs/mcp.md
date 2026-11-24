@@ -214,6 +214,20 @@ The brief is neutral on purpose: the schema, a profile of every table, the
 tools, the player's goals in their own words and the pass' task. No
 hypothesis, no category: the model asks its own questions.
 
+Auction House prices are in the data too, since 0.10.0 asked "which upgrades
+are cheapest on the AH" and got "no prices here". Two tables, from the same
+read as the price list: `ah_prices` (the Auctionator scans of the houses that
+sell to the character, one row per item, house and scan day, over
+`PRICE_DAYS`) and `ah_upgrades` (each gear upgrade with a price: its newest
+price, `on_sale` by the gear advice's own rule, score per gold and the easiest
+other way to get it). The semantic layer reads them as `auction` and
+`ah_upgrades`. The brief gets one line: how old the newest scan is, how many
+upgrades are priced and on sale, and the `query_metric` call that lists them
+cheapest first. On an install with friends the scans are the shared ones of
+the character's ruleset and side; no row says who scanned. Findings can cite
+both tables like any other play table, and one on `ah_upgrades` is
+revalidated when the gear scoring changes.
+
 Everything shown says what to do. A finding carries an
 `action`: what to do, where, what blocks it, the next step. The judge
 refuses one too vague to act on (`do` and `next_step` need a few real
