@@ -283,7 +283,7 @@ class Views:
             "played": sub(vl, f'{st} feed:="wow-character" {cf} kind:=played | fields _time, played_total_s, '
                               f"played_level_s, level | sort by (_time desc) | limit 50"),
             "gear": sub(gearmod.sheet_rows, own, cf, "_time, at_basis, source_id, items, item_level, professions, "
-                                                   "wanted, spec, spec_from, polestar_spec, class, race, faction"),
+                                                   "wanted, spec, spec_from, class, race, faction"),
             # The Recorder's skill records: each profession's cap (wowstats.profcaps).
             "skills": sub(vl, f"{rec} kind:=skill | fields _time, skill_id, rank, max_rank"),
             # Time per zone from the records' own times (stores.zone_time).

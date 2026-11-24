@@ -1343,24 +1343,6 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
         wanted.append({**info, "slot_name": parts[3], "level": int(parts[4]) if parts[4].isdigit() else None})
     wanted.sort(key=lambda w: (w["level"] or 0, w["slot_name"]))
 
-    # Polestar's own gear settings (PolestarDB.settings.gear: Stat weights
-    # per class, "auto" or a spec key; the least gain that counts) and the
-    # player's weight edits (PolestarDB.gearAdjust[CLASS], Adjust.lua), for
-    # the server's gear advice (docs/gear-reference.md).
-    db = pole.get("PolestarDB") or {}
-    token = str(cls or "").replace(" ", "").upper() or None
-    gsets = ((db.get("settings") or {}).get("gear")) or {}
-    pspec = (gsets.get("spec") or {}).get(token) if token and isinstance(gsets.get("spec"), dict) else None
-    adjust = ((db.get("gearAdjust") or {}).get(token)) if token and isinstance(db.get("gearAdjust"), dict) else None
-    # A list, not a nested object: VictoriaLogs would flatten an object into
-    # dotted fields; it keeps a list as one JSON string.
-    adjust = sorted(({"spec": sp, "stat": st, **{k: v for k, v in e.items()
-                                                if k in ("x", "v") and isinstance(v, (int, float))}}
-                     for sp, edits in (adjust or {}).items() if isinstance(edits, dict)
-                     for st, e in edits.items() if isinstance(e, dict)),
-                    key=lambda a: (str(a["spec"]), str(a["stat"])))
-    min_upgrade = gsets.get("minUpgrade") if isinstance(gsets.get("minUpgrade"), (int, float)) else None
-
     if not items and not professions:
         return None
     recipes = recipes_of(acct, char)
@@ -1376,8 +1358,6 @@ def gear_of(acct: Path, cdir: Path, char: str) -> dict | None:
             "item_level": round(sum(rated) / len(rated), 1) if rated else None,
             "spec": spec.title() if isinstance(spec, str) else None,
             "spec_from": spec_from if isinstance(spec, str) else None,
-            "polestar_spec": pspec if isinstance(pspec, str) else None, "gear_adjust": adjust,
-            "min_upgrade": min_upgrade,
             # Sex and guild come from Battle.net's profile (owner, 2026-11-20).
             "class": cls, "race": det.get("race"), "faction": det.get("faction"),
             **({"recipes": recipes} if recipes else {}),

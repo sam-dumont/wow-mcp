@@ -23,8 +23,7 @@ plus the SQL views the model reads: what a finding kept before
 definitions it reads, wowstats.analysis.definitions), `reference` (the bundled Polestar and
 forever-db versions the KB, the route and the gear advice come from),
 `settings` (timezone, session and trip gaps, and the gear `scoring`: the
-spec the upgrade candidates are scored for and the player's edits, review
-6), `built_at`, `freshness` (how
+spec the upgrade candidates are scored for, review 6), `built_at`, `freshness` (how
 old the newest event was at build time). The id hashes everything but the
 build time and freshness, so two builds of the same play under the same
 definitions share one.
@@ -96,7 +95,7 @@ def build(db, rows: list, knowledge=None, route_ref=None, now: datetime | None =
          "prep_version": prep.PREP_VERSION, "semantic_hash": semantic_hash(),
          "reference": reference_versions(knowledge, route_ref),
          "settings": {"timezone": prep.TZ_NAME, "session_gap_s": prep.OFFLINE_S, "trip_gap_s": prep.TRIP_GAP_S,
-                      "scoring": scoring or {"spec": None, "adjust": None}}}
+                      "scoring": scoring or {"spec": None}}}
     m["id"] = _digest(m)[:16]
     m["built_at"] = now.isoformat(timespec="seconds")
     m["freshness"] = {"newest_event": newest, "lag_s": lag}

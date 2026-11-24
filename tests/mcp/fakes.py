@@ -121,7 +121,6 @@ PRICES = [{"_time": _t(10, 12), "item_name": "Linen Cloth", "item_id": 2589, "it
 # The character sheet: a level 14 Troll Priest in starter gear, one quest
 # handed in (its reward is gone).
 GEAR = [{"_time": _t(17, 21, 40), "class": "PRIEST", "race": "Troll", "faction": "Horde", "spec": "Shadow",
-         "polestar_spec": "auto", "gear_adjust": "[]",
          "items": json.dumps([{"slot": 5, "item_id": 6098, "name": "Neophyte's Robe"},
                               {"slot": 16, "item_id": 36, "name": "Worn Mace"}]),
          "professions": json.dumps([{"name": "Tailoring", "rank": 60}])}]

@@ -40,6 +40,11 @@ Every item has the same badge and says what it does to its slot: "70% → 91% on
 **Scored for**, at the top, picks the spec ("Automatic" follows your talents): pick another to
 see the upgrades for a respec.
 
+**Weights** picks what the scores value: **Leveling** (the default: Stamina, armour and a
+caster's wand count for more), **PvP** or **PvE** (raids and dungeons at 60). The weights are
+ForeverDB.net's. Your pick is kept on the server for that character, so your AI's `gear`
+answers use it too.
+
 ## What to do with it
 
 1. Take the top group in "By where you get it".

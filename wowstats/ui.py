@@ -58,7 +58,19 @@ from html import escape
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from wowstats import bar, eventstore, guard, httpserve, insights, itemcard, itemfacts, model3d, prebuilt, redact
+from wowstats import (
+    bar,
+    eventstore,
+    gearmode,
+    guard,
+    httpserve,
+    insights,
+    itemcard,
+    itemfacts,
+    model3d,
+    prebuilt,
+    redact,
+)
 from wowstats import gear as gearmod
 from wowstats.stores import SourceError, Store, env_account, iso, parse_t, public_error
 from wowstats.views import ConfigError, Views, parse_weights, settings_from_env  # noqa: F401 - parse_weights: ui.parse_weights
@@ -593,9 +605,20 @@ class App:
         return self.cached(f"dungeons:{name}", build)
 
     def gear(self, name: str, spec: str | None, mode: str | None = None) -> dict:
+        """The gear advice in `mode`, else in the mode saved for the
+        character (wowstats.gearmode: Leveling when none is)."""
         self._full_only()
-        mode = gearmod.mode_key(mode)
+        mode = gearmod.mode_key(mode) if mode else gearmode.saved(self.env, name)
         return self.cached(f"gear:{name}:{spec or ''}:{mode}", lambda: self.views.gear(name, spec, mode))
+
+    def save_gear_mode(self, name: str, mode: str) -> str:
+        """The gear page's picker: keep the character's mode on the server
+        (wowstats.gearmode). The class meta reads the gear in that mode, so
+        its answer is worked out again."""
+        self._full_only()
+        kept = gearmode.save(self.env, name, mode)
+        self.prebuilt.changed(f"meta:{name}")
+        return kept
 
     def meta(self, name: str) -> dict:
         """The class's meta and the character's adherence (wowstats.classmeta),
@@ -1107,6 +1130,30 @@ def make_handler(root: App, tenancy=None):
                         return None
                     if path == "/" and self.command in ("GET", "HEAD") and not me.slug:
                         return self.send(302, b"", "text/plain", headers={"Location": "/start"})
+                if full and path == "/api/gear-mode" and self.command == "POST":
+                    # JSON only, as /api/plan: a cross-site form can't send it
+                    # without a preflight, which is never granted.
+                    if not (self.headers.get("Content-Type") or "").lower().startswith("application/json"):
+                        return self.json(415, {"error": "send JSON (Content-Type: application/json)"})
+                    try:
+                        n = int(self.headers.get("Content-Length") or "0")
+                        body = json.loads(self.rfile.read(n) if 0 < n <= 1024 else b"{}")
+                    except ValueError:
+                        body = None
+                    if not isinstance(body, dict):
+                        return self.json(400, {"error": "expected {\"name\": \"Name-Realm\", \"mode\": \"pvp\"}"})
+                    name, mode = str(body.get("name") or ""), str(body.get("mode") or "").strip().lower()
+                    if not CHAR_RE.match(name):
+                        return self.json(400, {"error": "bad character name"})
+                    if mode not in gearmod.MODE_NAMES:
+                        return self.json(400, {"error": "bad mode: lvl, pvp or pve"})
+                    if not app.known(name):
+                        return self.json(404, {"error": f"no events for {name}"})
+                    try:
+                        kept = app.save_gear_mode(name, mode)
+                    except gearmode.ModeError as e:
+                        return self.json(409, {"error": str(e)})
+                    return self.json(200, {"ok": True, "mode": gearmod.modes_out(kept)})
                 if full and path == "/api/plan" and self.command == "POST":
                     from wowstats.plan import http as plan_http
 

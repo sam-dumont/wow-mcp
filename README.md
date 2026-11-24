@@ -107,7 +107,7 @@ What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 ## Similar projects
 
 - [Polestar](https://github.com/fitzforge/polestar) (GPL-3.0): the guide addon this kit stands
-  on. Its Recorder logs your play; the route clock and gear scoring are its work.
+  on. Its Recorder logs your play; the route clock and the gear data are its work.
 - [WoW Character Intelligence](https://github.com/bkhouser/WoW4EMCP) (MIT): addon and Windows
   companion, quests, gear and bags in SQLite on your PC with provenance, read-only MCP.
 - [WoW Eye](https://github.com/TravinDSO/woweye) (MIT): addon and MCP; the agent reads your
@@ -131,10 +131,9 @@ the AI, and findings whose numbers are recomputed from the data.
 GPL-3.0-only ([LICENSE](LICENSE)). The kit ships route times and gear data
 made from [Polestar](https://github.com/fitzforge/polestar) (GPL-3.0-only) and
 its quest database forever-db (GPL-3.0), so it is GPL too. Thanks to
-fitzforge and Polestar's contributors: the route clock and the gear scoring
-are theirs. The gear data carries parts under MIT, from ForeverLevelingBiS
-v0.12.0-beta by Thunder and from wowsims: their notices are in
-[THIRD_PARTY.md](THIRD_PARTY.md).
+fitzforge and Polestar's contributors: the route clock and the gear data
+are theirs; the gear weights are ForeverDB.net's. The gear data carries parts under MIT, from ForeverLevelingBiS
+v0.12.0-beta by Thunder: its notice is in [THIRD_PARTY.md](THIRD_PARTY.md).
 
 The images (`/app/LICENSE`) and the installed shipper (`LICENSE` next to it)
 carry the license and the source they were built from.

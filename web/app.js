@@ -1230,13 +1230,24 @@ function savedSpec(c) {
 function saveSpec(c, v) {
   try { if (v) localStorage.setItem(specKey(c), v); else localStorage.removeItem(specKey(c)); } catch (e) { /* private mode */ }
 }
-// The weights' mode per character (Leveling when none is saved).
-const modeKey = (c) => `wow-gear-mode:${c}`;
-function savedMode(c) {
-  try { return localStorage.getItem(modeKey(c)) || ''; } catch (e) { return ''; }
-}
-function saveMode(c, v) {
-  try { if (v) localStorage.setItem(modeKey(c), v); else localStorage.removeItem(modeKey(c)); } catch (e) { /* private mode */ }
+// The weights' mode per character lives on the server (wowstats/gearmode.py,
+// POST /api/gear-mode): the MCP's gear answers follow the page's pick. An
+// install that keeps no settings refuses it; the pick then lasts until reload.
+const unsavedMode = new Map();
+async function saveMode(c, v) {
+  const release = hold();
+  try {
+    const r = await fetch('/api/gear-mode', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ name: c, mode: v }),
+    });
+    if (r.ok) unsavedMode.delete(c); else unsavedMode.set(c, v);
+  } catch (e) {
+    unsavedMode.set(c, v);
+  } finally {
+    release();
+  }
 }
 
 
@@ -1685,9 +1696,10 @@ function renderAdvice(a) {
   const md = a.mode || { key: 'lvl', label: 'Leveling', choices: [] };
   const msel = h('select', { id: 'gearmode', 'aria-label': 'Weights for' },
     (md.choices || []).map((c) => h('option', { value: c.key, text: c.label, selected: c.key === md.key })));
-  msel.addEventListener('change', () => {
-    saveMode(state.char, msel.value === 'lvl' ? '' : msel.value);
-    loadAdvice(state.char);
+  msel.addEventListener('change', async () => {
+    const c = state.char;
+    await saveMode(c, msel.value);
+    loadAdvice(c);
   });
   const view = state.adviceView || 'where';
   const toggle = h('div', { class: 'order', role: 'group', 'aria-label': 'Show upgrades' },
@@ -1865,7 +1877,7 @@ function compactList(a, list) {
 
 async function loadAdvice(name) {
   const spec = savedSpec(name);
-  const mode = savedMode(name);
+  const mode = unsavedMode.get(name) || '';
   try {
     const a = await getJSON(api('gear', STATIC ? { name } : { name, spec, mode }));
     if (name === state.char) renderAdvice(a);

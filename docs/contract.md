@@ -253,15 +253,11 @@ the newer time.
   `item_id`, `name`, `item_level`, `req_level`, `slot_name`, `level`.
   ForeverLevelingBiS keeps no suggestions in its SavedVariables (it computes
   them in game), only the spec.
-- `polestar_spec`: Polestar's Stat weights setting for the class
-  (`PolestarDB.settings.gear.spec[CLASS]`): `auto` or a spec key such as
-  `shadow`. `gear_adjust`: the player's edits in Polestar's Adjust weights
-  window (`PolestarDB.gearAdjust[CLASS]`) as a list of `{spec, stat, x}`
-  (a multiple) or `{spec, stat, v}` (a value): a list, because VictoriaLogs
-  flattens nested objects. `min_upgrade`: Polestar's smallest upgrade worth
-  showing, in percent (`settings.gear.minUpgrade`). All three are account
-  wide in Polestar and sent with each of its characters; gear advice
-  (docs/gear-reference.md) reads them.
+- No Polestar gear settings. Shippers up to 0.9.0 sent
+  `polestar_spec` (Polestar's Stat weights setting), `gear_adjust` (the
+  edits in its Adjust weights window) and `min_upgrade` (its smallest
+  upgrade worth showing): still stored, read by nothing. The gear scores are
+  ForeverDB.net's weights only (docs/gear-reference.md).
 - No talents. They come from Battle.net's API only (the exporter's
   `/specializations`, below). Shippers before 0.7.0 sent `talents`,
   `talent_ranks`, `talent_nodes`, `talents_level` and `talents_date` from

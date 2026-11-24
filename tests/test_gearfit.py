@@ -20,23 +20,24 @@ def ref():
     return r
 
 
-def w(ref, cls, key, level):
-    return gearfit.spec_weights(ref, cls, key)
+def w(ref, cls, key, level, mode="lvl"):
+    return gearfit.spec_weights(ref, cls, key, mode)
 
 
 def score(ref, stats, cls, key, level, inv=7):
     return gear.score_with({"inv": inv, "class": 4, "subclass": 1, "stats": stats}, w(ref, cls, key, level), False)
 
 
-def label(ref, item_id, cls, key, level, how="picked", sources=None):
+def label(ref, item_id, cls, key, level, how="picked", sources=None, mode="lvl"):
     info = ref.item(item_id)
-    return gearfit.fit(ref, info, cls, key, how, level, w(ref, cls, key, level), sources)
+    return gearfit.fit(ref, info, cls, key, how, level, w(ref, cls, key, level, mode), sources, mode=mode)
 
 
 # --- the stats each spec can use ----------------------------------------------
 #
-# Who an item is built for reads the class guides' (PvE) weights from
-# ForeverDB.net: the same at every level.
+# Who an item is built for reads ForeverDB.net's weights in the mode the
+# character scores in (Leveling unless picked otherwise): the same at every
+# level, never Polestar's (owner, 2026-11-24).
 
 
 @pytest.mark.parametrize("cls,key,stat", [
@@ -53,12 +54,13 @@ def test_a_stat_the_spec_cant_use_is_worth_nothing(ref, cls, key, stat):
     ("HUNTER", "beastmastery", "agi"), ("SHAMAN", "enhancement", "str"), ("DRUID", "feral", "agi"),
 ])
 def test_a_stat_the_spec_uses_keeps_its_weight(ref, cls, key, stat):
-    assert w(ref, cls, key, 45)[stat] == gear.weights_for(ref, cls, key, "pve")[0][stat] > 0
+    assert w(ref, cls, key, 45)[stat] == gear.weights_for(ref, cls, key, "lvl")[0][stat] > 0
 
 
 def test_healing_power_counts_for_healers_only(ref):
     healing = {"heal": 22}
-    assert score(ref, healing, "PRIEST", "holy", 45) == pytest.approx(22)
+    # Leveling weighs a healer's healing at half the guide's.
+    assert score(ref, healing, "PRIEST", "holy", 45) == pytest.approx(11)
     for cls, key in (("PRIEST", "shadow"), ("MAGE", "frost"), ("WARLOCK", "affliction"), ("WARRIOR", "fury")):
         assert score(ref, healing, cls, key, 30) == 0, (cls, key)
 
@@ -79,8 +81,8 @@ def test_school_damage_counts_for_the_schools_a_spec_casts(ref):
 
 
 def test_the_advice_scores_with_the_mode(ref):
-    """The page's scores use the mode's weights (Leveling by default), the
-    fit labels the guide's."""
+    """The page's scores and its fit labels use the mode's weights
+    (Leveling by default)."""
     a = gear.advise(ref, sheet(), level=32)
     assert a["mode"]["key"] == "lvl" and a["weights"]["sta"] == 0.8
     pve = gear.advise(ref, sheet(), level=32, mode="pve")
@@ -119,7 +121,10 @@ def test_equal_power_cloth_is_a_caster_piece(ref):
 def test_school_damage_gloves_belong_to_that_school(ref):
     f = label(ref, 254097, "WARLOCK", "affliction", 50)  # Frothing Gloves: Frost damage
     assert f["for_you"] == "class" and f["built_for"] == "mages"
-    assert "About a third of its stats do nothing for an Affliction warlock" in f["notes"]
+    assert "About half its stats do little for an Affliction warlock" in f["notes"]
+    # In PvE (the guide's weights), the Frost damage is all that's lost.
+    pve = label(ref, 254097, "WARLOCK", "affliction", 50, mode="pve")
+    assert "About a third of its stats do nothing for an Affliction warlock" in pve["notes"]
     assert label(ref, 254097, "MAGE", "fire", 50)["for_you"] == "yes"
 
 
