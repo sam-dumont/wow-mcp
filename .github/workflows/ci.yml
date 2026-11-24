@@ -64,9 +64,10 @@ jobs:
       # --timeout: a test stuck past 5 minutes fails with its name and every
       # thread's stack (pytest-timeout), where a hang used to eat the job's 20
       # minutes and say nothing (part 2 on 4a1cacc, 2026-11-23). The slowest
-      # takes about 20 s on a laptop. --durations: where a slow part's minutes go.
+      # takes about 20 s on a laptop. --durations 0: every test's time, which
+      # tools/shard_times.py reads back from these logs to split the parts.
       - run: >-
-          uv run pytest -q -rs -n auto -m "not browser" --timeout 300 --durations 20
+          uv run pytest -q -rs -n auto -m "not browser" --timeout 300 --durations 0
           --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
   # The required check: the parts' result, then what needs the whole tree

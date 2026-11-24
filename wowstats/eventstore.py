@@ -172,9 +172,11 @@ class VictoriaLogs:
         cache the answer without them. Best effort: a VictoriaLogs that
         refuses it (-forceFlushAuthKey) is only that late."""
         try:
-            # A GET, in the caller's tenant like every request here (it flushes
-            # every tenant's rows all the same).
-            req = urllib.request.Request(f"{self.url}/internal/force_flush", headers=tenant_headers(tenant))
+            # A POST (v1.54.0 answers a GET 405, so the flush silently didn't
+            # happen: #240's logsql job), in the caller's tenant like every
+            # request here (it flushes every tenant's rows all the same).
+            req = urllib.request.Request(f"{self.url}/internal/force_flush", data=b"", method="POST",
+                                         headers=tenant_headers(tenant))
             with urllib.request.urlopen(req, timeout=10) as r:
                 r.read()
         except (urllib.error.URLError, OSError):

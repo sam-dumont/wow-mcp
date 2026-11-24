@@ -1,13 +1,14 @@
 """Write tests/shard_times.json, the seconds each test file takes, which
 tests/conftest.py splits CI's pytest parts by (--shard K/N).
 
-From the output of a run of the whole suite with every duration:
+From CI's logs, the four parts' together (ci.yml runs them with
+--durations 0, and a runner's times are what the split is for):
 
-    uv run pytest -q -n 4 -m "not browser" --durations=0 -vv | tee run.log
-    uv run python tools/shard_times.py run.log
+    for j in <the pytest jobs' ids>; do gh api repos/sam-dumont/wow-mcp/actions/jobs/$j/logs > $j.log; done
+    uv run python tools/shard_times.py *.log
 
-or from CI's logs (`gh run view --job <id> --log`), each part's together
-(ci.yml prints the slowest 20 only, so a local run is the one to use).
+or from a local run of the whole suite (`--durations=0`), whose
+proportions differ (a laptop's 18 cores against a runner's 4).
 A file's time is the sum of its tests' setup, call and teardown: what it
 costs a part, whichever worker runs it. Run it again when a part grows
 past the others (ci.yml's pytest job prints each part's time)."""
