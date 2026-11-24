@@ -6,6 +6,9 @@ What comes after 0.10.0, in short. Every change follows.
 
 **For players**
 
+- At level 60 the gear advice ranks on the score alone: a rare drop can be the pick, its odds
+  next to it. Below 60, easier items still win near ties. Every upgrade row shows how hard the
+  item is to get.
 - The gear page's weights copy into the Forever Leveling BiS addon (its own string or a Pawn
   scale), so it ranks items in the game the way the page does.
 - A level a crash cut short gets its whole time from the game's /played, and flights no longer
@@ -78,6 +81,20 @@ What comes after 0.10.0, in short. Every change follows.
 - The demo's real 3D model moves to the `demo-3d-2` release (`site/demo3d.sha256` pins the new
   archive): `demo-3d-1` has none of his new gear. Until that release exists the demo draws
   golden3d's figure.
+
+### Changed
+
+- How hard an item is to get weighs only while levelling (owner, 2026-11-24: "only during end
+  game at lvl 60 where marginal gains are the norm"). Below 60 nothing moves: harder items lose
+  5% or 15% of their score in the pick and the upgrade order, and a long shot is the slot's best
+  possible, never a pick or an upgrade. At 60 (`gear.ENDGAME_LEVEL`) the score alone ranks: a
+  long shot is a candidate like any other, with its effort and expected runs. One function
+  (`gear.effort_penalty`) holds the rule for the page, the MCP's `gear`, `next_moves` and plans,
+  the analysis brief and the public views. The golden level-60 warrior's top upgrade move
+  changes slot with it.
+- The 0.10.0 notes said every upgrade says how hard it is; the page only said so under "Best
+  possible". Every upgrade row now shows its effort class next to its source (the list by
+  where, by slot, and the compact list); the MCP's upgrades already carried `effort`.
 
 ### Fixed
 

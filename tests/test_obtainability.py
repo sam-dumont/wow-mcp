@@ -1,11 +1,13 @@
 """How hard an item is to get, weighed against a few points (owner,
 2026-11-24: "Convenience and easiness before a quarter of a point"): the
-effort classes, the pick per slot, long shots kept apart, the auction house
+effort classes, the pick per slot, long shots kept apart while levelling
+(at level 60 the score alone decides), the auction house
 lifting a rare drop to a purchase, reputations against the recorded
 standings, and the weekly ForeverDB watch."""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import sys
 from datetime import date, timedelta
@@ -60,7 +62,7 @@ def test_an_easier_item_wins_a_near_tie():
     assert chest["best"]["item_id"] == DUSTFALL_ROBES and chest["best"]["effort"] == "easy"
 
 
-def test_a_long_shot_is_never_an_upgrade():
+def test_a_long_shot_is_never_an_upgrade_while_levelling():
     a = advise(caster())
     assert all(u["effort"] != "long shot" for u in a["upgrades_all"])
     assert EARTHEN_ROD not in {u["item_id"] for u in a["upgrades_all"]}
@@ -71,6 +73,51 @@ def test_a_long_shot_is_never_an_upgrade():
     # The standing measures against what can be got: the quest wand.
     assert ranged["best"]["item_id"] == KODO_BRANDER
     assert ranged["standing"]["pct"] == gear._share(ranged["current"]["score"], ranged["best"]["score"])
+
+
+EASY_CHEST = 220535  # Garments of the Atal'ai Prophet, built for a shadow priest
+RARE_CHEST = 13314  # Alanna's Embrace, about 2% more for a shadow priest
+
+
+def two_chests() -> gear.Reference:
+    """The real items and weights with two sources only: the easy chest at a
+    vendor, the slightly better one a 0.03% drop (a long shot)."""
+    ref = gear.reference()
+    vendor = {"via": "foreverdb", "label": "s", "kind": "vendor", "npc": 1, "npc_name": "A Vendor",
+              "zone_name": "Stormwind City", "map": 1453, "x": 50.0, "y": 50.0, "price": 100}
+    rare = {"via": "foreverdb", "label": "s", "kind": "drop", "npc": None, "npc_name": "A Rare", "pct": 0.03,
+            "kills": 20000, "zone": 139, "zone_name": "Eastern Plaguelands", "raid": False}
+    return dataclasses.replace(ref, data={**ref.data, "sources": {str(EASY_CHEST): [vendor], str(RARE_CHEST): [rare]}},
+                               peers=None, nowhere=None)
+
+
+def test_at_60_the_score_alone_decides():
+    """Owner, 2026-11-24: the effort ranking holds "only during end game at
+    lvl 60 where marginal gains are the norm", read as everywhere but there.
+    At 59 the easy chest is the pick and the drop stays the slot's best
+    possible; at 60 the drop is the pick and an upgrade, its odds on it."""
+    ref = two_chests()
+
+    def chest(level):
+        a = gear.advise(ref, caster(), level=level, every=True, held={"bags": [], "bank": []})
+        return a, next(s for s in a["slots"] if s["slot_name"] == "Chest")
+
+    a, s = chest(59)
+    assert s["best"]["item_id"] == EASY_CHEST and s["best"]["effort"] == "easy"
+    assert s["bis_unknown"]["item_id"] == RARE_CHEST and s["bis_unknown"]["effort"] == "long shot"
+    assert RARE_CHEST not in {u["item_id"] for u in a["upgrades_all"]}
+
+    a, s = chest(60)
+    assert s["best"]["item_id"] == RARE_CHEST and s["best"]["effort"] == "long shot"
+    rare = next(u for u in a["upgrades_all"] if u["item_id"] == RARE_CHEST)
+    easy = next(u for u in a["upgrades_all"] if u["item_id"] == EASY_CHEST)
+    assert rare["value"] > easy["value"] and rare["effort"] == "long shot"
+    src = rare["sources"][0]
+    assert src["chance_pct"] == 0.03 and src["expected_runs"] == 3333
+    assert "0.03% over 20000 kills, about 3,333 kills" in gear.source_text(src)
+    assert (s["bis_unknown"] or {}).get("item_id") != RARE_CHEST
+    assert gear.effort_penalty(gear.HARD, 59) == gear.EFFORT_PENALTY[gear.HARD]
+    assert gear.effort_penalty(gear.HARD, 60) == 0.0
 
 
 def test_the_auction_house_lifts_a_long_shot():

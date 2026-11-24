@@ -113,8 +113,9 @@ HELD = frozenset({"bags", "bank"})  # the source kinds of an item the character 
 # How hard an item is to get (owner, 2026-11-24: "weight 'is this easy' vs
 # 'this is a pipe dream'. Convenience and easiness before a quarter of a
 # point"), from its easiest source (source_effort), in ForeverDB's own
-# buckets' words. A long shot is never a pick or an upgrade: it stays
-# visible as the slot's best possible (bis_unknown), with its odds.
+# buckets' words. While levelling a long shot is never a pick or an
+# upgrade: it stays visible as the slot's best possible (bis_unknown), with
+# its odds. At ENDGAME_LEVEL none of this applies (effort_penalty).
 EFFORT = ("easy", "some effort", "hard", "long shot")
 EASY, SOME, HARD, LONG_SHOT = range(4)
 # What an easier item is worth against a harder one when picking a slot's
@@ -122,6 +123,11 @@ EASY, SOME, HARD, LONG_SHOT = range(4)
 # than 1 / (1 - penalty) times the easier one: 5.3% more for "some
 # effort", 17.6% more for "hard". A quarter of a point never does.
 EFFORT_PENALTY = (0.0, 0.05, 0.15, 0.15)
+# From this level the advice ranks on the score alone: a long shot can be the
+# pick or an upgrade, its effort and odds shown (owner, 2026-11-24: the
+# effort ranking holds "only during end game at lvl 60 where marginal gains
+# are the norm", read as: everywhere but there). classguide.MAX_LEVEL.
+ENDGAME_LEVEL = 60
 # A drop's chance in percent: at least the first for easy, the second for
 # some effort, the third for hard; under it a long shot.
 DROP_EASY, DROP_SOME, DROP_HARD = 25.0, 8.0, 1.0
@@ -1124,11 +1130,17 @@ def source_effort(s: dict) -> int:
     return SOME
 
 
-def ranking_value(gain: float, score: float, effort: int, factor: float) -> float:
+def effort_penalty(effort: int, level: int) -> float:
+    """The share of an item's score its effort costs it in the ranking:
+    EFFORT_PENALTY while levelling, nothing at ENDGAME_LEVEL."""
+    return 0.0 if level >= ENDGAME_LEVEL else EFFORT_PENALTY[effort]
+
+
+def ranking_value(gain: float, score: float, effort: int, factor: float, level: int) -> float:
     """What the upgrades sort on: the gain less the effort's share of the
-    item's whole score (EFFORT_PENALTY), times how it fits the spec
+    item's whole score (effort_penalty), times how it fits the spec
     (gearfit's factor)."""
-    return (gain - score * EFFORT_PENALTY[effort]) * factor
+    return (gain - score * effort_penalty(effort, level)) * factor
 
 
 def item_effort(srcs: list[dict]) -> int:
@@ -1604,11 +1616,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             continue
         here_srcs = by_effort(here_srcs)
         effort = item_effort(here_srcs)
-        if effort == LONG_SHOT:
+        if effort == LONG_SHOT and level < ENDGAME_LEVEL:
             # A pipe dream (a 0.03% Classic drop, a PvP rank out of reach)
-            # with no auction house listing: the slot's best possible,
-            # shown with its odds, never an upgrade to chase (owner,
-            # 2026-11-24).
+            # with no auction house listing: while levelling, the slot's
+            # best possible, shown with its odds, never an upgrade to chase
+            # (owner, 2026-11-24). At ENDGAME_LEVEL it competes on its score.
             gated.append((item_id, info, here_srcs))
             continue
         at = max(min_level, min(_source_level(x) for x in here_srcs))
@@ -1663,9 +1675,10 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                 "effort": EFFORT[c.get("effort", EASY)],
                 # What the ranking sorts on: the gain, a little less for an item
                 # built for someone else, less again when a group usually hands
-                # it to them, less again the harder it is to get (EFFORT_PENALTY,
-                # on its whole score). The gain shown stays the gain.
-                "value": _r(ranking_value(r["delta"], r["new"], c.get("effort", EASY), fit_of(c)["factor"]), 2)}
+                # it to them, less again the harder it is to get while levelling
+                # (effort_penalty, on its whole score). The gain shown stays the gain.
+                "value": _r(ranking_value(r["delta"], r["new"], c.get("effort", EASY), fit_of(c)["factor"],
+                                          level), 2)}
 
     # Weapons are set against weapons: a two-hander against main hand + off
     # hand; a one-hand piece with what the other hand wears, and against a
@@ -1707,10 +1720,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
 
     def pick(slot: int, bucket: str, exclude: frozenset = frozenset()):
         # ForeverDB's order: the score, then the higher item level, then the
-        # lower ID; each score less its effort's penalty (EFFORT_PENALTY):
-        # an easier item wins unless the harder one is clearly better.
+        # lower ID; each score less its effort's penalty (effort_penalty):
+        # while levelling an easier item wins unless the harder one is
+        # clearly better; at ENDGAME_LEVEL the score alone.
         def adj(t) -> float:
-            return t[3]["new"] * (1 - EFFORT_PENALTY[t[2].get("effort", EASY)])
+            return t[3]["new"] * (1 - effort_penalty(t[2].get("effort", EASY), level))
 
         ranked = [t for t in sorted((per_slot.get(slot) or {}).get(bucket) or [],
                                     key=lambda t: (adj(t), t[2]["info"].get("ilvl") or 0, t[1]), reverse=True)
@@ -1727,7 +1741,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         # eval pve_shoulder, 2026-11-24: Green Silken Shoulders over Bloodmage Mantle).
         close = [t for t in better if adj(t) >= adj(better[0]) * gearfit.CLASS * gearfit.GROUP]
         return max(close, key=lambda t: (ranking_value(t[0], t[3]["new"], t[2].get("effort", EASY),
-                                                       fit_of(t[2])["factor"]),
+                                                       fit_of(t[2])["factor"], level),
                                          t[0], t[2]["info"].get("ilvl") or 0, t[1]))
 
     picks: dict[tuple, tuple | None] = {}
@@ -2384,7 +2398,7 @@ class WeaponSetups:
         self.parts: list[dict] = []  # {c, role, score, at}
         for c in cands:
             inv = c["info"]["inv"]
-            keep = 1 - EFFORT_PENALTY[c.get("effort", EASY)]
+            keep = 1 - effort_penalty(c.get("effort", EASY), level)
             if inv == 17:
                 sc = score_with(c["info"], w, False)
                 self.parts.append({"c": c, "role": "two", "score": sc, "adj": sc * keep})
@@ -2427,7 +2441,7 @@ class WeaponSetups:
 
     def _best(self, role: str, max_at: int, exclude: int | None = None) -> dict | None:
         pool = self._pool(role, max_at, exclude)
-        # The score less its effort's penalty (EFFORT_PENALTY); ForeverDB's
+        # The score less its effort's penalty (effort_penalty); ForeverDB's
         # order on a tie: the higher item level, then the lower ID.
         return max(pool, key=lambda p: (p["adj"], p["c"] is None, (p["c"] or {}).get("info", {}).get("ilvl") or 0,
                                         -(_pid(p) or 0)), default=None)

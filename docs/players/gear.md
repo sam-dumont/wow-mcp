@@ -46,8 +46,8 @@ caster's wand count for more), **PvP** or **PvE** (raids and dungeons at 60). Th
 Your pick is kept on the server for that character, so your AI's `gear` answers use it too.
 Next moves and the plan always score on Leveling.
 
-The list weighs how hard each item is to get, from its easiest source (your AI sees the class
-as `effort`):
+Every upgrade says how hard it is to get, from its easiest source, next to where it comes from
+(your AI sees the same `effort`):
 
 | | From |
 |---|---|
@@ -57,8 +57,9 @@ as `effort`):
 | **long shot** | a drop under 1%, a rate known only from Classic, a PvP rank you don't hold (or that nothing recorded) |
 
 A rate known only from Classic counts one step harder; an auction house listing makes any item
-easy, with its price. A harder item wins a slot only when it scores 5.3% more (some effort) or
-17.6% more (hard). The % lines measure against what you can get.
+easy, with its price. While you level, a harder item wins a slot only when it scores 5.3% more
+(some effort) or 17.6% more (hard), and the % lines measure against what you can get. At 60
+the score alone decides.
 
 Drops say their chance and how many runs that means ("43.75% over 16 kills"; a 3% boss drop
 adds "about 33 runs"). Reputation gear says where you stand ("you're Friendly: 16,500 rep to

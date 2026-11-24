@@ -1170,7 +1170,7 @@ upgrades:
     source: {expr: _.source_text, description: "One source in the gear advice's words: 'drop: Fallen Champion in Scarlet Monastery: Library (dungeon, levels 30-38), 38.5%', 'quest ...', 'craft: Tailoring 150; ...', 'in your bags: equip it'."}
     source_kind: {expr: _.source_kind, description: "quest, drop, craft, bags or bank (or another kind the gear data names: reputation, vendor...)."}
     source_wowhead: {expr: _.source_wowhead, description: "The source's Wowhead page (the quest, the boss, the craft's spell); NULL when it has none."}
-    effort: {expr: _.effort, description: "How hard this source is: easy (a quest, a vendor, the auction house, a craft you make, a drop of 25% or more), some effort (a drop of 8-25%, a reputation within reach), hard (a rarer drop, a world drop, a raid). Long shots are never upgrades."}
+    effort: {expr: _.effort, description: "How hard this source is: easy (a quest, a vendor, the auction house, a craft you make, a drop of 25% or more), some effort (a drop of 8-25%, a reputation within reach), hard (a rarer drop, a world drop, a raid), long shot (a drop under 1%, a PvP rank you don't hold). Long shots are upgrades at level 60 only."}
     instance: {expr: _.instance, description: "Dungeon or raid of an instance drop or quest, else NULL."}
     zone: {expr: _.zone, description: "Zone of the drop or the quest."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}

@@ -309,6 +309,7 @@ main { max-width: 1160px; margin: 0 auto; padding: 0 16px; }
 .pill.here { color: var(--gold-hi); border-color: var(--gold-lo); }
 /* The Auction House (wowstats/ahsource.py): the price, "cheap", and the
    "or buy it now" line under a drop. */
+.pill.effort { margin-left: 6px; }
 .pill.cheap { margin-left: 6px; color: var(--good); border-color: color-mix(in srgb, var(--good) 55%, transparent); }
 .ahprice { color: var(--gold-hi); font-weight: 700; }
 .ahor { display: block; }
@@ -1187,6 +1188,12 @@ li.cand:first-child { border-top: 0; }
 .candmain { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-width: 0; }
 .candmeta { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: 2px 8px; font-size: 13.5px; color: var(--muted); }
 .candmeta .src { flex-basis: 100%; text-align: right; }
+/* The source and its effort on one line (owner, 2026-11-24). A wrapping flex
+   box asks its auto grid column for all its items side by side: the cap keeps
+   the extra pill from taking the item name's room; the source wraps instead. */
+.candmeta { max-width: 30em; }
+.candmeta .srcline { flex-basis: 100%; text-align: right; }
+.candmeta .srcline .src { display: inline; }
 .advice .gain, .cand .gain { color: var(--good); font-weight: 700; }
 /* An upgrade in BiS terms, "62% → 100% of BiS": quiet, next to the gain. */
 .cands.compact .cand { font-size: 14px; }
@@ -1219,7 +1226,8 @@ li.cand:first-child { border-top: 0; }
 @media (max-width: 700px) {
   li.cand { grid-template-columns: minmax(0, 1fr); }
   .candmeta { justify-content: flex-start; }
-  .candmeta .src { text-align: left; }
+  .candmeta .src, .candmeta .srcline { text-align: left; }
+  .candmeta { max-width: none; }
 }
 
 /* ---------------------------------------------------------------- comparison */
