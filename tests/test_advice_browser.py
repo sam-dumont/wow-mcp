@@ -22,7 +22,7 @@ sync_api = pytest.importorskip("playwright.sync_api")
 
 from tests.test_browser import Catalog, wait_count  # noqa: E402
 from tests.test_public_view import CHAR, PoisonStore  # noqa: E402
-from wowstats import gearexport, itemcard, links, publish, static, ui  # noqa: E402
+from wowstats import itemcard, links, publish, static, ui  # noqa: E402
 from wowstats.plan import facts  # noqa: E402
 
 DATA = Path(__file__).parent / "data"
@@ -47,8 +47,6 @@ def site(tmp_path_factory):
     mp.setattr(itemcard, "shared", lambda: Catalog())
     mp.setenv("WOW_ITEMS", "off")
     gear = answer("gear-priest.json.gz")
-    # The weights as text for Forever Leveling BiS (wowstats.gearexport), as advise() adds them now.
-    gear["export"] = gearexport.export(gear["class"], gear["spec"]["key"], gear["mode"]["key"])
     mp.setattr(ui.App, "gear", lambda self, name, spec, mode=None: gear)
     env = {"VL_URL": "http://vl.invalid", "MODEL3D": "off", "PUBLISH_DIR": str(tmp / "site"),
            "ZOGZOG_KEY_FILE": str(tmp / "zogzog.key"), "MODEL3D_CACHE_DIR": str(tmp / "cache")}
