@@ -46,7 +46,8 @@ caster's wand count for more), **PvP** or **PvE** (raids and dungeons at 60). Th
 Your pick is kept on the server for that character, so your AI's `gear` answers use it too.
 Next moves and the plan always score on Leveling.
 
-Each item says how hard it is to get, from its easiest source:
+The list weighs how hard each item is to get, from its easiest source (your AI sees the class
+as `effort`):
 
 | | From |
 |---|---|
