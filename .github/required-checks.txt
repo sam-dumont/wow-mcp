@@ -1,0 +1,10 @@
+# The required status checks of main's ruleset ("main", Settings > Rules), one per
+# line, as GitHub names the check runs. Keep it equal to the ruleset: change both
+# together (docs/development.md). tests/test_workflow_guard.py reads it.
+test
+windows
+image
+audit
+analyze (python)
+analyze (javascript-typescript)
+review

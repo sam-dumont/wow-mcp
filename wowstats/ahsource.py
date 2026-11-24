@@ -41,7 +41,7 @@ from __future__ import annotations
 import re
 import time
 
-from wowstats import missing
+from wowstats import missing, riding
 from wowstats.stores import num, parse_t
 
 FRESH_DAYS = 1
@@ -142,16 +142,18 @@ def gold_per_level(snaps: list[dict], now: float | None = None) -> int | None:
     return round((m1 - m0) / (l1 - l0))
 
 
-def mount_left(money: int | None, skills: list[dict]) -> dict | None:
+def mount_left(money: int | None, skills: list[dict], book: list[dict] | None = None,
+               learned: list[dict] | None = None) -> dict | None:
     """The next riding training not yet known (the knowledge base's
     riding.apprentice / riding.journeyman, with the vendor mount when the
-    training doesn't come with one), its price and what is still missing."""
+    training doesn't come with one), its price and what is still missing.
+    Known: the highest riding rank any read saw (wowstats.riding.state:
+    Altoholic's spellbook, the Recorder's learn and skill records)."""
     from wowstats.analysis import kb
 
-    rank = 0
-    for r in skills or []:
-        if str(r.get("skill_id")) == str(RIDING_SKILL):
-            rank = max(rank, int(num(r.get("rank"))))
+    rec = max((r for r in skills or [] if str(r.get("skill_id")) == str(RIDING_SKILL)),
+              key=lambda r: int(num(r.get("rank"))), default=None)
+    rank = riding.state({"rank": rec.get("rank"), "t": rec.get("_time")} if rec else None, book, learned)["rank"]
     for name in ("riding.apprentice", "riding.journeyman"):
         rule = kb.static_rule(name)
         if not rule:
@@ -173,7 +175,8 @@ def queries(cf: str, rec: str, items: bool = True) -> dict[str, tuple]:
     stats keys, merge ops), so a caller can run them side by side. items:
     False for a caller that has the scans already (the full view's price
     list read, wowstats.views.price_rows: same rows, a wider window)."""
-    q = {"money": (Q_MONEY.format(cf=cf), (), None), "skills": (Q_SKILLS.format(rec=rec), (), None)}
+    q = {"money": (Q_MONEY.format(cf=cf), (), None), "skills": (Q_SKILLS.format(rec=rec), (), None),
+         **{k: (v, (), None) for k, v in riding.queries(cf, rec).items()}}
     return {"items": (Q_ITEMS, ITEMS_KEYS, ITEMS_OPS), **q} if items else q
 
 
@@ -185,7 +188,7 @@ def market(res: dict, *, faction: str | None, money: int | None,
     recent = [r for r in res.get("items") or [] if (a := _age_days(r.get("t"), now)) is not None and a < WINDOW_DAYS]
     sale = on_sale(recent, faction, now)
     return {**sale, "money_copper": money, "gold_per_level_copper": gold_per_level(res.get("money") or [], now),
-            "mount": mount_left(money, res.get("skills") or [])}
+            "mount": mount_left(money, res.get("skills") or [], res.get("riding_book"), res.get("riding_learn"))}
 
 
 def gather(run, **kw) -> dict:

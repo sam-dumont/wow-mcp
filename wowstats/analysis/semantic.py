@@ -30,7 +30,7 @@ import secrets
 from datetime import date, datetime
 from pathlib import Path
 
-from wowstats import timebounds
+from wowstats import riding, timebounds
 
 from .sql import QueryError
 
@@ -64,8 +64,8 @@ VIEWS = {
     # classification), for the kill XP a run would pay at another level
     # (wowstats.plan.dungeongain). run_start: the dungeon run the record
     # falls in (start to leave), as dungeon_runs names it. skill_id and
-    # skill_rank: a skill record's own (records.extra), for the Riding rank
-    # the mount goal reads.
+    # skill_rank: a skill record's own (records.extra); the mount goal's
+    # Riding rank is sem_riding's (the spellbook too).
     # at_guide, at_step: the guide step in force at the record, a step (or
     # skip) record's own, else the one of the online interval the record closes
     # ((t0, t1]: the intervals of a session follow each other, so one at
@@ -294,23 +294,34 @@ RIDING_TIERS = ("riding.apprentice", "riding.journeyman")
 
 def _riding_sql() -> str:
     """sem_riding: one row per riding tier the KB has a sourced cost for,
-    with the newest snapshot's money and the riding rank the skill records
-    saw. gap_copper: what the training still needs, 0 once the rank is
-    reached, NULL without a snapshot with money."""
+    with the newest snapshot's money and the riding rank any read saw
+    (wowstats.riding): the Recorder's skill records of the Riding line, and
+    the riding spells spells_known lists known (Altoholic's spellbook, the
+    Recorder's learn records). The Recorder misses a training it didn't see.
+    book_rank: the rank Altoholic's spellbook alone shows (0 without one).
+    gap_copper: what the training still needs, 0 once the rank is reached,
+    NULL without a snapshot with money."""
     tiers = []
     for name in RIDING_TIERS:
         v = (_kb_rule(name) or {}).get("value") or {}
         if all(isinstance(v.get(k), int) for k in ("level", "skill", "training_copper")):
             tiers.append(f"({_lit(name)}, {v['level']}, {v['skill']}, {v['training_copper']})")
     rows = ", ".join(tiers) or "(NULL, NULL, NULL, NULL)"
-    return ("SELECT t.tier, t.tier_level, t.tier_skill, t.training_copper, m.money_copper, k.riding_rank, "
-            "CASE WHEN COALESCE(k.riding_rank, 0) >= t.tier_skill THEN 0 WHEN m.money_copper IS NULL THEN NULL "
+    spell_rank = "CASE spell_id " + " ".join(f"WHEN {sp} THEN {rk}" for sp, rk in riding.SPELL_RANK.items()) + " END"
+    return ("SELECT t.tier, t.tier_level, t.tier_skill, t.training_copper, m.money_copper, "
+            "GREATEST(COALESCE(k.rank, 0), COALESCE(b.rank, 0), COALESCE(l.rank, 0)) AS riding_rank, "
+            "COALESCE(b.rank, 0) AS book_rank, "
+            "CASE WHEN GREATEST(COALESCE(k.rank, 0), COALESCE(b.rank, 0), COALESCE(l.rank, 0)) >= t.tier_skill "
+            "THEN 0 WHEN m.money_copper IS NULL THEN NULL "
             "ELSE GREATEST(t.training_copper - m.money_copper, 0) END AS gap_copper, {who} "
             f"FROM (VALUES {rows}) t(tier, tier_level, tier_skill, training_copper) "
             "LEFT JOIN (SELECT money_copper FROM snapshots WHERE money_copper IS NOT NULL ORDER BY t DESC LIMIT 1) m "
-            "ON TRUE LEFT JOIN (SELECT MAX(TRY_CAST(json_extract_string(extra, '$.rank') AS BIGINT)) AS riding_rank "
+            "ON TRUE LEFT JOIN (SELECT MAX(TRY_CAST(json_extract_string(extra, '$.rank') AS BIGINT)) AS rank "
             "FROM records WHERE kind = 'skill' AND TRY_CAST(json_extract_string(extra, '$.skill_id') AS BIGINT) = "
-            f"{RIDING_SKILL}) k ON TRUE WHERE t.tier IS NOT NULL")
+            f"{RIDING_SKILL}) k ON TRUE "
+            f"LEFT JOIN (SELECT MAX({spell_rank}) AS rank FROM spells_known WHERE known = 1 "
+            f"AND source = 'altoholic') b ON TRUE LEFT JOIN (SELECT MAX({spell_rank}) AS rank FROM spells_known "
+            "WHERE known = 1 AND source <> 'altoholic') l ON TRUE WHERE t.tier IS NOT NULL")
 
 
 def _class_spells_sql() -> str:

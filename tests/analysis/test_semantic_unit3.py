@@ -250,6 +250,23 @@ def test_riding_gap_against_the_newest_money(demo):
         assert rows[tier]["riding_gold_gap_copper"] == max(cost - money, 0)
 
 
+def test_riding_rank_reads_the_spellbook_too(demo):
+    """Apprentice Riding trained while the Recorder wasn't recording: no
+    skill record, but Altoholic's spellbook (DataStore_Spells, the shipper's
+    wow-altoholic kind=spells) lists 33388 known. The rank is 75 and the
+    Apprentice gap is 0 (wowstats.riding, 2026-11-24)."""
+    before = one(demo["ask"](metrics=["riding_rank", "riding_book_rank"]))
+    assert before == {"riding_rank": 0, "riding_book_rank": 0}
+    book = {"_time": "2026-01-05T18:00:00.000Z", "feed": "wow-altoholic", "kind": "spells", "char": D.CHAR,
+            "source": "altoholic", "spells": "[[6603,0],[33388,0],[33391,60]]"}
+    got = _built([*D.base_rows(), book])
+    assert one(got["ask"](metrics=["riding_rank", "riding_book_rank"])) == {"riding_rank": 75,
+                                                                             "riding_book_rank": 75}
+    gaps = {r["tier"]: r["riding_gold_gap_copper"] for r in got["ask"](metrics=["riding_gold_gap_copper"],
+                                                                        group_by=["tier"])}
+    assert gaps["riding.apprentice"] == 0 and gaps["riding.journeyman"] > 0
+
+
 def test_the_new_views_have_one_row_per_key(demo):
     for name, key in (("per_faction", "faction_id"), ("per_flight_node", "node_id"), ("per_quest_giver", "npc_id")):
         rows = demo["view"](name)

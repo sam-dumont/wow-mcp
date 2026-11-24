@@ -256,7 +256,9 @@ def t_mount_goal(ctx: T.Ctx, args: dict) -> dict:
             "note": "need is a tier's whole cost. When comes_with_mount is true the training includes the mount; "
                     "extra_mount_copper is a second vendor mount, optional and not in need: never quote it as the "
                     "price of riding. Net gold per online hour between logout snapshots (n given). The savings roll "
-                    "over to the next tier once one is bought. Gold options are priced, never required. " + CITE}
+                    "over to the next tier once one is bought. may_be_trained: the tier counts as not bought, but "
+                    "nothing that reads the game saw it either way (no Altoholic spellbook with riding in it): say "
+                    "\"if not trained yet\", never that it isn't. Gold options are priced, never required. " + CITE}
 
 
 def t_whats_new(ctx: T.Ctx, args: dict) -> dict:

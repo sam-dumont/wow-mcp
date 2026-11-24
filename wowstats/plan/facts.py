@@ -494,14 +494,17 @@ def since_local(t: float) -> str:
     return datetime.fromtimestamp(t, ZoneInfo(prep.TZ_NAME)).strftime("%Y-%m-%dT%H:%M:%S")
 
 
-def riding_known(db, sem: tuple | None = None) -> int:
-    """The riding skill the records saw (0: none): the client's Riding skill
-    line (kb.RIDING), as the shipper reports skill ranks (skill_rank)."""
-    from wowstats.analysis.kb import RIDING
-
-    row = metric_row(sem or semantic_of(db), {"metrics": ["skill_rank"],
-                                              "where": [{"dimension": "skill_id", "op": "=", "value": int(RIDING)}]})
-    return _i(row.get("skill_rank"), 0) or 0
+def riding_known(db, sem: tuple | None = None) -> dict:
+    """{riding_skill, riding_from}: the riding rank any read saw (0: none;
+    the riding model's riding_rank: Altoholic's spellbook, the Recorder's
+    learn and skill records) and where it comes from: "game" when the
+    spellbook lists it, "recorder" when only the Recorder saw it, None when
+    nothing did. Only the spellbook reads the game: the Recorder misses a
+    training it didn't see, so a tier not seen trained past its level is
+    "if not trained yet" (wowstats.plan.estimate.mounts)."""
+    row = metric_row(sem or semantic_of(db), {"metrics": ["riding_rank", "riding_book_rank"]})
+    rank, book = _i(row.get("riding_rank"), 0) or 0, _i(row.get("riding_book_rank"), 0) or 0
+    return {"riding_skill": rank, "riding_from": ("game" if book and book >= rank else "recorder") if rank else None}
 
 
 def rested_burn(db, sem: tuple | None = None) -> dict:
@@ -1145,7 +1148,7 @@ def extract(db, knowledge, ref, *, advice: dict | None = None, scans: dict | Non
         "dungeon_quests": dungeon_quests(knowledge, side, runs),
         "gear_score": (advice or {}).get("gear_score"),
         "quests_done": sorted(quests_done), "quests_done_from": quests.counts(quests_done),
-        "mount": {**mount_facts(knowledge), "riding_skill": riding_known(db, sem)},
+        "mount": {**mount_facts(knowledge), **riding_known(db, sem)},
         "rules": {"quest_xp_share": cite(share_rule) | {"value": share_rule["value"]} if share_rule else None,
                   "rested_accrual": cite(acc) | {"value": acc["value"]} if acc else None},
         "rested_burn": rested_burn(db, sem),

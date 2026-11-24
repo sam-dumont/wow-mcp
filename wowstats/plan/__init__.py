@@ -103,7 +103,7 @@ def status(env: dict, char: str | None = None, store=None, battlenet=None, gear_
     m = est_mod.mounts(inp, p)
     revs = inp.get("plan_reviews") or []
     tiers = [{"level": t["level"], "need": est_mod.fgold(t["need_copper"]), "left": est_mod.fgold(t["left_copper"]),
-              "bought": t["bought"], "behind": t["behind"],
+              "bought": t["bought"], "may_be_trained": t.get("may_be_trained", False), "behind": t["behind"],
               "pct": round(100 * (1 - t["left_copper"] / t["need_copper"])) if t["need_copper"] else None,
               "eta": est_mod.fdur(t["eta_played_s"]) if t.get("eta_played_s") is not None else None,
               "eta_level": t.get("eta_level"), "source": (t.get("source") or {}).get("source_type")}

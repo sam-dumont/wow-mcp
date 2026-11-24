@@ -3785,7 +3785,9 @@ async function loadPlan(name) {
     return;
   }
   const tiers = (s.tiers || []).filter((t) => !t.bought).slice(0, 2).map((t) => h('div', { class: 'tier' },
-    h('div', { text: `Riding at ${t.level}: ${t.need} needed, ${t.left} to go` +
+    // may_be_trained: no read of the game saw it (the Recorder misses a
+    // training it didn't see): a hedge, never "not trained".
+    h('div', { text: `Riding at ${t.level}${t.may_be_trained ? ', if not trained yet' : ''}: ${t.need} needed, ${t.left} to go` +
       (t.eta ? ` (about ${t.eta} of play at ${s.gold_rate}${t.eta_level ? `, level ${t.eta_level}` : ''})` :
         s.gold_rate ? '' : ' (no gold rate measured yet)') + (t.behind ? '. Behind your level pace.' : '.') }),
     h('div', { class: 'bar', role: 'img', 'aria-label': `${t.pct || 0}% saved` },

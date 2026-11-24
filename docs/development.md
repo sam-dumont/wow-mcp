@@ -218,6 +218,16 @@ skip, which counts as passed for a required check:
 | `dependency-review.yml` | the dependencies a pull request adds or bumps: known vulnerabilities (moderate and up) and licenses that can't ship with GPL-3.0-only |
 | `scorecard.yml` | OpenSSF Scorecard, published to api.scorecard.dev and the Security tab |
 
+**Required checks.** `main`'s ruleset requires seven check names, listed in
+`.github/required-checks.txt`. Change that file whenever the ruleset
+changes, in the same pull request. `tests/test_workflow_guard.py` reads it
+(it can't ask GitHub) and fails when a reusable-workflow call job in a
+pull-request workflow is named like a required check, or when a required
+name comes from no job or from more than one. A required check is
+satisfied by any check run of that name, skipped ones too: in #202,
+release.yml's skipped job `test` passed the gate before ci.yml's own
+`test` had run.
+
 ## Dependencies and supply chain
 
 - **Updates**: Dependabot (`.github/dependabot.yml`), weekly on Monday:

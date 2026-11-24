@@ -26,6 +26,7 @@ from wowstats import (
     journal,
     profcaps,
     quests,
+    riding,
     talents,
 )
 from wowstats import gear as gearmod
@@ -653,6 +654,7 @@ class Views:
             "sessions": sub(insights.sessions, self.q, cf),
             "skills": sub(self.q, f"{rec} kind:=skill | fields _time, skill_id, rank, max_rank, source_id"),
             "runs": sub(insights.dungeon_runs, self.q, cf),
+            **{k: sub(self.q, q) for k, q in riding.queries(cf, rec).items()},
         }
         res = {k: (f.result() if f else None) for k, f in jobs.items()}
         data = data if data is not None else res["data"]
@@ -662,6 +664,8 @@ class Views:
         skills = {int(opt_num(r["skill_id"])): {"rank": int(num(r.get("rank"))), "max_rank": int(num(r.get(
             "max_rank"))), "t": r.get("_time")} for r in sorted(dedupe(res["skills"]), key=lambda r: parse_t(
                 r.get("_time"))) if opt_num(r.get("skill_id")) is not None}
+        # Riding from the spellbook too: the Recorder misses a training it didn't see.
+        skills = riding.merge(skills, res["riding_book"], res["riding_learn"])
         return {"data": data, "advice": advice if (advice or {}).get("available") else None, "deaths": ds,
                 "runs": res["runs"], "sessions": res["sessions"], "steps_rows": steps_rows, "skills": skills,
                 "skill_rows": sorted(dedupe(res["skills"]), key=lambda r: parse_t(r.get("_time")))}
