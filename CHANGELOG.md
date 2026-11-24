@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.10.0 (2026-11-24)
+
 What 0.10.0 brings over 0.9.0, in short. Every change follows.
 
 **For players**
