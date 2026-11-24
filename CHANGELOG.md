@@ -10,6 +10,9 @@ What comes after 0.10.0, in short. Every change follows.
   scale), so it ranks items in the game the way the page does.
 - A level a crash cut short gets its whole time from the game's /played, and flights no longer
   count as time in the zones they cross.
+- A dungeon's quests count toward the run they came from, wherever you hand them in. City of
+  Dalaran's two hand-ins at the Silverpine grate were Silverpine's quest XP; now they're
+  Dalaran's, and its trips read about a third faster.
 
 ### Added
 
@@ -20,6 +23,17 @@ What comes after 0.10.0, in short. Every change follows.
   the way the page does. MCP `gear` takes `export: flb | pawn` and returns the string. A test scores
   every item of the game data both ways for nine specs and gets the same numbers; the Pawn scale
   loses ranged-only hit for hunters and says so. Weights only: the addon keeps its own items.
+- Dungeon quests handed in outside count toward their run. A dungeon quest's hand-in goes to
+  the nearest run of that dungeon before it, within a day, the quest taken before the run ended;
+  otherwise it stays its zone's quest XP. Which dungeon a quest belongs to is a new bundled file,
+  `data/dungeons/quests.json` (`tools/dungeon_quests/export.py`, rerun at each Polestar tag), from
+  forever-db's zones, Polestar's cited dungeon journal and its dungeon runs: every dungeon of the
+  panel but The Shaper's Terrace (no XP quests) has quests, City of Dalaran its 8. The Dungeons
+  panel shows "XP a trip" with "includes N quests turned in outside"; MCP `dungeons` gives each run
+  its `trip` (quest XP, quests turned in outside, XP an hour); `dungeons` with `options` and
+  `next_moves` read the trips with them. The analysis gets `dungeon_quest` and `trip_quest` on
+  records and quests, `dungeon_quest_xp`, `zone_quest_xp` and `zone_quest_xp_per_online_hour` in
+  `per_zone`, and `trip_quests_outside`, `trip_xp_quests_outside` in `per_trip` and `per_dungeon`.
 
 ### Fixed
 

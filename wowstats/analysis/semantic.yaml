@@ -349,6 +349,8 @@ records:
     guide: {expr: _.at_guide, description: "The Polestar guide in force at the record: a step or skip record's own (the guide it moved in), else the guide of the online interval the record closes (timeline). NULL before the first step record."}
     step: {expr: _.at_step, description: "That guide's step number, the same way: a step or skip record's own step. Group by guide too: step numbers restart in each guide."}
     dungeon_trip: {expr: _.dungeon_trip_id, description: "The dungeon trip the record falls in (dungeon_trips), NULL outside one: filter is null for play outside dungeons."}
+    dungeon_quest: {expr: _.dungeon_quest, description: "The dungeon (instance map, as dungeon_runs' dungeon_id) the record's quest belongs to in Forever's data (data/dungeons/quests.json: forever-db's zone, Polestar's journal and dungeon runs), wherever it is picked up or handed in; NULL for a quest of no dungeon and records without a quest."}
+    trip_quest: {expr: _.trip_quest_id, description: "On a hand-in: the dungeon trip whose quest XP it counts toward (dungeon_trips), wherever it was handed in (City of Dalaran's at the Silverpine grate); NULL for a hand-in that is its zone's own quest XP."}
     record_t: {expr: _.t, description: "One record, named by when it was written (unix seconds): group by it to list the records one by one."}
     death_t: {expr: "(_.kind == 'death').ifelse(_.t, _.t.nullif(_.t))", description: "One death, named by when its death record was written (unix seconds); NULL on every other record. Group by it to list the deaths one by one (per_death)."}
     item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used."}
@@ -411,7 +413,17 @@ records:
       expr: _.xp_reward.sum(where=_.kind == 'turnin').fill_null(0)
       description: "XP from quest hand-ins (turnin records' xp_reward)."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: xp,
-                 caveats: "Discovery XP is apart (explore records)."}
+                 caveats: "Discovery XP is apart (explore records). By zone it holds the dungeon quests handed in there (dungeon_quest_xp); zone_quest_xp leaves them out."}
+    dungeon_quest_xp:
+      expr: _.xp_reward.sum(where=(_.kind == 'turnin') & _.trip_quest_id.notnull()).fill_null(0)
+      description: "Hand-in XP that counts toward a dungeon trip (trip_quest)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: reconstructed, unit: xp,
+                 caveats: "The same XP as the trips' trip_xp_quests, by where it was handed in. A dungeon quest handed in more than a day after its run, picked up after it, or with no run of its dungeon before it stays its zone's (zone_quest_xp)."}
+    zone_quest_xp:
+      expr: _.xp_reward.sum(where=(_.kind == 'turnin') & _.trip_quest_id.isnull()).fill_null(0)
+      description: "The zone's own quest XP: quest_xp less dungeon_quest_xp."
+      metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: reconstructed, unit: xp,
+                 caveats: "By zone, the number to compare zones on: a dungeon's quests handed in outside (City of Dalaran's in Silverpine Forest) count toward their run instead."}
     quest_money_copper:
       expr: _.money_copper.sum(where=_.kind == 'turnin').fill_null(0)
       description: "Money quest hand-ins paid, copper."
@@ -719,14 +731,24 @@ dungeon_trips:
                  caveats: "The XP of the run, at the level it was run: another level pays its kills differently."}
     trip_xp_quests:
       expr: _.xp_quests.sum()
-      description: "XP from the trip's quests handed in during the trip."
-      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: xp,
-                 caveats: "A trip quest handed in a day later is not in it."}
+      description: "XP from the trip's quests: handed in during the trip, and the dungeon's own quests handed in after it anywhere (the nearest run of that dungeon before the hand-in, within a day, the quest taken before the run ended)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: xp,
+                 caveats: "A dungeon quest handed in more than a day after its run is its zone's quest XP. trip_xp_quests_outside is the part handed in outside the instance after the run."}
+    trip_quests_outside:
+      expr: _.quests_outside.sum()
+      description: "The dungeon's quests handed in outside after the run (in trip_quests_handed_in)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: quests,
+                 caveats: "Only quests data/dungeons/quests.json ties to the dungeon (forever-db's zone, Polestar's journal and runs)."}
+    trip_xp_quests_outside:
+      expr: _.xp_quests_outside.sum()
+      description: "Their XP (in trip_xp_quests)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: xp,
+                 caveats: "Its time is in trip_s only when the hand-in came within 2 hours of the trip's end and before the next run; a later one adds XP, not time."}
     trip_quests_handed_in:
       expr: _.quests_handed_in.sum()
-      description: "The trip's quests handed in during the trip."
-      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: observed, unit: quests,
-                 caveats: "Only the dungeon's own quests (the lookup guide steps'), handed in before the trip ended."}
+      description: "The trip's quests handed in: during the trip, and the dungeon's own quests handed in after it (trip_quests_outside)."
+      metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: quests,
+                 caveats: "The dungeon's own quests (data/dungeons/quests.json) and the lookup guide steps' quests."}
     trip_quest_money_copper:
       expr: _.quest_money_copper.sum()
       description: "Money the trip's quest hand-ins paid, copper."
@@ -734,9 +756,9 @@ dungeon_trips:
                  caveats: "Quest rewards only; the loot's worth is not in it."}
     trip_xp:
       expr: _.xp_inside.sum() + _.xp_quests.sum()
-      description: "XP inside the instance plus XP from the trip's quests handed in during the trip."
+      description: "XP inside the instance plus XP from the trip's quests (trip_xp_quests: the dungeon's own quests wherever they were handed in, within a day)."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: xp,
-                 caveats: "A trip quest handed in a day later is not in it."}
+                 caveats: "A dungeon quest handed in more than a day after its run is not in it."}
   calculated_measures:
     trip_xp_per_hour:
       expr: _.trip_xp / (_.trip_s / 3600)
@@ -839,6 +861,8 @@ quests:
     level: {expr: _.level, is_entity: true, description: "Level at the hand-in or abandon (at the accept while open)."}
     level_accepted: {expr: _.level_accepted, description: "Level at the accept (NULL for untimed)."}
     zone: {expr: _.zone, description: "Zone of the hand-in, else of the accept."}
+    dungeon_quest: {expr: _.dungeon_id, description: "The dungeon (instance map, as dungeon_runs' dungeon_id) the quest belongs to in Forever's data (data/dungeons/quests.json), wherever it is picked up or handed in; NULL for a quest of no dungeon."}
+    trip: {expr: _.trip_id, description: "The dungeon trip its hand-in counted toward (dungeon_trips), NULL when it is its zone's quest XP."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
@@ -2196,6 +2220,13 @@ cross_model_metrics:
                caveats: "Online time, not played time: quest_xp_per_played_hour is the level split's version. A quest pays where it is handed in, so a zone of hand-ins reads high and the zone of its kills low. NULL without online time.",
                eligibility: {where: {records: "_.session_id.notnull()", timeline: "_.session_id.notnull()"},
                  means: "Inside a login span the Recorder saw, on both sides."}}
+  zone_quest_xp_per_online_hour:
+    expr: zone_quest_xp / (online_s / 3600)
+    description: "zone_quest_xp per online hour: by zone, what its own quests paid."
+    metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: [event, interval_start], evidence_basis: reconstructed, unit: xp/hour,
+               caveats: "quest_xp_per_online_hour counts every hand-in made in the zone. NULL without online time.",
+               eligibility: {where: {records: "_.session_id.notnull()", timeline: "_.session_id.notnull()"},
+                 means: "Inside a login span the Recorder saw, on both sides."}}
   explore_xp_per_online_hour:
     expr: explore_xp / (online_s / 3600)
     description: "XP from discovering places per online hour: explore_xp (records) over online_s (timeline)."
@@ -2268,10 +2299,11 @@ views:
               distance_yd]
   per_zone:
     entity: zone
-    description: "One row per zone the Recorder saw: online, combat, dungeon, dead, flight and ride time, kills (those that paid nothing apart), deaths, quests, XP by source and each source's XP per online hour, rides boarded, the zone records' own time and visits, and the XP bar's gain there."
+    description: "One row per zone the Recorder saw: online, combat, dungeon, dead, flight and ride time, kills (those that paid nothing apart), deaths, quests, XP by source and each source's XP per online hour (the zone's own quest XP apart from the dungeon quests handed in there, which count toward their runs), rides boarded, the zone records' own time and visits, and the XP bar's gain there."
     where: [{dimension: zone, op: is not null}]
     metrics: [online_s, active_s, combat_s, combat_share, dungeon_s, dead_s, taxi_s, ride_s, kills, zero_xp_kills,
-              deaths, quests_done, kill_xp, quest_xp, explore_xp, kill_xp_per_online_hour, quest_xp_per_online_hour,
+              deaths, quests_done, kill_xp, quest_xp, dungeon_quest_xp, zone_quest_xp, explore_xp,
+              kill_xp_per_online_hour, quest_xp_per_online_hour, zone_quest_xp_per_online_hour,
               explore_xp_per_online_hour, deaths_per_online_hour, kills_per_combat_hour, rides, zone_s, zone_visits,
               xp_gained, xp_per_zone_hour]
   per_dungeon:
@@ -2279,14 +2311,16 @@ views:
     description: "One row per dungeon: runs and their time and XP inside, runs per hour inside (the farm's pace), trips with the travel around them and their XP an hour."
     where: [{dimension: dungeon, op: is not null}]
     metrics: [run_count, run_s, run_xp, run_xp_per_hour, runs_per_online_hour, trip_count, trip_s, trip_travel_s, trip_xp,
+              trip_quests_outside, trip_xp_quests_outside,
               trip_xp_per_hour, trip_inside_share]
   per_trip:
     entity: trip
-    description: "One row per dungeon trip: when, at what level, its time phase by phase (pickup, travel there, inside, travel back, hand-in), its XP inside and from its quests, and what its run looted."
+    description: "One row per dungeon trip: when, at what level, its time phase by phase (pickup, travel there, inside, travel back, hand-in), its XP inside and from its quests (those handed in outside after the run apart), and what its run looted."
     dimensions: [dungeon, level, trip_start, trip_end, trip_loot]
     where: [{dimension: trip, op: is not null}]
     metrics: [trip_s, trip_pickup_s, trip_travel_to_s, trip_inside_s, trip_travel_back_s, trip_handin_s, trip_xp_inside,
-              trip_xp_quests, trip_quests_handed_in, trip_quest_money_copper]
+              trip_xp_quests, trip_quests_handed_in, trip_quests_outside, trip_xp_quests_outside,
+              trip_quest_money_copper]
   per_guide:
     entity: guide
     description: "One row per Polestar guide: time and XP while it was up, Polestar's steps (done, skipped, jumped, picks, its own step timer), skill-ups, first and last record."
@@ -2295,7 +2329,8 @@ views:
               first_record_t, last_record_t]
   per_quest:
     entity: quest_id
-    description: "One row per quest id: times in the log, shared and open time, XP, first accept and last objectives done."
+    description: "One row per quest id: times in the log, shared and open time, XP, first accept and last objectives done, and the dungeon it belongs to (dungeon_quest)."
+    dimensions: [dungeon_quest]
     where: [{dimension: quest_id, op: is not null}]
     metrics: [quest_count, quest_s, quest_open_s, quest_reward_xp, quest_accepted_t, quest_complete_t]
   per_death:

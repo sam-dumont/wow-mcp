@@ -85,6 +85,7 @@ if [ "$ok" = 1 ]; then
   if node tools/route_reference/export.mjs --polestar "$ps" --lua "$lua" \
     && node tools/gear_reference/export.mjs --polestar "$ps" --lua "$lua" \
     && uvp tools/forever_reference/export.py --polestar "$ps" \
+    && uvp tools/dungeon_quests/export.py --polestar "$ps" \
     && uvp tools/kb/export.py --polestar "$ps" \
     && uvp tools/class_reference/export.py --polestar "$ps" \
     && uvp tools/trainers/export.py --polestar "$ps"; then

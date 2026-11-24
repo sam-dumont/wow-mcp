@@ -671,7 +671,8 @@ def ask_on(db, sem=None):
 TRIP_METRICS = {"trip_s": "online_s", "trip_pickup_s": "pickup_s", "trip_travel_to_s": "travel_to_s",
                 "trip_inside_s": "inside_s", "trip_travel_back_s": "travel_back_s", "trip_handin_s": "handin_s",
                 "trip_xp_inside": "xp_inside", "trip_xp_quests": "xp_quests",
-                "trip_quests_handed_in": "quests_handed_in", "trip_quest_money_copper": "quest_money_copper"}
+                "trip_quests_handed_in": "quests_handed_in", "trip_quest_money_copper": "quest_money_copper",
+                "trip_quests_outside": "quests_outside", "trip_xp_quests_outside": "xp_quests_outside"}
 TRIP_DIMS = {"trip": "trip_id", "dungeon": "dungeon", "level": "level_start", "trip_start": "start_t",
              "trip_end": "end_t", "trip_loot": "loot_inside"}
 RUNS_PER_ASK = 10  # runs per kills question: their rows (one per creature) stay under query_metric's cap

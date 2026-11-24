@@ -341,6 +341,8 @@ def trip_stats(trips: list[dict]) -> dict:
     whole = sum((t.get("xp_inside") or 0) + (t.get("xp_quests") or 0) for t in trips)
     out.update(n=n, xp_inside_per_hour=xp_in / inside * 3600 if inside else None,
                xp_whole_per_hour=whole / out["online_s"] / n * 3600 if out["online_s"] else None,
+               # the dungeons' quests handed in outside after the runs, in the whole
+               quests_outside=sum(t.get("quests_outside") or 0 for t in trips),
                dungeons=[t["dungeon"] for t in trips],
                runs_text=", ".join(f"{t['dungeon']} at level {t.get('level_start')}" for t in trips))
     return out

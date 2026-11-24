@@ -486,7 +486,11 @@ def trip_value(mine: list[dict], every: dict, quests: list[dict]) -> dict:
                 "quest_money_copper": round(mean("quest_money_copper")),
                 "boe": [{"item_id": b.get("item_id"), "name": b.get("name"), "quality": b.get("quality"),
                          "ah_copper": b.get("ah_copper")} for x in loot for b in x.get("boe") or []][:4],
-                "quest_xp_left": quest_xp_left}
+                "quest_xp_left": quest_xp_left,
+                # The dungeon's quests handed in outside after his runs (City of
+                # Dalaran's at the Silverpine grate): in xp_quests, said apart.
+                "quests_outside": sum(t.get("quests_outside") or 0 for t in mine),
+                "xp_quests_outside": round(mean("xp_quests_outside"))}
     if every.get("n"):
         return {"measured": False, "n": every["n"], "total_s": round(every["online_s"]),
                 "inside_s": round(every["inside_s"]), "quest_xp_left": quest_xp_left}
@@ -697,6 +701,7 @@ def block(inp: dict, aid: str, area: dict, mine: list[dict], every: dict, quest_
     history = [{"t": E_iso(t.get("start_t")), "level": t.get("level_start"), "inside_s": round(t.get("inside_s") or 0),
                 "total_s": round(t.get("online_s") or 0), "xp_kills": t.get("xp_inside"),
                 "xp_quests": t.get("xp_quests"), "quests_handed_in": t.get("quests_handed_in"),
+                "quests_outside": t.get("quests_outside") or 0,
                 "vendor_copper": (t.get("loot") or {}).get("vendor_copper"),
                 "items": (t.get("loot") or {}).get("items")}
                for t in sorted(mine, key=lambda t: -(t.get("start_t") or 0))]

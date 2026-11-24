@@ -78,6 +78,50 @@ run can land 10-15% either side. One lead to check: the Stockade's kills
 fit a zero-difference value of 11 at level 31, where Classic's table says
 12. The model keeps 12 until a second dungeon agrees.
 
+## Quests handed in outside
+
+A dungeon's quests often pay out at the door or in a city: City of
+Dalaran's at the Silverpine grate, the Deadmines' in Westfall, the
+Stockade's in Stormwind. Counted where they were handed in, two Dalaran
+quests (19.4k XP) read as Silverpine Forest's quest XP and Dalaran's trip
+looked a quarter slower than it was. So a dungeon quest's hand-in counts
+toward the run it came from:
+
+- **the nearest run of that dungeon before the hand-in**, inside it or
+  after it. Two runs of the same dungeon: the later one before the
+  hand-in wins;
+- **within a day of leaving it**. That covers logging out after the run and
+  handing in the next evening; later than that, the hand-in stays its
+  zone's quest XP;
+- **the quest was in the log before the run ended**. Picked up after the run,
+  or handed in with no run of its dungeon before it, it was done without
+  one and stays its zone's quest XP.
+
+The trip's end follows such a hand-in while each comes within 2 hours of
+the last and before the next run, the same chain as the hand-in guide
+steps; a later one adds its XP, not its time. The zone it was handed in
+keeps none of it: `zone_quest_xp` in the analysis is the zone's own quest
+XP, `dungeon_quest_xp` what went to the runs. The Dungeons panel's "XP a
+trip" says how many quests were turned in outside, and the MCP's
+`dungeons` gives each run's trip with them.
+
+Which dungeon a quest belongs to is `data/dungeons/quests.json`, from
+Forever's own data only, at Polestar's tag:
+
+| Source | What it says |
+|---|---|
+| forever-db's zone | the quest's zone is the dungeon's area: where its work is done, wherever it's picked up |
+| Polestar's dungeon journal (`data/codex/journal-quests.json`) | cited rows for quests no rule places: giver, ender and zone outside, the objective inside. Its exclude rows take City of Dalaran's city quests off |
+| Polestar's dungeon runs (`data/dungeon-runs.json`) | the quests a run picks up, works on, starts from an item inside and hands in |
+
+forever-db's own dungeon flag (quest type 81) is noted beside a quest one
+of these places; alone it doesn't say which dungeon. Coverage at Polestar
+v0.4.2.2: every dungeon of the panel has quests except The Shaper's Terrace
+("a level 60 dungeon: its quests give no experience", Polestar's word);
+City of Dalaran has its 8 (4 per side), Gnomeregan 27, Blackrock Depths 41,
+the newest ones 2 to 14 each. `tests/analysis/test_dungeon_quests.py` holds
+every dungeon to having quests or a reason.
+
 ## Where the data comes from
 
 - Original dungeons: [cMaNGOS classic-db](https://github.com/cmangos/classic-db),
@@ -92,5 +136,8 @@ fit a zero-difference value of 11 at level 31, where Classic's table says
 `data/dungeons/` is rebuilt by `tools/dungeon_xp/export.py` (its header has
 the commands); `data/dungeons/wings.json`, which wing each creature, object
 and quest belongs to, by `tools/dungeon_wings/export.py` from the same
-cMaNGOS dump and Polestar's forever-db. The MCP answer carries each estimate's sources and commit
+cMaNGOS dump and Polestar's forever-db; `data/dungeons/quests.json`, which
+dungeon each quest belongs to, by `tools/dungeon_quests/export.py` from a
+Polestar checkout (rerun by the route-reference workflow and the knowledge
+base's refresh at each Polestar tag). The MCP answer carries each estimate's sources and commit
 (`gain.kill_xp.provenance`) and the data's date (`as_of`).
