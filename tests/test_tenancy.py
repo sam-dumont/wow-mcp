@@ -769,6 +769,15 @@ def test_static_server_maps_hosts_to_slugs(tmp_path):
     assert s.resolve("/../sam/current/public/index.html", "mira-wow.m.example") is None
 
 
+def test_shared_scans_are_pruned_by_time_in_their_own_tenant(vl):
+    from wowstats import ahshared
+
+    ahshared.prune(vl.url, now=datetime(2026, 11, 24, tzinfo=UTC))
+    (tenant, body), = vl.deleted
+    assert tenant == str(ahshared.ACCOUNT)
+    assert urllib.parse.parse_qs(body)["filter"] == ["_time:<2026-08-26T00:00:00.000000Z"]
+
+
 def test_delete_removes_the_tenant(server, vl):
     friend_ready(server)
     t = server.t
