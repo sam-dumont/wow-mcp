@@ -610,6 +610,30 @@ def test_ingest_lands_in_the_senders_tenant(server, vl):
     assert code == 401
 
 
+def test_a_friends_auction_scan_reaches_the_shared_space_without_them(server, vl):
+    """The scan's price fields go to the install's shared auction scans
+    (wowstats.ahshared, its own tenant) as well as the friend's tenant:
+    never the character, the source id or the shipper's text."""
+    from wowstats import ahshared
+
+    friend_ready(server)
+    u = server.t.registry.get(FRIEND)
+    _, token = server.t.registry.redeem(server.t.registry.new_code(u.sub))
+    auth = "Basic " + base64.b64encode(f"mira:{token}".encode()).decode()
+    scan = {"_time": "2026-11-17T00:00:00Z", "feed": "wow-prices", "char": B_CHAR, "rev": 1,
+            "source_id": "price:Normal Horde:2592:7000", "_msg": f"{B_CHAR} saw Wool Cloth", "item_id": 2592,
+            "item_key": "2592", "item_name": "Wool Cloth", "price_copper": 40, "available": 9,
+            "scan_day": "2026-11-17", "realm": "Normal", "faction": "Horde"}
+    code, _, body = server.get("/ingest", headers={"Authorization": auth}, method="POST",
+                               data=json.dumps(scan).encode())
+    assert code == 200, body
+    assert vl.inserted[str(u.account_id)][0]["char"] == B_CHAR
+    (shared,) = vl.inserted[str(ahshared.ACCOUNT)]
+    assert shared["ruleset"] == "Normal" and shared["faction"] == "Horde" and shared["price_copper"] == 40
+    assert not {"char", "source_id", "rev", "realm"} & set(shared)
+    assert not any(n.encode() in json.dumps(shared).encode() for n in ("Testfriend", "Otherhall", "mira"))
+
+
 def test_ingest_has_a_daily_budget_per_person(env, run_app, vl):
     """Review L7: a friend's token (or a stolen one) could POST 8 MB batches
     without end into the shared store, kept for years. Each person gets

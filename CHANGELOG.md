@@ -4,6 +4,14 @@
 
 ### Changed
 
+- Auction scans are shared on an install with friends (owner: "a scan of the AH per ruleset"). A
+  scan is one ruleset and one faction's house, so everyone's newest scan of their own rulesets and
+  factions feeds their gear advice ("on the AH, easy"), price list and `prices`. Only the price
+  fields go (item, prices, quantity, scan day, ruleset, faction), never the character or the
+  account; Horde never reads Alliance, rulesets never mix. The shared space is one tenant of the
+  friends' store; a deleted friend's past prices stay in it, since nothing there says who scanned
+  them ([Shared auction scans](docs/self-host/friends.md#shared-auction-scans)).
+
 - Where gear comes from is ForeverDB.net's addon data now (GPL-3.0 with an attribution term, bundled in
   `data/foreverdb/`): 7,577 items with quests, vendors and their price, boss drops with the chance players
   measured and over how many kills, rares, crafts, reputation, PvP and containers. Each source says how
@@ -104,6 +112,9 @@
 
 ### Upgrading
 
+- Shared installs: run `wow-stats users ah-share` once after the upgrade, so the auction scans
+  stored before it reach the shared space. Until then each person's gear and prices see only
+  the scans sent since the upgrade. One-person installs: nothing to do.
 - Profession caps from Altoholic come with the new shipper (it updates itself) and its next
   character sheet, sent after a logout or `/reload`. Until then a trained rank the Recorder
   missed still shows, hedged. The sheet's professions gain `cap` and `cap_at`
