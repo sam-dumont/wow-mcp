@@ -1873,13 +1873,20 @@ function fitEl(f) {
     rest.length ? ` · ${rest.join(' · ')}` : '');
 }
 
+// How hard the item is to get (wowstats.gear EFFORT: easy, some effort,
+// hard, long shot), next to its source on every upgrade row (owner,
+// 2026-11-24). At level 60 a long shot can be the pick: the pill says so.
+function effortEl(u) {
+  return u.effort ? h('span', { class: 'pill effort', text: u.effort, title: 'How hard it is to get, from its easiest source' }) : null;
+}
+
 function candRow(u, a, extra) {
   const li = h('li', { class: 'cand', 'data-slot': slotKey(u), 'data-up': `${u.slot}-${u.item_id}` });
   const partner = u.with && u.with.item_id ? h('span', { class: 'sub', text: ` with ${u.with.name || 'item ' + u.with.item_id} (${(u.with.slot_name || '').toLowerCase()}${u.with.kind === 'worn' ? ', which you wear' : ''})` }) : null;
   li.append(
     h('div', { class: 'candmain' }, itemChip(u), partner, fitEl(u.fit)),
     h('div', { class: 'candmeta' }, h('b', { class: 'gain', text: upText(u) }),
-      feasEl(u, a.level), extra || null));
+      feasEl(u, a.level), h('span', { class: 'srcline' }, extra || null, effortEl(u))));
   li.querySelector('.candmain .itm').addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -1976,7 +1983,7 @@ function bySlot(a, picks) {
       h('td', { class: 'best' }, itemChip(u)),
       h('td', { class: 'gain' }, upText(u)),
       h('td', {}, feasEl(u, a.level)),
-      h('td', { class: 'srccell' }, s ? sourceEl(s, a.level, ahOf(u)) : ''));
+      h('td', { class: 'srccell' }, s ? sourceEl(s, a.level, ahOf(u)) : '', effortEl(u)));
     tr.querySelector('.best .itm').addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();

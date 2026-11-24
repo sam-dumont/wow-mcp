@@ -15,7 +15,8 @@ version:
    uv run python tools/fixtures/generate.py --check
    ```
    Touching `data/`, `pyproject.toml` or the `Dockerfile`? Build both images
-   too: `docker build .` and `docker build --target renderer .`.
+   too: `docker build .` and `docker build --target renderer .` (after `docker login dhi.io`
+   once: [Build the image yourself](docs/development.md#build-the-image-yourself)).
 3. **Made-up data only.** No real account, character, guild, host or address
    in code, tests, docs or screenshots. Fixtures come from
    `tools/fixtures/generate.py`; `tests/test_public_scan.py` checks the rest.

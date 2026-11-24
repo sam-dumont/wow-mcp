@@ -174,7 +174,7 @@ def test_a_crafted_piece_shows_its_real_gate(site, pw, engine):
         pg.evaluate("() => document.querySelectorAll('#advice details').forEach((d) => { d.open = true; })")
         row = pg.locator("#advice .cand", has_text=item["name"])
         assert row.count() == 1
-        pill = row.locator(".pill")
+        pill = row.locator(".pill:not(.effort)")
         assert pill.inner_text() == f"Level {lv['need']} + {sk['profession']} {sk['need']}"
         # The skill the fixture seeds moves with the generated data (105, then 109
         # after the Polestar 0.4.2.1 regen): the title must agree with itself.
@@ -253,6 +253,33 @@ def test_each_upgrade_says_who_it_is_built_for(site, pw, engine, scheme):
         assert alt.startswith("Built for your spec instead: ") and off["fit"]["alternative"]["name"] in alt, alt
         if shots:
             pg.locator(".cmp").screenshot(path=f"{shots}/fit-compare-{engine}-{scheme}.png")
+    finally:
+        b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+@pytest.mark.parametrize("width", [1920, 390])
+def test_every_upgrade_row_says_how_hard_it_is(site, pw, engine, width):
+    """The effort class (wowstats.gear EFFORT) next to the source on every
+    upgrade row, in both views (owner, 2026-11-24: the 0.10.0 notes promised
+    it; the page said it only under "Best possible"). Each pill reads the
+    upgrade's own effort, and none pushes the row wider than the page."""
+    url, gear = site
+    want = {f"{u['slot']}-{u['item_id']}": u["effort"] for u in gear["upgrades"]}
+    b, pg, _ = open_page(pw, engine, url, width)
+    try:
+        for view in ("By where you get it", "By slot"):
+            pg.locator("#advice .order button", has_text=view).click()
+            wait_count(pg, "#advice .cand")
+            pg.locator("#advice details.upmore").evaluate_all("els => els.forEach(e => e.open = true)")
+            rows = pg.locator("#advice .cand").evaluate_all(
+                "els => els.map(e => [e.dataset.up, (e.querySelector('.pill.effort') || {}).textContent || null])")
+            assert rows, view
+            missing = [up for up, eff in rows if eff is None]
+            assert not missing, f"{view}: rows without an effort: {missing}"
+            wrong = [(up, eff, want[up]) for up, eff in rows if up in want and eff != want[up]]
+            assert not wrong, f"{view}: {wrong}"
+        assert pg.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1"), width
     finally:
         b.close()
 

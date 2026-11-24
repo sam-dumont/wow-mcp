@@ -16,8 +16,9 @@ of the server's data and the player's archive, and you've seen a restore work.
 The volume names start with the compose project's name, `wow-stats`. `docker volume ls`
 lists them.
 
-With friends on the install ([Add friends](friends.md)), add three more: the friends'
-VictoriaLogs (their events, same steps as yours), the state folder (`WOW_STATE_DIR`: who is
+With friends on the install ([Add friends](friends.md)), add three more: their events (the
+friends' VictoriaLogs, same steps as yours; with the SQLite files they're already in the
+`events` volume, a file each), the state folder (`WOW_STATE_DIR`: who is
 who, settings, upload passwords) and the master key (`ZOGZOG_MASTER_KEY_FILE`: without it every
 sealed link changes). Signing your own shipper builds? Keep that `.pem` too: a new key means
 every player runs the update line once ([Upgrade](upgrade.md#signing-your-own-build)).
@@ -56,12 +57,25 @@ doesn't survive the disk.
 The same three lines with `ui` instead of `victorialogs` and `wow-stats_ui-state` instead of
 `wow-stats_vl-data` keep the plans and AI logins.
 
-With the SQLite files ([Where your events live](../install.md#where-your-events-live)) there's
-no VictoriaLogs to stop: stop `ui` and `publish` (the two that open the files), copy the
-`wow-stats_events` volume the same way, start them again. A copy taken while they run can miss
-the last writes, which sit in a `-wal` file next to each database until SQLite folds them in.
-Restore the same way too: the volume back, then `docker compose up -d`. There's no archive of
-older days with this store: the backup is every event you have.
+### With the SQLite files
+
+([Where your events live](../install.md#where-your-events-live).) There's no VictoriaLogs to
+stop: stop the services that open the files (`ui`, `publish`, and `ui-public` if you run it),
+copy the `wow-stats_events` volume, start them again. A copy taken while they run can miss the
+last writes, which sit in a `-wal` file next to each database until SQLite folds them in.
+
+```sh
+docker compose stop ui publish ui-public
+docker run --rm -v wow-stats_events:/data:ro -v "$PWD":/backup alpine:3.22 \
+  tar czf /backup/wow-stats-events-$(date +%F).tgz -C /data .
+docker compose start ui publish ui-public
+```
+
+Restore into an empty stack the same way: `docker compose down`, `docker volume rm
+wow-stats_events`, `docker compose up -d ui` then `docker compose stop ui publish` to make the
+volume, `tar xzf` your file into it (the `-v wow-stats_events:/data` line without `:ro`), and
+`docker compose up -d`. There's no archive of older days with this store: the backup is every
+event you have. Run from `deploy/compose`: the backup lands in that folder.
 
 ## Restore
 

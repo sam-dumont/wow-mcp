@@ -477,7 +477,8 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "source_text": "this source in the gear advice's words, as the gear tool says it",
         "source_wowhead": "the source's Wowhead page (the quest, the boss, the craft's spell), when it has one",
         "slot": "the inventory slot 1-19 the gain is measured in (gear.slot): which ring or trinket it replaces",
-        "effort": "how hard this source is: easy, some effort or hard (gear.source_effort)"}),
+        "effort": "how hard this source is: easy, some effort, hard, or long shot at level 60 "
+                  "(gear.source_effort)"}),
     "reps": ("Reputation changes: one row per rep record (source recorder), and Altoholic's reputation "
              "snapshots (source altoholic: a faction's first listing and each later move of its points, so a "
              "character the Recorder never saw has its reputation too). The character's own reputation; faction "

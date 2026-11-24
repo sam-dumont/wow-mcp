@@ -28,8 +28,9 @@ last line of its log, word for word as in the table below. On the full view, `/h
 answers `{"status": "ok", "semantic": "ok", "store": "ok", ...}` once the page serves (`"idle"`
 before its first build). `"semantic": "failing"` means the page's numbers couldn't be computed:
 the page keeps its last good answers, marked out of date, and the `ui` log has a
-`"event": "semantic_failed"` line saying why. `"store": "failing"` means VictoriaLogs didn't
-answer: `docker compose ps victorialogs` and its log say why.
+`"event": "semantic_failed"` line saying why. `"store": "failing"` means the event store didn't
+answer: on VictoriaLogs, `docker compose ps victorialogs` and its log say why; on the SQLite
+files, the `ui` log does (a full disk, or a volume `ui` can't write).
 
 On the computer someone plays on, the little program checks itself: every line a tick, or a
 cross with the one thing that fixes it.
@@ -70,6 +71,9 @@ uv run --script ~/.local/share/wow-stats/wow_stats.py --preflight
 | `WOW_STATE_DIR (several people) needs VIEW=full and AUTH=proxy` | Friends need a login proxy in front of the full view. [What a shared install needs](friends.md#what-a-shared-install-needs) |
 | `WOW_STATE_DIR needs WOW_OWNER_SUB` | Your own `sub` at the identity provider, so your data stays yours |
 | `set BNET_CLIENT_ID_FILE and BNET_CLIENT_SECRET_FILE` (the exporter) | The exporter needs your own Battle.net API client. [Battle.net data](battlenet.md), or leave its profile off |
+| `pull access denied for wow-stats, repository does not exist or may require 'docker login'` on `docker compose pull`, with a warning that `ui` "must be built from source" | `WOW_STATS_IMAGE` is empty in `.env`, so compose looks for `wow-stats:local`, an image you'd build yourself. Put the release's `tag@digest` there ([Install it for real](../install.md#start-it)) |
+| ``EVENTS_STORE=...: `vl` (VictoriaLogs at VL_URL) or sqlite:<folder>`` | `EVENTS_STORE` is neither `vl` nor `sqlite:<folder>`. [Where your events live](../install.md#where-your-events-live) |
+| `VL_ARCHIVE_URL is VictoriaLogs' archive of older days: with EVENTS_STORE=sqlite:...` | The SQLite store keeps every day in its files: unset `VL_ARCHIVE_URL` |
 | `Bind for 127.0.0.1:8080 failed: port is already allocated` | Another program uses 8080. Set `UI_PUBLISH=127.0.0.1:18080` in `.env` and start again |
 
 ## The page refuses a request
@@ -80,7 +84,7 @@ uv run --script ~/.local/share/wow-stats/wow_stats.py --preflight
 | `This server has no login (AUTH=open) and this request came through a proxy.` (403) | A reverse proxy in front of a page with no login. Set `UI_AUTH=basic` or `proxy` first |
 | 400 on every page behind the proxy | The proxy sends the identity header twice, or as a list. It has to replace it on every request. [Add friends](friends.md#what-a-shared-install-needs) |
 | A friend sees "No access yet" | They signed in, but they aren't on the friends list yet. [The friends list](friends.md#the-friends-list) |
-| `the data store didn't answer; try again in a minute (request 1a2b3c4d in the server's log)` (502, on the page, in the shipper's log or from the AI) | VictoriaLogs didn't answer. The page never shows its address or its error; the server's log does, on the line with the same request id: `docker compose logs ui \| grep 1a2b3c4d`. An upload refused this way counts nowhere (not against the daily budget either), and the shipper sends it again at its next run |
+| `the data store didn't answer; try again in a minute (request 1a2b3c4d in the server's log)` (502, on the page, in the shipper's log or from the AI) | The event store didn't answer (VictoriaLogs, or the SQLite files). The page never shows its address or its error; the server's log does, on the line with the same request id: `docker compose logs ui \| grep 1a2b3c4d`. An upload refused this way counts nowhere (not against the daily budget either), and the shipper sends it again at its next run |
 | `the query needs more memory than a query may use` (from `play_sql`) | That one query built a value past 512 MB, so its process stopped. The server carries on; ask your AI to aggregate or narrow the query |
 
 ## Nothing arrives

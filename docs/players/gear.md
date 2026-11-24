@@ -7,7 +7,7 @@ Everything here is in the Character tab: your gear at the top, the upgrades unde
 
 ## Your gear
 
-![The Equipment panel of the demo priest: the picture in the middle with View in 3D under it, every slot with its item, item level and BiS badge, a green "▲ 17% → 82% with the best at hand" under the slots with an upgrade, the badge legend, item level 29.1 and professions below](../images/gear.webp)
+![The Equipment panel of the demo priest: the picture in the middle with View in 3D under it, every slot with its item, item level and BiS badge, a green "▲ 70% → 100% with the best at hand" under the slots with an upgrade, the badge legend with "Leveling · Weights: ForeverDB.net", item level 39.8 and professions below](../images/gear.webp)
 
 The badge on each item's icon says how close it is to the best you can wear at your level for
 that slot: **BiS** (orange) is the best, then **2nd** or a share like **84%** (purple from 85%,
@@ -25,7 +25,7 @@ yet, and **View in 3D** shows the model meanwhile.
 
 ## The upgrades list
 
-![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, each with its badge and its slot's share before and after ("17% → 100% on your head"), and the expected points per clear, the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Tailoring crafts, each with its badge, its slot's share before and after ("42% → 100% on your waist"), its source and how hard it is to get, then two Auction House buys with their prices, then vendors in Ashenvale and Arathi Highlands](../images/upgrades.webp)
 
 Every item has the same badge and says what it does to its slot: "70% → 91% on your chest"
 ("empty → 91%" for an empty slot). The slot furthest from its best comes first.
@@ -42,8 +42,33 @@ see the upgrades for a respec.
 
 **Weights** picks what the scores value: **Leveling** (the default: Stamina, armour and a
 caster's wand count for more), **PvP** or **PvE** (raids and dungeons at 60). The weights are
-ForeverDB.net's. Your pick is kept on the server for that character, so your AI's `gear`
-answers use it too.
+[ForeverDB.net](https://foreverdb.net)'s, and every score links there so you can check it.
+Your pick is kept on the server for that character, so your AI's `gear` answers use it too.
+Next moves and the plan always score on Leveling.
+
+Every upgrade says how hard it is to get, from its easiest source, next to where it comes from
+(your AI sees the same `effort`):
+
+| | From |
+|---|---|
+| **easy** | your bags or bank, an auction house listing, a quest, a vendor, a craft you can make, a reputation you hold, a drop of 25% or more |
+| **some effort** | a drop of 8-25%, a craft still to learn or skill up for, a reputation up to Honored you don't hold yet, a PvP rank you hold |
+| **hard** | a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a reputation above Honored you don't hold |
+| **long shot** | a drop under 1%, a rate known only from Classic, a PvP rank you don't hold (or that nothing recorded) |
+
+A rate known only from Classic counts one step harder; an auction house listing makes any item
+easy, with its price. While you level, a harder item wins a slot only when it scores 5.3% more
+(some effort) or 17.6% more (hard), and the % lines measure against what you can get. At 60
+the score alone decides.
+
+Drops say their chance and how many runs that means ("43.75% over 16 kills"; a 3% boss drop
+adds "about 33 runs"). Reputation gear says where you stand ("you're Friendly: 16,500 rep to
+go"), PvP rank gear too ("rank 3 needed, you're rank 1"); a rank nothing recorded yet counts as
+a long shot. While you level, a 0.03% drop never becomes the pick, however good it is. At 60,
+where every point counts, it can, with its odds next to it.
+
+**Best possible, out of plain reach** lists, apart, the slots whose best item is a long shot
+or has no known source: with its odds, never as an upgrade to chase while you level.
 
 ## The same weights in the game
 

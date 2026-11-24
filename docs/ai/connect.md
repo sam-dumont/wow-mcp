@@ -3,11 +3,26 @@
 **For:** anyone with a wow-stats page and Claude, ChatGPT or another AI assistant. **At the
 end:** your assistant answers questions about your character from your own data.
 
-You add one address to your assistant, log in once, and from then on it reads your characters'
-history and plans when you ask. Your assistant does the thinking, in your own account, at no
-extra cost beyond your plan. (A host can also turn on the server's own analysis, with an AI
-provider they pay for: [What's shared](../players/privacy.md).) (Under the hood that's MCP, the
-standard way an assistant calls outside tools.)
+You add one address to your assistant (an MCP server: the standard way an assistant calls
+outside tools), log in once, and from then on it reads your characters' history and plans when
+you ask. Your assistant does the thinking, in your own account, at no extra cost beyond your
+plan. A host can also turn on the server's own analysis, with an AI provider they pay for:
+[What's shared](../players/privacy.md).
+
+## In three steps
+
+<!-- TODO(media): a 30-second clip of these three steps in claude.ai on the demo (connect-light.mp4 / connect-dark.mp4), linked here like the other clips. -->
+
+1. **Copy your address**: your start page shows it, the server's address plus `/mcp`.
+2. **Add it to your assistant** as a custom connector (claude.ai: Settings → Connectors → Add
+   custom connector; every other client is [below](#pick-your-client)), and log in once with
+   the account your page uses.
+3. **Ask**: "With wow-stats, plan my next 2 hours, no dungeons." The answer names your
+   character, your next guide steps and where to log out. More to ask:
+   [Ask about your character](asking.md).
+
+What your assistant reads goes to your AI provider, like anything in your chat. wow-stats
+never sees the conversation. [What the assistant can see](asking.md#what-the-assistant-can-see).
 
 You need:
 
@@ -20,10 +35,11 @@ You need:
   If your page signs you in with Battle.net, press **Sign in with Battle.net** instead: it goes
   straight to Battle.net.
 
-Running the server yourself: it needs a public HTTPS address and a login provider first,
-[Set up the login for your AI](../self-host/oidc.md).
-
 ## Pick your client
+
+Running the server yourself: claude.ai and ChatGPT need a public HTTPS address and a login
+provider first, [Set up the login for your AI](../self-host/oidc.md). On the server's own
+computer, Claude Code needs neither: [below](#on-the-servers-own-computer).
 
 The examples use `https://wow.example.org/mcp`: put your server's address instead.
 

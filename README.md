@@ -1,31 +1,47 @@
 # wow-stats
 
-A levelling log for World of Warcraft: Forever, with an MCP server so your own AI assistant
-can read it.
+A levelling log for World of Warcraft: Forever. It reads what the game and your addons already
+save, and tells you what to do with your next hour: the upgrade worth chasing and who drops it,
+the dungeon worth the trip, where your hours went. Your own AI assistant can read all of it
+over MCP.
 
-**[Quick start](docs/quickstart.md)**: the demo character on your computer and a first answer
-about him, in about 10 minutes.
+**[Live demo](https://sam-dumont.github.io/wow-mcp/demo/friends/)** · **[Docs](https://sam-dumont.github.io/wow-mcp/)** ·
+**[Quick start](docs/quickstart.md)** · **[How this was built](docs/how-this-was-built.md)**
 
-A small program on the computer you play on reads what the game and your addons already save.
-A server you run keeps it and works out the answers: time per level against Polestar's route,
-where the hours went, how far each slot is from its best in slot and where the next upgrade
-drops, the dungeons worth running, deaths, one journal entry per play session, a plan for your
-next two hours. Your page shows them, and the MCP tools hand them to any assistant.
+![The Overview of the demo character Nibbet: the pace against Polestar's route, the hours to the next level, the guide steps done in order, the next moves, and time per level against the route](docs/images/overview.webp)
 
-It runs on your computer or a small box at home. Nothing goes anywhere else unless you set it
-up that way. (Yes, it's overkill for levelling stats: a hardened image, signed releases, OIDC,
-and a 3D viewer that reads the game's own files.)
+## What you get
+
+- **Your pace against the route.** Time per level against [Polestar](https://github.com/fitzforge/polestar)'s
+  route ("2.0×" is twice its time), and the hours of play to your next level.
+- **Your next upgrade, and where it drops.** Every slot against its best in slot, scored on
+  ForeverDB.net's weights for levelling, PvP or PvE, with the boss, quest or auction listing
+  that gets you there: "70% → 91% on your chest".
+- **The dungeon worth running.** A whole trip per dungeon: pickups, time inside, hand-ins, the
+  drops you'd wear, at your own pace, against your questing.
+- **A plan for tonight.** A few hours of guide steps with checkpoints and where to log out.
+- **Your history.** Every level, one journal entry per play session, your gear at each level.
+- **Your AI, if you want it.** Claude, ChatGPT or any MCP client asks the same numbers your
+  page shows, in your own account.
+
+[Nibbet-Gearholt](https://sam-dumont.github.io/wow-mcp/demo/friends/), an invented Gnome
+priest, shows every part with demo data, no install. Nibbet's
+[public profile](https://sam-dumont.github.io/wow-mcp/demo/) is the cut-down page anyone with
+the address sees.
+
+## Three ways in
+
+| You are | Start with | Time |
+|---|---|---|
+| **A player** a friend invited | [Join a friend's server](docs/players/getting-started.md): the addons and one command, nothing from this repository | about 5 minutes |
+| **Using an AI assistant** | [Connect your AI](docs/ai/connect.md), then [ask about your character](docs/ai/asking.md) | about 5 minutes |
+| **Hosting it** for yourself and a few friends | the [quick start](docs/quickstart.md) with the demo character, then [the host guide](docs/self-host/production.md) | 10 minutes, then an hour |
 
 It's a hobby project, for hobbyists who host a few friends: GPL-3.0, no warranty, no support
 promise, and security fixes land when I can make them. If you use a friend's server, you trust
-that friend: they hold your data, and the install command comes from their server.
-
-![The Overview of the demo character Nibbet: his pace against Polestar's route, the hours to his next level, the guide steps done in order, the next moves, and time per level against the route](docs/images/overview.webp)
-
-**[Live demo, the full page](https://sam-dumont.github.io/wow-mcp/demo/friends/)**: Nibbet-Gearholt,
-an invented Gnome priest, as his friends see him. Demo data, no install. His
-**[public profile](https://sam-dumont.github.io/wow-mcp/demo/)** is the cut-down page anyone
-with the address sees.
+that friend: they hold your data, and the install command comes from their server. (Yes, it's
+overkill for levelling stats: a hardened image, signed releases, OIDC, and a 3D viewer that
+reads the game's own files.)
 
 ## The tools compute, the AI is optional
 
@@ -56,28 +72,17 @@ On top, two optional layers:
   [Ask about your character](docs/ai/asking.md).
 - **The server's own analysis**, off until the host configures an AI provider (Anthropic,
   OpenAI or any OpenAI-compatible endpoint). Then the server runs the play analysis itself for
-  each character with 10 hours of play since its last refresh (the host can change that). What it reads about that
+  each character after enough play since its last refresh (the host sets how much). What it reads about that
   character goes to that provider, never Battle.net data.
   [Server-side analysis](docs/self-host/server-analysis.md).
-
-## Three ways in
-
-1. **[Join a friend's server](docs/players/getting-started.md)**: someone runs it for you and
-   sent you a link. Nothing from this repository needed.
-2. **[Try the demo](docs/quickstart.md)**: Docker and a made-up character on your computer, no
-   game needed.
-3. **[Track my character](docs/install.md)**: run the server, add the addons and the small
-   program on the computer you play on.
-
-Then, for your AI: **[Connect your AI](docs/ai/connect.md)**. Everything else is in
-**[the manual](docs/README.md)**, also on the [docs site](https://sam-dumont.github.io/wow-mcp/).
 
 ## How it fits together
 
 ```
  the PC you play on                      your server (docker compose)
- the shipper  ---POST over HTTPS--->  ui :8080  ---> VictoriaLogs (your events, kept)
-   every 5 min, reads WTF/ and Logs/     |  your page (the full view, behind your login)
+ the shipper  ---POST over HTTPS--->  ui :8080  ---> VictoriaLogs, or SQLite files
+   every 5 min, reads WTF/ and Logs/     |            (your events, kept)
+                                         |  your page (the full view, behind your login)
                                          |  /mcp for your AI assistant
                                          +-- publish + site :8081: static copies for friends
                                          +-- optional: exporter ---> VictoriaMetrics
@@ -95,14 +100,11 @@ Then, for your AI: **[Connect your AI](docs/ai/connect.md)**. Everything else is
 
 ## The manual
 
-| You are | Start here |
-|---|---|
-| A player a friend invited | [Join a friend's server](docs/players/getting-started.md), then [your page at a glance](docs/players/your-page.md) and [something's wrong](docs/players/troubleshooting.md) |
-| Running your own server | [Quick start](docs/quickstart.md), [install it](docs/install.md), then [run it on a server](docs/self-host/production.md) |
-| Using an AI assistant | [Connect your AI](docs/ai/connect.md), [every tool](docs/reference/mcp-tools.md), [ask about your character](docs/ai/asking.md) |
-| Contributing | [Development](docs/development.md), [architecture](docs/architecture.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) |
-
-What changed in each version: [CHANGELOG.md](CHANGELOG.md).
+Everything is on the [docs site](https://sam-dumont.github.io/wow-mcp/), by reader: Play,
+Your AI, Host it, then the game data and what's under the hood. The same pages in this
+repository: [the manual](docs/README.md). What changed in each version:
+[CHANGELOG.md](CHANGELOG.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md),
+[Development](docs/development.md), [SECURITY.md](SECURITY.md).
 
 ## Similar projects
 

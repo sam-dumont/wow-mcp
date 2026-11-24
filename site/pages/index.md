@@ -12,14 +12,14 @@
 <a class="path" href="../../docs/ai/connect.md">
 <span class="path-kicker">Connect your AI</span>
 <strong>Ask about your character</strong>
-<span>Claude, ChatGPT and a dozen other assistants can read your data and plan your next two hours.</span>
+<span>Claude, ChatGPT or any MCP client reads your data and plans your next session. Nothing to install.</span>
 <span class="path-go">Connect your AI</span>
 </a>
-<a class="path" href="../../docs/self-host/demo.md">
-<span class="path-kicker">Self-host</span>
+<a class="path" href="../../docs/self-host/production.md">
+<span class="path-kicker">Host it</span>
 <strong>Run it yourself</strong>
-<span>One Docker Compose file on a small box at home, for you and your friends. Try it with made-up characters first.</span>
-<span class="path-go">Try it at home</span>
+<span>One Docker Compose file on a small box at home, for you and your friends. Try it with a made-up character in 10 minutes first.</span>
+<span class="path-go">The host guide</span>
 </a>
 </div>
 
@@ -27,7 +27,7 @@
 
 <div class="feature">
 
-![The Next moves box of the demo priest: Gnomeregan with the quests to pick up first, the quest rewards and drops you could use, each with its badge and a line like "70% → 91% on your chest", then an upgrade from Razorfen Kraul](../../docs/images/next-moves.webp)
+![The Next moves box: equip the Deathmage Sash from your bags (42% → 50% on your waist), then Razorfen Downs, a 35-minute trip with the quests to pick up first and a drop you could wear now, then Apprentice Riding at level 40 if not trained yet](../../docs/images/next-moves.webp)
 
 <div>
 <p class="eyebrow">Before you log in</p>
@@ -39,24 +39,24 @@
 
 <div class="feature flip">
 
-![The Upgrades list grouped by where you get them: Scarlet Monastery Library with three drops, each with its badge and its slot's share before and after (17% → 100%), the Tailoring crafts within reach of skill 140, then quests in Stranglethorn Vale and Stormwind City](../../docs/images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Tailoring crafts, each with its badge, its slot's share before and after ("42% → 100% on your waist"), its source and how hard it is to get, then two Auction House buys with their prices, then vendors in Ashenvale and Arathi Highlands](../../docs/images/upgrades.webp)
 
 <div>
 <p class="eyebrow">Gear</p>
 <h3>Every slot, its next upgrade, and where it drops</h3>
-<p>The best item you can wear now and within 3 levels, what it does to the slot ("70% → 91% on your chest": its share of the best item for that slot, before and after), and where to get it: a boss, a quest, or the auction house at yesterday's price. If it's already in your bags, the page tells you to equip it.</p>
+<p>The best item you can wear now and within 3 levels, what it does to the slot ("70% → 91% on your chest": its share of the best item for that slot, before and after), and where to get it: a boss, a quest, or the auction house at yesterday's price. If it's already in your bags, the page tells you to equip it. Scores use <a href="https://foreverdb.net">ForeverDB.net</a>'s weights, for levelling by default, PvP or PvE if you pick it.</p>
 <p><a href="../../docs/players/gear.md">Gear and upgrades →</a></p>
 </div>
 </div>
 
 <div class="feature">
 
-![Two dungeon cards from the demo: Razorfen Kraul and City of Dalaran, each with a worth-a-run line, the quests to pick up, the drops you could use with their badges, and what a trip is worth](../../docs/images/dungeons.webp)
+![Two dungeon cards from the demo: Zul'Farrak and Uldaman, each with a "Worth a run for its quests" line, the next quest to pick up, the quests left, the quest rewards and drops you could use with their badges, and what a trip is worth](../../docs/images/dungeons.webp)
 
 <div>
 <p class="eyebrow">Dungeons</p>
 <h3>The dungeon worth running</h3>
-<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing (3.1× faster, for the demo priest in City of Dalaran).</p>
+<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing, with the time for the pickups and hand-ins counted in (<a href="../../docs/players/dungeons.md">how a trip is counted</a>).</p>
 <p><a href="../../docs/players/dungeons.md">Dungeons →</a></p>
 </div>
 </div>
@@ -73,7 +73,7 @@ every level, one journal entry per session, your look at each level
 ### To play on a friend's server
 
 - WoW Forever on Windows 10/11 or a Mac, logged in once.
-- [Polestar](https://github.com/fitzforge/polestar), from the CurseForge app.
+- [Polestar](https://github.com/fitzforge/polestar) and Syndicator, from the CurseForge app.
 - One command from your start page. No admin rights.
 
 ### To run your own
@@ -94,7 +94,7 @@ every level, one journal entry per session, your look at each level
   see what you choose to share.
 - **No model behind the numbers.** The page and the MCP tools work them out in code from your
   data; your own AI reads them and writes the reply, in your own account. A host can also have
-  the server analyse your play with an AI provider they pick, once a character has 10 hours of play since
+  the server analyse your play with an AI provider they pick, once a character has {{analysis_hours}} hours of play since
   its last refresh (their setting). Off until they set it up; the app's Privacy page says
   whether it's on.
 
@@ -105,8 +105,11 @@ every level, one journal entry per session, your look at each level
 
 How the pieces fit: [How it works](../../docs/explanation/how-it-works.md). Questions:
 [Questions and answers](../../docs/faq.md). The words these pages use: [Glossary](../../docs/glossary.md).
+Why a levelling log grew an MCP server and signed releases in six days:
+[How this was built](../../docs/how-this-was-built.md).
 
-<p class="fineprint">Free software under the GPL-3.0. The route times and gear scoring come from
-<a href="https://github.com/fitzforge/polestar">Polestar</a> and its contributors; other credits in
+<p class="fineprint">Free software under the GPL-3.0. The route times come from
+<a href="https://github.com/fitzforge/polestar">Polestar</a> and its contributors, the gear weights
+and where gear comes from from <a href="https://foreverdb.net">ForeverDB.net</a>; other credits in
 <a href="../../THIRD_PARTY.md">THIRD_PARTY.md</a>. World of Warcraft is a trademark of Blizzard
 Entertainment; this project isn't affiliated with Blizzard.</p>

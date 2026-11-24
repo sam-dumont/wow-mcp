@@ -60,8 +60,9 @@ def scan_env() -> dict[str, dict]:
 
     An environment read is `<x>.get("NAME"[, default])`, `<x>["NAME"]` or
     `"NAME" in <x>` where <x> names an environment (`env`, `os.environ`...),
-    `os.getenv("NAME")`, or a helper whose name says secret or env with a
-    constant argument (`_secret(env, "NAME")` also reads NAME_FILE). Plus the
+    `os.getenv("NAME")`, a helper whose name says secret or env with a
+    constant argument (`_secret(env, "NAME")` also reads NAME_FILE), or a
+    `bearer.*_token(env, "NAME")` token file. Plus the
     `$WOW_STATS_*` the installers' shell and PowerShell read."""
     found: dict[str, dict] = {}
 
@@ -90,6 +91,10 @@ def scan_env() -> dict[str, dict]:
                     if default is None and isinstance(p, ast.BoolOp) and isinstance(p.op, ast.Or) and p.values[0] is n:
                         default = _const(p.values[1])
                     add(consts[0], f, default)
+                elif fn.startswith("bearer.") and fn.endswith("_token"):
+                    # bearer.server_token(env, "RENDER_TOKEN_FILE", ...): a token file's name.
+                    for c in consts:
+                        add(c, f)
                 elif fn == "os.getenv" or (not isinstance(n.func, ast.Attribute) and
                                            ("secret" in fn.lower() or "env" in fn.lower())):
                     for c in consts:
@@ -289,7 +294,7 @@ def mcp_page() -> str:
         "",
         "Your assistant reads this list from the server by itself, with every argument described. You "
         "don't need to name tools: ask in plain words. This page is for when you want to know what's "
-        "there. Every tool takes `char` (`Name-Surname`); without it, the character the server opens on.",
+        "there. Every tool takes `char` (`Name-Realm`); without it, the character the server opens on.",
         "",
         "\"Reads\" tools change nothing. \"Writes\" tools keep something for the character (a plan, an "
         "analysis step); the ones marked \"can replace what's kept\" may overwrite an earlier one.",
@@ -409,12 +414,13 @@ ENDPOINTS = [
          (["/full/"], "login", "`FULL_DOOR_PATH`: a redirect to `/`, through your login. Empty: off"),
          (["/healthz"], "public", "health check: `200` with `{\"status\": \"ok\", \"semantic\": \"ok\", "
           "\"store\": \"ok\", ...}`, no login. `semantic` is `\"failing\"` while the page's numbers can't be "
-          "computed, `store` while VictoriaLogs doesn't answer (the page serves its last good answers, marked "
-          "stale): alert on both. Fine to route; probes need no credentials"),
+          "computed, `store` while the event store (VictoriaLogs or the SQLite files) doesn't answer "
+          "(the page serves its last good answers, marked stale): alert on both. Fine to route; "
+          "probes need no credentials"),
          (["/ingest"], "public", "`POST` from the shipper, with its own password (`INGEST_PASSWORD`). "
           "Route it **without** your page login, or the shipper can't get through. 8 MB a post. A 502 means "
-          "VictoriaLogs refused the lines or couldn't be reached: nothing counts against the daily budget, and "
-          "the shipper sends them again later"),
+          "the event store refused the lines or couldn't be reached: nothing counts against the daily "
+          "budget, and the shipper sends them again later"),
      ]),
     ("Extra full-view paths with several people (`WOW_STATE_DIR`)",
      "Only on a shared install. Same port.",

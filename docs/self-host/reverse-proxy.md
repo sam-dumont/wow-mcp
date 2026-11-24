@@ -55,6 +55,11 @@ Caddy gets and renews the certificates from Let's Encrypt by itself. From `deplo
 docker compose -f compose.yaml -f compose.caddy.yaml up -d
 ```
 
+On the SQLite store, or to stop typing the files: put them in `.env` instead,
+`COMPOSE_FILE=compose.yaml:compose.sqlite.yaml:compose.caddy.yaml` (`;` on Windows). A `-f` on
+the command line replaces `COMPOSE_FILE`, so a SQLite install started with only the two files
+above comes up on an empty VictoriaLogs. The same goes for Traefik and nginx below.
+
 The routes are in [`deploy/compose/caddy/Caddyfile`](../../deploy/compose/caddy/Caddyfile):
 the MCP paths to port 8090, the rest of the full name to 8080, the public name to the static
 server.

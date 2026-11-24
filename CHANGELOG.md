@@ -6,6 +6,9 @@ What comes after 0.10.0, in short. Every change follows.
 
 **For players**
 
+- At level 60 the gear advice ranks on the score alone: a rare drop can be the pick, its odds
+  next to it. Below 60, easier items still win near ties. Every upgrade row shows how hard the
+  item is to get.
 - The gear page's weights copy into the Forever Leveling BiS addon (its own string or a Pawn
   scale), so it ranks items in the game the way the page does.
 - A level a crash cut short gets its whole time from the game's /played, and flights no longer
@@ -79,6 +82,20 @@ What comes after 0.10.0, in short. Every change follows.
   archive): `demo-3d-1` has none of his new gear. Until that release exists the demo draws
   golden3d's figure.
 
+### Changed
+
+- How hard an item is to get weighs only while levelling (owner, 2026-11-24: "only during end
+  game at lvl 60 where marginal gains are the norm"). Below 60 nothing moves: harder items lose
+  5% or 15% of their score in the pick and the upgrade order, and a long shot is the slot's best
+  possible, never a pick or an upgrade. At 60 (`gear.ENDGAME_LEVEL`) the score alone ranks: a
+  long shot is a candidate like any other, with its effort and expected runs. One function
+  (`gear.effort_penalty`) holds the rule for the page, the MCP's `gear`, `next_moves` and plans,
+  the analysis brief and the public views. The golden level-60 warrior's top upgrade move
+  changes slot with it.
+- The 0.10.0 notes said every upgrade says how hard it is; the page only said so under "Best
+  possible". Every upgrade row now shows its effort class next to its source (the list by
+  where, by slot, and the compact list); the MCP's upgrades already carried `effort`.
+
 ### Fixed
 
 - Your own character plays the 3D view's emotes, not only the demo. The server asked the shipper
@@ -142,6 +159,15 @@ What comes after 0.10.0, in short. Every change follows.
 
 - The analysis database's version moves to 15 (levels, zone time and visits, flight paths): kept
   findings show as "to revalidate" once.
+
+### Docs
+
+- The docs lead with what you get, then three ways in: players, people using an AI assistant, hosts. The README and the home page say it in their first screen; the player and AI pages open with a three-step start.
+- The host guide (`docs/self-host/production.md`) is the hosts' front page: what you need, the three choices before your first event (where your events live, who logs in, what you share), every step in order, what's locked down for you.
+- How this was built: the six days from a levelling question to this, and why it ended up like this.
+- Fixed where the docs disagreed with the code: the start page says "It works" (not "Data arrived"), `char` is `Name-Realm`, the Overview has no "ahead of the route", People is a section of the Character tab, the Battle.net setting's wording, the SQLite store in backup, upgrade, monitoring, friends, troubleshooting and uninstall, `RENDER_TOKEN_FILE` in the environment reference, and upgrade sections for 0.7 to 0.8, 0.8 to 0.9 and 0.9 to 0.10. A `-f` on the command line replaces `COMPOSE_FILE`: the proxy pages say so.
+- The player, AI and reference pages follow the gear and moves changes above: ForeverDB.net's weights and the Weights pick (gear page, FAQ, glossary, the AI page's `mode`), how hard each item is to get and "Best possible, out of plain reach", profession caps and riding from Altoholic with the "if not done yet" hedge (Overview, FAQ, data sources), and the KB watch never going back.
+- The server analysis' default timer and the friends' purge delay are filled from the code (`analysis_hours` and `purge_days` in `tools/docs_values.py`).
 
 ## 0.10.0 (2026-11-24)
 

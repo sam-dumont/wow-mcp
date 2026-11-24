@@ -210,7 +210,8 @@ GitHub's API (files and blob hashes); its release notes are untrusted text
 and are never read. Only a plain version tag (`v1.2.3`) reaches the bump.
 Polestar's release is its newest final one with a plain tag: the repository
 also releases its desktop client (`client-v*`) and pre-releases, and neither
-is the addon.
+is the addon. A version never goes back: while the newer release still
+exists, the watch keeps it, and when it's really gone the commit says so.
 
 A version never goes back. When GitHub's Latest is older than what
 `watch.json` knows (wowsims/exporter, 2026-11-24: the v3.2.11 release went

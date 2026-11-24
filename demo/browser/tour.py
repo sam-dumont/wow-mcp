@@ -45,7 +45,9 @@ with Take("tour") as t:
     page.select_option("#planhours", "2")
     t.pause(0.6)
     page.click("#planbtn")
-    page.wait_for_selector("#planout .plantext", timeout=60_000)
+    # The first plan computes cold: 15 s on an idle Mac, past a minute while
+    # VHS and this browser record (2026-11-24). The cut starts at "planned".
+    page.wait_for_selector("#planout .plantext", timeout=180_000)
     t.pause(1.0)
     t.mark("planned")
     t.scroll_to("#planout", 120, 30)

@@ -10,6 +10,7 @@ public page that types one of these values instead (a stale copy is how the docs
 Polestar 0.4.2.1 while the data was 0.4.2.2).
 
 Sources: the Polestar tag (tools/polestar-tag, moved by the knowledge base's bump),
+the server analysis' timer and the friends' purge delay (their defaults in the code),
 the app's version (pyproject.toml, moved by the release), the route times
 (data/route-reference.json, rebuilt by route-reference.yml with each Polestar tag),
 and the released image (`{{release_image}}`, tag@digest): read from the latest
@@ -47,6 +48,8 @@ def values(root: Path = ROOT) -> dict[str, str]:
         by_class[r["class"]].append(r["total_s"])
     means = {c: statistics.mean(v) for c, v in by_class.items()}
     fastest, slowest = min(means, key=means.get), max(means, key=means.get)
+    auto = (root / "wowstats" / "analysis" / "auto.py").read_text()
+    tenancy = (root / "wowstats" / "tenancy.py").read_text()
     return {
         "release_image": f"ghcr.io/{_repo(root).split('/')[0]}/wow-mcp:{version}"
                          "@sha256:<digest from the release notes>",
@@ -61,6 +64,10 @@ def values(root: Path = ROOT) -> dict[str, str]:
         "route_fastest_hours": str(_hours(means[fastest])),
         "route_slowest_class": slowest.title(),
         "route_slowest_hours": str(_hours(means[slowest])),
+        # The server analysis' default timer (ANALYSIS_STALE_PLAYED_HOURS) and a removed
+        # friend's grace period (FRIENDS_PURGE_DAYS), as the code defaults them.
+        "analysis_hours": re.search(r'"ANALYSIS_STALE_PLAYED_HOURS",\s*"(\d+)"', auto)[1],
+        "purge_days": re.search(r"^PURGE_DAYS = (\d+)$", tenancy, re.M)[1],
     }
 
 

@@ -162,13 +162,17 @@ class harder than its rate says. Every drop says what its rate means at the
 keyboard: "0.03%, about 3,333 runs". An auction house listing makes any item
 easy: buy it.
 
-The pick per slot and the upgrade order weigh the effort: each item's score
-is taken at 95% for some effort and 85% for hard or a long shot
-(`EFFORT_PENALTY`), so a harder item wins only when it scores at least 5.3%
-(some effort) or 17.6% (hard) more than the easier one. A long shot is never
-a pick or an upgrade: it is the slot's best possible, listed apart with its
-odds (`bis_unknown` with `"effort": "long shot"`). The standings and the BiS
-percents measure against what can be got, the best possible shown apart.
+Below level 60 the pick per slot and the upgrade order weigh the effort:
+each item's score is taken at 95% for some effort and 85% for hard or a long
+shot (`EFFORT_PENALTY`, through `effort_penalty`), so a harder item wins only
+when it scores at least 5.3% (some effort) or 17.6% (hard) more than the
+easier one. A long shot is then never a pick or an upgrade: it is the slot's
+best possible, listed apart with its odds (`bis_unknown` with `"effort":
+"long shot"`), and the standings and the BiS percents measure against what
+can be got. At 60 (`ENDGAME_LEVEL`) marginal gains are the point: the score
+alone ranks, and a long shot can be the pick or an upgrade, its effort and
+odds on it (owner, 2026-11-24). Every upgrade carries its `effort`; the page
+shows it next to the source.
 
 Coverage on 2026-11-24, on ForeverDB's own picks
 (`tests/data/foreverdb-picks.json`, 935 items): 856 have a source in

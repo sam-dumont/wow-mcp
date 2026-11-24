@@ -18,17 +18,20 @@ change only when you take a new version of this repository.
 
 ## From a released image (the default)
 
-Put the new version's `tag@digest` in `WOW_STATS_IMAGE` in `.env` (each release's notes on
-GitHub carry the line; the latest is `{{release_image}}`), then from `deploy/compose`:
+First take the new copy of the repository (`git fetch --tags && git checkout v<version>`, or
+the release's source zip): its `deploy/compose` files pin the third-party images that go with
+that version. Then put the new version's `tag@digest` in `WOW_STATS_IMAGE` in `.env` (each
+release's notes on GitHub carry the line; the latest is `{{release_image}}`), and from
+`deploy/compose`:
 
 ```sh
 docker compose pull
 docker compose up -d
 ```
 
-Take the new copy of the repository too (`git fetch --tags && git checkout v<version>`, or the
-release's source zip): its `deploy/compose` files pin the third-party images that go with that
-version.
+Running the SQLite store or a reverse proxy overlay? Keep them in `COMPOSE_FILE` in `.env`
+rather than on the command line: a `-f` on the command line replaces `COMPOSE_FILE`, and a
+SQLite install started without `compose.sqlite.yaml` comes up on an empty VictoriaLogs.
 
 Then check: `docker compose ps` shows every service `running` (or `healthy`), and the page
 opens with your characters.
@@ -46,6 +49,59 @@ docker compose up -d --build
 ```
 
 The volumes are found by name, so the data follows.
+
+## From 0.9.x to 0.10.0
+
+Back up, take the new version, `docker compose pull && docker compose up -d`. Then:
+
+- **Friends on one install**: run `docker compose exec ui wow-stats users ah-share` once, so
+  the auction scans stored before the upgrade reach the shared space. Until then each person
+  sees only the scans sent since. One person: nothing to do.
+- **Every gear score changes**: ForeverDB.net's weights replace Polestar's. Nothing to do on
+  the host; tell your friends their upgrades moved. A kept analysis finding shows "to
+  revalidate" once.
+- **The shipper** updates itself and sends the profession caps with its next character
+  sheet, after a logout or `/reload`.
+
+## From 0.8.x to 0.9.0
+
+Nothing to change for an install on VictoriaLogs: back up, take the new version, `docker
+compose pull && docker compose up -d`. Then:
+
+- **Built from source until now**: 0.9.0 is the first release whose install runs the
+  released image. Put the release's `tag@digest` in `WOW_STATS_IMAGE` in `.env` and `pull`;
+  keep it empty to go on building ([Development](../development.md#build-the-image-yourself)).
+- **A memory limit on `ui`**: `ANALYSIS_WORKSPACES_MAX` now follows it (1 at 1 GiB). Set it
+  in `.env` to keep the old 6.
+- **SQLite** is new and opt-in: read [Switching between VictoriaLogs and
+  SQLite](#switching-between-victorialogs-and-sqlite) before you do.
+
+## From 0.7.x to 0.8.0
+
+Nothing to change for a one-person install: back up, take the new version, `docker compose
+pull && docker compose up -d`. Then, depending on what you run:
+
+- **Scripts or saved prompts that call the old MCP tools**: `gear_options`,
+  `dungeon_options` and `people` are gone. Call `gear` with `options: true`, `dungeons` with
+  `options: true` and `players` with `groups: true`. Your AI picks up the new list at its next
+  connection.
+- **Scripts that read the class meta** (`class_meta`, `/api/meta`, `char.meta`): the day its
+  statements were last checked is `checked` now. `as_of` means the newest event an answer
+  read.
+- **VictoriaLogs** gets a 1 GiB memory limit. It peaked at 217 MiB on a year of the demo; with
+  a much longer history, set `VL_MEM_LIMIT=2g` in `.env` before `docker compose up -d`.
+- **The demo**: `docker compose run --rm demo` replaces the piped `dev/seed.py`.
+  `docker compose down -v` removes the old demo characters with the rest.
+- **The renderer**: the first picture after the update re-sends that person's game files
+  once.
+
+## Switching between VictoriaLogs and SQLite
+
+The two event stores don't convert: nothing moves your events from one to the other. Pick
+before your first events ([Where your events live](../install.md#where-your-events-live)). To
+switch an install that already has history, keep the old store's backup, start the new store
+empty and refill it from each player's archive (`--replay`, [Back up and
+restore](backup.md#restore)).
 
 ## From 0.6.x to 0.7.0
 
@@ -122,6 +178,7 @@ PC, and from then on they follow your key.
 ## Going back
 
 Put the old `tag@digest` back in `WOW_STATS_IMAGE` and run `docker compose up -d` (built from
-source: check out the old version and `docker compose up -d --build`). The events stay readable: their format and VictoriaLogs' version
-only change with a note in the changelog. Plans and findings written by the newer version may
+source: check out the old version and `docker compose up -d --build`). The events stay readable: their format, VictoriaLogs' version and the
+SQLite files' layout only change with a note in the changelog. A version without the SQLite
+store can't read the `events` volume: go back to one that has it, or restore VictoriaLogs. Plans and findings written by the newer version may
 not read in the older one: restore your `ui-state` backup if they don't.

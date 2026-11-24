@@ -7,8 +7,8 @@ Players' words first, then the ones people who run a server need.
 
 ## Playing
 
-**Polestar.** The levelling addon wow-stats is built around: guides, a route with a time for
-every step, and a score for every item. Your pace and your upgrades are measured against it.
+**Polestar.** The levelling addon wow-stats is built around: guides and a route with a time for
+every step. Your pace is measured against it.
 [Addons it reads](reference/addons.md).
 
 **Polestar Recorder.** Polestar's companion addon. It writes down your play sessions, zones,
@@ -48,11 +48,12 @@ is the route's pace, 2.0× twice as long. [Overview and next moves](players/over
 **Next moves.** Up to 3 things to do now, on the Overview: an upgrade and where it drops, a
 dungeon worth a run, a talent point or profession rank to sort out.
 
-**Points.** An item's score from [ForeverDB.net](https://foreverdb.net)'s stat weights, for your class and spec. The same scale in every
-slot, so a ring and a helmet compare. [Gear and upgrades](players/gear.md#the-upgrades-list).
+**Points.** An item's score for your spec on [ForeverDB.net](https://foreverdb.net)'s weights, in
+the mode you pick on the gear page: Leveling (the default), PvP or PvE. The same scale in every
+slot, so a ring and a helmet compare. Every score links to ForeverDB.net. [Gear and upgrades](players/gear.md#the-upgrades-list).
 
-**BiS, the badge.** Best in slot: the best item you can wear at your level for that slot. The
-badge on an item's icon says how close it is: BiS (orange), 2nd, or a share like 84% (purple
+**BiS, the badge.** Best in slot: the best item you can get and wear at your level for that slot
+(while you level, long shots aside). The badge on an item's icon says how close it is: BiS (orange), 2nd, or a share like 84% (purple
 from 85%, blue from 50%). "70% → 91% on your chest" is that slot's share with what you wear
 now, then with the item. [Gear and upgrades](players/gear.md#your-gear).
 
@@ -90,13 +91,15 @@ it doesn't get in. [Add friends](self-host/friends.md#the-friends-list).
 death, a loot). The server keeps them and works out everything else from them.
 [The shipper's events](contract.md).
 
-**VictoriaLogs.** The store the events go to. The compose kit runs it for you.
+**Event store.** Where the events live: VictoriaLogs (the default, a log database the compose
+kit runs for you) or one SQLite file per person, read by the app itself.
+[Where your events live](install.md#where-your-events-live).
 
 **Battle.net data.** Optional: with your own Battle.net API client, the server fetches your
 characters' look (for the 3D view), gear and talents, and the WoW Token price. Blizzard's terms
 cap it at 30 days. [Battle.net data](self-host/battlenet.md).
 
 **Server-side analysis.** Optional: the server has an AI provider the host picks write a
-character's "How you play" section once it has 10 hours of play (`ANALYSIS_STALE_PLAYED_HOURS`)
+character's "How you play" section once it has {{analysis_hours}} hours of play (`ANALYSIS_STALE_PLAYED_HOURS`)
 since its last refresh. Off until the host configures a provider.
 [Server-side analysis](self-host/server-analysis.md).

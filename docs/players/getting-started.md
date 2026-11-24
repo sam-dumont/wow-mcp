@@ -3,9 +3,14 @@
 **For:** players a friend invited to their wow-stats server. **At the end:** your page
 updates by itself after you play.
 
-A friend runs wow-stats and sent you a link. You need a few addons and one command on the
-computer you play on: about 5 minutes. The link opens your start
-page, which has these same steps with your own command in them: use it if you can.
+A friend runs wow-stats and sent you a link. What you get: a page that tells you what to do
+with your next hour (the upgrade worth chasing and who drops it, the dungeon worth the trip,
+your pace against Polestar's route), your history level by level, and, if you want, your own
+AI assistant reading all of it. See it on a made-up priest first: [the live demo](../../site/pages/demo.md).
+
+You need a few addons and one command on the computer you play on: about 5 minutes. The link
+opens your start page, which gives you the same install with your own command in it: use it if
+you can. A word you don't know on these pages: [Glossary](../glossary.md).
 
 ## What you need
 
@@ -100,7 +105,7 @@ Only under your user folder and WoW's AddOns folder: `~/.local/share/wow-stats`,
 
 **It worked when:** The output says "wow-stats is installed. WoW folder: ..." and that folder is your `_forever_` folder.
 
-**If not:** "WoW folder not found" or the wrong folder: see that troubleshooting entry. "This install code expired or was used already": get a new command and run it.
+**If not:** "WoW folder not found" or the wrong folder: see "WoW folder not found" under troubleshooting. "This install code expired or was used already": get a new command and run it.
 
 It works once, within 15 minutes. Used or expired: click "Get my install command" again.
 
@@ -113,7 +118,7 @@ Play, then `/reload` or log out: WoW saves the addons' files only then. Your pag
 <details>
 <summary>Check it worked</summary>
 
-**It worked when:** "Data arrived" ticks on your start page by itself, with everything your addons saved so far. A crash or Alt+F4 loses what wasn't saved: `/reload` before a break.
+**It worked when:** Your start page turns green and says "It works" by itself, with everything your addons saved so far. A crash or Alt+F4 loses what wasn't saved: `/reload` before a break.
 
 **If not:** Nothing after 10 minutes: first type `/psrec on` in WoW (the Recorder starts off without the Polestar Client), then `/reload`. Still nothing: see "My page is still empty after 10 minutes".
 
@@ -128,7 +133,7 @@ Open https://wow.example.org: your characters are in the list at the top.
 
 **It worked when:** Your character is in the list at the top of your page. Battle.net's copy (their look, and your gear without Syndicator) comes within minutes, then every 2 hours, when the owner set it up. Your public page stays off until you switch it on in Settings.
 
-**If not:** Data arrived but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, `/reload`, wait 5 minutes.
+**If not:** "It works" but no character: Polestar Recorder is off for that character. Tick it in AddOns at character select, `/reload`, wait 5 minutes.
 
 </details>
 
@@ -141,7 +146,7 @@ Add wow-stats to your own Claude, ChatGPT or other assistant: it plans your next
 
 **It worked when:** Ask "With wow-stats, what's my character doing?": the answer names your character.
 
-**If not:** "Client Not Registered" or a disconnected connector: see that troubleshooting entry.
+**If not:** "Client Not Registered" or a disconnected connector: see "Client Not Registered" in Claude under troubleshooting.
 
 </details>
 

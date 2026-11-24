@@ -54,11 +54,18 @@ in Claude Code they're slash commands. Every tool and prompt:
 
 </details>
 
-Your own characters only, from your own game files. **Battle.net data** (the WoW Token, your
-look, talents) stays off unless you turn on "Battle.net data to my AI" in Settings: Blizzard's
+Your own characters, and the players your game showed you, from your own game files.
+**Battle.net data** (your characters' talents, worn gear and guild, and the WoW Token price)
+stays off unless you turn on "Battle.net data to my AI" in Settings: Blizzard's
 terms keep it 30 days at most, and a chat keeps a tool's answer as long as the chat exists, so
 that's your call. Anything no addon records, the tools call "not known" instead of guessing.
 Whatever the assistant reads, your AI provider receives: it's in your chat.
+
+Gear answers score in the mode picked on your gear page (Leveling unless you changed it), on
+[ForeverDB.net](https://foreverdb.net)'s weights. Ask "and for PvP?" and that one answer uses
+PvP weights (the `gear` tool's `mode`); the page keeps its pick. It also hands you the same
+Forever Leveling BiS or Pawn string as the gear page's copy buttons
+([Gear and upgrades](../players/gear.md)).
 
 Other players' names, forum posts and news are text strangers wrote. The tools strip invisible
 characters from them (the kind that can hide instructions) and mark them `untrusted`, so your
@@ -143,7 +150,7 @@ up). What comes out lands on your page, and the screened parts on your zogzog li
 </details>
 
 **Run it yourself before the server does.** When your host lets the server run the analysis,
-it does so after enough play (10 hours by default), on the host's AI credit. From 5 hours
+it does so after enough play ({{analysis_hours}} hours by default), on the host's AI credit. From 5 hours
 before that, your page shows a card above the Ask links: "Your analysis is 10h 12m of play
 old. In about 4h 48m of play the server refreshes it on the host's credit. Be nice to the host: ask
 your own assistant to run it." (your host may put their name there). **Copy** puts the prompt on your clipboard;

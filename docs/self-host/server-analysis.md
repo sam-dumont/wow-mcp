@@ -16,10 +16,10 @@ vLLM and LM Studio speak the same API but nobody has tried them yet.
 | | Who does the analysis | Who pays |
 |---|---|---|
 | A player's own AI (`analyse`, or `dashboard_refresh`) | their model, through the MCP tools | them (their own AI subscription) |
-| The server's automatic refresh (this page) | the provider you configure, after 10 hours of play (`ANALYSIS_STALE_PLAYED_HOURS`) | you (`ANALYSIS_MONTHLY_BUDGET`) |
+| The server's automatic refresh (this page) | the provider you configure, after {{analysis_hours}} hours of play (`ANALYSIS_STALE_PLAYED_HOURS`) | you (`ANALYSIS_MONTHLY_BUDGET`) |
 
 A player who refreshes from their own AI never costs you anything. The server's runs are there
-for the friends who never do: the timer only starts one once a character has 10 hours of play
+for the friends who never do: the timer only starts one once a character has {{analysis_hours}} hours of play
 since anyone last refreshed it. No MCP call starts a server run, `dashboard_refresh` included,
 and /admin has no "run now" button either: the timer is the only way in.
 
@@ -30,7 +30,7 @@ the same judge re-running every finding's SQL before it's kept. What it keeps lo
 client's run, marked `kind: "server"` with the model's name. The page says who wrote it under
 "How you play": "As of Thu 19 Nov, by the server.", or "by you." after the player's own AI.
 
-- **When:** once a character has been played 10 hours (`ANALYSIS_STALE_PLAYED_HOURS`) since its
+- **When:** once a character has been played {{analysis_hours}} hours (`ANALYSIS_STALE_PLAYED_HOURS`) since its
   analysis was last refreshed. Each character has its own timer. Play time is the journal's
   sessions. A character that was never refreshed counts all its play on record, so the alt you
   logged into once to reserve a name sits at 10 minutes and never costs a run; a main with 40

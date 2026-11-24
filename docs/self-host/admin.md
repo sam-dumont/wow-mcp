@@ -25,8 +25,8 @@ press **Reload**.
 | Friends list | only when the last pass refused the list because it would remove every friend at once. Red; `wow-stats users reconcile --allow-empty` applies it if you meant it |
 | AI analysis | with [server-side analysis](server-analysis.md) configured: the month's spend against `ANALYSIS_MONTHLY_BUDGET` (USD) and what's left, or "cost unknown" with the tokens used for an endpoint without prices; the tokens against `ANALYSIS_MONTHLY_TOKENS` when set; runs this month. Every figure is the whole install's, and the tile says so ("whole install"): everyone's runs count against one budget. Red once the budget is spent |
 
-Below it, the server's own checks, green or red with the time they took: your store
-(`VL_URL`), the friends' store (`FRIENDS_VL_URL`), vm-wow (`VM_URL`), the static sites
+Below it, the server's own checks, green or red with the time they took: your event store
+("Store (VictoriaLogs)" with `VL_URL`, or "Store (SQLite files)"), the friends' store (`FRIENDS_VL_URL`), vm-wow (`VM_URL`), the static sites
 (`RENDER_FROM`) and the renderer (`RENDER_URL`). Only what the server is set up with. The
 renderer and the static sites' upload port are usually out of the full view's reach: those two
 come from the publisher's last pass, marked "(publisher)". Nothing here calls anything outside

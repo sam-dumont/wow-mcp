@@ -87,7 +87,7 @@ flowchart LR
 
 ## Examples on the demo
 
-All on `Nibbet-Gearholt` from [the demo](../self-host/demo.md) (made-up data), his last evening on
+All on `Nibbet-Gearholt` from [the demo](../self-host/demo.md) (made-up data), the last evening on
 2026-11-18 (`dev/seed.py --end-day 2026-11-18`; yours ends yesterday, so the dates move). Rows trimmed.
 
 **Dungeon time per zone, per week:**
@@ -1124,7 +1124,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `dungeon` | timeline, dungeon_runs, dungeon_trips | Dungeon name while inside a dungeon run, else NULL. |
 | `dungeon_quest` | records, quests | The dungeon (instance map, as dungeon_runs' dungeon_id) the record's quest belongs to in Forever's data (data/dungeons/quests.json: forever-db's zone, Polestar's journal and dungeon runs), wherever it is picked up or handed in; NULL for a quest of no dungeon and records without a quest. |
 | `dungeon_trip` | records | The dungeon trip the record falls in (dungeon_trips), NULL outside one: filter is null for play outside dungeons. |
-| `effort` | upgrades | How hard this source is: easy (a quest, a vendor, the auction house, a craft you make, a drop of 25% or more), some effort (a drop of 8-25%, a reputation within reach), hard (a rarer drop, a world drop, a raid). Long shots are never upgrades. |
+| `effort` | upgrades | How hard this source is: easy (a quest, a vendor, the auction house, a craft you make, a drop of 25% or more), some effort (a drop of 8-25%, a reputation within reach), hard (a rarer drop, a world drop, a raid), long shot (a drop under 1%, a PvP rank you don't hold). Long shots are upgrades at level 60 only. |
 | `effort_elsewhere` | ah_upgrades | The easiest other source's effort (easy, some effort, hard): buying beats an easy quest only when the quest is out of the way. NULL when the auction house is the only way. |
 | `elite` | records | 1 when a kill's creature was an elite, a rare elite or a boss (classification e, R or b), else 0. |
 | `end_t` | sessions | When the span ended, unix seconds (UTC): its last record. |

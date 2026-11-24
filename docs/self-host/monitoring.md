@@ -35,10 +35,11 @@ line per failure: `"event": "semantic_failed"` with the character and the error.
 stays `200`: the process still serves, so a restart wouldn't help. In Gatus, for example:
 `[BODY].semantic != failing`.
 
-`store` is the other one. It reads `"failing"` (with `store_failed_at`) while VictoriaLogs
-doesn't answer: uploads get a `502` and the page keeps its last answers, marked out of date.
-The `ui` checks once a minute, so it turns within a minute of VictoriaLogs going down or
-coming back. Same `200`, for the same reason: restarting `ui` doesn't bring VictoriaLogs back.
+`store` is the other one. It reads `"failing"` (with `store_failed_at`) while the event store
+doesn't answer (VictoriaLogs, or the SQLite files): uploads get a `502` and the page keeps its
+last answers, marked out of date. The `ui` checks once a minute, so it turns within a minute
+of the store going down or coming back. Same `200`, for the same reason: restarting `ui`
+doesn't bring VictoriaLogs back.
 In Gatus: `[BODY].store != failing`.
 
 ## Data arriving
@@ -50,7 +51,9 @@ event, through the `ui` container (VictoriaLogs has no published port):
 docker compose exec ui python -c "import urllib.request;print(urllib.request.urlopen('http://victorialogs:9428/select/logsql/query?query=*%20%7C%20sort%20by%20(_time)%20desc%20%7C%20limit%201').read().decode())"
 ```
 
-It prints the newest event as one line of JSON, with its `_time`.
+It prints the newest event as one line of JSON, with its `_time`. On the SQLite store there's
+no VictoriaLogs to ask: the Journal tab, or the page's query box with
+`* | sort by (_time) desc | limit 1`: it answers with the newest event, like VictoriaLogs.
 
 The shipper logs each run on the player's computer: `~/Library/Logs/wow-stats.log` (Mac),
 `%LOCALAPPDATA%\wow-stats\wow-stats.log` (Windows). A good run ends in

@@ -14,8 +14,10 @@ From `deploy/compose`:
 docker compose --profile exporter --profile public down
 ```
 
-That stops and removes every container. The volumes, with your data, stay. Behind a proxy,
-add its file: `docker compose -f compose.yaml -f compose.caddy.yaml down`.
+That stops and removes every container. The volumes, with your data, stay. Behind a proxy or
+on the SQLite store, run it with the same files you started with (`COMPOSE_FILE` in `.env`
+does that by itself; on the command line, `-f compose.yaml -f compose.caddy.yaml` and the
+like): `down -v` only removes the volumes of the files it was given.
 
 To delete the data too (every event, the sites and their key, the plans, the AI logins):
 
@@ -23,8 +25,9 @@ To delete the data too (every event, the sites and their key, the plans, the AI 
 docker compose --profile exporter --profile public down -v
 ```
 
-Then delete the copy of the repository, `.env` and `secrets/` included, and the image:
-`docker image rm wow-stats:local`.
+Then delete the copy of the repository, `.env` and `secrets/` included, and the images:
+`docker image ls` lists them (`ghcr.io/.../wow-mcp` and its renderer, or `wow-stats:local` if
+you built it), `docker image rm <name:tag>` removes one.
 
 ## The computer you play on
 

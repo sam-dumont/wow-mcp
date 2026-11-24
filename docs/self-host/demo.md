@@ -41,7 +41,7 @@ docker compose run --rm demo
 ```
 
 It plays Nibbet-Gearholt's evenings, the made-up character of the
-[docs site's demo](../../site/pages/demo.md), shifted so his last one was yesterday, and sends
+[docs site's demo](../../site/pages/demo.md), shifted so the last one was yesterday, and sends
 them to the page the way a player's computer sends theirs. It prints one line,
 `<N> events for Nibbet-Gearholt into http://ui:8080/ingest`, with N in the tens of thousands
 (the demo grows with the product, so don't expect an exact number). What to check instead: the
@@ -50,7 +50,7 @@ page in step 3 lists Nibbet at level 46.
 ## 3. Look around
 
 Open <http://127.0.0.1:8080/>: **Nibbet**, a Gnome priest who goes from level 22 to 46 over
-four weeks of evenings, with eleven dungeon runs, his gear, talents and professions, Questie's
+four weeks of evenings, with eleven dungeon runs, gear, talents and professions, Questie's
 quest list and two days of auction house scans, under a DEMO DATA banner.
 
 ![The Overview of the demo character Nibbet, a level 34 Gnome priest under the DEMO DATA banner: behind the route at 2.0 times Polestar's route time, level 35 in 2h 40m of play, 91% of guide steps in order, 0.09 levels rested, and Gnomeregan as the next move](../images/local-demo.webp)
@@ -60,11 +60,11 @@ quest list and two days of auction house scans, under a DEMO DATA banner.
 The docs site's demo is the same history. Three parts of it need what this kit doesn't run:
 
 - **Battle.net**: the exporter and its VictoriaMetrics, with your own API client
-  ([Battle.net](battlenet.md)). The Character tab says so where his talents and Legacy points
+  ([Battle.net](battlenet.md)). The Character tab says so where the talents and Legacy points
   would be;
 - **the 3D view**: drawn from the game files a player's computer sends, and the demo has none
   to send. View in 3D says the shipper sends them on its next run;
-- **his pictures** (the paperdoll, Back in time at each level): the picture renderer draws
+- **the pictures** (the paperdoll, Back in time at each level): the picture renderer draws
   them from those same files, so a silhouette stands in.
 
 That's what a player without them sees too.
@@ -104,7 +104,7 @@ claude mcp add wow-stats -- docker compose -f "$PWD/compose.yaml" exec -T ui wow
 ```
 
 Then in Claude Code: "With wow-stats, which level took Nibbet-Gearholt longest, and how long
-was his Blackfathom Deeps run?" It should come back with level 32, about 9 hours, and 83
+was Nibbet's Blackfathom Deeps run?" It should come back with level 32, about 9 hours, and 83
 minutes in Blackfathom Deeps. Other assistants: [Connect your AI](../ai/connect.md).
 
 ## 6. Clean up
@@ -120,4 +120,4 @@ Claude Code entry.
 
 - [Install it for real](../install.md): the server, the addons and the program on the
   computer you play on.
-- [Run it on a server](production.md): a homelab box with HTTPS, a login, and friends.
+- [The host guide](production.md): a homelab box with HTTPS, a login, and friends.
