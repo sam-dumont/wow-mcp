@@ -108,6 +108,73 @@ def test_every_ladder_score(ref, ladders):
     assert off <= 56 and worst <= 0.051, (off, worst)
 
 
+def test_game_items_score_like_foreverdb(ref, ladders):
+    """The items themselves, from the game's own tables (data/game-items.json,
+    tools/game_items/export.py; owner 2026-11-24): every ladder item scored
+    from our item data, not ForeverDB's, lands on ForeverDB's score (to its
+    rounding: their float sum order splits an x.x5 the other way). Before,
+    Polestar's item table lacked 1,186 of these items and held stale numbers
+    for others (Staff of the Shade: Classic's +21 Shadow damage, Forever's 37).
+
+    What's left (2026-11-24): 5 items no client data has (Forever hotfixes
+    the maintainer's client never received: Expeditionary's Cape...) and 3
+    items only Classic Era describes (Grand Marshal's Warhammer, Marshal's
+    Satin Grips and Handwraps), which Forever re-itemised."""
+    game = gear.game_items()["items"]
+    same = off = missing = 0
+    off_from = set()
+    for slug, (cls, key) in SPECS.items():
+        d = ladders[slug]
+        for mode in ("pve", "lvl", "pvp"):
+            w, _ = gear.weights_for(ref, cls, key, mode)
+            for entries in d["ladder"][mode].values():
+                for iid, _lv, sc in entries:
+                    info = ref.item(iid)
+                    if info is None:
+                        missing += 1
+                    elif abs(gear.score_with(info, w) - sc) <= 0.05 + 1e-6:
+                        same += 1
+                    else:
+                        off += 1
+                        off_from.add(game[str(iid)].get("from", "file"))
+    assert same >= 36_674, (same, off, missing)  # of 36,746 on 2026-11-24
+    assert missing <= 54 and off <= 18, (missing, off)
+    assert off_from <= {"era"}, off_from  # Forever's own rows are all exact
+
+
+def test_the_five_items_from_the_game(ref):
+    """The owner's examples (2026-11-24), as ForeverDB.net shows them."""
+    staff, rod, wraps, spine, scepter = (ref.item(i) for i in (2549, 9381, 286989, 273040, 7001))
+    assert staff["stats"] == pytest.approx({"sta": 15, "spShadow": 37, "dps": (46 + 70) / 2 / 2.6})
+    assert rod["stats"] == pytest.approx({"heal": 9, "sp": 3, "dps": (42 + 79) / 2 / 1.7})
+    assert wraps["stats"] == {"armor": 31, "hitRating": 10, "int": 9} and wraps["set"] == {"spi": 2.0}
+    assert spine["stats"] == pytest.approx({"sta": 14, "spellPen": 3, "dps": (80 + 120) / 2 / 3.6})
+    assert scepter["stats"] == pytest.approx({"spi": 3, "spShadow": 6, "dps": (30 + 57) / 2 / 1.5})
+    assert ref.data["names"]["286989"] == "Violet Sorcerer's Wraps"
+
+
+def test_ranged_hit_counts_for_hunters_only(ref):
+    """Infernal Trickster Leggings' 1% hit works with a bow, gun or crossbow
+    only (SpellEquippedItems): ForeverDB counts it for hunters, not warriors."""
+    legs = ref.item(17754)
+    assert legs["stats"].get("rangedHit") == 10
+    fury, _ = gear.weights_for(ref, "WARRIOR", "fury", "pve")
+    bm, _ = gear.weights_for(ref, "HUNTER", "beastmastery", "pve")
+    assert gear.stat_weight(fury, "rangedHit") == 0 and gear.stat_weight(bm, "rangedHit") == bm["hitRating"]
+
+
+def test_game_items_file_check():
+    """The committed item file is well formed and holds the five items
+    (tools/game_items/export.py --check, offline)."""
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    r = subprocess.run([sys.executable, str(root / "tools" / "game_items" / "export.py"), "--check"],
+                       capture_output=True, text=True, check=False)
+    assert r.returncode == 0, r.stderr
+
+
 def test_set_share_counts_on_each_piece(ref):
     """Violet Sorcerer's Vestments: 10 Spirit over 5 pieces, 2 on each."""
     share = ref.weights["sets"]["286989"]

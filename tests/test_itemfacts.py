@@ -441,6 +441,17 @@ def priest():
     return json.loads(gzip.open(DATA / "plan-inputs.json.gz").read())
 
 
+@pytest.fixture
+def unknown_drops(monkeypatch):
+    """The Drowned City's drops as if the bundled data didn't know them: the
+    game's own tables (data/game-items.json) have had them since 2026-11-24,
+    and these tests are about a person's facts filling that gap."""
+    names = {n.lower() for n in ("Serpentbane Crown", "Robe of the Drowned", "Bloodslash Axe", "Priestess Cloak",
+                                 "Viscera Spaulders")}
+    known = {k: v for k, v in kbloot._ids().items() if k not in names}
+    monkeypatch.setattr(kbloot, "_ids", lambda: known)
+
+
 def priest_facts(shipper, tmp_path) -> itemfacts.Facts:
     st = itemfacts.Store(tmp_path / "priest")
     st.put_items(list(facts_of(shipper).values()), itemfacts.has_reference)
@@ -448,7 +459,7 @@ def priest_facts(shipper, tmp_path) -> itemfacts.Facts:
     return st.facts()
 
 
-def test_the_loot_view_shows_the_facts(priest, shipper, tmp_path):
+def test_the_loot_view_shows_the_facts(priest, shipper, tmp_path, unknown_drops):
     with itemfacts.using(priest_facts(shipper, tmp_path)):
         b = {x["name"]: x for x in V.build(copy.deepcopy(priest))["dungeons"]}["The Drowned City"]
     kbd = {d["name"]: d for d in b["kb_drops"]}
@@ -470,13 +481,13 @@ def test_the_loot_view_shows_the_facts(priest, shipper, tmp_path):
     assert zc["stats"] == ["+16 Stamina"] and zc["item_level"] == 42
 
 
-def test_without_facts_the_notes_alone(priest):
+def test_without_facts_the_notes_alone(priest, unknown_drops):
     b = {x["name"]: x for x in V.build(copy.deepcopy(priest))["dungeons"]}["The Drowned City"]
     kbd = {d["name"]: d for d in b["kb_drops"]}
     assert kbd["Serpentbane Crown"]["item_id"] is None and "stats" not in kbd["Serpentbane Crown"]
 
 
-def test_each_answer_reads_its_own_persons_facts(shipper, tmp_path):
+def test_each_answer_reads_its_own_persons_facts(shipper, tmp_path, unknown_drops):
     mine = priest_facts(shipper, tmp_path)
     assert itemfacts.current() is None
     with itemfacts.using(mine):

@@ -334,8 +334,23 @@ def test_planner_files_quest_rewards_under_their_dungeon():
 KB_ONLY = ("The Drowned City", "Blackmaw Hold", "Krol'dok Stronghold", "Alcaz Prison", "Shaper's Terrace")
 
 
-def test_a_dungeon_without_loot_data_lists_the_notes_drops(priest):
-    from wowstats import redact
+def test_a_dungeon_without_loot_data_lists_the_notes_drops(priest, monkeypatch):
+    # The notes' words alone: the game's own tables (data/game-items.json)
+    # know these drops since 2026-11-24, and this is about a dungeon whose
+    # loot no item data covers. The names as they were: forever-db's and
+    # Polestar's.
+    import json
+    from pathlib import Path
+
+    from wowstats import forever, redact
+    from wowstats.plan import kbloot
+
+    root = Path(__file__).resolve().parents[2]
+    polestar = json.loads((root / "data" / "gear-reference.json").read_text(encoding="utf-8"))["names"]
+    known: dict[str, int] = {}
+    for k, v in [*((forever.data() or {}).get("items") or {}).items(), *polestar.items()]:
+        known.setdefault(str(v).lower(), int(k))
+    monkeypatch.setattr(kbloot, "_ids", lambda: known)
 
     b = by_name(V.build(copy.deepcopy(priest)))["The Drowned City"]
     assert b["drops"] == [] and b["state"] == "soon"
@@ -356,11 +371,13 @@ def test_a_dungeon_without_loot_data_lists_the_notes_drops(priest):
     assert kbd["Knucklebone Ring"]["fit"] is False and kbd["Dreadfrost Saber"]["fit"] is None
     fits = [d["fit"] for d in b["kb_drops"]]
     assert fits == sorted(fits, key=lambda f: {True: 0, None: 1, False: 2}[f])
-    assert b["kb_fit"] == 7
-    assert (b["verdict"], b["why"], b["value"]) == ("opens at 35", "waiting there: 7 drops made for you", "some")
+    # 6 since 2026-11-24: Briny Sash, known by its ID, is judged on the game's
+    # own stats now (a healer's sash), not the notes' words.
+    assert b["kb_fit"] == 6
+    assert (b["verdict"], b["why"], b["value"]) == ("opens at 35", "waiting there: 6 drops made for you", "some")
     # The sealed page keeps the list (wowstats.redact).
     z = redact.zogzog("dungeons", {"dungeons": [b]})["dungeons"][0]
-    assert z["kb_fit"] == 7 and z["kb_drops"][0].keys() >= {"name", "boss", "item_id", "fit", "confidence"}
+    assert z["kb_fit"] == 6 and z["kb_drops"][0].keys() >= {"name", "boss", "item_id", "fit", "confidence"}
 
 
 def test_a_dungeon_with_loot_data_never_takes_the_notes(priest):

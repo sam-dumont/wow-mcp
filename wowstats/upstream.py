@@ -36,12 +36,15 @@ BUILD = re.compile(r"[0-9]{1,4}(?:\.[0-9]{1,7}){3}")
 PRODUCT_NAME = re.compile(r"[a-z0-9_]{1,32}")
 # Every client table the server and its tools read from wago.tools.
 WAGO_TABLES = frozenset({
-    "AreaTable", "ChrClasses", "CurvePoint", "GroupFinderActivity", "Item", "ItemAppearance",
-    "ItemModifiedAppearance", "ItemSet", "ItemSparse", "ItemSubClass", "ManifestInterfaceData", "SkillLine",
-    "SkillLineAbility", "Spell", "SpellAuraOptions", "SpellDuration", "SpellEffect", "SpellItemEnchantment",
-    "SpellLevels", "SpellMisc", "SpellName", "SpellRadius", "Talent", "TalentTab", "TraitCurrencySource",
-    "TraitDefinition", "TraitDefinitionEffectPoints", "TraitEdge", "TraitNode", "TraitNodeEntry",
-    "TraitNodeXTraitNodeEntry", "TraitTree", "TraitTreeXTraitCurrency",
+    "AreaTable", "ArmorLocation", "ChrClasses", "CurvePoint", "GroupFinderActivity", "Item", "ItemAppearance",
+    "ItemArmorQuality", "ItemArmorShield", "ItemArmorTotal", "ItemDamageOneHand", "ItemDamageOneHandCaster",
+    "ItemDamageRanged", "ItemDamageThrown", "ItemDamageTwoHand", "ItemDamageTwoHandCaster", "ItemDamageWand",
+    "ItemEffect", "ItemModifiedAppearance", "ItemSet", "ItemSparse", "ItemSubClass", "ItemXItemEffect",
+    "ManifestInterfaceData", "RandPropPoints", "SkillLine", "SkillLineAbility", "Spell", "SpellAuraOptions",
+    "SpellDuration", "SpellEffect", "SpellEquippedItems", "SpellItemEnchantment", "SpellLevels", "SpellMisc",
+    "SpellName", "SpellRadius", "Talent", "TalentTab", "TraitCurrencySource", "TraitDefinition",
+    "TraitDefinitionEffectPoints", "TraitEdge", "TraitNode", "TraitNodeEntry", "TraitNodeXTraitNodeEntry",
+    "TraitTree", "TraitTreeXTraitCurrency",
 })
 
 

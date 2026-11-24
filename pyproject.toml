@@ -91,6 +91,9 @@ packages = ["wowstats"]
 "data/gear-reference.json" = "wowstats/data/gear-reference.json"
 # The stat weights per spec and mode, from ForeverDB.net (credited: docs/gear-reference.md), read by wowstats/gear.py.
 "data/foreverdb-weights.json" = "wowstats/data/foreverdb-weights.json"
+# Every weapon and armour piece from Forever's client tables (game data, used as facts: docs/gear-reference.md),
+# read by wowstats/gear.py.
+"data/game-items.json" = "wowstats/data/game-items.json"
 # The analysis' knowledge base (wowstats/analysis/__init__.py): Polestar's game data and notes (GPL-3.0), and short
 # notes written from open sources, each with its source; read by wowstats/analysis/kb.py.
 "data/kb-reference.json.gz" = "wowstats/data/kb-reference.json.gz"

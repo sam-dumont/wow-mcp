@@ -555,7 +555,10 @@ BREAK_S = 3 * 86400
 # Worn items listed against the spec they're scored for: built for someone
 # else, or under this share of the slot's best.
 WEAK_PCT = 25
-FACTS_ROWS = 8
+# 6 since the BiS counts gear with no known source (2026-11-24): more worn
+# items read under WEAK_PCT, and 8 of them pushed the brief's first page
+# past what a small context takes.
+FACTS_ROWS = 6
 
 
 # The best upgrades listed under each worn item of gear_fit, wearable now.

@@ -68,7 +68,7 @@ SLOT_TEXT = {1: "Head", 2: "Neck", 3: "Shoulder", 4: "Shirt", 5: "Chest", 6: "Wa
              9: "Wrist", 10: "Hands", 11: "Finger", 12: "Trinket", 13: "One-Hand", 14: "Off Hand", 15: "Ranged",
              16: "Back", 17: "Two-Hand", 18: "Bag", 19: "Tabard", 20: "Chest", 21: "Main Hand", 22: "Off Hand",
              23: "Held In Off-hand", 24: "Projectile", 25: "Thrown", 26: "Ranged", 28: "Relic"}
-# Polestar's stat keys -> the tooltip's lines. White lines first (base stats),
+# Our stat keys -> the tooltip's lines. White lines first (base stats),
 # then the green "Equip:" lines, in the game's order.
 WHITE = (("str", "+{} Strength"), ("agi", "+{} Agility"), ("sta", "+{} Stamina"), ("int", "+{} Intellect"),
          ("spi", "+{} Spirit"))
@@ -81,6 +81,18 @@ EQUIP = (("defense", "Increased Defense +{}."),
          ("crit", "Improves your chance to get a critical strike by {}%."),
          ("spellHit", "Improves your chance to hit with spells by {}%."),
          ("spellCrit", "Improves your chance to get a critical strike with spells by {}%."),
+         # The game's own item data (data/game-items.json) carries ratings,
+         # as Forever's tooltip does: 10 rating is 1%.
+         ("dodgeRating", "Increases your dodge rating by {}."),
+         ("parryRating", "Increases your parry rating by {}."),
+         ("blockRating", "Increases your shield block rating by {}."),
+         ("hitRating", "Increases your hit rating by {}."),
+         ("rangedHit", "Increases your hit rating with bows, guns and crossbows by {}."),
+         ("critRating", "Increases your critical strike rating by {}."),
+         ("haste", "Increases your haste rating by {}."),
+         ("expertise", "Increases your expertise rating by {}."),
+         ("spellPen", "Increases your spell penetration by {}."),
+         ("dmgheal", "Increases damage and healing done by magical spells and effects by up to {}."),
          ("ap", "+{} Attack Power."),
          ("rap", "+{} ranged Attack Power."),
          ("sp", "Increases damage and healing done by magical spells and effects by up to {}."),
@@ -124,7 +136,7 @@ def enchant_text(row: dict) -> str | None:
 
 
 def stat_lines(stats: dict) -> tuple[list[str], list[str]]:
-    """(white lines, green Equip: lines) from Polestar's stats."""
+    """(white lines, green Equip: lines) from an item's stats."""
     white = [fmt.format(_num(stats[k])) for k, fmt in WHITE if stats.get(k)]
     green = []
     sp, heal = stats.get("sp"), stats.get("heal")

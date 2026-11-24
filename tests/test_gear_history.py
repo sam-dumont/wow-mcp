@@ -1,7 +1,7 @@
 """The gear at past levels, reconstructed from the Recorder's records
 (wowstats.history): what counts as got, the replay, the anchor on the first
-real sheet, and what each tier shows of it. Against Polestar's bundled gear
-data, as a Gnome Priest."""
+real sheet, and what each tier shows of it. Against the bundled gear data
+(the game's items, Polestar's sources), as a Gnome Priest."""
 
 from datetime import UTC, datetime, timedelta
 
@@ -82,11 +82,12 @@ def test_an_enchant_is_worn_gear_owned_since_before(ref):
 
 
 def test_two_hander_against_main_hand(ref):
-    rows = ([{"_time": at(3), "quest_id": "386", "item": "1317"}], [{"_time": at(1), "items": "271095:1"}], [])
+    # Staff of Westfall (5 Intellect, 6 Spirit) over Fang of Magmatus (4 Intellect).
+    rows = ([{"_time": at(3), "quest_id": "166", "item": "2042"}], [{"_time": at(1), "items": "271095:1"}], [])
     rp, _, _ = run(ref, rows, dings((0, 25)))
     assert rp.at(T0 + timedelta(hours=2))[16].item_id == 271095
     now = rp.at(T0 + timedelta(hours=4))
-    assert now[16].item_id == 1317 and 17 not in now
+    assert now[16].item_id == 2042 and 17 not in now
 
 
 def test_anchor_trusts_the_sheet_and_walks_back(ref):
@@ -99,7 +100,8 @@ def test_anchor_trusts_the_sheet_and_walks_back(ref):
             [{"_time": at(1), "items": "2584:1"}], [])
     first = {"_time": at(8), "items": [{"slot": 8, "item_id": 4313}, {"slot": 11, "item_id": 281304},
                                        {"slot": 15, "item_id": 2584}, {"slot": 13, "item_id": 273298}]}
-    rp, check, _ = run(ref, rows, dings((0, 24)), first)
+    # Prospector's Signet has no required level and item level 31: wearable from 26.
+    rp, check, _ = run(ref, rows, dings((0, 26)), first)
     assert check["slots"] == {"Feet": "differs", "Finger 1": "agree", "Trinket 1": "no_record", "Back": "agree"}
     assert (check["agree"], check["differs"], check["no_record"], check["total"]) == (2, 1, 1, 4)
     early = rp.at(T0 + timedelta(hours=3))

@@ -1677,6 +1677,11 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
         out = fit(out)  # footnotes over their share: the whole answer still stays under KB_CHARS
     if name in OUTSIDER_TEXT_TOOLS and isinstance(out, dict):
         out = {OUTSIDER_FIELD: OUTSIDER_NOTE, **out}
+    # Every gear score, standing or BiS an answer shows links ForeverDB.net,
+    # whose tables we reverse-engineered (owner, 2026-11-24): one place, so
+    # no tool can forget it.
+    if isinstance(out, dict) and "score_source" not in out and gearmod.scored(out):
+        out = {**out, "score_source": dict(gearmod.CREDIT)}
     return strip_invisible(name, out)
 
 

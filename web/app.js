@@ -1504,7 +1504,10 @@ const STAT_NAMES = { str: 'Strength', agi: 'Agility', sta: 'Stamina', int: 'Inte
   spArcane: 'Arcane power', spFire: 'Fire power', spFrost: 'Frost power', spNature: 'Nature power',
   spShadow: 'Shadow power', spHoly: 'Holy power', spellCrit: 'Spell crit', spellHit: 'Spell hit', crit: 'Crit',
   hit: 'Hit', ap: 'Attack power', rap: 'Ranged AP', def: 'Defense', dodge: 'Dodge', parry: 'Parry', block: 'Block',
-  haste: 'Haste', health: 'Health', mana: 'Mana' };
+  haste: 'Haste', health: 'Health', mana: 'Mana', hitRating: 'Hit rating', critRating: 'Crit rating',
+  dodgeRating: 'Dodge rating', parryRating: 'Parry rating', blockRating: 'Block rating', rangedHit: 'Ranged hit rating',
+  spellPen: 'Spell penetration', dmgheal: 'Spell power', expertise: 'Expertise', blockValue: 'Block value',
+  defense: 'Defense' };
 
 function addStats(...items) {
   const out = {};
@@ -1567,6 +1570,7 @@ function compareEl(u, a, alts, onPick) {
     h('div', { class: 'cmphead' },
       h('h3', {}, h('span', { class: 'gainbig', text: upText(u) })),
       h('span', { class: 'pill' + (f.now ? ' now' : ''), text: f.now ? 'Now' : f.text, title: f.title }),
+      creditEl(a.source, a.mode && a.mode.label),
       h('button', { type: 'button', class: 'cmpclose', 'aria-label': 'Close the comparison', text: '×' })),
     h('div', { class: 'cmpsides' }, side('You wear', wornNames, 'Nothing in this slot.'), side('Best replacement', cand, '')),
     fitEl(u.fit),
@@ -1733,8 +1737,19 @@ function renderAdvice(a) {
     if (row && !body.querySelector('#' + id)) row.id = id;
   }
   const none = a.slots.filter((sl) => !sl.best && !sl.next && sl.current).map((sl) => sl.slot_name);
+  // The BiS counts gear nobody says where to get (wowstats/gear.py
+  // unsourced; owner 2026-11-24): listed apart, "where: unknown", never an
+  // upgrade to go and get.
+  const unknown = a.slots.filter((sl) => sl.bis_unknown);
   fill(box, head, a.ah && a.ah.notice ? h('p', { class: 'ahnote', text: a.ah.notice }) : null, body,
     none.length ? h('p', { class: 'sub nothing', text: `Nothing better for: ${[...new Set(none)].join(', ')}.` }) : null,
+    unknown.length ? h('details', { class: 'upmore bisunknown' },
+      h('summary', { text: `BiS with no known source: ${unknown.length} slot${unknown.length > 1 ? 's' : ''}` }),
+      h('p', { class: 'sub' }, 'The best item for the slot at your level, where to get it unknown. The badges measure against it. ',
+        creditEl(a.source)),
+      h('ul', {}, unknown.map((sl) => h('li', {},
+        h('b', { text: `${sl.slot_name}: ` }), sl.bis_unknown.name || `item ${sl.bis_unknown.item_id}`,
+        ` (score ${fmtNum(sl.bis_unknown.score)}, where: unknown)`)))) : null,
     more.length ? h('details', { class: 'upmore' }, h('summary', { text: `${more.length} more upgrade${more.length > 1 ? 's' : ''}` }),
       compactList(a, more)) : null,
     smalls.length ? h('details', { class: 'upmore' }, h('summary', { text: `${smalls.length} small upgrade${smalls.length > 1 ? 's' : ''} or rare drop${smalls.length > 1 ? 's' : ''}` }),
@@ -2582,7 +2597,10 @@ function dungeonBlock(b, d) {
     dungeonRewards(b),
     dungeonDrops(b, d.level, d.inventory_known),
     b.state === 'soon' ? null : dungeonTrip(b),
-    dungeonHistory(b));
+    dungeonHistory(b),
+    // The gains above are ForeverDB.net's scores: its link wherever one shows.
+    (b.gain && b.gain.summary) || b.drops.length || (b.quest_rewards || []).length
+      ? h('p', { class: 'sub dgcredit' }, creditEl()) : null);
 }
 
 // The one next step (dungeonview.next_step), with its place and links.
@@ -3273,7 +3291,7 @@ function moveEl(mv, nowZone) {
     const it = mv.item;
     what = itemWithLink(it);
     why = [h('span', { text: upText(it) + withText(it) }),
-      sourceLine(mv.source)];
+      sourceLine(mv.source), creditEl()];
   } else if (mv.kind === 'dungeon' && mv.zone) {
     const its = mv.items || [];
     what = h('span', {}, whRef(mv.zone), mv.zone.levels ? h('span', { class: 'pill', text: `levels ${mv.zone.levels[0]}-${mv.zone.levels[1]}` }) : null);
@@ -3282,7 +3300,7 @@ function moveEl(mv, nowZone) {
       h('ul', { class: 'ditems' }, its.slice(0, 3).map((it) => h('li', {}, itemWithLink(it),
         h('span', { class: 'sub', text: upText(it) + withText(it) })))),
       its.length > 3 ? h('span', { class: 'sub', text: `and ${its.length - 3} more in the gear advice` }) : null,
-      ];
+      creditEl()];
   } else if ((mv.kind === 'profession' || mv.kind === 'riding') && mv.skill) {
     const sk = mv.skill;
     const ts = sk.trainers || [];
@@ -3661,7 +3679,8 @@ function renderSnapshot(sn, out) {
   if (sn.gear) {
     kids.push(...snapGear(sn));
     if (sn.bis && sn.bis.upgrades && sn.bis.upgrades.length) {
-      kids.push(h('p', {}, h('b', { text: 'Best upgrades then: ' }), sn.bis.upgrades.slice(0, 3).map((u) => `${u.name} (${upText(u)})`).join(', ')));
+      kids.push(h('p', {}, h('b', { text: 'Best upgrades then: ' }), sn.bis.upgrades.slice(0, 3).map((u) => `${u.name} (${upText(u)})`).join(', '),
+        ' ', creditEl()));
     }
     if (window.wowPastLevel) window.wowPastLevel(holder, state.char, sn.level, sn.picture);
   } else {

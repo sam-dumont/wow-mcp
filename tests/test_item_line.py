@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from tests import degraded as D
-from tests.test_gear import sheet
+from tests.test_gear import WORN, sheet
 from wowstats import gear, ui
 from wowstats import plan as planmod
 from wowstats.mcp import tools as T
@@ -118,12 +118,21 @@ def test_pair_at_hand_weaker_takes_the_best_stronger_the_next(ref, level):
             raise AssertionError(f"{name} at {level}: the stronger slot has a pick, the weaker none")
 
 
+def only_rings(ref, sources: dict, rings: set[str]) -> dict:
+    """The gear data with these rings alone: the others leave the sources and
+    the items too (an item with no source still counts in the BiS since
+    2026-11-24, gear.unsourced), the worn ones stay."""
+    worn = {str(i) for i in WORN.values()}
+    items = {k: v for k, v in ref.data["items"].items() if v.get("inv") != 11 or k in rings | worn}
+    return {**ref.data, "sources": sources, "items": items}
+
+
 def test_pair_one_good_ring_reaches_100_once(ref):
     """One ring better than both worn: the weaker slot reads 100% with it,
     the stronger has nothing at hand (it is BiS beside that ring)."""
     src = ref.data["sources"]
     keep = {k: v for k, v in src.items() if (ref.item(int(k)) or {}).get("inv") != 11 or k == "281635"}
-    one = dataclasses.replace(ref, data={**ref.data, "sources": keep}, peers=None)
+    one = dataclasses.replace(ref, data=only_rings(ref, keep, {"281635"}), peers=None, nowhere=None)
     a = gear.advise(one, sheet(), level=32)
     weak, strong = _weak_first(*_pairs(a)["finger"])
     assert weak["best"]["item_id"] == 281635
@@ -138,7 +147,7 @@ def test_pair_two_good_rings_reach_100_each(ref):
     src = ref.data["sources"]
     keep = {k: v for k, v in src.items()
             if (ref.item(int(k)) or {}).get("inv") != 11 or k in ("281635", "2933")}
-    two = dataclasses.replace(ref, data={**ref.data, "sources": keep}, peers=None)
+    two = dataclasses.replace(ref, data=only_rings(ref, keep, {"281635", "2933"}), peers=None, nowhere=None)
     a = gear.advise(two, sheet(), level=32)
     weak, strong = _weak_first(*_pairs(a)["finger"])
     assert weak["best"]["item_id"] == 281635 and strong["best"]["item_id"] == 2933
