@@ -1928,7 +1928,10 @@ function byWhere(a, list) {
   for (const g of groups.values()) {
     if (g.kind !== 'ah') continue;
     const now = g.items.filter(({ u }) => feasible(u, a.level).now);
-    const cost = now.reduce((x, { u }) => x + ahOf(u).price_copper, 0);
+    // The listing that put the item in this group: ahOf() takes only one
+    // seen today or yesterday, and an older one put a stale listing here
+    // (srcs[0]), whose null broke the whole Upgrades list.
+    const cost = now.reduce((x, { s }) => x + (s.price_copper || 0), 0);
     g.label = now.length ? `${plural(now.length, 'upgrade')} for ${priceText(cost)} in all` : 'none you can wear yet';
   }
   // Ranked on the fit-weighted gain: a dungeon of someone else's drops

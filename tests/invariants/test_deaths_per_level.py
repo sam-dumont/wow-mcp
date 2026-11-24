@@ -51,15 +51,15 @@ def test_a_hand_counted_case():
 
 
 @pytest.mark.parametrize("scenario, want", [
-    # Dings into 23 to 34 seen, first record before the ding into 23 (level 22
-    # is partial, 34 in play): 23..33, 11 levels, 10 deaths in them.
-    ("full", {"value": 10 / 11, "deaths": 10, "levels": list(range(23, 34))}),
-    # The Recorder from 11-12 on: 32 began on 11-08, 34 is in play. Level 33
-    # alone, one death (11-15 18:11). The page used to read 3 / 12 = 0.25.
-    ("recorder-later", {"value": 1.0, "deaths": 1, "levels": [33]}),
+    # Dings into 23 to 46 seen, first record before the ding into 23 (level 22
+    # is partial, 46 in play): 23..45, 23 levels, 22 deaths in them.
+    ("full", {"value": 22 / 23, "deaths": 22, "levels": list(range(23, 46))}),
+    # The Recorder from 11-12 on: 40 began on 11-10, 46 is in play. Levels 41
+    # to 45, four deaths (three in Stranglethorn, one in Feralas).
+    ("recorder-later", {"value": 0.8, "deaths": 4, "levels": [41, 42, 43, 44, 45]}),
     # An hour off in level 28 (its split is longer than the Recorder saw):
-    # 28 and its death leave both sides. 9 deaths over 10 levels.
-    ("recorder-gap", {"value": 0.9, "deaths": 9, "levels": [23, 24, 25, 26, 27, 29, 30, 31, 32, 33]}),
+    # 28 and its death leave both sides. 21 deaths over 22 levels.
+    ("recorder-gap", {"value": 21 / 22, "deaths": 21, "levels": [lv for lv in range(23, 46) if lv != 28]}),
     ("no-recorder", None),
 ])
 def test_the_page_reads_deaths_and_levels_over_the_same_levels(tmp_path, scenario, want):

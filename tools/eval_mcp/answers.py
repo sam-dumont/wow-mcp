@@ -371,12 +371,14 @@ def priciest_item(t: Tools) -> int:
 
 
 def ah_upgrade(t: Tools) -> int:
-    """The one gear upgrade the newest auction scan has on sale, which the
-    gear advice offers to buy (`buy_now`)."""
+    """The cheapest gear upgrade the newest auction scan has on sale, of
+    those the gear advice offers to buy (`buy_now`; the demo at 46 has three)."""
     g = t("gear")
     if not (g.get("auction_house") or {}).get("last_scan_day"):
         raise ValueError(f"gear sees no auction scan: {g.get('auction_house')!r}")
-    return _one([u["item_id"] for u in g.get("buy_now") or []], "upgrade on sale")
+    ups = [(u["auction_house"]["price_copper"], u["item_id"]) for u in g.get("buy_now") or []]
+    low = min((p for p, _ in ups), default=None)
+    return _one([i for p, i in ups if p == low], "cheapest upgrade on sale")
 
 
 def biggest_lane(t: Tools) -> str:
@@ -474,7 +476,7 @@ MAKERS: dict[str, Callable[[Ctx], object]] = {
     "month_played_hours": lambda c: month_played_hours(c.t),
     "slowest_vs_route": lambda c: slowest_vs_route(c.t),
     "off_class_armor": lambda c: off_class_armor(c.t),
-    "best_feet_now": lambda c: best_now(c.t, "Feet"),
+    "best_waist_now": lambda c: best_now(c.t, "Waist"),
     "zone_quest_upgrade_line": lambda c: zone_quest_upgrade_line(c.t),
     "first_upgrade": lambda c: first_upgrade(c.t),
     "long_shots": lambda c: long_shots(c.t),

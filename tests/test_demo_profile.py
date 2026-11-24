@@ -10,6 +10,8 @@ from collections import Counter
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from wowstats import ingest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "fixtures"))
@@ -89,3 +91,15 @@ def test_demo_gear_at_46():
     build = generate.talent_build(46, True)
     assert sum(build.values()) == 37 and build["Shadowform"] == 1
     assert generate.wowsims_string(build).startswith("--")
+
+
+def test_every_worn_item_comes_from_something_live_in_forever():
+    """build_demo refuses gear from content Forever hasn't opened (in_forever,
+    by ForeverDB's labels and Polestar's drop tables): the Gurubashi Arena's
+    Arena Master, ForeverDB's Classic data only, sat in his trinket slot."""
+    generate.in_forever(generate.build_demo(END))
+    arena = {"feed": "wow-gear", "items": json.dumps([{"item_id": 18706, "name": "Arena Master", "slot": 13}])}
+    with pytest.raises(ValueError, match="Arena Master"):
+        generate.in_forever([arena])
+    # The shirt and the tabard are worn for the look: no source asked.
+    generate.in_forever([{"feed": "wow-gear", "items": [{"item_id": 5976, "slot": 19}]}])

@@ -64,7 +64,8 @@ def test_the_friend_gets_a_plan_by_level(served):
     md = served["recorder-off"]["plan"]["markdown"]
     p = e["pace"]
     assert p["xp_per_hour"]["n"] == 5 and p["xp_per_hour"]["value"] > 0
-    assert p["level_factor"]["from"] == "your level times against Polestar's" and p["level_factor"]["factor"] > 1
+    # His own pace against the route's: near it on the demo's last levels (0.96), never the route's 1.
+    assert p["level_factor"]["from"] == "your level times against Polestar's" and p["level_factor"]["factor"] != 1
     # Polestar's guide for each level, a checkpoint at each level-up.
     assert all("Polestar's" in b["title"] and "guide" in b["title"] for b in e["blocks"])
     planmod._CACHE.clear()  # kept per person and name: every scenario here is the same character
@@ -95,7 +96,7 @@ def test_the_estimated_gold_rate_matches_the_recorded_one(served):
     # The same sheets every day: the 14 days count back from the demo's
     # clock. On the wall clock they lost about one sheet a day (16 on the
     # 18th, 12 from the 21st at 19:16 UTC, the two rates then 22% apart).
-    assert served["full"]["inputs"]["gold_rate"]["n"] == served["recorder-off"]["inputs"]["gold_rate"]["n"] == 16
+    assert served["full"]["inputs"]["gold_rate"]["n"] == served["recorder-off"]["inputs"]["gold_rate"]["n"] == 14
 
 
 def test_level_from_the_splits_alone(served):

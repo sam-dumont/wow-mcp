@@ -150,7 +150,8 @@ def test_a_full_scan_on_one_instant_through_stdio(tmp_path, computed):
         t.close()
         vl.close()
     assert g["auction_house"]["last_scan_day"] == days[-1][0]
-    assert [u["item_id"] for u in g["buy_now"]] == [computed["ah_upgrade"]["answer"]]
+    cheapest = min(g["buy_now"], key=lambda u: u["auction_house"]["price_copper"])
+    assert cheapest["item_id"] == computed["ah_upgrade"]["answer"]
 
 
 def test_probes_hold_the_answers(questions, computed):
@@ -222,8 +223,8 @@ def test_the_coverage_matrix_lists_every_tool(questions):
 
 def test_play_sql_route_position_is_next_steps_rule():
     """One next-step rule (eval-mcp 2026-11-22, route_next_step): on the
-    demo Polestar fell back from step 66 to 45, so the newest step record
-    says 45; play_sql's route_position and the next_step tool both say 66."""
+    demo Polestar fell back from Tanaris's step 29 to 19 and stopped at 28, so the
+    newest step record says 28; play_sql's route_position and the next_step tool both say 29."""
     pytest.importorskip("fastmcp")
     import tempfile
 

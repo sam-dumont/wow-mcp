@@ -62,14 +62,19 @@ What comes after 0.10.0, in short. Every change follows.
 
 ### Changed
 
-- The demo's Nibbet is a level 46 Shadow priest. Thirteen more evenings (24 Oct to 6 Nov 2026)
-  take him from 34 to 46 through Arathi, Badlands, Stranglethorn, Dustwallow, Feralas, Tanaris and
-  the Hinterlands, with Scarlet Monastery's four wings, Razorfen Downs, Uldaman and Zul'Farrak.
-  Every worn item is a drop, quest reward or his own craft that a level 46 could have, at 66% of
-  the best for his level on average (ForeverDB's Shadow Leveling weights), four slots at their
-  best. He holds the Dreamstaff he enchanted himself and a White Obsidian Wand from Uldaman. His
-  talents are 37 points of Shadow, Shadowform at 40. The auction house lists two upgrades at his
-  level next to the Shadoweave Shoulders.
+- The demo's Nibbet is a level 46 Shadow priest. Thirteen more evenings take him from 34 to 46
+  through Arathi, Badlands, Stranglethorn, Dustwallow, Feralas, Tanaris and the Hinterlands, with
+  Scarlet Monastery's four wings, Razorfen Downs, Uldaman and Zul'Farrak, and end at the Stormwind
+  trainers. Every worn item is a drop, quest reward or his own craft that a level 46 could have, at
+  63% of the best for his level on average (ForeverDB's Shadow Leveling weights), four slots at
+  their best. One is made for another class: the Fiery Cord he tailored (Fire spell power) where
+  the Black Cord would score more than twice as high. He holds the Dreamstaff he enchanted himself
+  and a White Obsidian Wand from Uldaman, and a Talisman of Arathor from Refuge Pointe's
+  quartermaster. His talents are 37 points of Shadow, Shadowform at 40.
+  The auction house lists two upgrades at his level next to the Shadoweave Shoulders. The
+  generator refuses gear from content Forever hasn't opened: every worn item needs a source
+  ForeverDB saw in Forever or the Forever client has, or one in Polestar's drop tables (the
+  Gurubashi Arena's Arena Master, Classic data only, can't be worn).
 - The demo's real 3D model moves to the `demo-3d-2` release (`site/demo3d.sha256` pins the new
   archive): `demo-3d-1` has none of his new gear. Until that release exists the demo draws
   golden3d's figure.
@@ -78,6 +83,12 @@ What comes after 0.10.0, in short. Every change follows.
 
 - MCP: `sessions` and `dungeons` now say other players chose the names in them (`untrusted`), like
   `players`.
+- The Upgrades list no longer fails to load ("Couldn't load gear advice") when an item's only
+  auction house listing is older than yesterday: the Auction House group's total read the fresh
+  listing, which such an item doesn't have.
+- The MCP `gear` tool reads the character's reputations and PvP rank, as the gear page does.
+  Without them every reputation gate was unknown, a Friendly quartermaster's cape a hard pick, and
+  the tool's best item for a slot could differ from the page's.
 - A weapon's own glow (its ItemVisual from the game data) is drawn only on the attachment points
   its model has. The Dreamstaff's visual names five points, the staff has four: the fifth glow sat
   in the hand.

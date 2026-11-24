@@ -1350,9 +1350,13 @@ SM_WINGS = {"Graveyard": ([4281, 4282, 4283, 4284, 4306], [3983, 6490, 4543]),
 RFD = ([7327, 7328, 7329, 7332, 7341, 7342, 7345, 7351], [7355, 7357, 8567, 7358])
 ULDAMAN = ([4844, 4845, 4846, 4847, 4850, 4851, 4852, 2892, 7030], [6910, 7228, 7023, 7206, 7291, 4854, 2748])
 ZULFARRAK = ([5645, 5647, 5648, 5650, 7246, 7247, 7268, 7270], [8127, 7271, 7273, 7275, 7272, 7796, 7267])
-# Black Slippers, Black Handwraps, Dreamstaff
-CRAFT_SPELL = {254007: (TAILORING, 1257429), 254027: (TAILORING, 1257439), 249454: (ENCHANTING, 1249064)}
-ARENA_CHEST = 18706  # Arena Master, the Gurubashi Arena's treasure chest
+# Black Slippers, Black Handwraps, Fiery Cord, Dreamstaff
+CRAFT_SPELL = {254007: (TAILORING, 1257429), 254027: (TAILORING, 1257439), 254041: (TAILORING, 1257446),
+               249454: (ENCHANTING, 1249064)}
+# Talisman of Arathor (level 28), the League of Arathor's quartermaster at
+# Refuge Pointe, Neutral: never the Gurubashi Arena's Arena Master, whose
+# chest event isn't in Forever (ForeverDB: Classic data only).
+ARATHOR_TALISMAN = 21119
 
 
 def dungeon(p: Player, name: str, instance_id: int, zone: str, mobs: list[int], bosses: list[int], *,
@@ -1441,11 +1445,16 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     p.late_nodes.append("Refuge Pointe")
     craft_worn(p, 254007, 8)
     quest_reward(p, 684, 4744, 9)  # Wanted! Marez Cowl: Arcane Runed Bracers
+    # The League of Arathor's quartermaster sells to anyone Neutral: his
+    # Talisman of Arathor (level 28) replaces the Deadmines' spyglass.
+    p.rec("vendor", items=f"{ARATHOR_TALISMAN}:7230:1:-1", npc_id=15127, **p.here())
+    p.money -= 7230
+    p.worn[13] = ARATHOR_TALISMAN
     p.guide_steps(arathi, 46, 54, {46: ("Arathi Highlands", "Circle of West Binding"),
                                    47: ("Arathi Highlands", "Faldir's Cove"),
                                    50: ("Arathi Highlands", "The Drowned Reef"),
                                    51: ("Arathi Highlands", "Faldir's Cove")},
-                  reach=(35, 12000), deaths=(50,), hours=2.3)
+                  reach=(35, 12000), hours=2.3)
     quest_reward(p, 667, 4549, 11)  # Death From Below: Seafire Band
     p.profession(ENCHANTING, 10)
     p.logout()
@@ -1491,17 +1500,16 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
                    14: ("Stranglethorn Vale", "Rebel Camp"), 15: ("Stranglethorn Vale", "Kurzen's Compound"),
                    20: ("Stranglethorn Vale", "The Savage Coast")},
                   reach=(38, 25000), deaths=(15,), hours=2.6)
-    p.go("Stranglethorn Vale", "Gurubashi Arena")
+    # Booty Bay's docks, then its inn (two walks: the seed's draws as before).
+    p.go("Stranglethorn Vale", "Booty Bay")
     p.wait(rnd.uniform(240, 420))
-    p.rec("loot", items=f"{ARENA_CHEST}:1", npc_kind="o", **p.here())
-    p.worn[13] = ARENA_CHEST
     p.go("Stranglethorn Vale", "Booty Bay")
     p.logout()
 
     # 25. Wed 28 Oct: back to the Monastery, Armory and Cathedral at 38.
     p.rested += 2200
     p.login(local(2026, 10, 28, 19, 5), "Stranglethorn Vale", "Booty Bay")
-    p.fly("Stormwind City", "Stormwind City", "Stormwind City", "Booty Bay")
+    p.fly("Hillsbrad Foothills", "Southshore", "Southshore", "Booty Bay")
     p.go("Tirisfal Glades", "Scarlet Monastery")
     dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Armory"], trash=14)
     p.go("Tirisfal Glades", "Scarlet Monastery")
@@ -1514,7 +1522,8 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     # trainer.
     p.rested += 2800
     p.login(local(2026, 10, 29, 19, 0), "Tirisfal Glades", "Scarlet Monastery")
-    p.go("Wetlands", "Menethil Harbor")
+    p.go("Hillsbrad Foothills", "Southshore")
+    p.fly("Wetlands", "Menethil Harbor", "Menethil Harbor", "Southshore")
     p.boat("Dustwallow Marsh", "Theramore Isle")
     p.guide_steps("forever/alliance/40-50/01-stranglethorn-vale", 1, 15,
                   {1: ("Dustwallow Marsh", "Theramore Isle"), 3: ("Dustwallow Marsh", "Swamplight Manor"),
@@ -1536,7 +1545,7 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     p.fly("Ashenvale", "Astranaar", "Astranaar", "Auberdine")
     p.go("The Barrens", "Razorfen Downs")
     dungeon(p, "Razorfen Downs", 129, "Razorfen Downs", *RFD, trash=18,
-            loot={7357: {6: 10771}, 7358: {5: 10762}}, deaths=(8567,), quest_kill={7358: 3636})
+            loot={7355: {15: 10776}, 7357: {6: 10771}, 7358: {5: 10762}}, deaths=(8567,), quest_kill={7358: 3636})
     p.rec("complete", quest_id=3636, quest_name=q[3636]["name"], zone=p.zone)
     p.go("Dustwallow Marsh", "Theramore Isle")
     p.late_nodes.append("Theramore Isle")
@@ -1556,7 +1565,7 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
                    41: ("Stranglethorn Vale", "Jungle Stalkers"), 45: ("Stranglethorn Vale", "Nesingwary's Expedition"),
                    50: ("Stranglethorn Vale", "Rebel Camp"), 55: ("Stranglethorn Vale", "Ruins of Zul'Mamwe"),
                    57: ("Stranglethorn Vale", "Nesingwary's Expedition"), 62: ("Stranglethorn Vale", "Booty Bay")},
-                  reach=(43, 8000), deaths=(42, 55), hours=3.4)
+                  reach=(43, 8000), deaths=(36, 42, 55), hours=3.4)
     p.logout()
 
     # 29. Mon 2 Nov: Uldaman at 43, and Talvash's necklace in Ironforge.
@@ -1567,7 +1576,7 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     p.fly("Loch Modan", "Thelsamar", "Thelsamar", "Ironforge")
     p.go("Badlands", "Uldaman")
     dungeon(p, "Uldaman", 70, "Uldaman", *ULDAMAN, trash=21,
-            loot={7023: {18: 274425}, 7291: {15: 11311}}, deaths=(2748,))
+            loot={7023: {18: 274425}}, deaths=(2748,))
     p.rec("progress", have=1, need=1, objective=1, quest_id=2361, **p.here())
     p.rec("complete", quest_id=2361, quest_name=q[2361]["name"], zone=p.zone)
     p.fly("Ironforge", "Ironforge", "Ironforge", "Thelsamar")
@@ -1598,7 +1607,10 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     p.rested += 2000
     p.login(local(2026, 11, 4, 18, 40), "Feralas", "Feathermoon Stronghold")
     p.go("Feralas", "Thalanaar")
-    p.fly("Ironforge", "Ironforge", "Ironforge", "Thalanaar")
+    # Kalimdor to Ironforge: Theramore's boat to Menethil Harbor.
+    p.fly("Dustwallow Marsh", "Theramore Isle", "Theramore Isle", "Thalanaar")
+    p.boat("Wetlands", "Menethil Harbor")
+    p.fly("Ironforge", "Ironforge", "Ironforge", "Menethil Harbor")
     prof_train(p, ENCHANTING, 300, 5157)  # Artisan: 35 and a rank of 200 or more
     while p.skills[ENCHANTING][0] < 220:  # the Dreamstaff's formula
         p.profession(ENCHANTING, 4)
@@ -1609,6 +1621,14 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     while p.skills[TAILORING][0] < 165:  # Black Handwraps' pattern
         p.profession(TAILORING, 4)
     craft_worn(p, 254027, 10)
+    # And the cord of the same set, in its fire version: Fire spell power, a mage's.
+    # The demo's piece made for another class (Black Cord is his; the gear page says so).
+    while p.skills[TAILORING][0] < 190:
+        p.profession(TAILORING, 4)
+    craft_worn(p, 254041, 6)
+    # And back: the boat to Theramore, then on foot through Thousand Needles to Gadgetzan.
+    p.fly("Wetlands", "Menethil Harbor", "Menethil Harbor", "Ironforge")
+    p.boat("Dustwallow Marsh", "Theramore Isle")
     p.go("Tanaris", "Gadgetzan")
     p.late_nodes.append("Gadgetzan")
     p.guide_steps("forever/alliance/40-50/04-tanaris", 4, 15,
@@ -1627,20 +1647,27 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     p.go("Tanaris", "Gadgetzan")
     p.logout()
 
-    # 33. Fri 6 Nov: the Hinterlands from Aerie Peak, a quiet evening at 46. A day in
-    # Gadgetzan's inn banks about 18,000 XP at 46 (5% of a level every 8 hours): some is
-    # left at the end.
+    # 33. Fri 6 Nov: Tanaris's second round from Gadgetzan, then the trainer in Stormwind.
+    # A day in Gadgetzan's inn banks about 18,000 XP at 46 (5% of a level every 8 hours):
+    # some is left at the end.
     p.rested += 18000
     p.login(local(2026, 11, 6, 19, 30), "Tanaris", "Gadgetzan")
-    p.fly("Ironforge", "Ironforge", "Ironforge", "Gadgetzan")
-    p.late_nodes.append("Aerie Peak")  # found at 41, on the way to Uldaman's quests
-    p.fly("The Hinterlands", "Aerie Peak", "Aerie Peak", "Ironforge")
-    p.guide_steps("forever/alliance/40-50/05-the-hinterlands", 1, 14,
-                  {1: ("The Hinterlands", "Aerie Peak"), 5: ("The Hinterlands", "Quel'Danil Lodge"),
-                   10: ("The Hinterlands", "Skulk Rock"), 14: ("The Hinterlands", "Aerie Peak")},
-                  reach=(46, 45000), deaths=(10,), hours=2.2)
-    p.rec("bind", **p.here())
-    p.bind = "Aerie Peak"
+    # A hand-in at Gadgetzan ticks the guide's step 29 on the way out; Polestar then
+    # shows step 19 again, and the evening ends on step 28: next_step's fallback
+    # (the shown step behind the furthest one).
+    p.step("forever/alliance/40-50/04-tanaris", 29, "auto")
+    p.guide_steps("forever/alliance/40-50/04-tanaris", 19, 28,
+                  {19: ("Tanaris", "Gadgetzan"), 23: ("Tanaris", "The Broken Pillar"),
+                   25: ("Tanaris", "Dunemaul Compound"), 27: ("Tanaris", "Steamwheedle Port"),
+                   28: ("Tanaris", None)},
+                  reach=(46, 45000), deaths=(25,), hours=2.2)
+    # 46's spell ranks: back to Stormwind's trainer (Theramore's boat), and the night
+    # in the city.
+    p.go("Tanaris", "Gadgetzan")
+    p.fly("Dustwallow Marsh", "Theramore Isle", "Theramore Isle", "Gadgetzan")
+    p.boat("Wetlands", "Menethil Harbor")
+    p.fly("Stormwind City", "Stormwind City", "Stormwind City", "Menethil Harbor")
+    p.train()
     p.profession(TAILORING, 8)
     p.gear_sheet()
     p.logout()
@@ -1893,6 +1920,41 @@ def demo_players(rows: list[dict]) -> list[dict]:
     return out
 
 
+# The shirt and the tabard: worn for the look, never scored or sourced.
+LOOK_SLOTS = (4, 19)
+# ForeverDB's labels for a source that exists in Forever now: players saw it
+# there ("s") or the Forever client has it ("f"). "k" is Classic's data and
+# "c" a clue: an event or content not live in Forever has only those.
+LIVE_LABELS = ("s", "f")
+
+
+def in_forever(rows: list[dict]) -> None:
+    """Every item the demo character ever wears comes from something live in
+    Forever today, by our data: a ForeverDB source labelled LIVE_LABELS, or,
+    for an item ForeverDB doesn't list, Polestar's own Forever drop tables
+    (gear-reference's `sources`). The Gurubashi Arena's Arena Master (its
+    chest event isn't open in Forever, ForeverDB has Classic's data only)
+    once sat in his trinket slot (owner, 2026-11-24)."""
+    from wowstats import gear
+
+    fdb = (gear.sources_data() or {}).get("items") or {}
+    polestar = json.loads((ROOT / "data" / "gear-reference.json").read_text(encoding="utf-8"))["sources"]
+    bad = {}
+    for r in rows:
+        if r.get("feed") != "wow-gear" or not r.get("items"):
+            continue
+        for it in json.loads(r["items"]) if isinstance(r["items"], str) else r["items"]:
+            iid = str(it["item_id"])
+            if it.get("slot") in LOOK_SLOTS or iid in bad:
+                continue
+            srcs = (fdb.get(iid) or {}).get("sources")
+            live = any(x.get("label") in LIVE_LABELS for x in srcs) if srcs else bool(polestar.get(iid))
+            if not live:
+                bad[iid] = it.get("name")
+    if bad:
+        raise ValueError(f"the demo wears items from nothing live in Forever: {bad}")
+
+
 def build_demo(end_day: str | None = None) -> list[dict]:
     """The demo character's events, shifted by whole days so its last
     session is on `end_day` (YYYY-MM-DD; default: as generated)."""
@@ -1937,6 +1999,7 @@ def build_demo(end_day: str | None = None) -> list[dict]:
             recorder_on=True, saved_chars=1)
     p.out[-1].pop("char", None)
     rows = shipper_shapes(sorted(p.out, key=lambda r: r["_time"]))
+    in_forever(rows)
     rows = sorted(rows + demo_players(rows), key=lambda r: r["_time"])
     if end_day:
         last = datetime.fromtimestamp(end, TZ).date()

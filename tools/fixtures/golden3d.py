@@ -361,7 +361,8 @@ ITEMS: dict[int, tuple[str, tuple]] = {
     254007: ("boots", ((30, 28, 34), (90, 70, 120))),    # Black Slippers: his own tailoring
     4744: ("wrists", ((60, 80, 150), None)),             # Arcane Runed Bracers
     254027: ("gloves", ((30, 28, 34), None)),            # Black Handwraps: his own tailoring
-    11311: ("cloak", ((170, 60, 30), (240, 170, 60))),   # Emberscale Cape
+    254041: ("belt", ((150, 40, 30), (230, 140, 40))),              # Fiery Cord: his own, the fire one
+    10776: ("cloak", ((200, 200, 210), None)),           # Silky Spider Cape
     249454: ("staff", ((70, 60, 110), (170, 140, 255))),  # Dreamstaff: his own enchanting, and it glows
     274425: ("wand", ((0, 0, 0), None)),                 # White Obsidian Wand: never drawn
 }

@@ -238,8 +238,7 @@ def test_demo_has_no_gap(browser, base, which, width):
     assert not found, found
 
 
-# "2nd": the runner-up to the slot's best (gear.py standing rank 2), whatever its percent.
-BADGE = r"^(BiS|2nd|[1-9]?[0-9]%)$"
+BADGE = r"^(BiS|[1-9]?[0-9]%)$"
 TIERS = {"t-bis": (100, 100), "t-epic": (85, 99), "t-rare": (50, 84)}
 
 
@@ -274,9 +273,6 @@ def doll_badges(page) -> dict[str, set]:
 
 def check_badge(b: dict) -> None:
     assert re.match(BADGE, b["text"]), b
-    if b["text"] == "2nd":
-        assert any(t in b["cls"].split() for t in TIERS if t != "t-bis") and b["label"].endswith(("BiS", "2nd")), b
-        return
     pct = 100 if b["text"] == "BiS" else int(b["text"].rstrip("%"))
     tier = next((t for t in TIERS if t in b["cls"].split()), None)
     want = next((t for t, (lo, hi) in TIERS.items() if lo <= pct <= hi), None)
@@ -325,9 +321,7 @@ def test_items_carry_the_bis_badge(browser, base, width):
         m = re.match(r"^(empty|\d+%) → (\d+)% on your ([a-z ]+?)( at level \d+)?$", text)
         assert m and int(m.group(2)) == (100 if badge == "BiS" else int(badge.rstrip("%"))), (text, badge)
         # One BiS share per slot: the line starts from the doll's badge.
-        worn = doll.get(m.group(3), {"empty"})
-        # A runner-up's badge says "2nd", the line its percent: under the best's 100.
-        assert m.group(1) in worn or (worn == {"2nd"} and int(m.group(1).rstrip("%")) < 100), (text, worn)
+        assert m.group(1) in doll.get(m.group(3), {"empty"}), (text, doll.get(m.group(3)))
     # What a trip is worth: the chance a clear drops an upgrade, no points.
     trip = page.locator(".dg .dgfacts").first.inner_text()
     assert "Gear a clear" in trip and not re.search(r"[+−]\d+\.\d", trip), trip

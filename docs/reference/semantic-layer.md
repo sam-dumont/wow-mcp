@@ -101,8 +101,8 @@ All on `Nibbet-Gearholt` from [the demo](../self-host/demo.md) (made-up data), h
 |---|---|---|
 | Blackfathom Deeps | 2026-10-19 | 4980 |
 | Scarlet Monastery | 2026-11-09 | 2975 |
-| Uldaman | 2026-11-09 | 2969 |
 | Scarlet Monastery | 2026-11-02 | 2963 |
+| Uldaman | 2026-11-09 | 2862 |
 
 (Inside a dungeon the zone is the dungeon. Group by `dungeon` to name the dungeon whatever the
 zone says.)
@@ -127,9 +127,9 @@ zone says.)
 
 | zone | deaths | kills | deaths_per_100_kills |
 |---|---|---|---|
-| Stranglethorn Vale | 3 | 226 | 1.327 |
+| Stranglethorn Vale | 4 | 242 | 1.653 |
 | Wetlands | 3 | 424 | 0.708 |
-| Arathi Highlands | 2 | 246 | 0.813 |
+| Darkshore | 2 | 98 | 2.041 |
 
 **Same metric, two grains.** `"grain": "day"` gives one row a day; `"grain": "week"` adds them
 up (the test suite checks that the weeks sum to the days):
@@ -140,8 +140,8 @@ up (the test suite checks that the weeks sum to the days):
 | 2026-10-19 | 61513.5 |
 | 2026-10-26 | 34792.6 |
 | 2026-11-02 | 49416.1 |
-| 2026-11-09 | 44756.6 |
-| 2026-11-16 | 19833.7 |
+| 2026-11-09 | 44722.1 |
+| 2026-11-16 | 20622.7 |
 
 **Against the route planner** (a ratio, `played_s / planned_s`, over whole splits only):
 
@@ -170,8 +170,8 @@ quests only):
 | quest | quest_xp_per_min | done_quest_xp | done_quest_s | quest_wall_s |
 |---|---|---|---|---|
 | Blackfathom Villainy | 207.3 | 7850 | 2272.6 | 5071 |
-| Restoring the Necklace | 292.5 | 5600 | 1148.7 | 3446 |
-| Bring the Light | 269.0 | 4300 | 959.1 | 149288 |
+| Restoring the Necklace | 306.3 | 5600 | 1097.0 | 3291 |
+| Bring the Light | 286.3 | 4300 | 901.0 | 148781 |
 
 **Time per guide step**, with the step's name from the route reference:
 
@@ -183,8 +183,8 @@ quests only):
 | guide_title | step | step_title | online_s |
 |---|---|---|---|
 | Wetlands & Hillsbrad Foothills | 17 | The Dark Iron War | 5522 |
-| Stranglethorn Vale, Dustwallow Marsh & Swamp of Sorrows | 62 | Booty Bay | 5235 |
-| Stranglethorn Vale | 20 | The Savage Coast | 5084 |
+| Stranglethorn Vale | 20 | The Savage Coast | 5319 |
+| Stranglethorn Vale, Dustwallow Marsh & Swamp of Sorrows | 62 | Booty Bay | 4778 |
 
 **Kills per hour of combat** (`kills` from the records over `combat_s` from the timeline):
 
@@ -207,10 +207,10 @@ each.
 The obvious answers are wrong. Wall time from accept to hand-in (`quest_wall_s`) counts
 everything in between, the nights too: Blackfathom Villainy sat in the log 5,071 s for 2,273 s
 of shared play. Online time while open (`quest_open_s`) counts the same second once per open
-quest: on the demo the log holds about 1.8 quests at a time, so it adds up to 371,133 s, more
-than the 225,707 s he played in all.
+quest: on the demo the log holds about 1.8 quests at a time, so it adds up to 373,315 s, more
+than the 226,462 s he played in all.
 
-Shared, the times add up: on the demo `quest_s` sums to 211,904 s, the online time with at least
+Shared, the times add up: on the demo `quest_s` sums to 212,658 s, the online time with at least
 one quest in the log, nothing counted twice (a test checks it). What it can't know is which
 quest you were working on: a quest that sits in the log while you finish three others takes
 its share of their time, so one carried for days looks slow. `quests_open_avg` says how crowded
@@ -298,9 +298,9 @@ whole level), else the Recorder's records at that level. `in_play` picks the pop
 
 | Population | Filter | Demo (Nibbet, level 46) |
 |---|---|---|
-| The completed levels | `in_play = 0` | 2,240 kills, 143 quests (levels 22-45) |
-| The current level so far | `in_play = 1` | 77 kills, 4 quests |
-| Including the current level | none | 2,317 kills, 147 quests |
+| The completed levels | `in_play = 0` | 2,255 kills, 141 quests (levels 22-45) |
+| The current level so far | `in_play = 1` | 101 kills, 5 quests |
+| Including the current level | none | 2,356 kills, 146 quests |
 
 The page's climb says "over the completed levels" and puts the current level's so far beside
 it. The MCP's `character_summary` returns all three under `counts`: `completed_levels`,

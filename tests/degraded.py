@@ -68,7 +68,7 @@ def _old(rows: list[dict]) -> list[dict]:
 SWITCH = "2026-11-12T00:00:00Z"
 
 
-GAP = ("2026-11-05T17:20:00Z", "2026-11-05T18:30:00Z")
+GAP = ("2026-10-23T17:20:00Z", "2026-10-23T18:30:00Z")
 
 
 def _before(rows: list[dict], t: str = SWITCH) -> list[dict]:
@@ -104,12 +104,12 @@ SCENARIOS = {
     # then on again): level 28's split is longer than the Recorder saw.
     "recorder-gap": lambda rows: [r for r in rows if r["feed"] != "wow-recorder" or not (
         parse_t(GAP[0]) <= parse_t(r["_time"]) < parse_t(GAP[1]))],
-    # Level 32 finished with neither Polestar's split nor the Recorder's ding
+    # Level 44 finished with neither Polestar's split nor the Recorder's ding
     # out of it (the split lost, the Recorder off at the ding): its records
-    # are there, the level in play is 34.
+    # are there, the level in play is 46.
     "split-missing": lambda rows: [r for r in rows if not (
-        r["feed"] == "wow-level" and str(r.get("level")) == "32"
-        or r["feed"] == "wow-recorder" and r.get("kind") == "level" and str(r.get("level")) == "33")],
+        r["feed"] == "wow-level" and str(r.get("level")) == "44"
+        or r["feed"] == "wow-recorder" and r.get("kind") == "level" and str(r.get("level")) == "45")],
     # Syndicator installed at SWITCH.
     "syndicator-later-before": lambda rows: _setup(_before(_drop(rows, "wow-gear", "wow-bags")),
                                                    drop_addons=("syndicator",)),
