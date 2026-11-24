@@ -19,6 +19,12 @@ What comes after 0.10.0, in short. Every change follows.
   every item of the game data both ways for nine specs and gets the same numbers; the Pawn scale
   loses ranged-only hit for hunters and says so. Weights only: the addon keeps its own items.
 
+### Fixed
+
+- The MCP check gives the model the tools' clock. The tools run on the demo's frozen day, the
+  model on today's date, so "where is the character now?" read six-day-old data as stale and
+  answered NONE (`zone_now`). The docs count 71 questions (4 in market).
+
 ## 0.10.0 (2026-11-24)
 
 What 0.10.0 brings over 0.9.0, in short. Every change follows.
