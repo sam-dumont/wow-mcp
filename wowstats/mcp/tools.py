@@ -21,6 +21,7 @@ from datetime import UTC, datetime, timedelta
 
 from .. import ahsource, gearfit
 from .. import gear as gearmod
+from ..eventstore import generation_of
 from ..stores import (
     SESSION_GAP_S,
     SNAPSHOT_SORT,
@@ -1801,7 +1802,7 @@ def strip_invisible(name: str, out):
     return out
 
 
-_MISSING: dict[tuple, tuple[float, dict]] = {}
+_MISSING: dict[tuple, tuple[float, dict, int]] = {}  # key -> (when, answer, write generation)
 
 
 def _store_key(ctx: Ctx) -> tuple:
@@ -1809,11 +1810,15 @@ def _store_key(ctx: Ctx) -> tuple:
     return tuple(getattr(ctx.store, k, None) for k in ("vl_url", "vl_archive_url", "account_id", "logs_filter"))
 
 
-def _cached(key: tuple, fn):
-    """`fn()` kept 60 s under `key` (the missing list, the Recorder's gaps)."""
+def _cached(ctx: Ctx, key: tuple, fn):
+    """`fn()` kept 60 s under `key` (the missing list, the Recorder's gaps),
+    and not past an upload to ctx.store (wowstats.eventstore's write
+    generation): a character ingested for the first time was "unknown
+    character" here for a minute (testing #239)."""
+    gen = generation_of(ctx.store)
     hit = _MISSING.get(key)
-    if hit is None or time.time() - hit[0] > 60:
-        hit = (time.time(), fn())
+    if hit is None or time.time() - hit[0] > 60 or hit[2] != gen:
+        hit = (time.time(), fn(), gen)
         _MISSING[key] = hit
         if len(_MISSING) > 64:
             _MISSING.pop(min(_MISSING, key=lambda k: _MISSING[k][0]), None)
@@ -1823,7 +1828,7 @@ def _cached(key: tuple, fn):
 def _snapshot(ctx: Ctx) -> dict:
     from wowstats import missing
 
-    return _cached(_store_key(ctx), lambda: missing.snapshot(ctx.store.logs))
+    return _cached(ctx, _store_key(ctx), lambda: missing.snapshot(ctx.store.logs))
 
 
 def recorder_gaps(ctx: Ctx, char: str) -> tuple[list[tuple[float, float]], list[dict]]:
@@ -1843,7 +1848,7 @@ def recorder_gaps(ctx: Ctx, char: str) -> tuple[list[tuple[float, float]], list[
                  "off_s": int(r["recorder_missed_s"])} for r in lv if (r["recorder_missed_s"] or 0) > 0]
         return spans, gaps
 
-    return _cached((*_store_key(ctx), "gaps", char), read)
+    return _cached(ctx, (*_store_key(ctx), "gaps", char), read)
 
 
 def splits_missing(ctx: Ctx, char: str) -> list[dict]:
@@ -1862,7 +1867,7 @@ def splits_missing(ctx: Ctx, char: str) -> list[dict]:
         return coverage.polestar_gaps([r["level"] for r in lv if r["split_levels"]],
                                       max((r["level"] for r in lv), default=None))
 
-    return _cached((*_store_key(ctx), "splits", char), read)
+    return _cached(ctx, (*_store_key(ctx), "splits", char), read)
 
 
 def _utc_s(t) -> str | None:
@@ -1887,7 +1892,7 @@ def coverage_for(ctx: Ctx, char: str) -> dict | None:
         return cov
 
     try:
-        return _cached((*_store_key(ctx), "coverage", char, bnet_vm_url(ctx)), build)
+        return _cached(ctx, (*_store_key(ctx), "coverage", char, bnet_vm_url(ctx)), build)
     except (SourceError, ViewsSourceError):
         return coverage.unknown()
     except Exception:  # noqa: BLE001 - the answer matters more than its footnote; the log keeps the bug

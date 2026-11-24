@@ -19,7 +19,8 @@ read ten times over (243k rows for 23k events). Now:
   and re-reads only the hours whose count moved.
 - One refresh at a time per character (single-flight): the page's
   parallel requests wait for the same read. A refresh is reused for
-  FRESH_S seconds.
+  FRESH_S seconds, unless this process wrote to the store since (an
+  upload: wowstats.eventstore's write generation).
 - Every VictoriaLogs request of the process goes through one gate,
   stores.VL_GATE (VL_CONCURRENCY, 2 by default).
 - Complete or it says so: an hour over a page is read by the minute, a
@@ -47,6 +48,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from . import logsql
+from .eventstore import generation_of
 from .stores import HISTORY_START, IncompleteRead, hour_pages, iso, lq, num, parse_t
 
 EXCLUDED = ("wow-prices", "wow-combatlog")
@@ -88,6 +90,7 @@ class _Entry:
     short: dict[int, int] = field(default_factory=dict)  # second (epoch s) -> rows it holds, over a page
     stamp: int = 0  # which snapshot `rows` is (_STAMPS); moves only when the hourly counts did
     newest: str | None = None  # the newest event's time in `rows` (ISO UTC, seconds): the snapshot's as_of
+    gen: int = -1  # the store's write generation (wowstats.eventstore) the last refresh started at
 
 
 class EventCache:
@@ -153,9 +156,12 @@ class EventCache:
             while len(self._entries) > self.max_chars:
                 self._entries.popitem(last=False)
         with e.lock:  # single-flight: the others wait for this read
-            if not (e.at and time.monotonic() - e.at < self.fresh_s):
+            # Read before the refresh: a write landing during it moves the
+            # generation again, and the next read asks once more.
+            gen = generation_of(self.store)
+            if not (e.at and time.monotonic() - e.at < self.fresh_s and e.gen == gen):
                 self._refresh(char, e)
-                e.at = time.monotonic()
+                e.at, e.gen = time.monotonic(), gen
             return e.rows, dict(e.short), e.stamp, e.newest
 
     def _base(self, char: str) -> str:

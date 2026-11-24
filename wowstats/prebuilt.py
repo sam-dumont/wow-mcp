@@ -10,6 +10,11 @@ when the data changed, and the routes serve that set until the next one is
 complete. Opening the page never waits on a store once the first build is
 in; before it (the process just started), answers are worked out as before.
 
+An upload this process takes (/ingest) moves the events' write generation
+(wowstats.eventstore): the set built before it is not served from then on,
+the answers are worked out when asked until the builder, woken by the
+upload, has the next one in. A page never shows less than /ingest said 200 to.
+
 "Changed" is what the publisher checks too: the newest event's time, plus
 here the number of events (a late upload of an old session moves no
 newest time), and the Battle.net fingerprint in vm-wow. One small stats
@@ -77,6 +82,7 @@ class Prebuilt:
         self.app = app
         self.answers: dict[str, dict] | None = None
         self.mark: tuple | None = None
+        self.gen = -1  # the events' write generation the set was built at (wowstats.eventstore)
         self.built_at = 0.0
         self.market_at = 0.0
         self.checked_at = ""
@@ -92,7 +98,11 @@ class Prebuilt:
         found nothing new, and marked stale while the stores don't answer."""
         answers = self.answers
         hit = answers.get(key) if answers is not None else None
-        if hit is None:
+        if hit is None or self.gen != self.app.generation():
+            # Built before an upload this process took: worked out when asked
+            # until the next set is in (a few seconds: the upload woke the
+            # builder), never an answer that misses what /ingest just said 200
+            # to (a new character was "no events for X", testing #239).
             return None
         out = {**hit, "generated_at": self.checked_at or hit.get("generated_at")}
         if self.error:  # the detail stays in self.error, for the owner's overview (wowstats.admin)
@@ -113,13 +123,14 @@ class Prebuilt:
         """Rebuild when the data moved; returns why it did, or None."""
         now = time.time() if now is None else now
         with self._lock:
+            gen = self.app.generation()  # before the build's reads, like the cache's (ui.App._build)
             try:
                 mark = self.app.data_mark(self.mark)
             except SourceError as e:
                 self.error, self.public_error = str(e), public_error(e, "the answers' check")
                 self.failed_at = now
                 return None
-            why = ("first build" if self.answers is None else "new data" if mark != self.mark
+            why = ("first build" if self.answers is None else "new data" if mark != self.mark or gen != self.gen
                    else "changed" if self.dirty else "daily rebuild" if now - self.built_at >= MAX_AGE_S
                    else "market" if self.app.view == "full" and now - self.market_at >= MARKET_S else None)
             if why is None:
@@ -132,7 +143,7 @@ class Prebuilt:
                     self.answers = self.app.page_answers(only="market:", keep=self.answers)
                 else:
                     self.answers = self.app.page_answers()
-                    self.mark, self.built_at = mark, now
+                    self.mark, self.built_at, self.gen = mark, now, gen
             except SourceError as e:
                 # A store down mid-build: the last set stays, marked stale.
                 self.error, self.public_error = str(e), public_error(e, f"the answers' build ({why})")

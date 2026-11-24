@@ -73,6 +73,7 @@ from wowstats import (
     redact,
 )
 from wowstats import gear as gearmod
+from wowstats.eventstore import generation_of
 from wowstats.stores import SourceError, Store, env_account, iso, parse_t, public_error
 from wowstats.views import (  # noqa: F401 - parse_weights: ui.parse_weights
     ConfigError,
@@ -315,7 +316,7 @@ class App:
 
             self.stats = publish.analytics(env)
         self.env = env
-        self._cache: dict[str, tuple[float, dict]] = {}
+        self._cache: dict[str, tuple[float, dict, int]] = {}  # key -> (when, answer, write generation)
         # key -> [lock, users]: only keys being built (review 0.6.0, S5).
         self._locks: dict[str, list] = {}
         self._guard = threading.Lock()
@@ -356,7 +357,7 @@ class App:
         if hit is not None:
             return hit
         hit = self._cache.get(key)
-        if hit and time.time() - hit[0] < self.cache_ttl:
+        if hit and time.time() - hit[0] < self.cache_ttl and hit[2] == self.generation():
             return hit[1]
         # One lock per key in flight, dropped with its last user: a fixed
         # array of locks would deadlock a build that asks for another key.
@@ -395,10 +396,18 @@ class App:
                 cards[str(i)] = {**got, **cards.get(str(i), {})}
         return cards
 
+    def generation(self) -> int:
+        """The events' write generation (wowstats.eventstore): an answer
+        built at another one predates an upload this process took, and
+        is out of date however young (a character ingested for the first
+        time was "no events for X" for CACHE_TTL, testing #239)."""
+        return generation_of(self.store)
+
     def _build(self, key: str, fn, lock: threading.Lock):
         with lock:
+            gen = self.generation()  # before the read: an upload during it makes the next ask build again
             hit = self._cache.get(key)
-            if hit and time.time() - hit[0] < self.cache_ttl:
+            if hit and time.time() - hit[0] < self.cache_ttl and hit[2] == gen:
                 return hit[1]
             try:
                 value = fn()
@@ -409,7 +418,7 @@ class App:
                     return {**hit[1], "stale": True, "error": public_error(e, "a cached answer")}
                 raise
             value = {**value, "generated_at": iso(datetime.now(UTC))}
-            self._cache[key] = (time.time(), value)
+            self._cache[key] = (time.time(), value, gen)
             if len(self._cache) > 64:  # a few characters at most; never grows unbounded
                 oldest = min(self._cache, key=lambda k: self._cache[k][0])
                 self._cache.pop(oldest, None)

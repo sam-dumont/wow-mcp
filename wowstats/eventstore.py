@@ -76,6 +76,39 @@ def describe(location: str) -> str:
 _OPEN: dict[str, object] = {}
 _OPEN_LOCK = threading.Lock()
 
+# The write generation of each (store, tenant): moved by every write this
+# process makes (append, delete), after the rows are readable. Every cache
+# of what the events say keeps the generation it read at and is out of date
+# once it moved (wowstats.eventcache, ui.App's answers, wowstats.prebuilt,
+# the MCP's character list, the plan's inputs). Testing #239, a character
+# ingested for the first time was "no events for X" until those caches'
+# clocks ran out. Writes from another process (the demo seeded straight to
+# VictoriaLogs) don't move it: the page's minute check (prebuilt) still
+# finds those.
+_GEN: dict[tuple[str, int], int] = {}
+_GEN_LOCK = threading.Lock()
+
+
+def _wrote(location: str, tenant: int) -> None:
+    key = (location.rstrip("/"), int(tenant))
+    with _GEN_LOCK:
+        _GEN[key] = _GEN.get(key, 0) + 1
+
+
+def generation(location: str, tenant: int) -> int:
+    """How many writes this process made to `location` for `tenant`."""
+    return _GEN.get((location.rstrip("/"), int(tenant)), 0)
+
+
+def generation_of(store) -> int:
+    """The write generation of a store object (wowstats.stores.Store, the
+    MCP's Store): its events' location and tenant. 0 for one without them
+    (a test's fake)."""
+    location = getattr(store, "vl_url", None)
+    if not isinstance(location, str):
+        return 0
+    return generation(location, getattr(store, "account_id", 0) or 0)
+
 
 def get(location: str):
     """The store at `location` (an http(s) URL or sqlite:<folder>), one per
@@ -129,6 +162,23 @@ class VictoriaLogs:
             raise SourceError(f"{at} answered {e.code}") from None
         except (urllib.error.URLError, OSError) as e:
             raise SourceError(f"{at} unreachable: {e}") from None
+        self.flush(tenant)
+        _wrote(self.url, tenant)
+
+    def flush(self, tenant: int = 0) -> None:
+        """Make what was just stored searchable now: VictoriaLogs holds new
+        rows in memory for up to a few seconds first, and a read in between
+        (the page right after /ingest, its write generation moved) would
+        cache the answer without them. Best effort: a VictoriaLogs that
+        refuses it (-forceFlushAuthKey) is only that late."""
+        try:
+            # A GET, in the caller's tenant like every request here (it flushes
+            # every tenant's rows all the same).
+            req = urllib.request.Request(f"{self.url}/internal/force_flush", headers=tenant_headers(tenant))
+            with urllib.request.urlopen(req, timeout=10) as r:
+                r.read()
+        except (urllib.error.URLError, OSError):
+            pass
 
     def delete(self, tenant: int, auth_key: str = "", before: datetime | None = None) -> dict:
         """Every event of the tenant, or only those older than `before`: a
@@ -141,10 +191,12 @@ class VictoriaLogs:
                                               "Content-Type": "application/x-www-form-urlencoded"})
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
-                return json.loads(r.read() or b"{}")
+                out = json.loads(r.read() or b"{}")
         except urllib.error.HTTPError as e:
             raise SourceError(f"VictoriaLogs refused the delete: {e.code} "
                               f"{e.read(200).decode('utf-8', 'replace')}") from None
+        _wrote(self.url, tenant)
+        return out
 
     def health(self, timeout: float = 5) -> dict:
         t0 = time.monotonic()
@@ -242,6 +294,7 @@ class SQLiteEvents:
     archive = False
 
     def __init__(self, folder: str):
+        self.location = SQLITE + folder  # as named, the write generation's key (Store.vl_url)
         self.folder = Path(folder)
         self._made: set[Path] = set()
         self._lock = threading.Lock()
@@ -293,7 +346,10 @@ class SQLiteEvents:
             con.executemany("INSERT OR IGNORE INTO events (t_us, char, feed, source_id, line_key, row) "
                             "VALUES (?, ?, ?, ?, ?, ?)", rows)
             con.execute("COMMIT")
-            return con.total_changes - before
+            new = con.total_changes - before
+        if new:
+            _wrote(self.location, tenant)
+        return new
 
     def query(self, tenant: int, q: str, start: datetime, end: datetime, limit: int) -> list[dict]:
         from . import logsql
@@ -328,7 +384,8 @@ class SQLiteEvents:
                 if con is None:
                     return {"deleted_rows": 0}
                 cur = con.execute("DELETE FROM events WHERE t_us < ?", (_us(before),))
-                return {"deleted_rows": cur.rowcount}
+            _wrote(self.location, tenant)
+            return {"deleted_rows": cur.rowcount}
         gone = []
         for suffix in ("", "-wal", "-shm"):
             p = Path(f"{self.path(tenant)}{suffix}")
@@ -336,6 +393,7 @@ class SQLiteEvents:
                 p.unlink()
                 gone.append(p.name)
         self._made.discard(self.path(tenant))
+        _wrote(self.location, tenant)
         return {"deleted_files": gone}
 
     def health(self, timeout: float = 5) -> dict:

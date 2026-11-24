@@ -19,7 +19,7 @@ VL_IMAGE := $(shell sed -n 's|^ *image: \(docker.io/victoriametrics/victoria-log
 test-vl:
 	docker run -d --rm --name wow-test-vl -p 127.0.0.1:19428:9428 $(VL_IMAGE) -retentionPeriod=100y >/dev/null
 	for _ in $$(seq 1 30); do curl -fsS http://127.0.0.1:19428/health >/dev/null 2>&1 && break; sleep 1; done
-	WOW_TEST_VL_URL=http://127.0.0.1:19428 uv run pytest -q -rs tests/test_logsql.py; s=$$?; docker stop wow-test-vl >/dev/null; exit $$s
+	WOW_TEST_VL_URL=http://127.0.0.1:19428 uv run pytest -q -rs tests/test_logsql.py tests/test_ingest_fresh.py; s=$$?; docker stop wow-test-vl >/dev/null; exit $$s
 
 # The browser suites: once before a release, not on every change. A whole file
 # per worker, so a file's server and browser are launched once.

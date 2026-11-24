@@ -1,5 +1,4 @@
 import contextlib
-import hashlib
 import importlib.util
 import os
 import sys
@@ -221,8 +220,32 @@ def pytest_addoption(parser):
                      help="run the K-th of N parts of the suite, whole test files each (ci.yml's test matrix)")
 
 
-def _shard_of(path: str, n: int) -> int:
-    return int(hashlib.sha1(path.encode()).hexdigest(), 16) % n + 1
+# Seconds each test file takes, summed over its tests (setup and teardown
+# included), from a run of the whole suite: tools/shard_times.py writes it.
+SHARD_TIMES = ROOT / "tests" / "shard_times.json"
+
+
+def _shards(paths: set[str], n: int) -> dict[str, int]:
+    """Each file's part, 1 to N: the slowest file first, each to the part
+    with the fewest seconds so far (ties to the lowest part, then by path, so
+    every job of the matrix computes the same split). A file the table
+    doesn't know weighs the table's median until it's measured. The browser
+    files are split on their own: a run keeps either them or the rest, so
+    each pool is balanced by itself."""
+    import json
+    import statistics
+
+    times = json.loads(SHARD_TIMES.read_text()) if SHARD_TIMES.exists() else {}
+    default = statistics.median(times.values()) if times else 1.0
+    out: dict[str, int] = {}
+    for pool in (sorted(p for p in paths if "browser" in Path(p).name),
+                 sorted(p for p in paths if "browser" not in Path(p).name)):
+        load = [0.0] * n
+        for path in sorted(pool, key=lambda p: -float(times.get(p, default))):
+            k = min(range(n), key=lambda i: load[i])
+            load[k] += float(times.get(path, default))
+            out[path] = k + 1
+    return out
 
 
 def pytest_collection_modifyitems(config, items):
@@ -231,11 +254,12 @@ def pytest_collection_modifyitems(config, items):
     suite and `-m browser` the heavy one (tools/test_changed.py picks between
     them from the diff).
 
-    `--shard K/N` keeps the test files whose path hashes to K: CI runs the
-    suite as N jobs side by side (one job on 4 cores reached its 20 minutes,
-    2026-11-22). Whole files, so a module's fixtures are built in one job
-    only; the hash of the path, so a file stays in its part as others come
-    and go (2026-11-22, N=3 on a Mac: 75 s, 164 s and 92 s)."""
+    `--shard K/N` keeps the K-th of N parts: CI runs the suite as N jobs side
+    by side (one job on 4 cores reached its 20 minutes, 2026-11-22). Whole
+    files, so a module's fixtures are built in one job only, split by their
+    measured time (_shards). The parts used to be the hash of the path: on
+    2026-11-24 part 2 got 1,568 tests and 17 minutes, part 1 995 and 5, and a
+    slower runner cancelled part 2 at its 20 minutes (#235)."""
     for item in items:
         name = Path(str(item.fspath)).name
         if "browser" in name:
@@ -248,9 +272,10 @@ def pytest_collection_modifyitems(config, items):
         if not 1 <= k <= n:
             raise pytest.UsageError(f"--shard {shard}: K from 1 to N")
         keep, drop = [], []
+        rel = {item: Path(str(item.fspath)).resolve().relative_to(ROOT).as_posix() for item in items}
+        part = _shards(set(rel.values()), n)
         for item in items:
-            path = Path(str(item.fspath)).resolve().relative_to(ROOT).as_posix()
-            (keep if _shard_of(path, n) == k else drop).append(item)
+            (keep if part[rel[item]] == k else drop).append(item)
         if drop:
             config.hook.pytest_deselected(items=drop)
             items[:] = keep

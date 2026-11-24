@@ -46,6 +46,7 @@ import time
 from pathlib import Path
 
 from wowstats import character3d
+from wowstats.eventstore import generation_of
 
 # /model3d/view: the frame the viewer runs in. `sandbox="allow-scripts"`
 # with no allow-same-origin makes its origin opaque: it can't read the page
@@ -176,7 +177,7 @@ class Model3D:
         # the store's tables don't change.
         self.load_tables = character3d.load_tables
         self._tables: tuple[tuple, object] | None = None
-        self._wanted: tuple[float, set[int], object] | None = None
+        self._wanted: tuple[float, set[int], object, int] | None = None  # (when, ids, tables, write generation)
         self.lock = threading.Lock()
 
     # ------------------------------------------------------------ the store
@@ -393,8 +394,11 @@ class Model3D:
         resolve the outfits with) is never kept, so the shipper's next ask,
         right after it sent them, gets the files. A failure keeps the last set."""
         tables = self.tables()
+        # A new character or new gear since (an upload, wowstats.eventstore's
+        # write generation): the shipper is asked for their files at once.
+        gen = generation_of(getattr(app, "store", None))
         with self.lock:
-            if (self._wanted and tables is not None and self._wanted[2] is tables
+            if (self._wanted and tables is not None and self._wanted[2] is tables and self._wanted[3] == gen
                     and time.time() - self._wanted[0] < WANTED_TTL):
                 return set(self._wanted[1])
         out: set[int] = set()
@@ -429,5 +433,5 @@ class Model3D:
             with self.lock:
                 return set(self._wanted[1]) if self._wanted else set()
         with self.lock:
-            self._wanted = (time.time(), out, tables)
+            self._wanted = (time.time(), out, tables, gen)
         return set(out)
