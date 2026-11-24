@@ -315,7 +315,10 @@ quests, exact), WoWSims Exporter (`WowSimsExporter.lua`, its
 other players),
 GearQuestForever and ForeverLevelingBiS (tracked upgrades, spec) for the
 gear panel, ForeverDB (optional: its armory snapshot's PvP part only, the
-same rank with the honorable kills; the newest of the three saves wins), and LibForeverData, Polestar_QuestDB or Polestar_ItemDB only to
+same rank with the honorable kills; the newest of the three saves wins),
+ForeverDB_Helper (optional: its journal's groupmate entries only, who you
+grouped with, in which zone or dungeon, their level, class, race and role;
+never their realm or guild, nor the rest of the journal), and LibForeverData, Polestar_QuestDB or Polestar_ItemDB only to
 look up quest and item names and item levels.
 Missing addons just mean fewer events.
 

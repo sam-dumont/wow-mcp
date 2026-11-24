@@ -116,7 +116,7 @@ CL_GUID = re.compile(r"^(?:[A-Za-z]+-\d|0000000000000000$)")
 AFFIL_MINE = 0x1
 ANOTHER_PLAYER = "another player"
 CL_KEYS = frozenset({"event", "zone", "source_name", "dest_name"})
-PLAYER_KEYS = frozenset({"player", "context", "zone", "level", "class", "race", "dungeon", "source"})
+PLAYER_KEYS = frozenset({"player", "context", "zone", "level", "class", "race", "dungeon", "role", "source"})
 
 
 def cl_standard(cols: list[str]) -> bool:

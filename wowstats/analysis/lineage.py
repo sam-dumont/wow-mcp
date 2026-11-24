@@ -12,8 +12,8 @@ timestamps apart are seconds. Anything else is unknown (None).
 
 Where a column's unit comes from: a view per grain's column carries its
 metric's unit (semantic.yaml); a prep table's column follows the prep's
-naming (`*_s` and `seconds` are seconds, `*_pct` a percent, `t`, `t0`,
-`t1` and `*_t` unix seconds)."""
+naming (`*_s` and `seconds` are seconds, `*_pct` a percent, `*_copper`
+copper, `t`, `t0`, `t1` and `*_t` unix seconds)."""
 
 from __future__ import annotations
 
@@ -44,6 +44,8 @@ def raw_unit(column: str) -> str | None:
         return "seconds"
     if column.endswith("_pct"):
         return "percent"
+    if column.endswith("_copper"):
+        return "copper"
     if column in ("t", "t0", "t1") or column.endswith("_t"):
         return TIME
     return None

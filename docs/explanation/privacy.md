@@ -33,6 +33,9 @@ the computer you play on:
   lockouts, and its money, XP, rested XP and hearthstone at each logout. Never its friends list,
   calendar, guild tables (name, rank, bank, members' gear), mail or auction bidders: the shipper
   doesn't read them, and the server drops any of it an older or modified shipper sends.
+- **ForeverDB_Helper** (optional): the players its journal names when they join your group,
+  each once a day: name, level, class, race, role, and the zone or dungeon. Never their realm
+  or guild, and nothing else of its journal.
 - **WoWSims Exporter**: your own characters' talent builds, each time one changes. Never the
   other players it keeps in its file (the people you inspected or grouped with).
 - **Polestar Client's `sent.jsonl`**, read only: the Recorder chunks it uploaded in the last 8
