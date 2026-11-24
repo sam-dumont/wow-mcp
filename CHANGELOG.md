@@ -47,6 +47,15 @@
   login) and the higher cap wins. Without Altoholic, the move says what it last saw and when
   ("Enchanting 150/150 when Polestar Recorder last saw it (17 Nov): if you haven't trained
   Expert since...") and its title ends "if not done yet", on the page too.
+- Riding had the same blind spot: with no Polestar Recorder record of the Riding skill, next
+  moves and the mount goal took riding as not trained, so a training the Recorder didn't see
+  read "not learned". Riding now also comes from Altoholic's spellbook (`DataStore_Spells`,
+  read at each login: Apprentice Riding is spell 33388) and the Recorder's learn records; the
+  highest rank wins. Past level 40 with nothing seeing riding, the move says so and when it
+  last looked ("No riding in your spellbook as Altoholic last read it (23 Nov) nor in Polestar
+  Recorder's records: if you haven't trained Apprentice Riding yet..."), its title ends "if not
+  trained yet", and `mount_goal` marks the tier `may_be_trained`. The gear page's riding share
+  and the semantic layer's `riding` model (new `riding_rank`) read the same.
 
 ### Removed
 
@@ -77,6 +86,12 @@
 
 ### Tests
 
+- `tests/test_workflow_guard.py` checks the pull-request workflows against main's required
+  checks (`.github/required-checks.txt`, kept equal to the ruleset by hand): no reusable-workflow
+  call job named like a required check, and each required check made by exactly one job (#202's
+  skipped `test` passed the gate).
+- `tests/test_riding.py`: riding from a DataStore_Spells save through the shipper to the moves
+  and the mount goal, hedged when nothing saw it.
 - `tests/test_gear_foreverdb.py` replaces the Polestar Lua parity test: weights, ladder
   scores, picks and weapon setups against ForeverDB fixtures, in the normal suite. A slice
   checks the page and the MCP agree in each mode.

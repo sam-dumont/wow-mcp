@@ -743,9 +743,14 @@ def profession_claims(level: int | None, gear_profs: list[dict], skills: dict[in
 
 def riding_claims(level: int | None, header: dict | None, skills: dict[int, dict]) -> list[dict]:
     """Riding, from RIDING_AHEAD levels before its tier: the race's trainer,
-    the level, and the price against the gold the character holds."""
+    the level, and the price against the gold the character holds. Riding's
+    entry in `skills` is wowstats.riding.merge's (the spellbook, the
+    Recorder's learn and skill records): no read saw a rank. That proves
+    nothing past the tier's level (the Recorder misses a training it didn't
+    see), so the move then says "if not trained yet" and what was read when."""
     hd = header or {}
-    if level is None or ((skills or {}).get(RIDING_SKILL) or {}).get("rank"):
+    rd = (skills or {}).get(RIDING_SKILL) or {}
+    if level is None or rd.get("rank"):
         return []
     r = trainers.riding(hd.get("race"), hd.get("faction"))
     rule = kb.static_rule("riding.apprentice")
@@ -762,15 +767,29 @@ def riding_claims(level: int | None, header: dict | None, skills: dict[int, dict
     have = None if money is None else int(money) // 100 * 100
     gold = ("" if have is None else f"; you have {_coins(have)}"
             + ("" if have >= cost else f"; {_coins(cost - have)} to go"))
-    text = (f"Riding at level {tier['level']}{'' if lv_ok else f' (you are {level})'}: {t['name']}, "
-            f"{t['zone']['name']} ({t['x']:.1f}, {t['y']:.1f}); {_coins(cost)} ({PRICE_NOTE}){gold}.")
-    return [claim(text, "#gear", "Polestar's riding reminder (QoL/Riding.lua): trainer per race; level and cost: the "
-                                 f"knowledge base's riding.apprentice ({rule['source_url']}, as of "
-                                 f"{rule['last_verified']})",
-                  kind="riding", title=f"Riding at level {tier['level']}", weight=2.5 if lv_ok else 1.8,
+    # Under the tier's level it can't have been trained: no hedge needed.
+    stale = lv_ok
+    book = parse_t(rd["book_t"]) if rd.get("book_t") else None
+    book = book if book and book.year > 2000 else None
+    seen = (f"your spellbook as Altoholic last read it ({book:%-d %b}) nor in Polestar Recorder's records" if book
+            else "Polestar Recorder's records")
+    head = (f"No riding in {seen}: if you haven't trained Apprentice Riding yet, it's trained from level "
+            f"{tier['level']}.")
+    where = f"{t['name']}, {t['zone']['name']} ({t['x']:.1f}, {t['y']:.1f}); {_coins(cost)} ({PRICE_NOTE}){gold}."
+    text = f"{head} {where[0].upper()}{where[1:]}" if stale else f"Riding at level {tier['level']}" + (
+        "" if lv_ok else f" (you are {level})") + f": {where}"
+    refresh = ("Trained it already? With Altoholic installed your spellbook is read at each login; else Polestar "
+               "Recorder sees it at your next riding skill-up.") if stale else None
+    return [claim(text + (f" {refresh}" if refresh else ""), "#gear",
+                  "Polestar's riding reminder (QoL/Riding.lua): trainer per race; level and cost: the "
+                  f"knowledge base's riding.apprentice ({rule['source_url']}, as of {rule['last_verified']}); "
+                  "riding known: Altoholic's spellbook (DataStore_Spells), else Polestar Recorder's learn and "
+                  "skill records",
+                  kind="riding", title=f"Riding at level {tier['level']}" + (", if not trained yet" if stale else ""),
+                  weight=2.5 if lv_ok else 1.8, action=refresh, detail=head if stale else None,
                   skill={"name": "Riding", "next": "Apprentice Riding", "need_level": tier["level"],
                          "level_ok": lv_ok, "cost_copper": cost, "cost_scope": PRICE_NOTE,
-                         "money_copper": have, "trainers": [t]})]
+                         "money_copper": have, "trainers": [t], "may_be_stale": stale})]
 
 
 def _coins(copper: int) -> str:

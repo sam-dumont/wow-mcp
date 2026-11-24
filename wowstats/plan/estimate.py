@@ -557,7 +557,12 @@ def mounts(inp: dict, p: dict) -> dict:
     route = {int(k): v for k, v in (inp.get("route_levels") or {}).items()}
     level, xp = inp["level"], inp["xp"]
     tiers = []
-    have = inp.get("mount", {}).get("riding_skill") or 0
+    have = m.get("riding_skill") or 0
+    # Only Altoholic's spellbook reads riding from the game (wowstats.riding):
+    # the Recorder misses a training it didn't see, so a tier not seen
+    # trained at or past its level may be (2026-11-24, the profession caps'
+    # blind spot). Under its level it can't be.
+    seen_in_game = m.get("riding_from") == "game"
     savings = gold
     missing: list[str] = []
     for t in m.get("tiers") or []:
@@ -578,7 +583,9 @@ def mounts(inp: dict, p: dict) -> dict:
                       "training_copper": t["training_copper"],
                       "mount_copper": None if t.get("comes_with_mount") else t.get("vendor_mount_copper"),
                       "extra_mount_copper": t.get("vendor_mount_copper") if t.get("comes_with_mount") else None,
-                      "comes_with_mount": bool(t.get("comes_with_mount")), "bought": bought, "source": t.get("source"),
+                      "comes_with_mount": bool(t.get("comes_with_mount")), "bought": bought,
+                      "may_be_trained": not bought and not seen_in_game and level >= t["level"],
+                      "source": t.get("source"),
                       "left_copper": left, "eta_played_s": round(eta_s) if eta_s is not None else None,
                       "eta_level": level_at(inp, route, lf, eta_s) if eta_s is not None else None,
                       "played_to_level_s": round(hrs_to_level) if hrs_to_level is not None else None,
@@ -589,6 +596,10 @@ def mounts(inp: dict, p: dict) -> dict:
         if not bought:
             savings = max(0, savings - need)  # what is left after buying rolls over
     current = next((t for t in tiers if not t["bought"]), None)
+    if current and current["may_be_trained"]:
+        missing.append(f"whether {current['name']} is trained: no read saw it (Altoholic's spellbook, read at each "
+                       "login, would; Polestar Recorder misses a training it didn't see), so it counts as not "
+                       "trained yet")
     return {"tiers": tiers, "current": current, "gold_copper": gold, "gold_rate": inp.get("gold_rate"),
             "behind": bool(current and current["behind"]), "discount": m.get("discount"),
             "unknown": (m.get("unknown") or []) + missing, "level": level, "xp": xp}

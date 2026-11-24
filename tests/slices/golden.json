@@ -14,7 +14,7 @@
    "raids-open-2026-12|1"
   ],
   "moves": [
-   "riding|Riding at level #",
+   "riding|Riding at level # if not trained yet",
    "upgrade|21273",
    "upgrade|21329",
    "upgrade|21332"

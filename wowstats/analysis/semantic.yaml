@@ -1840,7 +1840,17 @@ riding:
       expr: _.gap_copper.max()
       description: "What the tier's training still needs: its cost minus the money on the newest snapshot, 0 when the money covers it or the riding skill already reaches it."
       metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: copper,
-                 caveats: "Group by tier. A riding rank trained before the Recorder ran has no skill record and reads untrained. NULL without a snapshot with money: log out once (the shipper reads the money at logout and /reload)."}
+                 caveats: "Group by tier. The riding rank is the highest any read saw (Altoholic's spellbook, the Recorder's learn and skill records); without Altoholic, a training the Recorder didn't see reads untrained. NULL without a snapshot with money: log out once (the shipper reads the money at logout and /reload)."}
+    riding_rank:
+      expr: _.riding_rank.max()
+      description: "The riding skill rank known (75 Apprentice, 150 Journeyman; 0 none seen): the highest of Altoholic's spellbook (DataStore_Spells), the Recorder's learn records of a riding spell and its Riding skill records."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: rank,
+                 caveats: "0 is no read saw riding, not proof it isn't trained: the Recorder misses a training it didn't see, and a spellbook proves an absence only once it has listed a riding spell."}
+    riding_book_rank:
+      expr: _.book_rank.max()
+      description: "The riding rank Altoholic's spellbook alone lists known (0 without the spellbook or without a riding spell in it)."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: rank,
+                 caveats: "Altoholic only (DataStore_Spells, read at login)."}
 
 char_stats:
   table: sem_char_stats
