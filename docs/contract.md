@@ -226,6 +226,25 @@ Never read: Agenda's Contacts and Calendar, Containers' and Inventory's
 guild tables, Mails, Auctions, `Altoholic_Sharing_Options`,
 `DataStore_GuildIDs`, `DataStore_CharacterGuilds`.
 
+**`wow-foreverdb`** (optional, ForeverDB 0.38.0+): `kind: pvp`, one event
+per character each time its PvP rank changes in ForeverDB's armory snapshot
+(`ForeverDB_DB.armory[<GUID>].pvp` in the account's `ForeverDB.lua`, taken
+at login, level up and logout), `source: foreverdb`, `_time` the snapshot's
+own `time`. Only the account's own roster; the fields below only (the
+shipper's `FDB_KEYS`). `source_id` is `foreverdb:pvp:<char>:<hash>`.
+
+- `pvp_rank` (0-14): the game's rank (`rank`, UnitPVPRank) when the client
+  has it, else `renown`; `rank_from` says which (`rank` or `renown`).
+- `renown`: currency 3473 "Renown - PvP Rank" (0-14), the Forever client's
+  rank track. The client of 2026-11 has no UnitPVPRank, so this is the
+  rank there.
+- `highest_rank`, `honorable_kills`, `honor_points` when saved.
+
+Never read: the rest of the snapshot (guild roster, gear, talents),
+ForeverDB's battleground history, `dk` (-64 with no kill in the Forever
+client: not a count). The gear advice takes the newest event as the rank
+held (`gear.standings_of`).
+
 **`wow-gear`** (the character sheet): one event each time it changes, for
 every character of the account (its folder, Polestar's alts, Syndicator). `_time` is the character's logout snapshot in
 `PolestarDB.alts.chars` (the moment the game wrote these files), else the

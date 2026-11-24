@@ -19,8 +19,10 @@
 - `gear` with `options` scores in the asked `mode` (PvE, PvP) and says it (`mode`, `mode_from`), like
   `gear` without options.
 - Reputation gear is checked against the recorded standings (the Recorder and Altoholic): an upgrade
-  once the standing is held, else "you're Friendly: 16,500 rep to go". PvP rank gear says when there
-  is no rank (0 honorable kills); the rank itself isn't recorded anywhere yet.
+  once the standing is held, else "you're Friendly: 16,500 rep to go". PvP rank gear is checked against
+  the rank ForeverDB's armory snapshot saves (the shipper reads `ForeverDB.lua`, new `wow-foreverdb`
+  events): a rank held makes its gear some effort (the quartermaster), else "rank 3 needed, you're
+  rank 1". Without ForeverDB, 0 honorable kills in Altoholic still means no rank.
 - The stat weights come from the same addon data (`Data/GearFinder.lua`) instead of the website's files:
   one number moved (Marksmanship PvP mp5, 0.028 to 0.03), 138 more set pieces.
 - The KB watch refreshes ForeverDB's data at most once a week (`tools/kb/bump.py foreverdb`,

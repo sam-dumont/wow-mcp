@@ -946,8 +946,8 @@ class Who:
     # the Recorder's rep records and Altoholic's (reputations); None when
     # neither has sent any (unknown, never "not met").
     reps: dict | None = None
-    # The PvP rank held: 0 when Altoholic's lifetime honorable kills are 0
-    # (no kill, no rank); None when unknown (nothing records the rank yet).
+    # The PvP rank held (0-14): ForeverDB's armory snapshot, else 0 when
+    # Altoholic's lifetime honorable kills are 0; None when unknown.
     pvp_rank: int | None = None
 
 
@@ -1109,7 +1109,7 @@ def source_effort(s: dict) -> int:
         return SOME if s.get("met") is False and need <= STANDING_IDS["Honored"] else HARD
     if k == "pvp":
         # A rank held is some effort (the quartermaster's price); one not
-        # held, or not recorded (nothing saves the rank yet), is never an
+        # held, or not recorded (no ForeverDB snapshot), is never an
         # errand: the best possible, said with what is missing.
         return SOME if s.get("met") else LONG_SHOT
     return SOME
@@ -2209,10 +2209,11 @@ def rep_words(s: dict) -> str:
 def pvp_words(s: dict) -> str:
     """What the character holds against a PvP rank source, in words."""
     if s.get("your_rank") is None:
-        return " (your rank isn't recorded)"
+        return " (your rank isn't recorded: ForeverDB saves it)"
     if s.get("met"):
         return f" (you hold rank {s['your_rank']})"
-    return " (you have no PvP rank: 0 honorable kills)" if s["your_rank"] == 0 else f" (you have rank {s['your_rank']})"
+    you = "you have no PvP rank" if s["your_rank"] == 0 else f"you're rank {s['your_rank']}"
+    return f" (rank {s.get('rank')} needed, {you})"
 
 
 def source_link(s: dict) -> str | None:
@@ -2740,12 +2741,14 @@ def standings_of(rows: list[dict]) -> tuple[dict | None, int | None]:
     """(reputations, PvP rank) from the character's events: {faction id:
     (reaction 1-8, points from the start of Neutral)}, the newest of the
     Recorder's rep records (kind rep) and Altoholic's snapshots (kind reps)
-    per faction, None when neither sent any; the PvP rank 0 when
-    Altoholic's lifetime honorable kills are 0, else None: nothing records
-    the rank itself yet (UnitPVPRank, GetPVPLifetimeStats)."""
+    per faction, None when neither sent any. The PvP rank is the newest of
+    ForeverDB's armory snapshots (wow-foreverdb kind pvp: the game's own
+    number, so it wins); without one, 0 when Altoholic's lifetime
+    honorable kills are 0, else None (unknown)."""
     seen: dict[int, tuple] = {}
     any_reps = False
     hk = None
+    rank = None
     for r in sorted(rows, key=_when):
         if r.get("feed") == "wow-recorder" and r.get("kind") == "rep":
             any_reps = True
@@ -2763,7 +2766,13 @@ def standings_of(rows: list[dict]) -> tuple[dict | None, int | None]:
             v = _int_or_none(r.get("honorable_kills"))
             if v is not None:
                 hk = v
-    return (seen if any_reps else None), (0 if hk == 0 else None)
+        elif r.get("feed") == "wow-foreverdb" and r.get("kind") == "pvp":
+            v = _int_or_none(r.get("pvp_rank"))
+            if v is not None and 0 <= v <= 14:
+                rank = v
+    if rank is None and hk == 0:
+        rank = 0
+    return (seen if any_reps else None), rank
 
 
 def standing_rows(q, cf: str) -> list[dict]:
@@ -2773,6 +2782,8 @@ def standing_rows(q, cf: str) -> list[dict]:
             *q(f'feed:="wow-altoholic" kind:="reps" {cf} | fields _time, feed, kind, factions '
                f'| sort by (_time desc) | limit 1'),
             *q(f'feed:="wow-altoholic" kind:="stats" {cf} | fields _time, feed, kind, honorable_kills '
+               f'| sort by (_time desc) | limit 1'),
+            *q(f'feed:="wow-foreverdb" kind:="pvp" {cf} | fields _time, feed, kind, pvp_rank '
                f'| sort by (_time desc) | limit 1')]
 
 
