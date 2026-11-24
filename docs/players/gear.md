@@ -46,19 +46,25 @@ caster's wand count for more), **PvP** or **PvE** (raids and dungeons at 60). Th
 Your pick is kept on the server for that character, so your AI's `gear` answers use it too.
 Next moves and the plan always score on Leveling.
 
-**BiS with no known source** is the slot's best item when nothing says where to get it. It's
-never an upgrade to go and get, but the % lines measure against it, so you see how far the
-best known item is from the real top.
-<!-- after #214 -->
+Each item says how hard it is to get, from its easiest source:
 
-Each source says how hard it is: **easy** (your bags, the auction house, a quest, a vendor, a
-craft you know, a drop of 25% or more), **some effort**, **hard** or **long shot** (a drop
-under 1%, or a reputation or PvP rank you don't have). The list prefers an easy item to a
-slightly better hard one: a hard item has to score about 18% more to win. A long shot is never
-an upgrade; it shows apart with its odds. Drops say their rate ("4% over 1,200 kills") and
-about how many runs, reputation gear says where you stand ("you're Friendly: 16,500 rep to
-go").
-<!-- /after #214 -->
+| | From |
+|---|---|
+| **easy** | your bags or bank, an auction house listing, a quest, a vendor, a craft you can make, a reputation you hold, a drop of 25% or more |
+| **some effort** | a drop of 8-25%, a craft still to learn or skill up for, a reputation up to Honored you don't hold yet, a PvP rank you hold |
+| **hard** | a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a reputation above Honored you don't hold |
+| **long shot** | a drop under 1%, a rate known only from Classic, a PvP rank you don't hold (or that nothing recorded) |
+
+A rate known only from Classic counts one step harder; an auction house listing makes any item
+easy, with its price. A harder item wins a slot only when it scores 5.3% more (some effort) or
+17.6% more (hard). The % lines measure against what you can get.
+
+Drops say their chance and how many runs that means ("43.75% over 16 kills"; a 3% boss
+drop adds "about 33 runs"). Reputation gear says where you stand ("you're Friendly: 16,500 rep to go"). No addon
+records your PvP rank, so rank gear you can't prove counts as a long shot.
+
+**Best possible, out of plain reach** lists, apart, the slots whose best item is a long shot
+or has no known source: with its odds, never as an upgrade to chase.
 
 ## The same weights in the game
 

@@ -93,7 +93,7 @@ An item's score for your spec on [ForeverDB.net](https://foreverdb.net)'s stat w
 number that compares a helmet with a ring. The **Weights** pick on the gear page sets what they
 value: Leveling (the default: Stamina, armour and a caster's wand count for more), PvP or PvE.
 The page turns them into the slot's BiS: the badge on an item's icon is its share of the best
-item for that slot at your level, and "70% → 91% on your head" is that share for what you wear
+item you can get for that slot at your level, and "70% → 91% on your head" is that share for what you wear
 now, then with the item ("empty → 91%" when nothing is there). An item with nothing to
 measure against keeps its points ("+4.3 points"). [Gear and upgrades](players/gear.md).
 

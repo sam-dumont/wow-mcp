@@ -74,7 +74,9 @@ nobody here has called it on Forever yet.
 | The gear advice's spec | the gear page's pick, ForeverLevelingBiS, GearQuestForever; the talents only as a hint. Polestar's Stat weights, Adjust weights and smallest upgrade are no longer read | no (they're your settings) | no API |
 | Gear scores | ForeverDB.net's stat weights per spec, in the mode picked on the gear page (Leveling, PvP, PvE), shipped in the image | no | - |
 | Item stats | Forever's own client tables and hotfixes, shipped in the image | the API's item data is Classic's | - |
-| Where an item comes from | Polestar's item table and the quest rewards of forever-db, shipped in the image<!-- after #214 -->; ForeverDB.net's addon data first, refreshed weekly, with drop rates and the reputation or PvP rank a vendor asks for<!-- /after #214 --> | no | - |
+| Where an item comes from | ForeverDB.net's addon data first (drop rates, vendors, the reputation or PvP rank a source asks for; refreshed at most weekly), then Polestar's item table and forever-db's quest rewards, shipped in the image | no | - |
+| Reputation standings (for reputation gear) | Polestar Recorder's reputation records and Altoholic's snapshot, newest per faction | yes, not read | - |
+| PvP rank | not recorded: no addon the shipper reads saves it | `/pvp-summary`: not read | - |
 | Auction prices | Auctionator scans | no (the project reads no Auction House API) | history: price trends |
 | Legacy points earned | API (`/achievements`: each Legacy challenge is one) | yes, listed | - |
 | Legacy points spent | not shown | no | no addon saves them either |
