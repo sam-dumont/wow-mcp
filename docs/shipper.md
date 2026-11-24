@@ -305,15 +305,17 @@ usual install places), `archive_dir`, `wtf_archive` (default `true`),
 ## Addons it reads
 
 Polestar and Polestar Recorder for nearly everything, Auctionator for prices,
-Syndicator (equipped items), Altoholic (its DataStore_Characters: `/played` since level 1; its
-DataStore_Quests: the quests done before Polestar), Questie (the same
+Syndicator (equipped items; currency 3473 "Renown - PvP Rank" only, by id: the PvP
+rank), Altoholic (its DataStore_Characters: `/played` since level 1; its
+DataStore_Quests: the quests done before Polestar; its DataStore_Currencies: currency
+3473 only, the PvP rank), Questie (the same
 quests, exact), WoWSims Exporter (`WowSimsExporter.lua`, its
 `profiles.*.savedCharacters` only: each character's talents, one
 `wow-talents` event per change; never its `global` table, which holds
 other players),
 GearQuestForever and ForeverLevelingBiS (tracked upgrades, spec) for the
-gear panel, ForeverDB (its armory snapshot's PvP part only: the rank, for
-rank-gated gear), and LibForeverData, Polestar_QuestDB or Polestar_ItemDB only to
+gear panel, ForeverDB (optional: its armory snapshot's PvP part only, the
+same rank with the honorable kills; the newest of the three saves wins), and LibForeverData, Polestar_QuestDB or Polestar_ItemDB only to
 look up quest and item names and item levels.
 Missing addons just mean fewer events.
 

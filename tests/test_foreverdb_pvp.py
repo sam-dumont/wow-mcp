@@ -97,7 +97,7 @@ def test_rank_gear_held_is_some_effort_else_says_what_is_missing():
             (3, gear.SOME, "PvP: rank 3 reward (you hold rank 3)"),
             (1, gear.LONG_SHOT, "PvP: rank 3 reward (rank 3 needed, you're rank 1)"),
             (0, gear.LONG_SHOT, "PvP: rank 3 reward (rank 3 needed, you have no PvP rank)"),
-            (None, gear.LONG_SHOT, "PvP: rank 3 reward (your rank isn't recorded: ForeverDB saves it)")):
+            (None, gear.LONG_SHOT, "PvP: rank 3 reward (your PvP rank isn't recorded yet)")):
         s = gear._source(ref, {"kind": "pvp", "rank": 3}, who(rank), {})
         assert gear.source_effort(s) == effort
         assert gear.source_text(s) == words

@@ -226,19 +226,36 @@ Never read: Agenda's Contacts and Calendar, Containers' and Inventory's
 guild tables, Mails, Auctions, `Altoholic_Sharing_Options`,
 `DataStore_GuildIDs`, `DataStore_CharacterGuilds`.
 
-**`wow-foreverdb`** (optional, ForeverDB 0.38.0+): `kind: pvp`, one event
-per character each time its PvP rank changes in ForeverDB's armory snapshot
-(`ForeverDB_DB.armory[<GUID>].pvp` in the account's `ForeverDB.lua`, taken
-at login, level up and logout), `source: foreverdb`, `_time` the snapshot's
-own `time`. Only the account's own roster; the fields below only (the
-shipper's `FDB_KEYS`). `source_id` is `foreverdb:pvp:<char>:<hash>`.
+**`wow-foreverdb`** (the PvP rank; the feed keeps the name of its first
+source): `kind: pvp`, one event per character each time its PvP rank
+changes, from the newest of three saves (a tie goes to the exact time:
+ForeverDB, Altoholic, Syndicator); the same rank from another addon sends
+nothing. `source` says which:
+
+- `syndicator`: `SYNDICATOR_DATA.Characters[<char>].currencies[3473]` in
+  `Syndicator.lua` (the currency list's discovered entries, rescanned at
+  login and on each currency change). `_time` is the character folder's
+  newest file (its last login or logout), else the file's own time.
+- `altoholic`: `DataStore_Currencies_Characters[<id>].Totals[3473]` in
+  `DataStore_Currencies.lua`, bits 0-19 (bits 20+ are this week's
+  earnings, not read). `_time` is the row's `lastUpdate`.
+- `foreverdb` (optional, ForeverDB 0.38.0+):
+  `ForeverDB_DB.armory[<GUID>].pvp` in `ForeverDB.lua` (taken at login,
+  level up and logout), `_time` the snapshot's own `time`.
+
+Currency 3473 is the only currency read, by id; nothing else of either
+currency table leaves the shipper. The client lists only currencies the
+character has met: without 3473 there is no event (unknown, not rank 0).
+Only the account's own roster; the fields below only (the shipper's
+`FDB_KEYS`). `source_id` is `<source>:pvp:<char>:<hash>`.
 
 - `pvp_rank` (0-14): the game's rank (`rank`, UnitPVPRank) when the client
   has it, else `renown`; `rank_from` says which (`rank` or `renown`).
 - `renown`: currency 3473 "Renown - PvP Rank" (0-14), the Forever client's
   rank track. The client of 2026-11 has no UnitPVPRank, so this is the
   rank there.
-- `highest_rank`, `honorable_kills`, `honor_points` when saved.
+- `highest_rank`, `honorable_kills`, `honor_points` when ForeverDB saved
+  them, whichever source gave the rank.
 
 Never read: the rest of the snapshot (guild roster, gear, talents),
 ForeverDB's battleground history, `dk` (-64 with no kill in the Forever

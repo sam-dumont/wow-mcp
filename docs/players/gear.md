@@ -50,6 +50,9 @@ answers use it too.
 1. Take the top group in "By where you get it".
 2. Going to a dungeon: read its card in [Dungeons](dungeons.md) first.
 3. "In your bags: equip it" means you already carry it (seeing your bags needs Syndicator).
+   PvP rank gear checks your rank, which Syndicator and Altoholic record once you hold PvP
+   renown (ForeverDB does too, if you run it). Until then it says "your PvP rank isn't
+   recorded yet".
 4. To see what's for sale: scan the auction house with Auctionator, `/reload`, and an
    **Auction House** group shows within 5 minutes, with prices. On a server you share with
    friends, a friend's scan counts too: anyone's newest scan of your ruleset and your faction's
