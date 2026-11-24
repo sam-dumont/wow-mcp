@@ -643,14 +643,12 @@
   persona: social
   difficulty: hard
   question: >-
-    Who was in the character's Razorfen Kraul group? Give one name, or NONE if the data doesn't
-    say.
-  answer: NONE
-  match: none
-  forbid_answers: player_names
-  tools: [players|dungeons]
+    How many players of the character's Razorfen Kraul group does the data name? Give the number.
+  answer: probe
+  match: number
+  tools: [players]
   probes:
-    - {tool: players, args: {groups: true}, path: "dungeon_runs[name=Razorfen Kraul].roster", equals: null}
+    - {tool: players, args: {groups: true}, path: "dungeon_runs[name=Razorfen Kraul].party", then: [len]}
 
 - id: player_class
   group: people

@@ -375,7 +375,7 @@ def dungeon_runs(q: Q, cf: str) -> list[dict]:
     """Each dungeon run (wow-dungeon) joined to the recorder records inside
     it: party size (group records), boss fights and wipes (encounter), and
     deaths; and who was in the party, from the groupmates ForeverDB_Helper's
-    journal names (wow-player, storemodels.run_party)."""
+    journal or the combat log named (wow-player, storemodels.run_party)."""
     runs = _sorted(q(f'feed:="wow-dungeon" {cf} | fields _time, name, dungeon_id, level, seconds, xp, '
                      f"source_id"))
     if not runs:
@@ -419,14 +419,14 @@ def with_parties(panel: dict, runs: list[dict]) -> dict:
 
 
 ROSTER_NOTE = ("Who was in the group comes from ForeverDB_Helper (optional, from ForeverDB.net), whose journal "
-               "names each groupmate once a day; without it, no addon the kit reads saves names: "
-               "Polestar_Recorder keeps the party size, Polestar's instance runs the dungeon and the time. "
-               "\"N of M names known\": the Recorder counted more players than the journal named (it was "
-               "installed later, or the party changed).")
+               "names each groupmate once a day, and from the combat log when it was on. Without either, no addon "
+               "the kit reads saves names: Polestar_Recorder keeps the party size, Polestar's instance runs the "
+               "dungeon and the time. \"N of M names known\": the Recorder counted more players than were named.")
 # What each addon keeps about other players and groups (`players` with groups).
 GROUP_SOURCES = {
     "ForeverDB_Helper journal (wow-player, optional)": "each groupmate's name, level, class, race and role, "
                                                        "once a day; the zone or dungeon",
+    "Combat log (wow-player, when it's on)": "groupmates' names, once per player per 10 minutes",
     "Polestar update.probed (wow-player)": "names, last seen, zone; no class or level, never group members",
     "Polestar_Recorder group records": "party size and raid flag, no names",
     "Polestar_Recorder encounter records": "boss fights and wipes, no names",

@@ -182,9 +182,9 @@ def test_money_in_copper_gets_a_gold_column(env):
     "167.2g" for 16g 72s. Every metric counted in copper carries its gold text."""
     got = call("query_metric", {"metrics": ["quest_money_copper"]})
     head, first = got["result"].split("\n")[:2]
-    cols = head.split("\t")
-    assert cols[cols.index("quest_money_copper") + 1] == "quest_money_copper_gold"
-    copper, text = first.split("\t")[cols.index("quest_money_copper"):][:2]
+    cols, cells = head.split("\t"), first.split("\t")
+    assert cols[-1] == "quest_money_copper_gold"
+    copper, text = cells[cols.index("quest_money_copper")], cells[-1]
     assert text == tools.gold(int(copper)) and "g " in text or "s " in text
     q = call("play_sql", {"query": "SELECT money_copper FROM records WHERE money_copper > 0 LIMIT 1"})
     assert q["result"].split("\n")[0] == "money_copper\tmoney_copper_gold"
@@ -195,8 +195,8 @@ def test_money_in_copper_gets_a_gold_column(env):
 def test_gold_columns_shape():
     cols, rows = drive.with_gold(["day", "m", "r"], [("d1", 167210, 1.5), ("d2", None, 2)],
                                  {"m": {"unit": "copper"}, "r": {"unit": "copper/hour"}})
-    assert cols == ["day", "m", "m_gold", "r", "r_gold"]
-    assert rows == [("d1", 167210, "16g 72s 10c", 1.5, "0s 1c/hour"), ("d2", None, None, 2, "0s 2c/hour")]
+    assert cols == ["day", "m", "r", "m_gold", "r_gold"]
+    assert rows == [("d1", 167210, 1.5, "16g 72s 10c", "0s 1c/hour"), ("d2", None, 2, None, "0s 2c/hour")]
     assert drive.with_gold(["n"], [(1,)], {"n": {"unit": "kills"}}) == (["n"], [(1,)])
     from wowstats.analysis import verify
 

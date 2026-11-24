@@ -42,7 +42,7 @@ What comes after 0.10.0, in short. Every change follows.
   `grouped`, with their level, class, race and role (new field `role`: tank, healer, damage). Never
   their realm or guild, nor the rest of the journal. Each dungeon run on the People view and each
   past run on the Dungeons panel lists its party, matched from the moment you joined the group
-  (the Recorder's group records) to the run's end, so a second run with the same party still finds
+  (the Recorder's group records) to the run's end (the combat log's groupmates count too), so a second run with the same party still finds
   the names. When the Recorder counted more players than the journal named, the run says "2 of 4
   names known". MCP `players` with `groups` returns the same `party` per run; `sessions`'
   `grouped_with` picks the names up too. Friends' and public views never show a party.

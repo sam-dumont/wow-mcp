@@ -886,7 +886,7 @@ GOLD_UNITS = {"copper": "", "copper/hour": "/hour"}
 
 
 def with_gold(cols: list[str], rows: list[tuple], definitions: dict) -> tuple[list[str], list[tuple]]:
-    """A `<metric>_gold` text column after each metric counted in copper
+    """A `<metric>_gold` text column, at the end, for each metric counted in copper
     (16g 72s 10c), so no reader converts by hand: an analysis divided
     167210 copper by 1000 and wrote "167.2g" for 16g 72s (2026-11-24).
     `definitions`: {column: {"unit": ...}} (query_metric's definitions, or
@@ -900,14 +900,14 @@ def with_gold(cols: list[str], rows: list[tuple], definitions: dict) -> tuple[li
     if not money:
         return cols, rows
 
-    def cell(i, v):
-        if i not in money:
-            return (v,)
+    def gold_of(i, v):
         g = gold(v)
-        return v, None if g is None else g + money[i]
+        return None if g is None else g + money[i]
 
-    out_cols = [x for i, c in enumerate(cols) for x in ((c, f"{c}_gold") if i in money else (c,))]
-    return out_cols, [tuple(x for i, v in enumerate(r) for x in cell(i, v)) for r in rows]
+    # Appended, so every column keeps its place: a reader counting columns
+    # (the `_evidence` beside its metric) reads the same row.
+    return cols + [f"{cols[i]}_gold" for i in money], [tuple(r) + tuple(gold_of(i, r[i]) for i in money)
+                                                       for r in rows]
 
 
 def metric(env: dict, char: str, query: dict, store=None) -> dict:

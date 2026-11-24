@@ -319,7 +319,7 @@ def test_a_money_change_says_why_it_is_empty_over_mcp(lab):
     out = call(lab[0], "query_metric", {"char": CHAR, "metrics": ["gold_delta_copper", "online_s"], "grain": "day",
                                         "limit": 500})
     head = out["result"].splitlines()[0].split("\t")
-    assert head == ["day", "gold_delta_copper", "gold_delta_copper_evidence", "online_s"]
+    assert head == ["day", "gold_delta_copper", "gold_delta_copper_evidence", "online_s", "gold_delta_copper_gold"]
     ev = out["min_evidence"]["gold_delta_copper"]
     assert ev["at_least"] == 2 and ev["measured"] + ev["unknown"] + ev["unavailable"] == out["rows"]
     for row in json_rows(out):
