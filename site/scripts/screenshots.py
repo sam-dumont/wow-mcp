@@ -6,7 +6,9 @@ by tools/fixtures/generate.py --demo), never from a real player's data.
 
 The address is the built site (site/dist) served the way GitHub Pages does
 (`model3d/view` answers `model3d/view.html`): `astro preview` doesn't, and
-View in 3D stays blank there. Writes docs/images/<name>.webp (light theme)
+View in 3D stays blank there. The dungeons shot comes from the full view
+instead (full_view): the friends' copy leaves out who was in each run. Writes
+docs/images/<name>.webp (light theme)
 and <name>-dark.webp (dark) for every shot, and docs/images/social.png (the
 link preview). The site shows the one for the reader's theme
 (site/scripts/prepare.mjs); GitHub shows the light one.
@@ -67,6 +69,55 @@ def tab(page, name: str) -> None:
     settle(page)
 
 
+@contextlib.contextmanager
+def full_view():
+    """The demo character's full view, as its player sees it: the same
+    history as the docs site's demo (dev/seed.py demo_rows, last evening
+    yesterday), served by `wow-stats ui` over tests/degraded.py's
+    VictoriaLogs stand-in, as the browser tests do. Yields its address."""
+    import threading
+
+    for p in (ROOT, ROOT / "dev"):
+        if str(p) not in sys.path:
+            sys.path.insert(0, str(p))
+    import seed
+
+    from tests import degraded as D
+    from wowstats import ui
+
+    tmp = Path(tempfile.mkdtemp())
+    # demo=true as /ingest stores it (a string): the DEMO DATA banner.
+    vl = D.VL([{**r, "demo": "true"} for r in seed.demo_rows()])
+    env = {"VIEW": "full", "AUTH": "none", "BIND": "127.0.0.1", "VL_URL": vl.url, "VM_URL": vl.url,
+           "MODEL3D": "off", "DEFAULT_CHAR": D.CHAR, "HOME": str(tmp), "ANALYSIS_STATE_DIR": str(tmp / "a"),
+           "MODEL3D_CACHE_DIR": str(tmp / "c")}
+    app = ui.App(env)
+    app.port = 0
+    srv = ui.serve(app)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        yield f"http://127.0.0.1:{srv.server_address[1]}/?char={D.CHAR}"
+    finally:
+        srv.shutdown()
+        srv.server_close()
+        vl.close()
+
+
+def dungeons_full(page, url: str, path: Path) -> None:
+    """The Dungeons panel down to the first card's runs, opened: what a
+    trip is worth with the quests turned in outside, and who was in each
+    run's party."""
+    page.goto(url)
+    page.click("#tab-overview")
+    page.wait_for_selector("#dungeons .dghist", timeout=60000)
+    runs = page.locator("#dungeons .dghist").first
+    runs.locator("summary").click()
+    page.wait_for_timeout(300)
+    top = page.locator("#dungeons").first.bounding_box()["y"]
+    end = runs.bounding_box()
+    section(page, "#dungeons", path, round(end["y"] + end["height"] - top + 10))
+
+
 def main(base: str) -> None:
     base = base.rstrip("/") + "/"
     tmp = Path(tempfile.mkdtemp())
@@ -76,7 +127,7 @@ def main(base: str) -> None:
         shots[name] = tmp / f"{name}.png"
         return shots[name]
 
-    with sync_playwright() as p:
+    with full_view() as full, sync_playwright() as p:
         # PW_CHROMIUM: a Chromium already on disk, when Playwright wants another build.
         browser = p.chromium.launch(executable_path=os.environ.get("PW_CHROMIUM") or None)
         for scheme in ("light", "dark"):
@@ -102,7 +153,6 @@ def main(base: str) -> None:
             y = top["y"] - 16 + page.evaluate("scrollY")
             clip = {"x": gear["x"], "y": y, "width": gear["width"], "height": 900}
             full_page_clip(page, shot(f"upgrades{suffix}"), clip)
-            section(page, "#dungeons", shot(f"dungeons{suffix}"), 1150)
             section(page, "#levels", shot(f"climb{suffix}"), 760)
             page.locator("#gear").get_by_role("button", name="View in 3D").first.click()
             page.wait_for_timeout(5000)
@@ -118,6 +168,7 @@ def main(base: str) -> None:
             page.set_viewport_size({"width": WIDTH, "height": 820})
             tab(page, "Journal")
             page.screenshot(path=shot(f"journal{suffix}"))
+            dungeons_full(page, full, shot(f"dungeons{suffix}"))
             page.close()
         browser.close()
 

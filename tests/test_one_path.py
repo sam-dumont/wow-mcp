@@ -176,8 +176,9 @@ def test_both_consumers_name_each_population_and_agree(seeded):
     assert mcp["counts"] == page
     assert page == {
         "completed_levels": {"from_level": 22, "to_level": 45, "kills": 2255, "quests": 141},
-        "current_level": {"level": 46, "kills": 101, "quests": 5},
-        "including_current_level": {"kills": 2356, "quests": 146},
+        # Troll Temper, handed in at Gadgetzan after Zul'Farrak, is level 46's sixth.
+        "current_level": {"level": 46, "kills": 101, "quests": 6},
+        "including_current_level": {"kills": 2356, "quests": 147},
     }
     # The parts add up: one definition, two populations.
     for k in ("kills", "quests"):

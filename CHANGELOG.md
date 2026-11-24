@@ -82,6 +82,13 @@ What comes after 0.10.0, in short. Every change follows.
   generator refuses gear from content Forever hasn't opened: every worn item needs a source
   ForeverDB saw in Forever or the Forever client has, or one in Polestar's drop tables (the
   Gurubashi Arena's Arena Master, Classic data only, can't be worn).
+- The demo shows who was in each dungeon run and a dungeon quest handed in outside. Nibbet's
+  first four runs name the party from the combat log; from Scarlet Monastery on,
+  ForeverDB_Helper names them with level, class and role, and Razorfen Downs says "3 of 4 names
+  known". Its groupmates carry Forever's two-part names (Mirelle-Dawnsong). Zul'Farrak's Troll
+  Temper is taken and handed in at Gadgetzan, so that trip includes a quest turned in outside.
+  The demo's runs from City of Dalaran on counted 5 others in the party (the Recorder counts the
+  others: 4), so each said "4 of 5 names known" with everyone named.
 - The demo's real 3D model moves to the `demo-3d-2` release (`site/demo3d.sha256` pins the new
   archive): `demo-3d-1` has none of his new gear. Until that release exists the demo draws
   golden3d's figure.
