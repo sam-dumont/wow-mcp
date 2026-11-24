@@ -1233,7 +1233,7 @@ function saveSpec(c, v) {
 // The weights' mode per character lives on the server (wowstats/gearmode.py,
 // POST /api/gear-mode): the MCP's gear answers follow the page's pick. An
 // install that keeps no settings refuses it; the pick then lasts until reload.
-const unsavedMode = {};
+const unsavedMode = new Map();
 async function saveMode(c, v) {
   const release = hold();
   try {
@@ -1242,9 +1242,9 @@ async function saveMode(c, v) {
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ name: c, mode: v }),
     });
-    if (r.ok) delete unsavedMode[c]; else unsavedMode[c] = v;
+    if (r.ok) unsavedMode.delete(c); else unsavedMode.set(c, v);
   } catch (e) {
-    unsavedMode[c] = v;
+    unsavedMode.set(c, v);
   } finally {
     release();
   }
@@ -1877,7 +1877,7 @@ function compactList(a, list) {
 
 async function loadAdvice(name) {
   const spec = savedSpec(name);
-  const mode = unsavedMode[name] || '';
+  const mode = unsavedMode.get(name) || '';
   try {
     const a = await getJSON(api('gear', STATIC ? { name } : { name, spec, mode }));
     if (name === state.char) renderAdvice(a);
