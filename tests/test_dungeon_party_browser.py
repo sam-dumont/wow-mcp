@@ -1,7 +1,8 @@
 """Who was in each run, in a real browser (Chromium and WebKit, phone and
 desktop width) on the demo character: the Dungeons panel's "Your runs" list
 each run's party under it (owner, 2026-11-24: "seeing who I grouped with is
-kinda important"). The demo's groupmates come from its combat log.
+kinda important"). The demo's first runs name the groupmates from the combat
+log, the later ones from ForeverDB_Helper (level, class, role).
 
 Needs the `browser` group."""
 

@@ -53,7 +53,7 @@ Open <http://127.0.0.1:8080/>: **Nibbet**, a Gnome priest who goes from level 22
 four weeks of evenings, with eleven dungeon runs, gear, talents and professions, Questie's
 quest list and two days of auction house scans, under a DEMO DATA banner.
 
-![The Overview of the demo character Nibbet, a level 34 Gnome priest under the DEMO DATA banner: behind the route at 2.0 times Polestar's route time, level 35 in 2h 40m of play, 91% of guide steps in order, 0.09 levels rested, and Gnomeregan as the next move](../images/local-demo.webp)
+![The Overview of the demo character Nibbet, a level 46 Gnome priest under the DEMO DATA banner: on track with Polestar's route time, the next level's play time, the guide steps done in order, the rested XP, and a waist upgrade in the bags as the first next move](../images/local-demo.webp)
 
 [Your page at a glance](../players/your-page.md) walks through each tab.
 
