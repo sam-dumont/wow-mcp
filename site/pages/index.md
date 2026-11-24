@@ -44,7 +44,7 @@
 <div>
 <p class="eyebrow">Gear</p>
 <h3>Every slot, its next upgrade, and where it drops</h3>
-<p>The best item you can wear now and within 3 levels, what it does to the slot ("70% → 91% on your chest": its share of the best item for that slot, before and after), and where to get it: a boss, a quest, or the auction house at yesterday's price. If it's already in your bags, the page tells you to equip it.</p>
+<p>The best item you can wear now and within 3 levels, what it does to the slot ("70% → 91% on your chest": its share of the best item for that slot, before and after), and where to get it: a boss, a quest, or the auction house at yesterday's price. If it's already in your bags, the page tells you to equip it. Scores use <a href="https://foreverdb.net">ForeverDB.net</a>'s weights, for levelling by default, PvP or PvE if you pick it.</p>
 <p><a href="../../docs/players/gear.md">Gear and upgrades →</a></p>
 </div>
 </div>
@@ -56,7 +56,7 @@
 <div>
 <p class="eyebrow">Dungeons</p>
 <h3>The dungeon worth running</h3>
-<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing (3.1× faster, for the demo priest in City of Dalaran) <!-- check: 3.1× predates the 0.8.0 trip model; the Dungeons page says 2.1×. Re-read on the rebuilt demo. -->.</p>
+<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing, with the time for the pickups and hand-ins counted in ([how a trip is counted](../../docs/players/dungeons.md)).</p>
 <p><a href="../../docs/players/dungeons.md">Dungeons →</a></p>
 </div>
 </div>

@@ -42,8 +42,23 @@ see the upgrades for a respec.
 
 **Weights** picks what the scores value: **Leveling** (the default: Stamina, armour and a
 caster's wand count for more), **PvP** or **PvE** (raids and dungeons at 60). The weights are
-ForeverDB.net's. Your pick is kept on the server for that character, so your AI's `gear`
-answers use it too.
+[ForeverDB.net](https://foreverdb.net)'s, and every score links there so you can check it.
+Your pick is kept on the server for that character, so your AI's `gear` answers use it too.
+Next moves and the plan always score on Leveling.
+
+**BiS with no known source** is the slot's best item when nothing says where to get it. It's
+never an upgrade to go and get, but the % lines measure against it, so you see how far the
+best known item is from the real top.
+<!-- after #214 -->
+
+Each source says how hard it is: **easy** (your bags, the auction house, a quest, a vendor, a
+craft you know, a drop of 25% or more), **some effort**, **hard** or **long shot** (a drop
+under 1%, or a reputation or PvP rank you don't have). The list prefers an easy item to a
+slightly better hard one: a hard item has to score about 18% more to win. A long shot is never
+an upgrade; it shows apart with its odds. Drops say their rate ("4% over 1,200 kills") and
+about how many runs, reputation gear says where you stand ("you're Friendly: 16,500 rep to
+go").
+<!-- /after #214 -->
 
 ## The same weights in the game
 

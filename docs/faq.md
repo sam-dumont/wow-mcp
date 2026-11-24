@@ -89,11 +89,28 @@ pace. [Overview and next moves](players/overview.md).
 
 ### What are "points" in the upgrades?
 
-The gear score for your class and spec, from [ForeverDB.net](https://foreverdb.net)'s stat weights: the number that compares a helmet with a ring.
+An item's score for your spec on [ForeverDB.net](https://foreverdb.net)'s stat weights, the
+number that compares a helmet with a ring. The **Weights** pick on the gear page sets what they
+value: Leveling (the default: Stamina, armour and a caster's wand count for more), PvP or PvE.
 The page turns them into the slot's BiS: the badge on an item's icon is its share of the best
 item for that slot at your level, and "70% → 91% on your head" is that share for what you wear
 now, then with the item ("empty → 91%" when nothing is there). An item with nothing to
 measure against keeps its points ("+4.3 points"). [Gear and upgrades](players/gear.md).
+
+### I changed my weights in Polestar and nothing moved
+
+On purpose: the scores use ForeverDB.net's weights only. Polestar's Adjust weights, its Stat
+weights spec and its smallest upgrade are not read. Pick the spec and the mode on the gear
+page instead; your AI's `gear` answers follow the same pick.
+
+### Why does a move say "if not done yet"?
+
+Nothing your addons saved shows the training. Polestar Recorder only writes a skill when it
+changes while it records, so a trainer visit it missed looks like no visit. With
+[Altoholic](https://www.curseforge.com/wow/addons/altoholic), the game's own skill list and
+spellbook come along at every login and the move goes away by itself. Without it, the move
+says what it last saw and when ("Enchanting 150/150 when Polestar Recorder last saw it"):
+already trained, ignore it.
 
 ## Your AI
 

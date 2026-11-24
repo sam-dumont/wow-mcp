@@ -55,6 +55,10 @@ in Claude Code they're slash commands. Every tool and prompt:
 </details>
 
 Your own characters, and the players your game showed you, from your own game files.
+
+Gear answers score in the mode picked on your gear page (Leveling unless you changed it), on
+[ForeverDB.net](https://foreverdb.net)'s weights. Ask "and for PvP?" and that one answer uses
+PvP weights (the `gear` tool's `mode`); the page keeps its pick.
 **Battle.net data** (your characters' talents, worn gear and guild, and the WoW Token price)
 stays off unless you turn on "Battle.net data to my AI" in Settings: Blizzard's
 terms keep it 30 days at most, and a chat keeps a tool's answer as long as the chat exists, so

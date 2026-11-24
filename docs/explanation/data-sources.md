@@ -19,7 +19,7 @@ two cases:
    Cloth cost last month: none of that survives from the API. The addon copy is your own file
    and you keep it as long as you want.
 
-Profession caps, the look, the current talents, sex, guild and Legacy points come from the
+The look, the current talents, sex, guild and Legacy points come from the
 API, not from an addon: the shipper doesn't send sex or guild, and the server doesn't guess
 Legacy points from levels and skills.
 
@@ -62,7 +62,8 @@ nobody here has called it on Forever yet.
 | Sessions, zones, deaths, loot, flights, trainer visits | Polestar Recorder | no | no API |
 | Dungeon runs | Polestar | no (statistics has counts at best) | no API |
 | Profession ranks | Polestar | no | no API |
-| Profession caps | Polestar Recorder skill records, else trainer tiers | no | no API |
+| Profession caps | Altoholic (`DataStore_Crafts`, the game's skill list, read at each login) and Polestar Recorder's skill records: the higher wins. Neither saw the trainer visit: the move says when each last looked, "if not done yet" | no | no API |
+| Riding | Altoholic's spellbook (`DataStore_Spells`) and Polestar Recorder's skill and learn records: the highest rank wins. Past level 40 with nothing seeing riding: hedged, "if not trained yet" | no | no API |
 | Recipes known | Altoholic | no | no API |
 | Spells known, and the class's spells still to come with their level | Altoholic's spellbook; without it, an estimate from the Recorder's learn records (spells learned before it: unknown) | no | no API |
 | Character sheet stats (base stats, attack power, crit, hit rating, spell power, mp5, dodge, parry, block), lifetime honorable kills | Altoholic | `/statistics`, `/pvp-summary`: not read | no resistances anywhere: Altoholic doesn't save them |
@@ -70,7 +71,10 @@ nobody here has called it on Forever yet.
 | Quests done | Polestar Recorder (hand-ins, the game's "done" flags at quest givers); Questie or Altoholic; a reward only one quest gives, worn or held on any gear or bags sheet ever sent; then what the API says you wear now (read live, never kept, only adds quests); and the quests a done one needed first | yes (`/quests/completed`), not read | the history is kept past the API terms' 30 days, so it holds only addon data |
 | `/played` since level 1 | Altoholic | no | no API |
 | Gold, bags, bank | Syndicator, Polestar; gold, XP and rested XP of every character at logout also from Altoholic | no | no API |
-| Spec pick, tracked upgrades (the gear advice's spec: these first, the talents only as a hint; the stat weights are ForeverDB.net's, never an addon's) | ForeverLevelingBiS, GearQuestForever | no (they're your settings) | no API |
+| The gear advice's spec | the gear page's pick, ForeverLevelingBiS, GearQuestForever; the talents only as a hint. Polestar's Stat weights, Adjust weights and smallest upgrade are no longer read | no (they're your settings) | no API |
+| Gear scores | ForeverDB.net's stat weights per spec, in the mode picked on the gear page (Leveling, PvP, PvE), shipped in the image | no | - |
+| Item stats | Forever's own client tables and hotfixes, shipped in the image | the API's item data is Classic's | - |
+| Where an item comes from | Polestar's item table and the quest rewards of forever-db, shipped in the image<!-- after #214 -->; ForeverDB.net's addon data first, refreshed weekly, with drop rates and the reputation or PvP rank a vendor asks for<!-- /after #214 --> | no | - |
 | Auction prices | Auctionator scans | no (the project reads no Auction House API) | history: price trends |
 | Legacy points earned | API (`/achievements`: each Legacy challenge is one) | yes, listed | - |
 | Legacy points spent | not shown | no | no addon saves them either |

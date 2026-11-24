@@ -39,7 +39,9 @@ usual ones:
 - **Dungeon**: the run worth doing at your level, the quests to pick up first and the drops
   you'd wear.
 - **Talents**: points you haven't spent.
-- **Profession** or **Riding**: the rank to train, the trainer and the price.
+- **Profession** or **Riding**: the rank to train, the trainer and the price. When your
+  addons didn't see the training, the title ends "if not done yet" and says what was last
+  seen and when: already trained, skip it. [Why](../faq.md#why-does-a-move-say-if-not-done-yet).
 
 Do the first one. "See the upgrade" or "See the drops" jumps to the details in the Character
 tab.

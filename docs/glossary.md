@@ -7,8 +7,8 @@ Players' words first, then the ones people who run a server need.
 
 ## Playing
 
-**Polestar.** The levelling addon wow-stats is built around: guides, a route with a time for
-every step, and a score for every item. Your pace and your upgrades are measured against it.
+**Polestar.** The levelling addon wow-stats is built around: guides and a route with a time for
+every step. Your pace is measured against it.
 [Addons it reads](reference/addons.md).
 
 **Polestar Recorder.** Polestar's companion addon. It writes down your play sessions, zones,
@@ -48,8 +48,9 @@ is the route's pace, 2.0× twice as long. [Overview and next moves](players/over
 **Next moves.** Up to 3 things to do now, on the Overview: an upgrade and where it drops, a
 dungeon worth a run, a talent point or profession rank to sort out.
 
-**Points.** An item's score from [ForeverDB.net](https://foreverdb.net)'s stat weights, for your class and spec. The same scale in every
-slot, so a ring and a helmet compare. [Gear and upgrades](players/gear.md#the-upgrades-list).
+**Points.** An item's score for your spec on [ForeverDB.net](https://foreverdb.net)'s weights, in
+the mode you pick on the gear page: Leveling (the default), PvP or PvE. The same scale in every
+slot, so a ring and a helmet compare. Every score links to ForeverDB.net. [Gear and upgrades](players/gear.md#the-upgrades-list).
 
 **BiS, the badge.** Best in slot: the best item you can wear at your level for that slot. The
 badge on an item's icon says how close it is: BiS (orange), 2nd, or a share like 84% (purple

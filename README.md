@@ -14,8 +14,9 @@ over MCP.
 
 - **Your pace against the route.** Time per level against [Polestar](https://github.com/fitzforge/polestar)'s
   route ("2.0×" is twice its time), and the hours of play to your next level.
-- **Your next upgrade, and where it drops.** Every slot against its best in slot, with the
-  boss, quest or auction listing that gets you there: "70% → 91% on your chest".
+- **Your next upgrade, and where it drops.** Every slot against its best in slot, scored on
+  ForeverDB.net's weights for levelling, PvP or PvE, with the boss, quest or auction listing
+  that gets you there: "70% → 91% on your chest".
 - **The dungeon worth running.** A whole trip per dungeon: pickups, time inside, hand-ins, the
   drops you'd wear, at your own pace, against your questing.
 - **A plan for tonight.** A few hours of guide steps with checkpoints and where to log out.

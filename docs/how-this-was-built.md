@@ -136,6 +136,24 @@ thing on every surface. On their first run they caught four bugs that the other 
 missed, among them the page and the MCP disagreeing on the time spent in the current level,
 and the dungeon list offering Alliance characters the Horde city's dungeon.
 
+## 23 and 24 November: the gear turn
+
+Gear scores moved off Polestar's weights onto [ForeverDB.net](https://foreverdb.net)'s: the
+community's stat weights per spec, with three modes. Leveling is the default, and there
+Stamina, armour and a caster's wand count for a lot more than in a raid. Checked against
+ForeverDB's own ladders: 36,674 of 36,746 scores equal. <!-- check: the why. Written from the changelog; one line on why you switched, in your words? --> Polestar's Adjust weights
+and the rest of its gear settings stopped counting a few hours later, and your pick of mode is
+kept per character, so the page and your AI score the same way.
+
+The items themselves now come from Forever's own client tables, not a Classic item list: Staff
+of the Shade does 37 Shadow damage in Forever, not Classic's 21. Every score links to
+ForeverDB.net, so anyone can check it.
+
+The same morning, next moves stopped telling an Expert enchanter to train Expert. The Recorder
+had missed the trainer visit, so its last record (150/150) stood. Profession caps and riding
+now also come from Altoholic's copy of the game's skill list and spellbook. When nothing saw
+the training, the move says so and ends "if not done yet" instead of insisting.
+
 Then this rewrite of the docs, for 1.0. 1.0 means stable-ish: the tools your AI calls and the
 settings you put in `.env` stay put, and anything that does change gets an upgrade note in the
 [changelog](../CHANGELOG.md). It's a hobby project, so that's an intention, not a guarantee. It
@@ -160,8 +178,9 @@ the host's choice, off by default, with a monthly cap, and your page says when i
 already runs for every other log, and my WoW events stay there forever. A host who doesn't want
 a database to run picks SQLite before the first event.
 
-**Polestar is the source of truth.** The route clock and the gear scoring are fitzforge's work.
-wow-stats follows each release, and only a licence change or a format it can't read stops it.
+**Polestar is the source of truth for the route.** The route clock is fitzforge's work. wow-stats
+follows each release, and only a licence change or a format it can't read stops it. Gear scores
+are ForeverDB.net's, and every score says so.
 
 **Each friend's data apart.** One store per person, one key per person, a friends list only the
 host edits, and {{purge_days}} days (`FRIENDS_PURGE_DAYS`) before a removed friend's data goes.

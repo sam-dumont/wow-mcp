@@ -50,6 +50,19 @@ docker compose up -d --build
 
 The volumes are found by name, so the data follows.
 
+## From 0.8.x to 0.9.0
+
+Nothing to change for an install on VictoriaLogs: back up, take the new version, `docker
+compose pull && docker compose up -d`. Then:
+
+- **Built from source until now**: 0.9.0 is the first release whose install runs the
+  released image. Put the release's `tag@digest` in `WOW_STATS_IMAGE` in `.env` and `pull`;
+  keep it empty to go on building ([Development](../development.md#build-the-image-yourself)).
+- **A memory limit on `ui`**: `ANALYSIS_WORKSPACES_MAX` now follows it (1 at 1 GiB). Set it
+  in `.env` to keep the old 6.
+- **SQLite** is new and opt-in: read [Switching between VictoriaLogs and
+  SQLite](#switching-between-victorialogs-and-sqlite) before you do.
+
 ## From 0.7.x to 0.8.0
 
 Nothing to change for a one-person install: back up, take the new version, `docker compose
@@ -75,7 +88,7 @@ The two event stores don't convert: nothing moves your events from one to the ot
 before your first events ([Where your events live](../install.md#where-your-events-live)). To
 switch an install that already has history, keep the old store's backup, start the new store
 empty and refill it from each player's archive (`--replay`, [Back up and
-restore](backup.md#restore)). <!-- check: is --replay into the other store the advice you want to give? -->
+restore](backup.md#restore)).
 
 ## From 0.6.x to 0.7.0
 
