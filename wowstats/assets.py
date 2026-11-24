@@ -61,7 +61,17 @@ BUILD = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,7}$")
 KINDS = {b"MD21": "m2", b"SKIN": "skin", b"SKL1": "skel", b"AFM2": "anim", b"AFSA": "anim", b"AFSB": "anim",
          b"BLP2": "blp"}
 TABLE_MAGIC = (b"WDC3", b"WDC4", b"WDC5")
-STAND, HANDS_CLOSED = 0, 15  # AnimationData ids the viewer plays
+# Every AnimationData id the 3D view plays: Stand (0), HandsClosed (15, on a
+# hand that holds a weapon) and the moves Idle plays now and then (attack,
+# cast, channel, roar, emotes: web/model3d/m3d/draw.js). draw.js lists them
+# as M3D.ANIMATIONS and a test keeps the three lists (this one, draw.js's,
+# the shipper's CASC_ANIMATIONS) equal. A sequence the model carries itself
+# needs nothing; one in its own .anim file (Forever's HD models keep the
+# emotes there) is named by the model's AFID and asked for with it.
+ANIMATIONS = frozenset({0, 15, 16, 17, 18, 19, 25, 26, 27, 28, 51, 52, 53, 54, 55, 60, 64, 65, 66, 68, 70,
+                        124, 125})
+# What the still pictures play (wowstats.renderer): Stand and the closed hands.
+STILL = frozenset({0, 15})
 # The client tables the 3D view reads, with their file ids (the same in
 # every build; WoWDBDefs' manifest.json, see THIRD_PARTY.md). Forever's
 # root has no file names, so the shipper finds a table by this id only.
@@ -88,18 +98,19 @@ class Refused(Exception):
         self.status = status
 
 
-def kind_of(data: bytes) -> str | None:
-    return KINDS.get(data[:4])
+def kind_of(data: bytes, anim: bool = False) -> str | None:
+    """What a file is, by its first four bytes. `anim`: a model names the
+    file as one of its .anim files (anim_refs). An M2 without a skeleton
+    keeps its .anim files raw, with no header (Forever's HD gnome's emotes:
+    the viewer reads them so, m3d/m2.js loadAnimsForIndex), so only what
+    names such a file says what it is."""
+    return KINDS.get(data[:4]) or ("anim" if anim and data else None)
 
 
-def model_refs(data: bytes) -> set[int]:
-    """The files a model (.m2) or skeleton (.skel) names that the 3D view
-    draws with it, as the shipper follows them (shipper/wow_stats.py
-    model_refs; a test keeps the two equal): the first skin, its textures,
-    its skeleton or parent skeleton, its standing animation (0) and its
-    closed hands (15, HandsClosed: the viewer plays it on a hand that holds
-    a weapon)."""
+def _refs(data: bytes, animations=ANIMATIONS) -> tuple[set[int], set[int]]:
+    """(every file model_refs follows, the .anim files among them)."""
     out: set[int] = set()
+    anims: set[int] = set()
     pos = 0
     while pos + 8 <= len(data):
         tag, n = data[pos:pos + 4], struct.unpack_from("<I", data, pos + 4)[0]
@@ -111,13 +122,29 @@ def model_refs(data: bytes) -> set[int]:
         elif tag == b"AFID":
             for k in range(0, len(body) - 7, 8):
                 anim, _sub, fid = struct.unpack_from("<HHI", body, k)
-                if anim in (STAND, HANDS_CLOSED):
-                    out.add(fid)
+                if anim in animations:
+                    anims.add(fid)
         elif tag == b"SKPD" and len(body) >= 12:
             out.add(struct.unpack_from("<I", body, 8)[0])
         pos += 8 + n
+    out |= anims
     out.discard(0)
-    return out
+    anims.discard(0)
+    return out, anims
+
+
+def anim_refs(data: bytes, animations=ANIMATIONS) -> set[int]:
+    """The .anim files a model or skeleton names for `animations`."""
+    return _refs(data, animations)[1]
+
+
+def model_refs(data: bytes, animations=ANIMATIONS) -> set[int]:
+    """The files a model (.m2) or skeleton (.skel) names that the 3D view
+    draws with it, as the shipper follows them (shipper/wow_stats.py
+    model_refs; a test keeps the two equal): the first skin, its textures,
+    its skeleton or parent skeleton, and the .anim files of the animations
+    the viewer plays (ANIMATIONS)."""
+    return _refs(data, animations)[0]
 
 
 def _write(path: Path, data: bytes) -> None:
@@ -128,11 +155,12 @@ def _write(path: Path, data: bytes) -> None:
     os.replace(tmp, path)
 
 
-def closure(ids, read: Callable[[int], bytes | None], limit: int = 20000) -> tuple[dict[int, int], set[int]]:
+def closure(ids, read: Callable[[int], bytes | None], limit: int = 20000,
+            animations=ANIMATIONS) -> tuple[dict[int, int], set[int]]:
     """Every file the viewer loads to draw `ids` (a recipe's needs): those
-    and what their models and skeletons name (model_refs), followed to the
-    end. `read(fdid)` -> the file or None. Returns ({file id: size} of the
-    ones there, {file ids missing})."""
+    and what their models and skeletons name (model_refs, with the .anim
+    files of `animations`), followed to the end. `read(fdid)` -> the file
+    or None. Returns ({file id: size} of the ones there, {file ids missing})."""
     have: dict[int, int] = {}
     missing: set[int] = set()
     todo = sorted({int(i) for i in ids if i})
@@ -146,7 +174,7 @@ def closure(ids, read: Callable[[int], bytes | None], limit: int = 20000) -> tup
             continue
         have[fdid] = len(data)
         if kind_of(data) in ("m2", "skel"):
-            todo.extend(r for r in model_refs(data) if r not in have and r not in missing)
+            todo.extend(r for r in model_refs(data, animations) if r not in have and r not in missing)
     return have, missing
 
 
@@ -158,7 +186,7 @@ class Store:
         self.root = Path(root)
         self.limit = max_mb * 1024 * 1024
         self.lock = threading.Lock()
-        self._refs: set[int] | None = None  # what the stored models name, read once
+        self._refs: tuple[set[int], set[int]] | None = None  # what the stored models name, read once
 
     # -- tables
 
@@ -240,31 +268,39 @@ class Store:
                 out.add(int(stem))
         return out
 
+    def _named(self) -> tuple[set[int], set[int]]:
+        """(what the stored models and skeletons name, the .anim files among it)."""
+        if self._refs is None:
+            out: set[int] = set()
+            anims: set[int] = set()
+            d = self.root / "files"
+            for pat in ("*.m2", "*.skel"):
+                for p in d.glob(pat) if d.is_dir() else ():
+                    try:
+                        r, a = _refs(p.read_bytes())
+                    except OSError:
+                        continue
+                    out |= r
+                    anims |= a
+            self._refs = (out, anims)
+        return self._refs
+
     def refs(self) -> set[int]:
         """What the stored models and skeletons name."""
-        if self._refs is not None:
-            return set(self._refs)
-        out: set[int] = set()
-        d = self.root / "files"
-        for pat in ("*.m2", "*.skel"):
-            for p in d.glob(pat) if d.is_dir() else ():
-                try:
-                    out |= model_refs(p.read_bytes())
-                except OSError:
-                    continue
-        self._refs = out
-        return set(out)
+        return set(self._named()[0])
 
     def put_file(self, fdid: int, data: bytes) -> str:
-        kind = kind_of(data)
-        if kind is None:
-            raise Refused(415, "not a model, skin, skeleton, animation or texture")
         with self.lock:
+            kind = kind_of(data, anim=int(fdid) in self._named()[1])
+            if kind is None:
+                raise Refused(415, "not a model, skin, skeleton, animation or texture")
             if self.path(fdid) is None:  # dedupe by file id: a file id's content never changes
                 self._room(len(data))
                 _write(self.root / "files" / f"{int(fdid)}.{kind}", data)
-                if self._refs is not None and kind in ("m2", "skel"):
-                    self._refs |= model_refs(data)
+                if kind in ("m2", "skel"):
+                    r, a = _refs(data)
+                    self._refs[0].update(r)
+                    self._refs[1].update(a)
         return kind
 
     def used(self) -> int:
@@ -343,11 +379,13 @@ class RemoteStore:
             data = self._get(f"file/{int(fdid)}")
         except OSError:
             return None
-        return data if data and kind_of(data) else None
+        # The share port serves only what its Store took (its kind checked
+        # there; a raw .anim has no header to check again here).
+        return data or None
 
     def file(self, fdid: int) -> tuple[bytes, str] | None:
         data = self.read(fdid)
-        return (data, kind_of(data)) if data else None
+        return (data, kind_of(data, anim=True)) if data else None
 
     def stamp(self) -> tuple:
         return (self.build(),)

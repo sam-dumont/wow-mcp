@@ -3827,9 +3827,9 @@ def preflight() -> int:
 # the player's own server (docs/model3d.md): nothing comes from a third-party
 # site. Read-only: nothing in the WoW folder is ever written, and only the
 # files the server asks for are read (plus what those models name: their
-# first skin, their textures, their skeleton and its parent, the standing
-# animation and the closed hands; never the other 1,500 animations of a
-# character model).
+# first skin, their textures, their skeleton and its parent, and the
+# animations the 3D view plays, CASC_ANIMATIONS; never the other 1,500
+# animations of a character model).
 #
 # The storage format is CASC. This reader follows wow.export's
 # (github.com/Kruithne/wow.export, MIT: casc/casc-source-local.js,
@@ -3852,10 +3852,12 @@ CASC_MAX_FILE = 64 * 1024 * 1024  # no model, texture or table of one character 
 # The storage's own tables (encoding, root) are far larger: a full client's
 # encoding table passed 64 MB on the owner's first proof run (2026-11-20).
 CASC_MAX_SYSTEM = 1024 * 1024 * 1024
-# The standing animation (AnimationData id 0): the idle the 3D view plays.
-CASC_STAND = 0
-# HandsClosed: the 3D view plays it on a hand that holds a weapon.
-CASC_HANDS_CLOSED = 15
+# The AnimationData ids the 3D view plays: Stand (0), HandsClosed (15, on a
+# hand that holds a weapon) and the moves it plays now and then (attack,
+# cast, channel, roar, emotes). The server's list (wowstats.assets.ANIMATIONS,
+# from web/model3d/m3d/draw.js); a test keeps them equal.
+CASC_ANIMATIONS = frozenset({0, 15, 16, 17, 18, 19, 25, 26, 27, 28, 51, 52, 53, 54, 55, 60, 64, 65, 66, 68, 70,
+                             124, 125})
 # What a file is, by its first four bytes.
 CASC_KINDS = {b"MD21": "m2", b"SKIN": "skin", b"SKL1": "skel", b"AFM2": "anim", b"AFSA": "anim",
               b"AFSB": "anim", b"BLP2": "blp", b"WDC3": "db2", b"WDC4": "db2", b"WDC5": "db2"}
@@ -4501,7 +4503,7 @@ class Casc:
 def model_refs(data: bytes) -> set[int]:
     """The files a model (.m2) or skeleton (.skel) names that the 3D view
     draws with it: the first skin, its textures, its skeleton or parent
-    skeleton, its standing animation and its closed hands (a held weapon)."""
+    skeleton, and the .anim files of the animations it plays (CASC_ANIMATIONS)."""
     out: set[int] = set()
     pos = 0
     while pos + 8 <= len(data):
@@ -4514,7 +4516,7 @@ def model_refs(data: bytes) -> set[int]:
         elif tag == b"AFID":
             for k in range(0, len(body) - 7, 8):
                 anim, _sub, fid = struct.unpack_from("<HHI", body, k)
-                if anim in (CASC_STAND, CASC_HANDS_CLOSED):
+                if anim in CASC_ANIMATIONS:
                     out.add(fid)
         elif tag == b"SKPD" and len(body) >= 12:
             out.add(struct.unpack_from("<I", body, 8)[0])  # the parent skeleton

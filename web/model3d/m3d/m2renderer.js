@@ -494,8 +494,9 @@
 		// Whether a sequence can be played: its data is in the model (or
 		// skeleton) itself, or its .anim file comes through `fetch` (the
 		// caller's, quiet about a file that doesn't come: the shipper sends
-		// the .anim files of Stand and HandsClosed only). A loaded .anim is
-		// kept, so playAnimation finds it.
+		// the .anim files of draw.js's M3D.ANIMATIONS only, and a server
+		// may not have them yet). A loaded .anim is kept, so playAnimation
+		// finds it.
 		async prepareAnimation(index, fetch) {
 			let source = this.skelLoader || this.m2;
 			const a = (source.animations || [])[index];

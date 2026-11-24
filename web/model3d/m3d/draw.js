@@ -124,6 +124,13 @@
 		];
 	}
 
+	// Every AnimationData id the viewer plays: Stand, HandsClosed (15,
+	// m2renderer's loadHandsClosed) and each move's steps, for any weapon.
+	// The server asks the shipper for the .anim files of these and no
+	// other (wowstats/assets.py ANIMATIONS; a test keeps the two equal).
+	M3D.ANIMATIONS = Object.freeze(Array.from(new Set([STAND, 15, ...Object.keys(READY).flatMap(
+		(a) => moves(Number(a)).flatMap((m) => m.steps.map(([id]) => id)))])).sort((x, y) => x - y));
+
 	const IDLE_MIN = 8000, IDLE_MAX = 20000;  // ms of Stand between two moves
 	const AFTER_DRAG = 3000;  // ms after the person lets go before a move may start
 
