@@ -272,10 +272,12 @@ def test_without_the_source_the_metric_is_unknown(without):
         assert got["kill_xp_per_online_hour"] is not None
 
 
-def test_kills_that_dont_say_their_xp_make_kill_xp_unknown():
-    """An older Recorder's kills carry no xp_reward: kill_xp and the kill
-    XP rate are NULL (unknown), kills_without_xp says how many; a group
-    without any kill is a measured 0."""
+def test_kill_xp_sums_the_kills_that_say_their_xp():
+    """A kill with no XP line matched (no xp_reward: tapped by another
+    player, grey, or a line the Recorder couldn't match) counts 0 in
+    kill_xp, kills_without_xp beside it says how many; kill_xp was NULL for
+    a whole level as soon as one kill lacked it (data-gap check,
+    2026-11-24). A group without any kill is a measured 0."""
     db = prep.build([], "Synth-Test", None)
     db.executemany("INSERT INTO records (rec_id, t, level, zone, kind, xp_reward, session_id) VALUES "
                    "(?, ?, ?, ?, ?, ?, 1)",
@@ -286,7 +288,9 @@ def test_kills_that_dont_say_their_xp_make_kill_xp_unknown():
     layer, ro = semantic.local(db)
     by = {r["level"]: r for r in semantic.rows(layer, ro, {
         "metrics": ["kill_xp", "kills_without_xp", "kill_xp_per_online_hour"], "group_by": ["level"]})}
-    assert (by[10]["kill_xp"], by[10]["kills_without_xp"], by[10]["kill_xp_per_online_hour"]) == (None, 1, None)
+    assert (by[10]["kill_xp"], by[10]["kills_without_xp"]) == (50, 1)
+    assert by[10]["kill_xp_per_online_hour"] == pytest.approx(50 / (35 / 3600))
     assert by[11]["kill_xp"] == 60 and by[11]["kill_xp_per_online_hour"] == pytest.approx(60 / (10 / 3600))
     assert (by[12]["kill_xp"], by[12]["kill_xp_per_online_hour"]) == (0, 0)
-    assert one(semantic.rows(layer, ro, {"metrics": ["kill_xp"]}))["kill_xp"] is None
+    assert one(semantic.rows(layer, ro, {"metrics": ["kill_xp", "kills_without_xp"]})) == {
+        "kill_xp": 110, "kills_without_xp": 1}

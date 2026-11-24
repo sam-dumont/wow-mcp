@@ -301,12 +301,15 @@ def level_rows(m: Metrics | None) -> list[dict]:
     planned_s and vs_route, the split's time as `at`. A finished level with
     no split (prep keeps its row since #174) is listed too, its time and
     counts None, never 0 (owner, 2026-11-23); the level in play without one
-    isn't."""
+    isn't. A level timed from the game's /played instead of a split (a
+    split lost or partial: the layer's played_from) is whole, its `from`
+    altoholic or recorder."""
     if m is None:
         return []
     out = []
     for r in m.ask(metrics=["played_s", "level_xp", "split_quests", "split_kills", "xp_per_hour", "planned_s",
-                            "vs_route"], group_by=["level", "partial", "ding_t", "in_play"], order_by=["level"]):
+                            "vs_route"], group_by=["level", "partial", "ding_t", "in_play", "played_from"],
+                     order_by=["level"]):
         split = r["partial"] is not None
         if not split and r["in_play"]:
             continue
@@ -315,6 +318,7 @@ def level_rows(m: Metrics | None) -> list[dict]:
                     "xp": int(r["level_xp"] or 0) if split else None,
                     "quests": opt_num(r["split_quests"]), "kills": opt_num(r["split_kills"]),
                     "partial": bool(r["partial"]), "at": at_utc(r["ding_t"]),
+                    **({"from": r["played_from"]} if r["played_from"] not in (None, "polestar") else {}),
                     "xp_per_hour": None if r["xp_per_hour"] is None else round(r["xp_per_hour"]),
                     "_planned_s": whole(r["planned_s"]), "_vs_route": r["vs_route"]})
     return out
@@ -1448,8 +1452,9 @@ TOOLS: tuple[Tool, ...] = (
          "completed_levels, current_level so far, including_current_level), and the other characters on record.",
          schema({"char": CHAR}), t_character_summary),
     Tool("levels", "Time per level",
-         "Time, XP, quests and kills per level from Polestar's XP splits, with median, fastest and slowest. The "
-         "current level is marked partial.",
+         "Time, XP, quests and kills per level from Polestar's XP splits, with median, fastest and slowest. A level "
+         "whose split is missing or partial is timed from the game's /played (`from`: altoholic). The current "
+         "level is marked partial.",
          schema({"char": CHAR, "from_level": {"type": "integer", "minimum": 1, "maximum": 80,
                                        "description": "First level to include."},
                  "to_level": {"type": "integer", "minimum": 1, "maximum": 80,

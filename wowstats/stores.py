@@ -215,13 +215,30 @@ def record_order(r: dict) -> tuple:
     return (sid, -1, -1)
 
 
-# The zone records zone_time reads, after the Recorder's feed and character.
-ZONE_RECORDS = "kind:=zone | fields _time, zone, subzone, source_id, rev"
+# The records zone_time reads, after the Recorder's feed and character: the
+# zone records, and the flights (taxi, land) whose time it cuts out.
+ZONE_RECORDS = "kind:in(zone, taxi, land) | fields _time, kind, zone, subzone, seconds, source_id, rev"
+
+# A zone record that the next one undoes within this many seconds, back to
+# the zone before it, is the game's text flickering (a subzone or indoor
+# change, a loading screen's empty zone), not a visit: the owner's history
+# had Stranglethorn Vale -> "" -> Stranglethorn Vale 2 s apart (2026-11-24).
+FLICKER_S = 3.0
 
 
 def zone_time(zones: list[dict], spans: list[tuple[float, float]]) -> list[dict]:
-    """Each zone record once (dedupe), oldest first, with `secs`: from it to
-    the next zone record of its session, else to that session's last record.
+    """Each zone record once (dedupe), oldest first, with `secs` and `visit`.
+
+    `secs`: from it to the next zone record of its session, else to that
+    session's last record, minus the time in the air (a taxi record to its
+    land, stores.taxi_time): the zones a flight crosses are flown over, not
+    played in, and the flight's time is taxi_s on its own. `visit`: False
+    for a zone record that is no arrival, one a flight crossed (all its
+    time in the air) or a flicker: a record the next one undoes within
+    FLICKER_S, back to the zone before it, whose time goes to that zone (the
+    record after it, the same zone again, is no new visit either). `zones`
+    may hold the flights too (ZONE_RECORDS): taxi and land rows are read for
+    their times, never returned; a row without `kind` is a zone record.
     `spans` are split_sessions' (start, end); a record outside them gets 0.
 
     Worked out here from the records' own times, never from the shipper's
@@ -229,20 +246,49 @@ def zone_time(zones: list[dict], spans: list[tuple[float, float]]) -> list[dict]
     never sent the record again, so a session read in two goes kept the
     first go's 5 s where one read gave 306 s (external review 3). Nothing of
     it is stored: an old store with the short values reads right as it is."""
-    rows = sorted(({**r, "_t": parse_t(r.get("_time")).timestamp()} for r in dedupe(zones)),
-                  key=lambda r: (r["_t"], *record_order(r)))
+    rows = dedupe(zones)
+    air = []
+    for f in taxi_time([r for r in rows if r.get("kind") in ("taxi", "land")]):
+        if f["secs"] is not None and f["land"] is not None:  # a flight not landed yet: its end unknown
+            a = parse_t(f.get("_time")).timestamp()
+            air.append((a, parse_t(f["land"].get("_time")).timestamp()))
+    rows = sorted(({**r, "_t": parse_t(r.get("_time")).timestamp()} for r in rows
+                   if r.get("kind") in (None, "", "zone")), key=lambda r: (r["_t"], *record_order(r)))
     spans = sorted(spans)
-    out, j = [], 0
+    span_of, j = [], 0
+    for r in rows:
+        while j < len(spans) and spans[j][1] < r["_t"]:
+            j += 1
+        span_of.append(j if j < len(spans) and spans[j][0] <= r["_t"] else None)
+
+    def same(i: int, k: int) -> bool:
+        return 0 <= i < len(rows) and 0 <= k < len(rows) and span_of[i] is not None and span_of[i] == span_of[k]
+
+    flicker = set()
+    for i in range(1, len(rows) - 1):
+        if (i - 1 not in flicker and same(i - 1, i) and same(i, i + 1)
+                and rows[i + 1]["_t"] - rows[i]["_t"] <= FLICKER_S
+                and (rows[i].get("zone") or "") != (rows[i - 1].get("zone") or "")
+                and (rows[i + 1].get("zone") or "") == (rows[i - 1].get("zone") or "")):
+            flicker.add(i)
+    out = []
     for i, r in enumerate(rows):
         t = r.pop("_t")
-        while j < len(spans) and spans[j][1] < t:
-            j += 1
-        if j == len(spans) or spans[j][0] > t:
-            r["secs"] = 0.0
-        else:
-            end = spans[j][1]
-            nxt = rows[i + 1]["_t"] if i + 1 < len(rows) else end
-            r["secs"] = round(max(0.0, min(nxt, end) - t), 1)
+        if span_of[i] is None:
+            r["secs"], r["visit"] = 0.0, i not in flicker and i - 1 not in flicker
+            out.append(r)
+            continue
+        end = spans[span_of[i]][1]
+        # The record's own interval, a flicker's going to the record before it.
+        k = i + 1
+        while k in flicker:
+            k += 1
+        nxt = rows[k]["_t"] if k < len(rows) else end
+        b = min(nxt, end) if i not in flicker else t
+        whole = max(0.0, b - t)
+        flown = sum(max(0.0, min(b, f1) - max(t, f0)) for f0, f1 in air)
+        r["secs"] = round(max(0.0, whole - flown), 1)
+        r["visit"] = i not in flicker and i - 1 not in flicker and not (whole > 0 and flown >= whole)
         out.append(r)
     return out
 
@@ -277,14 +323,17 @@ def taxi_time(rows: list[dict]) -> list[dict]:
 
 
 def zone_totals(visits: list[dict]) -> list[dict]:
-    """zone_time's rows summed per zone, the most time first: {zone, secs, visits}."""
+    """zone_time's rows summed per zone, the most time first: {zone, secs, visits}
+    (the records that are arrivals: zone_time's `visit`)."""
     by: dict[str, dict] = {}
     for r in visits:
         if r.get("zone"):
             d = by.setdefault(r["zone"], {"zone": r["zone"], "secs": 0.0, "visits": 0})
             d["secs"] += r["secs"]
-            d["visits"] += 1
-    return sorted(({**d, "secs": int(d["secs"])} for d in by.values()), key=lambda d: -d["secs"])
+            d["visits"] += 1 if r.get("visit", True) else 0
+    # A zone only flown over (no time, no visit) isn't a place the character was.
+    return sorted(({**d, "secs": int(d["secs"])} for d in by.values() if d["secs"] or d["visits"]),
+                  key=lambda d: -d["secs"])
 
 
 def pick_splits(rows: list[dict]) -> dict[int, dict]:

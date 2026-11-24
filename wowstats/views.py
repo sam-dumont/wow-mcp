@@ -942,8 +942,8 @@ class Views:
             # The bar's readings, not the shipper's xp_gained: a chunk recovered
             # late left that short (prep.xp_gains, the analysis' own rule).
             "xp": sub(vl, f"{rec} kind:=xp | fields _time, xp, xp_max, source_id, rev"),
-            "events": sub(vl, f"{rec} kind:in(session, level, zone, turnin, death) "
-                              f"| fields _time, kind, login, level, zone, quest_id, quest_name, "
+            "events": sub(vl, f"{rec} kind:in(session, level, zone, turnin, death, taxi, land) "
+                              f"| fields _time, kind, login, level, zone, quest_id, quest_name, seconds, "
                               f"source_id"),
             "dungeons": sub(vl, f'{st} feed:="wow-dungeon" {cf} | fields _time, name, level, seconds, xp, '
                                 f"source_id"),
