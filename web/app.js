@@ -1715,7 +1715,7 @@ function renderAdvice(a) {
         ? h('p', { class: 'empty' }, h('strong', { text: 'Gear advice needs Polestar.' }), ' ',
           `Tick Polestar and Polestar Recorder for ${name} in AddOns at character select, then /reload.`)
         : h('p', { class: 'empty' }, h('strong', { text: 'No gear advice yet.' }), ' ',
-          `Polestar’s scoring has nothing to work on: ${a.why}.`));
+          `The gear scoring has nothing to work on: ${a.why}.`));
     return;
   }
   const picks = choose(a);

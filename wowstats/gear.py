@@ -1718,10 +1718,17 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         better = [t for t in ranked if t[0] > 0]
         if not better:
             return max(ranked, key=lambda t: (t[0], t[2]["info"].get("ilvl") or 0, t[1])) if ranked else None
-        # Among the close ones, the one built for the spec (gearfit's factor):
-        # only those within the largest factor can change places.
+        # Among the close ones, the one the upgrade list ranks first: its
+        # value (ranking_value: the gain less the effort's share, times
+        # gearfit's factor). Only those within the largest factor can change
+        # places. The factor once multiplied the whole score here, so a 43%
+        # dungeon drop (group loot, x0.85) lost 15% of its whole score and a
+        # craft the character can't make yet beat it on a smaller gain (MCP
+        # eval pve_shoulder, 2026-11-24: Green Silken Shoulders over Bloodmage Mantle).
         close = [t for t in better if adj(t) >= adj(better[0]) * gearfit.CLASS * gearfit.GROUP]
-        return max(close, key=lambda t: (adj(t) * fit_of(t[2])["factor"], t[0], t[2]["info"].get("ilvl") or 0, t[1]))
+        return max(close, key=lambda t: (ranking_value(t[0], t[3]["new"], t[2].get("effort", EASY),
+                                                       fit_of(t[2])["factor"]),
+                                         t[0], t[2]["info"].get("ilvl") or 0, t[1]))
 
     picks: dict[tuple, tuple | None] = {}
     for bucket in ("now", "soon"):

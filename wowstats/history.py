@@ -20,7 +20,7 @@ records say what the character got and when:
 (World.lua vendorItems), so they never count.
 
 The replay walks those in time order with the character's class, level at
-the time and Polestar's own weights (wowstats.gear): an item it could wear
+the time and the gear advice's weights (ForeverDB.net's, wowstats.gear): an item it could wear
 that scores above what the slot holds is "probably equipped" from then.
 Then it is anchored on the first real sheet: per slot the replay's last item
 is compared with the sheet's, and where they disagree the sheet wins and is

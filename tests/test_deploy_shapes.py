@@ -229,6 +229,33 @@ def test_the_share_token_is_made_once_and_kept_private(share, tmp_path):
         assert json.loads(r.read())["available"] is False
 
 
+def test_a_full_disk_leaves_no_temporary_file_behind(tmp_path, monkeypatch):
+    """A write that fails (ENOSPC) leaves nothing that blocks the next
+    start: the old share-token.<pid>.tmp stayed, and in a container (pid 1)
+    every restart failed on it until someone deleted it."""
+    import errno
+    import io
+
+    env = {"ANALYSIS_STATE_DIR": str(tmp_path)}
+    real = os.fdopen
+
+    class Full(io.TextIOWrapper):
+        def write(self, s):
+            raise OSError(errno.ENOSPC, "No space left on device")
+
+    monkeypatch.setattr(guard.os, "fdopen", lambda fd, *a, **k: Full(real(fd, "wb")))
+    with pytest.raises(OSError, match="No space"):
+        guard.share_token(env)
+    assert sorted(p.name for p in tmp_path.iterdir()) == []
+    monkeypatch.undo()
+    # A stale temporary file from an older version (pid 1 in a container) doesn't block a start either.
+    (tmp_path / "share-token.1.tmp").write_text("")
+    token = guard.share_token(env)
+    assert len(token) >= 32 and (tmp_path / "share-token").read_text().strip() == token
+    assert stat.S_IMODE(os.stat(tmp_path / "share-token").st_mode) == 0o600
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["share-token", "share-token.1.tmp"]
+
+
 def test_a_client_without_the_token_says_what_to_set(share):
     env, base = share
     with pytest.raises(OSError, match="ANALYSIS_SHARE_TOKEN_FILE"):

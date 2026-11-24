@@ -101,7 +101,7 @@ def t_class_guide(ctx: T.Ctx, args: dict) -> dict:
 META_HOW = ("score: 0-100, the weighted mean of the parts measured (talents 40, gear 40, enchants 20; a part "
             "with no data is left out, never counted as 0). talents: the share of the levelling build's points "
             "(the class path at the character's level) the character has where the build puts them. gear: worn "
-            "points over worn plus each slot's best gain now, with Polestar's stat weights for the spec (the gear "
+            "points over worn plus each slot's best gain now, with ForeverDB.net's stat weights for the spec (the gear "
             "advice's scoring). enchants: the enchantable slots the meta names an enchant for at this level, "
             "enchanted or not (only when the item links say). gaps: the moves that cost the score most, each with "
             "what, where and what blocks it. meta: the knowledge base's statements with their source, date, "

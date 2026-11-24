@@ -254,9 +254,8 @@ required level, if higher).
 
 - The pool is personal: your side, your quests not done, your bags, your
   professions (below). ForeverDB lists every item.
-- Item stats are Polestar's table. Some Forever items differ from the
-  client's, and some (Violet Sorcerer's Wraps) aren't in it yet: 1,186 items
-  of five ForeverDB ladders are missing.
+- Item stats are the Forever client's own tables (`data/game-items.json`),
+  not Polestar's item table.
 - The off hand next to a main hand: ForeverDB takes the best full score,
   then halves its weapon part; we take the one worth most once halved.
 

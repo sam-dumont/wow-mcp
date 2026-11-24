@@ -32,6 +32,7 @@ import hmac
 import ipaddress
 import os
 import secrets
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -229,17 +230,20 @@ def share_token(env: dict) -> str:
         raise GuardError("ANALYSIS_SHARE_PORT needs ANALYSIS_SHARE_TOKEN_FILE (or a state dir to make it in)")
     if not path.exists():
         path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-        with os.fdopen(fd, "w", encoding="utf-8") as f:
-            f.write(secrets.token_urlsafe(TOKEN_MIN) + "\n")
+        # A fresh temporary name each time (mkstemp: 0600, O_EXCL), removed
+        # whatever fails, the write included. It was share-token.<pid>.tmp,
+        # left behind when the write hit a full disk: in a container the pid
+        # is always 1, so every restart then failed on O_EXCL and the ui
+        # crash-looped after the space came back (0.10.0 checks, 2026-11-24).
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".", suffix=".tmp")
         try:
-            os.link(tmp, path)  # never replaces a file another process just made
-        except FileExistsError:
-            pass
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(secrets.token_urlsafe(TOKEN_MIN) + "\n")
+            with contextlib.suppress(FileExistsError):
+                os.link(tmp, path)  # atomic, and never replaces a file another process just made
         finally:
             with contextlib.suppress(OSError):
-                tmp.unlink()
+                os.unlink(tmp)
     return _read_secret(str(path), "ANALYSIS_SHARE_TOKEN_FILE")
 
 

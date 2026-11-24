@@ -569,7 +569,7 @@ def overview(data: dict, advice: dict | None, ds: list[dict], ref, who: dict, st
         now_claims.append(claim(f"Last session: {dur(s['seconds'])}, {s['when']}.", "#timeline",
                                 "recorder session and activity records"))
     up_claims = [claim(f"{u['name']}: {gearmod.gain_words(u)}, {_where(s)}.", f"#up-{u.get('slot')}",
-                       "Polestar's gear scoring on your worn gear")
+                       "gear advice (ForeverDB.net's weights) on your worn gear")
                  for u, s in in_reach(advice, hd.get("level"))[:3]]
     death_claims = []
     if ds:

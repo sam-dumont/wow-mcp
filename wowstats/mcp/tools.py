@@ -1092,7 +1092,16 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         # planner, in the same mode as gear without options.
         from .plantools import t_gear_options
 
-        return t_gear_options(ctx, {**args, "mode": mode, "mode_from": mode_from})
+        out = t_gear_options(ctx, {**args, "mode": mode, "mode_from": mode_from})
+        # What is on sale, from the same answer as gear without options:
+        # "which upgrade is on sale" asked with options found none (MCP eval
+        # ah_upgrade, 2026-11-24: buy_now and auction_house were missing).
+        try:
+            plain = t_gear(ctx, {**{k: v for k, v in args.items() if k not in ("options", "export", "setup")},
+                                 "mode": mode, "limit": 1})
+        except ToolError:
+            plain = {}
+        return {**out, "buy_now": plain.get("buy_now"), "auction_house": plain.get("auction_house")}
     st = ctx.store
     picked = gearmod.pick_sheet(gearmod.sheet_rows(one_row(st), cf(char)))
     rows = [picked] if picked else []
@@ -1378,7 +1387,8 @@ def t_next_moves(ctx: Ctx, args: dict) -> dict:
     return {"char": char, "question": "Besides following Polestar, what should I do now?",
             "answer": _cited(_with_gain(ctx, char, nm["moves"])), "on_track": _cited(ov["on_track"]["claims"]),
             "checked": nm["checks"], "not_possible_yet": nm["not_possible_yet"],
-            "note": "Each point says what it was computed from. Gains are Polestar's gear points."}
+            "note": "Each point says what it was computed from. Gains are gear points from ForeverDB.net's "
+                    "stat weights."}
 
 
 def t_sanity_check(ctx: Ctx, args: dict) -> dict:

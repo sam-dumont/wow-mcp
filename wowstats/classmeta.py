@@ -463,8 +463,8 @@ def talents_part(cls: str, level: int, tal: dict | None, header: dict, spec: str
 
 
 def gear_part(g: dict | None, level: int) -> dict | None:
-    """The gear against the best each slot can hold at this level (Polestar's
-    BiS-at-level, scored with the spec's stat weights): worn points over
+    """The gear against the best each slot can hold at this level (the gear
+    advice's BiS at the level, scored with ForeverDB.net's stat weights for the spec): worn points over
     worn plus each slot's best gain now."""
     if not g or not g.get("available"):
         return None
