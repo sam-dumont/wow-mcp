@@ -2,24 +2,37 @@
 
 ## Unreleased
 
-What comes after 0.10.0, in short. Every change follows.
+What 0.11.0 brings over 0.10.0, in short. Every change follows.
 
 **For players**
 
-- At level 60 the gear advice ranks on the score alone: a rare drop can be the pick, its odds
-  next to it. Below 60, easier items still win near ties. Every upgrade row shows how hard the
-  item is to get.
+- At level 60 gear ranks on the score alone, so a rare drop can be the pick (its odds next to
+  it). Below 60 easier items still win near ties. Every upgrade row says how hard it is to get.
 - The gear page's weights copy into the Forever Leveling BiS addon (its own string or a Pawn
-  scale), so it ranks items in the game the way the page does.
-- A level a crash cut short gets its whole time from the game's /played, and flights no longer
-  count as time in the zones they cross.
-- A dungeon's quests count toward the run they came from, wherever you hand them in. City of
-  Dalaran's two hand-ins at the Silverpine grate were Silverpine's quest XP; now they're
-  Dalaran's, and its trips read about a third faster.
-- With ForeverDB_Helper installed, each dungeon run says who was in the party: names, level,
-  class and role. Money in the analysis tools reads as 16g 72s 10c, not raw copper.
-- The 3D character moves now and then (a swing, a cast, a channel) instead of standing still.
-- The demo's Nibbet is a level 46 Shadow priest with Shadowform and a staff that glows as in the game.
+  scale), so the game ranks items the way the page does.
+- Levels a crash cut short get their real time from /played. Flights no longer count as time
+  in the zones they cross, and kill XP stops going blank when one kill had no XP line.
+- A dungeon's quests count toward the run they came from, wherever you hand them in: City of
+  Dalaran's trips read about a third faster.
+- With ForeverDB_Helper installed, each dungeon run says who was in the party. The 3D character
+  moves now and then and plays its emotes.
+- A character you upload for the first time shows up at once, not after a restart.
+
+**For your AI**
+
+- `gear` exports the weights (`export: flb | pawn`), reads reputations and PvP rank like the
+  page, and `dungeons` gives each run its trip XP with the quests turned in outside.
+- Money reads as `16g 72s 10c` in a `_gold` column next to every copper one (an analysis had
+  reported 16g 72s as 167.2g). `players` with `groups` returns each run's party.
+- The analysis database moves to version 15: kept findings show as "to revalidate" once.
+
+**For hosts**
+
+- The docs lead with three ways in (players, AI, hosts), and the host guide is the front page
+  for self-hosting, every step in order.
+- The ui no longer crash-loops on a leftover share-token file after a full disk.
+- CI runs the tests in four parts balanced by measured time (the slowest part had hit its
+  20-minute limit).
 
 ### Added
 
@@ -92,8 +105,6 @@ What comes after 0.10.0, in short. Every change follows.
 - The demo's real 3D model moves to the `demo-3d-2` release (`site/demo3d.sha256` pins the new
   archive): `demo-3d-1` has none of his new gear. Until that release exists the demo draws
   golden3d's figure.
-
-### Changed
 
 - How hard an item is to get weighs only while levelling (owner, 2026-11-24: "only during end
   game at lvl 60 where marginal gains are the norm"). Below 60 nothing moves: harder items lose
