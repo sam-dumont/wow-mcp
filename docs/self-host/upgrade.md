@@ -50,6 +50,19 @@ docker compose up -d --build
 
 The volumes are found by name, so the data follows.
 
+## From 0.9.x to 0.10.0
+
+Back up, take the new version, `docker compose pull && docker compose up -d`. Then:
+
+- **Friends on one install**: run `docker compose exec ui wow-stats users ah-share` once, so
+  the auction scans stored before the upgrade reach the shared space. Until then each person
+  sees only the scans sent since. One person: nothing to do.
+- **Every gear score changes**: ForeverDB.net's weights replace Polestar's. Nothing to do on
+  the host; tell your friends their upgrades moved. A kept analysis finding shows "to
+  revalidate" once.
+- **The shipper** updates itself and sends the profession caps with its next character
+  sheet, after a logout or `/reload`.
+
 ## From 0.8.x to 0.9.0
 
 Nothing to change for an install on VictoriaLogs: back up, take the new version, `docker

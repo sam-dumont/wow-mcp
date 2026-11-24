@@ -414,12 +414,13 @@ ENDPOINTS = [
          (["/full/"], "login", "`FULL_DOOR_PATH`: a redirect to `/`, through your login. Empty: off"),
          (["/healthz"], "public", "health check: `200` with `{\"status\": \"ok\", \"semantic\": \"ok\", "
           "\"store\": \"ok\", ...}`, no login. `semantic` is `\"failing\"` while the page's numbers can't be "
-          "computed, `store` while the event store (VictoriaLogs or the SQLite files) doesn't answer (the page serves its last good answers, marked "
-          "stale): alert on both. Fine to route; probes need no credentials"),
+          "computed, `store` while the event store (VictoriaLogs or the SQLite files) doesn't answer "
+          "(the page serves its last good answers, marked stale): alert on both. Fine to route; "
+          "probes need no credentials"),
          (["/ingest"], "public", "`POST` from the shipper, with its own password (`INGEST_PASSWORD`). "
           "Route it **without** your page login, or the shipper can't get through. 8 MB a post. A 502 means "
-          "the event store refused the lines or couldn't be reached: nothing counts against the daily budget, and "
-          "the shipper sends them again later"),
+          "the event store refused the lines or couldn't be reached: nothing counts against the daily "
+          "budget, and the shipper sends them again later"),
      ]),
     ("Extra full-view paths with several people (`WOW_STATE_DIR`)",
      "Only on a shared install. Same port.",
