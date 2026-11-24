@@ -153,7 +153,7 @@ CAPTURE_FILE = "_capture.json"
 ARCHIVED_SOURCES = re.compile(
     r"^Account/[^/]+/(SavedVariables/(Polestar|Polestar_Recorder|Auctionator|Syndicator"
     r"|ForeverLevelingBiS|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests"
-    r"|DataStore_Reputations|Questie|ForeverDB"
+    r"|DataStore_Reputations|DataStore_Currencies|Questie|ForeverDB"
     r"|WowSimsExporter)\.lua(\.bak)?"
     r"|[^/]+/[^/]+/SavedVariables/(Polestar|Polestar_Recorder"
     r"|GearQuestForever)\.lua(\.bak)?)$")
@@ -2236,25 +2236,121 @@ def foreverdb_pvp(acct: Path) -> dict[str, dict]:
     return out
 
 
+# The same rank from the addons friends already run (owner, 2026-11-24:
+# ForeverDB stays optional). Currency 3473 "Renown - PvP Rank" is the only
+# currency read, by id; nothing else of either table leaves the shipper.
+# - Syndicator (build 293, Tracking/CurrencyCache.lua:93-161): on Forever
+#   (Constants.lua:18 IsForever) ScanAllCurrencies walks the currency list and
+#   saves SYNDICATOR_DATA.Characters[<char>].currencies[<currency id>] =
+#   quantity for every `discovered` entry with a link (:113-117), a held 0
+#   included; an undiscovered currency is absent. The table is replaced at
+#   each scan (:159), at login and on CURRENCY_DISPLAY_UPDATE. No time is
+#   saved: the character's own folder (its last login or logout) dates it.
+# - DataStore_Currencies (Altoholic, 2026.10.14): Forever is "mainline"
+#   (AddonFactory Core/Tools.lua:146-148), so ScanCurrencies_Retail
+#   (DataStore_Currencies.lua:173-202) runs at login, PLAYER_ALIVE and on
+#   CURRENCY_DISPLAY_UPDATE: it wipes Totals (:178), then for every list
+#   entry with a link stores DataStore_Currencies_Characters[<character
+#   id>].Totals[<currency id>] = quantity + earned this week << 20 (:116-128,
+#   :192-195), a 0 included, and sets lastUpdate (:201). Its `Currencies`
+#   list keys entries by localized name only: not read.
+# The client lists only currencies the character has met, so a missing 3473
+# means "not recorded", never rank 0.
+PVP_CURRENCY = 3473
+PVP_SOURCES = {"foreverdb": "ForeverDB", "altoholic": "Altoholic", "syndicator": "Syndicator"}
+
+
+def _currency(table, cid: int):
+    return table.get(cid, table.get(str(cid))) if isinstance(table, dict) else None
+
+
+def syndicator_renown(acct: Path, chars: dict[str, dict]) -> dict[str, dict]:
+    """char -> {renown, at, at_basis} from Syndicator's currencies (only
+    currency 3473). at: the character folder's newest file when it is older
+    than Syndicator.lua, else the file's own time."""
+    f_at, f_basis = observed(acct / "SavedVariables" / "Syndicator.lua")
+    synd = next(iter(read_sv_versions(acct / "SavedVariables" / "Syndicator.lua")), None) or {}
+    out: dict[str, dict] = {}
+    for c in (((synd.get("SYNDICATOR_DATA") or {}).get("Characters")) or {}).values():
+        det = (c or {}).get("details") if isinstance(c, dict) else None
+        if not isinstance(det, dict) or not det.get("character"):
+            continue
+        v = _rank_num(_currency(c.get("currencies"), PVP_CURRENCY))
+        if v is None:
+            continue
+        char = char_of(str(det["character"]))
+        seen = (chars.get(char) or {}).get("seen") or None
+        at, basis = (seen, None) if seen and (f_at is None or seen <= f_at) else (f_at, f_basis)
+        out[char] = {"renown": v, "at": at, "at_basis": basis}
+    return out
+
+
+def altoholic_renown(acct: Path) -> dict[str, dict]:
+    """char -> {renown, at, at_basis} from DataStore_Currencies' Totals (only
+    currency 3473; its quantity is bits 0-19). at: the row's lastUpdate."""
+    f_at, f_basis = observed(acct / "SavedVariables" / "DataStore_Currencies.lua")
+    out: dict[str, dict] = {}
+    for char, row in _ds_rows(acct, "DataStore_Currencies.lua", "DataStore_Currencies_Characters",
+                              ds_names(acct)).items():
+        packed = _currency(row.get("Totals"), PVP_CURRENCY)
+        if not isinstance(packed, int) or isinstance(packed, bool) or packed < 0:
+            continue
+        v = _rank_num(packed & 0xFFFFF)
+        if v is None:
+            continue
+        at = _ds_time(row)
+        out[char] = {"renown": v, "at": at or f_at, "at_basis": None if at else f_basis}
+    return out
+
+
+def pvp_ranks(acct: Path, chars: dict[str, dict]) -> dict[str, dict]:
+    """char -> {pvp_rank, rank_from, renown, highest_rank, honorable_kills,
+    honor_points, source, at, at_basis}: the newest of ForeverDB's armory
+    snapshot, Altoholic's and Syndicator's currency 3473 (a tie goes to the
+    one with an exact time: ForeverDB, Altoholic, Syndicator). ForeverDB's
+    own counts (highest rank, kills, honor) ride along whichever wins."""
+    f_at, f_basis = observed(acct / "SavedVariables" / "ForeverDB.lua")
+    fdb = foreverdb_pvp(acct)
+    cands: dict[str, list] = {}
+    for char, d in fdb.items():
+        cands.setdefault(char, []).append((d.get("at") or f_at or 0, 2, "foreverdb",
+                                           {**d, "at": d.get("at") or f_at}, None if d.get("at") else f_basis))
+    for prio, source, found in ((1, "altoholic", altoholic_renown(acct)),
+                                (0, "syndicator", syndicator_renown(acct, chars))):
+        for char, d in found.items():
+            cands.setdefault(char, []).append((d["at"] or 0, prio, source,
+                                               {"pvp_rank": d["renown"], "rank_from": "renown",
+                                                "renown": d["renown"], "at": d["at"]}, d["at_basis"]))
+    out: dict[str, dict] = {}
+    for char, cs in cands.items():
+        _, _, source, d, basis = max(cs, key=lambda c: (c[0], c[1]))
+        extra = {k: v for k, v in (fdb.get(char) or {}).items()
+                 if k in ("highest_rank", "honorable_kills", "honor_points")}
+        out[char] = {**d, **extra, "source": source, "at_basis": basis}
+    return out
+
+
 def extract_foreverdb(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> None:
     """One wow-foreverdb event (kind pvp) per character each time its PvP
-    rank in ForeverDB's armory snapshot changes. Only the roster; only
-    FDB_KEYS."""
+    rank changes, from whichever of ForeverDB, Altoholic and Syndicator saved
+    it last (pvp_ranks). The feed keeps ForeverDB's name, the first source;
+    `source` says which addon. Only the roster; only FDB_KEYS."""
     seen = state.setdefault("foreverdb", {})
-    f_at, f_basis = observed(acct / "SavedVariables" / "ForeverDB.lua")
-    for char, d in sorted(foreverdb_pvp(acct).items()):
+    for char, d in sorted(pvp_ranks(acct, chars).items()):
         if char not in chars:
             continue
-        body = {k: v for k, v in d.items() if k != "at"}
+        body = {k: v for k, v in d.items() if k not in ("at", "at_basis", "source")}
+        # The rank, not who said it: the same rank from another addon is no news.
         digest = hashlib.sha1(json.dumps(body, sort_keys=True).encode()).hexdigest()[:12]
         key = f"pvp:{char}"
         if seen.get(key) == digest:
             continue
         seen[key] = digest
-        at, basis = dated(d.get("at") or f_at, None if d.get("at") else f_basis)
-        ev = {"_time": iso(at), "feed": "wow-foreverdb", "kind": "pvp", "char": char, "source": "foreverdb",
-              "at_basis": basis, "source_id": f"foreverdb:{key}:{digest}",
-              "_msg": f"{char}: PvP rank {body['pvp_rank']} ({body['rank_from']}, ForeverDB)", **body}
+        at, basis = dated(d.get("at"), d.get("at_basis"))
+        ev = {"_time": iso(at), "feed": "wow-foreverdb", "kind": "pvp", "char": char, "source": d["source"],
+              "at_basis": basis, "source_id": f"{d['source']}:{key}:{digest}",
+              "_msg": f"{char}: PvP rank {body['pvp_rank']} ({body['rank_from']}, {PVP_SOURCES[d['source']]})",
+              **body}
         out.emit({k: v for k, v in ev.items() if k in EVENT_BASE or k in FDB_KEYS})
 
 

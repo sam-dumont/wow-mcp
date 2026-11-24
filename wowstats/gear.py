@@ -2209,7 +2209,7 @@ def rep_words(s: dict) -> str:
 def pvp_words(s: dict) -> str:
     """What the character holds against a PvP rank source, in words."""
     if s.get("your_rank") is None:
-        return " (your rank isn't recorded: ForeverDB saves it)"
+        return " (your PvP rank isn't recorded yet)"
     if s.get("met"):
         return f" (you hold rank {s['your_rank']})"
     you = "you have no PvP rank" if s["your_rank"] == 0 else f"you're rank {s['your_rank']}"
@@ -2741,9 +2741,10 @@ def standings_of(rows: list[dict]) -> tuple[dict | None, int | None]:
     """(reputations, PvP rank) from the character's events: {faction id:
     (reaction 1-8, points from the start of Neutral)}, the newest of the
     Recorder's rep records (kind rep) and Altoholic's snapshots (kind reps)
-    per faction, None when neither sent any. The PvP rank is the newest of
-    ForeverDB's armory snapshots (wow-foreverdb kind pvp: the game's own
-    number, so it wins); without one, 0 when Altoholic's lifetime
+    per faction, None when neither sent any. The PvP rank is the newest
+    wow-foreverdb kind pvp event (the game's own number, from Syndicator's or
+    Altoholic's currency 3473 or ForeverDB's armory snapshot, so it wins);
+    without one, 0 when Altoholic's lifetime
     honorable kills are 0, else None (unknown)."""
     seen: dict[int, tuple] = {}
     any_reps = False

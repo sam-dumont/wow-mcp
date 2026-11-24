@@ -23,11 +23,13 @@ the computer you play on:
   met). No realm, no game id, and nothing a Recorder version records beyond what the shipper
   knows ([The event contract](../contract.md), `wow-player`).
 - **Syndicator** and the `WTF` character folders: every character of the account with its
-  race, class, gold and the gear it wears. Sex and guild come from Battle.net, when you set it
+  race, class, gold and the gear it wears, and its PvP rank (one currency, "Renown - PvP Rank";
+  no other currency). Sex and guild come from Battle.net, when you set it
   up.
 - **Altoholic**, **Questie**: your `/played` from level 1, the quests finished before Polestar.
 - **Altoholic** also: the recipes and spells each character knows (and the spells still to come),
-  its reputations, its character sheet stats and lifetime honorable kills, its raid and dungeon
+  its reputations, its character sheet stats and lifetime honorable kills, its PvP rank (the same
+  one currency), its raid and dungeon
   lockouts, and its money, XP, rested XP and hearthstone at each logout. Never its friends list,
   calendar, guild tables (name, rank, bank, members' gear), mail or auction bidders: the shipper
   doesn't read them, and the server drops any of it an older or modified shipper sends.

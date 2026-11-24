@@ -12,6 +12,10 @@
 
 ### Changed
 
+- PvP rank gear reads your rank from Syndicator or Altoholic too: both save Forever's "Renown - PvP
+  Rank" currency (3473), and the shipper now sends that one currency, nothing else from either
+  currency table. ForeverDB stays optional; the newest of the three saves wins. With none saved,
+  the gear says "your PvP rank isn't recorded yet" instead of asking you to install ForeverDB.
 - Auction scans are shared on an install with friends (owner: "a scan of the AH per ruleset"). A
   scan is one ruleset and one faction's house, so everyone's newest scan of their own rulesets and
   factions feeds their gear advice ("on the AH, easy"), price list and `prices`. Only the price

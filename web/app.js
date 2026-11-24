@@ -1396,7 +1396,7 @@ function sourceEl(sr, level, ah) {
   }
   if (sr.kind === 'pvp') {
     // (wowstats/gear.py pvp_words)
-    const you = sr.your_rank == null ? " (your rank isn't recorded: ForeverDB saves it)"
+    const you = sr.your_rank == null ? " (your PvP rank isn't recorded yet)"
       : sr.met ? ` (you hold rank ${sr.your_rank})`
       : ` (rank ${sr.rank} needed, ${sr.your_rank === 0 ? 'you have no PvP rank' : `you're rank ${sr.your_rank}`})`;
     return h('span', { class: 'src' }, `PvP rank ${sr.rank} reward`, you, basisEl(sr));
