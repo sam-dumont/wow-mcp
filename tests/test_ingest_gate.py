@@ -32,6 +32,11 @@ class SlowVL:
         class H(BaseHTTPRequestHandler):
             def do_POST(self):
                 body = self.rfile.read(int(self.headers["Content-Length"]))
+                if self.path.startswith("/internal/force_flush"):  # the flush after a store: not an upload
+                    self.send_response(200)
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                    return
                 with me.lock:
                     me.inflight += 1
                     me.peak = max(me.peak, me.inflight)
