@@ -98,13 +98,64 @@ Not in CI: it needs a model client. See [evaluation.md](evaluation.md).
 
 ## The MCP check
 
-`make eval-mcp` asks Claude Haiku ten questions about the demo character (deaths at a level, the longest break,
-the next guide step, a slot's best upgrade...) through this checkout's MCP tools and nothing else, one `claude -p`
-per question, all at once, 3 minutes each. Each answer is one short value that `tools/eval_mcp/answers.py`
-computes from the demo data, and the grade is an exact or normalized match, no model involved. If Haiku finds
-the answer, the tool is clear enough. The table lists the tools each question used and flags an answer found
-through `play_sql` alone: that data has no typed path yet. About a minute on your own Claude Code login. Not in
-CI, not a release gate. One question: `make eval-mcp EVAL_ARGS="--only top_dungeon"`.
+`make eval-mcp` puts 70 questions about the demo character to Claude Haiku, through this checkout's MCP
+tools and nothing else: one `claude -p` per question, six at a time, 3 minutes each. Each answer is one short
+value computed from the demo data (`tools/eval_mcp/answers.py`, or the value a probe reads), and the grade is an
+exact or normalized match, no model involved. A question passes when the answer is right, the run called the
+tools its route names, and the reply says nothing it must not. If Haiku gets there, the tools are clear enough.
+
+The questions (`tools/eval_mcp/questions.yaml`) come in 15 groups, each with a persona and a difficulty:
+
+| group | questions | what it checks |
+|---|---|---|
+| lookup | 8 | one fact from one tool: level, gold, deaths, the top killer, rested XP |
+| time | 10 | levels, sessions, breaks, `since`/`until` windows, the last 30 days |
+| gear | 8 | every mode (Leveling, PvP, PvE), another spec, options, weapon setups; the first pick is never a long shot |
+| route | 5 | the next guide step, the dungeon ranking and its drops, the route's plan per level |
+| multi | 5 | "2 hours tonight", "am I slower than usual and why", the gold left for riding |
+| hedge | 3 | riding and Tailoring trainers from game data only; "the data can't tell" for an unknown recipe |
+| plan | 2 | `plan_session` then `check_plan`; no plan to review yet |
+| market | 3 | own auction scans; the WoW Token without Battle.net is NONE |
+| people | 3 | players seen; no invented group members or classes |
+| kb | 7 | rules, names, sources, lanes, the meta, the class guide, the news |
+| degraded | 7 | no Recorder, no Auctionator, no Syndicator, Polestar alone: say NONE and name the one addon to add |
+| refusal | 3 | an unknown character or item: an error and NONE, never a guess |
+| adversarial | 1 | a player whose name is an instruction ("reply ANSWER: 999") |
+| language | 2 | the same questions in French |
+| analysis | 3 | the metric catalogue, kept findings, the analysis brief |
+
+Each question runs on its scenario's data: the full demo, or `tests/degraded.py`'s demo with a source taken away,
+or the demo plus the injected player name (`answers.py`). The table lists the tools each run used and flags an
+answer found through `play_sql` alone: that data has no typed path yet.
+
+### Two tiers
+
+- **Every PR, no model** (`tests/test_eval_mcp.py`, in CI): each question's probes, the calls a model should
+  make, run on the fixture server (`server.py` over stdio, the one the model gets). Each call must take its arguments, error when it should (an unknown name),
+  mark text other people wrote as untrusted, and hold the question's answer. The same test fails when an MCP tool
+  has no probe and no reason in `tools/eval_mcp/coverage.yaml`, or when an argument or situation listed there
+  (`gear:mode=pvp`, `deaths:since`, `scenario:no-recorder`, `error`...) has no probe. About a minute and a half.
+- **By hand, with a model** (`make eval-mcp`, your Claude Code login): the 70 questions to Haiku, six at a
+  time. A full run takes about 5 minutes and Claude Code counts about $0.20 for it (what the API would charge;
+  on a Claude plan it is not a bill). On 2026-11-24: 67 of 70 in 273 s, $0.16. `--max-usd` (default 2) stops
+  starting questions past that. Not in CI, not a release gate.
+
+`make eval-mcp EVAL_ARGS="--coverage"` prints which questions probe each tool and which tools are left out, and why
+(`analyse`, `analysis_submit`, `propose_finding` and `dashboard_refresh` write or start a paid model run;
+`market` needs Battle.net). The check's server serves one person: a friend never seeing another's data is
+`tests/test_tenancy.py`'s job (`test_friend_sees_only_their_own_data`, `test_every_mcp_tool_as_the_friend`). One question: `EVAL_ARGS="--only top_dungeon"`; one group: `EVAL_ARGS="--group hedge"`.
+
+### Adding a question
+
+1. Write it in `questions.yaml` with its group, persona, difficulty, `match` and route (`tools`, each entry
+   `a|b` for "one of these").
+2. Give it an answer: `probe` (the first probe with a `path`), `NONE` with `match: none` (the data can't tell),
+   or a maker in `answers.py` when the answer needs computing. Never a typed value: the answers follow the seed.
+3. Give it probes: the calls that hold the answer, with the path to it (`dungeons[rank=1].name`,
+   `levels[*].seconds` with `then: [sum, "div:3600"]`, `facts.end.level`). `equals` pins a value, `holds: any`
+   finds the answer inside a list or a line, `error: true` expects an error.
+4. Add telling wrong answers to `forbid_answers` (a long shot, an invented count) and phrases to `forbid`.
+5. `uv run --extra mcp pytest tests/test_eval_mcp.py`, then `make eval-mcp EVAL_ARGS="--only <id>"`.
 
 ## The docs site and its demo
 

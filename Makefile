@@ -34,9 +34,11 @@ eval-analysis:
 	uv run --frozen --extra mcp --extra analysis-openai python tools/eval_analysis/run.py \
 		$(if $(SCENARIO),--scenario $(SCENARIO)) $(if $(CLIENT),--client $(CLIENT)) $(EVAL_ARGS)
 
-# The MCP check (docs/development.md, "The MCP check"): ten questions about the
-# demo character, one exact answer each, answered by Claude Haiku through the
-# MCP tools alone (your Claude Code login), graded without a model. About a
-# minute; not in CI, not a release gate. One: make eval-mcp EVAL_ARGS="--only top_dungeon"
+# The MCP check (docs/development.md, "The MCP check"): 70 questions about the
+# demo character in 15 groups, one exact answer each, answered by Claude Haiku
+# through the MCP tools alone (your Claude Code login), graded without a model.
+# A few minutes; not in CI (its probes and coverage are: tests/test_eval_mcp.py),
+# not a release gate. One: make eval-mcp EVAL_ARGS="--only top_dungeon";
+# a group: EVAL_ARGS="--group hedge"; the coverage matrix: EVAL_ARGS="--coverage"
 eval-mcp:
 	uv run --frozen --extra mcp python tools/eval_mcp/run.py $(EVAL_ARGS)

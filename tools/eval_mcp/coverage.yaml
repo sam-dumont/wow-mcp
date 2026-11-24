@@ -1,0 +1,75 @@
+# What the MCP check must cover (tests/test_eval_mcp.py enforces it).
+#
+# uncovered: MCP tools no question probes, each with the reason. A tool that
+# is neither probed nor listed here fails the test, and so does a listed
+# tool that a question probes after all (the list stays true).
+#
+# modes: arguments, modes and situations at least one probe must hit, as
+# "tool:argument" (any value), "tool:argument=value", "scenario:<name>",
+# "error" (a probe that expects isError) or "group:<name>".
+
+uncovered:
+  analyse: >-
+    Starts the server-side play analysis: a model run of its own (OpenAI in the lab), paid
+    and minutes long. tools/eval_analysis is its evaluation.
+  analysis_submit: >-
+    Hands in an analysis pass the server validates against the run's own state; only a whole
+    analysis gets there. tests/analysis drives it, tools/eval_analysis scores it.
+  propose_finding: >-
+    Writes a finding into the running analysis after re-running its query. Same as
+    analysis_submit: tests/analysis and tools/eval_analysis.
+  dashboard_refresh: >-
+    Rebuilds the person's published dashboard (a write, and a model call when an analysis is
+    due). Never in a read-only check.
+  market: >-
+    Listed only to a person whose Battle.net setting is on, and answered from Blizzard's API;
+    the check's server has neither. token_price checks the model says NONE without it;
+    tests/mcp/test_tools.py and tests/mcp/test_server.py test the tool and its listing.
+
+modes:
+  # gear in every mode, with options, for another spec
+  - gear:mode=lvl
+  - gear:mode=pvp
+  - gear:mode=pve
+  - gear:options=True
+  - gear:spec
+  - dungeons:options=True
+  # time windows and ranges
+  - deaths:since
+  - deaths:until
+  - sessions:since
+  - zones:since
+  - guide_steps:since
+  - guide_steps:until
+  - guide_steps:guide
+  - levels:from_level
+  - levels:to_level
+  - whats_new:days
+  # people
+  - players:groups=True
+  - players:name
+  # plans, prices, the knowledge base
+  - plan_session:hours
+  - plan_session:context
+  - check_plan:text
+  - prices:item
+  - kb_lookup:ids
+  - kb_get:ids
+  - kb_rule:name
+  - kb_search:query
+  - class_meta:spec
+  - news:class
+  - route_reference:level
+  - query_metric:group_by
+  - list_metrics:search
+  # unknown names, missing addons, text other people wrote, French
+  - error
+  - scenario:no-recorder
+  - scenario:no-auctionator
+  - scenario:no-syndicator
+  - scenario:polestar-only
+  - scenario:injected
+  - group:language
+  - group:hedge
+  - group:multi
+  - group:refusal
