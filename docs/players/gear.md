@@ -62,8 +62,8 @@ easy, with its price. A harder item wins a slot only when it scores 5.3% more (s
 
 Drops say their chance and how many runs that means ("43.75% over 16 kills"; a 3% boss
 drop adds "about 33 runs"). Reputation gear says where you stand ("you're Friendly: 16,500 rep to go"). PvP rank gear
-reads your rank from the ForeverDB addon's armory snapshot ("rank 3 needed, you're rank 1");
-without that addon, a rank nothing recorded counts as a long shot.
+says the same ("rank 3 needed, you're rank 1"); a rank nothing recorded yet counts as a long
+shot.
 
 **Best possible, out of plain reach** lists, apart, the slots whose best item is a long shot
 or has no known source: with its odds, never as an upgrade to chase.

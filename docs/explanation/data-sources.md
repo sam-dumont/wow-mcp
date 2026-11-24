@@ -76,7 +76,7 @@ nobody here has called it on Forever yet.
 | Item stats | Forever's own client tables and hotfixes, shipped in the image | the API's item data is Classic's | - |
 | Where an item comes from | ForeverDB.net's addon data first (drop rates, vendors, the reputation or PvP rank a source asks for; refreshed at most weekly), then Polestar's item table and forever-db's quest rewards, shipped in the image | no | - |
 | Reputation standings (for reputation gear) | Polestar Recorder's reputation records and Altoholic's snapshot, newest per faction | yes, not read | - |
-| PvP rank (for rank gear) | the ForeverDB addon's armory snapshot (`ForeverDB.lua`); without it, 0 honorable kills in Altoholic means no rank, anything else is unknown | `/pvp-summary`: not read | - |
+| PvP rank (for rank gear) | Syndicator and Altoholic (`DataStore_Currencies`), from the "Renown - PvP Rank" currency once you hold some; the ForeverDB addon's armory snapshot too, if you run it (optional). The newest save wins; none: "your PvP rank isn't recorded yet" | `/pvp-summary`: not read | - |
 | Auction prices | Auctionator scans | no (the project reads no Auction House API) | history: price trends |
 | Legacy points earned | API (`/achievements`: each Legacy challenge is one) | yes, listed | - |
 | Legacy points spent | not shown | no | no addon saves them either |
