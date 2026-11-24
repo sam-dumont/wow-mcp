@@ -14,9 +14,9 @@ Your level against played time (**Show dates** switches to the calendar), then o
 level with its kills, quests, date and time played. A **striped bar** is a level the tracking
 only caught part of: it doesn't count in your pace.
 
-The line above the chart says what its totals count: "1,225 kills and 88 quests handed in over
-the completed levels (levels 22–33)", then the level you're in on its own ("Level 34 so far: 93
-kills and 6 quests, not in those totals"). Your assistant gives the same three numbers
+The line above the chart says what its totals count: "2,240 kills and 143 quests handed in over
+the completed levels (levels 22–45)", then the level you're in on its own ("Level 46 so far: 77
+kills and 4 quests, not in those totals"). Your assistant gives the same three numbers
 (completed levels, current level, both together), so its count and the page's match.
 
 Find the long bars, then open those days in the Journal. The Character tab's **Where the time

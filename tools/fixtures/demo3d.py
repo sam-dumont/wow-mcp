@@ -7,7 +7,7 @@ shipper fills (wowstats.assets.Store), packed for a release asset.
 The owner's call (2026-11-22): the public demo shows a real model, like
 Wowhead's dressing room, instead of golden3d's block figure. Blizzard's
 files are never committed: this tool writes them to <out dir>, the owner
-publishes the archive as the `demo-3d` release (tag `demo-3d-1`), and
+publishes the archive as the `demo-3d` release (tag `demo-3d-2`), and
 the Pages build downloads it (site/scripts/demo3d-asset.sh), checks its
 SHA-256 and builds the demo from it; without it the demo keeps golden3d.
 

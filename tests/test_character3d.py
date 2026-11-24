@@ -165,6 +165,7 @@ def test_the_bare_character():
     r = out["recipe"]
     assert out["classic"] is False and out["missing"] == []
     assert r["v"] == 1 and r["model"] == 9001 and r["animation"] == 0
+    assert r["attack"] == c3.ATTACK_UNARMED  # nothing in the right hand
     # Defaults: each option's first choice, none for the hidden ones.
     assert r["geosets"] == {"set": {"2": True, "3": False}, "groups": {"7": 2}}  # the ears
     assert r["materials"] == [{"type": 1, "width": 2048, "height": 1024, "layers": [
@@ -172,7 +173,7 @@ def test_the_bare_character():
     assert r["textures"] == {} and r["skinned"] == r["attachments"] == r["collections"] == []
     assert out["needs"] == [8001, 9001]
     assert set(r) == {"v", "model", "geosets", "materials", "textures", "skinned", "attachments", "collections",
-                      "animation"}
+                      "animation", "attack"}
 
 
 def test_saved_choices_and_the_choice_they_depend_on():
@@ -452,3 +453,20 @@ def test_ears_show_unless_a_helmet_or_the_look_says_otherwise():
     t["ChrCustomizationElement"][10] = {"ChrCustomizationChoiceID": 1235, "ChrCustomizationGeosetID": 44}
     r = build(tables=t)["recipe"]["geosets"]
     assert r["set"]["703"] is True and "7" not in r["groups"]
+
+
+def test_attack_follows_the_right_hands_weapon():
+    """The swing the 3D view plays now and then (web/model3d/m3d/draw.js
+    Idle): the game's pick by weapon, a staff's the loose two-hander's."""
+    w = c3.WEAPON
+    row = lambda inv, sub=0, cls=w, hand=c3.RIGHT, ranged=False: {  # noqa: E731
+        "inv": inv, "subclass": sub, "class": cls, "hand": hand, "ranged": ranged}
+    assert c3.attack_of([]) == c3.ATTACK_UNARMED
+    assert c3.attack_of([row(14, 6, cls=4, hand=c3.LEFT)]) == c3.ATTACK_UNARMED
+    assert c3.attack_of([row(13, 7)]) == c3.ATTACK_1H
+    assert c3.attack_of([row(21, 4)]) == c3.ATTACK_1H
+    assert c3.attack_of([row(17, 8)]) == c3.ATTACK_2H
+    assert c3.attack_of([row(17, 1)]) == c3.ATTACK_2H
+    assert c3.attack_of([row(17, 10)]) == c3.ATTACK_2HL  # staff
+    assert c3.attack_of([row(17, 6)]) == c3.ATTACK_2HL  # polearm
+    assert c3.attack_of([row(26, 3, ranged=True)]) == c3.ATTACK_UNARMED  # a gun only

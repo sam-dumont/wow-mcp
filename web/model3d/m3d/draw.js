@@ -13,7 +13,11 @@
 	          what needs that file, which then shows in `missing`
 	  opts    background: null (transparent, the default), [r, g, b, a] in
 	          0..1 or "#rrggbb"; clock: () => ms (animation time, tests);
-	          maxPixelRatio: 2; seed: the particles' random seed (1)
+	          maxPixelRatio: 2; seed: the particles' random seed (1);
+	          idle: true plays another animation now and then (Idle,
+	          below; off by default: the renderer's pictures stay still);
+	          random: () => [0, 1) for Idle (tests); reducedMotion:
+	          () => bool (default: the prefers-reduced-motion query)
  */
 'use strict';
 
@@ -69,6 +73,198 @@
 			}
 
 			return this.cache.get(id).then((buf) => (buf ? new Reader(buf) : null));
+		}
+
+		// fetch() for a file the drawing can do without (Idle's .anim
+		// files): one that doesn't come isn't listed in `missing`.
+		quiet(id) {
+			id = Number(id);
+			if (!Number.isInteger(id) || id <= 0)
+				return Promise.resolve(null);
+			if (!this.quiet_cache)
+				this.quiet_cache = new Map();
+			if (!this.quiet_cache.has(id)) {
+				this.quiet_cache.set(id, Promise.resolve().then(() => this.get(id)).then(
+					(buf) => (buf instanceof ArrayBuffer || buf instanceof Uint8Array ? buf : null), () => null));
+			}
+			return this.quiet_cache.get(id).then((buf) => (buf ? new Reader(buf) : null));
+		}
+	}
+
+	// ------------------------------------------------------------------ idle
+
+	// AnimationData ids (wow.export's AnimMapper names). Stand is 0; the
+	// rest are what a character does now and then in Idle. READY: the
+	// guard before a swing, by attack (16 unarmed, 17 1H, 18 2H, 19 2HL).
+	const STAND = 0;
+	const READY = { 16: 25, 17: 26, 18: 27, 19: 28 };
+	const READY_SPELL_DIRECTED = 51, READY_SPELL_OMNI = 52, SPELL_CAST_DIRECTED = 53, SPELL_CAST_OMNI = 54;
+	const CHANNEL_CAST_DIRECTED = 124, CHANNEL_CAST_OMNI = 125, BATTLE_ROAR = 55;
+	const EMOTE_TALK = 60, EMOTE_TALK_EXCLAMATION = 64, EMOTE_TALK_QUESTION = 65, EMOTE_BOW = 66;
+	const EMOTE_CHEER = 68, EMOTE_LAUGH = 70;
+
+	// What a character does between two stretches of Stand: each a list of
+	// (AnimationData id, times played). `attack` is the recipe's: the swing
+	// the game gives the weapon in the right hand (wowstats/character3d.py).
+	function moves(attack) {
+		const swing = READY[attack] ? attack : 16;
+		return [
+			{ name: 'attack', steps: [[READY[swing], 1], [swing, 1], [swing, 1], [READY[swing], 1]] },
+			{ name: 'cast', steps: [[READY_SPELL_DIRECTED, 2], [SPELL_CAST_DIRECTED, 1]] },
+			{ name: 'cast-omni', steps: [[READY_SPELL_OMNI, 2], [SPELL_CAST_OMNI, 1]] },
+			{ name: 'channel', steps: [[CHANNEL_CAST_DIRECTED, 4]] },
+			{ name: 'channel-omni', steps: [[CHANNEL_CAST_OMNI, 4]] },
+			{ name: 'roar', steps: [[BATTLE_ROAR, 1]] },
+			{ name: 'talk', steps: [[EMOTE_TALK, 1]] },
+			{ name: 'exclaim', steps: [[EMOTE_TALK_EXCLAMATION, 1]] },
+			{ name: 'question', steps: [[EMOTE_TALK_QUESTION, 1]] },
+			{ name: 'bow', steps: [[EMOTE_BOW, 1]] },
+			{ name: 'cheer', steps: [[EMOTE_CHEER, 1]] },
+			{ name: 'laugh', steps: [[EMOTE_LAUGH, 1]] }
+		];
+	}
+
+	const IDLE_MIN = 8000, IDLE_MAX = 20000;  // ms of Stand between two moves
+	const AFTER_DRAG = 3000;  // ms after the person lets go before a move may start
+
+	// Stand, and now and then (every IDLE_MIN-IDLE_MAX ms of the viewer's
+	// clock) one of `moves` the model has, played through, then Stand
+	// again. A move whose sequence the model lacks, or whose .anim file
+	// doesn't come, is never played (no stand-in). Nothing starts while the
+	// person turns the model, or under prefers-reduced-motion.
+	class Idle {
+		constructor(viewer) {
+			this.viewer = viewer;
+			this.random = typeof viewer.opts.random === 'function' ? viewer.opts.random : Math.random;
+			this.reduced = typeof viewer.opts.reducedMotion === 'function' ? viewer.opts.reducedMotion : () => {
+				try { return !!(globalThis.matchMedia && globalThis.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+				catch (e) { return false; }
+			};
+			this.reset(viewer.clock());
+		}
+
+		// A new drawing (or the tab shown again): Stand, the next move later.
+		reset(now) {
+			this.gen = (this.gen || 0) + 1;
+			this.dragged_at = null;
+			this.playing = null;
+			this.starting = false;
+			this.last_move = null;
+			this.available = null;
+			this.played = [];
+			this.schedule(now);
+		}
+
+		schedule(now) {
+			this.next_at = now + IDLE_MIN + this.random() * (IDLE_MAX - IDLE_MIN);
+		}
+
+		// The moves this model can play, each step as a sequence index:
+		// worked out once per drawing, when the first move is due (an .anim
+		// file is asked for then, never at load).
+		async moves_for(char, files, attack) {
+			const out = [];
+			const ok = new Map();
+			const playable = async (idx) => {
+				if (!ok.has(idx))
+					ok.set(idx, await char.prepareAnimation(idx, (fid) => files.quiet(fid)).catch(() => false));
+				return ok.get(idx);
+			};
+			for (const m of moves(attack)) {
+				const steps = [];
+				for (const [id, times] of m.steps) {
+					const all = char.animation_indices(id);
+					const variations = [];
+					for (const idx of all) {
+						if (await playable(idx))
+							variations.push(idx);
+					}
+					if (!variations.length)
+						break;
+					steps.push({ id, times, variations });
+				}
+				if (steps.length === m.steps.length)
+					out.push({ name: m.name, steps });
+			}
+			return out;
+		}
+
+		// Called on every frame, before the character's bones are updated.
+		tick(now, dt) {
+			const v = this.viewer;
+			const char = v.scene && v.scene.char;
+			if (!char)
+				return;
+			if (this.playing) {
+				const p = this.playing;
+				p.left -= dt;
+				if (p.left > 0)
+					return;
+				this.step(char, now);
+				return;
+			}
+			if (v.controls.pointer !== null)
+				this.dragged_at = now;
+			if (this.starting || now < this.next_at)
+				return;
+			if (now - (this.dragged_at ?? -Infinity) < AFTER_DRAG || this.reduced()) {
+				this.schedule(now);
+				return;
+			}
+			this.start(char, now);
+		}
+
+		async start(char, now) {
+			const gen = this.gen;
+			this.starting = true;
+			try {
+				if (!this.available)
+					this.available = await this.moves_for(char, this.viewer.files, Number(this.viewer.attack) || 16);
+				if (gen !== this.gen)
+					return;
+				now = this.viewer.clock();
+				const pool = this.available.filter((m) => m.name !== this.last_move);
+				const list = pool.length ? pool : this.available;
+				if (!list.length) {
+					this.schedule(this.viewer.clock());
+					return;
+				}
+				const m = list[Math.min(list.length - 1, Math.floor(this.random() * list.length))];
+				this.last_move = m.name;
+				this.played.push(m.name);
+				this.playing = { move: m, at: -1, left: 0 };
+				await this.step(char, now);
+			} finally {
+				if (gen === this.gen)
+					this.starting = false;
+			}
+		}
+
+		// The next step of the move playing, or Stand when it's done.
+		async step(char, now) {
+			const p = this.playing;
+			const gen = this.gen;
+			p.at++;
+			if (p.at >= p.move.steps.length) {
+				this.playing = null;
+				this.schedule(now);
+				await char.playAnimationById(STAND);
+				return;
+			}
+			const s = p.move.steps[p.at];
+			const idx = s.variations[Math.min(s.variations.length - 1, Math.floor(this.random() * s.variations.length))];
+			p.left = Infinity;  // until the sequence is in
+			p.id = s.id;
+			await char.playAnimation(idx);
+			if (gen === this.gen && this.playing === p)
+				p.left = Math.max(0.2, char.animation_duration(idx)) * s.times;
+		}
+
+		// What is playing: the AnimationData id, or 0 for Stand (tests).
+		state() {
+			return { playing: this.playing ? this.playing.id : STAND, move: this.playing ? this.playing.move.name : null,
+				next_at: this.next_at, played: this.played.slice(),
+				available: this.available ? this.available.map((m) => m.name) : null };
 		}
 	}
 
@@ -230,7 +426,13 @@
 				return null;
 			await bind_textures(item, a.textures, scene.materials);
 			await item.playAnimationById(0);
+			// An effect goes on one of the item model's own attachment
+			// points; one the model lacks shows nothing, as in game (the
+			// Dreamstaff has points 1-4, its ItemVisual names 1-5: the fifth
+			// was drawn in the hand).
 			const visuals = (await Promise.all(list(a.visuals).map(async (v) => {
+				if (!item.getAttachmentTransform(Number(v.attach) || 0))
+					return null;
 				const vis = await load_model(ctx, v.model, files, new Set());
 				if (!vis)
 					return null;
@@ -357,6 +559,26 @@
 				this.rotation = rot;
 				this.turn();
 			}, FACING);
+			this.attack = 16;
+			this.idle = opts.idle ? new Idle(this) : null;
+			// A hidden tab draws nothing and starts nothing: the loop stops,
+			// and comes back where it was (no jump: the first frame's dt is 0).
+			this.on_visibility = () => {
+				if (this.stopped || typeof document === 'undefined')
+					return;
+				if (document.hidden) {
+					if (this.raf)
+						cancelAnimationFrame(this.raf);
+					this.raf = 0;
+				} else if (!this.raf) {
+					this.last = null;
+					if (this.idle && !this.idle.playing)
+						this.idle.schedule(this.clock());
+					this.start();
+				}
+			};
+			if (typeof document !== 'undefined')
+				document.addEventListener('visibilitychange', this.on_visibility);
 		}
 
 		turn() {
@@ -380,6 +602,9 @@
 			this.files = files;
 			this.box = scene.char ? frame_box(scene.char) : null;
 			this.fitted = '';
+			this.attack = Number(obj(recipe).attack) || 16;
+			if (this.idle)
+				this.idle.reset(this.clock());
 			this.turn();
 			return true;
 		}
@@ -427,6 +652,8 @@
 			const char = scene && scene.char;
 			if (char) {
 				const view = this.camera.view_matrix, proj = this.camera.projection_matrix;
+				if (this.idle)
+					this.idle.tick(now, dt);
 				char.updateAnimation(dt);
 				char.render(view, proj);
 
@@ -444,7 +671,10 @@
 					a.renderer.render(view, proj);
 
 					for (const v of a.visuals) {
-						v.renderer.setTransformMatrix(a.renderer.getAttachmentTransform(v.attach) || a.renderer.model_matrix);
+						const at = a.renderer.getAttachmentTransform(v.attach);
+						if (!at)
+							continue;
+						v.renderer.setTransformMatrix(at);
 						v.renderer.updateAnimation(dt);
 						v.renderer.render(view, proj);
 					}
@@ -466,7 +696,7 @@
 		}
 
 		start() {
-			if (!this.raf && !this.stopped)
+			if (!this.raf && !this.stopped && !(typeof document !== 'undefined' && document.hidden))
 				this.raf = requestAnimationFrame(() => this.frame());
 		}
 
@@ -477,6 +707,8 @@
 				cancelAnimationFrame(this.raf);
 			this.raf = 0;
 			this.controls.dispose();
+			if (typeof document !== 'undefined')
+				document.removeEventListener('visibilitychange', this.on_visibility);
 			dispose_scene(this.scene);
 			this.scene = null;
 		}
@@ -527,6 +759,9 @@
 					const m = viewer.scene && viewer.scene.materials.get(type);
 					return m ? { width: m.width, height: m.height, data: m.readPixels() } : null;
 				},
+				// Idle's state: {playing (AnimationData id, 0 Stand), move,
+				// next_at, played, available}; null when idle is off
+				idle: () => (viewer.idle ? viewer.idle.state() : null),
 				// live particles and ribbon edges, over every model
 				particles: () => {
 					const out = { particles: 0, edges: 0, emitters: 0 };

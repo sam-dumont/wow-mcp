@@ -97,8 +97,8 @@ def test_the_control_is_the_demo_as_generated():
 
 def test_the_control_has_no_death_pattern(facts):
     f = facts["healthy_control"]
-    assert f["deaths"] == 12 and f["significant_death_zones"] == []
-    assert f["recorded_levels"] == list(range(22, 35)) and f["longest_gap_days"] < 2
+    assert f["deaths"] == 25 and f["significant_death_zones"] == []
+    assert f["recorded_levels"] == list(range(22, 47)) and f["longest_gap_days"] < 2
 
 
 def test_the_death_spike_doubles_the_wetlands_and_nothing_else(facts):
@@ -143,11 +143,10 @@ def test_the_wrong_spec_item_is_worn_and_the_truth_names_the_spec_s_best(facts):
     assert sc["env"]["WEIGHTS"].endswith(":holy")
     rule = next(r for r in sc["truth"]["must_find"] if r["id"] == "head-upgrade-for-the-spec")
     assert sorted(rule["all"][0]) == sorted(u["name"].lower() for u in f["top_upgrades"]["Head"])
-    # Scored for Holy, the circlet is little over the hood it replaced (1.7 against 12 for the
-    # best head on ForeverDB's Leveling weights).
+    # Scored for Holy, the circlet is no upgrade at all over Whitemane's Chapeau it replaced (the
+    # best head is 21 points over the circlet on ForeverDB's Leveling weights).
     db = scenarios.prep_db(scenarios.base_events(), sc["env"])
-    circlet = db.execute("SELECT gain FROM upgrade_candidates WHERE item_id = 253981").fetchone()[0]
-    assert circlet < 0.2 * f["top_upgrades"]["Head"][0]["gain"]
+    assert db.execute("SELECT gain FROM upgrade_candidates WHERE item_id = 253981").fetchone() is None
 
 
 def test_the_brief_names_the_break_and_the_off_spec_head_only_where_injected(facts):
@@ -194,12 +193,10 @@ def test_the_brief_hands_the_spec_s_best_head_upgrades(facts):
         assert u["line"].startswith(f"{head['bis_pct']}% → ") and u["line"].endswith("% on your head"), u
         assert u["wowhead"] == f"https://www.wowhead.com/forever/item={u['item_id']}"
         assert u["where"] and len(u["where_wowhead"]) == len(u["where"]) and u["fit"] == "yes"
-    # The Fallen Champion stands in the Graveyard (wowstats.plan.wings; Polestar's gear data said Library).
-    # The brief keeps the easiest source, a rate seen in Forever first (ForeverDB's 33.33%
-    # over Polestar's 38.5%, 2026-11-24).
-    assert ups[0]["where"] == ["drop: Fallen Champion (rare) in Scarlet Monastery: Graveyard (dungeon, levels 30-38), "
-                               "33.33%, about 3 runs (seen in Forever)"]
-    assert ups[0]["effort"] == "easy"
+    # Cassandra's Grace, the best of the three, is a world drop: the brief says
+    # who drops it and how hard it is to get.
+    assert ups[0]["where"] == ["drop: Deep Lurker (seen in Forever)"]
+    assert ups[0]["effort"] == "hard"
 
 def test_the_analysis_reads_what_the_store_query_would():
     rows = [{"char": "Nibbet-Gearholt", "feed": "wow-recorder"}, {"char": "Nibbet Gearholt", "feed": "wow-level"},
@@ -302,8 +299,8 @@ def test_the_shipped_truths_grade_a_right_and_a_wrong_answer():
         "death_spike": "You died 8 times in the Wetlands, more than twice your rate anywhere else.",
         "recorder_off": "Levels 27 to 29 were not recorded: the Recorder was off, so deaths there are unknown.",
         "offline_gap": "Level 33 took three weeks on the calendar because of a break; in played time it was on pace.",
-        "wrong_spec_gear": "Scored for Holy, the Filigreed Shadow Circlet is 12% of the best head: replace it with "
-                           "the Embalmed Shroud.",
+        "wrong_spec_gear": "Scored for Holy, the Filigreed Shadow Circlet is 33% of the best head: replace it with "
+                           "Cassandra's Grace.",
         "healthy_control": "Your deaths are spread out: too few to call any zone dangerous.",
     }
     wrong = {
@@ -333,14 +330,14 @@ def test_wrong_spec_gear_needs_a_finding_that_names_the_spec():
     """The first run's weak pass: a nudge named a Holy head upgrade, and no
     finding said the worn circlet is wrong for the spec the gear is scored for."""
     sc = scenarios.load("wrong_spec_gear")
-    upgrade = "Run Scarlet Monastery: Library for the Embalmed Shroud."
+    upgrade = "Run Uldaman for the Cassandra's Grace."
     for text, finding, want in (
             (upgrade, False, "fail"),
             (upgrade, True, "fail"),  # a finding, but no circlet and no spec
-            ("The Filigreed Shadow Circlet is a Shadow item: get the Embalmed Shroud instead.", True, "fail"),
-            ("Your head slot is 12% of its best for Holy: get the Embalmed Shroud.", True, "pass"),
-            ("For Holy, swap the Filigreed Shadow Circlet for the Embalmed Shroud.", True, "pass"),
-            ("For Holy, swap the Filigreed Shadow Circlet for the Embalmed Shroud.", False, "fail")):
+            ("The Filigreed Shadow Circlet is a Shadow item: get the Cassandra's Grace instead.", True, "fail"),
+            ("Your head slot is 33% of its best for Holy: get the Cassandra's Grace.", True, "pass"),
+            ("For Holy, swap the Filigreed Shadow Circlet for the Cassandra's Grace.", True, "pass"),
+            ("For Holy, swap the Filigreed Shadow Circlet for the Cassandra's Grace.", False, "fail")):
         v = grade.grade(sc, _answer(text, finding), {"done": True}, [])
         assert v["verdict"] == want, (text, finding, v["checks"])
 
@@ -351,7 +348,7 @@ def test_a_finding_that_faults_the_circlet_isnt_praise():
     built for damage casters at 17% of the best. A false negative; a finding
     that does call the circlet an upgrade still fails."""
     sc = scenarios.load("wrong_spec_gear")
-    faulted = ("Scarlet Monastery: Library drops 10 upgrades you can wear now. Its best is Embalmed Shroud for the "
+    faulted = ("Uldaman drops 10 upgrades you can wear now. Its best is Cassandra's Grace for the "
                "Head slot, where you wear the Filigreed Shadow Circlet at 17% of the best for Holy, an item built "
                "for damage casters.")
     praised = "The Filigreed Shadow Circlet is a good pick: keep it, it is an upgrade over most hoods at your level."

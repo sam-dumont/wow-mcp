@@ -1,6 +1,6 @@
 """The seeded histories: the docs site's demo character
-(tools/fixtures/generate.py --demo, Nibbet-Gearholt: twenty evenings, levels
-22 to 34) with one known effect injected, and the truth to grade against.
+(tools/fixtures/generate.py --demo, Nibbet-Gearholt: thirty-three evenings, levels
+22 to 46) with one known effect injected, and the truth to grade against.
 
 Each scenario is a JSON file in scenarios/ (data, not code): what to inject,
 the server settings (WEIGHTS...), the goals handed to the analysis, and the

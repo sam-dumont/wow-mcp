@@ -87,7 +87,9 @@ BFD_XP = 18211
 KILL_S = 75.0  # seconds per kill, pulls and walks between them: the pace's estimate of the kills left
 # Classic's XP to the next level.
 XP_MAX = {1: 400, 21: 26000, 22: 27300, 23: 29400, 24: 31700, 25: 34000, 26: 36400, 27: 38900, 28: 41400,
-          29: 44300, 30: 47400, 31: 50800, 32: 54500, 33: 58600, 34: 62800, 35: 67100}
+          29: 44300, 30: 47400, 31: 50800, 32: 54500, 33: 58600, 34: 62800, 35: 67100, 36: 71600, 37: 76100,
+          38: 80800, 39: 85700, 40: 90700, 41: 95800, 42: 101000, 43: 106300, 44: 111800, 45: 117500, 46: 123200,
+          47: 129100}
 SESSION_FIELDS = {"build": "70888", "interface": "16001", "locale": "enUS", "polestar_version": "0.4.1",
                   "recorder_version": "0.4.1", "region": "3"}
 MAPS = {"Darkshore": 1439, "Ashenvale": 1440, "Stonetalon Mountains": 1442, "Wetlands": 1437, "Ironforge": 1455,
@@ -96,7 +98,11 @@ MAPS = {"Darkshore": 1439, "Ashenvale": 1440, "Stonetalon Mountains": 1442, "Wet
         "Blackfathom Deeps": 221, "Stormwind Stockade": 225, "Dun Morogh": 1426,
         # The demo's last week (build_demo): never visited by the fixtures.
         "Alterac Mountains": 1416, "Arathi Highlands": 1417, "Dustwallow Marsh": 1445, "The Barrens": 1413,
-        "City of Dalaran": 1416, "Razorfen Kraul": 301}
+        "City of Dalaran": 1416, "Razorfen Kraul": 301,
+        # The demo's way to 46 (sessions_demo_46).
+        "Tirisfal Glades": 1420, "Scarlet Monastery": 302, "Loch Modan": 1432, "Badlands": 1418,
+        "Stranglethorn Vale": 1434, "Swamp of Sorrows": 1435, "Razorfen Downs": 300, "Uldaman": 230,
+        "Feralas": 1444, "Thousand Needles": 1441, "Tanaris": 1446, "Zul'Farrak": 219, "The Hinterlands": 1425}
 # A map's frame in world yards (the Recorder's `map` record): what makes
 # positions into distances.
 FRAMES = {1439: (-16000.0, -19200.0, 7466.6, 1600.0), 1440: (1700.0, -4066.6, 4672.9, 829.1),
@@ -111,9 +117,14 @@ FRAMES = {1439: (-16000.0, -19200.0, 7466.6, 1600.0), 1440: (1700.0, -4066.6, 46
 AREAS = {"Darkshore": 148, "Ashenvale": 331, "Stonetalon Mountains": 406, "Wetlands": 11, "Duskwood": 10,
          "Redridge Mountains": 44, "Elwynn Forest": 12, "Hillsbrad Foothills": 267, "Westfall": 40,
          "Stormwind City": 1519, "Ironforge": 1537, "Darnassus": 1657, "Teldrassil": 141,
-         "Alterac Mountains": 36, "Arathi Highlands": 45}
+         "Alterac Mountains": 36, "Arathi Highlands": 45, "Badlands": 3, "Stranglethorn Vale": 33,
+         "Dustwallow Marsh": 15, "Swamp of Sorrows": 8, "Loch Modan": 38, "Feralas": 357, "Tanaris": 440,
+         "Thousand Needles": 400, "The Hinterlands": 47}
 TAXI = {"Auberdine": 26, "Astranaar": 28, "Stormwind City": 2, "Ironforge": 6, "Menethil Harbor": 7,
         "Darkshire": 12, "Lakeshire": 5, "Sentinel Hill": 4, "Rut'theran Village": 27, "Southshore": 14}
+# The demo's flight points past 34 (sessions_demo_46): known once he lands there.
+TAXI_LATE = {"Thelsamar": 8, "Refuge Pointe": 16, "Booty Bay": 19, "Theramore Isle": 32, "Gadgetzan": 39,
+             "Thalanaar": 41, "Aerie Peak": 43}
 # Professions (skill line IDs) and what levels them.
 TAILORING, ENCHANTING, COOKING = 197, 333, 185
 CRAFTS = {TAILORING: (2963, 2996), ENCHANTING: (13419, 11082), COOKING: (2540, 2681)}
@@ -240,6 +251,7 @@ class Player:
         # Polestar does; the fixtures keep the clock running across logouts
         # (their pinned numbers come from that).
         self.fresh_steps = False
+        self.late_nodes: list[str] = []  # TAXI_LATE's points he has found (the demo past 34)
 
     # -------------------------------------------------------- output
 
@@ -480,15 +492,16 @@ class Player:
 
     def fly(self, to_zone: str, to_node: str, subzone: str, frm: str) -> None:
         npc = 4267
-        self.rec("flightmaster", known_nodes=";".join(str(v) for v in sorted(TAXI.values())), npc_id=npc,
-                 taxi_node=TAXI.get(frm, 2), **self.here())
+        nodes = {**TAXI, **{k: TAXI_LATE[k] for k in self.late_nodes}}
+        self.rec("flightmaster", known_nodes=";".join(str(v) for v in sorted(nodes.values())), npc_id=npc,
+                 taxi_node=nodes.get(frm, 2), **self.here())
         secs = self.rnd.randint(90, 240)
-        self.rec("taxi", duration_s=secs, from_node=TAXI.get(frm, 2), to_node=TAXI[to_node], zone=self.zone)
+        self.rec("taxi", duration_s=secs, from_node=nodes.get(frm, 2), to_node=nodes[to_node], zone=self.zone)
         self.instance = "taxi"
         self.wait(secs, moving=False)
         self.instance = None
         self.go(to_zone, subzone)
-        self.rec("land", seconds=secs, to_node=TAXI[to_node], **self.here())
+        self.rec("land", seconds=secs, to_node=nodes[to_node], **self.here())
         self.money -= self.rnd.randint(50, 150)
 
     def boat(self, to_zone: str, subzone: str) -> None:
@@ -1157,7 +1170,7 @@ def addon_saves(rnd: random.Random) -> dict[str, bytes]:
 # account: the same seeded script as the fixtures, then the extra evenings.
 DEMO = "Nibbet-Gearholt"
 DEMO_REALM = "Dawnwatch"
-AH_UPGRADE, AH_PRICE = 4323, 14500  # Shadow Hood, a tailor's hood: bound when equipped
+AH_UPGRADE, AH_PRICE = 10028, 38500  # Shadoweave Shoulders, a tailor's: bound when equipped
 DALARAN_MOBS = [247003, 247001, 246600]  # Starving Arcane's three kinds
 DALARAN_BOSSES = [245999, 247126, 246003, 246008, 246016]
 RFK_MOBS = [4435, 4436, 4437, 4438]
@@ -1168,6 +1181,9 @@ AH_STOCK = [2589, 2592, 4306, 4338, 2453, 3355, 3356, 3357, 3818, 3820, 3821, 78
             10939, 11083, 11082, 11134, 11137, 2996, 2997, 4305, 4339, 2321, 2604, 4291, 2605, 6260, 2324, 3371,
             3372, 8925, 1179, 1645, 2681, 2684, 5465, 5467, 5469, 5471, 3667, 3712, 4655, 5503, 5504, 6889, 769,
             2672, 2673, 3173, 3174, 1475, 6264, 7000, 6268, 6267, 9770, 9779, 9786, 9800]
+# Listings at his level (46) with a price of their own: an epic world drop (Underworld Band)
+# and a tailor's Shadoweave Mask, both bind on equip, both upgrades for him.
+AH_LISTED = {1980: 245000, 10025: 42000}
 
 
 def sessions_demo(p: Player, end_marks: dict) -> None:
@@ -1323,6 +1339,311 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
     p.wait(480, moving=False)
     p.gear_sheet()
     p.logout()
+
+
+# Nibbet's way from 34 to 46 (sessions_demo_46): the dungeons of the range,
+# their trash and bosses (the KB's NPCs), and what he took from each.
+SM_WINGS = {"Graveyard": ([4281, 4282, 4283, 4284, 4306], [3983, 6490, 4543]),
+            "Library": ([4285, 4291, 4293, 4296, 4297], [3974, 6487]),
+            "Armory": ([4286, 4287, 4288, 4289, 4290], [3975]),
+            "Cathedral": ([4292, 4294, 4295, 4298, 4299, 4540], [4542, 3976, 3977])}
+RFD = ([7327, 7328, 7329, 7332, 7341, 7342, 7345, 7351], [7355, 7357, 8567, 7358])
+ULDAMAN = ([4844, 4845, 4846, 4847, 4850, 4851, 4852, 2892, 7030], [6910, 7228, 7023, 7206, 7291, 4854, 2748])
+ZULFARRAK = ([5645, 5647, 5648, 5650, 7246, 7247, 7268, 7270], [8127, 7271, 7273, 7275, 7272, 7796, 7267])
+# Black Slippers, Black Handwraps, Dreamstaff
+CRAFT_SPELL = {254007: (TAILORING, 1257429), 254027: (TAILORING, 1257439), 249454: (ENCHANTING, 1249064)}
+ARENA_CHEST = 18706  # Arena Master, the Gurubashi Arena's treasure chest
+
+
+def dungeon(p: Player, name: str, instance_id: int, zone: str, mobs: list[int], bosses: list[int], *,
+            trash: int, loot: dict | None = None, deaths: tuple = (), quest_kill: dict | None = None) -> None:
+    """One run with a group of five: the trash, each boss (its encounter),
+    what dropped for him (loot: boss -> {slot: item}, worn at once; slot 0
+    for the bags), a death on the listed bosses, and the run's summary
+    (feed wow-dungeon) as the shipper writes it."""
+    rnd = p.rnd
+    p.rec("group", raid=False, size=5, zone=p.zone)
+    p.wait(rnd.uniform(120, 300))
+    p.rec("enter", difficulty=0, instance_id=instance_id, instance_kind="party", **p.here())
+    t0, g0, lvl = p.t, p.gained, p.level
+    p.go(zone, zone, rnd.uniform(30, 70), rnd.uniform(30, 70))
+    p.instance = zone
+    per = max(1, trash // len(bosses))
+    for k, b in enumerate(bosses):
+        for _ in range(per):
+            p.wait(rnd.uniform(35, 75))
+            p.kill(rnd.choice(mobs), elite=True)
+        p.wait(rnd.uniform(80, 150))
+        p.kill(b, elite=True, quest=(quest_kill or {}).get(b))
+        p.rec("encounter", difficulty=1, encounter_id=instance_id * 10 + k, size=5, success=True, zone=p.zone)
+        got = (loot or {}).get(b) or {}
+        if got:
+            p.rec("loot", items=";".join(f"{i}:1" for i in got.values()), npc_id=b, npc_kind="c", **p.here())
+            for slot, item in got.items():
+                if slot:
+                    p.worn[slot] = item
+        if b in deaths:
+            p.die(b, how="s")
+    inside = round(p.t - t0) + 60
+    p.wait(t0 + inside - p.t)
+    p.instance = None
+    p.other("wow-dungeon", dungeon_id=instance_id, dungeon_kind="party", left=iso(t0 + inside), level=lvl,
+            name=zone, seconds=inside, xp=p.gained - g0)
+    p.out[-1]["_time"] = iso(t0)
+    p.rec("group", raid=False, size=0, zone=p.zone)
+
+
+def quest_reward(p: Player, qid: int, item: int | None, slot: int | None, *, npc_zone: tuple | None = None) -> None:
+    """A quest he takes and hands in on the spot (its kills from the zone's
+    mobs): the reward worn in `slot`."""
+    q = p.g.quests[qid]
+    p.accept(q)
+    p.work(q, p.g.zone_mobs(p.zone, p.level) or p.g.zone_mobs("Arathi Highlands", p.level))
+    if npc_zone:
+        p.go(*npc_zone)
+    p.turnin(q, reward=item)
+    if slot:
+        p.worn[slot] = item
+
+
+def craft_worn(p: Player, item: int, slot: int, drop: tuple = ()) -> None:
+    """He makes a piece of his own and puts it on."""
+    skill, spell = CRAFT_SPELL[item]
+    p.wait(p.rnd.uniform(5, 9), moving=False)
+    p.rec("craft", count=1, item_id=item, spell_id=spell, zone=p.zone)
+    p.rec("cast", item_id=item, spell_id=spell, **p.here())
+    p.worn[slot] = item
+    for s in drop:
+        p.worn.pop(s, None)
+
+
+def prof_train(p: Player, skill: int, cap: int, npc: int) -> None:
+    """The next rank of a profession at its trainer: a higher cap."""
+    p.rec("trainer", npc_id=npc, **p.here())
+    p.skills[skill][1] = cap
+    p.rec("skill", max_rank=cap, rank=p.skills[skill][0], skill_id=skill, zone=p.zone)
+    p.money -= 5000 if cap <= 225 else 50000
+
+
+def sessions_demo_46(p: Player, end_marks: dict) -> None:
+    """Thirteen evenings after the demo's first week: 34 to 46, levelling
+    Shadow with Polestar's 30-50 guides and every dungeon of the range
+    (Scarlet Monastery, Razorfen Downs, Uldaman, Zul'Farrak). What he wears
+    at the end: drops and rewards of those, two of his own crafts, scored
+    by ForeverDB's Shadow weights at 60-70% of the best his level can hold
+    (tests/test_demo_profile.py test_demo_gear_at_46)."""
+    rnd, q = p.rnd, p.g.quests
+    arathi = "forever/alliance/30-40/05-arathi-highlands"
+
+    # 21. Sat 24 Oct, evening: his own Black Slippers, then Arathi's coast to 35.
+    p.rested += 1500
+    p.login(local(2026, 10, 24, 19, 20), "Arathi Highlands", "Refuge Pointe")
+    p.late_nodes.append("Refuge Pointe")
+    craft_worn(p, 254007, 8)
+    quest_reward(p, 684, 4744, 9)  # Wanted! Marez Cowl: Arcane Runed Bracers
+    p.guide_steps(arathi, 46, 54, {46: ("Arathi Highlands", "Circle of West Binding"),
+                                   47: ("Arathi Highlands", "Faldir's Cove"),
+                                   50: ("Arathi Highlands", "The Drowned Reef"),
+                                   51: ("Arathi Highlands", "Faldir's Cove")},
+                  reach=(35, 12000), deaths=(50,), hours=2.3)
+    quest_reward(p, 667, 4549, 11)  # Death From Below: Seafire Band
+    p.profession(ENCHANTING, 10)
+    p.logout()
+
+    # 22. Sun 25 Oct, afternoon: the boat and the long road to Tirisfal,
+    # Scarlet Monastery's Graveyard and Library at 35.
+    p.rested += 3000
+    p.login(local(2026, 10, 25, 14, 10), "Arathi Highlands", "Refuge Pointe")
+    p.fly("Hillsbrad Foothills", "Southshore", "Southshore", "Refuge Pointe")
+    p.go("Tirisfal Glades", "Scarlet Monastery")
+    dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Graveyard"], trash=12,
+            loot={6490: {7: 7709}, 4543: {3: 7684}})  # Blighted Leggings, Bloodmage Mantle
+    p.go("Tirisfal Glades", "Scarlet Monastery")
+    dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Library"], trash=14,
+            loot={6487: {0: 7713}}, deaths=(6487,))  # Doan's rod: to the bags
+    p.go("Tirisfal Glades", "Scarlet Monastery")
+    p.logout()
+
+    # 23. Mon 26 Oct: Loch Modan and the Badlands to 37.
+    p.rested += 2400
+    p.login(local(2026, 10, 26, 19, 0), "Tirisfal Glades", "Scarlet Monastery")
+    p.go("Hillsbrad Foothills", "Southshore")
+    p.fly("Ironforge", "Ironforge", "Ironforge", "Southshore")
+    prof_train(p, ENCHANTING, 225, 5157)  # Expert, both: the 150 caps were reached
+    prof_train(p, TAILORING, 225, 5153)
+    p.late_nodes.append("Thelsamar")  # a gnome's: Dun Morogh's next door
+    p.fly("Loch Modan", "Thelsamar", "Thelsamar", "Ironforge")
+    p.guide_steps("forever/alliance/30-40/06-badlands", 1, 22,
+                  {1: ("Badlands", None), 4: ("Badlands", "Hammertoe's Digsite"), 8: ("Badlands", "Valley of Fangs"),
+                   9: ("Badlands", "Agmond's End"), 21: ("Loch Modan", "Stoutlager Inn"),
+                   22: ("Loch Modan", "Thelsamar")}, reach=(37, 15000), deaths=(10,), hours=2.4)
+    p.profession(TAILORING, 12)
+    p.logout()
+
+    # 24. Tue 27 Oct: Stranglethorn to 38; the Gurubashi Arena's chest.
+    p.rested += 2600
+    p.login(local(2026, 10, 27, 19, 15), "Loch Modan", "Thelsamar")
+    p.fly("Stormwind City", "Stormwind City", "Stormwind City", "Thelsamar")
+    p.go("Stranglethorn Vale", "Booty Bay")
+    p.late_nodes.append("Booty Bay")
+    p.guide_steps("forever/alliance/30-40/04-stranglethorn-vale", 2, 20,
+                  {2: ("Stranglethorn Vale", "Booty Bay"), 3: ("Stranglethorn Vale", "Nesingwary's Expedition"),
+                   14: ("Stranglethorn Vale", "Rebel Camp"), 15: ("Stranglethorn Vale", "Kurzen's Compound"),
+                   20: ("Stranglethorn Vale", "The Savage Coast")},
+                  reach=(38, 25000), deaths=(15,), hours=2.6)
+    p.go("Stranglethorn Vale", "Gurubashi Arena")
+    p.wait(rnd.uniform(240, 420))
+    p.rec("loot", items=f"{ARENA_CHEST}:1", npc_kind="o", **p.here())
+    p.worn[13] = ARENA_CHEST
+    p.go("Stranglethorn Vale", "Booty Bay")
+    p.logout()
+
+    # 25. Wed 28 Oct: back to the Monastery, Armory and Cathedral at 38.
+    p.rested += 2200
+    p.login(local(2026, 10, 28, 19, 5), "Stranglethorn Vale", "Booty Bay")
+    p.fly("Stormwind City", "Stormwind City", "Stormwind City", "Booty Bay")
+    p.go("Tirisfal Glades", "Scarlet Monastery")
+    dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Armory"], trash=14)
+    p.go("Tirisfal Glades", "Scarlet Monastery")
+    dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Cathedral"], trash=15,
+            loot={3977: {1: 7720}}, deaths=(3976,))  # Whitemane's Chapeau
+    p.go("Tirisfal Glades", "Scarlet Monastery")
+    p.logout()
+
+    # 26. Thu 29 Oct: Theramore and Dustwallow Marsh; 40, Shadowform and the
+    # trainer.
+    p.rested += 2800
+    p.login(local(2026, 10, 29, 19, 0), "Tirisfal Glades", "Scarlet Monastery")
+    p.go("Wetlands", "Menethil Harbor")
+    p.boat("Dustwallow Marsh", "Theramore Isle")
+    p.guide_steps("forever/alliance/40-50/01-stranglethorn-vale", 1, 15,
+                  {1: ("Dustwallow Marsh", "Theramore Isle"), 3: ("Dustwallow Marsh", "Swamplight Manor"),
+                   5: ("Dustwallow Marsh", "North Point Tower"), 10: ("Dustwallow Marsh", "Theramore Isle"),
+                   15: ("Dustwallow Marsh", "Foothold Citadel")},
+                  reach=(40, 20000), deaths=(6,), hours=2.7)
+    quest_reward(p, 1203, 9622, 11)  # Jarl Needs a Blade: Reedknot Ring
+    p.go("Dustwallow Marsh", "Theramore Isle")
+    p.boat("Wetlands", "Menethil Harbor")
+    p.fly("Stormwind City", "Stormwind City", "Stormwind City", "Menethil Harbor")
+    p.train()
+    p.accept(q[3636], 1284)  # Bring the Light: Amnennar, in Razorfen Downs
+    p.logout()
+
+    # 27. Sat 31 Oct, afternoon: Razorfen Downs at 40.
+    p.rested += 4200
+    p.login(local(2026, 10, 31, 14, 30), "Stormwind City", "Stormwind City")
+    p.boat("Darkshore", "Auberdine")
+    p.fly("Ashenvale", "Astranaar", "Astranaar", "Auberdine")
+    p.go("The Barrens", "Razorfen Downs")
+    dungeon(p, "Razorfen Downs", 129, "Razorfen Downs", *RFD, trash=18,
+            loot={7357: {6: 10771}, 7358: {5: 10762}}, deaths=(8567,), quest_kill={7358: 3636})
+    p.rec("complete", quest_id=3636, quest_name=q[3636]["name"], zone=p.zone)
+    p.go("Dustwallow Marsh", "Theramore Isle")
+    p.late_nodes.append("Theramore Isle")
+    p.boat("Wetlands", "Menethil Harbor")
+    p.fly("Stormwind City", "Stormwind City", "Stormwind City", "Menethil Harbor")
+    p.turnin(q[3636], reward=270081)  # Purified Ring
+    p.worn[12] = 270081
+    p.profession(ENCHANTING, 45)
+    p.logout()
+
+    # 28. Sun 1 Nov: Stranglethorn's jungle and Nesingwary's hunts, 40 to 43.
+    p.rested += 3200
+    p.login(local(2026, 11, 1, 15, 0), "Stormwind City", "Stormwind City")
+    p.fly("Stranglethorn Vale", "Booty Bay", "Booty Bay", "Stormwind City")
+    p.guide_steps("forever/alliance/40-50/01-stranglethorn-vale", 31, 62,
+                  {31: ("Stranglethorn Vale", "Booty Bay"), 34: ("Stranglethorn Vale", "Bloodsail camp"),
+                   41: ("Stranglethorn Vale", "Jungle Stalkers"), 45: ("Stranglethorn Vale", "Nesingwary's Expedition"),
+                   50: ("Stranglethorn Vale", "Rebel Camp"), 55: ("Stranglethorn Vale", "Ruins of Zul'Mamwe"),
+                   57: ("Stranglethorn Vale", "Nesingwary's Expedition"), 62: ("Stranglethorn Vale", "Booty Bay")},
+                  reach=(43, 8000), deaths=(42, 55), hours=3.4)
+    p.logout()
+
+    # 29. Mon 2 Nov: Uldaman at 43, and Talvash's necklace in Ironforge.
+    p.rested += 2000
+    p.login(local(2026, 11, 2, 18, 50), "Stranglethorn Vale", "Booty Bay")
+    p.fly("Ironforge", "Ironforge", "Ironforge", "Booty Bay")
+    p.accept(q[2361], 6826)
+    p.fly("Loch Modan", "Thelsamar", "Thelsamar", "Ironforge")
+    p.go("Badlands", "Uldaman")
+    dungeon(p, "Uldaman", 70, "Uldaman", *ULDAMAN, trash=21,
+            loot={7023: {18: 274425}, 7291: {15: 11311}}, deaths=(2748,))
+    p.rec("progress", have=1, need=1, objective=1, quest_id=2361, **p.here())
+    p.rec("complete", quest_id=2361, quest_name=q[2361]["name"], zone=p.zone)
+    p.fly("Ironforge", "Ironforge", "Ironforge", "Thelsamar")
+    p.turnin(q[2361], reward=7673)  # Talvash's Enhancing Necklace
+    p.worn[2] = 7673
+    p.profession(ENCHANTING, 40)
+    p.profession(TAILORING, 14)
+    p.logout()
+
+    # 30. Tue 3 Nov: Feralas from Feathermoon, 43 to 45.
+    p.rested += 2600
+    p.login(local(2026, 11, 3, 19, 0), "Ironforge", "Ironforge")
+    p.fly("Stormwind City", "Stormwind City", "Stormwind City", "Ironforge")
+    p.boat("Darkshore", "Auberdine")
+    p.fly("Ashenvale", "Astranaar", "Astranaar", "Auberdine")
+    p.go("Feralas", "Thalanaar")
+    p.late_nodes.append("Thalanaar")
+    p.guide_steps("forever/alliance/40-50/03-feralas", 3, 23,
+                  {3: ("Feralas", "Feathermoon Stronghold"), 5: ("Feralas", "Ruins of Solarsal"),
+                   10: ("Feralas", "The Forgotten Coast"), 12: ("Feralas", "Gordunni Outpost"),
+                   15: ("Feralas", "Feathermoon Stronghold"), 19: ("Feralas", "Camp Mojache"),
+                   22: ("Feralas", "The Writhing Deep")},
+                  reach=(45, 6000), deaths=(12,), hours=3.0)
+    p.logout()
+
+    # 31. Wed 4 Nov: Artisan enchanting in Ironforge, his own Dreamstaff,
+    # then Tanaris from Gadgetzan.
+    p.rested += 2000
+    p.login(local(2026, 11, 4, 18, 40), "Feralas", "Feathermoon Stronghold")
+    p.go("Feralas", "Thalanaar")
+    p.fly("Ironforge", "Ironforge", "Ironforge", "Thalanaar")
+    prof_train(p, ENCHANTING, 300, 5157)  # Artisan: 35 and a rank of 200 or more
+    while p.skills[ENCHANTING][0] < 220:  # the Dreamstaff's formula
+        p.profession(ENCHANTING, 4)
+    # His own Dreamstaff: under the scepter and rod by the Shadow weights, but
+    # it glows (its ItemVisual, as in game). The pair goes to a vendor.
+    craft_worn(p, 249454, 16, drop=(17,))
+    p.sold = frozenset({2816, 279838})
+    while p.skills[TAILORING][0] < 165:  # Black Handwraps' pattern
+        p.profession(TAILORING, 4)
+    craft_worn(p, 254027, 10)
+    p.go("Tanaris", "Gadgetzan")
+    p.late_nodes.append("Gadgetzan")
+    p.guide_steps("forever/alliance/40-50/04-tanaris", 4, 15,
+                  {4: ("Tanaris", "Gadgetzan"), 6: ("Tanaris", "Steamwheedle Port"),
+                   7: ("Tanaris", "Noonshade Ruins"), 9: ("Tanaris", "Waterspring Field"),
+                   10: ("Tanaris", "Lost Rigger Cove"), 15: ("Tanaris", "Gadgetzan")},
+                  reach=(45, 102000), hours=2.2)
+    p.logout()
+
+    # 32. Thu 5 Nov: Zul'Farrak at 45; 46 on Gahz'rilla.
+    p.rested += 2400
+    p.login(local(2026, 11, 5, 19, 10), "Tanaris", "Gadgetzan")
+    p.go("Tanaris", "Zul'Farrak")
+    dungeon(p, "Zul'Farrak", 209, "Zul'Farrak", *ZULFARRAK, trash=21,
+            loot={7271: {0: 18083}}, deaths=(7267,))  # Jumanza Grips: under his own handwraps
+    p.go("Tanaris", "Gadgetzan")
+    p.logout()
+
+    # 33. Fri 6 Nov: the Hinterlands from Aerie Peak, a quiet evening at 46. A day in
+    # Gadgetzan's inn banks about 18,000 XP at 46 (5% of a level every 8 hours): some is
+    # left at the end.
+    p.rested += 18000
+    p.login(local(2026, 11, 6, 19, 30), "Tanaris", "Gadgetzan")
+    p.fly("Ironforge", "Ironforge", "Ironforge", "Gadgetzan")
+    p.late_nodes.append("Aerie Peak")  # found at 41, on the way to Uldaman's quests
+    p.fly("The Hinterlands", "Aerie Peak", "Aerie Peak", "Ironforge")
+    p.guide_steps("forever/alliance/40-50/05-the-hinterlands", 1, 14,
+                  {1: ("The Hinterlands", "Aerie Peak"), 5: ("The Hinterlands", "Quel'Danil Lodge"),
+                   10: ("The Hinterlands", "Skulk Rock"), 14: ("The Hinterlands", "Aerie Peak")},
+                  reach=(46, 45000), deaths=(10,), hours=2.2)
+    p.rec("bind", **p.here())
+    p.bind = "Aerie Peak"
+    p.profession(TAILORING, 8)
+    p.gear_sheet()
+    p.logout()
     end_marks["end"] = p.t
 
 
@@ -1332,9 +1653,10 @@ def ah_scans(p: Player, days: list[float], upgrade: int, price: int) -> None:
     for k, t in enumerate(days):
         day = datetime.fromtimestamp(t, TZ).date()
         midnight = datetime(day.year, day.month, day.day, tzinfo=TZ).timestamp()
-        stock = list(AH_STOCK) + ([upgrade] if k == len(days) - 1 else [])
+        stock = list(AH_STOCK) + list(AH_LISTED) + ([upgrade] if k == len(days) - 1 else [])
         for item in stock:
-            lo = price if item == upgrade else 20 + (item * 37 + k * 11) % 2400
+            lo = price if item == upgrade else AH_LISTED.get(item, 20 + (item * 37 + k * 11) % 2400) + k * 500 * (
+                item in AH_LISTED)
             p.t = midnight
             p.other("wow-prices", item_id=item, item_key=str(item), price_copper=lo,
                     price_high_copper=lo + lo // 4, available=1 + item % 7, scan_day=day.isoformat(),
@@ -1345,6 +1667,8 @@ class DemoPlayer(Player):
     """The demo's player: the shipper sends a character sheet whenever the
     outfit or a profession rank changed since the last one (its digest),
     at the next run after a logout, so the gear history has every outfit."""
+
+    sold: set[int] = frozenset()  # sold to a vendor: out of the bags
 
     def gear_sheet(self) -> None:
         key = (tuple(sorted(self.worn.items())), tuple((s, r) for s, (r, _c) in sorted(self.skills.items())))
@@ -1359,7 +1683,8 @@ class DemoPlayer(Player):
         changes. No bank: he never opened it, so it stays unknown."""
         worn = set(self.worn.values())
         held = sorted({int(part.split(":")[0]) for r in self.out if r.get("kind") == "loot"
-                       for part in str(r.get("items") or "").split(";") if part.split(":")[0].isdigit()} - worn)
+                       for part in str(r.get("items") or "").split(";") if part.split(":")[0].isdigit()}
+                      - worn - self.sold)
         if held == getattr(self, "_bags", None):
             return
         self._bags = held
@@ -1378,9 +1703,12 @@ class DemoPlayer(Player):
 # when he reached RESPEC_LEVEL. (WoWSims tree, talent name, max rank.)
 DISC_ORDER = [("Wand Specialization", 2), ("Twin Disciplines", 3), ("Mental Strength", 5), ("Inner Focus", 1),
               ("Meditation", 3), ("Martyrdom", 1), ("Improved Power Word: Shield", 3), ("Mental Agility", 2)]
-SHADOW_ORDER = [("Spirit Tap", 5), ("Shadow Focus", 3), ("Improved Shadow Word: Pain", 2), ("Improved Mind Blast", 3),
-                ("Mind Flay", 1), ("Improved Mind Flay", 2), ("Vampiric Embrace", 1), ("Shadow Weaving", 3),
-                ("Dark Inspiration", 3), ("Shadow Reach", 2), ("Blackout", 2)]
+# All 37 of 46 in Shadow, each tier opened by the one before (5 points a
+# tier): Shadowform, the tree's last, with the 31st point at 40.
+SHADOW_ORDER = [("Spirit Tap", 5), ("Improved Shadow Word: Pain", 2), ("Improved Mind Blast", 3), ("Mind Flay", 1),
+                ("Improved Mind Flay", 2), ("Improved Mind Blast", 2), ("Vampiric Embrace", 1), ("Shadow Weaving", 3),
+                ("Dark Inspiration", 1), ("Silence", 1), ("Devouring Contagion", 2), ("Shadow Reach", 2),
+                ("Darkness", 5), ("Shadowform", 1), ("Early Demise", 2), ("Dark Inspiration", 1), ("Shadow Focus", 3)]
 RESPEC_LEVEL = 30
 # Battle.net's names for the three trees, in its order.
 BNET_TREES = ("Discipline", "Shadow Magic", "Holy")
@@ -1520,7 +1848,11 @@ def shipper_shapes(rows: list[dict]) -> list[dict]:
 DEMO_GROUPS = {"Blackfathom Deeps": ("Brindlewick", "Mirelle", "Ostrik", "Hollen"),
                "Stormwind Stockade": ("Brindlewick", "Mirelle", "Pellam", "Quenby"),
                "City of Dalaran": ("Mirelle", "Ravvik", "Sefa", "Tamsin"),
-               "Razorfen Kraul": ("Brindlewick", "Ravvik", "Corvatha", "Hollen")}
+               "Razorfen Kraul": ("Brindlewick", "Ravvik", "Corvatha", "Hollen"),
+               "Scarlet Monastery": ("Brindlewick", "Mirelle", "Sefa", "Tamsin"),
+               "Razorfen Downs": ("Ravvik", "Corvatha", "Hollen", "Quenby"),
+               "Uldaman": ("Brindlewick", "Ostrik", "Pellam", "Sefa"),
+               "Zul'Farrak": ("Mirelle", "Ravvik", "Corvatha", "Tamsin")}
 DEMO_SEEN = ("Wendra", "Fallowmere", "Ostrik", "Jessamy", "Thornby", "Ulvar")
 
 
@@ -1573,20 +1905,20 @@ def build_demo(end_day: str | None = None) -> list[dict]:
                    money=21000, bind="Auberdine")
     p.worn[16] = 5201  # Emberstone Staff, the Deadmines' (level 18)
     # Every slot filled: his own Silky Circlet (tailoring 100, level 20; a
-    # frost caster's, made for another class: the Shadow Hood on the auction
-    # house beats it), a shirt, the guild's
+    # frost caster's, made for another class), a shirt, the guild's
     # tabard, a second trinket (Shadowfang Keep's, level 21). Everything he
     # wears at 22 asks 22 or less and has a look in Forever's item tables.
     p.worn.update({1: 253951, 4: 2576, 14: 273643, 19: 5976})
     p.fresh_steps = True  # draws nothing from the seed: the same evenings as the fixtures'
     marks = sessions_priest(p)
     sessions_demo(p, marks)
+    sessions_demo_46(p, marks)
     end = p.t
     # The fixtures' few price rows predate the scan fields (realm, scan_day):
     # the demo's auction house is ah_scans' alone.
     p.out = [r for r in p.out if r["feed"] != "wow-prices"]
-    # The upgrade on sale: Shadow-scored, bound when equipped, for the
-    # empty head slot.
+    # The upgrade on sale: Shadow-scored, bound when equipped, for his
+    # weakest piece (the Inquisitor's Shawl, 43% of BiS).
     ah_scans(p, [end - 86400, end], upgrade=AH_UPGRADE, price=AH_PRICE)
     wowsims_events(p)
     # Questie's list: the hand-ins, and a made-up past before the recording.

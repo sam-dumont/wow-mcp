@@ -179,6 +179,11 @@ SLOT_HAND = {16: RIGHT, 17: LEFT}
 INV_SHIELD, INV_2H = 14, 17
 WEAPON, WAND = 2, 19
 RANGED_SLOT = 18
+# The swing the character's right hand makes (AnimationData ids), as the game picks it by weapon:
+# AttackUnarmed with nothing there, Attack1H, Attack2H, and Attack2HL ("loose") for staves,
+# polearms and fishing poles (ItemSubClass 10, 6, 20). The 3D view plays it now and then (web/model3d).
+ATTACK_UNARMED, ATTACK_1H, ATTACK_2H, ATTACK_2HL = 16, 17, 18, 19
+LOOSE = {6, 10, 20}
 
 # The original models: ChrModel rows with these display ids (Forever's tables give them their own
 # options and the texture layout 203, but tie none of them to a race; the game picks them in code).
@@ -466,8 +471,19 @@ def assemble(tables: Mapping[str, Mapping[int, dict]], race_id: int, sex: int, c
         "attachments": a.attachments,
         "collections": a.collections,
         "animation": 0,
+        "attack": attack_of(worn),
     }
     return {"recipe": recipe, "needs": sorted(_needs(recipe)), "missing": missing, "classic": classic}
+
+
+def attack_of(worn: list[dict]) -> int:
+    """The attack animation for what the right hand holds (worn: _worn's rows)."""
+    r = next((w for w in worn if w.get("hand") == RIGHT and not w.get("ranged")), None)
+    if r is None:
+        return ATTACK_UNARMED
+    if r["inv"] == INV_2H:
+        return ATTACK_2HL if r.get("class") == WEAPON and r.get("subclass") in LOOSE else ATTACK_2H
+    return ATTACK_1H
 
 
 def _active_choices(ix: Index, chr_model: int, saved: Iterable[dict], updated: int | None,

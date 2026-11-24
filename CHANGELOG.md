@@ -15,6 +15,8 @@ What comes after 0.10.0, in short. Every change follows.
   Dalaran's, and its trips read about a third faster.
 - With ForeverDB_Helper installed, each dungeon run says who was in the party: names, level,
   class and role. Money in the analysis tools reads as 16g 72s 10c, not raw copper.
+- The 3D character moves now and then (a swing, a cast, a channel) instead of standing still.
+- The demo's Nibbet is a level 46 Shadow priest with Shadowform and a staff that glows as in the game.
 
 ### Added
 
@@ -50,11 +52,35 @@ What comes after 0.10.0, in short. Every change follows.
   `query_metric`, and every `*_copper` column in `play_sql`: 167210 reads `16g 72s 10c`. An analysis had divided by 1000 and
   reported 167.2g for 16g 72s. Findings write money with `{col:gold}`.
 
+- The 3D view comes alive: the character stands, and every 8 to 20 seconds swings its weapon
+  (the swing its weapon type uses: a staff's two-handed one), casts, channels or roars, then stands
+  again. Only animations the model has play; none while you turn it, for 3 seconds after, under
+  reduced motion, in a hidden tab, or in the still pictures. Emotes (talk, bow, cheer) wait for
+  the shipper to send their animation files, which live outside the model.
+- With a two-hander the paperdoll's off hand shows that weapon greyed, as the game's character
+  pane does, instead of "Empty".
+
+### Changed
+
+- The demo's Nibbet is a level 46 Shadow priest. Thirteen more evenings (24 Oct to 6 Nov 2026)
+  take him from 34 to 46 through Arathi, Badlands, Stranglethorn, Dustwallow, Feralas, Tanaris and
+  the Hinterlands, with Scarlet Monastery's four wings, Razorfen Downs, Uldaman and Zul'Farrak.
+  Every worn item is a drop, quest reward or his own craft that a level 46 could have, at 66% of
+  the best for his level on average (ForeverDB's Shadow Leveling weights), four slots at their
+  best. He holds the Dreamstaff he enchanted himself and a White Obsidian Wand from Uldaman. His
+  talents are 37 points of Shadow, Shadowform at 40. The auction house lists two upgrades at his
+  level next to the Shadoweave Shoulders.
+- The demo's real 3D model moves to the `demo-3d-2` release (`site/demo3d.sha256` pins the new
+  archive): `demo-3d-1` has none of his new gear. Until that release exists the demo draws
+  golden3d's figure.
+
 ### Fixed
 
 - MCP: `sessions` and `dungeons` now say other players chose the names in them (`untrusted`), like
   `players`.
-
+- A weapon's own glow (its ItemVisual from the game data) is drawn only on the attachment points
+  its model has. The Dreamstaff's visual names five points, the staff has four: the fifth glow sat
+  in the hand.
 - The MCP check gives the model the tools' clock. The tools run on the demo's frozen day, the
   model on today's date, so "where is the character now?" read six-day-old data as stale and
   answered NONE (`zone_now`). The docs count 71 questions (4 in market).

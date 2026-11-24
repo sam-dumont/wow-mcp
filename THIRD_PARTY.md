@@ -40,7 +40,7 @@ The public demo's 3D model is Blizzard's art: Nibbet's character model,
 his gear's models and textures, and the client table rows that dress him,
 read from a Forever client by `tools/fixtures/demo3d.py`. They are © Blizzard
 Entertainment and no licence of ours covers them. They are never in git: they
-ship only as the `demo-3d` release's asset (tag `demo-3d-1`), which the docs
+ship only as the `demo-3d` release's asset (tag `demo-3d-2`), which the docs
 site's build downloads into the demo (`site/scripts/demo3d-asset.sh`). Deleting
 that release removes them; the demo then draws its made-up figure
 (`tools/fixtures/golden3d.py`) again.

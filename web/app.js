@@ -817,6 +817,22 @@ function renderGear(d) {
   gearDrawn(g);
   if (state.advice && state.advice.char === d.char) renderAdvice(state.advice);
   if (PUBLIC) publicBadges(g);
+  twoHanded(box, by[16], by[17]);
+}
+
+// A two-hander takes the off hand too: the slot shows it greyed, as the
+// game's character pane does, never "Empty" (the item's card says
+// "Two-Hand"; the sheet itself has no inventory type).
+function twoHanded(box, main, off) {
+  if (!main || off || !window.wowCard) return;
+  window.wowCard(main.item_id).then((c) => {
+    const li = box.querySelector('.weapons .slot[data-slot="17"]');
+    if (!c || c.s !== 'Two-Hand' || !li || !li.classList.contains('empty')) return;
+    const q = main.quality !== null && main.quality !== undefined ? Math.max(0, Math.min(5, main.quality)) : null;
+    li.replaceWith(h('li', { class: 'slot twohand' + (q !== null ? ` q${q}` : ''), 'data-slot': 17 },
+      window.wowItem({ ...main, enchant: null, enchant_id: 0 },
+        { size: 'large', glyph: glyph(SLOT_GLYPH[17]), cls: 'slotitm', sub: 'Off hand, held by the two-hander' })));
+  });
 }
 
 // The public view's doll badges: the character answer carries each worn

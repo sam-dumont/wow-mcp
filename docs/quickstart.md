@@ -20,7 +20,7 @@ docker compose pull ui && docker compose up -d ui && docker compose run --rm dem
 The first run downloads the released image, a few hundred MB. It ends with
 `<N> events for Nibbet-Gearholt into http://ui:8080/ingest`, N in the tens of thousands.
 
-Open <http://127.0.0.1:8080/>: Nibbet, a made-up Gnome priest at level 34, under a DEMO DATA
+Open <http://127.0.0.1:8080/>: Nibbet, a made-up Gnome priest at level 46, under a DEMO DATA
 banner. PowerShell, port 8080 already taken, or the sites for friends:
 [Try it at home](self-host/demo.md).
 

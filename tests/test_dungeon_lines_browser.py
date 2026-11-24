@@ -85,7 +85,9 @@ def test_dungeon_item_lines_are_the_overviews(site, pw, engine, width):
         for text in lines:
             m = re.match(r"^(empty|\d+%) → (\d+)% on your ([a-z ]+?)( at level \d+)?$", text)
             assert m, text
-            assert m.group(1) in doll.get(m.group(3), {"empty"}), (text, doll.get(m.group(3)))
+            worn = doll.get(m.group(3), {"empty"})
+            # A runner-up's badge says "2nd", the line its percent: under the best's 100.
+            assert m.group(1) in worn or (worn == {"2nd"} and int(m.group(1).rstrip("%")) < 100), (text, worn)
         assert not pg.locator(".dg .dgdrop:has(.dgmeta .gain) .pill").count(), "the slot is in the line, not a chip"
         trips = pg.eval_on_selector_all(".dg .dgfacts", "els => els.map(e => e.innerText)")
         assert trips and not any(re.search(r"[+−]\d+\.\d", t) for t in trips), trips

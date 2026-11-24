@@ -1,6 +1,6 @@
 # The live demo
 
-Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays him from level 22 to 34 over twenty sessions: Polestar's guides through Darkshore, the Wetlands, Hillsbrad and Arathi, four dungeons (Blackfathom Deeps, the Stockade, City of Dalaran, Razorfen Kraul), Tailoring, Enchanting and Cooking, a few deaths and some auction house scans. The product's own publisher then builds his pages, the same way it builds yours.
+Nibbet is a Gnome priest on WoW Forever who doesn't exist. A script plays him from level 22 to 46 over thirty-three sessions: Polestar's guides through Darkshore, the Wetlands, Hillsbrad, Arathi, Stranglethorn, Dustwallow, Feralas, Tanaris and the Hinterlands, eight dungeons (Blackfathom Deeps, the Stockade, City of Dalaran, Razorfen Kraul, Scarlet Monastery's four wings, Razorfen Downs, Uldaman, Zul'Farrak), a Shadow build with Shadowform, Tailoring, Enchanting and Cooking, a few deaths and some auction house scans. The product's own publisher then builds his pages, the same way it builds yours.
 
 <div class="demo-links">
 <a href="@BASE@demo/">Open his public page</a>

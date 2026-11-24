@@ -139,7 +139,7 @@ def test_the_pages_say_the_same_numbers_from_the_layer(seed_vl, monkeypatch):
     assert not problems, "\n".join(problems[:40])
     # The answers hold real numbers, not an empty page that matches an empty page.
     char = got[f"full:char:{CHAR}"]
-    assert char["levels"] and char["header"]["xp_per_hour"] and char["deaths"]["total"] == 12
+    assert char["levels"] and char["header"]["xp_per_hour"] and char["deaths"]["total"] == 25
     assert char["dungeons"] and got[f"public:char:{CHAR}"]["levels"]
 
 
@@ -162,7 +162,7 @@ def test_the_pages_take_the_layers_numbers(seed_vl, monkeypatch):
                   "MODEL3D": "off", "WOW_ITEMS": "off", "DEFAULT_CHAR": CHAR, "HOME": str(seed_vl)})
     d = app.api_char(CHAR)
     lv30 = next(lv for lv in d["levels"] if lv["level"] == 30)
-    assert lv30["seconds"] == 2 * 9749 and d["deaths"]["total"] == 112
+    assert lv30["seconds"] == 2 * 9749 and d["deaths"]["total"] == 125
 
 
 def test_the_kept_numbers_never_cross_people(tmp_path, monkeypatch):
