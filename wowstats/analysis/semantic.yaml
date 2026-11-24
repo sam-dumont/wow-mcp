@@ -1261,6 +1261,113 @@ worn:
       metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: estimated, unit: slots,
                  caveats: "The newest sheet only. A shirt or tabard counts: group by slot to see which."}
 
+auction:
+  table: sem_ah_prices
+  description: "The Auctionator scans of the auction houses that sell to the character (its ruleset, its side's house and the neutral one): one row per item, house and scan day over the price window (PRICE_DAYS, 90 by default). Prices only: no row says who scanned."
+  dimensions:
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>), NULL for a key Auctionator alone knows."}
+    item: {expr: _.item_name, description: "Item name, as the scan saved it."}
+    item_key: {expr: _.item_key, description: "Auctionator's key: the item id, or gr:<id>:<suffix> for one random suffix."}
+    scan_day: {expr: _.scan_day, description: "The scan day, YYYY-MM-DD: group by it for the price day by day."}
+    house: {expr: _.house, description: "The auction house: ruleset and side (Alliance, Horde or Neutral)."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    ah_price_latest_copper:
+      expr: _.price_copper.min(where=_.day_rank == 1)
+      description: "The lowest buyout for one on the item's newest scan day, copper (the lower of two houses scanned that day)."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                 caveats: "Group by item_id. What was listed that day, not what sold: an auction lasts 24 h at most, so a price older than a day may be gone. ah_scan_age_days says how old."}
+    ah_scan_age_days:
+      expr: _.scan_age_days.min()
+      description: "Whole days from the newest scan in the group to the analysis' build (0: today)."
+      metadata: {kind: simple, aggregation: min, time_meaning: snapshot_observation, evidence_basis: observed, unit: days,
+                 caveats: "Ungrouped: how old the newest scan is. NULL without a scan."}
+    ah_listed_latest:
+      expr: _.listed.max(where=_.day_rank == 1)
+      description: "The most listed on the item's newest scan day."
+      metadata: {kind: simple, aggregation: top, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
+                 caveats: "Group by item_id. Auctionator's count for the day; NULL when the scan didn't keep it."}
+    ah_price_min_copper:
+      expr: _.price_copper.min()
+      description: "The lowest of the days' lowest buyouts in the group, copper."
+      metadata: {kind: simple, aggregation: min, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                 caveats: "Over the scan days in the window only."}
+    ah_price_max_copper:
+      expr: _.price_copper.max()
+      description: "The highest of the days' lowest buyouts in the group, copper."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                 caveats: "Over the scan days in the window only."}
+    ah_price_change_copper:
+      expr: _.price_copper.argmax(_.t) - _.price_copper.argmin(_.t)
+      description: "The lowest buyout on the newest scan day minus on the first, copper."
+      metadata: {kind: derived, aggregation: endpoint_difference, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                 caveats: "Two days only, never a trend. Group by item_id and house: across houses it compares two auction houses. NULL with one scan day: ah_price_change_copper_evidence counts them.",
+                 min_evidence: {count: "_.t.nunique()", at_least: 2, means: "two scan days"}}
+    ah_scan_days:
+      expr: _.scan_day.nunique()
+      description: "Scan days in the group."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: observed, unit: days,
+                 caveats: "Only the days someone opened the auction house with Auctionator."}
+    ah_items_priced:
+      expr: _.item_key.nunique()
+      description: "Items with a price in the group (Auctionator's keys)."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
+                 caveats: "A random-suffix key counts apart from its item."}
+
+ah_upgrades:
+  table: sem_ah_upgrades
+  description: "The gear advice's upgrades with an auction house price: one row per item and slot, with its newest price, whether the gear advice calls it on sale now, its score per gold and the easiest other way to get it. 'The cheapest upgrades on the AH' and 'is X worth buying' in one query."
+  dimensions:
+    item_id: {expr: _.item_id, description: "Item id (its Wowhead page: item=<id>)."}
+    item: {expr: _.name, description: "Item name."}
+    slot: {expr: _.slot_name, description: "The slot the item would go in."}
+    slot_id: {expr: _.slot, description: "The inventory slot 1-19 its gain is measured in."}
+    on_sale: {expr: _.on_sale, description: "1 when the gear advice lists it on sale now: seen in the house's newest full scan, today or yesterday. 0: the price is older."}
+    now: {expr: _.now, description: "1 when the character can wear it at its level now, 0 within 3 levels."}
+    fit: {expr: _.fit, description: "How the item fits the scored spec: yes, any, spec, class, unknown."}
+    scan_day: {expr: _.scan_day, description: "The day of the price, YYYY-MM-DD."}
+    effort_elsewhere: {expr: _.effort_elsewhere, description: "The easiest other source's effort (easy, some effort, hard): buying beats an easy quest only when the quest is out of the way. NULL when the auction house is the only way."}
+    source_elsewhere: {expr: _.source_elsewhere, description: "That source in the gear advice's words."}
+    character: {expr: _.character, description: "The character (one per query: the char argument)."}
+    class: {expr: _.char_class, description: "The character's class, from its latest session record."}
+  measures:
+    ah_upgrade_price_copper:
+      expr: _.price_copper.min()
+      description: "The upgrade's price, copper: on sale now when on_sale, else its newest scan day's lowest buyout."
+      metadata: {kind: simple, aggregation: min, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                 caveats: "Group by item_id. Filter on_sale = 1 for what can be bought now; a price with on_sale 0 is older than the house's newest full scan or than yesterday."}
+    ah_upgrade_gain:
+      expr: _.gain.max()
+      description: "The upgrade's score gain over what is worn (upgrade_candidates' gain)."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: points,
+                 caveats: "Not additive: two items for one slot are alternatives. Group by item_id."}
+    ah_upgrade_gain_per_gold:
+      expr: _.gain_per_gold.max()
+      description: "Score gain per gold of its price: the best buy first."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: estimated, unit: points per gold,
+                 caveats: "Group by item_id. Cheap items with a small gain rank high: read it with ah_upgrade_gain."}
+    ah_upgrade_listed:
+      expr: _.listed.max()
+      description: "The most listed on the day of the price."
+      metadata: {kind: simple, aggregation: max, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
+                 caveats: "NULL when the scan didn't keep the count."}
+    ah_upgrade_min_price_copper:
+      expr: _.min_price_copper.min()
+      description: "The lowest the upgrade's days' lowest buyouts went in the price window, copper."
+      metadata: {kind: simple, aggregation: min, time_meaning: snapshot_observation, evidence_basis: observed, unit: copper,
+                 caveats: "Against ah_upgrade_price_copper: whether today's price is high for it."}
+    ah_upgrades_priced:
+      expr: _.item_id.nunique()
+      description: "Upgrades with an auction house price."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
+                 caveats: "An item that fits two slots counts once."}
+    ah_upgrades_on_sale:
+      expr: _.item_id.nunique(where=_.on_sale == 1)
+      description: "Upgrades on sale now (on_sale 1)."
+      metadata: {kind: simple, aggregation: count_distinct, time_meaning: snapshot_observation, evidence_basis: observed, unit: items,
+                 caveats: "0 with a scan older than yesterday: scan again to see what is for sale."}
+
 sheets:
   table: sem_gear_sheets
   description: "Every character sheet the shipper sent (Syndicator, feed wow-gear): one row per item worn on a sheet, so the gear over time, level by level."

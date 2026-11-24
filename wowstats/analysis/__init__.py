@@ -108,7 +108,8 @@ TABLES = {
     "gear": "game", "gear_sheets": "game", "professions": "game", "snapshots": "game",
     "upgrade_candidates": "game", "reps": "game", "offers": "game", "quest_rewards": "game",
     "spells_known": "game", "flight_nodes": "game", "attunement_steps": "game", "achievements_seen": "game",
-    "char_stats": "game", "lockouts": "game", "quest_text": "text", "item_values": "reference", "agg_session": "game",
+    "char_stats": "game", "lockouts": "game", "quest_text": "text", "item_values": "reference",
+    "ah_prices": "game", "ah_upgrades": "game", "agg_session": "game",
     "agg_level": "game", "agg_zone": "game", "agg_hour": "game", "dictionary": "doc", "record_kinds": "doc",
     "meta": "doc",
 }
@@ -446,6 +447,26 @@ def advice_for(rows: list[dict], char: str, env: dict) -> dict | None:
     except gear.GearError as e:
         log(f"no gear advice for the prep: {e}")
         return None
+
+
+def prices_for(store, env: dict) -> list[dict]:
+    """The Auctionator scans for prep's ah_prices and ah_upgrades: the price
+    list's own read (wowstats.ahshared.price_rows, one row per item, house
+    and scan day; on an install with several people the shared scans of this
+    person's houses), over PRICE_DAYS. No row says who scanned. A store that
+    can't answer leaves the tables empty, never the analysis."""
+    from datetime import UTC, datetime, timedelta
+
+    from wowstats import ahshared
+
+    if store is None:
+        return []
+    try:
+        days = int(env.get("PRICE_DAYS") or ahshared.PRICE_DAYS)
+        return ahshared.price_rows(store, ahshared.location(env), start=datetime.now(UTC) - timedelta(days=days))
+    except Exception as e:  # noqa: BLE001 - prices are optional: the analysis runs without them
+        log(f"no auction scans for the prep: {e}")
+        return []
 
 
 def scoring_for(rows: list[dict], char: str, env: dict) -> dict:
@@ -846,7 +867,7 @@ def run(env: dict | None = None, char: str | None = None, rows: list[dict] | Non
     knowledge = knowledge if knowledge is not None else kb.shared(env)
     ref = route.reference()
     db = prep.build(rows, char, ref, map_sizes=knowledge.meta.get("ui_map"),
-                    advice=advice_for(rows, char, env))
+                    advice=advice_for(rows, char, env), prices=prices_for(store, env))
     build = manifest.build(db, rows, knowledge, ref, scoring=scoring_for(rows, char, env))
     now = datetime.now(UTC).isoformat(timespec="seconds")
     state = load_state(env, char)

@@ -144,6 +144,12 @@ VIEWS = {
     # gain. Rows of one item share its rank (same gain, same id).
     "sem_upgrades": ("SELECT u.*, CASE WHEN u.now = 1 THEN DENSE_RANK() OVER (PARTITION BY u.slot_name, u.now "
                      "ORDER BY u.gain DESC, u.item_id) END AS rank_now, {who} FROM upgrade_candidates u"),
+    # The auction house scans (one row per item, house and scan day), each
+    # with its house in one word and day_rank: 1 on the item's newest scan
+    # day, whatever the house. The upgrades with an auction price (ah_upgrades).
+    "sem_ah_prices": ("SELECT p.*, p.ruleset || ' ' || p.faction AS house, DENSE_RANK() OVER (PARTITION BY "
+                      "p.item_key ORDER BY p.scan_day DESC) AS day_rank, {who} FROM ah_prices p"),
+    "sem_ah_upgrades": "SELECT a.*, {who} FROM ah_upgrades a",
     # The worn items on the newest sheet, as the gear advice scores them.
     # weak_rank 1 is the item an upgrade replaces: the slot's only one, or
     # the weaker of two rings or trinkets (wowstats.gear.bis_badge's rule).

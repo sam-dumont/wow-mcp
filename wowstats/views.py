@@ -256,13 +256,8 @@ class Views:
             if self._prices and time.monotonic() - self._prices[0] < FRESH_S:
                 return self._prices[1]
             days = max(self.settings.price_days, ahsource.WINDOW_DAYS)
-            # Within a day the shipper only sends wider numbers (rev+1), so
-            # min/max over every rev is the latest rev's value.
-            rows = ahshared.scans(self.store, self.settings.ah_shared,
-                                  "min(price_copper) as lo, max(price_high_copper) as hi, max(available) as av, "
-                                  "max(item_name) as name, max(item_id) as item_id, max(_time) as t",
-                                  {"lo": "min", "hi": "max", "av": "max", "name": "max", "item_id": "max",
-                                   "t": "maxtime"}, start=datetime.now(UTC) - timedelta(days=days))
+            rows = ahshared.price_rows(self.store, self.settings.ah_shared,
+                                       start=datetime.now(UTC) - timedelta(days=days))
             self._prices = (time.monotonic(), rows)
             return rows
 

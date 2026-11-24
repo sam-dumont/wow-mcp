@@ -84,7 +84,10 @@ from wowstats.stores import (
 # 13: levels gets in_level_s, the level in play's time so far (its Recorder
 # sessions since the last ding): one metric for the page's hero line and the
 # MCP's character_summary, which showed 2h26m and nothing (2026-11-23).
-PREP_VERSION = 13
+# 14: ah_prices (the Auctionator scans of the character's houses, the price
+# list's read) and ah_upgrades (upgrade_candidates' items with their auction
+# house price): "the cheapest upgrades on the AH" went unanswered (2026-11-24).
+PREP_VERSION = 14
 
 # A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
 # route position starts past it when the character already stands there.
@@ -536,6 +539,37 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
     "item_values": ("What a vendor pays for the items the records name (loot, rewards, crafts): the game "
                     "client's sell price only, never auction prices.", {
         "item_id": "item id", "vendor_copper": "a vendor's price for one, copper"}),
+    "ah_prices": ("The Auctionator scans of the auction houses that sell to the character (its ruleset; its "
+                  "side's house and the neutral one): one row per item, house and scan day, over the price "
+                  "window (PRICE_DAYS, 90 by default). On an install with several people, anyone's scans of those "
+                  "houses. A scan day lists what was on sale that day, not what sold; no row says who scanned.", {
+        "item_id": "item id (NULL for a key Auctionator alone knows)",
+        "item_key": "Auctionator's key: the item id, or gr:<id>:<suffix> for one random suffix",
+        "item_name": "item name, as the scan saved it", "ruleset": "the ruleset (Auctionator's realm name)",
+        "faction": "the house: Alliance, Horde or Neutral", "scan_day": "the scan day, YYYY-MM-DD (the game's)",
+        "t": "the day's newest scan, unix seconds", "scan_age_days": "whole days from that scan to the build",
+        "price_copper": "the day's lowest buyout for one, copper",
+        "price_high_copper": "the day's highest buyout for one, copper (NULL when not kept)",
+        "listed": "the most listed that day"}),
+    "ah_upgrades": ("Every upgrade_candidates item (and slot) with an auction house price in ah_prices (its own "
+                    "key, never a random suffix's): its newest price, whether the gear advice calls it on sale now "
+                    "(seen in the house's newest full scan, today or yesterday), score per gold and the easiest "
+                    "other way to get it. The join for 'the cheapest upgrades on the AH' and 'is X worth buying'.", {
+        "item_id": "item id", "name": "item name", "slot": "inventory slot 1-19 its gain is measured in",
+        "slot_name": "the slot", "now": "1 when wearable at the current level", "fit": "fit for the scored spec",
+        "gain": "score gain over what is worn (upgrade_candidates.gain)",
+        "gain_share_pct": "the gain as a share of the worn gear's score, percent",
+        "bis_pct": "its share of the slot's best, percent", "bis_pct_worn": "the worn item's share, percent",
+        "price_copper": "the price on sale now when on_sale, else the newest scan day's lowest buyout, copper",
+        "scan_day": "the day of that price", "scan_age_days": "whole days from that scan to the build",
+        "listed": "the most listed that day", "on_sale": "1 when the gear advice would list it on sale now",
+        "gain_per_gold": "gain / (price_copper / 10000): score per gold",
+        "min_price_copper": "the lowest of its days' lowest buyouts in ah_prices, copper",
+        "max_price_copper": "the highest of its days' lowest buyouts in ah_prices, copper",
+        "scan_days": "scan days that priced it", "effort_elsewhere": "the easiest other source's effort "
+                                                                       "(upgrade_candidates.effort), NULL when none",
+        "source_elsewhere": "that source, in the gear advice's words", "ruleset": "the house's ruleset",
+        "faction": "the house: Alliance, Horde or Neutral"}),
     "achievements_seen": ("Achievements the Recorder saw the character earn (achieve records); none from "
                           "before it.", {
         "rec_id": "the achieve record", "t": "unix seconds", "time_local": "ISO time, local (meta.timezone)",
@@ -685,14 +719,18 @@ def xp_gains(rows: list[dict]) -> list[tuple[dict, int]]:
 
 
 def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None,
-          now: datetime | None = None, advice: dict | None = None, cards=None) -> sqlite3.Connection:
+          now: datetime | None = None, advice: dict | None = None, cards=None,
+          prices: list[dict] | None = None) -> sqlite3.Connection:
     """The database for one character. `route` is wowstats.mcp.route's
     Reference (or None); `map_sizes` {uiMapID: (width_yd, height_yd)} from
     the KB when the records lack a map's frame; `advice` the gear advice
     with every upgrade (wowstats.gear.advise_rows): its `upgrades_all` for
     upgrade_candidates, its spec and slots for the worn items' fit; `cards`
     item id -> item card (wowstats.itemcard) for item_values, else the
-    catalog this process already holds (never fetched here)."""
+    catalog this process already holds (never fetched here); `prices` the
+    Auctionator scans as the price list reads them (wowstats.ahshared.
+    price_rows: one row per item, house and scan day, no scanner) for
+    ah_prices and ah_upgrades."""
     char = norm(char)
     rows = [r for r in dedupe(rows) if norm(r.get("char", "")) == char]
     mark = input_mark(rows)
@@ -942,6 +980,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     _item_values(db, cards if cards is not None else _held_cards())
     _upgrades(db, (advice or {}).get("upgrades_all") or [])
     _gear_fit(db, advice)
+    _ah(db, prices or [], _who(rows, rec).get("faction") if rows else None, _ruleset(rows), now)
     _meta(db, char, rows, rec, now, mark)
     _aggregates(db)
     _dictionary(db)
@@ -1044,6 +1083,14 @@ def _schema(db: sqlite3.Connection) -> None:
     CREATE TABLE attunement_steps (attunement TEXT, faction TEXT, step INTEGER, quest_id INTEGER, quest_name TEXT,
         quest_level INTEGER, min_level INTEGER, needs TEXT, done INTEGER, done_source TEXT);
     CREATE TABLE item_values (item_id INTEGER PRIMARY KEY, vendor_copper INTEGER);
+    CREATE TABLE ah_prices (item_id INTEGER, item_key TEXT, item_name TEXT, ruleset TEXT, faction TEXT,
+        scan_day TEXT, t REAL, scan_age_days INTEGER, price_copper INTEGER, price_high_copper INTEGER,
+        listed INTEGER);
+    CREATE TABLE ah_upgrades (item_id INTEGER, name TEXT, slot INTEGER, slot_name TEXT, now INTEGER, fit TEXT,
+        gain REAL, gain_share_pct REAL, bis_pct REAL, bis_pct_worn REAL, price_copper INTEGER, scan_day TEXT,
+        scan_age_days INTEGER, listed INTEGER, on_sale INTEGER, gain_per_gold REAL, min_price_copper INTEGER,
+        max_price_copper INTEGER, scan_days INTEGER, effort_elsewhere TEXT, source_elsewhere TEXT, ruleset TEXT,
+        faction TEXT);
     CREATE TABLE achievements_seen (rec_id INTEGER, t REAL, time_local TEXT, level INTEGER, zone TEXT,
         achievement_id INTEGER);
     CREATE TABLE dictionary (table_name TEXT, column_name TEXT, description TEXT);
@@ -1842,8 +1889,7 @@ def _held_cards():
 
 def _item_values(db, cards) -> None:
     """The vendor price of each item the records name (the client's
-    SellPrice on its item card). Auction prices stay out: a player's own
-    scans are theirs to read with the prices tool."""
+    SellPrice on its item card). Auction prices are ah_prices' (_ah)."""
     if cards is None:
         return
     ids = {i for (i,) in db.execute("SELECT item_id FROM loot_items UNION SELECT item_id FROM records "
@@ -1858,6 +1904,76 @@ def _item_values(db, cards) -> None:
         if sell and sell > 0:
             out.append((iid, sell))
     db.executemany("INSERT INTO item_values VALUES (?,?)", out)
+
+
+def _ruleset(rows) -> str | None:
+    """The character's ruleset: the newest character record's `realm` (the
+    client's realm name, the ruleset's on Forever: wowstats.ahsource)."""
+    return next((str(r["realm"]) for r in reversed(rows) if r.get("feed") == "wow-character" and r.get("realm")),
+                None)
+
+
+def _ah(db, prices: list[dict], faction: str | None, ruleset: str | None, now: datetime | None) -> None:
+    """The auction house: ah_prices, the scans of the houses that sell to
+    the character (its ruleset when known; its side's house and the neutral
+    one when its side is known), and ah_upgrades, each upgrade_candidates
+    item (and slot) with a price there: its newest price, whether the gear
+    advice would call it on sale now (wowstats.ahsource.on_sale, the same
+    rule), what a gold of it buys in score and the easiest other way to get
+    it. Prices only: the rows come grouped by item, house and day, and say
+    nothing of who scanned (wowstats.ahshared)."""
+    from wowstats import ahsource
+
+    t_now = (now or datetime.now(UTC)).timestamp()
+    ok = {None, "", "Neutral", faction} if faction else None
+    mine = [r for r in prices if r.get("scan_day") and r.get("lo") not in (None, "", "NaN")
+            and (ok is None or (r.get("faction") or None) in ok)
+            and (not ruleset or (r.get("ruleset") or "") in ("", ruleset))]
+    out = []
+    for r in mine:
+        key = str(r.get("item_key") or "")
+        iid = _int(r.get("item_id")) or (int(key) if key.isdigit() else None)
+        t = parse_t(r.get("t")).timestamp() if r.get("t") else None
+        out.append((iid, key, r.get("name"), r.get("ruleset") or None, r.get("faction") or None, r["scan_day"], t,
+                    ahsource._age_days(r.get("t"), t_now) if r.get("t") else None, _int(r.get("lo")),
+                    _int(r.get("hi")), _int(r.get("av"))))
+    db.executemany("INSERT INTO ah_prices VALUES (" + ",".join("?" * 11) + ")", out)
+    if not out:
+        return
+    # The item's own key only: a "gr:<id>:<suffix>" price is one random
+    # suffix's, which the gear score has none of (ahsource.on_sale's rule).
+    by_item: dict[int, list[tuple]] = {}
+    for p in out:
+        if p[0] is not None and p[1] == str(p[0]):
+            by_item.setdefault(p[0], []).append(p)
+    recent = [r for r in mine if (a := ahsource._age_days(r.get("t"), t_now)) is not None
+              and a < ahsource.WINDOW_DAYS] if any(r.get("t") for r in mine) else []
+    sale = ahsource.on_sale(recent, faction, t_now, ruleset=ruleset)["items"]
+    rank = {e: i for i, e in enumerate(gear.EFFORT)}
+    ups: dict[tuple, dict] = {}
+    for (iid, name, slot, slot_name, now_, fit, gain, share, bis, bis_worn, effort, src) in db.execute(
+            "SELECT item_id, name, slot, slot_name, now, fit, gain, gain_share_pct, bis_pct, bis_pct_worn, effort, "
+            "source_text FROM upgrade_candidates WHERE source_kind IS NOT 'ah' ORDER BY item_id, slot"):
+        if iid not in by_item:
+            continue
+        u = ups.setdefault((iid, slot), {"row": (iid, name, slot, slot_name, now_, fit, gain, share, bis, bis_worn),
+                                         "effort": None, "src": None})
+        if effort is not None and (u["effort"] is None or rank.get(effort, 9) < rank.get(u["effort"], 9)):
+            u["effort"], u["src"] = effort, src
+    rows = []
+    for (iid, _slot), u in ups.items():
+        ps = by_item[iid]
+        day = max(p[5] for p in ps)
+        newest = min((p for p in ps if p[5] == day), key=lambda p: p[8])
+        on = sale.get(iid)
+        price = on["price_copper"] if on else newest[8]
+        gain = u["row"][6]
+        rows.append(u["row"] + (price, on["seen_day"] if on else day, on["seen_days_ago"] if on else newest[7],
+                                on["listed"] if on else newest[10], 1 if on else 0,
+                                round(gain / (price / 10000), 2) if gain and price else None,
+                                min(p[8] for p in ps), max(p[8] for p in ps), len({p[5] for p in ps}),
+                                u["effort"], u["src"], newest[3], newest[4]))
+    db.executemany("INSERT INTO ah_upgrades VALUES (" + ",".join("?" * 23) + ")", rows)
 
 
 def _upgrades(db, ups: list[dict]) -> None:

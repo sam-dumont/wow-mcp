@@ -22,6 +22,15 @@
 
 ### Changed
 
+- The play analysis sees Auction House prices. The lab's 0.10.0 run left "which upgrades are
+  cheapest on the AH" unanswered with a full Auctionator scan sitting right there. Prep 14 adds
+  `ah_prices` (the price list's own read of the character's houses, one row per item, house and scan
+  day, `PRICE_DAYS` back) and `ah_upgrades` (each upgrade with its newest price, on sale now or not
+  by the gear advice's rule, score per gold, the easiest other source). The semantic layer reads them
+  as `auction` and `ah_upgrades`, so the cheapest upgrade on sale is one `query_metric` call. The
+  brief adds one line (scan age, upgrades priced and on sale) and stays under its size cap. Shared
+  scans carry no scanner and neither do these tables. Findings on them are judged and rechecked like
+  any other; the bumped prep version marks older findings to revalidate.
 - PvP rank gear reads your rank from Syndicator or Altoholic too: both save Forever's "Renown - PvP
   Rank" currency (3473), and the shipper now sends that one currency, nothing else from either
   currency table. ForeverDB stays optional; the newest of the three saves wins. With none saved,
