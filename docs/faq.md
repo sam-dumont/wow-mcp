@@ -14,7 +14,7 @@ CurseForge.
 
 ### Which addons do I need?
 
-Polestar is the one that matters: levels, route steps and the gear scoring come from it.
+Polestar is the one that matters: your levels and the route steps come from it.
 Each optional one fills one more part of the page; a missing one leaves that part empty.
 
 <!-- generated:addon-list -->

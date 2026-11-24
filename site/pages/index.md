@@ -12,7 +12,7 @@
 <a class="path" href="../../docs/ai/connect.md">
 <span class="path-kicker">Connect your AI</span>
 <strong>Ask about your character</strong>
-<span>Claude, ChatGPT and a dozen other assistants can read your data and plan your next session. Nothing to install.</span>
+<span>Claude, ChatGPT or any MCP client reads your data and plans your next session. Nothing to install.</span>
 <span class="path-go">Connect your AI</span>
 </a>
 <a class="path" href="../../docs/self-host/production.md">
@@ -56,7 +56,7 @@
 <div>
 <p class="eyebrow">Dungeons</p>
 <h3>The dungeon worth running</h3>
-<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing, with the time for the pickups and hand-ins counted in ([how a trip is counted](../../docs/players/dungeons.md)).</p>
+<p>Each dungeon around your level gets a card: the quests to pick up before you go in, the drops you'd actually wear, and the XP of a run against your own questing, with the time for the pickups and hand-ins counted in (<a href="../../docs/players/dungeons.md">how a trip is counted</a>).</p>
 <p><a href="../../docs/players/dungeons.md">Dungeons →</a></p>
 </div>
 </div>
@@ -108,7 +108,8 @@ How the pieces fit: [How it works](../../docs/explanation/how-it-works.md). Ques
 Why a levelling log grew an MCP server and signed releases in six days:
 [How this was built](../../docs/how-this-was-built.md).
 
-<p class="fineprint">Free software under the GPL-3.0. The route times and gear scoring come from
-<a href="https://github.com/fitzforge/polestar">Polestar</a> and its contributors; other credits in
+<p class="fineprint">Free software under the GPL-3.0. The route times come from
+<a href="https://github.com/fitzforge/polestar">Polestar</a> and its contributors, the gear weights
+and where gear comes from from <a href="https://foreverdb.net">ForeverDB.net</a>; other credits in
 <a href="../../THIRD_PARTY.md">THIRD_PARTY.md</a>. World of Warcraft is a trademark of Blizzard
 Entertainment; this project isn't affiliated with Blizzard.</p>

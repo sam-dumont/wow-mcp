@@ -3,11 +3,11 @@
 **For:** anyone with a wow-stats page and Claude, ChatGPT or another AI assistant. **At the
 end:** your assistant answers questions about your character from your own data.
 
-You add one address to your assistant, log in once, and from then on it reads your characters'
-history and plans when you ask. Your assistant does the thinking, in your own account, at no
-extra cost beyond your plan. (A host can also turn on the server's own analysis, with an AI
-provider they pay for: [What's shared](../players/privacy.md).) (Under the hood that's MCP, the
-standard way an assistant calls outside tools.)
+You add one address to your assistant (an MCP server: the standard way an assistant calls
+outside tools), log in once, and from then on it reads your characters' history and plans when
+you ask. Your assistant does the thinking, in your own account, at no extra cost beyond your
+plan. A host can also turn on the server's own analysis, with an AI provider they pay for:
+[What's shared](../players/privacy.md).
 
 ## In three steps
 

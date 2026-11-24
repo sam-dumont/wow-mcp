@@ -118,15 +118,14 @@ catalogue of named metrics compiled to SQL, that the page, the tools and the ana
 On the 22nd I also settled who's right about the route: "Polestar is the source of truth and we
 follow it". A new Polestar release is taken even when it moves route times or gear numbers.
 
-## 23 November: 0.7.0, 0.8.0, and SQLite
+## 23 November: three releases, and SQLite
 
-0.7.0 and 0.8.0 shipped the same day. 0.8.0 plans a dungeon as a whole trip (pickups, travel,
+0.7.0, 0.8.0 and 0.9.0 shipped the same day. 0.8.0 plans a dungeon as a whole trip (pickups, travel,
 time inside, hand-ins, at your own pace) and estimates kill XP for dungeons you haven't run,
 checked against a recorded Stockade clear (+3%) and two City of Dalaran runs (−10%). Your AI
 went from 41 tools to 38, one question each.
 
-The last change before these docs: your events can live in one SQLite file per person instead
-of VictoriaLogs. VictoriaLogs was already in my homelab, so I reused it, but it's not the
+0.9.0 let your events live in one SQLite file per person instead of VictoriaLogs. VictoriaLogs was already in my homelab, so I reused it, but it's not the
 most common or convenient thing for anyone else to run. SQLite makes it a one-container install:
 nothing to size, a folder to back up. VictoriaLogs stays the default.
 
@@ -150,10 +149,15 @@ The items themselves now come from Forever's own client tables, not a Classic it
 of the Shade does 37 Shadow damage in Forever, not Classic's 21. Every score links to
 ForeverDB.net, so anyone can check it.
 
-The same morning, next moves stopped telling an Expert enchanter to train Expert. The Recorder
-had missed the trainer visit, so its last record (150/150) stood. Profession caps and riding
+Next came which upgrade to chase. My rule: "Convenience and easiness before a quarter of a
+point." A 0.03% drop is never the pick; a quest reward, a vendor or an auction listing beats a
+rare drop unless the drop scores clearly more (17.6% for a hard one).
+
+On the morning of the 24th, next moves stopped telling an Expert enchanter to train Expert.
+The Recorder had missed the trainer visit, so its last record (150/150) stood. Profession caps and riding
 now also come from Altoholic's copy of the game's skill list and spellbook. When nothing saw
-the training, the move says so and ends "if not done yet" instead of insisting.
+the training, the move says so and ends "if not done yet" instead of insisting. 0.10.0
+shipped all of it that afternoon.
 
 Then this rewrite of the docs, for 1.0. 1.0 means stable-ish: the tools your AI calls and the
 settings you put in `.env` stay put, and anything that does change gets an upgrade note in the

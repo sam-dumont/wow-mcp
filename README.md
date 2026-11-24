@@ -25,7 +25,7 @@ over MCP.
   page shows, in your own account.
 
 [Nibbet-Gearholt](https://sam-dumont.github.io/wow-mcp/demo/friends/), an invented Gnome
-priest, shows every part with demo data, no install. His
+priest, shows every part with demo data, no install. Nibbet's
 [public profile](https://sam-dumont.github.io/wow-mcp/demo/) is the cut-down page anyone with
 the address sees.
 

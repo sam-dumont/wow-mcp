@@ -60,10 +60,10 @@ A rate known only from Classic counts one step harder; an auction house listing 
 easy, with its price. A harder item wins a slot only when it scores 5.3% more (some effort) or
 17.6% more (hard). The % lines measure against what you can get.
 
-Drops say their chance and how many runs that means ("43.75% over 16 kills"; a 3% boss
-drop adds "about 33 runs"). Reputation gear says where you stand ("you're Friendly: 16,500 rep to go"). PvP rank gear
-says the same ("rank 3 needed, you're rank 1"); a rank nothing recorded yet counts as a long
-shot.
+Drops say their chance and how many runs that means ("43.75% over 16 kills"; a 3% boss drop
+adds "about 33 runs"). Reputation gear says where you stand ("you're Friendly: 16,500 rep to
+go"), PvP rank gear too ("rank 3 needed, you're rank 1"); a rank nothing recorded yet counts as
+a long shot. A 0.03% drop never becomes the pick, however good it is.
 
 **Best possible, out of plain reach** lists, apart, the slots whose best item is a long shot
 or has no known source: with its odds, never as an upgrade to chase.
