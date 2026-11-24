@@ -41,6 +41,11 @@ their own store (homes), each with the neutral house of that ruleset; the
 shared rows of exactly those houses, merged with nothing else. A Horde
 character never reads an Alliance house, two rulesets never mix.
 
+Retention: PRICE_DAYS (90) days, then pruned (prune_daily, from the
+builder's pass, at most once a day: a delete task on the friends'
+VictoriaLogs, a DELETE on the SQLite file). A friend's deletion still takes
+none of it.
+
 Existing scans, sent before this: `wowstats users ah-share` copies every
 person's stored scans into the shared space (backfill). It can run again:
 the copies are the same rows (the SQLite store keeps one, VictoriaLogs'
@@ -51,7 +56,9 @@ from __future__ import annotations
 
 import json
 import sys
-from datetime import UTC, datetime
+import time
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from wowstats.stores import lq
 
@@ -59,6 +66,10 @@ from wowstats.stores import lq
 # (wowstats.tenancy.Registry.ensure), VictoriaLogs' AccountID is a uint32.
 ACCOUNT = 4_000_000_000
 ENV = "AH_SHARED_STORE"
+# Days of scans the readers look at (PRICE_DAYS, views.settings_from_env) and
+# the days the shared space keeps: older rows are pruned (owner, 2026-11-24).
+PRICE_DAYS = 90
+PRUNE_EVERY_S = 86400
 FEED = "wow-prices"
 SHARED_FIELDS = ("item_id", "item_key", "item_name", "price_copper", "price_high_copper", "available", "scan_day")
 SIDES = ("Alliance", "Horde")
@@ -227,3 +238,37 @@ def backfill(loc: str, people: list[tuple[str, object]], out=sys.stdout) -> dict
         done[who] = {"scans": len(rows), "shared": len(lines)}
         print(json.dumps({"who": who, **done[who]}), file=out, flush=True)
     return done
+
+
+_last_prune = 0.0
+_warned = False
+
+
+def prune(loc: str, key_file: str = "", days: int = PRICE_DAYS, now: datetime | None = None) -> dict:
+    """The shared rows older than `days` days, deleted. VictoriaLogs needs
+    its delete API (-delete.enable, and the key in `key_file`)."""
+    from wowstats import eventstore
+
+    key = Path(key_file).read_text().strip() if key_file and not eventstore.is_sqlite(loc) else ""
+    cutoff = (now or datetime.now(UTC)) - timedelta(days=days)
+    return eventstore.get(loc).delete(ACCOUNT, auth_key=key, before=cutoff)
+
+
+def prune_daily(loc: str, key_file: str = "", every: float = PRUNE_EVERY_S, log=print) -> bool:
+    """prune, at most once per `every` seconds per process. A store that
+    refuses (no delete API) is logged once and skipped: the readers ignore
+    rows past PRICE_DAYS anyway. True when it ran."""
+    global _last_prune, _warned
+    from wowstats.stores import SourceError
+
+    if not loc or (_last_prune and time.monotonic() - _last_prune < every):
+        return False
+    _last_prune = time.monotonic()
+    try:
+        prune(loc, key_file)
+    except (SourceError, OSError) as e:
+        if not _warned:
+            _warned = True
+            log(f"shared auction scans: not pruned ({e}); rows past {PRICE_DAYS} days are ignored by reads")
+        return False
+    return True

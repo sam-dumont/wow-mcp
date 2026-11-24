@@ -205,8 +205,15 @@ SQLite store. Not in the owner's store, so it never reaches an archive that neve
 Without a friends' store (one person) nothing is shared and each install reads its own scans,
 as before.
 
+**Retention: 90 days, then pruned** (the same 90 as `PRICE_DAYS`, the days of scans the
+readers look at). The server deletes older rows from the shared space once a day: a delete
+task on the friends' VictoriaLogs (it needs `-delete.enable`, and the key in
+`FRIENDS_VL_DELETE_KEY_FILE` if you set one; without it the server logs once that it didn't
+prune, and reads ignore the old rows anyway), a `DELETE` on the SQLite file.
+
 **A friend's deletion leaves their past scans' prices there.** Nothing in the shared space
-says who scanned what, so `users delete` can't pick their rows out. Those rows hold game
+says who scanned what, so `users delete` can't pick their rows out: a friend's deletion
+doesn't remove their anonymous prices, which go with the 90 days. Those rows hold game
 prices, nothing about the person. To empty it anyway, delete the tenant `4000000000` (or
 its SQLite file); the next scans fill it again.
 

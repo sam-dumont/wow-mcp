@@ -167,7 +167,7 @@ def health(apps) -> dict:
     return {"store": "ok" if any(a.prebuilt.checked_at for a in apps) else "idle"}
 
 
-def start(apps, every: float = CHECK_S) -> threading.Thread:
+def start(apps, every: float = CHECK_S, chore=None) -> threading.Thread:
     """The builder: every `every` seconds (or when woken), each App that
     apps() lists, one after the other, so a process never builds two sets
     at once."""
@@ -184,6 +184,11 @@ def start(apps, every: float = CHECK_S) -> threading.Thread:
                     app.prebuilt.check()
                 except Exception as e:  # noqa: BLE001 - one person's bug doesn't stop the others
                     log(f"build failed: {e!r}")
+            if chore is not None:
+                try:
+                    chore()
+                except Exception as e:  # noqa: BLE001 - housekeeping never stops the builds
+                    log(f"chore failed: {e!r}")
             WAKE.wait(every)
 
     t = threading.Thread(target=loop, name="prebuilt", daemon=True)
