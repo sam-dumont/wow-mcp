@@ -312,7 +312,8 @@ quests, exact), WoWSims Exporter (`WowSimsExporter.lua`, its
 `wow-talents` event per change; never its `global` table, which holds
 other players),
 GearQuestForever and ForeverLevelingBiS (tracked upgrades, spec) for the
-gear panel, and LibForeverData, Polestar_QuestDB or Polestar_ItemDB only to
+gear panel, ForeverDB (its armory snapshot's PvP part only: the rank, for
+rank-gated gear), and LibForeverData, Polestar_QuestDB or Polestar_ItemDB only to
 look up quest and item names and item levels.
 Missing addons just mean fewer events.
 

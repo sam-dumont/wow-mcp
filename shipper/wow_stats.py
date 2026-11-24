@@ -153,7 +153,7 @@ CAPTURE_FILE = "_capture.json"
 ARCHIVED_SOURCES = re.compile(
     r"^Account/[^/]+/(SavedVariables/(Polestar|Polestar_Recorder|Auctionator|Syndicator"
     r"|ForeverLevelingBiS|DataStore|DataStore_Characters|DataStore_Crafts|DataStore_Quests"
-    r"|DataStore_Reputations|Questie"
+    r"|DataStore_Reputations|Questie|ForeverDB"
     r"|WowSimsExporter)\.lua(\.bak)?"
     r"|[^/]+/[^/]+/SavedVariables/(Polestar|Polestar_Recorder"
     r"|GearQuestForever)\.lua(\.bak)?)$")
@@ -2188,6 +2188,76 @@ def extract_altoholic(acct: Path, chars: dict[str, dict], state: dict, out: Out)
             out.emit({k: v for k, v in ev.items() if k in EVENT_BASE or k in ALTO_KEYS[kind]})
 
 
+# ForeverDB (ForeverDB.net's addon, 0.38.0+): its armory snapshot,
+# ForeverDB_DB.armory[<character GUID>] in the account's ForeverDB.lua,
+# taken at login, level up and logout, with `name`, `surname`, `time` and a
+# `pvp` part (Armory.lua pvpPart): `rank` (UnitPVPRank as 0-14, when the
+# client has it), `renown` (currency 3473 "Renown - PvP Rank", 0-14: the
+# Forever client's rank track; the client of 2026-11 has no UnitPVPRank, so
+# this is the rank there), `highest`, `hk`, `honorPoints`. Only those are
+# read: never the snapshot's guild roster, gear or anything else, and never
+# `dk` (-64 with no kill in the Forever client: not a count).
+FDB_KEYS = frozenset({"source", "at_basis", "pvp_rank", "rank_from", "renown", "highest_rank", "honorable_kills",
+                      "honor_points"})
+
+
+def _rank_num(v) -> int | None:
+    return v if isinstance(v, int) and not isinstance(v, bool) and 0 <= v <= 14 else None
+
+
+def _count(v) -> int | None:
+    return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+
+
+def foreverdb_pvp(acct: Path) -> dict[str, dict]:
+    """char -> {pvp_rank, rank_from, renown, highest_rank, honorable_kills,
+    honor_points, at} from ForeverDB's armory snapshots (the file, else the
+    client's .bak). pvp_rank: the game's rank (`rank`), else the Forever
+    rank track (`renown`); a snapshot with neither is skipped."""
+    db = next((d for d in read_sv_versions(acct / "SavedVariables" / "ForeverDB.lua")
+               if isinstance((d.get("ForeverDB_DB") or {}).get("armory"), dict)), None)
+    out: dict[str, dict] = {}
+    for snap in (db["ForeverDB_DB"]["armory"] if db else {}).values():
+        if not isinstance(snap, dict) or not isinstance(snap.get("pvp"), dict) or not isinstance(snap.get("name"), str):
+            continue
+        p = snap["pvp"]
+        rank, renown = _rank_num(p.get("rank")), _rank_num(p.get("renown"))
+        if rank is None and renown is None:
+            continue
+        surname = snap.get("surname") if isinstance(snap.get("surname"), str) else ""
+        char = char_of(f"{snap['name']} {surname}".strip())
+        at = snap.get("time") if isinstance(snap.get("time"), (int, float)) else None
+        if char in out and (out[char]["at"] or 0) >= (at or 0):
+            continue
+        d = {"pvp_rank": rank if rank is not None else renown, "rank_from": "rank" if rank is not None else "renown",
+             "renown": renown, "highest_rank": _rank_num(p.get("highest")), "honorable_kills": _count(p.get("hk")),
+             "honor_points": _count(p.get("honorPoints"))}
+        out[char] = {**{k: v for k, v in d.items() if v is not None}, "at": at}
+    return out
+
+
+def extract_foreverdb(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> None:
+    """One wow-foreverdb event (kind pvp) per character each time its PvP
+    rank in ForeverDB's armory snapshot changes. Only the roster; only
+    FDB_KEYS."""
+    seen = state.setdefault("foreverdb", {})
+    f_at, f_basis = observed(acct / "SavedVariables" / "ForeverDB.lua")
+    for char, d in sorted(foreverdb_pvp(acct).items()):
+        if char not in chars:
+            continue
+        body = {k: v for k, v in d.items() if k != "at"}
+        digest = hashlib.sha1(json.dumps(body, sort_keys=True).encode()).hexdigest()[:12]
+        key = f"pvp:{char}"
+        if seen.get(key) == digest:
+            continue
+        seen[key] = digest
+        at, basis = dated(d.get("at") or f_at, None if d.get("at") else f_basis)
+        ev = {"_time": iso(at), "feed": "wow-foreverdb", "kind": "pvp", "char": char, "source": "foreverdb",
+              "at_basis": basis, "source_id": f"foreverdb:{key}:{digest}",
+              "_msg": f"{char}: PvP rank {body['pvp_rank']} ({body['rank_from']}, ForeverDB)", **body}
+        out.emit({k: v for k, v in ev.items() if k in EVENT_BASE or k in FDB_KEYS})
+
+
 ALTO_MSG = {
     "spells": lambda d: f"{sum(1 for _, lv in d['spells'] if lv == 0)} spells known, "
                         f"{sum(1 for _, lv in d['spells'] if lv > 0)} to learn",
@@ -2608,6 +2678,7 @@ def extract_tree(wtf: Path, state: dict, out: Out, live: bool = True) -> list[di
         step("played", extract_played, acct, chars, state, out)
         step("quests", extract_quests, acct, chars, state, out)
         step("altoholic", extract_altoholic, acct, chars, state, out)
+        step("foreverdb", extract_foreverdb, acct, chars, state, out)
         step("talents", extract_talents, acct, chars, state, out)
         step("auctionator", extract_auctionator, acct,
              latest or (char_of(cdirs[-1].parent.name) if cdirs else None), state, out)

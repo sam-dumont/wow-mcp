@@ -135,11 +135,14 @@ faction (`gear.standings_of`). Met, it's a purchase: "reputation: Timbermaw
 Hold Honored (you're Honored)". Not met, it says what is missing:
 "(you're Friendly: 16,500 rep to go)", or "not met yet" for a faction the
 character never met; with no reputation data at all, "your standing isn't
-recorded". A PvP rank can't be checked the same way: nothing the shipper
-reads saves the rank (Altoholic keeps lifetime honorable kills only). 0
-honorable kills means no rank ("you have no PvP rank: 0 honorable kills");
-otherwise "your rank isn't recorded". A rank not held or not known is a
-long shot (below).
+recorded". A PvP rank source is checked against the rank ForeverDB's armory
+snapshot saved (the newest `wow-foreverdb` event; the Forever client's
+"Renown - PvP Rank" track, since it has no UnitPVPRank). Held, it's a
+purchase from the quartermaster: "(you hold rank 3)", some effort. Not held:
+"(rank 3 needed, you're rank 1)". Without ForeverDB, 0 lifetime honorable
+kills in Altoholic still means no rank; otherwise "your rank isn't
+recorded: ForeverDB saves it". A rank not held or not known is a long shot
+(below).
 
 ### How hard it is to get
 
