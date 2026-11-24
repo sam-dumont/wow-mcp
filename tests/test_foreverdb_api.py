@@ -386,7 +386,7 @@ def test_page_links_foreverdb_wherever_api_data_shows():
     """Every line of web/app.js that writes a vendor or a quest's giver ends
     with the data credit (dataCreditEl)."""
     src = APP.read_text(encoding="utf-8")
-    assert "Data from ForeverDB.net" in src and "https://foreverdb.net" in src
+    assert re.search(r"const DATA_CREDIT = \{ text: 'Data from ForeverDB\.net', url: 'https://foreverdb\.net' \};", src)
     blocks = re.findall(r"if \((?:sr|src)\.kind === 'vendor'[^{]*\{.*?\n  \}", src, re.S)
     assert len(blocks) == 2, blocks
     assert all("dataCreditEl()" in b for b in blocks)

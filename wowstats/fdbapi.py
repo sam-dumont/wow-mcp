@@ -23,7 +23,10 @@ import threading
 from pathlib import Path
 
 _HERE = Path(__file__).resolve()
-FILES = (_HERE.parent / "data" / "foreverdb" / "api.json", _HERE.parents[1] / "data" / "foreverdb" / "api.json")
+# The directory always ships (its README); api.json in it only in a release
+# image (tools/image_layout_check.py checks the directory lands).
+DIRS = (_HERE.parent / "data" / "foreverdb", _HERE.parents[1] / "data" / "foreverdb")
+NAME = "api.json"
 CREDIT = {"name": "ForeverDB.net", "url": "https://foreverdb.net", "text": "Data from ForeverDB.net"}
 # What marks a source or a quest end as the API's: the answers carry it, the
 # MCP adds `data_credit` and the page shows the link (tests/test_credit_surfaces.py).
@@ -41,7 +44,7 @@ def data() -> dict:
     with _LOCK:
         if not _DATA:
             setting = os.environ.get("FOREVERDB_DATA_FILE", "").strip()
-            paths = [] if setting.lower() == "off" else ([Path(setting)] if setting else list(FILES))
+            paths = [] if setting.lower() == "off" else ([Path(setting)] if setting else [d / NAME for d in DIRS])
             got: dict = {}
             for p in paths:
                 try:
