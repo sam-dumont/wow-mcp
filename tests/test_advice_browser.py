@@ -311,3 +311,23 @@ def test_the_doll_says_where_each_item_stands(site, pw, engine, width):
         assert rows[: len(ranked)] == ranked  # the ones with no BiS after
     finally:
         b.close()
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+@pytest.mark.parametrize("width", [1920, 390])
+def test_weights_copy_for_forever_leveling_bis(site, pw, engine, width):
+    """The two copy buttons through the /zogzog/ redactor: each puts its
+    string in the box (the clipboard may be refused headless), with where
+    to paste it and ForeverDB.net's credit; nothing wider than the page."""
+    url, gear = site
+    b, pg, _ = open_page(pw, engine, url, width)
+    try:
+        box = pg.locator("#advice .wexport")
+        assert "Data from ForeverDB.net" in box.inner_text() and "/bis" in box.inner_text()
+        for label, key in (("Copy as Pawn scale", "pawn"), ("Copy for Forever Leveling BiS", "flb")):
+            box.locator("button", has_text=label).click()
+            assert box.locator("textarea").input_value() == gear["export"][key]
+        assert box.evaluate("e => e.scrollWidth <= e.clientWidth + 1")
+        assert pg.evaluate("() => document.documentElement.scrollWidth <= window.innerWidth + 1")
+    finally:
+        b.close()

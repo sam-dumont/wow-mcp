@@ -45,6 +45,24 @@ caster's wand count for more), **PvP** or **PvE** (raids and dungeons at 60). Th
 ForeverDB.net's. Your pick is kept on the server for that character, so your AI's `gear`
 answers use it too.
 
+## The same weights in the game
+
+At the bottom of the Upgrades list, **Copy for Forever Leveling BiS** and **Copy as Pawn
+scale** copy the weights shown (the spec and mode picked above) as text, for the Forever
+Leveling BiS addon. The text also shows in a box under the buttons, in case the browser
+refuses the clipboard. To use it in the game: type `/bis`, click **Stat weights** at the top
+right of the window, then **Import**, paste, check the spec and weapon setup, and click
+**Import**. The addon picks the new profile ("ForeverDB Leveling", "ForeverDB PvP" or
+"ForeverDB PvE") for that spec and setup.
+
+It's weights only: the addon keeps its own item list, and adds what it knows on top (item
+effects, random suffixes, racial weapon bonuses, set bonuses at 60), so a few items can rank
+differently there. Take the Forever Leveling BiS string when you can: it is exact. The Pawn
+scale has no ranged-only hit (hunters' "+% hit with ranged weapons" items score lower), and the
+addon rescales a Pawn scale on import (same order, other numbers). Your AI gets the same text
+from `gear` with `export: flb` or `export: pawn`. Data from
+[ForeverDB.net](https://foreverdb.net).
+
 ## What to do with it
 
 1. Take the top group in "By where you get it".

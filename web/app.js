@@ -1807,7 +1807,43 @@ function renderAdvice(a) {
     more.length ? h('details', { class: 'upmore' }, h('summary', { text: `${more.length} more upgrade${more.length > 1 ? 's' : ''}` }),
       compactList(a, more)) : null,
     smalls.length ? h('details', { class: 'upmore' }, h('summary', { text: `${smalls.length} small upgrade${smalls.length > 1 ? 's' : ''} or rare drop${smalls.length > 1 ? 's' : ''}` }),
-      compactList(a, smalls)) : null);
+      compactList(a, smalls)) : null,
+    weightsExport(a));
+}
+
+// The same weights as text for the Forever Leveling BiS addon
+// (wowstats/gearexport.py): its own string, exact, or a Pawn scale. Copy
+// puts it on the clipboard; the box shows it, selected on focus, for when
+// the clipboard is refused. Weights only: the addon ranks its own items.
+function weightsExport(a) {
+  const e = a.export;
+  if (!e || !(e.flb || e.pawn)) return null;
+  const text = h('textarea', { class: 'wxtext', readonly: '', rows: '3', spellcheck: 'false',
+    'aria-label': 'Weights as text' });
+  text.addEventListener('focus', () => text.select());
+  const button = (label, value) => {
+    const b = h('button', { type: 'button', class: 'coachbtn', text: label });
+    b.addEventListener('click', () => {
+      text.value = value;
+      (navigator.clipboard ? navigator.clipboard.writeText(value) : Promise.reject()).then(() => {
+        b.textContent = 'Copied';
+        setTimeout(() => { b.textContent = label; }, 1500);
+      }, () => { text.focus(); text.select(); });
+    });
+    return b;
+  };
+  text.value = e.flb || e.pawn;
+  const notes = [...(e.notes || []), ...(e.pawn_notes || []).map((n) => `Pawn: ${n}`)];
+  return h('section', { class: 'wexport', 'aria-label': 'Use these weights in the game' },
+    h('h4', { text: `Use these weights in the game (${e.name})` }),
+    h('div', { class: 'wxbtns' },
+      e.flb ? button('Copy for Forever Leveling BiS', e.flb) : null,
+      e.pawn ? button('Copy as Pawn scale', e.pawn) : null,
+      h('span', { class: 'wcredit' }, h('a', { href: e.credit.url, target: '_blank', rel: 'noopener noreferrer',
+        referrerpolicy: 'no-referrer', text: e.credit.text }))),
+    text,
+    h('p', { class: 'sub', text: `${e.how} The Forever Leveling BiS string is for ${e.setup_label.toLowerCase()}.` }),
+    notes.length ? h('ul', { class: 'sub wxnotes' }, notes.map((n) => h('li', { text: n }))) : null);
 }
 
 // Who the item is built for (wowstats/gearfit.py, owner 2026-11-20: an
