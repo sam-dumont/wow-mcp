@@ -63,10 +63,11 @@ easy, with its price. A harder item wins a slot only when it scores 5.3% more (s
 Drops say their chance and how many runs that means ("43.75% over 16 kills"; a 3% boss drop
 adds "about 33 runs"). Reputation gear says where you stand ("you're Friendly: 16,500 rep to
 go"), PvP rank gear too ("rank 3 needed, you're rank 1"); a rank nothing recorded yet counts as
-a long shot. A 0.03% drop never becomes the pick, however good it is.
+a long shot. While you level, a 0.03% drop never becomes the pick, however good it is. At 60,
+where every point counts, it can, with its odds next to it.
 
 **Best possible, out of plain reach** lists, apart, the slots whose best item is a long shot
-or has no known source: with its odds, never as an upgrade to chase.
+or has no known source: with its odds, never as an upgrade to chase while you level.
 
 ## The same weights in the game
 

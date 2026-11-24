@@ -150,8 +150,9 @@ of the Shade does 37 Shadow damage in Forever, not Classic's 21. Every score lin
 ForeverDB.net, so anyone can check it.
 
 Next came which upgrade to chase. My rule: "Convenience and easiness before a quarter of a
-point." A 0.03% drop is never the pick; a quest reward, a vendor or an auction listing beats a
-rare drop unless the drop scores clearly more (17.6% for a hard one).
+point." While you level, a 0.03% drop is never the pick; a quest reward, a vendor or an
+auction listing beats a rare drop unless the drop scores clearly more (17.6% for a hard one).
+At 60, where marginal gains are the norm, the best item can be the pick anyway, odds and all.
 
 On the morning of the 24th, next moves stopped telling an Expert enchanter to train Expert.
 The Recorder had missed the trainer visit, so its last record (150/150) stood. Profession caps and riding

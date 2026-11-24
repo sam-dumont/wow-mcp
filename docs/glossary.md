@@ -53,8 +53,7 @@ the mode you pick on the gear page: Leveling (the default), PvP or PvE. The same
 slot, so a ring and a helmet compare. Every score links to ForeverDB.net. [Gear and upgrades](players/gear.md#the-upgrades-list).
 
 **BiS, the badge.** Best in slot: the best item you can get and wear at your level for that slot
-(long shots aside). The
-badge on an item's icon says how close it is: BiS (orange), 2nd, or a share like 84% (purple
+(while you level, long shots aside). The badge on an item's icon says how close it is: BiS (orange), 2nd, or a share like 84% (purple
 from 85%, blue from 50%). "70% → 91% on your chest" is that slot's share with what you wear
 now, then with the item. [Gear and upgrades](players/gear.md#your-gear).
 
