@@ -374,7 +374,8 @@ def death_clusters(ask: Ask, ds: list[dict]) -> list[dict]:
 def dungeon_runs(q: Q, cf: str) -> list[dict]:
     """Each dungeon run (wow-dungeon) joined to the recorder records inside
     it: party size (group records), boss fights and wipes (encounter), and
-    deaths. Who was in the party: no published addon saves it."""
+    deaths; and who was in the party, from the groupmates ForeverDB_Helper's
+    journal names (wow-player, storemodels.run_party)."""
     runs = _sorted(q(f'feed:="wow-dungeon" {cf} | fields _time, name, dungeon_id, level, seconds, xp, '
                      f"source_id"))
     if not runs:
@@ -385,17 +386,23 @@ def dungeon_runs(q: Q, cf: str) -> list[dict]:
     # one before it plus any change inside.
     rows = _sorted(q(f"{rec(cf)} kind:in(group, encounter, death) _time:[{iso(lo - timedelta(hours=6))}, {iso(hi)}] "
                      f"| fields _time, kind, size, raid, encounter_id, success, npc_id, npc_name, source_id"))
+    players = _sorted(q(f'feed:="wow-player" {cf} player:* context:in(grouped, dungeon) '
+                        f"_time:[{iso(lo - timedelta(hours=6))}, {iso(hi)}] "
+                        f"| fields _time, player, context, level, class, race, role, source_id"))
     from wowstats import storemodels
 
-    return storemodels.run_groups(runs, rows)
+    return storemodels.run_groups(runs, rows, players)
 
 
-ROSTER_NOTE = ("Who was in the group isn't saved by any of the addons the kit reads: Polestar_Recorder keeps the "
-               "party size, Polestar's instance runs keep the dungeon and the time, Details keeps no segments "
-               "between sessions, and DungeonMaster keeps the last run's kills only. Players are named only "
-               "where Polestar's own sighting list (update.probed) saw them.")
+ROSTER_NOTE = ("Who was in the group comes from ForeverDB_Helper (optional, from ForeverDB.net), whose journal "
+               "names each groupmate once a day; without it, no addon the kit reads saves names: "
+               "Polestar_Recorder keeps the party size, Polestar's instance runs the dungeon and the time. "
+               "\"N of M names known\": the Recorder counted more players than the journal named (it was "
+               "installed later, or the party changed).")
 # What each addon keeps about other players and groups (`players` with groups).
 GROUP_SOURCES = {
+    "ForeverDB_Helper journal (wow-player, optional)": "each groupmate's name, level, class, race and role, "
+                                                       "once a day; the zone or dungeon",
     "Polestar update.probed (wow-player)": "names, last seen, zone; no class or level, never group members",
     "Polestar_Recorder group records": "party size and raid flag, no names",
     "Polestar_Recorder encounter records": "boss fights and wipes, no names",

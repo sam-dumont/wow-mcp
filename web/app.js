@@ -2941,6 +2941,20 @@ function renderLoot(l) {
 
 // ------------------------------------------------------------ people
 
+// Who was in a run's party (wowstats.storemodels.run_party): the names
+// ForeverDB_Helper's journal saved, and how many the Recorder counted.
+function partyMate(p) {
+  const what = [p.level ? `${p.level}` : null, p.class, p.role].filter(Boolean).join(' ');
+  return h('li', {}, h('span', { text: p.player }), what ? h('span', { class: 'sub', text: ` ${what}` }) : null);
+}
+
+function partyLine(r) {
+  const party = r.party || [];
+  if (!party.length) return null;
+  return h('div', { class: 'sub party' }, 'With: ', h('ul', { class: 'chips' }, party.map(partyMate)),
+    r.names_known ? h('span', { text: ` (${r.names_known})` }) : null);
+}
+
 async function loadPeople(name) {
   const el = $('#people-runs');
   if (!el) return;
@@ -2951,7 +2965,7 @@ async function loadPeople(name) {
       runs.length ? h('ul', { class: 'runs' }, runs.map((r) => h('li', {},
         h('b', { text: r.name }), ` at level ${r.level}, ${day(r.t)}: ${dur(r.seconds)}`,
         r.party_size ? `, a group of ${r.party_size}` : '', r.bosses ? `, ${r.bosses} bosses` : '',
-        r.wipes ? `, ${r.wipes} wipes` : '', r.deaths ? `, ${r.deaths} deaths` : ''))) : h('p', { class: 'sub', text: 'No dungeon runs yet.' }),
+        r.wipes ? `, ${r.wipes} wipes` : '', r.deaths ? `, ${r.deaths} deaths` : '', partyLine(r)))) : h('p', { class: 'sub', text: 'No dungeon runs yet.' }),
       h('p', { class: 'sub', text: p.roster_note }));
   } catch (e) {
     fill(el, h('p', { class: 'err', text: `Couldn’t read the dungeon groups: ${e.message}.` }));

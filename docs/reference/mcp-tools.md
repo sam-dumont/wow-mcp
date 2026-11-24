@@ -113,7 +113,7 @@ Players your game showed you.
 
 | Tool | What it answers | Arguments | Kind |
 |---|---|---|---|
-| `players` | Other players the character keeps running into: days seen, times grouped, contexts, level, class, zones. With `groups`: also the dungeon runs with group size, bosses, wipes and deaths. No addon saves who was in a group: says so. | `name`: Part of a player name to filter on.; `since`: Start of the range: 7d, 36h, 2w, or an ISO date (UTC).; `until`: End of the range, same forms as since. Default: now.; `limit`: Max rows (default 20).; `groups`: Add the dungeon runs with what the addons kept of each group. | reads |
+| `players` | Other players the character keeps running into: days seen, times grouped, contexts, level, class, zones. With `groups`: also the dungeon runs with group size, bosses, wipes, deaths and who was in the party (names from the optional ForeverDB_Helper; `names_known` when some are missing). | `name`: Part of a player name to filter on.; `since`: Start of the range: 7d, 36h, 2w, or an ISO date (UTC).; `until`: End of the range, same forms as since. Default: now.; `limit`: Max rows (default 20).; `groups`: Add the dungeon runs with who was in each party. | reads |
 
 ## Game rules
 
