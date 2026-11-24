@@ -8,9 +8,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
-import time
 import re
 import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -555,7 +555,8 @@ def test_every_step_with_the_identity_token_file_runs_under_with_oidc():
 def test_with_oidc_mints_refreshes_and_stops(tmp_path):
     """Run under a fake ID-token endpoint: the file holds a fresh token before
     the command starts, is replaced while it runs, and nothing is left running."""
-    import subprocess, textwrap
+    import subprocess
+    import textwrap
     bindir = tmp_path / "bin"
     bindir.mkdir()
     counter = tmp_path / "n"
