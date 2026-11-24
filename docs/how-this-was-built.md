@@ -138,12 +138,13 @@ and the dungeon list offering Alliance characters the Horde city's dungeon.
 
 ## 23 and 24 November: the gear turn
 
-Gear scores moved off Polestar's weights onto [ForeverDB.net](https://foreverdb.net)'s: the
-community's stat weights per spec, with three modes. Leveling is the default, and there
-Stamina, armour and a caster's wand count for a lot more than in a raid. Checked against
-ForeverDB's own ladders: 36,674 of 36,746 scores equal. <!-- check: the why. Written from the changelog; one line on why you switched, in your words? --> Polestar's Adjust weights
-and the rest of its gear settings stopped counting a few hours later, and your pick of mode is
-kept per character, so the page and your AI score the same way.
+The scores didn't match the BiS everyone else uses, so I switched to
+[ForeverDB.net](https://foreverdb.net)'s weights: the community's stat weights per spec, with
+three modes. Leveling is the default, and there Stamina, armour and a caster's wand count for a
+lot more than in a raid. Checked against ForeverDB's own ladders: 36,674 of 36,746 scores
+equal. Polestar's Adjust weights and the rest of its gear settings stopped counting a few hours
+later, and your pick of mode is kept per character, so the page and your AI score the same
+way.
 
 The items themselves now come from Forever's own client tables, not a Classic item list: Staff
 of the Shade does 37 Shadow damage in Forever, not Classic's 21. Every score links to
