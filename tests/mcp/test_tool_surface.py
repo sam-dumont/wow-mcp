@@ -49,6 +49,22 @@ def test_options_and_groups_answer_what_the_old_tools_did(lab):  # noqa: F811
     assert "dungeon_runs" not in tools.call(ctx, "players", {"char": CHAR})
 
 
+def test_options_score_in_the_mode_asked(lab, monkeypatch):  # noqa: F811
+    """gear with options in PvE scores PvE's weights and says so (MCP eval
+    pve_shoulder, 2026-11-24: it answered the Leveling picks, no `mode`).
+    The eval's probe checks the picks on the demo; here, that the mode
+    reaches the planner's inputs."""
+    from wowstats import plan
+
+    ctx, _ = lab
+    fake, seen = plan.inputs, []
+    monkeypatch.setattr(plan, "inputs", lambda *a, mode=None, **kw: seen.append(mode) or fake(*a, **kw))
+    lvl = tools.call(ctx, "gear", {"char": CHAR, "options": True})
+    pve = tools.call(ctx, "gear", {"char": CHAR, "options": True, "mode": "pve"})
+    assert seen == [None, "pve"]
+    assert lvl["mode"]["key"] == "lvl" and pve["mode"]["key"] == "pve" and pve["mode_from"] == "asked"
+
+
 @pytest.mark.parametrize("tool, args, says", [
     ("gear", {"options": True, "spec": "holy"}, "spec"),
     ("dungeons", {"options": True, "since": "7d"}, "since"),

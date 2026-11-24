@@ -4,6 +4,27 @@
 
 ### Changed
 
+- Where gear comes from is ForeverDB.net's addon data now (GPL-3.0 with an attribution term, bundled in
+  `data/foreverdb/`): 7,577 items with quests, vendors and their price, boss drops with the chance players
+  measured and over how many kills, rares, crafts, reputation, PvP and containers. Each source says how
+  sure it is (seen in Forever, Forever client, Classic data, a clue) and links ForeverDB.net. 856 of
+  ForeverDB's 935 picked items have a source, 462 before. Polestar's sources fill in only where ForeverDB
+  has none.
+- The gear advice weighs how hard an item is to get (owner: "convenience and easiness before a quarter
+  of a point"). Each item is easy, some effort, hard or a long shot from its easiest source; a harder
+  item wins a slot only when it scores 5.3% (some effort) or 17.6% (hard) more. A long shot (a drop
+  under 1%, Classic's data alone, a PvP rank not held) is never an upgrade: it shows as the slot's best
+  possible with its odds ("0.01%, about 10,000 runs"). An auction house listing makes anything easy.
+  Drops say their expected runs or kills.
+- `gear` with `options` scores in the asked `mode` (PvE, PvP) and says it (`mode`, `mode_from`), like
+  `gear` without options.
+- Reputation gear is checked against the recorded standings (the Recorder and Altoholic): an upgrade
+  once the standing is held, else "you're Friendly: 16,500 rep to go". PvP rank gear says when there
+  is no rank (0 honorable kills); the rank itself isn't recorded anywhere yet.
+- The stat weights come from the same addon data (`Data/GearFinder.lua`) instead of the website's files:
+  one number moved (Marksmanship PvP mp5, 0.028 to 0.03), 138 more set pieces.
+- The KB watch refreshes ForeverDB's data at most once a week (`tools/kb/bump.py foreverdb`,
+  `foreverdb` gate, `watch.json` `foreverdb.taken`); releases download nothing.
 - Gear items come from the game's own tables now, not Polestar's item table: Forever's client
   tables and its hotfixes (`data/game-items.json`, `tools/game_items/export.py`), the way the
   3D view reads them. 17,908 weapons and armour pieces, 1,186 more than before, with Forever's
@@ -11,9 +32,11 @@
   ForeverDB.net's 36,746 ladder scores match.
 - Where gear comes from adds forever-db's quest rewards (the quest database Polestar bundles):
   172 more items with a quest to get them from.
-- The BiS counts gear nobody says where to get, like ForeverDB does: the gear page lists it as
-  "BiS with no known source", the answers as `bis_unknown` with `"where": "unknown"`. It is
-  never an upgrade to go and get. Standings and "N% → M%" lines measure against it.
+- Gear nobody says where to get shows as the slot's best possible when it beats what can be got:
+  the gear page lists it apart, the answers as `bis_unknown` with `"where": "unknown"`. It is
+  never an upgrade to go and get; standings and "N% → M%" lines measure against what can be got.
+- The analysis brief's upgrades carry their easiest source and its `effort` (the others through
+  `upgrade_sources`), and list five weak worn items, built-for-someone-else first.
 - Required level 1 counts as none (ForeverDB's rule): Forever's own items count from their item
   level - 5.
 - Hit that only works with a bow, gun or crossbow counts for hunters only.

@@ -245,7 +245,9 @@ def test_gain_in_points_and_share(ref):
     for k in {gear.bis_order(u) for u in now}:
         same = [u["value"] for u in now if gear.bis_order(u) == k]
         assert same == sorted(same, reverse=True), k
-    assert all(u["value"] == pytest.approx(u["gain"] * u["fit"]["factor"], abs=0.02) for u in a["upgrades"])
+    # Less the effort's share of the score (owner, 2026-11-24: easier first).
+    assert all(u["value"] == pytest.approx(gear.ranking_value(u["gain"], u["score"], gear.EFFORT.index(u["effort"]),
+                                                              u["fit"]["factor"]), abs=0.02) for u in a["upgrades"])
 
 
 def test_one_line_per_source(ref):

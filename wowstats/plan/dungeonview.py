@@ -318,7 +318,8 @@ def drops_for(inp: dict, aid: str, top: int | None = None, area: dict | None = N
         where = "worn" if it.get("equipped") else _where(owned, it["item_id"])
         adv = adv_gain.get(it["item_id"]) or {}
         gain = adv.get("gain", it.get("gain"))
-        if not where and not (gain and gain > 0):
+        # Missing means a gain the page shows: one under 0.05 reads "+0.0".
+        if not where and not (gain and round(gain, 1) > 0):
             continue
         # Who it's built for (wowstats.gearfit), and the gain the ranking
         # uses: less for an item a group usually hands to someone else.

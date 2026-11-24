@@ -104,6 +104,25 @@ def area(area_id) -> dict | None:
         return None
 
 
+_by_map: dict[int, int] | None = None
+
+
+def area_of_map(map_id) -> int | None:
+    """The AreaTable id of an instance by its Map id (ForeverDB names
+    instances by Map id; the areas carry `map`). None when unknown."""
+    global _by_map
+    if _by_map is None:
+        by: dict[int, int] = {}
+        for k, a in sorted((data().get("areas") or {}).items(), key=lambda kv: (not kv[1].get("instance"), int(kv[0]))):
+            if a.get("map") is not None:
+                by.setdefault(int(a["map"]), int(k))
+        _by_map = by
+    try:
+        return _by_map.get(int(map_id)) if map_id is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
 _by_name: dict[str, int] | None = None
 
 

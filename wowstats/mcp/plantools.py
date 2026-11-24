@@ -34,11 +34,15 @@ def _env(ctx: T.Ctx) -> dict:
 
 
 def _inputs(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats import gear as gearmod
     from wowstats import plan
 
     char = T.resolve_char(ctx, args).replace(" ", "-")
+    # The weights' mode (gear's `mode`); Leveling is the cache's plain entry.
+    mode = gearmod.mode_key(args.get("mode"))
+    mode = None if mode == gearmod.DEFAULT_MODE else mode
     return plan.inputs(_env(ctx), char, store=ctx.store, battlenet=T.bnet_worn(ctx, char),
-                       gear_inputs=lambda: T._views(ctx).gear_inputs(char))
+                       gear_inputs=lambda: T._views(ctx).gear_inputs(char), mode=mode)
 
 
 def _no_data(char: str, why: str) -> dict:
@@ -158,8 +162,12 @@ def t_next_step(ctx: T.Ctx, args: dict) -> dict:
 
 @answers
 def t_gear_options(ctx: T.Ctx, args: dict) -> dict:
+    from wowstats import gear as gearmod
     from wowstats.plan import estimate as E
 
+    # Scored in gear's mode (lvl, pvp, pve), like gear without options
+    # (MCP eval pve_shoulder, 2026-11-24: options answered the Leveling picks).
+    mode, mode_from = gearmod.mode_key(args.get("mode")), args.get("mode_from")
     inp = _inputs(ctx, args)
     p = E.pace(inp)
     m = E.mounts(inp, p)
@@ -167,6 +175,7 @@ def t_gear_options(ctx: T.Ctx, args: dict) -> dict:
     zone = T.current_zone(ctx, T.resolve_char(ctx, args))
     slots = E.gear_options(inp, p, dl, m, zone=zone)
     return {"char": inp["who"]["char"], "level": inp["level"], "zone": zone, "spec": inp.get("gear_spec"),
+            "mode": gearmod.modes_out(mode), "mode_from": mode_from,
             "slots": slots[:T.limit_arg(args, 8, 20)],
             "kinds": sorted({o["kind"] for s in slots for o in s["options"]}),
             "note": "Gains are Polestar's gear points for this character's class and spec. bis_pct is the item's share "

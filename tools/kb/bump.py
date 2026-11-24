@@ -3,6 +3,8 @@
 
     uv run python tools/kb/bump.py polestar v0.4.1.1 --why why.json   # check, then move the tag
     uv run python tools/kb/bump.py addons --why why.json --handoff seen.json   # check the addons' contracts
+    uv run python tools/kb/bump.py foreverdb --why why.json --handoff seen.json --summary fdb.md
+    uv run python tools/kb/bump.py golden --as foreverdb --why why.json   # take moved upgrades only
 
 What an addon writes is what the shipper reads, so a release is taken when
 what we depend on is unchanged between the known tag and the new one, read
@@ -38,11 +40,26 @@ it. Only the licence terms, a saved table, an export or a generator that
 fails stop a bump. v0.4.2.1 was refused because its routes to 60 got 16-25 h
 shorter, the release's own rebuilt 50-60 routes. A client build's regen still
 refuses test data that moved: that's a game build, not Polestar's word.
+
+`foreverdb` is ForeverDB.net's addon data (tools/foreverdb_sources/export.py,
+owner 2026-11-24): the only place the refresh fetches it. It downloads the
+manifest's files (each SHA-256 checked), then refuses when a file's format
+comments (the export's contract) or one of the licence files
+(data/foreverdb/LICENSE.txt, NOTICE.txt, COPYING.txt) isn't byte for byte
+what is committed: both need a person. Otherwise it reruns both exports
+(item sources and the stat weights) from that download, writes the
+fingerprint it took to `--handoff` and what moved to `--summary` (for the
+PR). Like Polestar, its data is taken as it is: `regen --as foreverdb`
+accepts the test data that moved. `golden --as foreverdb` then takes the
+golden characters' moved upgrades into tests/slices/golden.json, and only
+those (at most GOLDEN_UPGRADES of them): a dungeon, a raid prep, a plan or a
+class meta key that went away still stops it, for the behaviour gate.
 """
 
 from __future__ import annotations
 
 import argparse
+import collections
 import difflib
 import gzip
 import json
@@ -50,6 +67,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import urllib.parse
 from pathlib import Path
 
@@ -255,8 +273,9 @@ def regen(old: str = "", new: str = "", root: Path = ROOT) -> tuple[list[str], l
 
 def refusals(kind: str, failed: list[str], moved: list[str]) -> list[str]:
     """What stops `kind` after a regen: a failed generator always; data that
-    moved only for a client build (Polestar's numbers are taken as they are)."""
-    if failed or kind == "polestar" or not moved:
+    moved only for a client build (Polestar's and ForeverDB's numbers are
+    taken as they are)."""
+    if failed or kind in ("polestar", "foreverdb") or not moved:
         return failed
     return ["the regenerated test data changed: " + ", ".join(f"`{n}`" for n in moved[:10])]
 
@@ -282,18 +301,115 @@ def note(path: str | None, kind: str, text: str) -> None:
         p.write_text(json.dumps(why, indent=1) + "\n", encoding="utf-8")
 
 
+def _tally(doc: dict) -> tuple[collections.Counter, collections.Counter]:
+    kinds, labels = collections.Counter(), collections.Counter()
+    for e in (doc.get("items") or {}).values():
+        for x in e.get("sources") or []:
+            kinds[x.get("kind")] += 1
+            labels[x.get("label")] += 1
+    return kinds, labels
+
+
+def foreverdb_summary(was: dict, now: dict, size: int) -> str:
+    """What moved, for the PR: items, sources by kind and by label, size."""
+    a, b = was.get("items") or {}, now.get("items") or {}
+    (k0, l0), (k1, l1) = _tally(was), _tally(now)
+    changed = sum(1 for i in set(a) & set(b) if a[i] != b[i])
+    rows = "\n".join(f"| {k} | {k0.get(k, 0)} | {k1.get(k, 0)} |" for k in sorted(set(k0) | set(k1), key=str))
+    labs = ", ".join(f"{k} {l0.get(k, 0)} -> {l1.get(k, 0)}" for k in sorted(set(l0) | set(l1), key=str))
+    s0, s1 = was.get("source") or {}, now.get("source") or {}
+    return (f"\n## ForeverDB.net data\nData {s0.get('data_version')} -> {s1.get('data_version')}, build "
+            f"{s1.get('build')}. Items with a source: {len(a)} -> {len(b)} ({len(set(b) - set(a))} new, "
+            f"{len(set(a) - set(b))} gone, {changed} changed). Labels: {labs}. "
+            f"`data/foreverdb/item-sources.json`: {size:,} bytes.\n\n| Kind | Before | Now |\n|---|---|---|\n{rows}\n")
+
+
+def foreverdb(why: str | None, handoff: str | None, summary: str | None, known: str) -> int:
+    """Download, check, export (see the module's doc). 0 taken, 3 refused."""
+    fdb = watch.foreverdb()
+    committed = json.loads(fdb.OUT.read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory(prefix="foreverdb-") as tmp:
+        src = Path(tmp)
+        try:
+            man = fdb.download(src)
+            fp = fdb.fingerprint(man)
+            if fp == known:
+                print(f"foreverdb: {fp} is the known data, nothing to take")
+                return 0
+            _, parsed, lic = fdb.read_files(src)
+            _, _, contract = fdb.notice_and_contract(parsed)
+        except Exception as e:  # noqa: BLE001 - any failure of an untrusted download is a refusal
+            refuse(why, "foreverdb", [f"the download wasn't usable ({PLAIN.sub('', str(e))[:200]})"])
+            return 3
+        reasons = [f"`{p}`: its format comments changed (the export's contract): read them against "
+                   "tools/foreverdb_sources/export.py" for p, h in contract.items()
+                   if (committed.get("source") or {}).get("contract", {}).get(p) != h]
+        reasons += [f"`{n}` isn't the committed data/foreverdb/{n}: the licence needs a person" for n, b in lic.items()
+                    if not (fdb.OUT_DIR / n).exists() or (fdb.OUT_DIR / n).read_bytes() != b]
+        if reasons:
+            refuse(why, "foreverdb", reasons)
+            return 3
+        for tool in ("tools/foreverdb_sources/export.py", "tools/foreverdb_weights/export.py"):
+            r = subprocess.run(["uv", "run", "--frozen", "python", "-I", tool, "--files", str(src)], cwd=ROOT,
+                               capture_output=True, text=True)
+            if r.returncode:
+                last = PLAIN.sub("", ((r.stderr or r.stdout).strip().splitlines() or ["?"])[-1])[:200]
+                refuse(why, "foreverdb", [f"{tool} refused the new data ({last})"])
+                return 3
+    now = json.loads(fdb.OUT.read_text(encoding="utf-8"))
+    if summary:
+        Path(summary).write_text(foreverdb_summary(committed, now, fdb.OUT.stat().st_size), encoding="utf-8")
+    if handoff:
+        Path(handoff).write_text(json.dumps({"foreverdb": {"data": fp}}, indent=1) + "\n", encoding="utf-8")
+    print(f"foreverdb: took {fp} (data {now['source']['data_version']})")
+    return 0
+
+
+GOLDEN_UPGRADES = 40
+# A golden key that names one item to get: what ForeverDB's data moves.
+UPGRADE_KEY = re.compile(r"^[\w-]+: (?:moves: upgrade\|\d+|next_moves: #up-\d+)$")
+
+
+def golden(why: str | None, kind: str) -> int:
+    """Take the golden characters' moved upgrades (see the module's doc)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "golden.json"
+        subprocess.run(["uv", "run", "--frozen", "python", "-m", "tests.slices.golden", "--check", "--json", str(out)],
+                       cwd=ROOT, capture_output=True, text=True)
+        got = json.loads(out.read_text(encoding="utf-8")) if out.exists() else None
+    if got is None:
+        refuse(why, kind, ["the golden characters couldn't be served (tests/slices/golden.py)"])
+        return 3
+    gone = got.get("gone") or []
+    other = [g for g in gone if not UPGRADE_KEY.match(g)]
+    if other or len(gone) > GOLDEN_UPGRADES:
+        refuse(why, kind, [f"golden characters: {len(other)} keys that aren't upgrades went away "
+                           f"({', '.join(other[:5])}), {len(gone)} in all (at most {GOLDEN_UPGRADES} upgrades)"])
+        return 3
+    if gone:
+        subprocess.run(["uv", "run", "--frozen", "python", "-m", "tests.slices.golden", "--write"], cwd=ROOT,
+                       check=True, capture_output=True)
+    print(f"golden: {len(gone)} upgrades moved with the data")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("kind", choices=["polestar", "addons", "regen"])
+    ap.add_argument("kind", choices=["polestar", "addons", "regen", "foreverdb", "golden"])
     ap.add_argument("tag", nargs="?", help="polestar: the new release tag")
     ap.add_argument("--old", default="", help="regen: the Polestar tag before the bump")
     ap.add_argument("--new", default="", help="regen: the Polestar tag after it")
     ap.add_argument("--as", dest="as_kind", default="polestar", help="regen: the kind a refusal is filed under")
     ap.add_argument("--why", help="append a refusal here ({kind: reason})")
     ap.add_argument("--state", default=str(watch.STATE))
-    ap.add_argument("--handoff", help="addons: write the release each addon was checked at, for watch.py --accept")
+    ap.add_argument("--handoff", help="addons, foreverdb: write what was checked and taken, for watch.py --accept")
+    ap.add_argument("--summary", help="foreverdb: write what moved here (Markdown, for the PR)")
     a = ap.parse_args(argv)
     state = json.loads(Path(a.state).read_text(encoding="utf-8"))
+    if a.kind == "foreverdb":
+        return foreverdb(a.why, a.handoff, a.summary, state["foreverdb"]["known"])
+    if a.kind == "golden":
+        return golden(a.why, a.as_kind)
     if a.kind == "regen":
         failed, moved = regen(a.old, a.new)
         reasons = refusals(a.as_kind, failed, moved)

@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 import re
 
-from wowstats import forever, gearfit
+from wowstats import ahsource, forever, gearfit
 from wowstats import gear as gearmod
 from wowstats.rates import per_hour
 
@@ -700,9 +700,12 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str |
                 # skill and the recipe (wowstats.gear.craft_status).
                 row.update(kind="craft", source=f"{s.get('profession')} {s.get('skill')}", can_make=s.get("can_make"),
                            cost=gearmod.craft_status(s))
-            else:  # an open-ended kind (reputation, PvP rank, vendor...): shown as the data names it
-                row.update(kind=s["kind"], source=s.get("name") or s.get("zone") or s["kind"],
-                           cost=s.get("cost") or "see the source")
+            else:  # ForeverDB's other kinds (vendor, container...): the gear advice's words
+                row.update(kind=s["kind"], source=gearmod.source_text(s),
+                           cost=(f"buy it ({ahsource.price_text(s['price_copper'])})"
+                                 if s["kind"] == "vendor" and s.get("price_copper") else "see the source"))
+            if s.get("basis"):
+                row["basis"] = s["basis"]
             slots.setdefault(u.get("slot_name") or "?", []).append(row)
     out = []
     for slot, rows in slots.items():
@@ -1162,12 +1165,12 @@ def src_text(s: dict) -> str:
         return f"quest {s.get('name')} ({s.get('zone')})"
     if s["kind"] == "drop":
         ch = f", {s['chance_pct']:.0f}%" if s.get("chance_pct") else ""
-        return f"{s.get('boss') or 'trash'} in {s.get('zone')}{ch}"
+        return f"{s.get('boss') or 'trash'} in {s.get('zone')}{ch}" + (f" ({s['basis']})" if s.get("basis") else "")
     if s["kind"] in ("bags", "bank"):
         return f"in your {s['kind']}"
     if s["kind"] == "craft":
         return f"craft: {s.get('profession')} {s.get('skill')}; {gearmod.craft_status(s)}"
-    return s.get("name") or s["kind"]
+    return gearmod.source_text(s)
 
 
 # ---------------------------------------------------------------- facts

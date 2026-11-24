@@ -81,13 +81,19 @@ def test_the_plan_and_the_coach_name_the_other_hand():
     ups = [{k: u.get(k) for k in ("item_id", "name", "slot_name", "gain", "level", "now", "sources")}
            | ({"with": facts._partner(u["with"])} if u.get("with") else {}) for u in a["upgrades_all"]]
     inp = {"upgrades": ups, "level": 33}
+    # A one-hander names the other hand; a two-hander has none to name (the
+    # same inv filter as the options below). Staff of the Shade is the first
+    # two-hander here with a source (ForeverDB: a Razorfen Warden drop seen in
+    # Forever, no rate measured: "hard", still an upgrade, 2026-11-24).
+    one_hand = (13, 21, 14, 22, 23)
     for g in E.gear_now(inp):
-        if g["slot"] in ("Main hand", "Off hand"):
+        if g["slot"] in ("Main hand", "Off hand") and gear.reference().item(
+                next(u["item_id"] for u in ups if u["name"] == g["item"]))["inv"] in one_hand:
             assert g["worn_with"], g
     rows = [o for s in E.gear_options(inp, {"level_factor": {}}, [], {}) for o in s["options"]]
     assert not any(o["item_id"] == ORB for o in rows)  # never "in your bags: equip it"
     assert all(o.get("worn_with") for o in rows if o["kind"] != "setup" and gear.reference().item(
-        o["item_id"])["inv"] in (13, 21, 14, 22, 23))
+        o["item_id"])["inv"] in one_hand)
     # The coach's "what to do now" says the pair, never "equip the orb".
     reach = insights.in_reach({"upgrades": a["upgrades_all"]}, 33)
     texts = [insights._pick_text(u, s) for u, s in reach]

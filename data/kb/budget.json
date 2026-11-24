@@ -21,5 +21,12 @@
   "sweep.json": 158720,
   "watch.json": 29696,
   "xp-sources.md": 2048
+ },
+ "foreverdb": {
+  "about": "ForeverDB.net's item sources (tools/kb/gates.py foreverdb_gate, not part of data/kb's total): the file's cap is its size on 2026-11-24 (1.35 MB) plus about 50% for new items, and the share of ForeverDB's own picks (tests/data/foreverdb-picks.json) that must keep a source (856 of 935 on 2026-11-24, 92%).",
+  "files": {
+   "data/foreverdb/item-sources.json": 2000000
+  },
+  "picks_floor": 0.85
  }
 }

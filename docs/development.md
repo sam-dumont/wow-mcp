@@ -298,7 +298,9 @@ release.yml's skipped job `test` passed the gate before ci.yml's own
   `DOCKERHUB_TOKEN`, a read-only token, in the repository's Actions secrets
   and its Dependabot secrets; Dependabot reads the digests with them too).
 - **Moved by kb-refresh**: the Polestar tag (`tools/polestar-tag`) with
-  its exports, when a release passes the job's checks (docs/kb.md).
+  its exports, when a release passes the job's checks, and ForeverDB.net's
+  data (`data/foreverdb/`, `data/foreverdb-weights.json`) when its files
+  change (docs/kb.md).
 - **Moved by hand**: the renderer's Debian snapshot date, and the Polestar
   Recorder version and checksum in the shipper.
 - **The `audit` job** (CI, every push and pull request):

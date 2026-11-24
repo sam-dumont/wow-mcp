@@ -3,47 +3,52 @@ scores with (wowstats.gear), per class, spec and mode, Leveling, PvP and PvE,
 and the set-bonus share of each set piece.
 
 The weights are ForeverDB.net's (https://foreverdb.net, credited wherever a
-score shows): the hand-set class-guide weights every calculator for the game
-uses some version of, plus two rules of theirs that make the Leveling and
-PvP tables. What is copied and what is computed:
+score shows), read from its addon's data files (GPL-3.0 with an attribution
+term, data/foreverdb/LICENSE.txt; owner, 2026-11-24), the same download as
+data/foreverdb/item-sources.json (tools/foreverdb_sources/export.py):
 
-- PvE: each spec's class-guide weights (`/data/guides.json`), as published.
-  Hunters' attack power also counts their ranged attack power weight, as
-  ForeverDB's best-in-slot pages do (Beast Mastery 0.1 + 0.45 = 0.55).
-- Leveling: computed here from PvE by ForeverDB's published rule
-  (`/data/bis/index.json` lvlMethod), so the rule is code: see leveling().
-- PvP: each spec's PvP-guide weights (`/data/bis/<class>-<spec>.json`
-  weights.pvp), whose gaps ForeverDB fills with its rule; a spec without a
-  PvP guide gets pvp_rule() here.
-- Sets: the share of a set's stat bonuses on each of its pieces (the bonus
-  total over the number of pieces), from the same per-spec files.
+- Data/GearFinder.lua: per class, its specs (name, role, weapon style) and
+  each spec's weights in the three profiles: `raid` is PvE (the class-guide
+  weights; a hunter's attack power already counts its ranged attack power),
+  `lvl` Leveling, `pvp` PvP.
+- Data/GearSources.lua `gfExtra`: a set piece's share of its set's stat
+  bonuses (the bonus total over the set's size).
 
-Every computed table is checked against ForeverDB's own copy; the counts go
-in the file's `checks`. Run it with the network:
+The addon stores weights to two decimals. Leveling stays computed here from
+PvE by ForeverDB's published rule (leveling(), its numbers to four
+decimals, as the site's files had them); the addon's own Leveling table must
+equal it to the addon's rounding (`checks.lvl`). PvP is the addon's table as
+it is (`pvp_from: guide`); a spec without one would get pvp_rule(). Against
+the site's files (2026-11-23) one number moved, by that rounding: Marksmanship
+PvP mana per 5 sec, 0.028 there, 0.03 in the addon.
 
-    uv run python tools/foreverdb_weights/export.py [--cache DIR]
+    uv run python tools/foreverdb_weights/export.py              # fetch (the manifest) and write
+    uv run python tools/foreverdb_weights/export.py --files DIR  # from a verified download (tools/kb/bump.py)
+    uv run python tools/foreverdb_weights/export.py --check      # offline
 
 `--check` reads nothing from the network: it recomputes Leveling from the
 stored PvE tables and fails when the file isn't what this script writes.
-`--fixtures DIR` (with `--cache`) writes the parity test's fixture
-(tests/data/foreverdb-ladders.json.gz) from the cached spec files.
+The parity fixture (tests/data/foreverdb-ladders.json.gz) was recorded from
+the site's best-in-slot ladders on 2026-11-23 and stays as recorded.
 """
 
 from __future__ import annotations
 
 import argparse
-import datetime as dt
-import gzip
 import json
 import sys
-import urllib.request
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "tools" / "foreverdb_sources"))
+
+import export as fdb  # noqa: E402 (tools/foreverdb_sources/export.py)
+
 OUT = ROOT / "data" / "foreverdb-weights.json"
-FIXTURE = ROOT / "tests" / "data" / "foreverdb-ladders.json.gz"
 SITE = "https://foreverdb.net"
-UA = "wow-stats weights export (+https://github.com/sam-dumont/wow-mcp)"
+ROUNDING = 0.0051  # the addon keeps two decimals
+QUEST_AHEAD = 5  # GearFinder.lua: "a quest reward from 5 levels below its quest's level"
 
 # ForeverDB's stat ids (the game's ItemModType) -> the names wowstats.gear
 # scores with. Ratings stay ratings: an item's "1% hit" line is 10 hit
@@ -52,6 +57,7 @@ STATS = {3: "agi", 4: "str", 5: "int", 6: "spi", 7: "sta", 12: "defense", 13: "d
          15: "blockRating", 31: "hitRating", 32: "critRating", 36: "haste", 37: "expertise", 38: "ap", 39: "rap",
          41: "heal", 42: "sp", 43: "mp5", 45: "dmgheal", 46: "hp5", 47: "spellPen", 48: "blockValue",
          84: "spHoly", 85: "spFire", 86: "spNature", 87: "spFrost", 88: "spShadow", 89: "spArcane"}
+ORDER = ("WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID")
 CLASSES = {"Warrior": "WARRIOR", "Paladin": "PALADIN", "Hunter": "HUNTER", "Rogue": "ROGUE", "Priest": "PRIEST",
            "Shaman": "SHAMAN", "Mage": "MAGE", "Warlock": "WARLOCK", "Druid": "DRUID"}
 # The class guide's tree -> data/gear-reference.json's spec key.
@@ -129,88 +135,80 @@ def pvp_rule(w: dict, cls: str) -> dict:
     return r4(out)
 
 
-def fetch(path: str, cache: Path | None):
-    if cache:
-        f = cache / path.strip("/").replace("/", "_")
-        if f.exists():
-            return json.loads(f.read_text(encoding="utf-8"))
-    req = urllib.request.Request(SITE + path, headers={"User-Agent": UA, "Accept": "application/json"})
-    with urllib.request.urlopen(req, timeout=60) as r:
-        raw = r.read()
-    if cache:
-        cache.mkdir(parents=True, exist_ok=True)
-        (cache / path.strip("/").replace("/", "_")).write_bytes(raw)
-    return json.loads(raw)
-
-
 def same(a: dict, b: dict) -> bool:
     keys = set(a) | set(b)
     return all(abs((a.get(k) or 0) - (b.get(k) or 0)) < 1e-6 for k in keys)
 
 
-def build(cache: Path | None, fetched: str) -> tuple[dict, dict]:
-    index = fetch("/data/bis/index.json", cache)
-    guides = fetch("/data/guides.json", cache)
-    specs: dict = {}
-    sets: dict = {}
-    checks = {"pve": [0, 0], "lvl": [0, 0], "pvp_rule": [0, 0]}
-    files = {}
-    urls = [SITE + "/data/bis/index.json", SITE + "/data/guides.json"]
-    for c in index["classes"]:
-        cls = CLASSES[c["n"]]
-        tree = {s["tree"]: s for s in guides["classes"][c["n"]]["specs"]}
-        for s in c["specs"]:
-            path = f"/data/bis/{c['slug']}-{s['slug']}.json"
-            urls.append(SITE + path)
-            d = fetch(path, cache)
-            files[f"{c['slug']}-{s['slug']}"] = d
-            g = tree[s["n"]]
-            p = pve(g["weights"], cls)
-            lv = leveling(p, cls, s["role"])
-            theirs = {m: r4(named(d["weights"][m])) for m in ("pve", "lvl", "pvp")}
-            checks["pve"][0 if same(p, theirs["pve"]) else 1] += 1
-            checks["lvl"][0 if same(lv, theirs["lvl"]) else 1] += 1
-            if d.get("pvpFrom") == "guide":
-                pv = theirs["pvp"]
-            else:
-                pv = pvp_rule(p, cls)
-                checks["pvp_rule"][0 if same(pv, theirs["pvp"]) else 1] += 1
-            key = SPEC_KEYS.get(s["n"], s["slug"].replace("-", ""))
-            specs.setdefault(cls, {})[key] = {
-                "foreverdb": f"{c['slug']}/{s['slug']}", "role": s["role"], "style": d.get("style") or "any",
-                "pvp_from": d.get("pvpFrom") or "rule", "pve": p, "lvl": lv, "pvp": pv}
-            for iid, it in d["items"].items():
-                if it.get("sb"):
-                    sets[iid] = r4({name(k): float(v) for k, v in it["sb"]})
-    out = {
-        "schema": 1,
-        "source": {"name": "ForeverDB.net", "url": SITE, "credit": "Weights: ForeverDB.net",
-                   "build": index.get("build"), "fetched": fetched, "urls": urls,
-                   "note": "The class-guide stat weights and ForeverDB's Leveling and PvP rules; Leveling is "
-                           "computed by tools/foreverdb_weights/export.py from PvE."},
-        "rules": {"quest_ahead": index.get("questAhead", 5), "no_req_level": "item level - 5"},
-        "checks": {k: {"same": v[0], "differ": v[1]} for k, v in checks.items()},
-        "specs": specs,
-        "sets": dict(sorted(sets.items(), key=lambda kv: int(kv[0]))),
-    }
-    return out, files
+def close(a: dict, b: dict, tol: float = ROUNDING) -> bool:
+    """Equal to the addon's two decimals."""
+    return all(abs((a.get(k) or 0) - (b.get(k) or 0)) <= tol for k in set(a) | set(b))
 
 
-# The parity fixture: five specs' ladders in all three modes, each item
-# trimmed to what the score reads (tests/test_gear_foreverdb.py).
-FIXTURE_SPECS = ("priest-shadow", "priest-holy", "warrior-fury", "warrior-protection", "hunter-beast-mastery")
-ITEM_FIELDS = ("n", "c", "sc", "inv", "il", "rl", "st", "pct", "sb", "dmg", "spd", "ar", "u", "lc", "g")
-
-
-def fixtures(files: dict) -> dict:
-    out = {}
-    for slug in FIXTURE_SPECS:
-        d = files[slug]
-        ids = {str(e[0]) for lad in d["ladder"].values() for es in lad.values() for e in es}
-        items = {i: {k: d["items"][i][k] for k in ITEM_FIELDS if k in d["items"][i]} for i in sorted(ids)}
-        out[slug] = {"cls": d["cls"], "class": d["class"], "spec": d["spec"], "style": d.get("style"),
-                     "weights": d["weights"], "ladder": d["ladder"], "items": items}
+def gearfinder(text: str) -> dict:
+    """{class: {spec slug: {"name", "role", "style", "raid", "lvl", "pvp"}}} from
+    GearFinder.lua's per-class long strings (S and W lines, tab-separated)."""
+    out: dict = {}
+    for cls, body in sorted(text.items()):
+        if cls not in CLASSES.values():
+            raise SystemExit(f"GearFinder.lua: an unknown class {cls!r}")
+        specs: dict = {}
+        for ln in str(body).splitlines():
+            f = ln.split("\t")
+            if f[0] == "S" and len(f) >= 6:
+                specs[f[1]] = {"name": f[2], "role": f[3], "style": f[4] or "any", "slug": f[5]}
+            elif f[0] == "W" and len(f) >= 4 and f[1] in specs:
+                specs[f[1]][f[2]] = r4({name(k): float(v) for k, v in (x.split("=", 1) for x in f[3].split(",") if x)})
+        out[cls] = {s["slug"]: s for s in specs.values()}
     return out
+
+
+def extra_sets(gf_extra: dict) -> dict:
+    """{item: set share} from gfExtra's `s` tokens ("s38:2,5:2")."""
+    out = {}
+    for iid, raw in gf_extra.items():
+        for tok in str(raw).split():
+            if tok.startswith("s"):
+                out[str(iid)] = r4({name(k): float(v) for k, v in (x.split(":", 1) for x in tok[1:].split(",") if x)})
+    return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
+
+
+def build(src: Path) -> dict:
+    """The weights file from a verified download (tools/foreverdb_sources)."""
+    man, parsed, _ = fdb.read_files(src)
+    _, build_id, _ = fdb.notice_and_contract(parsed)
+    gf = gearfinder(parsed["Data/GearFinder.lua"][0]["gfClass"])
+    sets = extra_sets(parsed["Data/GearSources.lua"][0].get("gfExtra") or {})
+    specs: dict = {}
+    checks = {"lvl": [0, 0], "pvp_rule": [0, 0]}  # pvp_rule: [specs given the rule, 0]
+    for cls, ss in gf.items():
+        for slug, s in ss.items():
+            p = s["raid"]
+            lv = leveling(p, cls, s["role"])
+            checks["lvl"][0 if close(lv, s["lvl"]) else 1] += 1
+            # A spec without a PvP table gets ForeverDB's PvP rule (none today).
+            by_rule = not s.get("pvp")
+            checks["pvp_rule"][0] += by_rule
+            key = SPEC_KEYS.get(s["name"], slug.replace("-", ""))
+            specs.setdefault(cls, {})[key] = {
+                "foreverdb": f"{[c for c, t in CLASSES.items() if t == cls][0].lower()}/{slug}", "role": s["role"],
+                "style": s["style"], "pvp_from": "rule" if by_rule else "guide", "pve": p, "lvl": lv,
+                "pvp": pvp_rule(p, cls) if by_rule else s["pvp"]}
+    entries = fdb.manifest_entries(man)
+    version = (man.get("data") or {}).get("version") or ""
+    return {
+        "schema": 1,
+        "source": {"name": "ForeverDB.net", "url": SITE, "credit": "Weights: ForeverDB.net", "build": build_id,
+                   "fetched": version[:10], "data_version": version,
+                   "urls": [f"{SITE}/{entries[p]['url']}" for p in ("Data/GearFinder.lua", "Data/GearSources.lua")],
+                   "licence": "GPL-3.0 with an attribution term (data/foreverdb/LICENSE.txt)",
+                   "note": "ForeverDB's addon weights (GearFinder.lua) and set shares (GearSources.lua gfExtra); "
+                           "Leveling is computed by tools/foreverdb_weights/export.py from PvE by their rule."},
+        "rules": {"quest_ahead": QUEST_AHEAD, "no_req_level": "item level - 5"},
+        "checks": {k: {"same": v[0], "differ": v[1]} for k, v in checks.items()},
+        "specs": {c: v for c, v in sorted(specs.items(), key=lambda kv: ORDER.index(kv[0]))},
+        "sets": sets,
+    }
 
 
 def dump(out: dict) -> str:
@@ -238,21 +236,21 @@ def check() -> int:
     return 1 if bad else 0
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--cache", type=Path, help="keep (or reuse) the fetched files here")
+    ap.add_argument("--files", type=Path, help="read a download made by tools/foreverdb_sources (bump.py) here")
     ap.add_argument("--check", action="store_true", help="offline: check the committed file")
-    ap.add_argument("--fixtures", action="store_true", help="also write the parity test's fixture")
-    a = ap.parse_args()
+    a = ap.parse_args(argv)
     if a.check:
         return check()
-    out, files = build(a.cache, dt.date.today().isoformat())
+    src = a.files
+    if src is None:
+        src = Path(tempfile.mkdtemp(prefix="foreverdb-"))
+        fdb.download(src)
+    out = build(src)
     OUT.write_text(dump(out), encoding="utf-8")
     print(f"wrote {OUT.relative_to(ROOT)}: {sum(len(v) for v in out['specs'].values())} specs, "
           f"{len(out['sets'])} set pieces; checks {out['checks']}")
-    if a.fixtures:
-        FIXTURE.write_bytes(gzip.compress(json.dumps(fixtures(files), separators=(",", ":")).encode(), mtime=0))
-        print(f"wrote {FIXTURE.relative_to(ROOT)} ({FIXTURE.stat().st_size} bytes)")
     return 0
 
 

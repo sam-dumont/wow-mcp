@@ -1295,7 +1295,8 @@ const ahAge = (s) => (s.seen_day ? Math.floor((Date.now() - new Date(`${s.seen_d
 const ahOf = (u) => ((u && u.sources) || []).find((s) => s.kind === 'ah' && ahAge(s) <= 1) || null;
 function primarySource(u) {
   const srcs = u.sources || [];
-  return srcs.find((s) => HELD[s.kind]) || srcs.find((s) => s.kind === 'quest') || srcs.find((s) => s.kind === 'craft' && s.can_make)
+  return srcs.find((s) => HELD[s.kind]) || srcs.find((s) => s.kind === 'quest') || srcs.find((s) => s.kind === 'vendor')
+    || srcs.find((s) => s.kind === 'craft' && s.can_make)
     || srcs.slice().sort((x, y) => (y.chance_pct || 0) - (x.chance_pct || 0)).find((s) => s.kind === 'drop')
     || ahOf(u) || srcs[0] || null;
 }
@@ -1306,7 +1307,9 @@ function sourceGroup(s) {
   if (s.kind === 'drop' && (s.instance || s.dungeon)) return { key: 'd:' + s.zone, title: s.zone, kind: 'dungeon', levels: s.levels };
   if (s.kind === 'drop') return { key: 'world', title: 'World drops', kind: 'world' };
   if (s.kind === 'quest') return { key: 'q:' + (s.zone || '?'), title: `Quests in ${s.zone || 'an unknown zone'}`, kind: 'quest' };
-  return { key: 'c:' + s.profession, title: `${s.profession} crafts`, kind: 'craft' };
+  if (s.kind === 'vendor') return { key: 'v:' + (s.zone || '?'), title: `Vendors in ${s.zone || 'an unknown zone'}`, kind: 'vendor' };
+  if (s.kind === 'craft') return { key: 'c:' + s.profession, title: `${s.profession} crafts`, kind: 'craft' };
+  return { key: 'other', title: 'Elsewhere', kind: 'other' };
 }
 
 // 12g 40s: gold and silver, copper only under a gold (wowstats/ahsource.py price_text).
@@ -1338,6 +1341,18 @@ function craftStatus(sr) {
   return steps.join(', ');
 }
 
+// How sure a ForeverDB source is (wowstats/gear.py BASIS: seen in Forever,
+// the client, Classic data, a clue) and its credit: the licence asks for the
+// link wherever the data shows (GPL-3.0 section 7(b)).
+const SOURCE_CREDIT = { text: 'Source: ForeverDB.net', url: 'https://foreverdb.net' };
+function basisEl(sr) {
+  if (sr.via !== 'foreverdb') return null;
+  return h('span', { class: 'sub basis' }, sr.basis ? ` (${sr.basis}) · ` : ' · ',
+    h('a', { href: SOURCE_CREDIT.url, target: '_blank', rel: 'noopener noreferrer', referrerpolicy: 'no-referrer', text: SOURCE_CREDIT.text }));
+}
+// A drop's chance, with the looted kills players measured it over.
+const chanceText = (sr) => (sr.chance_pct ? `, ${sr.chance_pct}%${sr.kills ? ` over ${sr.kills} kills` : ''}` : '');
+
 // One source in words, with its link and the numbers that decide a trip.
 // ah: the item's auction house listing, for "or buy it" after another source.
 function sourceEl(sr, level, ah) {
@@ -1347,23 +1362,51 @@ function sourceEl(sr, level, ah) {
     const chain = sr.part && sr.part.length === 2 && sr.part[1] > 1 ? ` · ${sr.part[0]} of ${sr.part[1]}` : '';
     return h('span', { class: 'src' }, 'Quest ', wh('quest', sr.quest_id, sr.name || `quest ${sr.quest_id}`),
       chain, sr.zone ? `, ${sr.zone}` : '', sr.req_level ? `, level ${sr.req_level}` : '',
-      sr.choices > 1 ? `, one of ${sr.choices} rewards` : '');
+      sr.choices > 1 ? `, one of ${sr.choices} rewards` : '', basisEl(sr));
   }
   if (sr.kind === 'drop') {
     const runs = sr.chance_pct ? Math.max(1, Math.round(100 / sr.chance_pct)) : null;
     // Listed now and within your gold: buying beats farming a chance.
     const buy = ah && ah.affordable ? h('span', { class: 'ahor' }, 'or buy it now for ', h('b', { class: 'ahprice', text: priceText(ah.price_copper) }),
       ' instead of farming', ah.cheap ? h('span', { class: 'pill cheap', text: 'cheap' }) : null) : null;
+    // 1 / p in kills: what a drop rate means at the keyboard (owner, 2026-11-24).
+    const kills = runs > 1 ? ` (about ${runs.toLocaleString('en')} kills)` : '';
+    if (sr.world) {
+      const lv = sr.levels_drop ? ` from level ${sr.levels_drop[0]}-${sr.levels_drop[1]} creatures` : '';
+      return h('span', { class: 'src' }, `World drop${lv}`, sr.zone ? `, seen in ${sr.zone}` : '', chanceText(sr), kills, basisEl(sr), buy);
+    }
     if (!(sr.instance || sr.dungeon)) {
-      return h('span', { class: 'src' }, 'World drop', sr.zone ? ` in ${sr.zone}` : '', sr.chance_pct ? `, ${sr.chance_pct}%` : '', buy);
+      return h('span', { class: 'src' }, sr.boss ? ['Drops from ', wh('npc', sr.npc_id, sr.boss), sr.rare ? ' (rare)' : ''] : 'World drop',
+        sr.zone ? ` in ${sr.zone}` : '', chanceText(sr), kills, basisEl(sr), buy);
     }
     return h('span', { class: 'src' }, sr.boss ? wh('npc', sr.npc_id, sr.boss) : 'trash', ' in ', sr.zone || '?',
-      sr.chance_pct ? `, ${sr.chance_pct}%` : '', runs ? ` (about ${runs} run${runs > 1 ? 's' : ''})` : '', buy);
+      chanceText(sr), runs ? ` (about ${runs.toLocaleString('en')} run${runs > 1 ? 's' : ''})` : '', basisEl(sr), buy);
+  }
+  if (sr.kind === 'vendor') {
+    return h('span', { class: 'src' }, 'Sold by ', wh('npc', sr.npc_id, sr.name || 'a vendor'), sr.zone ? ` in ${sr.zone}` : '',
+      sr.price_copper ? [', ', h('b', { class: 'ahprice', text: priceText(sr.price_copper) })] : '', basisEl(sr));
+  }
+  if (sr.kind === 'reputation') {
+    // What the character holds against it (wowstats/gear.py rep_words).
+    const you = sr.met ? ` (you're ${sr.your_standing})`
+      : sr.met == null ? " (your standing isn't recorded)"
+      : !sr.your_standing ? ' (not met yet)'
+      : ` (you're ${sr.your_standing}${sr.rep_to_go ? `: ${sr.rep_to_go.toLocaleString('en')} rep to go` : ''})`;
+    return h('span', { class: 'src' }, `${sr.name || 'A faction'}: ${sr.standing || 'a standing'} reputation`, you, basisEl(sr));
+  }
+  if (sr.kind === 'pvp') {
+    const you = sr.your_rank == null ? " (your rank isn't recorded)" : sr.met ? ` (you hold rank ${sr.your_rank})`
+      : sr.your_rank === 0 ? ' (you have no PvP rank)' : ` (you have rank ${sr.your_rank})`;
+    return h('span', { class: 'src' }, `PvP rank ${sr.rank} reward`, you, basisEl(sr));
+  }
+  if (sr.kind === 'container') {
+    return h('span', { class: 'src' }, sr.object ? 'In ' : 'From ', sr.container_item_id ? wh('item', sr.container_item_id, sr.name || 'a container') : (sr.name || 'a container'),
+      chanceText(sr), basisEl(sr));
   }
   if (sr.kind === 'craft') {
     const own = craftStatus(sr);
     return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), ` (${own})`,
-      ah ? h('span', {}, ', or ', h('b', { class: 'ahprice', text: priceText(ah.price_copper) }), ' on the Auction House') : '');
+      ah ? h('span', {}, ', or ', h('b', { class: 'ahprice', text: priceText(ah.price_copper) }), ' on the Auction House') : '', basisEl(sr));
   }
   return h('span', { class: 'src', text: '?' });
 }
@@ -1738,18 +1781,20 @@ function renderAdvice(a) {
   }
   const none = a.slots.filter((sl) => !sl.best && !sl.next && sl.current).map((sl) => sl.slot_name);
   // The BiS counts gear nobody says where to get (wowstats/gear.py
-  // unsourced; owner 2026-11-24): listed apart, "where: unknown", never an
-  // upgrade to go and get.
+  // unsourced; owner 2026-11-24), and gear only a reputation or a PvP rank
+  // gives out of reach, and long shots (item_effort): listed apart, with its source or "where: unknown", never
+  // an upgrade to go and get.
   const unknown = a.slots.filter((sl) => sl.bis_unknown);
   fill(box, head, a.ah && a.ah.notice ? h('p', { class: 'ahnote', text: a.ah.notice }) : null, body,
     none.length ? h('p', { class: 'sub nothing', text: `Nothing better for: ${[...new Set(none)].join(', ')}.` }) : null,
     unknown.length ? h('details', { class: 'upmore bisunknown' },
-      h('summary', { text: `BiS with no known source: ${unknown.length} slot${unknown.length > 1 ? 's' : ''}` }),
-      h('p', { class: 'sub' }, 'The best item for the slot at your level, where to get it unknown. The badges measure against it. ',
+      h('summary', { text: `Best possible, out of plain reach: ${unknown.length} slot${unknown.length > 1 ? 's' : ''}` }),
+      h('p', { class: 'sub' }, 'The best item for the slot at your level, when where to get it is unknown or it is a long shot (a rare drop nobody sells, a reputation or a PvP rank far off). Never an upgrade to chase: the badges measure against what you can get. ',
         creditEl(a.source)),
       h('ul', {}, unknown.map((sl) => h('li', {},
         h('b', { text: `${sl.slot_name}: ` }), sl.bis_unknown.name || `item ${sl.bis_unknown.item_id}`,
-        ` (score ${fmtNum(sl.bis_unknown.score)}, where: unknown)`)))) : null,
+        ` (score ${fmtNum(sl.bis_unknown.score)}${sl.bis_unknown.effort ? `, ${sl.bis_unknown.effort}` : ''}, where: `,
+        sl.bis_unknown.sources && sl.bis_unknown.sources[0] ? sourceEl(sl.bis_unknown.sources[0]) : 'unknown', ')')))) : null,
     more.length ? h('details', { class: 'upmore' }, h('summary', { text: `${more.length} more upgrade${more.length > 1 ? 's' : ''}` }),
       compactList(a, more)) : null,
     smalls.length ? h('details', { class: 'upmore' }, h('summary', { text: `${smalls.length} small upgrade${smalls.length > 1 ? 's' : ''} or rare drop${smalls.length > 1 ? 's' : ''}` }),
@@ -3254,10 +3299,12 @@ function sourceLine(src) {
   const z = src.zone;
   const lv = z && z.levels ? ` (levels ${z.levels[0]}-${z.levels[1]})` : '';
   const block = src.blocker ? h('span', { class: 'mblock', text: ` (${src.blocker})` }) : null;
-  if (src.kind === 'quest' && src.quest) return h('span', {}, 'Quest ', whRef(src.quest), z ? [' in ', whRef(z)] : null, block);
-  if (src.kind === 'drop') return h('span', {}, `Drops from ${src.boss || 'a creature'}`, z ? [' in ', whRef(z), lv] : null, block);
+  const how = basisEl(src);
+  if (src.kind === 'quest' && src.quest) return h('span', {}, 'Quest ', whRef(src.quest), z ? [' in ', whRef(z)] : null, how, block);
+  if (src.kind === 'drop') return h('span', {}, `Drops from ${src.boss || 'a creature'}`, z ? [' in ', whRef(z), lv] : null, how, block);
   if (src.kind === 'craft') return h('span', { text: `You can make it with ${src.profession || 'a profession'}` });
   if (HELD[src.kind]) return h('span', { text: HELD[src.kind] });
+  if (src.text) return h('span', {}, src.text, how, block);  // ForeverDB's other kinds: the server's words
   return null;
 }
 // Who trains it, where: the trainer (Wowhead), the zone (Wowhead) and the

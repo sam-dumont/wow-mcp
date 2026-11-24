@@ -127,9 +127,14 @@ def source_ref(s: dict, level: int | None = None) -> dict:
     """Where an upgrade comes from, with its quest and zone linkable, and
     what stands in the way at `level`, if anything."""
     qid = s.get("quest_id")
-    return {"kind": s.get("kind"), "boss": s.get("boss"), "profession": s.get("profession"),
-            "quest": {"id": qid, "name": s.get("name"), "url": wowhead_url("quest", qid)} if qid else None,
-            "zone": zone_ref(s.get("zone"), s.get("levels")), "blocker": blocker(s, level)}
+    out = {"kind": s.get("kind"), "boss": s.get("boss"), "profession": s.get("profession"),
+           "quest": {"id": qid, "name": s.get("name"), "url": wowhead_url("quest", qid)} if qid else None,
+           "zone": zone_ref(s.get("zone"), s.get("levels")), "blocker": blocker(s, level)}
+    if s.get("via"):  # ForeverDB's data: how sure, and the words for the kinds the page has none for
+        out.update(via=s["via"], basis=s.get("basis"))
+        if s.get("kind") not in ("quest", "drop", "craft"):
+            out["text"] = gearmod.source_text(s)
+    return out
 
 
 def blocker(s: dict, level: int | None) -> str | None:
@@ -151,6 +156,12 @@ def blocker(s: dict, level: int | None) -> str | None:
     return None
 
 
+# ForeverDB's kinds with a gate: in reach for a move only when the
+# character's data says it is met (wowstats.gear rep_check: the recorded
+# standing; a PvP rank held).
+UNCHECKED = frozenset({"reputation", "pvp"})
+
+
 def reachable(s: dict, level: int | None) -> bool:
     """Whether a source can be done at `level`: its quest or dungeon at most
     REACH_LEVELS above, a recipe the character can make."""
@@ -163,6 +174,8 @@ def reachable(s: dict, level: int | None) -> bool:
         return not lv or lv[0] <= level + REACH_LEVELS
     if s.get("kind") == "craft":
         return bool(s.get("can_make"))
+    if s.get("kind") in UNCHECKED:
+        return s.get("met") is True
     return True
 
 
@@ -592,10 +605,15 @@ def _where(s: dict) -> str:
         return HELD_WHERE[s["kind"]]
     if s.get("kind") == "quest":
         return f"quest {s.get('name')}" + (f" ({s['zone']})" if s.get("zone") else "")
+    basis = f" ({s['basis']})" if s.get("basis") else ""
     if s.get("kind") == "drop":
-        return f"drops from {s.get('boss') or s.get('name')}" + (f" in {s['zone']}" if s.get("zone") else "")
+        chance = f", {gearmod.chance_words(s)}" if s.get("chance_pct") else ""
+        zone = f" in {s['zone']}" if s.get("zone") else ""
+        return f"drops from {s.get('boss') or s.get('name') or 'creatures'}{zone}{chance}{basis}"
     if s.get("kind") == "craft":
         return f"crafted ({s.get('profession') or 'a profession'}; {gearmod.craft_status(s)})"
+    if s.get("kind") in ("vendor", "reputation", "pvp", "container"):
+        return gearmod.source_text(s)
     return s.get("kind") or "source unknown"
 
 

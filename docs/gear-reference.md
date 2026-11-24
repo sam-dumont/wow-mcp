@@ -114,25 +114,82 @@ Scepter.
 
 ### Where an item comes from
 
-Polestar's sources (drops with chance and boss, crafts with skill, quest
-rewards) plus forever-db's quest rewards: 1,885 quests in
-`data/forever-reference.json` `gear_quests` (side, race and class masks,
-rewards, choices), which add 172 items Polestar's sources miss. forever-db
-has no vendors and next to no gear drops (its `item_source` is quest items),
-so drops and vendors still come from Polestar alone.
+ForeverDB.net's addon data first (`data/foreverdb/item-sources.json`, GPL-3.0
+with an attribution term: Data from ForeverDB.net, https://foreverdb.net):
+7,577 items, 9,731 sources on 2026-11-24. Quest rewards, vendors with their
+price, boss drops with the chance players measured and how many kills it
+stands on, creature and rare drops, crafts, reputation, PvP rank, world drops
+and containers. Each source says how ForeverDB knows it, and the advice says
+it too: "seen in Forever" (players' addons recorded it), "Forever client",
+"Classic data, may differ in Forever" (CMaNGOS classic-db), or "a clue,
+unconfirmed". Every source shown links ForeverDB.net ("Source: ForeverDB.net"
+on the page, `where_source` in MCP answers).
 
-Coverage on 2026-11-24: of the 1,339 items ForeverDB's ladders pick at
-levels 1-60 for the five checked specs, 595 have a source we know. The
-1,186 items Polestar's table lacked have none yet. The ForeverDB API (by
-key, in CI) would close most of that gap; it's not in yet.
+Polestar's sources and forever-db's quest rewards
+(`data/forever-reference.json` `gear_quests`) fill in only for items
+ForeverDB has no source for.
+
+A reputation source is checked against the character's standings: the
+Recorder's rep records and Altoholic's reputation snapshot, the newest per
+faction (`gear.standings_of`). Met, it's a purchase: "reputation: Timbermaw
+Hold Honored (you're Honored)". Not met, it says what is missing:
+"(you're Friendly: 16,500 rep to go)", or "not met yet" for a faction the
+character never met; with no reputation data at all, "your standing isn't
+recorded". A PvP rank can't be checked the same way: nothing the shipper
+reads saves the rank (Altoholic keeps lifetime honorable kills only). 0
+honorable kills means no rank ("you have no PvP rank: 0 honorable kills");
+otherwise "your rank isn't recorded". A rank not held or not known is a
+long shot (below).
+
+### How hard it is to get
+
+Owner, 2026-11-24: "Convenience and easiness before a quarter of a point."
+Every item gets an effort class from its easiest source (`gear.source_effort`,
+ForeverDB's own buckets as a start):
+
+| Class | Sources |
+|---|---|
+| easy | in the bags or bank, on the auction house, a quest, a vendor, a craft you can make, a reputation you hold, a drop of 25% or more |
+| some effort | a drop of 8-25%, a craft still to learn or skill up, a reputation up to Honored not held yet, a PvP rank held |
+| hard | a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a reputation above Honored not held |
+| long shot | a drop under 1%, a drop known only from Classic's data with no rate, a PvP rank not held or not recorded |
+
+A drop known only from Classic's data (never seen in Forever) counts one
+class harder than its rate says. Every drop says what its rate means at the
+keyboard: "0.03%, about 3,333 runs". An auction house listing makes any item
+easy: buy it.
+
+The pick per slot and the upgrade order weigh the effort: each item's score
+is taken at 95% for some effort and 85% for hard or a long shot
+(`EFFORT_PENALTY`), so a harder item wins only when it scores at least 5.3%
+(some effort) or 17.6% (hard) more than the easier one. A long shot is never
+a pick or an upgrade: it is the slot's best possible, listed apart with its
+odds (`bis_unknown` with `"effort": "long shot"`). The standings and the BiS
+percents measure against what can be got, the best possible shown apart.
+
+Coverage on 2026-11-24, on ForeverDB's own picks
+(`tests/data/foreverdb-picks.json`, 935 items): 856 have a source in
+ForeverDB's data, against 462 from Polestar alone before.
+
+    uv run python tools/foreverdb_sources/export.py           # fetch the manifest's files, check, write
+    uv run python tools/foreverdb_sources/export.py --check   # offline: notice, schema, licence files
+
+Only the four files read are downloaded, each checked against the manifest's
+SHA-256, and the Lua is read as text by a strict parser
+(`tools/foreverdb_sources/lua.py`) that refuses anything but literals: nothing
+in it is run. Every file's first line, "-- Data: ForeverDB.net
+(https://foreverdb.net), build ...", goes first in the JSON (`_notice`) with
+the attribution. The KB watch refreshes it at most once a week
+(`docs/kb.md`, kind `foreverdb`); releases ship what is committed.
 
 ### Gear with no known source
 
-An item with stats and no source still counts in the BiS, as ForeverDB
-shows it: the slot's standing measures against it, and the page lists it
-apart ("BiS with no known source", `bis_unknown` per slot in the answers,
-`"where": "unknown"`). It is never an upgrade to go and get: nothing to do
-about it until someone knows where it drops. Left out: commons, random-suffix
+An item with stats and no source is the slot's best possible when it beats
+everything that can be got, like a long shot: the page lists it apart
+("Best possible, out of plain reach", `bis_unknown` per slot in the answers,
+`"where": "unknown"`). It is never an upgrade to go and get, and the
+standing measures against what can be got: nothing to do about it until
+someone knows where it drops. Left out: commons, random-suffix
 bases, Era-only rows and placeholder names (`OLD`, `Monster -`, `QATest`...).
 For weapons it's a whole setup: the best two-hander, or a main hand with the
 best off hand the character can get.
@@ -144,12 +201,17 @@ the ones many gear calculators use. We take the set ForeverDB.net publishes,
 with its Leveling and PvP rules, and credit it wherever a score shows. We
 take the weights, the rules and the set bonus shares; not its item database.
 
-`tools/foreverdb_weights/export.py` reads ForeverDB's public static files
-(`/data/guides.json`, `/data/bis/index.json`, `/data/bis/<spec>.json`) with
-a named User-Agent and writes `data/foreverdb-weights.json`: per class and
-spec three tables, with the source URLs, the client build and the date.
+`tools/foreverdb_weights/export.py` reads the addon's `Data/GearFinder.lua`
+(the same GPL download as the item sources, above: the PvE and PvP tables per
+spec, the Leveling rule checked against the addon's own Leveling table) and
+`Data/GearSources.lua` (the set bonus shares), and writes
+`data/foreverdb-weights.json`: per class and spec three tables, with the
+source URLs, the client build and the data version. Moving from the website's
+static files to the addon's (2026-11-24) changed one number: Marksmanship
+PvP mp5, 0.028 to 0.03 (the addon rounds to two decimals); 138 more set
+pieces have a share.
 
-    uv run python tools/foreverdb_weights/export.py            # fetch and write
+    uv run python tools/foreverdb_weights/export.py --files <download>   # from export.py's download
     uv run python tools/foreverdb_weights/export.py --check    # offline: the file is well formed and the rules hold
 
 **The three modes**, picked per character on the gear page and kept on the
