@@ -51,7 +51,7 @@
 
 <div class="feature">
 
-![Two dungeon cards from the demo: Zul'Farrak and Uldaman, each with a "Worth a run for its quests" line, the next quest to pick up, the quests left, the quest rewards and drops you could use with their badges, and what a trip is worth](../../docs/images/dungeons.webp)
+![Two dungeon cards from the demo: Zul'Farrak and Uldaman, each with a "Worth a run for its quests" line, the next quest to pick up, the quests left, the quest rewards and drops you could use with their badges, and what a trip is worth, including a quest turned in outside; under Zul'Farrak, your run with who was in the party: name, level, class and role](../../docs/images/dungeons.webp)
 
 <div>
 <p class="eyebrow">Dungeons</p>

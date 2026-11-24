@@ -1215,7 +1215,9 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
     p.accept(q[92457], 269127)
     p.accept(q[92458], 269127)
     p.step("forever/alliance/30-40/05-arathi-highlands", 64, "auto")
-    p.rec("group", raid=False, size=5, zone=p.zone)
+    # The Recorder's party size counts the others (a raid's counts the
+    # character too): four in a party of five.
+    p.rec("group", raid=False, size=4, zone=p.zone)
     p.wait(240)
     p.rec("enter", difficulty=0, instance_id=2959, instance_kind="party", **p.here())
     t0, g0, lvl = p.t, p.gained, p.level
@@ -1264,7 +1266,7 @@ def sessions_demo(p: Player, end_marks: dict) -> None:
     p.town()
     p.boat("Dustwallow Marsh", "Theramore Isle")
     p.go("The Barrens", "Razorfen Kraul")
-    p.rec("group", raid=False, size=5, zone=p.zone)
+    p.rec("group", raid=False, size=4, zone=p.zone)
     p.wait(180)
     p.rec("enter", difficulty=0, instance_id=47, instance_kind="party", **p.here())
     t0, g0, lvl = p.t, p.gained, p.level
@@ -1357,16 +1359,21 @@ CRAFT_SPELL = {254007: (TAILORING, 1257429), 254027: (TAILORING, 1257439), 25404
 # Refuge Pointe, Neutral: never the Gurubashi Arena's Arena Master, whose
 # chest event isn't in Forever (ForeverDB: Classic data only).
 ARATHOR_TALISMAN = 21119
+TROLL_TEMPER = 3042  # Zul'Farrak's, given and taken in Gadgetzan (data/dungeons/quests.json)
 
 
 def dungeon(p: Player, name: str, instance_id: int, zone: str, mobs: list[int], bosses: list[int], *,
-            trash: int, loot: dict | None = None, deaths: tuple = (), quest_kill: dict | None = None) -> None:
+            trash: int, loot: dict | None = None, deaths: tuple = (), quest_kill: dict | None = None,
+            grouped: bool = False, stay: bool = False) -> None:
     """One run with a group of five: the trash, each boss (its encounter),
     what dropped for him (loot: boss -> {slot: item}, worn at once; slot 0
     for the bags), a death on the listed bosses, and the run's summary
-    (feed wow-dungeon) as the shipper writes it."""
+    (feed wow-dungeon) as the shipper writes it. The Recorder's party size
+    counts the others: 4. `stay`: the party stays together for the next
+    wing (no size 0 after), which passes `grouped` (no new group record)."""
     rnd = p.rnd
-    p.rec("group", raid=False, size=5, zone=p.zone)
+    if not grouped:
+        p.rec("group", raid=False, size=4, zone=p.zone)
     p.wait(rnd.uniform(120, 300))
     p.rec("enter", difficulty=0, instance_id=instance_id, instance_kind="party", **p.here())
     t0, g0, lvl = p.t, p.gained, p.level
@@ -1394,7 +1401,8 @@ def dungeon(p: Player, name: str, instance_id: int, zone: str, mobs: list[int], 
     p.other("wow-dungeon", dungeon_id=instance_id, dungeon_kind="party", left=iso(t0 + inside), level=lvl,
             name=zone, seconds=inside, xp=p.gained - g0)
     p.out[-1]["_time"] = iso(t0)
-    p.rec("group", raid=False, size=0, zone=p.zone)
+    if not stay:
+        p.rec("group", raid=False, size=0, zone=p.zone)
 
 
 def quest_reward(p: Player, qid: int, item: int | None, slot: int | None, *, npc_zone: tuple | None = None) -> None:
@@ -1465,11 +1473,12 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     p.login(local(2026, 10, 25, 14, 10), "Arathi Highlands", "Refuge Pointe")
     p.fly("Hillsbrad Foothills", "Southshore", "Southshore", "Refuge Pointe")
     p.go("Tirisfal Glades", "Scarlet Monastery")
+    # One party for both wings of the evening (demo_players: HELPER_PARTIES).
     dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Graveyard"], trash=12,
-            loot={6490: {7: 7709}, 4543: {3: 7684}})  # Blighted Leggings, Bloodmage Mantle
+            loot={6490: {7: 7709}, 4543: {3: 7684}}, stay=True)  # Blighted Leggings, Bloodmage Mantle
     p.go("Tirisfal Glades", "Scarlet Monastery")
     dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Library"], trash=14,
-            loot={6487: {0: 7713}}, deaths=(6487,))  # Doan's rod: to the bags
+            loot={6487: {0: 7713}}, deaths=(6487,), grouped=True)  # Doan's rod: to the bags
     p.go("Tirisfal Glades", "Scarlet Monastery")
     p.logout()
 
@@ -1511,10 +1520,10 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
     p.login(local(2026, 10, 28, 19, 5), "Stranglethorn Vale", "Booty Bay")
     p.fly("Hillsbrad Foothills", "Southshore", "Southshore", "Booty Bay")
     p.go("Tirisfal Glades", "Scarlet Monastery")
-    dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Armory"], trash=14)
+    dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Armory"], trash=14, stay=True)
     p.go("Tirisfal Glades", "Scarlet Monastery")
     dungeon(p, "Scarlet Monastery", 189, "Scarlet Monastery", *SM_WINGS["Cathedral"], trash=15,
-            loot={3977: {1: 7720}}, deaths=(3976,))  # Whitemane's Chapeau
+            loot={3977: {1: 7720}}, deaths=(3976,), grouped=True)  # Whitemane's Chapeau
     p.go("Tirisfal Glades", "Scarlet Monastery")
     p.logout()
 
@@ -1638,13 +1647,23 @@ def sessions_demo_46(p: Player, end_marks: dict) -> None:
                   reach=(45, 102000), hours=2.2)
     p.logout()
 
-    # 32. Thu 5 Nov: Zul'Farrak at 45; 46 on Gahz'rilla.
+    # 32. Thu 5 Nov: Zul'Farrak at 45; 46 on Gahz'rilla. Troll Temper, taken
+    # from Trenton Lighthammer in Gadgetzan on the way, is handed in there
+    # after the run: a dungeon quest turned in outside (wowstats.dungeonquests).
     p.rested += 2400
     p.login(local(2026, 11, 5, 19, 10), "Tanaris", "Gadgetzan")
+    p.accept(q[TROLL_TEMPER])
     p.go("Tanaris", "Zul'Farrak")
     dungeon(p, "Zul'Farrak", 209, "Zul'Farrak", *ZULFARRAK, trash=21,
             loot={7271: {0: 18083}}, deaths=(7267,))  # Jumanza Grips: under his own handwraps
+    # The trolls' tempers, counted on the way out.
+    p.rec("progress", have=20, need=20, objective=1, quest_id=TROLL_TEMPER, **p.here())
+    p.rec("complete", quest_id=TROLL_TEMPER, quest_name=q[TROLL_TEMPER]["name"], zone=p.zone)
     p.go("Tanaris", "Gadgetzan")
+    # Its own draws (the gossip): the evenings after it stay as they were.
+    seed, p.rnd = p.rnd, random.Random(SEED + 5)
+    p.turnin(q[TROLL_TEMPER])
+    p.rnd = seed
     p.logout()
 
     # 33. Fri 6 Nov: Tanaris's second round from Gadgetzan, then the trainer in Stormwind.
@@ -1869,18 +1888,42 @@ def shipper_shapes(rows: list[dict]) -> list[dict]:
     return out
 
 
-# The demo's other players (made up), as the shipper sends them: a sighting
-# per 10 minutes in a group from the combat log, and Polestar's version
-# probe's "seen" (shipper/wow_stats.py). The People tab lists who comes back.
-DEMO_GROUPS = {"Blackfathom Deeps": ("Brindlewick", "Mirelle", "Ostrik", "Hollen"),
-               "Stormwind Stockade": ("Brindlewick", "Mirelle", "Pellam", "Quenby"),
-               "City of Dalaran": ("Mirelle", "Ravvik", "Sefa", "Tamsin"),
-               "Razorfen Kraul": ("Brindlewick", "Ravvik", "Corvatha", "Hollen"),
-               "Scarlet Monastery": ("Brindlewick", "Mirelle", "Sefa", "Tamsin"),
-               "Razorfen Downs": ("Ravvik", "Corvatha", "Hollen", "Quenby"),
-               "Uldaman": ("Brindlewick", "Ostrik", "Pellam", "Sefa"),
-               "Zul'Farrak": ("Mirelle", "Ravvik", "Corvatha", "Tamsin")}
-DEMO_SEEN = ("Wendra", "Fallowmere", "Ostrik", "Jessamy", "Thornby", "Ulvar")
+# The demo's other players (made up), as the shipper sends them: Forever's
+# "First Surname" names in the character-folder form (shipper player_of).
+# The first dungeons' groupmates from the combat log (names only: a sighting
+# per 10 minutes in a group), Polestar's version probe's "seen"
+# (shipper/wow_stats.py). The People tab lists who comes back.
+DEMO_GROUPS = {"Blackfathom Deeps": ("Brindlewick-Stonebrew", "Mirelle-Dawnsong", "Ostrik-Fernhollow",
+                                     "Hollen-Ashgrove"),
+               "Stormwind Stockade": ("Brindlewick-Stonebrew", "Mirelle-Dawnsong", "Pellam-Quickfuse",
+                                      "Quenby-Marshwell"),
+               "City of Dalaran": ("Mirelle-Dawnsong", "Ravvik-Ironmantle", "Sefa-Moonbrook", "Tamsin-Wrenfield"),
+               "Razorfen Kraul": ("Brindlewick-Stonebrew", "Ravvik-Ironmantle", "Corvatha-Nightbloom",
+                                  "Hollen-Ashgrove")}
+# From the Scarlet Monastery on, ForeverDB_Helper's journal instead (the
+# combat log off): each groupmate once a day, with level (the character's
+# at the run, plus the offset), class, race and role (wow-player, source
+# foreverdb-helper). Razorfen Downs' fourth, a rogue the Recorder counted,
+# isn't in the journal: that run says "3 of 4 names known".
+HELPER_PARTIES = {
+    "Scarlet Monastery": (("Brindlewick-Stonebrew", 1, "Warrior", "Dwarf", "tank"),
+                          ("Mirelle-Dawnsong", 0, "Paladin", "Human", "healer"),
+                          ("Sefa-Moonbrook", -1, "Druid", "Night Elf", "damage"),
+                          ("Tamsin-Wrenfield", 2, "Rogue", "Human", "damage")),
+    "Razorfen Downs": (("Corvatha-Nightbloom", 1, "Warrior", "Night Elf", "tank"),
+                       ("Ravvik-Ironmantle", 0, "Paladin", "Dwarf", "healer"),
+                       ("Hollen-Ashgrove", -1, "Mage", "Human", "damage")),
+    "Uldaman": (("Brindlewick-Stonebrew", 1, "Warrior", "Dwarf", "tank"),
+                ("Sefa-Moonbrook", -1, "Druid", "Night Elf", "healer"),
+                ("Ostrik-Fernhollow", 2, "Hunter", "Night Elf", "damage"),
+                ("Pellam-Quickfuse", 0, "Mage", "Gnome", "damage")),
+    "Zul'Farrak": (("Corvatha-Nightbloom", 1, "Warrior", "Night Elf", "tank"),
+                   ("Mirelle-Dawnsong", 0, "Paladin", "Human", "healer"),
+                   ("Ravvik-Ironmantle", -1, "Paladin", "Dwarf", "damage"),
+                   ("Tamsin-Wrenfield", 2, "Rogue", "Human", "damage")),
+}
+DEMO_SEEN = ("Wendra-Highmoor", "Fallowmere-Pike", "Ostrik-Fernhollow", "Jessamy-Larkspur", "Thornby-Mudfoot",
+             "Ulvar-Greystone")
 
 
 def demo_players(rows: list[dict]) -> list[dict]:
@@ -1889,12 +1932,15 @@ def demo_players(rows: list[dict]) -> list[dict]:
     rnd = random.Random(SEED + 3)
     out = []
 
-    def ev(t: float, player: str, ctx: str, source: str, zone: str | None) -> None:
+    def ev(t: float, player: str, ctx: str, source: str, zone: str | None, **more) -> None:
         sid = f"player:{source}:{player}:{int(t)}"
         out.append({"_time": iso(t), "feed": "wow-player", "char": DEMO, "source_id": sid,
                     "_msg": f"{ctx} {player}" + (f" in {zone}" if zone else ""), "player": player, "context": ctx,
-                    "source": "combatlog" if source == "combatlog" else "polestar-probe", "zone": zone})
+                    "source": "polestar-probe" if source == "probe" else source, "zone": zone, **more})
 
+    groups = sorted((_epoch(r["_time"]), int(r["size"]), r.get("zone")) for r in rows
+                    if r["feed"] == "wow-recorder" and r.get("kind") == "group")
+    named: set = set()  # ForeverDB_Helper's (player, day): once a day each
     for r in rows:
         if r["feed"] != "wow-dungeon":
             continue
@@ -1902,6 +1948,16 @@ def demo_players(rows: list[dict]) -> list[dict]:
         for mate in DEMO_GROUPS.get(r["name"], ()):
             for b in range(int(t0 // 600 * 600), int(t1), 600):
                 ev(max(b, t0) + 5, mate, "grouped", "combatlog", r["name"])
+        # The journal names each one when the party forms (GROUP_ROSTER_UPDATE),
+        # outside: the Recorder's group record that opened the stretch.
+        formed = [(t, z) for t, size, z in groups if t <= t0 and size > 0][-1]
+        day = datetime.fromtimestamp(formed[0], TZ).date()
+        for k, (mate, off, cls, race, role) in enumerate(HELPER_PARTIES.get(r["name"], ())):
+            if (mate, day) in named:
+                continue
+            named.add((mate, day))
+            ev(formed[0] + 2 + k, mate, "grouped", "foreverdb-helper", formed[1], level=int(r["level"]) + off,
+               **{"class": cls}, race=race, role=role)
     zones = sorted((_epoch(r["_time"]), r["zone"]) for r in rows
                    if r["feed"] == "wow-recorder" and r.get("kind") == "zone" and r.get("zone"))
     days: dict = {}  # each play day's first login (a session record comes at every /reload too)
