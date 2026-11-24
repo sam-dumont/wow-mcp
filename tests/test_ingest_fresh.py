@@ -69,7 +69,6 @@ def served(request, tmp_path, run_app, monkeypatch):
         env |= {"VL_URL": VL_URL, "VL_ACCOUNT_ID": str(random.randint(10 ** 6, 10 ** 9))}
         app0 = ui.App(env)
         eventstore.get(VL_URL).append(app0.store.account_id, [json.dumps(r).encode() for r in _rows(OLD)])
-        eventstore.get(VL_URL).flush()
     else:
         store_env, stand_in = D.store_env(request.param, _rows(OLD), tmp_path)
         env |= store_env

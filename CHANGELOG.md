@@ -65,6 +65,10 @@ What comes after 0.10.0, in short. Every change follows.
 
 ### Changed
 
+- CI runs the tests in four parts split by measured time instead of three split by the hash of
+  the file name. The hash gave one part 17 minutes and another 5 (the slow one was cancelled at
+  its 20-minute limit on a slower runner, #235); `tests/shard_times.json` holds each file's
+  seconds, and `tools/shard_times.py` writes it again from a run with `--durations=0`.
 - The demo's Nibbet is a level 46 Shadow priest. Thirteen more evenings take him from 34 to 46
   through Arathi, Badlands, Stranglethorn, Dustwallow, Feralas, Tanaris and the Hinterlands, with
   Scarlet Monastery's four wings, Razorfen Downs, Uldaman and Zul'Farrak, and end at the Stormwind

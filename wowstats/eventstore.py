@@ -162,18 +162,20 @@ class VictoriaLogs:
             raise SourceError(f"{at} answered {e.code}") from None
         except (urllib.error.URLError, OSError) as e:
             raise SourceError(f"{at} unreachable: {e}") from None
-        self.flush()
+        self.flush(tenant)
         _wrote(self.url, tenant)
 
-    def flush(self) -> None:
+    def flush(self, tenant: int = 0) -> None:
         """Make what was just stored searchable now: VictoriaLogs holds new
         rows in memory for up to a few seconds first, and a read in between
         (the page right after /ingest, its write generation moved) would
         cache the answer without them. Best effort: a VictoriaLogs that
         refuses it (-forceFlushAuthKey) is only that late."""
         try:
-            with urllib.request.urlopen(urllib.request.Request(f"{self.url}/internal/force_flush", data=b"",
-                                                               method="POST"), timeout=10) as r:
+            # A GET, in the caller's tenant like every request here (it flushes
+            # every tenant's rows all the same).
+            req = urllib.request.Request(f"{self.url}/internal/force_flush", headers=tenant_headers(tenant))
+            with urllib.request.urlopen(req, timeout=10) as r:
                 r.read()
         except (urllib.error.URLError, OSError):
             pass
