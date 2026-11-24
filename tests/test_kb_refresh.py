@@ -7,8 +7,10 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import re
 import sys
+import time
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -522,13 +524,64 @@ def test_no_model_step_runs_in_the_version_watch():
     pages = next(s for s in steps if s.get("id") == "pages")
     assert "'watch'" not in pages["if"] and "env.MODE == 'review'" in pages["if"]
     model = [s for s in steps if any(k.startswith("ANTHROPIC") for k in s.get("env") or {})
-             or "oidc-mint.sh" in s.get("run", "")  # the token minted right before each model step
+             or "with-oidc.sh" in s.get("run", "")  # the token minted before, and kept fresh during, each model step
              or "anthropic-oidc" in s.get("run", "") and "rm -f" not in s.get("run", "")]
     assert len(model) >= 5
     for s in model:
         cond = s.get("if", "")
         assert "'watch'" not in cond, s["name"]
         assert any(w in cond for w in ("env.MODE == 'review'", "steps.pages.outputs.keys", "steps.collect.outputs.new")), s["name"]
+
+
+def test_every_step_with_the_identity_token_file_runs_under_with_oidc():
+    """GitHub's ID token lives ~5 minutes and the SDK re-reads the file at each
+    exchange: the community step got a 401 six minutes after the job's one
+    mint (2026-11-23). Any step that points the SDK at the file runs its
+    command under tools/kb/with-oidc.sh, which mints first and re-mints while
+    it runs."""
+    yaml = pytest.importorskip("yaml")
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())
+    users = [(j, s) for j, job in wf["jobs"].items() for s in job["steps"]
+             if "ANTHROPIC_IDENTITY_TOKEN_FILE" in (s.get("env") or {})]
+    assert len(users) >= 4
+    for j, s in users:
+        assert "tools/kb/with-oidc.sh uv run" in s["run"], (j, s["name"])
+    # nothing else mints: a bare mint step would go stale again
+    for job in wf["jobs"].values():
+        for s in job["steps"]:
+            assert "oidc-mint.sh" not in s.get("run", ""), s["name"]
+
+
+def test_with_oidc_mints_refreshes_and_stops(tmp_path):
+    """Run under a fake ID-token endpoint: the file holds a fresh token before
+    the command starts, is replaced while it runs, and nothing is left running."""
+    import subprocess
+    import textwrap
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    counter = tmp_path / "n"
+    counter.write_text("0")
+    (bindir / "curl").write_text(textwrap.dedent(f"""\
+        #!/usr/bin/env bash
+        n=$(( $(cat {counter}) + 1 )); echo $n > {counter}
+        echo "{{\\"value\\":\\"tok$n\\"}}"
+        """))
+    (bindir / "curl").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "RUNNER_TEMP": str(tmp_path),
+           "ACTIONS_ID_TOKEN_REQUEST_TOKEN": "x", "ACTIONS_ID_TOKEN_REQUEST_URL": "http://x/?a=b",
+           "ANTHROPIC_IDENTITY_TOKEN_FILE": str(tmp_path / "anthropic-oidc"), "OIDC_REFRESH_SECONDS": "1"}
+    out = subprocess.run([str(ROOT / "tools/kb/with-oidc.sh"), "bash", "-c",
+                          f"cat {tmp_path}/anthropic-oidc; echo; sleep 2.5; cat {tmp_path}/anthropic-oidc"],
+                         env=env, capture_output=True, text=True, timeout=30)
+    assert out.returncode == 0, out.stderr
+    first, last = [w for w in out.stdout.split() if w.startswith('tok') and not w.startswith('::')][-2:]
+    assert first == "tok1" and last != "tok1"
+    n = counter.read_text()
+    time.sleep(2.2)
+    assert counter.read_text() == n  # the refresher died with the command
+    # without the federation the command just runs
+    env.pop("ANTHROPIC_IDENTITY_TOKEN_FILE")
+    assert subprocess.run([str(ROOT / "tools/kb/with-oidc.sh"), "true"], env=env).returncode == 0
 
 
 # ---------------------------------------------------------------- the checkpoint

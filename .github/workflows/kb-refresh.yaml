@@ -246,9 +246,6 @@ jobs:
             '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
       # A failure here doesn't stop the other kinds: their PR still lands,
       # `official` keeps its issue with the reason, and the run ends red.
-      - name: Fresh OIDC token for the model pass
-        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.pages.outputs.keys != ''
-        run: tools/kb/oidc-mint.sh
       - name: Model pass
         id: refresh
         if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.pages.outputs.keys != ''
@@ -262,7 +259,7 @@ jobs:
           ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
         run: |
           # shellcheck disable=SC2086 # one word per key
-          uv run --frozen python tools/kb/refresh.py --handoff "$RUNNER_TEMP/kb-refresh-read.json" $KEYS
+          tools/kb/with-oidc.sh uv run --frozen python tools/kb/refresh.py --handoff "$RUNNER_TEMP/kb-refresh-read.json" $KEYS
       - name: The model pass failed
         if: steps.refresh.outcome == 'failure'
         run: |
@@ -295,9 +292,6 @@ jobs:
             jq --arg w "The model pass didn't read:$unread (a fetch failed, the model stopped, or its cost cap, KB_REFRESH_MAX_USD; the run's log says which); the next run reads them." \
               '.official = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"
           fi
-      - name: Fresh OIDC token for the meta pass
-        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.collect.outputs.new > 0
-        run: tools/kb/oidc-mint.sh
       - name: Meta model pass
         id: meta
         if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && steps.collect.outputs.new > 0
@@ -308,16 +302,13 @@ jobs:
           ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
           ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
         run: >-
-          uv run --frozen python tools/kb/meta.py propose
+          tools/kb/with-oidc.sh uv run --frozen python tools/kb/meta.py propose
           --items "$RUNNER_TEMP/meta-items.json" --summary "$RUNNER_TEMP/meta-summary.md"
       # Before the lifecycle folds them: what a gate would refuse leaves the pass's file.
       - name: Check the meta pass's records
         if: steps.meta.outcome == 'success'
         run: uv run --frozen python tools/kb/vet.py --dropped "$RUNNER_TEMP/kb-dropped.md"
       # Forum titles only, no Reddit, without the ANTHROPIC_* variables.
-      - name: Fresh OIDC token for community
-        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (env.MODE == 'review' && steps.open.outputs.pr == '')
-        run: tools/kb/oidc-mint.sh
       - name: Community, what players are saying
         id: community
         if: env.MODE == 'review' && steps.open.outputs.pr == ''
@@ -328,13 +319,10 @@ jobs:
           ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
           ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
           ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
-        run: uv run --frozen python tools/kb/community.py --summary "$RUNNER_TEMP/meta-summary.md"
+        run: tools/kb/with-oidc.sh uv run --frozen python tools/kb/community.py --summary "$RUNNER_TEMP/meta-summary.md"
       # After the community step, so its weeks are trimmed too. Runs without
       # the ANTHROPIC_* variables: stale statements are then only checked for
       # gone sources, the rest listed in the PR.
-      - name: Fresh OIDC token for lifecycle
-        if: vars.ANTHROPIC_FEDERATION_RULE_ID != '' && (env.MODE == 'review' && steps.open.outputs.pr == '')
-        run: tools/kb/oidc-mint.sh
       - name: Lifecycle (fold, expire, merge, re-verify, digests)
         id: lifecycle
         if: env.MODE == 'review' && steps.open.outputs.pr == ''
@@ -345,11 +333,11 @@ jobs:
           ANTHROPIC_ORGANIZATION_ID: ${{ vars.ANTHROPIC_ORGANIZATION_ID }}
           ANTHROPIC_SERVICE_ACCOUNT_ID: ${{ vars.ANTHROPIC_SERVICE_ACCOUNT_ID }}
           ANTHROPIC_WORKSPACE_ID: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
-        run: uv run --frozen python tools/kb/lifecycle.py --summary "$RUNNER_TEMP/meta-summary.md"
+        run: tools/kb/with-oidc.sh uv run --frozen python tools/kb/lifecycle.py --summary "$RUNNER_TEMP/meta-summary.md"
       - name: Remove the token and the collected text
         if: always()
         run: |
-          rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/meta-items.json" "$RUNNER_TEMP/kb-refresh-read.json" \
+          rm -f "$RUNNER_TEMP/anthropic-oidc" "$RUNNER_TEMP/anthropic-oidc.new" "$RUNNER_TEMP/meta-items.json" "$RUNNER_TEMP/kb-refresh-read.json" \
             "$RUNNER_TEMP/kb-handoff-addons.json" "$RUNNER_TEMP/kb-handoff-client.json" \
             "$RUNNER_TEMP/kb-handoff-foreverdb.json"
 
@@ -363,7 +351,7 @@ jobs:
         if: env.MODE == 'review'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: uv run --frozen python tools/kb/lifecycle.py --budget-issue
+        run: tools/kb/with-oidc.sh uv run --frozen python tools/kb/lifecycle.py --budget-issue
 
       # --- One PR, gated.
       - name: Commit and describe
