@@ -87,7 +87,14 @@ from wowstats.stores import (
 # 14: ah_prices (the Auctionator scans of the character's houses, the price
 # list's read) and ah_upgrades (upgrade_candidates' items with their auction
 # house price): "the cheapest upgrades on the AH" went unanswered (2026-11-24).
-PREP_VERSION = 14
+# 15: the data-gap check of 2026-11-24. levels: a level with no split or a
+# partial one is timed from the game's /played at its two starts (Altoholic,
+# the Recorder's dings: played_from), its XP the bar's size; a finished level
+# with no ding has no longest silence (it ran to the last record). The walk
+# forgets the zone at a logout. zone_time cuts the time in the air and the
+# flicker out of zone time, records.zone_visit marks the arrivals
+# (zone_visits). flight_nodes.known_now keeps each continent's newest list.
+PREP_VERSION = 15
 
 # A step that is the trip somewhere ("Fly to ...", "Hearth to ..."): the
 # route position starts past it when the character already stands there.
@@ -207,9 +214,12 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
                 "step at login; the step to do next is route_position.next_step",
         "reason": "why the step changed (step records)",
         "seconds": "a duration: rest (aura length), land (flight), step (seconds since the previous step), "
-                   "zone (seconds to the next zone record of the session, else to the session's last record)",
+                   "zone (seconds to the next zone record of the session, else to the session's last record, less the "
+                   "time in the air: stores.zone_time)",
         "count": "craft: items made", "extra": "the record's other fields, JSON (use json_extract)",
-        "dungeon_trip_id": "dungeon_trips.trip_id when the record falls inside a trip, else NULL"}),
+        "dungeon_trip_id": "dungeon_trips.trip_id when the record falls inside a trip, else NULL",
+        "zone_visit": "zone records: 1 an arrival, 0 no visit (a zone a flight crossed, or the game's zone text "
+                      "flickering back within 3 s: stores.zone_time); NULL for other kinds"}),
     "positions": ("Position records: the Recorder writes one after the player moves 25 yd (2 s apart at most "
                   "often) or 4 yd after 20 s. Without movement no record is written.", {
         "rec_id": "row number in time order, shared with records", "t": "unix seconds",
@@ -272,9 +282,12 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
                "route planner's time for the level (route_plan), and the calendar around it: a level's pace is "
                "played_s against planned_s; calendar_s also counts the days the game was closed.", {
         "level": "level", "ding_t": "unix seconds the level ended (NULL while in play)",
-        "played_s": "played seconds in the level (Polestar split)", "xp": "XP of the level",
+        "played_s": "played seconds in the level: Polestar's split, else (no split, or a partial one) the "
+                    "game's /played at the level's two starts (played_from)",
+        "xp": "XP of the level (the split's; the bar's size at the level when played_s isn't the split's)",
         "quests": "quests handed in (split)", "kills": "kills (split)",
-        "partial": "1 when tracking started partway through the level",
+        "partial": "1 when played_s covers only part of the level (tracking started partway), 0 the whole "
+                   "level, NULL with no played time",
         "planned_s": "the route planner's seconds for this level, this class",
         "planned_median_s": "the planner's median over classes", "planned_guide": "the guide the level ends in",
         "calendar_s": "wall-clock seconds from the previous level's ding to this one, offline time included "
@@ -291,7 +304,10 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "climb_kills": "kills: the split's count, else the Recorder's kill records at the level (NULL: neither)",
         "climb_quests": "quests handed in: the split's count, else the Recorder's turn-ins at the level",
         "in_level_s": "the level in play only: logged-in seconds of the Recorder's sessions since the last ding "
-                      "(NULL for a completed level, with no session since the ding, or no ding to start from)"}),
+                      "(NULL for a completed level, with no session since the ding, or no ding to start from)",
+        "played_from": "where played_s comes from: polestar (its split), altoholic (Altoholic's /played saves, "
+                       "the Recorder's ding beside them), recorder (the /played the Recorder's dings carry), "
+                       "NULL with no played time"}),
     "route_position": ("Where the character is in Polestar's levelling route, one row: the step to do next "
                        "(next_step) by the rule the plan and the next_step tool use. Read it for the next step; "
                        "the newest step record is only where Polestar's pointer was (it falls back to the first "
@@ -526,7 +542,7 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
                      "(flightmaster records), and the flights from and to each. Node names: kb tools.", {
         "node_id": "the game's taxi node id", "first_known_t": "first flight map that listed it, unix seconds",
         "first_known_local": "the same, local time",
-        "known_now": "1 when the newest flight map lists it, else 0",
+        "known_now": "1 when the newest flight map of its continent lists it, else 0",
         "opened_here": "flight maps opened at this node", "flights_from": "taxi records leaving it",
         "flights_to": "taxi records bound for it"}),
     "attunement_steps": ("The quest chains that unlock a raid (Onyxia's Lair: the Drakefire Amulet), from "
@@ -779,8 +795,11 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
     for r, s_id in zip(rec, sess_of, strict=True):
         b = bounds.setdefault(s_id, [r["_t"], r["_t"]])
         b[1] = r["_t"]
-    zone_secs = {(z.get("source_id"), z.get("_time")): z["secs"]
-                 for z in zone_time([r for r in rec if r.get("kind") == "zone"], [tuple(b) for b in bounds.values()])}
+    # The flights go in too: the time in the air is cut out, and a zone a
+    # flight only crossed, or the game's text flickering, is no visit.
+    zone_of = {(z.get("source_id"), z.get("_time")): z for z in zone_time(
+        [r for r in rec if r.get("kind") in ("zone", "taxi", "land")], [tuple(b) for b in bounds.values()])}
+    zone_secs = {k: z["secs"] for k, z in zone_of.items()}
     # A taxi record's time: from its land record (stores.taxi_time, the
     # page's flights), never the shipper's duration_s, which it set only when
     # the land record came in the same run.
@@ -837,6 +856,10 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
             # The Recorder writes a group record at each session's start:
             # until it comes, the group is unknown (never "solo").
             st["group_size"] = st["in_raid"] = None
+            # Nor the place: a login names its own zone, and a record before
+            # that (a death state at login) took the last session's, so the
+            # owner's death in Thousand Needles read Stormwind (2026-11-24).
+            st["zone"] = st["subzone"] = None
             last_pos = None
         if r.get("zone") and k != "map":
             st["zone"] = r.get("zone")
@@ -887,7 +910,9 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
                              cols["quest_id"], cols["quest_name"], cols["npc_id"], cols["npc_kind"],
                              cols["npc_level"], cols["item_id"], cols["spell_id"], cols["xp_reward"],
                              cols["money_copper"], _on(r.get("on")), cols["guide"], cols["step"], cols["reason"],
-                             secs, cols["count"], json.dumps(extra, ensure_ascii=False) if extra else None))
+                             secs, cols["count"], json.dumps(extra, ensure_ascii=False) if extra else None,
+                             (1 if zone_of[(r.get("source_id"), r.get("_time"))]["visit"] else 0)
+                             if k == "zone" and (r.get("source_id"), r.get("_time")) in zone_of else None))
             if k == "loot":
                 for part in str(r.get("items") or "").split(";"):
                     a, _, b = part.partition(":")
@@ -944,7 +969,7 @@ def build(rows: list[dict], char: str, route=None, map_sizes: dict | None = None
         if t1:
             span_rows.append(("instance", t0, t1, t1 - t0, None, name))
 
-    db.executemany("INSERT INTO records VALUES (" + ",".join("?" * 30) + ",NULL)", rec_rows)
+    db.executemany("INSERT INTO records VALUES (" + ",".join("?" * 30) + ",NULL,?)", rec_rows)
     db.executemany("INSERT INTO positions VALUES (" + ",".join("?" * 13) + ")", pos_rows)
     db.executemany("INSERT INTO loot_items VALUES (?,?,?,?,?)", loot_rows)
     db.executemany("INSERT INTO xp VALUES (?,?,?,?,?,?,?,?,?)", xp_rows)
@@ -996,7 +1021,8 @@ def _schema(db: sqlite3.Connection) -> None:
         weekday_local TEXT, session_id INTEGER, level INTEGER, kind TEXT, zone TEXT, subzone TEXT, map_id INTEGER,
         x REAL, y REAL, quest_id INTEGER, quest_name TEXT, npc_id INTEGER, npc_kind TEXT, npc_level INTEGER,
         item_id INTEGER, spell_id INTEGER, xp_reward INTEGER, money_copper INTEGER, on_flag INTEGER, guide TEXT,
-        step INTEGER, reason TEXT, seconds REAL, count INTEGER, extra TEXT, dungeon_trip_id INTEGER);
+        step INTEGER, reason TEXT, seconds REAL, count INTEGER, extra TEXT, dungeon_trip_id INTEGER,
+        zone_visit INTEGER);
     CREATE INDEX records_kind ON records(kind, t);
     CREATE INDEX records_t ON records(t);
     CREATE TABLE positions (rec_id INTEGER PRIMARY KEY, t REAL, time_local TEXT, session_id INTEGER,
@@ -1021,7 +1047,7 @@ def _schema(db: sqlite3.Connection) -> None:
         kills INTEGER, partial INTEGER, planned_s REAL, planned_median_s REAL, planned_guide TEXT,
         calendar_s REAL, offline_s REAL, longest_gap_s REAL, longest_gap_from_local TEXT,
         longest_gap_to_local TEXT, recorder_missed_s REAL, in_play INTEGER, climb_kills INTEGER,
-        climb_quests INTEGER, in_level_s REAL);
+        climb_quests INTEGER, in_level_s REAL, played_from TEXT);
     CREATE TABLE route_steps (guide TEXT, guide_title TEXT, step INTEGER, planned_s REAL, title TEXT);
     CREATE TABLE route_position (guide TEXT, guide_title TEXT, shown_step INTEGER, shown_title TEXT, reason TEXT,
         furthest_step INTEGER, next_step INTEGER, next_title TEXT, next_why TEXT, subzone TEXT, zone TEXT);
@@ -1126,6 +1152,61 @@ def _sessions(db: sqlite3.Connection) -> None:
     db.executemany("INSERT INTO sessions VALUES (" + ",".join("?" * 21) + ")", out)
 
 
+# Two readings of the game's /played at one level start agree within this
+# many seconds (the Recorder's ding and Altoholic's saves, 2 s apart on the
+# owner's level 35, 2026-11-24).
+PLAYED_TOL_S = 10.0
+
+
+def _level_starts(rows, rec, dings: dict[int, float]) -> dict[int, tuple[float, str]]:
+    """The game's /played when each level began: {level: (seconds, source)}.
+
+    Two sources, both the game's own clock. The Recorder's ding record
+    carries /played at the ding (`played_s`): exact. Altoholic saves
+    `played` and `playedThisLevel` as the game answered at the last login or
+    /reload (shipper.altoholic_played), so played - playedThisLevel is
+    /played when the saved level began, unless a ding came between that
+    answer and the save: the save then names the new level with the old
+    level's start (the owner's level-34 save of 2026-11-23 read 205,280, level
+    33's start). Such a reading equals a lower level's start and is dropped;
+    a level's start is kept when two saves (different totals: two sessions)
+    agree, when the Recorder's ding confirms it, or when the ding into the
+    level came before the save before it (the answer is from a login after
+    the ding). Starts that don't rise with the level are dropped."""
+    starts: dict[int, tuple[float, str]] = {}
+    for r in rec:
+        if r.get("kind") == "level" and (lv := _int(r.get("level"))) and (p := _flt(r.get("played_s"))):
+            starts.setdefault(lv, (p, "recorder"))
+    snaps = sorted(((r["_t"], _int(r.get("level")), _flt(r.get("played_total_s")), _flt(r.get("played_level_s")))
+                    for r in rows if r.get("feed") == "wow-character" and r.get("kind") == "played"),
+                   key=lambda x: x[0])
+    cands: dict[int, list[tuple[float, float, float | None]]] = {}
+    prev_t = None
+    for t, lv, total, in_level in snaps:
+        if lv and total and in_level is not None and 0 <= in_level <= total:
+            cands.setdefault(lv, []).append((total - in_level, total, prev_t))
+        prev_t = t
+    lower: list[float] = []
+    for lv in sorted(set(cands) | set(starts)):
+        mine = [c for c in cands.get(lv, []) if not any(abs(c[0] - x) <= PLAYED_TOL_S for x in lower)]
+        if lv not in starts and mine:
+            best = None
+            for p, _total, before in mine:
+                agree = {c[1] for c in mine if abs(c[0] - p) <= PLAYED_TOL_S}
+                ding = dings.get(lv - 1)
+                if len(agree) >= 2 or (ding is not None and before is not None and ding < before):
+                    best = p if best is None else min(best, p)
+            if best is not None:
+                starts[lv] = (best, "altoholic")
+        lower += [c[0] for c in cands.get(lv, [])] + ([starts[lv][0]] if lv in starts else [])
+    out, top = {}, None
+    for lv in sorted(starts):
+        if top is None or starts[lv][0] > top:
+            out[lv] = starts[lv]
+            top = starts[lv][0]
+    return out
+
+
 def _levels(db, rows, rec, route) -> None:
     splits = {lv: r for lv, r in pick_splits([r for r in rows if r.get("feed") == "wow-level"]).items()
               if isinstance(lv, int) and lv}
@@ -1133,6 +1214,20 @@ def _levels(db, rows, rec, route) -> None:
     for r in rec:
         if r.get("kind") == "level" and (lv := _int(r.get("level"))):
             dings.setdefault(lv - 1, r["_t"])
+    # A level with no split, or a partial one (a crash lost the end of a
+    # Polestar save, tracking began mid-level), still has its whole time when
+    # the game's /played is known at both ends (_level_starts): the owner's
+    # level 33 read 1,901 s of a 12,260 s level and 27,158 XP/h (2026-11-24).
+    # Its XP is then the whole level's, the bar's size at it (the Recorder's
+    # xp_max), never the partial split's.
+    starts = _level_starts(rows, rec, {**dings, **{lv: s["_t"] for lv, s in splits.items()
+                                                   if not truthy(s.get("partial"))}})
+    bar = {}
+    for lv, xm, _n in db.execute("SELECT level, xp_max, COUNT(*) FROM xp WHERE level IS NOT NULL AND xp_max > 0 "
+                                "GROUP BY level, xp_max ORDER BY level, COUNT(*), xp_max"):
+        bar[lv] = xm  # the most read size at the level wins
+    whole = {lv: (starts[lv + 1][0] - starts[lv][0], "recorder" if starts[lv][1] == starts[lv + 1][1] == "recorder"
+                  else "altoholic") for lv in starts if lv + 1 in starts}
     who = _who(rows, rec)
     side, cls = who.get("faction"), who.get("class")
     # Every level from the lowest known to the highest: a finished level with
@@ -1172,10 +1267,15 @@ def _levels(db, rows, rec, route) -> None:
             ck, cq = _int(s.get("kills")), _int(s.get("quests"))
         else:
             ck, cq = recorded.get(lv, (None, None))
-        out.append((lv, ding, _flt(s.get("seconds")), _int(s.get("xp")), _int(s.get("quests")), _int(s.get("kills")),
-                    (1 if truthy(s.get("partial")) else 0) if s else None, plan, med, guide,
-                    1 if lv == in_play else 0, ck, cq))
-    db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,?,?,?,NULL)", out)
+        played, xp = _flt(s.get("seconds")), _int(s.get("xp"))
+        partial = (1 if truthy(s.get("partial")) else 0) if s else None
+        src = "polestar" if s else None
+        if partial != 0 and lv in whole and lv != in_play:
+            played, partial, src = whole[lv][0], 0, whole[lv][1]
+            xp = bar.get(lv)
+        out.append((lv, ding, played, xp, _int(s.get("quests")), _int(s.get("kills")), partial, plan, med, guide,
+                    1 if lv == in_play else 0, ck, cq, src))
+    db.executemany("INSERT INTO levels VALUES (?,?,?,?,?,?,?,?,?,?,NULL,NULL,NULL,NULL,NULL,NULL,?,?,?,NULL,?)", out)
     _level_calendar(db, rows)
 
 
@@ -1189,15 +1289,21 @@ def _level_calendar(db, rows) -> None:
 
     spans = db.execute("SELECT start_t, end_t FROM sessions ORDER BY start_t").fetchall()
     last = db.execute("SELECT MAX(t) FROM records").fetchone()[0]
+    lv_rows = db.execute("SELECT level, ding_t, played_s, partial, in_play FROM levels ORDER BY level").fetchall()
+    # The coverage's rule over the levels' own time (a level timed from
+    # /played included), each level's window its two dings.
     missed = {g["level"]: g["off_s"] for g in coverage.recorder_gaps(
-        [(a, b) for a, b in spans], [r for r in rows if r.get("feed") == "wow-level"])}
-    lv_rows = db.execute("SELECT level, ding_t, played_s, partial FROM levels ORDER BY level").fetchall()
-    dings = {lv: d for lv, d, _p, _q in lv_rows}
+        [(a, b) for a, b in spans], [{"_time": _iso(d), "level": lv, "seconds": p, "partial": q == 1}
+                                     for lv, d, p, q, _i in lv_rows if d is not None])}
+    dings = {lv: d for lv, d, *_ in lv_rows}
     first = spans[0][0] if spans else None
     out = []
-    for lv, ding, played, partial in lv_rows:
+    for lv, ding, played, partial, in_play in lv_rows:
         a = dings.get(lv - 1)
-        b = ding if ding is not None else last
+        # The level's end: its ding, or now for the level in play. A finished
+        # level whose ding nobody saw has no window: never to the last record,
+        # which read the owner's levels 33 and 34 as level 32's longest silence.
+        b = ding if ding is not None else (last if in_play else None)
         cal = ding - a if a is not None and ding is not None else None
         off = max(0.0, cal - played) if cal is not None and played is not None and partial == 0 else None
         gap = gap_from = gap_to = None
@@ -1804,12 +1910,18 @@ def _lockouts_estimated(db, now_t: float) -> None:
 def _flight_nodes(db) -> None:
     first: dict[int, float] = {}
     opened: dict[int, int] = {}
-    newest: set[int] = set()
+    # The flight map lists the known nodes of the continent it opens on
+    # only, so the newest list alone forgot the other continent's (the
+    # owner's 9 Eastern Kingdoms nodes read unknown after a Kalimdor map,
+    # 2026-11-24). Newest list per continent: a continent's known nodes only
+    # grow, so its lists share a node, and two continents' never do. A list
+    # replaces every earlier list it shares a node with.
+    lists: list[set[int]] = []
     for _r, t, *_, extra in _of(db, "flightmaster"):
         e = _extra(extra)
         known = {n for n in (_int(x) for x in _ids(e.get("known_nodes"))) if n is not None}
         if known:
-            newest = known
+            lists = [k for k in lists if not k & known] + [known]
         for n in known:
             first.setdefault(n, t)
         at = _int(e.get("taxi_node"))
@@ -1824,6 +1936,7 @@ def _flight_nodes(db) -> None:
             n = _int(e.get(key))
             if n is not None:
                 acc[n] = acc.get(n, 0) + 1
+    newest = set().union(*lists)
     db.executemany("INSERT INTO flight_nodes VALUES (?,?,?,?,?,?,?)",
                    [(n, t, _local(t).isoformat(timespec="seconds"), 1 if n in newest else 0, opened.get(n, 0),
                      flown_from.get(n, 0), flown_to.get(n, 0)) for n, t in sorted(first.items())])

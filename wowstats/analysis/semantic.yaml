@@ -60,12 +60,13 @@
 
 levels:
   table: sem_levels
-  description: "One row per level: Polestar's split when the level is done, the ding time and the route planner's time."
+  description: "One row per level: its played time (Polestar's split, else the game's /played at the level's two starts), the ding time and the route planner's time."
   dimensions:
     level: {expr: _.level, is_entity: true, description: "Character level."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
-    partial: {expr: _.partial, description: "1 when Polestar's split began partway through the level (tracking started then), 0 for a whole level, NULL with no split (the level in play, or a finished level whose split never came: the coverage's polestar gaps)."}
+    partial: {expr: _.partial, description: "1 when the level's played time covers only part of it (Polestar's split began partway through: tracking started then), 0 for a whole level, NULL with no played time (the level in play, or a finished level with neither a split nor the game's /played at both ends: the coverage's polestar gaps)."}
+    played_from: {expr: _.played_from, description: "Where played_s comes from: polestar (its split), altoholic (the game's /played at the level's two starts, from Altoholic's saves and the Recorder's dings: a level whose split is missing or partial, a crash say), recorder (the /played the Recorder's two dings carry), NULL with no played time."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
            description: "When the level ended (the ding), local time. NULL while the level is in play."}
     ding_t: {expr: _.ding_t, description: "When the level ended, unix seconds (UTC): the Recorder's ding, else the split's own time (for a split still growing, its last update). NULL for the level in play without a split. Group by it to place a level in time."}
@@ -73,14 +74,14 @@ levels:
   measures:
     split_levels:
       expr: _.played_s.count()
-      description: "Levels with a Polestar split (a time played)."
+      description: "Levels with a time played (Polestar's split, else the game's /played: played_from)."
       metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: levels,
                  caveats: "The level in play has no split yet; a partial split counts."}
     played_s:
       expr: _.played_s.sum()
-      description: "Time at a level, way 1: Polestar's own split, the game's /played seconds spent in the level."
+      description: "Time at a level, way 1: the game's /played seconds spent in the level: Polestar's own split, else (no split, or a partial one) /played at the level's start and at the next one (Altoholic's saves, the Recorder's dings: played_from says which)."
       metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: seconds,
-                 caveats: "Counts from the moment tracking started: a level marked partial began before it. Offline time is not in it."}
+                 caveats: "Counts from the moment tracking started: a level marked partial began before it. Offline time is not in it. A level timed from /played (played_from altoholic or recorder) is whole, its split counts (split_kills, split_quests) still the partial split's."}
     calendar_s:
       expr: _.calendar_s.sum()
       description: "Time at a level, way 4: wall-clock seconds from the previous ding to this one, offline time included."
@@ -93,9 +94,9 @@ levels:
                  caveats: "Whole splits only (NULL for a partial split, the first tracked level and the level in play). A level that took weeks on the calendar with its played time on plan was a break, not slow play: read played_s and vs_route for pace."}
     level_xp:
       expr: _.xp.sum()
-      description: "XP the level took (Polestar split)."
+      description: "XP the level took: Polestar's split, or the XP bar's size at the level (the Recorder's xp_max) for a level timed from /played."
       metadata: {kind: simple, aggregation: sum, time_meaning: level_completion, evidence_basis: observed, unit: xp,
-                 caveats: "From the split: missing for a level the split never closed."}
+                 caveats: "Missing for a level the split never closed and the Recorder never read the bar at."}
     split_quests:
       expr: _.quests.sum()
       description: "Quests handed in during the level, as Polestar's split counts them."
@@ -378,10 +379,10 @@ records:
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: quests,
                  caveats: "Re-accepting after an abandon counts again."}
     zone_visits:
-      expr: _.rec_id.count(where=_.kind == 'zone')
-      description: "Arrivals in a zone or subzone: zone records (the game's zone or subzone text changed)."
+      expr: _.rec_id.count(where=(_.kind == 'zone') & (_.zone_visit == 1))
+      description: "Arrivals in a zone or subzone: zone records (the game's zone or subzone text changed), less the zones a flight only crossed and the game's text flickering back to the zone before within 3 s."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: visits,
-                 caveats: "Counted in the zone the record names: walking from one subzone to another inside a zone counts again."}
+                 caveats: "Counted in the zone the record names: walking from one subzone to another inside a zone counts again. The zone a flight lands in counts; a flight whose land record hasn't come yet counts every zone it crossed."}
     guide_steps:
       expr: _.rec_id.count(where=_.kind == 'step')
       description: "Guide steps Polestar moved to (step records)."
@@ -398,13 +399,14 @@ records:
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: quests,
                  caveats: "Only what the player abandoned; a failed quest is a fail record."}
     kill_xp:
-      # NULL, not a sum that leaves kills out, when a kill record of the group
-      # doesn't say what it paid (an older Recorder): such kills read 0 XP
-      # before, and every kill XP rate built on them.
-      expr: "(_.rec_id.count(where=(_.kind == 'kill') & _.xp_reward.isnull()) == 0).ifelse(_.xp_reward.sum(where=_.kind == 'kill').fill_null(0), _.xp_reward.sum(where=_.kind == 'kill').nullif(_.xp_reward.sum(where=_.kind == 'kill')))"
-      description: "XP from kills (kill records' xp_reward)."
+      # The kills whose XP line the Recorder matched, summed. It was NULL as
+      # soon as one kill of the group had none, so every level and zone with
+      # a kill someone else tapped read unknown (2026-11-24): a kill without
+      # an XP line mostly paid nothing.
+      expr: _.xp_reward.sum(where=_.kind == 'kill').fill_null(0)
+      description: "XP from kills: the kill records' xp_reward (the game's XP line the Recorder matched to the kill), a kill without one counted 0."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: xp,
-                 caveats: "Rested bonus included, as the game reports it. NULL (unknown) when a kill of the group doesn't say what it paid: kills_without_xp counts them. 0 without a kill."}
+                 caveats: "Rested bonus included, as the game reports it. Read kills_without_xp beside it: the kills it counts 0 for, most of which paid nothing, a few an XP line the Recorder couldn't match. 0 without a kill."}
     quest_xp:
       expr: _.xp_reward.sum(where=_.kind == 'turnin').fill_null(0)
       description: "XP from quest hand-ins (turnin records' xp_reward)."
@@ -517,9 +519,9 @@ records:
                  caveats: "Discoveries the Recorder saw; a place found with it off pays XP nobody counted. 0 without an explore record."}
     kills_without_xp:
       expr: _.rec_id.count(where=(_.kind == 'kill') & _.xp_reward.isnull())
-      description: "Kill records that don't say what the kill paid (no xp_reward): their XP is unknown, and kill_xp leaves them out."
+      description: "Kill records with no XP line matched to them (no xp_reward): kill_xp counts them 0."
       metadata: {kind: simple, aggregation: sum, time_meaning: event, evidence_basis: observed, unit: kills,
-                 caveats: "Above 0, kill_xp and the XP-per-hour metrics built on it undercount: a Recorder older than the kill XP field wrote those kills. Read kill_xp only where this is 0."}
+                 caveats: "The Recorder writes a kill's XP only from the game's XP line for it. No line comes for a creature another player tapped first (no XP) or one grey to the character; inside an instance a kill the group made may have none; and a line the Recorder couldn't match to the kill (another name, too late) leaves its kill without one, so kill_xp and the rates built on it undercount by that much. A count, not an amount: the XP bar (xp_gained) has the total."}
     zero_xp_kills:
       expr: _.rec_id.count(where=(_.kind == 'kill') & (_.xp_reward == 0))
       description: "Kills that paid no XP (xp_reward 0): a creature grey to the character, or one another player tapped first."
@@ -612,9 +614,9 @@ zone_time:
   measures:
     zone_s:
       expr: _.dur_s.sum()
-      description: "Seconds in a zone: from its zone record to the next zone record of the session, else to the session's last record."
+      description: "Seconds in a zone: from its zone record to the next zone record of the session, else to the session's last record, less the time in the air (taxi to land: taxi_s has it). The game's text flickering to another zone and back within 3 s stays the zone's."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "The zone records' own times, the zones the journal and the zones tool list. online_s by zone cuts the timeline at every record instead, by the zone or subzone text each record carries: the two differ."}
+                 caveats: "The zone records' own times, the zones the journal and the zones tool list. online_s by zone cuts the timeline at every record instead, by the zone or subzone text each record carries: the two differ. A flight whose land record hasn't come yet isn't cut."}
 
 dungeon_runs:
   table: sem_dungeon_runs
@@ -1748,7 +1750,7 @@ flight_nodes:
   description: "The flight paths the character knows: each taxi node the flight map listed (flightmaster records), with the flights from and to it."
   dimensions:
     node_id: {expr: _.node_id, description: "The game's taxi node id. Its name and place: the KB's TaxiNodes table is a follow-up, so look the id up for now."}
-    known_now: {expr: _.known_now, description: "1 when the newest flight map lists the node, else 0."}
+    known_now: {expr: _.known_now, description: "1 when the newest flight map of the node's continent lists it, else 0 (a flight map lists its own continent's nodes only)."}
     character: {expr: _.character, description: "The character (one per query: the char argument)."}
     class: {expr: _.char_class, description: "The character's class, from its latest session record."}
     time: {expr: _.at_local, is_time_dimension: true, smallest_time_grain: TIME_GRAIN_DAY,
@@ -1756,9 +1758,9 @@ flight_nodes:
   measures:
     known_flight_nodes:
       expr: _.node_id.count(where=_.known_now == 1)
-      description: "Flight paths known: the nodes the newest flight map listed."
+      description: "Flight paths known: the nodes the newest flight map of each continent listed."
       metadata: {kind: simple, aggregation: sum, time_meaning: snapshot_observation, evidence_basis: observed, unit: nodes,
-                 caveats: "As of the newest flight map opened: a path learned since reads after the next one. 0 before the first flight map with the Recorder on: open a flight map once."}
+                 caveats: "As of each continent's newest flight map: a path learned since reads after the next one, a continent never opened a flight map on reads nothing. 0 before the first flight map with the Recorder on: open a flight map once."}
     flight_maps_opened:
       expr: _.opened_here.sum()
       description: "Flight maps opened, counted at the node they were opened at."

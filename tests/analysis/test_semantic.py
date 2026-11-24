@@ -427,15 +427,15 @@ def testchar_lab(lab):
 
 def test_the_slice_metrics_over_mcp_keep_the_findings_contract(testchar_lab):
     """The 0.7.0 slice's metrics reach query_metric, play_sql and
-    propose_finding: Testchar's kills carry no XP, so kill XP is unknown
-    and the finding says it with placeholders; a number typed in is refused."""
+    propose_finding: Testchar's kills carry no XP, so kill XP counts none
+    of them and the finding says it with placeholders; a number typed in is refused."""
     lab, CHAR = testchar_lab, "Testchar-Demo"  # noqa: N806
     names = {n for ms in call(lab[0], "list_metrics", {})["models"].values() for n in ms}
     assert {"kills_without_xp", "kill_xp_per_online_hour", "gold_earned_copper", "gear_changes"} <= names
     out = call(lab[0], "query_metric", {"char": CHAR, "metrics": ["kills", "kills_without_xp", "kill_xp"]})
     head, row = out["result"].splitlines()[:2]
     kills, without, xp = row.split("\t")
-    assert head == "kills\tkills_without_xp\tkill_xp" and kills == without and int(kills) > 0
+    assert head == "kills\tkills_without_xp\tkill_xp" and kills == without and int(kills) > 0 and xp == "0"
     weeks = call(lab[0], "play_sql", {"char": CHAR, "query": "SELECT week, kills, deaths FROM per_week ORDER BY week"})
     assert weeks["rows"] >= 1 and weeks["result"].splitlines()[0] == "week\tkills\tdeaths"
     mq = {"metrics": ["kills", "kills_without_xp"]}

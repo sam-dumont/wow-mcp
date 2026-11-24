@@ -8,6 +8,8 @@ What comes after 0.10.0, in short. Every change follows.
 
 - The gear page's weights copy into the Forever Leveling BiS addon (its own string or a Pawn
   scale), so it ranks items in the game the way the page does.
+- A level a crash cut short gets its whole time from the game's /played, and flights no longer
+  count as time in the zones they cross.
 
 ### Added
 
@@ -24,6 +26,31 @@ What comes after 0.10.0, in short. Every change follows.
 - The MCP check gives the model the tools' clock. The tools run on the demo's frozen day, the
   model on today's date, so "where is the character now?" read six-day-old data as stale and
   answered NONE (`zone_now`). The docs count 71 questions (4 in market).
+- A level whose Polestar split a crash lost, or left partial, gets its whole time. The game's
+  /played at the level's start and at the next one (Altoholic's saves, the Recorder's dings) gives
+  it: one history read level 33 as 1,901 s at 27,158 XP/h where it took 12,260 s, and had no time
+  at all for level 32 (9,982 s). The pages, `levels` (`from: altoholic`) and the analysis use it;
+  its XP is the bar's size at the level. A save the game answered before a ding but wrote after it
+  names the new level with the old one's start, and is dropped. A finished level whose ding nobody
+  saw no longer takes the next levels' longest silence.
+- A death written at login no longer takes the previous session's zone: the walk forgets the zone
+  at a logout (a death in Thousand Needles read Stormwind).
+- Kill XP sums the kills whose XP line the Recorder matched, instead of going unknown for a whole
+  level or zone as soon as one kill had none. `kills_without_xp` stays beside it, and its note
+  gives the actual reasons: kills another player tapped or grey ones (no XP), some instance kills,
+  and XP lines the Recorder couldn't match. It used to blame an old Recorder.
+- Known flight paths keep every continent. The flight map lists its own continent's nodes only, so
+  opening one in Kalimdor forgot the Eastern Kingdoms (9 known paths read where there were 18).
+- Zone time leaves flights out: a taxi to its land is flight time (`taxi_s`), not time in the
+  zones it crosses, and a zone only flown over is no visit. The game's zone text flickering to
+  another zone and back within 3 s (a loading screen, a cave mouth) is no visit either. Zone
+  time, visits, XP per zone hour, the zones tool, the sessions' main zones and the page's zones
+  all read it.
+
+### Upgrading
+
+- The analysis database's version moves to 15 (levels, zone time and visits, flight paths): kept
+  findings show as "to revalidate" once.
 
 ## 0.10.0 (2026-11-24)
 

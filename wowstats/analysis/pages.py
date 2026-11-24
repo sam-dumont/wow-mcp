@@ -149,7 +149,8 @@ def _compute(ask) -> dict:
 
     split = {"dimension": "partial", "op": "is not null"}
     levels = {r["level"]: r for r in ask(metrics=["played_s", "level_xp", "split_quests", "split_kills",
-                                                  "xp_per_hour"], group_by=["level", "partial"], where=[split])}
+                                                  "xp_per_hour"], group_by=["level", "partial", "ding_t"],
+                                         where=[split])}
     done = sorted(lv for lv, r in levels.items() if r["partial"] == 0)
     totals = (ask(metrics=["played_s"], where=[split]) or [{}])[0]
     runs = {r["run"]: r for r in ask(metrics=["run_s", "run_xp", "run_xp_per_hour"], group_by=["run"])}
@@ -205,19 +206,35 @@ def deaths(ask, since: str | None = None, until: str | None = None) -> dict:
                                                               **when)}}
 
 
+def at_utc(t) -> str | None:
+    """Unix seconds as the store writes a time (UTC, milliseconds): a split's `at`."""
+    if t is None:
+        return None
+    return datetime.fromtimestamp(float(t), tz=UTC).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
 def whole(v) -> int | None:
     """A layer number as the page shows it: whole, rounded like wowstats.rates."""
     return None if v is None else round(v)
 
 
 def apply_rows(levels: list[dict], dungeons: list[dict], n: dict) -> None:
-    """The layer's numbers into the level splits and the dungeon runs (in place)."""
+    """The layer's numbers into the level splits and the dungeon runs (in
+    place). A level the layer times without a split (the game's /played at
+    its two starts: a split lost to a crash) joins the list, in level order;
+    one whose split was partial is whole with it."""
+    have = {lv["level"] for lv in levels}
+    for lvl, r in n["levels"].items():
+        if lvl not in have and r["played_s"] is not None:
+            levels.append({"level": lvl, "seconds": None, "xp": None, "quests": None, "kills": None,
+                           "partial": False, "at": at_utc(r.get("ding_t")), "xp_per_hour": None})
+    levels.sort(key=lambda lv: lv["level"])
     for lv in levels:
         r = n["levels"].get(lv["level"])
         if r is not None:
             lv.update(seconds=int(r["played_s"] or 0), xp=int(r["level_xp"] or 0),
                       quests=opt_num(r["split_quests"]), kills=opt_num(r["split_kills"]),
-                      xp_per_hour=whole(r["xp_per_hour"]))
+                      xp_per_hour=whole(r["xp_per_hour"]), partial=bool(r["partial"]))
     for d in dungeons:
         r = n["runs"].get(parse_t(d["t"]).timestamp())
         if r is not None:

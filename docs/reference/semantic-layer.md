@@ -408,15 +408,15 @@ breaks.
 
 ### levels
 
-One row per level: Polestar's split when the level is done, the ding time and the route planner's time.
+One row per level: its played time (Polestar's split, else the game's /played at the level's two starts), the ding time and the route planner's time.
 
 | Metric | Kind | Unit | Definition | Caveats | Read as |
 |---|---|---|---|---|---|
-| `split_levels` | simple | levels | Levels with a Polestar split (a time played). | The level in play has no split yet; a partial split counts. | sum; time: level_completion; observed. |
-| `played_s` | simple | seconds | Time at a level, way 1: Polestar's own split, the game's /played seconds spent in the level. | Counts from the moment tracking started: a level marked partial began before it. Offline time is not in it. | sum; time: level_completion; observed. |
+| `split_levels` | simple | levels | Levels with a time played (Polestar's split, else the game's /played: played_from). | The level in play has no split yet; a partial split counts. | sum; time: level_completion; observed. |
+| `played_s` | simple | seconds | Time at a level, way 1: the game's /played seconds spent in the level: Polestar's own split, else (no split, or a partial one) /played at the level's start and at the next one (Altoholic's saves, the Recorder's dings: played_from says which). | Counts from the moment tracking started: a level marked partial began before it. Offline time is not in it. A level timed from /played (played_from altoholic or recorder) is whole, its split counts (split_kills, split_quests) still the partial split's. | sum; time: level_completion; observed. |
 | `calendar_s` | simple | seconds | Time at a level, way 4: wall-clock seconds from the previous ding to this one, offline time included. | NULL for the first tracked level and the level in play. A week off between two dings counts in full. | sum; time: level_completion; reconstructed. |
 | `offline_s` | simple | seconds | Time at a level, offline: calendar_s minus played_s, the seconds the game was closed between the two dings. | Whole splits only (NULL for a partial split, the first tracked level and the level in play). A level that took weeks on the calendar with its played time on plan was a break, not slow play: read played_s and vs_route for pace. | sum; time: level_completion; inferred. |
-| `level_xp` | simple | xp | XP the level took (Polestar split). | From the split: missing for a level the split never closed. | sum; time: level_completion; observed. |
+| `level_xp` | simple | xp | XP the level took: Polestar's split, or the XP bar's size at the level (the Recorder's xp_max) for a level timed from /played. | Missing for a level the split never closed and the Recorder never read the bar at. | sum; time: level_completion; observed. |
 | `split_quests` | simple | quests | Quests handed in during the level, as Polestar's split counts them. | The split's own count; records.turnin can differ for a partial level. | sum; time: level_completion; observed. |
 | `split_kills` | simple | kills | Kills during the level, as Polestar's split counts them. | The split's own count; records.kill can differ for a partial level. | sum; time: level_completion; observed. |
 | `climb_kills` | simple | kills | Kills over the climb: Polestar's split count for a level with a split, else the Recorder's kill records at that level (the level in play, or Polestar off). Pick the population with in_play: 0 the completed levels, 1 the current level so far, no filter both. | Always say the population: the completed levels (in_play = 0) or including the current level. A level without a split counts only what the Recorder saw while it was on. NULL for a level neither counted. | sum; time: level_completion; observed. |
@@ -435,7 +435,7 @@ One row per level: Polestar's split when the level is done, the ding time and th
 | `recorder_coverage` | ratio | share | Share of the level's played time the Recorder saw: played_s minus recorder_missed_s, over played_s (1.0: every minute). | The Recorder's counts for the level (deaths, kills, quests_done, online_s) cover this share of its play: below 1, a 0 there may be play it missed. NULL when it can't be measured (see recorder_missed_s): unknown, never full. | ratio_of_sums; time: level_completion; inferred. Rows: A level whose Recorder gap is measured: a whole split after the Recorder's first session. |
 | `over_route_s` | derived | seconds | Seconds played beyond the route planner's time (negative: faster). | As uncalibrated as planned_s. Reads whole splits with a planned time only (eligibility): planned_s on its own is the total target, every level with a plan. NULL when no level qualifies. | sum; time: level_completion; estimated. Rows: A whole split (partial = 0, played time above 0) with a planned time. The level in play has no split and a partial split began partway through the level, so both stay out of both sides; planned_s on its own still counts them. |
 
-Group or filter by: `character`, `class`, `ding_t`, `in_play`, `level`, `partial`, `time`.
+Group or filter by: `character`, `class`, `ding_t`, `in_play`, `level`, `partial`, `played_from`, `time`.
 
 ### timeline
 
@@ -476,11 +476,11 @@ Every Recorder record except positions: kills, deaths, quests, loot and the rest
 | `deaths` | simple | deaths | Deaths (death records). | The zone is where the player died, not where the corpse run ended. | sum; time: event; observed. |
 | `quests_done` | simple | quests | Quests handed in (turnin records). | A quest handed in twice (repeatable) counts twice. | sum; time: event; observed. |
 | `quests_accepted` | simple | quests | Quests accepted (accept records). | Re-accepting after an abandon counts again. | sum; time: event; observed. |
-| `zone_visits` | simple | visits | Arrivals in a zone or subzone: zone records (the game's zone or subzone text changed). | Counted in the zone the record names: walking from one subzone to another inside a zone counts again. | sum; time: event; observed. |
+| `zone_visits` | simple | visits | Arrivals in a zone or subzone: zone records (the game's zone or subzone text changed), less the zones a flight only crossed and the game's text flickering back to the zone before within 3 s. | Counted in the zone the record names: walking from one subzone to another inside a zone counts again. The zone a flight lands in counts; a flight whose land record hasn't come yet counts every zone it crossed. | sum; time: event; observed. |
 | `guide_steps` | simple | steps | Guide steps Polestar moved to (step records). | Every move of Polestar's pointer, a step shown again included. Group by guide for one guide's. | sum; time: event; observed. |
 | `flights` | simple | flights | Flight paths taken (taxi records). | Counted at the take-off; their time in the air is taxi_s. | sum; time: event; observed. |
 | `quests_abandoned` | simple | quests | Quests abandoned (abandon records). | Only what the player abandoned; a failed quest is a fail record. | sum; time: event; observed. |
-| `kill_xp` | simple | xp | XP from kills (kill records' xp_reward). | Rested bonus included, as the game reports it. NULL (unknown) when a kill of the group doesn't say what it paid: kills_without_xp counts them. 0 without a kill. | sum; time: event; observed. |
+| `kill_xp` | simple | xp | XP from kills: the kill records' xp_reward (the game's XP line the Recorder matched to the kill), a kill without one counted 0. | Rested bonus included, as the game reports it. Read kills_without_xp beside it: the kills it counts 0 for, most of which paid nothing, a few an XP line the Recorder couldn't match. 0 without a kill. | sum; time: event; observed. |
 | `quest_xp` | simple | xp | XP from quest hand-ins (turnin records' xp_reward). | Discovery XP is apart (explore records). | sum; time: event; observed. |
 | `quest_money_copper` | simple | copper | Money quest hand-ins paid, copper. | Quest rewards only; loot, sales and costs are not in it (see gold_delta_copper). | sum; time: event; observed. |
 | `deaths_above` | simple | deaths | Deaths to a likely killer 3 or more levels above the character (death records: npc_level minus the record's level). | The killer is Polestar_Recorder's pick, likely, not certain (no combat log). A death with no pick or no level isn't counted. | sum; time: event; inferred. |
@@ -503,7 +503,7 @@ Every Recorder record except positions: kills, deaths, quests, loot and the rest
 | `x_now` | simple | percent | The map x (percent) on that same newest positioned record. | Read it with map_now. | latest; time: event; observed. |
 | `y_now` | simple | percent | The map y (percent) on that same newest positioned record. | Read it with map_now. | latest; time: event; observed. |
 | `explore_xp` | simple | xp | XP from discovering places (explore records' xp_reward): the third source beside kill_xp and quest_xp. | Discoveries the Recorder saw; a place found with it off pays XP nobody counted. 0 without an explore record. | sum; time: event; observed. |
-| `kills_without_xp` | simple | kills | Kill records that don't say what the kill paid (no xp_reward): their XP is unknown, and kill_xp leaves them out. | Above 0, kill_xp and the XP-per-hour metrics built on it undercount: a Recorder older than the kill XP field wrote those kills. Read kill_xp only where this is 0. | sum; time: event; observed. |
+| `kills_without_xp` | simple | kills | Kill records with no XP line matched to them (no xp_reward): kill_xp counts them 0. | The Recorder writes a kill's XP only from the game's XP line for it. No line comes for a creature another player tapped first (no XP) or one grey to the character; inside an instance a kill the group made may have none; and a line the Recorder couldn't match to the kill (another name, too late) leaves its kill without one, so kill_xp and the rates built on it undercount by that much. A count, not an amount: the XP bar (xp_gained) has the total. | sum; time: event; observed. |
 | `zero_xp_kills` | simple | kills | Kills that paid no XP (xp_reward 0): a creature grey to the character, or one another player tapped first. | A kill with no xp_reward at all is unknown, not here (kills_without_xp). | sum; time: event; observed. |
 | `rides` | simple | rides | Boat, zeppelin and tram rides boarded (ride records turning on). | Counted where the ride began; its time is ride_s. Flight paths are flights. | sum; time: event; observed. |
 | `quest_xp_share` | derived | share | Share of kill and quest XP that came from quests: quest_xp over quest_xp + kill_xp. | Leaves out discovery XP and dungeon bonus XP. | ratio_of_sums; time: event; observed. Rows: Kill and turnin records: the top is a part of the bottom. |
@@ -532,7 +532,7 @@ Time per zone the Recorder's zone records give: from each zone record to the nex
 
 | Metric | Kind | Unit | Definition | Caveats | Read as |
 |---|---|---|---|---|---|
-| `zone_s` | simple | seconds | Seconds in a zone: from its zone record to the next zone record of the session, else to the session's last record. | The zone records' own times, the zones the journal and the zones tool list. online_s by zone cuts the timeline at every record instead, by the zone or subzone text each record carries: the two differ. | sum; time: interval_start; reconstructed. |
+| `zone_s` | simple | seconds | Seconds in a zone: from its zone record to the next zone record of the session, else to the session's last record, less the time in the air (taxi to land: taxi_s has it). The game's text flickering to another zone and back within 3 s stays the zone's. | The zone records' own times, the zones the journal and the zones tool list. online_s by zone cuts the timeline at every record instead, by the zone or subzone text each record carries: the two differ. A flight whose land record hasn't come yet isn't cut. | sum; time: interval_start; reconstructed. |
 
 Group or filter by: `character`, `class`, `session_id`, `time`, `zone`.
 
@@ -905,7 +905,7 @@ The flight paths the character knows: each taxi node the flight map listed (flig
 
 | Metric | Kind | Unit | Definition | Caveats | Read as |
 |---|---|---|---|---|---|
-| `known_flight_nodes` | simple | nodes | Flight paths known: the nodes the newest flight map listed. | As of the newest flight map opened: a path learned since reads after the next one. 0 before the first flight map with the Recorder on: open a flight map once. | sum; time: snapshot_observation; observed. |
+| `known_flight_nodes` | simple | nodes | Flight paths known: the nodes the newest flight map of each continent listed. | As of each continent's newest flight map: a path learned since reads after the next one, a continent never opened a flight map on reads nothing. 0 before the first flight map with the Recorder on: open a flight map once. | sum; time: snapshot_observation; observed. |
 | `flight_maps_opened` | simple | maps | Flight maps opened, counted at the node they were opened at. | Only with the Recorder on (/psrec on, then /reload). | sum; time: snapshot_observation; observed. |
 | `node_flights_from` | simple | flights | Flights that left from the node (taxi records). | Group by node_id. A taxi record without its node isn't counted: records' flights counts every take-off. A node shows once a flight map listed it: open a flight map once. | sum; time: snapshot_observation; observed. |
 | `node_flights_to` | simple | flights | Flights bound for the node (taxi records). | Group by node_id, as node_flights_from: open a flight map once for the nodes. | sum; time: snapshot_observation; observed. |
@@ -1138,7 +1138,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `item_id` | records, loot, upgrades, worn, auction, ah_upgrades, sheets, quest_rewards, quest_loot, loot_value | Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used. |
 | `item_key` | auction | Auctionator's key: the item id, or gr:<id>:<suffix> for one random suffix. |
 | `kind` | records | Record kind (record_kinds: kill, death, turnin, accept...). |
-| `known_now` | flight_nodes | 1 when the newest flight map lists the node, else 0. |
+| `known_now` | flight_nodes | 1 when the newest flight map of the node's continent lists it, else 0 (a flight map lists its own continent's nodes only). |
 | `level` | levels, timeline, records, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, sheets, dings, revives, zone_levels, offers, quest_loot, loot_value, reputation, achievements, char_stats | Character level. |
 | `level_accepted` | quests | Level at the accept (NULL for untimed). |
 | `level_end` | sessions | Level at the end of the span (its last record with one). |
@@ -1151,7 +1151,8 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `npc_id` | records, offers | The NPC the record names: a kill's creature, a trainer record's trainer, or a death's likely killer as Polestar_Recorder picks it (the last hostile creature that targeted the player within 10 s). NULL for a record that names none and for a death with no pick. |
 | `npc_level` | records | That creature's level (a kill's creature, a death's likely killer). |
 | `on_sale` | ah_upgrades | 1 when the gear advice lists it on sale now: seen in the house's newest full scan, today or yesterday. 0: the price is older. |
-| `partial` | levels | 1 when Polestar's split began partway through the level (tracking started then), 0 for a whole level, NULL with no split (the level in play, or a finished level whose split never came: the coverage's polestar gaps). |
+| `partial` | levels | 1 when the level's played time covers only part of it (Polestar's split began partway through: tracking started then), 0 for a whole level, NULL with no played time (the level in play, or a finished level with neither a split nor the game's /played at both ends: the coverage's polestar gaps). |
+| `played_from` | levels | Where played_s comes from: polestar (its split), altoholic (the game's /played at the level's two starts, from Altoholic's saves and the Recorder's dings: a level whose split is missing or partial, a crash say), recorder (the /played the Recorder's two dings carry), NULL with no played time. |
 | `profession` | professions | The profession's name (Tailoring, Cooking...). |
 | `quest` | quests | Quest title (the records' own; "Quest <id>" when none names it). Two quests with one title group together: add quest_id. |
 | `quest_id` | quests, done_quests, offers, quest_rewards, quest_loot, attunements | Quest id. |

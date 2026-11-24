@@ -69,9 +69,10 @@ def build(minutes: list[dict], xp: list[dict], events: list[dict], dungeons: lis
         elif kind == "death":
             zone = r.get("zone") or "Unknown"
             s["deaths"][zone] = s["deaths"].get(zone, 0) + 1
-    # A zone's time runs to the next zone record or the session's end
-    # (stores.zone_time: from the records' times, not the shipper's field).
-    for r in zone_time([e for e in events if e.get("kind") == "zone"], spans):
+    # A zone's time runs to the next zone record or the session's end, less
+    # the time in the air (stores.zone_time: from the records' times, not the
+    # shipper's field; the taxi and land records give the flights).
+    for r in zone_time([e for e in events if e.get("kind") in ("zone", "taxi", "land")], spans):
         s = find(_ts(r.get("_time")))
         if s and r.get("zone"):
             s["zones"][r["zone"]] = s["zones"].get(r["zone"], 0.0) + r["secs"]
