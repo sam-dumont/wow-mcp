@@ -70,7 +70,7 @@ nobody here has called it on Forever yet.
 | Quests done | Polestar Recorder (hand-ins, the game's "done" flags at quest givers); Questie or Altoholic; a reward only one quest gives, worn or held on any gear or bags sheet ever sent; then what the API says you wear now (read live, never kept, only adds quests); and the quests a done one needed first | yes (`/quests/completed`), not read | the history is kept past the API terms' 30 days, so it holds only addon data |
 | `/played` since level 1 | Altoholic | no | no API |
 | Gold, bags, bank | Syndicator, Polestar; gold, XP and rested XP of every character at logout also from Altoholic | no | no API |
-| Spec pick, stat weights, tracked upgrades (the gear advice's spec: these first, the talents only as a hint) | Polestar, ForeverLevelingBiS, GearQuestForever | no (they're your settings) | no API |
+| Spec pick, tracked upgrades (the gear advice's spec: these first, the talents only as a hint; the stat weights are ForeverDB.net's, never an addon's) | ForeverLevelingBiS, GearQuestForever | no (they're your settings) | no API |
 | Auction prices | Auctionator scans | no (the project reads no Auction House API) | history: price trends |
 | Legacy points earned | API (`/achievements`: each Legacy challenge is one) | yes, listed | - |
 | Legacy points spent | not shown | no | no addon saves them either |

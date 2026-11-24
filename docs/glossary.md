@@ -48,7 +48,7 @@ is the route's pace, 2.0× twice as long. [Overview and next moves](players/over
 **Next moves.** Up to 3 things to do now, on the Overview: an upgrade and where it drops, a
 dungeon worth a run, a talent point or profession rank to sort out.
 
-**Points.** Polestar's score for an item, for your class and talents. The same scale in every
+**Points.** An item's score from [ForeverDB.net](https://foreverdb.net)'s stat weights, for your class and spec. The same scale in every
 slot, so a ring and a helmet compare. [Gear and upgrades](players/gear.md#the-upgrades-list).
 
 **BiS, the badge.** Best in slot: the best item you can wear at your level for that slot. The

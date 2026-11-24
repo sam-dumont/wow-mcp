@@ -89,7 +89,7 @@ pace. [Overview and next moves](players/overview.md).
 
 ### What are "points" in the upgrades?
 
-Polestar's gear score for your class and spec, the number that compares a helmet with a ring.
+The gear score for your class and spec, from [ForeverDB.net](https://foreverdb.net)'s stat weights: the number that compares a helmet with a ring.
 The page turns them into the slot's BiS: the badge on an item's icon is its share of the best
 item for that slot at your level, and "70% → 91% on your head" is that share for what you wear
 now, then with the item ("empty → 91%" when nothing is there). An item with nothing to

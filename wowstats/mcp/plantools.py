@@ -178,7 +178,8 @@ def t_gear_options(ctx: T.Ctx, args: dict) -> dict:
             "mode": gearmod.modes_out(mode), "mode_from": mode_from,
             "slots": slots[:T.limit_arg(args, 8, 20)],
             "kinds": sorted({o["kind"] for s in slots for o in s["options"]}),
-            "note": "Gains are Polestar's gear points for this character's class and spec. bis_pct is the item's share "
+            "note": "Gains are gear points from ForeverDB.net's stat weights (credit `score_source`) for this "
+                    "character's class, spec and `mode`. bis_pct is the item's share "
                     "of its slot's best at this level (100 = BiS), bis_pct_worn the worn one's (null: an empty slot), "
                     "delta_pct the difference; `line` is the page's words, \"70% → 91% on your chest\": say it as "
                     "is, never \"+21%\" (that reads as 21% more stats). All null when there's nothing to "

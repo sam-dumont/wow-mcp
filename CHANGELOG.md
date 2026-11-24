@@ -46,6 +46,20 @@ What comes after 0.10.0, in short. Every change follows.
   another zone and back within 3 s (a loading screen, a cave mouth) is no visit either. Zone
   time, visits, XP per zone hour, the zones tool, the sessions' main zones and the page's zones
   all read it.
+- A slot's best pick no longer goes to a craft the character can't make over an easier, better
+  drop. The pick took the group-loot factor (x0.85) off a dungeon drop's whole score, so in PvE
+  Green Silken Shoulders (+2.0, Tailoring 165 with 141) beat Bloodmage Mantle (+2.4, a 43% drop).
+  The pick now ranks on the same value as the upgrade list: the gain, less the effort's share,
+  times the fit factor. `gear options` says `available: "once you can make it"` and `now: false`
+  for a craft still to skill up or learn, never "now".
+- `gear` with `options: true` keeps `buy_now` and `auction_house`, so "which upgrade is on sale"
+  works either way.
+- The gear notes and docs credit ForeverDB.net's weights for the scores. Some still said
+  "Polestar's gear points" (the `gear options` and `next_moves` notes, `class_meta`, the FAQ and
+  glossary). Polestar still gives the route, the guide and where gear comes from.
+- The share token no longer crash-loops the ui after a full disk. A failed write left
+  `share-token.1.tmp` behind, and in a container (pid 1) every restart failed on it. The
+  temporary file now gets a fresh name each time and is removed whatever fails.
 
 ### Upgrading
 

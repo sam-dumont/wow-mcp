@@ -660,10 +660,18 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str |
     slots: dict[str, list] = {}
     for u in inp.get("upgrades") or []:
         for s in u.get("sources") or []:
+            # "now" is usable now: wearable at this level and, from a craft,
+            # makeable now (skill and recipe). A craft still to skill up is
+            # some effort (gear.source_effort), never "now" (MCP eval
+            # pve_shoulder, 2026-11-24: Green Silken Shoulders, Tailoring 141
+            # of 165, said "available": "now").
+            craft_wait = s["kind"] == "craft" and not s.get("can_make")
+            now = bool(u.get("now")) and not craft_wait
             row = {"item": u.get("name"), "item_id": u.get("item_id"), "gain": round(u.get("gain") or 0, 1),
                    **gearmod.badge_of(u), "line": gearmod.gain_words(u), "req_level": u.get("level"),
-                   "now": bool(u.get("now")),
-                   "available": "now" if u.get("now") else f"at {u.get('level')}",
+                   "now": now,
+                   "available": "now" if now else f"at {u.get('level')}" if not u.get("now")
+                   else "once you can make it",
                    # The ranking's value and who it's built for (wowstats.gearfit).
                    "value": round(u.get("value", u.get("gain")) or 0, 1),
                    "fit": gearfit.text(u.get("fit")), "in_current_zone": gearmod.in_zone(s, zone)}

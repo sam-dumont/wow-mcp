@@ -296,6 +296,11 @@
     - {tool: gear, args: {limit: 40}, path: "next_upgrades[*].line", holds: any}
     - {tool: gear, args: {options: true, limit: 20}, path: "slots[*].options", holds: some}
 
+# Bloodmage Mantle (an easy 43% drop, +2.4) since 2026-11-24, not Green Silken
+# Shoulders (+2.0, a Tailoring 165 craft the character can't make at 141):
+# the slot's pick weighed gearfit's group-loot factor on the whole score, so
+# the drop lost 15% of everything and the craft won on a smaller gain. The
+# pick now ranks on the upgrade list's value (gear.ranking_value).
 - id: pve_shoulder
   group: gear
   persona: gearer
@@ -606,6 +611,8 @@
   probes:
     - {tool: gear, path: "buy_now[*].item_id", holds: any}
     - {tool: gear, path: auction_house.last_scan_days_ago, equals: 0}
+    # The same with options: it dropped buy_now and auction_house (MCP eval, 2026-11-24).
+    - {tool: gear, args: {options: true}, path: "buy_now[*].item_id", holds: any}
 
 - id: token_price
   group: market
