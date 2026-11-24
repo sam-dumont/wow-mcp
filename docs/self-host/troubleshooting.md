@@ -71,7 +71,7 @@ uv run --script ~/.local/share/wow-stats/wow_stats.py --preflight
 | `WOW_STATE_DIR (several people) needs VIEW=full and AUTH=proxy` | Friends need a login proxy in front of the full view. [What a shared install needs](friends.md#what-a-shared-install-needs) |
 | `WOW_STATE_DIR needs WOW_OWNER_SUB` | Your own `sub` at the identity provider, so your data stays yours |
 | `set BNET_CLIENT_ID_FILE and BNET_CLIENT_SECRET_FILE` (the exporter) | The exporter needs your own Battle.net API client. [Battle.net data](battlenet.md), or leave its profile off |
-| `pull access denied for wow-stats` or `wow-stats:local ... not found` on `docker compose pull` | `WOW_STATS_IMAGE` is empty in `.env`, so compose looks for an image you'd build yourself. <!-- check: Docker's exact wording for this error --> Put the release's `tag@digest` there ([Install it for real](../install.md#start-it)) |
+| `pull access denied for wow-stats, repository does not exist or may require 'docker login'` on `docker compose pull`, with a warning that `ui` "must be built from source" | `WOW_STATS_IMAGE` is empty in `.env`, so compose looks for `wow-stats:local`, an image you'd build yourself. Put the release's `tag@digest` there ([Install it for real](../install.md#start-it)) |
 | ``EVENTS_STORE=...: `vl` (VictoriaLogs at VL_URL) or sqlite:<folder>`` | `EVENTS_STORE` is neither `vl` nor `sqlite:<folder>`. [Where your events live](../install.md#where-your-events-live) |
 | `VL_ARCHIVE_URL is VictoriaLogs' archive of older days: with EVENTS_STORE=sqlite:...` | The SQLite store keeps every day in its files: unset `VL_ARCHIVE_URL` |
 | `Bind for 127.0.0.1:8080 failed: port is already allocated` | Another program uses 8080. Set `UI_PUBLISH=127.0.0.1:18080` in `.env` and start again |

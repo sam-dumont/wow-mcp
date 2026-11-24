@@ -68,14 +68,14 @@ last writes, which sit in a `-wal` file next to each database until SQLite folds
 docker compose stop ui publish ui-public
 docker run --rm -v wow-stats_events:/data:ro -v "$PWD":/backup alpine:3.22 \
   tar czf /backup/wow-stats-events-$(date +%F).tgz -C /data .
-docker compose start ui publish
+docker compose start ui publish ui-public
 ```
 
 Restore into an empty stack the same way: `docker compose down`, `docker volume rm
 wow-stats_events`, `docker compose up -d ui` then `docker compose stop ui publish` to make the
 volume, `tar xzf` your file into it (the `-v wow-stats_events:/data` line without `:ro`), and
 `docker compose up -d`. There's no archive of older days with this store: the backup is every
-event you have. <!-- check: commands written from the compose files, not run (light-work session) -->
+event you have. Run from `deploy/compose`: the backup lands in that folder.
 
 ## Restore
 

@@ -53,7 +53,7 @@ docker compose exec ui python -c "import urllib.request;print(urllib.request.url
 
 It prints the newest event as one line of JSON, with its `_time`. On the SQLite store there's
 no VictoriaLogs to ask: the Journal tab, or the page's query box with
-`* | sort by (_time) desc | limit 1`. <!-- check: the query box's SQLite subset takes this query? -->
+`* | sort by (_time) desc | limit 1`: it answers with the newest event, like VictoriaLogs.
 
 The shipper logs each run on the player's computer: `~/Library/Logs/wow-stats.log` (Mac),
 `%LOCALAPPDATA%\wow-stats\wow-stats.log` (Windows). A good run ends in

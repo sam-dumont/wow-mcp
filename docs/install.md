@@ -215,7 +215,9 @@ are gone for good: back up first ([Back up and restore](self-host/backup.md)).
 Empty or `0`, the default, means no ceiling.
 
 With the SQLite files, the events live in the volume `wow-stats_events`, one file per person,
-and nothing caps them: every day stays. <!-- check: SQLite's size on the long history, measured? -->
+and nothing caps them: every day stays. They take more room than VictoriaLogs: four copies of
+the demo on different dates, 102,640 events, took 47 MiB (0.9.0, the file after the last
+write), and a backup of it compressed to 9.3 MiB.
 
 The other volumes stay small: `wow-stats_site-data` (the friends' sites
 and their key, rebuilt after each play session) and `wow-stats_ui-state`
