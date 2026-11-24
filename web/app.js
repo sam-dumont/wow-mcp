@@ -1395,8 +1395,10 @@ function sourceEl(sr, level, ah) {
     return h('span', { class: 'src' }, `${sr.name || 'A faction'}: ${sr.standing || 'a standing'} reputation`, you, basisEl(sr));
   }
   if (sr.kind === 'pvp') {
-    const you = sr.your_rank == null ? " (your rank isn't recorded)" : sr.met ? ` (you hold rank ${sr.your_rank})`
-      : sr.your_rank === 0 ? ' (you have no PvP rank)' : ` (you have rank ${sr.your_rank})`;
+    // (wowstats/gear.py pvp_words)
+    const you = sr.your_rank == null ? " (your rank isn't recorded: ForeverDB saves it)"
+      : sr.met ? ` (you hold rank ${sr.your_rank})`
+      : ` (rank ${sr.rank} needed, ${sr.your_rank === 0 ? 'you have no PvP rank' : `you're rank ${sr.your_rank}`})`;
     return h('span', { class: 'src' }, `PvP rank ${sr.rank} reward`, you, basisEl(sr));
   }
   if (sr.kind === 'container') {
