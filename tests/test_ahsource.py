@@ -29,15 +29,20 @@ def day(days_ago: int) -> str:
     return (datetime.fromtimestamp(NOW) - timedelta(days=days_ago)).strftime("%Y-%m-%d")
 
 
-def scans(*days: tuple[int, int], realm="Fixture", faction=None) -> list[dict]:
+def scans(*days: tuple[int, int], ruleset="Fixture", faction=None) -> list[dict]:
     """Filler price_rows rows (wowstats.views): (days ago, items priced that day), keys 900000+."""
-    return [price(900000 + i, a, 100, realm=realm, faction=faction) for a, n in days for i in range(n)]
+    return [price(900000 + i, a, 100, ruleset=ruleset, faction=faction) for a, n in days for i in range(n)]
 
 
-def price(item, days_ago, copper, realm="Fixture", faction=None, listed=3) -> dict:
+def price(item, days_ago, copper, ruleset="Fixture", faction=None, listed=3) -> dict:
     """A price_rows row (wowstats.views)."""
-    return {"realm": realm, "faction": faction, "item_key": str(item), "scan_day": day(days_ago),
+    return {"ruleset": ruleset, "faction": faction, "item_key": str(item), "scan_day": day(days_ago),
             "lo": str(copper), "av": str(listed), "t": midnight(days_ago)}
+
+
+def as_stored(r: dict) -> dict:
+    """A price row as one person's own store answers it: `realm`, the addon's name for the ruleset."""
+    return {**{k: v for k, v in r.items() if k != "ruleset"}, "realm": r["ruleset"]}
 
 
 def test_on_sale_is_the_newest_full_scan_today_or_yesterday():
@@ -183,8 +188,10 @@ def test_without_a_market_the_answer_is_as_before(ref):
 
 
 def test_mcp_gear_carries_the_auction_house():
+    # The store answers with the addon's field name (realm); the read calls it the ruleset.
     logs = [("stats by (item_key, scan_day, realm, faction) min(price_copper) as lo",
-             [*scans((0, 60)), price(SPELLBINDER_VEST, 0, 3100), price(CRYSTALLINE_CUFFS, 3, 50)]),
+             [as_stored(r) for r in (*scans((0, 60)), price(SPELLBINDER_VEST, 0, 3100),
+                                     price(CRYSTALLINE_CUFFS, 3, 50))]),
             *fakes.LOGS]
     fake = fakes.FakeStores(logs=logs)
     try:
@@ -217,12 +224,12 @@ def test_mcp_gear_without_scans_says_to_scan():
 def test_price_list_one_point_a_day_across_faction_houses():
     """The shared price read (views.price_rows) groups by faction too, for
     the Auction House source; the price list still shows one point a day
-    per realm, the lowest of its houses."""
+    per ruleset, the lowest of its houses."""
     from wowstats.views import build_prices
 
-    rows = [{"item_key": "2592", "scan_day": "2026-11-17", "realm": "R", "faction": "Alliance", "lo": "50", "hi": "80",
+    rows = [{"item_key": "2592", "scan_day": "2026-11-17", "ruleset": "R", "faction": "Alliance", "lo": "50", "hi": "80",
              "av": "3", "name": "Wool Cloth", "item_id": "2592"},
-            {"item_key": "2592", "scan_day": "2026-11-17", "realm": "R", "faction": "Horde", "lo": "40", "hi": "60",
+            {"item_key": "2592", "scan_day": "2026-11-17", "ruleset": "R", "faction": "Horde", "lo": "40", "hi": "60",
              "av": "9", "name": "Wool Cloth", "item_id": "2592"}]
     it = build_prices(rows)["items"][0]
     assert it["series"] == [{"day": "2026-11-17", "lo": 40.0, "hi": 80.0, "available": 9.0}]

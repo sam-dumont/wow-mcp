@@ -51,7 +51,9 @@ answers use it too.
 2. Going to a dungeon: read its card in [Dungeons](dungeons.md) first.
 3. "In your bags: equip it" means you already carry it (seeing your bags needs Syndicator).
 4. To see what's for sale: scan the auction house with Auctionator, `/reload`, and an
-   **Auction House** group shows within 5 minutes, with prices.
+   **Auction House** group shows within 5 minutes, with prices. On a server you share with
+   friends, a friend's scan counts too: anyone's newest scan of your ruleset and your faction's
+   house (or the neutral one) fills the group, and nobody sees who scanned it.
 
 List missing: [A part of my page is empty](troubleshooting.md#a-part-of-my-page-is-empty).
 How the scoring works: [Gear reference](../gear-reference.md).

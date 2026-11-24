@@ -721,6 +721,12 @@ class Tenancy:
         for k in ("MCP_PUBLIC_URL", "MCP_AUTH", "INGEST_PASSWORD", "INGEST_PASSWORD_FILE", "ANALYSIS_SHARE_PORT"):
             e[k] = ""
         e["VL_ACCOUNT_ID"] = str(u.account_id)
+        # The auction scans everyone here shares (wowstats.ahshared), in the
+        # friends' store, owner included: one ruleset and faction's house is
+        # the same house whoever scanned it (owner, 2026-11-24).
+        from wowstats import ahshared
+
+        e[ahshared.ENV] = self.friends_vl
         # The owner pays the server's own analysis runs: their nudge says
         # "your own credit", a friend's names the owner (wowstats.analysis.auto).
         from wowstats.analysis.auto import OWNER_MARK
@@ -1172,7 +1178,7 @@ def start_reconcile(t: Tenancy, on_change=None) -> threading.Thread | None:
 
 def cli(argv: list[str]) -> int:
     """`wow-stats users list | hosts | reconcile [--allow-empty] | disable <slug> |
-    enable <slug> | delete <slug> [--yes]`, run where the full view runs (docker or kubectl exec): the
+    enable <slug> | delete <slug> [--yes] | ah-share`, run where the full view runs (docker or kubectl exec): the
     same WOW_STATE_DIR and settings. Prints no token, hash or key. `delete`
     is also the purge-now of a removed friend: it skips the rest of the
     FRIENDS_PURGE_DAYS window."""
@@ -1180,7 +1186,8 @@ def cli(argv: list[str]) -> int:
     import sys
 
     ap = argparse.ArgumentParser(prog="wow-stats users")
-    ap.add_argument("action", choices=["list", "hosts", "reconcile", "disable", "enable", "delete"])
+    ap.add_argument("action", choices=["list", "hosts", "reconcile", "disable", "enable", "delete",
+                                           "ah-share"])
     ap.add_argument("slug", nargs="?")
     ap.add_argument("--yes", action="store_true", help="delete: really delete (default: say what would go)")
     ap.add_argument("--allow-empty", action="store_true",
@@ -1203,6 +1210,19 @@ def cli(argv: list[str]) -> int:
         return 0
     if a.action == "hosts":
         print(json.dumps({"hosts": t.host_list()}, indent=1))
+        return 0
+    if a.action == "ah-share":
+        # Once, after the upgrade that shares the auction scans: the scans
+        # stored before it, of everyone still active, into the shared space
+        # (wowstats.ahshared). Safe to run again.
+        from wowstats import ahshared
+
+        if not t.friends_vl:
+            print("no friends' store (FRIENDS_VL_URL, or EVENTS_STORE=sqlite:...): nothing to share into",
+                  file=sys.stderr)
+            return 1
+        people = [(u.slug or str(u.account_id), t.app_for(u).store) for u in t.registry.users() if u.active]
+        ahshared.backfill(t.friends_vl, people)
         return 0
     if a.action == "reconcile":
         out = reconcile(t, allow_empty=a.allow_empty)

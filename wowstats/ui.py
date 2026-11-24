@@ -1357,9 +1357,21 @@ def make_handler(root: App, tenancy=None):
                 if not u.first_event:
                     tenancy.registry.update(u.sub, first_event=datetime.now(UTC).isoformat(timespec="seconds"))
 
-            return self._ingest(app.store.vl_url, app.store.account_id, stored)
+            def share(lines: list[bytes]) -> None:
+                # The scans' price fields to the install's shared auction
+                # scans (wowstats.ahshared). After the person's own store
+                # took them: a failure here costs no upload, and
+                # `users ah-share` copies what it missed.
+                from wowstats import ahshared
 
-        def _ingest(self, vl_url: str, account_id: int, stored=None):
+                try:
+                    ahshared.share(ahshared.location(app.env), lines, app.store)
+                except (SourceError, ValueError) as e:
+                    public_error(e, "/ingest (shared auction scans)")
+
+            return self._ingest(app.store.vl_url, app.store.account_id, stored, share)
+
+        def _ingest(self, vl_url: str, account_id: int, stored=None, share=None):
             """The shipper's NDJSON, screened line by line (wowstats.ingest,
             a shared receiver's rules), then handed to the event store
             (wowstats.eventstore: VictoriaLogs' jsonline API or the
@@ -1376,9 +1388,9 @@ def make_handler(root: App, tenancy=None):
                     return self.send(503, json.dumps({"error": "too many uploads at once; try again in a few "
                                                                "minutes, nothing is lost"}).encode(),
                                      "application/json", headers={"Retry-After": "60"})
-                return self._ingest_one(vl_url, account_id, stored)
+                return self._ingest_one(vl_url, account_id, stored, share)
 
-        def _ingest_one(self, vl_url: str, account_id: int, stored=None):
+        def _ingest_one(self, vl_url: str, account_id: int, stored=None, share=None):
             """One upload, its slot held: read whole (INGEST_MAX_BYTES at most),
             screened, stored."""
             from wowstats import ingest
@@ -1401,6 +1413,8 @@ def make_handler(root: App, tenancy=None):
                     return self.json(502, {"error": public_error(e, "/ingest")})
                 if stored is not None:
                     stored(len(lines))
+                if share is not None:
+                    share(lines)
                 prebuilt.soon()  # the page catches up with the start page's "It works"
             return self.json(200, {"accepted": len(lines)})
 

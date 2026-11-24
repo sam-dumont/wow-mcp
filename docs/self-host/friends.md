@@ -170,6 +170,7 @@ Run these where the full view runs, with its settings (in the compose kit,
 | `wow-stats users delete <name>` | Says what would be deleted. Add `--yes` to delete their events, state and registry entry now: the purge-now for a friend who asks for their data gone without waiting the 7 days |
 | `wow-stats users reconcile --allow-empty` | Applies a list that removes every friend at once (refused otherwise) |
 | `wow-stats users hosts` | The site hosts that should resolve in DNS |
+| `wow-stats users ah-share` | Copies everyone's stored auction scans into the [shared auction scans](#shared-auction-scans), once after the upgrade |
 
 `list` shows `removed_at` and `purge_at` for everyone off the list: when they left and
 when their data goes. The [admin overview](admin.md) shows the same, and the server logs
@@ -182,6 +183,41 @@ on the list, and the next pass gives them a new, empty account. `disable` is the
 switch: off until you `enable` them, nothing ever deleted, whatever the list says.
 
 Tenant numbers are never reused, so a deleted friend's data can't show up under someone new.
+
+## Shared auction scans
+
+An Auctionator scan is a snapshot of one auction house: one ruleset (Forever has no realms;
+the addon's "realm" is the ruleset's name) and one faction's house, or the neutral one. The
+prices are the same for everyone there, so on a shared install everyone's scans land in one
+shared space too, and each person's gear advice, price list and `prices` answers read the
+newest scan of their own characters' rulesets and factions, whoever made it. A Horde
+character never reads the Alliance house, and two rulesets never mix.
+
+What the shared space keeps per item and scan day: the item, the lowest and highest price,
+how many were listed, the scan day and time, the ruleset and the faction. Never the
+character, the account, the upload's source id or the shipper's text. When Auctionator's key
+doesn't name the faction, the server takes it from the scanning character's newest faction
+record, else its race; a scan whose side stays unknown stays in its sender's own data only.
+
+Where it lives: one more tenant (AccountID `4000000000`) in the friends' store
+(`FRIENDS_VL_URL`), or the file `events-4000000000.sqlite` next to everyone's with the
+SQLite store. Not in the owner's store, so it never reaches an archive that never deletes.
+Without a friends' store (one person) nothing is shared and each install reads its own scans,
+as before.
+
+**A friend's deletion leaves their past scans' prices there.** Nothing in the shared space
+says who scanned what, so `users delete` can't pick their rows out. Those rows hold game
+prices, nothing about the person. To empty it anyway, delete the tenant `4000000000` (or
+its SQLite file); the next scans fill it again.
+
+After upgrading to the release that brings it, copy the scans stored before it in once:
+
+```sh
+docker compose exec ui wow-stats users ah-share
+```
+
+It prints one line per person (scans read, rows shared) and can run again: a second copy
+changes no answer.
 
 Who uses the install, when they last did and whether their sites build:
 [Admin overview](admin.md).

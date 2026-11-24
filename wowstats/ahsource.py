@@ -1,24 +1,29 @@
 """The auction house as a source of gear upgrades: what is on sale now, from
-the player's own Auctionator scans (feed wow-prices), and what it costs
-against the gold he has.
+the Auctionator scans (feed wow-prices: the player's own, or on an install
+with several people anyone's scans of the character's ruleset and faction,
+wowstats.ahshared), and what it costs against the gold he has.
+
+WoW Forever has no realms, only rulesets: Auctionator's "realm" is the
+client's realm name, which on Forever names the ruleset. Here it is the
+ruleset.
 
 What Auctionator keeps (Source/Database/Mixin.lua, the legacy AH it runs on
 in Forever): per item key and scan day, the day's lowest and highest
 minimum buyout and the most it saw listed; no time of day. A full scan
 (GetAll) writes every item listed at that moment and nothing for the rest;
 a search writes the items it found. So "listed in the latest scan" is a
-day: an item with a price on the realm's newest full-scan day was on sale
+day: an item with a price on the house's newest full-scan day was on sale
 then, one whose newest price is older was not in that scan.
 
 The rules, each from the game or the data, not a taste:
 
-- On sale: the item's newest scan day is the realm's newest full-scan day
+- On sale: the item's newest scan day is the house's newest full-scan day
   or later (a search after the scan also saw it listed), and that day is
   today or yesterday (FRESH_DAYS). Auctions last 24 hours at most (2, 8 or
   24 h), so a listing seen on an older day has run out or was relisted,
   which no scan we have says. Nothing older is shown, not even as "last
   seen".
-- A full scan: a day on which the realm's scans priced at least a third of
+- A full scan: a day on which the house's scans priced at least a third of
   the items of its biggest day of the window read (and FULL_SCAN_MIN). A
   search prices one term's results; a GetAll prices the whole house. Only
   the days that can still count are read (today, yesterday, the day
@@ -58,7 +63,9 @@ _ID = re.compile(r"^\d+$")
 # more than a raw read may return.
 WINDOW_DAYS = FRESH_DAYS + 2
 # The LogsQL pipes, after the stream filter.
-Q_MONEY = 'feed:="wow-character" {cf} -kind:=played money_copper:* | fields _time, level, money_copper'
+# The character's ruleset comes with its gold: the same records carry `realm`
+# (the client's realm name, the ruleset's on Forever).
+Q_MONEY = 'feed:="wow-character" {cf} -kind:=played money_copper:* | fields _time, level, money_copper, realm'
 Q_SKILLS = "{rec} kind:=skill | fields _time, skill_id, rank, max_rank, source_id"
 
 
@@ -71,39 +78,41 @@ def _age_days(t, now: float) -> int | None:
     return max(0, int((now - d.timestamp()) // 86400))
 
 
-def on_sale(items: list[dict], faction: str | None, now: float | None = None) -> dict:
-    """{"scan": {...}, "items": {item_id: {...}}}: what the realm's newest
-    scans saw listed, as of now. The realm is the one scanned most
-    recently that sells to this faction (a faction-less key, the faction's
-    own, or a neutral house)."""
+def on_sale(items: list[dict], faction: str | None, now: float | None = None, ruleset: str | None = None) -> dict:
+    """{"scan": {...}, "items": {item_id: {...}}}: what the house's newest
+    scans saw listed, as of now. The house (ruleset, faction) is the one
+    scanned most recently that sells to this faction (a faction-less key,
+    the faction's own, or a neutral house), on the character's ruleset when
+    it is known."""
     now = now or time.time()
     ok = {None, "", "Neutral", faction} if faction else None
 
     def sells(r):
-        return ok is None or (r.get("faction") or None) in ok
+        return ((ok is None or (r.get("faction") or None) in ok)
+                and (not ruleset or (r.get("ruleset") or "") in ("", ruleset)))
 
-    by_realm: dict[tuple, dict] = {}
+    by_house: dict[tuple, dict] = {}
     for r in items:
         if not sells(r) or not r.get("scan_day"):
             continue
-        k = (r.get("realm") or "", r.get("faction") or "")
-        n, t = by_realm.setdefault(k, {}).get(r["scan_day"], (0, None))
-        by_realm[k][r["scan_day"]] = (n + 1, r.get("t") if parse_t(r.get("t")) > parse_t(t) else t)
-    if not by_realm:
+        k = (r.get("ruleset") or "", r.get("faction") or "")
+        n, t = by_house.setdefault(k, {}).get(r["scan_day"], (0, None))
+        by_house[k][r["scan_day"]] = (n + 1, r.get("t") if parse_t(r.get("t")) > parse_t(t) else t)
+    if not by_house:
         return {"scan": None, "items": {}}
-    realm = max(by_realm, key=lambda k: max(by_realm[k]))  # scan_day is YYYY-MM-DD
-    ds = by_realm[realm]
+    house = max(by_house, key=lambda k: max(by_house[k]))  # scan_day is YYYY-MM-DD
+    ds = by_house[house]
     biggest = max(n for n, _ in ds.values())
     full = [d for d, (n, _) in ds.items() if n >= max(FULL_SCAN_MIN, biggest * FULL_SCAN_SHARE)]
     last_day = max(ds)
     last_full = max(full) if full else None
     scan = {"day": last_day, "days_ago": _age_days(ds[last_day][1], now), "full_day": last_full,
             "full_days_ago": _age_days(ds[last_full][1], now) if last_full else None,
-            "realm": realm[0] or None, "faction": realm[1] or None}
+            "ruleset": house[0] or None, "faction": house[1] or None}
     floor = last_full or ""
     newest: dict[int, dict] = {}
     for r in items:
-        if (r.get("realm") or "", r.get("faction") or "") != realm:
+        if (r.get("ruleset") or "", r.get("faction") or "") != house:
             continue
         key, day, lo = str(r.get("item_key") or ""), r.get("scan_day") or "", r.get("lo")
         if not _ID.match(key) or lo in (None, "") or day < floor:
@@ -184,7 +193,8 @@ def market(res: dict, *, faction: str | None, money: int | None,
     now = now or time.time()
     # Only the scans' window: a wider read (the price list's) holds older days.
     recent = [r for r in res.get("items") or [] if (a := _age_days(r.get("t"), now)) is not None and a < WINDOW_DAYS]
-    sale = on_sale(recent, faction, now)
+    homes = sorted((r for r in res.get("money") or [] if r.get("realm")), key=lambda r: parse_t(r.get("_time")))
+    sale = on_sale(recent, faction, now, ruleset=homes[-1]["realm"] if homes else None)
     return {**sale, "money_copper": money, "gold_per_level_copper": gold_per_level(res.get("money") or [], now),
             "mount": mount_left(money, res.get("skills") or [], res.get("riding_book"), res.get("riding_learn"))}
 
