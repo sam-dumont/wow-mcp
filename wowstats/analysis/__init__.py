@@ -452,8 +452,7 @@ def scoring_for(rows: list[dict], char: str, env: dict) -> dict:
     """The gear scoring the build's upgrade candidates come from, normalized
     for the run manifest's definitions: the spec the gear is scored for, as
     resolved from WEIGHTS (settings_from_env), the add-ons and the class
-    default (gear.resolve_spec), and the player's own weight edits for it.
-    Two settings that resolve to the same spec score the same. Without a
+    default (gear.resolve_spec). Two settings that resolve to the same spec score the same. Without a
     sheet or the gear data nothing is scored: None. Review 6: without it a
     WEIGHTS change wasn't a definition change at all."""
     from wowstats import gear
@@ -462,11 +461,9 @@ def scoring_for(rows: list[dict], char: str, env: dict) -> dict:
     ref = gear.reference()
     cls = gear.class_token((got or ({},))[0].get("class"))
     if got is None or not ref.available or not cls:
-        return {"spec": None, "adjust": None}
-    sheet = got[0]
-    key, _how = gear.resolve_spec(ref, cls, sheet, None, weights_for(env, char))
-    edits = (sheet.get("gear_adjust") or {}).get(key) if isinstance(sheet.get("gear_adjust"), dict) else None
-    return {"spec": key, "adjust": json.loads(json.dumps(edits, sort_keys=True)) if edits else None}
+        return {"spec": None}
+    key, _how = gear.resolve_spec(ref, cls, got[0], None, weights_for(env, char))
+    return {"spec": key}
 
 
 def tables_of(db) -> tuple[list[str], int]:

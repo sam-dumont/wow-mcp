@@ -25,6 +25,11 @@ C_Item.GetItemStats has them, the item table does not). The bags and the bank
 come from the shipper's wow-bags (Syndicator): an item held there is a
 candidate, its only source the bag or the bank (`held`), since getting it
 again is no errand.
+
+Nothing of Polestar's scoring is read (owner, 2026-11-24: "Ignore polestar
+entirely for bis"): no weights or gear settings of its own, in the data file
+or from the player's SavedVariables. Polestar's data gives the items, their
+sources and the class rules only.
 """
 
 from __future__ import annotations
@@ -80,6 +85,7 @@ RACE_IDS = {"human": 1, "orc": 2, "dwarf": 3, "nightelf": 4, "night elf": 4, "sc
             "tauren": 6, "gnome": 7, "troll": 8, "skyborne": 33}
 SIDES = {"alliance": 1, "horde": 2}
 SOON_LEVELS = 3  # "the next one coming": within this many levels
+MIN_UPGRADE = 1.0  # the least gain, in percent, that counts as an upgrade
 PER_SLOT = 3  # upgrades listed per slot
 HELD = frozenset({"bags", "bank"})  # the source kinds of an item the character already has
 PAIRS = ((11, 12), (13, 14))
@@ -233,9 +239,8 @@ def resolve_spec(ref: Reference, cls: str, sheet: dict, override: str | None = N
     """The spec to score for and where it came from (Gear.lua resolveSpec):
 
     1. the page's choice ("page");
-    1b. the server's WEIGHTS setting for this character ("server": the
+    2. the server's WEIGHTS setting for this character ("server": the
        player's choice, set where the site runs);
-    2. Polestar's Stat weights setting when it names a spec ("setting");
     3. the spec the player picked in a gear addon, ForeverLevelingBiS or
        GearQuestForever (the shipper's `spec`: "picked");
     4. only when nothing above says, the tree with the most talent points
@@ -246,8 +251,8 @@ def resolve_spec(ref: Reference, cls: str, sheet: dict, override: str | None = N
 
     The player's choice comes first (owner, 2026-11-18, restored
     2026-11-20): a Shadow priest leveling with most points in Discipline
-    on the way to Shadowform wants Shadow weights. Polestar in game also
-    puts Forever Leveling BiS's pick before the talents."""
+    on the way to Shadowform wants Shadow weights. Polestar's own Stat
+    weights setting is not read (owner, 2026-11-24)."""
     if override:
         k = spec_key(ref, cls, override)
         if k:
@@ -255,9 +260,6 @@ def resolve_spec(ref: Reference, cls: str, sheet: dict, override: str | None = N
     k = spec_key(ref, cls, weights)
     if k:
         return k, "server"
-    k = spec_key(ref, cls, sheet.get("polestar_spec"))
-    if k:
-        return k, "setting"
     k = spec_key(ref, cls, sheet.get("spec"))
     if k:
         return k, "picked"
@@ -268,7 +270,7 @@ def resolve_spec(ref: Reference, cls: str, sheet: dict, override: str | None = N
     return meta.get("default"), "default"
 
 
-# --- weights (ForeverDB.net; Adjust.lua Adjust.Apply for the player's edits) --
+# --- weights (ForeverDB.net) ---------------------------------------------------
 
 
 def mode_key(mode) -> str:
@@ -299,33 +301,6 @@ def weights_for(ref: Reference, cls: str, key: str, mode: str = DEFAULT_MODE) ->
                                          "Leveling weights, made from the class guide's by its rule" if mode == "lvl"
                                          else "PvP-guide weights")}
     return w, info
-
-
-# Polestar's Adjust weights edits are on Polestar's stat names: the ones
-# whose name changed point at the weight they meant, and a plain value ({v})
-# is per 1% where Polestar's was (PCT_RATING).
-ADJUST_KEYS = {"spellHit": "hitRating", "hit": "hitRating", "crit": "critRating", "spellCrit": "critRating",
-               "dodge": "dodgeRating", "parry": "parryRating", "block": "blockRating"}
-
-
-def adjust_apply(weights: dict, edits: dict | None) -> tuple[dict, int]:
-    """Adjust.lua Adjust.Apply: the player's own edits in Polestar on top,
-    an edit being a multiple of the default ({x}) or a plain value ({v}).
-    -> weights, count."""
-    if not isinstance(edits, dict) or not edits:
-        return weights, 0
-    out, n = dict(weights), 0
-    for k, e in edits.items():
-        if not isinstance(e, dict):
-            continue
-        name = ADJUST_KEYS.get(k, k)
-        if isinstance(e.get("x"), (int, float)):
-            out[name] = (weights.get(name) or 0) * e["x"]
-        else:
-            v = e.get("v") if isinstance(e.get("v"), (int, float)) else 0
-            out[name] = v / PCT_RATING[k][1] if k in PCT_RATING else v
-        n += 1
-    return out, n
 
 
 # --- scoring (ForeverDB's formula) --------------------------------------------
@@ -966,19 +941,6 @@ def _num(v):
     return int(f) if f.is_integer() else f
 
 
-def adjust_map(rows: list) -> dict:
-    """The shipper's gear_adjust list -> Polestar's PolestarDB.gearAdjust[CLASS]
-    shape, {spec: {stat: {x} | {v}}} (Adjust.lua)."""
-    out: dict = {}
-    for a in rows:
-        if not isinstance(a, dict) or not a.get("spec") or not a.get("stat"):
-            continue
-        e = {k: float(a[k]) for k in ("x", "v") if isinstance(a.get(k), (int, float))}
-        if e:
-            out.setdefault(str(a["spec"]), {})[str(a["stat"])] = e
-    return out
-
-
 def sheet(row: dict, fallback: dict | None = None) -> dict:
     """advise()'s sheet from a stored wow-gear event (its lists arrive as
     JSON strings); class, race and faction fall back to `fallback`."""
@@ -991,13 +953,10 @@ def sheet(row: dict, fallback: dict | None = None) -> dict:
         "items": items,
         "professions": [p for p in _jlist(row.get("professions")) if isinstance(p, dict)],
         "spec": row.get("spec") or None, "spec_from": row.get("spec_from") or None,
-        "polestar_spec": row.get("polestar_spec") or None,
-        "gear_adjust": adjust_map(_jlist(row.get("gear_adjust"))),
         # Talents come from Battle.net only (Views puts them in); an old
         # sheet's SimBench `talents` stays stored, unread.
         "talents": None,
         "recipes": [r for r in _jlist(row.get("recipes")) if isinstance(r, dict)],
-        "min_upgrade": _num(row.get("min_upgrade")),
         "class": row.get("class") or fb.get("class"), "race": row.get("race") or fb.get("race"),
         "faction": row.get("faction") or fb.get("faction"),
     }
@@ -1013,8 +972,7 @@ BAGS_PARTS = ("bags", "bank")
 # in force and, for each part, the newest sheet that has it
 # (stores.in_force), for pick_sheet; the bags and bank in force, for
 # advise(held=...) through newest_bags.
-SHEET_FIELDS = ("_time, at_basis, source_id, items, professions, recipes, spec, spec_from, polestar_spec, "
-                "gear_adjust, min_upgrade, class, race, faction")
+SHEET_FIELDS = "_time, at_basis, source_id, items, professions, recipes, spec, spec_from, class, race, faction"
 HELD_FIELDS = "_time, at_basis, source_id, feed, bags, bank"
 
 
@@ -1061,9 +1019,7 @@ class _Ctx:
     how: str
     w: dict
     scoring: dict | None
-    adjusted: int
     dual: bool
-    min_upgrade: float
     who: Who
     worn: Worn
     worn_names: dict
@@ -1075,7 +1031,7 @@ class _Ctx:
 def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: str | None,
              weights: str | None, mode: str | None = None) -> _Ctx:
     """What advise() and instance_loot() score with: the class, the spec's
-    weights in the mode (with the player's edits), what is worn."""
+    weights in the mode, what is worn."""
     if not ref.available:
         raise GearError(ref.why)
     cls = class_token(sheet.get("class"))
@@ -1092,13 +1048,9 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
     from wowstats import gearfit
 
     points = gearfit.spec_points(ref, cls, key, sheet)
-    adjust = (sheet.get("gear_adjust") or {}).get(key) if isinstance(sheet.get("gear_adjust"), dict) else None
-    w, adjusted = adjust_apply(w, adjust)
     race_id = RACE_IDS.get(str(sheet.get("race") or "").strip().lower())
     prof = (ref.gear.get("PROFICIENCY") or {}).get(cls)
     dual = can_dual_wield(prof, level)
-    min_upgrade = sheet.get("min_upgrade")
-    min_upgrade = float(min_upgrade) if isinstance(min_upgrade, (int, float)) else 1.0
     who = Who(cls=cls, level=level, side=SIDES.get(str(sheet.get("faction") or "").lower()), race_id=race_id,
               professions={str(p.get("name") or "").lower(): p.get("rank") for p in sheet.get("professions") or []
                            if p.get("name") and isinstance(p.get("rank"), (int, float))},
@@ -1107,7 +1059,7 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
     items = [i for i in sheet.get("items") or [] if isinstance(i, dict)]
     worn = worn_from(ref, items, w, sheet.get("worn_stats"))
     worn_names = {i.get("slot"): i.get("name") for i in items}
-    return _Ctx(cls, level, key, how, w, scoring, adjusted, dual, min_upgrade, who, worn, worn_names, points, mode,
+    return _Ctx(cls, level, key, how, w, scoring, dual, who, worn, worn_names, points, mode,
                 (scoring or {}).get("style") or "any")
 
 
@@ -1175,7 +1127,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     """The gear advice for one character.
 
     sheet: the newest wow-gear event (items, class, race, faction, spec,
-    polestar_spec, gear_adjust, min_upgrade, professions). every: also
+    professions). every: also
     return `upgrades_all`, every upgrade before the per-slot cap (the
     analysis' upgrade_candidates and the planner's dungeon ranking need the
     drops a capped list leaves out). held: the newest wow-bags lists
@@ -1186,8 +1138,8 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     with its price against his gold; the answer gets `ah`. mode: the
     weights' mode, Leveling (the default), PvP or PvE (mode_key)."""
     cx = _context(ref, sheet, level, zone, done, spec, weights, mode)
-    cls, level, key, how, w, scoring, adjusted = cx.cls, cx.level, cx.key, cx.how, cx.w, cx.scoring, cx.adjusted
-    dual, min_upgrade, who, worn = cx.dual, cx.min_upgrade, cx.who, cx.worn
+    cls, level, key, how, w, scoring = cx.cls, cx.level, cx.key, cx.how, cx.w, cx.scoring
+    dual, min_upgrade, who, worn = cx.dual, MIN_UPGRADE, cx.who, cx.worn
     worn_names = cx.worn_names
 
     # Every item this character can get, with its best option (compare) and
@@ -1244,7 +1196,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         # Who the item is built for and how it fits this spec (wowstats.gearfit):
         # a label on every row, and the factor the ranking applies.
         if c["id"] not in fits:
-            fits[c["id"]] = gearfit.fit(ref, c["info"], cls, key, how, level, w, c["sources"], cx.points)
+            fits[c["id"]] = gearfit.fit(ref, c["info"], cls, key, how, level, w, c["sources"], cx.points, cx.mode)
         return fits[c["id"]]
 
     def priced(srcs: list[dict], gain) -> list[dict]:
@@ -1368,7 +1320,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                          # How the worn item fits the spec it's scored for, the
                          # same label an upgrade carries: a Shadow circlet on a
                          # Holy priest says so (seeded evaluation, wrong_spec_gear).
-                         "fit": gearfit.fit(ref, cur_info, cls, key, how, level, w, [], cx.points)
+                         "fit": gearfit.fit(ref, cur_info, cls, key, how, level, w, [], cx.points, cx.mode)
                          if cur_info else None} if cur_id else None),
             "best": best, "next": nxt})
 
@@ -1448,11 +1400,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         extra["ah"] = ahsource.summary(market, capped)
     return {**extra,
         "class": cls, "level": level, "zone": zone,
-        "spec": {"key": key, "label": label, "source": how, "adjusted": adjusted, "choices": specs_of(ref, cls),
+        "spec": {"key": key, "label": label, "source": how, "choices": specs_of(ref, cls),
                  # None: no spec picked and no talents, for a class whose specs
                  # differ in role (the fit labels then ask to pick one).
                  "role": gearfit.known_role(ref, cls, key, how),
-                 "why": spec_why(ref, cls, key, label, how, sheet, adjusted)},
+                 "why": spec_why(ref, cls, key, label, how, sheet)},
         "weights": {k: _r(v, 4) for k, v in sorted(w.items()) if v},
         # Leveling, PvP or PvE (owner, 2026-11-23), and whose weights they are:
         # every score shown credits ForeverDB.net.
@@ -1971,13 +1923,12 @@ class WeaponSetups:
 SPEC_WHY = {
     "page": "you picked it on this page",
     "server": "the site's WEIGHTS setting picks {label} for this character",
-    "setting": "Polestar's Stat weights setting is {label}",
     "picked": "you picked {label} in {addon}",
-    "default": "it's Polestar's default for a leveling {cls}",
+    "default": "it's the usual leveling spec for a {cls}",
 }
 
 
-SHORT_SOURCE = {"page": "this page", "server": "site setting", "setting": "Polestar setting",
+SHORT_SOURCE = {"page": "this page", "server": "site setting",
                 "talents": "most talent points", "picked": "your pick", "default": "leveling default"}
 
 
@@ -2030,7 +1981,7 @@ def capstone_check(ref: Reference, cls, key: str, level, tree_points: dict[str, 
             f"there now, {CAPSTONE_LEVEL - level} more by level {CAPSTONE_LEVEL}, {CAPSTONE_POINTS} needed.")
 
 
-def spec_why(ref: Reference, cls: str, key: str, label: str, how: str, sheet: dict, adjusted: int) -> str:
+def spec_why(ref: Reference, cls: str, key: str, label: str, how: str, sheet: dict) -> str:
     """Where the spec came from, in plain words: "Scored for Shadow because
     most of your talent points are there (Shadow 21, Discipline 5, as
     Battle.net last read them)"."""
@@ -2038,15 +1989,13 @@ def spec_why(ref: Reference, cls: str, key: str, label: str, how: str, sheet: di
         pts = [t for t in sheet.get("talents") or [] if isinstance(t, dict) and t.get("points")]
         shown = ", ".join(f"{t.get('tree') or '?'} {t['points']}" for t in sorted(pts, key=lambda t: -t["points"]))
         why = (f"most of your talent points are in {label} ({shown}, as Battle.net last read them) and nothing "
-               f"else picks a spec: set Polestar's Stat weights or the site's WEIGHTS to score for another")
+               f"else picks a spec: pick one on the gear page or set the site's WEIGHTS to score for another")
     else:
         addon = sheet.get("spec_from") or "a gear addon (ForeverLevelingBiS or GearQuestForever)"
         why = SPEC_WHY.get(how, how).format(label=label, addon=addon, cls=cls.title())
         if how == "default":
             why += (". No talents known yet: once Battle.net's read (every 2 hours) knows the character, "
                     "the tree with the most points is the hint")
-    if adjusted:
-        why += f". Your {adjusted} edit{'s' if adjusted > 1 else ''} in Polestar's Adjust weights count"
     return f"Scored for {label} because {why}."
 
 
@@ -2134,7 +2083,7 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
         # for an item others usually roll for first (wowstats.gearfit).
         group = [{"kind": "drop", "dungeon": True}] if not any(d["quests"] for d in by_area.values()) else \
             [{"kind": "quest"}]
-        f = gearfit.fit(ref, info, cx.cls, cx.key, cx.how, cx.level, cx.w, group, cx.points)
+        f = gearfit.fit(ref, info, cx.cls, cx.key, cx.how, cx.level, cx.w, group, cx.points, cx.mode)
         # A two-hander is a whole setup; any other weapon alone isn't one.
         rb = {**r, "setup_score": r["new"]} if info["inv"] == 17 else r
         badge = dict(NO_BADGE) if vs & cx.worn.unknown else bis_badge((bis or {}).get(str(r["slot"])), rb)

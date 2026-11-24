@@ -51,6 +51,13 @@ def bracket_level(bracket: str, req: int) -> int:
     return min(hi, max(lo, req or lo))
 
 
+def bracket_mode(level: int) -> str:
+    """The weights' mode a table is judged in: PvE for the pre-raid tables
+    at 60, Leveling for the levelling brackets. The page scores in the mode
+    the player picks (Leveling by default), and the labels follow it."""
+    return "pve" if level >= 60 else "lvl"
+
+
 def slot_group(info: dict) -> str:
     inv = info["inv"]
     if inv == 17:
@@ -97,8 +104,9 @@ def check(doc: dict, ref: gm.Reference | None = None) -> dict:
                     out["misses"].append({"class": cls, "spec": key, "item_id": r["item_id"], "level": lv,
                                           "why": "not wearable by the class at that level in our data"})
                     continue
-                w = gearfit.spec_weights(ref, cls, key)
-                f = gearfit.fit(ref, info, cls, key, "picked", lv, w)
+                mode = bracket_mode(60 if r["bracket"] == "60" else lv)
+                w = gearfit.spec_weights(ref, cls, key, mode)
+                f = gearfit.fit(ref, info, cls, key, "picked", lv, w, mode=mode)
                 n += 1
                 scopes.add(r["scope"])
                 ok_built = f["for_you"] in ("yes", "any") or (f["for_you"] == "spec" and r["bracket"] != "60")
@@ -122,8 +130,9 @@ def check(doc: dict, ref: gm.Reference | None = None) -> dict:
                                             "scopes": sorted(scopes)}
     for t in doc.get("traps") or []:
         info = ref.item(t["item_id"])
-        w = gearfit.spec_weights(ref, t["class"], t["spec"])
-        f = gearfit.fit(ref, info, t["class"], t["spec"], "picked", t["level"], w)
+        mode = bracket_mode(t["level"])
+        w = gearfit.spec_weights(ref, t["class"], t["spec"], mode)
+        f = gearfit.fit(ref, info, t["class"], t["spec"], "picked", t["level"], w, mode=mode)
         # Off-role, mostly wasted, or a lower armour type with the tip that
         # its best wearers roll first.
         flagged = f["for_you"] in ("spec", "class") or f["wasted_pct"] >= 50 or bool(f["armor"] and f["tip"])

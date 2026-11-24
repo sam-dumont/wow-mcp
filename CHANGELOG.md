@@ -12,21 +12,46 @@
   the rest a tenth apart.
 - An item with no required level is wearable from its item level - 5, a quest reward from the
   quest's level - 5 (ForeverDB's rule).
-- Polestar's level-band weights, racial multipliers and school damage cap no longer score
-  anything. Polestar still gives the items and where they come from, and your Adjust weights
-  edits still apply.
+- The gear page's Weights pick (Leveling, PvP, PvE) is kept on the server per character, not
+  in the browser. Your AI's `gear` answers use the same pick; its `mode` argument still
+  overrides it for one call (`mode_from` says which). The plan, next moves, the analysis and
+  the public page's badges stay on Leveling.
+- "Who an item is built for" (the fit label and the group-loot tip) reads ForeverDB.net's
+  weights in the mode you score in, not always PvE. Leveling halves a healer's healing, so a
+  Shadow priest now reads "Built for your spec" on caster pieces that carry some healing.
+- An upgrade has to gain at least 1% over what you wear, for everyone.
+
+### Removed
+
+- Every Polestar weight from the gear scores: its level-band weights, racial multipliers,
+  school damage cap and formula tables are out of `data/gear-reference.json`, which now keeps
+  only the items, their sources, the quests and the class rules (who wears what).
+- Polestar's gear settings: your Adjust weights edits, its Stat weights spec and its smallest
+  upgrade no longer change anything. The shipper stops sending them (`polestar_spec`,
+  `gear_adjust`, `min_upgrade`); what an older shipper sends is stored and never read.
+- `weights_adjusted_by_player` in the MCP `gear` answer and `spec.adjusted` in the gear API.
 
 ### Upgrading
 
 - Every gear score, gain and "% of BiS" changes, and so do the upgrades and the dungeons
   suggested from them. A caster levelling sees Stamina pieces and wands rise, Spirit pieces
   drop. Nothing to do on the host: `data/foreverdb-weights.json` ships in the image.
+- A player who had set a spec in Polestar's Stat weights and nothing else gets the spec from
+  the gear page, the site's `WEIGHTS`, ForeverLevelingBiS or GearQuestForever, else the
+  talents. Pick it on the gear page if it changed.
+- Kept findings show as "to revalidate" once: the run manifest's gear scoring no longer
+  carries the Polestar edits.
+- Gear page users who picked PvP or PvE on main since the ForeverDB change pick it once more:
+  the browser's copy isn't read.
 
 ### Tests
 
 - `tests/test_gear_foreverdb.py` replaces the Polestar Lua parity test: weights, ladder
   scores, picks and weapon setups against ForeverDB fixtures, in the normal suite. A slice
   checks the page and the MCP agree in each mode.
+- `tests/test_gearmode.py` and a slice check the mode kept on the server: the page's pick
+  reaches the MCP, `mode` overrides it, Leveling clears it. `tools/gearfit_check.py` judges
+  the levelling tables in Leveling and the level-60 ones in PvE.
 
 ## 0.9.0 (2026-11-23)
 

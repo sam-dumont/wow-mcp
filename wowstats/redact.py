@@ -274,7 +274,7 @@ UPGRADE = {**ADVICE_ITEM, **_keys("level", "slot", "slot_name", "gain", "gain_pc
            "bis": _keys("from_pct", "to_pct"),
            "gates": [_keys("kind", "profession", "need", "have")], "fit": FIT}
 UPGRADE_PAIR = {**UPGRADE, "with": {**UPGRADE, "kind": None}}
-SPEC = {**_keys("key", "label", "source", "adjusted", "why", "role"), "choices": [_keys("key", "label")]}
+SPEC = {**_keys("key", "label", "source", "why", "role"), "choices": [_keys("key", "label")]}
 GEAR_SHEET = {**_keys("at", "item_level", "guild", "spec", "class", "race", "faction", "sex", "armory_item_level",
                       "armory_item_level_source", "items_from", "items_note"),
               "render": _keys("ext", "pending"),
@@ -393,7 +393,7 @@ ZOGZOG: dict[str, dict] = {
         "gear": {"item_level": None, "professions": [PROFESSION],
                  "items": [{**ITEM, "certainty": None, "source": _keys("kind", "quest", "zone", "t")}]},
         "looted_gear": [_keys("item_id", "name", "inv", "item_level")],
-        "bis": {"gear_score": None, "spec": _keys("key", "label", "source", "adjusted", "why"),
+        "bis": {"gear_score": None, "spec": _keys("key", "label", "source", "why"),
                 "upgrades": [UPGRADE_PAIR]},
         "picture": PUBLIC["snapshot"]["picture"],
     },

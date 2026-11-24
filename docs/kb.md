@@ -101,7 +101,7 @@ gets the credit and you can check the claim.
 - **Bulk data** (quests, NPCs, items, trainers, routes, gear) comes from
   open projects under their own licences, never from a website's tables:
   Polestar and its forever-db (GPL-3.0, with CC BY 4.0 and MIT parts),
-  ForeverLevelingBiS v0.12.0-beta and wowsims (MIT), and the game client's
+  ForeverLevelingBiS v0.12.0-beta (MIT), and the game client's
   tables through wago.tools (Blizzard's, used as facts).
   [`THIRD_PARTY.md`](../THIRD_PARTY.md) lists each one and the file it
   lands in.

@@ -290,11 +290,8 @@ def test_gear_snapshot_on_change(shipper, wow, tmp_path, monkeypatch):
     assert (g["spec"], g["class"]) == ("Shadow", "PRIEST")
     # Sex and guild are Battle.net's (owner, 2026-11-20): never sent.
     assert "guild" not in g and "sex" not in g
-    # Polestar's gear settings for this class only, the edits as a list
-    # (VictoriaLogs would flatten a nested object).
-    assert (g["polestar_spec"], g["min_upgrade"]) == ("holy", 3)
-    assert g["gear_adjust"] == [{"spec": "shadow", "stat": "spellHit", "v": 2},
-                                {"spec": "shadow", "stat": "sta", "x": 1.5}]
+    # Polestar's gear settings are no longer sent: the scores are ForeverDB's alone.
+    assert not {"polestar_spec", "gear_adjust", "min_upgrade"} & set(g)
     assert "987654" not in json.dumps(got)  # never the gold
 
 

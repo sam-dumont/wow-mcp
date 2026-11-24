@@ -1,11 +1,11 @@
 -- Runs Polestar's own gear files (ItemDB.lua with the Polestar_ItemDB data
--- addon, Weights.lua, SpecData.lua) and prints what they hold as one JSON
+-- addon, Weights.lua for the class rules) and prints what they hold as one JSON
 -- object, for tools/gear_reference/export.mjs:
 --
 --   lua dump.lua <addon dir>
 --
 -- {items = {[id] = record}, sources = {[id] = {source...}}, quests = {[id] = quest},
---  meta = {...}, leveling = {...}, gear = {CLASSES, WEIGHTS, PROFICIENCY, ...}}
+--  meta = {...}, leveling = {...}, gear = {CLASSES, PROFICIENCY}}
 --
 -- Items are parsed by ItemDB.lua's own parser (ItemDB.Get), sources and
 -- quests by its ItemDB.Sources and ItemDB.Quest, so the export reads the data
@@ -102,22 +102,12 @@ for id, name in pairs(lev and lev.npcs or {}) do out.npcs[tostring(id)] = name e
 for id, name in pairs(lev and lev.zones or {}) do out.zones[tostring(id)] = name end
 out.professions = lev and lev.professions or {}
 
+-- Only the class rules (who wears what): the stat weights are ForeverDB.net's
+-- (tools/foreverdb_weights/), so Polestar's weights, level bands, racials and
+-- formula tables stay out of the file (owner, 2026-11-24).
 run(gear .. "Weights.lua")
-run(gear .. "SpecData.lua")
 local G = ns.Gear
-local perCrit, armorShare = {}, {}
-for class in pairs(G.CLASSES) do
-	local by = {}
-	for level = 1, 60 do by[level] = G.IntPerSpellCrit(class, level) end
-	if by[60] then perCrit[class] = by end
-end
-for level = 1, 60 do armorShare[level] = G.ArmorShare(level) end
-out.gear = {
-	STAT_KEYS = G.STAT_KEYS, CLASSES = G.CLASSES, WEIGHTS = G.WEIGHTS, PROFICIENCY = G.PROFICIENCY,
-	WEIGHT_BANDS = G.WEIGHT_BANDS, RACIALS = G.RACIALS,
-	HEALTH_PER_STA = G.HEALTH_PER_STA, MANA_PER_INT = G.MANA_PER_INT,
-	INT_PER_SPELL_CRIT = perCrit, ARMOR_SHARE = armorShare,
-}
+out.gear = { CLASSES = G.CLASSES, PROFICIENCY = G.PROFICIENCY }
 
 -- JSON out. Integer-keyed tables with holes (sets of subclasses) become
 -- objects with string keys; keys are sorted so the output never depends on

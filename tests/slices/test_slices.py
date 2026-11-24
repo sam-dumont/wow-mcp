@@ -136,6 +136,43 @@ def test_each_mode_reads_the_same_on_the_gear_page_and_in_the_mcp(served, mode):
     assert {k: v for k, v in mine.items() if k in theirs} == theirs, (served.name, mode)
 
 
+def test_the_mode_picked_on_the_page_is_kept_for_the_mcp(served):
+    """The gear page's mode picker writes the mode on the server
+    (wowstats.gearmode): the page and the MCP's `gear` read it without a
+    `mode`, the MCP's `mode` overrides it for one call, Leveling clears it."""
+    import urllib.error
+    import urllib.request
+
+    def pick(mode: str) -> dict:
+        req = urllib.request.Request(served.base + "/api/gear-mode", method="POST",
+                                     data=json.dumps({"name": served.char, "mode": mode}).encode(),
+                                     headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return json.loads(r.read())
+
+    if not served.page("gear").get("available"):
+        pytest.skip(f"{served.name}: no gear advice")
+    assert served.page("gear")["mode"]["key"] == "lvl"
+    # JSON only: a cross-site form can't send it without a preflight.
+    form = urllib.request.Request(served.base + "/api/gear-mode", method="POST", data=b"name=x&mode=pvp",
+                                  headers={"Content-Type": "application/x-www-form-urlencoded"})
+    with pytest.raises(urllib.error.HTTPError) as e:
+        urllib.request.urlopen(form, timeout=60)
+    assert e.value.code == 415
+    try:
+        assert pick("pvp")["mode"]["key"] == "pvp"
+        assert served.page("gear")["mode"]["key"] == "pvp"
+        served.calls.clear()
+        mcp = served.mcp("gear")
+        assert mcp["mode"] == "PvP" and mcp["mode_from"] == "the player's pick on the gear page"
+        asked = served.mcp("gear", mode="lvl")
+        assert asked["mode"] == "Leveling" and asked["mode_from"] == "asked"
+    finally:
+        pick("lvl")
+        served.calls.clear()
+    assert served.page("gear")["mode"]["key"] == "lvl" and served.mcp("gear")["mode_from"] == "the default"
+
+
 # ---------------------------------------------------------------- coverage and missing
 
 

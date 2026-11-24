@@ -284,12 +284,20 @@ def test_modes():
     assert gear.mode_key("PvP") == "pvp" and gear.mode_key("raid") == "pve" and gear.mode_key("junk") == "lvl"
 
 
-def test_player_edits_keep_their_meaning(ref):
-    """Polestar's Adjust weights edits: a multiple on the same stat, a plain
-    "% hit" value per 1% as Polestar meant it."""
-    w, _ = gear.weights_for(ref, "PRIEST", "shadow", "lvl")
-    got, n = gear.adjust_apply(w, {"sta": {"x": 2}, "spellHit": {"v": 12}})
-    assert n == 2 and got["sta"] == pytest.approx(w["sta"] * 2) and got["hitRating"] == pytest.approx(1.2)
+def test_polestar_settings_change_nothing(ref):
+    """A sheet carrying an older shipper's Polestar gear settings (Adjust
+    weights edits, Stat weights spec, smallest upgrade) scores exactly as one
+    without: ForeverDB's weights only (owner, 2026-11-24)."""
+    row = {"items": '[{"slot": 16, "item_id": 1317}]', "class": "PRIEST", "spec": "Shadow", "race": "Gnome",
+           "faction": "Alliance"}
+    old = {**row, "gear_adjust": '[{"spec": "shadow", "stat": "sta", "x": 3}]', "min_upgrade": "40",
+           "polestar_spec": "holy"}
+    a, b = (gear.advise(ref, gear.sheet(r), level=30) for r in (row, old))
+    assert a["weights"] == b["weights"] and a["spec"] == b["spec"] and a["upgrades"] == b["upgrades"]
+    assert a["spec"]["key"] == "shadow" and a["min_upgrade_pct"] == gear.MIN_UPGRADE
+    assert "adjusted" not in a["spec"]
+    # The class rules only: no Polestar weights in the gear data.
+    assert set(ref.gear) == {"CLASSES", "PROFICIENCY"} and "weights" not in ref.data
 
 
 def test_weights_file_check():

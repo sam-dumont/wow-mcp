@@ -1049,6 +1049,14 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     if mode is not None and str(mode).strip().lower() not in gearmod.MODE_NAMES:
         raise ToolError("mode is lvl (Leveling, the default), pvp or pve")
     char = resolve_char(ctx, args)
+    # No `mode`: the one the player picked on the gear page (wowstats.gearmode), Leveling when none.
+    mode_from = "asked" if mode is not None else "the player's pick on the gear page"
+    if mode is None:
+        from wowstats import gearmode
+
+        mode = gearmode.saved(ctx.environ(), char)
+        if mode == gearmod.DEFAULT_MODE:
+            mode_from = "the default"
     st = ctx.store
     picked = gearmod.pick_sheet(gearmod.sheet_rows(one_row(st), cf(char)))
     rows = [picked] if picked else []
@@ -1131,7 +1139,6 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                 "worn ones; gain_points then means the item's whole score.") + " Say so, and give `unlock`."}),
         "char": char, "level": a["level"], "zone": a["zone"], "class": a["class"],
         "spec": sp["label"], "spec_from": sp.get("why"), "gear_score": a.get("gear_score"),
-        "weights_adjusted_by_player": sp["adjusted"] or None,
         "slots": [{"slot": x["slot_name"],
                    "worn": (x["current"] or {}).get("name") if x["current"] else None,
                    # BiS, 2nd or "N% of BiS"; null when nothing to measure against.
@@ -1147,7 +1154,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                                       "have": p["have"], "level": p.get("level"),
                                       "where": [_src_text(s) for s in p.get("sources") or []] or None}
                                      for p in x["parts"]]} for x in a.get("weapon_setups") or []],
-        "mode": a["mode"]["label"],
+        "mode": a["mode"]["label"], "mode_from": mode_from,
         "weights_from": {k: (a.get("scoring") or {}).get(k) for k in ("label", "note", "source")},
         # The weights are ForeverDB.net's: credit it with the link whenever a score is shown.
         "source": a["source"],
@@ -1155,8 +1162,9 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         "buy_now": [_gear_item(u, up) for u in buy],
         "auction_house": _ah_summary(a.get("ah")),
         "role": sp.get("role") or "unknown: ask the player to pick a spec in settings",
-        "how": "ForeverDB.net's stat weights and formula, in the mode asked (`mode`: Leveling by default, PvP, "
-               "PvE): each stat times its weight, % hit and crit lines as ratings (10 and 14 a percent), school "
+        "how": "ForeverDB.net's stat weights and formula, in the mode asked (`mode`), else the one the player "
+               "picked on the gear page (Leveling when none; PvP, PvE): each stat times its weight, % hit and "
+               "crit lines as ratings (10 and 14 a percent), school "
                "damage on top of spell power, weapon DPS (ranged for hunters), a wand's DPS in Leveling for "
                "priests, mages and warlocks, armour, set bonuses shared over the set's pieces; procs and on-use "
                "count zero. Credit `source` (name and link) whenever you show a score or a standing. "
@@ -1448,11 +1456,12 @@ TOOLS: tuple[Tool, ...] = (
          "Gear advice on ForeverDB.net's weights (credit `source`): per slot the worn item and its standing "
          "(BiS, 2nd, % of BiS), the best item now and within 3 levels, gain and source; then the upgrades, "
          "held or in this zone first, then furthest from BiS. Say each `line` as is. `spec`: another spec; "
-         "`mode`: pvp or pve (Leveling by default). `options`: all ways to upgrade.",
+         "`mode`: lvl, pvp or pve (default: the player's pick on the gear page, else Leveling). `options`: all "
+         "ways to upgrade.",
          schema({"char": CHAR, "spec": {"type": "string", "description": "A spec of the class, e.g. shadow, holy."},
                  "mode": {"type": "string", "enum": ["lvl", "pvp", "pve"],
-                          "description": "The weights: lvl (Leveling, the default), pvp or pve (raids and "
-                                         "dungeons at 60)."},
+                          "description": "The weights: lvl (Leveling), pvp or pve (raids and dungeons at 60). "
+                                         "Default: the mode picked on the gear page, else Leveling."},
                  "limit": {**lim(10, 40), "description": "How many upgrades (with options: slots, 8 by default, "
                                                          "20 at most)."},
                  "options": {"type": "boolean",

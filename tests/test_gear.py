@@ -95,19 +95,11 @@ def test_usability(ref):
     assert ok and at == max(40, ref.item(mail)["req"])
 
 
-def test_adjust_edits():
-    """Polestar's Adjust weights edits: a multiple, or a plain value; a
-    "% spell hit" value is per 1%, 10 hit rating."""
-    w, n = gear.adjust_apply({"sta": 0.5, "int": 1}, {"sta": {"x": 1.5}, "spellHit": {"v": 2}})
-    assert (w["sta"], w["int"], w["hitRating"], n) == (0.75, 1, 0.2, 2)
-    assert gear.adjust_apply({"sta": 0.5}, None) == ({"sta": 0.5}, 0)
-
-
 def test_spec_order(ref):
     s = sheet(spec="Shadow")
     assert gear.resolve_spec(ref, "PRIEST", s) == ("shadow", "picked")
-    assert gear.resolve_spec(ref, "PRIEST", {**s, "polestar_spec": "holy"}) == ("holy", "setting")
-    assert gear.resolve_spec(ref, "PRIEST", {**s, "polestar_spec": "auto"}) == ("shadow", "picked")
+    # Polestar's Stat weights setting is never read (owner, 2026-11-24).
+    assert gear.resolve_spec(ref, "PRIEST", {**s, "polestar_spec": "holy"}) == ("shadow", "picked")
     assert gear.resolve_spec(ref, "PRIEST", {**s, "polestar_spec": "holy"}, "discipline") == ("discipline", "page")
     assert gear.resolve_spec(ref, "PRIEST", {}) == ("shadow", "default")
     assert gear.resolve_spec(ref, "DRUID", {"spec": "Bear"}) == ("feral", "picked")
@@ -121,20 +113,17 @@ def test_spec_from_talents(ref):
     (owner, 2026-11-18, restored 2026-11-20)."""
     t = [{"tree": "Discipline", "points": 5}, {"tree": "Holy", "points": 14}, {"tree": "Shadow", "points": 3}]
     assert gear.resolve_spec(ref, "PRIEST", sheet(spec=None, talents=t)) == ("holy", "talents")
-    assert gear.resolve_spec(ref, "PRIEST", {"talents": t, "polestar_spec": "auto"}) == ("holy", "talents")
+    assert gear.resolve_spec(ref, "PRIEST", {"talents": t, "polestar_spec": "shadow"}) == ("holy", "talents")
     s = sheet(spec="Shadow", talents=t)
     assert gear.resolve_spec(ref, "PRIEST", s) == ("shadow", "picked")
-    assert gear.resolve_spec(ref, "PRIEST", {**s, "polestar_spec": "discipline"}) == ("discipline", "setting")
     assert gear.resolve_spec(ref, "PRIEST", s, "discipline") == ("discipline", "page")
 
 
 def test_shadow_priest_with_most_points_in_discipline_is_scored_shadow(ref):
     """Leveling Discipline on the way to Shadowform: whatever the player
-    chose (a gear addon's pick, Polestar's Stat weights, the site's
-    WEIGHTS) beats the points; the points decide only when nothing does."""
+    chose (a gear addon's pick, the site's WEIGHTS) beats the points; the points decide only when nothing does."""
     disc = [{"tree": "Discipline", "points": 16}, {"tree": "Holy", "points": 0}, {"tree": "Shadow", "points": 7}]
     assert gear.resolve_spec(ref, "PRIEST", sheet(spec="Shadow", talents=disc)) == ("shadow", "picked")
-    assert gear.resolve_spec(ref, "PRIEST", {"talents": disc, "polestar_spec": "shadow"}) == ("shadow", "setting")
     assert gear.resolve_spec(ref, "PRIEST", {"talents": disc}, None, "shadow") == ("shadow", "server")
     assert gear.resolve_spec(ref, "PRIEST", {"talents": disc}) == ("discipline", "talents")
     # A tie goes to the first tree; no names: position; no points: next step.
@@ -212,10 +201,11 @@ def test_errors(ref, monkeypatch):
 def test_sheet_from_stored_row():
     row = {"items": '[{"slot": 16, "item_id": 1317}]', "class": "PRIEST", "spec": "Shadow",
            "gear_adjust": '[{"spec": "shadow", "stat": "sta", "x": 1.5}]', "min_upgrade": "3",
-           "polestar_spec": "auto"}
+           "polestar_spec": "holy"}
     s = gear.sheet(row, {"race": "Gnome", "faction": "Alliance"})
     assert s["items"] == [{"slot": 16, "item_id": 1317}] and s["race"] == "Gnome"
-    assert s["gear_adjust"] == {"shadow": {"sta": {"x": 1.5}}} and s["min_upgrade"] == 3
+    # An older shipper's Polestar gear settings stay stored, never read (owner, 2026-11-24).
+    assert not {"gear_adjust", "min_upgrade", "polestar_spec"} & set(s)
 
 
 def test_weapons_come_as_setups(ref):

@@ -22,8 +22,8 @@ your class/role' or 'this is maybe not the best for you'"):
 
 The scores are ForeverDB's weights as they are (wowstats.gear.weights_for):
 this model only labels. Who an item is built for compares the specs'
-class-guide (PvE) weights: what the stats are made for, whatever mode the
-character scores in.
+weights in the mode the character scores in (Leveling by default, PvP or
+PvE): the same weights as the scores, never Polestar's (owner, 2026-11-24).
 
 From it, per item:
 
@@ -252,12 +252,13 @@ def _cache(ref: gm.Reference) -> dict:
     return c
 
 
-def spec_weights(ref: gm.Reference, cls: str, key: str) -> dict | None:
-    """A spec's class-guide (PvE) weights: what its gear is made for."""
+def spec_weights(ref: gm.Reference, cls: str, key: str, mode: str = gm.DEFAULT_MODE) -> dict | None:
+    """A spec's ForeverDB weights in the mode: what its gear is made for."""
     c = _cache(ref)
-    k = ("w", cls, key)
+    mode = gm.mode_key(mode)
+    k = ("w", cls, key, mode)
     if k not in c:
-        c[k] = gm.weights_for(ref, cls, key, "pve")[0]
+        c[k] = gm.weights_for(ref, cls, key, mode)[0]
     return c[k]
 
 
@@ -266,15 +267,18 @@ def all_specs(ref: gm.Reference) -> list[tuple[str, str]]:
             for s in meta.get("specs") or []]
 
 
-def built_for(ref: gm.Reference, info: dict, level: int, armour: bool = True) -> list[dict]:
+def built_for(ref: gm.Reference, info: dict, level: int, armour: bool = True,
+              mode: str = gm.DEFAULT_MODE) -> list[dict]:
     """The specs that get the most out of the item at this level:
     [{cls, key, role, share}], the best first. armour: only among those who
     wear its armour type as their best, when any of them can use it (who
     usually has first pick in a group); without, every spec that can wear it
     (who its stats are made for). [] when the item has no stat a spec could
-    prefer (only Stamina, armour or damage: fits anyone)."""
+    prefer (only Stamina, armour or damage: fits anyone). mode: the weights'
+    mode (gear.mode_key), the one the character scores in."""
     c = _cache(ref)
-    k = ("b", id(info), info.get("ilvl"), tuple(sorted((info.get("stats") or {}).items())), level, armour)
+    mode = gm.mode_key(mode)
+    k = ("b", id(info), info.get("ilvl"), tuple(sorted((info.get("stats") or {}).items())), level, armour, mode)
     if k in c:
         return c[k]
     ps = parts(info.get("stats") or {})
@@ -287,7 +291,7 @@ def built_for(ref: gm.Reference, info: dict, level: int, armour: bool = True) ->
         usable, _, min_level = gm.usability(ref, info, cls, level)
         if not usable or min_level > max(level, info.get("req") or 0):
             continue
-        w = spec_weights(ref, cls, key)
+        w = spec_weights(ref, cls, key, mode)
         if not w:
             continue
         share = use(w, info.get("stats") or {})[0]
@@ -367,12 +371,14 @@ def group_drop(sources: list[dict]) -> bool:
 
 
 def fit(ref: gm.Reference, info: dict, cls: str, key: str, how: str, level: int, w: dict,
-        sources: list[dict] | None = None, points: int | None = None) -> dict:
+        sources: list[dict] | None = None, points: int | None = None, mode: str = gm.DEFAULT_MODE) -> dict:
     """How the item fits this character (see the module's docstring).
-    points: talent points in the spec's tree, when known (capstone())."""
+    points: talent points in the spec's tree, when known (capstone()).
+    mode: the weights' mode `w` is in; who the item is built for is read in
+    the same mode."""
     role = known_role(ref, cls, key, how)
-    rows = built_for(ref, info, level, armour=False)
-    prio = built_for(ref, info, level)
+    rows = built_for(ref, info, level, armour=False, mode=mode)
+    prio = built_for(ref, info, level, mode=mode)
     own, lost, little, none = use(w, info.get("stats") or {})
     top = max((r["share"] for r in rows), default=0)
 
