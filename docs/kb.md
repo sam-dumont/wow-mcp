@@ -210,6 +210,14 @@ Polestar's release is its newest final one with a plain tag: the repository
 also releases its desktop client (`client-v*`) and pre-releases, and neither
 is the addon.
 
+A version never goes back. When GitHub's Latest is older than what
+`watch.json` knows (wowsims/exporter, 2026-11-24: the v3.2.11 release went
+away, its tag stayed, Latest fell back to v3.2.10), the watch sees no change
+while the known release still exists. Once that release is gone (404:
+deleted, or back to a draft) the older one is what people can install, so
+it lands, and the commit says so ("WoWSims Exporter back to v3.2.10
+(v3.2.11's release is gone upstream)").
+
 The model pass (Claude Opus 5.5) gets the changed page and the KB's
 official statements as data, and answers JSON in a fixed schema: new
 statements, or replacements (`supersedes: <id>`). Code sets each one's

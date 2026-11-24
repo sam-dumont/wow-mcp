@@ -320,7 +320,7 @@ def main(argv: list[str] | None = None) -> int:
     for addon in state["addons"]:
         if not addon.get("repo"):
             continue
-        new = gh.latest_release(addon["repo"])
+        new = watch.addon_release(gh, addon)
         if not new:
             unread.append(addon["name"])
             continue
@@ -332,7 +332,11 @@ def main(argv: list[str] | None = None) -> int:
         refuse(a.why, "addons", reasons)
         return 3
     if a.handoff:
-        Path(a.handoff).write_text(json.dumps({"addons": checked}, indent=1) + "\n", encoding="utf-8")
+        # `message`: the commit's subject (tools/kb/versions.sh), which names a version taken backwards.
+        back = watch.moved_back(state, checked)
+        msg = "Addon releases: what the shipper reads is unchanged" + (f"; {'; '.join(back)}" if back else "")
+        Path(a.handoff).write_text(json.dumps({"addons": checked, "message": msg}, indent=1) + "\n",
+                                   encoding="utf-8")
     if unread:
         # Not a refusal: the others land; these stay pending, with the reason on the issue.
         note(a.why, "addons", f"The latest release of {', '.join(unread)} couldn't be read; the next run checks it.")
