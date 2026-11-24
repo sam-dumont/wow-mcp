@@ -1456,7 +1456,7 @@ TOOLS: tuple[Tool, ...] = (
          "Gear advice on ForeverDB.net's weights (credit `source`): per slot the worn item and its standing "
          "(BiS, 2nd, % of BiS), the best item now and within 3 levels, gain and source; then the upgrades, "
          "held or in this zone first, then furthest from BiS. Say each `line` as is. `spec`: another spec; "
-         "`mode`: lvl, pvp or pve (default: the player's pick on the gear page, else Leveling). `options`: all "
+         "`mode`: lvl, pvp or pve (default: the gear page pick). `options`: all "
          "ways to upgrade.",
          schema({"char": CHAR, "spec": {"type": "string", "description": "A spec of the class, e.g. shadow, holy."},
                  "mode": {"type": "string", "enum": ["lvl", "pvp", "pve"],
