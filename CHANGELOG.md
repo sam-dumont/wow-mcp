@@ -17,6 +17,8 @@ What 0.10.0 brings over 0.9.0, in short. Every change follows.
 
 - `gear` with `options` scores in the mode you ask, and `prices` and `gear` read a full
   auction scan again (over 5,000 items on one second broke them).
+- The full analysis reads auction prices: "which upgrades are cheapest on the AH" is one query
+  (`ah_prices`, `ah_upgrades`). Kept findings show as "to revalidate" once.
 
 **For hosts**
 
