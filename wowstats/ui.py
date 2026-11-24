@@ -609,7 +609,9 @@ class App:
                                   gear_inputs=lambda: self.views.gear_inputs(name))
             except LookupError as e:
                 return {"char": name, "available": False, "why": str(e)}
-            return {**dungeonview.build(inp), "available": True}
+            panel = insights.with_parties(dungeonview.build(inp),
+                                          insights.dungeon_runs(self.views.q, self.views.char_filter(name)))
+            return {**panel, "available": True}
 
         return self.cached(f"dungeons:{name}", build)
 

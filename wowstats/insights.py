@@ -394,6 +394,30 @@ def dungeon_runs(q: Q, cf: str) -> list[dict]:
     return storemodels.run_groups(runs, rows, players)
 
 
+def with_parties(panel: dict, runs: list[dict]) -> dict:
+    """The Dungeons panel (wowstats.plan.dungeonview) with each past trip's
+    party: the parties of the runs (dungeon_runs) that began inside the
+    trip, from its start to its end (`total_s`, else `inside_s`). Full view
+    only: the friends' and public tiers list no `party` (wowstats.redact)."""
+    if not runs:
+        return panel
+    spans = [(parse_t(r["t"]), r) for r in runs if r.get("party")]
+    for d in panel.get("dungeons") or []:
+        for h in d.get("history") or []:
+            t0 = parse_t(h.get("t"))
+            t1 = t0 + timedelta(seconds=max(num(h.get("total_s")), num(h.get("inside_s"))) + 60)
+            mates: dict[str, dict] = {}
+            known = None
+            for t, r in spans:
+                if t0 - timedelta(seconds=60) <= t <= t1:
+                    mates.update({p["player"]: p for p in r["party"]})
+                    known = known or r.get("names_known")
+            if mates:
+                h["party"] = sorted(mates.values(), key=lambda p: p["player"])
+                h["names_known"] = known
+    return panel
+
+
 ROSTER_NOTE = ("Who was in the group comes from ForeverDB_Helper (optional, from ForeverDB.net), whose journal "
                "names each groupmate once a day; without it, no addon the kit reads saves names: "
                "Polestar_Recorder keeps the party size, Polestar's instance runs the dungeon and the time. "
