@@ -1189,6 +1189,13 @@ li.cand:first-child { border-top: 0; }
 .fitalt b { color: var(--ink); }
 .dgitem .fit { margin-top: 2px; }
 .upmore { margin-top: 10px; color: var(--muted); }
+.wexport { margin-top: 18px; }
+.wexport h4 { margin: 0 0 8px; }
+.wxbtns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.wxtext { display: block; width: 100%; box-sizing: border-box; margin: 8px 0 4px; font: 12px var(--mono);
+  color: var(--ink); background: var(--panel); border: 1px solid var(--gold-lo); border-radius: 4px;
+  padding: 6px 8px; resize: vertical; word-break: break-all; }
+.wxnotes { margin: 4px 0 0; padding-left: 18px; }
 .upmore > summary { cursor: pointer; font-size: 14.5px; }
 .upmore .cands { margin-top: 6px; color: var(--ink); }
 .byslot { width: 100%; border-collapse: collapse; font-size: 14.5px; }

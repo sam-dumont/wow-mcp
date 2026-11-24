@@ -369,6 +369,10 @@ ZOGZOG: dict[str, dict] = {
         "scoring": _keys("mode", "label", "note", "source", "style"),
         "source": _keys("name", "url", "text"),
         "spec": SPEC, "weights": {}, "talents": [{}],
+        # The weights as text for Forever Leveling BiS (wowstats.gearexport):
+        # the same numbers as `weights`, nothing of the character's.
+        "export": {**_keys("class", "spec", "mode", "setup", "setup_label", "name", "how", "flb", "pawn"),
+                   "credit": _keys("name", "url", "text"), "notes": [None], "pawn_notes": [None]},
         "slots": [{**_keys("slot", "slot_name"), "standing": _keys("rank", "pct", "label"),
                    "current": ADVICE_ITEM, "best": UPGRADE_PAIR,
                    "next": UPGRADE_PAIR}],

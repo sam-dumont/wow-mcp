@@ -14,6 +14,8 @@ What 0.10.0 brings over 0.9.0, in short. Every change follows.
   shot. A rare drop never becomes the pick; an auction house listing makes anything easy.
 - Reputation and PvP rank gear checks what you hold ("16,500 rep to go", "rank 3 needed").
 - Next moves stop telling you to train what you already know (professions and riding).
+- The gear page's weights copy into the Forever Leveling BiS addon (its own string or a Pawn
+  scale), so it ranks items in the game the way the page does.
 
 **For your AI**
 
@@ -27,6 +29,16 @@ What 0.10.0 brings over 0.9.0, in short. Every change follows.
 - Auction scans are shared between friends on one install, per ruleset and faction, prices
   only, kept 90 days. Run `wow-stats users ah-share` once after the upgrade.
 - The MCP check grows from 10 questions to 70, and its tool-routing half runs in CI.
+
+### Added
+
+- The gear page's weights go into the game. **Copy for Forever Leveling BiS** and **Copy as Pawn
+  scale**, under the upgrades, copy ForeverDB.net's weights for the spec and mode shown in the two
+  formats the addon imports (its own `FLB1;...` string and a Pawn scale tag), named "ForeverDB
+  Leveling" (or PvP, PvE). Paste them in `/bis`, Stat weights, Import, and the addon ranks items
+  the way the page does. MCP `gear` takes `export: flb | pawn` and returns the string. A test scores
+  every item of the game data both ways for nine specs and gets the same numbers; the Pawn scale
+  loses ranged-only hit for hunters and says so. Weights only: the addon keeps its own items.
 
 ### Fixed
 

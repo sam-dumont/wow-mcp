@@ -1044,6 +1044,25 @@ def _gear_item(u: dict | None, up: dict | None = None) -> dict | None:
     return out
 
 
+def _gear_export(a: dict, char: str, fmt: str, setup: str | None, mode_from: str) -> dict:
+    """gear with `export`: the scored spec and mode's weights as one string
+    for Forever Leveling BiS (wowstats.gearexport), and where to paste it."""
+    from wowstats import gearexport
+
+    try:
+        e = gearexport.export(a["class"], a["spec"]["key"], a["mode"]["key"], fmt, setup)
+    except gearexport.ExportError as err:
+        raise ToolError(str(err)) from None
+    return {"char": char, "class": e["class"], "spec": a["spec"]["label"], "mode": a["mode"]["label"],
+            "mode_from": mode_from, "format": fmt, "text": e[fmt],
+            **({"setup": e["setup_label"]} if fmt == "flb" else {}),
+            "how": e["how"] + " Weights only: the addon keeps its own item list.",
+            "notes": e["notes"] + (e.get("pawn_notes") or []),
+            # ForeverDB.net's weights (GPL-3.0 with an attribution term): credit it wherever the text goes.
+            "source": e["credit"],
+            "say": "Give `text` in a code block, as is, with `how`, and credit `source` with its link."}
+
+
 def t_gear(ctx: Ctx, args: dict) -> dict:
     if truthy(args.get("options")) and args.get("spec"):
         raise ToolError("spec works without options: options score the spec set in the player's settings")
@@ -1059,6 +1078,10 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         mode = gearmode.saved(ctx.environ(), char)
         if mode == gearmod.DEFAULT_MODE:
             mode_from = "the default"
+    if args.get("export") is not None and str(args["export"]).strip().lower() not in ("pawn", "flb"):
+        raise ToolError("export is pawn or flb")
+    if args.get("setup") is not None and args["setup"] not in ("twohand", "dualwield", "shield", "held"):
+        raise ToolError("setup is twohand, dualwield, shield or held")
     if truthy(args.get("options")):
         # Every way to an upgrade per slot (what gear_options answered until
         # 2026-11-23). It scores the player's own spec setting, like the
@@ -1126,6 +1149,8 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                            held=gearmod.newest_bags(held), market=market)
     except gearmod.GearError as e:
         raise ToolError(str(e)) from None
+    if args.get("export"):
+        return _gear_export(a, char, str(args["export"]).strip().lower(), args.get("setup"), mode_from)
     # advise() adds the current zone's upgrades and the held ones past the
     # limit, for the page's order; here those held go first (an equip away),
     # then the zone, and the limit holds.
@@ -1470,15 +1495,21 @@ TOOLS: tuple[Tool, ...] = (
     Tool("gear", "Gear upgrades",
          "Gear advice on ForeverDB.net's weights (credit `source`): per slot the worn item and its standing "
          "(BiS, 2nd, % of BiS), the best item now and within 3 levels, gain and source; then the upgrades, "
-         "held or in this zone first, then furthest from BiS. Say each `line` as is. `spec`: another spec; "
-         "`mode`: lvl, pvp or pve (default: the gear page pick). `options`: all "
-         "ways to upgrade.",
+         "held or in this zone first. Say each `line` as is. `spec`: another spec; `mode`: lvl, pvp or pve. "
+         "`options`: all ways to upgrade. `export`: the weights as text for the Forever Leveling BiS addon.",
          schema({"char": CHAR, "spec": {"type": "string", "description": "A spec of the class, e.g. shadow, holy."},
                  "mode": {"type": "string", "enum": ["lvl", "pvp", "pve"],
                           "description": "The weights: lvl (Leveling), pvp or pve (raids and dungeons at 60). "
                                          "Default: the mode picked on the gear page, else Leveling."},
                  "limit": {**lim(10, 40), "description": "How many upgrades (with options: slots, 8 by default, "
                                                          "20 at most)."},
+                 "export": {"type": "string", "enum": ["pawn", "flb"],
+                            "description": "Instead of the advice, the spec and mode's weights as text to paste "
+                                           "into the Forever Leveling BiS addon (/bis, Stat weights, Import): "
+                                           "flb (its own format, exact) or pawn (a Pawn scale)."},
+                 "setup": {"type": "string", "enum": ["twohand", "dualwield", "shield", "held"],
+                           "description": "With export flb: the weapon setup the string is for (default: the "
+                                          "spec's usual one; the addon lets the player change it on import)."},
                  "options": {"type": "boolean",
                              "description": "Instead of the advice, per slot every way to an upgrade with its "
                                             "cost: quest (on the route or not), dungeon drop (trip time at the "

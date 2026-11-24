@@ -574,6 +574,15 @@ def score_with(info: dict, w: dict, as_offhand: bool = False) -> float:
     return s
 
 
+def _export(cls: str, key: str, mode: str) -> dict | None:
+    from wowstats import gearexport
+
+    try:
+        return gearexport.export(cls, key, mode)
+    except gearexport.ExportError:
+        return None
+
+
 def available_level(info: dict) -> int:
     """ForeverDB's level an item counts from: its required level, else its
     item level minus 5 (no item asks for more than the content it drops in).
@@ -1874,6 +1883,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                  "role": gearfit.known_role(ref, cls, key, how),
                  "why": spec_why(ref, cls, key, label, how, sheet)},
         "weights": {k: _r(v, 4) for k, v in sorted(w.items()) if v},
+        # The same weights as text for the Forever Leveling BiS addon
+        # (wowstats.gearexport): the page's copy buttons, MCP gear `export`.
+        "export": _export(cls, key, cx.mode),
         # Leveling, PvP or PvE (owner, 2026-11-23), and whose weights they are:
         # every score shown credits ForeverDB.net.
         "mode": modes_out(cx.mode), "scoring": scoring, "source": dict(CREDIT),
