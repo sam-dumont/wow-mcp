@@ -173,20 +173,20 @@ npm --prefix site run preview     # http://localhost:4321/wow-mcp/
 ```
 
 `build-demo.sh` plays Nibbet, a made-up priest (`tools/fixtures/generate.py`, `build_demo`,
-seeded, so every build plays the same sessions, shifted so his last one is yesterday), then
-runs the product's own publisher to build his public and friends' pages under `/demo/`. For
-the length of the build it starts an empty VictoriaLogs (his events), an empty VictoriaMetrics
-(his Battle.net series, as the exporter writes them: `bnet_series`) and the picture renderer
+seeded, so every build plays the same sessions, shifted so the last one is yesterday), then
+runs the product's own publisher to build the public and friends' pages under `/demo/`. For
+the length of the build it starts an empty VictoriaLogs (the character's events), an empty VictoriaMetrics
+(the Battle.net series, as the exporter writes them: `bnet_series`) and the picture renderer
 (`wow-stats render`).
 
-His game files are `tools/fixtures/golden3d.py`: a blocky gnome and every item he wears,
+Nibbet's game files are `tools/fixtures/golden3d.py`: a blocky gnome and every item the character wears,
 written as the shipper sends a player's files (WDC5 tables, M2 models and skins, BLP
 textures), with made-up row and file ids. Nothing comes from Blizzard's files. Only the
 generator is committed: its output is about 200 kB and takes a second to make
 (`uv run python tools/fixtures/golden3d.py <dir>` writes a store to look at). The same files
 are the 3D tests' golden input (`tests/test_golden3d.py`, `tests/test_golden3d_browser.py`).
-His portrait is the renderer's still of that model, left in the armory cache under the address
-his Battle.net series names, so the publisher's usual path finds it.
+The portrait is the renderer's still of that model, left in the armory cache under the address
+the Battle.net series names, so the publisher's usual path finds it.
 
 `tests/test_demo_complete_browser.py` opens every tab of both pages at 390 px and 1280 px in
 Chromium and WebKit and fails on any empty section, fallback line or silhouette, and on a 3D
@@ -237,7 +237,7 @@ host or address.
   tools/fixtures/generate.py`, read the diff, commit both. CI runs it with
   `--check`.
 - **The demo** has one source: `build_demo` in `tools/fixtures/generate.py`,
-  Nibbet. The docs site's demo publishes him (above); the local demo,
+  Nibbet. The docs site's demo publishes the character (above); the local demo,
   `dev/seed.py`, sends the same events marked `demo: true` (a DEMO DATA
   banner) to a store or a ui's `/ingest`, and the compose kit's `demo`
   service runs it (`docker compose run --rm demo`). Its header has the

@@ -6,7 +6,7 @@ top of your page and you know which move to do first.
 The Overview is the first tab: open it before you log in. The line at the top says whether
 you're on Polestar's route (up to 1.5× its time), behind it, or well behind it, and how much play the next level takes.
 
-![The Overview of the demo character Nibbet, level 34: behind the route at 2.0 times Polestar's time, the next level in 2h 40m of play, 82% of guide steps in order, 0.09 levels of rested XP, then the next moves and time per level](../images/overview.webp)
+![The Overview of the demo character Nibbet, a level 46 Gnome priest: on track at 1.0 times Polestar's route time, level 47 in 1h 45m of play, 83% of guide steps in order, 0.05 levels of rested XP, then the next moves and time per level](../images/overview.webp)
 
 *Nibbet, the made-up priest of the [live demo](../../site/pages/demo.md).*
 
@@ -28,7 +28,7 @@ hours. Your public page only says "Equipment may be out of date."
 
 ## Next moves
 
-![The Next moves box: City of Dalaran, a 30-minute trip at 3.1× your questing, with the quest to pick up first, the quest reward and drops you could use, each with its badge and a line like "32% → 100% on your hands", then a trinket upgrade and the guide steps that took over 3× their plan](../images/next-moves.webp)
+![The Next moves box: equip the Deathmage Sash from your bags (42% → 50% on your waist), then Razorfen Downs, a 35-minute trip with the quests to pick up first and a drop you could wear now, then Apprentice Riding at level 40 if not trained yet](../images/next-moves.webp)
 
 Up to 3 things to do now, the most useful first, each with what, where and what blocks it. The
 usual ones:

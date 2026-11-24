@@ -27,7 +27,7 @@
 
 <div class="feature">
 
-![The Next moves box of the demo priest: City of Dalaran, a 30-minute trip at 3.1× your questing, with the quest to pick up first, the quest reward and drops you could use, each with its badge and a line like "32% → 100% on your hands", then a trinket upgrade and the guide steps that took over 3× their plan](../../docs/images/next-moves.webp)
+![The Next moves box: equip the Deathmage Sash from your bags (42% → 50% on your waist), then Razorfen Downs, a 35-minute trip with the quests to pick up first and a drop you could wear now, then Apprentice Riding at level 40 if not trained yet](../../docs/images/next-moves.webp)
 
 <div>
 <p class="eyebrow">Before you log in</p>
@@ -39,7 +39,7 @@
 
 <div class="feature flip">
 
-![The Upgrades list grouped by where you get them: Tailoring crafts within reach of skill 141, each with its badge and its slot's share before and after (17% → 100%), then a vendor in Arathi Highlands with prices, then quests in Stormwind City](../../docs/images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Tailoring crafts, each with its badge, its slot's share before and after ("42% → 100% on your waist"), its source and how hard it is to get, then two Auction House buys with their prices, then vendors in Ashenvale and Arathi Highlands](../../docs/images/upgrades.webp)
 
 <div>
 <p class="eyebrow">Gear</p>
@@ -51,7 +51,7 @@
 
 <div class="feature">
 
-![Two dungeon cards from the demo: Razorfen Kraul and City of Dalaran, each with a worth-a-run line, the quests to pick up, the drops you could use with their badges, and what a trip is worth](../../docs/images/dungeons.webp)
+![Two dungeon cards from the demo: Zul'Farrak and Uldaman, each with a "Worth a run for its quests" line, the next quest to pick up, the quests left, the quest rewards and drops you could use with their badges, and what a trip is worth](../../docs/images/dungeons.webp)
 
 <div>
 <p class="eyebrow">Dungeons</p>

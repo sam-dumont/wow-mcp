@@ -135,8 +135,8 @@ SQLite files), a few hundred MB. No account or login needed. Then open <http://1
 an empty page until the shipper sends something.
 
 To see a filled page first, load the demo's made-up character, Nibbet
-(he carries a DEMO DATA banner; `docker compose down -v` before your real
-install wipes him), on any system:
+(the page carries a DEMO DATA banner; `docker compose down -v` before your real
+install wipes the character), on any system:
 
 ```sh
 docker compose run --rm demo

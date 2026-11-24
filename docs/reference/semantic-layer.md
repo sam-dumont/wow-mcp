@@ -87,7 +87,7 @@ flowchart LR
 
 ## Examples on the demo
 
-All on `Nibbet-Gearholt` from [the demo](../self-host/demo.md) (made-up data), his last evening on
+All on `Nibbet-Gearholt` from [the demo](../self-host/demo.md) (made-up data), the last evening on
 2026-11-18 (`dev/seed.py --end-day 2026-11-18`; yours ends yesterday, so the dates move). Rows trimmed.
 
 **Dungeon time per zone, per week:**

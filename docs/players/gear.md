@@ -7,7 +7,7 @@ Everything here is in the Character tab: your gear at the top, the upgrades unde
 
 ## Your gear
 
-![The Equipment panel of the demo priest: the picture in the middle with View in 3D under it, every slot with its item, item level and BiS badge, a green "▲ 36% → 100% with the best at hand" under the slots with an upgrade, the badge legend with "Leveling · Weights: ForeverDB.net", item level 28.2 and professions below](../images/gear.webp)
+![The Equipment panel of the demo priest: the picture in the middle with View in 3D under it, every slot with its item, item level and BiS badge, a green "▲ 70% → 100% with the best at hand" under the slots with an upgrade, the badge legend with "Leveling · Weights: ForeverDB.net", item level 39.8 and professions below](../images/gear.webp)
 
 The badge on each item's icon says how close it is to the best you can wear at your level for
 that slot: **BiS** (orange) is the best, then **2nd** or a share like **84%** (purple from 85%,
@@ -25,7 +25,7 @@ yet, and **View in 3D** shows the model meanwhile.
 
 ## The upgrades list
 
-![The Upgrades list grouped by where you get them: Tailoring crafts within reach of skill 141, each with its badge and its slot's share before and after ("17% → 100% on your feet") and a ForeverDB.net source link, then a vendor in Arathi Highlands with prices, then quests in Stormwind City](../images/upgrades.webp)
+![The Upgrades list grouped by where you get them: Tailoring crafts, each with its badge, its slot's share before and after ("42% → 100% on your waist"), its source and how hard it is to get, then two Auction House buys with their prices, then vendors in Ashenvale and Arathi Highlands](../images/upgrades.webp)
 
 Every item has the same badge and says what it does to its slot: "70% → 91% on your chest"
 ("empty → 91%" for an empty slot). The slot furthest from its best comes first.

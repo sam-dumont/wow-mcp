@@ -6,7 +6,7 @@ level, what to do before you go, and what to expect from one run.
 The Dungeons section is in the Character tab: a card for every dungeon around your level. The
 one worth running now is also the Overview's Dungeon move.
 
-![Two dungeon cards from the demo: Razorfen Kraul and City of Dalaran, each with a "Worth a run" line, the quests to pick up, the quest rewards and drops you could use with their badges, and what a trip is worth](../images/dungeons.webp)
+![Two dungeon cards from the demo: Zul'Farrak and Uldaman, each with a "Worth a run for its quests" line, the next quest to pick up, the quests left, the quest rewards and drops you could use with their badges, and what a trip is worth](../images/dungeons.webp)
 
 ## What to do with it
 
