@@ -569,7 +569,7 @@ class Views:
         # What is on sale on the auction house (wowstats.ahsource): the
         # scans are the price list's own read.
         ah = {k: sub(vl, f"{st} {q}", keys, ops)
-              for k, (q, keys, ops) in ahsource.queries(cf, f'feed:="wow-recorder" {cf}', items=False).items()}
+              for k, (q, keys, ops) in ahsource.queries(cf, f'feed:="wow-recorder" {cf}').items()}
         ah["items"] = sub(self.price_rows)
         res = {k: f.result() for k, f in jobs.items()}
         row = gearmod.pick_sheet(res["gear"])

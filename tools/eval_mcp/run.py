@@ -239,7 +239,7 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(f"no question matches {a.only or a.group}")
 
     expected = answers.compute(qs)
-    stores = {s: answers.D.VL(answers.rows_for(s)) for s in answers.scenarios(qs)}
+    stores = {s: answers.store(answers.rows_for(s)) for s in answers.scenarios(qs)}
     now = answers.D.now().isoformat()
     batch = a.out or OUT / datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     batch.mkdir(parents=True, exist_ok=True)

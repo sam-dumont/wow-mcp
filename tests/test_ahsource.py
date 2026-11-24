@@ -30,12 +30,12 @@ def day(days_ago: int) -> str:
 
 
 def scans(*days: tuple[int, int], realm="Fixture", faction=None) -> list[dict]:
-    """Filler Q_ITEMS rows: (days ago, items priced that day), keys 900000+."""
+    """Filler price_rows rows (wowstats.views): (days ago, items priced that day), keys 900000+."""
     return [price(900000 + i, a, 100, realm=realm, faction=faction) for a, n in days for i in range(n)]
 
 
 def price(item, days_ago, copper, realm="Fixture", faction=None, listed=3) -> dict:
-    """A Q_ITEMS row."""
+    """A price_rows row (wowstats.views)."""
     return {"realm": realm, "faction": faction, "item_key": str(item), "scan_day": day(days_ago),
             "lo": str(copper), "av": str(listed), "t": midnight(days_ago)}
 
@@ -183,7 +183,7 @@ def test_without_a_market_the_answer_is_as_before(ref):
 
 
 def test_mcp_gear_carries_the_auction_house():
-    logs = [("stats by (realm, faction, item_key, scan_day)",
+    logs = [("stats by (item_key, scan_day, realm, faction) min(price_copper) as lo",
              [*scans((0, 60)), price(SPELLBINDER_VEST, 0, 3100), price(CRYSTALLINE_CUFFS, 3, 50)]),
             *fakes.LOGS]
     fake = fakes.FakeStores(logs=logs)
@@ -204,7 +204,7 @@ def test_mcp_gear_carries_the_auction_house():
 
 
 def test_mcp_gear_without_scans_says_to_scan():
-    logs = [r for r in fakes.LOGS if r[1] is not fakes.PRICES]
+    logs = [r for r in fakes.LOGS if r[1] is not fakes.PRICES and r[1] is not fakes.PRICE_DAYS]
     fake = fakes.FakeStores(logs=logs)
     try:
         out = tools.call(tools.Ctx(store=Store(vl_url=fake.url)), "gear", {"char": fakes.CHAR})

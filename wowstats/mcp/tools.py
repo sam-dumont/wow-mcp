@@ -871,17 +871,21 @@ def t_prices(ctx: Ctx, args: dict) -> dict:
     start, end = time_range(args, 30)
     limit = limit_arg(args, 20, 100)
     want = (args.get("item") or "").strip().lower()
-    rows = ctx.store.logs('feed:="wow-prices" | fields _time, item_name, item_key, item_id, price_copper, '
-                          "price_high_copper, rev, source_id", start, end)
-    best: dict[str, dict] = {}
-    for r in rows:
-        k = r.get("source_id") or json.dumps(r, sort_keys=True)
-        if k not in best or num(r.get("rev")) >= num(best[k].get("rev")):
-            best[k] = r
+    # One row per item, house and scan day, like the page's price list
+    # (views.price_rows): within a day the shipper only sends wider numbers
+    # (rev+1), so min/max over every rev is the newest rev's. Raw events
+    # failed live: a full scan puts thousands on one instant, more than a
+    # read may return (2026-11-24).
+    rows = ctx.store.stats('feed:="wow-prices" | stats by (item_key, scan_day, realm, faction) '
+                           "min(price_copper) as price_copper, max(price_high_copper) as price_high_copper, "
+                           "max(item_name) as item_name, max(item_id) as item_id, max(_time) as t",
+                           ("item_key", "scan_day", "realm", "faction"),
+                           {"price_copper": "min", "price_high_copper": "max", "item_name": "max",
+                            "item_id": "max", "t": "maxtime"}, start, end)
     from wowstats import storemodels
 
     out = []
-    for key, d in storemodels.prices(list(best.values())).items():
+    for key, d in storemodels.prices([{**r, "_time": r.get("t")} for r in rows]).items():
         name = d["price_item"] or f"item {key}"
         if want and want not in name.lower() and want != key:
             continue
@@ -1095,8 +1099,14 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     sheet = gearmod.sheet(rows[0])
     sheet["worn_stats"] = worn
     try:
-        market = ahsource.gather(lambda q, _k, _o: st.logs(q), cf=cf(char), rec=rec(char),
-                                 faction=sheet.get("faction"), money=opt_num(s.get("money_copper")))
+        # The scans are the page's own read (Views.price_rows: one stats row
+        # per item and scan day). Read as raw rows here, a full Auctionator
+        # scan (thousands of items at one instant, the scan day's midnight)
+        # was more than one read may return: the store refused it, and the
+        # gear advice lost the auction house (live, 2026-11-24).
+        res = {k: st.logs(q) for k, (q, _k, _o) in ahsource.queries(cf(char), rec(char)).items()}
+        res["items"] = _views(ctx).price_rows()
+        market = ahsource.market(res, faction=sheet.get("faction"), money=opt_num(s.get("money_copper")))
     except SourceError:
         market = None  # no prices is no reason to lose the advice
     try:

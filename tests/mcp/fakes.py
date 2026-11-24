@@ -117,6 +117,14 @@ PRICES = [{"_time": _t(10, 12), "item_name": "Linen Cloth", "item_id": 2589, "it
            "price_high_copper": 40, "rev": 1, "source_id": "prices:Fixture:2589:2026-11-17"},
           {"_time": _t(17, 12), "item_name": "Copper Ore", "item_id": 2770, "item_key": "2770", "price_copper": 90,
            "rev": 0, "source_id": "prices:Fixture:2770:2026-11-17"}]
+# PRICES as the prices tool reads them: one stats row per item, house and
+# scan day, the day's lowest low and highest high over its revs.
+PRICE_DAYS = [{"item_key": "2589", "scan_day": "2026-11-10", "realm": "Fixture", "faction": "", "price_copper": "15",
+               "price_high_copper": "30", "item_name": "Linen Cloth", "item_id": "2589", "t": _t(10, 12)},
+              {"item_key": "2589", "scan_day": "2026-11-17", "realm": "Fixture", "faction": "", "price_copper": "22",
+               "price_high_copper": "40", "item_name": "Linen Cloth", "item_id": "2589", "t": _t(17, 12)},
+              {"item_key": "2770", "scan_day": "2026-11-17", "realm": "Fixture", "faction": "", "price_copper": "90",
+               "price_high_copper": "", "item_name": "Copper Ore", "item_id": "2770", "t": _t(17, 12)}]
 
 # The character sheet: a level 14 Troll Priest in starter gear, one quest
 # handed in (its reward is gone).
@@ -227,6 +235,7 @@ LOGS = [
     ("kind:in(xp, kill, turnin, death) | uniq", ZONE_ACT),
     ("kind:in(step, skip)", STEPS),
     ("kind:=death", DEATHS),
+    ("min(price_copper) as price_copper", PRICE_DAYS),
     ('feed:="wow-prices"', PRICES),
 ]
 

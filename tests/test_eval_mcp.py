@@ -10,6 +10,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import sys
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 import pytest
@@ -98,6 +100,57 @@ def test_answers_on_the_demo(computed):
     assert a["longest_break"] > 3  # a night between evenings at least
     assert a["injected_player_name"] == a["players_seen"] + 1  # the injected name counts as a player
     assert computed["first_upgrade"]["forbid_answers"], "the demo has long shots: the check means something"
+    # The auction upgrade, through the stdio server: an item of the newest
+    # day's scan (the gear advice saw it, as the model's server does).
+    newest = max(r["scan_day"] for r in rows if r["feed"] == "wow-prices")
+    assert str(a["ah_upgrade"]) in {str(r["item_key"]) for r in rows
+                                    if r["feed"] == "wow-prices" and r["scan_day"] == newest}
+
+
+def test_the_store_counts_back_from_the_server_clock():
+    """A relative read (`_time:3d`, the auction scans) counts back from the
+    store's clock: the MCP check's store runs on the server's demo time,
+    not the wall clock, or the stdio server's gear advice saw no scan."""
+    from wowstats import logsql
+
+    rows = D.rows_for("full")
+    scans = 'feed:="wow-prices" _time:3d | fields item_key'
+    vl = answers.store(rows)
+    try:
+        q = urllib.parse.urlencode({"query": scans})
+        with urllib.request.urlopen(f"{vl.url}/select/logsql/query?{q}") as r:
+            got = [json.loads(x) for x in r.read().splitlines() if x.strip()]
+    finally:
+        vl.close()
+    assert got and len(got) == len(logsql.parse(scans).run(rows, now=D.now()))
+
+
+def test_a_full_scan_on_one_instant_through_stdio(tmp_path, computed):
+    """A full Auctionator scan writes every item at the scan day's midnight:
+    live, 2026-11-24, thousands at one instant were more than a raw read may
+    return, so `prices` refused and the gear advice dropped the auction
+    house. Both read stats rows (one per item, house and day) now; here
+    through the stdio server, as an MCP client runs it."""
+    pytest.importorskip("fastmcp")
+    rows = D.rows_for("full")
+    scans = [r for r in rows if r["feed"] == "wow-prices"]
+    days = sorted({(r["scan_day"], r["_time"]) for r in scans})
+    # 11,000 unscored items (no source, no score) on each of the demo's two
+    # scan days: over a page (5,000) at one instant, and over a read's
+    # limit (20,000) in all, so the reads have to page.
+    filler = [{**scans[-1], "_time": t, "scan_day": d, "item_key": str(900000 + i), "item_id": 900000 + i,
+               "item_name": f"Filler {i}", "source_id": f"prices:filler:{i}:{d}"}
+              for d, t in days for i in range(11000)]
+    vl = answers.store(rows + filler)
+    t = answers.Tools(vl.url, str(tmp_path))
+    try:
+        assert t("prices", item=str(computed["ah_upgrade"]["answer"]))["items"]
+        g = t("gear")
+    finally:
+        t.close()
+        vl.close()
+    assert g["auction_house"]["last_scan_day"] == days[-1][0]
+    assert [u["item_id"] for u in g["buy_now"]] == [computed["ah_upgrade"]["answer"]]
 
 
 def test_probes_hold_the_answers(questions, computed):
@@ -112,7 +165,7 @@ def test_probes_hold_the_answers(questions, computed):
     try:
         with tempfile.TemporaryDirectory() as state:
             for s in answers.scenarios(questions):
-                vl = D.VL(answers.rows_for(s))
+                vl = answers.store(answers.rows_for(s))
                 servers[s] = (vl, answers.Tools(vl.url, f"{state}/{s}"))
             for q in questions:
                 _, t = servers[q.get("scenario", "full")]
@@ -175,7 +228,7 @@ def test_play_sql_route_position_is_next_steps_rule():
     import tempfile
 
     rows = D.rows_for("full")
-    vl = D.VL(rows)
+    vl = answers.store(rows)
     try:
         with tempfile.TemporaryDirectory() as state:
             t = answers.Tools(vl.url, state)

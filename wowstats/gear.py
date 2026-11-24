@@ -1550,7 +1550,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     drops a capped list leaves out). held: the newest wow-bags lists
     ({bags, bank}); an item held there has one source, {"kind": "bags"} or
     {"kind": "bank"}: equip it, or take it out of the bank first. market:
-    wowstats.ahsource.gather(): an item on sale now gets an "ah" source (one
+    wowstats.ahsource.market(): an item on sale now gets an "ah" source (one
     with no other source the character can use becomes a candidate too),
     with its price against his gold; the answer gets `ah`. mode: the
     weights' mode, Leveling (the default), PvP or PvE (mode_key)."""

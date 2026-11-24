@@ -14,8 +14,9 @@ import contextlib
 import json
 import sys
 import threading
+import time
 import urllib.parse
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -146,14 +147,33 @@ def clock() -> Iterator[None]:
         yield
 
 
+def ticking() -> Callable[[], datetime]:
+    """now(), ticking from the moment this is called: the clock of a server
+    process that runs on the demo's time (tools/eval_mcp/server.py), for a
+    store that runs in another process."""
+    t0 = time.monotonic()
+    return lambda: now() + timedelta(seconds=time.monotonic() - t0)
+
+
 class VL:
     """VictoriaLogs over `rows`, and a VictoriaMetrics that answers each
     query with the first `metrics` entry whose key is in it (else nothing),
-    on a port."""
+    on a port.
 
-    def __init__(self, rows: list[dict], metrics: dict[str, list[dict]] | None = None):
+    `clock`: the store's "now", which a relative filter (`_time:3d`) counts
+    back from. Real VictoriaLogs and the app share the wall clock; here the
+    default is this process's clock (D.clock() when a test travels), and a
+    server in another process on the demo's time (the MCP check's stdio
+    server) needs its store on that time too: on the wall clock the
+    auction scans' `_time:3d` read found nothing and the gear advice showed
+    no scan, while `prices` (an absolute start) showed them (eval-mcp,
+    2026-11-24)."""
+
+    def __init__(self, rows: list[dict], metrics: dict[str, list[dict]] | None = None,
+                 clock: Callable[[], datetime] | None = None):
         self.rows = sorted(rows, key=lambda r: parse_t(r.get("_time")))
         self.metrics = metrics or {}
+        self.clock = clock
         self.unsupported: list[str] = []
         fake = self
 
@@ -181,7 +201,7 @@ class VL:
                     hi = parse_t(q["end"]) if q.get("end") else None
                     rows = [r for r in fake.rows if (lo is None or lo <= parse_t(r["_time"]))
                             and (hi is None or parse_t(r["_time"]) <= hi)]
-                    out = parsed.run(rows)[:int(q.get("limit") or 10 ** 9)]
+                    out = parsed.run(rows, now=fake.clock() if fake.clock else None)[:int(q.get("limit") or 10 ** 9)]
                     return self._send(200, "".join(json.dumps(r) + "\n" for r in out).encode(),
                                       "application/stream+json")
                 if u.path.startswith("/api/v1/"):
