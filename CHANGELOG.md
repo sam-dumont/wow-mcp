@@ -63,6 +63,15 @@
 
 ### Fixed
 
+- A full Auctionator scan writes every item at the scan day's midnight. Once that was more than
+  5,000 items at one instant, the MCP `prices` tool refused to answer ("one second holds more
+  records than a read can return") and `gear` lost the auction house without a word
+  (`auction_house: null`, no "buy it" upgrades). The MCP now reads the scans the way the gear
+  page does: one stats row per item, auction house and scan day. `gear` takes the page's own
+  price read. The page and `next_moves` already did.
+- The MCP check's stand-in store answered `_time:3d` on the wall clock while its stdio server ran
+  on the demo's clock, so the gear advice showed no scan there. The store now runs on the
+  server's clock, and the auction upgrade question is back.
 - The daily KB watch no longer moves an addon or Polestar back to an older release while the
   newer one still exists; when the newer release is really gone, the commit says so. The KB
   watch tests no longer break when a watch PR moves `data/kb/watch.json` (#211).

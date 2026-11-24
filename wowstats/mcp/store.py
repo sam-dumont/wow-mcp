@@ -29,6 +29,9 @@ from wowstats.stores import HISTORY_START, SourceError, env_account, iso_us
 
 QUERY_TIMEOUT = 20
 ROW_LIMIT = 20000
+# A stats answer's rows: one per group (the auction scans: item, house, day), as
+# the page's price list reads them (wowstats.views.price_rows).
+STATS_LIMIT = 200_000
 
 
 def iso(t: datetime) -> str:
@@ -157,6 +160,18 @@ class Store:
         if limit < ROW_LIMIT:
             return ev.vl_range(q, start, end, limit)
         return ev.vl_direct(q, limit=limit, start=start, end=end)
+
+    def stats(self, query: str, keys: tuple, ops: dict, start: datetime | None = None,
+              end: datetime | None = None, limit: int = STATS_LIMIT) -> list[dict]:
+        """A `stats by (keys)` query after the stream filter, over [start,
+        end] (default: the whole history), merged by `keys` with each
+        field's op when the range is split. One row per group, never the
+        events: the read for the auction scans, which put thousands of
+        events on one instant (a full scan's day), more than a raw read may
+        return."""
+        lo, hi = self.window()
+        return self.events.vl_direct(f"{self.logs_filter} {query}", keys, ops, limit=limit,
+                                     start=start or lo, end=end or hi)
 
     def metrics(self, q: str) -> list[dict]:
         if not self.vm_url:
