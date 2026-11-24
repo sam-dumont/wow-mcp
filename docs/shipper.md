@@ -116,8 +116,10 @@ your own server, the one in `[ship]`, with the same upload password as
 - it asks `GET <server>/install/assets/need` what the server still wants:
   about 30 client tables (how races are built, how items dress them, some
   11 MB once per game patch), then the models and textures your characters
-  wear, then what those name (skin, skeleton, standing animation, closed
-  hands);
+  wear (weapon and enchant glows included), then what those name (skin,
+  skeleton, and the animations the 3D view plays: standing, closed hands,
+  the attack, cast, channel and roar, and six emotes, about 6 MB for a
+  gnome);
 - it sends them one by one, at most 96 MB a run, within the same daily
   budget as your events. A file the server already has is never sent again.
   One file can be 48 MB at most (the server's limit, given in its answer to
@@ -294,8 +296,8 @@ usual install places), `archive_dir`, `wtf_archive` (default `true`),
   `ChrModel`) from your WoW install to FOLDER, one file per id plus
   `manifest.json` (what was missing and why). Read-only on the game folder;
   it also takes what each model names (its first skin, skeleton, parent
-  skeleton and standing animation). `@file` reads either list from a file;
-  `--wow-root` overrides the folder holding `.build.info` (default: the one
+  skeleton and the animations the 3D view plays). `@file` reads either
+  list from a file; `--wow-root` overrides the folder holding `.build.info` (default: the one
   above your `_forever_`). For checking by hand: nothing is sent.
 - `--casc-diagnose`: prints how the WoW install's storage is laid out
   (each index's versions and header, the archives' sizes, where the

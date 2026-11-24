@@ -283,8 +283,9 @@ def build(wow_root: Path, out: Path) -> int:
         if a.get("recipe"):
             needs |= set(a["needs"])
     files, _t, absent = ship.casc_files(casc, sorted(needs), (), follow=True)
+    anims = set().union(*(assets.anim_refs(d) for d in files.values() if assets.kind_of(d) in ("m2", "skel")))
     for f, data in sorted(files.items()):
-        kind = assets.kind_of(data)
+        kind = assets.kind_of(data, anim=f in anims)
         if kind is None:
             raise SystemExit(f"demo3d: file {f} isn't a kind the viewer reads")
         (store / "files" / f"{f}.{kind}").write_bytes(data)

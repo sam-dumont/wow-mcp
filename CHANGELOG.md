@@ -55,8 +55,8 @@ What comes after 0.10.0, in short. Every change follows.
 - The 3D view comes alive: the character stands, and every 8 to 20 seconds swings its weapon
   (the swing its weapon type uses: a staff's two-handed one), casts, channels or roars, then stands
   again. Only animations the model has play; none while you turn it, for 3 seconds after, under
-  reduced motion, in a hidden tab, or in the still pictures. Emotes (talk, bow, cheer) wait for
-  the shipper to send their animation files, which live outside the model.
+  reduced motion, in a hidden tab, or in the still pictures. The emotes (talk, exclaim, question,
+  bow, cheer, laugh) play too: the server asks the shipper for their animation files.
 - With a two-hander the paperdoll's off hand shows that weapon greyed, as the game's character
   pane does, instead of "Empty".
 
@@ -81,6 +81,14 @@ What comes after 0.10.0, in short. Every change follows.
 
 ### Fixed
 
+- Your own character plays the 3D view's emotes, not only the demo. The server asked the shipper
+  for the animation files of Stand and the closed hands only, and Forever's HD gnome keeps its six
+  emotes in headerless `.anim` files, which the server refused (415) even when asked. Now one list,
+  `M3D.ANIMATIONS` in the viewer, is what the server asks for (`assets.ANIMATIONS`, a test keeps
+  them equal), and a headerless file is taken as an animation when a stored model names it as one.
+  On the owner's gnome: 48 files, 6 MB more over 8 character models (158 MB to 164 MB, under the
+  512 MB per person). Shippers already installed send them as they are, no update needed; the
+  still pictures never ask for them.
 - MCP: `sessions` and `dungeons` now say other players chose the names in them (`untrusted`), like
   `players`.
 - The Upgrades list no longer fails to load ("Couldn't load gear advice") when an item's only

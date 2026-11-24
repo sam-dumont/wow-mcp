@@ -264,8 +264,10 @@ class Files:
     def lacking(self, recipe: dict, absent: set[int], scope: str = "") -> list[int]:
         """The files the recipe draws with that aren't in the scope's folder,
         and aren't known to be absent (assets.closure over what is there)."""
+        # A picture stays on Stand: never the .anim files of the moves.
         _have, missing = assets.closure(character3d.needs(recipe),
-                                        lambda f: self.get(f, scope) if self.has(f, scope) else None)
+                                        lambda f: self.get(f, scope) if self.has(f, scope) else None,
+                                        animations=assets.STILL)
         return sorted(missing - absent)
 
 

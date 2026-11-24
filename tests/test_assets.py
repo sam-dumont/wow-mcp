@@ -9,6 +9,8 @@ import base64
 import hashlib
 import http.client
 import json
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -76,13 +78,57 @@ def test_store_room_and_dedupe(tmp_path):
     assert s.refs() == {SKIN0, TEX, SKEL, STAND}
 
 
+def test_a_raw_anim_is_taken_when_a_stored_model_names_it(tmp_path):
+    """Forever's HD gnome keeps its emotes in .anim files with no header (an
+    M2 without a skeleton): 48 of them were refused (415) on the owner's own
+    data until the store asked the models that name them."""
+    raw = bytes(4) + b"!\x00\x00\x00C\x00\x00\x00" + bytes(64)  # how one starts on the real client
+    talk, walk = 900941, 900950
+    assert assets.kind_of(raw) is None and assets.kind_of(raw, anim=True) == "anim"
+    s = assets.Store(tmp_path)
+    for fid in (talk, walk):  # no model names them yet
+        with pytest.raises(assets.Refused) as e:
+            s.put_file(fid, raw)
+        assert e.value.status == 415
+    s.put_file(CHAR, cf.m2(skins=(SKIN0,), anims=((60, 0, talk), (4, 0, walk))))
+    assert talk in s.refs() and walk not in s.refs()  # Walk isn't played: never asked for
+    assert s.put_file(talk, raw) == "anim" and s.read(talk) == raw
+    with pytest.raises(assets.Refused):
+        s.put_file(walk, raw)
+    # A new Store on the same folder (a restart) knows it from the stored model.
+    assert assets.Store(tmp_path).put_file(talk, raw) == "anim"
+    # The still pictures never ask for the moves' files.
+    have, missing = assets.closure({CHAR}, s.read, animations=assets.STILL)
+    assert talk not in have and talk not in missing
+
+
 def test_model_refs_match_the_shippers(shipper):
     for data in (model(), cf.m2(skins=(1, 2), textures=(3, 4), skel=0, anims=((0, 0, 5), (4, 0, 6), (0, 2, 7))),
                  cf.skel(parent=PARENT, anims=((0, 0, 8), (1, 0, 9))), cf.skel(), b"MD21", b""):
         assert assets.model_refs(data) == shipper.model_refs(data)
-    # Both follow the closed hands (15, the viewer's HandsClosed), never another animation.
-    hands = cf.skel(parent=PARENT, anims=((0, 0, 8), (15, 0, 10), (15, 3, 11), (4, 0, 12)))
-    assert assets.model_refs(hands) == shipper.model_refs(hands) == {PARENT, 8, 10, 11}
+    # Both follow the animations the viewer plays (closed hands 15, the emotes 60-70 Forever's HD
+    # models keep in .anim files), every variation, never another one (4 is Walk).
+    hands = cf.skel(parent=PARENT, anims=((0, 0, 8), (15, 0, 10), (15, 3, 11), (4, 0, 12), (66, 0, 13), (60, 1, 14)))
+    assert assets.model_refs(hands) == shipper.model_refs(hands) == {PARENT, 8, 10, 11, 13, 14}
+    assert shipper.CASC_ANIMATIONS == assets.ANIMATIONS
+
+
+def test_the_viewer_plays_only_the_animations_the_server_asks_for():
+    """draw.js's M3D.ANIMATIONS (Stand, HandsClosed, every Idle move for any
+    weapon) is the server's ANIMATIONS: a move added to the viewer without
+    its .anim files would never play for a real player."""
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not installed")
+    m3d = Path(__file__).resolve().parent.parent / "web" / "model3d" / "m3d"
+    order = [n.strip() for n in (m3d / "ORDER.txt").read_text().splitlines() if n.strip()]
+    js = ("const fs = require('fs'), path = require('path'), vm = require('vm');"
+          f"for (const f of {json.dumps(order)})"
+          f" vm.runInThisContext(fs.readFileSync(path.join({json.dumps(str(m3d))}, f), 'utf8'), {{ filename: f }});"
+          "process.stdout.write(JSON.stringify(M3D.ANIMATIONS));")
+    out = subprocess.run([node, "-"], input=js, text=True, capture_output=True, timeout=60)
+    assert out.returncode == 0, out.stderr
+    assert set(json.loads(out.stdout)) == assets.ANIMATIONS
 
 
 def test_routes_on_a_one_person_server(one):

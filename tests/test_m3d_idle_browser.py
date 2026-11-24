@@ -3,8 +3,8 @@ and WebKit, on a made-up model: no game file, no network.
 
 The model has Stand (0), ReadySpellDirected (51) and SpellCastDirected (53)
 in the file, EmoteTalk (60) in an .anim that comes, and Ready2H (27) and
-Attack2H (18) in .anim files that don't (as the shipper sends the files of
-Stand and HandsClosed only). With the recipe's attack 18, only "cast" and
+Attack2H (18) in .anim files that don't (a server whose shipper hasn't sent
+them yet). With the recipe's attack 18, only "cast" and
 "talk" can be played; the clock and the random draws are the test's.
 
 Heavy: run through ~/.local/bin/wow-heavy, one browser suite at a time.
