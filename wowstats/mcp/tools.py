@@ -1519,7 +1519,8 @@ TOOLS: tuple[Tool, ...] = (
     Tool("dungeons", "Dungeons",
          "Dungeon runs, newest first: level, time, XP and XP/h inside, `trip` (quest XP, quests turned in "
          "outside, trip XP/h) and `party` (who was in it, when known). With `options`: dungeons in range now "
-         "or soon, ranked: one more run now (time, XP, share of the level, XP/h against questing, quests to pick up, kill XP), gear per clear; for ones it "
+         "or soon, ranked: one more run now (time, XP, share of the level, XP/h against questing, quests to "
+         "pick up, kill XP), gear per clear; for ones it "
          "did, looping it (gold/h, runs for the mount).",
          schema({"char": CHAR, "since": SINCE, "until": UNTIL, "limit": lim(20),
                  "options": {"type": "boolean",
