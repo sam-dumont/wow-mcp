@@ -562,6 +562,10 @@ class Views:
             # What the bags and the bank hold: those upgrades are an equip away.
             "held": sub(gearmod.held_rows, own, cf),
         }
+        # Reputations and the PvP rank: a quartermaster's item is an upgrade
+        # once the standing is held (wowstats.gear rep_check). Optional, like
+        # the prices: a read that fails leaves them unknown, never the advice.
+        standings = sub(gearmod.standing_rows, own, cf)
         # What is on sale on the auction house (wowstats.ahsource): the
         # scans are the price list's own read.
         ah = {k: sub(vl, f"{st} {q}", keys, ops)
@@ -584,6 +588,10 @@ class Views:
         sheet = gearmod.sheet(row, header)
         sheet["talents"] = self.talent_points(char, sheet.get("class"))  # spec detection: Battle.net only
         sheet["worn_stats"] = worn
+        try:
+            sheet["reps"], sheet["pvp_rank"] = gearmod.standings_of(standings.result())
+        except SourceError:
+            sheet["reps"], sheet["pvp_rank"] = None, None
         done = set(quests.with_battlenet(res["done"], quests.worn_ids(worn)))
         try:
             market = ahsource.market({k: f.result() for k, f in ah.items()}, faction=sheet.get("faction"),

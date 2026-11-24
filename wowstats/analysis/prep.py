@@ -444,7 +444,8 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
                "(made for another class), unknown",
         "source_text": "this source in the gear advice's words, as the gear tool says it",
         "source_wowhead": "the source's Wowhead page (the quest, the boss, the craft's spell), when it has one",
-        "slot": "the inventory slot 1-19 the gain is measured in (gear.slot): which ring or trinket it replaces"}),
+        "slot": "the inventory slot 1-19 the gain is measured in (gear.slot): which ring or trinket it replaces",
+        "effort": "how hard this source is: easy, some effort or hard (gear.source_effort)"}),
     "reps": ("Reputation changes: one row per rep record (source recorder), and Altoholic's reputation "
              "snapshots (source altoholic: a faction's first listing and each later move of its points, so a "
              "character the Recorder never saw has its reputation too). The character's own reputation; faction "
@@ -1008,7 +1009,7 @@ def _schema(db: sqlite3.Connection) -> None:
         source_kind TEXT, instance TEXT, instance_min_level INTEGER, instance_max_level INTEGER, zone TEXT, boss TEXT,
         npc_id INTEGER, drop_chance_pct REAL, quest_id INTEGER, quest_name TEXT, quest_choices INTEGER,
         profession TEXT, skill INTEGER, can_make INTEGER, bis_pct REAL, bis_pct_worn REAL, fit TEXT,
-        source_text TEXT, source_wowhead TEXT, slot INTEGER);
+        source_text TEXT, source_wowhead TEXT, slot INTEGER, effort TEXT);
     CREATE TABLE quests (quest_row INTEGER PRIMARY KEY, quest_id INTEGER, quest_name TEXT, status TEXT,
         accepted_t REAL, closed_t REAL, accepted_local TEXT, closed_local TEXT, level_accepted INTEGER,
         level INTEGER, zone TEXT, xp INTEGER, money_copper INTEGER, wall_s REAL, open_online_s REAL,
@@ -1873,8 +1874,9 @@ def _upgrades(db, ups: list[dict]) -> None:
                                _flt(s.get("chance_pct")), _int(s.get("quest_id")), s.get("name"),
                                _int(s.get("choices")), s.get("profession"), _int(s.get("skill")),
                                None if s.get("can_make") is None else int(bool(s.get("can_make"))))
-                       + badge + (gear.source_text(s), gear.source_link(s), _int(u.get("slot"))))
-    db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 30) + ")", out)
+                       + badge + (gear.source_text(s), gear.source_link(s), _int(u.get("slot")),
+                                  gear.EFFORT[gear.source_effort(s)]))
+    db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 31) + ")", out)
 
 
 def advice_db(advice: dict, char: str, cls: str | None, upgrades: list[dict],

@@ -704,7 +704,7 @@ The gear advice's upgrades for the spec the gear is scored for (the player's WEI
 | `best_upgrade_gain` | simple | points | The best upgrade's score gain over what is worn (ForeverDB.net's weights, for the scored spec). | Group by slot, as best_upgrade. Not additive: one slot's best is not another's. | top; time: snapshot_observation; estimated. |
 | `best_upgrade_bis_pct` | simple | percent | The best upgrade's score as a percent of the best its slot can hold at this level for the scored spec. | Say it with upgrade_bis_pct_worn as the page does: '17% → 64% on your head', never as '+47%'. NULL when there is nothing to measure against. | top; time: snapshot_observation; estimated. |
 
-Group or filter by: `character`, `class`, `fills_empty`, `fit`, `instance`, `item`, `item_id`, `now`, `rank_now`, `slot`, `slot_id`, `source`, `source_kind`, `source_wowhead`, `with_item_id`, `zone`.
+Group or filter by: `character`, `class`, `effort`, `fills_empty`, `fit`, `instance`, `item`, `item_id`, `now`, `rank_now`, `slot`, `slot_id`, `source`, `source_kind`, `source_wowhead`, `with_item_id`, `zone`.
 
 ### worn
 
@@ -1082,6 +1082,7 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `done_why` | quests | For 'done (inferred)': the evidence, e.g. a reward only that quest gives worn or in the bags, or Questie's completed list. NULL otherwise. |
 | `dungeon` | timeline, dungeon_runs, dungeon_trips | Dungeon name while inside a dungeon run, else NULL. |
 | `dungeon_trip` | records | The dungeon trip the record falls in (dungeon_trips), NULL outside one: filter is null for play outside dungeons. |
+| `effort` | upgrades | How hard this source is: easy (a quest, a vendor, the auction house, a craft you make, a drop of 25% or more), some effort (a drop of 8-25%, a reputation within reach), hard (a rarer drop, a world drop, a raid). Long shots are never upgrades. |
 | `elite` | records | 1 when a kill's creature was an elite, a rare elite or a boss (classification e, R or b), else 0. |
 | `end_t` | sessions | When the span ended, unix seconds (UTC): its last record. |
 | `faction` | attunements | Alliance or Horde: the character's side, both when it isn't known. |

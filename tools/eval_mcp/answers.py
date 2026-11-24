@@ -277,7 +277,10 @@ def long_shots(t: Tools, below_pct: float = 10.0) -> list[str]:
     names = set()
     for u in t("gear", limit=40)["next_upgrades"]:
         for w in u.get("where") or []:
-            m = re.match(r"drop: .*?([\d.]+)%\s*$", w)
+            # The chance, wherever the line says it: a drop's line goes on
+            # with its expected runs and how sure it is ("0.5%, about 200
+            # runs (seen in Forever)").
+            m = re.match(r"(?:drop|world drop)\b.*?([\d.]+)%", w)
             if m and float(m.group(1)) < below_pct:
                 names.add(u["item"])
     return sorted(names)

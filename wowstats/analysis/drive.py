@@ -557,8 +557,10 @@ BREAK_S = 3 * 86400
 WEAK_PCT = 25
 # 6 since the BiS counts gear with no known source (2026-11-24): more worn
 # items read under WEAK_PCT, and 8 of them pushed the brief's first page
-# past what a small context takes.
-FACTS_ROWS = 6
+# past what a small context takes. 5 since ForeverDB's sources (2026-11-24):
+# each upgrade's source says where, how sure and the odds, twice as long
+# as Polestar's; the rest are a query_metric call away (gear_fit's query).
+FACTS_ROWS = 5
 
 
 # The best upgrades listed under each worn item of gear_fit, wearable now.
@@ -623,6 +625,22 @@ def _num(v):
     return int(v) if isinstance(v, float) and v.is_integer() else v
 
 
+# Among sources as easy as each other, the surest first: what is held, then
+# a purchase or a hand-in, then a craft, then a chance; a rate seen in
+# Forever before another's (owner, 2026-11-24).
+KIND_ORDER = ("bags", "bank", "ah", "vendor", "quest", "craft", "reputation", "drop", "container", "pvp")
+
+
+def _kind_rank(kind) -> int:
+    return KIND_ORDER.index(kind) if kind in KIND_ORDER else len(KIND_ORDER)
+
+
+def _effort_rank(effort) -> int:
+    from wowstats import gear
+
+    return gear.EFFORT.index(effort) if effort in gear.EFFORT else len(gear.EFFORT)
+
+
 def gear_fit(layer, ro) -> tuple[str | None, list[dict], dict | None]:
     """The scored spec, the worn items that fit it least with their slots'
     best upgrades, and the upgrades' query_metric call (None when no item
@@ -641,8 +659,10 @@ def gear_fit(layer, ro) -> tuple[str | None, list[dict], dict | None]:
     order = {name: n for n, name in gear.SLOT_NAMES.items()}
     weak = sorted((r for r in rows if r["fit"] in ("spec", "class")
                    or (r["worn_bis_pct"] is not None and r["worn_bis_pct"] < WEAK_PCT)),
-                  key=lambda r: (r["worn_bis_pct"] is None, r["worn_bis_pct"] or 0, order.get(r["slot"], 99),
-                                 r["item_id"]))[:FACTS_ROWS]
+                  # Built for someone else first (the wrong_spec_gear finding),
+                  # then the furthest from the slot's best.
+                  key=lambda r: (r["fit"] not in ("spec", "class"), r["worn_bis_pct"] is None,
+                                 r["worn_bis_pct"] or 0, order.get(r["slot"], 99), r["item_id"]))[:FACTS_ROWS]
     # A worn item the scoring has no slot for can't be compared: no upgrades
     # to ask about (a sheet without the Recorder's history, 2026-11-23).
     slots = sorted({r["slot"] for r in weak if r["slot"] is not None})
@@ -654,21 +674,28 @@ def gear_fit(layer, ro) -> tuple[str | None, list[dict], dict | None]:
                        {"dimension": "rank_now", "op": "<=", "value": UPGRADES_PER_SLOT + 1}],
              "order_by": ["slot", "-upgrade_gain", "item_id"]}
     ups = ask(**query)
-    where: dict[int, list[tuple[str, str | None]]] = {}
+    where: dict[int, list[tuple]] = {}
     if ups:
-        for r in ask(metrics=["upgrade_sources"], group_by=["item_id", "source", "source_wowhead"],
+        for r in ask(metrics=["upgrade_sources"],
+                     group_by=["item_id", "effort", "source_kind", "source", "source_wowhead"],
                      where=[{"dimension": "item_id", "op": "in", "values": sorted({u["item_id"] for u in ups})}],
                      order_by=["item_id", "source"]):
-            where.setdefault(r["item_id"], []).append((r["source"], r["source_wowhead"]))
+            where.setdefault(r["item_id"], []).append((r["source"], r["source_wowhead"], r["effort"],
+                                                       r["source_kind"]))
     by_slot: dict[str, list[dict]] = {}
     for u in ups:
         line = gear.gain_words({"slot_name": u["slot"], "gain": u["upgrade_gain"],
                                 "bis_pct": _num(u["upgrade_bis_pct"]), "bis_pct_worn": _num(u["upgrade_bis_pct_worn"])})
-        src = where.get(u["item_id"]) or []
+        # The easiest source only (gear.EFFORT): every source of every
+        # upgrade, in ForeverDB's longer words, took the brief past its size
+        # (2026-11-24); upgrade_sources by item_id lists the others.
+        src = sorted(where.get(u["item_id"]) or [], key=lambda x: (_effort_rank(x[2]), _kind_rank(x[3]),
+                                                                  "seen in Forever" not in x[0], x[0]))
         by_slot.setdefault(u["slot"], []).append({
             "item": u["item"], "item_id": u["item_id"], "wowhead": wowhead_url("item", u["item_id"]),
             "gain_points": u["upgrade_gain"], "line": line, "fit": u["fit"],
-            "where": [t for t, _ in src], "where_wowhead": [w for _, w in src]})
+            "where": [x[0] for x in src[:1]], "where_wowhead": [x[1] for x in src[:1]],
+            "effort": src[0][2] if src else None})
     worn = []
     for r in weak:
         got = by_slot.get(r["slot"]) or []

@@ -36,6 +36,15 @@ started from) and checks:
   away is refused unless the same PR updates the snapshot. #189 merged a
   digest whose sparse re-mention took the Onyxia attunement from every level
   60, and every gate passed (2026-11-23);
+- foreverdb (when data/foreverdb/item-sources.json differs from the base):
+  its notice, schema and licence files (tools/foreverdb_sources/export.py
+  `problems`), its size (budget.json `foreverdb`), churn against the base
+  (at most FDB_LOST_SHARE of its items gone, no source kind or label
+  dropping out, at most FDB_SOURCES_DROP fewer sources), the coverage of
+  ForeverDB's own picks (tests/data/foreverdb-picks.json: never under the
+  budget's floor, never FDB_COVERAGE_DROP below the base), and the
+  instruction patterns on every name in it (the gear advice hands them to
+  the players' assistants);
 - tests (unless --no-tests): ruff, the whole pytest suite (the MCP's
   24,000-character cap, tests/mcp/test_kb_caps.py, among them) and the
   fixtures check, as CI's test job runs them.
@@ -72,6 +81,11 @@ CHURN_MAX = int(os.environ.get("KB_CHURN_MAX") or 30)
 CHURN_SHARE = 0.10
 CHURN_FLOOR = 5  # a small lane may always lose this many
 TEXT_KEYS = ("statements", "contradictions", "builds")
+FDB = "data/foreverdb/item-sources.json"
+FDB_PICKS = ROOT / "tests" / "data" / "foreverdb-picks.json"
+FDB_LOST_SHARE = 0.05
+FDB_SOURCES_DROP = 0.10
+FDB_COVERAGE_DROP = 0.02
 
 
 def git_show(base: str, rel: str) -> str | None:
@@ -335,6 +349,74 @@ def behaviour_gate(base_ref: str) -> tuple[list[str], dict]:
             "`uv run python -m tests.slices.golden --write`)" for g in got["gone"]], info
 
 
+def picks_covered(doc: dict) -> tuple[int, int]:
+    """(ForeverDB's picks with a source in `doc`, all its picks): every best
+    and alternative item of tests/data/foreverdb-picks.json."""
+    picks = json.loads(FDB_PICKS.read_text(encoding="utf-8"))
+    ids = {str(i) for slots in picks.values() for sl in slots.values() if isinstance(sl, dict)
+           for i in [sl.get("best"), *(a[0] for a in sl.get("alts") or [])] if i}
+    items = doc.get("items") or {}
+    return sum(1 for i in ids if i in items), len(ids)
+
+
+def foreverdb_gate(base_ref: str, root: Path = ROOT) -> tuple[list[str], dict]:
+    """ForeverDB's item sources, when this tree changed them: ([refusals], counts)."""
+    path = root / FDB
+    text = path.read_text(encoding="utf-8") if path.exists() else None
+    was_text = git_show(base_ref, FDB)
+    if text is None or text == was_text:
+        return [], {}
+    from collections import Counter
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import watch
+
+    fdb = watch.foreverdb()
+    try:
+        doc = json.loads(text)
+    except ValueError:
+        return [f"foreverdb: `{FDB}` isn't JSON"], {}
+    out = [f"foreverdb: {p}" for p in fdb.problems(doc, path.parent)]
+    budget = json.loads((KB / "budget.json").read_text(encoding="utf-8")).get("foreverdb") or {}
+    cap = (budget.get("files") or {}).get(FDB)
+    if cap and len(text.encode()) > cap:
+        out.append(f"foreverdb: `{FDB}` is {len(text.encode()):,} bytes, budget {cap:,} (data/kb/budget.json)")
+    have, n = picks_covered(doc)
+    counts = {"items": len(doc.get("items") or {}), "picks_covered": have, "picks": n}
+    floor = budget.get("picks_floor") or 0
+    if n and have / n < floor:
+        out.append(f"foreverdb: {have} of ForeverDB's {n} picks have a source, under the floor of {floor:.0%}")
+    for name, value in strings({k: doc.get(k) for k in ("items", "npcs", "instances")}):
+        hit = instruction_shaped(value)
+        if hit:
+            out.append(f"instructions: `{FDB}` {name}: reads like an instruction to an assistant ({hit[:60]!r})")
+            break
+    was = json.loads(was_text) if was_text else None
+    if was:
+        def tally(d: dict) -> tuple[Counter, Counter, int]:
+            kinds, labels = Counter(), Counter()
+            for e in (d.get("items") or {}).values():
+                for x in e.get("sources") or []:
+                    kinds[x.get("kind")] += 1
+                    labels[x.get("label")] += 1
+            return kinds, labels, sum(kinds.values())
+        (k0, l0, s0), (k1, l1, s1) = tally(was), tally(doc)
+        lost = [i for i in was.get("items") or {} if i not in (doc.get("items") or {})]
+        counts.update(items_lost=len(lost), sources_before=s0, sources_now=s1)
+        if len(lost) > FDB_LOST_SHARE * max(1, len(was.get("items") or {})):
+            out.append(f"foreverdb: {len(lost)} items lost every source (more than {FDB_LOST_SHARE:.0%})")
+        gone = [k for k in k0 if not k1.get(k)] + [f"label {k}" for k in l0 if not l1.get(k)]
+        if gone:
+            out.append(f"foreverdb: no source left of {', '.join(map(str, gone))}")
+        if s1 < (1 - FDB_SOURCES_DROP) * s0:
+            out.append(f"foreverdb: {s0 - s1} fewer sources (more than {FDB_SOURCES_DROP:.0%} of {s0})")
+        had, _ = picks_covered(was)
+        counts["picks_covered_before"] = had
+        if n and (had - have) / n > FDB_COVERAGE_DROP:
+            out.append(f"foreverdb: the picks with a source went from {had} to {have} of {n}")
+    return out, counts
+
+
 def suite_env() -> dict[str, str]:
     return {k: v for k, v in os.environ.items() if not k.startswith("KB_") and k not in JOB_VARS}
 
@@ -374,6 +456,8 @@ def run(base_ref: str, sources_path: str | None, tests: bool, kb_dir: Path = KB,
         if (kb_dir / "community.json").exists() else {}
     refused += instructions_gate({**head, **community})
     refused += [f"size: {o}" for o in lifecycle.over_budget(kb_dir)]
+    fdb, fdb_counts = foreverdb_gate(base_ref) if kb_dir == KB else ([], {})
+    refused += fdb
     ch, removed = churn_gate(base, head, today)
     refused += ch
     # The golden characters read the repository's own KB: only when that is the one checked.
@@ -383,7 +467,7 @@ def run(base_ref: str, sources_path: str | None, tests: bool, kb_dir: Path = KB,
         refused += test_gate()
     return {"ok": not refused, "refused": refused,
             "counts": {"new_texts_checked": checked, "statements_removed": removed, "sources_read": len(sources),
-                       "tests": tests, "behaviour": seen}}
+                       "tests": tests, "behaviour": seen, "foreverdb": fdb_counts}}
 
 
 def markdown(result: dict) -> str:
@@ -394,6 +478,11 @@ def markdown(result: dict) -> str:
     if b:
         head += (f" Golden characters: {b.get('gone', 0)} keys went away, {b.get('added', 0)} new"
                  f"{' (snapshot updated in this PR)' if b.get('snapshot_updated') else ''}.")
+    f = c.get("foreverdb") or {}
+    if f:
+        head += (f" ForeverDB: {f['items']} items with a source, {f['picks_covered']} of its {f['picks']} picks"
+                 + (f" (was {f['picks_covered_before']}), {f['items_lost']} items lost every source"
+                    if "picks_covered_before" in f else "") + ".")
     if result["ok"]:
         return f"**Gates: passed.** {head}\n"
     return f"**Gates: refused.** {head}\n\n" + "\n".join(f"- {r}" for r in result["refused"][:60]) + "\n"

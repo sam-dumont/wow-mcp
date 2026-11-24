@@ -93,6 +93,9 @@ def test_every_gear_score_credits_foreverdb(served):
         if G.scored({k: v for k, v in out.items() if k != "score_source"}):
             seen.append(t.name)
             assert out["score_source"]["url"] == "https://foreverdb.net", f"{sc}: {t.name}"
+        # Where an item comes from, when ForeverDB's data says it, links it too.
+        if G.sources_credited(out):
+            assert out["where_source"]["url"] == "https://foreverdb.net", f"{sc}: {t.name}"
     if sc == "full":
         assert {"gear", "next_moves", "plan_session"} <= set(seen), seen
     g = app.gear(D.CHAR, None)

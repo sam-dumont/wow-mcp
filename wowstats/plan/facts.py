@@ -99,7 +99,7 @@ def prices(store, days: int = 30) -> dict[int, dict]:
 
 
 def gather(env: dict, char: str | None = None, now: float | None = None, store=None, battlenet=None,
-           gear_inputs=None) -> dict:
+           gear_inputs=None, mode: str | None = None) -> dict:
     """Read the stores and the KB; return extract()'s inputs. `battlenet`:
     the item ids Battle.net says the character wears now, read live by the
     caller (this store never reads vm-wow): they add the quests their
@@ -130,13 +130,13 @@ def gather(env: dict, char: str | None = None, now: float | None = None, store=N
         if gi is not None:
             from wowstats.views import gear_args
 
-            advice = gear.advise(gear.reference(), gi["sheet"], every=True, **gear_args(gi))
+            advice = gear.advise(gear.reference(), gi["sheet"], every=True, mode=mode, **gear_args(gi))
             loot = gear.instance_loot(gear.reference(), gi["sheet"], level=gi["level"], weights=gi["weights"],
-                                      bis=advice.get("bis_by_slot"))
+                                      bis=advice.get("bis_by_slot"), mode=mode)
         else:
-            advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet)
+            advice = gear.advise_rows(rows, analysis.weights_for(env, char), battlenet=battlenet, mode=mode)
             loot = gear.instance_loot_rows(rows, analysis.weights_for(env, char),
-                                           (advice or {}).get("bis_by_slot"))
+                                           (advice or {}).get("bis_by_slot"), mode=mode)
     try:
         scans = prices(store)
     except Exception:  # noqa: BLE001 - the scans are a bonus, never a reason to fail

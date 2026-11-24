@@ -33,7 +33,8 @@ _KEY_LOCKS = [threading.Lock() for _ in range(64)]
 MAX_CACHED = 64
 
 
-def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_inputs=None) -> dict:
+def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_inputs=None,
+           mode: str | None = None) -> dict:
     """facts.gather, kept two minutes: the MCP commands of one conversation
     read the same inputs. One gather per character at a time: the full
     view's page asks for the plan's status and the Dungeons panel at once,
@@ -53,8 +54,11 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
 
     bn = tuple(sorted(set(battlenet or ())))
     scoring = tuple(sorted(parse_weights(env.get("WEIGHTS") or "").items()))
+    # `mode`: the weights' mode the gear is scored in (gear.mode_key; None:
+    # Leveling), in the key like the spec (gear options with mode pve once
+    # answered with the Leveling picks, MCP eval pve_shoulder, 2026-11-24).
     key = (tenant_of(env, store), (char or env.get("DEFAULT_CHAR") or "").lower(), bn, gear_inputs is not None,
-           scoring)
+           scoring, mode)
     with _LOCK:
         lock = _KEY_LOCKS[hash(key) % len(_KEY_LOCKS)]
     with lock:
@@ -64,7 +68,8 @@ def inputs(env: dict, char: str | None = None, store=None, battlenet=None, gear_
                 eventcache.replay(hit[2])  # the answer says the data it was gathered from (as_of)
                 return hit[1]
         inp, seen = eventcache.computed(lambda: facts.gather(
-            env, char, store=store, battlenet=bn, gear_inputs=gear_inputs() if gear_inputs is not None else None))
+            env, char, store=store, battlenet=bn, gear_inputs=gear_inputs() if gear_inputs is not None else None,
+            mode=mode))
         with _LOCK:
             now = time.time()
             # Expired entries go as soon as anything is kept: a plan's inputs

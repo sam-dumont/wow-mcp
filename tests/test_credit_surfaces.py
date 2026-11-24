@@ -64,3 +64,19 @@ def test_the_scan_sees_a_bare_score():
     """A new surface that forgets the link is caught."""
     src = APP.read_text(encoding="utf-8") + "\nfunction forgetful(u) {\n  return h('p', { text: upText(u) });\n}\n"
     assert bare(src) == ["forgetful"]
+
+
+def test_every_foreverdb_source_on_the_page_links_it():
+    """ForeverDB's item sources (wowstats/gear.py, via "foreverdb") show how
+    sure they are and the link, wherever a source shows: basisEl, in every
+    branch of sourceEl and in sourceLine."""
+    src = APP.read_text(encoding="utf-8")
+    fns = functions(src)
+    assert re.search(r"const SOURCE_CREDIT = \{[^}]*https://foreverdb\.net", src)
+    assert "SOURCE_CREDIT" in fns["basisEl"]
+    body = fns["sourceEl"]
+    branches = [b for b in body.split("return ")[1:] if b.startswith("h('span', { class: 'src' }")]
+    assert len(branches) >= 9
+    # The auction house's own listing (no source) is the one branch without it.
+    assert sum("basisEl(sr)" not in b for b in branches) <= 1, branches
+    assert "basisEl(src)" in fns["sourceLine"]

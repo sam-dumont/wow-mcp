@@ -1037,14 +1037,8 @@ def _gear_item(u: dict | None, up: dict | None = None) -> dict | None:
 
 
 def t_gear(ctx: Ctx, args: dict) -> dict:
-    if truthy(args.get("options")):
-        # Every way to an upgrade per slot (what gear_options answered until
-        # 2026-11-23). It scores the player's own spec setting, like the planner.
-        if args.get("spec"):
-            raise ToolError("spec works without options: options score the spec set in the player's settings")
-        from .plantools import t_gear_options
-
-        return t_gear_options(ctx, args)
+    if truthy(args.get("options")) and args.get("spec"):
+        raise ToolError("spec works without options: options score the spec set in the player's settings")
     mode = args.get("mode") or None
     if mode is not None and str(mode).strip().lower() not in gearmod.MODE_NAMES:
         raise ToolError("mode is lvl (Leveling, the default), pvp or pve")
@@ -1057,6 +1051,13 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         mode = gearmode.saved(ctx.environ(), char)
         if mode == gearmod.DEFAULT_MODE:
             mode_from = "the default"
+    if truthy(args.get("options")):
+        # Every way to an upgrade per slot (what gear_options answered until
+        # 2026-11-23). It scores the player's own spec setting, like the
+        # planner, in the same mode as gear without options.
+        from .plantools import t_gear_options
+
+        return t_gear_options(ctx, {**args, "mode": mode, "mode_from": mode_from})
     st = ctx.store
     picked = gearmod.pick_sheet(gearmod.sheet_rows(one_row(st), cf(char)))
     rows = [picked] if picked else []
@@ -1682,6 +1683,10 @@ def call(ctx: Ctx, name: str, args: dict | None, registry: tuple[Tool, ...] = TO
     # no tool can forget it.
     if isinstance(out, dict) and "score_source" not in out and gearmod.scored(out):
         out = {**out, "score_source": dict(gearmod.CREDIT)}
+    # Where an item comes from, from ForeverDB's addon data: its licence's
+    # attribution, with the link, wherever one shows (GPL-3.0 section 7(b)).
+    if isinstance(out, dict) and "where_source" not in out and gearmod.sources_credited(out):
+        out = {**out, "where_source": dict(gearmod.SOURCE_CREDIT)}
     return strip_invisible(name, out)
 
 

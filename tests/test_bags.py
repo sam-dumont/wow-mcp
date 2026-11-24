@@ -91,8 +91,11 @@ def test_a_held_item_is_an_equip_away(stored):
         "Riverpaw Leather Vest", "Chest", True, True)
     assert vest["sources"] == [{"kind": "bags"}] and vest["gates"] == [] and gear.is_held(vest)
     assert HEARTH not in {u["item_id"] for u in a["upgrades_all"]}
-    # Without the bags the server can't know about it.
-    assert VEST not in {u["item_id"] for u in gear.advise(gear.reference(), HUNTER, level=8, every=True)["upgrades_all"]}
+    # Without the bags it is only the drop ForeverDB saw in Forever (Riverpaw
+    # Mongrels, no rate measured: hard), never "equip it".
+    bare = next(u for u in gear.advise(gear.reference(), HUNTER, level=8, every=True)["upgrades_all"]
+                if u["item_id"] == VEST)
+    assert [s["kind"] for s in bare["sources"]] == ["drop"] and bare["effort"] == "hard" and not gear.is_held(bare)
 
 
 def test_a_banked_quest_reward_loses_its_quest(stored):

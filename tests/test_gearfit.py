@@ -204,12 +204,14 @@ def test_close_options_rank_the_on_spec_one_first(ref):
     it comes from; a holy priest gets it at full value."""
     a = gear.advise(ref, sheet(), level=32)
     healer = next(u for u in a["upgrades"] if u["name"] == "Filigreed Pristine Circlet")
-    assert healer["fit"]["for_you"] == "spec" and healer["value"] == pytest.approx(healer["gain"] * gearfit.OTHER, abs=0.01)
+    assert healer["fit"]["for_you"] == "spec" and healer["value"] == pytest.approx(
+        gear.ranking_value(healer["gain"], healer["score"], gear.EFFORT.index(healer["effort"]), gearfit.OTHER), abs=0.01)
     alt = healer["fit"]["alternative"]
     assert alt["name"] == "Filigreed Shadow Circlet" and alt["sources"]
     holy = gear.advise(ref, sheet(), level=32, spec="holy")
     hu = next(u for u in holy["upgrades"] if u["name"] == "Filigreed Pristine Circlet")
-    assert hu["fit"]["for_you"] == "yes" and hu["value"] == hu["gain"]
+    assert hu["fit"]["for_you"] == "yes" and hu["value"] == pytest.approx(
+        gear.ranking_value(hu["gain"], hu["score"], gear.EFFORT.index(hu["effort"]), 1.0), abs=0.01)
 
 
 def test_same_gain_different_fit_different_order():

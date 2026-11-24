@@ -195,7 +195,11 @@ def test_the_brief_hands_the_spec_s_best_head_upgrades(facts):
         assert u["wowhead"] == f"https://www.wowhead.com/forever/item={u['item_id']}"
         assert u["where"] and len(u["where_wowhead"]) == len(u["where"]) and u["fit"] == "yes"
     # The Fallen Champion stands in the Graveyard (wowstats.plan.wings; Polestar's gear data said Library).
-    assert ups[0]["where"] == ["drop: Fallen Champion in Scarlet Monastery: Graveyard (dungeon, levels 30-38), 38.5%"]
+    # The brief keeps the easiest source, a rate seen in Forever first (ForeverDB's 33.33%
+    # over Polestar's 38.5%, 2026-11-24).
+    assert ups[0]["where"] == ["drop: Fallen Champion (rare) in Scarlet Monastery: Graveyard (dungeon, levels 30-38), "
+                               "33.33%, about 3 runs (seen in Forever)"]
+    assert ups[0]["effort"] == "easy"
 
 def test_the_analysis_reads_what_the_store_query_would():
     rows = [{"char": "Nibbet-Gearholt", "feed": "wow-recorder"}, {"char": "Nibbet Gearholt", "feed": "wow-level"},

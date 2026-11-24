@@ -55,6 +55,10 @@ _HERE = Path(__file__).resolve()
 BUNDLED = (_HERE.parent / "data" / "gear-reference.json", _HERE.parents[1] / "data" / "gear-reference.json")
 WEIGHTS_FILES = (_HERE.parent / "data" / "foreverdb-weights.json", _HERE.parents[1] / "data" / "foreverdb-weights.json")
 ITEMS_FILES = (_HERE.parent / "data" / "game-items.json", _HERE.parents[1] / "data" / "game-items.json")
+# Where gear comes from, ForeverDB.net's addon data (GPL-3.0 with an attribution
+# term): tools/foreverdb_sources/export.py, docs/gear-reference.md.
+SOURCES_FILES = (_HERE.parent / "data" / "foreverdb" / "item-sources.json",
+                 _HERE.parents[1] / "data" / "foreverdb" / "item-sources.json")
 
 # --- Gear.lua's tables -------------------------------------------------------
 
@@ -80,6 +84,17 @@ MODES = {"lvl": "Leveling", "pvp": "PvP", "pve": "PvE"}
 DEFAULT_MODE = "lvl"
 MODE_NAMES = {"lvl": "lvl", "leveling": "lvl", "levelling": "lvl", "pvp": "pvp", "pve": "pve", "raid": "pve"}
 CREDIT = {"name": "ForeverDB.net", "url": "https://foreverdb.net", "text": "Weights: ForeverDB.net"}
+# Where an item comes from, when ForeverDB's data says it (every source with
+# `via: foreverdb`): the licence's attribution, with its link, wherever one
+# shows (wowstats.mcp.tools.call adds it as `where_source`; web/app.js
+# sourceEl links it).
+SOURCE_CREDIT = {"name": "ForeverDB.net", "url": "https://foreverdb.net", "text": "Source: ForeverDB.net"}
+# How sure a ForeverDB source is, in the line's words (its label).
+BASIS = {"s": "seen in Forever", "f": "Forever client", "k": "Classic data, may differ in Forever",
+         "c": "a clue, unconfirmed"}
+# Which of an item's sources to show first: what players saw in Forever, then
+# the client, then Classic's data, then a clue.
+LABEL_ORDER = {"s": 0, "f": 1, "k": 2, "c": 3}
 # ForeverDB's availability rule: an item with no required level counts from
 # its item level minus 5; a quest reward from its quest's level minus 5.
 NO_REQ_BELOW = 5
@@ -95,6 +110,26 @@ SOON_LEVELS = 3  # "the next one coming": within this many levels
 MIN_UPGRADE = 1.0  # the least gain, in percent, that counts as an upgrade
 PER_SLOT = 3  # upgrades listed per slot
 HELD = frozenset({"bags", "bank"})  # the source kinds of an item the character already has
+# How hard an item is to get (owner, 2026-11-24: "weight 'is this easy' vs
+# 'this is a pipe dream'. Convenience and easiness before a quarter of a
+# point"), from its easiest source (source_effort), in ForeverDB's own
+# buckets' words. A long shot is never a pick or an upgrade: it stays
+# visible as the slot's best possible (bis_unknown), with its odds.
+EFFORT = ("easy", "some effort", "hard", "long shot")
+EASY, SOME, HARD, LONG_SHOT = range(4)
+# What an easier item is worth against a harder one when picking a slot's
+# best and ranking upgrades: a harder item wins only when it scores more
+# than 1 / (1 - penalty) times the easier one: 5.3% more for "some
+# effort", 17.6% more for "hard". A quarter of a point never does.
+EFFORT_PENALTY = (0.0, 0.05, 0.15, 0.15)
+# A drop's chance in percent: at least the first for easy, the second for
+# some effort, the third for hard; under it a long shot.
+DROP_EASY, DROP_SOME, DROP_HARD = 25.0, 8.0, 1.0
+STANDING_IDS = {"Neutral": 4, "Friendly": 5, "Honored": 6, "Revered": 7, "Exalted": 8}
+STANDING_NAMES = {v: k for k, v in STANDING_IDS.items()} | {1: "Hated", 2: "Hostile", 3: "Unfriendly"}
+# Reputation points from the start of Neutral where each tier starts (the
+# game's own, as the reps' points count them).
+REP_FLOOR = {4: 0, 5: 3000, 6: 9000, 7: 21000, 8: 42000}
 PAIRS = ((11, 12), (13, 14))
 PAIRED = {11, 12, 13, 14}
 
@@ -175,10 +210,12 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
     (owner, 2026-11-24: "can we get them from the game data instead?"):
     data/game-items.json, tools/game_items/export.py. Every item's stats,
     level, slot and class rules are the client's; Polestar's item table
-    isn't read. Polestar still says where gear comes from (its quest,
-    drop and craft sources) and who wears what (`gear`), and forever-db's
-    quest rewards (data/forever-reference.json `gear_quests`) add the quests
-    Polestar's sources leave out. Each set piece carries its share of the
+    isn't read. Where gear comes from is ForeverDB.net's addon data first
+    (data/foreverdb/item-sources.json, owner 2026-11-24: quests, vendors,
+    drops with their measured chance, crafts, reputation, PvP); for an item
+    it has nothing for, Polestar's sources (quest, drop, craft) and
+    forever-db's quest rewards (data/forever-reference.json `gear_quests`).
+    Polestar still says who wears what (`gear`). Each set piece carries its share of the
     set's bonuses as ForeverDB lists it (the bonus total over the set's size,
     on every piece whether the others are worn or not)."""
     items: dict[str, dict] = {}
@@ -198,24 +235,139 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
             era_only.append(iid)
         if iid in sets:
             items[iid]["set"] = sets[iid]
-    sources = {iid: list(ss) for iid, ss in (polestar.get("sources") or {}).items() if iid in items}
     quests = dict(polestar.get("quests") or {})
-    for qid, (side, races, classes, rewards, choices) in (forever.data().get("gear_quests") or {}).items():
-        mine = [str(x) for x in (*rewards, *choices) if str(x) in items]
+    gear_quests = forever.data().get("gear_quests") or {}
+    # ForeverDB's sources first (owner, 2026-11-24); Polestar's and
+    # forever-db's only for an item ForeverDB has none for.
+    # Where a creature stands: ForeverDB's creature drops name the creature
+    # only, Polestar's drop sources say its zone (Scorn: Scarlet Monastery).
+    npc_zone = {x["npc"]: (x.get("zone"), x.get("zone_name")) for ss in (polestar.get("sources") or {}).values()
+                for x in ss if x.get("kind") == "drop" and x.get("npc") and (x.get("zone") or x.get("zone_name"))}
+    fdb_items, fdb_meta = foreverdb_sources(items, quests, gear_quests, sources_data(), npc_zone)
+    sources = dict(fdb_items)
+    for iid, ss in (polestar.get("sources") or {}).items():
+        if iid in items and iid not in fdb_items:
+            sources[iid] = list(ss)
+    for qid, (side, races, classes, rewards, choices) in gear_quests.items():
+        mine = [str(x) for x in (*rewards, *choices) if str(x) in items and str(x) not in fdb_items]
         if not mine:
             continue
         if qid not in quests:
-            fq = forever.quest(qid) or {}
-            quests[qid] = {"name": fq.get("name"), "level": fq.get("level") or 0, "req": fq.get("min_level") or 0,
-                           "side": side if side in (1, 2) else 3, "zone_name": fq.get("zone"), "race": races,
-                           "class": classes, "dungeon": forever.quest_dungeon(qid) is not None,
-                           "choices": list(choices), "items": list(rewards), "from": "forever-db"}
+            quests[qid] = _forever_quest(qid, side, races, classes, rewards, choices)
         for iid in mine:
             got = sources.setdefault(iid, [])
             if not any(x.get("kind") == "quest" and str(x.get("quest")) == qid for x in got):
                 got.append({"kind": "quest", "quest": int(qid)})
     return {**polestar, "items": items, "names": names, "sources": sources, "quests": quests,
-            "era_only": era_only, "item_stats": {k: v for k, v in (game.get("source") or {}).items() if k != "tables"}}
+            "era_only": era_only, "item_stats": {k: v for k, v in (game.get("source") or {}).items() if k != "tables"},
+            "foreverdb": fdb_meta}
+
+
+def _forever_quest(qid: str, side, races, classes, rewards, choices) -> dict:
+    fq = forever.quest(qid) or {}
+    return {"name": fq.get("name"), "level": fq.get("level") or 0, "req": fq.get("min_level") or 0,
+            "side": side if side in (1, 2) else 3, "zone_name": fq.get("zone"), "race": races,
+            "class": classes, "dungeon": forever.quest_dungeon(qid) is not None,
+            "choices": list(choices), "items": list(rewards), "from": "forever-db"}
+
+
+_SIDE = {"Alliance": 1, "Horde": 2}
+
+
+def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict | None,
+                      npc_zone: dict | None = None) -> tuple[dict, dict]:
+    """({item: [raw source]}, the file's source block) from
+    data/foreverdb/item-sources.json, in the raw shape _source reads, each
+    with `via: foreverdb` and its `label`. A quest ForeverDB names that the
+    quest table hasn't is added from forever-db (its race and class masks)
+    or from ForeverDB itself; `quests` is filled in place. npc_zone: {npc:
+    (area id, zone name)} for creature drops ForeverDB places nowhere."""
+    if not data:
+        return {}, {}
+    npcs, insts = data.get("npcs") or {}, data.get("instances") or {}
+    out: dict[str, list] = {}
+    for iid, e in (data.get("items") or {}).items():
+        if iid not in items:
+            continue
+        raw = []
+        for x in sorted(e.get("sources") or [], key=lambda x: LABEL_ORDER.get(x.get("label"), 9)):
+            k, base = x.get("kind"), {"via": "foreverdb", "label": x.get("label")}
+            if k == "quest":
+                q = str(x["quest"])
+                if q not in quests:
+                    gq = gear_quests.get(q)
+                    if gq:
+                        quests[q] = _forever_quest(q, *gq)
+                    else:
+                        fq = forever.quest(q) or {}
+                        quests[q] = {"name": fq.get("name") or x.get("name"), "level": fq.get("level") or 0,
+                                     "req": fq.get("min_level") or x.get("min_level") or 0,
+                                     "side": _SIDE.get(x.get("side"), 3), "zone_name": fq.get("zone"),
+                                     "dungeon": forever.quest_dungeon(q) is not None, "from": "foreverdb"}
+                raw.append({**base, "kind": "quest", "quest": int(q)})
+            elif k == "drop" and not x.get("boss"):
+                # Seen dropping in an instance, from no boss: a random drop
+                # players saw there (Gloom Reaper in Scarlet Monastery), not
+                # a reason to run that dungeon.
+                inst = insts.get(str(x.get("instance"))) or {}
+                raw.append({**base, "kind": "drop", "world": True, "pct": x.get("pct"),
+                            "zone_name": inst.get("name") or (forever.area(forever.area_of_map(x.get("instance")))
+                                                              or {}).get("name")})
+            elif k == "drop":
+                inst = insts.get(str(x.get("instance"))) or {}
+                aid = forever.area_of_map(x.get("instance"))
+                raw.append({**base, "kind": "drop", "npc": x.get("npc"), "npc_name": x.get("boss"),
+                            "pct": x.get("pct"), "kills": x.get("kills"), "zone": aid,
+                            "zone_name": (forever.area(aid) or {}).get("name") or inst.get("name"),
+                            "raid": bool(x.get("raid"))})
+            elif k in ("creature", "rare"):
+                aid, zname = (npc_zone or {}).get(x.get("npc")) or (None, None)
+                raw.append({**base, "kind": "drop", "npc": x.get("npc"), "npc_name": x.get("name"),
+                            "pct": x.get("pct"), "rare": k == "rare", "zone": aid,
+                            "zone_name": zname or (npcs.get(str(x.get("npc"))) or {}).get("zone")})
+            elif k == "world":
+                raw.append({**base, "kind": "drop", "world": True, "level_min": x.get("level_min"),
+                            "level_max": x.get("level_max")})
+            elif k == "craft":
+                raw.append({**base, "kind": "craft", "spell": x.get("spell"), "profession": x.get("profession"),
+                            "skill": x.get("skill")})
+            elif k == "vendor":
+                n = npcs.get(str(x.get("npc"))) or {}
+                raw.append({**base, "kind": "vendor", "npc": x.get("npc"), "npc_name": n.get("name"),
+                            "zone_name": n.get("zone"), "map": n.get("map"), "x": n.get("x"), "y": n.get("y"),
+                            "price": x.get("price"), "side": x.get("side")})
+            elif k == "reputation":
+                raw.append({**base, "kind": "reputation", "faction": x.get("faction"),
+                            "faction_name": x.get("faction_name"), "standing": x.get("standing")})
+            elif k == "pvp":
+                raw.append({**base, "kind": "pvp", "rank": x.get("rank"), "side": x.get("side")})
+            elif k in ("container", "object"):
+                raw.append({**base, "kind": "container", "name": x.get("name"), "item": x.get("item"),
+                            "object": k == "object", "pct": x.get("pct")})
+        if raw:
+            out[iid] = raw
+    src = data.get("source") or {}
+    return out, {k: src.get(k) for k in ("name", "url", "build", "data_version")}
+
+
+_SOURCES: list = []
+
+
+def sources_data() -> dict | None:
+    """data/foreverdb/item-sources.json (tools/foreverdb_sources/), read once."""
+    with _WLOCK:
+        if not _SOURCES:
+            got = None
+            for p in SOURCES_FILES:
+                try:
+                    d = json.loads(p.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if isinstance(d, dict) and d.get("schema") == 1 and d.get("items"):
+                    got = d
+                    break
+            _SOURCES.append(got)
+        return _SOURCES[0]
 
 
 _GAME: list = []
@@ -790,6 +942,13 @@ class Who:
     # here is unknown, never "not learned".
     recipes: dict = field(default_factory=dict)
     bags: set = field(default_factory=set)  # item IDs in the bags (wow-bags)
+    # {faction id: (reaction 1-8, points from the start of Neutral)}, from
+    # the Recorder's rep records and Altoholic's (reputations); None when
+    # neither has sent any (unknown, never "not met").
+    reps: dict | None = None
+    # The PvP rank held: 0 when Altoholic's lifetime honorable kills are 0
+    # (no kill, no rank); None when unknown (nothing records the rank yet).
+    pvp_rank: int | None = None
 
 
 def _wing_area(area: dict, npc_id) -> dict | None:
@@ -829,15 +988,19 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
         return {"kind": "quest", "quest_id": s["quest"], "name": q.get("name") or fq.get("name"),
                 "zone": q.get("zone_name") or fq.get("zone"), "part": fq.get("part"),
                 "level": q.get("level"), "req_level": q.get("req"), "dungeon": bool(q.get("dungeon")),
-                "choices": len(q.get("choices") or [])}
+                "choices": len(q.get("choices") or []), **_basis(s)}
     if s["kind"] == "drop":
         # Whether the zone is a dungeon or a raid, and its level range as the
         # game's Group Finder gives it (data/forever-reference.json): Forever's
         # own instances (City of Dalaran) included.
         a = forever.area(s.get("zone")) or {}
-        out = {"kind": "drop", "boss": s.get("npc_name") if s.get("npc") else None, "npc_id": s.get("npc") or None,
-               "zone": s.get("zone_name") or a.get("name"), "chance_pct": s.get("pct") or None,
-               "dungeon": a.get("instance") == "dungeon"}
+        out = {"kind": "drop", "boss": s.get("npc_name") if s.get("npc") or s.get("via") else None,
+               "npc_id": s.get("npc") or None, "zone": s.get("zone_name") or a.get("name"),
+               "chance_pct": s.get("pct") or None, "dungeon": a.get("instance") == "dungeon", **_basis(s)}
+        if s.get("world"):  # a random world drop: no creature, maybe a level range
+            out.update(world=True, levels_drop=[s["level_min"], s["level_max"]] if s.get("level_max") else None)
+        if s.get("rare"):
+            out["rare"] = True
         if a.get("instance"):
             out["instance"] = a["instance"]
             if a.get("levels"):
@@ -865,8 +1028,152 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
         # recipe list (no DataStore_Crafts) it is never claimed.
         return {"kind": "craft", "profession": prof, "skill": s.get("skill"), "spell_id": s.get("spell"),
                 "your_rank": rank, "skill_ok": skill_ok, "known": known, "pattern_item_id": pattern,
-                "can_make": bool(skill_ok and known is True)}
+                "can_make": bool(skill_ok and known is True), **_basis(s)}
+    # ForeverDB's other kinds: a vendor, a reputation's quartermaster, a PvP
+    # rank's, a container. The other side's are left out.
+    if s.get("side") and who.side and _SIDE.get(s["side"]) not in (None, who.side):
+        return None
+    if s["kind"] == "vendor":
+        return {"kind": "vendor", "npc_id": s.get("npc"), "name": s.get("npc_name"), "zone": s.get("zone_name"),
+                "map": s.get("map"), "x": s.get("x"), "y": s.get("y"), "price_copper": s.get("price") or None,
+                **_basis(s)}
+    if s["kind"] == "reputation":
+        return {"kind": "reputation", "faction_id": s.get("faction"), "name": s.get("faction_name"),
+                "standing": s.get("standing"), **rep_check(who, s.get("faction"), s.get("standing")), **_basis(s)}
+    if s["kind"] == "pvp":
+        rank = s.get("rank")
+        have = who.pvp_rank
+        return {"kind": "pvp", "rank": rank, "your_rank": have,
+                "met": None if have is None or rank is None else have >= rank, **_basis(s)}
+    if s["kind"] == "container":
+        return {"kind": "container", "name": s.get("name"), "container_item_id": s.get("item"),
+                "object": bool(s.get("object")), "chance_pct": s.get("pct") or None, **_basis(s)}
     return None
+
+
+def rep_check(who: Who, faction, standing) -> dict:
+    """A reputation source against the character's standing: `met`,
+    `your_standing` and the points still to go; `met` None when no
+    reputation was ever sent (Altoholic or the Recorder), False with
+    `your_standing` None for a faction the character hasn't met."""
+    need = STANDING_IDS.get(str(standing or ""))
+    if who.reps is None or need is None:
+        return {"met": None}
+    have = who.reps.get(faction) or who.reps.get(str(faction))
+    if not have:
+        return {"met": False, "your_standing": None}
+    reaction, points = have
+    out = {"met": reaction >= need, "your_standing": STANDING_NAMES.get(reaction)}
+    if reaction < need and points is not None:
+        out["rep_to_go"] = max(0, REP_FLOOR[need] - points)
+    return out
+
+
+def runs_for(pct) -> int | None:
+    """Expected kills (or runs) for a drop at `pct` percent: 1 / p."""
+    return max(1, round(100 / pct)) if pct else None
+
+
+def _drop_effort(pct, label, harder: bool = False) -> int:
+    if pct is None:
+        # No rate anyone measured: seen dropping in Forever is hard; only in
+        # Classic's data (never seen in Forever, a world drop's Augural
+        # Shroud) a long shot.
+        e = LONG_SHOT if label in ("k", "c") else HARD
+    else:
+        e = EASY if pct >= DROP_EASY else SOME if pct >= DROP_SOME else HARD if pct >= DROP_HARD else LONG_SHOT
+        if label == "k":  # Classic's rate, never seen in Forever: one bucket harder
+            e = min(LONG_SHOT, e + 1)
+    return max(e, HARD) if harder else e
+
+
+def source_effort(s: dict) -> int:
+    """How hard one source is (EFFORT): something to buy, hand in or make,
+    or already held, is easy; a drop by its chance (the rate players saw in
+    Forever over Classic's); a reputation or a PvP rank by what the
+    character holds."""
+    k = s.get("kind")
+    if k in ("bags", "bank", "ah", "quest", "vendor"):
+        return EASY
+    if k == "craft":
+        return EASY if s.get("can_make") else SOME
+    if k == "drop":
+        return _drop_effort(s.get("chance_pct"), s.get("label"),
+                            harder=bool(s.get("world") or s.get("instance") == "raid"))
+    if k == "container":
+        return _drop_effort(s.get("chance_pct"), s.get("label"))
+    if k == "reputation":
+        if s.get("met"):
+            return EASY
+        need = STANDING_IDS.get(str(s.get("standing") or ""), 8)
+        return SOME if s.get("met") is False and need <= STANDING_IDS["Honored"] else HARD
+    if k == "pvp":
+        # A rank held is some effort (the quartermaster's price); one not
+        # held, or not recorded (nothing saves the rank yet), is never an
+        # errand: the best possible, said with what is missing.
+        return SOME if s.get("met") else LONG_SHOT
+    return SOME
+
+
+def ranking_value(gain: float, score: float, effort: int, factor: float) -> float:
+    """What the upgrades sort on: the gain less the effort's share of the
+    item's whole score (EFFORT_PENALTY), times how it fits the spec
+    (gearfit's factor)."""
+    return (gain - score * EFFORT_PENALTY[effort]) * factor
+
+
+def item_effort(srcs: list[dict]) -> int:
+    """An item's effort: its easiest source's (an auction house listing
+    makes anything easy: buy it). No source: a long shot. A vendor next to
+    a reputation or a PvP rank is that gate's quartermaster (ForeverDB lists
+    both: Master Sergeant's Insignia, Officer Areyn and rank 3): the gate's
+    effort, not a vendor's."""
+    gated = any(x["kind"] in ("reputation", "pvp") for x in srcs)
+    return min((source_effort(x) for x in srcs if not (gated and x["kind"] == "vendor")), default=LONG_SHOT)
+
+
+def by_effort(srcs: list[dict]) -> list[dict]:
+    """The sources easiest first (each tagged with its `effort`, a drop
+    with its expected `runs`), ForeverDB's label order among equals."""
+    out = []
+    gated = [source_effort(x) for x in srcs if x["kind"] in ("reputation", "pvp")]
+    for x in srcs:
+        e = max(source_effort(x), min(gated)) if gated and x["kind"] == "vendor" else source_effort(x)
+        x = {**x, "effort": EFFORT[e]}
+        if x["kind"] in ("drop", "container") and x.get("chance_pct"):
+            x["expected_runs"] = runs_for(x["chance_pct"])
+        out.append(x)
+    return sorted(out, key=lambda x: (EFFORT.index(x["effort"]), LABEL_ORDER.get(x.get("label") or "", 0)))
+
+
+def _basis(s: dict) -> dict:
+    """A ForeverDB source's credit and how sure it is (its label), in the
+    answer: `via`, `label`, `basis` (words), and a drop's looted kills."""
+    if s.get("via") != "foreverdb":
+        return {}
+    out = {"via": "foreverdb", "label": s.get("label"), "basis": BASIS.get(s.get("label") or "")}
+    if s.get("kills"):
+        out["kills"] = s["kills"]
+    return out
+
+
+def basis_words(s: dict) -> str:
+    """How sure a source is, for a line: "seen in Forever", "Classic data,
+    may differ in Forever"; "" for a source without a label."""
+    return s.get("basis") or ""
+
+
+def chance_words(s: dict) -> str:
+    """A drop's chance, with the looted kills it was measured over when
+    players saw it in Forever: "43.75% over 16 kills"; "" when unknown."""
+    if not s.get("chance_pct"):
+        return ""
+    out = f"{s['chance_pct']}%" + (f" over {s['kills']} kills" if s.get("kills") else "")
+    runs = runs_for(s["chance_pct"])
+    if runs and runs > 1:
+        # What 1 / p means at the keyboard (owner, 2026-11-24): "about 3,333 runs".
+        out += f", about {runs:,} {'runs' if s.get('instance') else 'kills'}"
+    return out
 
 
 def craft_status(s: dict) -> str:
@@ -927,7 +1234,9 @@ def _same(x: dict):
         return ("quest", x.get("name") or x.get("quest_id"))
     if x["kind"] == "drop":
         return ("drop", x.get("boss") or "", x.get("zone") or "")
-    return ("craft", x.get("profession"), x.get("spell_id") or x.get("skill"))
+    if x["kind"] == "craft":
+        return ("craft", x.get("profession"), x.get("spell_id") or x.get("skill"))
+    return (x["kind"], x.get("npc_id") or x.get("faction_id") or x.get("rank") or x.get("name"))
 
 
 def _dedupe(srcs: list[dict]) -> list[dict]:
@@ -972,8 +1281,9 @@ def gates(at: int, level: int, sources: list[dict]) -> list[dict]:
     needs and what he has: the level to wear it (or to take its quest), and
     for an item only a craft gives, the profession's skill when he has the
     profession ("skill", Icy Cloak: Tailoring 200, he has 119) or a crafter
-    or the auction house when he hasn't ("buy", not a wait). The data has no
-    reputation or price gate for these items, so none is made up."""
+    or the auction house when he hasn't ("buy", not a wait). A vendor's price
+    is no gate; an item only a reputation or a PvP rank gives never gets
+    here (a long shot: item_effort)."""
     out = []
     if at > level:
         out.append({"kind": "level", "need": at, "have": level})
@@ -1134,7 +1444,8 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
     who = Who(cls=cls, level=level, side=SIDES.get(str(sheet.get("faction") or "").lower()), race_id=race_id,
               professions={str(p.get("name") or "").lower(): p.get("rank") for p in sheet.get("professions") or []
                            if p.get("name") and isinstance(p.get("rank"), (int, float))},
-              done=set(done or ()), zone=zone, recipes=recipe_lists(sheet.get("recipes")))
+              done=set(done or ()), zone=zone, recipes=recipe_lists(sheet.get("recipes")),
+              reps=sheet.get("reps"), pvp_rank=sheet.get("pvp_rank"))
 
     items = [i for i in sheet.get("items") or [] if isinstance(i, dict)]
     worn = worn_from(ref, items, w, sheet.get("worn_stats"))
@@ -1251,6 +1562,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     # Every item this character can get, with its best option (compare) and
     # its options per slot.
     cands = []
+    gated: list[tuple[int, dict, list]] = []
     holding = held_where(held)
     who.bags = {i for i, where in holding.items() if where == "bags"}
     sale = (market or {}).get("items") or {}
@@ -1261,7 +1573,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         usable, _, min_level = usability(ref, info, cls, level)
         if usable and min_level <= level + SOON_LEVELS:
             cands.append({"id": item_id, "info": info, "at": min_level, "sources": [{"kind": where}],
-                          "here": False})
+                          "effort": EASY, "here": False})
     for sid, srcs in (ref.data.get("sources") or {}).items():
         item_id = int(sid)
         base = ref.item(item_id)
@@ -1272,14 +1584,28 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         if not usable:
             continue
         here_srcs = _dedupe([x for x in (_source(ref, s, who, info, item_id) for s in srcs) if x])
+        if not any(x["kind"] == "vendor" for x in here_srcs) and any(s["kind"] == "vendor" for s in srcs):
+            # The quartermaster sells to the other side only: so is its
+            # reputation (ForeverDB gives the faction no side; Darkspear
+            # Raiders' seals offered to an Alliance character, 2026-11-24).
+            here_srcs = [x for x in here_srcs if x["kind"] != "reputation"]
         if item_id in sale and buyable(base, level):
             here_srcs.append({"kind": "ah", **sale[item_id]})
         if not here_srcs:
             continue
+        here_srcs = by_effort(here_srcs)
+        effort = item_effort(here_srcs)
+        if effort == LONG_SHOT:
+            # A pipe dream (a 0.03% Classic drop, a PvP rank out of reach)
+            # with no auction house listing: the slot's best possible,
+            # shown with its odds, never an upgrade to chase (owner,
+            # 2026-11-24).
+            gated.append((item_id, info, here_srcs))
+            continue
         at = max(min_level, min(_source_level(x) for x in here_srcs))
         if at > level + SOON_LEVELS:
             continue
-        cands.append({"id": item_id, "info": info, "at": at, "sources": here_srcs,
+        cands.append({"id": item_id, "info": info, "at": at, "sources": here_srcs, "effort": effort,
                       "here": any(in_zone(x, zone) for x in here_srcs)})
 
     # On sale, and in no source Polestar knows (most world-drop greens).
@@ -1291,7 +1617,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         usable, _, min_level = usability(ref, info, cls, level)
         if usable and min_level <= level + SOON_LEVELS:
             cands.append({"id": item_id, "info": info, "at": min_level, "sources": [{"kind": "ah", **s}],
-                          "here": False})
+                          "effort": EASY, "here": False})
 
     gear_score = sum(worn.score(sl) for sl in EQUIPPED_SLOTS)
     from wowstats import gearfit
@@ -1325,10 +1651,12 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
                 "gain_pct": None if unknown else _r(r["pct"]), "fills_empty": r["empty"], "vs_unknown": unknown,
                 "here": c["here"], "sources": priced(c["sources"], _r(r["delta"], 2)),
                 "gates": gates(c["at"], level, c["sources"]), "fit": fit_of(c),
+                "effort": EFFORT[c.get("effort", EASY)],
                 # What the ranking sorts on: the gain, a little less for an item
                 # built for someone else, less again when a group usually hands
-                # it to them. The gain shown stays the gain.
-                "value": _r(r["delta"] * fit_of(c)["factor"], 2)}
+                # it to them, less again the harder it is to get (EFFORT_PENALTY,
+                # on its whole score). The gain shown stays the gain.
+                "value": _r(ranking_value(r["delta"], r["new"], c.get("effort", EASY), fit_of(c)["factor"]), 2)}
 
     # Weapons are set against weapons: a two-hander against main hand + off
     # hand; a one-hand piece with what the other hand wears, and against a
@@ -1351,8 +1679,8 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     # The BiS also counts gear nobody says where to get (unsourced): its own
     # bucket, so it never becomes an upgrade or a pick. Weapons stay out (a
     # setup needs both hands' sources to mean anything).
-    unknown_hands: list[tuple[float, int, dict, int]] = []
-    for item_id, info in unsourced(ref):
+    unknown_hands: list[tuple[float, int, dict, int, list]] = []
+    for item_id, info, srcs in [(i, x, []) for i, x in unsourced(ref)] + gated:
         if item_id in holding:
             continue
         usable, _, at = usability(ref, info, cls, level)
@@ -1360,25 +1688,31 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             continue
         if info["inv"] in WEAPON_INV:
             if info["inv"] in (13, 17, 21):  # a two-hander, or a main hand with the best off hand there is
-                unknown_hands.append((score_with(info, w), item_id, info, at))
+                unknown_hands.append((score_with(info, w), item_id, info, at, srcs))
             continue
-        c = {"id": item_id, "info": info, "at": at, "sources": [], "here": False}
+        c = {"id": item_id, "info": info, "at": at, "sources": srcs, "here": False}
         for o in options(info, item_id, worn, w, dual, every_slot=True):
             if worn.ids.get(o["slot"]) != item_id:
                 per_slot.setdefault(o["slot"], {"now": [], "soon": []}).setdefault("unknown", []).append(
                     (o["delta"], -item_id, c, o))
 
     def pick(slot: int, bucket: str, exclude: frozenset = frozenset()):
-        # ForeverDB's order: the score, then the higher item level, then the lower ID.
+        # ForeverDB's order: the score, then the higher item level, then the
+        # lower ID; each score less its effort's penalty (EFFORT_PENALTY):
+        # an easier item wins unless the harder one is clearly better.
+        def adj(t) -> float:
+            return t[3]["new"] * (1 - EFFORT_PENALTY[t[2].get("effort", EASY)])
+
         ranked = [t for t in sorted((per_slot.get(slot) or {}).get(bucket) or [],
-                                    key=lambda t: (t[0], t[2]["info"].get("ilvl") or 0, t[1]), reverse=True)
+                                    key=lambda t: (adj(t), t[2]["info"].get("ilvl") or 0, t[1]), reverse=True)
                   if t[2]["id"] not in exclude]
-        if not ranked or ranked[0][0] <= 0:
-            return ranked[0] if ranked else None
+        better = [t for t in ranked if t[0] > 0]
+        if not better:
+            return max(ranked, key=lambda t: (t[0], t[2]["info"].get("ilvl") or 0, t[1])) if ranked else None
         # Among the close ones, the one built for the spec (gearfit's factor):
         # only those within the largest factor can change places.
-        close = [t for t in ranked if t[0] >= ranked[0][0] * gearfit.CLASS * gearfit.GROUP]
-        return max(close, key=lambda t: (t[0] * fit_of(t[2])["factor"], t[0], t[2]["info"].get("ilvl") or 0, t[1]))
+        close = [t for t in better if adj(t) >= adj(better[0]) * gearfit.CLASS * gearfit.GROUP]
+        return max(close, key=lambda t: (adj(t) * fit_of(t[2])["factor"], t[0], t[2]["info"].get("ilvl") or 0, t[1]))
 
     picks: dict[tuple, tuple | None] = {}
     for bucket in ("now", "soon"):
@@ -1400,12 +1734,9 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     # Where each worn item stands against the best the slot can hold now
     # (owner, 2026-11-21: "show bis or second or a percentage of bis").
     stand.update(standings(per_slot, worn, setups, level))
-    # The weapons' BiS counts the unsourced setup too, like every other slot.
+    # The weapons' best possible (unsourced, a long shot), shown apart: the
+    # standing measures against what can be got (owner, 2026-11-24).
     hands_unknown = _unknown_hands(ref, unknown_hands, setups, level)
-    if hands_unknown and stand.get(MAIN):
-        # It beats every known setup, so the worn one moves down one place.
-        above = 1 if stand[MAIN]["rank"] == 1 else 2
-        stand[MAIN] = stand[OFF] = _rank(above, setups.current, hands_unknown["score"])
     weapon_rows = {"now": setups.row("now", out), "soon": setups.row("soon", out)}
 
     def part_out(p: dict | None) -> dict | None:
@@ -1569,8 +1900,10 @@ EPS = 1e-6
 
 
 def _unknown_bis(ref: Reference, slot_pool: dict | None, slot: int, worn: Worn, now: tuple | None) -> dict | None:
-    """The best unsourced item for the slot, when it beats both what is worn
-    and the best item with a source: {item, score, "where": "unknown"}."""
+    """The best unsourced item for the slot (or one only a reputation or a
+    PvP rank gives out of reach: a long shot, item_effort), when it beats both what is worn and the best item
+    with a source: {item, score, "where": "unknown" or its source's words,
+    sources}."""
     other = {worn.ids.get(x) for pair in PAIRS if slot in pair for x in pair if x != slot}
     rows = [t for t in (slot_pool or {}).get("unknown") or () if t[2]["id"] not in other]
     if not rows:
@@ -1579,8 +1912,10 @@ def _unknown_bis(ref: Reference, slot_pool: dict | None, slot: int, worn: Worn, 
     known = max(worn.score(slot) if slot in worn.ids else 0.0, now[3]["new"] if now else 0.0)
     if top[3]["new"] <= known + EPS:
         return None
+    srcs = top[2]["sources"]
     return {**_item_out(ref, top[2]["id"], top[2]["info"]), "score": _r(top[3]["new"], 2), "level": top[2]["at"],
-            "where": "unknown", "sources": []}
+            "where": source_text(srcs[0]) if srcs else "unknown", "sources": srcs,
+            "effort": EFFORT[LONG_SHOT] if srcs else None}
 
 
 def _unknown_hands(ref: Reference, hands: list, setups: WeaponSetups, level: int) -> dict | None:
@@ -1591,22 +1926,27 @@ def _unknown_hands(ref: Reference, hands: list, setups: WeaponSetups, level: int
     pair = kinds.get("pair")
     off = pair[2]["score"] if pair and pair[2] else 0.0
     best = None
-    for sc, item_id, info, at in hands:
+    for sc, item_id, info, at, srcs in hands:
         total = sc if info["inv"] == 17 else sc + off
         if best is None or (total, info.get("ilvl") or 0, -item_id) > (best[0], best[2].get("ilvl") or 0, -best[1]):
-            best = (total, item_id, info, at)
+            best = (total, item_id, info, at, srcs)
     known = max([setups.current, *(k[0] for k in kinds.values())])
     if best is None or best[0] <= known + EPS:
         return None
-    total, item_id, info, at = best
-    return {**_item_out(ref, item_id, info), "score": _r(total, 2), "level": at, "where": "unknown", "sources": [],
+    total, item_id, info, at, srcs = best
+    return {**_item_out(ref, item_id, info), "score": _r(total, 2), "level": at,
+            "where": source_text(srcs[0]) if srcs else "unknown", "sources": srcs,
+            "effort": EFFORT[LONG_SHOT] if srcs else None,
             "setup": "two-hander" if info["inv"] == 17 else "main hand + off hand"}
 
 
 def _bis_pool(slot: dict | None) -> list:
-    """What a slot's BiS is measured against: everything wearable now, gear
-    with no known source too (advise's "unknown" bucket)."""
-    return [*((slot or {}).get("now") or ()), *((slot or {}).get("unknown") or ())]
+    """What a slot's BiS is measured against: everything wearable now that
+    can be got (owner, 2026-11-24: "percent of BiS and standings use the
+    achievable pick"). Gear with no known source and long shots (advise's
+    "unknown" bucket) are the slot's best possible, shown apart
+    (bis_unknown)."""
+    return list((slot or {}).get("now") or ())
 
 
 def _single(pool: dict[int, float], cur: float | None) -> dict | None:
@@ -1802,7 +2142,10 @@ def badge_of(u: dict | None) -> dict:
 
 
 def source_text(s: dict) -> str:
-    """One source in a few words: 'quest Tharil'zun (Redridge Mountains, req 18)'."""
+    """One source in a few words: 'quest Tharil'zun (Redridge Mountains, req 18)'.
+    A ForeverDB source says how sure it is: "seen in Forever, 16 kills",
+    "Classic data, may differ in Forever" (basis_words)."""
+    basis = basis_words(s)
     if s["kind"] == "bags":
         return "in your bags: equip it"
     if s["kind"] == "bank":
@@ -1810,31 +2153,92 @@ def source_text(s: dict) -> str:
     if s["kind"] == "quest":
         where = ", ".join(x for x in (s.get("zone"), f"req {s['req_level']}" if s.get("req_level") else None,
                                       "dungeon quest" if s.get("dungeon") else None,
-                                      f"one of {s['choices']} rewards" if (s.get("choices") or 0) > 1 else None) if x)
+                                      f"one of {s['choices']} rewards" if (s.get("choices") or 0) > 1 else None,
+                                      basis or None) if x)
         return f"quest {s.get('name') or s.get('quest_id')} ({where})"
     if s["kind"] == "drop":
-        chance = f", {s['chance_pct']}%" if s.get("chance_pct") else ""
+        chance = f", {chance_words(s)}" if s.get("chance_pct") else ""
+        tail = f" ({basis})" if basis else ""
+        if s.get("world"):
+            lv = s.get("levels_drop")
+            seen = f", seen in {s['zone']}" if s.get("zone") else ""
+            return f"world drop{f' from level {lv[0]}-{lv[1]} creatures' if lv else ''}{seen}{chance}{tail}"
         inst = ""
         if s.get("instance"):
             lv = s.get("levels")
             inst = f" ({s['instance']}{f', levels {lv[0]}-{lv[1]}' if lv else ''})"
-        return f"drop: {s.get('boss') or 'trash'} in {s.get('zone') or '?'}{inst}{chance}"
+        who = s.get("boss") or "trash"
+        if s.get("rare"):
+            who = f"{who} (rare)"
+        where = f" in {s['zone']}" if s.get("zone") else ""
+        return f"drop: {who}{where}{inst}{chance}{tail}"
     if s["kind"] == "ah":
         share = f", {s['gold_share_pct']:g}% of your gold" if s.get("gold_share_pct") is not None else ""
         return (f"auction house: {ahsource.price_text(s['price_copper'])}{share}, "
                 f"{ahsource.seen_text(s.get('seen_days_ago'))}{' (cheap)' if s.get('cheap') else ''}")
-    if s["kind"] != "craft":  # a kind the gear data names that has no words here (reputation, vendor...)
+    tail = f" ({basis})" if basis else ""
+    if s["kind"] == "vendor":
+        price = f", {ahsource.price_text(s['price_copper'])}" if s.get("price_copper") else ""
+        zone = f" in {s['zone']}" if s.get("zone") else ""
+        return f"vendor: {s.get('name') or 'a vendor'}{zone}{price}{tail}"
+    if s["kind"] == "reputation":
+        return f"reputation: {s.get('name') or 'a faction'} {s.get('standing') or ''}".rstrip() + rep_words(s) + tail
+    if s["kind"] == "pvp":
+        return f"PvP: rank {s.get('rank')} reward{pvp_words(s)}{tail}"
+    if s["kind"] == "container":
+        what = "object" if s.get("object") else "container"
+        chance = f", {s['chance_pct']}%" if s.get("chance_pct") else ""
+        return f"{what}: {s.get('name') or '?'}{chance}{tail}"
+    if s["kind"] != "craft":  # a kind the gear data names that has no words here
         return f"{s['kind']}: {s.get('name') or s.get('zone') or '?'}"
-    return f"craft: {s.get('profession')} {s.get('skill')}; {craft_status(s)}"
+    return f"craft: {s.get('profession')} {s.get('skill')}; {craft_status(s)}{tail}"
+
+
+def rep_words(s: dict) -> str:
+    """What the character holds against a reputation source, in words."""
+    if s.get("met"):
+        return f" (you're {s.get('your_standing')})"
+    if s.get("met") is None:
+        return " (your standing isn't recorded: Altoholic saves it)"
+    if not s.get("your_standing"):
+        return " (not met yet)"
+    to_go = f": {s['rep_to_go']:,} rep to go" if s.get("rep_to_go") else ""
+    return f" (you're {s['your_standing']}{to_go})"
+
+
+def pvp_words(s: dict) -> str:
+    """What the character holds against a PvP rank source, in words."""
+    if s.get("your_rank") is None:
+        return " (your rank isn't recorded)"
+    if s.get("met"):
+        return f" (you hold rank {s['your_rank']})"
+    return " (you have no PvP rank: 0 honorable kills)" if s["your_rank"] == 0 else f" (you have rank {s['your_rank']})"
 
 
 def source_link(s: dict) -> str | None:
-    """The Wowhead page of a source: the quest, the boss, the craft's spell."""
+    """The Wowhead page of a source: the quest, the boss or vendor, the craft's
+    spell, the container."""
     from wowstats.links import wowhead_url
 
     kind, i = {"quest": ("quest", s.get("quest_id")), "drop": ("npc", s.get("npc_id")),
-               "craft": ("spell", s.get("spell_id"))}.get(s.get("kind"), (None, None))
+               "vendor": ("npc", s.get("npc_id")), "craft": ("spell", s.get("spell_id")),
+               "container": ("item", s.get("container_item_id"))}.get(s.get("kind"), (None, None))
     return wowhead_url(kind, i) if kind and isinstance(i, int) and i > 0 else None
+
+
+def sources_credited(tree) -> bool:
+    """Whether an answer shows a source from ForeverDB's data anywhere (a
+    `via: foreverdb` source): then it carries SOURCE_CREDIT (wowstats.mcp.tools.call)."""
+    stack = [tree]
+    while stack:
+        v = stack.pop()
+        if isinstance(v, dict):
+            if v.get("via") == "foreverdb":
+                return True
+            stack.extend(v.values())
+        elif isinstance(v, list):
+            stack.extend(v)
+    return False
 
 
 def gain_words(u: dict) -> str:
@@ -1960,20 +2364,26 @@ class WeaponSetups:
         self.parts: list[dict] = []  # {c, role, score, at}
         for c in cands:
             inv = c["info"]["inv"]
+            keep = 1 - EFFORT_PENALTY[c.get("effort", EASY)]
             if inv == 17:
-                self.parts.append({"c": c, "role": "two", "score": score_with(c["info"], w, False)})
+                sc = score_with(c["info"], w, False)
+                self.parts.append({"c": c, "role": "two", "score": sc, "adj": sc * keep})
             if inv in MAIN_INV:
-                self.parts.append({"c": c, "role": "main", "score": score_with(c["info"], w, False)})
+                sc = score_with(c["info"], w, False)
+                self.parts.append({"c": c, "role": "main", "score": sc, "adj": sc * keep})
             if self._off_ok(c["info"], dual):
-                self.parts.append({"c": c, "role": "off", "score": score_with(c["info"], w, True)})
+                sc = score_with(c["info"], w, True)
+                self.parts.append({"c": c, "role": "off", "score": sc, "adj": sc * keep})
         # What is worn can stay.
         if worn.ids.get(MAIN):
             role = "two" if self.worn_two else "main"
-            self.kept = {role: {"c": None, "role": role, "score": worn.score(MAIN), "id": worn.ids[MAIN]}}
+            self.kept = {role: {"c": None, "role": role, "score": worn.score(MAIN), "adj": worn.score(MAIN),
+                                "id": worn.ids[MAIN]}}
         else:
             self.kept = {}
         if worn.ids.get(OFF):
-            self.kept["off"] = {"c": None, "role": "off", "score": worn.score(OFF), "id": worn.ids[OFF]}
+            self.kept["off"] = {"c": None, "role": "off", "score": worn.score(OFF), "adj": worn.score(OFF),
+                                "id": worn.ids[OFF]}
 
     def _off_ok(self, info: dict, dual: bool) -> bool:
         """What the spec holds in the off hand (ForeverDB's styles): a
@@ -1997,8 +2407,9 @@ class WeaponSetups:
 
     def _best(self, role: str, max_at: int, exclude: int | None = None) -> dict | None:
         pool = self._pool(role, max_at, exclude)
-        # ForeverDB's order on a tie: the higher item level, then the lower ID.
-        return max(pool, key=lambda p: (p["score"], p["c"] is None, (p["c"] or {}).get("info", {}).get("ilvl") or 0,
+        # The score less its effort's penalty (EFFORT_PENALTY); ForeverDB's
+        # order on a tie: the higher item level, then the lower ID.
+        return max(pool, key=lambda p: (p["adj"], p["c"] is None, (p["c"] or {}).get("info", {}).get("ilvl") or 0,
                                         -(_pid(p) or 0)), default=None)
 
     def best_setup(self, max_at: int) -> dict | None:
@@ -2008,18 +2419,19 @@ class WeaponSetups:
         two-hander; a dual-wielder or a shield tank takes the pair whenever
         it has both hands, a two-hand spec the two-hander whenever it has one."""
         two = self._best("two", max_at)
-        two = {"total": two["score"], "main": two, "off": None} if two else None
+        two = {"total": two["score"], "adj": two["adj"], "main": two, "off": None} if two else None
         # The best main hand, then the best off hand that isn't that item.
         m = self._best("main", max_at)
         o = self._best("off", max_at, exclude=_pid(m)) if m else None
-        pair = {"total": m["score"] + (o["score"] if o else 0), "main": m, "off": o} if m else None
+        pair = {"total": m["score"] + (o["score"] if o else 0), "adj": m["adj"] + (o["adj"] if o else 0),
+                "main": m, "off": o} if m else None
         if two is None or pair is None:
             return two or pair
         if self.style == "2h":
             return two
         if self.style in ("dw", "shield") and pair["off"] is not None:
             return pair
-        return two if two["total"] >= pair["total"] else pair
+        return two if two["adj"] >= pair["adj"] else pair
 
     def by_kind(self, max_at: int) -> dict:
         """The best two-hander and the best main hand + off hand pair, each
@@ -2304,6 +2716,66 @@ def instance_loot(ref: Reference, sheet: dict, *, level: int, spec: str | None =
     return out
 
 
+def _when(r: dict):
+    return str(r.get("_time") or r.get("_t") or "")
+
+
+def _ints(v) -> list:
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            return []
+    return v if isinstance(v, list) else []
+
+
+def _int_or_none(v):
+    try:
+        return int(float(v))
+    except (TypeError, ValueError):
+        return None
+
+
+def standings_of(rows: list[dict]) -> tuple[dict | None, int | None]:
+    """(reputations, PvP rank) from the character's events: {faction id:
+    (reaction 1-8, points from the start of Neutral)}, the newest of the
+    Recorder's rep records (kind rep) and Altoholic's snapshots (kind reps)
+    per faction, None when neither sent any; the PvP rank 0 when
+    Altoholic's lifetime honorable kills are 0, else None: nothing records
+    the rank itself yet (UnitPVPRank, GetPVPLifetimeStats)."""
+    seen: dict[int, tuple] = {}
+    any_reps = False
+    hk = None
+    for r in sorted(rows, key=_when):
+        if r.get("feed") == "wow-recorder" and r.get("kind") == "rep":
+            any_reps = True
+            fid, reaction = _int_or_none(r.get("faction_id")), _int_or_none(r.get("reaction"))
+            if fid is not None and reaction is not None:
+                seen[fid] = (reaction, _int_or_none(r.get("standing")))
+        elif r.get("feed") == "wow-altoholic" and r.get("kind") == "reps":
+            any_reps = True
+            for f in _ints(r.get("factions")):
+                if isinstance(f, list) and len(f) == 3:
+                    fid, reaction, pts = (_int_or_none(x) for x in f)
+                    if fid is not None and reaction is not None:
+                        seen[fid] = (reaction, pts)
+        elif r.get("feed") == "wow-altoholic" and r.get("kind") == "stats":
+            v = _int_or_none(r.get("honorable_kills"))
+            if v is not None:
+                hk = v
+    return (seen if any_reps else None), (0 if hk == 0 else None)
+
+
+def standing_rows(q, cf: str) -> list[dict]:
+    """The events standings_of() reads, for one character: the Recorder's
+    rep records, Altoholic's newest reputation snapshot and stats."""
+    return [*q(f'feed:="wow-recorder" kind:="rep" {cf} | fields _time, feed, kind, faction_id, reaction, standing'),
+            *q(f'feed:="wow-altoholic" kind:="reps" {cf} | fields _time, feed, kind, factions '
+               f'| sort by (_time desc) | limit 1'),
+            *q(f'feed:="wow-altoholic" kind:="stats" {cf} | fields _time, feed, kind, honorable_kills '
+               f'| sort by (_time desc) | limit 1')]
+
+
 def newest_sheet(rows: list[dict], battlenet=None) -> tuple[dict, int, str | None, set] | None:
     """(sheet, level, zone, quests done: wowstats.quests) from one character's stored
     events (wowstats.analysis.prep.query), or None without a sheet or a level."""
@@ -2324,7 +2796,9 @@ def newest_sheet(rows: list[dict], battlenet=None) -> tuple[dict, int, str | Non
     zone = newest(lambda r: r.get("feed") in ("wow-recorder", "wow-character") and r.get("zone"))
     who = newest(lambda r: r.get("feed") == "wow-recorder" and r.get("kind") == "session") or {}
     done = set(quests.completed(rows, battlenet=battlenet))
-    return sheet(g, who), int(_num(lv.get("level"))), (zone or {}).get("zone"), done
+    out = sheet(g, who)
+    out["reps"], out["pvp_rank"] = standings_of(rows)
+    return out, int(_num(lv.get("level"))), (zone or {}).get("zone"), done
 
 
 def instance_loot_rows(rows: list[dict], weights: str | None = None, bis: dict | None = None,
