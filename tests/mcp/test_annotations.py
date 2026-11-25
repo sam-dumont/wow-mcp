@@ -79,12 +79,11 @@ def snapshot(d: Path) -> dict:
 
 
 @pytest.fixture()
-def lab(tmp_path, monkeypatch):
+def lab(tmp_path, monkeypatch, derived):
     with gzip.open(DATA / "analysis-events.jsonl.gz") as f:
         rows = [json.loads(x) for x in f]
     monkeypatch.setattr(prep, "query", lambda store, stream, char: [dict(r) for r in rows])
-    with gzip.open(DATA / "plan-inputs.json.gz") as f:
-        priest = json.loads(f.read())
+    priest = derived("plan-inputs.json.gz")
     monkeypatch.setattr(plan, "inputs", lambda env, char=None, store=None, battlenet=None, gear_inputs=None, mode=None, pvp=None: {**priest, "who": {
         **priest["who"], "char": CHAR}})
     drive._WS.clear()

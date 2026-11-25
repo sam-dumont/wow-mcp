@@ -59,6 +59,14 @@ jobs:
       # The analysis extras: the server-side analysis' tests build both SDKs'
       # clients (credentials passed explicitly), on fake clients, no calls.
       - run: uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai
+      # The derived fixtures (planner inputs, gear answer: tests/derived.py),
+      # built by the first test that needs them (about 20 s) and kept here
+      # while nothing they are made from changed. tests/derived.py checks its
+      # own key, so a stale restore only costs the build.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/test-fixtures
+          key: derived-fixtures-${{ hashFiles('tools/fixtures/**', 'wowstats/**', 'data/**', 'tests/data/**', 'uv.lock') }}
       # Everything but the browser suites, on every core; docker compose and
       # Polestar tests (ci_only) are in, they skip without their tool.
       # --timeout: a test stuck past 5 minutes fails with its name and every
@@ -94,8 +102,9 @@ jobs:
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - run: uv sync --frozen --extra publish --extra mcp --extra analysis --extra analysis-openai
       - run: uv run ruff check .
-      # The fixtures are made by tools/fixtures/generate.py: a change to it, or
-      # to the code that derives them, without a rerun fails here.
+      # The committed fixtures (the played events, the addon saves) are
+      # tools/fixtures/generate.py's: a change to it without a rerun fails
+      # here. The derived ones are built at test time (tests/derived.py).
       - run: uv run python tools/fixtures/generate.py --check
       - run: for f in web/*.js web/model3d/model3d.js web/model3d/view.js; do node --check "$f"; done
 

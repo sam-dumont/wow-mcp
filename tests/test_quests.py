@@ -6,7 +6,6 @@ The case behind it (owner, 2026-11-19): The Stockade's Bazil Thredd (389)
 showed as blocked by The Unsent Letter (373), handed in before Polestar was
 installed, so the Recorder never saw it."""
 
-import gzip
 import json
 import random
 import shutil
@@ -239,12 +238,12 @@ def test_extract_quests_events(shipper, acct):
     assert got == []
 
 
-def test_the_stockade_panel_on_the_priests_inputs():
-    """The planner's real-shaped inputs (tests/data/plan-inputs.json.gz)
+def test_the_stockade_panel_on_the_priests_inputs(derived):
+    """The planner's real-shaped inputs (plan-inputs.json.gz, tests/derived.py)
     recorded The Stockade Riots handed in, yet showed Bazil Thredd, the
     quest before it, as not picked up and blocked by The Unsent Letter.
     Through quests.completed both are done."""
-    inp = json.loads(gzip.decompress((Path(__file__).parent / "data" / "plan-inputs.json.gz").read_bytes()))
+    inp = derived("plan-inputs.json.gz")
     before = {q["quest_id"]: q for b in dungeonview.build(inp)["dungeons"] if b["name"] == "The Stockade"
               for q in b["quests"]}
     assert before[BAZIL_THREDD]["blocked"] and before[STOCKADE_RIOTS]["state"] == "done"

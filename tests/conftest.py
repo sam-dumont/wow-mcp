@@ -25,6 +25,17 @@ def sealed_names():
     sealed.record()
 
 
+@pytest.fixture(scope="session")
+def derived():
+    """The derived fixtures (planner inputs, gear answer), built once per
+    change of their inputs and cached (tests/derived.py): call it with a
+    file name, `derived("plan-inputs.json.gz")`, for the parsed JSON."""
+    from tests import derived as D
+
+    D.ensure()
+    return D.load
+
+
 # What the SQLite event store couldn't answer (wowstats.eventstore.Unanswerable),
 # even where the app caught it: that store has no VictoriaLogs to fall back on,
 # so every query the app issues must fit wowstats.logsql's subset.

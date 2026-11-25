@@ -6,7 +6,6 @@ reads (wowstats.gear.instance_loot, facts.dungeon_quests)."""
 from __future__ import annotations
 
 import copy
-import gzip
 import json
 from pathlib import Path
 
@@ -17,21 +16,22 @@ from wowstats.analysis import kb
 from wowstats.plan import dungeonview as V
 from wowstats.plan import facts
 
-DATA = Path(__file__).resolve().parent.parent / "data"
-
 
 def load(name):
-    return json.loads(gzip.open(DATA / name).read())
+    """A derived fixture (tests/derived.py), for helpers outside a fixture."""
+    from tests.derived import load as derived
+
+    return derived(name)
 
 
 @pytest.fixture(scope="module")
-def priest():
-    return load("plan-inputs.json.gz")
+def priest(derived):
+    return derived("plan-inputs.json.gz")
 
 
 @pytest.fixture(scope="module")
-def hunter():
-    return load("plan-inputs-level1.json.gz")
+def hunter(derived):
+    return derived("plan-inputs-level1.json.gz")
 
 
 def by_name(view):
@@ -354,7 +354,6 @@ def test_a_dungeon_without_loot_data_lists_the_notes_drops(priest, monkeypatch):
     # loot no item data covers. The names as they were: forever-db's and
     # Polestar's.
     import json
-    from pathlib import Path
 
     from wowstats import forever, redact
     from wowstats.plan import kbloot

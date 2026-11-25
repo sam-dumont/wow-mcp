@@ -3,8 +3,9 @@ from here, made up from scratch with a seeded random generator and the
 repository's own game data (route-reference, forever-reference, the KB). No
 real account, character, guild, host or place of play is in them.
 
-    uv run python tools/fixtures/generate.py          # rewrite the fixtures
+    uv run python tools/fixtures/generate.py          # rewrite the committed fixtures
     uv run python tools/fixtures/generate.py --check  # fail if they differ
+    uv run python tools/fixtures/generate.py --derived-out DIR   # the derived ones, into DIR
     uv run python tools/fixtures/generate.py --game   # take the KB's quests and creatures again
     uv run python tools/fixtures/generate.py --demo events.ndjson [--end-day YYYY-MM-DD]
                                                       # the docs site's demo character (site/)
@@ -12,7 +13,10 @@ real account, character, guild, host or place of play is in them.
 The output is byte-for-byte reproducible (fixed seed, fixed dates, gzip with
 no timestamp). Derived fixtures (the planner's inputs, the gear answer) are
 made by the product's own code from the generated events, so a change to
-that code can change them: rerun, read the diff, commit both.
+that code changes them: they are built at test time (tests/derived.py runs
+`--derived-out` once per change of their inputs and caches the result),
+never committed. The committed fixtures are the played events and the addon
+saves: what a person can recount by hand.
 
 What it plays: Testpriest-Fixture, a Gnome priest (Alliance), from level 22
 to 32 over fifteen evenings of October 2026 (Europe/Brussels), following
@@ -23,10 +27,10 @@ boats; and Testhunter-Fixture, a level 1 Dwarf hunter who has done nothing.
     tests/data/analysis-events.jsonl.gz   the priest's first four sessions
     tests/analysis/stockade_trip.jsonl.gz the Stockade trip, plus one stray
                                           event of the hunter
-    tests/data/plan-inputs.json.gz        wowstats.plan.facts.extract on all
-                                          fifteen sessions
-    tests/data/plan-inputs-level1.json.gz the same for the hunter
-    tests/data/gear-priest.json.gz        the full view's gear answer
+    plan-inputs.json.gz                   wowstats.plan.facts.extract on all
+                                          fifteen sessions (derived)
+    plan-inputs-level1.json.gz            the same for the hunter (derived)
+    gear-priest.json.gz                   the full view's gear answer (derived)
     tests/data/altoholic-forever/*.lua,
     tests/data/quests-forever/*.lua       addon saves in the client's layout
 
@@ -2181,7 +2185,17 @@ def shifted(r: dict, secs: int) -> dict:
 # ---------------------------------------------------------------- main
 
 
-def build() -> dict[str, bytes]:
+# The fixtures made by the product's own code from the played events (the
+# planner's inputs, the gear answer): built at test time, never committed
+# (tests/derived.py, its cache keyed by this file, wowstats/, data/ and the
+# frozen game). Committed, they changed with every planner or data change
+# (20 to 44 times each from 2026-11-20 to 11-25) and conflicted on every PR.
+DERIVED = ("tests/data/plan-inputs.json.gz", "tests/data/plan-inputs-level1.json.gz", "tests/data/gear-priest.json.gz")
+
+
+def play() -> tuple[list[dict], dict, list[dict], float]:
+    """The priest's fifteen evenings and the hunter's one: (the priest's
+    rows, its marks, the hunter's rows, the moment the inputs are read at)."""
     rnd = random.Random(SEED)
     game = Game()
     p = Player(game, rnd, PRIEST, cls="PRIEST", race="Gnome", faction="Alliance", sex=3, level=22, xp=15555,
@@ -2189,6 +2203,20 @@ def build() -> dict[str, bytes]:
     p.worn[16] = 5201  # Emberstone Staff, the Deadmines' (level 18)
     marks = sessions_priest(p)
     rows = sorted(p.out, key=lambda r: r["_time"])
+
+    h = Player(game, random.Random(SEED + 1), HUNTER, cls="HUNTER", race="Dwarf", faction="Alliance", sex=2, level=1,
+               xp=0, money=0, bind="Coldridge Valley")
+    h.login(local(2026, 10, 19, 21, 44), "Dun Morogh", "Coldridge Valley")
+    h.step("forever/alliance/dwarf/01-dun-morogh", 1, "auto")
+    h.wait(30, moving=False)
+    h.other("wow-gear", **h.who, item_level=None, items=[], professions=[], spec=None)
+    h.logout()
+    return rows, marks, sorted(h.out, key=lambda r: r["_time"]), marks["end"] + 4 * 3600
+
+
+def build() -> dict[str, bytes]:
+    """The committed fixtures: the played events and the addon saves."""
+    rows, marks, _hrows, _now = play()
     files: dict[str, bytes] = {}
     files["tests/data/analysis-events.jsonl.gz"] = gz(jsonl([r for r in rows if r["_time"] < iso(marks["four"])]))
 
@@ -2200,24 +2228,19 @@ def build() -> dict[str, bytes]:
     trip.append({"_time": iso(marks["stockade"] + 600), "char": HUNTER, "component": "wow", "feed": "wow-character",
                  "layer": "app", "level": None, "money_copper": None})
     files["tests/analysis/stockade_trip.jsonl.gz"] = gz(jsonl(sorted(trip, key=lambda r: r["_time"])))
-
-    now = marks["end"] + 4 * 3600
-    files["tests/data/plan-inputs.json.gz"] = gz(json.dumps(plan_inputs(rows, PRIEST, now), sort_keys=True).encode())
-    files["tests/data/gear-priest.json.gz"] = gz(json.dumps(gear_answer(rows, PRIEST), sort_keys=True).encode())
-
-    h = Player(game, random.Random(SEED + 1), HUNTER, cls="HUNTER", race="Dwarf", faction="Alliance", sex=2, level=1,
-               xp=0, money=0, bind="Coldridge Valley")
-    h.login(local(2026, 10, 19, 21, 44), "Dun Morogh", "Coldridge Valley")
-    h.step("forever/alliance/dwarf/01-dun-morogh", 1, "auto")
-    h.wait(30, moving=False)
-    h.other("wow-gear", **h.who, item_level=None, items=[], professions=[], spec=None)
-    h.logout()
-    hrows = sorted(h.out, key=lambda r: r["_time"])
-    files["tests/data/plan-inputs-level1.json.gz"] = gz(json.dumps(plan_inputs(hrows, HUNTER, now),
-                                                                   sort_keys=True).encode())
     for name, data in addon_saves(random.Random(SEED + 2)).items():
         files[f"tests/data/{name}"] = data
     return files
+
+
+def build_derived() -> dict[str, bytes]:
+    """DERIVED: the planner's inputs for both characters and the priest's
+    gear answer, by the product's code from play()'s events."""
+    rows, _marks, hrows, now = play()
+    return dict(zip(DERIVED, (
+        gz(json.dumps(plan_inputs(rows, PRIEST, now), sort_keys=True).encode()),
+        gz(json.dumps(plan_inputs(hrows, HUNTER, now), sort_keys=True).encode()),
+        gz(json.dumps(gear_answer(rows, PRIEST), sort_keys=True).encode())), strict=True))
 
 
 def main() -> int:
@@ -2228,6 +2251,8 @@ def main() -> int:
                                                    "nothing else")
     ap.add_argument("--end-day", metavar="YYYY-MM-DD", help="with --demo: shift the play so it ends that day")
     ap.add_argument("--game", action="store_true", help=f"rewrite {GAME.relative_to(ROOT)} from the KB first")
+    ap.add_argument("--derived-out", metavar="DIR", help="write the derived fixtures (DERIVED) into DIR by their "
+                                                         "file names, nothing else (tests/derived.py)")
     a = ap.parse_args()
     if a.game:
         GAME.write_bytes(gzip.compress(json.dumps(game_from_kb(), separators=(",", ":")).encode(), mtime=0))
@@ -2235,6 +2260,12 @@ def main() -> int:
     VERBOSE = a.levels
     if a.demo:
         Path(a.demo).write_bytes(jsonl(build_demo(a.end_day)))
+        return 0
+    if a.derived_out:
+        out = Path(a.derived_out)
+        out.mkdir(parents=True, exist_ok=True)
+        for rel, data in build_derived().items():
+            (out / Path(rel).name).write_bytes(data)
         return 0
     files = build()
     bad = []

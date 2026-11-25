@@ -1,5 +1,5 @@
 """The Character tab's gear advice and comparison in a real browser, on
-Testpriest's answer (tests/data/gear-priest.json.gz, the full view's
+Testpriest's answer (gear-priest.json.gz, tests/derived.py, the full view's
 answer on a synthetic sheet, tools/fixtures/generate.py): the display rule
 (at most 3 candidates in view per slot), the comparison on a slot click, the
 real gate of a crafted item, and Wowhead plus ForeverDB.net's credit as
@@ -7,9 +7,7 @@ the only outside links, never loaded.
 
 Same setup as tests/test_browser.py (needs the `browser` group)."""
 
-import gzip
 import io
-import json
 import os
 import re
 import threading
@@ -25,13 +23,14 @@ from tests.test_public_view import CHAR, PoisonStore  # noqa: E402
 from wowstats import itemcard, links, publish, static, ui  # noqa: E402
 from wowstats.plan import facts  # noqa: E402
 
-DATA = Path(__file__).parent / "data"
 WOWHEAD = re.compile("^" + re.escape(links.WOWHEAD_BASE) + r"/(item|quest|npc|spell|zone|object)=\d+$")
 FOREVERDB = "https://foreverdb.net/"  # its credit link, as the browser resolves it
 
 
 def answer(name: str) -> dict:
-    return {**json.loads(gzip.decompress((DATA / name).read_bytes())), "char": CHAR}
+    from tests.derived import load  # built at test time (tests/derived.py)
+
+    return {**load(name), "char": CHAR}
 
 
 @pytest.fixture(scope="module")
