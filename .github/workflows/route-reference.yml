@@ -19,6 +19,7 @@ on:
       - tools/forever_reference/**
       - tools/dungeon_quests/**
       - tools/polestar-tag
+      - data/kb/watch.json
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
@@ -31,6 +32,7 @@ on:
       - tools/forever_reference/**
       - tools/dungeon_quests/**
       - tools/polestar-tag
+      - data/kb/watch.json
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
@@ -68,7 +70,7 @@ jobs:
           node tools/route_reference/export.mjs --polestar "$RUNNER_TEMP/polestar" --lua lua5.4
           node tools/gear_reference/export.mjs --polestar "$RUNNER_TEMP/polestar" --lua lua5.4
           # Stdlib Python; reads forever-db from the checkout and Forever's
-          # AreaTable, Map and GroupFinderActivity from wago.tools.
+          # client tables from wago.tools at data/kb/watch.json's known build.
           python3 tools/forever_reference/export.py --polestar "$RUNNER_TEMP/polestar"
           # Reads forever-reference.json, so after it.
           python3 tools/dungeon_quests/export.py --polestar "$RUNNER_TEMP/polestar"

@@ -79,13 +79,32 @@ def quest_dungeon(qid) -> int | None:
     """The dungeon a quest belongs to (its instance AreaTable id), when
     forever-db zones it in one: the place its work is done, wherever it is
     picked up. Polestar's quest table zones a quest by its giver instead (A
-    Green Sample: Stormwind City, for City of Dalaran)."""
+    Green Sample: Stormwind City, for City of Dalaran). A quest forever-db
+    zones nowhere, or doesn't have yet (Forever's newest content), takes
+    its one dungeon from data/dungeons/quests.json (a boss it kills,
+    Polestar's journal or its dungeon runs)."""
     try:
         row = (data().get("quests") or {}).get(str(int(qid)))
     except (TypeError, ValueError):
         return None
-    aid = dungeon_area(row[3]) if row else None
-    return int(aid) if aid else None
+    if row and row[3]:
+        aid = dungeon_area(row[3])
+        return int(aid) if aid else None
+    from wowstats import dungeonquests
+
+    maps = dungeonquests.dungeons_of(qid)
+    return area_of_map(maps[0]) if len(maps) == 1 else None
+
+
+def quest_zone(qid, giver_map=None) -> str | None:
+    """Where a quest is done, by name: forever-db's zone, else its dungeon
+    (quest_dungeon), else the zone of the map its giver stands on (ForeverDB
+    places every giver: `giver_map` is a UiMap id). None when no source
+    places it."""
+    q = quest(qid) or {}
+    if q.get("zone"):
+        return q["zone"]
+    return (area(quest_dungeon(qid)) or {}).get("name") or ui_map(giver_map)
 
 
 def item_name(item_id) -> str | None:
@@ -101,6 +120,15 @@ def area(area_id) -> dict | None:
     """{name, instance?, levels?} for an AreaTable id, or None."""
     try:
         return (data().get("areas") or {}).get(str(int(area_id))) if area_id else None
+    except (TypeError, ValueError):
+        return None
+
+
+def ui_map(map_id) -> str | None:
+    """A world map's name by its UiMap id (where ForeverDB.net places a quest
+    giver: Riverglades is 2548), or None when the client table doesn't have it."""
+    try:
+        return (data().get("ui_maps") or {}).get(str(int(map_id))) if map_id else None
     except (TypeError, ValueError):
         return None
 

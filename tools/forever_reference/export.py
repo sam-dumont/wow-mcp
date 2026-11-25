@@ -10,9 +10,13 @@ Two sources, both facts about the game:
   (Forever's ItemSparse holds only the items Forever changed), and the
   gear only one quest gives (wowstats.quests: holding it means the quest
   was handed in).
-- Forever's client tables on wago.tools, at the build forever-db was made
-  from (its index.json `clientBuild`): AreaTable (zone names), Map (which
-  areas are dungeons or raids), Faction (each reputation's side: a faction
+- Forever's client tables on wago.tools, at the client build the knowledge
+  base was last checked against (data/kb/watch.json `client_build.known`,
+  moved by the refresh job's client-build lane, which reruns this export):
+  AreaTable (zone names), Map (which areas are dungeons or raids), UiMap
+  (the map ids ForeverDB.net places quest givers on), DungeonEncounter (each
+  instance's bosses), Faction (each
+  reputation's side: a faction
   under Alliance or Alliance Forces is the Alliance's, under Horde or Horde
   Forces the Horde's, the rest neutral) and GroupFinderActivity (a dungeon's level
   range, as the game's Group Finder shows it, the rule Polestar's Codex
@@ -42,6 +46,7 @@ from pathlib import Path
 
 WAGO = "https://wago.tools/db2/{table}/csv?build={build}"
 OUT = Path(__file__).resolve().parents[2] / "data" / "forever-reference.json"
+WATCH = OUT.parent / "kb" / "watch.json"
 INSTANCE = {"1": "dungeon", "2": "raid"}
 # The client's Faction roots of each side: Alliance and Alliance Forces (the
 # battleground reputations), Horde and Horde Forces.
@@ -216,7 +221,11 @@ def main(argv: list[str]) -> int:
     a = ap.parse_args(argv)
     db = a.polestar / "forever-db"
     index = json.loads((db / "index.json").read_text())
-    build = index["clientBuild"]
+    # The client tables at the newest build we know, not forever-db's: Forever
+    # adds zones and dungeons faster than forever-db is published, and
+    # forever-db 2026.11.1 (client 1.60.1.70532) predates The Drowned City
+    # (Map 2970), so its area had no name and its quests no zone.
+    build = json.loads(WATCH.read_text(encoding="utf-8"))["client_build"]["known"]
 
     quests: dict[str, list] = {}
     used_areas: set[int] = set()
@@ -261,6 +270,13 @@ def main(argv: list[str]) -> int:
     maps = {r["ID"]: r for r in table("Map", build)}
     by_area = {r["AreaTableID"]: r for r in maps.values() if INSTANCE.get(r["InstanceType"]) and i(r["AreaTableID"])}
     gfa = table("GroupFinderActivity", build)
+    # Each instance's boss encounters by name: a quest that kills one is that
+    # dungeon's (tools/dungeon_quests/export.py `boss`), wherever forever-db
+    # zones it (The Saltseer Captain: no zone, its giver in Booty Bay).
+    bosses: dict[str, set[str]] = {}
+    for r in table("DungeonEncounter", build):
+        if r.get("Name_lang"):
+            bosses.setdefault(r["MapID"], set()).add(r["Name_lang"])
     factions = faction_sides(table("Faction", build))
     overrides = {r["key"]: r for r in json.loads((a.polestar / "data" / "codex" / "levels.json").read_text())["levels"]}
     recorded = json.loads((a.polestar / "data" / "codex" / "recorded.json").read_text()).get("dungeons") or {}
@@ -274,10 +290,42 @@ def main(argv: list[str]) -> int:
         r = min(rows, key=lambda r: (i(r["MinLevel"]), i(r["ID"])))
         return [i(r["MinLevel"]), max(i(r["MinLevel"]), i(r["MaxLevelSuggestion"]))]
 
+    # Every zone of the world map and every dungeon's and raid's own area,
+    # named by a quest yet or not: a zone Forever adds (Riverglades) or a
+    # dungeon (The Drowned City) resolves the day a source names it. A zone
+    # is a continent's top area that the world map (UiMap, zone type) shows;
+    # the table's leftovers (UNUSED, GM Island) stay out. An instance's own
+    # area is Map.AreaTableID, else the area on its map that carries the
+    # map's name (Ruins of Lordaeron), for an instance the Group Finder
+    # lists (a level range): the event maps (an instanced Deadwind Pass)
+    # stay out, so a zone's name never resolves to one of them.
+    ui = table("UiMap", build)
+    zone_names = {r["Name_lang"] for r in ui if r["Type"] == "3"}
+    # An instance a quest or a drop already names keeps that area (Sunken
+    # Temple is 1417, not its Map's 1477, The Temple of Atal'Hakkar).
+    named = {r["ContinentID"] for r in areas if i(r["ID"]) in used_areas}
+    named |= {by_area[r["ID"]]["ID"] for r in areas if i(r["ID"]) in used_areas and r["ID"] in by_area}
+    own_area = {}
+    for mid, m in maps.items():
+        if (not INSTANCE.get(m["InstanceType"]) or mid in named
+                or not levels(mid, INSTANCE[m["InstanceType"]])):
+            continue
+        if i(m["AreaTableID"]):
+            own_area[m["AreaTableID"]] = mid
+            continue
+        same = sorted((r for r in areas if r["ContinentID"] == mid and r["ParentAreaID"] == "0"
+                       and r["AreaName_lang"] == m["MapName_lang"]), key=lambda r: i(r["ID"]))
+        if same:
+            own_area[same[0]["ID"]] = mid
+    for r in areas:
+        if r["ID"] in own_area or (r["ParentAreaID"] == "0" and r["ContinentID"] in ("0", "1")
+                                   and r["AreaName_lang"] in zone_names):
+            used_areas.add(i(r["ID"]))
+
     out_areas: dict[str, dict] = {}
     for r in areas:
         aid = i(r["ID"])
-        m = maps.get(r["ContinentID"]) or {}
+        m = maps.get(own_area.get(r["ID"]) or r["ContinentID"]) or {}
         if not INSTANCE.get(m.get("InstanceType", "")):
             # An instance whose area sits on the continent's map (Blackrock
             # Spire): the instance map names it as its own area.
@@ -300,19 +348,29 @@ def main(argv: list[str]) -> int:
             o = overrides.get(slug(m.get("MapName_lang") or name)) or {}
             if lv and o.get("max"):
                 lv = [lv[0], min(lv[1], int(o["max"]))]
+            if bosses.get(str(map_id)):
+                a_out["bosses"] = sorted(bosses[str(map_id)])
             if lv:
                 a_out["levels"] = lv
                 if kind == "dungeon":
                     a_out["floor"] = floor_of(lv, recorded.get(str(map_id)), o)
         out_areas[str(aid)] = a_out
+    unnamed = sorted({str(v[3]) for v in quests.values() if v[3]} - set(out_areas), key=int)
+    if unnamed:
+        raise SystemExit(f"forever-db zones quests in areas client {build} doesn't name: {', '.join(unnamed)}")
+
+    # uiMap id -> zone name: where ForeverDB.net places a quest's giver, for
+    # a quest forever-db doesn't have yet (wowstats.forever.ui_map).
+    ui_maps = {r["ID"]: r["Name_lang"] for r in ui if r.get("Name_lang")}
 
     doc = {
         "schema": 1,
         "source": {
-            "forever_db": {"version": index.get("version"), "client_build": build,
+            "forever_db": {"version": index.get("version"), "client_build": index.get("clientBuild"),
                            "producer_commit": index.get("producerCommit"), "licence": "GPL-3.0"},
             "client_tables": {"via": "wago.tools", "product": "wowf", "build": build,
-                              "tables": ["AreaTable", "Map", "GroupFinderActivity", "Faction"],
+                              "tables": ["AreaTable", "Map", "UiMap", "GroupFinderActivity", "DungeonEncounter",
+                                         "Faction"],
                               "note": "Game data (c) Blizzard Entertainment, used as facts"},
             "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
             "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)",
@@ -329,11 +387,13 @@ def main(argv: list[str]) -> int:
         "rewards": rewards,
         # quest id -> [side, race mask, class mask, [item rewards], [choice rewards]] (reward_quests)
         "gear_quests": gear_quests,
-        # area id -> {name, instance: dungeon|raid, map: instance Map id, levels: [min, max],
-        # floor (dungeons): where Polestar's "For your level" starts}
+        # area id -> {name, instance: dungeon|raid, map: instance Map id, bosses: [encounter names],
+        # levels: [min, max], floor (dungeons): where Polestar's "For your level" starts}
         "areas": dict(sorted(out_areas.items(), key=lambda kv: int(kv[0]))),
         # faction id -> {name, side: Alliance|Horde (none: neutral)} (faction_sides)
         "factions": factions,
+        # uiMap id -> its name (ForeverDB.net's quest givers' maps)
+        "ui_maps": dict(sorted(ui_maps.items(), key=lambda kv: int(kv[0]))),
     }
     a.out.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":"), sort_keys=False) + "\n",
                      encoding="utf-8")

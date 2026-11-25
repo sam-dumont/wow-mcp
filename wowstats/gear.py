@@ -299,7 +299,7 @@ def with_game_items(polestar: dict, game: dict, fdb: dict) -> dict:
 def _forever_quest(qid: str, side, races, classes, rewards, choices) -> dict:
     fq = forever.quest(qid) or {}
     return {"name": fq.get("name"), "level": fq.get("level") or 0, "req": fq.get("min_level") or 0,
-            "side": side if side in (1, 2) else 3, "zone_name": fq.get("zone"), "race": races,
+            "side": side if side in (1, 2) else 3, "zone_name": forever.quest_zone(qid), "race": races,
             "class": classes, "dungeon": forever.quest_dungeon(qid) is not None,
             "choices": list(choices), "items": list(rewards), "from": "forever-db"}
 
@@ -334,10 +334,14 @@ def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict |
                     if gq:
                         quests[q] = _forever_quest(q, *gq)
                     else:
+                        # A quest Forever added after forever-db's release
+                        # (Saving Sunnyglade, 94877) is zoned where ForeverDB
+                        # places its giver, unless a dungeon claims it.
                         fq = forever.quest(q) or {}
                         quests[q] = {"name": fq.get("name") or x.get("name"), "level": fq.get("level") or 0,
                                      "req": fq.get("min_level") or x.get("min_level") or 0,
-                                     "side": _SIDE.get(x.get("side"), 3), "zone_name": fq.get("zone"),
+                                     "side": _SIDE.get(x.get("side"), 3),
+                                     "zone_name": forever.quest_zone(q, (x.get("giver") or {}).get("map")),
                                      "dungeon": forever.quest_dungeon(q) is not None, "from": "foreverdb"}
                 raw.append({**base, "kind": "quest", "quest": int(q)})
             elif k == "drop" and not x.get("boss"):
@@ -1081,7 +1085,7 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
             return None
         fq = forever.quest(s["quest"]) or {}
         return {"kind": "quest", "quest_id": s["quest"], "name": q.get("name") or fq.get("name"),
-                "zone": q.get("zone_name") or fq.get("zone"), "part": fq.get("part"),
+                "zone": q.get("zone_name") or forever.quest_zone(s["quest"]), "part": fq.get("part"),
                 "level": q.get("level"), "req_level": q.get("req"), "dungeon": bool(q.get("dungeon")),
                 "choices": len(q.get("choices") or []), **_basis(s)}
     if s["kind"] == "drop":
