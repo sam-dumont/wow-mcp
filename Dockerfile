@@ -53,6 +53,7 @@ COPY data/kb-reference.json.gz ./data/kb-reference.json.gz
 COPY data/kb ./data/kb
 COPY data/forever-reference.json ./data/forever-reference.json
 COPY data/trainers-reference.json ./data/trainers-reference.json
+COPY data/craft-reference.json ./data/craft-reference.json
 COPY data/class-reference.json ./data/class-reference.json
 COPY data/dbd ./data/dbd
 COPY data/wowsims-talents.json ./data/wowsims-talents.json
@@ -92,6 +93,7 @@ COPY data/kb-reference.json.gz ./data/kb-reference.json.gz
 COPY data/kb ./data/kb
 COPY data/forever-reference.json ./data/forever-reference.json
 COPY data/trainers-reference.json ./data/trainers-reference.json
+COPY data/craft-reference.json ./data/craft-reference.json
 COPY data/class-reference.json ./data/class-reference.json
 COPY data/dbd ./data/dbd
 COPY data/wowsims-talents.json ./data/wowsims-talents.json

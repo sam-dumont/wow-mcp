@@ -707,9 +707,14 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str |
             elif s["kind"] in ("bags", "bank"):  # half a weapon setup: the other half is the errand
                 row.update(kind="setup", source=f"in your {s['kind']}", cost=f"first get {with_text(u)}")
             elif s["kind"] == "quest":
-                on = any(x and x in ahead for x in (s.get("name"),))
-                row.update(kind="quest", source=s.get("name"), zone=s.get("zone"), cost="on your route" if on else
-                           f"a quest in {s.get('zone') or 'another zone'}", choices=s.get("choices"),
+                # What it really takes (wowstats.questwork): where the route
+                # hands it in, the chain and its next quest, the foe, the
+                # dungeon; a plain quest is a hand-in in its zone.
+                on = bool((s.get("work") or {}).get("route")) or s.get("name") in ahead
+                row.update(kind="quest", source=s.get("name"), zone=s.get("zone"),
+                           cost=s.get("work_says") or ("on your route" if on else
+                                                       f"a quest in {s.get('zone') or 'another zone'}"),
+                           effort=s.get("effort"), on_route=on, choices=s.get("choices"),
                            dungeon_quest=bool(s.get("dungeon")))
             elif s["kind"] == "drop" and (s.get("instance") == "dungeon" or s.get("dungeon")):
                 d = trip.get(dkey(s.get("zone") or ""))
@@ -721,8 +726,9 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str |
                                  if t and ch else "a dungeon trip"))
             elif s["kind"] == "drop" and s.get("instance") in (None, ""):
                 ch = s.get("chance_pct")
-                row.update(kind="world drop", source=f"{s.get('boss') or 'mobs'} in {s.get('zone')}", chance=ch,
-                           cost=f"luck ({ch}% a kill)" if ch else "luck", lucky_bonus=True)
+                row.update(kind="world drop", source=gearmod.source_text(s), chance=ch,
+                           cost=f"luck ({ch}% a kill)" if ch else "luck, no drop rate known", effort=s.get("effort"),
+                           lucky_bonus=True)
                 if u.get("ah_copper"):
                     left = ((mount.get("current") or {}).get("left_copper")) or 0
                     row["ah_copper"] = u["ah_copper"]
@@ -744,7 +750,10 @@ def gear_options(inp: dict, p: dict, dlist: list[dict], mount: dict, zone: str |
         def key(r):
             luck = r["kind"] == "world drop"
             hours = (r.get("cost_s") or 0) / 3600
-            per_h = r["value"] / hours if hours else r["value"] * (3 if r["kind"] in ("quest", "craft") else 1)
+            # An errand counts thrice an hour's worth, unless its work makes it
+            # more than a hand-in (wowstats.questwork).
+            errand = r["kind"] == "craft" or (r["kind"] == "quest" and r.get("effort") in (None, "easy"))
+            per_h = r["value"] / hours if hours else r["value"] * (3 if errand else 1)
             return (not r["now"], r["kind"] not in ("bags", "bank"), luck, -per_h)
 
         rows.sort(key=key)

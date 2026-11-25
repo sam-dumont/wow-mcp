@@ -44,6 +44,7 @@ in Claude Code they're slash commands. Every tool and prompt:
 - **Gear**: what you wear, what your bags and bank hold, and every way to an upgrade.
 - **Talents**: how your talents changed, day by day.
 - **Gold**: your auction prices, and the next riding tier.
+- **Professions**: what levelling a profession costs on Polestar's route, and what you can craft or buy.
 - **Plans**: session plans at your pace, and how they went.
 - **Analysis**: findings about how you play, their numbers re-run before they're kept.
 - **People**: players your game showed you.

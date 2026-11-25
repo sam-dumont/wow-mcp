@@ -560,7 +560,9 @@ WEAK_PCT = 25
 # past what a small context takes. 5 since ForeverDB's sources (2026-11-24):
 # each upgrade's source says where, how sure and the odds, twice as long
 # as Polestar's; the rest are a query_metric call away (gear_fit's query).
-FACTS_ROWS = 5
+# 4 since each quest source says what it takes (2026-11-25: the route's
+# hand-in, the chain, the foe): five worn items went 146 bytes past the page.
+FACTS_ROWS = 4
 
 
 # The best upgrades listed under each worn item of gear_fit, wearable now.

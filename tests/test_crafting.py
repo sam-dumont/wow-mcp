@@ -1,0 +1,114 @@
+"""What a craft takes, priced (wowstats.crafting), on the committed craft
+data (data/craft-reference.json): Polestar's Tailoring guide and Forever's
+client tables. Real ids: Filigreed Shadow Circlet (253981, recipe 1257416,
+Pattern 253982), its cousin the Filigreed Silky Circlet's pattern (253978),
+Shadoweave Pants (10002, recipe 12052), Stylish Red Shirt (3866)."""
+
+import pytest
+
+from wowstats import ahsource, crafting
+from wowstats import gear as gearmod
+
+TAILORING = 197
+CIRCLET = {"profession": "Tailoring", "skill": 125, "spell_id": 1257416}
+PANTS = {"profession": "Tailoring", "skill": 190, "spell_id": 12052}
+KNOWN = {2963, 2387, 8776, 2964, 2402, 3866, 3839, 3852}
+
+
+def who(**kw) -> crafting.Who:
+    base = {"ranks": {TAILORING: 121}, "caps": {TAILORING: 150}, "known": {TAILORING: set(KNOWN)},
+            "side": "Alliance", "held": {"bags": {2997: 6, 2321: 3}, "bank": {}}, "ids": {2997, 2321},
+            "prices": {4305: {"price_copper": 875, "days_ago": 2}, 2604: {"price_copper": 50, "days_ago": 2},
+                       2592: {"price_copper": 60, "days_ago": 2}, 1210: {"price_copper": 3000, "days_ago": 2},
+                       249409: {"price_copper": 200, "days_ago": 2}},
+            "money": 296965, "goal": {"level": 40, "left_copper": 703035}}
+    return crafting.Who(**{**base, **kw})
+
+
+def test_the_data_says_what_the_client_says():
+    assert crafting.reference()["patterns"]["253982"] == [1257416, 125]
+    r = crafting.recipe(1257416)
+    assert (r["y"], r["g"], r["i"]) == (130, 130, 253981)
+    assert [4305, 8] in r["r"]  # eight Bolts of Silk Cloth
+    assert 253981 in crafting.reference()["bop"] and 10002 not in crafting.reference()["bop"]
+    assert crafting.guide(TAILORING)["id"] == "forever/professions/tailoring"
+
+
+def test_chance_follows_the_colours():
+    assert crafting.chance(104, 110, 145) == 1.0
+    assert crafting.chance(145, 110, 145) == 0.0
+    assert crafting.chance(127, 110, 145) == pytest.approx(18 / 35)
+    assert crafting.crafts_between(121, 125, 110, 145) == pytest.approx(sum(35 / (145 - s) for s in range(121, 125)))
+    assert crafting.crafts_between(140, 150, 110, 145) is None  # grey before 150
+
+
+def test_four_points_on_polestars_route_with_the_bolts_first():
+    w = who()
+    led = crafting.Ledger(w)
+    rt = crafting.route(TAILORING, 121, 125, w, led)
+    (step,) = rt["steps"]
+    assert (step["spell"], step["from"], step["to"], step["step"]) == (3866, 121, 125, 15)
+    assert step["crafts"] == 7
+    # 7 shirts take 21 Bolts of Woolen Cloth: 6 in the bags, 15 made from Wool Cloth.
+    assert step["also"] == [{"spell": 2964, "item": 2997, "count": 15, "name": "Bolt of Woolen Cloth"}]
+    rows = {r["item_id"]: r for r in led.rows()}
+    assert rows[2997]["need"] == 6 and rows[2997]["buy"] == 0
+    assert rows[2592]["need"] == 45 and rows[2592]["cost_copper"] == 45 * 60
+    assert rows[2321]["need"] == 7 and rows[2321]["bags"] == 3 and rows[2321]["price_from"] == "vendor"
+    assert not rt["train"] and not rt["learn"]
+
+
+def test_the_circlet_says_which_pattern_is_held_and_that_it_cant_be_bought():
+    w = who(ids={2997, 2321, 253978}, prices={**who().prices, 253982: {"price_copper": 7500, "days_ago": 2}})
+    p = crafting.plan(CIRCLET, 253981, w)
+    assert p["recipe"]["state"] == "missing"
+    assert p["recipe"]["sibling"]["pattern_item_id"] == 253978
+    assert p["pattern_copper"] == 7500
+    assert p["bind_on_pickup"] is True and p["buy"] is None
+    line = p["line"]
+    assert "You don't have Pattern: Filigreed Shadow Circlet." in line
+    assert "75s (2 days ago)" in line
+    assert "4 Tailoring points to go: ~7 Stylish Red Shirt" in line
+    assert "binds when picked up" in line
+    assert f"of your {ahsource.price_text(296965)}" in line
+    assert p["effort"] == crafting.SOME
+    assert p["action"] == "Craft ~7 Stylish Red Shirt (Tailoring 121 → 125)."
+
+
+def test_a_pattern_in_the_bank_is_learnt_and_a_known_recipe_is_made():
+    p = crafting.plan(CIRCLET, 253981, who(ranks={TAILORING: 125}, ids={253982},
+                                           held={"bags": {}, "bank": {253982: 1}}))
+    assert p["recipe"]["state"] == "in_bags" and p["recipe"]["pattern_item_id"] == 253982
+    assert p["action"] == "Learn Pattern: Filigreed Shadow Circlet from your bags."
+    known = crafting.plan(CIRCLET, 253981, who(ranks={TAILORING: 130}, known={TAILORING: KNOWN | {1257416}}))
+    assert known["can_make"] and known["effort"] == crafting.EASY
+    assert known["action"].startswith("Make it")
+
+
+def test_a_boe_craft_can_be_bought_instead():
+    w = who(prices={**who().prices, 10002: {"price_copper": 45000, "days_ago": 1}})
+    p = crafting.plan(PANTS, 10002, w)
+    assert p["bind_on_pickup"] is False and p["buy"]["copper"] == 45000
+    assert "Or buy it: 4g 50s on the auction house (yesterday)." in p["line"]
+    assert p["effort"] == crafting.EASY  # listed and affordable
+    # Past 150 the route needs the Expert rank: its price isn't in our data, and it says so.
+    assert [t["max"] for t in p["route"]["train"]] == [225]
+    assert "train rank 3" in p["line"] and "4 more" in p["line"]
+
+
+def test_nothing_known_degrades_to_an_estimate_and_the_action():
+    w = crafting.Who(ranks={TAILORING: 121}, caps={TAILORING: None}, side="Alliance")
+    p = crafting.plan(CIRCLET, 253981, w)
+    assert p["recipe"]["state"] == "unknown"
+    assert "no recipe list" in p["line"]
+    assert "Bag counts unknown: update the shipper." in p["line"]
+    assert "scan the auction house with Auctionator" in p["line"]
+
+
+def test_the_gear_advice_carries_the_plan_and_its_effort():
+    s = {"kind": "craft", "profession": "Tailoring", "skill": 125, "spell_id": 1257416,
+         "plan": crafting.brief(crafting.plan(CIRCLET, 253981, who()))}
+    assert gearmod.craft_status(s) == s["plan"]["line"]
+    # No price nor vendor for the pattern in this data: where it comes from is
+    # unknown, so hard (with the auction house price above, some effort).
+    assert gearmod.source_effort(s) == gearmod.HARD == crafting.HARD

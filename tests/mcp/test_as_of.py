@@ -28,6 +28,7 @@ READERS = [
     ("character_summary", {}, ()), ("levels", {}, ()), ("sessions", {"since": "2026-11-01"}, ()), ("zones", {}, ()),
     ("guide_steps", {}, ()), ("deaths", {}, ()), ("dungeons", {}, ()), ("dungeons", {"options": True}, ()),
     ("players", {}, ()), ("players", {"groups": True}, ()), ("inventory", {}, ()), ("gear", {}, ()), ("gear", {"options": True}, ()),
+    ("professions", {}, ()),
     ("next_moves", {}, ()), ("sanity_check", {}, ()), ("route_reference", {}, ()), ("class_guide", {}, ()),
     ("class_meta", {}, ()), ("talent_changes", {}, ()), ("news", {}, ()), ("dashboard_refresh", {}, ()),
     ("plan_session", {"hours": 2}, ()), ("next_step", {}, ()), ("mount_goal", {}, ()), ("how_did_my_plan_go", {}, ()),

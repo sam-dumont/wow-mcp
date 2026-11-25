@@ -1371,8 +1371,11 @@ function ahEl(sr) {
 }
 
 // What making a craft takes, as wowstats/gear.py craft_status says it: the
-// skill, then the recipe (known, a pattern in the bags, or not learnt).
+// plan's line when the server priced it (wowstats/crafting.py: the recipe,
+// the skill-up, the mats, the gold, the auction house the other way), else
+// the skill, then the recipe (known, a pattern in the bags, or not learnt).
 function craftStatus(sr) {
+  if (sr.plan && sr.plan.line) return sr.plan.line;
   if (sr.your_rank === null || sr.your_rank === undefined) return 'a crafter makes it';
   if (sr.can_make) return 'you know it: check the materials';
   const steps = [];
@@ -1401,9 +1404,12 @@ function sourceEl(sr, level, ah) {
   if (sr.kind === 'ah') return ahEl(sr);
   if (sr.kind === 'quest') {
     const chain = sr.part && sr.part.length === 2 && sr.part[1] > 1 ? ` · ${sr.part[0]} of ${sr.part[1]}` : '';
+    // What the quest really takes (wowstats/questwork.py says): the route's
+    // hand-in, the chain and its next quest, the foe, the dungeon.
     return h('span', { class: 'src' }, 'Quest ', wh('quest', sr.quest_id, sr.name || `quest ${sr.quest_id}`),
       chain, sr.zone ? `, ${sr.zone}` : '', sr.req_level ? `, level ${sr.req_level}` : '',
-      sr.choices > 1 ? `, one of ${sr.choices} rewards` : '', basisEl(sr));
+      sr.choices > 1 ? `, one of ${sr.choices} rewards` : '', basisEl(sr),
+      sr.work_says ? h('span', { class: 'sub work', text: ` · ${sr.work_says}` }) : null);
   }
   if (sr.kind === 'drop') {
     const runs = sr.chance_pct ? Math.max(1, Math.round(100 / sr.chance_pct)) : null;
@@ -1417,8 +1423,13 @@ function sourceEl(sr, level, ah) {
       return h('span', { class: 'src' }, `World drop${lv}`, sr.zone ? `, seen in ${sr.zone}` : '', chanceText(sr), kills, basisEl(sr), buy);
     }
     if (!(sr.instance || sr.dungeon)) {
-      return h('span', { class: 'src' }, sr.boss ? ['Drops from ', wh('npc', sr.npc_id, sr.boss), sr.rare ? ' (rare)' : ''] : 'World drop',
-        sr.zone ? ` in ${sr.zone}` : '', chanceText(sr), kills, basisEl(sr), buy);
+      // A creature's levels and rank (wowstats/gear.py source_text); one no
+      // data names yet is said so, never "NPC 268423".
+      const lv = sr.foe && levelRange(sr.foe.levels) ? ` (level ${levelRange(sr.foe.levels)}${sr.foe.rank && sr.foe.rank !== 'normal' ? ` ${sr.foe.rank}` : ''})` : '';
+      const who = sr.boss ? ['Drops from ', wh('npc', sr.npc_id, sr.boss), lv || (sr.rare ? ' (rare)' : ''), sr.unplaced ? ', not placed yet' : '']
+        : sr.npc_id ? 'Drops from an unnamed creature, not placed yet' : 'World drop';
+      return h('span', { class: 'src' }, who, sr.zone ? ` in ${sr.zone}` : '', chanceText(sr),
+        sr.npc_id && !sr.chance_pct ? ', no drop rate known' : '', kills, basisEl(sr), buy);
     }
     return h('span', { class: 'src' }, sr.boss ? wh('npc', sr.npc_id, sr.boss) : 'trash', ' in ', sr.zone || '?',
       chanceText(sr), runs ? ` (about ${runs.toLocaleString('en')} run${runs > 1 ? 's' : ''})` : '', basisEl(sr), buy);
@@ -1448,6 +1459,10 @@ function sourceEl(sr, level, ah) {
   }
   if (sr.kind === 'craft') {
     const own = craftStatus(sr);
+    if (sr.plan && sr.plan.line) {
+      // The plan says the auction house price itself (craft or buy).
+      return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), `: ${own}`, basisEl(sr));
+    }
     return h('span', { class: 'src' }, 'Craft ', wh('spell', sr.spell_id, `${sr.profession} ${sr.skill}`), ` (${own})`,
       ah ? h('span', {}, ', or ', h('b', { class: 'ahprice', text: priceText(ah.price_copper) }), ' on the Auction House') : '', basisEl(sr));
   }

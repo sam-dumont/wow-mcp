@@ -48,7 +48,7 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wowstats import ahsource, endgame, forever, quests, stores
+from wowstats import ahsource, crafting, endgame, forever, quests, questwork, stores
 
 _HERE = Path(__file__).resolve()
 # An installed wheel carries it as wowstats/data/; a checkout has it at the root.
@@ -1038,6 +1038,9 @@ class Who:
     pvp: bool = False
     pvp_mode: bool = False
     today: str = ""  # YYYY-MM-DD, for closed_content
+    # Where the character stands for a quest's work (wowstats.questwork):
+    # its level, side, guide step, quests done and in the log.
+    pos: questwork.Position | None = None
 
 
 def _wing_area(area: dict, npc_id) -> dict | None:
@@ -1084,10 +1087,18 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
         if s["quest"] in who.done:
             return None
         fq = forever.quest(s["quest"]) or {}
+        # What the quest really takes (wowstats.questwork): where the route
+        # does it, its chain, its foe, its dungeon; its effort is that work's.
+        dungeon = (forever.area(forever.quest_dungeon(s["quest"])) or {}).get("name") if q.get("dungeon") else None
+        work = questwork.facts(s["quest"], who.pos or questwork.Position(level=who.level, done=who.done),
+                               level=q.get("level") or fq.get("level"),
+                               dungeon=dungeon or ("a dungeon" if q.get("dungeon") else None))
+        work_effort = work.pop("effort")
         return {"kind": "quest", "quest_id": s["quest"], "name": q.get("name") or fq.get("name"),
                 "zone": q.get("zone_name") or forever.quest_zone(s["quest"]), "part": fq.get("part"),
                 "level": q.get("level"), "req_level": q.get("req"), "dungeon": bool(q.get("dungeon")),
-                "choices": len(q.get("choices") or []), **_basis(s)}
+                "choices": len(q.get("choices") or []), "work": work,
+                "work_says": questwork.says(work, who.level), "work_effort": work_effort, **_basis(s)}
     if s["kind"] == "drop":
         # Whether the zone is a dungeon or a raid, and its level range as the
         # game's Group Finder gives it (data/forever-reference.json): Forever's
@@ -1098,6 +1109,19 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
                "chance_pct": s.get("pct") or None, "dungeon": a.get("instance") == "dungeon", **_basis(s)}
         if s.get("world"):  # a random world drop: no creature, maybe a level range
             out.update(world=True, levels_drop=[s["level_min"], s["level_max"]] if s.get("level_max") else None)
+        elif s.get("npc") and not a.get("instance"):
+            # A creature in the open world: its name, levels and rank from
+            # forever-db (questwork.creature); ForeverDB.net names a creature
+            # it has no name for "NPC 268423", which is no name.
+            foe = questwork.creature(s["npc"])
+            if not out["boss"] or re.fullmatch(r"NPC \d+", str(out["boss"])):
+                out["boss"] = foe.get("name")
+            out["zone"] = out["zone"] or foe.get("zone")
+            if foe.get("name"):
+                out["foe"] = {k: foe[k] for k in ("levels", "rank", "elite") if k in foe}
+            # No zone and no level in the data: it spawns nowhere yet
+            # (forever-db 2026.11.2 names Zalfan Moonshadow, places it nowhere).
+            out["unplaced"] = not (out["zone"] or foe.get("level"))
         if s.get("rare"):
             out["rare"] = True
         if a.get("instance"):
@@ -1244,14 +1268,26 @@ def source_effort(s: dict) -> int:
         # Staff of Jordan at 84g with 16g 72s in the bags): saving the gold
         # first is some effort, never "easy". Gold not known: easy.
         return SOME
-    if k in ("bags", "bank", "ah", "quest", "vendor") or s.get("by_playing"):
+    if k == "quest":
+        # The quest's work (wowstats.questwork): the route's, else its
+        # chain, foe, dungeon and items to bring. Without it (a source built
+        # by hand), a hand-in.
+        return s.get("work_effort", EASY)
+    if k in ("bags", "bank", "ah", "vendor") or s.get("by_playing"):
         # by_playing: a PvP reward while the gear is scored for PvP (owner,
         # 2026-11-25: "for pvp specific gear at 60 it'll automatically come
         # from PvP so it's easy").
         return EASY
     if k == "craft":
+        # The plan weighs the real state: recipe held or not, gold, the
+        # auction house the other way (wowstats.crafting.effort).
+        if (s.get("plan") or {}).get("effort") is not None:
+            return s["plan"]["effort"]
         return EASY if s.get("can_make") else SOME
     if k == "drop":
+        if s.get("npc_id") and (not s.get("boss") or s.get("unplaced")) and not s.get("instance"):
+            # A creature nobody names or places: nothing to go and kill.
+            return LONG_SHOT
         return _drop_effort(s.get("chance_pct"), s.get("label"),
                             harder=bool(s.get("world") or s.get("instance") == "raid"))
     if k == "container":
@@ -1347,6 +1383,8 @@ def craft_status(s: dict) -> str:
     """What stands between the character and making a craft source, in
     words, for every reader (MCP, planner, coach): the skill, then the recipe.
     The reagents aren't in the data, so "make it" always says to check them."""
+    if (s.get("plan") or {}).get("line"):
+        return s["plan"]["line"]
     prof, need, rank = s.get("profession") or "the profession", s.get("skill"), s.get("your_rank")
     if rank is None:
         return f"a {prof} crafter makes it ({prof} {need}): buy it or ask one"
@@ -1590,7 +1628,8 @@ class _Ctx:
 
 
 def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: str | None,
-             weights: str | None, mode: str | None = None, pvp: bool = False) -> _Ctx:
+             weights: str | None, mode: str | None = None, pvp: bool = False, log=None,
+             route: dict | None = None) -> _Ctx:
     """What advise() and instance_loot() score with: the class, the spec's
     weights in the mode, what is worn."""
     if not ref.available:
@@ -1618,6 +1657,9 @@ def _context(ref: Reference, sheet: dict, level, zone: str | None, done, spec: s
               done=set(done or ()), zone=zone, recipes=recipe_lists(sheet.get("recipes")),
               reps=sheet.get("reps"), pvp_rank=sheet.get("pvp_rank"), pvp=bool(pvp), pvp_mode=mode == "pvp",
               today=_today())
+    side = next((k.title() for k, v in SIDES.items() if v == who.side), None)
+    who.pos = questwork.Position(level=level, side=side, guide=(route or {}).get("guide"),
+                                 step=(route or {}).get("step"), done=who.done, log=set(log or ()))
 
     items = [i for i in sheet.get("items") or [] if isinstance(i, dict)]
     worn = worn_from(ref, items, w, sheet.get("worn_stats"))
@@ -1768,7 +1810,7 @@ def unsourced(ref: Reference) -> list[tuple[int, dict]]:
 def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, done: set | None = None,
            spec: str | None = None, limit: int = 25, weights: str | None = None, every: bool = False,
            held: dict | None = None, market: dict | None = None, mode: str | None = None,
-           pvp: bool = False) -> dict:
+           pvp: bool = False, log=None, route: dict | None = None) -> dict:
     """The gear advice for one character.
 
     sheet: the newest wow-gear event (items, class, race, faction, spec,
@@ -1783,8 +1825,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     with its price against his gold; the answer gets `ah`. mode: the
     weights' mode, Leveling (the default), PvP or PvE (mode_key). pvp: PvP
     rewards (a rank's or a battleground reputation's gear) count as sources;
-    off by default, always on in the PvP mode (Who.pvp)."""
-    cx = _context(ref, sheet, level, zone, done, spec, weights, mode, pvp)
+    off by default, always on in the PvP mode (Who.pvp). log: the quests in
+    the character's log; route: its guide position ({guide, step}, the
+    Recorder's newest step): a quest source's work reads both
+    (wowstats.questwork)."""
+    cx = _context(ref, sheet, level, zone, done, spec, weights, mode, pvp, log, route)
     cls, level, key, how, w, scoring = cx.cls, cx.level, cx.key, cx.how, cx.w, cx.scoring
     dual, min_upgrade, who, worn = cx.dual, MIN_UPGRADE, cx.who, cx.worn
     worn_names = cx.worn_names
@@ -1797,6 +1842,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     who.bags = {i for i, where in holding.items() if where == "bags"}
     sale = (market or {}).get("items") or {}
     money = (market or {}).get("money_copper")
+    # What each craft takes, priced (wowstats.crafting): the recipe, the
+    # skill-up on Polestar's route, the mats against the bags and bank, the
+    # auction house the other way. Once per recipe and item.
+    crafter = crafting.who_from(sheet, held, market)
+    plans: dict[tuple, dict | None] = {}
     for item_id, where in holding.items():
         info = item_for(ref, item_id, w)
         if not info:  # not gear, or gear the advice doesn't score
@@ -1820,6 +1870,13 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         # reputation, so Talisman of Arathor isn't an "easy" 72s buy for a
         # character who never queued).
         here_srcs = _dedupe([x for x in (_source(ref, s, who, info, item_id) for s in srcs) if x])
+        for x in here_srcs:
+            if x["kind"] == "craft":
+                k = (x.get("spell_id"), item_id)
+                if k not in plans:
+                    plans[k] = crafting.brief(crafting.plan(x, item_id, crafter))
+                if plans[k]:
+                    x["plan"] = plans[k]
         if not (who.pvp or who.pvp_mode) and any(is_pvp(s) for s in srcs):
             # A PvP rank's quartermaster goes with its rank (ForeverDB lists
             # both: Master Sergeant's Insignia, Officer Areyn and rank 3).
@@ -2169,6 +2226,17 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         u = {**out({**c, "at": at, "sources": srcs}, r), "now": at <= level}
         if "with_part" in r:
             u["with"] = setups.partner(r, out)
+            mate = u["with"] or {}
+            if (level < ENDGAME_LEVEL and mate.get("kind") == "get" and mate.get("effort")
+                    and EFFORT.index(mate["effort"]) > EFFORT.index(u["effort"])):
+                # Half a weapon setup is as hard as the other half to get
+                # (Orb of the Forgotten Seer needs a one-hander first): the
+                # setup takes the harder effort, and ranks on it while
+                # levelling (at ENDGAME_LEVEL the score decides).
+                e = EFFORT.index(mate["effort"])
+                u["effort"] = EFFORT[e]
+                u["value"] = _r(ranking_value(r["delta"], r["new"], e, (u.get("fit") or {}).get("factor", 1.0),
+                                              level), 2)
             # A main hand and its off hand are one setup: listed once.
             pair = frozenset((c["id"], (u["with"] or {}).get("item_id")))
             if pair in shown_setups:
@@ -2631,10 +2699,12 @@ def badge_of(u: dict | None) -> dict:
     return {k: (u or {}).get(k) for k in BADGE}
 
 
-def source_text(s: dict) -> str:
+def source_text(s: dict, short: bool = False) -> str:
     """One source in a few words: 'quest Tharil'zun (Redridge Mountains, req 18)'.
     A ForeverDB source says how sure it is: "seen in Forever, 16 kills",
-    "Classic data, may differ in Forever" (basis_words)."""
+    "Classic data, may differ in Forever" (basis_words). short: a craft says
+    its next step and its gold, not its whole plan (the analysis' tables and
+    brief, which have a size; the professions tool has the rest)."""
     basis = basis_words(s)
     if s["kind"] == "bags":
         return "in your bags: equip it"
@@ -2645,7 +2715,8 @@ def source_text(s: dict) -> str:
                                       "dungeon quest" if s.get("dungeon") else None,
                                       f"one of {s['choices']} rewards" if (s.get("choices") or 0) > 1 else None,
                                       basis or None) if x)
-        return f"quest {s.get('name') or s.get('quest_id')} ({where})"
+        work = f": {s['work_says']}" if s.get("work_says") else ""
+        return f"quest {s.get('name') or s.get('quest_id')} ({where}){work}"
     if s["kind"] == "drop":
         chance = f", {chance_words(s)}" if s.get("chance_pct") else ""
         tail = f" ({basis})" if basis else ""
@@ -2657,10 +2728,20 @@ def source_text(s: dict) -> str:
         if s.get("instance"):
             lv = s.get("levels")
             inst = f" ({s['instance']}{f', levels {lv[0]}-{lv[1]}' if lv else ''})"
-        who = s.get("boss") or "trash"
-        if s.get("rare"):
+        who = s.get("boss") or ("an unnamed creature, not placed yet" if s.get("npc_id") and not s.get("instance")
+                                else "trash")
+        foe = s.get("foe") or {}
+        lv = foe.get("levels") or []
+        if lv and lv[-1]:
+            rank = f" {foe['rank']}" if foe.get("rank") not in (None, "normal") else ""
+            who = f"{who} (level {lv[0]}{f'-{lv[1]}' if lv[1] != lv[0] else ''}{rank})"
+        elif s.get("rare"):
             who = f"{who} (rare)"
+        if s.get("boss") and s.get("unplaced"):
+            who = f"{who}, not placed yet"
         where = f" in {s['zone']}" if s.get("zone") else ""
+        if not s.get("chance_pct") and not s.get("instance") and s.get("npc_id"):
+            chance = ", no drop rate known"
         return f"drop: {who}{where}{inst}{chance}{tail}"
     if s["kind"] == "ah":
         share = f", {s['gold_share_pct']:g}% of your gold" if s.get("gold_share_pct") is not None else ""
@@ -2681,6 +2762,11 @@ def source_text(s: dict) -> str:
         return f"{what}: {s.get('name') or '?'}{chance}{tail}"
     if s["kind"] != "craft":  # a kind the gear data names that has no words here
         return f"{s['kind']}: {s.get('name') or s.get('zone') or '?'}"
+    p = s.get("plan") or {}
+    if short and p.get("action"):
+        gold = f" In all ~{ahsource.price_text(p['craft_copper'])}." if p.get("craft_copper") else ""
+        buy = f" Or buy it: {ahsource.price_text(p['buy_copper'])}." if p.get("buy_copper") else ""
+        return f"craft: {s.get('profession')} {s.get('skill')}; {p['action']}{gold}{buy}{tail}"
     return f"craft: {s.get('profession')} {s.get('skill')}; {craft_status(s)}{tail}"
 
 
@@ -3135,7 +3221,8 @@ def advise_rows(rows: list[dict], weights: str | None = None, battlenet=None, mo
         return None
     sh, level, zone, done = got
     return advise(reference(), sh, level=level, zone=zone, done=done, weights=weights, every=True,
-                  held=newest_bags(rows), mode=mode, pvp=pvp)
+                  held=newest_bags(rows), mode=mode, pvp=pvp, log=quests.in_log(rows, done),
+                  route=quests.position(r for r in rows if r.get("kind") == "step"))
 
 
 # --- what each dungeon holds for one character -------------------------------

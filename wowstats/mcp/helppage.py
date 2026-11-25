@@ -204,6 +204,8 @@ GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("Gear", "what you wear, what your bags and bank hold, and every way to an upgrade", ("gear", "inventory")),
     ("Talents", "how your talents changed, day by day", ("talent_changes",)),
     ("Gold", "your auction prices, and the next riding tier", ("prices", "mount_goal")),
+    ("Professions", "what levelling a profession costs on Polestar's route, and what you can craft or buy",
+     ("professions",)),
     ("Plans", "session plans at your pace, and how they went",
      ("plan_session", "check_plan", "how_did_my_plan_go", "next_step", "next_moves")),
     ("Analysis", "findings about how you play, their numbers re-run before they're kept",

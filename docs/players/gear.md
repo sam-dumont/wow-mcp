@@ -38,6 +38,34 @@ Every item has the same badge and says what it does to its slot: "70% → 91% on
   **cheap** (on the auction house for at most what you earn in a level). Under it, the slot's
   **BiS**: see below.
 
+## Crafts
+
+A craft says everything between you and the item, in one line:
+
+> You don't have Pattern: Filigreed Shadow Circlet. Pattern: Filigreed Shadow Circlet was on the
+> auction house for 75s (2 days ago). 4 Tailoring points to go: ~7 Stylish Red Shirt. Bags and
+> bank cover 1 of 8 mats; in all ~3g 71s of your 29g 69s; riding at 40 still needs 70g 30s. It
+> binds when picked up: nobody sells it.
+
+- **The recipe**: you know it, you hold the pattern (bags or bank: learn it), or where it comes
+  from (a vendor and its price, a trainer, the auction house at your last scan's price). Holding
+  a pattern for a different item of the same family (the Silky circlet for the Shadow one) is
+  said too, because they're easy to mix up.
+- **The skill-ups**: Polestar's profession guide from your skill to the one the recipe needs,
+  craft by craft with the expected count at each recipe's colours (orange always gives a
+  point, yellow and green less often), plus the bolts to make first, the recipes to learn and
+  the trainer rank to buy on the way.
+- **The gold**: the mats both take, less what your bags and bank hold, at the vendor's price
+  for vendor goods and your house's newest auction price for the rest (any age: the
+  professions answer says how old). Against your gold and your next riding training.
+- **Or buy it**: an item that doesn't bind when picked up shows its auction house price, so
+  "can't craft yet, buy it for 4g 50s" is one line.
+
+What we can't price is named, with the one thing that fixes it: scan the auction house with
+Auctionator, open the profession window once (Altoholic saves the recipe list), or update the
+shipper (it sends the bag counts). Your AI gets the whole thing from `professions`: "how much to
+get Tailoring from 121 to 190" is answered from Polestar's route and your own bags, no web guide.
+
 ## BiS, and your pick
 
 Each slot has two answers. The **BiS** is the item that scores most at your level, whatever it
@@ -106,9 +134,9 @@ Every upgrade says how hard it is to get, from its easiest source, next to where
 
 | | From |
 |---|---|
-| **easy** | your bags or bank, an auction house listing you have the gold for, a quest, a vendor, a craft you can make, a reputation you hold, a drop of 25% or more |
-| **some effort** | an auction house listing that costs more than your gold, a drop of 8-25%, a craft still to learn or skill up for, a reputation up to Honored you don't hold yet, a PvP rank you hold |
-| **hard** | a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a reputation above Honored you don't hold |
+| **easy** | your bags or bank, an auction house listing you have the gold for, a quest, a vendor, a craft you can make (or whose recipe you know or hold, with the gold for the skill-ups), a reputation you hold, a drop of 25% or more |
+| **some effort** | an auction house listing that costs more than your gold, a drop of 8-25%, a craft whose recipe you can buy or train, or that needs a trainer rank or more gold than you have, a reputation up to Honored you don't hold yet, a PvP rank you hold |
+| **hard** | a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a craft whose recipe we can't say where to get, a reputation above Honored you don't hold |
 | **long shot** | a drop under 1%, a rate known only from Classic, a PvP rank you don't hold (or that nothing recorded) |
 
 In the PvP weights, rank and battleground reputation gear is easy.
