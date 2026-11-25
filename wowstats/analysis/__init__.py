@@ -661,6 +661,7 @@ def bind(lines: list[dict], kept: dict, level: int | None, dropped: list, what: 
     for line in lines:
         tpl = line.get("tpl") or {p: str(line[p]) for p in LINE_PARTS if line.get(p)}
         row: dict = {}
+        units: dict = {}
         for k in line.get("findings") or []:
             for col, v in ((kept.get(k) or {}).get("row") or {}).items():
                 row.setdefault(col, v)
@@ -669,8 +670,17 @@ def bind(lines: list[dict], kept: dict, level: int | None, dropped: list, what: 
             if any(m.group(1) not in row for t in tpl.values() for m in verify.PLACEHOLDER.finditer(t)):
                 gone = "a placeholder has no value in the findings it cites"
             else:
-                line["tpl"] = tpl
-                line.update({p: verify.render(t, row) for p, t in tpl.items()})
+                # Each value's unit from the finding whose row gave it.
+                for k in line.get("findings") or []:
+                    f = kept.get(k) or {}
+                    fu = verify.finding_units(f) if f.get("sql") else {}
+                    for col in (f.get("row") or {}):
+                        units.setdefault(col, fu.get(col))
+                try:
+                    line.update({p: verify.render(t, row, None, units) for p, t in tpl.items()})
+                    line["tpl"] = tpl
+                except verify.UnitError:
+                    gone = "a percent placeholder reads a value with no declared unit"
         else:
             written = line.get("written_level")
             if written is None:

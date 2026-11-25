@@ -52,8 +52,9 @@ your own account; wow-stats never sees the conversation. [Connect your AI](../ai
 
 On top of that, optional: the play analysis. Your assistant asks its own questions of your
 data, and the server keeps a finding only once its query re-runs to the same numbers, writes
-the measured ones into the text itself, and checks it again each night. You can ask to see
-that query. A host can also have the server run the analysis itself, with an AI provider they
+the measured ones into the text itself (a percent by the unit its column declares), and checks
+it again each night. It doesn't check that the query measures the right thing: you can ask to
+see that query. A host can also have the server run the analysis itself, with an AI provider they
 pay for, once a character has {{analysis_hours}} hours of play since its last refresh (the host can pick
 another number). Your AI never starts one of those runs:
 [Server-side analysis](../self-host/server-analysis.md).

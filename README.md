@@ -6,7 +6,7 @@ the dungeon worth the trip, where your hours went. Your own AI assistant can rea
 over MCP.
 
 **[Live demo](https://sam-dumont.github.io/wow-mcp/demo/friends/)** · **[Docs](https://sam-dumont.github.io/wow-mcp/)** ·
-**[Quick start](docs/quickstart.md)** · **[How this was built](docs/how-this-was-built.md)**
+**[Quick start](https://sam-dumont.github.io/wow-mcp/quick-start/)** · **[How this was built](docs/how-this-was-built.md)**
 
 ![The Overview of the demo character Nibbet: the pace against Polestar's route, the hours to the next level, the guide steps done in order, the next moves, and time per level against the route](docs/images/overview.webp)
 
@@ -35,7 +35,7 @@ the address sees.
 |---|---|---|
 | **A player** a friend invited | [Join a friend's server](docs/players/getting-started.md): the addons and one command, nothing from this repository | about 5 minutes |
 | **Using an AI assistant** | [Connect your AI](docs/ai/connect.md), then [ask about your character](docs/ai/asking.md) | about 5 minutes |
-| **Hosting it** for yourself and a few friends | the [quick start](docs/quickstart.md) with the demo character, then [the host guide](docs/self-host/production.md) | 10 minutes, then an hour |
+| **Hosting it** for yourself and a few friends | the [quick start](https://sam-dumont.github.io/wow-mcp/quick-start/) with the demo character, then [the host guide](docs/self-host/production.md) | 10 minutes, then an hour |
 
 It's a hobby project, for hobbyists who host a few friends: GPL-3.0, no warranty, no support
 promise, and security fixes land when I can make them. If you use a friend's server, you trust

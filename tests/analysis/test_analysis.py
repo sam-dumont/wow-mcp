@@ -202,7 +202,8 @@ def test_a_finding_that_doesnt_reproduce_is_dropped(db, change, reason):
 
 def test_formats():
     assert verify.render("{a:dur} {b:pct} {c:int} {d:1f} {e}", {"a": 5400, "b": 0.256, "c": 12345.6, "d": 2.345,
-                                                              "e": "Duskwood"}) == "1h30 26% 12 346 2.3 Duskwood"
+                                                              "e": "Duskwood"},
+                         None, {"b": "share"}) == "1h30 26% 12 346 2.3 Duskwood"
     assert verify.fmt(None, None) == "n/a" and verify.fmt(90, "dur") == "1 min"
 
 

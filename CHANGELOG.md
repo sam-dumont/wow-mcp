@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+
+- A kept analysis finding said "Lorekeeper's Ring adds 150% to the worn gear score." for an upgrade worth 1.5% of the gear. `{col:pct}` now writes each value by the unit its column declares: a percent as it is (1.5 is 1.5%), a share or a ratio times 100 (0.015 is 1.5%). The old renderer guessed from the size (anything up to 1.5 was a share), so the unit checks the judge got in 0.8.0 never reached the text. A column with no declared unit is refused, when the finding is proposed, at the nightly recheck (it fades) and in the nudges that cite it. Kept findings keep the units they were judged with (`units`). Found by an external review.
+- The published quick start and "Try it at home" said `...@sha256:<digest from the release notes>` after 0.11.0's release. The site build read the release without a token and fell back to that placeholder when GitHub refused. A published build now reads the image line of its own version's release with the workflow's token, or fails. The push run of a release commit is no longer published before its release exists (release.yml publishes the site once it does), and every deploy reads the live quick start back and fails unless it hands out the release's `@sha256` digest (`tools/check_live_quickstart.py`). The README's Quick start links to the published page: GitHub shows that Markdown with the image value unfilled. Found by an external review.
+- The docs no longer say the analysis "doesn't keep wrong numbers": they say what the judge checks (the numbers are the query's, written by the server, a percent by its unit) and what it doesn't (whether the query measures the right thing).
+
 ### Changed
 
 - CI: the required `test` check now waits for `logsql`, the queries against a real VictoriaLogs. It wasn't required on its own, so #240 and #241 merged with it red.

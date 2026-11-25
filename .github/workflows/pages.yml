@@ -86,6 +86,8 @@ jobs:
     if: github.repository_id == '1464458020' && (github.event_name != 'schedule' || needs.visibility.outputs.public == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
+    outputs:
+      publish: ${{ steps.publish.outputs.publish }}
     steps:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
         with:
@@ -97,6 +99,34 @@ jobs:
           # Each page's "last updated" is its source's last commit
           # (site/scripts/prepare.mjs): a shallow clone dates every page today.
           fetch-depth: 0
+      # Whether this build goes live. A published build must quote the released
+      # image of its own version (tools/docs_values.py fails it otherwise), so
+      # the push run of a release commit, built while release.yml still builds
+      # the images, isn't published: release.yml calls this workflow once the
+      # release exists. Before, that push run and the release's call both
+      # deployed, the site said whatever the last one read, and a refused
+      # GitHub call was a placeholder in the quick start (0.11.0, 2026-11-25).
+      - name: Publish this build?
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLIC: ${{ needs.visibility.outputs.public }}
+          CALLED_REF: ${{ inputs.ref }}
+        run: |
+          version=$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml)
+          publish=false
+          if [[ $PUBLIC == true && $GITHUB_REF == refs/heads/main && $GITHUB_EVENT_NAME != pull_request ]]; then
+            if gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" --jq .tag_name >/dev/null; then
+              publish=true
+            elif [[ -n $CALLED_REF ]]; then
+              echo "::error::release.yml called this for $CALLED_REF, and v$version has no release"
+              exit 1
+            else
+              echo "::notice::v$version isn't released yet: release.yml publishes the site once it is"
+            fi
+          fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "DOCS_PUBLISH=$([[ $publish == true ]] && echo 1 || echo 0)" >> "$GITHUB_ENV"
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
@@ -135,15 +165,18 @@ jobs:
       # Page counts (site/scripts/analytics.mjs): the Plausible site and its
       # event endpoint, repository variables like immich-memories' docs. Public
       # values; unset, the pages load no tracker.
+      # GH_TOKEN: tools/docs_values.py reads the release's image line with it
+      # (anonymous calls from a shared runner address get refused).
       - run: npm run build --prefix site
         env:
+          GH_TOKEN: ${{ github.token }}
           DOCS_ANALYTICS_DOMAIN: ${{ vars.DOCS_ANALYTICS_DOMAIN }}
           DOCS_ANALYTICS_ENDPOINT: ${{ vars.DOCS_ANALYTICS_ENDPOINT }}
-      - if: needs.visibility.outputs.public == 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+      - if: steps.publish.outputs.publish == 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: site/dist
-      - if: needs.visibility.outputs.public != 'true' || github.event_name == 'pull_request'
+      - if: steps.publish.outputs.publish != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site-preview
@@ -154,12 +187,7 @@ jobs:
     needs: [visibility, build]
     # Public repositories only (see the top). Pushes and manual runs read the
     # event's own flag; a scheduled run, which has none, the visibility job's.
-    if: >-
-      github.repository_id == '1464458020' && (
-        github.ref == 'refs/heads/main' && github.event_name != 'pull_request' &&
-        (github.event.repository.private == false ||
-         (github.event_name == 'schedule' && needs.visibility.outputs.public == 'true'))
-      )
+    if: github.repository_id == '1464458020' && needs.build.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -177,3 +205,23 @@ jobs:
           egress-policy: audit
       - id: deploy
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+  # The page a reader copies from, as deployed: the quick start's command must
+  # name the released image by its digest (tools/check_live_quickstart.py).
+  # Pages caches a page up to 10 minutes, so it retries for 15.
+  live-check:
+    needs: [build, deploy]
+    if: github.repository_id == '1464458020' && needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ inputs.ref || github.sha }}
+      - run: python3 tools/check_live_quickstart.py --wait 900
+        env:
+          GH_TOKEN: ${{ github.token }}

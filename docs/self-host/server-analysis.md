@@ -178,8 +178,10 @@ calling>`, plus the three prices (input, cached input, output) if you want the m
       ANALYSIS_MONTHLY_TOKENS: "50000000"
 ```
 
-No key. A small model tends to hand in findings the judge refuses: the run then keeps less, it
-doesn't keep wrong numbers.
+No key. A small model tends to hand in findings the judge refuses: the run then keeps less.
+What it keeps still had its numbers re-run and written by the server; whether its query
+measures the right thing is the model's call, which a small model gets wrong more often
+([how numbers get checked](../ai/asking.md#how-numbers-get-checked)).
 
 ### Kubernetes with workload identity federation
 

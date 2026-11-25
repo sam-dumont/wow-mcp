@@ -65,9 +65,11 @@ FINDING_RULES = """\
 A finding is something the data shows, with the SQL that shows it. Its `title`, `claim` and `action` are \
 plain words for the player in which every number the query measures is a placeholder naming its result: \
 {col} for a column of the FIRST row, {rows[1].col} for a cell of a later row (up to rows[19]), typed as \
-{col:dur} (seconds as hours/minutes), {col:pct} (a ratio as a percent), {col:int} or {col:.1f}. The server \
-renders them from the re-run when it keeps the finding and again every night, so the text always shows \
-today's value. Any other number you write goes in `constants`, each as {"value": 30, "label": "level"}. A \
+{col:dur} (seconds as hours/minutes), {col:pct} (a column whose unit is percent or a share, written by its \
+unit: percent 1.5 is 1.5%, share 0.015 is 1.5%; a column with no declared unit gets no pct), {col:int} or \
+{col:.1f}. The server renders them from the re-run when it keeps the finding and again every night, so \
+the text always shows today's value. Any other number you write goes in `constants`, each as \
+{"value": 30, "label": "level"}. A \
 level, top-n or threshold is a parameter your query applies and must be written in its SQL (WHERE level = \
 30, LIMIT 3); a game-rule comes from a knowledge base document cited in `kb`; patch, group-size and ordinal \
 are declared as they are. The judge refuses a number that is neither, and a constant equal to a \
