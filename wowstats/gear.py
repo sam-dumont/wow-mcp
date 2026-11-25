@@ -308,6 +308,8 @@ def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict |
         if iid not in items:
             continue
         raw = []
+        gate = next((x.get("faction") for x in e.get("sources") or [] if x.get("kind") == "reputation"), None)
+        sided, gate_side = side_of_gate(e.get("sources") or [])
         for x in sorted(e.get("sources") or [], key=lambda x: LABEL_ORDER.get(x.get("label"), 9)):
             k, base = x.get("kind"), {"via": "foreverdb", "label": x.get("label")}
             if k == "quest":
@@ -352,12 +354,17 @@ def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict |
                             "skill": x.get("skill")})
             elif k == "vendor":
                 n = npcs.get(str(x.get("npc"))) or {}
+                # Next to a reputation the vendor is its quartermaster: it
+                # sells to the reputation's side and is that gate (is_pvp).
                 raw.append({**base, "kind": "vendor", "npc": x.get("npc"), "npc_name": n.get("name"),
                             "zone_name": n.get("zone"), "map": n.get("map"), "x": n.get("x"), "y": n.get("y"),
-                            "price": x.get("price"), "side": x.get("side")})
+                            "price": x.get("price"),
+                            "side": gate_side if sided else x.get("side"),
+                            **({"reputation": gate} if gate is not None else {})})
             elif k == "reputation":
                 raw.append({**base, "kind": "reputation", "faction": x.get("faction"),
-                            "faction_name": x.get("faction_name"), "standing": x.get("standing")})
+                            "faction_name": x.get("faction_name"), "standing": x.get("standing"),
+                            "side": gate_side if sided else _vendor_side(e.get("sources") or [])})
             elif k == "pvp":
                 raw.append({**base, "kind": "pvp", "rank": x.get("rank"), "side": x.get("side")})
             elif k in ("container", "object"):
@@ -367,6 +374,35 @@ def foreverdb_sources(items: dict, quests: dict, gear_quests: dict, data: dict |
             out[iid] = raw
     src = data.get("source") or {}
     return out, {k: src.get(k) for k in ("name", "url", "build", "data_version")}
+
+
+def side_of_gate(srcs: list[dict]) -> tuple[bool, str | None]:
+    """(known, the side of the reputation an item's ForeverDB sources ask
+    for: Alliance, Horde or None for a neutral one) from the client's
+    Faction table (forever.faction). Not known when there is no reputation, one
+    the table doesn't know, or one only Classic's data names (label k or c):
+    then each source keeps ForeverDB's side.
+
+    ForeverDB gives a vendor a side but a reputation none, and its vendor
+    sides can be wrong: Theramore's quartermaster Bryanna Embreeze is the
+    Horde's there, so Volunteer's Lucky Seal never reached an Alliance
+    character and was offered to the Horde (2026-11-25); Ratchet's and Booty
+    Bay's are too, neutral towns. Only a reputation Forever's own data
+    names (f, s) decides: Classic's names one side's faction for gear both
+    quartermasters sell (Rune of Duty: Warsong Outriders, seen sold by
+    Silverwing's Illiyana Moonblaze)."""
+    reps = [x.get("faction") for x in srcs if x.get("kind") == "reputation" and x.get("label") in ("f", "s")]
+    known = [forever.faction(f) for f in reps]
+    if not reps or any(f is None for f in known) or len({f.get("side") for f in known}) != 1:
+        return False, None
+    return True, known[0].get("side")
+
+
+def _vendor_side(srcs: list[dict]) -> str | None:
+    """A reputation's side when the Faction table doesn't know it: its
+    quartermaster's, as ForeverDB gives it (one side for every vendor)."""
+    sides = {x.get("side") for x in srcs if x.get("kind") == "vendor"}
+    return next(iter(sides)) if len(sides) == 1 else None
 
 
 _SOURCES: list = []
@@ -1080,7 +1116,7 @@ def _source(ref: Reference, s: dict, who: Who, info: dict, item_id: int | None =
     if s["kind"] == "vendor":
         return {"kind": "vendor", "npc_id": s.get("npc"), "name": s.get("npc_name"), "zone": s.get("zone_name"),
                 "map": s.get("map"), "x": s.get("x"), "y": s.get("y"), "price_copper": s.get("price") or None,
-                **_basis(s), **tag}
+                **({"reputation_id": s["reputation"]} if s.get("reputation") else {}), **_basis(s), **tag}
     if s["kind"] == "reputation":
         return {"kind": "reputation", "faction_id": s.get("faction"), "name": s.get("faction_name"),
                 "standing": s.get("standing"), **rep_check(who, s.get("faction"), s.get("standing")), **_basis(s),
@@ -1142,13 +1178,15 @@ def closed_content(s: dict, today: str, quest_zone=None) -> str | None:
 
 def is_pvp(s: dict) -> bool:
     """A raw source that is a PvP reward: a PvP rank's, a battleground
-    reputation's or a PvP vendor's (PVP_RULE)."""
+    reputation's or its quartermaster's, or a PvP vendor's (PVP_RULE)."""
     k, v = s.get("kind"), _rule_value(PVP_RULE)
     if k == "pvp":
         return True
     if k == "reputation":
         return str(s.get("faction")) in (v.get("reputations") or {})
-    return k == "vendor" and str(s.get("npc")) in (v.get("vendors") or {})
+    # A vendor next to a battleground reputation is its quartermaster.
+    return k == "vendor" and (str(s.get("npc")) in (v.get("vendors") or {})
+                              or str(s.get("reputation")) in (v.get("reputations") or {}))
 
 
 def _today() -> str:
@@ -1176,9 +1214,11 @@ def source_effort(s: dict) -> int:
     Forever over Classic's); a reputation or a PvP rank by what the
     character holds."""
     k = s.get("kind")
-    if k == "vendor" and s.get("pvp") and not s.get("by_playing"):
+    if k == "vendor" and s.get("pvp") and not s.get("by_playing") and not s.get("reputation_id"):
         # A PvP vendor's gear outside the PvP weights: the honor and the rank
-        # it asks aren't in the data, like a rank nothing recorded.
+        # it asks aren't in the data, like a rank nothing recorded. A
+        # battleground reputation's quartermaster is its reputation's effort
+        # (by_effort, item_effort).
         return LONG_SHOT
     if k == "ah" and s.get("affordable") is False:
         # A listing the character can't pay for yet (owner, 2026-11-25:
@@ -1696,17 +1736,15 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         usable, _, min_level = usability(ref, info, cls, level)
         if not usable:
             continue
+        # The other side's reputation and its quartermaster, and PvP rewards
+        # while they don't count, are left out source by source (_source:
+        # foreverdb_sources gives a reputation's vendor its side and its
+        # reputation, so Talisman of Arathor isn't an "easy" 72s buy for a
+        # character who never queued).
         here_srcs = _dedupe([x for x in (_source(ref, s, who, info, item_id) for s in srcs) if x])
-        if not any(x["kind"] == "vendor" for x in here_srcs) and any(s["kind"] == "vendor" for s in srcs):
-            # The quartermaster sells to the other side only: so is its
-            # reputation (ForeverDB gives the faction no side; Darkspear
-            # Raiders' seals offered to an Alliance character, 2026-11-24).
-            here_srcs = [x for x in here_srcs if x["kind"] != "reputation"]
         if not (who.pvp or who.pvp_mode) and any(is_pvp(s) for s in srcs):
-            # PvP rewards don't count: the gate's quartermaster goes with
-            # its gate (a vendor next to a rank or a battleground reputation
-            # sells to those who hold it; Talisman of Arathor, 72s, was an
-            # "easy" buy for a character who never queued).
+            # A PvP rank's quartermaster goes with its rank (ForeverDB lists
+            # both: Master Sergeant's Insignia, Officer Areyn and rank 3).
             here_srcs = [x for x in here_srcs if x["kind"] != "vendor"]
         if item_id in sale and buyable(base, level):
             here_srcs.append(_listing(sale[item_id], money))

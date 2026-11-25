@@ -96,3 +96,14 @@ def test_a_dungeons_quests_found_under_either_of_its_ids():
     assert forever.dungeon_area(11) is None  # Wetlands, no dungeon
     assert forever.quest_dungeon(1101) == 491  # The Crone of the Kraul
     assert forever.quest_dungeon(2841) == 721  # Rig Wars
+
+
+def test_factions_carry_their_side_from_the_client_table():
+    """Each reputation's side from Faction's parents (Alliance Forces and Horde
+    Forces for the battleground ones); a neutral town has none."""
+    assert forever.faction(2799) == {"name": "Theramore Expeditionary Force", "side": "Alliance"}
+    assert forever.faction(2798) == {"name": "Darkspear Raiders", "side": "Horde"}
+    assert forever.faction(509)["side"] == "Alliance" and forever.faction(510)["side"] == "Horde"
+    assert forever.faction(72)["side"] == "Alliance"  # Stormwind, under Alliance
+    assert forever.faction(21) == {"name": "Booty Bay"} and "side" not in forever.faction(470)
+    assert forever.faction(None) is None and forever.faction(999999) is None

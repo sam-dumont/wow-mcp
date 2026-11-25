@@ -105,6 +105,15 @@ def area(area_id) -> dict | None:
         return None
 
 
+def faction(faction_id) -> dict | None:
+    """{name, side?} for a reputation's Faction id (the client's table; no
+    `side`: neutral), or None when the table doesn't have it."""
+    try:
+        return (data().get("factions") or {}).get(str(int(faction_id))) if faction_id else None
+    except (TypeError, ValueError):
+        return None
+
+
 _by_map: dict[int, int] | None = None
 
 
