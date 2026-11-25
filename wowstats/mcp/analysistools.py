@@ -75,6 +75,9 @@ def t_play_sql(ctx: T.Ctx, args: dict) -> dict:
                      ctx.store)
 
 
+# The query_metric grammar, with the filtered calls only: the unfiltered
+# index sat at 31,974 of its 32,000 characters (2026-11-25). The input
+# schema alone has every argument, and the wow-analyse-play skill repeats it.
 METRIC_HOW = ("query_metric with metrics (names above), group_by (dimensions), where ([{dimension, op, value}] or "
               "values for in), grain (day, week, month: groups by time), since/until (YYYY-MM-DD), order_by "
               "(names, '-name' for descending), limit. Metrics from different models are each aggregated, then "
@@ -131,7 +134,8 @@ def t_list_metrics(ctx: T.Ctx, args: dict) -> dict:
                 "how": "An index: each model's metrics with one line each. For full definitions (kind, unit, "
                        "caveats, aggregation, eligibility, min_evidence, group_by) call list_metrics with names "
                        "(metric or view names), model (one model above) or search (words in a name or "
-                       "description). " + METRIC_HOW}
+                       "description). query_metric's arguments are in its input schema; a filtered call "
+                       "here also gives their grammar."}
     known_models = {m["model"] for m in cat["metrics"]} | {m["model"] for m in store}
     if model and model not in known_models:
         raise T.ToolError(f"unknown model {model!r}: list_metrics without arguments lists the models")
@@ -245,6 +249,15 @@ def t_dashboard_refresh(ctx: T.Ctx, args: dict) -> dict:
             **out, "server_automatic_refresh": server}
 
 
+def warm(ctx: T.Ctx, args: dict) -> bool:
+    """The call's character already has its workspace open (no build ahead):
+    the MCP answers it inline rather than as a task (wowstats.mcp.tasks)."""
+    from wowstats.analysis import drive
+
+    c = str(args.get("char") or "").strip().replace(" ", "-")
+    return bool(c) and drive.warm(_env(ctx), c, ctx.store)
+
+
 def _ids(args: dict, cap: int) -> list[str]:
     ids = args.get("ids") or []
     if not isinstance(ids, list) or not ids:
@@ -313,7 +326,7 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
               "page": {"type": "integer", "minimum": 1, "maximum": 50,
                        "description": "Which page of that section (12,000 characters a page)."}, "goals": GOALS,
               "restart": {"type": "boolean", "description": "Drop the open run and start a new one."}}),
-           _guard(t_analysis_brief), writes="replaces"),
+           _guard(t_analysis_brief), writes="replaces", task=True),
     T.Tool("play_sql", "Query the play database",
            "One read-only DuckDB SELECT on the character's analysis database. Governed views first: per_level, "
            "per_session, per_zone, per_dungeon, per_trip, per_guide, per_quest, per_slot (list_metrics `views`), "
@@ -326,7 +339,7 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
                        "description": "Which page of the result."},
               "page_size": {"type": "integer", "minimum": 1, "maximum": 60,
                             "description": "Rows per page (default 40)."}}, ("char", "query")),
-           _guard(t_play_sql), writes="counts"),
+           _guard(t_play_sql), writes="counts", task=True),
     T.Tool("list_metrics", "Metric catalogue",
            "The semantic layer's catalogue. Without arguments: an index (each model's metrics, one line each; "
            "the views per grain play_sql reads; dimensions, grains). With names, model or search: full "
@@ -359,7 +372,7 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
                            "description": "Output names; prefix with - for descending, e.g. [\"-deaths\"]."},
               "limit": {"type": "integer", "minimum": 1, "maximum": 500,
                         "description": "Rows at most (default 50)."}}, ("char", "metrics")),
-           _guard(t_query_metric), writes="counts"),
+           _guard(t_query_metric), writes="counts", task=True),
     T.Tool("propose_finding", "Propose a finding",
            "Hand one finding to the judge: it re-runs the SQL (or metric_query), checks expect, holds, the action "
            "and the KB ids, then stores it or says why not. Every number the query measures is a placeholder "
@@ -377,7 +390,7 @@ ANALYSIS_TOOLS: tuple[T.Tool, ...] = (
                                               "(metrics, group_by, where, grain...); the judge compiles and re-runs "
                                               "it, and the finding's placeholders name its output columns."}},
              ("char", "finding")),
-           _guard(t_propose_finding), writes="replaces"),
+           _guard(t_propose_finding), writes="replaces", task=True),
     T.Tool("analysis_submit", "Hand in a pass",
            "Hand in what a pass produced: pass survey ({questions}), lane ({lane, answers, ask_next}), pick "
            "({picks}) or synthesis ({keep, findings, nudges, patterns, clashes, driver}; add early: true to "

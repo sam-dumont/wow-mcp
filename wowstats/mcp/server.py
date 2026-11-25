@@ -65,7 +65,7 @@ from fastmcp.utilities.authorization import AuthContext  # noqa: E402
 from mcp.types import TextContent, ToolAnnotations  # noqa: E402
 from pydantic import PrivateAttr  # noqa: E402
 
-from . import consent, prompts, reminder, tools, wowhead  # noqa: E402
+from . import consent, prompts, reminder, tasks, tools, wowhead  # noqa: E402
 
 log = logging.getLogger("wowstats.mcp")
 
@@ -291,8 +291,16 @@ class WowTool(Tool):
     stores are blocking HTTP)."""
 
     _who: Who = PrivateAttr()
+    _live: Any = PrivateAttr(default=None)
 
     async def run(self, arguments: dict[str, Any]) -> ToolResult:
+        try:
+            return await self._run(arguments)
+        finally:
+            if self._live is not None:  # a task's run ends: its caller may start another
+                self._live.done()
+
+    async def _run(self, arguments: dict[str, Any]) -> ToolResult:
         sub = _sub()
         try:
             ctx = self._who.ctx(sub)
@@ -310,7 +318,10 @@ class WowTool(Tool):
             return out, reminder.REMINDER.notice(ctx, client, self.name)
 
         try:
-            out, notice = await anyio.to_thread.run_sync(go)
+            # In a task, `tasks/cancel` ends the wait at once; the thread
+            # finishes its query (5 s at most, wowstats.analysis.duck) and
+            # its answer is dropped. Inline, the call waits for it as before.
+            out, notice = await anyio.to_thread.run_sync(go, abandon_on_cancel=tasks.in_task())
         except tools.ToolError as e:
             return ToolResult(content=[TextContent(type="text", text=str(e))], is_error=True)
         except Exception:  # a bug in a tool: say so to the model, keep the details in the log
@@ -338,10 +349,12 @@ def annotations(spec: tools.Tool) -> ToolAnnotations:
                            openWorldHint=spec.open_world)
 
 
-def _tool(spec: tools.Tool, who: Who) -> WowTool:
+def _tool(spec: tools.Tool, who: Who, live: tasks.Live | None = None) -> WowTool:
+    extra = {"task_config": tasks.task_config()} if spec.task else {}
     t = WowTool(name=spec.name, title=spec.title, description=spec.description, parameters=spec.input_schema,
-                annotations=annotations(spec))
+                annotations=annotations(spec), **extra)
     t._who = who
+    t._live = live if spec.task else None
     return t
 
 
@@ -400,8 +413,12 @@ def build_server(who: Who, *, auth=None) -> FastMCP:
     keeper = getattr(auth, "state_keeper", None)
     mcp = FastMCP(name=NAME, instructions=INSTRUCTIONS, auth=auth, middleware=middleware,
                   lifespan=keeper.lifespan() if keeper else None)
+    # MCP Tasks (io.modelcontextprotocol/tasks): a cold analysis call runs in
+    # the background for a client that opts in (wowstats/mcp/tasks.py).
+    ext = tasks.WowTasks(who)
+    mcp.add_extension(ext)
     for spec in tools.TOOLS + (tools.MARKET,):
-        mcp.add_tool(_tool(spec, who))
+        mcp.add_tool(_tool(spec, who, ext.live))
     for p in prompts.PROMPTS:
         mcp.add_prompt(_prompt(p))
     # The skills (SEP-2640, io.modelcontextprotocol/skills): how to answer the
