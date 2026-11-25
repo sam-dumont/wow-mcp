@@ -1,6 +1,6 @@
 """A kept finding today's renderer refuses is that finding's problem only.
 
-0.11.1 in the lab: one of Grimble's kept findings wrote `{share:pct}` on a
+0.11.1 in the lab: one of a character's kept findings wrote `{share:pct}` on a
 column with no declared unit and declared a constant. Reading the state
 (load_state -> migrate -> verify.unbound -> constant_why) rendered the
 placeholder without its unit, the strict renderer of #246 raised UnitError,
