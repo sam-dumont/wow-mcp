@@ -765,6 +765,17 @@ The gear advice's upgrades with an auction house price: one row per item and slo
 
 Group or filter by: `character`, `class`, `effort_elsewhere`, `fit`, `item`, `item_id`, `now`, `on_sale`, `scan_day`, `slot`, `slot_id`, `source_elsewhere`.
 
+### inventory
+
+What the character holds in its bags and bank now (Syndicator): one row per item with its count in each. The bank is as of the last time the character opened it.
+
+| Metric | Kind | Unit | Definition | Caveats | Read as |
+|---|---|---|---|---|---|
+| `held_count` | simple | items | Items held, bags and bank together. | Group by item_id for one item. The bank as of bank_at (play_sql on inventory). NULL when the shipper sends item IDs only (before the counts: it updates itself). A bank never opened adds nothing. The bags alone: the inventory table's bags column. | sum; time: snapshot_observation; observed. |
+| `held_in_bank` | simple | items | Items held in the bank. | As of the last time the character opened it (inventory.bank_at). NULL without counts or when the bank was never opened. | sum; time: snapshot_observation; observed. |
+
+Group or filter by: `character`, `class`, `item`, `item_id`.
+
 ### sheets
 
 Every character sheet the shipper sent (Syndicator, feed wow-gear): one row per item worn on a sheet, so the gear over time, level by level.
@@ -1112,9 +1123,9 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `bracket` | dungeon_trips | guides (lookup guide steps bracket it) or instance (enter and leave only). |
 | `built_for` | worn | Who the item's stats are made for, in words (healers, damage casters...). |
 | `chain_step` | attunements | The quest's place in the chain, from 1 (each after the quests it needs). |
-| `character` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, auction, ah_upgrades, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character (one per query: the char argument). |
+| `character` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, auction, ah_upgrades, inventory, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character (one per query: the char argument). |
 | `chosen` | quest_rewards | For a choice: 1 picked at the hand-in, 0 another one picked, NULL not handed in or the pick unknown; NULL for a reward. |
-| `class` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, auction, ah_upgrades, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character's class, from its latest session record. |
+| `class` | levels, timeline, records, sessions, zone_time, dungeon_runs, dungeon_trips, snapshots, quests, gold_moves, rested, loot, xp, progress, upgrades, worn, auction, ah_upgrades, inventory, sheets, professions, done_quests, position, dings, revives, zone_levels, offers, quest_rewards, quest_loot, loot_value, flight_nodes, reputation, attunements, achievements, class_spells, riding, char_stats, lockouts | The character's class, from its latest session record. |
 | `death_t` | records, revives | One death, named by when its death record was written (unix seconds); NULL on every other record. Group by it to list the deaths one by one (per_death). |
 | `ding_t` | levels | When the level ended, unix seconds (UTC): the Recorder's ding, else the split's own time (for a split still growing, its last update). NULL for the level in play without a split. Group by it to place a level in time. |
 | `dings` | gold_moves | Level-ups between the two snapshots: 0 for a move inside one level. |
@@ -1143,8 +1154,8 @@ Each view is the metrics below compiled at one entity, one row per key, added to
 | `in_raid` | timeline | 1 in a raid, 0 not, from the same group record (NULL: unknown). |
 | `instance` | upgrades, lockouts | Dungeon or raid of an instance drop or quest, else NULL. |
 | `instance_id` | lockouts | The game's lockout id (Altoholic only). |
-| `item` | upgrades, worn, auction, ah_upgrades, sheets | Item name. |
-| `item_id` | records, loot, upgrades, worn, auction, ah_upgrades, sheets, quest_rewards, quest_loot, loot_value | Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used. |
+| `item` | upgrades, worn, auction, ah_upgrades, inventory, sheets | Item name. |
+| `item_id` | records, loot, upgrades, worn, auction, ah_upgrades, inventory, sheets, quest_rewards, quest_loot, loot_value | Item id (its Wowhead page: item=<id>): a turn-in's chosen reward, a craft's item made, a cast's item used. |
 | `item_key` | auction | Auctionator's key: the item id, or gr:<id>:<suffix> for one random suffix. |
 | `kind` | records | Record kind (record_kinds: kill, death, turnin, accept...). |
 | `known_now` | flight_nodes | 1 when the newest flight map of the node's continent lists it, else 0 (a flight map lists its own continent's nodes only). |
