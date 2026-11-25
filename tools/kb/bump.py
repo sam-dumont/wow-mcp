@@ -4,7 +4,7 @@
     uv run python tools/kb/bump.py polestar v0.4.1.1 --why why.json   # check, then move the tag
     uv run python tools/kb/bump.py addons --why why.json --handoff seen.json   # check the addons' contracts
     uv run python tools/kb/bump.py foreverdb --why why.json --handoff seen.json --summary fdb.md
-    uv run python tools/kb/bump.py golden --as foreverdb --why why.json   # take moved upgrades only
+    uv run python tools/kb/bump.py golden --as foreverdb --why why.json   # take moved recommendations only
     uv run python tools/kb/bump.py forever-db data-v2026.11.2 --why why.json   # check, then move the tag
 
 What an addon writes is what the shipper reads, so a release is taken when
@@ -52,9 +52,14 @@ what is committed: both need a person. Otherwise it reruns both exports
 fingerprint it took to `--handoff` and what moved to `--summary` (for the
 PR). Like Polestar, its data is taken as it is: `regen --as foreverdb`
 accepts the test data that moved. `golden --as foreverdb` then takes the
-golden characters' moved upgrades into tests/slices/golden.json, and only
-those (at most GOLDEN_UPGRADES of them): a dungeon, a raid prep, a plan or a
-class meta key that went away still stops it, for the behaviour gate.
+golden characters' recommendations that moved with the data into
+tests/slices/golden.json, and only those (at most GOLDEN_UPGRADES of them,
+tests/slices/golden.py `moved`): an upgrade, or a dungeon pick that swapped
+to another while the dungeon it left is still in the character's dungeon
+list (owner, 2026-11-25: ForeverDB.net's data of that day moved a pick from
+Maraudon: Orange to Uldaman and was refused). A dungeon gone from that list,
+a raid prep, a plan or a class meta key that went away still stops it, for
+the behaviour gate.
 
 `forever-db` is Polestar's quest database at its own release
 (`data-v<YYYY.MM.N>`, tools/kb/checkout.py), owner 2026-11-25: static data
@@ -461,12 +466,12 @@ def forever_db(new: str, why: str | None, known: str, root: Path = ROOT) -> int:
 
 
 GOLDEN_UPGRADES = 40
-# A golden key that names one item to get: what ForeverDB's data moves.
-UPGRADE_KEY = re.compile(r"^[\w-]+: (?:moves: upgrade\|\d+|next_moves: #up-\d+)$")
 
 
 def golden(why: str | None, kind: str) -> int:
-    """Take the golden characters' moved upgrades (see the module's doc)."""
+    """Take the golden characters' moved recommendations (see the module's
+    doc): upgrades and swapped dungeon picks, as tests/slices/golden.py
+    `moved` sorts them."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "golden.json"
         subprocess.run(["uv", "run", "--frozen", "python", "-m", "tests.slices.golden", "--check", "--json", str(out)],
@@ -476,15 +481,16 @@ def golden(why: str | None, kind: str) -> int:
         refuse(why, kind, ["the golden characters couldn't be served (tests/slices/golden.py)"])
         return 3
     gone = got.get("gone") or []
-    other = [g for g in gone if not UPGRADE_KEY.match(g)]
+    moved = set(got.get("moved") or ())
+    other = [g for g in gone if g not in moved]
     if other or len(gone) > GOLDEN_UPGRADES:
-        refuse(why, kind, [f"golden characters: {len(other)} keys that aren't upgrades went away "
-                           f"({', '.join(other[:5])}), {len(gone)} in all (at most {GOLDEN_UPGRADES} upgrades)"])
+        refuse(why, kind, [f"golden characters: {len(other)} keys that aren't moved upgrades or dungeon picks went "
+                           f"away ({', '.join(other[:5])}), {len(gone)} in all (at most {GOLDEN_UPGRADES})"])
         return 3
     if gone:
         subprocess.run(["uv", "run", "--frozen", "python", "-m", "tests.slices.golden", "--write"], cwd=ROOT,
                        check=True, capture_output=True)
-    print(f"golden: {len(gone)} upgrades moved with the data")
+    print(f"golden: {len(gone)} recommendations moved with the data")
     return 0
 
 
