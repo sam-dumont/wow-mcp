@@ -113,18 +113,18 @@ def test_pvp_mode_counts_pvp_rewards_and_they_are_easy(ref):
 
 def test_toggle_kept_per_character(tmp_path):
     env = {"ANALYSIS_STATE_DIR": str(tmp_path)}
-    assert gearmode.pvp(env, "Grimble-Rockbow") is False
-    gearmode.save(env, "Grimble-Rockbow", "pve")
-    assert gearmode.save_pvp(env, "Grimble Rockbow", True) is True
-    assert gearmode.pvp(env, "Grimble-Rockbow") is True
-    assert gearmode.saved(env, "Grimble-Rockbow") == "pve"  # the mode stays
+    assert gearmode.pvp(env, "Nibbet-Gearholt") is False
+    gearmode.save(env, "Nibbet-Gearholt", "pve")
+    assert gearmode.save_pvp(env, "Nibbet Gearholt", True) is True
+    assert gearmode.pvp(env, "Nibbet-Gearholt") is True
+    assert gearmode.saved(env, "Nibbet-Gearholt") == "pve"  # the mode stays
     assert gearmode.pvp(env, "Someone-Else") is False
-    gearmode.save_pvp(env, "Grimble-Rockbow", False)
-    assert gearmode.pvp(env, "Grimble-Rockbow") is False
+    gearmode.save_pvp(env, "Nibbet-Gearholt", False)
+    assert gearmode.pvp(env, "Nibbet-Gearholt") is False
     with pytest.raises(gearmode.ModeError, match="true or false"):
-        gearmode.save_pvp(env, "Grimble-Rockbow", "yes")
+        gearmode.save_pvp(env, "Nibbet-Gearholt", "yes")
     with pytest.raises(gearmode.ModeError, match="keeps no settings"):
-        gearmode.save_pvp({}, "Grimble-Rockbow", True)
+        gearmode.save_pvp({}, "Nibbet-Gearholt", True)
 
 
 def test_a_pvp_vendor_is_a_pvp_reward(ref):
