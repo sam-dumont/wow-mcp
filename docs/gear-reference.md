@@ -148,17 +148,48 @@ rank; otherwise "your PvP rank isn't recorded yet". A rank not held or not known
 
 Two filters run before the effort (`gear._source`):
 
-- **Content Forever hasn't opened** (`gear.closed_content`, owner 2026-11-25: the arena chest
-  was the owner's trinket pick at 36). The KB's rules name each place and the day it opens:
-  `content.raids_not_open` (Onyxia's Lair, ForeverDB instance 249, until 2026-12-09;
-  Naxxramas' Four Horsemen Chest; the rewards of quests done in Molten Core, Blackwing
-  Lair, Zul'Gurub, Ahn'Qiraj or Naxxramas, by forever-db's quest zone, so a tier quest
-  handed in at Light's Hope still counts as Naxxramas) and `content.events_not_open` (the Gurubashi Arena's Arena Treasure Chest). A source there is dropped; an item left with nothing is no
-  candidate, not a "where: unknown". A source labelled "seen in Forever" is open whatever a
-  rule says, and a dungeon drop only Classic's data knows (`k`) stays: not seen yet isn't
-  closed. On 2026-11-25 this removes 255 items outright: 250 raid pieces (Ahn'Qiraj 82,
-  Naxxramas 81, Zul'Gurub 72, Onyxia's Lair 9, Ruins of Ahn'Qiraj 4, Blackwing Lair 2) and
-  the arena's 5. Others lose a raid source and keep another.
+- **Endgame Forever hasn't opened** (`gear.closed_content`, `wowstats/endgame.py`). Owner,
+  2026-11-25: "we're still very early: no raid yet, no high level content still, so it should
+  be explicit for end game, not 'we don't know so we count as opened'". Classic's data lists
+  every raid, world boss and event, so endgame is shut by default and counts only when the
+  meta's endgame section (`data/kb/endgame.json`) opens it, or when ForeverDB.net saw the source
+  in Forever (`s`).
+
+  What is endgame comes from the data's structure, not an item list: a drop in a raid
+  (forever-db's areas with `instance: raid`, ForeverDB's raid instances), a quest done in a raid
+  or following one (forever-db's quest zones and prerequisites: Treasure of the Timeless One
+  follows a Blackwing Lair quest, so its rewards are raid rewards), and a world boss (a level-63
+  boss outside any instance: Azuregos, Kazzak, the Emerald Dragons, the Silithus lords). The
+  section's entries name what the structure can't see: the Dungeon Set 2 chain from its first
+  quest (An Earnest Proposition, 8905-8920) and the bosses its brazier summons, a raid drop's
+  hand-in quest (Onyxia's and Nefarian's heads, the Ruins of Ahn'Qiraj armaments), a world
+  event's chest (Gurubashi Arena, the Ahn'Qiraj war effort, the Abyssal Council's spoils).
+
+  Each entry has a `status`: `open`, `announced` (with an `opens` day, or none) or `not-open`,
+  and its source. A source counts when every entry naming it is open or its day has come; one
+  shut entry wins (Lord Valthalak sits in Blackrock Spire, which is open: his chain isn't). An
+  entry that names a source beats one that only covers it by a rule (Ivus and Lokholar are
+  level-63 bosses, summoned in Alterac Valley, a live battleground). Endgame nothing names is
+  shut: no source said it opened.
+
+  On 2026-11-25 (the section as seeded from the KB):
+
+  | Open | Announced | Shut |
+  |---|---|---|
+  | Level-60 five-mans: Blackrock Depths, Blackrock Spire (lower and upper), Stratholme, Scholomance, Dire Maul, Sunken Temple, Shaper's Terrace, Blackmaw Hold (Forever launched with every Classic dungeon and 9 new ones; Master Spelunker lists them) | Onyxia's Lair, Barrow Deeps, Hyjal Summit: 9 Dec 2026 (Blizzard, news 24303009). Scarlet Enclave: no day | Molten Core, Blackwing Lair, Zul'Gurub, both Ahn'Qiraj, Naxxramas; Dungeon Set 2; world bosses; Gurubashi Arena; Ahn'Qiraj war effort; Abyssal Council |
+
+  That shuts 438 items outright (every source shut): Dungeon Set 2 160 sources, Onyxia 142,
+  Naxxramas 94, Ahn'Qiraj 82, Zul'Gurub 72, world bosses 52, Ruins of Ahn'Qiraj 20, Blackwing
+  Lair 11, Molten Core 6, the arena 5. On 9 Dec, Onyxia's 54 come back by themselves: no code
+  change, the day is in the file. Barrow Deeps and Hyjal Summit have no loot in our data yet;
+  when ForeverDB or forever-db add it, it is shut until the 9th like Onyxia's.
+
+  Levelling dungeons and quests don't change: a dungeon drop only Classic's data knows (`k`)
+  still counts. A few Classic world-drop epics ForeverDB only lists on Onyxia and the Colossus
+  of Zora (Uther's Strength, Horizon Choker, Serenity Belt...) go with them: long shots anyway.
+
+  The weekly meta pass keeps the section (`docs/kb.md`, "The endgame section"). A new opening
+  in the news is a reviewed change to the file, never code.
 - **PvP rewards, unless counted** (`gear.is_pvp`, KB rule `pvp_rewards.sources`): a PvP rank
   source, a reputation of the eight battleground factions and the quartermaster next to it,
   or a PvP vendor (Champions' Hall, Hall of Legends, Dalaran's Underbelly: ForeverDB lists

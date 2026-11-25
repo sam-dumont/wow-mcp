@@ -359,3 +359,44 @@ def test_a_batch_the_model_stopped_on_is_not_read(state, monkeypatch):
     out = meta.run([item(n) for n in (101, 102)], client, cap=3.0, day="2026-11-23")
     assert out["read"] == [] and "stopped" in out["skipped"][0]
     assert meta.advance(copy.deepcopy(state), out["read"], {})["meta"]["feeds"][0]["known"] == 100
+
+
+def test_the_meta_keeps_the_endgame_section():
+    """The meta's endgame section (data/kb/endgame.json, wowstats.endgame):
+    the model says which entry an item opens or announces; code keeps a day
+    only when the item states it, names a new raid only when the item does,
+    and sets every source itself. The gear advice counts endgame content only
+    when the section opens it."""
+    from wowstats import endgame
+
+    section = endgame.section()
+    assert section["molten-core"]["status"] == "not-open"
+    news = [item(201, text="Molten Core opens on December 16 for every realm, with weekly lockouts. " * 3),
+            item(202, text="Zul'Gurub is coming soon, no date yet; the Gurubashi are restless. " * 3),
+            item(203, text="A new raid, The Sunken Vault, opens on 13 January 2027 for level 60 players. " * 3),
+            item(204, text="World bosses now spawn in Azshara and the Blasted Lands. " * 3)]
+    props = [
+        {"item": 1, "key": "molten-core", "name": "", "kind": "raid", "status": "announced", "opens": "2026-12-16",
+         "text": "Molten Core unlocks on 16 Dec with weekly lockouts."},
+        {"item": 2, "key": "zul-gurub", "name": "", "kind": "raid", "status": "announced", "opens": "2026-12-23",
+         "text": "Zul'Gurub is announced without a day."},  # a day the item doesn't give
+        {"item": 3, "key": "", "name": "The Sunken Vault", "kind": "raid", "status": "announced",
+         "opens": "2027-01-13", "text": "A new raid, the Sunken Vault, unlocks on 13 Jan 2027."},
+        {"item": 4, "key": "world-bosses", "name": "", "kind": "world-boss", "status": "open", "opens": "",
+         "text": "World bosses are up in Azshara and the Blasted Lands."},
+        {"item": 3, "key": "", "name": "Made-up Keep", "kind": "raid", "status": "open", "opens": "",
+         "text": "Something the item never names."},
+        {"item": 9, "key": "naxxramas", "name": "", "kind": "raid", "status": "open", "opens": "", "text": "x"}]
+    kept, refused = meta.to_endgame(props, news, ALLOW, "2026-11-30", section)
+    by = {r["key"]: r for r in kept}
+    assert set(by) == {"molten-core", "zul-gurub", "the-sunken-vault", "world-bosses"}
+    assert (by["molten-core"]["status"], by["molten-core"]["opens"]) == ("announced", "2026-12-16")
+    assert by["zul-gurub"]["opens"] is None  # announced, no date: never a guessed day
+    assert by["the-sunken-vault"]["opens"] == "2027-01-13" and by["the-sunken-vault"]["kind"] == "raid"
+    assert by["world-bosses"]["opens"] is None and by["world-bosses"]["status"] == "open"
+    for r in kept:
+        assert kbschema.check(r, ALLOW) == [] and r["source_url"].startswith("https://www.wowhead.com/news=")
+    assert len(refused) == 3  # the day zul-gurub's item lacks, the unnamed raid, item 9
+    p = meta.prompt(news[:1], [], [], section)
+    assert '<endgame_section>' in p and '"key": "molten-core"' in p
+    assert "endgame" in meta.SCHEMA["required"]

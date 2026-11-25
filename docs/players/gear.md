@@ -75,10 +75,17 @@ no upgrade. Tick it and they come back, everywhere: this page, next moves, the p
 AI. In the PvP weights they always count, and they're **easy** (you get them by playing PvP,
 which is the point of that mode).
 
-Content Forever hasn't opened is never proposed: the Gurubashi Arena's chest (Arena Master and
-the Arena bracers), and raid loot and raid quest rewards until the raid opens (Onyxia's
-Lair on 9 Dec 2026; Zul'Gurub, Ahn'Qiraj, Naxxramas and the rest whenever Blizzard says). A
-dungeon drop nobody logged in Forever yet still counts: not seen isn't closed.
+Endgame Forever hasn't opened is never proposed, and "nobody said it's closed" isn't open. A
+raid, a world boss, the Dungeon Set 2 quests (Lord Valthalak's chain, the Heroism and Virtuous
+pieces) and world events like the Gurubashi Arena's chest count only once a source says
+they're open: Blizzard's news, the weekly news pass, or a player who saw it drop in Forever.
+Today that means no raid loot at all. Onyxia's Lair, Barrow Deeps and Hyjal Summit open on
+9 Dec 2026 and their loot shows up that day by itself; Molten Core, Zul'Gurub, Ahn'Qiraj and
+Naxxramas wait for Blizzard to give a day.
+
+The level-60 five-mans (Stratholme, Scholomance, Blackrock Spire and Depths, Dire Maul,
+Shaper's Terrace, Blackmaw Hold) are open, so their drops count. So do every levelling dungeon
+and quest, including drops nobody logged in Forever yet.
 
 Every upgrade says how hard it is to get, from its easiest source, next to where it comes from
 (your AI sees the same `effort`):

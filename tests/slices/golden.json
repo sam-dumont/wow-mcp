@@ -17,15 +17,15 @@
    "dungeon|Blackrock Spire",
    "dungeon|Dire Maul: West",
    "riding|Riding at level # if not trained yet",
-   "upgrade|21995",
-   "upgrade|21999"
+   "upgrade|13162",
+   "upgrade|22411"
   ],
   "next_moves": [
    "#advice",
    "#gear",
    "#up-1",
-   "#up-17",
-   "#up-8"
+   "#up-10",
+   "#up-17"
   ],
   "prep": [
    "raids-open-2026-12|prep 1",

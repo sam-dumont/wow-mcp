@@ -22,11 +22,20 @@
   quest's XP paid in no time. Your pace compares only the legs a trip saw, the panel's "XP a trip"
   rate fills a trip's unseen legs from the rules' replay of it, and `again_*` on the panel's trip
   are the shared estimate's. Findings show "to revalidate" once (`PREP_VERSION` 16).
-- Gear advice no longer proposes content Forever hasn't opened. The Gurubashi Arena's chest
-  (Arena Master was a level-36 trinket pick), raid loot and raid quest rewards (Ahn'Qiraj's
-  Conqueror's Crown was a level-60 pick) before the raid opens are out,
-  from two new KB rules (`content.events_not_open`, `content.raids_not_open`, Onyxia's
-  Lair from 9 Dec 2026). Dungeon drops nobody logged yet still count.
+- Gear advice no longer proposes endgame Forever hasn't opened, and "not known to be closed"
+  no longer counts as open. Raids, world bosses, the Dungeon Set 2 chain (Helm of Heroism and
+  the rest of Lord Valthalak's chain) and world events (Gurubashi Arena, the Ahn'Qiraj war
+  effort) count only when the meta's new endgame section (`data/kb/endgame.json`) says they're
+  open or their announced day has come, or when ForeverDB.net saw the source in Forever. What is
+  endgame comes from the data (raid areas and their quests, level-63 bosses outside instances),
+  so a raid nobody listed is shut too. Onyxia's Lair, Barrow Deeps and Hyjal Summit reopen on
+  their own on 9 Dec 2026. 438 items lose every source today (255 before); a level-36 character
+  sees no change, a level 46 loses 3 Classic world-drop long shots, a level-60 priest's best
+  head and feet were Dungeon Set 2 pieces. The level-60 five-mans and every levelling dungeon
+  and quest still count. The weekly meta pass now keeps the section from the news
+  (`endgame` in its answer, a day only when the item states it), the lifecycle folds it in and
+  the gates check it like any KB file. The KB rules `content.raids_not_open` and
+  `content.events_not_open` are gone.
 
 ### Added
 

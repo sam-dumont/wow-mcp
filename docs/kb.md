@@ -24,6 +24,7 @@ The pages show values and actions only. Sources, confidence and
 | `data/kb/community.json` | What players are saying (`tools/kb/community.py`): per week, the busiest threads of the official forums' Forever discussion and r/wowforever, each a title, link, day, counts and one line in our own words. Opinions only: read by `wowstats/news.py` as `community`, never a statement, event or date |
 | `data/kb/watch.json` | What the KB was last checked against (client build, official pages, addon releases), and in `meta` the news feeds and guide pages the meta pass reads, with the last item read |
 | `data/kb/sweep.json` | The last monthly sweep: each cited URL's status and text hash |
+| `data/kb/endgame.json` | The meta's endgame section: per raid, level-60 dungeon, the Dungeon Set 2 chain, world bosses and world events, its `status` (open, announced with its `opens` day, not-open), its source and its `match`. The gear advice counts endgame only when this opens it (`wowstats/endgame.py`) |
 | `data/kb/news.json` | The weekly news digests (`digests`), newest first: 8 weeks in full, older weeks only for an event still to come |
 | `data/kb/digest-history.json` | One line per week older than that, 52 at most |
 | `data/kb/budget.json` | The size cap of each file and of the whole KB, in bytes |
@@ -393,6 +394,27 @@ drops off once its day is past; an undated one when its window ends, or 120
 days after its last mention. The first digest was written by hand from
 that lane's statements and the KB's dated announcements; the next ones
 come from the weekly pass.
+
+### The endgame section
+
+`data/kb/endgame.json`, kept by the same model call as the digest. Forever opens endgame in
+phases while Classic's data lists all of it, so the gear advice treats endgame as shut unless
+this section opens it (`docs/gear-reference.md`, "What never counts").
+
+The prompt carries the section (`<endgame_section>`: key, name, kind, status, opens). For an
+item that says a raid, a level-60 dungeon, the Dungeon Set 2 chain, world bosses or a world
+event is open now, coming (with or without a day) or delayed, the model adds an `endgame`
+entry. Code (`meta.to_endgame`) keeps `opens` only when the item states that day
+(`date_in_text`, the digest's rule), accepts a new key only for a raid, dungeon or event the
+item names, refuses a copied line, and sets the source, type, date and confidence itself. The
+lifecycle (`fold_endgame`) applies each change to its entry unless the entry stands on a newer
+item; a new raid gets an entry matched by its name. `match` (places, quests and the quests
+after them, creatures, chests, factions, or `rule: world_boss`) is ours and never the model's.
+The gates and `vet.py` check the section like any other file.
+
+A day in `opens` reopens the content by itself on that day. Without the model, adding an
+opening is one edit: set the entry's `status` to `announced` and `opens` to the day, with the
+news that says so as `source_url`, `date` and `statement`.
 
 ### What players are saying (Community)
 

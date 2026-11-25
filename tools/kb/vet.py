@@ -50,7 +50,7 @@ def _ids(doc: dict) -> set[str]:
 
 
 def _drop(doc: dict, ids: set[str]) -> None:
-    for key in ("statements", "contradictions", "builds"):
+    for key in ("statements", "contradictions", "builds", "endgame"):
         if isinstance(doc.get(key), list):
             doc[key] = [r for r in doc[key] if not (isinstance(r, dict) and str(r.get("id")) in ids)]
     for w in [doc.get("digest")] + list(doc.get("digests") or []):

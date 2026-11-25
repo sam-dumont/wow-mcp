@@ -336,3 +336,34 @@ def test_a_page_that_failed_to_load_moves_no_hash_and_no_date():
     assert client.prompts == [] and memo == before and r["unchanged"] == [] and r["reverified"] == []
     assert sorted(r["unverified"]) == ["d:gone", "d:holds", "d:unsure", "d:wrong"]
     assert all(s["last_verified"] == "2026-05-01" for s in t["lanes"]["dungeons"]["statements"][:4])
+
+
+def test_the_endgame_section_folds_in_and_reopens_by_date():
+    """A pass's endgame changes land in data/kb/endgame.json; an older item
+    never overrides a newer one; a new raid gets an entry matched by its
+    name; the shipped section is schema-valid and in the job's format."""
+    shipped = json.loads((DATA / "endgame.json").read_text(encoding="utf-8"))
+    assert kbschema.check_file(shipped, ALLOW) == []
+    assert (DATA / "endgame.json").read_text(encoding="utf-8") == lifecycle.dumps(shipped) + "\n"
+    t = tree()
+    t["endgame"] = copy.deepcopy(shipped)
+    src = {"source_url": PRESS, "source_type": "press", "confidence": "medium", "scope": "forever",
+           "last_verified": "2026-11-30"}
+    changes = [
+        {"id": "meta-2026-11-30:endgame-1", "key": "molten-core", "name": "Molten Core", "kind": "raid",
+         "status": "announced", "opens": "2026-12-16", "statement": "Molten Core unlocks on 16 Dec.",
+         "date": "2026-11-29", **src},
+        {"id": "meta-2026-11-30:endgame-2", "key": "onyxias-lair", "name": "Onyxia's Lair", "kind": "raid",
+         "status": "not-open", "opens": None, "statement": "An old rumour.", "date": "2026-10-01", **src},
+        {"id": "meta-2026-11-30:endgame-3", "key": "the-sunken-vault", "name": "The Sunken Vault", "kind": "raid",
+         "status": "announced", "opens": "2027-01-13", "statement": "A new raid opens on 13 Jan 2027.",
+         "date": "2026-11-29", **src}]
+    t["dated"] = {"meta-2026-11-30": {"lane": "meta-2026-11-30", "statements": [], "endgame": changes}}
+    r = lifecycle.run(t, date(2026, 11, 30))
+    e = t["endgame"]["entries"]
+    assert (e["molten-core"]["status"], e["molten-core"]["opens"]) == ("announced", "2026-12-16")
+    assert e["molten-core"]["match"] == shipped["entries"]["molten-core"]["match"]  # never the model's
+    assert e["onyxias-lair"]["opens"] == "2026-12-09"  # an older item than the entry's
+    assert e["the-sunken-vault"]["match"] == {"places": ["The Sunken Vault"]}
+    assert kbschema.check_file(t["endgame"], ALLOW) == []
+    assert len(r["endgame"]) == 2
