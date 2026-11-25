@@ -235,6 +235,17 @@ def workspace(env: dict, char: str, store=None) -> Workspace:
     return w
 
 
+def warm(env: dict, char: str, store=None) -> bool:
+    """The character's workspace is open and not past CACHE_S: the next call
+    on it answers without a build. Reads nothing (the MCP's task decision,
+    wowstats.mcp.tasks): a change in the events since is the call's to find."""
+    from wowstats.stores import tenant_of
+
+    with _LOCK:
+        w = _WS.get((tenant_of(env, store), char.lower()))
+    return w is not None and time.time() - w.at <= CACHE_S
+
+
 def read_limits(env: dict) -> list[int]:
     """[the cap, the idle seconds]; ValueError on a value that isn't a whole number."""
     def num(name: str, raw, default: int, low: int) -> int:
