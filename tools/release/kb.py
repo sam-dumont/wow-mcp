@@ -40,6 +40,7 @@ from release import ROOT, VERSION_RE, Version, current_version, git_tags  # noqa
 BRANCH_RE = re.compile(r"^kb-(watch|refresh|sweep|meta)$")
 LABEL = "kb-watch"  # tools/kb/land.py puts it on every PR it opens
 TAG_RE = re.compile(r"^v\d+(?:\.\d+){0,3}$")  # Polestar's: v0.4.1.1
+DATA_TAG_RE = re.compile(r"^data-v\d{4}\.\d{1,2}\.\d{1,3}$")  # forever-db's: data-v2026.11.2
 BUILD_RE = re.compile(r"^\d+(?:\.\d+){1,4}$")
 KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")  # an official page's key
 NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 .-]{0,29}$")  # an addon's name: "WoWSims Exporter"
@@ -152,6 +153,13 @@ def parts(changes: list[Change]) -> list[str]:
         old, new = _known(moves[0].before, "polestar", "known"), _known(moves[-1].after, "polestar", "known")
         safe = all(isinstance(t, str) and TAG_RE.match(t) for t in (old, new))
         add(f"Polestar {old} to {new}" if safe else "Polestar release")
+    data = [c for c in changes if _known(c.before, "forever_db", "known") != _known(c.after, "forever_db", "known")]
+    if data:
+        tag = _known(data[-1].after, "forever_db", "known")
+        add(f"forever-db {tag.removeprefix('data-v')}" if isinstance(tag, str) and DATA_TAG_RE.match(tag)
+            else "forever-db release")
+    if any(_known(c.before, "foreverdb", "known") != _known(c.after, "foreverdb", "known") for c in changes):
+        add("ForeverDB.net data")
     builds = [c for c in changes
               if _known(c.before, "client_build", "known") != _known(c.after, "client_build", "known")]
     if builds:
@@ -171,7 +179,22 @@ def parts(changes: list[Change]) -> list[str]:
         for f in c.files:
             if f in FILES:
                 add(FILES[f])
+    rebuilt = [e.name for e in rebuild_exports() if any(f in e.outputs for c in changes for f in c.files)]
+    if rebuilt:
+        add(f"data rebuilt: {', '.join(rebuilt)}")
     return out
+
+
+def rebuild_exports():
+    """tools/kb/rebuild.py's EXPORTS (stdlib, read by path: tools/release has its own modules)."""
+    import importlib.util
+
+    if "kb_rebuild" not in sys.modules:
+        spec = importlib.util.spec_from_file_location("kb_rebuild", ROOT / "tools" / "kb" / "rebuild.py")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["kb_rebuild"] = mod
+        spec.loader.exec_module(mod)
+    return sys.modules["kb_rebuild"].EXPORTS
 
 
 def note(changes: list[Change]) -> str:

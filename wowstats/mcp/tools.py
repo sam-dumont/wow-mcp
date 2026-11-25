@@ -377,6 +377,7 @@ def current_zone(ctx: Ctx, char: str) -> str | None:
 
 
 def t_character_summary(ctx: Ctx, args: dict) -> dict:
+    from wowstats import dataversions
     from wowstats.analysis import pages
 
     char = resolve_char(ctx, args)
@@ -450,6 +451,9 @@ def t_character_summary(ctx: Ctx, args: dict) -> dict:
         "other_characters": sorted({c["char"] for c in chars if c.get("char") and c["char"] != char}),
         # From Polestar's level splits rather than the Recorder or the sheet.
         **({"from_level_splits": estimated} if estimated else {}),
+        # What the server's static data was built from (wowstats.dataversions):
+        # how fresh the item sources, quests and routes behind every answer are.
+        "data_versions": dataversions.versions(),
     }
 
 

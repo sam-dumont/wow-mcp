@@ -1,15 +1,16 @@
-# Rebuilds data/route-reference.json, data/gear-reference.json,
-# data/forever-reference.json and data/dungeons/quests.json from the Polestar
-# release named below and fails when one differs from the committed file
-# (docs/route-reference.md, docs/gear-reference.md, docs/forever-reference.md,
-# docs/dungeon-xp.md). The gear scoring is
-# ForeverDB.net's since 2026-11-23 (tests/test_gear_foreverdb.py, in the
-# normal suite). It never commits: the Polestar tag lives in
-# tools/polestar-tag (a file, so kb-refresh's token, which can't edit a
-# workflow, can move it), and kb-refresh bumps it with the exports in one PR
-# when the watcher sees a release; a tag moved without the exports fails here.
+# Rebuilds every daily export of tools/kb/rebuild.py (the route, gear,
+# forever, class, trainer and knowledge-base references, the dungeon quests
+# and wings, the WoWSims talent table) from the pinned sources and fails when
+# one differs from the committed file (each export's doc says how to rerun
+# it). The gear scoring is ForeverDB.net's since 2026-11-23
+# (tests/test_gear_foreverdb.py, in the normal suite). It never commits: the
+# pins live in files (tools/polestar-tag, tools/forever-db-tag,
+# data/kb/watch.json), so kb-refresh's token, which can't edit a workflow,
+# can move them, and kb-refresh moves a pin with the exports in one PR when
+# the watcher sees a release; a pin moved without the exports fails here.
 # Actions are pinned by commit SHA (the comment is the tag it was taken from).
 name: route-reference
+
 on:
   push:
     branches: [main]
@@ -18,13 +19,27 @@ on:
       - tools/gear_reference/**
       - tools/forever_reference/**
       - tools/dungeon_quests/**
+      - tools/dungeon_wings/**
+      - tools/class_reference/**
+      - tools/trainers/**
+      - tools/craft_reference/**
+      - tools/wowsims_talents.py
+      - tools/kb/export.py
+      - tools/kb/rebuild.py
+      - tools/kb/checkout.py
       - tools/polestar-tag
       - tools/forever-db-tag
       - data/kb/watch.json
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
+      - data/class-reference.json
+      - data/trainers-reference.json
+      - data/craft-reference.json
+      - data/kb-reference.json.gz
+      - data/wowsims-talents.json
       - data/dungeons/quests.json
+      - data/dungeons/wings.json
       - .github/workflows/route-reference.yml
   pull_request:
     paths:
@@ -32,15 +47,30 @@ on:
       - tools/gear_reference/**
       - tools/forever_reference/**
       - tools/dungeon_quests/**
+      - tools/dungeon_wings/**
+      - tools/class_reference/**
+      - tools/trainers/**
+      - tools/craft_reference/**
+      - tools/wowsims_talents.py
+      - tools/kb/export.py
+      - tools/kb/rebuild.py
+      - tools/kb/checkout.py
       - tools/polestar-tag
       - tools/forever-db-tag
       - data/kb/watch.json
       - data/route-reference.json
       - data/gear-reference.json
       - data/forever-reference.json
+      - data/class-reference.json
+      - data/trainers-reference.json
+      - data/craft-reference.json
+      - data/kb-reference.json.gz
+      - data/wowsims-talents.json
       - data/dungeons/quests.json
+      - data/dungeons/wings.json
       - .github/workflows/route-reference.yml
   workflow_dispatch:
+
 permissions:
   contents: read
 
@@ -60,36 +90,15 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --frozen
       - name: Lua, to read the addon's compiled files
         run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends lua5.4
-      # The one place the Polestar version is set, for every export.
-      - name: The Polestar tag
-        run: echo "POLESTAR_TAG=$(tr -d '[:space:]' < tools/polestar-tag)" >> "$GITHUB_ENV"
-      - name: Polestar at its tag
-        run: git clone -q --depth 1 --branch "$POLESTAR_TAG" https://github.com/fitzforge/polestar "$RUNNER_TEMP/polestar"
-      - name: Export
-        run: |
-          node tools/route_reference/export.mjs --polestar "$RUNNER_TEMP/polestar" --lua lua5.4
-          node tools/gear_reference/export.mjs --polestar "$RUNNER_TEMP/polestar" --lua lua5.4
-          # Stdlib Python, at the pins: forever-db's release at tools/forever-db-tag
-          # (GitHub, SHA256SUMS-checked) and Forever's client tables (wago.tools)
-          # at data/kb/watch.json's build.
-          python3 tools/forever_reference/export.py --polestar "$RUNNER_TEMP/polestar" --forever-db-cache "$RUNNER_TEMP/fdb"
-          # Reads forever-reference.json and the same forever-db, so after it.
-          python3 tools/dungeon_quests/export.py --polestar "$RUNNER_TEMP/polestar" --forever-db-cache "$RUNNER_TEMP/fdb"
-      - name: The committed files are the export
-        run: |
-          bad=0
-          for f in route gear forever; do
-            if ! git diff --quiet -- "data/$f-reference.json"; then
-              git diff --stat -- "data/$f-reference.json"
-              echo "::error::data/$f-reference.json is not the export of Polestar $POLESTAR_TAG: run tools/${f}_reference/export.* (docs/$f-reference.md) and commit the result"
-              bad=1
-            fi
-          done
-          if ! git diff --quiet -- data/dungeons/quests.json; then
-            git diff --stat -- data/dungeons/quests.json
-            echo "::error::data/dungeons/quests.json is not the export of Polestar $POLESTAR_TAG: run tools/dungeon_quests/export.py (docs/dungeon-xp.md) and commit the result"
-            bad=1
-          fi
-          exit "$bad"
+      # Polestar at tools/polestar-tag, forever-db at tools/forever-db-tag
+      # (its release, checksums checked), as the refresh job builds it.
+      - name: The checkout every export reads
+        run: python3 tools/kb/checkout.py "$RUNNER_TEMP/polestar"
+      - name: Every daily export is the committed file
+        run: >-
+          uv run --frozen python tools/kb/rebuild.py run --polestar "$RUNNER_TEMP/polestar"
+          --work "$RUNNER_TEMP/rebuild" --check

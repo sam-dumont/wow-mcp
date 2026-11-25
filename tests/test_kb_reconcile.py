@@ -167,11 +167,11 @@ def test_a_stale_dirty_watch_pr_is_made_again_with_its_kinds_by_a_later_run_of_a
 def test_the_kinds_are_what_the_branch_changed_never_what_main_moved(state):
     moved = copy.deepcopy(state)
     moved["foreverdb"]["known"] = "another fingerprint"
-    assert reconcile.changed_kinds(state, state) == {"kinds": [], "tag": ""}
-    assert reconcile.changed_kinds(state, moved) == {"kinds": ["foreverdb"], "tag": ""}
+    assert reconcile.changed_kinds(state, state) == {"kinds": [], "tag": "", "data": ""}
+    assert reconcile.changed_kinds(state, moved) == {"kinds": ["foreverdb"], "tag": "", "data": ""}
     bad = copy.deepcopy(state)
     bad["polestar"]["known"] = "v1.0; rm -rf /"
-    assert reconcile.changed_kinds(state, bad) == {"kinds": ["polestar"], "tag": ""}
+    assert reconcile.changed_kinds(state, bad) == {"kinds": ["polestar"], "tag": "", "data": ""}
 
 
 def test_open_prs_are_rebased_rearmed_or_left_to_a_person():

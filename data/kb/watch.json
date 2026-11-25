@@ -39,6 +39,12 @@
     "repo": "fitzforge/polestar",
     "known": "v0.4.2.2"
   },
+  "forever_db": {
+    "repo": "fitzforge/polestar",
+    "page": "https://github.com/fitzforge/polestar/tree/main/forever-db",
+    "known": "data-v2026.11.2",
+    "about": "Polestar's quest database on its own releases (data-v<YYYY.MM.N>), read in place of the copy the Polestar tag bundles (tools/kb/checkout.sh); tools/forever-db-tag holds the same tag."
+  },
   "addons": [
     {
       "name": "Questie",

@@ -136,15 +136,24 @@ def _sm_at_38(priest, open_quests, trips=()):
     return {w: D.gain_named(inp, f"Scarlet Monastery: {w}", 20_000) for w in ("Armory", "Library", "Cathedral")}
 
 
+def _xp_1053(priest) -> int:
+    """What 1053 pays when its hand-in does: forever-db's number, which moves
+    with its releases (2026.11.2: 4,700 -> 15,759), so read, never typed."""
+    xp = _sm_at_38(priest, [{"quest_id": 1053, "complete": True, "accepted_t": 1.0}])["Armory"]["xp_quests"]
+    assert xp > 0
+    return xp
+
+
 def test_a_quest_of_every_wing_pays_only_the_trip_that_finishes_it(priest):
     # 1053 needs a boss in each of the Library, the Armory and the
     # Cathedral: one wing's trip doesn't finish it, so none of them is paid
-    # its 4,700 XP, its reward or its hand-in. Each still lists it apart.
+    # its XP, its reward or its hand-in. Each still lists it apart.
+    xp = _xp_1053(priest)
     g = _sm_at_38(priest, [{"quest_id": 1053, "complete": False, "accepted_t": 1.0}])
     for w, x in g.items():
         assert 1053 not in {q["quest_id"] for q in x["quests"]}, w
         (wait,) = x["quests_needing_other_wings"]
-        assert wait["quest_id"] == 1053 and wait["xp_now"] == 4700
+        assert wait["quest_id"] == 1053 and wait["xp_now"] == xp
         assert wait["other_wings"] == [o for o in ("Library", "Armory", "Cathedral") if o != w]
     assert g["Armory"]["xp_quests"] == 0 and g["Cathedral"]["xp_quests"] == 0
     assert not g["Armory"]["trip"]["stops"]["handin"]
@@ -153,7 +162,7 @@ def test_a_quest_of_every_wing_pays_only_the_trip_that_finishes_it(priest):
     for w, x in g.items():
         assert 1053 in {q["quest_id"] for q in x["quests"]}, w
         assert "quests_needing_other_wings" not in x
-    assert g["Armory"]["xp_quests"] == 4700
+    assert g["Armory"]["xp_quests"] == xp
 
 
 def test_the_last_wing_of_an_all_quest_is_paid_once_the_others_are_seen_done(priest):
@@ -165,7 +174,7 @@ def test_the_last_wing_of_an_all_quest_is_paid_once_the_others_are_seen_done(pri
               "end_t": since + 20, "kill_npcs": {"3974": 1, "3976": 1, "3977": 1}}]
     g = _sm_at_38(priest, [{"quest_id": 1053, "complete": False, "accepted_t": since}], trips)
     assert 1053 in {q["quest_id"] for q in g["Armory"]["quests"]}
-    assert g["Armory"]["xp_quests"] == 4700 and "quests_needing_other_wings" not in g["Armory"]
+    assert g["Armory"]["xp_quests"] == _xp_1053(priest) and "quests_needing_other_wings" not in g["Armory"]
     assert g["Library"]["quests_needing_other_wings"][0]["other_wings"] == ["Armory"]
     # The same kills before he took it say nothing about this quest.
     g = _sm_at_38(priest, [{"quest_id": 1053, "complete": False, "accepted_t": since + 30}], trips)

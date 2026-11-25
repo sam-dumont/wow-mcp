@@ -146,7 +146,10 @@ def test_public_page_has_no_full_sections(run_app):
 def test_public_config_and_payload_shape(run_app):
     srv = run_app(make("public"))
     cfg = json.loads(srv.get("/api/config")[2])
+    versions = cfg.pop("data_versions")
     assert cfg == {"view": "public", "static": None}
+    # What the bundled data was built from: public sources' versions, no more.
+    assert set(versions) <= {"foreverdb", "forever_db", "polestar", "client_build", "checked"} and versions
     d = json.loads(srv.get(f"/api/char?name={CHAR}")[2])
     # The card, the climb and the dungeons; nothing else (redact.PUBLIC).
     assert set(d) == {"char", "generated_at", "stale", "route_source", "header", "levels", "dungeons", "gear",

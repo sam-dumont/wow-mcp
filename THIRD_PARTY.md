@@ -103,7 +103,7 @@ SOFTWARE.
 
 ## forever-db
 
-forever-db's `NOTICE.md`, as Polestar v0.4.2.2 ships it (the 2026.11.2 release's is the same, byte for byte):
+forever-db's `NOTICE.md`, as its release ships it (`tools/kb/bump.py forever-db` refuses a release whose notice says more than this copy):
 
 The Polestar quest data for World of Warcraft: Forever. Every value in its tables is held by at
 least one of the independent sources below.

@@ -147,11 +147,13 @@ def triage(gh, required: set[str]) -> dict:
 
 
 def changed_kinds(was: dict, now: dict) -> dict:
-    """The version kinds `now` moved from `was` (two watch.json), and the Polestar tag it holds."""
+    """The version kinds `now` moved from `was` (two watch.json), and the Polestar and forever-db tags it holds."""
     a, b = watch.known(was), watch.known(now)
     kinds = [k for k in watch.VERSIONS if a[k] != b[k]]
     tag = b["polestar"]["release"] if "polestar" in kinds else ""
-    return {"kinds": kinds, "tag": tag if tag and watch.TAG.match(tag) else ""}
+    data = b["forever-db"]["release"] if "forever-db" in kinds else ""
+    return {"kinds": kinds, "tag": tag if tag and watch.TAG.match(tag) else "",
+            "data": data if data and watch.DATA_TAG.match(data) else ""}
 
 
 def kinds_of(ref: str, main: str = "origin/main") -> dict:
@@ -173,7 +175,8 @@ def remake(ref: str, run=subprocess.run) -> int:
     if out := os.environ.get("GITHUB_OUTPUT"):
         with open(out, "a", encoding="utf-8") as f:
             f.write(f"base={base}\nkinds={' '.join(seen['kinds'])}\n")
-    env = {**os.environ, "KINDS": " ".join(seen["kinds"]), "TAG": seen["tag"], "GATES_BASE": base}
+    env = {**os.environ, "KINDS": " ".join(seen["kinds"]), "TAG": seen["tag"], "FDB_TAG": seen["data"],
+           "GATES_BASE": base}
     return run(["bash", "tools/kb/versions.sh"], cwd=ROOT, env=env).returncode
 
 
