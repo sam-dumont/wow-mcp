@@ -570,6 +570,10 @@ class Views:
             "done": sub(self.quests_history, char),
             # What the bags and the bank hold: those upgrades are an equip away.
             "held": sub(gearmod.held_rows, own, cf),
+            # The quest log and the guide step: a quest source's work
+            # (wowstats.questwork) reads both.
+            "log": sub(vl, f"{rec} {quests.Q_LOG}"),
+            "step": sub(vl, f"{rec} {quests.Q_STEP}"),
         }
         # Reputations and the PvP rank: a quartermaster's item is an upgrade
         # once the standing is held (wowstats.gear rep_check). Optional, like
@@ -609,6 +613,7 @@ class Views:
             market = None  # no prices is no reason to lose the advice
         return {"available": True, "base": base, "at": row.get("_time"), "worn_from": worn_from, "sheet": sheet,
                 "level": header.get("level"), "zone": header.get("zone"), "done": done,
+                "log": quests.in_log(res["log"], done), "route": quests.position(res["step"]),
                 "weights": self.settings.weights.get(char), "held": gearmod.newest_bags(res["held"]),
                 "market": market,
                 # The PvP rewards toggle (wowstats.gearmode): off unless saved.
@@ -1057,7 +1062,8 @@ def build_levels(rows: list[dict]) -> list[dict]:
 
 def gear_args(gi: dict) -> dict:
     """advise()'s keyword arguments from Views.gear_inputs (the sheet apart)."""
-    return {k: gi[k] for k in ("level", "zone", "done", "weights", "held", "market")} | {"pvp": bool(gi.get("pvp"))}
+    return ({k: gi[k] for k in ("level", "zone", "done", "weights", "held", "market")}
+            | {"pvp": bool(gi.get("pvp")), "log": gi.get("log"), "route": gi.get("route")})
 
 
 def build_header(char: str, levels: list[dict], res: dict, gear: dict | None = None,

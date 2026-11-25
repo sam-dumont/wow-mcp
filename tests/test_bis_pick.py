@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from tests.test_advice_truth import advise, caster
 from tests.test_ahsource import market, sale
-from tests.test_obtainability import EARTHEN_ROD, EASY_CHEST, KODO_BRANDER, RARE_CHEST, two_chests
+from tests.test_obtainability import EARTHEN_ROD, EASY_CHEST, NECROTIC_WAND, RARE_CHEST, two_chests
 from wowstats import gear
 from wowstats.mcp import tools as T
 
@@ -46,7 +46,7 @@ def test_hard_bis_against_easy_pick():
 def test_a_long_shot_bis_with_its_runs():
     a = advise(caster())
     ranged = next(s for s in a["slots"] if s["slot_name"] == "Ranged")
-    assert ranged["bis"]["item_id"] == EARTHEN_ROD and ranged["pick"]["item_id"] == KODO_BRANDER
+    assert ranged["bis"]["item_id"] == EARTHEN_ROD and ranged["pick"]["item_id"] == NECROTIC_WAND
     assert "long shot (about 10,000 runs)" in ranged["pick"]["says"]
 
 

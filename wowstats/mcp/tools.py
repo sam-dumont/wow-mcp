@@ -19,7 +19,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 
-from .. import ahsource, gearfit
+from .. import ahsource, gearfit, quests
 from .. import gear as gearmod
 from ..eventstore import generation_of
 from ..stores import (
@@ -1258,6 +1258,10 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
     # reward sold or replaced since still counts, plus Battle.net's worn
     # items when this person lets them reach the model (bnet_vm_url).
     done = _views(ctx).quests_done(char)
+    # The quest log and the guide step, as the page reads them: a quest
+    # source's work (wowstats.questwork).
+    log = quests.in_log(st.logs(f"{rec(char)} {quests.Q_LOG}"), done)
+    route_at = quests.position(st.logs(f"{rec(char)} {quests.Q_STEP}", limit=1))
     s, r = (snap or [{}])[0], (last or [{}])[0]
     top = sheet_or_record(s, r)
     level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
@@ -1291,7 +1295,7 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                            # it this tool scored the add-on's spec (Shadow) while every other answer
                            # scored the configured one (Holy) (seeded evaluation, wrong_spec_gear).
                            weights=views_weights(ctx, char),
-                           held=gearmod.newest_bags(held), market=market)
+                           held=gearmod.newest_bags(held), market=market, log=log, route=route_at)
     except gearmod.GearError as e:
         raise ToolError(str(e)) from None
     if args.get("export"):

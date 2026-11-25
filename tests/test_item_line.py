@@ -113,7 +113,11 @@ def test_pair_at_hand_weaker_takes_the_best_stronger_the_next(ref, level):
             assert b is None or b["item_id"] not in worn, (name, level, b)
         if bw and bs:
             assert bw["item_id"] != bs["item_id"], (name, level)
-            assert bw["score"] >= bs["score"] or bw["fit"]["factor"] > bs["fit"]["factor"], (name, level)
+            # Below 60 the effort weighs (gear.effort_penalty): a harder ring
+            # scoring a bit more goes to the stronger slot.
+            def worth(b):
+                return b["score"] * (1 - gear.effort_penalty(gear.EFFORT.index(b["effort"]), level))
+            assert (worth(bw) >= worth(bs) or bw["fit"]["factor"] > bs["fit"]["factor"]), (name, level)
         if bs and not bw:
             raise AssertionError(f"{name} at {level}: the stronger slot has a pick, the weaker none")
 
