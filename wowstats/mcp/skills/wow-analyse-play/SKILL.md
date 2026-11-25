@@ -14,6 +14,10 @@ First check whether a typed tool already answers it: `levels`, `zones`, `session
    caveats.
 2. `query_metric` with `metrics`, `group_by` and `where`: the server compiles the query from the model, so
    it can't fan out or double count.
+   Arguments: `metrics`, `group_by`, `where` ([{dimension, op, value}], values: [...] for in), `grain`
+   (day, week, month), `since`/`until` (YYYY-MM-DD), `order_by` (-name descends), `limit`. Metrics of
+   different models are each aggregated, then joined on `group_by`; one with min_evidence is NULL below
+   that many observations.
 3. Only when no metric fits: `play_sql` on a named view first, one row per key: `per_level`,
    `per_session`, `per_zone`, `per_dungeon`, `per_trip`, `per_guide`, `per_quest`, `per_death`,
    `per_week`, `per_slot`, `per_faction`. Raw tables are the last resort.
@@ -27,6 +31,10 @@ First check whether a typed tool already answers it: `levels`, `zones`, `session
    (`{n}`, `{rows[1].col:dur}`), any other number is declared in `constants`. A number typed by hand is
    refused. Fix a refused finding and retry once.
 4. The chat runs long: stop after a handed-in pass; "continue" works in a new chat.
+
+With MCP tasks on your client, the first `analysis_brief`, `play_sql`, `query_metric` or `propose_finding`
+for a character can come back as a task while the server builds its database (a few seconds): poll it,
+then go on. Without tasks the same calls answer inline.
 
 At the end tell the player what to do (the nudges and the findings' actions), the observations apart, and
 what the judge refused and why.
