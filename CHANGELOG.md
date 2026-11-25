@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+What 0.11.1 changes over 0.11.0, in short. Gear stops proposing content Forever hasn't opened: raids, world bosses, Dungeon Set 2 and world events count only when the meta says they're open (Onyxia's Lair, Barrow Deeps and Hyjal Summit reopen on 9 Dec 2026), and PvP gear only with the new toggle. Each slot shows its BiS next to your realistic pick, with the auction house price against your gold. Dungeon forecasts stop counting legs nobody saw as 0 s (City of Dalaran: 32m02s, 1h07 or 2h32 depending on your quests, not 32m02s every time). Percents follow their declared unit, so a 1.5% upgrade no longer reads as 150%, and the published quick start always hands out the real image digest. The Forever Leveling BiS export now says what the addon does with your weights. Every change follows.
+
 ### Fixed
 
 - A kept analysis finding said "Lorekeeper's Ring adds 150% to the worn gear score." for an upgrade worth 1.5% of the gear. `{col:pct}` now writes each value by the unit its column declares: a percent as it is (1.5 is 1.5%), a share or a ratio times 100 (0.015 is 1.5%). The old renderer guessed from the size (anything up to 1.5 was a share), so the unit checks the judge got in 0.8.0 never reached the text. A column with no declared unit is refused, when the finding is proposed, at the nightly recheck (it fades) and in the nudges that cite it. Kept findings keep the units they were judged with (`units`). Found by an external review.
