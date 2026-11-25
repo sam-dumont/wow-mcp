@@ -16,7 +16,9 @@ Two sources, read as they ship:
   from the Forever TrinityCore extract's sniffed trainer lists, GPL-2.0, used
   as facts): "<level>=<spell>:<cost>:<rank>[:<previous rank>[:<race mask>]]".
   Zone names from the guides' names table, as tools/trainers/export.py.
-- Forever's client tables on wago.tools (product wowf, the latest build):
+- Forever's client tables on wago.tools (product wowf), at the build
+  data/kb/watch.json knows (`--build latest`: wago.tools' newest, which the
+  refresh job's client-build step reads and then accepts):
   the spell names (SpellName) and the talent trees (wowstats.talents'
   catalog: TraitTree and the tables it joins). The sniffed lists miss a few
   training levels (Druid 8 to 14, Shaman 4); those come from the client's
@@ -28,6 +30,10 @@ Nothing here comes from a website's text. The same inputs give the same bytes:
 
     git clone --depth 1 --branch v0.4.2.2 https://github.com/fitzforge/polestar /tmp/polestar
     uv run python tools/class_reference/export.py --polestar /tmp/polestar
+
+Pinned to the known build so the daily rebuild (tools/kb/rebuild.py) gives
+the same bytes until the watch takes a new build; a new build that the
+client-build step refuses never comes in through the rebuild.
 
 `--handoff <file>` writes the client build the export read
 ({"client-build": {"build": ...}}): the refresh job's accept records that
@@ -51,6 +57,7 @@ sys.path.insert(0, str(ROOT / "tools" / "trainers"))
 
 from export import zone_names  # noqa: E402 - tools/trainers/export.py
 
+WATCH = Path(__file__).resolve().parents[2] / "data" / "kb" / "watch.json"
 OUT = ROOT / "data" / "class-reference.json"
 CLASSES = ("WARRIOR", "PALADIN", "HUNTER", "ROGUE", "PRIEST", "SHAMAN", "MAGE", "WARLOCK", "DRUID")
 TRAINER = re.compile(r'\{ npc = (\d+), npcName = "((?:[^"\\]|\\.)*)", map = (\d+), x = ([\d.]+), y = ([\d.]+)'
@@ -202,15 +209,21 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--polestar", required=True, type=Path)
     ap.add_argument("--out", type=Path, default=OUT)
     ap.add_argument("--handoff", type=Path, help="write the client build read, for watch.py --accept client-build")
+    ap.add_argument("--build", default="", help="the client build (default: data/kb/watch.json's known one; "
+                    "`latest`: wago.tools' newest)")
     a = ap.parse_args(argv)
     root = a.polestar
     from wowstats import talents
 
-    cat_obj = talents.shared()
-    cat = cat_obj.get()
+    if a.build == "latest":
+        cat_obj = talents.shared()
+        cat = cat_obj.get()
+        build = cat_obj.build
+    else:
+        build = a.build or json.loads(WATCH.read_text(encoding="utf-8"))["client_build"]["known"]
+        cat = talents.catalog_from(lambda name: wago_rows(name, build))
     if not cat:
         raise SystemExit("no talent catalog: wago.tools unreachable?")
-    build = cat_obj.build
     guides = (root / "addon" / "Polestar_Guides" / "Guides.lua").read_text(encoding="utf-8")
     zones = zone_names(guides)
     by_class = spells((root / "addon" / "Polestar" / "QoL" / "ClassSpells.lua").read_text(encoding="utf-8"))

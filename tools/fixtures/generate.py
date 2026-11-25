@@ -5,6 +5,7 @@ real account, character, guild, host or place of play is in them.
 
     uv run python tools/fixtures/generate.py          # rewrite the fixtures
     uv run python tools/fixtures/generate.py --check  # fail if they differ
+    uv run python tools/fixtures/generate.py --game   # take the KB's quests and creatures again
     uv run python tools/fixtures/generate.py --demo events.ndjson [--end-day YYYY-MM-DD]
                                                       # the docs site's demo character (site/)
 
@@ -154,40 +155,62 @@ def sval(v) -> str:
 # ---------------------------------------------------------------- game data
 
 
+# The quests and creatures the player draws from, frozen: the KB moves every
+# time forever-db does (the daily rebuild, tools/kb/rebuild.py), and with the
+# live KB every quest XP it moved shifted the seeded levels the tests pin
+# (2026-11-25, forever-db 2026.11.2: level 30 went from 9,749 s to 8,927 s
+# in two dozen tests). `--game` rewrites it from the KB, on purpose.
+GAME = ROOT / "tests" / "data" / "fixture-game.json.gz"
+
+
+def game_from_kb() -> dict:
+    """The quests and creatures the generator reads, parsed from the KB."""
+    from wowstats.analysis import kb
+
+    db = kb.build({"KB_GAME_TABLES": "off"}).db
+    npcs: dict[str, list] = {}
+    for _id, body in db.execute("SELECT id, body FROM docs WHERE kind='npc'"):
+        m = re.match(r"NPC (\d+): (.*?)(?: <[^>]*>)?\. Level (\d+)(?:-(\d+))?, ([a-z ]+)\.", body)
+        if m:
+            npcs[m.group(1)] = [int(m.group(4) or m.group(3)), "e" if "elite" in m.group(5) else "n", m.group(2)]
+    quests: dict[str, dict] = {}
+    for _id, body in db.execute("SELECT id, body FROM docs WHERE kind='quest'"):
+        m = re.match(r"Quest (\d+): (.*?)\. Level (-?\d+), needs level (\d+), XP (\d+), side (\w+), area (\d+)",
+                     body)
+        if not m:
+            continue
+        q = {"id": int(m.group(1)), "name": m.group(2), "level": int(m.group(3)), "min": int(m.group(4)),
+             "xp": int(m.group(5)), "side": m.group(6), "area": int(m.group(7)),
+             "money": int((re.search(r"Money (\d+) copper", body) or [0, 0])[1]),
+             "starts": int((re.search(r"Starts: NPC (\d+)", body) or [0, 0])[1]),
+             "ends": int((re.search(r"Ends: NPC (\d+)", body) or [0, 0])[1]),
+             "kills": [(int(a), int(b)) for a, b in re.findall(r"kill NPC (\d+) [^;.]*? x(\d+)", body)],
+             "items": [(int(a), int(b)) for a, b in re.findall(r"(?<!choice )item (\d+) [^;.]*? x(\d+)", body)],
+             "choices": [int(a) for a in re.findall(r"choice item (\d+)", body)]}
+        quests[str(q["id"])] = q
+    return {"about": "The KB's quests and creatures the fixture generator plays with, frozen "
+                     "(tools/fixtures/generate.py --game rewrites it).",
+            "npcs": dict(sorted(npcs.items(), key=lambda kv: int(kv[0]))),
+            "quests": dict(sorted(quests.items(), key=lambda kv: int(kv[0])))}
+
+
 class Game:
-    """The repository's game data, read once: quests and creatures by area,
-    the route's guides and their step kinds."""
+    """The game data the player draws from, read once: quests and creatures by
+    area (the frozen GAME), the route's guides and their step kinds."""
 
     def __init__(self):
-        from wowstats.analysis import kb
         from wowstats.mcp import route
         from wowstats.plan import facts
 
-        self.kb = kb.build({"KB_GAME_TABLES": "off"})
         self.ref = route.reference()
         self.facts = facts
-        self.npc_level: dict[int, tuple[int, str]] = {}
-        self.npc_name: dict[int, str] = {}
-        for _id, body in self.kb.db.execute("SELECT id, body FROM docs WHERE kind='npc'"):
-            m = re.match(r"NPC (\d+): (.*?)(?: <[^>]*>)?\. Level (\d+)(?:-(\d+))?, ([a-z ]+)\.", body)
-            if m:
-                n = int(m.group(1))
-                self.npc_level[n] = (int(m.group(4) or m.group(3)), "e" if "elite" in m.group(5) else "n")
-                self.npc_name[n] = m.group(2)
+        data = json.loads(gzip.decompress(GAME.read_bytes()))
+        self.npc_level: dict[int, tuple[int, str]] = {int(k): (v[0], v[1]) for k, v in data["npcs"].items()}
+        self.npc_name: dict[int, str] = {int(k): v[2] for k, v in data["npcs"].items()}
         self.quests: dict[int, dict] = {}
-        for _id, body in self.kb.db.execute("SELECT id, body FROM docs WHERE kind='quest'"):
-            m = re.match(r"Quest (\d+): (.*?)\. Level (-?\d+), needs level (\d+), XP (\d+), side (\w+), area (\d+)",
-                         body)
-            if not m:
-                continue
-            q = {"id": int(m.group(1)), "name": m.group(2), "level": int(m.group(3)), "min": int(m.group(4)),
-                 "xp": int(m.group(5)), "side": m.group(6), "area": int(m.group(7)),
-                 "money": int((re.search(r"Money (\d+) copper", body) or [0, 0])[1]),
-                 "starts": int((re.search(r"Starts: NPC (\d+)", body) or [0, 0])[1]),
-                 "ends": int((re.search(r"Ends: NPC (\d+)", body) or [0, 0])[1]),
-                 "kills": [(int(a), int(b)) for a, b in re.findall(r"kill NPC (\d+) [^;.]*? x(\d+)", body)],
-                 "items": [(int(a), int(b)) for a, b in re.findall(r"(?<!choice )item (\d+) [^;.]*? x(\d+)", body)],
-                 "choices": [int(a) for a in re.findall(r"choice item (\d+)", body)]}
+        for q in data["quests"].values():
+            q["kills"] = [tuple(x) for x in q["kills"]]
+            q["items"] = [tuple(x) for x in q["items"]]
             self.quests[q["id"]] = q
 
     def zone_quests(self, zone: str, level: int, used: set[int]) -> list[dict]:
@@ -2204,7 +2227,10 @@ def main() -> int:
     ap.add_argument("--demo", metavar="FILE", help="write the docs site's demo character's events (NDJSON), "
                                                    "nothing else")
     ap.add_argument("--end-day", metavar="YYYY-MM-DD", help="with --demo: shift the play so it ends that day")
+    ap.add_argument("--game", action="store_true", help=f"rewrite {GAME.relative_to(ROOT)} from the KB first")
     a = ap.parse_args()
+    if a.game:
+        GAME.write_bytes(gzip.compress(json.dumps(game_from_kb(), separators=(",", ":")).encode(), mtime=0))
     global VERBOSE
     VERBOSE = a.levels
     if a.demo:

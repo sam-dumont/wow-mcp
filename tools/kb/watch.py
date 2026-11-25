@@ -16,22 +16,26 @@ against) with today's:
 - addons: the latest releases of the install docs' other addons that
   publish on GitHub (the CurseForge- and Wago-only ones have no keyless
   feed: listed, not watched);
+- forever-db: Polestar's open quest database, released on its own
+  (`data-v<YYYY.MM.N>` releases of Polestar's repository, ahead of the addon
+  releases that bundle it): its newest final release. The exports read it
+  in place of the copy the Polestar tag carries (tools/kb/checkout.sh);
 - foreverdb: ForeverDB.net's addon data, where gear comes from and the stat
   weights (a short hash of its manifest's SHA-256s for the files read,
-  tools/foreverdb_sources/export.py `fingerprint`), at most once a week
-  (owner, 2026-11-24): for FOREVERDB_DAYS after the last accepted bump
-  (watch.json `foreverdb.taken`) it reads as its known value, so the daily
-  watch neither bumps nor opens an issue, and the first run after that
-  takes whatever the data is then;
+  tools/foreverdb_sources/export.py `fingerprint`: a new data version whose
+  files we read didn't change is no change). Every daily run (owner,
+  2026-11-25: "a daily rebuild of static files like addon dependencies or
+  ForeverDB"); until then it was held to once a week, which is why the
+  2026-11-25 run took nothing;
 - official: Blizzard's hotfix and patch-note pages (a page's normalised
   text hash; a forum thread's post count and last post, from Discourse's
   JSON).
 
-The first four are upstream versions (`--kinds versions`): the refresh
+The first five are upstream versions (`--kinds versions`): the refresh
 job's daily `watch` mode (.github/workflows/kb-refresh.yaml) lands each one
-like Dependabot would, with no model at all: the Polestar bump and its
-exports, the addons' contract check (tools/kb/bump.py), the class reference
-for a new build. `official` is prose a model has to read: the weekly
+like Dependabot would, with no model at all: the Polestar and forever-db
+bumps, the addons' contract check (tools/kb/bump.py), a new client build,
+then every export of tools/kb/exporters.py rerun at the new inputs. `official` is prose a model has to read: the weekly
 `review` mode checks it here (`--kinds official`, free) and runs the model
 pass (tools/kb/refresh.py) only on the pages that changed (owner,
 2026-11-22: the deterministic part as often as needed, the model once a
@@ -42,7 +46,7 @@ one the bump checked (Codex review, 2026-11-22). `official` comes from the
 model pass's `--handoff` file (tools/kb/refresh.py), `addons` from the
 bump's (tools/kb/bump.py addons), `client-build` from the class-reference
 export's (tools/class_reference/export.py), `foreverdb` from its bump's
-(tools/kb/bump.py foreverdb), `polestar` from `--release`.
+(tools/kb/bump.py foreverdb), `polestar` and `forever-db` from `--release`.
 `--github` runs last: a kind
 back to its known value (the PR merged) closes its issue; a kind still
 changed keeps one issue (label kb-watch) that says why it wasn't merged
@@ -69,11 +73,15 @@ ROOT = Path(__file__).resolve().parents[2]
 STATE = ROOT / "data" / "kb" / "watch.json"
 LABEL = "kb-watch"
 TAG = re.compile(r"^v\d+(\.\d+){1,4}$")
+# forever-db's own releases in Polestar's repository: data-v2026.11.2.
+DATA_TAG = re.compile(r"^data-v\d{4}\.\d{1,2}\.\d{1,3}$")
 TITLES = {"client-build": "KB watch: new Forever client build", "official": "KB watch: official patch notes changed",
           "polestar": "KB watch: new Polestar release", "addons": "KB watch: addon releases",
-          "foreverdb": "KB watch: new ForeverDB.net data"}
+          "foreverdb": "KB watch: new ForeverDB.net data", "forever-db": "KB watch: new forever-db release"}
 # Upstream versions, landed without a model; the rest is prose for the weekly review.
-VERSIONS = ("client-build", "polestar", "addons", "foreverdb")
+VERSIONS = ("client-build", "polestar", "forever-db", "addons", "foreverdb")
+# Kinds whose new value comes from --release (a tag), not a step's handoff.
+RELEASED = ("polestar", "forever-db")
 GROUPS = {"versions": list(VERSIONS), "official": ["official"]}
 
 
@@ -107,12 +115,14 @@ def current(state: dict, fetch, gh, kinds: list[str] | None = None) -> dict:
         ps = state["polestar"]
         out["polestar"]["release"] = (forward(gh, ps["repo"], ps["known"], polestar_release(gh, ps["repo"]))
                                       if gh else None)
+    if "forever-db" in kinds:
+        fd = state["forever_db"]
+        out["forever-db"]["release"] = (forward(gh, fd["repo"], fd["known"], forever_db_release(gh, fd["repo"]))
+                                        if gh else None)
     for a in state["addons"] if "addons" in kinds else []:
         if a.get("repo"):
             out["addons"][a["name"]] = addon_release(gh, a) if gh else None
-    if "foreverdb" in kinds and taken_recently(state["foreverdb"]):
-        out["foreverdb"]["data"] = state["foreverdb"]["known"]
-    elif "foreverdb" in kinds:
+    if "foreverdb" in kinds:
         status, body = fetch.get(state["foreverdb"]["manifest"])
         try:
             out["foreverdb"]["data"] = foreverdb().fingerprint(json.loads(body)) if status == 200 else None
@@ -154,22 +164,8 @@ def moved_back(state: dict, checked: dict[str, str]) -> list[str]:
             for a in state["addons"] if a["name"] in checked and older(checked[a["name"]], a.get("known"))]
 
 
-# ForeverDB.net's data is rebuilt every few hours; one bump a week is enough
-# for item sources and weights, and keeps the PRs to one a week.
-FOREVERDB_DAYS = 7
-
-
 def today():
     return datetime.now(UTC).date()
-
-
-def taken_recently(fdb: dict) -> bool:
-    """Whether ForeverDB's data was last taken under FOREVERDB_DAYS ago."""
-    try:
-        taken = datetime.fromisoformat(str(fdb.get("taken"))).date()
-    except ValueError:
-        return False
-    return (today() - taken).days < FOREVERDB_DAYS
 
 
 def foreverdb():
@@ -195,10 +191,22 @@ def polestar_release(gh, repo: str) -> str | None:
                 None)
 
 
+def forever_db_release(gh, repo: str) -> str | None:
+    """forever-db's newest final release (`data-v<YYYY.MM.N>`), neither a
+    draft nor a pre-release; None when there is none (not a change). Its
+    releases share the repository with the addon's and the client's."""
+    tags = [str(r.get("tag_name") or "") for r in gh.list_releases(repo)
+            if not r.get("draft") and not r.get("prerelease")]
+    tags = [t for t in tags if DATA_TAG.match(t)]
+    return max(tags, key=version_key, default=None)
+
+
 def known(state: dict) -> dict:
     return {"client-build": {"build": state["client_build"]["known"]},
             "official": {p["key"]: p["known"] for p in state["official"]},
             "polestar": {"release": state["polestar"]["known"]},
+            # A watch.json from before forever-db had its own kind (2026-11-25) knows none.
+            "forever-db": {"release": (state.get("forever_db") or {}).get("known")},
             "addons": {a["name"]: a["known"] for a in state["addons"] if a.get("repo")},
             "foreverdb": {"data": state["foreverdb"]["known"]}}
 
@@ -209,6 +217,8 @@ def links(state: dict, kind: str, key: str) -> str:
         return p.get("page") or p["url"]
     if kind == "polestar":
         return f"https://github.com/{state['polestar']['repo']}/releases"
+    if kind == "forever-db":
+        return state["forever_db"].get("page") or f"https://github.com/{state['forever_db']['repo']}/releases"
     if kind == "addons":
         a = next(a for a in state["addons"] if a["name"] == key)
         return f"https://github.com/{a['repo']}/releases"
@@ -228,6 +238,9 @@ NEXT = {
                 "run kb-refresh with mode refresh and the page keys once the cause is fixed.",
     "polestar": "Bump tools/polestar-tag, re-run the exports (docs/route-reference.md), check what the gates or "
                 "the contract check name, then `watch.py --accept polestar --release <tag>`.",
+    "forever-db": "Read what tools/kb/bump.py forever-db refused (its licence files or schema version changed, or "
+                  "an export or a gate failed on the new data), fix the cause, move tools/forever-db-tag, rerun "
+                  "the exports (tools/kb/rebuild.py), then `watch.py --accept forever-db --release <tag>`.",
     "addons": "Check what the addon saves against shipper/wow_stats.py (docs/reference/addons.md), then "
               "record the release you checked: `watch.py --accept addons --handoff seen.json`, seen.json "
               "holding `{\"addons\": {\"<name>\": \"<tag>\"}}`.",
@@ -283,6 +296,8 @@ def accept(state: dict, now: dict, kinds: list[str]) -> dict:
             p["known"] = now["official"][p["key"]]
     if "polestar" in kinds and now["polestar"].get("release"):
         state["polestar"]["known"] = now["polestar"]["release"]
+    if "forever-db" in kinds and now["forever-db"].get("release"):
+        state["forever_db"]["known"] = now["forever-db"]["release"]
     for a in state["addons"]:
         if "addons" in kinds and now["addons"].get(a["name"]):
             a["known"] = now["addons"][a["name"]]
@@ -326,8 +341,11 @@ def changes(state: dict, now: dict) -> dict:
     # A release tag goes into a git command and a file: only a plain version passes.
     if tag and not TAG.match(tag):
         tag = ""
+    data = now["forever-db"]["release"] if "forever-db" in kinds else ""
+    if data and not DATA_TAG.match(data):
+        data = ""
     official = [k for k, v in now["official"].items() if v and v != was["official"].get(k)]
-    return {"kinds": kinds, "changed_official": official, "polestar_tag": tag}
+    return {"kinds": kinds, "changed_official": official, "polestar_tag": tag, "forever_db_tag": data}
 
 
 def run(state: dict, fetch, gh, github: bool, why: dict | None = None, kinds: list[str] | None = None) -> dict:
@@ -350,9 +368,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--accept", nargs="*", metavar="KIND", help="record today's values (all kinds if none given)")
     ap.add_argument("--handoff", help="--accept official, addons, client-build, foreverdb: the file of the step that "
                     "processed them, each value as it saw it")
-    ap.add_argument("--release", help="--accept polestar: this tag, not a fresh read")
+    ap.add_argument("--release", help="--accept polestar or forever-db: this tag, not a fresh read")
     ap.add_argument("--kinds", nargs="*", metavar="KIND",
-                    help="only these kinds (`versions`: client-build, polestar, addons, foreverdb); default all")
+                    help="only these kinds (`versions`: client-build, polestar, forever-db, addons, foreverdb); "
+                    "default all")
     a = ap.parse_args(argv)
     path = Path(a.state)
     state = json.loads(path.read_text(encoding="utf-8"))
@@ -363,7 +382,7 @@ def main(argv: list[str] | None = None) -> int:
         # 2026-11-22 (Codex review): a fresh read here acknowledged posts that
         # came in after the model read the thread, or that it never got; the
         # same for a release or build newer than the one the bump checked.
-        missing = [k for k in kinds if not (a.release if k == "polestar" else a.handoff)]
+        missing = [k for k in kinds if not (a.release if k in RELEASED else a.handoff)]
         if missing:
             print(f"{', '.join(missing)}: accept what the step processed (--handoff, or --release for polestar), "
                   "never a fresh read", file=sys.stderr)
@@ -372,6 +391,7 @@ def main(argv: list[str] | None = None) -> int:
         now = {k: got.get(k, {}) for k in ("client-build", "official", "addons", "foreverdb")}
         # The tag the job checked and exported.
         now["polestar"] = {"release": a.release if a.release and TAG.match(a.release) else None}
+        now["forever-db"] = {"release": a.release if a.release and DATA_TAG.match(a.release) else None}
         unread = [k for k in kinds if k != "addons" and not any(now[k].values())]
         if unread:
             # 2026-11-20: an accept that silently kept the old Polestar value
@@ -384,11 +404,11 @@ def main(argv: list[str] | None = None) -> int:
     why = json.loads(Path(a.why).read_text(encoding="utf-8")) if a.why and Path(a.why).exists() else {}
     out = run(state, web.Fetcher(), gh, a.github, why, watched)
     print(json.dumps({"did": out["did"], "kinds": out["kinds"], "changed_official": out["changed_official"],
-                      "polestar_tag": out["polestar_tag"]}, indent=1))
+                      "polestar_tag": out["polestar_tag"], "forever_db_tag": out["forever_db_tag"]}, indent=1))
     if os.environ.get("GITHUB_OUTPUT") and not a.github:
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
             f.write(f"changed_official={json.dumps(out['changed_official'])}\nkinds={' '.join(out['kinds'])}\n"
-                    f"polestar_tag={out['polestar_tag']}\n")
+                    f"polestar_tag={out['polestar_tag']}\nforever_db_tag={out['forever_db_tag']}\n")
     unwatched = [a["name"] for a in state["addons"] if not a.get("repo")]
     if unwatched:
         print(f"not watched (no keyless release feed): {', '.join(unwatched)}", file=sys.stderr)

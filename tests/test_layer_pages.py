@@ -151,9 +151,13 @@ def test_the_pages_take_the_layers_numbers(seed_vl, monkeypatch):
     from wowstats.analysis import pages
 
     compute = pages._compute
+    base: dict[int, int] = {}
 
     def doubled(ask):
         n = compute(ask)
+        # The layer's own number, never one typed here: the seed's route
+        # times move with Polestar and forever-db (tools/kb/rebuild.py).
+        base.update({lv: r["played_s"] for lv, r in n["levels"].items()})
         for r in n["levels"].values():
             r["played_s"] = (r["played_s"] or 0) * 2
         n["deaths"]["total"] += 100
@@ -165,7 +169,7 @@ def test_the_pages_take_the_layers_numbers(seed_vl, monkeypatch):
                   "MODEL3D": "off", "WOW_ITEMS": "off", "DEFAULT_CHAR": CHAR, "HOME": str(seed_vl)})
     d = app.api_char(CHAR)
     lv30 = next(lv for lv in d["levels"] if lv["level"] == 30)
-    assert lv30["seconds"] == 2 * 9749 and d["deaths"]["total"] == 125
+    assert base[30] and lv30["seconds"] == 2 * base[30] and d["deaths"]["total"] == 125
 
 
 def test_the_kept_numbers_never_cross_people(tmp_path, monkeypatch):
@@ -183,5 +187,6 @@ def test_the_kept_numbers_never_cross_people(tmp_path, monkeypatch):
     theirs = pages.numbers(CHAR, copies.build([r for r in rows if not (r["feed"] == "wow-level"
                                                                         and int(r["level"]) == 30)],
                                               CHAR, ("store-b", CHAR)))
-    assert mine["levels"][30]["played_s"] == 9749 and 30 not in theirs["levels"]
+    split = next(int(r["seconds"]) for r in rows if r["feed"] == "wow-level" and int(r["level"]) == 30)
+    assert mine["levels"][30]["played_s"] == split and 30 not in theirs["levels"]
     assert pages.numbers(CHAR, mine_cp) is mine and len(pages._memo) == 2

@@ -187,7 +187,7 @@ about 1.4M tokens and 7 euros in one week.
 
 | Mode | When | Model | What |
 |---|---|---|---|
-| `watch` | daily (05:40 UTC) | never | `tools/kb/watch.py --kinds versions`: the upstream versions, like Dependabot: client build (wago.tools), Polestar's release, the addons that publish on GitHub (Questie), ForeverDB.net's addon data (its manifest; at most once a week, below). Each change kind is handled in the run (below) and lands in the PR `kb-watch`. A quiet day commits nothing and runs no gates. |
+| `watch` | daily (05:40 UTC) | never | `tools/kb/watch.py --kinds versions`: the upstream versions, like Dependabot: client build (wago.tools), Polestar's release, forever-db's own release, the addons that publish on GitHub (Questie, WoWSims Exporter), ForeverDB.net's addon data (its manifest). Each change kind is handled in the run (below); then every daily export of `tools/kb/rebuild.py` reruns on the pinned inputs (the daily rebuild, below). It all lands in the PR `kb-watch`. A day where nothing moved commits nothing, runs no gates and opens no PR. |
 | `review` | Mondays | on what changed | The free checks first: `watch.py --kinds official` (the official hotfix and patch-note pages: text hash, forum threads by post count) and `meta.py collect` (news, blue posts, guides new since last week). Then the model on what they flagged: the changed official pages (a thread's new posts only), the new items, the Community corner's new threads, and the lifecycle (below), whose re-verification asks only about pages changed since they last held. A quiet week makes no model call. PR `kb-review`. `meta`, its old name, still works. |
 | `refresh` | by hand | yes | `tools/kb/refresh.py <page keys>`: the model pass alone, folded and gated like a review. |
 | `sweep` | the 2nd of the month | never | `tools/kb/sweep.py`: every cited URL fetched once. Gone (404/410), changed since last month, and statements not checked for 120 days go to one issue (a list to look at, not a refusal); the new `sweep.json` lands in the PR. A 403 or 429 is "unreadable", not gone. |
@@ -198,11 +198,13 @@ Every step of the three scheduled modes, and which side it is on:
 |---|---|---|---|
 | version detection | watch | `watch.py --kinds versions`: wago.tools build, GitHub releases (Polestar's plain tags, Questie), ForeverDB's manifest (a hash of the SHA-256s of the files we read) | deterministic: a value compared with `watch.json` |
 | Polestar bump | watch | `bump.py polestar`: the licence terms (a text diff, Revision stamps and name counts ignored), the saved tables, the tag file | deterministic: a diff of files |
-| exports and test data | watch | the route, gear, forever, KB, class and trainer exports at the new tag, `bump.py regen` | deterministic: Polestar's own code |
+| forever-db bump | watch | `bump.py forever-db`: both releases' checksums, the licence files, the notice against THIRD_PARTY.md's copy, the schema version, the tag file | deterministic: hashes and a diff of files |
+| exports and test data | watch | the exports of `tools/kb/rebuild.py` that read the moved kind, `bump.py regen` | deterministic: Polestar's own code and ours |
+| daily rebuild | watch | every daily export of `tools/kb/rebuild.py` on the pinned inputs, `bump.py regen --as rebuild`, `bump.py golden --as rebuild` | deterministic: exports |
 | addon contract | watch | `bump.py addons`: the `.toc` saved tables and the contract lines | deterministic: a text match |
-| client build | watch | `class_reference/export.py` against the new build, `watch.py --accept client-build`, then `forever_reference/export.py`, `dungeon_quests/export.py` and the route reference (every area and map at that build), `bump.py regen` | deterministic: an export |
+| client build | watch | `class_reference/export.py --build latest` (the one read of wago.tools' newest build), then the exports that read the client tables at it, `bump.py regen` | deterministic: exports |
 | ForeverDB data | watch | `bump.py foreverdb`: download, SHA-256, format comments, licence files, both exports; `bump.py regen` and `bump.py golden` | deterministic: hashes, a strict parser, exports |
-| accept | all | `watch.py --accept`: into `watch.json`, each value as the step that processed it saw it (`--handoff` from the model pass, the addon bump or the class-reference export; `--release` for Polestar), never a fresh fetch | deterministic: state |
+| accept | all | `watch.py --accept`: into `watch.json`, each value as the step that processed it saw it (`--handoff` from the model pass, the addon bump or the class-reference export; `--release` for Polestar and forever-db), never a fresh fetch | deterministic: state |
 | official pages, check | review | `watch.py --kinds official`: page text hash, a thread's post count | deterministic: a hash |
 | official pages, read | review, refresh | `refresh.py`: statements from the changed pages, a thread's new posts only | model: prose to statements |
 | reword | review, refresh | `refresh.reword`: one restatement of a proposal that copied its source | model: rewriting |
@@ -228,11 +230,84 @@ the review's):
 
 | Kind | The job | Refused when |
 |---|---|---|
-| `polestar` | `tools/kb/bump.py polestar <tag>` checks the release, writes the tag to `tools/polestar-tag` (and the clone lines and `THIRD_PARTY.md` that name it), clones Polestar there and reruns every export that reads it (route, gear and forever references, `kb-reference.json.gz`, the class and trainer references), then `watch.py --accept polestar`. Then `bump.py regen` reruns `tools/fixtures/generate.py` and the layer pages' snapshot (`WOW_UPDATE_SNAPSHOT=1`), as a person does after a bump. The exports run Polestar's own code, without the job's OIDC or runtime token in reach. | its `Polestar.toc` saves other tables, a LICENSE, NOTICE or COPYING file changed (THIRD_PARTY.md copies them; a data notice line that only moved a source's `Revision:` or a count of names taken doesn't count, since every data build moves those), an export fails, or the fixture generator fails. Polestar is the source of truth: route times, levels and gear scores that move with a release are taken, and the test data moves with them (owner, 2026-11-22) |
+| `polestar` | `tools/kb/bump.py polestar <tag>` checks the release, writes the tag to `tools/polestar-tag` (and the clone lines and `THIRD_PARTY.md` that name it), builds the checkout there (`tools/kb/checkout.py`) and reruns every export of `tools/kb/rebuild.py` that reads it, then `watch.py --accept polestar`. Then `bump.py regen` reruns `tools/fixtures/generate.py` and the layer pages' snapshot (`WOW_UPDATE_SNAPSHOT=1`), as a person does after a bump. The exports run Polestar's own code, without the job's OIDC or runtime token in reach. | its `Polestar.toc` saves other tables, a LICENSE, NOTICE or COPYING file changed (THIRD_PARTY.md copies them; a data notice line that only moved a source's `Revision:` or a count of names taken doesn't count, since every data build moves those), an export fails, or the fixture generator fails. Polestar is the source of truth: route times, levels and gear scores that move with a release are taken, and the test data moves with them (owner, 2026-11-22) |
 | `addons` | `bump.py addons` reads each new release's `.toc` and the source lines `watch.json`'s `contract` names (Questie: `Questie_Forever.toc`, and `Questie.db.char.complete = ` in `QuestieQuest.lua`, what `shipper/wow_stats.py` reads), then `watch.py --accept addons --handoff <file>`: each addon at the release the bump checked, so one out since waits for the next run; an addon whose release couldn't be read stays pending (said on the issue). | a saved table is renamed or gone, or a contract line is gone |
-| `client-build` | `tools/class_reference/export.py` against the new build, then `watch.py --accept client-build --handoff <file>`: the build the export read, never one wago.tools listed after it. The forever reference (every area and map, at the build just accepted), the dungeon quests and the route reference's dungeon trips rerun, then `bump.py regen`. | the export fails, or the test data moved |
-| `foreverdb` | `bump.py foreverdb` downloads the manifest's `Data/GearSources.lua`, `Loot.lua`, `GearFinder.lua` and `Meta.lua` and the addon zip's licence files (the only place the refresh fetches them; each SHA-256 checked, the Lua read as text by `tools/foreverdb_sources/lua.py`, never run), reruns `tools/foreverdb_sources/export.py` and `tools/foreverdb_weights/export.py` from that download, and writes what moved (items, sources by kind and label, size) for the PR. At most once a week (owner, 2026-11-24): `watch.json` `foreverdb.taken` holds the day the last bump was accepted, and for 7 days after it the watch reads the known value without fetching, so the daily run neither bumps nor opens an issue; the first run after that takes whatever the data is then. ForeverDB rebuilds its data every few hours, so a daily bump would be a PR a day for a few changed drop rates. Then `bump.py regen --as foreverdb` (the test data moves with the data, like Polestar's), `bump.py golden --as foreverdb` (the golden characters' moved upgrades go into the snapshot, at most 40; any other key that went away stops it), and `watch.py --accept foreverdb --handoff <file>`. Runs in the token-free phase. | a file's format comments changed (the export's contract), a licence file isn't byte for byte the committed one, the download or the parser refuses, a golden key that isn't an upgrade went away, or the `foreverdb` gate refuses |
+| `forever-db` | Polestar's quest database is released on its own (`data-v<YYYY.MM.N>` releases of Polestar's repository), days or weeks ahead of the addon release that bundles it: on 2026-11-25 Polestar v0.4.2.2 still carried 2026.11.1 while 2026.11.2 had held the Drowned City's quests for four days. `bump.py forever-db <tag>` downloads the known and the new release (`tools/kb/checkout.py`: the zip's SHA-256 against the release's `SHA256SUMS`, every data file against forever-db's own `datapackage.json`), writes the tag to `tools/forever-db-tag` and `THIRD_PARTY.md`'s version line, reruns every export that reads it (all but the route and gear references, which run Polestar's own planner on the forever-db its addon carries: #266), then `bump.py regen --as forever-db` and `bump.py golden --as forever-db` (taken as it is, like Polestar's), and `watch.py --accept forever-db --release <tag>`. | its schema version moved, its `LICENSE` or `LICENSE-CC-BY-4.0.txt` changed beyond bookkeeping, its `NOTICE.md` says more than the copy in `THIRD_PARTY.md` (what a person read), a checksum doesn't match, an export fails, or a golden key that isn't an upgrade went away |
+| `client-build` | `tools/class_reference/export.py --build latest` reads wago.tools' newest build once, `watch.py --accept client-build --handoff <file>` records the build it read (never one wago.tools listed after it), then every export that reads the client tables reruns at that build (they read `watch.json`'s known build, so the daily rebuild never brings in a build this step didn't take), and `bump.py regen`. | an export fails, or the test data moved |
+| `foreverdb` | `bump.py foreverdb` downloads the manifest's `Data/GearSources.lua`, `Loot.lua`, `GearFinder.lua` and `Meta.lua` and the addon zip's licence files (the only place the refresh fetches them; each SHA-256 checked, the Lua read as text by `tools/foreverdb_sources/lua.py`, never run), reruns its two exports (`tools/kb/rebuild.py`'s `foreverdb-sources` and `foreverdb-weights`) from that download, and writes what moved (items, sources by kind and label, size) for the PR. Every day (owner, 2026-11-25: "a daily rebuild of static files like addon dependencies or ForeverDB"). The watch compares a hash of the SHA-256s of the four files we read, not the manifest's data version: ForeverDB rebuilds its data every few hours and moves the version each time, but a day where none of our files changed is no change and no PR. From 2026-11-24 to 2026-11-25 it was held to once a week (`watch.json` `foreverdb.taken`, now only the day the last bump landed), which is why the 2026-11-25 run took nothing although ForeverDB had published 2026-11-25.68f55f62. Then `bump.py regen --as foreverdb` (the test data moves with the data, like Polestar's), `bump.py golden --as foreverdb` (the golden characters' moved upgrades go into the snapshot, at most 40; any other key that went away stops it), and `watch.py --accept foreverdb --handoff <file>`. Runs in the token-free phase. | a file's format comments changed (the export's contract), a licence file isn't byte for byte the committed one, the download or the parser refuses, a golden key that isn't an upgrade went away, or the `foreverdb` gate refuses |
 | `official` (review) | the model pass on the changed pages, its `refresh-<date>.json` folded into the lanes at once (`lifecycle.py --no-fetch`: a `supersedes` replaces its statement), then `watch.py --accept official --handoff <file>`: each page the pass read, at the version it read (a thread's post count when its topic was fetched, a page's text hash), so a post that arrives while the model reads is next week's. | the model pass isn't set up or fails, a fetch a page needs failed (a thread's new post answered 503: the thread stays pending, never "nothing new"; a deleted post, 404, is nothing to read), the model stopped without an answer, or its cost cap stopped it before a page |
+
+### The daily rebuild
+
+`tools/kb/rebuild.py` holds the one list of every static data file built
+from an outside source (`EXPORTS`): what it writes, the command, which watch
+kinds move it, whether the daily run rebuilds it. The watch reruns the
+exports of a moved kind from that list, then, every day whether anything
+moved or not, every daily export on the pinned inputs: Polestar at
+`tools/polestar-tag` (the route and gear references), the same checkout
+with forever-db's own release at `tools/forever-db-tag` for every other
+export that reads forever-db (`tools/kb/checkout.py`), the client tables at `watch.json`'s
+known build, the cMaNGOS dump and the WoWSims Exporter checkout at their
+pins. Every export is deterministic, so a day where nothing moved changes
+no byte; a file that comes out different (an exporter changed on main
+without its output, an export a kind never reran) lands in its own commit,
+`Data rebuild: ...`, with `bump.py regen --as rebuild` and `bump.py golden
+--as rebuild`. A failed export leaves the rebuild out of the PR and turns
+the run red (the land job's last step).
+
+The test character doesn't move with the data: the fixture generator plays
+from a frozen copy of the KB's quests and creatures
+(`tests/data/fixture-game.json.gz`; `tools/fixtures/generate.py --game`
+takes the KB's again, on purpose). Before that, every quest XP forever-db
+moved shifted the seeded levels that two dozen tests pin, so each daily PR
+that touched the KB would have gone red. Only the fixtures the product's
+own code derives from the data (the planner's inputs, the gear answer, the
+layer pages) move with it, and `regen` takes them.
+
+```
+uv run python tools/kb/rebuild.py list                     # the table below
+python3 tools/kb/checkout.py /tmp/polestar                 # the pinned checkout
+uv run python tools/kb/rebuild.py run --polestar /tmp/polestar --check   # what CI's route-reference runs
+```
+
+| Export | Writes | Moves with | Daily |
+|---|---|---|---|
+| forever-reference | `data/forever-reference.json` | polestar, forever-db, client-build | yes |
+| dungeon-quests | `data/dungeons/quests.json` | polestar, forever-db, client-build | yes |
+| route-reference | `data/route-reference.json` | polestar, client-build | yes |
+| gear-reference | `data/gear-reference.json` | polestar | yes |
+| kb-reference | `data/kb-reference.json.gz` | polestar, forever-db | yes |
+| class-reference | `data/class-reference.json` | polestar, client-build | yes |
+| trainers | `data/trainers-reference.json` | polestar | yes |
+| craft-reference | `data/craft-reference.json` | polestar | yes |
+| dungeon-wings | `data/dungeons/wings.json` | polestar, forever-db | yes |
+| wowsims-talents | `data/wowsims-talents.json` | addons | yes |
+| foreverdb-sources | `data/foreverdb/item-sources.json` | foreverdb | with its kind (tools/kb/bump.py foreverdb) |
+| foreverdb-weights | `data/foreverdb-weights.json` | foreverdb | with its kind (tools/kb/bump.py foreverdb) |
+| game-items | `data/game-items.json` | client-build | no: needs a Forever client's hotfix cache (DBCache.bin, same build): without it about half of Forever's changed items keep their old numbers |
+| battlenet-look | `data/battlenet-look.json` | - | no: pinned at a retail and a Forever build named in the file; Battle.net's look ids only move with the retail game |
+| dungeon-xp | `data/dungeons/kill-xp.json`, `data/dungeons/forever-spawns/forever-spawns.json` | - | no: reads research rosters that aren't in the repository |
+| model3d-dbd | `data/dbd/` | - | no: table layouts for the 3D view, from a WoWDBDefs checkout; they only move with a new client layout, which the 3D tests catch |
+
+A new exporter is one entry in `EXPORTS` (its command, outputs, the kinds
+it reads) and its output in the Dockerfile and the wheel
+(`tests/test_daily_rebuild.py` checks both); the daily run, CI's check and
+the release note pick it up from there.
+
+**From a merge to a release.** A watch PR merges on its own when the gates
+and the public checks pass. Its merge starts `kb-release.yml` (it runs on
+any change under `data/` or to the two tag files, and only for a merge of
+the refresh job's own PR), which presses the release button: a stable
+patch release the same day, with a release note line that names what moved
+(`tools/release/kb.py note`: Polestar, forever-db, ForeverDB.net data, the
+client build, the addons, the rebuilt exports). No release while a release
+candidate series is open; the data rides the next candidate then.
+
+**What a server serves.** `/api/config` and the MCP's `character_summary`
+carry `data_versions` (`wowstats/dataversions.py`): ForeverDB.net's data
+version and build, the forever-db release and its client build, the
+Polestar tag, the client build of each set of client tables, and the day
+the watch last landed, all read from the shipped files.
 
 A release is read from the addon's repository at both tags through
 GitHub's API (files and blob hashes); its release notes are untrusted text

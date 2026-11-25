@@ -5,6 +5,7 @@
     uv run python tools/kb/bump.py addons --why why.json --handoff seen.json   # check the addons' contracts
     uv run python tools/kb/bump.py foreverdb --why why.json --handoff seen.json --summary fdb.md
     uv run python tools/kb/bump.py golden --as foreverdb --why why.json   # take moved upgrades only
+    uv run python tools/kb/bump.py forever-db data-v2026.11.2 --why why.json   # check, then move the tag
 
 What an addon writes is what the shipper reads, so a release is taken when
 what we depend on is unchanged between the known tag and the new one, read
@@ -54,6 +55,18 @@ accepts the test data that moved. `golden --as foreverdb` then takes the
 golden characters' moved upgrades into tests/slices/golden.json, and only
 those (at most GOLDEN_UPGRADES of them): a dungeon, a raid prep, a plan or a
 class meta key that went away still stops it, for the behaviour gate.
+
+`forever-db` is Polestar's quest database at its own release
+(`data-v<YYYY.MM.N>`, tools/kb/checkout.py), owner 2026-11-25: static data
+tracks each source's newest release, and an addon release can lag
+forever-db's by weeks. Both releases are downloaded and checked against
+their own checksums; the bump is refused when the new one's schema version
+isn't the known one's, its LICENSE or LICENSE-CC-BY-4.0.txt differ from the
+known release's, or its NOTICE.md differs from the copy THIRD_PARTY.md
+carries (what a person read), each beyond bookkeeping lines. Otherwise it
+writes tools/forever-db-tag and THIRD_PARTY.md's version line; the exports
+then rerun on it (tools/kb/rebuild.py), and like Polestar's its data is
+taken as it is.
 """
 
 from __future__ import annotations
@@ -73,6 +86,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import checkout  # noqa: E402
+import rebuild  # noqa: E402
 import watch  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -271,11 +286,16 @@ def regen(old: str = "", new: str = "", root: Path = ROOT) -> tuple[list[str], l
     return [], moved
 
 
+# Sources whose word is taken as it is: their test data moves with them. A
+# `rebuild` is main's own exporters rerun at inputs main already pins.
+TAKEN_AS_IS = ("polestar", "forever-db", "foreverdb", "rebuild")
+
+
 def refusals(kind: str, failed: list[str], moved: list[str]) -> list[str]:
     """What stops `kind` after a regen: a failed generator always; data that
     moved only for a client build (Polestar's and ForeverDB's numbers are
     taken as they are)."""
-    if failed or kind in ("polestar", "foreverdb") or not moved:
+    if failed or kind in TAKEN_AS_IS or not moved:
         return failed
     return ["the regenerated test data changed: " + ", ".join(f"`{n}`" for n in moved[:10])]
 
@@ -349,12 +369,12 @@ def foreverdb(why: str | None, handoff: str | None, summary: str | None, known: 
         if reasons:
             refuse(why, "foreverdb", reasons)
             return 3
-        for tool in ("tools/foreverdb_sources/export.py", "tools/foreverdb_weights/export.py"):
-            r = subprocess.run(["uv", "run", "--frozen", "python", "-I", tool, "--files", str(src)], cwd=ROOT,
-                               capture_output=True, text=True)
+        # Its exports are tools/kb/rebuild.py's that read `foreverdb`.
+        for e in [e for e in rebuild.EXPORTS if "foreverdb" in e.inputs and "{files}" in e.cmd]:
+            r = subprocess.run(rebuild.command(e, {"files": str(src)}), cwd=ROOT, capture_output=True, text=True)
             if r.returncode:
                 last = PLAIN.sub("", ((r.stderr or r.stdout).strip().splitlines() or ["?"])[-1])[:200]
-                refuse(why, "foreverdb", [f"{tool} refused the new data ({last})"])
+                refuse(why, "foreverdb", [f"{e.name} ({e.cmd[-3]}) refused the new data ({last})"])
                 return 3
     now = json.loads(fdb.OUT.read_text(encoding="utf-8"))
     if summary:
@@ -362,6 +382,81 @@ def foreverdb(why: str | None, handoff: str | None, summary: str | None, known: 
     if handoff:
         Path(handoff).write_text(json.dumps({"foreverdb": {"data": fp}}, indent=1) + "\n", encoding="utf-8")
     print(f"foreverdb: took {fp} (data {now['source']['data_version']})")
+    return 0
+
+
+FDB_TAG_FILE = ROOT / "tools" / "forever-db-tag"
+# THIRD_PARTY.md's copy of forever-db's NOTICE.md: from the line after this
+# one to the next paragraph that isn't the notice.
+NOTICE_START = re.compile(r"^forever-db's `NOTICE\.md`")
+NOTICE_END = re.compile(r"^Polestar's own notice")
+# THIRD_PARTY.md's line naming the release read: "(here 2026.11.1, client build 1.60.1.70532"
+FDB_LINE = re.compile(r"(`tools/forever-db-tag` \()(\d{4}\.\d{1,2}\.\d{1,3})(, client build )([\d.]+)")
+
+
+def approved_notice(third_party: str) -> str:
+    """The forever-db NOTICE.md a person read: THIRD_PARTY.md's copy."""
+    out, inside = [], False
+    for line in third_party.splitlines():
+        if NOTICE_START.match(line):
+            inside = True
+            continue
+        if inside and NOTICE_END.match(line):
+            break
+        if inside:
+            out.append(line)
+    return "\n".join(out)
+
+
+def _prose(text: str) -> str:
+    """A notice's lines without headings and blank lines: THIRD_PARTY.md
+    nests the notice's headings one level down and adds its own."""
+    return "\n".join(line.rstrip() for line in text.splitlines() if line.strip() and not line.lstrip().startswith("#"))
+
+
+def check_forever_db(old_dir: Path, new_dir: Path, old_idx: dict, new_idx: dict, third_party: str) -> list[str]:
+    """Why forever-db's new release can't be taken without a person (see the module's doc)."""
+    why = []
+    if new_idx.get("schemaVersion") != old_idx.get("schemaVersion"):
+        why.append(f"its schema version moved ({old_idx.get('schemaVersion')} -> {new_idx.get('schemaVersion')}): "
+                   "check the exports against forever-db/schema/")
+    for name in ("LICENSE", "LICENSE-CC-BY-4.0.txt"):
+        a, b = (d / name for d in (old_dir, new_dir))
+        if not b.is_file() or (a.is_file() and terms_changed(a.read_text(encoding="utf-8"),
+                                                             b.read_text(encoding="utf-8"))):
+            why.append(f"`forever-db/{name}` changed: the licence needs a person")
+    notice = new_dir / "NOTICE.md"
+    approved = approved_notice(third_party)
+    if not notice.is_file() or not approved or terms_changed(_prose(approved),
+                                                             _prose(notice.read_text(encoding="utf-8"))):
+        why.append("`forever-db/NOTICE.md` isn't the notice THIRD_PARTY.md copies beyond counts and revisions: "
+                   "read it, then update THIRD_PARTY.md's copy")
+    return why
+
+
+def forever_db(new: str, why: str | None, known: str, root: Path = ROOT) -> int:
+    """Check forever-db's release `new` against `known`, then move the pin. 0 moved, 3 refused."""
+    if not (watch.DATA_TAG.match(new or "") and watch.DATA_TAG.match(known or "")):
+        refuse(why, "forever-db", [f"not a forever-db release tag: {SAFE.sub('', new or '')[:40]!r}"])
+        return 3
+    with tempfile.TemporaryDirectory(prefix="forever-db-") as tmp:
+        try:
+            old_idx = checkout.forever_db(known, Path(tmp) / "old")
+            new_idx = checkout.forever_db(new, Path(tmp) / "new")
+        except Exception as e:  # noqa: BLE001 - an untrusted download that isn't usable is a refusal
+            refuse(why, "forever-db", [f"the release wasn't usable ({PLAIN.sub('', str(e))[:200]})"])
+            return 3
+        tp = root / "THIRD_PARTY.md"
+        reasons = check_forever_db(Path(tmp) / "old", Path(tmp) / "new", old_idx, new_idx,
+                                   tp.read_text(encoding="utf-8"))
+    if reasons:
+        refuse(why, "forever-db", reasons)
+        return 3
+    (root / "tools" / "forever-db-tag").write_text(new + "\n", encoding="utf-8")
+    text = tp.read_text(encoding="utf-8")
+    tp.write_text(FDB_LINE.sub(lambda m: f"{m.group(1)}{new_idx['version']}{m.group(3)}{new_idx['clientBuild']}",
+                               text), encoding="utf-8")
+    print(f"forever-db: {known} -> {new} (client {new_idx.get('clientBuild')})")
     return 0
 
 
@@ -395,8 +490,8 @@ def golden(why: str | None, kind: str) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("kind", choices=["polestar", "addons", "regen", "foreverdb", "golden"])
-    ap.add_argument("tag", nargs="?", help="polestar: the new release tag")
+    ap.add_argument("kind", choices=["polestar", "forever-db", "addons", "regen", "foreverdb", "golden"])
+    ap.add_argument("tag", nargs="?", help="polestar, forever-db: the new release tag")
     ap.add_argument("--old", default="", help="regen: the Polestar tag before the bump")
     ap.add_argument("--new", default="", help="regen: the Polestar tag after it")
     ap.add_argument("--as", dest="as_kind", default="polestar", help="regen: the kind a refusal is filed under")
@@ -408,6 +503,8 @@ def main(argv: list[str] | None = None) -> int:
     state = json.loads(Path(a.state).read_text(encoding="utf-8"))
     if a.kind == "foreverdb":
         return foreverdb(a.why, a.handoff, a.summary, state["foreverdb"]["known"])
+    if a.kind == "forever-db":
+        return forever_db(a.tag or "", a.why, state["forever_db"]["known"])
     if a.kind == "golden":
         return golden(a.why, a.as_kind)
     if a.kind == "regen":

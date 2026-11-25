@@ -150,7 +150,7 @@ def test_a_patch_notes_change_opens_one_issue_and_names_the_page(state):
     fetch, gh = recorded(state, page=PAGE.encode())
     out = watch.run(state, fetch, gh, github=True)
     assert out["did"] == {"client-build": "none", "official": "opened", "polestar": "none", "addons": "none",
-                          "foreverdb": "none"}
+                          "foreverdb": "none", "forever-db": "none"}
     assert out["changed_official"] == ["hotfixes"] and len(gh.issues) == 1
 
 
@@ -846,8 +846,10 @@ def export_client(tmp_path, monkeypatch, build: str | None):
     monkeypatch.setattr(exp.subprocess, "run", lambda *a, **k: SimpleNamespace(stdout=""))
     handoff = tmp_path / "client.json"
     try:
+        # `--build latest`: the client-build step reads wago.tools' newest,
+        # then accepts it (tools/kb/versions.sh).
         exp.main(["--polestar", str(root), "--out", str(tmp_path / "class-reference.json"),
-                  "--handoff", str(handoff)])
+                  "--build", "latest", "--handoff", str(handoff)])
     except SystemExit:
         return None
     return handoff
@@ -874,7 +876,7 @@ def test_the_version_steps_accept_their_handoff():
     land job's on a moved main): every accept takes what its step processed."""
     lane = (ROOT / "tools" / "kb" / "versions.sh").read_text()
     addons = lane[lane.index("if has addons"):lane.index("ok=0")]
-    client = lane[lane.index("if has client-build; then\n  if"):]
+    client = lane[lane.index("if has client-build; then\n"):]
     assert 'bump.py addons --why "$WHY" --handoff "$tmp/kb-handoff-addons.json"' in addons
     assert '--accept addons --handoff "$tmp/kb-handoff-addons.json"' in addons
     assert '--handoff "$tmp/kb-handoff-client.json"' in client.split("bump.py regen")[0]
@@ -882,8 +884,10 @@ def test_the_version_steps_accept_their_handoff():
     fdb = lane[lane.index("if has foreverdb; then"):]
     assert 'bump.py foreverdb --why "$WHY" --handoff "$tmp/kb-handoff-foreverdb.json"' in fdb
     assert '--accept foreverdb --handoff "$tmp/kb-handoff-foreverdb.json"' in fdb
+    data = lane[lane.index("if has forever-db &&"):lane.index("if has client-build")]
+    assert '--accept forever-db --release "$fdb_tag"' in data and 'bump.py forever-db "$fdb_tag"' in data
     accepts = [ln for ln in lane.splitlines() if "--accept" in ln]
-    assert len(accepts) == 4 and all("--handoff" in ln or "--release" in ln for ln in accepts)
+    assert len(accepts) == 5 and all("--handoff" in ln or "--release" in ln for ln in accepts)
     yaml = pytest.importorskip("yaml")
     steps = yaml.safe_load((ROOT / ".github" / "workflows" / "kb-refresh.yaml").read_text())["jobs"]["run"]["steps"]
     run = [s.get("run", "") for s in steps]

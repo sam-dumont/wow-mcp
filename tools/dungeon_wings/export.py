@@ -99,9 +99,13 @@ def spawns(txt: str, maps: set[int]) -> dict[str, dict[int, list[tuple]]]:
 
 def build(cm_path: Path, polestar: Path) -> dict:
     txt = X._sql(cm_path)
-    areas = json.loads((ROOT / "data" / "forever-reference.json").read_text())["areas"]
-    by_map = {int(a["map"]): (int(aid), a["name"]) for aid, a in areas.items()
-              if a.get("instance") == "dungeon" and a.get("map")}
+    ref = json.loads((ROOT / "data" / "forever-reference.json").read_text())
+    areas = ref["areas"]
+    # Each instance map's own area (`maps`), never any area on the map: every
+    # room of a dungeon is an area too since #266, and Dire Maul came out as
+    # "The Maul UNUSED" (the same fix as the route trips').
+    by_map = {int(mid): (int(m["area"]), areas[str(m["area"])]["name"]) for mid, m in ref["maps"].items()
+              if m.get("area") and areas.get(str(m["area"]), {}).get("instance") == "dungeon"}
     sp = spawns(txt, set(X.WINGS))
     npc_name = {}
     fdb = polestar / "forever-db" / "data"
@@ -208,6 +212,10 @@ def build(cm_path: Path, polestar: Path) -> dict:
         "sources": {"cmangos": {"repo": X.CMANGOS_REPO, "commit": X.CMANGOS_COMMIT, "file": X.CMANGOS_FILE,
                                 "licence": "GPL-3.0", "what": "creature and gameobject spawns"},
                     "forever_db": {"what": "quests, objectives and item sources",
+                                   # The release read (tools/kb/checkout.py's overlay), not the
+                                   # one the addon bundles for the route times.
+                                   "version": json.loads((polestar / "forever-db" / "index.json")
+                                                         .read_text())["version"],
                                    "polestar": json.loads((ROOT / "data" / "route-reference.json")
                                                           .read_text())["polestar"]}},
         "dungeons": out,

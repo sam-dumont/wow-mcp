@@ -1,7 +1,11 @@
 # A knowledge base refresh merged on main goes out as a stable patch release
 # by itself (owner, 2026-11-21): the KB is baked into the image (Dockerfile,
 # `COPY data/kb`), and the people who run it (Renovate, Dependabot) only move
-# on a new version. X.Y.Z+1, never a `-kb.<date>` prerelease (it sorts below
+# on a new version. The same for the daily watch's static data (owner,
+# 2026-11-25): ForeverDB.net's and forever-db's data, the Polestar exports and
+# whatever else tools/kb/rebuild.py rebuilds live under data/ (the Dockerfile
+# COPYs each), so a watch PR that only moved them releases too, the same day.
+# X.Y.Z+1, never a `-kb.<date>` prerelease (it sorts below
 # the release) nor `+build` metadata (ignored, and not a Docker tag).
 #
 # Why a push trigger: the refresh job (kb-refresh.yaml, in the CI mirror)
@@ -32,7 +36,9 @@ name: kb-release
 on:
   push:
     branches: [main]
-    paths: ["data/kb/**"]
+    # Every file a kb-refresh PR writes: the KB, the static data the daily
+    # rebuild makes (tools/kb/rebuild.py EXPORTS, all under data/), the pins.
+    paths: ["data/**", "tools/polestar-tag", "tools/forever-db-tag"]
 
 permissions:
   contents: read

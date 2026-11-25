@@ -25,6 +25,7 @@
 
 ### Changed
 
+- The bundled data now follows its sources every day and shows its age. ForeverDB.net's data was held to one update a week, so the 25 November run took nothing while ForeverDB had published new data that morning; it is now taken whenever a file we read changed. forever-db, Polestar's quest database, now moves on its own: the watch takes each new `data-v*` release, checks it (checksums, licence and notice) and reruns everything that reads it, so the knowledge base and the dungeon wings no longer wait for a Polestar release either. The route times stay on Polestar's own copy. Every day the refresh job also rebuilds every static data file built from an outside source (one list, `tools/kb/rebuild.py`: the route, gear, forever, class, trainer and knowledge-base references, the dungeon quests and wings, the WoWSims talent table, ForeverDB's item sources and weights), opens one PR only when a byte changed, and the merge releases a patch version the same day. `/api/config` and the MCP's `character_summary` now carry `data_versions`: ForeverDB.net's data version, the forever-db release, the Polestar tag and the client build of each set of client tables.
 - The MCP check's CI tier starts its fixture servers once per run instead of once per test worker plus a second set for the probes, and runs the scenarios side by side: `test_probes_hold_the_answers` had hit pytest's 300 s limit on CI (its setup took 188 s). On CI the file's longest test takes 132 s, where the probes test alone took 107 s on top of its own setup.
 
 ## 0.11.2 (2026-11-25)

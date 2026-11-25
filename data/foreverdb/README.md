@@ -27,9 +27,19 @@ against the manifest's SHA-256. The Lua is never run: a strict reader
 (`tools/foreverdb_sources/lua.py`) takes literals only and refuses the file
 on anything else.
 
-The daily KB watch (`tools/kb/watch.py --kinds versions`) notices new data;
-`tools/kb/bump.py foreverdb` downloads it, refuses it if a file's format
-comments or a licence file changed, reruns both exports, and the gates in
-`tools/kb/gates.py` check it before it merges. Releases ship what is
-committed here and download nothing. Details: `docs/gear-reference.md`,
-`docs/kb.md`.
+The daily KB watch (`tools/kb/watch.py --kinds versions`, every day since
+2026-11-25) compares a hash of the four files' SHA-256s with the one in
+`data/kb/watch.json`: ForeverDB moves its data version every few hours, a
+change to a file we don't read is no change. When one moved,
+`tools/kb/bump.py foreverdb` downloads them, refuses them if a file's format
+comments or a licence file changed, reruns both exports (the
+`foreverdb-sources` and `foreverdb-weights` entries of
+`tools/kb/rebuild.py`), and the gates in `tools/kb/gates.py` check it
+before it merges. The merge releases a patch version the same day
+(`kb-release.yml`). Releases ship what is committed here and download
+nothing; a running server says which data version it has in `/api/config`
+and the MCP's `character_summary` (`data_versions.foreverdb`). Details:
+`docs/gear-reference.md`, `docs/kb.md` ("The daily rebuild").
+
+ForeverDB.net stays optional for players: this is the site's published
+data, bundled with the server; nobody needs its addon installed for it.

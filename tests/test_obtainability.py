@@ -183,18 +183,17 @@ class Fetch:
         return 503, b""
 
 
-def test_foreverdb_is_taken_once_a_week(monkeypatch):
+def test_foreverdb_is_read_every_day(monkeypatch):
+    """No weekly hold since 2026-11-25: taken yesterday, read again today."""
     state = json.loads(watch.STATE.read_text(encoding="utf-8"))
     known = state["foreverdb"]["known"]
     today = date(2026, 12, 1)
     monkeypatch.setattr(watch, "today", lambda: today)
-    state["foreverdb"]["taken"] = (today - timedelta(days=6)).isoformat()
+    state["foreverdb"]["taken"] = (today - timedelta(days=1)).isoformat()
     f = Fetch()
-    assert watch.current(state, f, None, ["foreverdb"])["foreverdb"]["data"] == known and f.calls == 0
-    state["foreverdb"]["taken"] = (today - timedelta(days=7)).isoformat()
     assert watch.current(state, f, None, ["foreverdb"])["foreverdb"]["data"] is None and f.calls == 1
-    # Accepting new data restarts the week; accepting the same doesn't.
+    # `taken` still records the day new data was accepted.
     watch.accept(state, {k: {} for k in watch.TITLES} | {"foreverdb": {"data": known}}, ["foreverdb"])
-    assert state["foreverdb"]["taken"] == (today - timedelta(days=7)).isoformat()
+    assert state["foreverdb"]["taken"] == (today - timedelta(days=1)).isoformat()
     watch.accept(state, {k: {} for k in watch.TITLES} | {"foreverdb": {"data": "0" * 16}}, ["foreverdb"])
     assert state["foreverdb"]["taken"] == today.isoformat()

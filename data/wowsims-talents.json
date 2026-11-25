@@ -1,6 +1,6 @@
 {
  "about": "WowSimsExporter's Forever talent order (Flavors/Forever/Talents.lua): class -> three trees -> TraitDefinition IDs, digit order of its talent string. MIT, THIRD_PARTY.md.",
- "exporter": "wowsims/exporter@ce873f7d5aed",
+ "exporter": "wowsims/exporter@0fc46e7f2d39",
  "sim": "wowsims/forever@8298ab833f02",
  "classes": {
   "DRUID": [

@@ -61,6 +61,7 @@ from pathlib import Path
 
 from wowstats import (
     bar,
+    dataversions,
     eventstore,
     gearmode,
     guard,
@@ -431,7 +432,10 @@ class App:
         feats = {"view": self.view, "players": full, "gold": full, "market": full, "prices": full,
                  "debug": full, "mcp": bool(self.mcp), "journal": full, "people": full,
                  "loot": full, "analysis": bool(self.analysis_env.get("ANALYSIS_STATE_DIR")),
-                 "plan": full}
+                 "plan": full,
+                 # Each outside source's version as the bundled files record
+                 # it (wowstats.dataversions), public: nothing about a person.
+                 "data_versions": dataversions.versions()}
         return feats if full else redact.public("config", feats)
 
     def nudge(self, name: str) -> dict | None:

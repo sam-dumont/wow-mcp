@@ -37,15 +37,24 @@
 #
 # - watch (daily, no model, like Dependabot): the upstream versions
 #   (tools/kb/watch.py --kinds versions): the client build, the Polestar
-#   release and the install docs' addons. Each change kind is landed here
-#   (tools/kb/versions.sh):
+#   release, forever-db's own release, ForeverDB.net's data and the install
+#   docs' addons. Each change kind is landed here (tools/kb/versions.sh):
 #   * polestar: tools/kb/bump.py checks the new tag (its licence terms and
 #     saved tables unchanged), moves tools/polestar-tag, and the exports
-#     (docs/route-reference.md and its siblings) rerun at the new tag;
+#     that read Polestar (tools/kb/rebuild.py) rerun at the new tag;
+#   * forever-db: bump.py checks the release (checksums, licence, notice,
+#     schema version), moves tools/forever-db-tag, the exports that read it
+#     rerun;
 #   * addons: bump.py checks each release still saves what the shipper reads;
-#   * client-build: the class reference rerun against the new build.
+#   * client-build: the exports that read the client tables rerun;
+#   * foreverdb: ForeverDB.net's addon data downloaded, checked, exported.
 #   What went through is accepted into data/kb/watch.json; a kind a check
-#   refused stays out of the PR and keeps its issue, with the reason.
+#   refused stays out of the PR and keeps its issue, with the reason. Then,
+#   every day whatever moved, every daily export of tools/kb/rebuild.py
+#   reruns on the pinned inputs, so a file that drifted from its exporter is
+#   rebuilt too (owner, 2026-11-25: "a daily rebuild of static files"). No
+#   change, no commit, no PR. A failed rebuild turns the run red (land's
+#   last step).
 # - review (weekly): the model's week. Free checks first, then the model on
 #   what they flagged, nothing else:
 #   * official: Blizzard's hotfix and patch-note pages (watch.py --kinds
@@ -306,25 +315,29 @@ jobs:
           for k in $KINDS; do jq --arg k "$k" --arg w "$why" '.[$k] = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"; done
 
       # --- The versions lane (tools/kb/versions.sh): addon releases checked
-      # and accepted, a Polestar release checked, its tag moved, the exports
-      # rerun and the test data regenerated, a client build's class reference
-      # rerun, ForeverDB.net's data downloaded, checked and exported. One commit
-      # per kind; a refused kind gets its reason in $WHY.
+      # and accepted, a Polestar or forever-db release checked, its tag moved,
+      # the exports that read it rerun and the test data regenerated, a client
+      # build's exports rerun, ForeverDB.net's data downloaded, checked and
+      # exported. One commit per kind; a refused kind gets its reason in $WHY.
+      # Then every daily export of tools/kb/rebuild.py, one more commit when
+      # a file came out different.
       # GH_TOKEN (read-only) for the checks only: the script drops it, and
       # the job's OIDC and runtime tokens, before it runs Polestar's code.
       # `land` runs the same script again on the current main when main
       # moved under the PR and the change conflicts with it.
+      # Every watch run, a version moved or not: the daily rebuild.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && steps.watch.outputs.kinds != ''
+        if: env.MODE == 'watch' && steps.open.outputs.pr == ''
         with:
           # route-reference.yml's: Math.hypot and friends may round differently elsewhere.
           node-version: 24.5.0
-      - name: Versions
-        if: env.MODE == 'watch' && steps.open.outputs.pr == '' && steps.watch.outputs.kinds != ''
+      - name: Versions and the daily rebuild
+        if: env.MODE == 'watch' && steps.open.outputs.pr == ''
         env:
           GH_TOKEN: ${{ github.token }}
           KINDS: ${{ steps.watch.outputs.kinds }}
           TAG: ${{ steps.watch.outputs.polestar_tag }}
+          FDB_TAG: ${{ steps.watch.outputs.forever_db_tag }}
         run: tools/kb/versions.sh
 
       # --- The model passes.
@@ -724,6 +737,14 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.token.outputs.token }}
         run: uv run --frozen python tools/kb/land.py --failed --mode "$MODE" --branch "$BRANCH"
+      - name: Red when the daily rebuild failed
+        if: always() && env.MODE == 'watch'
+        run: |
+          set -eu
+          if jq -e '.rebuild' "$WHY" >/dev/null 2>&1; then
+            echo "::error::$(jq -r '.rebuild' "$WHY")"
+            exit 1
+          fi
       - name: Red when the model pass failed
         if: needs.run.outputs.refresh == 'failure'
         run: |

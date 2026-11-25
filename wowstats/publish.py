@@ -415,7 +415,12 @@ def build_view(app: ui.App, full_app: ui.App, b: Bundle, chars: list[dict], m3d_
         if what not in files:
             return
         try:
-            b.json(rel, out(what, fn()))
+            body = out(what, fn())
+            if what == "config":
+                # data_versions describe a running server's bundled data
+                # (/api/config), not a snapshot published once.
+                body.pop("data_versions", None)
+            b.json(rel, body)
         except Exception as e:  # noqa: BLE001 - a store that is down drops one section
             if what not in ("market", "prices"):
                 raise
