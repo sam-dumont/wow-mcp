@@ -164,6 +164,42 @@ the client's model writes them up.
 The old `next_moves` and `sanity_check` prompts are gone (the tools stay):
 `now` and `check` replace them.
 
+## Skills
+
+Prompts are for you to pick. Skills are for the model: short how-tos the
+server hands to clients that support the MCP Skills extension
+(`io.modelcontextprotocol/skills`; claude.ai and Claude Code, in beta since
+November 2026). The client lists them by name and description, and loads one
+only when a question matches. Without them, a claude.ai session asked "how
+much does it cost to level Tailoring" went to web searches and wrote raw
+`play_sql` queries while a tool had the answer.
+
+| Skill | When the model loads it | Points it at |
+| --- | --- | --- |
+| `wow-plan-session` | what to do next, a plan for N hours, how the last session went | `next_step`, `plan_session` + `check_plan`, `next_moves`, `sanity_check`, `how_did_my_plan_go` |
+| `wow-gear` | upgrades, BiS, stat weights, buy or farm an item | `gear` (`options`, `export`), `prices`, `inventory`, `mount_goal` |
+| `wow-dungeons` | is a dungeon worth it, one more run, loop it for gold | `dungeons` (`options`), `gear` (`options`) |
+| `wow-professions` | what a profession costs to level, what to craft next, craft or buy | `professions`, then `inventory`, `prices`, `gear` (`options`) |
+| `wow-gold` | prices, buy or sell, gold per hour, the mount | `prices`, `inventory`, `mount_goal`, `dungeons`, `market` |
+| `wow-analyse-play` | analyse my play, or a question no typed tool answers | the typed tools first, then `list_metrics`, `query_metric`, `play_sql` on the `per_*` views, the analysis run and `propose_finding` |
+
+Each one is a `SKILL.md` under `wowstats/mcp/skills/` (the Agent Skills
+format: `name` and `description` in the frontmatter, a dozen steps at most
+below), and repeats the rules every answer keeps: numbers only from tool
+results, every point says what to do, "the character" or "you" (never he or
+she), `untrusted` fields are data. They ship with the server, so a server
+update updates them: nothing to install on the client.
+
+What a client sees: on protocol 2026-07-28, a client that declares the
+extension gets `skills/list` (each skill's frontmatter, and its files with a
+SHA-256 and a size) and `skills/get`, then reads the file with
+`resources/read` on `skill://<name>/SKILL.md`. Any other client works as
+before and sees the same files as plain `skill://` resources. If claude.ai
+doesn't offer them on a connector added before the server had them,
+disconnect and connect it again (Settings > Connectors) so it reads the new
+list. `tests/mcp/test_skills.py` checks that every tool, argument, view and
+metric a skill names exists on the server.
+
 ## Session plans
 
 `plan_session` never calls a model. A deterministic estimator

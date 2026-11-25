@@ -4,6 +4,7 @@
 
 ### Added
 
+- MCP skills (the MCP Skills extension, `io.modelcontextprotocol/skills`): six short how-tos the model loads only when a question matches: `wow-plan-session`, `wow-gear`, `wow-professions`, `wow-dungeons`, `wow-gold` and `wow-analyse-play`. Each one points at the tools and named views that answer it, so the model stops reaching for the web or raw `play_sql` first (a claude.ai session asked what levelling Tailoring costs did both). claude.ai and Claude Code read them from the server; clients without skills work as before and see them as `skill://` resources. A claude.ai connector added before this may need one reconnect. FastMCP 4.2.0, already pinned, serves them from `wowstats/mcp/skills/`.
 - Item counts for the bags and the bank. The shipper sends `bags_n` and `bank_n` next to the ID lists on `wow-bags`: each item with its count, stacks summed. Servers before this keep reading the ID lists. Your first run after the update sends one new bags event, even if nothing moved.
 - MCP tool `inventory`: "how many Linen Cloth do I have", "what's in my bank". Per item the count in the bags, in the bank and the total, and when each was read. The bank is Syndicator's copy from the last time you opened it, so past 3 days the answer says how old it is. With an older shipper you get the item IDs and a line on how to get counts.
 - Analysis table `inventory` (prep 17) and the semantic model of the same name (`held_count`, `held_in_bank`): what the character holds now, one row per item. No `per_item` view on top: the table already is one row per item.
