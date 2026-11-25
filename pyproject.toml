@@ -33,7 +33,11 @@ publish = ["cryptography>=46"]
 # Without it the full view runs without /mcp. FASTMCP_CHECK_FOR_UPDATES=off is
 # set by the server itself: no call home. DuckDB and the semantic layer the
 # analysis' queries run on (play_sql, the judge, query_metric) are core.
-mcp = ["fastmcp==4.2.0", "cryptography>=46"]
+# fastmcp-tasks: the MCP Tasks extension (io.modelcontextprotocol/tasks,
+# SEP-2663) for the analysis tools whose first call builds the character's
+# workspace (wowstats/mcp/tasks.py). Same release line as fastmcp: it pins
+# fastmcp-slim to its own version.
+mcp = ["fastmcp==4.2.0", "fastmcp-tasks==4.2.0", "cryptography>=46"]
 # `wow-stats render` (wowstats.renderer): a past level's picture, drawn by the
 # 3D view's own viewer in a headless Chromium. Its own image target
 # (Dockerfile `renderer`), never in the main image. Pinned like the browser

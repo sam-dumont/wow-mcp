@@ -200,6 +200,42 @@ disconnect and connect it again (Settings > Connectors) so it reads the new
 list. `tests/mcp/test_skills.py` checks that every tool, argument, view and
 metric a skill names exists on the server.
 
+## Tasks
+
+A few calls take seconds the first time: the first `analysis_brief`,
+`play_sql`, `query_metric` or `propose_finding` for a character builds its
+analysis database (the events read, the prep tables, a DuckDB copy in its
+own process), about 3 s on a character with a few weeks of play. A client that supports the MCP Tasks extension
+(`io.modelcontextprotocol/tasks`, protocol 2026-07-28) gets a task back
+instead of waiting: it polls `tasks/get` every second (`pollIntervalMs`
+1000) and reads the answer when it's there. Any other client gets the
+answer inline, as before.
+
+The server decides, per call:
+
+- Only those four tools. `analyse` and `dashboard_refresh` start nothing on
+  the server (your own model does the analysis), so they answer at once and
+  stay inline. No task ever runs a model on the server, so none can spend
+  the install's AI budget.
+- Only when the character's database isn't built yet. Once it is, a query
+  answers in well under a second, and a run of 160 queries shouldn't pay a
+  poll on each.
+- At most 3 tasks going per person, 4 across the server; past that the call
+  answers inline (slower, never refused).
+
+| | |
+| --- | --- |
+| Kept for | 15 minutes after it ends (`ttlMs` 900000), then "not found": call the tool again |
+| Who reads it | the person who made it, from any of their clients. Anyone else gets "not found", the same words as for a task that never existed. A person switched off loses theirs with the rest |
+| Cancel | `tasks/cancel` ends it at once; the query underneath stops within its 5 s limit and its answer is dropped |
+| Where it lives | in the server's memory (FastMCP's task engine on its in-process backend). A restart drops every task; the analysis run itself is on disk and keeps going |
+
+FastMCP serves it through `fastmcp-tasks` (same release as `fastmcp`,
+4.2.0); `wowstats/mcp/tasks.py` adds the rules above.
+`tests/mcp/test_tasks.py` covers a task made, polled, read, cancelled and
+expired, another person's refusal, and the inline answer for a client
+without the extension.
+
 ## Session plans
 
 `plan_session` never calls a model. A deterministic estimator

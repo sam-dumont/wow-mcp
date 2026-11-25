@@ -1621,6 +1621,9 @@ class Tool:
     # today: dashboard_refresh reached the host's AI provider until it moved
     # to the client (2026-11-21).
     open_world: bool = False
+    # May run as an MCP task (wowstats.mcp.tasks): its first call for a
+    # character builds the analysis workspace, seconds of work.
+    task: bool = False
 
     def __post_init__(self):
         if self.writes not in WRITES:
