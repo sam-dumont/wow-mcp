@@ -12,7 +12,9 @@ Two sources, both facts about the game:
   was handed in).
 - Forever's client tables on wago.tools, at the build forever-db was made
   from (its index.json `clientBuild`): AreaTable (zone names), Map (which
-  areas are dungeons or raids) and GroupFinderActivity (a dungeon's level
+  areas are dungeons or raids), Faction (each reputation's side: a faction
+  under Alliance or Alliance Forces is the Alliance's, under Horde or Horde
+  Forces the Horde's, the rest neutral) and GroupFinderActivity (a dungeon's level
   range, as the game's Group Finder shows it, the rule Polestar's Codex
   uses), with the Codex's named exceptions (data/codex/levels.json, `max`).
 - Polestar's floor for each dungeon (its Codex rule, journal.rs levels_of):
@@ -41,6 +43,9 @@ from pathlib import Path
 WAGO = "https://wago.tools/db2/{table}/csv?build={build}"
 OUT = Path(__file__).resolve().parents[2] / "data" / "forever-reference.json"
 INSTANCE = {"1": "dungeon", "2": "raid"}
+# The client's Faction roots of each side: Alliance and Alliance Forces (the
+# battleground reputations), Horde and Horde Forces.
+SIDE_ROOTS = {"469": "Alliance", "891": "Alliance", "67": "Horde", "892": "Horde"}
 
 
 def table(name: str, build: str) -> list[dict]:
@@ -181,6 +186,29 @@ def reward_quests(db: Path, quests: dict) -> dict[str, list]:
             for k, v in sorted(out.items(), key=lambda kv: int(kv[0]))}
 
 
+def faction_sides(rows: list[dict]) -> dict[str, dict]:
+    """{faction id: {name, side}} for every faction with a reputation bar
+    (ReputationIndex not -1), its side from its parents (SIDE_ROOTS), no
+    `side` for a neutral one (the Steamwheedle Cartel's towns, Timbermaw
+    Hold). A reputation's quartermaster sells to its side only: ForeverDB.net
+    gives a vendor a side but no reputation one, and had Theramore's
+    quartermaster as the Horde's (wowstats.gear.foreverdb_sources)."""
+    by_id = {r["ID"]: r for r in rows}
+    out: dict[str, dict] = {}
+    for fid, r in by_id.items():
+        if i(r["ReputationIndex"]) < 0 or not r.get("Name_lang"):
+            continue
+        side, at, seen = None, fid, set()
+        while at and at != "0" and at not in seen:
+            seen.add(at)
+            if at in SIDE_ROOTS and at != fid:
+                side = SIDE_ROOTS[at]
+                break
+            at = (by_id.get(at) or {}).get("ParentFactionID")
+        out[fid] = {"name": r["Name_lang"], **({"side": side} if side else {})}
+    return dict(sorted(out.items(), key=lambda kv: int(kv[0])))
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--polestar", required=True, type=Path)
@@ -233,6 +261,7 @@ def main(argv: list[str]) -> int:
     maps = {r["ID"]: r for r in table("Map", build)}
     by_area = {r["AreaTableID"]: r for r in maps.values() if INSTANCE.get(r["InstanceType"]) and i(r["AreaTableID"])}
     gfa = table("GroupFinderActivity", build)
+    factions = faction_sides(table("Faction", build))
     overrides = {r["key"]: r for r in json.loads((a.polestar / "data" / "codex" / "levels.json").read_text())["levels"]}
     recorded = json.loads((a.polestar / "data" / "codex" / "recorded.json").read_text()).get("dungeons") or {}
 
@@ -283,7 +312,7 @@ def main(argv: list[str]) -> int:
             "forever_db": {"version": index.get("version"), "client_build": build,
                            "producer_commit": index.get("producerCommit"), "licence": "GPL-3.0"},
             "client_tables": {"via": "wago.tools", "product": "wowf", "build": build,
-                              "tables": ["AreaTable", "Map", "GroupFinderActivity"],
+                              "tables": ["AreaTable", "Map", "GroupFinderActivity", "Faction"],
                               "note": "Game data (c) Blizzard Entertainment, used as facts"},
             "levels_exceptions": "Polestar data/codex/levels.json (max, floor)",
             "floors": "Polestar data/codex/recorded.json (players' 25th percentile entry level)",
@@ -303,12 +332,15 @@ def main(argv: list[str]) -> int:
         # area id -> {name, instance: dungeon|raid, map: instance Map id, levels: [min, max],
         # floor (dungeons): where Polestar's "For your level" starts}
         "areas": dict(sorted(out_areas.items(), key=lambda kv: int(kv[0]))),
+        # faction id -> {name, side: Alliance|Horde (none: neutral)} (faction_sides)
+        "factions": factions,
     }
     a.out.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":"), sort_keys=False) + "\n",
                      encoding="utf-8")
     print(f"{a.out}: {len(quests)} quests ({len(parts)} in chains), {len(items)} items "
           f"({len(rewards)} only from one quest), {len(out_areas)} areas "
-          f"({sum(1 for x in out_areas.values() if 'instance' in x)} in instances), build {build}")
+          f"({sum(1 for x in out_areas.values() if 'instance' in x)} in instances), {len(factions)} factions, "
+          f"build {build}")
     return 0
 
 
