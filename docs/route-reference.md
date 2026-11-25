@@ -60,6 +60,8 @@ passes its checks. By hand: change the file, rerun the exports, commit.
 | `routes[]` | One per race and class: total seconds and `dings` as `[level, seconds since level 1]` |
 | `bias` | The walk measurement below |
 | `trips` | A dungeon trip's quests and travel, for the dungeon's line: each dungeon's page of quests and entrance, what Polestar's pick-up and hand-in rules read per quest, the flight and boat network, and the reference tours. See [Dungeon trips](#dungeon-trips) |
+| `turnins.<guide>` | Every quest the guide hands in, in step order: `[quest, step, level, group]`. `level` is the median level the runs reach that step at (levelling guides only, else null); `group` is 1 for a step the guide keeps for a group (`when group`). The gear advice reads where your route hands a quest in (`wowstats/questwork.py`, docs/gear-reference.md "What a quest takes") |
+| `side_guides` | The titles of the guides off the levelling route that hand quests in (Library Books, reputations, class quests) |
 | `places` | Where things are, for the Dungeons panel: `npc` and `object` (quest givers and enders) as `[uiMap, x, y]` plus the spawn count when there are several, `zones` (uiMap id to the guides' zone name), `entrances` (per instance Map id) and their `keys`. See below |
 
 Guide ids are Polestar's (`forever/alliance/05-duskwood`), the `guide` the

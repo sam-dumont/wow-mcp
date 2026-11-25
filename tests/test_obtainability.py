@@ -21,8 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools" / "kb"))
 import watch  # noqa: E402
 
 EARTHEN_ROD = 9381  # wand: Shadowforge Relic Hunter, 0.01% in Classic's data, never seen in Forever
-KODO_BRANDER = 15692  # wand: a quest reward
-DUSTFALL_ROBES = 15455  # chest: easy
+NECROTIC_WAND = 7708  # wand: an easy dungeon drop
+DUSTFALL_ROBES = 15455  # chest: a quest the route hands in at about 37, easy from 34
 SHADOW_GOWN = 253967  # chest: a Tailoring craft the fixture can't make yet
 
 
@@ -54,7 +54,8 @@ def test_each_source_has_its_class():
 
 
 def test_an_easier_item_wins_a_near_tie():
-    a = advise(caster())
+    # At 34: below that the robes' quest is a trip off the route (questwork).
+    a = advise(caster(), level=34)
     chest = next(s for s in a["slots"] if s["slot_name"] == "Chest")
     gown = next(u for u in a["upgrades_all"] if u["item_id"] == SHADOW_GOWN)
     # The gown scores 0.9 more and needs effort; the robes are easy.
@@ -63,15 +64,16 @@ def test_an_easier_item_wins_a_near_tie():
 
 
 def test_a_long_shot_is_never_an_upgrade_while_levelling():
-    a = advise(caster())
+    a = advise(caster(), level=34)
     assert all(u["effort"] != "long shot" for u in a["upgrades_all"])
     assert EARTHEN_ROD not in {u["item_id"] for u in a["upgrades_all"]}
     ranged = next(s for s in a["slots"] if s["slot_name"] == "Ranged")
     best = ranged["bis_unknown"]
     assert best["item_id"] == EARTHEN_ROD and best["effort"] == "long shot"
     assert "0.01%" in best["where"] and "about 10,000 runs" in best["where"]
-    # The standing measures against what can be got: the quest wand.
-    assert ranged["best"]["item_id"] == KODO_BRANDER
+    # The standing measures against what can be got: the easy wand (Kodo
+    # Brander's quest is 4 levels over, some effort, for 0.16 more).
+    assert ranged["best"]["item_id"] == NECROTIC_WAND
     assert ranged["standing"]["pct"] == gear._share(ranged["current"]["score"], ranged["best"]["score"])
 
 

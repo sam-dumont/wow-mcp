@@ -69,6 +69,11 @@ class Reference:
     places: dict = field(default_factory=dict)
     # A dungeon trip's quests and travel (export.mjs `trips`, wowstats.plan.tripcost).
     trips: dict = field(default_factory=dict)
+    # Where each guide hands each quest in (export.mjs `turnins`): {guide:
+    # [[quest, step, level or None, group 0/1]]}, and the titles of the
+    # guides off the levelling route (`side_guides`). wowstats.questwork.
+    turnins: dict = field(default_factory=dict)
+    side_guides: dict = field(default_factory=dict)
 
     # ------------------------------------------------------------ guides
 
@@ -221,7 +226,9 @@ def _load(path: Path) -> Reference:
                          guides={str(k): v for k, v in (data.get("guides") or {}).items() if isinstance(v, dict)},
                          routes=[r for r in data.get("routes") or [] if isinstance(r, dict)],
                          places=data.get("places") if isinstance(data.get("places"), dict) else {},
-                         trips=data.get("trips") if isinstance(data.get("trips"), dict) else {})
+                         trips=data.get("trips") if isinstance(data.get("trips"), dict) else {},
+                         turnins=data.get("turnins") if isinstance(data.get("turnins"), dict) else {},
+                         side_guides=data.get("side_guides") if isinstance(data.get("side_guides"), dict) else {})
     return Reference(True, source=str(data.get("source", ""))[:200],
                      guides={str(k): v for k, v in (data.get("guides") or {}).items() if isinstance(v, dict)},
                      legacy_levels={str(k): int(v) for k, v in (data.get("levels") or {}).items()

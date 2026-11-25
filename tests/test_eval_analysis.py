@@ -195,7 +195,7 @@ def test_the_brief_hands_the_spec_s_best_head_upgrades(facts):
         assert u["where"] and len(u["where_wowhead"]) == len(u["where"]) and u["fit"] == "yes"
     # Cassandra's Grace, the best of the three, is a world drop: the brief says
     # who drops it and how hard it is to get.
-    assert ups[0]["where"] == ["drop: Deep Lurker (seen in Forever)"]
+    assert ups[0]["where"] == ["drop: Deep Lurker (level 47-49 elite), no drop rate known (seen in Forever)"]
     assert ups[0]["effort"] == "hard"
 
 def test_the_analysis_reads_what_the_store_query_would():
