@@ -145,6 +145,23 @@ answer found through `play_sql` alone: that data has no typed path yet.
 `market` needs Battle.net). The check's server serves one person: a friend never seeing another's data is
 `tests/test_tenancy.py`'s job (`test_friend_sees_only_their_own_data`, `test_every_mcp_tool_as_the_friend`). One question: `EVAL_ARGS="--only top_dungeon"`; one group: `EVAL_ARGS="--group hedge"`.
 
+### With and without the skills
+
+`make eval-mcp EVAL_ARGS="--skills"` measures the server's skills (`wowstats/mcp/skills`): each question runs
+twice on the same tools, the wow server plus Claude Code's `Skill`, `WebSearch` and `WebFetch` (the web is
+offered but never allowed, so a reach for it shows up and gets refused), once with no skill and once with the
+six. Per question it reports the skills loaded, the tools called, any web search or fetch, and any `play_sql`
+on a question whose route names a typed tool (`tailoring_cost` must go through `professions`).
+
+The skills reach the model through the filesystem, not MCP. Claude Code 2.1.332 loads skills from an MCP
+server only in an interactive session: `claude -p` and the Agent SDK never send `skills/list`, whatever the
+flags (Claude Code's [MCP docs](https://code.claude.com/docs/en/mcp), "Where MCP skills are supported";
+checked on 2026-11-25 with a one-skill server, `tools/eval_mcp/skill_mirror.py`). So the check fetches the
+skills from the server over MCP (`skills/list`, then `resources/read`, each file checked against its sha256)
+and installs them as project skills in the question's folder. The text is the same bytes a client gets; the
+name (`wow-gear` here, `wow:wow-gear` over MCP) and the listing are not. The summary says so: "skills via
+filesystem mirror, not MCP delivery".
+
 ### Adding a question
 
 1. Write it in `questions.yaml` with its group, persona, difficulty, `match` and route (`tools`, each entry
