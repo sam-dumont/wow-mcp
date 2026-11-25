@@ -332,7 +332,7 @@ def migrate(state: dict, now: str | None = None) -> int:
     time: a finding today's rules refuse is marked, never dropped and never
     an exception, so the character's other findings and every answer built
     on them still read (0.11.1: one kept finding with `{:pct}` and no
-    declared unit raised from here and took Grimble's overview, dungeons and
+    declared unit raised from here and took that character's overview, dungeons and
     plan answers down with it). Returns how many are marked; the next save
     keeps the migration.
 
