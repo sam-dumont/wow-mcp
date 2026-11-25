@@ -657,7 +657,10 @@ def _where(s: dict) -> str:
         zone = f" in {s['zone']}" if s.get("zone") else ""
         return f"drops from {s.get('boss') or s.get('name') or 'creatures'}{zone}{chance}{basis}"
     if s.get("kind") == "craft":
-        return f"crafted ({s.get('profession') or 'a profession'}; {gearmod.craft_status(s)})"
+        # The plan's next step, not its whole line: the brief has a size cap,
+        # and the professions tool has the rest.
+        what = (s.get("plan") or {}).get("action") or gearmod.craft_status(s)
+        return f"crafted ({s.get('profession') or 'a profession'}; {what})"
     if s.get("kind") in ("vendor", "reputation", "pvp", "container"):
         return gearmod.source_text(s)
     return s.get("kind") or "source unknown"

@@ -107,6 +107,7 @@ packages = ["wowstats"]
 # Who trains each profession rank and riding, where, and the price the guides give (Polestar GPL-3.0:
 # tools/trainers/export.py), read by wowstats/trainers.py.
 "data/trainers-reference.json" = "wowstats/data/trainers-reference.json"
+"data/craft-reference.json" = "wowstats/data/craft-reference.json"
 # The class trainers, what they teach per level and Forever's talent names (Polestar GPL-3.0, client tables:
 # tools/class_reference/export.py), read by wowstats/classguide.py.
 "data/class-reference.json" = "wowstats/data/class-reference.json"

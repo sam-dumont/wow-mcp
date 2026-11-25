@@ -1180,6 +1180,74 @@ def t_inventory(ctx: Ctx, args: dict) -> dict:
     return {"char": char, **inventory_answer(held, args.get("item") or "", limit_arg(args, 50, 200))}
 
 
+def _gear_inputs(ctx: Ctx, char: str) -> dict:
+    """What the gear advice reads for one character, as the gear page reads
+    it: the sheet (with its standings), the worn items, the level and zone,
+    the quests done, the bags and bank, the auction house. {"early": answer}
+    when there is nothing to advise on yet. Shared by gear and professions."""
+    st = ctx.store
+    picked = gearmod.pick_sheet(gearmod.sheet_rows(one_row(st), cf(char)))
+    rows = [picked] if picked else []
+    snap = [pick_sheet(sheet_rows(one_row(st), cf(char)))]
+    worn = gearmod.armory_worn(st, char)
+    worn_from = "sheet"
+    if not gearmod.sheet_has_items(rows[0] if rows else None):
+        # No items from Syndicator (no gear event, or one with the
+        # professions only): Battle.net's equipment, else every slot open
+        # (the best items for the level), said so with what unlocks the rest.
+        # The class, race and faction: the addons', else Battle.net's.
+        try:
+            prof = st.character_profile(char) or {}
+        except Exception:  # noqa: BLE001 - vm-wow down: the addons' alone
+            prof = {}
+        known = {k: (snap[0] if snap else {}).get(k) or (rows[0] if rows else {}).get(k) or prof.get(k)
+                 for k in ("class", "race", "faction")}
+        if not known["class"]:
+            # Not even the class (only level splits arrived): nothing to
+            # score items for. Say so with what unlocks it, never an error.
+            return {"early": {"char": char, "answer": None, "why": "no character sheet yet: the class isn't known",
+                              "unlock": "Log in once with Polestar on, then log out. " + gearmod.SHEET_UNLOCK}}
+        row, worn_from = gearmod.no_sheet({**(snap[0] if snap else {}), **known}, worn, rows[0] if rows else None)
+        rows = [row]
+    last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, level, zone "
+                   f"| sort by (_time desc) | limit 1", limit=1)
+    held = gearmod.held_rows(one_row(st), cf(char))
+    # The Gear page's answer (Views.quests_done): the whole history, so a
+    # reward sold or replaced since still counts, plus Battle.net's worn
+    # items when this person lets them reach the model (bnet_vm_url).
+    done = _views(ctx).quests_done(char)
+    # The quest log and the guide step, as the page reads them: a quest
+    # source's work (wowstats.questwork).
+    log = quests.in_log(st.logs(f"{rec(char)} {quests.Q_LOG}"), done)
+    route_at = quests.position(st.logs(f"{rec(char)} {quests.Q_STEP}", limit=1))
+    s, r = (snap or [{}])[0], (last or [{}])[0]
+    top = sheet_or_record(s, r)
+    level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
+    sheet = gearmod.sheet(rows[0])
+    sheet["worn_stats"] = worn
+    try:
+        # The standings the page reads (Views.gear_inputs): without them every
+        # reputation gate was unknown here, a Friendly cape a hard pick, and
+        # this tool's best back differed from the page's (Nibbet at 46).
+        sheet["reps"], sheet["pvp_rank"] = gearmod.standings_of(gearmod.standing_rows(st.logs, cf(char)))
+    except SourceError:
+        sheet["reps"], sheet["pvp_rank"] = None, None
+    try:
+        # The scans are the page's own read (Views.price_rows: one stats row
+        # per item and scan day). Read as raw rows here, a full Auctionator
+        # scan (thousands of items at one instant, the scan day's midnight)
+        # was more than one read may return: the store refused it, and the
+        # gear advice lost the auction house (live, 2026-11-24).
+        res = {k: st.logs(q) for k, (q, _k, _o) in ahsource.queries(cf(char), rec(char)).items()}
+        res["items"] = _views(ctx).price_rows()
+        market = ahsource.market(res, faction=sheet.get("faction"), money=opt_num(s.get("money_copper")))
+    except SourceError:
+        market = None  # no prices is no reason to lose the advice
+    return {"early": None, "rows": rows, "snap": snap, "worn": worn, "worn_from": worn_from, "s": s, "r": r,
+            "level": level, "sheet": sheet, "done": done, "held": held, "market": market,
+            "log": log, "route_at": route_at}
+
+
 def t_gear(ctx: Ctx, args: dict) -> dict:
     if truthy(args.get("options")) and args.get("spec"):
         raise ToolError("spec works without options: options score the spec set in the player's settings")
@@ -1227,64 +1295,12 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         except ToolError:
             plain = {}
         return {**out, "buy_now": plain.get("buy_now"), "auction_house": plain.get("auction_house")}
-    st = ctx.store
-    picked = gearmod.pick_sheet(gearmod.sheet_rows(one_row(st), cf(char)))
-    rows = [picked] if picked else []
-    snap = [pick_sheet(sheet_rows(one_row(st), cf(char)))]
-    worn = gearmod.armory_worn(st, char)
-    worn_from = "sheet"
-    if not gearmod.sheet_has_items(rows[0] if rows else None):
-        # No items from Syndicator (no gear event, or one with the
-        # professions only): Battle.net's equipment, else every slot open
-        # (the best items for the level), said so with what unlocks the rest.
-        # The class, race and faction: the addons', else Battle.net's.
-        try:
-            prof = st.character_profile(char) or {}
-        except Exception:  # noqa: BLE001 - vm-wow down: the addons' alone
-            prof = {}
-        known = {k: (snap[0] if snap else {}).get(k) or (rows[0] if rows else {}).get(k) or prof.get(k)
-                 for k in ("class", "race", "faction")}
-        if not known["class"]:
-            # Not even the class (only level splits arrived): nothing to
-            # score items for. Say so with what unlocks it, never an error.
-            return {"char": char, "answer": None, "why": "no character sheet yet: the class isn't known",
-                    "unlock": "Log in once with Polestar on, then log out. " + gearmod.SHEET_UNLOCK}
-        row, worn_from = gearmod.no_sheet({**(snap[0] if snap else {}), **known}, worn, rows[0] if rows else None)
-        rows = [row]
-    last = st.logs(f"{rec(char)} kind:in(xp, level, zone) | fields _time, level, zone "
-                   f"| sort by (_time desc) | limit 1", limit=1)
-    held = gearmod.held_rows(one_row(st), cf(char))
-    # The Gear page's answer (Views.quests_done): the whole history, so a
-    # reward sold or replaced since still counts, plus Battle.net's worn
-    # items when this person lets them reach the model (bnet_vm_url).
-    done = _views(ctx).quests_done(char)
-    # The quest log and the guide step, as the page reads them: a quest
-    # source's work (wowstats.questwork).
-    log = quests.in_log(st.logs(f"{rec(char)} {quests.Q_LOG}"), done)
-    route_at = quests.position(st.logs(f"{rec(char)} {quests.Q_STEP}", limit=1))
-    s, r = (snap or [{}])[0], (last or [{}])[0]
-    top = sheet_or_record(s, r)
-    level = opt_num(top.get("level")) or opt_num(s.get("level")) or opt_num(r.get("level"))
-    sheet = gearmod.sheet(rows[0])
-    sheet["worn_stats"] = worn
-    try:
-        # The standings the page reads (Views.gear_inputs): without them every
-        # reputation gate was unknown here, a Friendly cape a hard pick, and
-        # this tool's best back differed from the page's (Nibbet at 46).
-        sheet["reps"], sheet["pvp_rank"] = gearmod.standings_of(gearmod.standing_rows(st.logs, cf(char)))
-    except SourceError:
-        sheet["reps"], sheet["pvp_rank"] = None, None
-    try:
-        # The scans are the page's own read (Views.price_rows: one stats row
-        # per item and scan day). Read as raw rows here, a full Auctionator
-        # scan (thousands of items at one instant, the scan day's midnight)
-        # was more than one read may return: the store refused it, and the
-        # gear advice lost the auction house (live, 2026-11-24).
-        res = {k: st.logs(q) for k, (q, _k, _o) in ahsource.queries(cf(char), rec(char)).items()}
-        res["items"] = _views(ctx).price_rows()
-        market = ahsource.market(res, faction=sheet.get("faction"), money=opt_num(s.get("money_copper")))
-    except SourceError:
-        market = None  # no prices is no reason to lose the advice
+    g = _gear_inputs(ctx, char)
+    if g["early"]:
+        return g["early"]
+    worn, worn_from, s, r = g["worn"], g["worn_from"], g["s"], g["r"]
+    level, sheet, done, held, market = g["level"], g["sheet"], g["done"], g["held"], g["market"]
+    log, route_at = g["log"], g["route_at"]
     try:
         a = gearmod.advise(gearmod.reference(), sheet, level=level,
                            zone=zone_now(s, r),
@@ -1388,8 +1404,10 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                "two-hander and the best main hand + off hand pair wearable now, each on its own, as levelling BiS "
                "lists rank them apart; say which setup is worn and that switching is the gain. weights_from: "
                "which of ForeverDB's tables scored it. Another list (Forever Leveling BiS, its own weights) can "
-               "rank a piece differently: say so when the player compares. Crafts say what "
-               "making one takes (skill, then the recipe; materials are never checked). Quests the Recorder "
+               "rank a piece differently: say so when the player compares. A craft's line says what "
+               "making one takes (the recipe and where it comes from, the skill-ups on Polestar's route, the mats "
+               "against the bags and bank, the gold) or its auction house price; professions has the detail. "
+               "Quests the Recorder "
                "saw handed in are left out. An item "
                "already in the bags or the bank has that as its only `where` (equip it; the bank: take it out "
                "first), as of the shipper's last wow-bags. A random-suffix item is scored on its likely suffix "
@@ -1745,8 +1763,9 @@ TOOLS = TOOLS + (
 from .analysistools import ANALYSIS_TOOLS  # noqa: E402 - they build on the helpers above
 from .classtools import CLASS_TOOLS  # noqa: E402
 from .plantools import PLAN_TOOLS  # noqa: E402
+from .proftools import PROF_TOOLS  # noqa: E402
 
-TOOLS = TOOLS + PLAN_TOOLS + ANALYSIS_TOOLS + CLASS_TOOLS
+TOOLS = TOOLS + PLAN_TOOLS + ANALYSIS_TOOLS + CLASS_TOOLS + PROF_TOOLS
 
 # Knowledge-base text is written by a model from web pages and merges on its
 # own when the gates pass (docs/kb.md, "The refresh job"): a stored

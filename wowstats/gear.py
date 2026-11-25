@@ -48,7 +48,7 @@ import threading
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from wowstats import ahsource, endgame, forever, quests, questwork, stores
+from wowstats import ahsource, crafting, endgame, forever, quests, questwork, stores
 
 _HERE = Path(__file__).resolve()
 # An installed wheel carries it as wowstats/data/; a checkout has it at the root.
@@ -1279,6 +1279,10 @@ def source_effort(s: dict) -> int:
         # from PvP so it's easy").
         return EASY
     if k == "craft":
+        # The plan weighs the real state: recipe held or not, gold, the
+        # auction house the other way (wowstats.crafting.effort).
+        if (s.get("plan") or {}).get("effort") is not None:
+            return s["plan"]["effort"]
         return EASY if s.get("can_make") else SOME
     if k == "drop":
         if s.get("npc_id") and (not s.get("boss") or s.get("unplaced")) and not s.get("instance"):
@@ -1379,6 +1383,8 @@ def craft_status(s: dict) -> str:
     """What stands between the character and making a craft source, in
     words, for every reader (MCP, planner, coach): the skill, then the recipe.
     The reagents aren't in the data, so "make it" always says to check them."""
+    if (s.get("plan") or {}).get("line"):
+        return s["plan"]["line"]
     prof, need, rank = s.get("profession") or "the profession", s.get("skill"), s.get("your_rank")
     if rank is None:
         return f"a {prof} crafter makes it ({prof} {need}): buy it or ask one"
@@ -1836,6 +1842,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
     who.bags = {i for i, where in holding.items() if where == "bags"}
     sale = (market or {}).get("items") or {}
     money = (market or {}).get("money_copper")
+    # What each craft takes, priced (wowstats.crafting): the recipe, the
+    # skill-up on Polestar's route, the mats against the bags and bank, the
+    # auction house the other way. Once per recipe and item.
+    crafter = crafting.who_from(sheet, held, market)
+    plans: dict[tuple, dict | None] = {}
     for item_id, where in holding.items():
         info = item_for(ref, item_id, w)
         if not info:  # not gear, or gear the advice doesn't score
@@ -1859,6 +1870,13 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
         # reputation, so Talisman of Arathor isn't an "easy" 72s buy for a
         # character who never queued).
         here_srcs = _dedupe([x for x in (_source(ref, s, who, info, item_id) for s in srcs) if x])
+        for x in here_srcs:
+            if x["kind"] == "craft":
+                k = (x.get("spell_id"), item_id)
+                if k not in plans:
+                    plans[k] = crafting.brief(crafting.plan(x, item_id, crafter))
+                if plans[k]:
+                    x["plan"] = plans[k]
         if not (who.pvp or who.pvp_mode) and any(is_pvp(s) for s in srcs):
             # A PvP rank's quartermaster goes with its rank (ForeverDB lists
             # both: Master Sergeant's Insignia, Officer Areyn and rank 3).
@@ -2681,10 +2699,12 @@ def badge_of(u: dict | None) -> dict:
     return {k: (u or {}).get(k) for k in BADGE}
 
 
-def source_text(s: dict) -> str:
+def source_text(s: dict, short: bool = False) -> str:
     """One source in a few words: 'quest Tharil'zun (Redridge Mountains, req 18)'.
     A ForeverDB source says how sure it is: "seen in Forever, 16 kills",
-    "Classic data, may differ in Forever" (basis_words)."""
+    "Classic data, may differ in Forever" (basis_words). short: a craft says
+    its next step and its gold, not its whole plan (the analysis' tables and
+    brief, which have a size; the professions tool has the rest)."""
     basis = basis_words(s)
     if s["kind"] == "bags":
         return "in your bags: equip it"
@@ -2742,6 +2762,11 @@ def source_text(s: dict) -> str:
         return f"{what}: {s.get('name') or '?'}{chance}{tail}"
     if s["kind"] != "craft":  # a kind the gear data names that has no words here
         return f"{s['kind']}: {s.get('name') or s.get('zone') or '?'}"
+    p = s.get("plan") or {}
+    if short and p.get("action"):
+        gold = f" In all ~{ahsource.price_text(p['craft_copper'])}." if p.get("craft_copper") else ""
+        buy = f" Or buy it: {ahsource.price_text(p['buy_copper'])}." if p.get("buy_copper") else ""
+        return f"craft: {s.get('profession')} {s.get('skill')}; {p['action']}{gold}{buy}{tail}"
     return f"craft: {s.get('profession')} {s.get('skill')}; {craft_status(s)}{tail}"
 
 

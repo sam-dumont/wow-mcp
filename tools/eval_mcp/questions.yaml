@@ -557,6 +557,24 @@
     - {tool: inventory, path: bank_at, equals: null}
     - {tool: inventory, path: counts_known, equals: false}
 
+- id: tailoring_cost
+  group: lookup
+  persona: gearer
+  difficulty: medium
+  question: >-
+    How much does it cost the character to get Tailoring from its skill now to 225, on Polestar's
+    route? Give whole silver pieces (drop the copper).
+  answer: probe
+  match: number
+  tolerance: 1
+  tools: [professions]
+  forbid: ["(?i)gfinity", "(?i)wowhead guide"]
+  probes:
+    - {tool: professions, args: {profession: Tailoring, target: 225}, path: "professions[0].gold.total_copper",
+       then: ["div:100", floor]}
+    - {tool: professions, args: {profession: Tailoring, target: 225}, path: "professions[0].route.crafts[0].craft",
+       holds: some}
+
 # ---------------------------------------------------------------- plans
 
 - id: check_plan_number

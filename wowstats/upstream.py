@@ -42,7 +42,7 @@ WAGO_TABLES = frozenset({
     "ItemEffect", "ItemModifiedAppearance", "ItemSet", "ItemSparse", "ItemSubClass", "ItemXItemEffect",
     "ManifestInterfaceData", "RandPropPoints", "SkillLine", "SkillLineAbility", "Spell", "SpellAuraOptions",
     "SpellDuration", "SpellEffect", "SpellEquippedItems", "SpellItemEnchantment", "SpellLevels", "SpellMisc",
-    "SpellName", "SpellRadius", "Talent", "TalentTab", "TraitCurrencySource", "TraitDefinition",
+    "SpellName", "SpellRadius", "SpellReagents", "Talent", "TalentTab", "TraitCurrencySource", "TraitDefinition",
     "TraitDefinitionEffectPoints", "TraitEdge", "TraitNode", "TraitNodeEntry", "TraitNodeXTraitNodeEntry",
     "TraitTree", "TraitTreeXTraitCurrency",
 })

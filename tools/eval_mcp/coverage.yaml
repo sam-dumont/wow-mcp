@@ -53,6 +53,7 @@ modes:
   - plan_session:context
   - check_plan:text
   - prices:item
+  - professions:target
   - kb_lookup:ids
   - kb_get:ids
   - kb_rule:name
