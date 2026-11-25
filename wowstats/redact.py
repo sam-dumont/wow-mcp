@@ -52,6 +52,8 @@ CARD = {**{k: None for k in ("id", "n", "q", "i", "b", "u", "s", "t", "ar", "sp"
         "w": [None], "g": [None]}
 # A worn slot's standing against BiS (wowstats.gear.standing_out), the
 # doll's badge: public since 2026-11-23 (owner), numbers and the label only.
+# A negligible slot (wowstats.gear.mark_negligible) has no label, so no
+# badge; its line carries the advice's points and stays out.
 STANDING = {k: None for k in ("slot", "rank", "pct", "label")}
 PROFESSION = {k: None for k in ("skill_id", "name", "rank", "max_rank", "max_rank_from")}
 # A past level's item: from a sheet ("exact") or the gear replay ("likely",
@@ -380,7 +382,9 @@ ZOGZOG: dict[str, dict] = {
         # the same numbers as `weights`, nothing of the character's.
         "export": {**_keys("class", "spec", "mode", "setup", "setup_label", "name", "how", "flb", "pawn"),
                    "credit": _keys("name", "url", "text"), "notes": [None], "pawn_notes": [None]},
-        "slots": [{**_keys("slot", "slot_name"), "standing": _keys("rank", "pct", "label"),
+        # negligible: the slot's line when nothing for it matters much
+        # (wowstats.gear.mark_negligible), shown in place of BiS and percents.
+        "slots": [{**_keys("slot", "slot_name", "negligible"), "standing": _keys("rank", "pct", "label", "negligible"),
                    "current": ADVICE_ITEM, "best": {**UPGRADE_PAIR, "cost": COST},
                    "next": UPGRADE_PAIR, "bis": BIS, "pick": PICK}],
         "upgrades": [UPGRADE_PAIR],
