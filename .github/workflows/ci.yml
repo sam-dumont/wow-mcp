@@ -70,17 +70,21 @@ jobs:
           uv run pytest -q -rs -n auto -m "not browser" --timeout 300 --durations 0
           --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
-  # The required check: the parts' result, then what needs the whole tree
-  # once. It runs when a part failed too (a skipped required check would
-  # count as passed).
+  # The required check: the parts' result and logsql's, then what needs the
+  # whole tree once. It runs when a part failed too (a skipped required check
+  # would count as passed). logsql is in it because it was not required on
+  # its own: #240 and #241 auto-merged with it red, and main served a cache
+  # that never saw an upload on a real VictoriaLogs until #242 (2026-11-24).
   test:
     if: ${{ !cancelled() && github.repository_id == '1464458020' }}
-    needs: pytest
+    needs: [pytest, logsql]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - name: every part of the suite passed
         run: test "${{ needs.pytest.result }}" = success
+      - name: the queries passed against a real VictoriaLogs
+        run: test "${{ needs.logsql.result }}" = success
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
         with:
           egress-policy: audit
