@@ -109,6 +109,21 @@ SIDES = {"alliance": 1, "horde": 2}
 SOON_LEVELS = 3  # "the next one coming": within this many levels
 MIN_UPGRADE = 1.0  # the least gain, in percent, that counts as an upgrade
 PER_SLOT = 3  # upgrades listed per slot
+# A slot whose best item at this level scores under this share of the worn
+# gear's score shows no BiS, no percent and no "within reach": one plain line
+# with the points instead (negligible_says). ForeverDB's formula counts
+# on-use and procs as zero, so every levelling trinket scores 0-1 points and
+# the top of almost nothing read "BiS" and "empty → 100%" (owner,
+# 2026-11-25: Lookie's Spyglass, a healer trinket, called BiS on a Shadow
+# priest at 37). Measured: those trinket slots sit at 0.1-0.7% (that priest
+# 0.5%, the level-33 test priest 0.7%, the demo's past levels 35-44 0.3-0.6%);
+# the lowest slot that matters is 2.0% (a trinket at 45, the demo's at 46),
+# every other slot 3.9% and up.
+NEGLIGIBLE_SHARE = 0.01
+# What a slot holds, for the negligible line ("No trinket matters much...").
+SLOT_NOUNS = {1: "helm", 2: "necklace", 3: "shoulder piece", 5: "chest piece", 6: "belt", 7: "leg piece",
+              8: "pair of boots", 9: "bracer", 10: "pair of gloves", 11: "ring", 12: "ring", 13: "trinket",
+              14: "trinket", 15: "cloak", 16: "weapon", 17: "weapon", 18: "ranged weapon"}
 HELD = frozenset({"bags", "bank"})  # the source kinds of an item the character already has
 # How hard an item is to get (owner, 2026-11-24: "weight 'is this easy' vs
 # 'this is a pipe dream'. Convenience and easiness before a quarter of a
@@ -1900,7 +1915,7 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             picks[(strong, bucket)] = pick(strong, bucket, on | ({pw[2]["id"]} if pw else set()))
     # Where each worn item stands against the best the slot can hold now
     # (owner, 2026-11-21: "show bis or second or a percentage of bis").
-    stand.update(standings(per_slot, worn, setups, level))
+    stand.update(standings(per_slot, worn, setups, level, gear_score))
     # The weapons' best possible (unsourced, a long shot), shown apart: the
     # standing measures against what can be got (owner, 2026-11-24).
     hands_unknown = _unknown_hands(ref, unknown_hands, setups, level)
@@ -2023,6 +2038,11 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             nxt = soon if soon and soon[3]["delta"] > 0 and (not now or soon[3]["new"] > now[3]["new"]) else None
             nxt = out(nxt[2], nxt[3]) if nxt else None
         bis = bis_rows.get(slot)
+        # Nothing for the slot matters much (mark_negligible): no BiS and no
+        # pick against it, the slot's line instead; best/next keep their points.
+        negligible = (stand.get(slot) or {}).get("negligible")
+        if negligible:
+            bis = None
         pick_row = (weapon_rows["now"] if slot == MAIN else None) if slot in (MAIN, OFF) else best
         if pick_row is not None and not pick_row.get("cost"):
             pick_row["cost"] = ah_cost(pick_row.get("sources"), market)
@@ -2033,10 +2053,10 @@ def advise(ref: Reference, sheet: dict, *, level: int, zone: str | None = None, 
             "bis": bis, "pick": pair_why(bis, pick_row, level) if bis else None,
             # The slot's BiS when it is gear nobody says where to get: shown
             # with "where": "unknown", never as an upgrade (unsourced).
-            "bis_unknown": (hands_unknown if slot == MAIN
+            "bis_unknown": (None if negligible else hands_unknown if slot == MAIN
                             else None if slot == OFF
                             else _unknown_bis(ref, per_slot.get(slot), slot, worn, picks.get((slot, "now")))),
-            "slot": slot, "slot_name": SLOT_NAMES[slot],
+            "slot": slot, "slot_name": SLOT_NAMES[slot], "negligible": negligible,
             "standing": standing_out(stand.get(slot)) if cur_id else None,
             "current": ({**_item_out(ref, cur_id, cur_info, worn_names.get(slot)),
                          "score": _r(worn.score(slot), 2), "known": cur_info is not None,
@@ -2397,7 +2417,50 @@ def _weapons(setups: WeaponSetups, worn: Worn, level: int) -> dict | None:
     return _rank(above, cur, best["total"])
 
 
-def standings(per_slot: dict, worn: Worn, setups: WeaponSetups, level: int) -> dict[int, dict | None]:
+def negligible_says(slot: int, points: float, other: bool = False) -> str:
+    """The one line a negligible slot shows in place of BiS and percents;
+    `other` when the paired slot (a ring or trinket) does matter."""
+    noun = SLOT_NOUNS.get(slot, "item here")
+    return f"No {'other ' if other else ''}{noun} matters much at your level: +{points:.1f} points at best."
+
+
+def mark_negligible(out: dict[int, dict | None], worn: Worn, gear_score: float) -> None:
+    """Flag the standings of slots whose best item is worth almost nothing
+    next to the worn gear (NEGLIGIBLE_SHARE): `negligible` holds the line to
+    show. A slot's best is its standing's target (BiS), or what is worn when
+    nothing can be got: a worn slot with nothing to measure against gets a
+    standing here, or its BiS row would call the worn trinket BiS. Rings and
+    trinkets go slot by slot: a real trinket next to an empty slot whose
+    best is a 0.7-point one keeps its badge, and the empty one says "No
+    other trinket..."; when both are negligible both say the pair's best.
+    The one place that decides it: the badges (bis_badge), the slot's BiS
+    and pick, the doll and the MCP read the flag."""
+    if gear_score <= 0:
+        return
+
+    def best(s: int) -> float | None:
+        if s in worn.unknown:
+            return None
+        if out.get(s):
+            return out[s]["target"]
+        if s in worn.ids and worn.infos.get(s) is not None:
+            return worn.score(s)
+        return None
+
+    tops = {s: best(s) for s in EQUIPPED_SLOTS}
+    low = {s for s, v in tops.items() if v is not None and v < NEGLIGIBLE_SHARE * gear_score}
+    partner = {a: b for x, y in PAIRS for a, b in ((x, y), (y, x))}
+    for s in low:
+        p = partner.get(s)
+        other = p is not None and p not in low and tops.get(p) is not None
+        points = max(tops[x] for x in (s, p) if x in low) if p is not None else tops[s]
+        says = negligible_says(s, points, other)
+        out[s] = {**out[s], "negligible": says} if out.get(s) else {
+            "rank": None, "pct": None, "target": tops[s], "negligible": says}
+
+
+def standings(per_slot: dict, worn: Worn, setups: WeaponSetups, level: int,
+              gear_score: float = 0.0) -> dict[int, dict | None]:
     """Each slot's standing against BiS (the best it can hold at this level,
     scored like the upgrades): {"rank": 1 (BiS), 2 (runner-up) or None,
     "pct": the worn score over BiS's, "target": BiS's score}. None where
@@ -2430,6 +2493,7 @@ def standings(per_slot: dict, worn: Worn, setups: WeaponSetups, level: int) -> d
         w = _weapons(setups, worn, level)
     out[MAIN] = w
     out[OFF] = w
+    mark_negligible(out, worn, gear_score)
     return out
 
 
@@ -2437,6 +2501,9 @@ def standing_out(st: dict | None) -> dict | None:
     """The slot's standing as the page and the MCP show it."""
     if not st:
         return None
+    if st.get("negligible"):
+        # No label (no doll badge, no "BiS"): the line says why; the numbers stay.
+        return {"rank": st["rank"], "pct": st["pct"], "label": None, "negligible": st["negligible"]}
     label = "BiS" if st["rank"] == 1 else "2nd" if st["rank"] == 2 else f"{st['pct']}% of BiS"
     return {"rank": st["rank"], "pct": st["pct"], "label": label}
 
@@ -2464,7 +2531,10 @@ def bis_gain(st: dict | None, r: dict) -> dict | None:
     return {"from_pct": st["pct"], "to_pct": max(b["bis_pct"], st["pct"])}
 
 
-BADGE = ("bis_pct", "bis_pct_worn", "delta_pct")
+# `negligible`: the slot's plain line when nothing for it matters much at
+# this level (mark_negligible), shown in place of the percents; only on the
+# rows of such a slot.
+BADGE = ("bis_pct", "bis_pct_worn", "delta_pct", "negligible")
 NO_BADGE = {"bis_pct": None, "bis_pct_worn": None, "delta_pct": None}
 
 
@@ -2479,7 +2549,10 @@ def bis_badge(st: dict | None, r: dict) -> dict:
     worn (Gear.lua). st: the slot's standing (standings(); `pct` and
     `target`), r: the item's compare result. All None without a BiS to
     measure against (no candidate, a random-suffix item worn, a lone
-    one-hander): no badge, never a guess."""
+    one-hander): no badge, never a guess. A negligible slot
+    (mark_negligible): no percents either, its line in `negligible`."""
+    if st and st.get("negligible"):
+        return {**NO_BADGE, "negligible": st["negligible"]}
     if not st or not st.get("target"):
         return dict(NO_BADGE)
     new = _bis_new(r)
@@ -2601,7 +2674,12 @@ def gain_words(u: dict) -> str:
     BiS share from what's worn to this item, "70% → 91% on your chest",
     "empty → 91% on your chest" when nothing is worn there. Weapons are one
     setup: "on your weapons". The points when it has no badge ("+4.3
-    points")."""
+    points"); with the reason on a negligible slot (mark_negligible): "+0.7
+    points, no trinket matters much at your level" (no brackets: lines sit
+    inside them, "Roogug's Severed Head (+0.7 points, ...)")."""
+    if u.get("negligible"):
+        why = u["negligible"].split(":")[0]
+        return f"+{u.get('gain') or 0:.1f} points, {why[0].lower()}{why[1:]}"
     if u.get("bis_pct") is None:
         return f"+{u.get('gain') or 0:.1f} points"
     name = u.get("slot_name") or "gear"
@@ -2640,7 +2718,9 @@ def scored(tree) -> bool:
 def bis_by_slot(stand: dict[int, dict | None]) -> dict[str, dict]:
     """The standings as an answer carries them (string keys, JSON), for the
     rows scored outside advise(): instance_loot() reads them back."""
-    return {str(k): {"pct": v["pct"], "target": v["target"]} for k, v in stand.items() if v}
+    return {str(k): {"pct": v["pct"], "target": v["target"],
+                     **({"negligible": v["negligible"]} if v.get("negligible") else {})}
+            for k, v in stand.items() if v}
 
 
 def bis_order(u: dict | None) -> tuple:

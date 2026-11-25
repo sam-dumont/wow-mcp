@@ -1518,13 +1518,20 @@ function badgeFor(i) {
 // already the place: "70% → 91% with the best at hand". "empty → 91%" when
 // nothing is worn there; the points when there's no badge ("Chest, +4.3
 // points"). wowstats/gear.py gain_words says the same on the server. Never
-// build a "%" line by hand: tests/test_item_line.py greps for one.
+// build a "%" line by hand: tests/test_item_line.py greps for one. On a slot
+// where nothing matters much at this level (gear.py mark_negligible) the item
+// carries no percents: its points and why, "+0.7 points, no trinket matters
+// much at your level", from its `negligible` line.
 function upShort(u) {
   if (!badgeFor(u)) return pts(u.gain);
   const worn = u.bis_pct_worn === null || u.bis_pct_worn === undefined ? 'empty' : `${u.bis_pct_worn}%`;
   return `${worn} → ${u.bis_pct}%`;
 }
 function upText(u, where) {
+  if (u.negligible) {
+    const why = u.negligible.split(':')[0];
+    return `${pts(u.gain)} points, ${why[0].toLowerCase()}${why.slice(1)}`;
+  }
   const doll = where === 'doll';
   if (!badgeFor(u)) return doll ? `${pts(u.gain)} points with the best at hand` : `${u.slot_name || 'Gear'}, ${pts(u.gain)} points`;
   return `${upShort(u)} ${doll ? 'with the best at hand' : `on your ${(slotKey(u) || 'gear').toLowerCase()}`}`;
@@ -1717,6 +1724,11 @@ function dollBadges(slots, src, mode) {
     const li = document.querySelector(`#gear .slot[data-slot="${sl.slot}"]`);
     const st = sl.standing;
     const frame = li && li.querySelector('.ifr');
+    // Nothing for the slot matters much (gear.py mark_negligible): no badge,
+    // the plain line under the item unless the slot's best already says it.
+    if (st && st.negligible && li && !sl.best && !li.classList.contains('empty')) {
+      li.querySelector('.imeta').after(h('span', { class: 'ibis ibisline', text: st.negligible }));
+    }
     if (!st || !st.label || !frame || li.classList.contains('empty')) continue;
     const short = st.rank === 1 ? 'BiS' : st.rank === 2 ? '2nd' : `${st.pct}%`;
     const tier = bisTier(st);

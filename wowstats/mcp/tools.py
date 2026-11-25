@@ -1036,8 +1036,9 @@ def _gear_item(u: dict | None, up: dict | None = None) -> dict | None:
     if up is not None:
         from wowstats.plan.facts import upgrade_key
 
+        # The model has no `negligible`: the slot's flag stays the advice's.
         u = {**u, **up.get(upgrade_key(u), dict.fromkeys(
-            ("gain", "gain_share_pct", *gearmod.BADGE)))}
+            ("gain", "gain_share_pct", *gearmod.BADGE))), "negligible": u.get("negligible")}
     out = {"item": u.get("name") or f"item {u['item_id']}", "item_id": u["item_id"], "quality": u.get("quality"),
            "slot": u.get("slot_name"), "level": u.get("level"), "gain_points": u.get("gain"),
            "gain_share_of_gear_pct": u.get("gain_share_pct"), "gain_pct_over_replaced": u.get("gain_pct"),
@@ -1050,6 +1051,10 @@ def _gear_item(u: dict | None, up: dict | None = None) -> dict | None:
         out["bis_pct"] = u["bis_pct"]
         out["bis_pct_worn"] = u.get("bis_pct_worn")
         out["delta_pct"] = u["delta_pct"]
+    if u.get("negligible"):
+        # Nothing for this slot matters much at this level (gear.mark_negligible):
+        # no BiS percents; say `line`, the points stay in gain_points.
+        out["negligible"] = True
     # The page's item line (gear.gain_words): "70% → 91% on your chest", or
     # the points without a badge. Say it as is.
     out["line"] = gearmod.gain_words(u)
@@ -1271,8 +1276,12 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
         "spec": sp["label"], "spec_from": sp.get("why"), "gear_score": a.get("gear_score"),
         "slots": [{"slot": x["slot_name"],
                    "worn": (x["current"] or {}).get("name") if x["current"] else None,
-                   # BiS, 2nd or "N% of BiS"; null when nothing to measure against.
+                   # BiS, 2nd or "N% of BiS"; null when nothing to measure against
+                   # or when the slot is negligible.
                    "worn_standing": (x.get("standing") or {}).get("label"),
+                   # Nothing for this slot matters much at this level (gear.mark_negligible):
+                   # no BiS, no pick, no percents; say negligible_why instead.
+                   **({"negligible": True, "negligible_why": x["negligible"]} if x.get("negligible") else {}),
                    # How the worn item fits the scored spec: a Shadow circlet on a Holy priest
                    # says so here, not only in the analysis brief.
                    "worn_fit": worn_fit(x) if x["current"] else None,
@@ -1302,7 +1311,10 @@ def t_gear(ctx: Ctx, args: dict) -> dict:
                "crit lines as ratings (10 and 14 a percent), school "
                "damage on top of spell power, weapon DPS (ranged for hunters), a wand's DPS in Leveling for "
                "priests, mages and warlocks, armour, set bonuses shared over the set's pieces; procs and on-use "
-               "count zero. Credit `source` (name and link) whenever you show a score or a standing. "
+               f"count zero. So a slot whose best item is worth under {gearmod.NEGLIGIBLE_SHARE:.0%} of the worn "
+               "gear (most levelling trinkets) carries negligible: true and negligible_why, and no BiS, pick or "
+               "percents: say negligible_why, never call such an item BiS. "
+               "Credit `source` (name and link) whenever you show a score or a standing. "
                "fit on each item: for_you is yes, any, spec (built for another spec "
                "of the class: fine while levelling, don't roll Need against who it's made for) or class (made "
                "for another class); who it is built for, the share of its stats wasted on "

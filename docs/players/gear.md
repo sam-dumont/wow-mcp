@@ -59,6 +59,15 @@ get is never the BiS (there's nothing to tell you to do), and neither is content
 opened. Your AI's `gear` answers carry the same `bis` and `pick` for each slot. The Overview
 names the BiS next to an upgrade when the upgrade is the pick and the BiS is something else.
 
+Some slots don't really count yet. ForeverDB's formula scores on-use effects and procs as zero,
+so most levelling trinkets are worth 0 to 1 point, and the best of almost nothing used to read
+"BiS" and "empty → 100%". When a slot's best item is worth under 1% of your worn gear's score,
+the page drops the badge, the percents and the BiS line for that slot and says it plainly:
+"No trinket matters much at your level: +0.7 points at best." Your AI's `gear` answer marks the
+slot `negligible` with that line. Wear one trinket that does count and the other slot says
+"No other trinket matters much" instead. The badges come back once trinkets with real stats
+are in reach.
+
 **Scored for**, at the top, picks the spec ("Automatic" follows your talents): pick another to
 see the upgrades for a respec.
 

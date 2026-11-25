@@ -451,7 +451,8 @@ def test_upgrades_ranked_by_share_of_bis(ref):
         if stand.get(u["slot"]):
             assert b["from_pct"] == stand[u["slot"]]["pct"]
     # Each slot's standing, where there is one, says BiS, 2nd or a percent.
-    labels = [s["standing"]["label"] for s in a["slots"] if s["standing"]]
+    # A negligible slot (its line instead, tests/test_gear_negligible.py) has none.
+    labels = [s["standing"]["label"] for s in a["slots"] if s["standing"] and not s["negligible"]]
     assert labels and all(x in ("BiS", "2nd") or x.endswith("% of BiS") for x in labels)
 
 
