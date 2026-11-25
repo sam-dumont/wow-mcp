@@ -526,36 +526,65 @@ def scenarios(questions: list[dict]) -> list[str]:
     return sorted({q.get("scenario", "full") for q in questions})
 
 
-def compute(questions: list[dict] | None = None) -> dict[str, dict]:
+class Servers:
+    """One store and one server.py per scenario (`full` always), each with
+    its own state folder under `state_dir`: what compute() reads the
+    answers from, and what the CI check's probes run on afterwards. Each
+    server process costs its first calls seconds (imports, the event
+    cache, the views): the CI check starts them once for both, where it
+    used to start a second set for the probes (test_probes_hold_the_answers
+    at pytest's 300 s limit on CI, 2026-11-25)."""
+
+    def __init__(self, scenarios: list[str], state_dir: str):
+        self.rows: dict[str, list[dict]] = {}
+        self.tools: dict[str, Tools] = {}
+        self._stores: list[D.VL] = []
+        try:
+            for s in sorted({*scenarios, "full"}):
+                self.rows[s] = rows_for(s)
+                vl = store(self.rows[s])
+                self._stores.append(vl)
+                self.tools[s] = Tools(vl.url, str(Path(state_dir) / s))
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self) -> None:
+        try:
+            for t in self.tools.values():
+                t.close()
+        finally:
+            for vl in self._stores:
+                vl.close()
+
+
+def compute(questions: list[dict] | None = None, servers: Servers | None = None) -> dict[str, dict]:
     """Every question's {answer, forbid_answers}, by question id. Raises
-    when the data no longer has one unambiguous answer for a question."""
+    when the data no longer has one unambiguous answer for a question.
+    `servers`: read from those (left running) instead of starting a set."""
     if questions is None:
         questions = load_questions()
-    out: dict[str, dict] = {}
-    servers: dict[str, tuple] = {}
-    try:
+    if servers is None:
         with tempfile.TemporaryDirectory(prefix="eval-mcp-answers-") as state:
-            for s in {*scenarios(questions), "full"}:
-                rows = rows_for(s)
-                vl = store(rows)
-                servers[s] = (rows, vl, Tools(vl.url, str(Path(state) / s)))
-            full = servers["full"][2]
-            for q in questions:
-                rows, _, t = servers[q.get("scenario", "full")]
-                c = Ctx(rows, t, full)
-                a = q["answer"]
-                if a == "NONE":
-                    value = "NONE"
-                elif a == "probe":
-                    value = probe_answer(t, q)
-                else:
-                    value = MAKERS[a](c)
-                out[q["id"]] = {"answer": value, "forbid_answers": _forbidden(c, q.get("forbid_answers"))}
-            for _, _vl, t in servers.values():
-                t.close()
-    finally:
-        for _, vl, _ in servers.values():
-            vl.close()
+            own = Servers(scenarios(questions), state)
+            try:
+                return compute(questions, own)
+            finally:
+                own.close()
+    out: dict[str, dict] = {}
+    full = servers.tools["full"]
+    for q in questions:
+        s = q.get("scenario", "full")
+        t = servers.tools[s]
+        c = Ctx(servers.rows[s], t, full)
+        a = q["answer"]
+        if a == "NONE":
+            value = "NONE"
+        elif a == "probe":
+            value = probe_answer(t, q)
+        else:
+            value = MAKERS[a](c)
+        out[q["id"]] = {"answer": value, "forbid_answers": _forbidden(c, q.get("forbid_answers"))}
     return out
 
 
