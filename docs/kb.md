@@ -151,6 +151,34 @@ Its branch, PR and issues land in the public repository.
 a PR for a person). An issue (label `kb-watch`) is only for what a gate or a check
 refused, and it says why.
 
+**Every run starts by reconciling what earlier runs left open**, whatever
+its mode, before its own work (the `reconcile` job, `tools/kb/reconcile.py`,
+with the App's token and no model):
+
+- every open PR of the job (label `kb-watch`, a `kb-*` branch) is rebased on
+  main when BEHIND and gets auto-merge back if it went off. The watch PR,
+  when it conflicts with main, is made again on the current main with the
+  kinds its branch carries (its `watch.json` against where it left main,
+  never what this run saw): `tools/kb/versions.sh` with those kinds, the
+  gates, then `land.py`. A model's PR (review, refresh, sweep) that conflicts,
+  one labelled `kb-refused`, or one with a failed required check waits for a
+  person. The job then stays with the PRs until they merge (45 minutes for
+  all of them);
+- every open `kb-watch` issue whose condition holds on main is closed, with
+  a one-line why: a change kind's issue when main's `watch.json` knows each
+  value in its table or moved past it, a `KB <mode>: a change wasn't merged`
+  issue when the PR it names merged (or one of that mode merged since) and
+  none of that mode is open, the size-budget issue when main is under budget.
+  The sweep's issue stays the sweep's (its condition needs every cited page
+  fetched);
+- the job is red while a PR still waits; the run's own work goes on anyway.
+
+Why: on 2026-11-25 a watch PR (#249) went CONFLICTING after its run's 45
+minutes with it ran out and sat there until a person rebased it, and two
+issues (#212, #171) stayed open a day after their PRs merged. Only the same
+mode's next run ever looked again (a day away for watch, a week for review),
+and only the run that opened a PR could make it again.
+
 **Deterministic work never calls a model; the model reads prose once a
 week, and only what a free check flagged as changed** (owner, 2026-11-22).
 Before, the daily watch also ran the model on the official pages, and
@@ -271,19 +299,19 @@ opens or edits its PR with the gates' verdict, and:
   on it) and turns auto-merge back on if it went off.
 - **main moved and the change conflicts with it:** in watch mode the change
   is deterministic, so it is made again instead of refused: the land job
-  resets the branch to the current main, reruns `tools/kb/versions.sh` (the
-  same versions lane the run job ran: checks, tag, exports, regenerated test
-  data), gates that, force-pushes the branch and lands it again, twice at
-  most (`land.py --regen`; the third conflict is red, and the next watch run
-  makes it again). The lane runs with the mirror's read-only token for its
+  resets the branch to the current main, reruns `tools/kb/versions.sh` with
+  the kinds its commits carry (`reconcile.py --remake HEAD`: checks, tag,
+  exports, regenerated test data), gates that, force-pushes the branch and
+  lands it again, twice at most (`land.py --regen`; the third conflict is
+  red, and the next run's `reconcile` makes it again, whatever its mode). The lane runs with the mirror's read-only token for its
   checks and never the App's. A Polestar bump (#140, 2026-11-22) was
   refused because another PR had regenerated the same plan inputs during the
   run. In the model's modes a conflict is still a refusal.
 - **refused:** the PR stays open with label `kb-refused` and the reasons;
   in watch mode each kind it carries keeps its issue with the same reasons,
   in the other modes one issue per mode (`KB <mode>: a change wasn't
-  merged`). While it is open, the next run of that mode adds nothing (the
-  issue says so): merge it or close it, and the next run starts again.
+  merged`). While it is open, a run of that mode adds nothing (the
+  issue says so) and every run's `reconcile` is red: merge it or close it.
 
 **The run is red unless its PR merged:** a refusal, a failed required
 check, a conflict with main, or no merge within 45 minutes. A watch run is
@@ -295,8 +323,8 @@ known tag, so the other kinds in the PR are gated against what main has. The own
 scheduler waits for each run it starts and fails when the run does, which
 raises the lab's usual alert (two red runs in a row: `CronJobNotSucceeding`
 on Slack and the phone). A PR left open by a red run is picked up by the
-next run of its mode, which adds nothing new and stays with that PR
-instead: rebased when BEHIND, merged when green; one labelled `kb-refused`
+next run's `reconcile`, whatever its mode: rebased when BEHIND, made again
+when the watch PR conflicts, merged when green; one labelled `kb-refused`
 keeps every run red until a person merges or closes it.
 
 Once merged, a refresh goes out as a stable patch release (X.Y.Z+1) by
@@ -310,7 +338,8 @@ next candidate or the final. docs/development.md, "Knowledge base releases",
 has the detail.
 
 A watch issue closes itself once `data/kb/watch.json` on main matches what
-the watcher sees. A run that stops early (a failed step) leaves the issue
+the watcher sees, or, at the start of any run, once main knows each value in
+its table (`reconcile`). A run that stops early (a failed step) leaves the issue
 with the run's link; the model pass failing alone still lands the other
 kinds and ends the run red.
 

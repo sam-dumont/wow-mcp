@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- The KB refresh job left its own PRs and issues stale: a watch PR that went CONFLICTING after its run gave up waited for a person (#249), and issues whose PR had merged stayed open a day or more (#212, #171), because only the next run of the same mode ever looked again. Every run now starts with `tools/kb/reconcile.py`, whatever its mode: open bot PRs are rebased, the watch PR is made again on main with the kinds its branch carries, and every `kb-watch` issue whose condition holds on main is closed with the reason.
+
 ## 0.11.2 (2026-11-25)
 
 What 0.11.2 changes over 0.11.1, in short. One kept analysis finding with a percent on a column of no declared unit took down every answer of its character: the overview, the dungeons, the plan and the shared analysis all failed on each rebuild. 0.11.1 promised such a finding fades at the nightly recheck; it now does, and the rest of the character's findings read as before.

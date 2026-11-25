@@ -7,7 +7,19 @@
 # main-only, which only main can deploy to): a PR the App opens runs the
 # public repository's checks like any other.
 #
-# Two jobs, so the App's key and the model never meet: `run` (no
+# Every run, whatever its mode, starts with `reconcile` (environment
+# main-only, the App's token, no model; tools/kb/reconcile.py): what earlier
+# runs left open is brought up to date before this run does anything. Every
+# open PR of the job is rebased when BEHIND; the watch PR, when it conflicts
+# with main, is made again on the current main with the kinds it carries (read
+# from its branch, never from this run) and gated; the job then stays with the
+# PRs until they merge (45 minutes for all). Every open kb-watch issue whose
+# condition holds on main is closed with a one-line why. Red while a PR waits
+# for a person. 2026-11-25: #249 sat CONFLICTING for hours and #212 and #171
+# stayed open a day after their PRs merged: only the same mode's next run
+# looked again, and only the run that opened a PR could make it again.
+#
+# Then two jobs, so the App's key and the model never meet: `run` (no
 # environment, so its OIDC subject stays the federation rule's) does the
 # work, the model passes and the gates, with the mirror's read-only token;
 # what it would write to GitHub (the commits, the issues) goes to `land` as
@@ -71,14 +83,15 @@
 # PR goes BEHIND it is rebased on main (`gh pr update-branch --rebase`, the
 # App's token, so the checks run again). Gates refused: label kb-refused, left
 # for a person. A watch change is deterministic, so a conflict with a main
-# that moved never refuses it: `land` makes it again on the current main
-# (tools/kb/versions.sh, the gates on it) and lands that, twice at most
+# that moved never refuses it: `land` makes it again on the current main with
+# the kinds its commits carry (tools/kb/reconcile.py --remake: versions.sh,
+# the gates on it) and lands that, twice at most
 # (2026-11-22: #140, Polestar v0.4.2.2, refused on a fixture conflict).
 # The run ends red unless its PR merged: a refusal, a failed required check,
 # a conflict that outlived the tries, or no merge within 45 minutes. The lab's
 # scheduler waits for the run and fails its CronJob on red
-# (CronJobNotSucceeding), so a stuck PR reaches the owner. While a PR is open,
-# the next run of the mode adds nothing and stays with that PR instead.
+# (CronJobNotSucceeding), so a stuck PR reaches the owner. While a PR is
+# still open after `reconcile`, the run of its mode adds nothing.
 #
 # Manual only: no `schedule:`, since GitHub's cron runs hours late or not at
 # all. The owner's scheduler dispatches it on time (watch daily, review
@@ -121,8 +134,97 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  run:
+  # What earlier runs left open, before this run's own work (header,
+  # tools/kb/reconcile.py). The lane made again here runs Polestar's code: it
+  # gets the mirror's read-only token, never the App's.
+  reconcile:
     if: github.repository_id == '1465633168' && (github.ref == 'refs/heads/main')
+    runs-on: ubuntu-24.04
+    environment: main-only
+    # A remake (the lane and its gates, about 30 minutes), then up to 45
+    # minutes with it, then 45 with the other PRs.
+    timeout-minutes: 150
+    permissions:
+      contents: read
+    env:
+      KB_REPO: sam-dumont/wow-mcp
+      GH_REPO: sam-dumont/wow-mcp
+    steps:
+      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: sam-dumont/wow-mcp
+          ref: main
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --frozen --group kb --extra publish --extra mcp --extra analysis --extra analysis-openai
+      - name: Set up
+        run: |
+          set -eu
+          echo "WHY=$RUNNER_TEMP/kb-why.json" >> "$GITHUB_ENV"
+          echo '{}' > "$RUNNER_TEMP/kb-why.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898+github-actions[bot]@users.noreply.github.com"
+      - name: Mint the App's token for the public repository
+        id: token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: sam-dumont
+          repositories: wow-mcp
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+      - name: Open PRs (rebased, re-armed, the one to make again)
+        id: prs
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: uv run --frozen python tools/kb/reconcile.py --prs
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.prs.outputs.remake != ''
+        with:
+          node-version: 24.5.0
+      - name: The watch PR made again on the current main
+        id: remake
+        if: steps.prs.outputs.remake != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.prs.outputs.remake }}
+        run: |
+          set -eu
+          git fetch -q origin +kb-watch:refs/remotes/origin/kb-watch
+          GATES_OUT="$RUNNER_TEMP/gates-remake.json" uv run --frozen python tools/kb/reconcile.py --remake origin/kb-watch
+          base=$(git rev-parse origin/main)
+          echo "title=KB watch $(date -u +%F): $(git log --reverse --format=%s "$base..HEAD" | paste -sd ';' - | cut -c1-180)" >> "$GITHUB_OUTPUT"
+          {
+            echo "PR #$PR conflicted with main. The versions lane is deterministic, so the refresh job made it again on the current main (tools/kb/reconcile.py --remake), with the kinds the PR carried:"
+            git log --reverse --format='- %s' "$base..HEAD"
+            cat "$RUNNER_TEMP/kb-foreverdb.md" 2>/dev/null || true
+          } > "$RUNNER_TEMP/remake-body.md"
+      - name: Land it
+        if: steps.remake.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TITLE: ${{ steps.remake.outputs.title }}
+          BASE: ${{ steps.remake.outputs.base }}
+        run: >-
+          uv run --frozen python tools/kb/land.py --mode watch --branch kb-watch --regen --last
+          --base "$BASE" --gates "$RUNNER_TEMP/gates-remake.json" --gates-md "$RUNNER_TEMP/gates-remake.md"
+          --title "$TITLE" --body-file "$RUNNER_TEMP/remake-body.md"
+      - name: Stay with the open PRs, close the issues main settled
+        if: always() && steps.token.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+        run: uv run --frozen python tools/kb/reconcile.py --settle
+
+  run:
+    needs: reconcile
+    # After reconcile, red or not: what this run does is its own.
+    if: always() && github.repository_id == '1465633168' && (github.ref == 'refs/heads/main') && needs.reconcile.result != 'cancelled'
     runs-on: ubuntu-24.04
     # The gates run the whole suite (about 5 minutes), once more if main
     # moved during the run; a Polestar bump adds a 450 MB clone and the exports.
@@ -150,8 +252,12 @@ jobs:
       - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
         with:
           egress-policy: audit
+      # The public repository's main as `reconcile` left it (the mirror's copy
+      # lags it): a PR reconcile just merged is in the base, not made twice.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: sam-dumont/wow-mcp
+          ref: main
           persist-credentials: false
           fetch-depth: 0
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
@@ -196,7 +302,7 @@ jobs:
           PR: ${{ steps.open.outputs.pr }}
         run: |
           set -eu
-          why="PR #$PR from an earlier run is still open: this run stays with it until it merges (one labelled kb-refused waits for a person), and the next run lands this change."
+          why="PR #$PR from an earlier run is still open: the reconcile job keeps it moving (its log says why it hasn't merged; one labelled kb-refused waits for a person), and the next run lands this change."
           for k in $KINDS; do jq --arg k "$k" --arg w "$why" '.[$k] = $w' "$WHY" > "$WHY.new" && mv "$WHY.new" "$WHY"; done
 
       # --- The versions lane (tools/kb/versions.sh): addon releases checked
@@ -522,7 +628,7 @@ jobs:
       # versions lane runs again on the current main (GH_TOKEN read-only for
       # its checks, no App token in reach of Polestar's code, the gates on
       # what it made), then lands again; the third try's `moved` is red, and
-      # the next watch run makes it again.
+      # the next run's reconcile makes it again, whatever its mode.
       - name: Land (merge when the gates passed)
         id: land
         if: needs.run.result == 'success'
@@ -545,13 +651,8 @@ jobs:
         if: steps.land.outputs.outcome == 'moved'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-          git fetch -q origin main
-          git reset -q --hard origin/main && git clean -qfd
-          base=$(git rev-parse HEAD)
-          echo "base=$base" >> "$GITHUB_OUTPUT"
-          GATES_BASE=$base GATES_OUT="$RUNNER_TEMP/gates-regen.json" tools/kb/versions.sh
+        # The kinds of the commits it couldn't land (HEAD), not a fresh look.
+        run: GATES_OUT="$RUNNER_TEMP/gates-regen.json" uv run --frozen python tools/kb/reconcile.py --remake HEAD
       - name: Land again (1)
         id: land1
         if: steps.regen1.outcome == 'success'
@@ -570,13 +671,8 @@ jobs:
         if: steps.land1.outputs.outcome == 'moved'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-          git fetch -q origin main
-          git reset -q --hard origin/main && git clean -qfd
-          base=$(git rev-parse HEAD)
-          echo "base=$base" >> "$GITHUB_OUTPUT"
-          GATES_BASE=$base GATES_OUT="$RUNNER_TEMP/gates-regen.json" tools/kb/versions.sh
+        # The kinds of the commits it couldn't land (HEAD), not a fresh look.
+        run: GATES_OUT="$RUNNER_TEMP/gates-regen.json" uv run --frozen python tools/kb/reconcile.py --remake HEAD
       - name: Land again (2, the last)
         id: land2
         if: steps.regen2.outcome == 'success'
