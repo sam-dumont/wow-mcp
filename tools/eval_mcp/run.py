@@ -9,6 +9,7 @@ is the heavy one.
     uv run --extra mcp python tools/eval_mcp/run.py [--only ID ...] [--group G ...]
         [--model haiku] [--jobs 6] [--max-usd 2] [--timeout 180]
     uv run --extra mcp python tools/eval_mcp/run.py --coverage   # the coverage matrix, no model
+    uv run --extra mcp python tools/eval_mcp/run.py --skills [--only ID ...]   # with and without skills
     make eval-mcp
 
 Starts one store per scenario the questions use (tests/degraded.py VL: the
@@ -27,6 +28,18 @@ of each entry of its route (`tools`), and the reply says nothing in
 on stdout and in eval-mcp-out/<batch>/summary.md (ignored by git; the data
 is synthetic), plus each question's transcript. A question answered through
 play_sql alone is flagged: the answer has no typed path.
+
+`--skills` measures the server's skills (wowstats/mcp/skills): each question
+runs twice on the same tools, the wow server plus Claude Code's Skill,
+WebSearch and WebFetch (web tools offered but never allowed: a call is
+recorded and refused), once with no skill and once with the server's skills.
+Claude Code loads MCP-served skills only in an interactive session, never in
+`claude -p` (skill_mirror.py says how that was checked), so the skills are fetched
+from the server over MCP (skills/list and resources/read, digests checked)
+and installed as project skills in the question's folder: "skills via
+filesystem mirror, not MCP delivery". Per question: the skills loaded, the
+tools called, any web search or fetch, any play_sql where the route names a
+typed tool.
 
 Not in CI and not a release gate: it needs Claude Code and a login. Its
 deterministic half (the probes, the coverage) runs in CI as
@@ -55,9 +68,13 @@ sys.path.insert(0, str(ROOT))
 
 import answers  # noqa: E402
 import grading  # noqa: E402
+import skill_mirror  # noqa: E402
 import yaml  # noqa: E402
 
 SERVER = "wow"
+# --skills: Claude Code's Skill tool, and the web tools the skills should
+# make unnecessary (offered, so a reach for them shows; never allowed).
+SKILL_TOOLS = "Skill,WebSearch,WebFetch"
 OUT = ROOT / "eval-mcp-out"
 PROMPT = """You have MCP tools about one World of Warcraft character (the server's default character: \
 you can call the tools without naming it). Answer this question about that character from the tools' data, \
@@ -79,7 +96,8 @@ def load_coverage(path: Path = HERE / "coverage.yaml") -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
-def command(q: dict, mcp_config: Path, model: str, binary: str = "claude", now: str = "") -> list[str]:
+def command(q: dict, mcp_config: Path, model: str, binary: str = "claude", now: str = "",
+            skills: bool = False) -> list[str]:
     # The tools run on the demo's frozen clock (server.py), the model on the
     # wall clock: without the tools' date it read "now" as days after the
     # data and answered NONE (zone_now, 2026-11-24, six days after the demo).
@@ -87,9 +105,11 @@ def command(q: dict, mcp_config: Path, model: str, binary: str = "claude", now: 
              "given elsewhere.\n") if now else ""
     return [binary, "-p", PROMPT.format(question=q["question"].strip(), clock=clock), "--model", model,
             "--output-format", "stream-json", "--verbose",
-            "--mcp-config", str(mcp_config), "--strict-mcp-config", "--tools", "",
-            "--allowedTools", f"mcp__{SERVER}", "--permission-prompts", "none",
-            "--setting-sources", "project", "--disable-slash-commands", "--no-session-persistence"]
+            "--mcp-config", str(mcp_config), "--strict-mcp-config", "--tools", SKILL_TOOLS if skills else "",
+            "--allowedTools", f"mcp__{SERVER}" + (" Skill" if skills else ""), "--permission-prompts", "none",
+            # --disable-slash-commands turns skills off too: kept out of --skills.
+            "--setting-sources", "project", *([] if skills else ["--disable-slash-commands"]),
+            "--no-session-persistence"]
 
 
 def client_env() -> dict:
@@ -113,11 +133,18 @@ def judge(q: dict, want: dict, stream: str, error: str = "") -> dict:
             "question": q["question"].strip(), "expected": want["answer"], "got": got,
             "answer_ok": answer_ok, "route_missed": missed, "forbidden": bad,
             "pass": answer_ok and not missed and not bad, "tools": calls, "sql_only": grading.sql_only(calls),
+            "skills": grading.skills_loaded(stream), "web": grading.web_calls(calls),
+            "sql_typed": grading.sql_despite_typed(calls, q.get("tools")),
             "error": error, "cost_usd": meta.get("cost_usd")}
 
 
-def ask(q: dict, want: dict, workdir: Path, vl_url: str, now: str, model: str, timeout_s: int) -> dict:
+def ask(q: dict, want: dict, workdir: Path, vl_url: str, now: str, model: str, timeout_s: int,
+        skills: bool = False, mirror: Path | None = None) -> dict:
+    """One question. skills: the --skills tools; mirror: a folder whose
+    .claude/skills becomes this run's project skills."""
     workdir.mkdir(parents=True, exist_ok=True)
+    if mirror is not None:
+        shutil.copytree(mirror / ".claude", workdir / ".claude", dirs_exist_ok=True)
     settings = workdir / "settings.json"
     settings.write_text(json.dumps({**answers.server_env(vl_url, str(workdir / "state")), "EVAL_NOW": now}),
                         encoding="utf-8")
@@ -127,8 +154,8 @@ def ask(q: dict, want: dict, workdir: Path, vl_url: str, now: str, model: str, t
     t0 = time.time()
     error = ""
     try:
-        p = subprocess.run(command(q, cfg, model, now=now), cwd=workdir, env=client_env(), capture_output=True,
-                           text=True, timeout=timeout_s, stdin=subprocess.DEVNULL)
+        p = subprocess.run(command(q, cfg, model, now=now, skills=skills), cwd=workdir, env=client_env(),
+                           capture_output=True, text=True, timeout=timeout_s, stdin=subprocess.DEVNULL)
         stream = p.stdout
         if p.returncode != 0 and not stream.strip():
             error = f"claude exited {p.returncode}: {p.stderr.strip()[-300:]}"
@@ -183,6 +210,45 @@ def summary(results: list[dict], model: str, wall_s: float, skipped: list[str] =
     return "\n".join(lines + ["", table(results), ""])
 
 
+def flags(r: dict) -> str:
+    out = []
+    if r.get("web"):
+        out.append("WEB " + ",".join(dict.fromkeys(r["web"])))
+    if r.get("sql_typed"):
+        out.append("play_sql")
+    return "; ".join(out) or "-"
+
+
+def compare(without: list[dict], with_: list[dict], model: str, wall_s: float, loaded: list[str],
+            skipped: list[str] = ()) -> str:
+    """Markdown: each question without and with the skills."""
+    w = {r["id"]: r for r in with_}
+    both = [(r, w[r["id"]]) for r in without if r["id"] in w]
+
+    def tally(rs: list[dict]) -> str:
+        cost = sum(float(r.get("cost_usd") or 0) for r in rs)
+        return (f"{sum(r['pass'] for r in rs)}/{len(rs)} pass, "
+                f"a skill loaded in {sum(bool(r.get('skills')) for r in rs)}, "
+                f"web in {sum(bool(r.get('web')) for r in rs)}, play_sql with a typed tool in "
+                f"{sum(bool(r.get('sql_typed')) for r in rs)}, ${cost:.2f}")
+
+    rows = ["| question | without: pass | without: flags | with: pass | with: skill loaded | with: flags "
+            "| with: tools |",
+            "|---|---|---|---|---|---|---|"]
+    for a, b in both:
+        tools = ", ".join(dict.fromkeys(t for t in b["tools"] if t != "Skill")) or "none"
+        rows.append(f"| {cell(a['id'])} | {'yes' if a['pass'] else 'NO'} | {cell(flags(a))} | "
+                    f"{'yes' if b['pass'] else 'NO'} | {cell(', '.join(b.get('skills') or []) or '-')} | "
+                    f"{cell(flags(b))} | {cell(tools)} |")
+    lines = [f"# MCP check with and without skills, {model}", "",
+             f"Mode: {skill_mirror.MODE}. Skills fetched from the server over MCP: {', '.join(loaded)}.", "",
+             f"Without: {tally([a for a, _ in both])}.", f"With: {tally([b for _, b in both])}.",
+             f"Wall time {wall_s:.0f} s."]
+    if skipped:
+        lines += ["", f"Not run (cost cap reached): {', '.join(skipped)}."]
+    return "\n".join(lines + ["", "\n".join(rows), ""])
+
+
 # ---------------------------------------------------------------- coverage (no model)
 
 
@@ -222,6 +288,19 @@ def tool_names() -> list[str]:
     return [t.name for t in tools.TOOLS + (tools.MARKET,)]
 
 
+def fetch_skills(dest: Path, vl_url: str, now: str) -> list[str]:
+    """The skills of the server the model gets (server.py over stdio), as
+    project skills under dest/.claude/skills."""
+    from fastmcp.client.transports import StdioTransport
+
+    dest.mkdir(parents=True, exist_ok=True)
+    settings = dest / "settings.json"
+    settings.write_text(json.dumps({**answers.server_env(vl_url, str(dest / "state")), "EVAL_NOW": now}),
+                        encoding="utf-8")
+    return skill_mirror.mirror(StdioTransport(command=sys.executable, args=[str(HERE / "server.py"), str(settings)]),
+                              dest)
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--only", action="append", default=[], help="one question id (repeatable)")
@@ -233,6 +312,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--timeout", type=int, default=180, help="seconds per question (default 180)")
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--coverage", action="store_true", help="print the coverage matrix and stop (no model)")
+    ap.add_argument("--skills", action="store_true",
+                    help="each question without and with the server's skills (filesystem mirror)")
     a = ap.parse_args(argv)
     qs = [q for q in load_questions() if (not a.only or q["id"] in a.only) and (not a.group or q["group"] in a.group)]
     if a.coverage:
@@ -249,26 +330,44 @@ def main(argv: list[str] | None = None) -> int:
     batch = a.out or OUT / datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     batch.mkdir(parents=True, exist_ok=True)
     spent, skipped, lock = [0.0], [], threading.Lock()
+    mirror, loaded = None, []
+    if a.skills:
+        mirror = batch / "skills-mirror"
+        loaded = fetch_skills(mirror, next(iter(stores.values())).url, now)
+    runs = [(q, arm) for arm in ((None, mirror) if a.skills else (None,)) for q in qs]
 
-    def one(q: dict) -> dict | None:
+    def one(job: tuple[dict, Path | None]) -> dict | None:
+        q, arm = job
         with lock:
             if spent[0] >= a.max_usd:
-                skipped.append(q["id"])
+                skipped.append(q["id"] + ("" if not a.skills else " (with)" if arm else " (without)"))
                 return None
-        r = ask(q, expected[q["id"]], batch / q["id"], stores[q.get("scenario", "full")].url, now, a.model,
-                a.timeout)
+        where = batch / ("with" if arm else "without") / q["id"] if a.skills else batch / q["id"]
+        r = ask(q, expected[q["id"]], where, stores[q.get("scenario", "full")].url, now, a.model, a.timeout,
+                skills=a.skills, mirror=arm)
         with lock:
             spent[0] += float(r.get("cost_usd") or 0)
-        return r
+        return {**r, "arm": "with" if arm else "without"} if a.skills else r
 
     t0 = time.time()
     try:
         with ThreadPoolExecutor(max_workers=max(1, a.jobs)) as pool:
-            results = [r for r in pool.map(one, qs) if r is not None]
+            results = [r for r in pool.map(one, runs) if r is not None]
     finally:
         for vl in stores.values():
             vl.close()
     wall = time.time() - t0
+    if a.skills:
+        text = compare([r for r in results if r["arm"] == "without"], [r for r in results if r["arm"] == "with"],
+                       a.model, wall, loaded, skipped)
+        (batch / "summary.md").write_text(text, encoding="utf-8")
+        (batch / "results.json").write_text(json.dumps({"model": a.model, "mode": skill_mirror.MODE, "skills": loaded,
+                                                        "wall_s": round(wall, 1), "skipped": skipped,
+                                                        "results": results}, ensure_ascii=False, indent=1),
+                                            encoding="utf-8")
+        print(text)
+        print(f"(transcripts in {batch})")
+        return 0
     text = summary(results, a.model, wall, skipped)
     (batch / "summary.md").write_text(text, encoding="utf-8")
     (batch / "results.json").write_text(json.dumps({"model": a.model, "wall_s": round(wall, 1), "skipped": skipped,

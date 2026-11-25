@@ -18,6 +18,11 @@ PREFIX = "ANSWER:"
 ORIENTING = frozenset({"character_summary", "analysis_brief", "analysis_progress", "list_metrics",
                        "kb_lookup", "kb_get", "kb_search"})
 
+# Claude Code's own tools, offered in `run.py --skills` only: never where an
+# answer comes from.
+CLIENT_TOOLS = frozenset({"Skill", "WebSearch", "WebFetch", "ToolSearch"})
+WEB_TOOLS = frozenset({"WebSearch", "WebFetch"})
+
 _NUM = re.compile(r"-?\d+(?:[.,]\d+)?")
 
 
@@ -134,4 +139,31 @@ def tools_used(stream: str, server: str) -> tuple[list[str], str, dict]:
 
 def sql_only(calls: list[str]) -> bool:
     """play_sql was the only tool that could have held the answer."""
-    return "play_sql" in calls and not (set(calls) - ORIENTING - {"play_sql"})
+    return "play_sql" in calls and not (set(calls) - ORIENTING - CLIENT_TOOLS - {"play_sql"})
+
+
+def skills_loaded(stream: str) -> list[str]:
+    """The skills a run loaded through Claude Code's Skill tool, in order."""
+    out: list[str] = []
+    for line in (stream or "").splitlines():
+        try:
+            m = json.loads(line)
+        except ValueError:
+            continue
+        if m.get("type") == "assistant":
+            for c in (m.get("message") or {}).get("content") or []:
+                if c.get("type") == "tool_use" and c.get("name") == "Skill":
+                    out.append(str((c.get("input") or {}).get("skill") or "?"))
+    return out
+
+
+def web_calls(calls: list[str]) -> list[str]:
+    """Web searches and fetches: the answer is in the tools, never on the web."""
+    return [c for c in calls if c in WEB_TOOLS]
+
+
+def sql_despite_typed(calls: list[str], route: list[str] | None) -> bool:
+    """play_sql called on a question whose route names a typed tool: the
+    model wrote SQL where a tool already answers."""
+    typed = {t for r in route or [] for t in r.split("|")} - {"play_sql"}
+    return "play_sql" in calls and bool(typed)
