@@ -277,7 +277,10 @@ again from that night's result; the page and `play_analysis` show
 recheck). A finding kept before the placeholder rule above whose text types
 a number its query doesn't fill and nothing declares keeps its text and is
 marked to revalidate (`unbound_numbers`), never deleted, until an analysis
-proposes it again. Such a finding had no `constants`, so a number its own SQL
+proposes it again. A kept finding whose text today's renderer refuses on its kept row
+(a `{col:pct}` whose column declares no unit, or any other render error) is
+marked to revalidate (`unrendered`) on read and fades at the recheck; the
+character's other findings are untouched. Such a finding had no `constants`, so a number its own SQL
 writes as a numeric literal (`level = 32`, `LIMIT 3`) counts as declared, as a
 level, a top-N and a threshold, and goes through the same check as a new
 proposal's constant: equal to a placeholder's value on its kept row, or

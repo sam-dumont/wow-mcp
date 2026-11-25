@@ -330,8 +330,22 @@ def sql_numbers(sql_text: str, params: dict | None) -> set[float]:
     return out
 
 
+def shown(v, spec: str | None, unit: str | None = None) -> str:
+    """A value as a placeholder would write it, for comparing with what the
+    prose types and for quoting in a refusal: fmt, except that a format whose
+    unit isn't declared writes the plain number instead of raising. Whether
+    that format may stand is units_why's call (a proposal is refused, a kept
+    finding is marked and fades at the recheck), never the number checks':
+    0.11.1 let the UnitError out of constant_why and every load of the
+    character's analysis failed on one kept finding."""
+    try:
+        return fmt(v, spec, unit)
+    except UnitError:
+        return fmt(v, None)
+
+
 def constant_why(c: dict, parts: dict[str, str], in_query: set[float], cites: list[str],
-                 row: dict | None, rows: list[dict] | None = None) -> str:
+                 row: dict | None, rows: list[dict] | None = None, units: dict | None = None) -> str:
     """Why one constant the prose types can't stand ("" when it can): it
     equals a placeholder's value (a measure typed by hand), contradicts one
     (labelled like the column the placeholder reads, another value), is a
@@ -344,14 +358,15 @@ def constant_why(c: dict, parts: dict[str, str], in_query: set[float], cites: li
             v = value(ref, row, rows)
             if isinstance(v, bool) or not isinstance(v, (int, float)):
                 continue
-            col = (CELL.fullmatch(ref).group(2) if CELL.fullmatch(ref) else ref).lower().replace("_", "-")
-            shown = fmt(v, m.group(2))
-            if _same(float(v), float(c["value"])) or shown == f"{c['value']:g}":
+            name_col = CELL.fullmatch(ref).group(2) if CELL.fullmatch(ref) else ref
+            col = name_col.lower().replace("_", "-")
+            text_v = shown(v, m.group(2), (units or {}).get(name_col))
+            if _same(float(v), float(c["value"])) or text_v == f"{c['value']:g}":
                 return (f"constant {c['value']:g} ({c['label']}) equals {{{ref}}} in the {name}: it is "
                         "measured, so write the placeholder and leave it out of `constants`")
             if c["label"] == col:
                 return (f"constant {c['value']:g} ({c['label']}) contradicts {{{ref}}} in the {name}, which "
-                        f"the query gives as {shown}")
+                        f"the query gives as {text_v}")
     if c["label"] in IN_QUERY and not any(_same(float(c["value"]), q) for q in in_query):
         return (f"constant {c['value']:g} ({c['label']}) isn't in the query: a {c['label']} is a parameter "
                 "the query applies (WHERE, LIMIT), written in its SQL. A number the query counts or sums is "
@@ -363,7 +378,8 @@ def constant_why(c: dict, parts: dict[str, str], in_query: set[float], cites: li
 
 
 def refused_numbers(parts: dict[str, str], constants: list[dict], sql_text: str, params: dict | None,
-                    cites: list[str], row: dict | None, rows: list[dict] | None = None) -> dict[str, str]:
+                    cites: list[str], row: dict | None, rows: list[dict] | None = None,
+                    units: dict | None = None) -> dict[str, str]:
     """{number: why} for every number the prose types that can't stand, {}
     when each is a placeholder or a constant that passes constant_why. The
     one rule for a new proposal (check) and a kept finding (unbound): a
@@ -375,7 +391,7 @@ def refused_numbers(parts: dict[str, str], constants: list[dict], sql_text: str,
             out.setdefault(n, _undeclared_why(name, bad))
     in_query = sql_numbers(sql_text, params)
     for c in used_constants(parts, constants):
-        why = constant_why(c, parts, in_query, cites, row, rows)
+        why = constant_why(c, parts, in_query, cites, row, rows, units)
         if why:
             for n in (n for t in parts.values() for n in bare_numbers(t) if _same(_num(n), float(c["value"]))):
                 out.setdefault(n, why)
@@ -636,7 +652,7 @@ def check(f: dict, ro: ReadOnly, kb_ids=None) -> tuple[dict | None, str]:
     cites = [str(c) for c in f.get("kb") or [] if isinstance(c, str)]
     if kb_ids is not None:
         cites = [c for c in cites if kb_ids(c)]
-    refused = refused_numbers(prose, constants, sql_text, params, cites, row, rows)
+    refused = refused_numbers(prose, constants, sql_text, params, cites, row, rows, units)
     if refused:
         return None, f"{key}: {next(iter(refused.values()))}"
     for part, text in prose.items():
@@ -721,7 +737,8 @@ def unbound(stored: dict) -> list[str]:
         typed = dict.fromkeys(_num(n) for t in tpls.values() for n in undeclared(t, consts))
         implied = [{"value": v, "label": k} for v in typed if any(_same(v, q) for q in in_query) for k in IN_QUERY]
     cites = [str(c) for c in stored.get("kb") or [] if isinstance(c, str)]
-    return list(refused_numbers(tpls, consts + implied, sql_text, params, cites, row, rows))
+    units = stored.get("units") if isinstance(stored.get("units"), dict) else None
+    return list(refused_numbers(tpls, consts + implied, sql_text, params, cites, row, rows, units))
 
 
 # A number typed after "level" is a level: it binds to a level column only.
@@ -782,6 +799,50 @@ def set_templates(stored: dict, tpls: dict[str, str]) -> None:
         stored["action_template"] = {**(stored.get("action_template") or {}), **act}
 
 
+UNRENDERED_WHY = "its text can't be written today"
+
+
+def render_kept(stored: dict, row: dict, rows: list[dict] | None, units: dict) -> tuple[dict | None, str]:
+    """A kept finding's title, text and action rendered from `row` with
+    `units`, or (None, why) when the renderer refuses it: the one rendering
+    of a kept finding, for the recheck (today's row) and kept_why (the row it
+    was kept with). A refusal belongs to that finding alone; it never
+    escapes to the character's other findings."""
+    tpl = stored.get("action_template") or {}
+    try:
+        out = {"title": render(str(stored.get("title_template") or ""), row, rows, units)[:120],
+               "text": render(str(stored.get("claim_template") or ""), row, rows, units)[:1200]}
+        if tpl:
+            out["action"] = {p: render(str(t or ""), row, rows, units) for p, t in tpl.items()}
+    except UnitError:
+        return None, ("a percent placeholder's column declares no unit: "
+                      + (units_why(templates(stored), units) or "percent or share only"))
+    except (ValueError, TypeError, KeyError, IndexError, AttributeError) as e:
+        return None, f"{UNRENDERED_WHY}: {type(e).__name__}: {e}"
+    return out, ""
+
+
+def kept_why(stored: dict) -> str:
+    """Why today's renderer refuses a kept finding's text on the row it was
+    kept with ("" when it renders). A column a unit-bound format reads
+    whose unit wasn't kept is looked up from the query (finding_units), only
+    then: the units are worked out by parsing the SQL, and this runs on
+    every read of the state."""
+    row = stored.get("row") if isinstance(stored.get("row"), dict) else None
+    if row is None:
+        return ""
+    rows = stored.get("rows") if isinstance(stored.get("rows"), list) else None
+    units = dict(stored.get("units")) if isinstance(stored.get("units"), dict) else {}
+    tpls = templates(stored)
+    need = {CELL.fullmatch(m.group(1)).group(2) if CELL.fullmatch(m.group(1)) else m.group(1)
+            for t in tpls.values() for m in PLACEHOLDER.finditer(t)
+            if (m.group(2) or "").lstrip(".") in FORMAT_UNITS}
+    if need - set(units):
+        units = finding_units(stored)
+    _, why = render_kept(stored, row, rows, units)
+    return why
+
+
 def recheck(stored: dict, ro: ReadOnly) -> tuple[dict | None, str]:
     """A kept finding on today's data: the query runs, its `holds` is still
     true; the text is rendered again from today's numbers (no `expect`:
@@ -802,20 +863,15 @@ def recheck(stored: dict, ro: ReadOnly) -> tuple[dict | None, str]:
             return None, f"holds unreadable: {e}"
     if any(missing(t, row, rows) for t in tpls.values()):
         return None, "a placeholder is gone"
-    tpl = stored.get("action_template") or {}
     upd = dict(stored)
     upd["row"] = _rounded(row)
     if n_rows > 1:
         upd["rows"] = [_rounded(r) for r in rows[:n_rows]]
     units = finding_units(stored)
-    try:
-        upd["title"] = render(stored["title_template"], row, rows, units)[:120]
-        upd["text"] = render(stored["claim_template"], row, rows, units)[:1200]
-        if tpl:
-            upd["action"] = {p: render(t, row, rows, units) for p, t in tpl.items()}
-    except UnitError:
-        return None, ("a percent placeholder's column declares no unit: "
-                      + (units_why(tpls, units) or "percent or share only"))
+    text, why = render_kept(stored, row, rows, units)
+    if text is None:
+        return None, why
+    upd.update(text)
     upd["units"] = placeholder_units(tpls, units)
     upd["effect"] = abs(float(row.get(stored.get("effect_col") or "", 0) or 0)) \
         if isinstance(row.get(stored.get("effect_col") or ""), (int, float)) else stored.get("effect", 0.0)
