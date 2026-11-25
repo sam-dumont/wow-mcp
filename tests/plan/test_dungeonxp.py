@@ -4,7 +4,6 @@ recorded runs, and the MCP answer that carries it."""
 
 from __future__ import annotations
 
-import gzip
 import json
 import re
 from pathlib import Path
@@ -176,8 +175,8 @@ def test_dalaran_reference_within_ten_percent_of_its_runs():
 
 
 @pytest.fixture(scope="module")
-def priest():
-    return json.loads(gzip.open(ROOT / "tests" / "data" / "plan-inputs.json.gz").read())
+def priest(derived):
+    return derived("plan-inputs.json.gz")
 
 
 def test_dungeon_options_carries_the_labelled_kill_xp(monkeypatch, tmp_path, priest):

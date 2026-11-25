@@ -249,10 +249,15 @@ No test, fixture, doc or screenshot holds a real account, character, guild,
 host or address.
 
 - **Test fixtures** come from `tools/fixtures/generate.py` (seeded, byte for
-  byte reproducible; its header lists what it writes). After changing it, or
-  the code that derives the planner's inputs: `uv run python
-  tools/fixtures/generate.py`, read the diff, commit both. CI runs it with
-  `--check`.
+  byte reproducible; its header lists what it writes). The played events and
+  the addon saves are committed: after changing the generator, `uv run python
+  tools/fixtures/generate.py`, read the diff, commit both; CI runs it with
+  `--check`. The fixtures the product's code derives from them (the
+  planner's inputs, the gear answer) are never committed: the first test
+  that needs them builds them (`tests/derived.py`, about 20 s) into
+  `.cache/test-fixtures/`, keyed by a hash of the generator, `wowstats/`,
+  `data/` and the test data, and later runs reuse that build. Tests read
+  them through the `derived` fixture: `derived("plan-inputs.json.gz")`.
 - **The demo** has one source: `build_demo` in `tools/fixtures/generate.py`,
   Nibbet. The docs site's demo publishes the character (above); the local demo,
   `dev/seed.py`, sends the same events marked `demo: true` (a DEMO DATA

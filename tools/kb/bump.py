@@ -80,11 +80,13 @@ import argparse
 import collections
 import difflib
 import gzip
+import io
 import json
 import os
 import re
 import subprocess
 import sys
+import tarfile
 import tempfile
 import urllib.parse
 from pathlib import Path
@@ -247,6 +249,16 @@ def move_tag(old: str, new: str, root: Path = ROOT) -> list[str]:
 
 
 DERIVED = ("tests/data", "tests/analysis")
+# The fixtures built at test time (tools/fixtures/generate.py DERIVED, tests/derived.py): not in git, so a
+# regen that must see whether they moved builds them twice, from HEAD and from the tree.
+BUILT = ("plan-inputs.json.gz", "plan-inputs-level1.json.gz", "gear-priest.json.gz")
+
+
+def built(src: Path, out: Path) -> dict[str, bytes]:
+    """The derived fixtures as `src`'s generator builds them."""
+    subprocess.run(["uv", "run", "--frozen", "python", "tools/fixtures/generate.py", "--derived-out", str(out)],
+                   cwd=src, check=True, capture_output=True, text=True)
+    return {f"tests/data/{n}": (out / n).read_bytes() for n in BUILT if (out / n).is_file()}
 
 
 def _normal(data: bytes, versions: list[str]) -> str:
@@ -258,34 +270,56 @@ def _normal(data: bytes, versions: list[str]) -> str:
     return text
 
 
-def regen(old: str = "", new: str = "", root: Path = ROOT) -> tuple[list[str], list[str]]:
+def regen(old: str = "", new: str = "", root: Path = ROOT, derived: bool = False) -> tuple[list[str], list[str]]:
     """Regenerate the fixtures and the layer pages' snapshot from the new data
     (tools/fixtures/generate.py, WOW_UPDATE_SNAPSHOT=1), as a person does
     after a bump. Returns (why a generator failed, the files that moved by
     more than the Polestar version); `refusals` says which of them stop the
-    kind."""
+    kind. `derived`: also build the fixtures made at test time (BUILT) from
+    HEAD and from the tree, and count those that moved: a kind whose moved
+    test data is refused needs them, the others don't pay the two builds."""
     def tracked() -> dict[str, bytes]:
         names = subprocess.run(["git", "-C", str(root), "ls-files", *DERIVED], capture_output=True, text=True,
                                check=True).stdout.split()
         return {n: (root / n).read_bytes() for n in names if (root / n).is_file()}
 
+    def why(e: subprocess.CalledProcessError) -> str:
+        sys.stderr.write((e.stdout or "")[-3000:] + (e.stderr or "")[-3000:])
+        last = ((e.stderr or "").strip() or (e.stdout or "").strip() or f"exit {e.returncode}").splitlines()[-1]
+        return PLAIN.sub("", last)[:200]
+
     before = tracked()
-    # A generator that stops on the new data is a refusal like any other, with
-    # its last line as the reason (2026-11-22, v0.4.2.1: a traceback, no reason,
-    # and the issue said the run had stopped).
-    for what, cmd, env in (
-            ("tools/fixtures/generate.py", ["uv", "run", "--frozen", "python", "tools/fixtures/generate.py"], None),
-            ("the layer pages' snapshot (tests/test_layer_pages.py)",
-             ["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_layer_pages.py"],
-             {**os.environ, "WOW_UPDATE_SNAPSHOT": "1"})):
-        try:
-            subprocess.run(cmd, cwd=root, check=True, env=env, capture_output=True, text=True)
-        except subprocess.CalledProcessError as e:
-            sys.stderr.write((e.stdout or "")[-3000:] + (e.stderr or "")[-3000:])
-            last = ((e.stderr or "").strip() or (e.stdout or "").strip() or f"exit {e.returncode}").splitlines()[-1]
-            last = PLAIN.sub("", last)[:200]
-            return [f"{what} failed on the new data ({last}): fix the generator, not the data"], []
-    after = tracked()
+    with tempfile.TemporaryDirectory(prefix="regen-") as t:
+        tmp = Path(t)
+        if derived:
+            base = tmp / "base"
+            base.mkdir()
+            tree = subprocess.run(["git", "-C", str(root), "archive", "HEAD"], capture_output=True, check=True).stdout
+            with tarfile.open(fileobj=io.BytesIO(tree)) as tar:
+                tar.extractall(base, filter="data")
+            try:
+                before |= built(base, tmp / "before")
+            except subprocess.CalledProcessError as e:
+                return [f"the derived fixtures couldn't be built at HEAD ({why(e)})"], []
+        # A generator that stops on the new data is a refusal like any other, with
+        # its last line as the reason (2026-11-22, v0.4.2.1: a traceback, no reason,
+        # and the issue said the run had stopped).
+        for what, cmd, env in (
+                ("tools/fixtures/generate.py", ["uv", "run", "--frozen", "python", "tools/fixtures/generate.py"], None),
+                ("the layer pages' snapshot (tests/test_layer_pages.py)",
+                 ["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider", "tests/test_layer_pages.py"],
+                 {**os.environ, "WOW_UPDATE_SNAPSHOT": "1"})):
+            try:
+                subprocess.run(cmd, cwd=root, check=True, env=env, capture_output=True, text=True)
+            except subprocess.CalledProcessError as e:
+                return [f"{what} failed on the new data ({why(e)}): fix the generator, not the data"], []
+        after = tracked()
+        if derived:
+            try:
+                after |= built(root, tmp / "after")
+            except subprocess.CalledProcessError as e:
+                return [f"tools/fixtures/generate.py --derived-out failed on the new data ({why(e)}): fix the "
+                        "generator, not the data"], []
     moved = [n for n in sorted(after) if after[n] != before.get(n)
              and _normal(after[n], [old, new]) != _normal(before.get(n, b""), [old, new])]
     return [], moved
@@ -514,7 +548,7 @@ def main(argv: list[str] | None = None) -> int:
     if a.kind == "golden":
         return golden(a.why, a.as_kind)
     if a.kind == "regen":
-        failed, moved = regen(a.old, a.new)
+        failed, moved = regen(a.old, a.new, derived=a.as_kind not in TAKEN_AS_IS)
         reasons = refusals(a.as_kind, failed, moved)
         if reasons:
             refuse(a.why, a.as_kind, reasons)

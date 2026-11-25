@@ -9,7 +9,6 @@ budgets, nothing from a real client."""
 from __future__ import annotations
 
 import copy
-import gzip
 import hashlib
 import http.client
 import json
@@ -31,7 +30,6 @@ from wowstats.plan import kbloot
 PW = "itemfacts-password-long-enough"
 BUILD = "1.60.1.70959"
 AUTH = {"Authorization": ui._basic("wow", PW).decode()}
-DATA = Path(__file__).resolve().parent / "data"
 
 # Made-up items under the names the research notes give The Drowned City's
 # drops (data/kb/research/dungeons.json): ids no client uses.
@@ -437,8 +435,8 @@ def test_each_person_their_own_facts(several, shipper):  # noqa: F811
 # ---------------------------------------------------------------- the dungeon loot path
 
 @pytest.fixture(scope="module")
-def priest():
-    return json.loads(gzip.open(DATA / "plan-inputs.json.gz").read())
+def priest(derived):
+    return derived("plan-inputs.json.gz")
 
 
 @pytest.fixture

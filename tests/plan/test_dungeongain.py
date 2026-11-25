@@ -6,9 +6,6 @@ dungeon_options) agreeing, on Testpriest's synthetic planner inputs."""
 from __future__ import annotations
 
 import copy
-import gzip
-import json
-from pathlib import Path
 
 import pytest
 
@@ -19,13 +16,12 @@ from wowstats.plan import dungeonview as V
 from wowstats.plan import dungeonxp as D
 from wowstats.plan import estimate as E
 
-DATA = Path(__file__).resolve().parent.parent / "data"
 RULE = G.kill_rule()
 
 
 @pytest.fixture(scope="module")
-def priest():
-    return json.loads(gzip.open(DATA / "plan-inputs.json.gz").read())
+def priest(derived):
+    return derived("plan-inputs.json.gz")
 
 
 def quest(qid, xp, state="new", min_level=20, blocked=False):

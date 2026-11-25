@@ -6,21 +6,16 @@ a run counted for the wing its kills stayed in."""
 from __future__ import annotations
 
 import copy
-import gzip
-import json
-from pathlib import Path
 
 import pytest
 
 from wowstats.plan import dungeonview as D
 from wowstats.plan import wings as W
 
-DATA = Path(__file__).resolve().parents[1] / "data"
-
 
 @pytest.fixture(scope="module")
-def priest():
-    return json.loads(gzip.open(DATA / "plan-inputs.json.gz").read())
+def priest(derived):
+    return derived("plan-inputs.json.gz")
 
 
 def wings_of(name, qid):

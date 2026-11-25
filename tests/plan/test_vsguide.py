@@ -1,6 +1,6 @@
 """Our dungeon advice against Polestar's dungeons for the level
 (wowstats.plan.vsguide), on synthetic cases and the synthetic priest
-(Testpriest, Gnome priest 32; tests/data/plan-inputs.json.gz).
+(Testpriest, Gnome priest 32; plan-inputs.json.gz, tests/derived.py).
 
 The case behind it (owner, 2026-11-19): at 32 the advice said Scarlet
 Monastery: Library, Polestar had Razorfen Kraul. Scarlet Monastery opens at
@@ -9,9 +9,6 @@ from 36: nothing measured on the character justified it.
 """
 
 import copy
-import gzip
-import json
-from pathlib import Path
 
 import pytest
 
@@ -21,8 +18,6 @@ from wowstats.plan import dungeonview as D
 from wowstats.plan import estimate as E
 from wowstats.plan import vsguide as V
 
-DATA = Path(__file__).resolve().parents[1] / "data"
-
 RFK = {"name": "Razorfen Kraul", "instance": "dungeon", "levels": [29, 38], "floor": 31.1}
 SM = {"name": "Scarlet Monastery", "instance": "dungeon", "levels": [30, 38], "floor": 35.1}
 SFK = {"name": "Shadowfang Keep", "instance": "dungeon", "levels": [20, 30], "floor": 22.9}
@@ -31,8 +26,8 @@ AREAS = {"491": RFK, "796": SM, "209": SFK, "721": GNOMER}
 
 
 @pytest.fixture(scope="module")
-def priest():
-    return json.loads(gzip.open(DATA / "plan-inputs.json.gz").read())
+def priest(derived):
+    return derived("plan-inputs.json.gz")
 
 
 def q(qid, state="new", complete=False, xp=5000):

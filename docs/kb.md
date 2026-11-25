@@ -261,8 +261,13 @@ from a frozen copy of the KB's quests and creatures
 takes the KB's again, on purpose). Before that, every quest XP forever-db
 moved shifted the seeded levels that two dozen tests pin, so each daily PR
 that touched the KB would have gone red. Only the fixtures the product's
-own code derives from the data (the planner's inputs, the gear answer, the
-layer pages) move with it, and `regen` takes them.
+own code derives from the data move with it. The planner's inputs and the
+gear answer aren't committed: the tests build them (`tests/derived.py`,
+cached by a hash of their inputs), so a data PR has nothing to commit for
+them; a regen that refuses moved test data (`client-build`) builds them from
+HEAD and from the tree to compare. The layer pages' snapshot
+(`tests/data/layer-pages-demo.json`) is an expected output and stays
+committed, and `regen` rewrites it.
 
 ```
 uv run python tools/kb/rebuild.py list                     # the table below

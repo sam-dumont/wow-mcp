@@ -4,13 +4,11 @@ live full view shows the paragraph, the score with its parts, the gaps as
 moves with somewhere to go, and the meta in full behind one toggle.
 
 A Gnome priest at level 32 with the fixtures' gear advice
-(tests/data/gear-priest.json.gz) over the poison store; the meta itself is
+(gear-priest.json.gz, tests/derived.py) over the poison store; the meta itself is
 the shipped knowledge base lane. Same setup as tests/test_advice_browser.py
 (needs the `browser` group)."""
 
-import gzip
 import io
-import json
 import threading
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -26,7 +24,6 @@ from tests.test_public_view import CHAR, PoisonStore  # noqa: E402
 from wowstats import classmeta, itemcard, news, publish, static, ui, views  # noqa: E402
 from wowstats.plan import facts  # noqa: E402
 
-DATA = Path(__file__).parent / "data"
 # The priest's level: 32, or 60 for the raid prep (a fresh App, so a fresh cache).
 LEVEL = {"v": 32}
 
@@ -51,7 +48,9 @@ def site(tmp_path_factory):
         {"id": "reddit:1abcde", "source": "reddit", "title": "Shadow priest levelling spots",
          "url": "https://www.reddit.com/r/wowforever/comments/1abcde/shadow/", "date": "2026-11-18",
          "text": "Priests swap levelling routes.", "classes": ["PRIEST"]}]}])
-    gear = {**json.loads(gzip.decompress((DATA / "gear-priest.json.gz").read_bytes())), "char": CHAR}
+    from tests.derived import load  # built at test time (tests/derived.py)
+
+    gear = {**load("gear-priest.json.gz"), "char": CHAR}
     mp.setattr(ui.App, "gear", lambda self, name, spec: gear)
     char = views.Views.char
 

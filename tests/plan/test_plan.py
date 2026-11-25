@@ -21,18 +21,14 @@ from wowstats.plan import facts, store, write
 DATA = Path(__file__).resolve().parent.parent / "data"
 
 
-def load(name):
-    return json.loads(gzip.open(DATA / name).read())
+@pytest.fixture(scope="module")
+def priest(derived):
+    return derived("plan-inputs.json.gz")
 
 
 @pytest.fixture(scope="module")
-def priest():
-    return load("plan-inputs.json.gz")
-
-
-@pytest.fixture(scope="module")
-def hunter():
-    return load("plan-inputs-level1.json.gz")
+def hunter(derived):
+    return derived("plan-inputs-level1.json.gz")
 
 
 def numbers_from_facts(e):

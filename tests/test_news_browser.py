@@ -10,10 +10,8 @@ faked store and a faked clock:
 
 Same setup as tests/test_advice_browser.py (needs the `browser` group)."""
 
-import gzip
 import json
 import threading
-from pathlib import Path
 
 import pytest
 
@@ -24,7 +22,6 @@ from tests.test_public_view import CHAR, PoisonStore  # noqa: E402
 from wowstats import itemcard, ui  # noqa: E402
 from wowstats.plan import facts  # noqa: E402
 
-DATA = Path(__file__).parent / "data"
 CHECK_MS = 3 * 60 * 1000  # app.js NEWS_EVERY_MS
 
 
@@ -34,7 +31,9 @@ def live():
     mp.setattr(facts, "store_for", lambda env, like=None: like)
     mp.setattr(itemcard, "shared", lambda: Catalog())
     mp.setenv("WOW_ITEMS", "off")
-    gear = {**json.loads(gzip.decompress((DATA / "gear-priest.json.gz").read_bytes())), "char": CHAR}
+    from tests.derived import load  # built at test time (tests/derived.py)
+
+    gear = {**load("gear-priest.json.gz"), "char": CHAR}
 
     def scored(self, name, spec, mode=None, pvp=None):
         # The real answer: a spec the page picked comes back as the page's.

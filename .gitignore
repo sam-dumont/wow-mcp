@@ -30,3 +30,10 @@ nibbet-3d.tar.gz.sha256
 *.anim
 *.blp
 *.db2
+# Derived test fixtures: built at test time, never committed (tests/derived.py,
+# tools/fixtures/generate.py DERIVED). The old committed paths stay ignored so
+# a regeneration script can't add them back.
+.cache/
+tests/data/plan-inputs.json.gz
+tests/data/plan-inputs-level1.json.gz
+tests/data/gear-priest.json.gz

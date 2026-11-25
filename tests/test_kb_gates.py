@@ -6,6 +6,7 @@ checks. No network, no model, no GitHub."""
 
 from __future__ import annotations
 
+import gzip
 import importlib.util
 import json
 import shutil
@@ -367,6 +368,44 @@ def test_a_client_build_still_refuses_test_data_that_moved(monkeypatch, tmp_path
     _regen_moves(monkeypatch, tmp_path)
     assert bump.refusals("client-build", *bump.regen(root=tmp_path))
     assert not bump.refusals("polestar", *bump.regen(root=tmp_path))
+
+
+def _regen_derived(monkeypatch, tmp_path, at_head: str, now: str):
+    """bump.regen(derived=True) in a scratch repo with a commit, whose
+    `generate.py --derived-out` builds `at_head` from HEAD's copy and `now`
+    from the tree."""
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "README").write_text("x\n")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=t", "-c", "user.email=t@example.invalid",
+                    "commit", "-qm", "x"], check=True)
+    real = subprocess.run
+
+    def run(cmd, **kw):
+        if cmd[0] == "git":
+            return real(cmd, capture_output=True, check=True, text=kw.get("text", False))
+        if "--derived-out" in cmd:
+            out = Path(cmd[cmd.index("--derived-out") + 1])
+            out.mkdir(parents=True, exist_ok=True)
+            body = now if Path(kw["cwd"]) == tmp_path else at_head
+            (out / "plan-inputs.json.gz").write_bytes(gzip.compress(body.encode(), mtime=0))
+        return subprocess.CompletedProcess(cmd, 0, "", "")
+
+    monkeypatch.setattr(bump.subprocess, "run", run)
+    return bump.regen(root=tmp_path, derived=True)
+
+
+def test_a_client_build_still_refuses_derived_test_data_that_moved(monkeypatch, tmp_path):
+    """The derived fixtures are built at test time, not committed: a client
+    build's regen builds them from HEAD and from the tree to see them move."""
+    failed, moved = _regen_derived(monkeypatch, tmp_path, '{"route_s": 390960}', '{"route_s": 307440}')
+    assert (failed, moved) == ([], ["tests/data/plan-inputs.json.gz"])
+    assert bump.refusals("client-build", failed, moved)
+
+
+def test_derived_test_data_that_didnt_move_is_no_refusal(monkeypatch, tmp_path):
+    failed, moved = _regen_derived(monkeypatch, tmp_path, '{"route_s": 390960}', '{"route_s": 390960}')
+    assert (failed, moved) == ([], []) and not bump.refusals("client-build", failed, moved)
 
 
 def test_regenerated_data_may_differ_by_the_polestar_version_only():

@@ -6,9 +6,6 @@ write-up that broke the player's own constraints."""
 from __future__ import annotations
 
 import copy
-import gzip
-import json
-from pathlib import Path
 
 import pytest
 
@@ -16,21 +13,15 @@ from wowstats.mcp import plantools, tools
 from wowstats.plan import estimate as E
 from wowstats.plan import store, write
 
-DATA = Path(__file__).resolve().parent.parent / "data"
 
-
-def load(name):
-    return json.loads(gzip.open(DATA / name).read())
+@pytest.fixture(scope="module")
+def priest(derived):
+    return derived("plan-inputs.json.gz")
 
 
 @pytest.fixture(scope="module")
-def priest():
-    return load("plan-inputs.json.gz")
-
-
-@pytest.fixture(scope="module")
-def hunter():
-    return load("plan-inputs-level1.json.gz")
+def hunter(derived):
+    return derived("plan-inputs-level1.json.gz")
 
 
 def short_route(inp, last):
