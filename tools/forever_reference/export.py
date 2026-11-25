@@ -217,6 +217,96 @@ def reward_quests(db: Path, quests: dict) -> dict[str, list]:
             for k, v in sorted(out.items(), key=lambda kv: int(kv[0]))}
 
 
+# forever-db's quest types the gear advice weighs (Classic's QuestInfo: 1
+# Group, 41 PvP, 62 Raid, 81 Dungeon); 0 and the rest are plain quests.
+WORK_TYPES = {1, 41, 62, 81}
+
+
+def quest_work(db: Path, wanted: set[str], sourced_npcs: set[int],
+               ui_names: dict[str, str] | None = None) -> tuple[dict, dict]:
+    """({quest id: [type, foe, bring, objectives]}, {npc id: [name, level min, level max,
+    rank]}) for the quests in `wanted` (the ones that give gear): what a
+    quest really takes, for the gear advice (wowstats.questwork, owner
+    2026-11-25: "a few recos here are easier said than done"). `type` is
+    forever-db's quest type (WORK_TYPES, else 0); `foe` the strongest
+    creature its objectives send the player to (a kill target, or the one
+    creature that drops a collected item), by rank then level, as an npc id;
+    `bring` the items it asks for that no creature drops and no object
+    gives (made, bought, or carried from another quest); `objectives` how
+    many it lists (0: a hand-in, or a gate the quest data doesn't say, like
+    Library Books' milestones). The npcs map names
+    every foe, and every creature ForeverDB.net names as a drop source
+    (`sourced_npcs`): its level and rank (0 normal, 1 elite, 2 rare elite, 3
+    boss, 4 rare) and, for a drop source, the zone it lives in: the one
+    zone map (forever-db's ui_map frames, named by the client's UiMap)
+    holding every spawn, else null (frames overlap their neighbours: a
+    creature only places when one frame alone holds all its spawns)."""
+    def rows(name):
+        return [json.loads(line) for line in (db / "data" / name).read_text(encoding="utf-8").splitlines()]
+
+    npc = {r["id"]: r for r in rows("npc.jsonl")}
+    qtype = {str(r["id"]): r.get("type") or 0 for r in rows("quest.jsonl")}
+    drops: dict[int, set[int]] = {}
+    looted: set[int] = set()  # items an object gives (a chest, a bundle on the ground)
+    for r in rows("item_source.jsonl"):
+        if r.get("kind") == "npc":
+            drops.setdefault(int(r["item"]), set()).add(int(r["id"]))
+        elif r.get("kind") == "object":
+            looted.add(int(r["item"]))
+    objs: dict[str, list] = {}
+    for r in rows("quest_objective.jsonl"):
+        objs.setdefault(str(r["quest"]), []).append(r)
+
+    def strength(n: int) -> tuple:
+        x = npc.get(n) or {}
+        rank = x.get("rank") or 0
+        return (rank in (1, 2, 3), x.get("level_max") or 0, -n)
+
+    out: dict[str, list] = {}
+    used: set[int] = set()
+    for q in sorted(wanted, key=int):
+        foes, bring = set(), []
+        for o in objs.get(q, []):
+            t = o.get("target")
+            if o.get("kind") == "kill" and t in npc:
+                foes.add(int(t))
+            elif o.get("kind") == "item" and t is not None:
+                by = {n for n in drops.get(int(t), ()) if n in npc}
+                if len(by) == 1:
+                    foes |= by
+                elif not drops.get(int(t)) and int(t) not in looted and int(t) not in bring:
+                    bring.append(int(t))
+        foe = max(foes, key=strength) if foes else None
+        kind = qtype.get(q, 0) if qtype.get(q, 0) in WORK_TYPES else 0
+        n = len(objs.get(q, []))
+        if not (kind or foe or bring) and n:
+            continue
+        out[q] = [kind, foe, bring, n]
+        if foe:
+            used.add(foe)
+    frames = [f for f in rows("ui_map.jsonl") if (ui_names or {}).get(str(f["ui_map"]))]
+    spawns: dict[int, list] = {}
+    for r in rows("spawn.jsonl"):
+        if r.get("kind") == "npc" and r.get("id") in sourced_npcs:
+            spawns.setdefault(r["id"], []).append(r)
+
+    def zone_of(n: int) -> str | None:
+        at = None
+        for sp in spawns.get(n, []):
+            hits = {f["ui_map"] for f in frames if f["map"] == sp["map"] and f["bottom"] <= sp["x"] <= f["top"]
+                    and f["right"] <= sp["y"] <= f["left"]}
+            at = hits if at is None else at & hits
+        return ui_names[str(at.pop())] if at and len(at) == 1 else None
+
+    npcs = {}
+    for n in sorted(used | {x for x in sourced_npcs if x in npc}):
+        x = npc[n]
+        if x.get("name"):
+            npcs[str(n)] = [x["name"], x.get("level_min") or 0, x.get("level_max") or 0, x.get("rank") or 0,
+                            zone_of(n) if n in sourced_npcs else None]
+    return out, npcs
+
+
 def faction_sides(rows: list[dict]) -> dict[str, dict]:
     """{faction id: {name, side}} for every faction with a reputation bar
     (ReputationIndex not -1), its side from its parents (SIDE_ROOTS), no
@@ -290,6 +380,22 @@ def main(argv: list[str]) -> int:
     # The gear data's drop zones, so a drop says when it is a dungeon's.
     gear = json.loads((OUT.parent / "gear-reference.json").read_text())
     rewards = only_rewards(db, gear)
+    # The quests that give gear (the gear data's, forever-db's rewards and
+    # ForeverDB.net's quest sources) and ForeverDB.net's creature sources:
+    # what quest_work describes.
+    fdb = json.loads((OUT.parent / "foreverdb" / "item-sources.json").read_text())
+    wanted = set(gear_quests) | set(gear.get("quests") or {})
+    sourced_npcs = set()
+    for e in (fdb.get("items") or {}).values():
+        for x in e.get("sources") or []:
+            if x.get("kind") == "quest" and x.get("quest"):
+                wanted.add(str(x["quest"]))
+            elif x.get("kind") in ("creature", "rare", "drop") and x.get("npc"):
+                sourced_npcs.add(int(x["npc"]))
+    ui = table("UiMap", build)
+    # Zone maps only (UiMap type 3): a continent's frame holds every zone.
+    ui_names = {r["ID"]: r["Name_lang"] for r in ui if r.get("Name_lang") and r["Type"] == "3"}
+    work, npcs = quest_work(db, {q for q in wanted if q in quests}, sourced_npcs, ui_names)
 
     areas = table("AreaTable", build)
     maps = {r["ID"]: r for r in table("Map", build)}
@@ -327,7 +433,6 @@ def main(argv: list[str]) -> int:
     # quests use, not Map.AreaTableID's 1477, The Temple of Atal'Hakkar);
     # else Map.AreaTableID (The Stockade, Stormwind Stockade's). None else:
     # Nightmare Grove's lowest area is named Azshara, which isn't a raid.
-    ui = table("UiMap", build)
     by_id = {r["ID"]: r for r in areas}
     on_map: dict[str, list[dict]] = {}
     for r in areas:
@@ -412,6 +517,13 @@ def main(argv: list[str]) -> int:
         "rewards": rewards,
         # quest id -> [side, race mask, class mask, [item rewards], [choice rewards]] (reward_quests)
         "gear_quests": gear_quests,
+        # quest id -> [type (1 group, 41 PvP, 62 raid, 81 dungeon, else 0), foe npc id, [items to bring],
+        # objectives]
+        # for the quests that give gear (quest_work)
+        "quest_work": work,
+        # npc id -> [name, level min, level max, rank (0 normal, 1 elite, 2 rare elite, 3 boss, 4 rare),
+        # zone of a drop source or null]
+        "npcs": npcs,
         # area id -> {name, instance: dungeon|raid, map: instance Map id, bosses: [encounter names],
         # levels: [min, max], floor (dungeons): where Polestar's "For your level" starts}: every area
         "areas": dict(sorted(out_areas.items(), key=lambda kv: int(kv[0]))),

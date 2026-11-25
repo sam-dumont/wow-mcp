@@ -216,10 +216,58 @@ ForeverDB's own buckets as a start):
 
 | Class | Sources |
 |---|---|
-| easy | in the bags or bank, on the auction house, a quest, a vendor, a craft you can make, a reputation you hold, a drop of 25% or more |
-| some effort | a drop of 8-25%, a craft still to learn or skill up, a reputation up to Honored not held yet, a PvP rank held |
-| hard | a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a reputation above Honored not held |
-| long shot | a drop under 1%, a drop known only from Classic's data with no rate, a PvP rank not held or not recorded |
+| easy | in the bags or bank, on the auction house, a quest that is only a hand-in or that your route hands in soon, a vendor, a craft you can make, a reputation you hold, a drop of 25% or more |
+| some effort | a quest with quests to do first, a dungeon quest, a foe 3-4 levels over you, an elite at or under your level, a step the guide keeps for a group, something to bring that no creature drops; a drop of 8-25%, a craft still to learn or skill up, a reputation up to Honored not held yet, a PvP rank held |
+| hard | a quest with 5 or more quests to do first, an elite over your level, a foe 5 levels over you or more, a raid quest; a drop of 1-8%, a drop seen in Forever with no rate, a world drop, a raid drop, a reputation above Honored not held |
+| long shot | a drop under 1%, a drop known only from Classic's data with no rate, a drop from a creature nobody names or places yet, a PvP rank not held or not recorded |
+
+#### What a quest takes
+
+A quest used to be easy whatever it asked. Owner, 2026-11-25: "there are a
+few recos here that are easier said than done." A level-37 character got
+Big Game Hunter (King Bangalash, a level-43 elite, twelve quests in) and
+Greater Friend of the Library (twenty-odd library books) as easy errands.
+Each quest source now carries its `work` (`wowstats/questwork.py`), every
+fact from data, and says it in one line (`work_says`):
+
+- **The route first.** A quest one of your side's Polestar levelling guides
+  hands in ahead of you counts by where the guide does it: "on your route:
+  hand-in at about level 39 (Stranglethorn Vale, ..., step 61)". The level
+  is where the guide's planned runs reach that step
+  (`data/route-reference.json` `turnins`). Within 3 levels it's easy, or
+  some effort for a step the guide keeps for a group (`when group`, Big
+  Game Hunter). The guide does the chain and the elite at its own pace, so
+  neither makes it hard (owner, 2026-11-25: "the Big Game Hunter wand comes
+  out of the guide and I'm deep into the chain"). A guide that gets there
+  more than 3 levels from now: doing it now is a trip off the route, at
+  least some effort, judged by the rules below.
+- **The chain.** forever-db's prerequisites, down to the first quest, done
+  ones included: "chain: 8 of 13 quests before it done, 2 in your log; next:
+  Panther Mastery, part 3 of 4 (in your log)". Your quests done and in the
+  log come from the Recorder (accepts, hand-ins, abandons) and the other
+  quest sources (`wowstats.quests`). Any quest still to do first is some
+  effort, five or more hard. A quest already in your log skips this.
+- **The work** (`data/forever-reference.json` `quest_work` and `npcs`):
+  forever-db's quest type (group, dungeon, raid), the strongest creature
+  its objectives send you to, with its level and rank, and the items to
+  bring that no creature drops and no object gives. An elite over your
+  level is a group's work, hard; one at or under your level is some effort.
+  A foe 3-4 levels over you is some effort, 5 or more hard. A dungeon quest
+  names its dungeon and is at least some effort.
+- **A gate the quest data doesn't say.** A quest with no objectives and no
+  zone in forever-db, nor any quest before it (Library Books' milestones), takes
+  its work from the guide off the route that hands it in: "Polestar's
+  Library Books guide, step 27: 24 of its quests to hand in first".
+
+A drop from a creature in the open world says the creature's levels and
+rank, and "no drop rate known" when nobody measured one. A creature no data
+names or places (no level, no zone: ForeverDB's "NPC 268423", Zalfan
+Moonshadow) says "not placed yet" and is a long shot: there's nothing to go
+and kill.
+
+Half a weapon setup is as hard as its other half: an off hand that needs a
+main hand you don't have yet takes the harder of the two efforts while you
+level.
 
 In the PvP mode a PvP reward (rank or battleground reputation) is easy whatever is held.
 

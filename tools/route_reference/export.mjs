@@ -474,8 +474,9 @@ function main() {
 				if (!firstOf.has(s.guide)) firstOf.set(s.guide, s.i);
 				const e = perGuide.get(s.guide);
 				const k = s.i - firstOf.get(s.guide) + 1; // 1-based, as the addon's step index
-				const st = e.steps.get(k) || { title: s.title, seconds: [], applies: 0, runs: 0 };
+				const st = e.steps.get(k) || { title: s.title, seconds: [], applies: 0, runs: 0, levels: [] };
 				st.runs++;
+				if (s.levelStart != null) st.levels.push(s.levelStart);
 				if (s.applies) {
 					st.applies++;
 					st.seconds.push(s.seconds);
@@ -495,6 +496,34 @@ function main() {
 				// [step (1-based), seconds (median of the runs that play it), title]
 				steps: [...e.steps.entries()].sort((a, b) => a[0] - b[0]).map(([k, st]) => [k, st.seconds.length ? Math.round(median(st.seconds)) : 0, words(src.steps[k - 1] ? src.steps[k - 1].title : st.title, src.names).slice(0, 80)]),
 			};
+		}
+
+		// Where each guide hands each quest in, for the gear advice's quest
+		// sources (wowstats.questwork): a quest on the route counts by where
+		// the guide does it, not by its elite or its level. Per guide, in step
+		// order: [quest id, step (1-based), the level the runs reach that step
+		// at (median; levelling guides only, else null), 1 when the step is for
+		// a group only (`when group`: the guide skips it alone, King
+		// Bangalash's Big Game Hunter)]. Off the levelling route (Library
+		// Books) the quests a guide hands in before a step are its work.
+		const levelling = new Set(leveling.map((g) => g.id));
+		const turnins = {};
+		const sideTitles = {};
+		for (const g of [...guides].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+			const e = perGuide.get(g.id);
+			const rows = [];
+			g.steps.forEach((s, i) => {
+				const group = asList(s.when || []).some((w) => w && w.k === 'group') ? 1 : 0;
+				const st = e && e.steps.get(i + 1);
+				const level = levelling.has(g.id) && st && st.levels.length ? r1(median(st.levels)) : null;
+				for (const goal of s.goals) {
+					if (goal.t !== 'turnin' || goal.quest == null || rows.some((r) => r[0] === goal.quest && r[1] === i + 1)) continue;
+					rows.push([goal.quest, i + 1, level, group]);
+				}
+			});
+			if (!rows.length) continue;
+			turnins[g.id] = rows;
+			if (!levelling.has(g.id)) sideTitles[g.id] = words(g.title, g.names);
 		}
 
 		// Per run: seconds at each ding, and the guide it happens in.
@@ -558,6 +587,8 @@ function main() {
 			levels,
 			guides: guideOut,
 			routes,
+			turnins,
+			side_guides: sideTitles,
 			places: places(ps, ref, geo, zones, travel, guides),
 			trips: buildTrips({ ps, travel, params, frames: ref.forever, outDir: path.join(HERE, '..', '..', 'data') }),
 		};

@@ -78,6 +78,40 @@ Q_SNAPSHOTS = 'feed:="wow-quests" {cf} kind:=completed | fields _time, at_basis,
 Q_SHEETS = 'feed:in("wow-gear", "wow-bags") {cf} | fields _time, at_basis, feed, items, bags, bank'
 
 
+# A character's quest log and guide position, for the gear advice's quest
+# work (wowstats.questwork): each quest's newest accept, hand-in, abandon
+# and fail, and the newest guide step, after the Recorder filter.
+Q_LOG = "kind:in(accept, abandon, turnin, fail) quest_id:* | stats by (quest_id, kind) max(_time) as t"
+Q_STEP = "kind:=step guide:* | fields _time, guide, step | sort by (_time desc) | limit 1"
+
+
+def in_log(rows: Iterable[dict], done: Iterable[int] = ()) -> set[int]:
+    """The quests still in the log: accepted after their last hand-in,
+    abandon or fail, and not done by any other account (`done`: completed()).
+    `rows`: Recorder records ({quest_id, kind, _time}) or Q_LOG's ({quest_id,
+    kind, t})."""
+    last: dict[int, dict[str, str]] = {}
+    for r in rows:
+        q, k = _int(r.get("quest_id")), r.get("kind")
+        if q and k in ("accept", "abandon", "turnin", "fail"):
+            t = str(r.get("t") or r.get("_time") or "")
+            if t > last.setdefault(q, {}).get(k, ""):
+                last[q][k] = t
+    gone = set(done)
+    return {q for q, ks in last.items() if q not in gone and ks.get("accept")
+            and ks["accept"] > max(ks.get("abandon", ""), ks.get("turnin", ""), ks.get("fail", ""))}
+
+
+def position(rows: Iterable[dict]) -> dict | None:
+    """The newest guide step the Recorder saw: {guide, step}, or None."""
+    best = None
+    for r in rows:
+        if (r.get("kind", "step") == "step" and r.get("guide") and _int(r.get("step"))
+                and (best is None or str(r.get("_time") or "") > str(best.get("_time") or ""))):
+            best = r
+    return {"guide": best["guide"], "step": _int(best["step"])} if best else None
+
+
 def history(run, rec: str, cf: str) -> dict[int, str]:
     """completed() from a character's history, for the live readers (the
     web Views, and through them the MCP): `run(query)` returns the rows of
