@@ -328,57 +328,102 @@ def load_state(env: dict, char: str) -> dict:
 
 
 def migrate(state: dict, now: str | None = None) -> int:
-    """Findings kept before the prose contract (verify.CONTRACT: every
-    measured number a placeholder, every other one declared) are brought
-    under it on read, nothing dropped: one whose text types a number its
-    query doesn't fill and nothing declares keeps its text, and is marked
-    to revalidate (`unbound_numbers`, `revalidate`) until an analysis
-    proposes it again. Its nudges and patterns are held meanwhile (standing).
-    Before that, a typed number equal to exactly one value of its own kept
-    result becomes that value's placeholder (verify.bind_results: the text
-    reads the same today, and the recheck renders it again); the prose as
-    typed stays in `migrated_templates`. A flag a narrower rule no longer
-    raises is lifted. Returns how many were marked; the next save keeps the
-    migration."""
+    """Every kept finding judged again on read by today's rules, one at a
+    time: a finding today's rules refuse is marked, never dropped and never
+    an exception, so the character's other findings and every answer built
+    on them still read (0.11.1: one kept finding with `{:pct}` and no
+    declared unit raised from here and took Grimble's overview, dungeons and
+    plan answers down with it). Returns how many are marked; the next save
+    keeps the migration.
+
+    Two rules, each a mark to revalidate with its reason first:
+
+    - Findings kept before the prose contract (verify.CONTRACT: every
+      measured number a placeholder, every other one declared) keep their
+      text; one that types a number its query doesn't fill and nothing
+      declares is marked (`unbound_numbers`) until an analysis proposes it
+      again, and its nudges and patterns are held meanwhile (standing).
+      Before that, a typed number equal to exactly one value of its own
+      kept result becomes that value's placeholder (verify.bind_results: the
+      text reads the same today, and the recheck renders it again); the
+      prose as typed stays in `migrated_templates`.
+    - Any finding whose text today's renderer refuses on the row it was
+      kept with (verify.kept_why: a percent on a column with no declared
+      unit, or any other render error) is marked (`unrendered`). It still
+      goes to the nightly recheck, which renders it on today's data and, as
+      the docs say, fades it while the renderer refuses it.
+
+    A flag a rule no longer raises is lifted."""
     from . import verify
 
     now = now or datetime.now(UTC).isoformat(timespec="seconds")
     marked = 0
-    for f in (state.get("findings") or {}).values():
-        if not isinstance(f, dict) or f.get("contract") == verify.CONTRACT:
+    for key, f in (state.get("findings") or {}).items():
+        if not isinstance(f, dict):
             continue
-        bad = verify.unbound(f)  # a finding that meets the contract is left as it is
-        if bad:
-            tpls, bound = verify.bind_results(f, bad)
-            if bound:
-                f.setdefault("migrated_templates", verify.templates(f))
-                verify.set_templates(f, tpls)
-                f["bound_on_migration"] = [*(f.get("bound_on_migration") or []), *bound]
-                bad = verify.unbound(f)
+        try:
+            bad = _migrate_numbers(f)
+            why = verify.kept_why(f)
+        except Exception as e:  # noqa: BLE001  one finding's bug stays that finding's
+            log(f"kept finding {key}: {type(e).__name__}: {e}")
+            bad, why = f.get("unbound_numbers") or [], f"{verify.UNRENDERED_WHY}: {type(e).__name__}"
         if bad:
             f["unbound_numbers"] = bad
+        elif f.pop("unbound_numbers", None) is not None:
+            _lift(f, verify.UNBOUND_WHY)
+        if why:
+            f["unrendered"] = why
+        elif f.pop("unrendered", None) is not None:
+            _lift(f, verify.UNRENDERED_WHY)
+        if bad or why:
             _mark_unbound(f, now)
             marked += 1
-        elif f.pop("unbound_numbers", None) is not None:
-            why = [w for w in (f.get("revalidate") or {}).get("why") or []
-                   if not str(w).startswith(verify.UNBOUND_WHY)]
-            if why:
-                f["revalidate"]["why"] = why
-            else:
-                f.pop("revalidate", None)
     return marked
 
 
-def _mark_unbound(f: dict, now: str, other: list[str] | None = None) -> None:
-    """Marks a finding with unbound numbers to revalidate, with that reason
-    first, then `other` (today's definition changes; None keeps the reasons
-    it already had)."""
+def _migrate_numbers(f: dict) -> list[str]:
+    """The numbers a finding kept before the prose contract types that can't
+    stand after binding what it can to its kept result ([] for one under
+    the contract)."""
     from . import verify
 
+    if f.get("contract") == verify.CONTRACT:
+        return []
+    bad = verify.unbound(f)
+    if bad:
+        tpls, bound = verify.bind_results(f, bad)
+        if bound:
+            f.setdefault("migrated_templates", verify.templates(f))
+            verify.set_templates(f, tpls)
+            f["bound_on_migration"] = [*(f.get("bound_on_migration") or []), *bound]
+            bad = verify.unbound(f)
+    return bad
+
+
+def _lift(f: dict, prefix: str) -> None:
+    """Drops the revalidate reasons a lifted flag gave."""
+    why = [w for w in (f.get("revalidate") or {}).get("why") or [] if not str(w).startswith(prefix)]
+    if why:
+        f["revalidate"]["why"] = why
+    else:
+        f.pop("revalidate", None)
+
+
+def _mark_unbound(f: dict, now: str, other: list[str] | None = None) -> None:
+    """Marks a finding migrate refuses to revalidate, with its reasons first
+    (unbound numbers, then a text today's renderer refuses), then `other`
+    (today's definition changes; None keeps the reasons it already had)."""
+    from . import verify
+
+    mine = (verify.UNBOUND_WHY, verify.UNRENDERED_WHY)
+    first = []
+    if f.get("unbound_numbers"):
+        first.append(f"{verify.UNBOUND_WHY} ({', '.join(f['unbound_numbers'])})")
+    if f.get("unrendered"):
+        first.append(f"{verify.UNRENDERED_WHY} ({f['unrendered']})")
     old = (f.get("revalidate") or {}).get("why") or []
-    rest = [w for w in old if not str(w).startswith(verify.UNBOUND_WHY)] if other is None else other
-    f["revalidate"] = {"since": (f.get("revalidate") or {}).get("since") or now,
-                       "why": [f"{verify.UNBOUND_WHY} ({', '.join(f['unbound_numbers'])})", *rest]}
+    rest = [w for w in old if not str(w).startswith(mine)] if other is None else other
+    f["revalidate"] = {"since": (f.get("revalidate") or {}).get("since") or now, "why": [*first, *rest]}
 
 
 def save_state(env: dict, char: str, state: dict) -> None:
@@ -1077,7 +1122,7 @@ def answer(env: dict, char: str, tier: str = "full") -> dict:
                                                  "rows", "constants", "doubtful", "reconciles", "relevance", "effect",
                                                  "sample", "weight", "score", "confirmations", "first_seen",
                                                  "last_confirmed", "last_checked", "misses", "manifest",
-                                                 "revalidate", "unbound_numbers", "carried_over")}
+                                                 "revalidate", "unbound_numbers", "unrendered", "carried_over")}
                          # The data it last held on; absent on one kept before that was recorded.
                          | ({"as_of": f["as_of"]} if f.get("as_of") else {})
                          | ({"carried_note": carried_note(f)} if carried_note(f) else {})

@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+What 0.11.2 changes over 0.11.1, in short. One kept analysis finding with a percent on a column of no declared unit took down every answer of its character: the overview, the dungeons, the plan and the shared analysis all failed on each rebuild. 0.11.1 promised such a finding fades at the nightly recheck; it now does, and the rest of the character's findings read as before.
+
+### Fixed
+
+- Reading a character's kept analysis raised `UnitError: {:pct} on a value in no declared unit` when one kept finding wrote `{col:pct}` and declared a constant: the check that compares constants with the placeholders rendered the percent without its column's unit, and the strict renderer of 0.11.1 refused it. Every answer that reads the analysis failed for that character (in the lab: one character's overview, dungeons and plan answers, and the share endpoint closed the connection). The same check made `propose_finding` fail on any finding with a percent and a constant. The number checks now compare values without the unit refusal, which stays with the unit check. On read, each kept finding goes through one rendering of its text (`verify.render_kept`, the nightly recheck uses it too); a finding it refuses, for a missing unit or any other render error, is marked to revalidate (`unrendered`, its reason first) and fades at the nightly recheck, as 0.11.1 said. One finding's error never reaches the character's other findings.
+
 ## 0.11.1 (2026-11-25)
 
 What 0.11.1 changes over 0.11.0, in short. Gear stops proposing content Forever hasn't opened: raids, world bosses, Dungeon Set 2 and world events count only when the meta says they're open (Onyxia's Lair, Barrow Deeps and Hyjal Summit reopen on 9 Dec 2026), and PvP gear only with the new toggle. Each slot shows its BiS next to your realistic pick, with the auction house price against your gold. Dungeon forecasts stop counting legs nobody saw as 0 s (City of Dalaran: 32m02s, 1h07 or 2h32 depending on your quests, not 32m02s every time). Percents follow their declared unit, so a 1.5% upgrade no longer reads as 150%, and the published quick start always hands out the real image digest. The Forever Leveling BiS export now says what the addon does with your weights. Every change follows.
