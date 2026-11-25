@@ -2470,40 +2470,59 @@ def extract_gear(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> N
                   **g})
 
 
-def _item_ids(containers) -> list[int]:
-    """The item IDs in Syndicator's bags or bank: a Lua array of containers,
-    each a Lua array of slots ({} when empty, else itemID, itemCount,
-    itemLink...; Tracking/BagCache.lua)."""
-    seen: set[int] = set()
+def _slots(containers):
+    """Each filled slot of Syndicator's bags or bank: a Lua array of
+    containers, each a Lua array of slots ({} when empty, else itemID,
+    itemCount, itemLink...; Tracking/BagCache.lua)."""
     for bag in (containers.values() if isinstance(containers, dict) else containers or []):
         for it in (bag.values() if isinstance(bag, dict) else bag or []):
             if isinstance(it, dict) and isinstance(it.get("itemID"), int) and it["itemID"] > 0:
-                seen.add(it["itemID"])
-    return sorted(seen)
+                yield it
+
+
+def _item_ids(containers) -> list[int]:
+    """The item IDs in Syndicator's bags or bank (_slots), sorted."""
+    return sorted({it["itemID"] for it in _slots(containers)})
+
+
+def _item_counts(containers) -> list[list[int]]:
+    """[[item ID, count], ...] in Syndicator's bags or bank, sorted by ID:
+    each item's itemCount summed over its stacks and containers. A slot
+    without a count holds one."""
+    n: dict[int, int] = {}
+    for it in _slots(containers):
+        c = it.get("itemCount")
+        n[it["itemID"]] = n.get(it["itemID"], 0) + (c if isinstance(c, int) and c > 0 else 1)
+    return [[i, n[i]] for i in sorted(n)]
 
 
 def inventory_of(acct: Path, char: str) -> dict | None:
-    """Which items the character holds in its bags and its bank, by ID only,
-    from Syndicator (the bank as it was the last time the character opened
+    """Which items the character holds in its bags and its bank, by ID
+    (`bags`, `bank`) and with counts (`bags_n`, `bank_n`), from Syndicator (the bank as it was the last time the character opened
     it). None when Syndicator doesn't know the character or hasn't scanned
     its bags yet (no containers); empty lists when it holds nothing. `bank`
     None (left out of the event) when Syndicator holds no bank containers:
     a bank never opened is unknown, and an empty list would read as "holds
-    nothing" and erase an earlier read (evidence properties (d), (e))."""
+    nothing" and erase an earlier read (evidence properties (d), (e)).
+    `bank_n` goes with `bank`: None (left out) whenever it is."""
     synd = next(iter(read_sv_versions(acct / "SavedVariables" / "Syndicator.lua")), None) or {}
     for c in (((synd.get("SYNDICATOR_DATA") or {}).get("Characters")) or {}).values():
         det = (c or {}).get("details") or {}
         if isinstance(det, dict) and char_of(str(det.get("character") or "")) == char:
             if not c.get("bags"):
                 return None
-            return {"bags": _item_ids(c.get("bags")), "bank": _item_ids(c.get("bank")) if c.get("bank") else None}
+            bank = c.get("bank") or None
+            return {"bags": _item_ids(c.get("bags")), "bank": _item_ids(bank) if bank else None,
+                    "bags_n": _item_counts(c.get("bags")), "bank_n": _item_counts(bank) if bank else None}
     return None
 
 
 def extract_inventory(acct: Path, chars: dict[str, dict], state: dict, out: Out) -> None:
-    """One wow-bags event per character each time the set of item IDs in
-    its bags or bank changes: what it has, for "obtained" next to a
-    dungeon's drops. IDs only, no counts or links."""
+    """One wow-bags event per character each time what its bags or bank
+    hold changes (the item IDs or their counts): what it has, for
+    "obtained" next to a dungeon's drops, and how many. `bags`/`bank` stay
+    ID lists for servers before the counts; `bags_n`/`bank_n` are
+    [item ID, count] pairs. No links."""
     seen = state.setdefault("bags", {})
     for char in sorted(chars):
         inv = inventory_of(acct, char)

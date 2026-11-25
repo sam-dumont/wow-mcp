@@ -348,7 +348,8 @@ def test_inventory_ids_on_change(shipper, tmp_path):
             '["bags"] = {\n{\n},\n{\n},\n},\n["bank"] = {\n},\n},\n},\n}\n')
 
     syndicator(10413)
-    assert shipper.inventory_of(acct, "Hero-Test") == {"bags": [2589, 6948], "bank": [10413]}
+    assert shipper.inventory_of(acct, "Hero-Test") == {"bags": [2589, 6948], "bank": [10413],
+                                                        "bags_n": [[2589, 15], [6948, 1]], "bank_n": [[10413, 1]]}
     got = []
     out = shipper.Out(dry=True)
     out.emit = got.append
@@ -361,6 +362,7 @@ def test_inventory_ids_on_change(shipper, tmp_path):
     # so `bank` stays out (an empty one would erase an earlier read).
     assert [(e["feed"], e["char"], e["bags"], e.get("bank")) for e in got] == [
         ("wow-bags", "Empty-Bags", [], None), ("wow-bags", "Hero-Test", [2589, 6948], [10413])]
+    # The counts as [id, n] pairs (tests/test_inventory_counts.py), never the slots' own fields or links.
     assert "itemCount" not in json.dumps(got) and "Hearthstone" not in json.dumps(got)
     got.clear()
     shipper.extract_inventory(acct, chars, state, out)

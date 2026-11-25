@@ -1521,12 +1521,16 @@ def sheet(row: dict, fallback: dict | None = None) -> dict:
 # opened, or its cache lost). Older shippers sent [] for both.
 SHEET_PARTS = ("items",)
 BAGS_PARTS = ("bags", "bank")
+# Each part's counts ([item ID, count] pairs, shippers after 0.11.2) ride with
+# its ID list in the same event: read from the row the list came from,
+# never a part of their own (coverage.py counts the lists only).
+BAGS_COUNTS = {"bags": "bags_n", "bank": "bank_n"}
 # The stored events the advice needs, after a character filter: the sheet
 # in force and, for each part, the newest sheet that has it
 # (stores.in_force), for pick_sheet; the bags and bank in force, for
 # advise(held=...) through newest_bags.
 SHEET_FIELDS = "_time, at_basis, source_id, items, professions, recipes, spec, spec_from, class, race, faction"
-HELD_FIELDS = "_time, at_basis, source_id, feed, bags, bank"
+HELD_FIELDS = "_time, at_basis, source_id, feed, bags, bank, bags_n, bank_n"
 
 
 def sheet_rows(read, cf: str, fields: str = SHEET_FIELDS) -> list[dict]:
@@ -1629,27 +1633,82 @@ def recipe_lists(rows) -> dict[str, set]:
     return out
 
 
+def _json_list(v):
+    """A list as the store holds it (a JSON string after /ingest), else None."""
+    if isinstance(v, str):
+        try:
+            v = json.loads(v)
+        except ValueError:
+            return None
+    return v if isinstance(v, list) else None
+
+
+def item_counts(v) -> dict[int, int] | None:
+    """A wow-bags `bags_n`/`bank_n` ([[item ID, count], ...]) -> {item ID:
+    count}, None when the event has none (a shipper before the counts):
+    unknown, never zero."""
+    pairs = _json_list(v)
+    if pairs is None:
+        return None
+    out: dict[int, int] = {}
+    for p in pairs:
+        if isinstance(p, list) and len(p) == 2 and isinstance(i := _num(p[0]), int) \
+                and isinstance(n := _num(p[1]), int) and n > 0:
+            out[i] = out.get(i, 0) + n
+    return out
+
+
 def newest_bags(rows: list[dict]) -> dict | None:
-    """The newest wow-bags event's item IDs ({bags, bank, t, at}), None when
-    the shipper never sent one (before 0.3.2, or no Syndicator). `t` is the
-    newest event's time, `at` each part's own ({bags, bank}: _time): a bank
-    from an older event keeps that event's time (review 6)."""
+    """The newest wow-bags event's items ({bags, bank, counts, t, at}),
+    None when the shipper never sent one (before 0.3.2, or no Syndicator).
+    `bags`/`bank` are sorted item IDs; `counts` is {bags, bank}: each
+    {item ID: count} from the same event as its list, None when that event
+    has no counts (a shipper before them) or the list itself is unknown.
+    `t` is the newest event's time, `at` each part's own ({bags, bank}:
+    _time): a bank from an older event keeps that event's time (review 6)."""
     from wowstats.stores import parse_t
 
-    r = stores.newest_with([r for r in rows if r.get("feed") == "wow-bags"], BAGS_PARTS)
+    mine = [r for r in rows if r.get("feed") == "wow-bags"]
+    r = stores.newest_with(mine, BAGS_PARTS)
     if not r:
         return None
-    ids = {}
+    src = stores.part_rows(mine, BAGS_PARTS)
+    ids, counts = {}, {}
     for k in BAGS_PARTS:
-        v = r.get(k)
-        if isinstance(v, str):
-            try:
-                v = json.loads(v)
-            except ValueError:
-                v = None
+        v = _json_list(r.get(k))
         # Never read (no list): unknown, not empty (evidence property (e)).
-        ids[k] = sorted({int(n) for x in v if isinstance(n := _num(x), int)}) if isinstance(v, list) else None
-    return {**ids, "t": parse_t(r.get("_time")).timestamp(), "at": dict(r.get("part_at") or {})}
+        ids[k] = sorted({int(n) for x in v if isinstance(n := _num(x), int)}) if v is not None else None
+        counts[k] = item_counts((src.get(k) or {}).get(BAGS_COUNTS[k])) if ids[k] is not None else None
+    return {**ids, "counts": counts, "t": parse_t(r.get("_time")).timestamp(), "at": dict(r.get("part_at") or {})}
+
+
+def held_items(held: dict | None) -> list[dict]:
+    """One row per item the bags or the bank hold (newest_bags' answer):
+    {item_id, name, bags, bank, total}, by item id. `bags`/`bank` are the
+    counts there (0 when the list is known and lacks it), None when that
+    container's counts are unknown (a shipper before them, or a bank never
+    opened). `total` is bags + bank over the containers read; None when a
+    container read has no counts."""
+    if not held:
+        return []
+    counts = held.get("counts") or {}
+    ids = sorted(set(held.get("bags") or ()) | set(held.get("bank") or ()))
+    out = []
+    for i in ids:
+        row = {"item_id": i, "name": forever.item_name(i)}
+        known = True
+        for k in BAGS_PARTS:
+            c = counts.get(k)
+            if held.get(k) is None:
+                row[k] = None
+            elif c is None:
+                row[k], known = None, False
+            else:
+                # In the list but not in the counts: one (a slot without a count).
+                row[k] = c.get(i, 1 if i in held[k] else 0)
+        row["total"] = (row["bags"] or 0) + (row["bank"] or 0) if known else None
+        out.append(row)
+    return out
 
 
 def is_held(u: dict) -> bool:

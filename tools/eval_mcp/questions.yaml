@@ -541,6 +541,22 @@
   probes:
     - {tool: gear, args: {options: true}, contains: "no recipe list"}
 
+- id: bank_count
+  group: hedge
+  persona: gearer
+  difficulty: medium
+  question: >-
+    How many items does the character have in its bank? Give the number, or NONE if its data
+    can't tell.
+  answer: NONE
+  match: none
+  forbid_answers: ["0"]
+  tools: [inventory|play_sql]
+  probes:
+    # The demo never opened its bank, and its shipper sends item IDs only.
+    - {tool: inventory, path: bank_at, equals: null}
+    - {tool: inventory, path: counts_known, equals: false}
+
 # ---------------------------------------------------------------- plans
 
 - id: check_plan_number

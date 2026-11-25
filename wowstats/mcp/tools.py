@@ -1130,6 +1130,56 @@ def _gear_export(a: dict, char: str, fmt: str, setup: str | None, mode_from: str
             "say": "Give `text` in a code block, as is, with `how`, and credit `source` with its link."}
 
 
+# The bank is Syndicator's copy from the last time the character opened it:
+# past this many days the answer says how old it is.
+BANK_STALE_DAYS = 3
+COUNTS_UNLOCK = ("Counts come with a newer shipper: it updates itself within 2 hours of a run, or run the update "
+                 "line on your start page.")
+
+
+def inventory_answer(held: dict | None, want: str = "", limit: int = 50, now: datetime | None = None) -> dict:
+    """The inventory tool's answer from gear.newest_bags' read: one row per
+    item (gear.held_items) matching `want` (part of a name, or an id), when
+    each container was read, and what to do when the counts or the bank are
+    missing or old."""
+    if held is None:
+        return {"items": [], "total_items": 0, "counts_known": False, "bags_at": None, "bank_at": None,
+                "note": "no bags read yet (feed wow-bags, from Syndicator)", "unlock": gearmod.SHEET_UNLOCK}
+    want = (want or "").strip().lower()
+    rows = [r for r in gearmod.held_items(held)
+            if not want or want == str(r["item_id"]) or want in (r["name"] or "").lower()]
+    rows.sort(key=lambda r: ((r["name"] or "~").lower(), r["item_id"]))
+    for r in rows:
+        r["name"] = r["name"] or f"item {r['item_id']}"
+    at = held.get("at") or {}
+    when = {k: parse_t(at[k]) if at.get(k) else None for k in ("bags", "bank")}
+    counts = held.get("counts") or {}
+    known = counts.get("bags") is not None and (held.get("bank") is None or counts.get("bank") is not None)
+    notes = []
+    if held.get("bank") is None:
+        notes.append("the bank not seen yet: open it at a banker in game once")
+    elif when["bank"] and (now or datetime.now(UTC)) - when["bank"] > timedelta(days=BANK_STALE_DAYS):
+        notes.append(f"the bank as of {when['bank'].date().isoformat()}: open it in game to refresh")
+    if not rows:
+        notes.append(f"nothing matching {want!r} in the bags or the bank" if want else "the bags and bank are empty")
+    out = {"items": rows[:limit], "total_items": len(rows), "counts_known": known,
+           # Each container's own read; `as_of` (the newest event read) the server adds.
+           "bags_at": iso(when["bags"]) if when["bags"] else None,
+           "bank_at": iso(when["bank"]) if when["bank"] else None,
+           "note": "; ".join(notes) or None}
+    if not known:
+        out["unlock"] = COUNTS_UNLOCK
+    return out
+
+
+def t_inventory(ctx: Ctx, args: dict) -> dict:
+    """What the character holds: the bags and the bank in force (wow-bags,
+    gear.held_rows), with counts from a shipper that sends them."""
+    char = resolve_char(ctx, args)
+    held = gearmod.newest_bags(gearmod.held_rows(one_row(ctx.store), cf(char)))
+    return {"char": char, **inventory_answer(held, args.get("item") or "", limit_arg(args, 50, 200))}
+
+
 def t_gear(ctx: Ctx, args: dict) -> dict:
     if truthy(args.get("options")) and args.get("spec"):
         raise ToolError("spec works without options: options score the spec set in the player's settings")
@@ -1608,6 +1658,13 @@ TOOLS: tuple[Tool, ...] = (
          "server anyone's): latest, min and max over the range, change since the first scan.",
          schema({"item": {"type": "string", "description": "Part of an item name, or an item id."},
                  "since": SINCE, "until": UNTIL, "limit": lim(20, 100)}), t_prices),
+    Tool("inventory", "Bags and bank",
+         "What the character holds in its bags and bank, with counts: per item the count in the bags, in the bank "
+         "and the total, and when each was read (the bank is as of the last time the character opened it; `note` "
+         "says when that is old). `counts_known` false: the IDs only, `unlock` says how to get counts. For 'do I "
+         "have X', 'how many X', 'what's in my bank'.",
+         schema({"char": CHAR, "item": {"type": "string", "description": "Part of an item name, or an item id."},
+                 "limit": lim(50)}), t_inventory),
     Tool("gear", "Gear upgrades",
          "Gear advice on ForeverDB.net's weights (credit `source`): per slot the worn item and its standing "
          "(BiS, 2nd, % of BiS), the best item now and within 3 levels, gain and source; then the upgrades, "

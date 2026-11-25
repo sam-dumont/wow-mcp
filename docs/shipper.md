@@ -307,7 +307,7 @@ usual install places), `archive_dir`, `wtf_archive` (default `true`),
 ## Addons it reads
 
 Polestar and Polestar Recorder for nearly everything, Auctionator for prices,
-Syndicator (equipped items; currency 3473 "Renown - PvP Rank" only, by id: the PvP
+Syndicator (equipped items; the bags and the bank, item IDs and counts; currency 3473 "Renown - PvP Rank" only, by id: the PvP
 rank), Altoholic (its DataStore_Characters: `/played` since level 1; its
 DataStore_Quests: the quests done before Polestar; its DataStore_Currencies: currency
 3473 only, the PvP rank), Questie (the same

@@ -41,7 +41,7 @@ in Claude Code they're slash commands. Every tool and prompt:
 - **Guide steps**: time per step, skipped steps.
 - **Deaths**: where, at what level, what killed you.
 - **Dungeons**: your runs, and which ones are worth it now.
-- **Gear**: what you wear and every way to an upgrade.
+- **Gear**: what you wear, what your bags and bank hold, and every way to an upgrade.
 - **Talents**: how your talents changed, day by day.
 - **Gold**: your auction prices, and the next riding tier.
 - **Plans**: session plans at your pace, and how they went.
