@@ -19,6 +19,12 @@ ARENA = {18706: "Arena Master", 18709: "Arena Wristguards", 18710: "Arena Bracer
          18712: "Arena Vambraces"}
 TALISMAN = 21119  # Talisman of Arathor: The League of Arathor's quartermaster, Neutral
 LOREKEEPER = 19525  # Lorekeeper's Ring: Silverwing Sentinels, Friendly
+# Theramore Expeditionary Force (Darkspear Islands, the Alliance's side), sold
+# by Bryanna Embreeze, whom ForeverDB gives the Horde's side.
+SEALS = {271904: "Volunteer's Lucky Seal", 271905: "Enriched Seal"}
+DARKSPEAR_SIGNET = 272071  # Darkspear Raiders (the Horde's), reputation only
+RUNE_OF_DUTY = 21568  # Classic's data names Warsong Outriders; seen sold by Silverwing's quartermaster
+SEA_SHELL = 274749  # Souvenir Sea Shell: Booty Bay, a neutral town ForeverDB gives the Horde's side
 WORN = {2: "Giantstone Medallion", 3: "Palm Frond Mantle", 5: "Robes of the Disgraced Thane", 6: "Violet Sash",
         7: "Magistrate's Pantaloons", 8: "Red Woolen Boots", 9: "Graveweave Bindings", 10: "Ephemeral Grips",
         11: "The Queen's Jewel", 12: "Ring of Pure Silver", 13: "Lookie's Spyglass", 15: "Vine Pruner's Cloak",
@@ -32,9 +38,10 @@ def ref():
     return r
 
 
-def sheet(ref) -> dict:
+def sheet(ref, faction: str = "Alliance") -> dict:
     ids = {v: int(k) for k, v in ref.data["names"].items()}
-    return {"class": "PRIEST", "race": "Gnome", "faction": "Alliance", "spec": "shadow",
+    return {"class": "PRIEST", "race": "Gnome" if faction == "Alliance" else "Troll", "faction": faction,
+            "spec": "shadow",
             "items": [{"item_id": ids[n], "name": n, "slot": sl} for sl, n in WORN.items()],
             "professions": [{"name": "Tailoring", "rank": 120}]}
 
@@ -43,8 +50,9 @@ def ids(a: dict) -> set[int]:
     return {u["item_id"] for u in a["upgrades_all"]}
 
 
-def advice(ref, level=36, **kw) -> dict:
-    return gear.advise(ref, sheet(ref), level=level, zone="Desolace", spec="shadow", limit=40, every=True, **kw)
+def advice(ref, level=36, faction="Alliance", **kw) -> dict:
+    return gear.advise(ref, sheet(ref, faction), level=level, zone="Desolace", spec="shadow", limit=40, every=True,
+                       **kw)
 
 
 def test_arena_rewards_are_never_proposed(ref):
@@ -169,6 +177,36 @@ def test_pvp_toggle_changes_the_candidates(ref):
     # Nothing else changes: PvE gear is the same either way.
     pvp_items = {u["item_id"] for u in on["upgrades_all"] if any(s.get("pvp") for s in u["sources"])}
     assert ids(on) - pvp_items == ids(off)
+
+
+def test_a_reputations_gear_is_its_sides(ref):
+    """The client's Faction table says whose a reputation is; its
+    quartermaster sells to that side only, whatever side ForeverDB gives the
+    vendor (2026-11-25: Theramore's seals had no source for an Alliance
+    character and were offered to the Horde)."""
+    alliance, horde = advice(ref, 40, pvp=True), advice(ref, 40, faction="Horde", pvp=True)
+    assert set(SEALS) <= ids(alliance) and not set(SEALS) & ids(horde)
+    seal = next(u for u in alliance["upgrades_all"] if u["item_id"] == 271904)
+    vendor = next(s for s in seal["sources"] if s["kind"] == "vendor")
+    assert vendor["name"] == "Bryanna Embreeze" and vendor["reputation_id"] == 2799 and vendor["pvp"]
+    # The rep's effort, never the long shot of a PvP vendor with no rank.
+    assert seal["effort"] != "long shot"
+    assert DARKSPEAR_SIGNET in ids(horde) and DARKSPEAR_SIGNET not in ids(alliance)
+    # Gear both quartermasters sell keeps Classic's both-sides reading.
+    assert RUNE_OF_DUTY in ids(alliance) and RUNE_OF_DUTY in ids(horde)
+    # Battleground reputation gear is a PvP reward: gone with the toggle off.
+    assert not set(SEALS) & ids(advice(ref, 40))
+
+
+def test_a_neutral_towns_gear_is_everyones(ref):
+    """Ratchet and Booty Bay are neutral (Steamwheedle Cartel): their
+    quartermasters sell to both sides, PvP or not."""
+    for faction in ("Alliance", "Horde"):
+        a = advice(ref, 32, faction=faction)
+        shell = next((u for u in a["upgrades_all"] if u["item_id"] == SEA_SHELL), None)
+        assert shell, faction
+        assert {s["kind"] for s in shell["sources"]} == {"vendor", "reputation"}
+        assert not any(s.get("pvp") for s in shell["sources"])
 
 
 def test_pvp_mode_counts_pvp_rewards_and_they_are_easy(ref):
