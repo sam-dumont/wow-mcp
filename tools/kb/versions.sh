@@ -88,7 +88,8 @@ if [ "$ok" = 1 ]; then
     && uvp tools/dungeon_quests/export.py --polestar "$ps" --forever-db-cache "$tmp/forever-db" \
     && uvp tools/kb/export.py --polestar "$ps" \
     && uvp tools/class_reference/export.py --polestar "$ps" \
-    && uvp tools/trainers/export.py --polestar "$ps"; then
+    && uvp tools/trainers/export.py --polestar "$ps" \
+    && uvp tools/craft_reference/export.py --polestar "$ps" --lua "$lua"; then
     if uvp tools/kb/bump.py regen --old "$was" --new "$tag" --why "$WHY" \
       && uvp tools/kb/watch.py --accept polestar --release "$tag"; then
       git add -A && git commit -qm "Polestar $tag: the tag, the exports and the test data"

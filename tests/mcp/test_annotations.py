@@ -44,7 +44,7 @@ OPEN_WORLD: set[str] = set()
 READ_ONLY = {"list_metrics", "character_summary", "levels", "sessions", "zones", "guide_steps", "deaths", "dungeons", "players",
              "prices", "inventory", "gear", "next_moves", "sanity_check", "route_reference", "market", "play_analysis",
              "check_plan", "how_did_my_plan_go", "next_step", "mount_goal",
-             "whats_new", "kb_rule", "kb_topics", "analyse", "analysis_progress", "dashboard_refresh", "class_guide", "class_meta", "news", "talent_changes"}
+             "whats_new", "kb_rule", "kb_topics", "analyse", "analysis_progress", "dashboard_refresh", "class_guide", "class_meta", "news", "talent_changes", "professions"}
 ALL = (*tools.TOOLS, tools.MARKET)
 
 
@@ -132,6 +132,7 @@ CALLS = [
     ("news", {}),
     ("character_summary", {}), ("levels", {}), ("sessions", {"since": "2026-11-01"}), ("zones", {}),
     ("guide_steps", {}), ("deaths", {}), ("dungeons", {}), ("players", {}), ("prices", {}), ("inventory", {}), ("gear", {}),
+    ("professions", {}),
     ("next_moves", {}), ("sanity_check", {}), ("players", {"groups": True}), ("route_reference", {}), ("market", {}),
     ("dashboard_refresh", {}),
 ]

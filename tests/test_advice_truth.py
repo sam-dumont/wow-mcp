@@ -174,8 +174,8 @@ def test_the_mcp_gear_tool_scores_off_hands_with_the_main_hand_worn():
 def test_no_recipe_list_never_says_make_it_now():
     u, s = craft_src(advise(caster()), SHADOW_CIRCLET)
     assert s["skill_ok"] and s["known"] is None and not s["can_make"]
-    assert "check you know the recipe" in gear.craft_status(s)
-    assert "make it once" not in gear.craft_status(s)
+    assert "check you know the recipe (no recipe list" in gear.craft_status(s).lower()
+    assert "make it" not in gear.craft_status(s).lower()
 
 
 def test_a_pattern_in_the_bags_is_learnt_first():
@@ -183,7 +183,8 @@ def test_a_pattern_in_the_bags_is_learnt_first():
     u, s = craft_src(advise(sh, bags=[SHADOW_CIRCLET_PATTERN]), SHADOW_CIRCLET)
     assert s["known"] is False and s["pattern_item_id"] == SHADOW_CIRCLET_PATTERN and not s["can_make"]
     assert {"kind": "learn", "profession": "Tailoring", "need": SHADOW_CIRCLET_PATTERN, "have": None} in u["gates"]
-    assert gear.craft_status(s) == "first learn Pattern: Shadow Circlet, in your bags"
+    assert gear.craft_status(s).startswith("You have Pattern: Shadow Circlet: learn it.")
+    assert s["plan"]["action"] == "Learn Pattern: Shadow Circlet from your bags."
 
 
 def test_an_unknown_recipe_is_a_find_and_the_skill_comes_first():
@@ -194,14 +195,17 @@ def test_an_unknown_recipe_is_a_find_and_the_skill_comes_first():
     low = caster(professions=[{"name": "Tailoring", "rank": 90}],
                  recipes=[{"profession": "Tailoring", "known": [], "seen": 40}])
     _, s = craft_src(advise(low), SHADOW_CIRCLET)
-    assert gear.craft_status(s).startswith("first reach Tailoring 100 (you have 90), then find and learn")
+    # The recipe first (where to get it), then the skill-ups on Polestar's route.
+    line = gear.craft_status(s)
+    assert line.startswith("You don't have Pattern: Shadow Circlet.") and "10 Tailoring points to go" in line
 
 
-def test_known_recipe_and_skill_is_make_it_with_materials_unchecked():
+def test_known_recipe_and_skill_is_make_it_with_the_materials_priced():
     sh = caster(recipes=[{"profession": "Tailoring", "known": [SHADOW_CIRCLET_SPELL], "seen": 40}])
     u, s = craft_src(advise(sh), SHADOW_CIRCLET)
     assert s["can_make"] and not u["gates"]
-    assert "materials (not checked)" in gear.craft_status(s)
+    assert gear.craft_status(s).startswith("You know the recipe. In all ~")
+    assert s["plan"]["action"].startswith("Make it: the materials cost ~")
 
 
 def test_the_town_stop_crafts_only_what_can_be_made():

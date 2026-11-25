@@ -266,7 +266,11 @@ SOURCE = _keys("kind", "quest_id", "name", "zone", "level", "req_level", "dungeo
                # What a quest takes (wowstats.questwork says): the route's
                # hand-in, the chain, the foe; and a creature's levels and rank.
                "work_says", "unplaced") | {"foe": {**_keys("rank", "elite"), "levels": [None]},
-                               "levels": [None], "part": [None], "levels_drop": [None]}
+                               "levels": [None], "part": [None], "levels_drop": [None],
+    # What a craft takes, priced (wowstats.crafting.brief): its line, the next
+    # step, the gold to craft it and the auction house price the other way.
+    "plan": _keys("line", "action", "effort", "recipe", "craft_copper", "buy_copper", "buy_days_ago",
+                  "bind_on_pickup", "can_make")}
 AH = {**_keys("available", "scan_day", "scan_days_ago", "on_sale", "upgrades_on_sale", "money_copper",
               "cheap_under_copper", "notice"), "mount": _keys("name", "level", "need_copper", "left_copper")}
 # `stats`: the item's stats as the scoring reads them (game data), for the

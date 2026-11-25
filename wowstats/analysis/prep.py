@@ -486,7 +486,8 @@ DICTIONARY: dict[str, tuple[str, dict[str, str]]] = {
         "bis_pct_worn": "the same percent for what is worn in that slot now (NULL: the slot is empty)",
         "fit": "how the item fits the scored spec: yes, any, spec (built for another spec of the class), class "
                "(made for another class), unknown",
-        "source_text": "this source in the gear advice's words, as the gear tool says it",
+        "source_text": "this source in the gear advice's words, as the gear tool says it (a craft: its next step "
+                       "and its gold; the professions tool has the whole plan)",
         "source_wowhead": "the source's Wowhead page (the quest, the boss, the craft's spell), when it has one",
         "slot": "the inventory slot 1-19 the gain is measured in (gear.slot): which ring or trinket it replaces",
         "effort": "how hard this source is: easy, some effort, hard, or long shot at level 60 "
@@ -2160,7 +2161,7 @@ def _upgrades(db, ups: list[dict]) -> None:
                                _flt(s.get("chance_pct")), _int(s.get("quest_id")), s.get("name"),
                                _int(s.get("choices")), s.get("profession"), _int(s.get("skill")),
                                None if s.get("can_make") is None else int(bool(s.get("can_make"))))
-                       + badge + (gear.source_text(s), gear.source_link(s), _int(u.get("slot")),
+                       + badge + (gear.source_text(s, short=True), gear.source_link(s), _int(u.get("slot")),
                                   gear.EFFORT[gear.source_effort(s)]))
     db.executemany("INSERT INTO upgrade_candidates VALUES (" + ",".join("?" * 31) + ")", out)
 
