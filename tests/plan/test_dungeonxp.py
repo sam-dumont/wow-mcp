@@ -106,10 +106,18 @@ def test_own_runs_override_with_the_measure():
     assert g["kill_xp"] == {"label": "measured", "xp": 5000, "inside_s": 1800, "xp_per_hour": 10000, "own_runs": 1}
     # Not run: the estimate, labelled, counted in the XP and the verdict
     # (owner, 2026-11-23).
+    walk = {"pickup_s": 0, "travel_to_s": 300, "travel_back_s": 300, "handin_s": 0, "quests": [], "prereqs": [],
+            "pickup": [], "handin": [], "from": "you", "xp_quests": 0}
     g = G.estimate(level=20, xp_max=30000, name="The Deadmines", runs=[], others=[], quests=[],
-                   questing_xph=12000, rule=RULE)
+                   questing_xph=12000, rule=RULE, route=walk)
     assert g["kill_xp"]["label"] == "estimate" and not g["kills_unknown"] and g["vs_questing"] is not None
     assert g["xp_kills"] == g["kill_xp"]["xp"] and g["trip"]["xp_kills"]["label"] == "estimate"
+    # With no way to time the walk there (no route, no trip that saw it), no
+    # trip time and no verdict: the walk isn't free.
+    g = G.estimate(level=20, xp_max=30000, name="The Deadmines", runs=[], others=[], quests=[],
+                   questing_xph=12000, rule=RULE)
+    assert g["xp_kills"] == g["kill_xp"]["xp"] and g["run_s"] is None and g["vs_questing"] is None
+    assert g["trip"]["unknown_legs"] == ["travel_to_s", "travel_back_s"]
 
 
 # ---------------------------------------------------------------- licences

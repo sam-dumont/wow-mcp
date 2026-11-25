@@ -691,9 +691,9 @@ dungeon_trips:
                  caveats: "One per run; bracket says whether guide steps widened it."}
     trip_s:
       expr: _.online_s.sum()
-      description: "Online seconds from the trip's start to its end: pickup, travel, inside, travel back, hand-in."
+      description: "Online seconds from the trip's start to its end: the legs the records saw (pickup, travel, inside, travel back, hand-in)."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "Online time only: logging out mid-trip doesn't count."}
+                 caveats: "Online time only: logging out mid-trip doesn't count. A leg the records didn't see (its metric NULL) isn't in it, so a trip logged at the door is its time inside and what followed."}
     trip_inside_s:
       expr: _.inside_s.sum()
       description: "Online seconds inside the instance during the trip."
@@ -703,27 +703,27 @@ dungeon_trips:
       expr: _.travel_to_s.sum() + _.travel_back_s.sum()
       description: "Online seconds getting to the instance and back to the first hand-in."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "Needs guide steps for the edges: an `instance` bracket trip has 0."}
+                 caveats: "NULL unless both walks were seen somewhere in the group: each leg is NULL on a trip that didn't see it, never 0."}
     trip_pickup_s:
       expr: _.pickup_s.sum()
       description: "Online seconds picking up the dungeon's quests at the start of the trip (lookup pickup guide steps)."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "0 for a trip with no pickup steps (bracket instance)."}
+                 caveats: "NULL on a trip no pickup step opened (not seen, not 0); summed over trips, the trips that saw it."}
     trip_travel_to_s:
       expr: _.travel_to_s.sum()
       description: "Online seconds from the trip's start (or the last pickup) to entering the instance."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "Online time only. trip_travel_s is this plus trip_travel_back_s."}
+                 caveats: "Online time only. NULL on a trip no pickup step opened (where it came from wasn't seen)."}
     trip_travel_back_s:
       expr: _.travel_back_s.sum()
       description: "Online seconds from leaving the instance to the first hand-in."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "Online time only; 0 when the trip ends at the instance's door."}
+                 caveats: "Online time only. NULL when no hand-in followed the run inside the trip (not seen, not 0)."}
     trip_handin_s:
       expr: _.handin_s.sum()
       description: "Online seconds handing in the dungeon's quests at the end of the trip (lookup hand-in guide steps)."
       metadata: {kind: simple, aggregation: sum, time_meaning: interval_start, evidence_basis: reconstructed, unit: seconds,
-                 caveats: "0 for a trip with no hand-in steps."}
+                 caveats: "NULL when no hand-in followed the run inside the trip, or one of its quests was handed in after the trip's end (that XP counts in trip_xp_quests, its time was never seen)."}
     trip_xp_inside:
       expr: _.xp_inside.sum()
       description: "XP gained inside the instance during the trip: kills, and anything else that paid inside except quests handed in there (those are in trip_xp_quests)."
@@ -764,7 +764,7 @@ dungeon_trips:
       expr: _.trip_xp / (_.trip_s / 3600)
       description: "XP per online hour of the whole trip: trip_xp over trip_s."
       metadata: {kind: ratio, aggregation: ratio_of_sums, time_meaning: interval_start, evidence_basis: reconstructed, unit: xp/hour,
-                 caveats: "The number to compare with questing XP/hour; run_xp_per_hour flatters dungeons.",
+                 caveats: "The trip as the records saw it. A trip whose hand-ins weren't seen whole (trip_handin_s NULL) has their XP without their time, so it reads fast: the planner's dungeon estimate fills the unseen legs from Polestar's rules instead. run_xp_per_hour flatters dungeons more.",
                  eligibility: {where: "_.online_s > 0",
                    means: "A trip with online time."}}
     trip_inside_share:
@@ -2315,7 +2315,7 @@ views:
               trip_xp_per_hour, trip_inside_share]
   per_trip:
     entity: trip
-    description: "One row per dungeon trip: when, at what level, its time phase by phase (pickup, travel there, inside, travel back, hand-in), its XP inside and from its quests (those handed in outside after the run apart), and what its run looted."
+    description: "One row per dungeon trip: when, at what level, its time phase by phase (pickup, travel there, inside, travel back, hand-in; NULL for a leg the records didn't see, never 0), its XP inside and from its quests (those handed in outside after the run apart), and what its run looted."
     dimensions: [dungeon, level, trip_start, trip_end, trip_loot]
     where: [{dimension: trip, op: is not null}]
     metrics: [trip_s, trip_pickup_s, trip_travel_to_s, trip_inside_s, trip_travel_back_s, trip_handin_s, trip_xp_inside,

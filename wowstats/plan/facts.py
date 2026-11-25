@@ -724,6 +724,11 @@ def trips(ask) -> list[dict]:
     return out
 
 
+# A trip's legs outside the instance (dungeon_trips): each one None when the
+# records didn't see it, never 0.
+LEGS = ("pickup_s", "travel_to_s", "travel_back_s", "handin_s")
+
+
 # Done at a trip's start: a hand-in the Recorder saw before it. A quest only
 # deduced done (the addons' lists, a reward, Battle.net, a later quest) was
 # handed in while the Recorder wasn't looking, so before any trip it saw.
@@ -762,8 +767,10 @@ def trip_pace(sem, trips: list[dict], who: dict) -> None:
         at = {"map_id": int(where["map_now"]), "x": float(where["x_now"]), "y": float(where["y_now"])} \
             if where.get("map_now") is not None and where.get("x_now") is not None else None
         plan = trip_at(W.trip_name(t), who, t.get("level_start") or 1, done, log, at)
-        t["route_s"] = round(plan["pickup_s"] + plan["travel_to_s"] + plan["travel_back_s"] + plan["handin_s"], 1) \
-            if plan and at else None
+        # Leg by leg: the pace compares a leg the trip saw with the same
+        # leg planned, and a leg it didn't see is filled from these.
+        t["route_legs"] = {k: round(plan[k], 1) for k in LEGS} if plan and at else None
+        t["route_s"] = round(sum(t["route_legs"].values()), 1) if t["route_legs"] else None
 
 
 def loot_value(db, cards, scans: dict, days: float = 14, now: float | None = None, sem: tuple | None = None) -> dict:
