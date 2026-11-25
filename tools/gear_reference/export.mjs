@@ -101,7 +101,8 @@ function main() {
 		sources: byKey(sources),
 		quests: byKey(quests),
 	};
-	fs.writeFileSync(o.out, JSON.stringify(out) + '\n');
+	// indent 1: one key per line, so git merges disjoint changes (2026-11-25).
+	fs.writeFileSync(o.out, JSON.stringify(out, null, 1) + '\n');
 	process.stdout.write(`${path.relative(process.cwd(), o.out)}: ${Object.keys(items).length} items, ${Object.keys(sources).length} with sources, ${Object.keys(quests).length} quests\n`);
 }
 

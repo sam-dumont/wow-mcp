@@ -278,7 +278,9 @@ def main(argv: list[str]) -> int:
         "vendor": {str(k): v for k, v in sorted(vendor.items())},
         **client(build),
     }
-    a.out.write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    # indent 1 (one key per line, like data/dungeons/wings.json): git merges disjoint changes, where the
+    # one-line file conflicted on every PR that touched it (2026-11-25).
+    a.out.write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
     print(f"{a.out}: {len(doc['guides'])} guides, {len(doc['recipes'])} recipes, {len(doc['patterns'])} patterns, "
           f"build {build}")
     bad = check(a.out)

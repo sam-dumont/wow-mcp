@@ -592,7 +592,9 @@ function main() {
 			places: places(ps, ref, geo, zones, travel, guides),
 			trips: buildTrips({ ps, travel, params, frames: ref.forever, outDir: path.join(HERE, '..', '..', 'data') }),
 		};
-		const text = `${JSON.stringify(doc)}\n`;
+		// One key per line (indent 1, like data/dungeons/wings.json): git merges two PRs that touch
+		// different parts of the file, where one long line conflicted on every change (2026-11-25).
+		const text = `${JSON.stringify(doc, null, 1)}\n`;
 		if (o.check) {
 			const have = fs.existsSync(o.out) ? fs.readFileSync(o.out, 'utf8') : '';
 			if (have !== text) {
