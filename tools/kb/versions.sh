@@ -101,15 +101,20 @@ if [ "$ok" = 1 ]; then
   fi
 fi
 
+# The build is accepted before the forever reference reruns: that export reads
+# its client tables (zones, dungeons, bosses) at watch.json's known build, so
+# a zone or dungeon the build adds gets its name in the same commit.
 if has client-build; then
   if uvp tools/class_reference/export.py --polestar "$ps" --handoff "$tmp/kb-handoff-client.json" \
-    && uvp tools/kb/bump.py regen --as client-build --why "$WHY" \
-    && uvp tools/kb/watch.py --accept client-build --handoff "$tmp/kb-handoff-client.json"; then
-    git add -A && git commit -qm "Client build: the class reference rerun"
+    && uvp tools/kb/watch.py --accept client-build --handoff "$tmp/kb-handoff-client.json" \
+    && uvp tools/forever_reference/export.py --polestar "$ps" \
+    && uvp tools/dungeon_quests/export.py --polestar "$ps" \
+    && uvp tools/kb/bump.py regen --as client-build --why "$WHY"; then
+    git add -A && git commit -qm "Client build: the class reference and the forever reference rerun"
   else
     git reset -q --hard HEAD && git clean -qfd
     # bump.py regen wrote its own reason; this one only when it didn't.
-    why '."client-build" //= $w' "The class reference export failed against the new build (tools/kb/versions.sh)."
+    why '."client-build" //= $w' "The class or forever reference export failed against the new build (tools/kb/versions.sh)."
   fi
 fi
 

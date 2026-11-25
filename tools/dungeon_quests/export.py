@@ -20,6 +20,12 @@ data, in the Polestar checkout at tools/polestar-tag:
 - `route`: Polestar's dungeon runs (data/dungeon-runs.json): the quests a
   run picks up, works on inside, starts from an item inside, and hands in.
 
+- `boss`: the quest kills one of the dungeon's bosses (forever-db's kill
+  objectives, the creature's name among the instance's DungeonEncounter
+  names in data/forever-reference.json): The Saltseer Captain is handed in
+  at Booty Bay with no zone, its target Captain Dreadrise is The Drowned
+  City's. Against every quest the other sources place, it agreed on all 31.
+
 forever-db's own dungeon flag (quest type 81) is kept beside a quest that
 one of the three places (`flag`); alone it doesn't say which dungeon.
 
@@ -119,6 +125,16 @@ def build(ps: Path) -> dict:
         m = map_of_area.get(q.get("zone_area"))
         if m is not None:
             add(qid, m, "zone")
+    boss_map: dict[str, set[int]] = {}
+    for a in areas.values():
+        if a.get("instance") == "dungeon" and a.get("map") in dungeons:
+            for b in a.get("bosses") or []:
+                boss_map.setdefault(b, set()).add(int(a["map"]))
+    npc = {n["id"]: n.get("name") for n in jsonl(fdb / "npc.jsonl")}
+    for o in jsonl(fdb / "quest_objective.jsonl"):
+        if o.get("kind") == "kill":
+            for m in boss_map.get(npc.get(o.get("target")), ()):
+                add(o["quest"], m, "boss")
     journal = json.loads((codex / "journal-quests.json").read_text(encoding="utf-8"))["quests"]
     for r in journal:
         m = key_map.get(r["instance"])
@@ -166,15 +182,15 @@ def build(ps: Path) -> dict:
                 raise SystemExit(f"{dungeons[m]} ({m}): no quest in any source and no reason: add one to NONE")
             d["none"] = why
         out_d[str(m)] = d
-    order = ("zone", "journal", "route", "flag")
+    order = ("zone", "boss", "journal", "route", "flag")
     pkg = json.loads((ps / "forever-db" / "datapackage.json").read_text(encoding="utf-8"))
     return {
         "about": "Which dungeon (instance map) each quest belongs to, so its hand-in counts toward the run it came "
                  "from (wowstats.dungeonquests). quests: {quest id: [[map, [sources]]]}; sources: zone (forever-db "
-                 "zones it in the dungeon), journal (Polestar's cited journal-quests.json), route (Polestar's "
-                 "dungeon runs), flag (forever-db's dungeon type, beside one of the others). dungeons: {map: "
-                 "{name, area, quests, none?}}: `none` says why a dungeon has no quest. Written by "
-                 "tools/dungeon_quests/export.py.",
+                 "zones it in the dungeon), boss (it kills one of the dungeon's bosses), journal (Polestar's cited "
+                 "journal-quests.json), route (Polestar's dungeon runs), flag (forever-db's dungeon type, beside "
+                 "one of the others). dungeons: {map: {name, area, quests, none?}}: `none` says why a dungeon has "
+                 "no quest. Written by tools/dungeon_quests/export.py.",
         "source": {"polestar": (ROOT / "tools" / "polestar-tag").read_text().strip(),
                    "forever_db": pkg.get("version"), "client_build": pkg.get("clientBuild"),
                    "licence": "GPL-3.0 (forever-db and Polestar's data, THIRD_PARTY.md)"},

@@ -129,6 +129,7 @@ Forever's own data only, at Polestar's tag:
 | Source | What it says |
 |---|---|
 | forever-db's zone | the quest's zone is the dungeon's area: where its work is done, wherever it's picked up |
+| a boss it kills | a kill objective in forever-db whose creature is one of the dungeon's encounters (the client's DungeonEncounter, in `data/forever-reference.json`): The Saltseer Captain, handed in at Booty Bay with no zone, kills Captain Dreadrise of The Drowned City |
 | Polestar's dungeon journal (`data/codex/journal-quests.json`) | cited rows for quests no rule places: giver, ender and zone outside, the objective inside. Its exclude rows take City of Dalaran's city quests off |
 | Polestar's dungeon runs (`data/dungeon-runs.json`) | the quests a run picks up, works on, starts from an item inside and hands in |
 

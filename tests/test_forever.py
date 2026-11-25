@@ -107,3 +107,103 @@ def test_factions_carry_their_side_from_the_client_table():
     assert forever.faction(72)["side"] == "Alliance"  # Stormwind, under Alliance
     assert forever.faction(21) == {"name": "Booty Bay"} and "side" not in forever.faction(470)
     assert forever.faction(None) is None and forever.faction(999999) is None
+
+
+def test_forevers_new_zones_and_dungeons_have_names():
+    """Forever adds zones and dungeons faster than forever-db is published:
+    the areas come from the newest client build we know, every zone and
+    every Group Finder instance, named by a quest yet or not."""
+    assert forever.area(16591) == {"name": "Riverglades"}
+    drowned = forever.area(16550)
+    assert {k: drowned[k] for k in ("name", "instance", "map", "levels")} == {
+        "name": "The Drowned City", "instance": "dungeon", "map": 2970, "levels": [35, 42]}
+    assert forever.area_of_map(2970) == 16550 and forever.area_id("The Drowned City") == 16550
+    assert forever.area(16842)["name"] == "Krol'dok Stronghold" and forever.area(16620)["levels"] == [48, 55]
+    # An event's instanced copy of a zone never takes the zone's name.
+    assert forever.area_id("Deadwind Pass") == 41 and forever.area_id("Stranglethorn Vale") == 33
+    assert forever.area_of_map(109) == 1417, "Sunken Temple keeps the area its quests name"
+    assert forever.ui_map(2548) == "Riverglades" and forever.ui_map(1434) == "Stranglethorn Vale"
+    assert forever.ui_map(None) is None and forever.ui_map(999999) is None
+
+
+def test_every_zone_our_data_names_has_a_name():
+    """The check that fails when a quest, a giver or a dungeon in the bundled
+    data points at a zone no table names (it used to read "Quests in an
+    unknown zone" on the gear page)."""
+    import json
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "data"
+    ref = forever.data()
+    bad = sorted({v[3] for v in ref["quests"].values() if v[3] and not forever.area(v[3])})
+    assert not bad, f"forever-db zones with no name: {bad}"
+    fdb = json.loads((root / "foreverdb" / "item-sources.json").read_text(encoding="utf-8"))
+    no_zone = sorted({s["quest"] for e in fdb["items"].values() for s in e.get("sources") or []
+                      if s.get("kind") == "quest"
+                      and not ((forever.quest(s["quest"]) or {}).get("zone")
+                               or forever.ui_map((s.get("giver") or {}).get("map")))
+                      and (s.get("giver") or {}).get("map")})
+    assert not no_zone, f"ForeverDB quests whose giver's map has no name: {no_zone}"
+    no_inst = sorted(k for k in fdb["instances"] if not forever.area_of_map(k))
+    assert not no_inst, f"ForeverDB instances with no area: {no_inst}"
+    dq = json.loads((root / "dungeons" / "quests.json").read_text(encoding="utf-8"))["dungeons"]
+    no_area = sorted(f"{m} {d['name']}" for m, d in dq.items() if not forever.area(d.get("area")))
+    assert not no_area, f"dungeons with no area: {no_area}"
+
+
+def test_a_quest_forever_db_lacks_is_zoned_where_its_giver_stands():
+    """Saving Sunnyglade (94877) and The Saltseer Captain (95791) came after
+    forever-db 2026.11.1, the gear page grouped them under "an unknown
+    zone": ForeverDB.net places their givers (Riverglades; Booty Bay, in
+    Stranglethorn Vale). Once forever-db has them, its zone (or The
+    Saltseer Captain's dungeon, by its boss) comes first."""
+    r = gear.reference()
+    assert r.available, r.why
+    qs = r.data["quests"]
+    assert qs["94877"]["zone_name"] == "Riverglades"
+    assert qs["95791"]["zone_name"] in ("Stranglethorn Vale", "The Drowned City")
+
+
+def test_a_quest_forever_db_zones_nowhere_takes_its_dungeon():
+    """The Drowned City (95775) has no zone in forever-db; Polestar's journal
+    puts it in the dungeon, so the gear page and the plan say where it is
+    done, and it counts as a dungeon quest."""
+    assert forever.quest(95775)["zone"] is None
+    assert forever.quest_dungeon(95775) == 16550
+    assert forever.quest_zone(95775) == "The Drowned City"
+    assert forever.quest_zone(631) == "Wetlands", "forever-db's zone first"
+    assert forever.quest_zone(94877, 2548) == "Riverglades", "else the giver's map"
+    assert forever.quest_zone(9999999) is None
+
+
+def test_a_quest_that_kills_a_dungeon_boss_is_the_dungeons(tmp_path):
+    """tools/dungeon_quests/export.py `boss`: The Saltseer Captain (95791,
+    handed in at Booty Bay, no zone) kills Captain Dreadrise (260042), one
+    of The Drowned City's encounters in the client's DungeonEncounter.
+    forever-db 2026.11.1 doesn't have the quest yet: its rows here are
+    2026.11.2's, on a minimal Polestar checkout."""
+    import importlib.util
+    import json
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    assert "Captain Dreadrise" in forever.area(16550)["bosses"]
+    spec = importlib.util.spec_from_file_location("dq_export", root / "tools" / "dungeon_quests" / "export.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    known = json.loads((root / "data" / "dungeons" / "quests.json").read_text())["dungeons"]
+    ps = tmp_path
+    fdb, codex, art = ps / "forever-db" / "data", ps / "data" / "codex", ps / "addon" / "Polestar" / "Dungeons"
+    for d in (fdb, codex, art):
+        d.mkdir(parents=True)
+    (art / "Art.lua").write_text("".join(f"  [{m}] = {{}}, -- {d['name']}\n" for m, d in known.items()))
+    (fdb / "quest.jsonl").write_text(json.dumps({"id": 95791, "title": "The Saltseer Captain"}) + "\n")
+    (fdb / "npc.jsonl").write_text(json.dumps({"id": 260042, "name": "Captain Dreadrise"}) + "\n")
+    (fdb / "quest_objective.jsonl").write_text(json.dumps({"kind": "kill", "quest": 95791, "target": 260042}) + "\n")
+    (ps / "forever-db" / "datapackage.json").write_text("{}")
+    (codex / "entrances.json").write_text('{"entrances": []}')
+    (codex / "journal-quests.json").write_text('{"quests": []}')
+    (ps / "data" / "dungeon-runs.json").write_text('{"runs": [], "notInRoute": []}')
+    mod.NONE.update({d["name"]: "none in this test" for d in known.values()})
+    got = mod.build(ps)
+    assert got["quests"] == {"95791": [[2970, ["boss"]]]}
+    assert got["dungeons"]["2970"] == {"name": "The Drowned City", "quests": 1, "area": 16550}
