@@ -401,6 +401,67 @@ def test_the_model_gets_this_server_and_nothing_else(tmp_path):
     assert "The tools' clock reads 2026-11-18T10:05:41+00:00" in dated[2] and "clock" not in cmd[2]
 
 
+def test_skills_mode_offers_skills_and_the_web(tmp_path):
+    plain = run.command({"question": "?"}, tmp_path / "mcp.json", "haiku")
+    assert "--disable-slash-commands" in plain
+    cmd = run.command({"question": "?"}, tmp_path / "mcp.json", "haiku", skills=True)
+    # --disable-slash-commands turns every skill off: both arms of --skills
+    # run without it, on the same tools; only the project skills differ.
+    assert "--disable-slash-commands" not in cmd
+    assert cmd[cmd.index("--tools") + 1] == "Skill,WebSearch,WebFetch"
+    assert cmd[cmd.index("--allowedTools") + 1] == "mcp__wow Skill"  # the web is offered, never allowed
+    assert cmd[cmd.index("--setting-sources") + 1] == "project" and "--strict-mcp-config" in cmd
+
+
+def test_the_mirror_is_the_servers_skills_byte_for_byte(tmp_path):
+    import skill_mirror
+
+    from wowstats.mcp.server import SKILLS_DIR, registry
+
+    names = skill_mirror.mirror(registry(), tmp_path)
+    assert names == sorted(d.name for d in SKILLS_DIR.iterdir() if (d / "SKILL.md").is_file())
+    for d in SKILLS_DIR.iterdir():
+        for f in d.rglob("*"):
+            if f.is_file():
+                assert (tmp_path / ".claude" / "skills" / d.name / f.relative_to(d)).read_bytes() == f.read_bytes()
+    with pytest.raises(RuntimeError, match="leaves the skills folder"):
+        skill_mirror.write({"x": {"../../evil": b""}}, tmp_path)
+
+
+def _skill_stream(*steps, result="ANSWER: 1"):
+    content = [{"type": "tool_use", "name": n, "input": i} for n, i in steps]
+    return "\n".join(json.dumps(x) for x in [
+        {"type": "system", "subtype": "init", "mcp_servers": [{"name": "wow", "status": "connected"}]},
+        {"type": "assistant", "message": {"content": content}},
+        {"type": "result", "result": result, "total_cost_usd": 0.01}])
+
+
+def test_skill_web_and_sql_signals():
+    stream = _skill_stream(("Skill", {"skill": "wow-professions"}), ("WebSearch", {"query": "tailoring"}),
+                           ("mcp__wow__play_sql", {"sql": "select 1"}))
+    calls = G.tools_used(stream, "wow")[0]
+    assert G.skills_loaded(stream) == ["wow-professions"] and G.web_calls(calls) == ["WebSearch"]
+    assert G.sql_despite_typed(calls, ["professions"]) and G.sql_despite_typed(calls, ["deaths|play_sql"])
+    assert not G.sql_despite_typed(calls, ["play_sql"]) and not G.sql_despite_typed(["professions"], ["professions"])
+    # Claude Code's own tools never hold an answer: SQL plus a skill is still SQL alone.
+    assert G.sql_only(calls)
+    q = {"id": "tailoring_cost", "question": "?", "match": "number", "tools": ["professions"]}
+    r = run.judge(q, {"answer": 1}, stream)
+    assert r["skills"] == ["wow-professions"] and r["web"] == ["WebSearch"] and r["sql_typed"]
+
+
+def test_the_comparison_says_its_mode_and_flags():
+    base = {"id": "tailoring_cost", "pass": False, "tools": ["play_sql"], "skills": [], "web": ["WebSearch"],
+            "sql_typed": True, "cost_usd": 0.01}
+    good = {**base, "pass": True, "tools": ["Skill", "professions"], "skills": ["wow-professions"], "web": [],
+            "sql_typed": False}
+    text = run.compare([base], [good], "haiku", 9, ["wow-professions"])
+    assert "skills via filesystem mirror, not MCP delivery" in text
+    assert "Without: 0/1 pass, a skill loaded in 0, web in 1, play_sql with a typed tool in 1" in text
+    assert "With: 1/1 pass, a skill loaded in 1, web in 0" in text
+    assert "| tailoring_cost | NO | WEB WebSearch; play_sql | yes | wow-professions | - | professions |" in text
+
+
 def test_the_table_flags_play_sql_only():
     r = {"id": "q", "group": "time", "expected": 2, "got": "2", "pass": True, "answer_ok": True, "route_missed": [],
          "forbidden": [], "tools": ["play_sql", "play_sql"], "sql_only": True, "seconds": 3.2, "error": ""}
