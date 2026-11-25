@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.11.1 (2026-11-25)
+
 What 0.11.1 changes over 0.11.0, in short. Gear stops proposing content Forever hasn't opened: raids, world bosses, Dungeon Set 2 and world events count only when the meta says they're open (Onyxia's Lair, Barrow Deeps and Hyjal Summit reopen on 9 Dec 2026), and PvP gear only with the new toggle. Each slot shows its BiS next to your realistic pick, with the auction house price against your gold. Dungeon forecasts stop counting legs nobody saw as 0 s (City of Dalaran: 32m02s, 1h07 or 2h32 depending on your quests, not 32m02s every time). Percents follow their declared unit, so a 1.5% upgrade no longer reads as 150%, and the published quick start always hands out the real image digest. The Forever Leveling BiS export now says what the addon does with your weights. Every change follows.
 
 ### Fixed
@@ -67,6 +69,10 @@ What 0.11.1 changes over 0.11.0, in short. Gear stops proposing content Forever 
 - An auction house listing that costs more than the character's gold is **some effort**, no
   longer easy: Staff of Jordan at 84g with 16g 72s in the bags read as an easy pick.
 - CI: the required `test` check now waits for `logsql`, the queries against a real VictoriaLogs. It wasn't required on its own, so #240 and #241 merged with it red.
+
+### Knowledge base
+
+- Knowledge base refresh (#249 watch): client build 1.60.1.71091; addons Questie.
 
 ## 0.11.0 (2026-11-24)
 
